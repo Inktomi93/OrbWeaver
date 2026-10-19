@@ -4,7 +4,6 @@
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as contractDerives } from "../../../../../tooling/src/verify/gates/contract-derives-not-respells.ts";
 import { gate as externalIdHealth } from "../../../../../tooling/src/verify/gates/external-id-single-writer-health.ts";
-import { gate as injectedOpHealth } from "../../../../../tooling/src/verify/gates/injected-op-caller-param-health.ts";
 import { gate as serdeCoreHealth } from "../../../../../tooling/src/verify/gates/serde-core-seal-health.ts";
 
 /** A neutralise overlay that simply removes the watched subject from a file. */
@@ -45,13 +44,6 @@ export const SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
       },
     ],
     messageIncludes: 'hand-row "CharacterRow"',
-  },
-  {
-    policy: injectedOpHealth,
-    // The policy DERIVES entity-id type names from the ids module. Blank it and the derivation returns zero,
-    // which is the blindness the tripwire exists for.
-    overlays: [blank("packages/kit/src/ids/index.ts")],
-    messageIncludes: "derived ZERO entity-id type names",
   },
   {
     policy: serdeCoreHealth,

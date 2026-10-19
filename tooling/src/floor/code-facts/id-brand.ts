@@ -32,6 +32,25 @@ export function deriveCanonicalTypeIdPrefixes(files: readonly SourceFile[], rela
   return prefixes;
 }
 
+/** Every top-level `type X = TypeIdOf<…>` alias name in the ids home's source text: the entity-id vocabulary
+ *  the injected-op scope rule triggers on. It throws on an empty result, because an empty vocabulary makes
+ *  that rule silently green rather than proving every op carries its caller. */
+export function requireEntityIdTypeNames(sourceText: string): readonly string[] {
+  const source = ts.createSourceFile(ID_BRAND_HOME, sourceText, ts.ScriptTarget.Latest, false, ts.ScriptKind.TS);
+  const names = source.statements.flatMap((statement) =>
+    ts.isTypeAliasDeclaration(statement) &&
+    ts.isTypeReferenceNode(statement.type) &&
+    ts.isIdentifier(statement.type.typeName) &&
+    statement.type.typeName.text === "TypeIdOf"
+      ? [statement.name.text]
+      : [],
+  );
+  if (names.length === 0) {
+    throw new Error(`${ID_BRAND_HOME} declares no TypeIdOf entity-id alias; the injected-op scope rule would be blind`);
+  }
+  return names;
+}
+
 /** One canonical declaration predicate, shared by native and standalone morph symbol readers. */
 function nativeCanonicalBrandProperty(type: ts.Type): ts.Symbol | undefined {
   return type

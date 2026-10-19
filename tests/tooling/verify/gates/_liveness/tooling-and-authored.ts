@@ -13,7 +13,6 @@ import { gate as danglingDocCite } from "../../../../../tooling/src/verify/gates
 import { gate as danglingRefCitations } from "../../../../../tooling/src/verify/gates/dangling-ref-citations.ts";
 import { gate as danglingRefs } from "../../../../../tooling/src/verify/gates/dangling-refs.ts";
 import { gate as evaluateNoScopeCapture } from "../../../../../tooling/src/verify/gates/evaluate-no-scope-capture.ts";
-import { gate as memberCardClamped } from "../../../../../tooling/src/verify/gates/member-card-clamped.ts";
 import { gate as noHardcodedModelProse } from "../../../../../tooling/src/verify/gates/no-hardcoded-model-prose.ts";
 import { gate as noRawId } from "../../../../../tooling/src/verify/gates/no-raw-id.ts";
 import { gate as playwrightLaneOutsideFastCheck } from "../../../../../tooling/src/verify/gates/playwright-lane-outside-fast-check.ts";
@@ -59,11 +58,6 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "MODULE-SCOPE binding",
-  },
-  {
-    policy: memberCardClamped,
-    overlays: [add("packages/server/src/domain/character/liveness-member-card.ts", "export interface MemberCardView {\n  name: string;\n}\n")],
-    messageIncludes: "MemberCardView",
   },
   {
     policy: noHardcodedModelProse,

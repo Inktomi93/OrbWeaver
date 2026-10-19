@@ -3,8 +3,6 @@ import { Project } from "ts-morph";
 import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import { gate as contractDerivesNotRespells } from "../../../../tooling/src/verify/gates/contract-derives-not-respells.ts";
-import { gate as injectedOpCallerParam } from "../../../../tooling/src/verify/gates/injected-op-caller-param.ts";
-import { gate as injectedOpCallerParamHealth } from "../../../../tooling/src/verify/gates/injected-op-caller-param-health.ts";
 import { gate as serdeCoreSealHealth } from "../../../../tooling/src/verify/gates/serde-core-seal-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
@@ -16,7 +14,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 // stale-exemption health policy sharing its family. None of the three shared a reader with each other or
 // with any sibling gate at conversion time — each is its own two-member family, not a merge candidate.
 //
-// TWO OF THE THREE ARE STILL PAIRS. `contract-derives-not-respells` is NOT: its ALLOWLIST became central
+// `contract-derives-not-respells` is NOT a pair: its ALLOWLIST became central
 // reviewed grants and `contract-derives-not-respells-health` retired with the table it audited (#2176 Phase F,
 // 2026-09-15). The health policy's whole subject was "this exemption row names nothing any more", which the
 // central engine now owns as `stale-reviewed-grant` after a complete owner run — so the successor evidence is
@@ -119,14 +117,6 @@ test(
   "the sanctioned serde domains retain their engine imports",
   () => {
     expect(verifyPolicyProofs([serdeCoreSealHealth])).toEqual([]);
-  },
-  FAMILY_TIMEOUT_MS,
-);
-
-test(
-  "the injected-op-caller-param family proves the caller-param occurrence check, CALLER_FREE_OPS staleness, and the entity-id blindness tripwire",
-  () => {
-    expect(verifyPolicyProofs([injectedOpCallerParam, injectedOpCallerParamHealth])).toEqual([]);
   },
   FAMILY_TIMEOUT_MS,
 );
