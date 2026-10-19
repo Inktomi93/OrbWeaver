@@ -10,7 +10,6 @@
 // proves those arms alone.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as assumesSingleReplica } from "../../../../../tooling/src/verify/gates/assumes-single-replica.ts";
 import { gate as byteCheckCast } from "../../../../../tooling/src/verify/gates/byte-check-cast.ts";
 import { gate as detachedWorkTraced } from "../../../../../tooling/src/verify/gates/detached-work-traced.ts";
 import { gate as entrySyntheticRoleIsUser } from "../../../../../tooling/src/verify/gates/entry-synthetic-role-is-user.ts";
@@ -36,11 +35,6 @@ function add(path: string, source: string): RealCorpusOverlay {
 }
 
 export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: assumesSingleReplica,
-    overlays: [add(`${DOMAIN}/liveness-replica.ts`, "export const livenessReplica = new Map<string, number>();\n")],
-    messageIncludes: "module-scope mutable per-process state",
-  },
   {
     policy: detachedWorkTraced,
     overlays: [

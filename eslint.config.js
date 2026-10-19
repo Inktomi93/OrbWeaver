@@ -2306,6 +2306,9 @@ const RESTRICTIONS = [
   ...SERVER_ONE_HOME_RESTRICTIONS,
   ...CT_SPEC_RESTRICTIONS,
   ...TOOLING_LITERAL_RESTRICTIONS,
+  // Only tooling drives browser pages, so app code may close over module scope.
+  { id: "evaluate-no-scope-capture", scope: rootSources("@tooling"), homes: [] },
+  { id: "assumes-single-replica", scope: rootSources("@server", "@inference"), notUnder: ["packages/server/src/**/persistence/**"], homes: [] },
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -5056,6 +5059,248 @@ const brandNamePositionRule = {
   },
 };
 
+const COMMENTED_CODE = /^\s*(?:import|export|const|let|var|function|class|interface|type|return|if|for|while|switch|throw|await)\b.*[;{}]\s*$/u;
+
+// Prose routinely opens with a statement keyword; only a line comment that also ENDS like a statement is parked code.
+const commentedCodeRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      Program: () => {
+        for (const comment of context.sourceCode.getAllComments()) {
+          if (comment.type === "Line" && COMMENTED_CODE.test(comment.value)) {
+            context.report({
+              loc: comment.loc,
+              message: "Commented-out code; delete it (git history keeps it). Comments are for prose, not parked code (.claude/rules/comments.md).",
+            });
+          }
+        }
+      },
+    };
+  },
+};
+
+const CT_STORY_MODULE = /(?:_ct-stories|\.fixtures)(?:\.tsx)?$/u;
+const CT_JSX_TREE = new Set(["JSXElement", "JSXFragment", "JSXOpeningElement", "JSXAttribute", "JSXExpressionContainer"]);
+const CT_REWRITE_SCOPES = new Set(["ArrowFunctionExpression", "FunctionDeclaration", "FunctionExpression"]);
+
+// playwright-ct rewrites each JSX/array reference of an imported story into a generated const, so one binding with
+// two rewrite sites in a scope fails the whole bundle at eval. Separate test callbacks and mount trees are separate scopes.
+const ctStorySingleImportRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const sourceCode = context.sourceCode;
+    const imported = new Set();
+    const components = new Set();
+    const occurrences = [];
+    const report = (node, name) =>
+      context.report({
+        node,
+        message: `The CT story \`${name}\` is declared into this scope twice; playwright-ct fails the bundle at eval. Import it once and reference it once per JSX tree or array scope.`,
+      });
+    return {
+      ImportDeclaration: (node) => {
+        for (const specifier of node.specifiers.filter(({ type }) => type !== "ImportNamespaceSpecifier")) {
+          const name = specifier.local.name;
+          if (/^[A-Z]/u.test(name) && CT_STORY_MODULE.test(node.source.value)) {
+            components.add(name);
+          }
+          if (imported.has(name)) {
+            report(specifier, name);
+          }
+          imported.add(name);
+        }
+      },
+      ArrayExpression: (node) => {
+        const scope = sourceCode.getAncestors(node).findLast((ancestor) => CT_REWRITE_SCOPES.has(ancestor.type)) ?? sourceCode.ast;
+        for (const element of node.elements.filter((candidate) => candidate?.type === "Identifier")) {
+          occurrences.push({ scope, name: element.name, node: element });
+        }
+      },
+      JSXOpeningElement: (node) => {
+        if (node.name.type !== "JSXIdentifier") {
+          return;
+        }
+        let root = node;
+        while (CT_JSX_TREE.has(root.parent.type)) {
+          root = root.parent;
+        }
+        occurrences.push({ scope: root, name: node.name.name, node: node.name });
+      },
+      "Program:exit"() {
+        const seen = new Map();
+        for (const occurrence of occurrences.filter(({ name }) => components.has(name))) {
+          const names = seen.get(occurrence.scope) ?? new Set();
+          seen.set(occurrence.scope, names);
+          if (names.has(occurrence.name)) {
+            report(occurrence.node, occurrence.name);
+          }
+          names.add(occurrence.name);
+        }
+      },
+    };
+  },
+};
+
+const EVALUATE_METHODS = new Set(["evaluate", "evaluateAll"]);
+const FUNCTION_NODES = new Set(["FunctionDeclaration", "ArrowFunctionExpression", "FunctionExpression"]);
+
+function evaluateMethodName(callee) {
+  if (callee.type !== "MemberExpression") {
+    return "";
+  }
+  if (callee.computed) {
+    return callee.property.type === "Literal" ? String(callee.property.value) : "";
+  }
+  return callee.property.type === "Identifier" ? callee.property.name : "";
+}
+
+/** A binding is module-scoped when no function boundary lies between it and the file: a top-level block or loop binding counts, a local of any function does not. */
+function isModuleScoped(scope) {
+  for (let current = scope; current !== null; current = current.upper) {
+    if (current.type === "function" || current.type === "function-expression-name") {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** ESLint seeds builtins and browser globals as global-scope variables with no definitions, so only a defined variable is a capture. */
+function isModuleCapture(reference, self) {
+  const variable = reference.resolved;
+  return variable !== null && variable !== self && variable.defs.length > 0 && reference.isValueReference && isModuleScoped(variable.scope);
+}
+
+// Playwright serializes an evaluate callback with Function.prototype.toString(); a module-scope binding it names does not
+// exist in the page, so the call dies in-browser as a silent ReferenceError.
+const evaluateNoScopeCaptureRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const sourceCode = context.sourceCode;
+    const callbacks = [];
+    const lookup = (from, name) => {
+      let scope = from;
+      while (scope !== null && !scope.set.has(name)) {
+        scope = scope.upper;
+      }
+      return scope?.set.get(name);
+    };
+    const captureWithin = (fn, self) => {
+      for (const reference of sourceCode.getScope(fn).through.filter((candidate) => isModuleCapture(candidate, self))) {
+        if (!sourceCode.getAncestors(reference.identifier).some(({ type }) => type === "TSTypeQuery")) {
+          context.report({
+            node: reference.identifier,
+            message: `The .evaluate() callback references the module-scope binding \`${reference.resolved.name}\`, which does not exist in the page. Thread it through the evaluate argument or move it inside the callback.`,
+          });
+        }
+      }
+    };
+    // A callback imported from another module is out of per-file reach: its declaring file is not parsed here, and an
+    // import binding may as well be a script string. Only a callback declared in this file is judged.
+    const judgeReference = (arg) => {
+      const variable = lookup(sourceCode.getScope(arg), arg.name);
+      for (const def of variable?.defs ?? []) {
+        const fn = def.type === "FunctionName" ? def.node : def.node.init;
+        if (FUNCTION_NODES.has(fn?.type)) {
+          captureWithin(fn, variable);
+        }
+      }
+    };
+    return {
+      CallExpression: (node) => {
+        const [arg] = node.arguments;
+        if (arg !== undefined && EVALUATE_METHODS.has(evaluateMethodName(node.callee))) {
+          callbacks.push(arg);
+        }
+      },
+      "Program:exit"() {
+        for (const arg of callbacks) {
+          if (arg.type === "ArrowFunctionExpression" || arg.type === "FunctionExpression") {
+            captureWithin(arg, null);
+          } else if (arg.type === "Identifier") {
+            judgeReference(arg);
+          }
+        }
+      },
+    };
+  },
+};
+
+const SINGLE_REPLICA_ANNOTATION = "ASSUMES(single-replica)";
+const STATE_CONSTRUCTORS = new Set(["Map", "Set", "WeakMap", "WeakSet"]);
+const ARRAY_MUTATORS = new Set(["push", "shift", "splice", "unshift"]);
+
+// What a module-scope `new X(...)` holds: a non-literal-seeded Map/Set/WeakMap/WeakSet, or an instance of a class declared
+// in this file with a non-readonly field. An imported factory is out of structural reach, a declared limit.
+function singleReplicaConstruction(init, classes) {
+  if (init.callee.type !== "Identifier") {
+    return "";
+  }
+  const name = init.callee.name;
+  if (STATE_CONSTRUCTORS.has(name)) {
+    const seededByLiteral = init.arguments.length === 1 && init.arguments[0].type === "ArrayExpression";
+    return seededByLiteral ? "" : `a \`new ${name}()\``;
+  }
+  const mutable = classes.get(name)?.body.body.some((member) => (member.type === "PropertyDefinition" || member.type === "AccessorProperty") && !member.readonly);
+  return mutable === true ? `an instance of the locally-declared class \`${name}\` with a non-readonly field` : "";
+}
+
+// Module-scope per-process state needs a file-level ASSUMES(single-replica) comment naming its replacement seam. Array
+// literal seeds that are never mutated and classes whose fields are all readonly are immutable, so they stay silent.
+const assumesSingleReplicaRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const sourceCode = context.sourceCode;
+    const isMutated = (declarator) =>
+      sourceCode
+        .getDeclaredVariables(declarator)
+        .flatMap(({ references }) => references)
+        .some(({ identifier }) => {
+          const member = identifier.parent;
+          return (
+            member.type === "MemberExpression" &&
+            member.object === identifier &&
+            !member.computed &&
+            ARRAY_MUTATORS.has(member.property.name) &&
+            member.parent.type === "CallExpression" &&
+            member.parent.callee === member
+          );
+        });
+    const detailOf = (declarator, classes) => {
+      const init = declarator.init;
+      if (init?.type === "ArrayExpression") {
+        return isMutated(declarator) ? "an array accumulator mutated via push/shift/splice/unshift" : "";
+      }
+      return init?.type === "NewExpression" ? singleReplicaConstruction(init, classes) : "";
+    };
+    return {
+      Program: (program) => {
+        if (sourceCode.getAllComments().some(({ value }) => value.includes(SINGLE_REPLICA_ANNOTATION))) {
+          return;
+        }
+        const statements = program.body.map((statement) =>
+          statement.type === "ExportNamedDeclaration" || statement.type === "ExportDefaultDeclaration" ? statement.declaration : statement,
+        );
+        const classes = new Map(statements.filter((s) => s?.type === "ClassDeclaration" && s.id !== null).map((s) => [s.id.name, s]));
+        const declarators = statements.flatMap((statement) => (statement?.type === "VariableDeclaration" ? statement.declarations : []));
+        for (const declarator of declarators) {
+          const detail = detailOf(declarator, classes);
+          if (detail !== "") {
+            const id = declarator.id;
+            // An annotated identifier's range includes `: Type`; the bare name is the position that carries the finding.
+            const loc =
+              id.type === "Identifier" ? { start: id.loc.start, end: { line: id.loc.start.line, column: id.loc.start.column + id.name.length } } : id.loc;
+            context.report({
+              loc,
+              message: `Module-scope mutable per-process state (${detail}); annotate the file with ASSUMES(single-replica) naming a DB-backed replacement seam, or move the state out of module scope.`,
+            });
+          }
+        }
+      },
+    };
+  },
+};
+
 const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES.filter(({ ruleId, hard }) => !hard && ruleId.startsWith("orb/"));
 
 // D46: `ctx.dump` walks a guest value on the HOST stack, so a deep value overflows it and corrupts the shared
@@ -5156,6 +5401,10 @@ const restrictionPlugin = {
     "membership-write-fan": membershipWriteFanRule,
     [TEST_PACKAGE_SUBPATH_RULE.slice("orb/".length)]: testPackageSubpathRule,
     [TOOLING_ROOT_CONFIG_IMPORT_RULE.slice("orb/".length)]: toolingRootConfigImportRule,
+    "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
+    "assumes-single-replica": assumesSingleReplicaRule,
+    "commented-code": commentedCodeRule,
+    "ct-story-single-import": ctStorySingleImportRule,
   },
 };
 function typedNativeSettings(entry) {
@@ -6047,6 +6296,23 @@ export const hardConfig = [
         },
       ],
     },
+  },
+  // These two syntax-only blocks sit BEFORE the typed hard blocks below: a later block's parserOptions win the merge, and the
+  // tooling-entry rules those blocks enable need the compiler context on the files both cover.
+  {
+    // Gate modules quote the parked-code shapes in their own prose and fixtures. The node helper executables are `.mjs`.
+    files: ["**/*.{ts,tsx}", `${HELPER_WORLD_DIRS.node}/**/*.mjs`],
+    ignores: ["tooling/src/verify/gates/**", `${LEGACY_TEST_ROOT}/**`],
+    plugins: { orb: restrictionPlugin },
+    languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
+    rules: { "orb/commented-code": "error" },
+  },
+  {
+    files: ["tests/**/*.ct.tsx", "tests/**/*_ct-stories.tsx"],
+    ignores: [`${LEGACY_TEST_ROOT}/**`],
+    plugins: { orb: restrictionPlugin },
+    languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
+    rules: { "orb/ct-story-single-import": "error" },
   },
   ...TYPED_NATIVE_POLICIES.filter((entry) => entry.hard).map((entry) => ({
     files: entry.scope,

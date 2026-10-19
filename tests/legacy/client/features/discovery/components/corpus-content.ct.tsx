@@ -26,7 +26,7 @@ import { makeCatalogStats, makeHomeView, makeModelRoutingRow, makeThemeRow } fro
 // `lastActiveAt` is derived from it. No ambient clock is read anywhere in this file. SUPERSEDED (issue
 // #132): `test-determinism` no longer patrols comment PROSE — it blanks comment spans before the scan, so
 // naming `Date.now()` in a comment is legal. The "one paste away" worry this header used to record is not
-// lost: a commented-OUT statement is `commented-code`'s territory and REDs there.
+// lost: a commented-OUT statement is `orb/commented-code`'s territory and REDs there.
 
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

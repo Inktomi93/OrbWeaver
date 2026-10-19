@@ -28,7 +28,7 @@
 //
 // FAMILY DECISION (docs/law/gate-runtime-standardization.md): singleton family. This gate's identity check
 // (`readsMutableAsync`/matcher classification) is a private AST predicate with no sibling consumer among
-// the other three gates in this migration lane — `ct-poll-schedule-and-paint` and `ct-story-single-import`
+// the other three gates in this migration lane — `ct-poll-schedule-and-paint` and the native `orb/ct-story-single-import`
 // each implement their own unrelated predicate over the same CT file class, and neither imports anything
 // from here. Sharing a file CLASS ("CT test") is not sharing a computation or reader (design doc: "not
 // that their filenames share a prefix or their prose mentions the same topic").

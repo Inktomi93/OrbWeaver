@@ -46,7 +46,7 @@
 // for rule (c) — never the synthetic `<arm> <name>` compound token the legacy descriptor used. A bare
 // identifier is guaranteed authored text at its own offset (offset 0 on the reported node), so it carries
 // no paren, no newline and no solidus. Driven (not merely claimed) in the family test's
-// `assumes-single-replica` control, which exercises the shared position mechanism every ordinary policy in
+// `no-vanity-alias` control, which exercises the shared position mechanism every ordinary policy in
 // this lane uses.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy

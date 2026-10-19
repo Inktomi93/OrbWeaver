@@ -1,7 +1,7 @@
 // transport/jobs/workload-schedule-scheduler — the WHEN-to-tick DRIVER for recurring schedules (the TIME
 // dimension over the queue). The decision + enqueue LOGIC is `tickWorkloadSchedules` (the domain front door);
 // this driver only fires it at boot + on the injected interval, guarding errors so one bad tick never takes
-// the process down (the next tick retries). Single-replica (the `assumes-single-replica` stance): a per-process
+// the process down (the next tick retries). Single-replica (the `orb/assumes-single-replica` stance): a per-process
 // interval — the DB single-active lock makes a cross-replica double-enqueue benign regardless.
 //
 // BOUNDARIES: the driver enters ONLY the workloads front door (`tickWorkloadSchedules`) + `start` (threaded

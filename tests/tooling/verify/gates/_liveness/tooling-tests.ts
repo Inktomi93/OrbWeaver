@@ -14,7 +14,6 @@ import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node
 import { gate as auditClientTests } from "../../../../../tooling/src/verify/gates/audit-client-tests.ts";
 import { gate as ctNoOneshotLiveReadAssert } from "../../../../../tooling/src/verify/gates/ct-no-oneshot-live-read-assert.ts";
 import { gate as ctPollScheduleAndPaint } from "../../../../../tooling/src/verify/gates/ct-poll-schedule-and-paint.ts";
-import { gate as ctStorySingleImport } from "../../../../../tooling/src/verify/gates/ct-story-single-import.ts";
 import { gate as diagnosticLegibility } from "../../../../../tooling/src/verify/gates/diagnostic-legibility.ts";
 import { gate as noDirectReportsWrite } from "../../../../../tooling/src/verify/gates/no-direct-reports-write.ts";
 import { gate as noOpaqueTestFixture } from "../../../../../tooling/src/verify/gates/no-opaque-test-fixture.ts";
@@ -97,16 +96,6 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "Playwright poll idiom",
-  },
-  {
-    policy: ctStorySingleImport,
-    overlays: [
-      add(
-        "tests/ui/charts/liveness-double.ct.tsx",
-        'import { StoryA } from "./_ct-stories.tsx";\nimport { StoryA as StoryA } from "./_ct-stories.tsx";\nStoryA;\n',
-      ),
-    ],
-    messageIncludes: "TWICE",
   },
   {
     policy: diagnosticLegibility,

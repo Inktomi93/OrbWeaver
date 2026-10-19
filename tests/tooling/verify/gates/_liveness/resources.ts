@@ -14,7 +14,6 @@
 // suppression directive) is assembled from parts.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as commentedCode } from "../../../../../tooling/src/verify/gates/commented-code.ts";
 import { gate as cssFamilyOwnershipHealth } from "../../../../../tooling/src/verify/gates/css-family-ownership-health.ts";
 import { gate as cssSelectorHasAWriterHealth } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
 import { gate as noFormStateInUseeffect } from "../../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
@@ -42,11 +41,6 @@ function append(path: string, text: string): RealCorpusOverlay {
 }
 
 export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: commentedCode,
-    overlays: [{ kind: "add", path: "packages/ui/src/liveness-commented.ts", source: "// const dead = compute();\nexport const livenessCommented = 1;\n" }],
-    messageIncludes: "commented-out code",
-  },
   {
     policy: cssFamilyOwnershipHealth,
     // One of the six homes reads as an empty sheet.

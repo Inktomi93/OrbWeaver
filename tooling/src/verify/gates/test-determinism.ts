@@ -319,7 +319,7 @@ export const gate = defineGate({
       mode: "types",
       files: { "tests/server/parked.test.ts": "// export const t = Date.now();\nexport const t = Date.now();\n" },
       expect: { count: 1, line: 2 },
-      why: "the LINE arithmetic after blanking: only the real call on line 2 fires, and it still reports line 2 (blanking preserves length + newlines, so a comment above a violation cannot shift it). The PARKED call on line 1 is not this gate's business — `commented-code` owns it and REDs it, receipted on a planted tests/ probe 2026-08-17",
+      why: "the LINE arithmetic after blanking: only the real call on line 2 fires, and it still reports line 2 (blanking preserves length + newlines, so a comment above a violation cannot shift it). The PARKED call on line 1 is not this gate's business — `orb/commented-code` owns it and REDs it, receipted on a planted tests/ probe 2026-08-17",
     },
     {
       mode: "types",

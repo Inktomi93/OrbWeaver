@@ -28,7 +28,7 @@ const DEFAULT_REFRESH_EVERY_MS = MS_PER_DAY;
 const RETRY_AFTER_MS = MS_PER_HOUR;
 
 /** Does this status hold the single-active slot? Cast wider so .includes accepts the full WorkloadStatus
- *  union (no module-scope Set, which the assumes-single-replica gate flags). */
+ *  union (no module-scope Set, which the orb/assumes-single-replica rule flags). */
 function isActiveStatus(status: WorkloadStatus): boolean {
   return (ACTIVE_WORKLOAD_STATUSES as readonly WorkloadStatus[]).includes(status);
 }
