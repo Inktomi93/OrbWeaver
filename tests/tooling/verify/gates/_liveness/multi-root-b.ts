@@ -32,7 +32,6 @@ import { gate as playwrightCssTopology } from "../../../../../tooling/src/verify
 import { gate as policyRefusalCoverage } from "../../../../../tooling/src/verify/gates/policy-refusal-coverage.ts";
 import { gate as policyWaiverIdentity } from "../../../../../tooling/src/verify/gates/policy-waiver-identity.ts";
 import { gate as realCorpusLivenessManifest } from "../../../../../tooling/src/verify/gates/real-corpus-liveness-manifest.ts";
-import { gate as staleDraftDecisionHealth } from "../../../../../tooling/src/verify/gates/stale-draft-decision-health.ts";
 
 import { gate as testPresenceClient } from "../../../../../tooling/src/verify/gates/test-presence-client.ts";
 import { gate as testReach } from "../../../../../tooling/src/verify/gates/test-reach.ts";
@@ -152,11 +151,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: realCorpusLivenessManifest,
     overlays: [probeGate({ id: "liveness-unpinned" })],
     messageIncludes: "no real-corpus liveness pin",
-  },
-  {
-    policy: staleDraftDecisionHealth,
-    overlays: [{ kind: "remove", path: "packages/client/src/lib/edit-session.ts" }],
-    messageIncludes: "edit-session",
   },
   {
     policy: testPresenceClient,

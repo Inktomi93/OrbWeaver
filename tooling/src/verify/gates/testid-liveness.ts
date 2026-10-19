@@ -21,10 +21,9 @@
 //
 // FAMILY `testid-liveness` — the shared reader is `lib/testid-registry.ts` (`testIdRegistryRow`,
 // `TESTID_REGISTRY_HOME`, `TESTID_REGISTRY_CONST`). Arm A3 of the legacy descriptor — the blindness
-// tripwire that reds when that reader yields ZERO rows — SPLIT OUT to `testid-liveness-health` (guide
-// §12.6, #1950): it is a whole-tree HARD verdict about one file that must never carry a suppression door,
-// while the two arms here are per-occurrence ORDINARY verdicts an author may waive. One authority per
-// policy, one family over one reader.
+// tripwire that reds when that reader yields ZERO rows — is the family suite's real-registry test
+// (`tests/tooling/verify/gates/testid-variant-split-family.suite.test.ts`): it must never carry a
+// suppression door, while the two arms here are per-occurrence ORDINARY verdicts an author may waive.
 //
 // POPULATION PORT: byte-identical. The legacy `scanRoot` was
 // `(p.includes("packages/") && p.includes("/src/")) || p.includes("tests/")`; the final population is the

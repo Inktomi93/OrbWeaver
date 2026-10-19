@@ -6,10 +6,10 @@
 // the policy makes a NEW door a decision instead of an accident.
 //
 // FAMILY `action-doors` — the shared reader is `lib/action-door-fact.ts` (`actionDoorFact`), the ONE walk
-// that derives the section vocabulary, the plane map and the door census. The sibling is
-// `duplicate-action-doors-health`, which owns the two §4.6 BLINDNESS TRIPWIRES over that same walk. The
-// split axis is AUTHORITY, which is the only axis a split may take: this policy's exceptions are reviewed
-// grants, and a tripwire that could be granted away is not a tripwire.
+// that derives the section vocabulary, the plane map and the door census. The two BLINDNESS cases (an empty
+// `SECTION_IDS`, no recognised rail definition) regroup every pair under its feature directory, so the pair
+// key is where they show: the family suite pins the derived plane per shape and reds on the real tree when a
+// ruled pair stops matching.
 //
 // THE RULING IS A NAMED DOOR SET, NOT A CARDINALITY (#2101, 2026-09-12), AND THAT SURVIVES THE CONVERSION
 // INTACT. A per-pair COUNT budget could not say WHICH doors it ruled, so a THIRD door was absolved by

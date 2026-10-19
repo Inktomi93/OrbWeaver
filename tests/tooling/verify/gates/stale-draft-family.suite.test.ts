@@ -1,9 +1,11 @@
+import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import { gate as ordinary } from "../../../../tooling/src/verify/gates/stale-draft-commit.ts";
-import { gate as health } from "../../../../tooling/src/verify/gates/stale-draft-decision-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { DRAFT_DECISION_HOME, DRAFT_TREE_ANCHOR } from "../../../../tooling/src/verify/lib/stale-draft-read.ts";
+import { DRAFT_DECISION_HOME } from "../../../../tooling/src/verify/lib/stale-draft-read.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/stale-draft-family";
@@ -20,35 +22,32 @@ function after(files: Files, requestedPaths?: readonly string[]): ReturnType<typ
   return runPolicyPass({
     root: ROOT,
     project: projectFor(files),
-    knownPolicies: [ordinary, health],
-    policies: [ordinary, health],
+    knownPolicies: [ordinary],
+    policies: [ordinary],
     reviewedGrants: [],
     failOnWarnings: false,
     ...(requestedPaths === undefined ? {} : { requestedPaths }),
   });
 }
 
-test("draft occurrence and independent decision-home health proofs run through conformance", () => {
-  expect(verifyPolicyProofs([ordinary, health])).toEqual([]);
+test("draft occurrence proofs run through conformance", () => {
+  expect(verifyPolicyProofs([ordinary])).toEqual([]);
 });
 
-test("ordinary occurrence remains selectable while whole-population health defers", () => {
+test("ordinary occurrence is selectable and waivable", () => {
   const source = "const [draft] = useState(source);\nif (draft !== source) save(draft);";
-  const files = { [CELL]: source, [DRAFT_DECISION_HOME]: "export {};", [DRAFT_TREE_ANCHOR]: "export {};" };
+  const files = { [CELL]: source };
   const selected = after(files, [CELL]);
   expect(selected.toolErrors).toEqual([]);
-  expect(selected.policies.find((policy) => policy.id === health.id)?.owner).toMatchObject({
-    status: "not-applicable",
-    reason: "requested selection has an empty policy intersection",
-  });
-  expect(after(files, [CELL, DRAFT_TREE_ANCHOR]).policies.find((policy) => policy.id === health.id)?.owner).toMatchObject({
-    status: "not-applicable",
-    reason: "entire-population policy deferred for a proper subset selection",
-  });
   expect(selected.authority.effectiveFindings).toEqual([expect.objectContaining({ policyId: ordinary.id, file: CELL, token: "draft" })]);
-  const licensed = after({ ...files, [CELL]: source.replace("\nif", "\n// @orb-waive stale-draft-commit(draft): measured concurrent writer policy.\nif") }, [
-    CELL,
-  ]);
+  const licensed = after({ [CELL]: source.replace("\nif", "\n// @orb-waive stale-draft-commit(draft): measured concurrent writer policy.\nif") }, [CELL]);
   expect(licensed.authority.effectiveFindings).toEqual([]);
   expect(licensed.authority.waivedFindings).toHaveLength(1);
+});
+
+test("the decision home the draft finding names still resolves to a module exporting resolveCommit", async ({ repoRoot }) => {
+  const home = join(repoRoot, DRAFT_DECISION_HOME);
+  expect(existsSync(home), `${DRAFT_DECISION_HOME} is the path the draft finding sends readers to`).toBe(true);
+  const exported: unknown = await import(pathToFileURL(home).href);
+  expect(exported).toHaveProperty("resolveCommit", expect.any(Function));
 });

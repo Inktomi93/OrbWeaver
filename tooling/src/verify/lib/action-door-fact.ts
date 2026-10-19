@@ -1,7 +1,6 @@
 // The ONE walk behind the `action-doors` family: which tRPC MUTATION doors exist, and which RAIL PLANE each
-// one sits on. Both siblings read it — `duplicate-action-doors` (reviewed-grant, the door verdict) and
-// `duplicate-action-doors-health` (hard, the two §4.6 blindness tripwires) — so the census and the tripwires
-// can never disagree about what was measured. It is the family's canonical shared declaration.
+// one sits on. `duplicate-action-doors` (reviewed-grant, the door verdict) reads it. It is the family's
+// canonical shared declaration.
 //
 // "WHICH VERB IS THIS SITE?" IS NOT DECIDED HERE. The creation-site grammar lives at
 // `tooling/src/floor/code-facts/trpc-doors.ts` (`mutationProcedureOf`) and is SHARED with the `ast subset-callers`
@@ -15,9 +14,9 @@
 // non-empty and the blindness tripwire still satisfied.
 //
 // EMPTINESS IS NEVER THIS READER'S VERDICT. An absent `SECTION_IDS` declaration yields an EMPTY vocabulary
-// and an empty plane map; `duplicate-action-doors-health` turns that into its tripwire. An UNSUPPORTED tuple
-// shape throws out of `tuple-read.ts` and withholds both consumers, which is the same posture the legacy
-// descriptor had.
+// and an empty plane map; every door then keys under its feature directory, and the family suite's real-tree
+// test reds because the ruled pairs no longer match. An UNSUPPORTED tuple shape throws out of `tuple-read.ts`
+// and withholds the consumer, which is the same posture the legacy descriptor had.
 import type { Node, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node as MorphNode, SyntaxKind } from "ts-morph";
 import { mutationProcedureOf } from "../../floor/code-facts/trpc-doors.ts";
@@ -166,8 +165,7 @@ export const actionDoorFact = defineFact({
             doors: [...sites.values()].toSorted((left, right) => left.file.localeCompare(right.file)),
           }));
         // THE DENOMINATOR IS THE WALK, NOT ITS RESULT. A receipt of `doors.length` would REFUSE on a corpus
-        // with zero doors — and withhold `duplicate-action-doors-health`, whose whole job is to accuse that
-        // state. The door count is the DOOR policy's own denominator and is receipted there.
+        // with zero doors. The door count is the DOOR policy's own denominator and is receipted there.
         ctx.receipt({ kind: "population", source: "action-door-census", members: ctx.files.length, unresolved: 0 });
         return { vocabulary, planes, pairs, doorCount: doors.length };
       },

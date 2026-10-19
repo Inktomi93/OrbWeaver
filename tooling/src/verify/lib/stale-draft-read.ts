@@ -8,10 +8,9 @@ import type { GatePolicyContext, GatePolicyHooks } from "../contract/policy.ts";
 import { unwrapExpression } from "./ast-read.ts";
 
 export const DRAFT_DECISION_HOME = "packages/client/src/lib/edit-session.ts";
-export const DRAFT_TREE_ANCHOR = "packages/db/src/schema/index.ts";
 
-/** The occurrence policy's diagnostic and remedy. They name `DRAFT_DECISION_HOME` by reference because the
- *  `-health` sibling exists to keep exactly that path actionable. */
+/** The occurrence policy's diagnostic and remedy. They name `DRAFT_DECISION_HOME` by reference so the
+ *  family suite can prove the path they send readers to still resolves. */
 export const DRAFT_COMMIT_MESSAGE =
   "a once-seeded draft is being committed under `draft !== <the live value>`. That guard exists to suppress " +
   "a pointless write, but the live value MOVES: when a second writer lands one while the editor is open, the " +
@@ -24,10 +23,6 @@ export const DRAFT_COMMIT_FIX =
   "writers, surfaced' instead of collapsing them into one comparison. A deliberate exception is waived with " +
   "`// @orb-waive stale-draft-commit(<position>): <reason>` above the comparison, where <position> is the " +
   "reported draft-state variable name, e.g. `draft`.";
-
-export function draftDecisionHomeMissing(paths: ReadonlySet<string>): boolean {
-  return paths.has(DRAFT_TREE_ANCHOR) && !paths.has(DRAFT_DECISION_HOME);
-}
 
 interface DraftFile {
   readonly seeds: Map<string, string>;

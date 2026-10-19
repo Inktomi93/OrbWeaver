@@ -26,7 +26,6 @@ import { gate as stateFiles } from "../../../../../tooling/src/verify/gates/stat
 import { gate as subFloorDisclosureHealth } from "../../../../../tooling/src/verify/gates/sub-floor-disclosure-health.ts";
 import { gate as surfaceA11yFocus } from "../../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
 import { gate as surfaceInAContainer } from "../../../../../tooling/src/verify/gates/surface-in-a-container.ts";
-import { gate as testidLivenessHealth } from "../../../../../tooling/src/verify/gates/testid-liveness-health.ts";
 import { gate as uiAccnameSurvivesSpread } from "../../../../../tooling/src/verify/gates/ui-accname-survives-spread.ts";
 import { gate as uiPrimitiveOverlayHealth } from "../../../../../tooling/src/verify/gates/ui-primitive-overlay-health.ts";
 import { gate as uiPrimitiveStructure } from "../../../../../tooling/src/verify/gates/ui-primitive-structure.ts";
@@ -163,11 +162,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "sits in no <Container>",
-  },
-  {
-    policy: testidLivenessHealth,
-    overlays: [neutralise("packages/client/src/lib/test-ids.ts", 'export const IDS = {\n  appShell: "app-shell",\n} as const;\n')],
-    messageIncludes: "read ZERO rows",
   },
   {
     policy: uiAccnameSurvivesSpread,
