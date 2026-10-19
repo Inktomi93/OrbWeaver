@@ -1,6 +1,6 @@
 # 1069 — assets-gc reference audit
 
-Lane report for work item 1069 (`docs/work/1069-assets-gc-proves-a-blob-unreferenced-before-deleting.md`).
+Lane report for work item 1069, "assets-gc proves a blob unreferenced before deleting it".
 Base: `c6eb3ba161`. Subject: the boot-seeded weekly `assets-gc` workload
 (`packages/server/src/entry/boot/seed-cas-schedules.ts:31-34`) and its collector
 `packages/server/src/domain/assets/persistence/asset-refs.ts`.
