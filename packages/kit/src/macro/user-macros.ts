@@ -30,6 +30,7 @@ import { isIfTruthy } from "./metadata.ts";
 import { MACRO_NAME_RE } from "./parser.ts";
 import { unitDraw } from "./prng.ts";
 import type { MacroAnalysisOptions, MacroArgDef, MacroContext, MacroHandler, MacroMetadataInput, MacroRegistry, MacroSourceRef } from "./types.ts";
+import { readVarKey } from "./variables.ts";
 
 // ── the definition vocabulary ────────────────────────────────────────────────────────────────────
 
@@ -203,7 +204,7 @@ export function findOffVocabularyPicks(inputs: readonly UserMacroInputDef[], bag
     }
     const declared = declaredValues(input);
     const options = input.options.map((o) => o.value);
-    for (const pick of selectPicksOf(bag[input.name])) {
+    for (const pick of selectPicksOf(ownEntry(bag, input.name))) {
       if (!declared.has(pick)) {
         found.push({ input: input.name, value: pick, options });
       }
@@ -221,6 +222,12 @@ function selectPicksOf(value: UserMacroInputValue | undefined): readonly string[
   return Array.isArray(value) ? (value as readonly string[]) : [];
 }
 
+// Macro and input names are author text, and MACRO_NAME_RE admits Object.prototype member names (`constructor`,
+// `toString`): every name-keyed read of a per-turn plane takes the plane's own entry or nothing.
+function ownEntry<T>(plane: Readonly<Record<string, T>> | undefined, name: string): T | undefined {
+  return plane === undefined ? undefined : readVarKey(plane, name);
+}
+
 // One random-pick input: frozen replay wins; else draw from the pool and report the fresh draw.
 function resolveRandomPick(
   input: UserMacroInputDef,
@@ -228,7 +235,7 @@ function resolveRandomPick(
   opts: ResolveUserMacroInputsOptions,
   draws: Record<string, string>,
 ): string {
-  const frozen = opts.frozenDraws?.[input.name];
+  const frozen = ownEntry(opts.frozenDraws, input.name);
   if (frozen !== undefined) {
     return frozen;
   }
@@ -255,7 +262,8 @@ export function resolveUserMacroInputs(
   const bindings: Record<string, string> = {};
   const draws: Record<string, string> = {};
   for (const input of inputs) {
-    bindings[input.name] = input.kind === "random-pick" ? resolveRandomPick(input, bag[input.name], opts, draws) : resolveStaticInput(input, bag[input.name]);
+    const value = ownEntry(bag, input.name);
+    bindings[input.name] = input.kind === "random-pick" ? resolveRandomPick(input, value, opts, draws) : resolveStaticInput(input, value);
   }
   return { bindings, draws };
 }
@@ -321,7 +329,7 @@ function spliceInputs(template: string, context: InputSpliceContext): string {
   const fallback = provided === undefined ? resolveUserMacroInputs(activeInputs, {}, { prng: macroContext.random ?? Math.random }).bindings : undefined;
   let out = template;
   for (const input of activeInputs) {
-    out = splice(out, input.name, provided?.[input.name] ?? fallback?.[input.name] ?? "");
+    out = splice(out, input.name, ownEntry(provided, input.name) ?? ownEntry(fallback, input.name) ?? "");
   }
   return out;
 }
@@ -329,7 +337,7 @@ function spliceInputs(template: string, context: InputSpliceContext): string {
 // Build one user macro's handler: bindings (inputs → args → block body) spliced neutralized into the
 // template, then the template resolves through ctx.resolve (budget/PRNG/op-log threaded).
 function userMacroHandler(def: UserMacroDef, opts: RegisterUserMacrosOptions): MacroHandler {
-  const provided = opts.inputBindings?.[def.name];
+  const provided = ownEntry(opts.inputBindings, def.name);
   return (args, ctx) => {
     const body = args[def.args.length];
     const shadowedInputs = new Set(def.args.map((arg) => arg.name.toLowerCase()));
