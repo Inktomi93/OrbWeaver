@@ -3,7 +3,6 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as contractDerives } from "../../../../../tooling/src/verify/gates/contract-derives-not-respells.ts";
-import { gate as externalIdHealth } from "../../../../../tooling/src/verify/gates/external-id-single-writer-health.ts";
 import { gate as serdeCoreHealth } from "../../../../../tooling/src/verify/gates/serde-core-seal-health.ts";
 
 /** A neutralise overlay that simply removes the watched subject from a file. */
@@ -12,19 +11,6 @@ function blank(path: string): RealCorpusOverlay {
 }
 
 export const SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: externalIdHealth,
-    // The tripwire watches the U1 admin link capability for its atomic writer call. Remove the call and it
-    // must say so — ADDING a file could never make this policy speak.
-    overlays: [
-      {
-        kind: "neutralise",
-        path: "packages/server/src/domain/sessions/verbs/link-external-id.ts",
-        source: "export async function linkExternalId(): Promise<void> {\n  // the atomic writer call is gone\n}\n",
-      },
-    ],
-    messageIncludes: "no longer calls",
-  },
   {
     policy: contractDerives,
     // WAS `contract-derives-not-respells-health`, a NEUTRALISE arm that blanked the file one ALLOWLIST row

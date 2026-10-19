@@ -851,6 +851,192 @@ const INSTRUMENT_VERDICT_RESTRICTIONS = [
   },
 ];
 
+// ── IDENTITY WRITERS: invariant 10's bind-once chokepoint and D257's key-beside-handle rule ─────────────────
+// HARD (`hardConfig` only): an inline directive cannot excuse a third subject writer. These rules match the users
+// table, its write verbs and the subject column by name and spelling, so `users-write-plain-spelling` refuses the
+// import alias, the type wrappers and the computed verbs that would hide a users write from them.
+const SESSIONS_SRC = "packages/server/src/domain/sessions";
+const USERS_PERSISTENCE = `${SESSIONS_SRC}/persistence/users.ts`;
+const LINK_CAPABILITY = `${SESSIONS_SRC}/verbs/link-external-id.ts`;
+const PROVISION_CAPABILITY = `${SESSIONS_SRC}/verbs/provision-identity.ts`;
+const PENDING_SIGNUP_CAPABILITY = `${SESSIONS_SRC}/verbs/pending-signup.ts`;
+const CLAIM_WRITER = "claimExternalIdIfUnbound";
+const PENDING_JOIN_WRITER = "insertPendingSignupUserStatement";
+const SUBJECT_WRITER_NAMES = alternation([CLAIM_WRITER, PENDING_JOIN_WRITER]);
+const SUBJECT_KEYS = alternation(["externalId", "external_id"]);
+const IDENTITY_WRITER_MESSAGE =
+  "Invariant 10: bind users.externalId only through the registered sessions capabilities (provisionIdentity, linkExternalId, the D259 pending-join confirm) and their writers in sessions/persistence/users.ts.";
+const PLAIN_SPELLING_MESSAGE =
+  "Spell the users table and its write chain plainly: an import alias, a type wrapper or a computed verb hides the write from the identity-writer rules.";
+const memberAt = (path, name) => memberNamed(name, path === "" ? "" : `${path}.`);
+// `value` is an esquery value, a quoted name or a regex. Each covers the plain, string and template spellings.
+const memberSpelledAt = (path, value) =>
+  `:matches([${path}.computed=false][${path}.property.name=${value}], [${path}.computed=true][${path}.property.type='Literal'][${path}.property.value=${value}], [${path}.computed=true][${path}.property.type='TemplateLiteral'][${path}.property.expressions.length=0][${path}.property.quasis.0.value.cooked=${value}])`;
+const keySpelled = (value) =>
+  `:matches([computed=false][key.type='Identifier'][key.name=${value}], [key.type='Literal'][key.value=${value}], [computed=true][key.type='TemplateLiteral'][key.expressions.length=0][key.quasis.0.value.cooked=${value}])`;
+const stringSpelled = (value) =>
+  `:matches(Literal[value=${value}]:not(TSLiteralType > Literal), TemplateLiteral[expressions.length=0]:not(TSLiteralType > TemplateLiteral) > TemplateElement[value.cooked=${value}])`;
+const TYPE_WRAPPER = ":matches(TSAsExpression, TSSatisfiesExpression, TSNonNullExpression, TSTypeAssertion)";
+const DATA_WRAPPER = ":matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion)";
+const usersTableAt = (path) => `:matches([${path}.type='Identifier'][${path}.name='users'], [${path}.type='MemberExpression']${memberAt(path, "users")})`;
+const USERS_TABLE_CALL = `CallExpression:matches(${memberAt("callee", "insert")}, ${memberAt("callee", "update")})${usersTableAt("arguments.0")}`;
+const USERS_INSERT_VALUES = `CallExpression${memberAt("callee", "values")}[callee.object.type='CallExpression']${memberAt("callee.object.callee", "insert")}${usersTableAt("callee.object.arguments.0")}`;
+const USERS_UPDATE_SET = `CallExpression${memberAt("callee", "set")}[callee.object.type='CallExpression']${memberAt("callee.object.callee", "update")}${usersTableAt("callee.object.arguments.0")}`;
+const USERS_ROW_WRITE = `:matches(${USERS_INSERT_VALUES}, ${USERS_UPDATE_SET})`;
+const USERS_UPSERT = `CallExpression${memberAt("callee", "onConflictDoUpdate")}[callee.object.type='CallExpression']${memberAt("callee.object.callee", "values")}[callee.object.callee.object.type='CallExpression']${memberAt("callee.object.callee.object.callee", "insert")}${usersTableAt("callee.object.callee.object.arguments.0")}`;
+const UPSERT_SET_KEY = `Property${keySpelled("'set'")}`;
+const USERS_POSITIONAL_INSERT = `CallExpression${memberAt("callee", "select")}[callee.object.type='CallExpression']${memberAt("callee.object.callee", "insert")}${usersTableAt("callee.object.arguments.0")}[arguments.length>0]`;
+const PERSISTENCE_VERB = (name) => `CallExpression:matches([callee.name='${name}'], ${memberAt("callee", name)})`;
+const USERS_DATA_CALL = `:matches(${USERS_ROW_WRITE}, ${USERS_UPSERT}, ${PERSISTENCE_VERB("insertUser")}, ${PERSISTENCE_VERB("updateUser")})`;
+// A key or member computed from a binding: a constant can carry the subject column or a write verb under no visible name.
+const DYNAMIC_KEY = "Property[computed=true]:not([key.type='Literal'], [key.type='TemplateLiteral'][key.expressions.length=0])";
+const DYNAMIC_KEY_WRITE = `${USERS_DATA_CALL} ObjectExpression > ${DYNAMIC_KEY}`;
+const DYNAMIC_CALLEE =
+  "[callee.type='MemberExpression'][callee.computed=true]:not([callee.property.type='Literal'], [callee.property.type='TemplateLiteral'][callee.property.expressions.length=0])";
+const USERS_WRITE_CALL = `CallExpression:matches([callee.name=/^(insertUser|updateUser)$/], ${["insertUser", "updateUser", "set", "values", "onConflictDoUpdate"].map((name) => memberAt("callee", name)).join(", ")})`;
+// `externalId: null` and `= undefined` bind no subject (the local-user default).
+const nonNullish = (path) =>
+  `:not([${path}.type='Literal'][${path}.raw='null']):not([${path}.type='Identifier'][${path}.name='undefined']):not([${path}.type=/^TS(As|Satisfies)Expression$/][${path}.expression.raw='null'])`;
+const SUBJECT_KEYED_WRITE = `${USERS_WRITE_CALL} ObjectExpression > Property${keySpelled(SUBJECT_KEYS)}${nonNullish("value")}`;
+const SUBJECT_ASSIGNMENT = `AssignmentExpression:matches([operator='='], [operator='??='], [operator='||='], [operator='&&='])[left.type='MemberExpression']${memberSpelledAt("left", SUBJECT_KEYS)}${nonNullish("right")}`;
+const INSIDE_SUBJECT_WRITER = `:matches(FunctionDeclaration[id.name=${SUBJECT_WRITER_NAMES}], VariableDeclarator[id.name=${SUBJECT_WRITER_NAMES}]) *`;
+const SUBJECT_STRING_MESSAGE = `${IDENTITY_WRITER_MESSAGE} A string spelling of the subject column hides the bind from these rules.`;
+// A string spelling of a writer name reaches it through a bracket read, a string import name or a const key.
+const writerReference = (name) => [
+  { selector: `Identifier[name='${name}']`, message: IDENTITY_WRITER_MESSAGE },
+  { selector: stringSpelled(`'${name}'`), message: IDENTITY_WRITER_MESSAGE },
+];
+// Any string that reads as a users write: a `sql` template, a `sql.raw` argument, or a const either one reads.
+const RAW_USERS_WRITE_TEXT = "/\\b(?:insert(?:\\s+or\\s+\\w+)?\\s+into|replace\\s+into|update(?:\\s+or\\s+\\w+)?)\\s+[`\"']?users[`\"']?(?!\\w)/i";
+const RAW_USERS_WRITE_HEAD = "/\\b(?:insert(?:\\s+or\\s+\\w+)?\\s+into|replace\\s+into|update(?:\\s+or\\s+\\w+)?)\\s+[`\"']?$/i";
+const HANDLE_WITHOUT_KEY = `ObjectExpression:has(> Property${keySpelled("'handle'")}):not(:has(> Property${keySpelled("'handleKey'")}))`;
+const IDENTITY_WRITER_RESTRICTIONS = [
+  {
+    id: "external-id-claim-writer-callers",
+    scope: rootSources("@server"),
+    notUnder: [USERS_PERSISTENCE],
+    homes: [
+      { path: LINK_CAPABILITY, why: "the admin link capability hands its caller the unexecuted atomic claim" },
+      { path: PROVISION_CAPABILITY, why: "the SSO seam's owner-flip bind rides the same atomic claim" },
+    ],
+    selectors: writerReference(CLAIM_WRITER),
+  },
+  {
+    id: "external-id-pending-join-writer-callers",
+    scope: rootSources("@server"),
+    notUnder: [USERS_PERSISTENCE],
+    homes: [{ path: PENDING_SIGNUP_CAPABILITY, why: "the D259 pending-join confirm plans through decideProvision and binds through this one statement" }],
+    selectors: writerReference(PENDING_JOIN_WRITER),
+  },
+  {
+    id: "external-id-writer-home",
+    scope: [USERS_PERSISTENCE],
+    homes: [],
+    selectors: [
+      {
+        selector: `Identifier[name=${SUBJECT_WRITER_NAMES}]:not(FunctionDeclaration > Identifier.id, VariableDeclarator > Identifier.id), ${stringSpelled(SUBJECT_WRITER_NAMES)}`,
+        message: `${IDENTITY_WRITER_MESSAGE} A wrapper here would expose a registered writer under a name no caller registry names.`,
+      },
+      { selector: `${SUBJECT_KEYED_WRITE}:not(${INSIDE_SUBJECT_WRITER})`, message: `${IDENTITY_WRITER_MESSAGE} Only a registered writer may bind here.` },
+      { selector: `${SUBJECT_ASSIGNMENT}:not(${INSIDE_SUBJECT_WRITER})`, message: `${IDENTITY_WRITER_MESSAGE} Only a registered writer may bind here.` },
+      { selector: stringSpelled(SUBJECT_KEYS), message: SUBJECT_STRING_MESSAGE },
+      { selector: `${DYNAMIC_KEY_WRITE}:not(${INSIDE_SUBJECT_WRITER})`, message: `${IDENTITY_WRITER_MESSAGE} Write users keys as plain names.` },
+      {
+        selector: `${USERS_POSITIONAL_INSERT}:has(Identifier[name=${SUBJECT_KEYS}]):not(${INSIDE_SUBJECT_WRITER})`,
+        message: `${IDENTITY_WRITER_MESSAGE} A positional insert that reads a subject is a registered writer.`,
+      },
+    ],
+  },
+  {
+    id: "external-id-subject-binds",
+    scope: rootSources("@server"),
+    notUnder: [USERS_PERSISTENCE],
+    homes: [{ path: PROVISION_CAPABILITY, why: "provisionIdentity builds its users patch by hand, and its subject bind is the verb's bind-once decision" }],
+    selectors: [
+      { selector: SUBJECT_KEYED_WRITE, message: IDENTITY_WRITER_MESSAGE },
+      { selector: SUBJECT_ASSIGNMENT, message: IDENTITY_WRITER_MESSAGE },
+    ],
+  },
+  {
+    id: "external-id-opaque-users-writes",
+    scope: rootSources("@server"),
+    notUnder: [USERS_PERSISTENCE],
+    homes: [{ path: PROVISION_CAPABILITY, why: "provisionIdentity builds its users patch by hand, and its subject bind is the verb's bind-once decision" }],
+    selectors: [
+      { selector: stringSpelled(SUBJECT_KEYS), message: SUBJECT_STRING_MESSAGE },
+      {
+        selector: `${USERS_ROW_WRITE}:matches([arguments.0.type!='ObjectExpression'], :has(> ObjectExpression:has(> SpreadElement)))`,
+        message: `${IDENTITY_WRITER_MESSAGE} Write users data as a literal whose keys are visible.`,
+      },
+      { selector: DYNAMIC_KEY_WRITE, message: `${IDENTITY_WRITER_MESSAGE} Write users keys as plain names.` },
+      {
+        selector: `${USERS_UPSERT}:matches([arguments.0.type!='ObjectExpression'], :has(> ObjectExpression:not(:has(> ${UPSERT_SET_KEY}))), :has(> ObjectExpression:has(> ${UPSERT_SET_KEY}[value.type!='ObjectExpression'])), :has(> ObjectExpression:has(> ${UPSERT_SET_KEY}:has(> ObjectExpression:has(> SpreadElement)))))`,
+        message: `${IDENTITY_WRITER_MESSAGE} Write the upsert set as a literal whose keys are visible.`,
+      },
+      {
+        selector: `:matches(${PERSISTENCE_VERB("insertUser")}[arguments.1.type!='ObjectExpression'], ${PERSISTENCE_VERB("updateUser")}[arguments.2.type!='ObjectExpression'], ${PERSISTENCE_VERB("insertUser")}:has(> ObjectExpression:has(> SpreadElement)), ${PERSISTENCE_VERB("updateUser")}:has(> ObjectExpression:has(> SpreadElement)))`,
+        message: `${IDENTITY_WRITER_MESSAGE} Pass the users row or patch as a literal whose keys are visible.`,
+      },
+    ],
+  },
+  {
+    id: "external-id-raw-users-writes",
+    scope: rootSources("@server"),
+    notUnder: [USERS_PERSISTENCE],
+    homes: [],
+    selectors: [
+      { selector: USERS_POSITIONAL_INSERT, message: `${IDENTITY_WRITER_MESSAGE} A positional users insert binds external_id by column order.` },
+      {
+        selector: `:matches(Literal[value=${RAW_USERS_WRITE_TEXT}], TemplateElement[value.raw=${RAW_USERS_WRITE_TEXT}])`,
+        message: `${IDENTITY_WRITER_MESSAGE} Raw SQL cannot write users outside its persistence file.`,
+      },
+      {
+        selector: `TemplateLiteral:has(> TemplateElement[value.raw=${RAW_USERS_WRITE_HEAD}]):has(> :matches(Identifier[name='users'], MemberExpression${memberAt("", "users")}))`,
+        message: `${IDENTITY_WRITER_MESSAGE} Raw SQL cannot write users outside its persistence file.`,
+      },
+    ],
+  },
+  {
+    id: "users-write-plain-spelling",
+    scope: rootSources("@server"),
+    homes: [],
+    selectors: [
+      {
+        selector:
+          "ImportDeclaration[source.value=/^@orb\\u002Fdb(\\u002F|$)/] > ImportSpecifier:matches([imported.name='users'], [imported.value='users'])[local.name!='users']",
+        message: PLAIN_SPELLING_MESSAGE,
+      },
+      { selector: `${TYPE_WRAPPER}${usersTableAt("expression")}`, message: PLAIN_SPELLING_MESSAGE },
+      { selector: `${TYPE_WRAPPER} > :matches(${USERS_TABLE_CALL}, ${USERS_INSERT_VALUES})`, message: PLAIN_SPELLING_MESSAGE },
+      { selector: `MemberExpression > ChainExpression > :matches(${USERS_TABLE_CALL}, ${USERS_INSERT_VALUES})`, message: PLAIN_SPELLING_MESSAGE },
+      { selector: `CallExpression${DYNAMIC_CALLEE}${usersTableAt("arguments.0")}`, message: PLAIN_SPELLING_MESSAGE },
+      {
+        selector: `CallExpression${DYNAMIC_CALLEE} > MemberExpression.callee > :matches(${USERS_TABLE_CALL}, ${USERS_INSERT_VALUES}).object`,
+        message: PLAIN_SPELLING_MESSAGE,
+      },
+    ],
+  },
+  {
+    id: "handle-key-writer",
+    scope: rootSources("@server"),
+    homes: [],
+    selectors: [
+      {
+        selector: [
+          `${USERS_ROW_WRITE} > ${HANDLE_WITHOUT_KEY}`,
+          `${USERS_ROW_WRITE} > ${DATA_WRAPPER} > ${HANDLE_WITHOUT_KEY}`,
+          `${USERS_INSERT_VALUES} > ArrayExpression > ${HANDLE_WITHOUT_KEY}`,
+          `${USERS_UPSERT} > ObjectExpression > ${UPSERT_SET_KEY} > ${HANDLE_WITHOUT_KEY}`,
+          `${USERS_UPSERT} > ObjectExpression > ${UPSERT_SET_KEY} > ${DATA_WRAPPER} > ${HANDLE_WITHOUT_KEY}`,
+          `${USERS_UPSERT} > ${DATA_WRAPPER} > ObjectExpression > ${UPSERT_SET_KEY} > ${HANDLE_WITHOUT_KEY}`,
+        ].join(", "),
+        message:
+          "D257: a users write that sets handle also writes handleKey, or the row keeps a stale key that admits a look-alike of the new handle. Write through the sessions persistence verbs, which derive it with handleKey().",
+      },
+    ],
+  },
+];
+
 const CLASS_LITERAL_START = String.raw`(?:^["']|\s)`;
 const CLASS_LITERAL_END = String.raw`(?=\s|["']$)`;
 const CLASS_SPAN_START = String.raw`(?:^|\s)`;
@@ -4698,6 +4884,7 @@ const restrictionPlugin = {
     "tooling-ops-direct-invocation": toolingEntryRule(true),
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(VERIFY_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
+    ...Object.fromEntries(IDENTITY_WRITER_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     [TYPE_HOME_NATIVE_POLICY_ID]: typeHomeDeclarationRule,
     [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryPublicBoundaryRule,
     "no-inline-invalidate-outside-seam": nativePackageCallRule(["invalidateQueries"], true),
@@ -5578,6 +5765,12 @@ export const hardConfig = [
     },
   },
   { files: [UI_SRC], rules: { "orb/baseui-derives-not-respells-health": "error" } },
+  ...IDENTITY_WRITER_RESTRICTIONS.map(({ id, scope, notUnder = [], homes }) => ({
+    files: scope,
+    ...(notUnder.length + homes.length === 0 ? {} : { ignores: [...notUnder, ...homes.map(({ path }) => path)] }),
+    plugins: { orb: restrictionPlugin },
+    rules: { [`orb/${id}`]: "error" },
+  })),
   {
     files: ["tests/**/*.{ts,tsx}"],
     ignores: [`${LEGACY_TEST_ROOT}/**`],

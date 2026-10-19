@@ -20,7 +20,7 @@ The admission. `admitsHandle` refuses a handle outside the UTS 39 highly restric
 
 The data. `baseline unicode-handle-key` vendors the case folding, default-ignorable, confusable and script-code tables for the engine's Unicode version, refusing a source whose SHA-256 differs from its pin, and a kit test pins the two versions together. A Unicode bump re-keys every `users.handle_key` row.
 
-Checks: the `handle-key-writer` gate (a users write that sets `handle` without `handleKey`), the kit suite (idempotence and case-insensitivity over the BMP, the look-alike and mixed-script cases), `users_handle_key_unique`, and each writer's suite.
+Checks: the hard `orb/handle-key-writer` ESLint rule (a users write that sets `handle` without `handleKey`), the composed rename case in `tests/server/domain/sessions/persistence/users.int.test.ts`, the kit suite (idempotence and case-insensitivity over the BMP, the look-alike and mixed-script cases), `users_handle_key_unique`, and each writer's suite.
 
 ## Consequences
 
