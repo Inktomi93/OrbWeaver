@@ -30,10 +30,9 @@ export function createBulkRemoveCardTag(ctx: CharacterContext): CharacterService
 
     const outcomes = await Promise.all(
       characterIds.map(async (characterId): Promise<BulkTagOutcome> => {
-        // @orb-waive caught-failure-ownership(failed): the owner IS this per-item result —
-        // `failed` rides `outcomes` into `buildBulkTagResult`, which classifies it onto the wire's
-        // `CharacterBulkTagResult.failed[].error` (never swallowed; the client's `refusal` toast is the
-        // surfaced state). End condition: this batch's `Promise.all` resolving.
+        // @orb-waive caught-failure-ownership(failed): the owner is `buildBulkTagResult` in
+        // `substrate/bulk-tag-result.ts`: it reads `"failed" in outcome` and pushes `classifyBulkTagFailure(outcome.failed)`
+        // into `failed[].error`, which this verb returns on the wire. Ends if `buildBulkTagResult` stops reading `failed`.
         try {
           const row = await loadOwnedCharacterRow(ctx.db, ownerId, characterId);
           if (row === undefined) {

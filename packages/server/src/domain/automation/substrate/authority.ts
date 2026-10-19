@@ -34,9 +34,10 @@ export async function holdsChatHostAuthority(deps: AuthorityDeps, chatId: ChatId
   if (principal === null || role === undefined) {
     return false;
   }
-  // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — the ONE `can()` kernel's refusal
-  // collapses to a boolean host-authority verdict; a denied `can()` can never read as host. Ends if `can()`
-  // grows a distinct infra-error class this boolean must stop swallowing.
+  // @orb-waive caught-failure-ownership(catch): the `false` is the denial verdict itself: `decideChat` in
+  // `admin/guard.ts` throws only `DomainForbiddenError` for the role `loadCallerRole` already captured, and every
+  // caller reads the boolean (`dispatch.ts` records `authority_refused`; `confirm-suggestion.ts` refuses
+  // `author_lost_authority`). Ends if `can()` gains a throw that is not a refusal.
   try {
     deps.can(principal, "host", { kind: "chat", membership: { role } });
     return true;

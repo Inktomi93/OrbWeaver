@@ -110,9 +110,9 @@ function assertVideoMagic(bytes: Uint8Array, base: string, claimedMime: string):
 
 /** True iff `bytes` decodes as strict UTF-8 (the text-family fallback — no signature exists for text). */
 function isValidUtf8(bytes: Uint8Array): boolean {
-  // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — a `TextDecoder` decode failure means
-  // the bytes are not valid UTF-8, which IS the false answer this sniff owes; there is no other outcome the
-  // fatal decode can produce. Ends if this stops being a pure boolean sniff.
+  // @orb-waive caught-failure-ownership(catch): the owner is `assertMagicMatches`: it reads this `false` and calls
+  // `refuse(...)`, an `AssetContentRejectedError` whose reason the upload door shows the person. The only throw a
+  // fatal `TextDecoder` raises here is invalid UTF-8. Ends if a caller reads this boolean for anything but that refusal.
   try {
     new TextDecoder("utf-8", { fatal: true }).decode(bytes);
     return true;

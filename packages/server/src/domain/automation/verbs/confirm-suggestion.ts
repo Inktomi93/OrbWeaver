@@ -150,10 +150,9 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
   const nowMs = ctx.now();
   let outcome: AutomationRunOutcome;
   let error: string | null = null;
-  // @orb-waive caught-failure-ownership(err): errors-as-data — the file header states the contract:
-  // a refusal is an `action_error` outcome the host reads, never a thrown 500 (the ask is already spent). The
-  // caught message is preserved into `error` and surfaces on the recorded fire below. Ends if this act stops
-  // being errors-as-data.
+  // @orb-waive caught-failure-ownership(err): the owner is the fire row written below: `error` carries the caught
+  // message into `insertFireWithRuleStamp`'s `detail.error`, and `ctx.notify` raises `ruleErrored` for the
+  // `action_error` outcome the verb returns. Ends if the `error` detail or the `ruleErrored` notify is dropped.
   try {
     await runAnalysisConfirm(
       { db: ctx.db, ops: ctx.ops, serialLanes: ctx.serialLanes, nowMs, applyProseRewrite: ctx.applyProseRewrite },

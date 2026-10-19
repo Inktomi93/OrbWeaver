@@ -85,9 +85,9 @@ async function summarizeBatchIsolated(
     return [];
   }
   const call = { funderUserId, opts: await summarizerOpts(ctx, funderUserId) };
-  // @orb-waive caught-failure-ownership(batchErr): a batch rejection falls back to ISOLATED
-  // per-item calls (documented above) — the per-item loop below owns and reports each item's own failure
-  // via `onItemError`; this outer catch only routes to that fallback, it never drops a failure silently.
+  // @orb-waive caught-failure-ownership(batchErr): the handler re-runs each unfinished item alone through
+  // `summarizeAlone`, and an item that fails alone reaches `onItemError`, which all three callers log with
+  // `getLog().error`. Items the batch finished are kept from `partialItems`. Ends if a caller stops logging `onItemError`.
   try {
     const res = await ctx.summarize(call.funderUserId, [...inputs], call.opts);
     return inputs.map((_, i) => res.items.at(i)?.text ?? null);
@@ -110,9 +110,9 @@ async function summarizeAlone(
   input: SummarizeInput,
   onError: (err: unknown) => void,
 ): Promise<string | null> {
-  // @orb-waive caught-failure-ownership(err): reported via `onError(err)` (the caller's own callback — the
-  // content-hash self-heal retries the dropped item next pass) and returned as a consumed `null` result, per the
-  // batch/isolate contract on `summarizeBatchIsolated`.
+  // @orb-waive caught-failure-ownership(err): `onError(err)` is `onItemError` from `summarizeBatchIsolated`, which all three
+  // callers (`summarizeDigestBatch`, `consolidateOneTier`, `summarizeConsolidationBatch`) implement as `getLog().error`
+  // with `err`. The `null` is the retried-next-pass result the store steps read. Ends if a caller stops logging.
   try {
     const res = await ctx.summarize(call.funderUserId, [input], call.opts);
     return res.items.at(0)?.text ?? null;

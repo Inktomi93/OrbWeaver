@@ -21,10 +21,10 @@ export function createResolveStreamAuthority(ctx: AutomationContext): Automation
     if (role === undefined) {
       throw new AutomationChatNotFoundError(chatId);
     }
-    // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED to the narrower `member` tier — a
-    // caught `can()` refusal means a present-but-not-host member (the file header's injected-op-caller-gate
-    // class), never a leak. Ends if `can()` grows a distinct infra-error class this narrowing must stop
-    // swallowing.
+    // @orb-waive caught-failure-ownership(catch): the `member` tier is the refusal's result: `decideChat` in
+    // `admin/guard.ts` throws only `DomainForbiddenError` for the role `loadCallerRole` captured, and
+    // `transport/trpc/stream/sources/automation.ts` reads the tier to filter the hidden-hand events. Ends if
+    // `can()` gains a throw that is not a refusal.
     try {
       ctx.can(principal, "host", { kind: "chat", membership: { role } });
       return "host";

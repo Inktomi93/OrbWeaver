@@ -2743,9 +2743,9 @@ async function drainOne(ctx: ChatContext, deps: TurnDeps, row: { readonly id: Pe
   if (claimed === undefined) {
     return "skipped"; // a concurrent drain already claimed this row.
   }
-  // @orb-waive caught-failure-ownership(err): fully classified below — a permanent verdict
-  // notifies + logs and returns "dropped"; anything else (a transient fault) re-inserts the row and logs
-  // "requeued" (documented in the function header). Ends if a third fault class needs its own handling.
+  // @orb-waive caught-failure-ownership(err): both arms report: the permanent verdict (`ChatNotFoundError` only,
+  // `isDrainVerdictDrop`) notifies the member via `notifyDeferredTurnDropped` and logs at info; every other
+  // error re-inserts the row and `getLog().warn`s it with `err`. Ends if a third fault class needs its own handling.
   try {
     await runDeferredRound(ctx, deps, claimed);
     return "ran";
