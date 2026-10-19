@@ -1,5 +1,5 @@
 // Declaration provenance for shape comparisons; matching types never establish a shared origin.
-import type { EntityName, Identifier, Node as MorphNode, Symbol as MorphSymbol, ts as MorphTs, Signature, Type } from "ts-morph";
+import type { EntityName, Identifier, Node as MorphNode, Symbol as MorphSymbol, ts as MorphTs, Signature, Type, TypeNode } from "ts-morph";
 import { Node } from "ts-morph";
 import nativeTs from "typescript";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
@@ -85,6 +85,30 @@ function typeQueryOperandKeys(operand: EntityName): readonly string[] {
   return ((symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? []).map((declaration) => `${inventoryDeclarationKey(declaration)}${suffix}`);
 }
 
+/** One instantiation argument's identity: a keyword or literal by its text, or a non-generic reference by its
+ *  single resolved declaration. Anything else is unidentified, and the operand then has no key. */
+function instantiationArgumentKey(argument: TypeNode): string | undefined {
+  if (argument.getKindName().endsWith("Keyword") || Node.isLiteralTypeNode(argument)) {
+    return argument.getText();
+  }
+  if (!Node.isTypeReference(argument) || argument.getTypeArguments().length > 0) {
+    return;
+  }
+  const symbol = argument.getTypeName().getSymbol();
+  const declarations = (symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? [];
+  const [declaration] = declarations;
+  return declarations.length === 1 && declaration !== undefined ? inventoryDeclarationKey(declaration) : undefined;
+}
+
+/** The instantiation suffix of a `typeof f<A>` operand: `typeof f<string>` and `typeof f<number>` are different types. */
+function instantiationKey(typeArguments: readonly TypeNode[]): string | undefined {
+  const parts = typeArguments.map(instantiationArgumentKey);
+  if (parts.some((part) => part === undefined)) {
+    return;
+  }
+  return parts.length === 0 ? "" : `${INVENTORY_KEY_SEPARATOR}<${parts.join(INVENTORY_KEY_SEPARATOR)}>`;
+}
+
 /** Shared `typeof value` provenance through a generic derive (`z.infer`, `ReturnType`, and equivalents). */
 export function typeQueryDerivationKeys(decl: MorphNode): Set<string> {
   const facts = shapeFactsOf(decl);
@@ -103,13 +127,13 @@ export function typeQueryDerivationKeys(decl: MorphNode): Set<string> {
   if (argument === undefined || typeNode.getTypeArguments().length !== 1 || !Node.isTypeQuery(argument)) {
     return keys;
   }
-  // An instantiation expression (`typeof f<A>`) selects a type the operand alone does not name.
-  if (argument.getTypeArguments().length > 0) {
+  const instantiation = instantiationKey(argument.getTypeArguments());
+  if (instantiation === undefined) {
     return keys;
   }
   const genericSymbol = typeNode.getTypeName().getSymbol();
   const genericKeys = ((genericSymbol?.getAliasedSymbol() ?? genericSymbol)?.getDeclarations() ?? []).map(inventoryDeclarationKey);
-  const operandKeys = typeQueryOperandKeys(argument.getExprName());
+  const operandKeys = typeQueryOperandKeys(argument.getExprName()).map((key) => `${key}${instantiation}`);
   for (const genericKey of genericKeys) {
     for (const operandKey of operandKeys) {
       keys.add(`${genericKey}${INVENTORY_KEY_SEPARATOR}${operandKey}`);

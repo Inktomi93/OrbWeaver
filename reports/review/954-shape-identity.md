@@ -43,13 +43,65 @@ The assignability primitive is unchanged: `fieldTypesAgree` and `declarationType
 
 The verifier refuted the first commit on one P2. `typeQueryDerivationKeys` keyed a `typeof` operand on its resolved symbol. For `typeof aRoute.body` and `typeof bRoute.body`, both resolve to the one `body` declaration of `Route<B>`, so two different types shared one key. The exact tier already exempted such pairs wrongly. The shared `shapeDerivesFrom` spread the mistake to the near tier and to component lower data.
 
-The key now names the root value's declaration plus the member path. An instantiation-expression operand (`typeof f<A>`) produces no key. The stored native catalog reads the same function, so `INVENTORY_FORMAT` moves to 25. Main had already taken 24 for another catalog change, so this change needs its own number. The database selects generations by format, so stored catalogs with the old keys are rebuilt rather than read.
+The key now names the root value's declaration plus the member path. An instantiation-expression operand (`typeof f<A>`) also keys its type arguments: a keyword or literal by its text, a non-generic reference by its single declaration. Any other argument leaves the operand with no key. The stored native catalog reads the same function, so `INVENTORY_FORMAT` moves to 25. Main had already taken 24 for another catalog change, so this change needs its own number. The database selects generations by format, so stored catalogs with the old keys are rebuilt rather than read.
 
 Changed findings from the fix:
 
 - Respell exact tier: two identical bodies read from different route values (`typeof aRoute.body` and `typeof bRoute.body`) are now reported. Before, they were exempted as shared provenance.
 - Respell near tier: the verifier's pair (memo against note, 66.67%) is reported again, as it was on base.
 - Component lower data: a component body read from a different route value is no longer `derived`.
+
+## Shape identity version table
+
+Each row is one case where the old readers could disagree. The respell and copy verdicts are measured, not reasoned. An uncommitted probe ran the real consumers (`bestCopyMatch` with `contractFields`, `candidateFields` and lenient `createFieldAgreement`; `respellHitsFor`; `respellNearCandidatesFor` at threshold 0; `typeQueryDerivationKeys`). It ran on the same 20 in-memory fixtures twice: once with this lane's source reversed to base 8e47dbc5f3, once on the final source. Every fixture compiles with no diagnostics. Component verdicts come from `tests/tooling/floor/code-facts/component-type-home.test.ts`.
+
+Old readers:
+
+- Copy: `agreeingCount` plus the copy gate's inline exact.
+- Respell exact: `mutuallyAssignable`, direct targets and `overlaps` of `typeof` keys.
+- Near: direct-only `derivedFrom` plus an inline exact re-check without the `typeof` exclusion.
+- Component: `agreeingCount` plus a second inline exact and direct-only derivation.
+- The `typeof` key: the operand's resolved symbol, with type arguments ignored.
+
+New: the shared comparer and `shapeDerivesFrom`, with the root-plus-path and instantiation key.
+
+Marks: (a) correct as kept. (b) the stronger version is adopted. (c) different on purpose.
+
+| Case | Copy (old = new unless noted) | Respell exact (old → new) | Near at 0% (old → new) | `typeof` key shared (old → new) | Kept | Mark |
+| - | - | - | - | - | - | - |
+| Equal names and types | match 4/4, exact | reported → reported | excluded → excluded | no → no | all agree | (a) |
+| Domain is a subset of the contract | match 4/4, not exact | none → none | 80% → 80% | no → no | all agree | (a) |
+| Domain is a superset of the contract | no match | none → none | 80% → 80% | no → no | copy subset rule | (c): the `contract-structural-copy` header admits subset or equal only; the near tier is the superset view |
+| Optional against required (`a?` vs `a`) | match 4/4, exact | none → none | 60% → 60% | no → no | copy lenient, respell strict | (c): `AgreementContext.lenient` in `assignability.ts`; the copy `mustFlag` row "an OPTIONAL field is still the contract's field"; the near narration states bidirectional assignability (`ast/ops/respell.ts`) |
+| `readonly` properties | match 4/4, exact | reported → reported | excluded → excluded | no → no | all agree: property `readonly` does not affect assignability | (a) |
+| `readonly string[]` against `string[]` | match 4/4, exact | none → none | 60% → 60% | no → no | copy lenient, respell strict | (c): same citations as the optional row |
+| Index signature on one side (each direction) | match 4/4, exact | none → none | 100% → 100% | no → no | copy compares data fields; respell compares whole declarations | (c) for the verdicts; (b) owed for diagnostics: the near diff names no difference at 100% |
+| One-way assignable (`"x" \| "y"` vs `string`) | no match (3/4 is under 80%) | none → none | 60% → 60% | no → no | all agree | (a) |
+| Generic instance `Box<string>` against a literal | not a candidate (no own fields) | reported → reported | excluded → excluded | no → no | copy judges hand-written literals only | (c): the copy gate header names its subjects |
+| `Box<number>` against `Box<string>` | not a candidate | none → none | 60% → 60% | no → no | all agree | (a) |
+| Direct alias `type D = C` | not a candidate | none → none | excluded → excluded | no → no | all agree | (a) |
+| Direct `extends C` | skipped (heritage) | none → none | excluded → excluded | no → no | all agree | (a) |
+| `typeof` same unqualified value | not a candidate | exempt → exempt | excluded → excluded | yes → yes | all agree | (a) |
+| `typeof` two unqualified values, identical bodies | not a candidate | reported → reported | excluded → excluded | no → no | all agree | (a) |
+| `typeof` same root, qualified (`a.body` both) | not a candidate | exempt → exempt | excluded → excluded | yes → yes | all agree | (a) |
+| `typeof` two roots, qualified, identical bodies | not a candidate | exempt → **reported** | excluded → excluded | **yes → no** | new key | (b) adopted: the old key shared one member declaration across values; red-first test "a qualified typeof operand keys on its root value" |
+| `typeof` two roots, qualified, drifted bodies | not a candidate | none → none | 66.67% → 66.67% (excluded at `bab35f87d4`, restored) | **yes → no** | new key | (b) adopted: verifier fixture; red-first test "a qualified typeof operand from a different root value still reaches the near tier" |
+| `typeof make<string>` on both sides | not a candidate | exempt → exempt | excluded → excluded | yes → yes | instantiation key | (b) adopted: the old key ignored arguments and agreed only by accident; `f5a7b21df3` dropped the key and briefly reported it; red-first test "a typeof instantiation keys on its type arguments" |
+| `typeof make<string>` against `make<number>` | not a candidate | none → none | 60% → 60% | **yes → no** | instantiation key | (b) adopted: the old key made two different types one provenance; same test |
+| Copy-gate exact against component exact | gate: `shared === contract.size` on subsets; component: both sizes | n/a | n/a | n/a | one `exact` (both sizes) | (a): equal on every pair the gate compares, because it compares subsets only |
+| Near inline exact re-check against the exact tier | n/a | n/a | same on all 20 cases | n/a | the exact tier's `exactTierResolves` | (a): one verdict now, so near excludes exactly what exact reports or exempts |
+| Component lower data, shared unqualified `typeof` | n/a | n/a | n/a | yes → yes | `shapeDerivesFrom` | (b) adopted: before, `unqualified` with no comparisons; now `derived`; test "lower-data derivation uses the shared pair judgment" |
+| Component lower data, two qualified roots | n/a | n/a | n/a | yes → no | `shapeDerivesFrom` with the new key | (a): `unqualified` on base and final (`derived` only at `bab35f87d4`); same test |
+
+### Consumers whose result changed
+
+- Respell exact reports identical bodies read from different values, through a member path or an instantiation with different arguments. The two declarations derive from different values, so they share no provenance. An identical structure is exactly what the exact tier exists to report.
+- Component lower data reports `derived` for a component type that shares one unqualified `typeof` origin with a lower declaration. Both sides name one value through one generic, so they resolve to one type.
+- No copy-gate verdict changed on any case.
+
+### Owed
+
+- (b) Near diagnostics: a 100% near pair that differs only by an index signature prints a diff naming no difference. A board item: "respell --near names declaration-level differences". Done when the diff names an index signature or other non-field difference.
 
 ## Kept apart, with reasons
 

@@ -1234,6 +1234,18 @@ export interface DomainShape { id: TypeIdOf<"CharacterId">; name: string; role: 
     expect(respellNearCandidatesFor(project, checker, "chat", 0)).toEqual([]);
   });
 
+  test("a typeof instantiation keys on its type arguments: the same instantiation derives, a different one stays a candidate", () => {
+    const make = (domainArgument: string): Record<string, string> => ({
+      "packages/contracts/src/chat/make.ts":
+        "export declare function make<T>(value: T): { a: T; b: number; c: boolean; d: string };\nexport type ContractMade = ReturnType<typeof make<string>>;\n",
+      "packages/server/src/domain/chat/contract/made.ts": `import type { make } from "../../../../../contracts/src/chat/make";\nexport type DomainMade = ReturnType<typeof make<${domainArgument}>>;\n`,
+    });
+    const same = projectOf(make("string"));
+    expect(respellHitsFor(same, assignabilityChecker(same), "chat")).toEqual([]);
+    const different = projectOf(make("number"));
+    expect(respellNearCandidatesFor(different, assignabilityChecker(different), "chat", 60).map(({ domainName }) => domainName)).toEqual(["DomainMade"]);
+  });
+
   test("a qualified typeof operand from a different root value still reaches the near tier", () => {
     const project = projectOf(
       qualifiedRouteFiles(
