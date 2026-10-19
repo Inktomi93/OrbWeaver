@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
+lane: wt/agent-a70a1405425980a02
 ---
 
 # Clear the native lint findings the latest main merges introduced
