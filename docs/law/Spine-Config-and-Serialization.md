@@ -14,7 +14,7 @@ Every config value has exactly one of four natures; misfiling one re-tangles the
 
 | Nature | Home | Shape |
 | - | - | - |
-| (a) true env — boot/secret/identity | `foundation/env` (the ONE `process.env` reader; gates: `sole-env-reader` + biome `noProcessEnv`) | frozen zod schema; `superRefine` boot-fatality per `AUTH_MODE` |
+| (a) true env — boot/secret/identity | `foundation/env` (the ONE `process.env` reader; lint: `orb/sole-env-reader` + biome `noProcessEnv`) | frozen zod schema; `superRefine` boot-fatality per `AUTH_MODE` |
 | (a/seed) env → DB row once, then inert | `entry/boot/seed-credential.ts` (`OPENROUTER_API_KEY` → labeled credential) | the model env→DB pattern; the var wears no second hat at runtime |
 | (b) runtime toggles | `domain/settings/effective-config/layer.ts` → `EffectiveAppConfig` | `override ?? floor` per field; stored `null` = CLEAR sentinel |
 | (c) agent-sdk runner machinery | `packages/inference/src/backends/agent-sdk/env.ts` | backend-internal, NOT a settings tier; rebuilt every turn |
