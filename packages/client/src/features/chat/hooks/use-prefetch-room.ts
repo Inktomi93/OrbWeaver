@@ -60,7 +60,7 @@ export function usePrefetchRoom(chatId: ChatId | null): void {
     }
     const options = trpc.chat.getChat.queryOptions({ chatId });
     if (peekQueryData(queryClient, options.queryKey) === undefined) {
-      // @orb-waive caught-failure-ownership(queryClient.query): this only warms chat.getChat; ChatThread's ordinary useSuspenseQuery and QueryBoundary own the same key's user-visible error/retry surface. Ends if consumer ownership changes or this warmer owns a user operation.
+      // @orb-waive caught-failure-ownership(queryClient.query): this only warms chat.getChat; ChatThread reads the same key with useSuspenseQuery inside QueryBoundary (surfaces/message-list-surface.tsx), whose renderError shows QueryErrorState with Retry. Ends if ChatThread stops reading that key under a boundary or this warmer owns a user operation.
       void queryClient.query(options).catch(() => undefined);
     }
   }, [queryClient, trpc, chatId]);
@@ -91,7 +91,7 @@ export function useWarmRoomOnIntent(): (chatId: ChatId) => void {
   return (chatId: ChatId): void => {
     const options = trpc.chat.getChat.queryOptions({ chatId });
     if (peekQueryData(queryClient, options.queryKey) === undefined) {
-      // @orb-waive caught-failure-ownership(queryClient.query): intent warming owns no user result; ChatThread's useSuspenseQuery and QueryBoundary own chat.getChat's error/retry surface. Ends if consumer ownership changes or warming becomes a user operation.
+      // @orb-waive caught-failure-ownership(queryClient.query): intent warming owns no user result; ChatThread reads chat.getChat with useSuspenseQuery inside QueryBoundary (surfaces/message-list-surface.tsx), whose renderError shows QueryErrorState with Retry. Ends if ChatThread stops reading that key under a boundary or warming becomes a user operation.
       void queryClient.query(options).catch(() => undefined);
     }
   };

@@ -165,7 +165,7 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
     const next = nextHiddenSet(base, id, hide);
     pendingHiddenRef.current = next;
     queuedWritesRef.current += 1;
-    // @orb-waive caught-failure-ownership(visibilityChainRef.current): the chain's own catch, never the mutation's — `useSetChatDocumentVisibility` still runs its errorToast and its optimistic `onError` rollback untouched. It exists so ONE rejected write cannot wedge the queue for every later toggle. Ends if that mutation stops wiring an errorToast.
+    // @orb-waive caught-failure-ownership(visibilityChainRef.current): the chain's own catch, never the mutation's: the write's failure is owned by `useSetChatDocumentVisibility`'s `errorToast` and optimistic `onError` rollback (hooks/use-chat-document-mutations.ts), and this catch only keeps one rejected write from wedging the queue for every later toggle. Ends if that mutation drops its errorToast.
     visibilityChainRef.current = visibilityChainRef.current
       .then(async () => setVisibility.mutateAsync({ chatId, visibility: { hidden: next } }))
       .catch(() => undefined)

@@ -112,7 +112,7 @@ export function FirstModelSetup({
         });
       }
     };
-    // @orb-waive caught-failure-ownership(chatBinding): settled writes the inline failure while mounted and a recovery toast after close; ends if that owner no longer surfaces either outcome.
+    // @orb-waive caught-failure-ownership(chatBinding): `settled` writes `setChatState({ failure })`, which `chatAssignmentText` renders as the inline alert, while mounted and raises `notify.error` after unmount; both rejection and refusal route through it. Ends if `settled` stops surfacing either outcome.
     void chatBinding.then(settled, (error: unknown): void => settled(errorMessage(error)));
     return (): void => {
       mounted = false;

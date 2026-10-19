@@ -228,10 +228,7 @@ function parseExtraValue(raw: string): unknown {
   if (text === "") {
     return raw;
   }
-  // @orb-waive caught-failure-ownership(catch): a PARSE PROBE, not an operation — "this text is not JSON"
-  // is the ANSWER, not a failure. A server extra is as often the string `research` as the number 40, and
-  // this catch IS the string arm; the value round-trips to the row the user typed it in, which is the
-  // surface. Ends if this ever writes rather than classifies.
+  // @orb-waive caught-failure-ownership(catch): a parse probe, not an operation: non-JSON text is the answer, and `raw` is the string arm that `extrasFromRows` saves as the extra's value and `rowWithReadValue` leaves as typed. Ends if this catch ever writes or reports rather than classifies.
   try {
     return JSON.parse(text) as unknown;
   } catch {

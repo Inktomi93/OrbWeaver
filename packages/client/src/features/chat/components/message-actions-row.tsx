@@ -236,7 +236,7 @@ export function MessageActionsRow({
     if (fork.isPending) {
       return;
     }
-    // @orb-waive caught-failure-ownership(catch): the fork mutation's sticky error + global errorToast already surfaced the failure. Ends if the mutation drops its errorToast.
+    // @orb-waive caught-failure-ownership(catch): the rejection comes from `useForkMutation`'s mutateAsync, whose errorToast "Couldn't fork this chat." (same file) is the surface. Ends if the mutation drops its errorToast.
     try {
       const result = await fork.mutateAsync({ chatId, throughSeq: message.seq });
       // Forking always lands the reader in the new branch. The notice stays because the fork's transcript
