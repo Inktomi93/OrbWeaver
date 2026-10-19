@@ -45,6 +45,7 @@
 // both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import { defineGate } from "../contract/policy.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
 
@@ -71,15 +72,8 @@ function isOrbAssignment(node: MorphNode): boolean {
   if (!Node.isBinaryExpression(node) || node.getOperatorToken().getKind() !== SyntaxKind.EqualsToken) {
     return false;
   }
-  const left = node.getLeft();
-  if (Node.isPropertyAccessExpression(left)) {
-    return left.getName() === "__orb" && ["globalThis", "window"].includes(left.getExpression().getText());
-  }
-  if (!(Node.isElementAccessExpression(left) && ["globalThis", "window"].includes(left.getExpression().getText()))) {
-    return false;
-  }
-  const argument = left.getArgumentExpression();
-  return argument !== undefined && Node.isStringLiteral(argument) && argument.getLiteralText() === "__orb";
+  const member = literalMemberAccess(node.getLeft());
+  return member?.name === "__orb" && ["globalThis", "window"].includes(member.receiver.getText());
 }
 
 function hasRegistry(sf: SourceFile, name: string, typeText: string): boolean {

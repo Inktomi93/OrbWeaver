@@ -43,6 +43,7 @@
 // still reported, and each carries its own row.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { GlobalOriginServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
 import { nativeOriginPass } from "../lib/native-origin.ts";
@@ -72,14 +73,7 @@ function fetchCandidate(node: MorphNode): boolean {
   if (Node.isIdentifier(node)) {
     return node.getText() === FETCH;
   }
-  if (Node.isPropertyAccessExpression(node)) {
-    return node.getName() === FETCH;
-  }
-  if (!Node.isElementAccessExpression(node)) {
-    return false;
-  }
-  const argument = node.getArgumentExpression();
-  return argument !== undefined && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument)) && argument.getLiteralText() === FETCH;
+  return literalMemberAccess(node, true)?.name === FETCH;
 }
 
 /** A `typeof globals.fetch === "function"` capability probe reads whether the environment HAS the api, and

@@ -5,6 +5,7 @@
 // `knob-wire-members.ts` and nothing from `knob-wire-fact.ts`.
 import type { Node } from "ts-morph";
 import { Node as MorphNode } from "ts-morph";
+import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
 import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
 import { EFFECTIVE_APP_CONFIG, METADATA_PARSER, SETTINGS_CONTRACTS } from "./knob-wire-members.ts";
@@ -124,17 +125,14 @@ function sectionLiteralOf(node: Node): string | undefined {
 /** The READ-SHAPED names one node contributes: a PropertyAccess name, a BindingElement's binding and
  *  property names, a string ElementAccess literal, or a bare string literal. */
 function readShapedNames(node: Node): readonly string[] {
-  if (MorphNode.isPropertyAccessExpression(node)) {
-    return [node.getName()];
+  if (MorphNode.isPropertyAccessExpression(node) || MorphNode.isElementAccessExpression(node)) {
+    const member = literalMemberAccess(node);
+    return member === undefined ? [] : [member.name];
   }
   if (MorphNode.isBindingElement(node)) {
     return [node.getNameNode(), node.getPropertyNameNode()].flatMap((candidate) =>
       candidate !== undefined && MorphNode.isIdentifier(candidate) ? [candidate.getText()] : [],
     );
-  }
-  if (MorphNode.isElementAccessExpression(node)) {
-    const argument = node.getArgumentExpression();
-    return argument !== undefined && MorphNode.isStringLiteral(argument) ? [argument.getLiteralText()] : [];
   }
   return MorphNode.isStringLiteral(node) ? [node.getLiteralText()] : [];
 }

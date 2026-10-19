@@ -62,6 +62,7 @@
 //     (§4.1's fourth outcome: record the gap, never fake a pin).
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { GlobalOriginServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
 import { nativeOriginPass } from "../lib/native-origin.ts";
@@ -89,15 +90,8 @@ function storageCandidateName(node: MorphNode): string | undefined {
   if (Node.isIdentifier(node)) {
     return STORAGE_NAMES.find((name) => name === node.getText());
   }
-  if (Node.isPropertyAccessExpression(node)) {
-    return STORAGE_NAMES.find((name) => name === node.getName());
-  }
-  if (!Node.isElementAccessExpression(node)) {
-    return;
-  }
-  const argument = node.getArgumentExpression();
-  const literal = argument !== undefined && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument)) ? argument.getLiteralText() : "";
-  return STORAGE_NAMES.find((name) => name === literal);
+  const member = literalMemberAccess(node, true);
+  return STORAGE_NAMES.find((name) => name === member?.name);
 }
 
 /** A `typeof globals.localStorage` capability probe, or a TYPE QUERY naming the api's type, is not a use. */

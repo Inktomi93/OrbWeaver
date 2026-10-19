@@ -59,6 +59,17 @@ test("shared namespace mutation groups canonical receiver identity across aliase
   expect(collectRegistryCandidates(distinct).filter(({ kind }) => kind === "registry-candidate:shared-namespace-mutation")).toEqual([]);
 });
 
+test("shared namespace mutation keys a bracket member path like its dotted spelling", () => {
+  const project = projectOf({
+    "packages/shared/src/state.ts": "export const registry = { nested: {} };\n",
+    "packages/client/src/one.ts": 'import { registry } from "../../shared/src/state.ts";\nregistry.nested.alpha = 1;\n',
+    "packages/client/src/two.ts": 'import { registry } from "../../shared/src/state.ts";\nregistry["nested"].beta = 1;\n',
+    "packages/client/src/three.ts": 'import { registry } from "../../shared/src/state.ts";\nregistry.nested["gamma"] = 1;\n',
+  });
+
+  expect(collectRegistryCandidates(project).filter(({ kind }) => kind === "registry-candidate:shared-namespace-mutation")).toHaveLength(1);
+});
+
 test("shared namespace mutation follows local const aliases to their imported value origin", () => {
   const project = projectOf({
     "packages/shared/src/state.ts": "export const registry = {};\n",

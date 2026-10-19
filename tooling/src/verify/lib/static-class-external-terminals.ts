@@ -2,6 +2,7 @@
 // package import and the package-specific argument path before asking the shared evaluator for values.
 import type { CallExpression, Identifier, Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { StaticValue } from "./static-class-expression-model.ts";
 import { unwrap } from "./static-class-expression-model.ts";
 import { findObjectProperties } from "./static-class-object.ts";
@@ -34,14 +35,8 @@ function isLucideFactory(call: CallExpression): boolean {
   if (!Node.isIdentifier(receiver)) {
     return false;
   }
-  const member = Node.isPropertyAccessExpression(callee)
-    ? callee.getName()
-    : callee
-        .getArgumentExpression()
-        ?.getText()
-        .replace(/^['"]|['"]$/gu, "");
   return (
-    member === LUCIDE_FACTORY &&
+    literalMemberAccess(callee, true)?.name === LUCIDE_FACTORY &&
     source
       .getImportDeclarations()
       .some((declaration) => declaration.getModuleSpecifierValue() === LUCIDE_MODULE && declaration.getNamespaceImport()?.getText() === receiver.getText())

@@ -363,6 +363,24 @@ collision.sendTurn();
     expect(run.stdout).not.toContain("collision.sendTurn()");
   });
 
+  test("callers counts bracket and optional bracket method calls like the dotted spelling", () => {
+    const project = projectOf({
+      "packages/server/src/service.ts": `
+export class Service { sendTurn(): void {} }
+const service = new Service();
+service.sendTurn();
+service["sendTurn"]();
+service?.["sendTurn"]();
+const held = service["sendTurn"];
+`,
+    });
+    const run = runVerb(project, { verb: "callers", arg: "sendTurn", corpus: CORPUS_TYPED });
+    expect(run.epilogue).toMatchObject({ matches: "3" });
+    expect(run.stdout).toContain('service["sendTurn"]()');
+    expect(run.stdout).toContain('service?.["sendTurn"]()');
+    expect(run.stdout).not.toContain("const held");
+  });
+
   test("importers canonicalizes a subject to resolved target identity", () => {
     const project = projectOf(
       {
