@@ -48,8 +48,10 @@
 // `const` because the write guard reads only the importing file · a try block whose sole statement is one of
 // those framework operations owns its catch whatever the catch returns · `withRequestSpan` · a named handler
 // that itself owns · an error-as-data outcome that a real consumer reads, including a TYPED REFUSAL: a call whose
-// type admits only failure discriminants, or whose single-return factory body is a failure outcome, owns
-// without the caught binding, and a conditional `return <refusal>` is not an escape. A success discriminator
+// type admits only failure literals in every discriminant member, or whose single-return factory body is a
+// failure outcome without its parameter, owns without the caught binding (a body failure-valued only through
+// its parameter owns only when the call passes the binding), and a conditional `return <refusal>` is not an
+// escape. A sole-operation try holds no other call and no `new`. A success discriminator
 // (`{ status: 'ok', error: err }`) REFUSES ownership: carrying the error as incidental data beside a success
 // verdict is the laundering shape. Reassignment kills provenance — a governed initializer overwritten by
 // `x = fake` owns nothing after.

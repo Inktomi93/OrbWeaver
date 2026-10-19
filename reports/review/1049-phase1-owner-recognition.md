@@ -6,7 +6,7 @@ Phase 1 lands the reader change and the waivers its scoped runs proved retired. 
 ## Reader change
 
 Files: `tooling/src/verify/lib/caught-failure.ts`, `caught-failure-scope.ts`, `caught-failure-outcome.ts`, plus proof rows in
-`tooling/src/verify/gates/caught-failure-ownership.ts` (7 mustFlag and 3 mustPass rows added).
+`tooling/src/verify/gates/caught-failure-ownership.ts` (67b039c944 added 6 mustFlag and 3 mustPass rows, for 71 / 33; the refutation fix below adds 4 mustFlag and 1 mustPass, for 75 / 34).
 
 - **errorToast mutation, across modules.** A `createEntityMutation` hook imported from another module (also through a
   re-export) keeps its `errorToast` owner. The declaration must be a `const`, because the write guard reads only the
@@ -42,7 +42,7 @@ Runner: `pnpm exec node <scratch copy of reports/cb-1049-mine/cb-1049-conformanc
 
 - Red-first v1 (predecessor, HEAD reader, before the 71st mustFlag row): 70 mustFlag / 33 mustPass / 4 failures.
 - Red-first v2 (this lane, HEAD reader, all rows): 71 / 33 / 4 failures, the same four rows.
-- New reader: 71 / 33 / 0 failures (`reports/cb-1049-mine/cb-1049-2-conformance-post.log`).
+- New reader at 67b039c944: 71 / 33 / 0 failures. After the refutation fix: 75 / 34 / 0 (`reports/cb-1049-mine/cb-1049-3-conformance-post.log`).
 
 ### Red-first v1 log (predecessor)
 
@@ -385,12 +385,61 @@ pinned by native-failure-observations.test.ts). `typeIsFailureOutcome` (`caught-
 mustPass, drops the limit, and retires more markers, so it needs its own red-first run and run set. Deferred: a reader
 change mid-run would have mixed two readers. caught-failure-outcome.ts is at 447 of 450 lines.
 
+## Verifier refutation of 67b039c944, and the fix
+
+The verifier found fake owners credited by 67b039c944, all from dropping the caught-binding requirement on the
+call path in `callIsFailureOutcome`:
+
+- **P1, the factory parameter as the binding.** `factoryReturnsFailure` judged the helper's first parameter as the caught
+  binding, so `pass([])`, `wrap(null)` (the `{ error: null }` cleared slot) and an errorToast of `pass('')` all owned.
+  The same path fed React setter arguments and notify copy.
+  - Fix: a factory body owns on its own only when it is failure-valued without its parameter, as `{ ok: false, reason }`
+    is. A body failure-valued only through its parameter owns only when the call's first argument references the caught
+    binding (`governedFailureFactoryCall`).
+- **P2, members without a literal were filtered out.** `typeIsFailureOutcome` dropped union members with no literal value
+  before its `every` test, so `{ status?: 'failed' }`, `{ status: 'error' } | { status: number }` and
+  `{ kind: 'error' } | { kind: string & {} }` passed.
+  - Fix: no filter. A member without a literal value fails the test. The boolean route stays out of scope: `ok` still
+    reads through `literalValue`, which keeps declared limit 7 exact (conservative).
+- **P3, a constructor in a sole-operation try.** `try { await m.mutateAsync(new Payload(raw)); } catch { return []; }` was
+  credited.
+  - Fix: `hasFrameworkOwner` refuses a try that also constructs (`new`) outside a nested function.
+- **P3, guard narrowness was unpinned.** Pinned by a mustPass, not a mustFlag, because these shapes are credited BY DESIGN:
+  `if (err instanceof TypeError) { throw err; }` and `if (err === err && false) { throw err; }`.
+
+New rows:
+- mustFlag `parameter-factories` (count 2);
+- mustFlag `toast-identity` (1);
+- mustFlag `nonliteral-discriminants` (3);
+- mustFlag `sole-new` (1);
+- mustPass `guard-narrowness`.
+
+Red-first: the 75 / 34 rows on the 67b039c944 reader fail exactly the four new mustFlag rows
+(`reports/cb-1049-mine/cb-1049-3-redfirst.log`). After the fix: 75 / 34 / 0.
+
+The verifier's fixtures (`v1049-adversarial.ts`, `v1049-adversarial-2.ts`) went from 9 and 1 failures to 3 and 0. The
+three left are outside the required set:
+- `gr-return-first` (`if (isConflict(err)) { if (skip) { return; } throw err; }`) is the discriminated early-return shape
+  the reader already credited before 1049;
+- `gr-inner-try` and `gr-const-other-block` report 2 findings where the fixture expects 1, because the nested catch is a
+  site of its own.
+
+Serde re-judged: `refuse` (serde/lib/index.ts:109) returns `{ ok: false, reason }`, which is failure-valued without its
+parameter, so both decodeObject sites still own. An in-memory run of the committed file under the fixed reader shows 0
+findings and 0 alarms; the same probe under the HEAD reader showed both sites. The two deletions and their population
+edits stand.
+
+Risk not closed by a run: the fix narrows three credits the HEAD reader also gave. Those are the filtered non-literal
+member, a `new` in a sole-operation try, and a factory that takes the binding in a later argument than the first. A live
+site anywhere in the tree that relied on one of them would now be a finding. No scoped structure run has re-checked the
+tree under the fixed reader. That is owed with the cheap rerun (item 1070).
+
 ## Commands and results
 
 - `pnpm exec biome check <changed .ts files> --diagnostic-level=error`: 11 files, no errors (the 4 reader/gate files, the population record, and the 6 marker files).
 - `pnpm typecheck --config tooling/tsconfig.json`: PASS. The server program was not typechecked: its edits are comment
   deletions only.
-- Per-gate conformance (new reader): 71 / 33 / 0.
+- Per-gate conformance: 71 / 33 / 0 at 67b039c944; 75 / 34 / 0 after the refutation fix.
 - `pnpm test:scoped tests/tooling/verify/gates/caught-failure-census-row.test.ts`: 3 passed.
 - `tests/tooling/verify/gates/caught-failure-ownership.repo.int.test.ts`: not run. It derives the whole population
   (`deriveCaughtFailurePopulation(repoRoot)`, at least 2000 files), so it is owed to primary.

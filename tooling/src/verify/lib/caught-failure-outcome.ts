@@ -142,7 +142,7 @@ function callIsFailureOutcome(value: CallExpression, errorBinding: Node | undefi
     isNativePromiseReject(value, errorBinding, reads) ||
     cannotReturn(value, reads) ||
     typeIsFailureOutcome(value, reads) ||
-    governedFailureFactoryCall(value, reads)
+    governedFailureFactoryCall(value, errorBinding, reads)
   );
 }
 
@@ -171,8 +171,9 @@ export function isFailureOutcome(node: Node, errorBinding: Node | undefined, rea
 
 /** A helper is a failure FACTORY only when EVERY path returns a failure-valued outcome — which a syntactic
  *  reader can only prove for a single-expression body or a single-return block. An implicit `undefined`
- *  fallthrough is a recovered success path, so the caller still absorbs. */
-function factoryReturnsFailure(declaration: Node, callee: Node, reads?: CaughtFailureReadServices): boolean {
+ *  fallthrough is a recovered success path, so the caller still absorbs. A body that is failure-valued only
+ *  through its first parameter (`(v) => ({ error: v })`) owns only when the call passes the caught binding. */
+function factoryReturnsFailure(declaration: Node, callee: Node, passesBinding: boolean, reads?: CaughtFailureReadServices): boolean {
   if (callee.isKind(SyntaxKind.Identifier) && hasInterveningWrite(callee, declaration, reads)) {
     return false;
   }
@@ -180,23 +181,20 @@ function factoryReturnsFailure(declaration: Node, callee: Node, reads?: CaughtFa
   if (fn === undefined || !(fn.isKind(SyntaxKind.FunctionDeclaration) || fn.isKind(SyntaxKind.ArrowFunction))) {
     return false;
   }
-  const errorBinding = fn.getParameters()[0]?.getNameNode();
+  const parameter = passesBinding ? fn.getParameters()[0]?.getNameNode() : undefined;
   const body = fn.getBody();
-  if (body === undefined) {
-    return false;
-  }
-  if (!body.isKind(SyntaxKind.Block)) {
-    return isFailureOutcome(body, errorBinding, reads);
-  }
-  const statements = body.getStatements();
-  const only = statements.length === 1 ? statements[0] : undefined;
-  const expression = only?.isKind(SyntaxKind.ReturnStatement) === true ? only.getExpression() : undefined;
-  return expression !== undefined && isFailureOutcome(expression, errorBinding, reads);
+  const only = body?.isKind(SyntaxKind.Block) === true && body.getStatements().length === 1 ? body.getStatements()[0] : undefined;
+  const expression = body?.isKind(SyntaxKind.Block) === false ? body : only?.asKind(SyntaxKind.ReturnStatement)?.getExpression();
+  return (
+    expression !== undefined && (isFailureOutcome(expression, undefined, reads) || (parameter !== undefined && isFailureOutcome(expression, parameter, reads)))
+  );
 }
 
-function governedFailureFactoryCall(call: CallExpression, reads?: CaughtFailureReadServices): boolean {
+function governedFailureFactoryCall(call: CallExpression, errorBinding: Node | undefined, reads?: CaughtFailureReadServices): boolean {
   const callee = unwrapExpression(call.getExpression());
-  return declarationsOf(call.getExpression(), reads).some((declaration) => factoryReturnsFailure(declaration, callee, reads));
+  const first = call.getArguments()[0];
+  const passesBinding = errorBinding !== undefined && first !== undefined && referencesBinding(first, errorBinding, reads);
+  return declarationsOf(call.getExpression(), reads).some((declaration) => factoryReturnsFailure(declaration, callee, passesBinding, reads));
 }
 
 function typeIsFailureOutcome(node: Node, reads?: CaughtFailureReadServices): boolean {
@@ -208,7 +206,8 @@ function typeIsFailureOutcome(node: Node, reads?: CaughtFailureReadServices): bo
         return [];
       }
       const unions = reads.types.unions(selector);
-      return (unions.length === 0 ? [selector] : unions).map((part) => reads.types.literalValue(part)).filter((value) => value !== undefined);
+      // A member with no literal value (a `number` status, an optional key's `undefined`) must fail `every`.
+      return (unions.length === 0 ? [selector] : unions).map((part) => reads.types.literalValue(part));
     }
     if (type === undefined) {
       throw new Error("native caught-failure property Type is absent");
@@ -218,9 +217,7 @@ function typeIsFailureOutcome(node: Node, reads?: CaughtFailureReadServices): bo
       return [];
     }
     const propertyType = symbol.getTypeAtLocation(node);
-    return (propertyType.isUnion() ? propertyType.getUnionTypes() : [propertyType])
-      .map((part) => part.getLiteralValue())
-      .filter((value) => value !== undefined);
+    return (propertyType.isUnion() ? propertyType.getUnionTypes() : [propertyType]).map((part) => part.getLiteralValue());
   };
   const ok = propertyValues("ok");
   if (ok.length > 0 && ok.every((value) => value === false)) {

@@ -97,7 +97,7 @@
 //   · the typed-refusal read takes `ok` through `literalValue`, which is undefined for a boolean, so a
 //     multi-statement helper typed `{ ok: false }` is not a typed refusal — the boolean-typed-refusal mustFLAG.
 //   · a guarded rethrow's guard must read the caught binding, but how narrow the guard is stays unjudged —
-//     the guarded-rethrow mustPass beside the fooled-guarded-rethrow mustFlag.
+//     the guard-narrowness mustPass (credited by design) beside the fooled-guarded-rethrow mustFlag.
 //
 // The legacy `caught-failure-ownership` descriptor ((pruned from public history)) carried
 // the `@orb-gate-ignore` grammar named above and its own inline three-arm reader before this conversion
@@ -789,6 +789,46 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/server/src/domain/probe/parameter-factories.ts":
+          "function pass<T>(value: T): T { return value; }\nfunction wrap(value: unknown): { error: unknown } { return { error: value }; }\nexport function identity(text: string): unknown {\n  try { return JSON.parse(text); } catch { return pass([]); }\n}\nexport function clearedSlot(text: string): unknown {\n  try { return JSON.parse(text); } catch { return wrap(null); }\n}\n",
+      },
+      expect: { count: 2, token: "catch" },
+      why: "a factory whose body is failure-valued only through its parameter owns nothing when the call passes something other than the caught binding: `pass([])` is a success value and `wrap(null)` is the cleared `{ error: null }` slot",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/toast-identity-module.ts":
+          "import { createEntityMutation } from '#data';\nconst pass = <T,>(value: T): T => value;\nexport const useSave = createEntityMutation({ options, errorToast: pass('') });\n",
+        "packages/client/src/features/probe/toast-identity.ts":
+          "import { useSave } from './toast-identity-module.ts';\nexport function run(): void {\n  const mutation = useSave({ trpc, invalidation });\n  void mutation.mutateAsync(input).catch(() => undefined);\n}\n",
+      },
+      expect: { count: 1, token: "mutation.mutateAsync" },
+      why: "an errorToast built by an identity helper from empty copy is not failure copy: the parameter path is not evidence when no caught binding reaches it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/nonliteral-discriminants.ts":
+          "type Optional = { status?: 'failed'; data?: string };\ntype NumberStatus = { status: 'error' } | { status: number; body: string };\ntype OpenKind = { kind: 'error' } | { kind: string & {}; body: string };\nfunction optional(flag: boolean): Optional { if (flag) { return { data: 'x' }; } return {}; }\nfunction numbered(flag: boolean): NumberStatus { if (flag) { return { status: 200, body: '' }; } return { status: 'error' }; }\nfunction open(flag: boolean): OpenKind { if (flag) { return { kind: 'fine', body: '' }; } return { kind: 'error' }; }\nexport function a(text: string): Optional {\n  try { return { data: JSON.parse(text) }; } catch { return optional(true); }\n}\nexport function b(text: string): NumberStatus {\n  try { return { status: 200, body: JSON.parse(text) }; } catch { return numbered(true); }\n}\nexport function c(text: string): OpenKind {\n  try { return { kind: 'fine', body: JSON.parse(text) }; } catch { return open(true); }\n}\n",
+      },
+      expect: { count: 3, token: "catch" },
+      why: "a typed refusal needs EVERY member of its discriminant to be a failure literal: an optional key's `undefined`, a `number` status and an open `string` kind are success members, so none of these types proves a refusal",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/sole-new-module.ts":
+          "import { createEntityMutation } from '#data';\nexport const useSave = createEntityMutation({ options, errorToast: \"Couldn't save.\" });\n",
+        "packages/client/src/features/probe/sole-new.ts":
+          "import { useSave } from './sole-new-module.ts';\nexport async function run(raw: string): Promise<unknown> {\n  const mutation = useSave({ trpc, invalidation });\n  try { await mutation.mutateAsync(new Payload(raw)); } catch { return []; }\n  return null;\n}\n",
+      },
+      expect: { count: 1, token: "catch" },
+      why: "a constructor beside the governed operation is other work: `new Payload(raw)` can throw before the mutation runs, so the try is not a sole-operation owner",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/server/src/domain/probe/control.ts":
           "export function control(xs: unknown[]): void {\n  for (const x of xs) { try { risky(x); } catch { continue; } }\n  for (const x of xs) { try { risky(x); } catch { break; } }\n}\nexport function early(): void { try { risky(); } catch { return; } }\n",
       },
@@ -992,6 +1032,14 @@ export const gate = defineGate({
           "type Parse = { ok: true; value: unknown } | { ok: false; reason: string } | { kind: 'refused'; reason: string };\nfunction refuse(reason: string): Parse { return { ok: false, reason }; }\nfunction denied(reason: string): { kind: 'refused'; reason: string } { const trimmed = reason.trim(); return { kind: 'refused', reason: trimmed }; }\nexport function parse(text: string): Parse {\n  try { return { ok: true, value: JSON.parse(text) }; } catch { return refuse('not-json'); }\n}\nexport function parseDenied(text: string): Parse {\n  try { return { ok: true, value: JSON.parse(text) }; } catch (err) { return denied('not-json'); }\n}\nexport async function issue(): Promise<{ ok: true } | { ok: false; code: string }> {\n  try { await order(); return { ok: true }; } catch (err) { if (err instanceof AbortError) { return { ok: false, code: 'aborted' }; } return { ok: false, code: 'issuance_failed' }; }\n}\nexport function parseLater(text: string): Promise<Parse> {\n  return parseAsync(text).catch(() => refuse('not-json'));\n}\n",
       },
       why: "THE TYPED REFUSAL: a call whose declared type admits only the failure member, or a single-return factory whose body is that member, owns the failure even when it does not carry the caught binding; and a conditional refusal is not an escape when every path returns a refusal",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/guard-narrowness.ts":
+          "export async function narrowness(): Promise<void> {\n  try { await save(); } catch (err) { if (err instanceof TypeError) { throw err; } }\n  try { await save(); } catch (err) { if (err === err && false) { throw err; } }\n}\n",
+      },
+      why: "THE DECLARED LIMIT for guard narrowness, credited BY DESIGN: the guard reads the caught binding, so a guard that rethrows only a `TypeError`, or one that can never be true, still earns the guarded-rethrow credit. The reader proves the guard classifies the failure, not that the absorbed case is narrow",
     },
     {
       mode: "types",

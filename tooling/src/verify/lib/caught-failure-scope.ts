@@ -110,8 +110,10 @@ export function hasFrameworkOwner(block: Block, reads?: CaughtFailureReadService
     return false;
   }
   const calls = block.getDescendantsOfKind(SyntaxKind.CallExpression).filter((call) => !insideNestedFunction(call, block));
+  // A constructor can throw too, so a `new` beside the governed operation is other work the catch absorbs.
+  const constructs = block.getDescendantsOfKind(SyntaxKind.NewExpression).some((construct) => !insideNestedFunction(construct, block));
   const [onlyCall] = calls;
-  return calls.length === 1 && onlyCall !== undefined && frameworkOwns(onlyCall, reads);
+  return calls.length === 1 && !constructs && onlyCall !== undefined && frameworkOwns(onlyCall, reads);
 }
 
 // ── the statement-level ownership walk ──────────────────────────────────────────────────────────────────
