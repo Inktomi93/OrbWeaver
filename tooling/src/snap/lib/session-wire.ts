@@ -23,7 +23,7 @@ function isStringArray(value: unknown): value is readonly string[] {
 }
 
 function parseJsonObject(text: string): Record<string, unknown> | null {
-  // @orb-waive caught-failure-ownership(catch): a malformed line IS the negative answer both readers return — the daemon refuses the request as a protocol error and the client treats the row as unreadable; `null` is that answer at every call site. Ends if a caller starts needing WHY the bytes did not parse.
+  // @orb-waive caught-failure-ownership(catch): a torn line returns null; the daemon answers a null request with `SESSION PROTOCOL ERROR` and a toolError `done` (ops/session-daemon.ts:220), the client rejects a null event line (ops/session-client.ts:88), and a null row reads as an absent session (ops/session-registry.ts:66). Ends if a caller needs the parse error text.
   try {
     const value: unknown = JSON.parse(text);
     return isRecord(value) ? value : null;

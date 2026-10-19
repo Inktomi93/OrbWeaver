@@ -37,7 +37,7 @@ export function classifyCascadeSource(input: {
     return "opaque";
   }
   let path: string;
-  // @orb-waive caught-failure-ownership(catch): malformed or unsupported source URLs fail closed to `opaque`, which never counts as a repository declaration. Ends if opaque sources become trusted or satisfy the nonzero repository population.
+  // @orb-waive caught-failure-ownership(catch): an unparsable source URL classifies as `opaque`, which REPOSITORY_CASCADE_SOURCES excludes; ops/arms/cascade.ts:187 counts only repository sources and receiptError (cascade.ts:126) turns a zero count into an instrument-error. Ends if `opaque` joins REPOSITORY_CASCADE_SOURCES or the zero-population error is removed.
   try {
     path = decodeURIComponent(new URL(input.sourceUrl, "http://orb.invalid").pathname);
   } catch {

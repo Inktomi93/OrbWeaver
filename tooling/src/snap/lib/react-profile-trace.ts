@@ -87,7 +87,7 @@ export async function stopTrace(capture: TraceCapture): Promise<string | null> {
     return null;
   }
   let endSent = false;
-  // @orb-waive caught-failure-ownership(error): the caught trace failure is returned as traceError, filed in the profile artifact and printed as `track limit`; Fiber evidence remains independently valid. Ends if stopTrace stops returning the caught detail or reportReactProfile stops printing traceError.
+  // @orb-waive caught-failure-ownership(error): stopTrace returns the caught failure text; ops/arms/profile.ts:225 stores it as traceError, react-profile-receipt.ts:194 files the artifact as `bounded`, and :299 prints it as `track limit`. Ends if stopTrace stops returning the failure or the receipt stops printing it.
   try {
     await capture.cdp.send("Tracing.end");
     endSent = true;

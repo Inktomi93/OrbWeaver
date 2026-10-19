@@ -86,7 +86,7 @@ export function snapDirtyIdentity(root: string): SnapRunIndex["identity"]["dirty
   const hash = createHash("sha256").update(status.raw).update("\0").update(trackedDelta.raw);
   for (const path of untracked) {
     hash.update("\0").update(path).update("\0");
-    // @orb-waive caught-failure-ownership(error): unreadable bytes make source identity explicitly unknown with the exact failed field; no sentinel digest may masquerade as reproducible content. Ends if this catch stops returning that failure.
+    // @orb-waive caught-failure-ownership(error): an unreadable untracked file returns state `unknown` with a `failures` row naming the path; ops/run-bundle.ts:173 files it in run.json identity.gitFailures. No digest is produced. Ends if the failures row stops reaching gitFailures.
     try {
       hash.update(readFileSync(join(root, path)));
     } catch (error) {
