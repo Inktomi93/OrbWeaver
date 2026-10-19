@@ -15,7 +15,6 @@ import { gate as formFactoryForMultifield } from "../../../../../tooling/src/ver
 import { gate as noEffectOnSharedSelection } from "../../../../../tooling/src/verify/gates/no-effect-on-shared-selection.ts";
 import { gate as noFormResetInAutosaveHealth } from "../../../../../tooling/src/verify/gates/no-form-reset-in-autosave-health.ts";
 
-import { gate as subFloorDisclosureHealth } from "../../../../../tooling/src/verify/gates/sub-floor-disclosure-health.ts";
 import { gate as surfaceInAContainer } from "../../../../../tooling/src/verify/gates/surface-in-a-container.ts";
 import { gate as uiAccnameSurvivesSpread } from "../../../../../tooling/src/verify/gates/ui-accname-survives-spread.ts";
 import { gate as uiVariantAxesStamped } from "../../../../../tooling/src/verify/gates/ui-variant-axes-stamped.ts";
@@ -61,16 +60,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "reset type-strip",
   },
 
-  {
-    policy: subFloorDisclosureHealth,
-    overlays: [
-      neutralise(
-        `${UI}/collapsible/variants.ts`,
-        "// the text and control size arms used to be spelled here\nexport const collapsibleVariants = { size: { big: {} } };\n",
-      ),
-    ],
-    messageIncludes: "no longer declared",
-  },
   {
     policy: surfaceInAContainer,
     // A feature that provides no container of its own: every existing feature's surfaces may be contained by

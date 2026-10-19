@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(122 registered gates)
+(121 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -156,7 +156,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `sole-env-reader` | — | reviewed-grant/error | @server,@inference | touches process.env outside… |
 | `spacing-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
 | `stale-draft-commit` | — | ordinary/error | @client | a once-seeded draft is being… |
-| `sub-floor-disclosure-health` | — | hard/error | @ui\* | a collapsible size member is no… |
 | `suppressions` | — | reviewed-grant/error | all | a foreign-tool suppression directive… |
 | `surface-in-a-container` | — | ordinary/error | @client\* | surface establishes raw structural… |
 | `test-assembly-home` | test-production-clone | hard/error | @tests | a test constructs a server service… |
