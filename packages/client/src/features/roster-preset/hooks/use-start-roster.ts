@@ -43,7 +43,7 @@ export function useStartRoster(options: { readonly onEntered?: () => void } = {}
       if (isPending) {
         return;
       }
-      // @orb-waive caught-failure-ownership(startChat): startChat and apply.mutateAsync each carry their own errorToast (use-start-chat.ts, useApplyRosterPreset); the swallow only silences the unhandled-rejection warning, and the roster survives for retry. Ends if either mutation stops owning its failure copy.
+      // @orb-waive caught-failure-ownership(startChat): the chain's two mutations each toast their own failure: `errorToast: "Couldn't start the chat."` in packages/client/src/data/use-start-chat.ts and `errorToast: "Couldn't apply the roster to this chat."` on useApplyRosterPreset (use-roster-preset-mutations.ts). Ends if either errorToast is dropped.
       startChat({
         characterIds: roster.members.map((member) => member.characterId),
         anchorPersonaId: roster.anchorPersonaId,

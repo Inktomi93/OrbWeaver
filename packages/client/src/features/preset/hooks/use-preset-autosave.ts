@@ -200,9 +200,8 @@ export function usePresetAutosave({ presetId, server, activePresetId }: PresetAu
     });
     // The queue must survive a rejected save (else every later save inherits the rejection); the caller still
     // gets the rejecting promise so the session's own error/retry lifecycle runs.
-    // @orb-waive caught-failure-ownership(run): this .catch only resets the internal chain —
-    // `run` itself is returned to the caller unswallowed, below, so the rejection still reaches its own
-    // error/retry lifecycle. Ends if `run` stops being returned to the caller.
+    // @orb-waive caught-failure-ownership(run): this .catch only keeps the internal chain alive; the caller owns the
+    // rejection through the `return run` two lines below (the autosave session's retry lifecycle). Ends if `run` stops being returned.
     chainRef.current = run.catch(() => undefined);
     return run;
   };

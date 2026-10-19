@@ -95,9 +95,9 @@ function previewEmptyTextOf(schemaText: string): string {
 }
 
 function parseDraft(text: string): Record<string, unknown> | null {
-  // @orb-waive caught-failure-ownership(catch): null is the caller's own "not parsing yet"
-  // signal (previewEmptyTextOf renders "That JSON doesn't parse yet — fix it to preview.") — a rendered
-  // teaching state, not a swallow. Ends if the caller stops distinguishing null from a real parsed value.
+  // @orb-waive caught-failure-ownership(catch): null is the caller's "not parsing yet" signal: SchemaEditorDialog
+  // renders `previewEmptyTextOf(schemaText)` ("That JSON doesn't parse yet") when `schema === null` and disables
+  // Save on it. Ends if the dialog stops branching on a null parse.
   try {
     const parsed: unknown = JSON.parse(text);
     return parsed !== null && typeof parsed === "object" && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
