@@ -46,6 +46,11 @@ async function messages(root: string, source: string, path: string): Promise<rea
 
 type Row = readonly [name: string, source: string, count: number, path?: string];
 
+// A promise kept in `kept`, with `readBody` as the only place the collection is read.
+const KEPT = (readBody: string): string =>
+  "export function make(): void {\n  const kept = new Set<Promise<number>>();\n  const stop = (w: W): void => {\n    const stopped = w.terminate();\n    kept.add(stopped);\n    void stopped.catch(() => undefined);\n  };\n" +
+  `  const read = async (): Promise<unknown> => {\n    ${readBody}\n  };\n  void stop;\n  void read;\n}\n`;
+
 function rows(table: readonly Row[]): void {
   for (const [name, source, count, path] of table) {
     test(
@@ -134,6 +139,12 @@ rows([
     "export function make(): void {\n  const jobs = new Map<string, Promise<void>>();\n  const start = (w: W, key: string): void => {\n    const job = w.run();\n    jobs.set(key, job);\n    void job.catch(() => undefined);\n  };\n  const settle = (): void => {\n    Promise.all(jobs.values());\n  };\n  void start;\n  void settle;\n}\n",
     1,
   ],
+  ["a join bound to a name that is only voided keeps nothing", KEPT("const all = Promise.allSettled([...kept]);\n    void all;"), 1],
+  ["a join bound to a name that only gets a discarding then keeps nothing", KEPT("const all = Promise.all([...kept]);\n    all.then(() => undefined);"), 1],
+  ["a loop that only voids each element keeps nothing", KEPT("for (const item of kept) {\n      void item;\n    }"), 1],
+  ["a forEach that ignores its element keeps nothing", KEPT("kept.forEach(() => undefined);"), 1],
+  ["a copy nothing reads keeps nothing", KEPT("const copy = [...kept];\n    void 0;"), 1],
+  ["a bare values() call keeps nothing", KEPT("kept.values();"), 1],
   [
     "a bound promise that is never kept is still invisible",
     "export function stop(w: W): void {\n  const stopped = w.terminate();\n  void stopped.catch(() => undefined);\n}\n",
@@ -157,6 +168,15 @@ rows([
     "export function make(): void {\n  const jobs = new Map<string, Promise<void>>();\n  const start = (w: W, key: string): void => {\n    const job = w.run();\n    jobs.set(key, job);\n    void job.then(() => undefined, () => undefined);\n  };\n  const settle = async (): Promise<void> => {\n    await Promise.all(jobs.values());\n  };\n  void start;\n  void settle;\n}\n",
     0,
   ],
+  ["a join bound to a name that is later awaited is consumed", KEPT("const all = Promise.allSettled([...kept]);\n    await all;"), 0],
+  ["a copy that is joined and awaited is consumed", KEPT("const copy = [...kept];\n    await Promise.all(copy);"), 0],
+  ["a loop that awaits each element is consumed", KEPT("for (const item of kept) {\n      await item.catch(() => undefined);\n    }"), 0],
+  [
+    "a forEach that returns its element is consumed",
+    KEPT("kept.forEach((item) => {\n      void item.then((value) => value);\n      return item;\n    });\n    return 1;"),
+    0,
+  ],
+  ["a join handed to another call is handed on, a declared narrowing", KEPT("ignore(Promise.allSettled([...kept]));"), 0],
   ["supervised detach passes", "export function fire(ctx: C): void {\n  superviseDetached(id, NAME, {}, () => ctx.rpg.onTurnAborted(c, t, r));\n}\n", 0],
   [
     "an inference caller passes through the injected supervisor",

@@ -6693,7 +6693,9 @@ const wireJsonRule = {
 // Declared narrowings: the rule is syntactic. A line-scoped `eslint-disable-next-line` waives EVERY statement on that
 // line, not one dispatch. A promise-link key known only from a literal TYPE (a parameter typed 'catch') is not read;
 // a literal, a `+` concatenation or a binding written once is. A promise kept by a callee (the callee records the
-// failure itself) is not seen; only one bound to a name and handed to a collection that is later read whole is.
+// failure itself) is not seen; only one bound to a name and handed to a collection whose elements later reach an await
+// or a return is kept. A value handed to an unrelated call (`ignore(Promise.allSettled(kept))`) counts as handed on:
+// the callee's handling is not read.
 const ROOT_SPAN_OPENER_NAMES = new Set(ROOT_SPAN_OPENERS);
 const PROMISE_LINKS = new Set(["then", "catch", "finally"]);
 // Which argument of a promise link is its rejection handler.
@@ -6816,61 +6818,100 @@ function chainRootName(context, expression) {
   return current.type === "Identifier" ? current : undefined;
 }
 
-// Is the value of `node` used: awaited, returned, passed on, or bound to a name that is read later? A `void` or a bare
-// statement throws the outcome away, so it keeps nothing.
-function resultConsumed(context, node) {
+// Does the value of `node` reach an await, a return, or a call that takes it on? A `void`, a bare statement, a binding
+// nothing consumes, and a chain that ends in one of those keep nothing. Passing a value to an unrelated call counts as
+// handing it on (a declared narrowing): the callee's own handling is not read.
+const PROMISE_CHAIN_MEMBERS = new Set(["then", "catch", "finally"]);
+const FLOW_DEPTH = 4;
+const TRANSPARENT_PARENTS = new Set(["ChainExpression", "TSAsExpression", "TSNonNullExpression", "TSSatisfiesExpression"]);
+
+// A binding is consumed when one of its reads is itself consumed.
+function bindingConsumed(context, id, depth) {
+  const variable = lexicalVariable(context, id);
+  return variable?.references.some((reference) => reference.isRead() && flowConsumed(context, reference.identifier, depth)) === true;
+}
+
+// Does a `for...of` over the carrier consume its elements: `for await`, or an element binding whose reads are consumed?
+function loopConsumes(context, loop, depth) {
+  const declarator = loop.left.type === "VariableDeclaration" ? loop.left.declarations[0] : undefined;
+  return loop.await || declarator?.id.type !== "Identifier" || bindingConsumed(context, declarator.id, depth);
+}
+
+// A `forEach` callback consumes its elements when its first parameter is consumed; a callback it cannot see is handed on.
+function callbackConsumes(context, callback, depth) {
+  if (callback?.type !== "ArrowFunctionExpression" && callback?.type !== "FunctionExpression") {
+    return callback !== undefined;
+  }
+  const [first] = callback.params;
+  return first !== undefined && (first.type !== "Identifier" || bindingConsumed(context, first, depth));
+}
+
+// A value used as a call argument: where does the call's result go?
+function callFlowConsumed(context, parent, current, depth) {
+  if (parent.callee === current) {
+    return false;
+  }
+  return COMBINATOR_MEMBERS.has(staticMemberName(parent.callee)) ? flowConsumed(context, parent, depth) : true;
+}
+
+function memberFlowConsumed(context, parent, current, depth) {
+  const call = parent.object === current && parent.parent.type === "CallExpression" && parent.parent.callee === parent ? parent.parent : undefined;
+  const member = staticMemberName(parent);
+  if (call === undefined) {
+    return false;
+  }
+  if (member === "forEach") {
+    return callbackConsumes(context, call.arguments[0], depth - 1);
+  }
+  return (COLLECTION_READ_MEMBERS.has(member) || PROMISE_CHAIN_MEMBERS.has(member)) && flowConsumed(context, call, depth);
+}
+
+// A value bound by a declaration or assignment is consumed when a read of the bound name is.
+function boundFlowConsumed(context, parent, current, depth) {
+  const target = parent.type === "VariableDeclarator" ? parent.id : parent.left;
+  const source = parent.type === "VariableDeclarator" ? parent.init : parent.right;
+  return source === current && target.type === "Identifier" && bindingConsumed(context, target, depth - 1);
+}
+
+function flowConsumed(context, node, depth = FLOW_DEPTH) {
   let current = node;
-  while (current.parent?.type === "ChainExpression" || current.parent?.type === "TSAsExpression" || current.parent?.type === "TSNonNullExpression") {
+  while (TRANSPARENT_PARENTS.has(current.parent?.type)) {
     current = current.parent;
   }
   const parent = current.parent;
-  if (parent.type === "AwaitExpression" || parent.type === "ReturnStatement" || (parent.type === "ArrowFunctionExpression" && parent.body === current)) {
-    return true;
+  if (depth === 0 || parent === undefined || parent === null) {
+    return false;
   }
-  if (parent.type === "CallExpression") {
-    return parent.arguments.includes(current);
+  switch (parent.type) {
+    case "AwaitExpression":
+    case "ReturnStatement":
+      return true;
+    case "ArrowFunctionExpression":
+      return parent.body === current;
+    case "ArrayExpression":
+    case "ConditionalExpression":
+    case "LogicalExpression":
+      return flowConsumed(context, parent, depth);
+    case "SpreadElement":
+      return parent.parent.type === "ArrayExpression" ? flowConsumed(context, parent.parent, depth) : true;
+    case "ForOfStatement":
+      return parent.right === current && loopConsumes(context, parent, depth - 1);
+    case "VariableDeclarator":
+    case "AssignmentExpression":
+      return boundFlowConsumed(context, parent, current, depth);
+    case "CallExpression":
+      return callFlowConsumed(context, parent, current, depth);
+    case "MemberExpression":
+      return memberFlowConsumed(context, parent, current, depth);
+    default:
+      return false;
   }
-  if (parent.type === "VariableDeclarator" && parent.init === current && parent.id.type === "Identifier") {
-    return lexicalVariable(context, parent.id)?.references.some((reference) => reference.isRead()) === true;
-  }
-  return parent.type === "AssignmentExpression" && parent.right === current;
 }
 
-// The node a whole-collection read flows into: `...c` inside an array, or `c.values()`; otherwise the read itself.
-function wholeReadCarrier(identifier) {
-  const parent = identifier.parent;
-  if (parent.type === "SpreadElement" && parent.parent.type === "ArrayExpression") {
-    return parent.parent;
-  }
-  if (parent.type === "MemberExpression" && parent.object === identifier && parent.parent.type === "CallExpression" && parent.parent.callee === parent) {
-    return parent.parent;
-  }
-  return identifier;
-}
-
+// A collection is read whole, and the elements reach a consumer, when any read of it flows on.
 function readsWhole(context, collection) {
   const variable = lexicalVariable(context, collection);
-  return (
-    variable?.references.some(({ identifier }) => {
-      const parent = identifier.parent;
-      const member = parent.type === "MemberExpression" && parent.object === identifier ? staticMemberName(parent) : undefined;
-      const wholeRead =
-        parent.type === "SpreadElement" ||
-        (parent.type === "ForOfStatement" && parent.right === identifier) ||
-        (member !== undefined && COLLECTION_READ_MEMBERS.has(member)) ||
-        (parent.type === "CallExpression" && parent.arguments.includes(identifier) && COMBINATOR_MEMBERS.has(staticMemberName(parent.callee)));
-      if (!wholeRead) {
-        return false;
-      }
-      // A combinator read keeps the collection only while the combined promise is itself consumed.
-      const carrier = wholeReadCarrier(identifier);
-      const combinator = carrier.parent;
-      if (combinator?.type === "CallExpression" && combinator.arguments.includes(carrier) && COMBINATOR_MEMBERS.has(staticMemberName(combinator.callee))) {
-        return resultConsumed(context, combinator);
-      }
-      return true;
-    }) === true
-  );
+  return variable?.references.some(({ identifier }) => identifier !== collection && flowConsumed(context, identifier)) === true;
 }
 
 function isRetainedPromise(context, name) {

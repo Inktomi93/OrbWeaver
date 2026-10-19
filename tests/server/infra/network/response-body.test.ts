@@ -286,6 +286,31 @@ test("a consumer cancel rejects with the physical cleanup error, and settled and
   await expect(owned.cancel()).rejects.toBe(failure);
 });
 
+test("settled is one promise: reading it twice and handling one copy raises no unhandled rejection", async () => {
+  const unhandled: unknown[] = [];
+  const record = (reason: unknown): void => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", record);
+  try {
+    const failure = new Error("physical upstream cancellation failed");
+    const owned = createOwnedResponseBody(
+      new Response(new ReadableStream<Uint8Array>({ cancel: () => Promise.reject(failure) })),
+      new AbortController().signal,
+    );
+    const first = owned.settled;
+    const second = owned.settled;
+    expect(second).toBe(first);
+    expect(owned.cancel()).toBe(first);
+    await owned.response.body?.cancel().catch(() => undefined);
+    await expect(first).rejects.toBe(failure);
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(unhandled).toEqual([]);
+  } finally {
+    process.off("unhandledRejection", record);
+  }
+});
+
 test("an abort followed by a failing cancel raises no unhandled rejection when nobody reads settled", async () => {
   const unhandled: unknown[] = [];
   const record = (reason: unknown): void => {

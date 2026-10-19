@@ -77,8 +77,14 @@ export function createOwnedResponseBody(response: Response, signal: AbortSignal)
     done.resolve();
   };
 
-  // Derived on demand from the recorded failures: one failure is itself, several are one shared aggregate.
-  const join = (): Promise<void> =>
+  // Derived on first read from the recorded failures: one failure is itself, several are one shared aggregate.
+  // Cached, so every read is the same promise and nothing rejects until a caller has asked for it.
+  let joined: Promise<void> | undefined;
+  const join = (): Promise<void> => {
+    joined ??= joinFailures();
+    return joined;
+  };
+  const joinFailures = (): Promise<void> =>
     done.promise.then(() => {
       if (failures.size === 1) {
         throw [...failures][0];
