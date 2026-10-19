@@ -106,7 +106,7 @@ import { systemTimers, waitForTimer } from "#infra/timers";
 import { createRegexApplyReplace, createRegexTest } from "#primitives/regex";
 import { captureUserRole } from "#primitives/role-data";
 import type { LiveBuses } from "#transport/trpc";
-
+import { mintPrincipal } from "../auth/principal-mint.ts";
 import { createReactToolDefinition } from "./chat-tools.ts";
 import { minter } from "./minter.ts";
 
@@ -316,14 +316,14 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
   const activeTurns: ChatServiceDeps["activeTurns"] = lifetime.use(createActiveTurns());
 
   // Role-irrelevant ops (getCard/persona.get/mint) use this cheap synthetic principal to avoid a per-call read.
-  // @orb-waive one-principal-mint-population(Principal): synthetic role-irrelevant principal for frozen-host reads; ends when a shared factory replaces it
-  const hostPrincipal = (userId: UserId): Principal => ({
-    userId,
-    role: captureUserRole("user"),
-    handle: castId<Handle>(userId),
-    externalId: null,
-    via: "fallback",
-  });
+  const hostPrincipal = (userId: UserId): Principal =>
+    mintPrincipal({
+      userId,
+      role: captureUserRole("user"),
+      handle: castId<Handle>(userId),
+      externalId: null,
+      via: "fallback",
+    });
 
   // Role-sensitive ops need the host's REAL role — a fabricated `role:"user"` would fail-closed-deny an
   // owner's own privileged turn, so this read is injected rather than faked.

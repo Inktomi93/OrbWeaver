@@ -9,7 +9,7 @@
 
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
-import type { Principal } from "@orb/contracts/identity";
+import type { Handle, UserId } from "@orb/kit/ids";
 import type { Context, ErrorHandler, MiddlewareHandler } from "hono";
 import { bindRequestUser, getLog, getRequestUserId, recordRequest, runInRequest } from "./logger.ts";
 import { recordThrownRequest, withRequestSpan } from "./tracing.ts";
@@ -90,8 +90,9 @@ export const observability: MiddlewareHandler = (c, next) => {
     // this one (app.ts middleware order) and set the Principal on the Hono context; the logger scope only
     // opens here (runInRequest above), so the bind must happen inside it, not at auth-resolution time. The
     // context accessor is untyped at this tier (foundation can't import the app's Hono Env) — read it via a
-    // narrow structural cast. Anonymous requests leave the Principal null → no bind (userId stays absent).
-    const principal = (c as { get: (key: "principal") => Principal | null | undefined }).get("principal");
+    // narrow structural cast to the two fields it binds, so the cast never claims a whole Principal (D1).
+    // Anonymous requests leave the Principal null → no bind (userId stays absent).
+    const principal = (c as { get: (key: "principal") => { readonly userId: UserId; readonly handle: Handle } | null | undefined }).get("principal");
     if (principal !== null && principal !== undefined) {
       bindRequestUser(principal.userId, principal.handle);
     }

@@ -13,6 +13,7 @@ import { readSeedAvatar } from "@orb/default-content";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { buildCardEmbedText, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
+import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 
 const root = fileURLToPath(new URL("../", import.meta.url));
@@ -59,7 +60,7 @@ try {
     throw new Error("The isolated seed account has no local encoder");
   }
   await built.services.connection.setBinding({
-    principal: { ...user, userId: ownerId, via: "fallback" },
+    principal: await createHostPrincipalResolver(built.sessions)(ownerId),
     task: "imageEmbed",
     connectionId: encoder.connectionId,
   });

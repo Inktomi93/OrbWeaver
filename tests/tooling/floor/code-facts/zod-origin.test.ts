@@ -1,8 +1,8 @@
 import { symlinkSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { observeCallReturns, readCallReturnProgram, readSuppliedParameter } from "@orb/tooling/floor/code-facts/call-returns";
-import { beginReferencePass, endReferencePass, resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
+import { beginReferencePass, endReferencePass, readPrototypeExposureCensus, resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
 import { inlineShapeNames } from "@orb/tooling/floor/code-facts/shape-declaration";
 import { resolveTypePropertyOrigin } from "@orb/tooling/floor/code-facts/type-member-origin-core";
 import { readReturnedValue } from "@orb/tooling/floor/code-facts/value-carrier";
@@ -438,7 +438,60 @@ test("a supplied-key reentry keeps the active parse continuation and resolves th
   }
 });
 
-test("the actual env parser retains AUTH_MODE through its refinement, transform and native freeze", ({ repoRoot }) => {
+/** Every prototype exposure the census reports in the env parser's program, each with why its key cannot be
+ *  attacker-chosen or why the write cannot reach a shared prototype. A new exposure reds this list. */
+const CLASSIFIED_ENV_PROGRAM_EXPOSURES: readonly { readonly site: string; readonly why: string }[] = [
+  {
+    site: "packages/contracts/src/inference/wire-subset.ts: properties[name] = { ...(description === undefined ? {} : { description }), anyOf: [rest, { ...NULL_ARM }] }",
+    why: "rewrites a key read from Object.keys of the same object; an own data property shadows the inherited accessor",
+  },
+  { site: "packages/kit/src/macro/parser.ts: flags[key] = true", why: "the key is a FLAG_KEY_BY_CHAR value, a closed MacroFlagKey" },
+  {
+    site: "packages/kit/src/macro/variables.ts: Object.defineProperty(plane, key, { value, writable: true, enumerable: true, configurable: true })",
+    why: "template-text key, defined as an own data property, so no inherited setter runs",
+  },
+  { site: "packages/kit/src/macro/variables.ts: Reflect.deleteProperty(env, op.key)", why: "deletes an own property only; delete never reaches a prototype" },
+  { site: "packages/kit/src/macro/user-macros.ts: draws[input.name] = drawn", why: "the name matches MACRO_NAME_RE, which cannot spell __proto__" },
+  { site: "packages/contracts/src/preset/index.ts: out[k] = v", why: "every setNum caller passes a literal field name" },
+  { site: "packages/contracts/src/preset/index.ts: out[k] = v", why: "every setNumAbove caller passes a literal field name" },
+  { site: "packages/contracts/src/rpg/extraction.ts: props[field]", why: "removeField callers pass literal schema field names" },
+  { site: "packages/kit/src/json-schema/lift.ts: this.constructor.name", why: "a read of the error class's own constructor, not a write" },
+  {
+    site: "packages/kit/src/json-schema/index.ts: normalized[key] = Object.fromEntries(Object.entries(value).map(([name, child]) => [name, normalizeSchemaChild(child)]))",
+    why: "rewrites an own key from Object.entries of the same object, gated to SCHEMA_MAP_KEYS",
+  },
+  {
+    site: "packages/kit/src/json-schema/index.ts: normalized[key] = normalizeSchemaChild(value)",
+    why: "rewrites an own key from Object.entries of the same object, gated to SCHEMA_CHILD_KEYS",
+  },
+  {
+    site: "packages/contracts/src/rpg/structured-patch.ts: cursor[segment] = created",
+    why: "segments are property names of the static rpgExtractionSchema projection or a decimal item index; model output only selects a leaf through a Map",
+  },
+  {
+    site: "packages/contracts/src/rpg/structured-patch.ts: owner[key] = leaf.append ? [...(Array.isArray(owner[key]) ? owner[key] : []), value] : value",
+    why: "the key is a static schema property name; model output supplies only the value",
+  },
+  { site: "packages/contracts/src/rpg/structured-patch.ts: owner[key] = Object.entries(elements)", why: "the key is a static schema property name" },
+  {
+    site: 'packages/contracts/src/refinery/schema-forge.ts: properties[key] = isArray ? { type: "array", items: owner } : owner',
+    why: "model-designed key: segmentsOf refuses __proto__ and reads test Object.hasOwn",
+  },
+  {
+    site: 'packages/contracts/src/refinery/schema-forge.ts: properties[key] = isList ? { type: "array", items: leaf } : leaf',
+    why: "model-designed key: segmentsOf refuses __proto__ and reads test Object.hasOwn",
+  },
+  { site: "packages/contracts/src/refinery/schema-forge.ts: properties[core.name] = { ...core.node }", why: "the key is a REFINERY_FORGE_CORE_NODES literal" },
+  { site: "packages/kit/src/handle-key/index.ts: data.prototype.get(char)", why: "a read of a Map the confusables table names prototype" },
+  { site: "packages/server/src/foundation/env/index.ts: process.env[key] = value", why: "the operator's own .env key, written to Node's environment object" },
+  { site: "packages/server/src/foundation/env/index.ts: Reflect.deleteProperty(process.env, key)", why: "the key is an APP_SECRET_ENV_KEYS literal" },
+];
+
+function exposureName(repoRoot: string, site: Node): string {
+  return `${relative(repoRoot, site.getSourceFile().getFilePath())}: ${site.getText().split("\n")[0] ?? ""}`;
+}
+
+test("the actual env parser's AUTH_MODE proof refuses on the classified prototype census", ({ repoRoot }) => {
   const project = new Project({ tsConfigFilePath: join(repoRoot, "packages/server/tsconfig.json"), skipAddingFilesFromTsConfig: true });
   const source = project.addSourceFileAtPath(join(repoRoot, "packages/server/src/foundation/env/index.ts"));
   const output = source.getVariableDeclarationOrThrow("env").getNameNode();
@@ -485,21 +538,14 @@ test("the actual env parser retains AUTH_MODE through its refinement, transform 
       ordinary.kind === "resolved" && ordinary.value.length === 1 && ordinary.value[0]?.value.compilerNode === mode.compilerNode,
       "ordinary return projection deliberately retains unbound formals",
     ).toBe(true);
+    // D323: an absent own-data read is unprovable while the program holds any prototype exposure, and the env
+    // loader's own `.env` write is one by construction. The proof refuses by name on the classified census.
     const field = readReturnedValue(output, ["AUTH_MODE"], observed, { terminals: new Set(), bindings: new Map() });
-    expect(
-      field.kind,
-      field.kind === "unresolved"
-        ? `${field.reason}: ${field.detail} at ${field.node.getSourceFile().getFilePath()}:${field.node.getStartLineNumber()}`
-        : "resolved",
-    ).toBe("resolved");
-    expect(field.kind === "resolved" && field.value.map((value) => value.value.getText())).toEqual([
-      '"single-user"',
-      '"local"',
-      '"forward-header"',
-      '"oidc"',
-      '"single-user"',
-    ]);
-    expect(field.kind === "resolved" && field.value.every((value) => value.present && value.path.length === 0)).toBe(true);
+    expect(field.kind === "unresolved" ? `${field.reason}: ${field.detail}` : "resolved").toBe("unsupported: the loaded Project contains a prototype exposure");
+    const census = readPrototypeExposureCensus(output);
+    expect(census.kind === "resolved" ? census.value.map((site) => exposureName(repoRoot, site)) : census.detail).toEqual(
+      CLASSIFIED_ENV_PROGRAM_EXPOSURES.map(({ site }) => site),
+    );
   } finally {
     endReferencePass();
   }

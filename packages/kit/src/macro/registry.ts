@@ -14,7 +14,7 @@ import { BUILTIN_MACRO_METADATA } from "./builtin-metadata.ts";
 import { isIfTruthy } from "./metadata.ts";
 import { unitDraw } from "./prng.ts";
 import type { MacroAST, MacroContext, MacroHandler, MacroMetadata, MacroMetadataInput, MacroRegisterOptions, MacroRegistry, VarOp } from "./types.ts";
-import { applyVarOp, macroValueText, readVarKey } from "./variables.ts";
+import { applyVarOp, macroValueText, readVarKey, setVarKey } from "./variables.ts";
 
 const DECIMAL_RADIX = 10;
 const RANDOM_DEFAULT_CEIL = 101; // bare {{random}} rolls 0..100 inclusive
@@ -534,7 +534,7 @@ const getGlobalVar: MacroHandler = (args, ctx) => {
   if (key === undefined || key === "") {
     return "";
   }
-  return ctx.globalVars?.[key] ?? "";
+  return ctx.globalVars === undefined ? "" : (readVarKey(ctx.globalVars, key) ?? "");
 };
 
 // {{setglobalvar::key::value}} — collect a write onto ctx.globalVarWrites (drained + upserted at turn
@@ -548,7 +548,7 @@ const setGlobalVar: MacroHandler = (args, ctx) => {
   const value = args[1] ?? "";
   ctx.globalVarWrites?.push({ key, value });
   if (ctx.globalVars !== undefined) {
-    ctx.globalVars[key] = value;
+    setVarKey(ctx.globalVars, key, value);
   }
   return "";
 };
