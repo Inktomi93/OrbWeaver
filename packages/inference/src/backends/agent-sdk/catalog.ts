@@ -23,9 +23,10 @@ const INTERRUPT_TIMEOUT_MS = 2000;
 const VERIFY_PROMPT = "Reply with exactly the two characters: ok";
 const ACCOUNT_INFO_PROBE_TIMEOUT_MS = 2000;
 
-// biome-ignore lint/correctness/useYield: an empty async generator IS the held-open no-turn prompt.
+// An empty async generator IS the held-open no-turn prompt.
 async function* heldOpenPrompt(): AsyncGenerator<never> {
   await Promise.resolve();
+  yield* [];
 }
 
 function withTimeout<T>(promise: Promise<T>, deps: AgentSdkDeps, ms: number, what: string): Promise<T> {

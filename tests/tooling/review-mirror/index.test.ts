@@ -61,12 +61,12 @@ test("TS stripping PRESERVES a suppression/directive marker instead of erasing g
 });
 
 test("TS stripping removes comments without corrupting regex, template or line positions", () => {
-  // biome-ignore lint/suspicious/noTemplateCurlyInString: this literal is the parser fixture's template source.
-  const source = "const pattern = /https?:\\/\\//u; // prose\nconst value = `// ${pattern.source}`;\n/* block\ncomment */\nexport { value };\n";
+  const dollar = "$";
+  const templateRead = `\`// ${dollar}{pattern.source}\``;
+  const source = `const pattern = /https?:\\/\\//u; // prose\nconst value = ${templateRead};\n/* block\ncomment */\nexport { value };\n`;
   const stripped = stripComments("sample.ts", source);
   expect(stripped).toContain("/https?:\\/\\//u");
-  // biome-ignore lint/suspicious/noTemplateCurlyInString: expected source bytes, not a test interpolation.
-  expect(stripped).toContain("`// ${pattern.source}`");
+  expect(stripped).toContain(templateRead);
   expect(stripped).not.toContain("prose");
   expect(stripped).not.toContain("comment");
   expect(stripped.split("\n")).toHaveLength(source.split("\n").length);

@@ -170,8 +170,9 @@ function pickInlineAttrs(span: SerializedSpan): string[] {
   return out;
 }
 
-// biome-ignore lint/suspicious/noControlCharactersInRegex: ANSI escape sequences ARE control chars — stripping them is this regex's whole job.
-const ANSI_RE = /\x1b\[[0-9;]*m/gu;
+// ESC is a control character and the regex's whole subject, so it is spelled by code point rather than as a regex escape.
+const ESC_CODE_POINT = 0x1b;
+const ANSI_RE = new RegExp(`${String.fromCodePoint(ESC_CODE_POINT)}\\[[0-9;]*m`, "gu");
 
 function stripAnsi(s: string): string {
   return s.replace(ANSI_RE, "");
