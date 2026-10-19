@@ -1,8 +1,6 @@
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { assertArmVerdict, openRealCorpusLiveness } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, plantFile, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { defineFact, defineGate, reviewedGrantsFor } from "@orb/tooling/verify";
 import { readyResourceValue } from "../../../../tooling/src/verify/lib/resource-declaration.ts";
 
@@ -145,8 +143,7 @@ test("a failed baseline retains its original finding without repeating native an
 
 test("liveness cached passes preserve fresh solo facts, resources, populations, refusals and grants", { tags: ["slow"] }, ({ scratch }) => {
   for (const [path, text] of Object.entries(BASE)) {
-    mkdirSync(dirname(join(scratch, path)), { recursive: true });
-    writeFileSync(join(scratch, path), text);
+    plantFile(scratch, path, text);
   }
   const populations: string[][] = [];
   const fact = defineFact({

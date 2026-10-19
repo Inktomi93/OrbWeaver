@@ -22,9 +22,7 @@
 //        warning severity. The OWNER'S NUMBER is deliberately NOT pinned — see that test's comment.
 //   §4.6 the CONVERSION DIFFERENTIAL, both sides nonzero: the legacy descriptor's live set over the REAL
 //        tree, replayed through the converted reader.
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, plantFile, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
@@ -40,9 +38,7 @@ const COMPOSER_RULE = 'html[data-blur-composer] [data-slot="composer"] {\n  back
 
 function pass(scratch: string, files: Readonly<Record<string, string>>): PolicyPassResult {
   for (const [rel, text] of Object.entries(files)) {
-    const absolute = join(scratch, rel);
-    mkdirSync(dirname(absolute), { recursive: true });
-    writeFileSync(absolute, text);
+    plantFile(scratch, rel, text);
   }
   return runPolicyPass({
     knownPolicies: [gate],

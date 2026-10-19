@@ -4,11 +4,21 @@
 // verdict lives here — this reader only names WHICH invocation is a rejection handler and what it touches.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { applyArgumentValues } from "../../floor/code-facts/expression-value.ts";
+import { hasMember, memberReceivers } from "../../floor/code-facts/member-type-reads.ts";
 import type { CaughtFailureReadServices } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { ambientIdentifier, hasInterveningWrite, importedName, literalMember, REJECTION_HANDLER_INDEX } from "./caught-failure-core.ts";
-import { rawFailureDeclarations } from "./caught-failure-read.ts";
+import {
+  APPLY_FORWARDER,
+  ambientIdentifier,
+  BIND_FORWARDER,
+  CALL_FORWARDER,
+  hasInterveningWrite,
+  importedName,
+  literalMember,
+  REJECTION_HANDLER_INDEX,
+} from "./caught-failure-core.ts";
+import { PROMISE_LIKE_MEMBER, rawFailureDeclarations } from "./caught-failure-read.ts";
 
 function isZodSchemaExpression(node: Node, seen: ReadonlySet<Node> = new Set(), reads?: CaughtFailureReadServices): boolean {
   const value = unwrapExpression(node);
@@ -44,19 +54,14 @@ export function promiseLikeValue(receiver: Node, reads?: CaughtFailureReadServic
     const type = receiver.getType();
     const constituents = type.isUnion() ? type.getUnionTypes() : [type];
     const nonNullish = constituents.filter((part) => !["null", "undefined"].includes(part.getText()));
-    return nonNullish.length > 0 && nonNullish.every((part) => ["any", "unknown"].includes(part.getText()) || part.getProperty("then") !== undefined);
+    return (
+      nonNullish.length > 0 && nonNullish.every((part) => ["any", "unknown"].includes(part.getText()) || part.getProperty(PROMISE_LIKE_MEMBER) !== undefined)
+    );
   }
-  const selector = nodeTypeSelector(receiver);
-  const unions = reads.types.unions(selector);
-  const constituents = unions.length === 0 ? [selector] : unions;
-  const nonNullish = constituents.filter((part) => !["null", "undefined"].includes(reads.types.defaultDisplay(part)));
+  const nonNullish = memberReceivers(reads.types, receiver).filter((part) => !["null", "undefined"].includes(reads.types.defaultDisplay(part)));
   return (
     nonNullish.length > 0 &&
-    nonNullish.every(
-      (part) =>
-        ["any", "unknown"].includes(reads.types.defaultDisplay(part)) ||
-        reads.types.select({ ...part, steps: [...part.steps, { kind: "property", name: "then", at: receiver }] }) !== null,
-    )
+    nonNullish.every((part) => ["any", "unknown"].includes(reads.types.defaultDisplay(part)) || hasMember(reads.types, part, PROMISE_LIKE_MEMBER, receiver))
   );
 }
 
@@ -89,7 +94,7 @@ function calledRejection(
   member: { readonly name: string; readonly receiver: Node },
   reads?: CaughtFailureReadServices,
 ): PromiseRejectionInvocation | undefined {
-  const link = member.name === "call" ? rejectionLink(literalMember(member.receiver, reads)?.name) : undefined;
+  const link = member.name === CALL_FORWARDER ? rejectionLink(literalMember(member.receiver, reads)?.name) : undefined;
   if (link === undefined) {
     return;
   }
@@ -104,7 +109,7 @@ function appliedRejection(
   member: { readonly name: string; readonly receiver: Node },
   reads?: CaughtFailureReadServices,
 ): PromiseRejectionInvocation | undefined {
-  if (member.name !== "apply") {
+  if (member.name !== APPLY_FORWARDER) {
     return;
   }
   const reflect = ambientIdentifier(member.receiver, "Reflect", new Set(), reads);
@@ -112,10 +117,11 @@ function appliedRejection(
   const receiver = call.getArguments()[reflect ? 1 : 0];
   const args = call.getArguments()[reflect ? 2 : 1];
   const link = rejectionNode === undefined ? undefined : rejectionLink(literalMember(rejectionNode, reads)?.name);
-  if (link === undefined || receiver === undefined || args?.isKind(SyntaxKind.ArrayLiteralExpression) !== true) {
+  const spread = applyArgumentValues(call, args, member.name);
+  if (link === undefined || receiver === undefined || spread === undefined) {
     return;
   }
-  const handler = args.getElements()[REJECTION_HANDLER_INDEX.get(link) ?? -1];
+  const handler = spread[REJECTION_HANDLER_INDEX.get(link) ?? -1];
   return handler === undefined ? undefined : { handler, link, receiver, direct: false };
 }
 
@@ -125,12 +131,11 @@ function boundRejection(call: CallExpression, callee: Node, reads?: CaughtFailur
     return;
   }
   const declaration = rawFailureDeclarations(callee, reads)[0];
-  if (declaration?.isKind(SyntaxKind.VariableDeclaration) !== true || hasInterveningWrite(callee, declaration, reads)) {
-    return;
-  }
-  const initializer = declaration.getInitializerIfKind(SyntaxKind.CallExpression);
+  // The call-initializer test runs before the write guard: the native plan roots only callees whose
+  // same-file declaration is initialized by a call, so only those carry the file's write facts.
+  const initializer = declaration?.asKind(SyntaxKind.VariableDeclaration)?.getInitializerIfKind(SyntaxKind.CallExpression);
   const bind = initializer === undefined ? undefined : literalMember(initializer.getExpression(), reads);
-  if (initializer === undefined || bind?.name !== "bind") {
+  if (declaration === undefined || initializer === undefined || bind?.name !== BIND_FORWARDER || hasInterveningWrite(callee, declaration, reads)) {
     return;
   }
   const link = rejectionLink(literalMember(bind.receiver, reads)?.name);
