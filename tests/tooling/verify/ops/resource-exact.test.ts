@@ -9,8 +9,8 @@ import { EXACT_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/re
 import { loadExactFiles } from "../../../../tooling/src/verify/ops/resource-exact.ts";
 import { createResourceReader } from "../../../../tooling/src/verify/ops/resource-reader.ts";
 
-const BOOT = EXACT_RESOURCE_PATHS["ct-boot"];
-const EXTENSION = EXACT_RESOURCE_PATHS["ct-extension-css"];
+const VITEST = EXACT_RESOURCE_PATHS["vitest-config"];
+const PLAYWRIGHT = EXACT_RESOURCE_PATHS["playwright-ct-config"];
 
 function load(
   scratch: string,
@@ -21,35 +21,35 @@ function load(
 }
 
 test("each demanded id is served with its text and size", ({ scratch }) => {
-  const fact = load(scratch, { [BOOT]: "import './index.css';\n", [EXTENSION]: ".ct {}\n" }, ["ct-boot", "ct-extension-css"]);
+  const fact = load(scratch, { [VITEST]: "export default {};\n", [PLAYWRIGHT]: "export default {};\n" }, ["vitest-config", "playwright-ct-config"]);
 
   expect(fact.status).toBe("ready");
   if (fact.status !== "ready") {
     throw new Error(`fixture exact files failed: ${fact.reason}`);
   }
-  expect(fact.value.get("ct-boot")).toEqual({ id: "ct-boot", path: BOOT, text: "import './index.css';\n", bytes: 22, lines: 2 });
+  expect(fact.value.get("vitest-config")).toEqual({ id: "vitest-config", path: VITEST, text: "export default {};\n", bytes: 19, lines: 2 });
   expect(fact.members).toBe(2);
   // The path order follows the sorted ID set, which is the door's own identity — not the alphabetical order
   // of the paths those ids happen to name.
-  expect(fact.paths).toEqual([BOOT, EXTENSION]);
+  expect(fact.paths).toEqual([PLAYWRIGHT, VITEST]);
 });
 
 test("ONE absent member refuses the WHOLE fact rather than serving a shorter map", ({ scratch }) => {
   // The planted control in both directions. Present-and-present is `ready` above; present-and-absent must
-  // NOT be a one-entry ready map — "the CT boot file has no CSS import" and "the CT boot file is gone" are
+  // NOT be a one-entry ready map — "the config has no such literal" and "the config is gone" are
   // opposite verdicts, and a shorter map is how the second silently becomes the first.
-  const partial = load(scratch, { [BOOT]: "import './index.css';\n" }, ["ct-boot", "ct-extension-css"]);
+  const partial = load(scratch, { [VITEST]: "export default {};\n" }, ["vitest-config", "playwright-ct-config"]);
 
   expect(partial.status).toBe("missing");
-  expect(partial.status === "ready" ? "" : partial.reason).toContain("ct-extension-css");
+  expect(partial.status === "ready" ? "" : partial.reason).toContain("playwright-ct-config");
   expect(partial).not.toHaveProperty("value");
 });
 
 test("zero ids and an unknown id are distinct refusals, and neither is an empty map", ({ scratch }) => {
-  const none = load(scratch, { [BOOT]: "x\n" }, []);
+  const none = load(scratch, { [VITEST]: "x\n" }, []);
   expect(none.status).toBe("empty");
 
-  const unknown = load(scratch, { [BOOT]: "x\n" }, ["not-an-id" as ExactResourceId]);
+  const unknown = load(scratch, { [VITEST]: "x\n" }, ["not-an-id" as ExactResourceId]);
   expect(unknown.status).toBe("unresolved");
   expect(unknown.status === "unresolved" ? unknown.reason : "").toContain("unknown exact resource id");
 });

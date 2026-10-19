@@ -35,8 +35,8 @@
 // THE APP STYLESHEET RIDES THE SAME BUILD (#1752, work item 0029). The client's CSS reaches the bundle only
 // through `main.tsx`'s bare `import "./styles/index.ts"`, and a bundler that believes that module is
 // side-effect-free drops it: a `sideEffects` allowlist on `@orb/client` did exactly that, and production
-// shipped with NO app stylesheet for five days. The authored-graph checks (`sanctioned-css-homes`,
-// `playwright-css-topology`) stayed green because the graph was right and the OUTPUT was wrong, so only the
+// shipped with NO app stylesheet for five days. The authored-graph checks (`tests/client/styles/css-home-topology.suite.test.ts`)
+// stayed green because the graph was right and the OUTPUT was wrong, so only the
 // emitted dist can prove retention. `measureAppStylesheet` reads the `rel="stylesheet"` links the emitted html
 // declares and requires the linked sheets, together, to carry every `APP_STYLESHEET_SENTINELS` entry — one
 // construct per sheet the front door reaches, each named with its authoring source. No linked sheet, or a missing

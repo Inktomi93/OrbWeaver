@@ -16,7 +16,6 @@ import { gate as cssFamilyDirectClientMechanism } from "../../../../../tooling/s
 import { gate as cssFamilyOwnership } from "../../../../../tooling/src/verify/gates/css-family-ownership.ts";
 import { gate as cssSelectorHasAWriter } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer.ts";
 import { gate as densityTier } from "../../../../../tooling/src/verify/gates/density-tier.ts";
-import { gate as densityTierSlotMap } from "../../../../../tooling/src/verify/gates/density-tier-slot-map.ts";
 import { gate as integerLineBoxes } from "../../../../../tooling/src/verify/gates/integer-line-boxes.ts";
 import { gate as noOffTokenInlineStyle } from "../../../../../tooling/src/verify/gates/no-off-token-inline-style.ts";
 import { gate as noTailwindDarkVariant } from "../../../../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
@@ -27,7 +26,6 @@ import { gate as spacingTierHomeHealth } from "../../../../../tooling/src/verify
 import { gate as subFloorDisclosure } from "../../../../../tooling/src/verify/gates/sub-floor-disclosure.ts";
 import { gate as themeOverrideOnlyViaScope } from "../../../../../tooling/src/verify/gates/theme-override-only-via-scope.ts";
 import { gate as typographyTierHomeHealth } from "../../../../../tooling/src/verify/gates/typography-tier-home-health.ts";
-import { gate as zIndexTierHealth } from "../../../../../tooling/src/verify/gates/z-index-tier-health.ts";
 
 const FEATURE = "packages/client/src/features/chat/components";
 const UI = "packages/ui/src/primitives";
@@ -74,12 +72,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: densityTier,
     overlays: [featureClass("density", "rounded-card border border-border bg-card")],
     messageIncludes: "operation: elevated-radius",
-  },
-  {
-    policy: densityTierSlotMap,
-    // A tier-mapped slot stamped outside packages/ui/src/.
-    overlays: [add(`${FEATURE}/liveness-rogue-slot.tsx`, 'export const G = <div data-slot="list-row-root" />;\n')],
-    messageIncludes: "ROGUE STAMP",
   },
   {
     policy: integerLineBoxes,
@@ -137,10 +129,5 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: typographyTierHomeHealth,
     overlays: [{ kind: "remove", path: MARKDOWN_HOME }],
     messageIncludes: `"${MARKDOWN_HOME}" resolves to no file`,
-  },
-  {
-    policy: zIndexTierHealth,
-    overlays: [{ kind: "remove", path: MARKDOWN_HOME }],
-    messageIncludes: MARKDOWN_HOME,
   },
 ];

@@ -19,7 +19,6 @@ import { gate as cssFamilyOwnershipHealth } from "../../../../../tooling/src/ver
 import { gate as cssSelectorHasAWriterHealth } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
 import { gate as noFormStateInUseeffect } from "../../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
 import { gate as overArtPlateArm } from "../../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
-import { gate as sanctionedCssHomes } from "../../../../../tooling/src/verify/gates/sanctioned-css-homes.ts";
 import { gate as suppressions } from "../../../../../tooling/src/verify/gates/suppressions.ts";
 import { gate as testLayout } from "../../../../../tooling/src/verify/gates/test-layout.ts";
 
@@ -83,11 +82,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "light-dark()",
-  },
-  {
-    policy: sanctionedCssHomes,
-    overlays: [source("packages/client/src/features/chat/liveness.css", ".liveness { color: red; }\n")],
-    messageIncludes: "outside the path-closed six-home",
   },
   {
     policy: suppressions,

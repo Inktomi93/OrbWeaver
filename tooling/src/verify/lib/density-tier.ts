@@ -1,5 +1,5 @@
-// The SHARED module for the `density-tier` family (tooling/src/verify/gates/GATE-AUTHORING.md §2): the readers and canonical
-// vocabulary the two final density policies judge. It holds NO permission of any kind.
+// The readers and canonical vocabulary the `density-tier` policy judges (tooling/src/verify/gates/GATE-AUTHORING.md §2).
+// It holds NO permission of any kind.
 //
 // WHY THERE IS NO SANCTIONED-HOME TABLE HERE, and the precedent that misled this conversion. The legacy
 // descriptor carried two path tables — `ELEVATED_ALLOW` (11 rows, the D6 floating-island family) and a
@@ -10,30 +10,11 @@
 // to carry canonical exemption data through an import door (#2320)" wherever the imported binding's data
 // graph reaches `contract/gate.ts`'s `ExemptionTable`/`ExemptionRow` — eight live findings across four
 // families on this tree, including BOTH halves of that precedent. So both tables became exact reviewed
-// grants instead, which is what standing law §5 says in the first place, and the family is TWO policies:
-// `density-tier` and `density-tier-slot-map`, sharing the `jsxAttributeLiterals` callable and the
-// `UI_SOURCE_ROOT` declaration through their production hooks.
+// grants instead, which is what standing law §5 says in the first place.
 //
-// COMMENT POSTURE: AST-safe on the source side (ts-morph nodes and JSX attribute literals, never file
-// text). The CSS side is comment-BLIND through the shared reader: `parseCssStylesheet` blanks comments
-// before it parses, so a `[data-slot="…"]` selector written inside a CSS comment is not a rule and never
-// enters the mapped vocabulary. The legacy gate blanked comments itself for exactly that reason; the
-// guarantee now rides the `product-css` resource and its proof row still pins it.
+// COMMENT POSTURE: AST-safe (ts-morph nodes and JSX attribute literals, never file text).
 import type { JsxOpeningElement, JsxSelfClosingElement, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import { TIERS } from "../contract/css-family.ts";
-import type { CssFacts } from "../contract/resource-css.ts";
-
-/** The `@orb/ui` source root — the primitive tier the slot-map arms fence on, and the family declaration
- *
- *  IT IS A LITERAL, NOT AN ALIAS, AND THAT IS FORCED (#2320). Writing it as
- *  `POPULATION_ROOTS["@ui"][0]` makes it an export aliasing another binding, and
- *  `policy-legacy-imports` fail-closes on exactly that shape — "export UI_SOURCE_ROOT aliases another
- *  binding whose canonical origin is not proven" — which WITHHOLDS that policy for the whole corpus rather
- *  than reporting a finding (measured on this tree at conversion). The two-sided guard is instead a family
- *  arm asserting this literal EQUALS `POPULATION_ROOTS["@ui"][0]`, so a root respelling reds in a test
- *  naming both sides rather than silently un-fencing the primitive tier. */
-export const UI_SOURCE_ROOT = "packages/ui/src/";
 
 /** The feature call-site tier the internal-type-axis rule (A3) is scoped to. It is a SEMANTIC boundary, not
  *  an exemption: `<Text voice>` is the feature API and `size`/`weight`/`tone`/`transform` are the internal
@@ -201,10 +182,8 @@ function textVoiceOccurrences(sf: SourceFile, rel: string): readonly DensityOccu
   return out;
 }
 
-/** Every `<attr>="literal"` JSX attribute of one file, as (value → the attribute node). The callable the
- *  tier-writer arm and the rogue-slot arm share: both ask "which files stamp this data attribute, and with
- *  what literal value". */
-export function jsxAttributeLiterals(sf: SourceFile, attributeName: string): readonly { readonly value: string; readonly node: Node }[] {
+/** Every `<attr>="literal"` JSX attribute of one file, as (value → the attribute node). */
+function jsxAttributeLiterals(sf: SourceFile, attributeName: string): readonly { readonly value: string; readonly node: Node }[] {
   const out: { value: string; node: Node }[] = [];
   for (const attr of sf.getDescendantsOfKind(SyntaxKind.JsxAttribute)) {
     if (attr.getNameNode().getText() !== attributeName) {
@@ -223,32 +202,7 @@ function tierWriterOccurrences(sf: SourceFile, rel: string): readonly DensityOcc
   return jsxAttributeLiterals(sf, "data-surface-tier").map(({ node }) => ({ node, subject: rel, operation: "surface-tier-write" }));
 }
 
-/** Every density occurrence of one file, in a deterministic order. The four arms the occurrence policy
- *  reports; the slot-map arms are whole-population questions and live in the sibling. */
+/** Every density occurrence of one file, in a deterministic order. */
 export function densityOccurrences(sf: SourceFile, rel: string): readonly DensityOccurrence[] {
   return [...radiusOccurrences(sf, rel), ...boxInBoxOccurrences(sf, rel), ...textVoiceOccurrences(sf, rel), ...tierWriterOccurrences(sf, rel)];
-}
-
-/** ONE tier-mapped slot name and the coordinate of the first selector that maps it. */
-export interface MappedSlot {
-  readonly slot: string;
-  readonly file: string;
-  readonly line: number;
-}
-
-/** The slot names the LIVE tier map keys on, read from the parsed `product-css` inventory rather than a
- *  hand-listed copy: a hand-listed copy is a second map that drifts, and a drifted copy would police slots
- *  the stylesheet stopped mapping. Fenced to `tiers.css`, the sheet that IS the map — a `data-slot` hook in
- *  another product home is that home's business. */
-export function mappedSlots(css: CssFacts): readonly MappedSlot[] {
-  const seen = new Map<string, MappedSlot>();
-  for (const hook of css.selectorHooks) {
-    if (hook.file !== TIERS || hook.kind !== "data" || hook.name !== "data-slot" || hook.operator !== "=" || hook.value === undefined) {
-      continue;
-    }
-    if (!seen.has(hook.value)) {
-      seen.set(hook.value, { slot: hook.value, file: hook.file, line: hook.line });
-    }
-  }
-  return [...seen.values()];
 }

@@ -1,6 +1,5 @@
-// The standing conformance net for the `density-tier` family — three final policies over one shared
-// `lib/density-tier.ts`: the reviewed-grant occurrence policy, the hard slot-map policy, and the hard
-// home-health tripwire.
+// The standing conformance net for the `density-tier` policy over `lib/density-tier.ts`. The slot-map
+// half of the family lives in `tests/ui/styles/tier-slot-map.suite.test.ts`.
 //
 // WHAT ONLY THIS FILE CAN PROVE. `verifyPolicyProofs` runs each module's declared rows, which the static
 // conformance stage already does. Four things a declared row CANNOT express, and all four are the
@@ -22,10 +21,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { POPULATION_ROOTS } from "../../../../tooling/src/verify/contract/population.ts";
 import { gate as densityTier } from "../../../../tooling/src/verify/gates/density-tier.ts";
-import { gate as slotMap } from "../../../../tooling/src/verify/gates/density-tier-slot-map.ts";
-import { UI_SOURCE_ROOT } from "../../../../tooling/src/verify/lib/density-tier.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -64,15 +60,14 @@ const TWO_ACTS = {
     'export const G = <div className="rounded-base border border-border bg-card"><Text size="micro">x</Text><span className="rounded-base border border-border bg-muted" /></div>;\n',
 } as const;
 
-test("every declared proof row of both policies holds through the production dispatcher", () => {
-  expect(verifyPolicyProofs([densityTier, slotMap])).toEqual([]);
+test("every declared proof row holds through the production dispatcher", () => {
+  expect(verifyPolicyProofs([densityTier])).toEqual([]);
 });
 
-test("the migration's shape is the thing under test: one reviewed-grant occurrence policy and one hard whole-population sibling", () => {
+test("the migration's shape is the thing under test: one reviewed-grant occurrence policy", () => {
   // The tripwire on every assumption the arms below rest on. Flipping `density-tier` to `ordinary` would
   // open an inline waiver door the density law deliberately does not have (a density ruling is a REVIEW, not
-  // a line-local note); flipping the sibling's `execution` would acquit a mapped-but-dead slot whose emitter
-  // sat outside the selection.
+  // a line-local note).
   expect([densityTier.id, densityTier.family, densityTier.authority, densityTier.severity, densityTier.execution]).toEqual([
     "density-tier",
     "density-tier",
@@ -80,7 +75,6 @@ test("the migration's shape is the thing under test: one reviewed-grant occurren
     "error",
     "selected-files",
   ]);
-  expect([slotMap.id, slotMap.family, slotMap.authority, slotMap.execution]).toEqual(["density-tier-slot-map", "density-tier", "hard", "entire-population"]);
 });
 
 test("§4.7 IN-FILE AGGREGATION: two occurrences of ONE act in ONE file are ONE finding naming both lines", () => {
@@ -206,15 +200,6 @@ test("the two retired PATH TABLES are covered grant-for-grant, and the D6 elevat
   // debt wearing a permit, which is exactly what the retired ratchet's `ratified` field promised and what
   // the grant contract now carries.
   expect(rows.filter((row) => row.why.trim() === "" || row.endsWhen.trim() === "")).toEqual([]);
-});
-
-test("UI_SOURCE_ROOT is a LITERAL that must equal the declared `@ui` population root", () => {
-  // The literal is forced: an export aliasing `POPULATION_ROOTS["@ui"][0]` makes `policy-legacy-imports`
-  // fail closed on "aliases another binding whose canonical origin is not proven" and WITHHOLD that policy
-  // for the whole corpus (measured at conversion, #2320). So the two-sidedness lives here instead — a root
-  // respelling reds in a test naming both sides rather than silently un-fencing the primitive tier, which
-  // would make every `data-slot` stamp in packages/ui look rogue and every mapped slot look unemitted.
-  expect(UI_SOURCE_ROOT).toBe(POPULATION_ROOTS["@ui"][0]);
 });
 
 test("a shipped ELEVATED grant licenses its own file and nothing else — the path-subtraction's successor", () => {

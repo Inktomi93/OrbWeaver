@@ -147,7 +147,7 @@ Features keep composing `<Stack gap>` / `<Row gap>` explicitly — the gap union
 
 ### 5.1 The `density-tier` policy family
 
-Two final `defineGate` policies share `tooling/src/verify/lib/density-tier.ts`. What they make RED, in one line each: `rounded-card` at a class-string site (A1) · a border+radius+background triple nested inside another (A2, = CD2) · a `features/**` call site passing the `@orb/ui`-internal type axes to `<Text>`/`<Heading>` instead of `voice` (A3) · `data-surface-tier` wherever it is written (A4) — all four in `density-tier`, each a reviewed grant where the site is a ruling · a tier-mapped `data-slot` stamped outside `packages/ui/src`, or a mapped slot no primitive emits, in the `hard` sibling `density-tier-slot-map`. **The case-by-case contract is `Core-Enforcement-Active-Gates.md`'s two rows plus each module's own header** — not restated here.
+The final `defineGate` policy `density-tier` reads `tooling/src/verify/lib/density-tier.ts`. It makes RED, in one line each: `rounded-card` at a class-string site (A1) · a border+radius+background triple nested inside another (A2, = CD2) · a `features/**` call site passing the `@orb/ui`-internal type axes to `<Text>`/`<Heading>` instead of `voice` (A3) · `data-surface-tier` wherever it is written (A4) — each a reviewed grant where the site is a ruling. The slot-map half (A6) is the Node test `tests/ui/styles/tier-slot-map.suite.test.ts`: a tier-mapped `data-slot` stamped outside `packages/ui/src`, or a mapped slot no primitive emits. **The case-by-case contract is `Core-Enforcement-Active-Gates.md`'s row plus the module's own header** — not restated here.
 
 Two standing properties of its construction:
 

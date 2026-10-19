@@ -635,7 +635,7 @@ test("the second-wave kinds admit their own closed id vocabularies, and refuse a
   for (const request of [
     { kind: "mirror-index", id: "package-test" },
     { kind: "ledger", id: "d-ledger" },
-    { kind: "exact-file", id: "ct-boot" },
+    { kind: "exact-file", id: "vitest-config" },
     { kind: "documents" },
     { kind: "vendor-css-surface" },
     { kind: "token-contract", mode: "generated-types" },
@@ -650,7 +650,7 @@ test("the second-wave kinds admit their own closed id vocabularies, and refuse a
   };
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "mirror-index", id: "package-tests" }))).toThrow(/id is unknown for mirror-index/i);
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "ledger", id: "d-ledgers" }))).toThrow(/id is unknown for ledger/i);
-  expect(() => assertGatePolicyDescriptor(malformed({ kind: "exact-file", id: "ct-bootstrap" }))).toThrow(/id is unknown for exact-file/i);
+  expect(() => assertGatePolicyDescriptor(malformed({ kind: "exact-file", id: "vitest-configs" }))).toThrow(/id is unknown for exact-file/i);
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "devtools-closure" }))).toThrow(/kind is unknown/i);
   // An id on a kind that takes none is an unknown PROPERTY, never a silently ignored field.
   expect(() => assertGatePolicyDescriptor(malformed({ kind: "documents", id: "docs" }))).toThrow(/unknown property/i);

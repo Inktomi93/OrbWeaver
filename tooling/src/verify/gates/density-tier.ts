@@ -92,11 +92,9 @@
 // No product or test file changed for marker reasons in the conversion commit, which is the other half of
 // that claim ("a gate with live markers and no product/test diff translated nothing").
 //
-// FAMILY `density-tier` — a TWO-member split family over `lib/density-tier.ts`. The shared canonical
-// CALLABLE is `jsxAttributeLiterals`, reached from this policy's A4 arm and from
-// `density-tier-slot-map`'s rogue-slot arm, and the shared DECLARATION is `UI_SOURCE_ROOT`. The split is by
-// axis, not by topic: the slot-map sibling is `hard` where this is `reviewed-grant`, and it needs the
-// ENTIRE population (does ANY ui file emit this slot) where this composes per file.
+// FAMILY `density-tier` — one policy over `lib/density-tier.ts`. Its slot-map sibling (a tier-mapped
+// `data-slot` stamped outside @ui, or mapped but emitted by no @ui file) is now the Node test
+// `tests/ui/styles/tier-slot-map.suite.test.ts`.
 //
 // LEGACY SHA: the conversion parent is `c2f07a4d2515ee806e02d0e1012a0797407c90df`. The legacy
 // `GateDescriptor` at that revision is what the §6.4 differential replayed against.
