@@ -2,7 +2,12 @@
 import type { Node as MorphNode, SourceFile, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, resolveStableExpression } from "../../floor/code-facts/reference-fact.ts";
+import {
+  literalMemberAccess,
+  resolveLexicalValueDeclaration,
+  resolveModuleMemberOrigin,
+  resolveStableExpression,
+} from "../../floor/code-facts/reference-fact.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Hit } from "../contract/types.ts";
 import { hitOf } from "../lib/emit.ts";
@@ -225,15 +230,12 @@ function receiverRootAndPath(receiver: MorphNode): { root: MorphNode; path: read
   const path: string[] = [];
   let current = receiver;
   while (Node.isPropertyAccessExpression(current) || Node.isElementAccessExpression(current)) {
-    if (Node.isPropertyAccessExpression(current)) {
-      path.unshift(current.getName());
-    } else {
-      const argument = current.getArgumentExpression();
-      if (!(argument !== undefined && (Node.isStringLiteral(argument) || Node.isNumericLiteral(argument)))) {
-        return;
-      }
-      path.unshift(argument.getText());
+    const index = Node.isElementAccessExpression(current) ? current.getArgumentExpression() : undefined;
+    const segment = literalMemberAccess(current, true)?.name ?? (Node.isNumericLiteral(index) ? index.getText() : undefined);
+    if (segment === undefined) {
+      return;
     }
+    path.unshift(segment);
     current = current.getExpression();
   }
   return { root: current, path };

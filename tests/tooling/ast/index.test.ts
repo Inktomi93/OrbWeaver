@@ -1755,6 +1755,30 @@ export const Section = (form: { setFieldValue: (k: string, v: unknown) => void }
     expect(hits.map((h) => h.text.split(" — ")[0])).toEqual(["[unclassified] cardSchema.neverProduced"]);
   });
 
+  test("a no-substitution template key produces and consumes exactly like its quoted twin", () => {
+    const hitsFor = (quote: string): readonly string[] => {
+      const project = projectOf({
+        "packages/contracts/src/probe/index.ts": `
+import { z } from "zod";
+export const probeSchema = z.object({ bracketWritten: z.string(), bracketRead: z.string(), neverProduced: z.string() });
+`,
+        "packages/server/src/probe/emit.ts": `
+export const emit = (out: Record<string, unknown>, row: Record<string, unknown>): void => {
+  out[${quote}bracketWritten${quote}] = 1;
+  out.bracketRead = row[${quote}bracketRead${quote}];
+};
+`,
+      });
+      const contracts = project.getSourceFileOrThrow("/repo/packages/contracts/src/probe/index.ts");
+      const indexes = fieldIndexes(project);
+      return contractFieldsOf(contracts)
+        .flatMap((f) => fieldHit(f, indexes) ?? [])
+        .map((h) => h.text.split(" — ")[0] ?? "");
+    };
+    expect(hitsFor('"')).toEqual(["[unclassified] probeSchema.neverProduced"]);
+    expect(hitsFor("`")).toEqual(hitsFor('"'));
+  });
+
   test("every assignment operator produces its dot or literal-index target, while reads and test writes do not", () => {
     const project = projectOf({
       "packages/contracts/src/probe/index.ts": `
@@ -2052,6 +2076,28 @@ export function checkBracket(): number {
     const qualified = qualifiedAccessIndex(project, new Set(registries.map((r) => r.name)));
     // Currently flagged (pre-fix) — silent after: all three rows are qualified-accessed.
     expect(regKeyHitsFor(registry, index, qualified)).toEqual([]);
+  });
+
+  test("credits a REGISTRY[`key`] template read in the registry's own file like the quoted spelling", () => {
+    const project = projectOf({
+      "packages/client/src/lib/budgets.ts": `
+export const MOTION_BUDGETS = {
+  frameGapMs: 50,
+  cssScanIntervalMs: 2000,
+  spaceScanCap: 400,
+} as const;
+export function checkTemplate(): number {
+  return MOTION_BUDGETS[\`frameGapMs\`] + MOTION_BUDGETS.cssScanIntervalMs + MOTION_BUDGETS["spaceScanCap"];
+}
+`,
+    });
+    const registries = collectRegistries(project);
+    const registry = registries.find((r) => r.name === "MOTION_BUDGETS");
+    if (registry === undefined) {
+      throw new Error("MOTION_BUDGETS registry not derived");
+    }
+    const qualified = qualifiedAccessIndex(project, new Set(registries.map((r) => r.name)));
+    expect(regKeyHitsFor(registry, spellingIndex(project), qualified)).toEqual([]);
   });
 
   test("a genuinely undispatched key (no spelling, no qualified access anywhere) is still flagged", () => {

@@ -27,7 +27,7 @@
 //      `el[DATA_X]` now resolves too. `unwrapExpression` survives ONLY where the strip is structural
 //      (a parenthesized assignment target), which is the same layering `reference-fact.ts` itself uses.
 
-import { readStaticString, resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
+import { readStaticString, resolveStableExpression, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Type } from "ts-morph";
 import { Node } from "ts-morph";
 import type { StaticClassNativeContext, StaticClassNativeRead } from "../contract/static-class-expression.ts";
@@ -121,18 +121,7 @@ function propertyName(node: Node): string | undefined {
 /** The accessed member name in either spelling. The computed arm reads its argument through the shared
  *  stable-binding resolver, so `el[DATA_SLOT]` resolves exactly as `el["data-slot"]` does. */
 function accessedName(node: Node, native?: StaticClassNativeContext): string | undefined {
-  if (Node.isPropertyAccessExpression(node)) {
-    return node.getName();
-  }
-  if (!Node.isElementAccessExpression(node)) {
-    return;
-  }
-  const argument = node.getArgumentExpression();
-  if (argument === undefined) {
-    return;
-  }
-  const fact = native === undefined ? readStaticString(argument) : requiredInvocationFact(native.evidence.strings, argument);
-  return fact.kind === "unresolved" ? undefined : fact.value;
+  return staticMemberAccess(node, (key) => (native === undefined ? readStaticString(key) : requiredInvocationFact(native.evidence.strings, key)))?.name;
 }
 
 function accessReceiver(node: Node): Node | undefined {
