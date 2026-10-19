@@ -328,10 +328,7 @@ export function registerImportTree(app: Hono<PrincipalEnv>, deps: ImportTreeDeps
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
     }
-    // @orb-waive caught-failure-ownership(err): propagated — the HTTP entry boundary's own error
-    // mapper (`errorResponse`) answers the caller with the failure as a response; the inner catch (staging
-    // cleanup) rethrows unconditionally. Never a silent swallow. Ends if this route stops being the terminal
-    // HTTP handler.
+    // @orb-waive caught-failure-ownership(err): owned by errorResponse: it answers TreeRejected and DomainConflictError as typed responses and rethrows every other error to the app's onError. Ends if errorResponse stops rethrowing unknown errors.
     try {
       const form = await c.req.formData();
       const parts = await collectParts(form);
@@ -367,8 +364,7 @@ function registerPersonaReview(app: Hono<PrincipalEnv>, deps: ImportTreeDeps): v
     if (principal === null) {
       return c.body(null, UNAUTHORIZED);
     }
-    // @orb-waive caught-failure-ownership(err): propagated — `errorResponse` answers the caller with the
-    // failure as a response; nothing is swallowed. Ends if this route stops being the terminal HTTP handler.
+    // @orb-waive caught-failure-ownership(err): owned by errorResponse: it answers TreeRejected and DomainConflictError as typed responses and rethrows every other error to the app's onError. Ends if errorResponse stops rethrowing unknown errors.
     try {
       const parts = await collectParts(await c.req.formData());
       const incoming = incomingPersonasOf(parts);
