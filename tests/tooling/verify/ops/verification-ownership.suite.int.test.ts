@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import YAML from "yaml";
 import { z } from "zod";
+import { VERB_COVERAGE_DIR } from "../../../../tooling/src/floor/testing/verb-coverage.ts";
 import { applicationPartitionKeys } from "../../../../tooling/src/verify/lib/application-partitions.ts";
 
 const STEP = z.object({
@@ -151,6 +152,32 @@ test("qualification cache cannot save skipped, failed, cancelled or no-verdict a
   }
   expect(aggregate?.steps.find((step) => step.uses?.startsWith("actions/cache/save@") === true)?.if).toBe("success() && steps.mark.outcome == 'success'");
   expect(ci.jobs["qualification-partition"]?.steps.some((step) => step.uses?.startsWith("actions/cache/save@") === true)).toBe(false);
+});
+
+test("push CI and release qualification both judge domain verb coverage over every node shard they ran", ({ repoRoot }) => {
+  const ci = workflow(repoRoot);
+  const report = `${VERB_COVERAGE_DIR.replace(/^reports\//u, "")}/coverage-final.json`;
+  const judged = (run: string | undefined): readonly string[] => (run ?? "").split(/\s+/u).filter((part) => part.endsWith(report));
+  const qualification = ci.jobs["qualification"]?.steps ?? [];
+  const verbs = qualification.find((step) => step.id === "verbs");
+  expect(verbs?.if).toBe("needs.qualification-head.outputs.seen != 'true'");
+  expect(judged(verbs?.run)).toEqual(
+    applicationPartitionKeys("full")
+      .filter((key) => key.startsWith("node:"))
+      .map((key) => `reports/qualification-inputs/reports-qualification-${key.replaceAll(":", "-").replaceAll("/", "-")}/${report}`),
+  );
+  // The judge runs before the success marker, so a failed judge leaves the qualification uncached.
+  expect(qualification.findIndex((step) => step.id === "verbs")).toBeLessThan(qualification.findIndex((step) => step.id === "mark"));
+  const push = ci.jobs["verb-coverage"];
+  expect(push?.needs).toEqual(["changes", "node", "node-legacy"]);
+  const shards = (job: string): readonly number[] => {
+    const matrix = ci.jobs[job]?.strategy?.matrix;
+    return typeof matrix === "object" ? (matrix.shard ?? []) : [];
+  };
+  expect(judged(push?.steps.find((step) => step.run?.includes("ci-verb-coverage.ts") === true)?.run)).toEqual([
+    ...shards("node").map((shard) => `reports/verb-coverage-inputs/reports-node-${String(shard)}/${report}`),
+    ...shards("node-legacy").map((shard) => `reports/verb-coverage-inputs/reports-node-legacy-${String(shard)}/${report}`),
+  ]);
 });
 
 test("nightly and independent weekly entry guards do not overlap or admit diagnostics", ({ repoRoot }) => {
