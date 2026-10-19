@@ -213,7 +213,7 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
   const server = createServer((socket) => {
     // The connection EVENT has no caller to await it, but the client IS blocked on this socket: a rejection
     // has to answer it with a verdict (exit 2) or the lane hangs instead of reading one.
-    // @orb-waive caught-failure-ownership(readSessionRequestLine): the failure is reported to the caller as SESSION SERVE ERROR and the request's `done` carries toolError — the caller's exit IS the report, and the daemon stays up (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.
+    // @orb-waive caught-failure-ownership(readSessionRequestLine): the handler emits SESSION SERVE ERROR and a done event with exit EXIT.toolError (session-daemon.ts:228-229), which the client returns as its exit. Ends if the done event stops carrying the exit.
     readSessionRequestLine(socket)
       .then(async (request) => {
         if (request === null) {
@@ -240,7 +240,7 @@ export async function runSessionDaemon(opts: Args, argv: readonly string[]): Pro
     await state.inflight?.done;
     print(`session      ${name} closing — ${reason}`);
     server.close();
-    // @orb-waive caught-failure-ownership(error): a browser that fails to close is logged and the teardown proceeds to the registry half — the row + socket must go regardless, or the session reads as live forever. Ends if a failed browser close must abort the teardown.
+    // @orb-waive caught-failure-ownership(error): the catch warns "browser close failed" (session-daemon.ts:248) to stderr, the daemon log (floor/cli/log.ts:37); the row and socket removal still follows. Ends if a failed close must abort the teardown.
     try {
       await retainSessionEvidence(state.evidence, session);
       await finishSession(session, false, name, false);

@@ -268,8 +268,8 @@ export class RequestRing {
     if (!this.#byRequest.has(entry.request)) {
       return;
     }
-    // @orb-waive caught-failure-ownership(error): sizes=null plus the caught reason on
-    // entry.failed are the exported request-row receipt. Ends if either evidence field stops being written.
+    // @orb-waive caught-failure-ownership(error): the catch writes the reason to entry.failed (request-ring.ts:277),
+    // which publicEntry exports (:85) and request-log.ts:42 renders on the request row. Ends if the write or the render goes.
     try {
       entry.sizes = await entry.request.sizes();
     } catch (error) {
@@ -282,8 +282,8 @@ export class RequestRing {
   }
 
   async #recordBody(entry: MutableEntry, response: Response, contentType: string): Promise<void> {
-    // @orb-waive caught-failure-ownership(error): #reject persists the explicit read-error
-    // receipt and the caught reason is also retained on the request row. Ends if either write disappears.
+    // @orb-waive caught-failure-ownership(error): the catch records a read-error receipt via #reject (request-ring.ts:306)
+    // and the reason on entry.failed (:307), rendered at request-log.ts:42. Ends if either write or the render goes.
     try {
       const buffer = await response.body();
       const bytes = buffer.byteLength;

@@ -108,9 +108,9 @@ export function sessionTapeBaseMs(actions: readonly SnapAction[]): number {
 async function terminatePageExecution(session: ProbeSession): Promise<void> {
   const cdp = await session.page.context().newCDPSession(session.page);
   try {
-    // @orb-waive caught-failure-ownership(cdp.send): the reload below is the second cancellation path and the watchdog reports the original timeout to the caller. Ends if reload stops following this bounded acknowledgement wait.
+    // @orb-waive caught-failure-ownership(cdp.send): a failed terminateExecution leaves the call unsettled, so recovery loses the race to sleep(recoveryWaitMs) (session-call-watchdog.ts:178) and throws TerminalSessionCallError (:180). Ends if that race or throw goes.
     await Promise.race([cdp.send("Runtime.terminateExecution").catch(() => undefined), sleep(budget(TERMINATION_ACK_WAIT_BASE_MS))]);
-    // @orb-waive caught-failure-ownership(session.page.reload): reload is best-effort cancellation after the timeout already owns the caller-visible error; the next-call survival gate detects a context that failed to recover. Ends if the timeout stops being reported or the survival gate is removed.
+    // @orb-waive caught-failure-ownership(session.page.reload): a failed reload leaves the call unsettled, so recovery loses the race to sleep(recoveryWaitMs) (session-call-watchdog.ts:178) and throws TerminalSessionCallError (:180). Ends if that race or throw goes.
     await session.page.reload({ waitUntil: "commit", timeout: budget(RELOAD_COMMIT_BASE_MS) }).catch(() => undefined);
   } finally {
     await cdp.detach();
@@ -167,7 +167,7 @@ export async function runSessionCallWithinBudget(
   // is still live would allow the timed-out call to mutate the same page concurrently with its successor.
   // Both promises are rejection-owned here; the deadline remains the caller-visible error.
   const recovery = Promise.all([
-    // @orb-waive caught-failure-ownership(then): failed injected or browser cancellation becomes `false`, which makes `recovered` false and throws TerminalSessionCallError; the daemon then emits DEAD/toolError, records terminalReason, tears down, and kills its owned process group. Ends if false stops forcing terminal teardown.
+    // @orb-waive caught-failure-ownership(then): a failed cancellation becomes false, `recovered` goes false (session-call-watchdog.ts:178) and :180 throws TerminalSessionCallError, which the daemon reports as SESSION DEAD. Ends if false stops forcing that throw.
     ("recover" in state ? state.recover() : terminatePageExecution(state.session)).then(
       () => true,
       () => false,

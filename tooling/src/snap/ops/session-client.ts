@@ -133,7 +133,7 @@ async function pingOk(socketPath: string, root: string): Promise<boolean> {
     force: false,
     exportOut: null,
   };
-  // @orb-waive caught-failure-ownership(catch): a refused or absent socket IS the negative answer of a readiness poll — the caller keeps polling until the daemon answers, exits, or the boot budget names the failure. Ends if the poll stops bounding the wait.
+  // @orb-waive caught-failure-ownership(catch): a refused or silent socket is a false ping; bootSession keeps polling until the daemon exits (session-client.ts:226) or the budget prints SESSION BOOT FAILED and returns EXIT.toolError (:234). Ends if the poll stops being bounded.
   try {
     return (await sessionRequest(socketPath, ping, () => undefined, SESSION_PING_SILENCE_MS)) === EXIT.clean;
   } catch {
@@ -266,7 +266,7 @@ async function forwardRequest(kind: SessionRequestKind, ctx: SessionCallContext,
     force: false,
     exportOut: kind === "export" ? ctx.exportOut : null,
   };
-  // @orb-waive caught-failure-ownership(error): a daemon that vanished mid-call is reported as SESSION DEAD (or SESSION ERROR with the reason) and the call exits toolError — the failure is the printed verdict. Ends if that exit code stops being surfaced.
+  // @orb-waive caught-failure-ownership(error): the catch prints SESSION DEAD or SESSION ERROR (session-client.ts:293) and returns EXIT.toolError (:294) as the call's exit. Ends if either goes.
   try {
     return await sessionRequest(
       sessionSocketPath(home, name),
