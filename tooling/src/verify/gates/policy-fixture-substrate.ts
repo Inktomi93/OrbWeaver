@@ -2,7 +2,7 @@
 // §4.8, the probe rule in the lane skill; family `policy-soundness`, shared reader
 // `lib/fixture-path-origin.ts`).
 //
-// THE PAID DEFECT. 2026-08-24: a review lane probed `gates/bus-definition-belts.ts` live on main, the next broad
+// THE PAID DEFECT. 2026-08-24: a review lane probed a gate module live on main, the next broad
 // `git add` swept the probe into a commit, and the gate shipped BLINDED — and a blinded gate reports green
 // forever, so nothing downstream ever catches it. `.claude/skills/lane/SKILL.md` states the rule in prose
 // ("on a shared tree, message the orchestrator with the paths before you start"); nothing held it. A fixture is an in-memory

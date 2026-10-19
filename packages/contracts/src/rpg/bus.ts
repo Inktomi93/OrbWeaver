@@ -19,7 +19,7 @@
 // `tooling/src/verify/gates/bus-producer-coverage.ts` (every member of every belted bus needs a server emit
 // site — a declared-never-emitted member is RED, not silent dead wire, D50), and the CONSUMER
 // side by the exhaustive `EVENT_INVALIDATIONS` mapped Record over `RpgBusEvent["type"]` (a new member fails
-// client tsc until it names its reads; `bus-definition-belts` checks BOTH belts exist). `RPG_BUS_EVENT_TYPES`
+// client tsc until it names its reads; `bus-consumer-belt` checks the consumer map exists). `RPG_BUS_EVENT_TYPES`
 // below is the string mirror the coverage gate reads.
 //
 // Full ADDS its members additively (`clockChanged`/`checkResolved`/`encounterStarted`/… + the `hostOnly` emit

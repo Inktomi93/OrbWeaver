@@ -16,12 +16,10 @@ import type { AssetId, CharacterId, PersonaId, WorldBookId } from "@orb/kit/ids"
 // with the 2026-07-25 rollback — no `crew.*`/`rpg.*` members exist today. The rebuild grafts them back onto
 // this union (+ the matching `DOMAIN_TRIGGER_TYPES` reservation in `@orb/contracts/automation`) if either
 // domain returns.
-// BELTED 2026-08-14 (G-B, event-bus coverage survey §3.3): the `satisfies readonly DomainEvent["type"][]`
-// is what brings this bus inside the coverage ratchets' quantifier — it was a plain `as const` precisely so
-// `bus-definition-belts` would skip it, because belting it used to demand a CLIENT total map this
-// server-internal bus can never have. That arm now carries a declared SERVER_INTERNAL reach lane (the
-// `assertNever` subscriber at entry/compose/search-discovery.ts is the consumer belt), so the belt is
-// honest. Every member emits today; the belt guards the NEXT one (this header already plans the
+// The `satisfies readonly DomainEvent["type"][]` brings this bus inside the coverage ratchets' quantifier, and
+// `@orb/contracts/bus-registry` holds the tuple total over the union. This server-internal bus has no client
+// total map; its consumers are the `assertNever` subscribers (`bus-consumer-belt` finds them by their `never`
+// guard). Every member emits today; the belt guards the NEXT one (this header already plans the
 // `crew.*`/`rpg.*` grafts).
 // GREW 2026-08-14 to four: `persona.updated` + `world-info.updated` are the entity→room member-freshness
 // bridge's inputs. They have NO indexer consumer

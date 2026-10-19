@@ -57,7 +57,7 @@ export type StreamRoomRef = z.infer<typeof streamRoomRefSchema>;
 export type StreamChannel = StreamRoomRef["channel"];
 
 /** The room-channel belt. Deliberately NOT named `*_EVENT_TYPES`: it is not an event union, and that suffix
- *  would drag it into the `bus-definition-belts` gate's producer/consumer belt demand. */
+ *  would drag it into the bus-registry's producer/consumer belt demand. */
 export const STREAM_CHANNELS = ["user", "notifications", "chat", "rpg", "automation", "workloads"] as const satisfies readonly StreamChannel[];
 
 /** The ONE routing key — the server registry's map key AND the client handler-registry key. Accepts a ROOM

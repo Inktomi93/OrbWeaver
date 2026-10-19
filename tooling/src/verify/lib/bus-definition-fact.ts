@@ -1,7 +1,7 @@
 // The shared bus DEFINITION model: which unions exist, which carry a belt, which are derived sub-unions of
 // a belted root, and where each belted union's CONSUMER belt lives. Every question is answered from
 // resolved types and declaration identity, which is what retires the three name tables the legacy
-// `bus-definition-belts` gate carried (BELT_EXEMPT, SERVER_INTERNAL_REACH, and a text search of the gate
+// legacy single-gate descriptor carried (BELT_EXEMPT, SERVER_INTERNAL_REACH, and a text search of the gate
 // corpus for a const name).
 //
 // It is a SECOND provider rather than fields on `busProducerFact`: the producer fact carried consumer and
@@ -352,7 +352,7 @@ function finishDefinitionFact(context: BusReadContext, state: DefinitionState): 
  *  walked — and nothing about what the census FOUND. Same ruling, same reason and same date as
  *  `bus-fact.ts#PROVIDER_RECEIPT_SOURCE`; read the WHY there. The half specific to this provider: EVERY
  *  consumer already throws its own `bus definition fact is incomplete: …` before filing a receipt
- *  (`bus-definition-belts`, `bus-belt-total`, `bus-consumer-belt`, and `bus-producer-coverage`'s roster
+ *  (`bus-consumer-belt` and `bus-producer-coverage`'s roster
  *  join), so a receipt-level refusal could only PREEMPT the policy message a proof row asserts — which is
  *  exactly how the roster-disagreement pin in `tests/tooling/verify/gates/bus-producer-coverage.test.ts` started
  *  reading a `bus-definitions` receipt refusal instead of the disagreement it exists to catch. */

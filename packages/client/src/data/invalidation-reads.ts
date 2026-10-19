@@ -274,13 +274,13 @@ export function roomEntityHealReads(chatId: ChatId, trpc: Trpc): readonly Invali
 //
 // Third map: the feature-root rpg game bus (`rpg.stream`). LIVE-ONLY like the user bus; the client's tracker/
 // journal reads run `staleTime: Infinity`, so an rpg-bus tick is their freshness driver. TOTAL over
-// `RpgBusEvent["type"]` (the mapped type below is `bus-definition-belts`' consumer-exhaustiveness belt — a new
+// `RpgBusEvent["type"]` (the mapped type below is `bus-consumer-belt`'s consumer-exhaustiveness belt — a new
 // member fails tsc here until it names its reads). SWIPE freshness rides the CHAT bus (`variantSelected`, in
 // `BUS_FILTERS`), NOT a new rpg event — nothing is written on swipe-select, so the rpg bus never announces it.
 //
 // W2 FORWARD-SEAM: the rpg VERB tRPC procs (`trpc.rpg.getTrackerView`/`getGame`/`listJournal`/`getConfigView`)
 // land with the W2 rpg router — they do NOT exist on `AppRouter` yet, so each handler returns `[]` for now
-// (the map's SHAPE is the belt G11 checks; the real `trpc.rpg.*` filters wire in W2 alongside the stream hook).
+// (the map's SHAPE is the belt `bus-consumer-belt` checks; the real `trpc.rpg.*` filters wire in W2 alongside the stream hook).
 // The per-member notes name the read each will invalidate.
 type RpgBusFilterMap = {
   readonly [K in RpgBusEvent["type"]]: (event: Extract<RpgBusEvent, { type: K }>, trpc: Trpc) => readonly InvalidateFilter[];

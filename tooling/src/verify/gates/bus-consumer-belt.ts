@@ -13,14 +13,14 @@
 // two-sidedness survives: a bus with neither belt reports, whichever kind of consumer it was supposed to
 // have.
 //
-// FAMILY `bus-definition` — the shared reader is `lib/bus-definition-fact.ts` (`busDefinitionFact`, one
-// provider walked once per invocation), read identically by all three members of the split: this policy
-// asks whether each belted union has a CONSUMER, `bus-definition-belts` asks which unions own a belt at
-// all, and `bus-belt-total` asks whether a belt is total over its union. None of them derives a belt, which
-// is why they cannot disagree about what one is. This module owns no table, walk, path regex or cache —
-// the `SERVER_INTERNAL_REACH` row above was the last one and its successor is a checker proof, not a name.
+// FAMILY `bus-consumer-belt` (singleton) — the shared reader is `lib/bus-definition-fact.ts` (`busDefinitionFact`, one
+// provider walked once per invocation); this policy asks it whether each belted union has a CONSUMER.
+// Which unions own a belt, and whether a belt is total over its union, are answered by the types in
+// `packages/contracts/src/bus-registry/index.ts` and the native `orb/bus-union-registered` rule. This module
+// owns no table, walk, path regex or cache — the `SERVER_INTERNAL_REACH` row above was the last one and its
+// successor is a checker proof, not a name.
 //
-// POPULATION PORT: an intentional NARROWING of an unstated legacy scope, taken by all three split siblings
+// POPULATION PORT: an intentional NARROWING of an unstated legacy scope, taken by the split siblings
 // in the same commit. The legacy descriptor declared NO `scanRoot` — it was `scopeSafety: "whole-project"`
 // with a `run` hook over `ctx.project` — so it judged whatever the legacy pass loaded. The final population
 // is `{ in: ["@contracts", "@client", "@server"] }`, and for THIS policy all three roots are load-bearing
@@ -28,13 +28,13 @@
 // anywhere in `@client`, and the server-side exhaustive dispatch that acquits a never-browser bus is in
 // `@server`. Drop any one root and a legal consumer becomes invisible, which is a false accusation.
 //
-// The legacy `bus-definition-belts` descriptor (3208f7340c6bb3a5a123e33c9ba7016cf0935643) carried the
+// The legacy single-gate descriptor (3208f7340c6bb3a5a123e33c9ba7016cf0935643) carried the
 // `SERVER_INTERNAL_REACH` row and the consumer-belt check as two of its four arms before this split.
 //
 // POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `bus-definition-belts` descriptor at 3208f7340c6bb3a5a123e33c9ba7016cf0935643, the parent of the conversion
+// single-gate descriptor at 3208f7340c6bb3a5a123e33c9ba7016cf0935643, the parent of the conversion
 // `55b0040f2c`; this module did not exist there, so it is measured against the module it was carved from,
-// `bus-definition-belts` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
+// that descriptor (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
 // the SAME 7,230 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
 // harness dispatch (no `scanRoot`) admits 7,230 and final `population` admits 2,908. legacy − final = 4,322 harness
 // sources outside `@contracts`/`@client`/`@server` — walked by the whole-project `run`; outside the three roots the
@@ -51,7 +51,7 @@ const MESSAGE =
 
 export const gate = defineGate({
   id: "bus-consumer-belt",
-  family: "bus-definition",
+  family: "bus-consumer-belt",
   authority: "hard",
   severity: "error",
   population: { in: ["@contracts", "@client", "@server"] },

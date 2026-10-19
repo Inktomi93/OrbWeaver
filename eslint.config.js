@@ -111,6 +111,7 @@ import { CHROME_ZONES } from "./packages/client/src/state/chrome-registry.ts";
 import { CONFIG_GROUP_IDS } from "./packages/client/src/state/config-group-ids.ts";
 import { MODAL_SLOT_IDS } from "./packages/client/src/state/modal-slot-ids.ts";
 import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
+import { BUS_SUBUNIONS, BUSES } from "./packages/contracts/src/bus-registry/index.ts";
 import { STRUCTURED_VEHICLES, WIRE_SCHEMA_KEYWORD_VOCABULARY } from "./packages/contracts/src/inference/wire-subset.ts";
 import { TABLE_SCOPING } from "./packages/db/src/tenancy/index.ts";
 import { ID_BRAND_HOME, nativeCanonicalIdBrand, requireEntityIdTypeNames } from "./tooling/src/floor/code-facts/id-brand.ts";
@@ -1605,6 +1606,64 @@ const CLIENT_REGISTRY_RESTRICTIONS = [
   })),
 ];
 
+// A bus event union is a root listed in `@orb/contracts/bus-registry` (it owns a belt there), a listed sub-union,
+// or an `Extract`/`Exclude` carve-out of a root. Any other `*BusEvent` / `DomainEvent` alias is unregistered, and so
+// is any belt-shaped `*_EVENT_TYPES` const (`satisfies Record<X["type"], …>` or `readonly X["type"][]`). A name
+// is identity only inside its registered file, so one `bus-home-<bus>` restriction per bus refuses the same
+// alias or belt name declared anywhere else in contracts.
+const BUS_ROOT_ALIASES = Object.values(BUSES).map(({ alias }) => alias);
+const BUS_ALIASES = [...BUS_ROOT_ALIASES, ...Object.values(BUS_SUBUNIONS).map(({ alias }) => alias)];
+const BUS_BELTS = Object.values(BUSES).map(({ belt }) => belt);
+const BUS_BELT_INDEX = "TSIndexedAccessType[indexType.type='TSLiteralType'][indexType.literal.value='type']";
+const BUS_BELT_SHAPE = `TSSatisfiesExpression :matches(TSTypeReference[typeName.name='Record'] > TSTypeParameterInstantiation > ${BUS_BELT_INDEX}, TSArrayType > ${BUS_BELT_INDEX})`;
+const BUS_REGISTRY_RESTRICTIONS = [
+  {
+    id: "bus-union-registered",
+    scope: rootSources("@contracts"),
+    homes: [],
+    selectors: [
+      {
+        selector:
+          `TSTypeAliasDeclaration[id.name=/^(?:DomainEvent|.*BusEvent)$/]:not([id.name=${alternation(BUS_ALIASES)}])` +
+          `:not([typeAnnotation.typeName.name=/^(?:Extract|Exclude)$/][typeAnnotation.typeArguments.params.0.typeName.name=${alternation(BUS_ROOT_ALIASES)}])`,
+        message:
+          "A bus event union in @orb/contracts belongs in packages/contracts/src/bus-registry/index.ts, which ties it to its `*_EVENT_TYPES` belt; add it there, or derive it with Extract/Exclude from a registered root.",
+      },
+      {
+        selector: `VariableDeclarator[id.name=/_EVENT_TYPES$/]:not([id.name=${alternation(BUS_BELTS)}]) > ${BUS_BELT_SHAPE}`,
+        message:
+          'A `*_EVENT_TYPES` belt over a `Union["type"]` in @orb/contracts belongs in packages/contracts/src/bus-registry/index.ts beside its union; an unregistered belt is invisible to the totality check.',
+      },
+    ],
+  },
+  ...Object.entries(BUSES).map(([name, { alias, belt, file }]) => ({
+    id: `bus-home-${name}`,
+    scope: rootSources("@contracts"),
+    homes: [{ path: file, why: `the registered home of \`${alias}\` and its belt \`${belt}\`` }],
+    selectors: [
+      {
+        selector: `TSTypeAliasDeclaration[id.name='${alias}']`,
+        message: `\`${alias}\` is the registered ${name} bus union declared in ${file}; a same-named alias elsewhere in @orb/contracts hides a beltless bus from the registry.`,
+      },
+      {
+        selector: `VariableDeclarator[id.name='${belt}']`,
+        message: `\`${belt}\` is the registered ${name} belt declared in ${file}; a same-named const elsewhere in @orb/contracts hides a bus from the registry.`,
+      },
+    ],
+  })),
+  ...Object.entries(BUS_SUBUNIONS).map(([name, { alias, file }]) => ({
+    id: `bus-home-${name}`,
+    scope: rootSources("@contracts"),
+    homes: [{ path: file, why: `the registered home of the \`${alias}\` sub-union` }],
+    selectors: [
+      {
+        selector: `TSTypeAliasDeclaration[id.name='${alias}']`,
+        message: `\`${alias}\` is the registered sub-union declared in ${file}; a same-named alias elsewhere in @orb/contracts hides a beltless bus from the registry.`,
+      },
+    ],
+  })),
+];
+
 const BANNED_UTILITY = String.raw`(?:[^\s]*:)?!?max-w-prose!?`;
 const CLASS_TOKEN_RESTRICTIONS = [
   {
@@ -2164,6 +2223,7 @@ const RESTRICTIONS = [
   ...TURN_IDENTITY_RESTRICTIONS,
   ...SERVER_SCOPE_RESTRICTIONS,
   ...CLIENT_REGISTRY_RESTRICTIONS,
+  ...BUS_REGISTRY_RESTRICTIONS,
   ...CLIENT_CONTEXT_RESTRICTIONS,
   ...CLIENT_MAP_RESTRICTIONS,
   ...CLIENT_LEXICAL_RESTRICTIONS,

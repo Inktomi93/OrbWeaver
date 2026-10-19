@@ -16,7 +16,7 @@
 // members have a producer — and reads it from a shared fact (`lib/bus-definition-fact.ts`,
 // `lib/bus-fact.ts`). This one asks nothing about the vocabulary at all: it is a pure SYNTAX fence over one
 // callback's body inside one directory, and it would not be improved by a reader. A shared theme ("bus") is
-// explicitly not a family (§5b.4), which is why it does not join `bus-definition` or `bus-fact`.
+// explicitly not a family (§5b.4), which is why it does not join `bus-fact`.
 //
 // POPULATION PORT: byte-identical. The legacy descriptor's `scanRoot` was
 // `(p) => p.includes("packages/client/src/data/bus/")` (`d5c8b278e3^:tooling/src/verify/gates/
