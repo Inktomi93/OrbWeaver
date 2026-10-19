@@ -1,0 +1,162 @@
+[
+  {
+    "site": "packages/client/src/forms/editor/bound-fields/avatar-upload-field.tsx:56 catch",
+    "claimedOwner": "the failure surfaces as the `uploadError` state the field renders. Ends if uploadError stops being rendered.",
+    "verifiedOwner": "packages/client/src/forms/editor/bound-fields/avatar-upload-field.tsx:67 setUploadError(\"Upload failed — try again.\");",
+    "toolOutput": "in-memory probe: packages/client/src/forms/editor/bound-fields/avatar-upload-field.tsx:56:5 packages/client/src/forms/editor/bound-fields/avatar-upload-field.tsx:65 catch THIS SITE: a catch block (and its finally) that names no owner at all. -- rendered at :76 `const error = uploadError ?? fieldProps.error;` and :78 `<Field {...fieldProps} error={error}>`. setUploadError is a react useState setter (:44) but is fed a string literal, not a failure-valued argument, so stateSetterOwns (caught-failure-outcome.ts:400) refuses it. The catch is gated on epoch === uploadEpoch.current; a superseded upload is dropped because the newer upload calls setUploadError(null) at :55 and owns the field.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name setUploadError and the Field error slot (avatar-upload-field.tsx:56)"
+  },
+  {
+    "site": "packages/client/src/forms/editor/create-autosave-entity-form.tsx:246 form.handleSubmit",
+    "claimedOwner": "the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.",
+    "verifiedOwner": "packages/client/src/forms/editor/create-autosave-entity-form.tsx:185 setSaveState(\"error\");",
+    "toolOutput": "in-memory probe: packages/client/src/forms/editor/create-autosave-entity-form.tsx:246:9packages/client/src/forms/editor/create-autosave-entity-form.tsx:249 form.handleSubmit .md) THIS SITE: a promise rejection handler that discards the failure. -- TanStack form-core 1.33.5 FormApi.js:585-599 (_handleSubmit) catches the onSubmit error and does `throw err`, so the .catch at :249 receives the same rejection that onSubmit's catch (:181) already turned into saveState 'error' (children get it as session.saveState at :406). The old reason's errorToast claim lives in per-consumer injected saves and was not used as evidence.",
+    "disposition": "KEEP",
+    "diff": "marker reason and the two-line comment below it rewritten to name onSubmit's setSaveState('error') (create-autosave-entity-form.tsx:246-248)"
+  },
+  {
+    "site": "packages/client/src/forms/editor/create-autosave-entity-form.tsx:332 form.handleSubmit",
+    "claimedOwner": "same swallow as the debounce driver above — the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.",
+    "verifiedOwner": "none: the teardown cleanup runs on an unmounted Session, so onSubmit's setSaveState('error') (:185) lands on a dead component and no status is left to show it. The only remaining owners are the surviving draft (mirrorDraft at :257 is not cleared on a failed save) and each consumer's injected save errorToast, which differs per consumer. QUESTION: is a teardown flush whose failure is visible only through a restored draft on the next mount an accepted owner, or must the factory itself surface a failed teardown save (notify) or must every injected save be required to toast?",
+    "toolOutput": "in-memory probe: packages/client/src/forms/editor/create-autosave-entity-form.tsx:332:11 packages/client/src/forms/editor/create-autosave-entity-form.tsx:333 form.handleSubmit .md) THIS SITE: a promise rejection handler that discards the failure. -- skipTeardownFlush (create-autosave-entity-form-model.ts:101) already documents 'a flush ... fired from a component that has already unmounted, with no status left to report it'. I listed the createAutosaveEntityForm consumers with rg but did not check each one's save for an errorToast.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/forms/editor/create-autosave-entity-form.tsx:349 form.handleSubmit",
+    "claimedOwner": "explicit user retry — same swallow as the debounce driver, the injected save's own errorToast surfaces the failure. Ends if the injected save stops wiring an errorToast.",
+    "verifiedOwner": "packages/client/src/forms/editor/create-autosave-entity-form.tsx:187 throw error;",
+    "toolOutput": "in-memory probe: packages/client/src/forms/editor/create-autosave-entity-form.tsx:349:7 packages/client/src/forms/editor/create-autosave-entity-form.tsx:351 form.handleSubmit .md) THIS SITE: a promise rejection handler that discards the failure. -- retrySave is handed to the consumer in session.retrySave (:408) and runs only while the Session is mounted; a failed retry re-enters onSubmit, whose catch sets saveState 'error' again (guarded by submitEpoch === submitEpochRef.current) so Retry stays lit.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name onSubmit's setSaveState('error') on a mounted Session (create-autosave-entity-form.tsx:349)"
+  },
+  {
+    "site": "packages/client/src/lib/console-error-ring.ts:75 catch",
+    "claimedOwner": "an unstringifiable console argument degrades to a placeholder label — this is dev instrumentation and the record's other fields still carry the report. Ends if this output ever feeds a data path rather than a bug-report bundle.",
+    "verifiedOwner": "none: the only consumer of the \"[unserializable]\" string is record.text (console-error-ring.ts:115) read through consoleErrorRing(); a constant placeholder is not a failure value the reader or the playbook counts as an owner, and I found no operator surface for the stringify failure itself. QUESTION: is a dev-only, constant-placeholder degrade in a diagnostics ring an accepted deliberate absorb, or does the owner want it routed somewhere?",
+    "toolOutput": "in-memory probe: packages/client/src/lib/console-error-ring.ts:75:3 packages/client/src/lib/console-error-ring.ts:80 catch THIS SITE: a catch block (and its finally) that names no owner at all. -- JSON.stringify at :79 can throw (cycle, BigInt - the UNSTRINGIFIABLE_TYPES note at :60 says so), so the catch is not redundant.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/lib/error-boundary.tsx:29 catch",
+    "claimedOwner": "the report path must never compound the crash it exists to report — there is no surface left to report a failed report to. Ends if onError gets its own independent error surface.",
+    "verifiedOwner": "none: componentDidCatch (:27-35) swallows whatever this.props.onError throws. The one production onError is reportClientError (main.tsx:110), which fires a tRPC mutation and does not throw synchronously, so the catch only guards a future or injected onError. Nothing owns a throw from onError. QUESTION: should a throwing report hook go to globalThis.reportError (which the safe ring records) instead of being dropped, or is silent drop the owner's ruling?",
+    "toolOutput": "in-memory probe: packages/client/src/lib/error-boundary.tsx:29:5 packages/client/src/lib/error-boundary.tsx:32 catch THIS SITE: a catch block (and its finally) that names no owner at all. -- the catch is not redundant: onError is a caller-supplied prop typed (error, ownerStack) => void with no no-throw contract.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/lib/long-task-tracer.ts:106 catch",
+    "claimedOwner": "a non-URL string degrades to the raw url as the log-line label — cosmetic formatting only. Ends if the caller needs a validated URL rather than a display label.",
+    "verifiedOwner": "none: basename (:105-113) is a display-label formatter for a dev-only console line; new URL(url) throws a TypeError on a non-URL string and the catch returns the raw input, which is the label. No failure is lost, but the playbook has no owner for a pure formatting fallback. QUESTION: is a value-computing fallback (return the input as the label) with nothing lost accepted without an owner?",
+    "toolOutput": "in-memory probe: packages/client/src/lib/long-task-tracer.ts:106:3 packages/client/src/lib/long-task-tracer.ts:110 catch THIS SITE: a catch block (and its finally) that names no owner at all. -- sole caller describeScript (:121) passes script.sourceURL, which LoAF can report as a non-absolute string, so the throw path is reachable.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/lib/perf-marks.ts:14 catch",
+    "claimedOwner": "a missing start mark must never surface as an app-code throw — best-effort instrumentation only. Ends if perf marks become load-bearing for app logic.",
+    "verifiedOwner": "none: performance.measure(name, startMark) throws a SyntaxError when the start mark is absent (perf-marks.ts:16), so the catch is not redundant, and nothing records that the measure was skipped. QUESTION: is a silent skip of a best-effort User Timing measure accepted without an owner?",
+    "toolOutput": "in-memory probe: packages/client/src/lib/perf-marks.ts:14:3 packages/client/src/lib/perf-marks.ts:17 catch THIS SITE: a catch block (and its finally) that names no owner at all. -- perfMeasure :13 has an empty catch body, so the absent measure is invisible; the only reader is recentMeasures :33, which simply omits it.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/lib/perf-marks.ts:24 catch",
+    "claimedOwner": "best-effort instrumentation only — see perfMeasure above. Ends if perf marks become load-bearing for app logic.",
+    "verifiedOwner": "none: performance.measure(name) with no start mark (perf-marks.ts:26) measures from timeOrigin; I did not establish what can throw there, so the catch may be redundant, and nothing records a skipped measure. QUESTION: same as perf-marks.ts:14 - accepted silent skip of one-shot load metrics?",
+    "toolOutput": "in-memory probe: packages/client/src/lib/perf-marks.ts:24:3 packages/client/src/lib/perf-marks.ts:27 catch THIS SITE: a catch block (and its finally) that names no owner at all. -- perfMeasureFromLoad :23 is the app-ready metric seam; its catch body at :27-29 is empty.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/lib/probe-mode.ts:12 catch",
+    "claimedOwner": "storage access refused degrades to the safe default (not probe mode) — probe mode is opt-in instrumentation, never required for correct rendering. Ends if probe mode becomes load-bearing.",
+    "verifiedOwner": "none: isProbeMode (:10-20) caches false when localStorage.getItem throws; no owner reports the refused read, and the effect is only that the deterministic-render flag stays off. QUESTION: is a constant safe-default on a refused storage read accepted without an owner for an opt-in flag?",
+    "toolOutput": "in-memory probe: packages/client/src/lib/probe-mode.ts:12:5 packages/client/src/lib/probe-mode.ts:15 catch THIS SITE: a catch block (and its finally) that names no owner at all. -- localStorage.getItem at :14 can throw a SecurityError, so the catch is not redundant; cached = false at :16 is the constant fallback.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/lib/trpc-devlog.ts:55 catch",
+    "claimedOwner": "a value that can't stringify (a cycle, a BigInt) degrades to a placeholder log label — dev logging only, never a data path. Ends if this output feeds anything besides a dev log line.",
+    "verifiedOwner": "none: compactJson (:54-62) returns the constant \"[unserializable]\" into the `[trpc]` console line (formatTrpcOp :94); the console line itself is the visible record, but the stringify failure is not reported anywhere else and the placeholder is a constant, not a failure value the reader accepts. QUESTION: same placeholder-in-a-log-line question as console-error-ring.ts:75; accepted?",
+    "toolOutput": "in-memory probe: packages/client/src/lib/trpc-devlog.ts:55:3 packages/client/src/lib/trpc-devlog.ts:59 catch THIS SITE: a catch block (and its finally) that names no owner at all. -- JSON.stringify at :57 can throw on a cycle or BigInt in a tRPC input, and the file header says this module ships in prod for error settlements.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/lib/url-search.ts:7 catch",
+    "claimedOwner": "malformed percent-encoding compares the raw key so a garbled unrelated field cannot prevent the scrub. Ends if raw comparison changes valid-key behavior.",
+    "verifiedOwner": "none: withoutUrlSearchParam (:2-17) computes a comparison in the catch (`return rawKey !== key`) instead of absorbing; decodeURIComponent throws URIError on malformed input so the catch is not redundant, and the result is a correct filter decision, not a lost failure. The playbook has no owner for a fallback that is itself the correct computation. QUESTION: is a catch that returns a computed value (not a constant) accepted without an owner?",
+    "toolOutput": "in-memory probe: packages/client/src/lib/url-search.ts:7:5 packages/client/src/lib/url-search.ts:11 catch THIS SITE: a catch block (and its finally) that names no owner at all. -- decodeURIComponent at :10 on a raw query key; a stray '%' makes it throw.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/lib/use-router-url-replace.ts:15 router.commitLocation",
+    "claimedOwner": "false positive: the original rejection is rethrown on the queued microtask error surface, proved by tests/legacy/client/lib/use-router-url-replace.dom.test.ts. The classifier excludes nested callbacks. Ends when it recognizes native queued throws.",
+    "verifiedOwner": "packages/client/src/lib/safe-error-ring.ts:154 recordSafeError(\"uncaught\", [event.error]);",
+    "toolOutput": "in-memory probe: packages/client/src/lib/use-router-url-replace.ts:15:5 packages/client/src/lib/use-router-url-replace.ts:16 router.commitLocation .md) THIS SITE: a promise rejection handler that discards the failure. -- a throw inside the queueMicrotask callback is a nested-function throw, which the reader excludes by design (caught-failure.ts:36-37 header), but it reaches the window error event and the safe ring records it. tests/legacy/client/lib/use-router-url-replace.dom.test.ts exists (ls) and is the old reason's cited proof; I did not rerun it. Chose KEEP over GATE FALSE POSITIVE because the throw is deferred, not propagated to a caller.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name the microtask rethrow and installSafeErrorRing (use-router-url-replace.ts:15)"
+  },
+  {
+    "site": "packages/client/src/lib/view-transition-settlement.ts:23 settled",
+    "claimedOwner": "platform AbortError/TimeoutError/InvalidStateError skips the visual transition; callback settlement never absorbs any of them. Every other unique rejection is rethrown on the microtask error surface. Ends if callers begin awaiting settlement.",
+    "verifiedOwner": "packages/client/src/lib/safe-error-ring.ts:153 listen.call(globalThis, \"error\", (event): void => {",
+    "toolOutput": "in-memory probe: packages/client/src/lib/view-transition-settlement.ts:23:5 packages/client/src/lib/view-transition-settlement.ts:24 settled .md) THIS SITE: a promise rejection handler that discards the failure. -- absorption is limited to isSkippedTransition(error) when absorbSkipped is true (:25), which is true only for ready/finished (:34-35); updateCallbackDone is observed with false (:38), and a repeated error object is deduped by surfacedFailures (:25-28). Everything else is rethrown at :29-31.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name the microtask rethrow, the skip-only absorption and installSafeErrorRing (view-transition-settlement.ts:23)"
+  },
+  {
+    "site": "packages/client/src/main.tsx:112 trpcClient.clientError.mutate",
+    "claimedOwner": "a failed error report must never itself throw — there is nowhere left to report that to. Ends if reportClientError gets its own independent error surface.",
+    "verifiedOwner": "packages/client/src/data/trpc.ts:103 enabled: (op) => IS_DEV || (op.direction === \"down\" && op.result instanceof Error),",
+    "toolOutput": "in-memory probe: packages/client/src/main.tsx:112:3 packages/client/src/main.tsx:113 trpcClient.clientError.mutate .md) THIS SITE: a promise rejection handler that discards the failure. -- clientError.mutate goes through the non-subscription splitLink branch (trpc.ts:101-117) where the loggerLink logs every errored settlement in prod; console.error is wrapped by installSafeErrorRing (safe-error-ring.ts:149-151), called at main.tsx:108 before this code runs. Weakest KEEP of the shard: the operator surface is the browser console plus the safe ring, not a server log.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name the loggerLink error settlement line and installSafeErrorRing (main.tsx:112)"
+  },
+  {
+    "site": "packages/client/src/state/durable-local.ts:121 catch",
+    "claimedOwner": "refused browser storage has no durable bytes to isolate; null selects the storage-less legacy namespace. Ends if the boot hint becomes authoritative.",
+    "verifiedOwner": "none: readBootHint (:116-129) returns null on a throwing getItem and the reader reports it as a constant fallback. A possible downstream owner exists (null makes activeUserId null, so the first bind takes the adoption branch at :293-296 and writeAdoptionHint :157 throws on a refusing store, rejecting the returned run to useSessionRecovery's failedBind), but that holds only if setItem also refuses, which I did not prove. QUESTION: may a KEEP rest on that conditional chain, or is a refused boot-hint read an accepted silent degrade?",
+    "toolOutput": "in-memory probe: packages/client/src/state/durable-local.ts:121:3 packages/client/src/state/durable-local.ts:124 catch pe is a constant fallback — the behaviour changed and nobody was told. -- note the `storage` const at :117 reads globalThis.localStorage outside the try, so a SecurityError on the property access itself is not even caught here.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/state/durable-local.ts:133 catch",
+    "claimedOwner": "refused storage costs only the no-flash boot hint; the verified bind still owns isolation. Ends if the hint becomes authoritative.",
+    "verifiedOwner": "none: writeBootHint (:131-139) swallows a refused setItem with an empty catch body; the verified bind (bindQueuedUser :263) owns isolation by id comparison, but nothing reports that the hint was not recorded, so the next boot mints on the legacy namespace. QUESTION: is losing only the no-flash hint, with no report, accepted?",
+    "toolOutput": "in-memory probe: packages/client/src/state/durable-local.ts:133:3 packages/client/src/state/durable-local.ts:136 catch THIS SITE: a catch block (and its finally) that names no owner at all. -- storage?.setItem at :135 can throw on quota or a disabled store.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/state/durable-local.ts:143 catch",
+    "claimedOwner": "refused storage cannot hold legacy blobs or the pending pointer; module memory retains the owner for this page. Ends if storage refusal can coexist with readable durable blobs.",
+    "verifiedOwner": "none: readAdoptionHint (:141-149) returns null on a refused getItem; the claim that storage refusal cannot coexist with readable durable blobs is the marker's own end condition, and I did not prove it (a store can refuse one key via quota or a per-key failure). QUESTION: is that end condition accepted as an owner, or must a refused pending-pointer read surface?",
+    "toolOutput": "in-memory probe: packages/client/src/state/durable-local.ts:143:3 packages/client/src/state/durable-local.ts:146 catch pe is a constant fallback — the behaviour changed and nobody was told. -- the same-file sibling writeAdoptionHint (:157) deliberately does NOT catch, which is the contrast the header (:153-156) argues.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/state/durable-local.ts:162 catch",
+    "claimedOwner": "a stale pending pointer only causes one safe target rehydrate on a later bind. Ends if adoption stops being idempotent.",
+    "verifiedOwner": "none: clearAdoptionHint (:160-168) swallows a refused removeItem with an empty catch body. The consequence (a stale pointer re-triggers adoption, bindQueuedUser :292 `adoptionUserId === userId`) is bounded, but I did not run a test proving adoption is idempotent. QUESTION: is a bounded, self-healing stale pointer accepted without a report?",
+    "toolOutput": "in-memory probe: packages/client/src/state/durable-local.ts:162:3 packages/client/src/state/durable-local.ts:165 catch THIS SITE: a catch block (and its finally) that names no owner at all. -- storage?.removeItem at :164 can throw; the call site is bindQueuedUser :312 after readiness is already set.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/client/src/state/durable-local.ts:328 run",
+    "claimedOwner": "bindTail recovers only the serialization queue; the original run is returned and rejects to AppRoot's visible retry boundary. Ends if callers receive bindTail instead of run.",
+    "verifiedOwner": "packages/client/src/data/use-session-recovery.ts:91 setFailedBind({ attempt: bindAttempt, userId });",
+    "toolOutput": "in-memory probe: packages/client/src/state/durable-local.ts:328:3 packages/client/src/state/durable-local.ts:329 run .md) THIS SITE: a promise rejection handler that discards the failure. -- same shape as the playbook's certificate-controller KEEP: the absorbed link is bookkeeping (bindTail), the caller owns the rejection through the returned promise. The production caller is use-session-recovery.ts:82 (rg over packages tests tooling; the other hits are the state re-export and tests); its catch is :89-93, durable-local.ts:330 returns run not bindTail, and use-session-recovery.ts:167 returns status error with retry, which app-root-session-boundary renders as QueryErrorState onRetry.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to name useSessionRecovery's catch and the Retry state (durable-local.ts:328)"
+  }
+]

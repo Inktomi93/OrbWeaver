@@ -243,9 +243,9 @@ export function createAutosaveEntityForm<TValues extends object>(
           setSaveState("error");
           return;
         }
-        // @orb-waive caught-failure-ownership(form.handleSubmit): the injected save's own errorToast surfaces the failure and the draft mirror holds the edit for retry. Ends if the injected save stops wiring an errorToast.
-        // handleSubmit re-throws an onSubmit rejection; swallow it here — the injected save's own
-        // errorToast surfaces the failure and the draft mirror holds the edit for retry.
+        // @orb-waive caught-failure-ownership(form.handleSubmit): onSubmit's catch sets saveState to "error" before rethrowing, foldSaveState displays it to the consumer with the Retry affordance, and the draft mirror holds the edit; a superseded submit defers to the newer one. Ends if onSubmit stops setting "error" before it rethrows.
+        // handleSubmit re-throws an onSubmit rejection; swallow it here — onSubmit's catch has already
+        // recorded saveState "error" (the retry affordance) and the draft mirror holds the edit for retry.
         form.handleSubmit().catch(() => undefined);
       };
       const onValuesChange = (values: TValues): void => {
@@ -346,7 +346,7 @@ export function createAutosaveEntityForm<TValues extends object>(
     // forms one. Until then the exposure is the debounce window, and the honest mitigation is the consumer's
     // own dirty disclosure — a pane must not read "Saved" over an unsaved edit.
     const retrySave = (): void => {
-      // @orb-waive caught-failure-ownership(form.handleSubmit): explicit user retry — same swallow as the debounce driver, the injected save's own errorToast surfaces the failure. Ends if the injected save stops wiring an errorToast.
+      // @orb-waive caught-failure-ownership(form.handleSubmit): explicit user retry on a mounted Session — same owner as the debounce driver: onSubmit's catch sets saveState to "error" before rethrowing, so the Retry affordance stays lit. Ends if onSubmit stops setting "error" before it rethrows.
       // Direct submit — an explicit user retry always re-attempts the held edit; same swallow as the driver.
       form.handleSubmit().catch(() => undefined);
     };
