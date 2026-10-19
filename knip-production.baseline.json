@@ -1107,7 +1107,6 @@
   "[\"exports\",\"packages/ui/src/charts/meter/waystone-geometry.ts\",\"\",\"hourAngle\"]",
   "[\"exports\",\"packages/ui/src/charts/meter/waystone-treatment.ts\",\"\",\"WAYSTONE_PHASES\"]",
   "[\"exports\",\"packages/ui/src/charts/meter/waystone-treatment.ts\",\"\",\"WAYSTONE_SKY_STOPS\"]",
-  "[\"exports\",\"packages/ui/src/charts/meter/waystone-treatment.ts\",\"\",\"WAYSTONE_WEATHERS\"]",
   "[\"exports\",\"packages/ui/src/charts/meter/waystone-treatment.ts\",\"\",\"waystoneCelestialAt\"]",
   "[\"exports\",\"packages/ui/src/charts/meter/waystone-treatment.ts\",\"\",\"waystoneSkyAt\"]",
   "[\"exports\",\"packages/ui/src/charts/meter/waystone-treatment.ts\",\"\",\"waystoneStarOpacityAt\"]",

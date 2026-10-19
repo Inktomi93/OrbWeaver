@@ -11,6 +11,7 @@
 //   • the dial's discrete label bands matching the contract's EXPLICIT `TIME_OF_DAY_RANGES` boundaries edge for
 //     edge (the ring names what the band's TEXT names, and a band ARC starts where its time period starts).
 import { TIME_OF_DAY, TIME_OF_DAY_HOURS, TIME_OF_DAY_RANGES } from "@orb/contracts/rpg";
+import { WEATHER_TYPES } from "@orb/kit/weather";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { WaystoneParticleLayer, WaystonePhase, WaystoneWeather } from "@orb/ui/meter";
 import { WAYSTONE_PHASES } from "@orb/ui/meter";
@@ -20,7 +21,6 @@ import {
   resolveWaystoneTreatment,
   WAYSTONE_PHASE_SPANS,
   WAYSTONE_SKY_STOPS,
-  WAYSTONE_WEATHERS,
   waystoneBandTint,
   waystoneCelestialAt,
   waystonePhaseAtHour,
@@ -193,7 +193,7 @@ test("`clear` means CLEAR — zero cloud slots (a lone 22%-opacity puff read as 
   // `indoors` is deckless too, and that is the POINT: painting a cloud deck on a scene that cannot see the
   // sky would be the stone asserting weather nobody in the fiction can observe.
   expect(waystoneWeatherRecipe("indoors").clouds.count).toBe(0);
-  for (const weather of WAYSTONE_WEATHERS.filter((w) => !DECKLESS_WEATHERS.includes(w))) {
+  for (const weather of WEATHER_TYPES.filter((w) => !DECKLESS_WEATHERS.includes(w))) {
     expect(waystoneWeatherRecipe(weather).clouds.count, `${weather} deck`).toBeGreaterThan(0);
   }
 });
@@ -224,7 +224,7 @@ test("the raw star ramp is lit through the night, dark through the day, and cont
 // ── The discrete weather axis ───────────────────────────────────────────────────────────────────
 test("EXHAUSTIVE: all nine weather recipes carry every layer slot, and no two are the same stack", () => {
   const seen = new Map<string, string>();
-  for (const weather of WAYSTONE_WEATHERS) {
+  for (const weather of WEATHER_TYPES) {
     const recipe = waystoneWeatherRecipe(weather);
     // Every weather has a cloud deck and an overlay identity — a missing layer is the silent-default failure
     // mode this table exists to make impossible.
@@ -234,15 +234,15 @@ test("EXHAUSTIVE: all nine weather recipes carry every layer slot, and no two ar
     expect(seen.get(sig), `${weather} paints the same stack as ${seen.get(sig)}`).toBeUndefined();
     seen.set(sig, weather);
   }
-  expect(seen.size).toBe(WAYSTONE_WEATHERS.length);
+  expect(seen.size).toBe(WEATHER_TYPES.length);
   // Three INDEPENDENT signals per weather (deck · veil · overlay), so a 64px stone still reads "storm" vs
   // "rain" when individual drops are sub-pixel.
-  expect(new Set(WAYSTONE_WEATHERS.map((w) => waystoneWeatherRecipe(w).celestialOpacity)).size).toBe(WAYSTONE_WEATHERS.length);
+  expect(new Set(WEATHER_TYPES.map((w) => waystoneWeatherRecipe(w).celestialOpacity)).size).toBe(WEATHER_TYPES.length);
   // The DECK axis carries a distinct signature per member that HAS a deck. The deckless pair is excluded by
   // construction (both are `count: 0` — an empty deck cannot be a signal), and they are held apart on the two
   // remaining axes instead, asserted directly below. Widening this exclusion is how the 64px read dies, so it
   // is pinned to exactly the two.
-  const decked = WAYSTONE_WEATHERS.filter((w) => !DECKLESS_WEATHERS.includes(w));
+  const decked = WEATHER_TYPES.filter((w) => !DECKLESS_WEATHERS.includes(w));
   expect(new Set(decked.map((w) => JSON.stringify(waystoneWeatherRecipe(w).clouds))).size).toBe(decked.length);
   // `clear` is a real treatment (an unveiled sky), never a fallthrough.
   expect(waystoneWeatherRecipe("clear").overlay).toBe("none");
@@ -259,7 +259,7 @@ test("EXHAUSTIVE: all nine weather recipes carry every layer slot, and no two ar
   expect(indoors.celestialOpacity).toBeLessThan(waystoneWeatherRecipe("storm").celestialOpacity);
   // The hour must still be READABLE indoors — the dial's primary job does not stop at a door.
   expect(indoors.celestialOpacity).toBeGreaterThan(0);
-  const washes = WAYSTONE_WEATHERS.map((w) => waystoneWeatherRecipe(w).wash).filter((wash) => wash !== null);
+  const washes = WEATHER_TYPES.map((w) => waystoneWeatherRecipe(w).wash).filter((wash) => wash !== null);
   const heaviest = Math.max(...washes.map((wash) => wash.opacity));
   expect(indoors.wash).not.toBeNull();
   expect(indoors.wash === null ? 0 : indoors.wash.opacity).toBe(heaviest);
@@ -275,7 +275,7 @@ test("the storm is the loudest cell on every air axis; the particle layers are a
   expect(storm.celestialOpacity).toBeLessThan(rain.celestialOpacity);
   expect(particlesOf("storm").columns).toBeGreaterThan(particlesOf("rain").columns);
   expect(particlesOf("storm").slant).toBeGreaterThan(particlesOf("rain").slant);
-  for (const weather of WAYSTONE_WEATHERS) {
+  for (const weather of WEATHER_TYPES) {
     const particles = waystoneWeatherRecipe(weather).particles;
     if (particles === null) {
       continue;
@@ -294,7 +294,7 @@ test("the storm is the loudest cell on every air axis; the particle layers are a
   expect(waystoneWeatherRecipe("wind").bands).toEqual({ kind: "wind", breathe: false });
   expect(waystoneWeatherRecipe("rain").bands).toBeNull();
   // Every wash that exists is a token recipe.
-  const washFills = WAYSTONE_WEATHERS.map((w) => waystoneWeatherRecipe(w).wash).filter((wash) => wash !== null);
+  const washFills = WEATHER_TYPES.map((w) => waystoneWeatherRecipe(w).wash).filter((wash) => wash !== null);
   expect(washFills.length).toBeGreaterThan(0);
   expect(washFills.every((wash) => wash.fill.startsWith("color-mix(in oklab,"))).toBe(true);
 });
@@ -302,7 +302,7 @@ test("the storm is the loudest cell on every air axis; the particle layers are a
 test("the composed treatment is the two axes joined: any hour × any weather is a complete, distinct stack", () => {
   const seen = new Set<string>();
   for (const hour of HOURS) {
-    for (const weather of WAYSTONE_WEATHERS) {
+    for (const weather of WEATHER_TYPES) {
       const t = resolveWaystoneTreatment(hour, weather);
       expect(t.sky.from).toMatch(TOKEN_COLOR_RE);
       expect(t.celestial.body).toMatch(BODY_RE);
@@ -310,7 +310,7 @@ test("the composed treatment is the two axes joined: any hour × any weather is 
       seen.add(JSON.stringify(t));
     }
   }
-  expect(seen.size).toBe(HOURS.length * WAYSTONE_WEATHERS.length);
+  expect(seen.size).toBe(HOURS.length * WEATHER_TYPES.length);
   expect(resolveWaystoneTreatment(21, null)).toEqual(resolveWaystoneTreatment(21, "clear"));
 });
 
