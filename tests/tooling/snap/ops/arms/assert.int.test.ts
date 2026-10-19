@@ -117,3 +117,20 @@ test("--expect-visible judges the whole population, not whichever match happens 
   expect(allHidden.stdout).toContain("ASSERT visible .twin[hidden]: FAIL");
   await expect(allHidden).toExitWith(EXIT.violations);
 });
+
+// A selector Playwright cannot parse is a failure to ASK, not an absent element: `--expect-visible` used to
+// turn the locator's throw into an empty population and print `FAIL`, a finding about the app, while every
+// other assertion kind printed the ERROR line carrying the selector-engine message.
+test("--expect-visible reports a selector the engine rejects as an ERROR, while a merely absent element still FAILs", {
+  timeout: BROWSER_TIMEOUT_MS,
+}, async ({ plantedTree, runCli }) => {
+  const root = await plantedTree({ "page.html": FIXTURE });
+  const file = ["--file", `${root}/page.html`];
+
+  const result = await runCli("snap", [...file, ...QUIET, "--expect-visible", "css=div[", "--expect-visible", "#gone"], { timeoutMs: BROWSER_TIMEOUT_MS });
+  expect(result.stdout).toContain("ASSERT visible: ERROR");
+  expect(result.stdout).not.toContain("ASSERT visible css=div[: FAIL");
+  // THE CONTROL: a well-formed selector over nothing keeps the FAIL verdict.
+  expect(result.stdout).toContain("ASSERT visible #gone: FAIL");
+  await expect(result).toExitWith(EXIT.violations);
+});

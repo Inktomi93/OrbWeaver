@@ -24,19 +24,16 @@ interface LocatorProof {
 
 async function locatorProof(page: Page, selector: string): Promise<LocatorProof> {
   const locator = page.locator(selector);
-  // @orb-waive caught-failure-ownership(locator.count): a malformed/non-unique candidate returns
-  // unique=false and falls through to the next candidate; no row can escape without a proven locator.
+  // @orb-waive caught-failure-ownership(locator.count): a count failure reads as unique=false and validateMapEntry moves to the next candidate; with none left it throws "map could not mint one unique locator", which captureSurfaceMap files as mapError. Ends if validateMapEntry stops throwing.
   const count = await locator.count().catch(() => 0);
   if (count !== 1) {
     return { unique: false, visible: false, enabled: false };
   }
-  // @orb-waive caught-failure-ownership(locator.isVisible): a failed visibility probe is false;
-  // visible/actionable rows require true, while explicit hidden inventory remains locator-only.
+  // @orb-waive caught-failure-ownership(locator.isVisible): a failed probe reads as visible=false, and validateMapEntry skips the candidate of any row whose visibility is "visible"; the row then fails to mint a locator and throws. Ends if validateMapEntry stops checking proof.visible.
   return {
     unique: true,
     visible: await locator.isVisible().catch(() => false),
-    // @orb-waive caught-failure-ownership(locator.isEnabled): failed enabled proof is false;
-    // a locator-only inventory row can survive it, but an actionable row cannot.
+    // @orb-waive caught-failure-ownership(locator.isEnabled): a failed probe reads as enabled=false, and validateMapEntry skips the candidate of any "actionable" row; the row then fails to mint a locator and throws. Ends if validateMapEntry stops checking proof.enabled.
     enabled: await locator.isEnabled().catch(() => false),
   };
 }
@@ -87,8 +84,7 @@ async function captureMapBridge(page: Page): Promise<{
   readonly shellError: string | null;
 }> {
   let raw: RawMapBridgeEvidence;
-  // @orb-waive caught-failure-ownership(error): the browser read failure is retained in
-  // both named map errors; the report prints it and the map page-arm exit forces toolError.
+  // @orb-waive caught-failure-ownership(error): the read failure is returned as atlasError and shellError; the map arm's exit() forces EXIT.toolError through mapInstrumentFailures. Ends if exit() stops counting those errors.
   try {
     raw = mapBridgePayload(await page.evaluate(READ_MAP_BRIDGE_SCRIPT));
   } catch (error) {
@@ -99,15 +95,13 @@ async function captureMapBridge(page: Page): Promise<{
   let atlasError: string | null = null;
   let shell: MapShellEvidence | null = null;
   let shellError: string | null = null;
-  // @orb-waive caught-failure-ownership(error): the capabilities shape failure becomes
-  // mapAtlasError, printed as MAP INSTRUMENT ERROR and forced to toolError by the page-arm exit.
+  // @orb-waive caught-failure-ownership(error): the capabilities shape failure becomes atlasError, which printAtlas in lib/map-report.ts prints as MAP INSTRUMENT ERROR. Ends if printAtlas stops printing its error argument.
   try {
     atlas = mapAtlasEvidence(raw.atlas);
   } catch (error) {
     atlasError = errorMessage(error);
   }
-  // @orb-waive caught-failure-ownership(error): the shell shape failure becomes
-  // mapShellError, printed as MAP INSTRUMENT ERROR and forced to toolError by the page-arm exit.
+  // @orb-waive caught-failure-ownership(error): the shell shape failure becomes shellError, which printShell in lib/map-report.ts prints as MAP INSTRUMENT ERROR. Ends if printShell stops printing its error argument.
   try {
     shell = mapShellEvidence(raw.shell);
   } catch (error) {
