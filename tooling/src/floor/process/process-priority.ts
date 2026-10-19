@@ -64,7 +64,6 @@ export function lowerChildPriority(pid: number | undefined): void {
   if (pid === undefined) {
     return;
   }
-  // @orb-waive caught-failure-ownership(error): the child racing to exit before this call lands is expected and harmless — the priority hint is advisory, not a correctness requirement, and the caller's own exit/error handlers own the child's real outcome. Ends if a caller starts depending on this call's success.
   try {
     setPriority(pid, TOOLING_PRIORITY);
   } catch (error) {

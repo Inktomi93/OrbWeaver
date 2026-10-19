@@ -2,15 +2,15 @@
   "gate": "caught-failure-ownership",
   "generatedBy": "tooling/src/verify/ops/gen/caught-failure-population.ts",
   "totals": {
-    "sites": 695,
+    "sites": 688,
     "reported": 2,
     "byVerdict": {
-      "deliberate-absorb": 693,
+      "deliberate-absorb": 686,
       "unproven": 2
     },
     "byGrammar": {
       "default": 160,
-      "empty": 354,
+      "empty": 347,
       "promise": 181
     }
   },
@@ -1161,11 +1161,6 @@
       "reason": "the ONE absorbed arm is a LOST RACE, and it is absorbed into this function's own return value rather than swallowed — `false` is the caller's contract (\"someone else claimed this key; converge on their row\"), which is the same answer the sequential find-before-mint path gives. Every violation with no provenance row behind it is classified and RETHROWN (`classifyInsertFailure`). Ends if the claim ever needs to distinguish WHICH constraint refused."
     },
     {
-      "siteId": "packages/server/src/domain/character/seeder/seed.ts::createDefaultCharacterSeeder.seedCard::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "narrow rethrow — only a handle-conflict (`CHARACTER_HANDLE_CONFLICT`) is swallowed (treated as \"already seeded, look it up\"); every other `CharacterOperationError` and any non-domain failure is rethrown below unhandled. Ends if a new caller needs a third outcome besides created/already-exists."
-    },
-    {
       "siteId": "packages/server/src/domain/character/verbs/bulk-add-card-tag.ts::createBulkAddCardTag::failed::1",
       "verdict": "deliberate-absorb",
       "reason": "the owner IS this per-item result — `failed` rides `outcomes` into `buildBulkTagResult`, which classifies it onto the wire's `CharacterBulkTagResult.failed[].error` (never swallowed; the client's `refusal` toast is the surfaced state). End condition: this batch's `Promise.all` resolving."
@@ -1289,11 +1284,6 @@
       "siteId": "packages/server/src/domain/connection/verbs/bindings.ts::bindingReadout::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "a resolve REFUSAL is the readout's other arm — the availability read names the cause the pane renders; nothing is swallowed. Ends if a non-refusal error class needs to surface."
-    },
-    {
-      "siteId": "packages/server/src/domain/credentials/verbs/add.ts::insertInFreeSlot::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "a unique collision is the expected loser of a concurrent add; the retry below re-reads the free labels, and a second collision surfaces as CredentialsConflictError with its cause. Ends if the slot index or the retry goes."
     },
     {
       "siteId": "packages/server/src/domain/databank/ingest/index.ts::createDatabankIngest.runDocument::error::1",
@@ -1976,16 +1966,6 @@
       "reason": "null flows through asTyped(…, schema) at both call sites, a typed validator that cleanly rejects it. Ends if a caller stops routing the return through asTyped."
     },
     {
-      "siteId": "packages/server/src/primitives/serde/lib/index.ts::decodeObject::catch::1",
-      "verdict": "deliberate-absorb",
-      "reason": "typed refusal — returns a PortableParse \"invalid-encoding\" reason, consumed via portableParseError for the operator-facing message. Ends if the caller stops rendering the reason."
-    },
-    {
-      "siteId": "packages/server/src/primitives/serde/lib/index.ts::decodeObject::catch::2",
-      "verdict": "deliberate-absorb",
-      "reason": "typed refusal — returns a PortableParse \"not-json\" reason, consumed via portableParseError for the operator-facing message. Ends if the caller stops rendering the reason."
-    },
-    {
       "siteId": "packages/server/src/transport/rate-limit.ts::consumeWindow::where::1",
       "verdict": "deliberate-absorb",
       "reason": "a best-effort expiry GC that runs on EVERY rate-limited request — giving it its own detached root would push one extra trace bucket per request through a 500-entry ring and evict the real traces. A failed sweep is self-healing (the next request re-runs it) and cannot affect the verdict above. Ends if the sweep ever moves off the per-request path (a scheduled job would get its own root)."
@@ -1994,11 +1974,6 @@
       "siteId": "packages/server/src/transport/trpc/stream/socket.ts::runSocket.pumpRoom::err::1",
       "verdict": "deliberate-absorb",
       "reason": "documented below — a non-abort failure is logged, pushed as a \"roomFailed\" control frame to the subscriber, and the room detaches. Ends if any of those three consumption steps is removed."
-    },
-    {
-      "siteId": "packages/server/src/transport/trpc/subscriptions.ts::withSubscriptionErrors::err::1",
-      "verdict": "deliberate-absorb",
-      "reason": "documented above — a modelled error becomes a typed terminal frame consumed by the client (and, when it is a provider fault, one log line); an unmodelled error is re-thrown. Ends if the re-throw for unmodelled errors is removed."
     },
     {
       "siteId": "packages/ui/src/content/message-media/message-media.tsx::hostOf::catch::1",
@@ -2451,11 +2426,6 @@
       "reason": "the handler OWNS the failure by putting it in the transcript this door returns (`[proc] teardown failed: …`) and settling the run as a TOOL ERROR (code null) — nothing is dropped, and the promise MUST settle here or the door written to end a hang becomes one. Ends if the handler stops resolving or stops naming the error."
     },
     {
-      "siteId": "tooling/src/floor/process/process-priority.ts::lowerChildPriority::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "the child racing to exit before this call lands is expected and harmless — the priority hint is advisory, not a correctness requirement, and the caller's own exit/error handlers own the child's real outcome. Ends if a caller starts depending on this call's success."
-    },
-    {
       "siteId": "tooling/src/floor/process/run-marker.ts::aliveBySignal::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "`kill(pid, 0)` ASKS a question and throws to answer \"no\" — the throw IS the ESRCH answer, exactly as floor/artifacts/run-retention.ts's pidAlive states it. Ends if this needs to tell EPERM from ESRCH."
@@ -2574,11 +2544,6 @@
       "siteId": "tooling/src/snap/lib/har-redaction.ts::sanitizeBodyText::catch::1",
       "verdict": "deliberate-absorb",
       "reason": "invalid JSON becomes a typed malformed-json omission; parser messages are intentionally discarded because future runtimes may quote secret-bearing input. Ends if the omission stops owning the failure."
-    },
-    {
-      "siteId": "tooling/src/snap/lib/heap-devtools.ts::parsedSnapshot::error::1",
-      "verdict": "deliberate-absorb",
-      "reason": "ENOENT means the official worker emitted no problem report; every other read/parse failure rethrows. Ends if the error-code check or rethrow is removed."
     },
     {
       "siteId": "tooling/src/snap/lib/rate-posture.ts::sampleSnapRatePosture::error::1",
