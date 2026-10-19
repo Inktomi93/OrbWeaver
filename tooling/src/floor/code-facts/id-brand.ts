@@ -51,7 +51,28 @@ export function requireEntityIdTypeNames(sourceText: string): readonly string[] 
   return names;
 }
 
-/** One canonical declaration predicate, shared by native and standalone morph symbol readers. */
+/** Every type name that denotes a canonical brand in the ids home: the `Branded` and `TypeIdOf` constructors, and each
+ *  alias that is one of them (or an intersection extending one). Syntax only, so lint can name the roster without a
+ *  checker; an alias spelled through another module is not seen. */
+export function deriveCanonicalBrandTypeNames(idsSource: string): readonly string[] {
+  const file = ts.createSourceFile(ID_BRAND_HOME, idsSource, ts.ScriptTarget.Latest, true);
+  const names = new Set<string>(["Branded", "TypeIdOf"]);
+  const denotes = (node: ts.TypeNode): boolean =>
+    ts.isTypeReferenceNode(node) ? names.has(node.typeName.getText(file)) : ts.isIntersectionTypeNode(node) && node.types.some(denotes);
+  let grew = true;
+  while (grew) {
+    grew = false;
+    for (const statement of file.statements) {
+      if (ts.isTypeAliasDeclaration(statement) && !names.has(statement.name.text) && denotes(statement.type)) {
+        names.add(statement.name.text);
+        grew = true;
+      }
+    }
+  }
+  return [...names];
+}
+
+/** The `[brand]` property declared in the ids home, never a structural lookalike from another module. */
 function nativeCanonicalBrandProperty(type: ts.Type): ts.Symbol | undefined {
   return type
     .getProperties()
@@ -81,12 +102,4 @@ export function nativeCanonicalIdBrand(type: ts.Type, node: ts.Node, checker: ts
 /** Morph consumers delegate to the same compiler primitive as ESLint's native Program. */
 export function canonicalIdBrand(type: Type, node: MorphNode, checker: TypeChecker): string | null {
   return nativeCanonicalIdBrand(type.compilerType, node.compilerNode, checker.compilerObject);
-}
-
-/** Standalone wrappers retain the node's existing owning checker; no Project is acquired. */
-export function nativeIdBrand(node: MorphNode): string | null {
-  const type = node.getType();
-  const canonical = nativeCanonicalBrandProperty(type.compilerType);
-  const property = type.getProperties().find((candidate) => candidate.compilerSymbol === canonical);
-  return property === undefined ? null : property.getTypeAtLocation(node).getText(node);
 }

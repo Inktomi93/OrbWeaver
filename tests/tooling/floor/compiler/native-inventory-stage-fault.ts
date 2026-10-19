@@ -9,7 +9,6 @@ export type NativeInventoryFault =
   | "global-origin-coverage"
   | "global-binding-coverage"
   | "global-binding-record"
-  | "brand-coverage"
   | "invocation-stored-value"
   | "invocation-types"
   | "invocation-atoms"
@@ -73,9 +72,6 @@ export function mutateNativeInventoryStage(fault: NativeInventoryFault, request:
       return true;
     case "global-binding-record":
       db.exec("DELETE FROM inventory_fact");
-      return true;
-    case "brand-coverage":
-      removeNativeBrand(request, db);
       return true;
     case "invocation-stored-value":
       if (Number(db.prepare("UPDATE inventory_invocation_atom SET key='\"foreign\"' WHERE key='\"stored-value\"'").run().changes) === 0) {
@@ -218,18 +214,5 @@ function mutateExportStage(fault: NativeInventoryFault, request: InventoryBuildR
       return undefined;
     default:
       return undefined;
-  }
-}
-
-function removeNativeBrand(request: InventoryBuildRequest, db: DatabaseSync): void {
-  const node = request.idBrandQueries?.[0];
-  if (node === undefined) {
-    throw new Error("native brand fault requires an actual nominated query");
-  }
-  const changed = db
-    .prepare("DELETE FROM inventory_brand WHERE node IN (SELECT ordinal FROM inventory_span WHERE file=? AND start=? AND end=? AND kind=?)")
-    .run(inventoryString(node.file), node.start, node.end, node.kind);
-  if (Number(changed.changes) !== 1) {
-    throw new Error("native brand fault did not remove exactly its nominated row");
   }
 }

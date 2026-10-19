@@ -11,7 +11,6 @@ import type { Node, SourceFile, TypeChecker } from "ts-morph";
 import { Project, Node as TsNode, ts } from "ts-morph";
 import { readDeclarationOutput } from "../../floor/code-facts/declaration-output.ts";
 import { readDrizzleCallEvidence } from "../../floor/code-facts/drizzle-evidence.ts";
-import { canonicalIdBrand } from "../../floor/code-facts/id-brand.ts";
 import { referenceResolutionServices, resolveGlobalMemberOrigin } from "../../floor/code-facts/reference-fact.ts";
 import { lexicalReferenceSymbol } from "../../floor/code-facts/reference-fact-alias.ts";
 import { resolveCallableDeclaration } from "../../floor/code-facts/reference-fact-call.ts";
@@ -768,10 +767,6 @@ export function isolatedTypeFacts(project: Project): NativeTypeFacts {
       },
       prepareShapes: (requested): void => {
         checkerFor(requested);
-      },
-      idBrands: (nodes): ReturnType<NativeTypeFactReader["idBrands"]> => {
-        const checker = checkerFor(nodes);
-        return new Map(nodes.map((node) => [node, canonicalIdBrand(checker.getTypeAtLocation(node), node, checker)]));
       },
       runtimeExports: (nodes): ReturnType<NativeTypeFactReader["runtimeExports"]> => {
         checkerFor(nodes);

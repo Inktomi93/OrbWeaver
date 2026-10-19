@@ -11,7 +11,7 @@ export const clientErrorReportSchema = z.object({
   stack: z.string().max(CLIENT_ERROR_TEXT_MAX).optional(),
   ownerStack: z.string().max(CLIENT_ERROR_TEXT_MAX).optional(),
   url: z.string().max(CLIENT_ERROR_URL_MAX),
-  // @orb-waive no-raw-id(requestId): opaque client-supplied correlation string, not an entity id (mirrors X-Request-Id's own charset-only validation in observability/middleware.ts — never a TypeID/nanoid-branded domain id).
+  // opaque client-supplied correlation string, not an entity id (mirrors X-Request-Id's own charset-only validation in observability/middleware.ts — never a TypeID/nanoid-branded domain id).
   requestId: z.string().max(CLIENT_ERROR_REQUEST_ID_MAX).optional(),
 });
 export type ClientErrorReport = z.infer<typeof clientErrorReportSchema>;

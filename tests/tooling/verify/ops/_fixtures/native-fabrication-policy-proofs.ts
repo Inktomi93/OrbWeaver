@@ -159,7 +159,7 @@ export const FABRICATION_PROOFS = {
       files: {
         "tests/tooling/never.test.ts": "declare const value: string;\nexport const erased = value as never;\n",
       },
-      why: "`as never` belongs to `no-loose-id-cast`, which judges it in tests too; this policy does not report it twice",
+      why: "`as never` belongs to the native `orb/no-loose-id-cast` rule, which judges it in tests too; this policy does not report it twice",
     },
     {
       mode: "types",

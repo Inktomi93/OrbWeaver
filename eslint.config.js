@@ -119,7 +119,7 @@ import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
 import { BUS_SUBUNIONS, BUSES } from "./packages/contracts/src/bus-registry/index.ts";
 import { STRUCTURED_VEHICLES, WIRE_SCHEMA_KEYWORD_VOCABULARY } from "./packages/contracts/src/inference/wire-subset.ts";
 import { TABLE_SCOPING } from "./packages/db/src/tenancy/index.ts";
-import { ID_BRAND_HOME, nativeCanonicalIdBrand, requireEntityIdTypeNames } from "./tooling/src/floor/code-facts/id-brand.ts";
+import { deriveCanonicalBrandTypeNames, ID_BRAND_HOME, nativeCanonicalIdBrand, requireEntityIdTypeNames } from "./tooling/src/floor/code-facts/id-brand.ts";
 import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TOOLING_PREFIX } from "./tooling/src/floor/code-facts/module-specifier.ts";
 import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
 import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
@@ -1665,6 +1665,54 @@ const typeReferenceNamed = (path, name) =>
   `:matches([${path}.typeName.name='${name}'], [${path}.typeName.right.name='${name}'], [${path}.qualifier.name='${name}'], [${path}.qualifier.right.name='${name}'])`;
 const MODAL_DEFINITION_DECLARATOR = `VariableDeclarator${typeReferenceNamed("id.typeAnnotation.typeAnnotation", "ModalDefinition")}`;
 
+// Brand bans read by syntax. The cast roster comes from the kit ids home itself, so a new brand is named the day it lands.
+const CANONICAL_BRAND_TYPE_NAMES = deriveCanonicalBrandTypeNames(readFileSync(new URL(ID_BRAND_HOME, import.meta.url), "utf8"));
+const ID_BRAND_NATIVE_SETTINGS = { "orb/id-brand-roster": createHash("sha256").update(JSON.stringify(CANONICAL_BRAND_TYPE_NAMES)).digest("hex") };
+const CAST_ID_CALL = `CallExpression:matches([callee.name='castId'], [callee.computed=false][callee.property.name='castId'], [callee.computed=true][callee.property.value='castId'])`;
+const EMPTY_ID_ARGUMENT =
+  ":matches([arguments.0.value=''], [arguments.0.expressions.length=0][arguments.0.quasis.0.value.cooked=''], [arguments.0.expression.value=''], " +
+  "[arguments.0.expression.expressions.length=0][arguments.0.expression.quasis.0.value.cooked=''], [arguments.0.expression.expression.value=''], " +
+  "[arguments.0.expression.expression.expressions.length=0][arguments.0.expression.expression.quasis.0.value.cooked=''])";
+const CANONICAL_BRAND_TARGET = alternation(CANONICAL_BRAND_TYPE_NAMES);
+const ID_BRAND_RESTRICTIONS = [
+  {
+    id: "no-fake-disabled-id",
+    scope: rootSources("@client"),
+    homes: [],
+    selectors: [
+      {
+        selector: `${CAST_ID_CALL}${EMPTY_ID_ARGUMENT}`,
+        message:
+          "An empty-string branded id is a fake disabled sentinel that can reach the server if its guard drifts; use useGatedQuery or skipToken so no key exists.",
+      },
+      {
+        selector: "ImportSpecifier[imported.name='castId'][local.name!='castId']",
+        message: "Import castId under its own name: the empty-sentinel ban reads the seam by spelling, and an alias would hide it.",
+      },
+    ],
+  },
+  {
+    id: "no-loose-id-cast",
+    scope: [...POPULATION_SETS["@product"].flatMap((ref) => rootSources(ref)), ...rootSources("@tests")],
+    homes: [],
+    selectors: [
+      {
+        selector: "TSAsExpression[typeAnnotation.type='TSNeverKeyword']",
+        message: "A cast to never disables every assignability check; use the owning mint, parser or castId seam.",
+      },
+      {
+        selector:
+          "TSAsExpression[expression.type='TSAsExpression'][expression.typeAnnotation.type='TSUnknownKeyword']" +
+          `:matches([typeAnnotation.type='TSTypeReference'][typeAnnotation.typeName.name=${CANONICAL_BRAND_TARGET}], ` +
+          `[typeAnnotation.type='TSTypeReference'][typeAnnotation.typeName.type='TSQualifiedName'][typeAnnotation.typeName.right.name=${CANONICAL_BRAND_TARGET}])`,
+        message: "A double cast through unknown launders a value into a canonical id brand; use the owning mint, parser or castId seam.",
+      },
+    ],
+  },
+  { id: "no-raw-id", scope: AUTHORED_SRC, homes: [] },
+  { id: "wire-json-parsed-at-consumer", scope: rootSources("@client", "@server", "@inference"), homes: [] },
+];
+
 const CLIENT_REGISTRY_RESTRICTIONS = [
   ...["sections", "modals"].map((name) => ({
     id: name === "sections" ? "section-route-registry-map" : "modal-route-registry-map",
@@ -2867,6 +2915,7 @@ const RESTRICTIONS = [
   ...SERVER_ONE_HOME_RESTRICTIONS,
   ...CT_SPEC_RESTRICTIONS,
   ...TOOLING_LITERAL_RESTRICTIONS,
+  ...ID_BRAND_RESTRICTIONS,
   // Only tooling drives browser pages, so app code may close over module scope.
   { id: "evaluate-no-scope-capture", scope: rootSources("@tooling"), homes: [] },
   { id: "assumes-single-replica", scope: rootSources("@server", "@inference"), notUnder: ["packages/server/src/**/persistence/**"], homes: [] },
@@ -6401,6 +6450,221 @@ const assumesSingleReplicaRule = {
   },
 };
 
+// The variable a name resolves to from the node's scope outward, or undefined when it is global.
+function lexicalVariable(context, identifier) {
+  for (let scope = context.sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
+    const variable = scope.set.get(identifier.name);
+    if (variable !== undefined) {
+      return variable;
+    }
+  }
+}
+
+// `x.name`, `x["name"]` or a substitution-free template key: the member name, else undefined.
+function staticMemberName(member) {
+  if (member.type !== "MemberExpression") {
+    return;
+  }
+  if (!member.computed) {
+    return member.property.type === "Identifier" ? member.property.name : undefined;
+  }
+  if (member.property.type === "Literal" && typeof member.property.value === "string") {
+    return member.property.value;
+  }
+  return member.property.type === "TemplateLiteral" && member.property.expressions.length === 0 ? member.property.quasis[0].value.cooked : undefined;
+}
+
+const ZOD_MODULE = /^zod(?:\/|$)/u;
+const ZOD_STRING_BUILDER = "string";
+const ZOD_COERCE = "coerce";
+const ZOD_OBJECT_NAMES = new Set(["z", "*", "default"]);
+
+// What a zod import declared the name as: the imported name, "*" for a namespace, "default" for a default import.
+function zodImportName(context, identifier) {
+  const definition = lexicalVariable(context, identifier)?.defs[0];
+  if (definition?.type !== "ImportBinding" || !ZOD_MODULE.test(definition.parent.source.value)) {
+    return;
+  }
+  const specifier = definition.node;
+  if (specifier.type === "ImportNamespaceSpecifier") {
+    return "*";
+  }
+  return specifier.type === "ImportSpecifier" ? (specifier.imported.name ?? specifier.imported.value) : "default";
+}
+
+// One hop through a binding that is written once, by its own initializer.
+function singleInitializer(context, identifier) {
+  const variable = identifier.type === "Identifier" ? lexicalVariable(context, identifier) : undefined;
+  const declarator = variable?.defs.length === 1 && variable.defs[0].type === "Variable" ? variable.defs[0].node : undefined;
+  const unwritten = variable?.references.every((reference) => !reference.isWrite() || reference.init === true) === true;
+  return declarator?.id.type === "Identifier" && declarator.init !== null && unwritten ? declarator.init : undefined;
+}
+
+// The `z` object: a named `z`, a namespace or a default import, or `<that>.z`.
+function isZodObject(context, node) {
+  if (node.type === "Identifier") {
+    return ZOD_OBJECT_NAMES.has(zodImportName(context, node));
+  }
+  return staticMemberName(node) === "z" && node.object.type === "Identifier" && ZOD_OBJECT_NAMES.has(zodImportName(context, node.object));
+}
+
+// The `coerce` namespace, whose `string` builder yields the same raw string: `z.coerce` or a bare `coerce` import.
+function isZodCoerce(context, node) {
+  if (node.type === "Identifier") {
+    return zodImportName(context, node) === ZOD_COERCE;
+  }
+  return staticMemberName(node) === ZOD_COERCE && isZodObject(context, node.object);
+}
+
+const ZOD_ALIAS_HOPS = 4;
+
+// Zod's `string` builder as an expression: the bare export, `z.string`, `z.coerce.string`, or a const bound to one.
+function isZodStringBuilder(context, node, hops = ZOD_ALIAS_HOPS) {
+  if (node.type === "Identifier") {
+    if (zodImportName(context, node) === ZOD_STRING_BUILDER) {
+      return true;
+    }
+    const initializer = hops > 0 ? singleInitializer(context, node) : undefined;
+    return initializer !== undefined && isZodStringBuilder(context, initializer, hops - 1);
+  }
+  return staticMemberName(node) === ZOD_STRING_BUILDER && (isZodObject(context, node.object) || isZodCoerce(context, node.object));
+}
+
+// The first call of a builder chain: `z.string().optional()` reaches `z.string()`.
+function builderRoot(node) {
+  let current = node;
+  while (current.type === "CallExpression") {
+    const receiver = current.callee.type === "MemberExpression" ? current.callee.object : undefined;
+    if (receiver?.type !== "CallExpression") {
+      return current;
+    }
+    current = receiver;
+  }
+}
+
+// An identifier or string-literal key; a computed key names nothing statically.
+function staticPropertyKey(property) {
+  if (property.computed) {
+    return "";
+  }
+  if (property.key.type === "Identifier") {
+    return property.key.name;
+  }
+  return property.key.type === "Literal" && typeof property.key.value === "string" ? property.key.value : "";
+}
+
+const rawIdRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      "ObjectExpression > Property"(property) {
+        const name = staticPropertyKey(property);
+        const root = name.endsWith("Id") ? builderRoot(property.value) : undefined;
+        if (root !== undefined && isZodStringBuilder(context, root.callee)) {
+          context.report({
+            node: property.key,
+            message: "An id-named Zod field is a raw string; use typeIdSchema(ID_PREFIX.x) or brandedId<T>() so the validated output preserves identity.",
+          });
+        }
+      },
+    };
+  },
+};
+
+const JSON_METHOD = "json";
+const TEXT_METHOD = "text";
+const THEN_METHOD = "then";
+const PARSE_METHOD = "parse";
+
+// `unknown`, `Promise<unknown>`, or a type literal whose every member is (recursively) unknown: the body stays unparsed data.
+function keepsUnknown(type) {
+  if (type.type === "TSUnknownKeyword") {
+    return true;
+  }
+  if (type.type === "TSTypeReference") {
+    const params = (type.typeArguments ?? type.typeParameters)?.params ?? [];
+    return params.length === 1 && keepsUnknown(params[0]);
+  }
+  return (
+    type.type === "TSTypeLiteral" &&
+    type.members.every(
+      (member) => member.type === "TSPropertySignature" && member.typeAnnotation !== undefined && keepsUnknown(member.typeAnnotation.typeAnnotation),
+    )
+  );
+}
+
+// Through what hands the body on unchanged: `await`, a chain, and an `as unknown` / `satisfies unknown` step.
+function unwrapBody(node) {
+  let current = node;
+  for (;;) {
+    if (current.type === "AwaitExpression") {
+      current = current.argument;
+    } else if (current.type === "ChainExpression") {
+      current = current.expression;
+    } else if ((current.type === "TSAsExpression" || current.type === "TSSatisfiesExpression") && keepsUnknown(current.typeAnnotation)) {
+      current = current.expression;
+    } else {
+      return current;
+    }
+  }
+}
+
+const wireJsonRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const bodyExpression = (node) => {
+      const current = unwrapBody(node);
+      const initializer = singleInitializer(context, current);
+      return initializer === undefined ? current : unwrapBody(initializer);
+    };
+    // `<x>.<method>()` with no arguments: the method's name node.
+    const bodyRead = (node, method) => {
+      const callee = node.type === "CallExpression" ? node.callee : undefined;
+      return callee !== undefined && node.arguments.length === 0 && staticMemberName(callee) === method ? callee.property : undefined;
+    };
+    // The value a `.then` callback resolves to: its expression body, or its block's final `return`.
+    const callbackResult = (callback) => {
+      if (callback?.type !== "ArrowFunctionExpression" && callback?.type !== "FunctionExpression") {
+        return;
+      }
+      if (callback.body.type !== "BlockStatement") {
+        return callback.body;
+      }
+      const last = callback.body.body.at(-1);
+      return last?.type === "ReturnStatement" ? (last.argument ?? undefined) : undefined;
+    };
+    const bodyReadUnder = (operand) => {
+      const current = bodyExpression(operand);
+      const json = bodyRead(current, JSON_METHOD);
+      if (json !== undefined || current.type !== "CallExpression") {
+        return json;
+      }
+      const name = staticMemberName(current.callee);
+      const [first] = current.arguments;
+      if (name === THEN_METHOD) {
+        const result = callbackResult(first);
+        return result === undefined ? undefined : bodyRead(bodyExpression(result), JSON_METHOD);
+      }
+      const parsesText = name === PARSE_METHOD && current.callee.object.type === "Identifier" && current.callee.object.name === "JSON" && first !== undefined;
+      return parsesText && bodyRead(bodyExpression(first), TEXT_METHOD) !== undefined ? current.callee.property : undefined;
+    };
+    const check = (cast) => {
+      if (keepsUnknown(cast.typeAnnotation)) {
+        return;
+      }
+      const name = bodyReadUnder(cast.expression);
+      if (name !== undefined) {
+        context.report({
+          node: name,
+          message:
+            "A response body is cast instead of parsed: `.json()` returns unknown and the cast trusts a shape the peer can change without the consumer compiling differently. Parse it with the boundary's canonical schema (`schema.parse(await res.json())`).",
+        });
+      }
+    };
+    return { TSAsExpression: check, TSSatisfiesExpression: check };
+  },
+};
+
 const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES.filter(({ ruleId, hard }) => !hard && ruleId.startsWith("orb/"));
 
 // D46: `ctx.dump` walks a guest value on the HOST stack, so a deep value overflows it and corrupts the shared
@@ -6474,6 +6738,8 @@ const restrictionPlugin = {
     "no-inline-domain-interface": interfacePlacementRule(TYPE_SHAPE_MESSAGES["no-inline-domain-interface"]),
     "no-inline-package-interface": interfacePlacementRule(TYPE_SHAPE_MESSAGES["no-inline-package-interface"]),
     "no-raw-z-index": rawZIndexRule,
+    "no-raw-id": rawIdRule,
+    "wire-json-parsed-at-consumer": wireJsonRule,
     "no-raw-spacing-in-features": rawTierClassRule(
       /\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])/u,
       "Raw spacing in a class carrier; use a layout primitive or spacing intent token.",
@@ -6563,6 +6829,7 @@ const RESTRICTION_BLOCKS = [...RESTRICTIONS, ...DECLARATION_NATIVE_RESTRICTIONS]
         ...(id === INJECTED_OP_RULE ? { settings: INJECTED_OP_SETTINGS } : {}),
         ...(MEMBERSHIP_WRITE_FAN_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: { "orb/membership-tables": MEMBERSHIP_TABLE_EXPORTS } } : {}),
         ...(SERVER_ONE_HOME_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: SERVER_ONE_HOME_SETTINGS } : {}),
+        ...(id === "no-loose-id-cast" ? { settings: ID_BRAND_NATIVE_SETTINGS } : {}),
         rules: { [`orb/${id}`]: "error" },
       },
       ...homed,

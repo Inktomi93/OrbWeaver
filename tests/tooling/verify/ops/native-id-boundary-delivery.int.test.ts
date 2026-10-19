@@ -2,35 +2,18 @@ import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ESLint, Linter } from "eslint";
-import type { Project } from "ts-morph";
-import { Identifier, Node, SyntaxKind } from "ts-morph";
+import { SyntaxKind } from "ts-morph";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
-import { afterEach, beforeEach, vi } from "vitest";
 import { canonicalIdBrand, deriveCanonicalTypeIdPrefixes, ID_BRAND_HOME } from "../../../../tooling/src/floor/code-facts/id-brand.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as disabled } from "../../../../tooling/src/verify/gates/no-fake-disabled-id.ts";
-import { gate as looseCast } from "../../../../tooling/src/verify/gates/no-loose-id-cast.ts";
-import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { scaledBudget } from "../../_load-budget.ts";
-import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
-import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
-
-// Local callbacks judge native-child historical facts and consumer leases, not current producer authority.
-beforeEach(async () => {
-  const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");
-  vi.spyOn(inventoryFactory, "createSemanticInventory").mockImplementation(nativeInventoryFixture);
-});
-afterEach(() => {
-  vi.restoreAllMocks();
-});
 
 const SERVER = "packages/server/src/native-id-boundary.ts";
 const BROWSER = "packages/client/src/native-id-boundary.ts";
 
-function fixture(root: string, repoRoot: string, casts = false, waived = false): void {
+function fixture(root: string, repoRoot: string, casts = false): void {
   const put = (path: string, text: string): void => {
     mkdirSync(dirname(join(root, path)), { recursive: true });
     writeFileSync(join(root, path), text);
@@ -73,7 +56,7 @@ export const unrelated=local<Lookalike>();
 import {castId as brand} from '../../kit/src/ids/index';
 const blank = '' as const;
 ${
-  waived ? "// @orb-waive no-fake-disabled-id(brand): native authority control; ends with this fixture." : ""
+  ""
   // eslint-disable-next-line orb/test-ambient-source-string -- This ID-origin fixture is parsed, never executed; remove with these cast and entropy controls.
 }
 export const sentinel=brand(blank satisfies string);
@@ -87,121 +70,8 @@ export const decoy=localKit.castId('');
 `
         : ""),
   );
-  // `id-brand-flow` needs a second member in the corpus, or the loader refuses the singleton family.
-  const policies = [disabled, looseCast];
-  put("tooling/tsconfig.json", JSON.stringify({ compilerOptions: { ...common, types: [] }, files: policies.map(({ id }) => `src/verify/gates/${id}.ts`) }));
-  for (const { id } of policies) {
-    put(
-      `tooling/src/verify/gates/${id}.ts`,
-      `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
-    );
-  }
   execFixtureGit(root, ["init", "-q"]);
 }
-
-function poisonSyntax(project: Project): Disposable {
-  const readType = Node.prototype.getType;
-  const readSymbol = Node.prototype.getSymbol;
-  const readDefinitions = Identifier.prototype.getDefinitionNodes;
-  const types = vi.spyOn(Node.prototype, "getType").mockImplementation(function (this: Node) {
-    if (this.getProject() === project) {
-      throw new Error("ordinary id-boundary Type read");
-    }
-    return readType.call(this);
-  });
-  const symbols = vi.spyOn(Node.prototype, "getSymbol").mockImplementation(function (this: Node) {
-    if (this.getProject() === project) {
-      throw new Error("ordinary id-boundary Symbol read");
-    }
-    return readSymbol.call(this);
-  });
-  const definitions = vi.spyOn(Identifier.prototype, "getDefinitionNodes").mockImplementation(function (this: Identifier) {
-    if (this.getProject() === project) {
-      throw new Error("ordinary id-boundary definition read");
-    }
-    return readDefinitions.call(this);
-  });
-  const checker = vi.spyOn(project, "getTypeChecker").mockImplementation(() => {
-    throw new Error("ordinary id-boundary checker read");
-  });
-  return {
-    [Symbol.dispose]: (): void => {
-      checker.mockRestore();
-      definitions.mockRestore();
-      symbols.mockRestore();
-      types.mockRestore();
-    },
-  };
-}
-
-test("missing native ID services withhold the consumer instead of consulting the ordinary checker", ({ scratch, repoRoot }) => {
-  fixture(scratch, repoRoot, true);
-  const context = projectCtx(scratch);
-  using _poison = poisonSyntax(context.project);
-  const result = runPolicyPass({
-    root: scratch,
-    project: context.project,
-    policies: [disabled],
-    knownPolicies: [disabled],
-    reviewedGrants: [],
-    failOnWarnings: false,
-  });
-  expect(result.authority.withheldPolicyIds).toEqual([disabled.id]);
-  expect(result.toolErrors).toMatchObject([{ policyId: disabled.id, message: expect.stringContaining("native type fact context is unavailable") }]);
-});
-
-test(
-  "all maintained ID seam callers retain native origins, readonly/cast scalar aliases, exact waivers and direct-wrapper limits",
-  async ({ scratch, repoRoot }) => {
-    const nativeSyntaxReads: number[] = [];
-    fixture(scratch, repoRoot, true);
-    const context = projectCtx(scratch);
-    const contexts = await import("../../../../tooling/src/verify/lib/project-context.ts");
-    const createContext = contexts.projectCtx;
-    const useContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
-    using _poison = poisonSyntax(context.project);
-    try {
-      expect(await nativeVerifyFixture(scratch, "structure", ["--check=no-fake-disabled-id"], { forbidSyntax: true, syntaxReads: nativeSyntaxReads })).toBe(1);
-      expect(await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages"], { forbidSyntax: true, syntaxReads: nativeSyntaxReads })).toBe(1);
-      const policies = [disabled];
-      const result = runPolicyPass({
-        root: scratch,
-        project: context.project,
-        ...nativeTypeFactOptions(context),
-        policies,
-        knownPolicies: policies,
-        reviewedGrants: [],
-        failOnWarnings: false,
-      });
-      expect(result.toolErrors).toEqual([]);
-      expect(result.authority.withheldPolicyIds).toEqual([]);
-      expect(result.policies.find(({ id }) => id === disabled.id)?.findings).toMatchObject([{ file: BROWSER, line: 15, token: "brand" }]);
-      expect(result.authority.waivedFindings).toEqual([]);
-      expect(result.authority.authorityAlarms).toEqual([]);
-      const root = join(scratch, "waived");
-      fixture(root, repoRoot, true, true);
-      const waivedContext = createContext(root);
-      const waivedResult = runPolicyPass({
-        root,
-        project: waivedContext.project,
-        ...nativeTypeFactOptions(waivedContext),
-        policies,
-        knownPolicies: policies,
-        reviewedGrants: [],
-        failOnWarnings: false,
-      });
-      expect(waivedResult.toolErrors).toEqual([]);
-      expect(waivedResult.authority.waivedFindings).toHaveLength(1);
-      expect(waivedResult.authority.waivedFindings[0]?.finding).toMatchObject({ policyId: disabled.id, token: "brand", line: 15 });
-      expect(waivedResult.authority.authorityAlarms).toEqual([]);
-    } finally {
-      useContext.mockRestore();
-    }
-
-    expect(nativeSyntaxReads).toEqual([0, 0]);
-  },
-  scaledBudget(60_000 * 4),
-);
 
 test("native ID targets preserve canonical, wrong-prefix and prefixless meanings in their owning Node/browser worlds", ({ scratch, repoRoot }) => {
   fixture(scratch, repoRoot);
@@ -232,50 +102,74 @@ test("native ID targets preserve canonical, wrong-prefix and prefixless meanings
   }
 });
 
+test("the canonical brand reader follows aliases and refuses plain, counterfeit and nullable types", ({ scratch }) => {
+  const put = (path: string, text: string): void => {
+    mkdirSync(dirname(join(scratch, path)), { recursive: true });
+    writeFileSync(join(scratch, path), text);
+  };
+  put(".gitignore", ".cache/\n");
+  put("tsconfig.json", JSON.stringify({ compilerOptions: { noLib: true, types: [], strict: true }, files: ["source.ts", ID_BRAND_HOME] }));
+  put(
+    ID_BRAND_HOME,
+    'declare const brand: unique symbol;\nexport type Branded<B extends string> = string & { readonly [brand]: B };\nexport type TypeIdOf<P extends string> = Branded<P>;\nexport type ChatId = TypeIdOf<"chat">;\n',
+  );
+  put(
+    "source.ts",
+    `import type {ChatId} from './packages/kit/src/ids/index';
+type Original=ChatId;
+type Alias=Original;
+type Plain=string;
+declare const brand:unique symbol;
+type Counterfeit=string & {readonly [brand]:"chat"};
+type Nullable=Original|undefined;
+`,
+  );
+  execFixtureGit(scratch, ["init", "-q"]);
+  const project = createSemanticWorkspace({ root: scratch }).program("tsconfig.json")?.project();
+  if (project === undefined) {
+    throw new Error("missing canonical native fixture owner");
+  }
+  const source = project.getSourceFileOrThrow(join(scratch, "source.ts"));
+  const brands = source.getTypeAliases().map((alias) => {
+    const target = alias.getTypeNodeOrThrow();
+    return [alias.getName(), canonicalIdBrand(target.getType(), target, project.getTypeChecker())];
+  });
+  expect(brands).toEqual([
+    ["Original", '"chat"'],
+    ["Alias", '"chat"'],
+    ["Plain", null],
+    ["Counterfeit", null],
+    ["Nullable", null],
+  ]);
+});
+
 test(
-  "the existing sealed idBrands door captures exact call type-arguments, not only alias and cast annotations",
-  ({ scratch, repoRoot }) => {
-    fixture(scratch, repoRoot);
-    const context = projectCtx(scratch);
-    const source = context.project.getSourceFileOrThrow(join(scratch, BROWSER));
-    const target = source
-      .getDescendantsOfKind(SyntaxKind.CallExpression)
-      .find((call) => call.getText().includes("TypeIdOf"))
-      ?.getTypeArguments()[0];
-    if (target === undefined || context.nativeTypeFacts === undefined) {
-      throw new Error("native ID call-argument demand is unavailable");
-    }
-    using facts = context.nativeTypeFacts();
-    facts.request(disabled.id, { kind: "id-brands", nodes: [target] });
-    facts.seal(new Set([disabled.id]));
-    expect(facts.idBrands(disabled.id, [target]).get(target)).toBe('"chat"');
+  "native mint keeps the real ID fixture's exact alias coordinate and direct-wrapper/entropy limits",
+  async ({ scratch, repoRoot }) => {
+    fixture(scratch, repoRoot, true);
+    const rule = "orb/no-mint-via-cast";
+    const config = await new ESLint({ cwd: repoRoot }).calculateConfigForFile(join(repoRoot, BROWSER));
+    const path = join(scratch, BROWSER);
+    const program = ts.createProgram([path], {
+      target: ts.ScriptTarget.ES2022,
+      module: ts.ModuleKind.ESNext,
+      moduleResolution: ts.ModuleResolutionKind.Bundler,
+      strict: true,
+      types: [],
+      lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
+    });
+    const messages = new Linter({ cwd: scratch }).verify(
+      readFileSync(path, "utf8"),
+      {
+        files: ["**/*.ts"],
+        plugins: config.plugins,
+        languageOptions: { parser: tseslint.parser, parserOptions: { programs: [program], projectService: false } },
+        rules: { [rule]: "error" },
+      },
+      { filename: path },
+    );
+    expect(messages).toMatchObject([{ ruleId: rule, line: 16, column: 21, message: expect.stringContaining("castId wraps a fresh-id generator") }]);
+    expect(messages).toHaveLength(1);
   },
   scaledBudget(60_000),
 );
-
-test("native mint keeps the real ID fixture's exact alias coordinate and direct-wrapper/entropy limits", async ({ scratch, repoRoot }) => {
-  fixture(scratch, repoRoot, true);
-  const rule = "orb/no-mint-via-cast";
-  const config = await new ESLint({ cwd: repoRoot }).calculateConfigForFile(join(repoRoot, BROWSER));
-  const path = join(scratch, BROWSER);
-  const program = ts.createProgram([path], {
-    target: ts.ScriptTarget.ES2022,
-    module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.Bundler,
-    strict: true,
-    types: [],
-    lib: ["lib.es2022.d.ts", "lib.dom.d.ts"],
-  });
-  const messages = new Linter({ cwd: scratch }).verify(
-    readFileSync(path, "utf8"),
-    {
-      files: ["**/*.ts"],
-      plugins: config.plugins,
-      languageOptions: { parser: tseslint.parser, parserOptions: { programs: [program], projectService: false } },
-      rules: { [rule]: "error" },
-    },
-    { filename: path },
-  );
-  expect(messages).toMatchObject([{ ruleId: rule, line: 16, column: 21, message: expect.stringContaining("castId wraps a fresh-id generator") }]);
-  expect(messages).toHaveLength(1);
-});

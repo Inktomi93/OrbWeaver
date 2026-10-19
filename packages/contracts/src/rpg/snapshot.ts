@@ -41,7 +41,7 @@ export const rpgPlotSchema = z.object({
 export type RpgPlot = z.infer<typeof rpgPlotSchema>;
 
 /** A quest objective — a stable-`id` line with a completion flag (`n/m` derives from these). The objective
- *  `id` is a plain in-blob string (`id` doesn't trip `no-raw-id`; a per-objective brand buys nothing at
+ *  `id` is a plain in-blob string (`id` doesn't trip `orb/no-raw-id`; a per-objective brand buys nothing at
  *  this cardinality — the objective is addressed only within its quest). */
 export const rpgQuestObjectiveSchema = z.object({
   id: z.string().min(1),

@@ -182,7 +182,7 @@ const namedProviderMetadataSchema = z.discriminatedUnion("provider", [
     /** A model call stopped on the output cap and the runtime continued the reply, so `tokens_out` can exceed the
      *  requested cap; the reply is also truncated when the finish reason is `length`. Absent otherwise. */
     outputCapReached: z.literal(true).optional(),
-    // @orb-waive no-raw-id(sdkSessionId): the Anthropic Agent SDK's OWN opaque session handle, echoed back verbatim as provenance — never an orbweaver-minted brand, and structurally never a TypeID (§5.3c class 4, the `toolCallId` precedent at line ~393). Kit's `SessionId` is `TypeIdOf<"session">`, the BFF session ROW id: a different vocabulary that happens to share the word. ENDS WHEN the SDK's handle stops being a foreign opaque string.
+    // the Anthropic Agent SDK's OWN opaque session handle, echoed back verbatim as provenance — never an orbweaver-minted brand, and structurally never a TypeID (§5.3c class 4, the `toolCallId` precedent at line ~393). Kit's `SessionId` is `TypeIdOf<"session">`, the BFF session ROW id: a different vocabulary that happens to share the word. ENDS WHEN the SDK's handle stops being a foreign opaque string.
     sdkSessionId: z.string().optional(),
     servedModel: z.string().optional(),
   }),
@@ -241,7 +241,7 @@ const contentSignatureSnapshotSchema = z.object({
   tools: z
     .array(
       z.object({
-        // @orb-waive no-raw-id(toolCallId): provider-emitted opaque call id retained verbatim for signed wire replay (D48). Ends if providers use Orbweaver TypeIDs.
+        // provider-emitted opaque call id retained verbatim for signed wire replay (D48). Ends if providers use Orbweaver TypeIDs.
         toolCallId: z.string(),
         callOrdinal: z.int().nonnegative().optional(),
         thoughtSignature: z.string().optional(),
@@ -440,7 +440,7 @@ const toolCallRecordInputSchema = z.object({
   callOrdinal: z.int().nonnegative().optional(),
   exchangeOrdinal: z.int().nonnegative().optional(),
   exchangeTextEnd: z.int().nonnegative().optional(),
-  // @orb-waive no-raw-id(toolCallId): PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (D48 types it `string`).
+  // PROVIDER-emitted opaque tool-call handle (OpenAI `call_…`/Anthropic id) — never an orbweaver-minted brand; provenance-faithful, joins a tool-call to its result on the wire (D48 types it `string`).
   toolCallId: z.string(),
   name: z.string(),
   /** RAW model-emitted JSON string (provenance-faithful; parsed once, at execute). */
@@ -630,7 +630,7 @@ export const messageViewSchema = z.strictObject({
   genStartedAt: z.number().nullable(),
   genFinishedAt: z.number().nullable(),
   hasGeneratedVariant: z.boolean(),
-  // @orb-waive no-raw-id(generationId): upstream provider billing handle (OpenRouter gen-…), not the separately minted ChatStreamGenerationId; ends if billing provenance becomes an Orbweaver identity.
+  // upstream provider billing handle (OpenRouter gen-…), not the separately minted ChatStreamGenerationId; ends if billing provenance becomes an Orbweaver identity.
   generationId: z.string().nullable(),
   connectionAttributionProvenance: connectionAttributionProvenanceSchema,
   connectionId: typeIdSchema(ID_PREFIX.userConnection).nullable(),

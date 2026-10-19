@@ -332,7 +332,6 @@ test("HEAL (§2.7.4) — a malformed plane degrades its line, the block still re
     actorState: [
       {
         ...castVolatile("kael", { wallet: [{ name: "gold", amount: 25 }] }),
-        // @orb-waive no-loose-id-cast(null): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
         volatile: { ...castVolatile("kael").volatile, wallet: [{ name: "gold", amount: 25 }], conditions: null as never },
       },
     ],

@@ -205,11 +205,10 @@ export const concrete={value:0};
       partition.modules,
       partition.bindings,
       partition.witnesses,
-      partition.brands,
       partition.runtimeExports,
       partition.shapes,
       partition.pairs,
-    ]).toEqual(Array.from({ length: 9 }, () => []));
+    ]).toEqual(Array.from({ length: 8 }, () => []));
     expect(DEFAULT_INVENTORY_FAMILIES).not.toContain("declaration-outputs");
   } finally {
     service.mockRestore();
@@ -235,8 +234,8 @@ test("native output rows refuse absent families, spans, wrong worlds, stale sour
   expect(() => inventory.declarationOutput(declaration, "foreign")).toThrow("partition is unavailable");
   expect(() => inventory.declarationOutput(declaration, "tsconfig.tests-dom.json")).toThrow("source/epoch");
   expect(() => inventory.declarationOutput(declaration.getNameNodeOrThrow(), "tsconfig.json")).toThrow("output span is unavailable");
-  using brands = nativeInventoryFixture({ root: scratch, programs, families: ["id-brands"] });
-  expect(() => brands.declarationOutput(declaration, "tsconfig.json")).toThrow("family unavailable: declaration-outputs");
+  using runtime = nativeInventoryFixture({ root: scratch, programs, families: ["runtime-exports"] });
+  expect(() => runtime.declarationOutput(declaration, "tsconfig.json")).toThrow("family unavailable: declaration-outputs");
   const acquire = vi.fn((): never => {
     throw new Error("unexpected acquisition");
   });

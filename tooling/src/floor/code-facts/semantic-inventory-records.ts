@@ -195,16 +195,11 @@ export const inventoryRecordTables = {
     columns: "ordinal,file,name,node,callable,initializerKind,initializerCallable",
     definition: `${PARTITION},${ORDINAL},file TEXT NOT NULL,name TEXT NOT NULL,node INTEGER NOT NULL,callable INTEGER NOT NULL CHECK(callable IN (0,1)),initializerKind INTEGER,initializerCallable INTEGER CHECK(initializerCallable IN (0,1)),PRIMARY KEY(partition,ordinal),${SPAN_REFERENCE},CHECK((initializerKind IS NULL AND initializerCallable IS NULL) OR (initializerKind IS NOT NULL AND initializerCallable IS NOT NULL))`,
   },
-  brand: {
-    name: "inventory_brand",
-    columns: "ordinal,node,brand",
-    definition: `${PARTITION},${ORDINAL},node INTEGER NOT NULL,brand TEXT,PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),${SPAN_REFERENCE}`,
-  },
   // Retired tags remain admissible only in physical storage so committed historical generations survive upgrades.
   family: {
     name: "inventory_family",
     columns: "ordinal,name",
-    definition: `${PARTITION},${ORDINAL},name TEXT NOT NULL CHECK(name IN (${INVENTORY_FAMILIES.map((family) => `'${family}'`).join(",")},'cast-relations')),PRIMARY KEY(partition,ordinal),UNIQUE(partition,name)`,
+    definition: `${PARTITION},${ORDINAL},name TEXT NOT NULL CHECK(name IN (${INVENTORY_FAMILIES.map((family) => `'${family}'`).join(",")},'cast-relations','id-brands')),PRIMARY KEY(partition,ordinal),UNIQUE(partition,name)`,
   },
   descriptor: {
     name: "inventory_descriptor",
@@ -548,10 +543,6 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
     const fact = witnessRecordSchema.parse(entry);
     emit("fact", "witnesses", ordinal, null, inventoryString(fact.name), spanId(entry.node), null, null, null);
     declarations("witnesses", ordinal, "declarations", entry.declarations);
-  });
-  partition.brands.forEach((entry, ordinal) => {
-    const fact = partitionSchema.shape.brands.element.parse(entry);
-    emit("brand", ordinal, spanId(fact.node), fact.brand === null ? null : inventoryString(fact.brand));
   });
   partition.declarationOutputs.forEach((entry, ordinal) => {
     const fact = partitionSchema.shape.declarationOutputs.element.parse(entry);

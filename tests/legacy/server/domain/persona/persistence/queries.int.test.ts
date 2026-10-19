@@ -42,7 +42,6 @@ function seedPersonaRow(
 
 /** A persona row whose metadata is a corrupt blob written past drizzle's unchecked $type column. */
 function seedForgedPersonaRow(db: PersonaDb, ownerId: UserId, overrides: PersonaSeed & { metadata: unknown }): Promise<PersonaId> {
-  // @orb-waive no-loose-id-cast(overrides.metadata): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
   return insertPersonaRow(db, ownerId, overrides, overrides.metadata as never);
 }
 

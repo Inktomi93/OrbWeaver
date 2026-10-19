@@ -361,7 +361,7 @@ test("unknown request-key diagnostics are sorted and independent of insertion or
   plantRepo(scratch);
   const message = (request: object): string => {
     try {
-      // @orb-waive no-loose-id-cast(request): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
+      // forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       resolvePolicyScope(scratch, request as never);
     } catch (error) {
       return error instanceof Error ? error.message : String(error);

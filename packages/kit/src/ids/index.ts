@@ -283,7 +283,7 @@ export type RpgCheckpointId = TypeIdOf<"rpg_checkpoint">;
  *  surfaces that swipe's own calls (the `rpg_snapshots` variant-keying, one plane over). */
 export type RpgTurnToolCallsId = TypeIdOf<"rpg_turn_tool_calls">;
 /** A quest's stable id — a PLAIN (prefix-less) branded nanoid, minted IN the snapshot blob (no table, no
- *  FK, no `ID_PREFIX` entry). The `no-raw-id` gate requires a brand even for the in-blob object id; a
+ *  FK, no `ID_PREFIX` entry). The `orb/no-raw-id` rule requires a brand even for the in-blob object id; a
  *  prefix-less brand is the type-safety-without-TypeID-machinery middle. Mint via `newId<RpgQuestId>()`. */
 export type RpgQuestId = Branded<"RpgQuestId">;
 

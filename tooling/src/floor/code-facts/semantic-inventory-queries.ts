@@ -917,20 +917,6 @@ function assertReferenceSpans(db: DatabaseSync, id: string, spans: readonly Inve
   }
 }
 
-/** Brand absence is a native answer on a present row, never a substitute for missing query evidence. */
-export function* readInventoryBrands(db: DatabaseSync, id: string, node?: InventorySpan): Iterable<InventoryPartition["brands"][number]> {
-  requireInventoryFamily(db, id, "id-brands");
-  const filter = node === undefined ? "" : " AND s.file=? AND s.start=? AND s.end=? AND s.kind=?";
-  const values: SQLInputValue[] = node === undefined ? [id] : [id, inventoryString(node.file), node.start, node.end, node.kind];
-  for (const row of db
-    .prepare(
-      `SELECT s.file,s.start,s.end,s.kind,b.brand FROM inventory_brand b JOIN inventory_span s ON s.partition=b.partition AND s.ordinal=b.node WHERE b.partition=?${filter} ORDER BY b.ordinal`,
-    )
-    .iterate(...values)) {
-    yield { node: spanRow.parse(row), brand: row["brand"] === null ? null : inventoryStringSchema.parse(row["brand"]) };
-  }
-}
-
 /** A present null row is a non-exported declaration, not missing native evidence. */
 export function* readInventoryDeclarationOutputs(
   db: DatabaseSync,

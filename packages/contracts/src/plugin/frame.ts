@@ -69,7 +69,7 @@ export const PLUGIN_FRAME_MINT_BODY_MAX_BYTES = 8192;
 
 /** The surface id's grammar — the `host.ui.registerFrame` id (`PLUGIN_SURFACE_ID_RE`), the same bounded
  *  plugin-local ident the router validates a `surfaceId` with. A named const (not an inline `z.string()`) both
- *  because it is a real grammar and because the `no-raw-id` gate reads an inline `z.string()` under an `*Id`
+ *  because it is a real grammar and because the `orb/no-raw-id` rule reads an inline `z.string()` under an `*Id`
  *  key as a dropped FK brand — which this is not (a surface id is plugin-local, never an entity). */
 const surfaceIdSchema = z.string().regex(PLUGIN_SURFACE_ID_RE);
 
@@ -124,8 +124,8 @@ export const PLUGIN_FRAME_RESULT_KEY = "orbPluginFrameResult";
  *  it exists so the frame's own code can match a reply to its own promise. The grammar is bounded anyway,
  *  because an unbounded string echoed back into a document is a needless amplification.
  *
- *  A named `*Schema` const (referenced by identifier below) rather than an inline `z.string()`: the `no-raw-id`
- *  gate reads an inline `z.string()` under an `*Id` key as a dropped FK brand, and this is the opposite — a
+ *  A named `*Schema` const (referenced by identifier below) rather than an inline `z.string()`: the `orb/no-raw-id`
+ *  rule reads an inline `z.string()` under an `*Id` key as a dropped FK brand, and this is the opposite — a
  *  value the FRAME mints and we treat as opaque, which is exactly why it must NOT be branded (a brand would
  *  claim it is one of our ids). */
 const CALL_ID_MAX = 64;
