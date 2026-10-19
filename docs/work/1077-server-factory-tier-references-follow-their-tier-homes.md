@@ -22,4 +22,4 @@ Native lint over the server reports no server-factory-tier-reference or brand-in
 
 ## Evidence
 
-The 1101 lint lane found a live case: `PersonaSeedStamps` in packages/server/src/entry/index.ts line 21.
+The 1101 lint lane found a live case: `PersonaSeedStamps` in packages/server/src/entry/index.ts line 21. The 1099 audit lists the live findings: StructuredLane, ImageRejectReason, ZipByteSource, ScheduleOp (twice; also a copy of @orb/kit/time's ScheduleOp), CatalogRefreshSchedulerDeps, WorkloadScheduleSchedulerDeps, PluginGitSourceDeps and PersonaSeedStamps.
