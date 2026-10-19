@@ -2825,7 +2825,7 @@ const UI_HARD_RESTRICTIONS = [
 ];
 // An alias is an axis only when every member is a string literal; any other member makes it a type, not a vocabulary.
 const STRING_LITERAL_MEMBER = "TSLiteralType[literal.type='Literal'][literal.value=type(string)]";
-// `orb/type-home-direct-export` owns every authored declaration in its admitted population; the two interface rows keep
+// `orb/type-home-direct-export` owns every authored declaration in its admitted population; the package interface row keeps
 // what that population excludes: generated files, the server entry module and the ui authoring files.
 const TYPE_SHAPE_RESTRICTIONS = [
   {
@@ -2843,13 +2843,6 @@ const TYPE_SHAPE_RESTRICTIONS = [
     ],
   },
   {
-    id: "no-inline-domain-interface",
-    scope: ["packages/server/src/domain/**/*.gen.ts"],
-    notUnder: ["**/contract/**"],
-    notNamed: ["**/contract.ts", TEST_FILES],
-    homes: [],
-  },
-  {
     id: "no-inline-package-interface",
     scope: ["packages/server/**/*.gen.ts", "packages/inference/**/*.gen.ts", "packages/server/src/index.ts", ...rootSources("@ui-authoring")],
     // `@ui-authoring` is the ui package outside `src/`; `src/` is `@ui`, which this ban never judged.
@@ -2859,8 +2852,6 @@ const TYPE_SHAPE_RESTRICTIONS = [
   },
 ];
 const TYPE_SHAPE_MESSAGES = {
-  "no-inline-domain-interface":
-    "An exported interface in a generated server domain file belongs in that domain's contract/ (or @orb/contracts when it crosses a boundary) (Spine-TypeScript-and-Patterns.md §7.4).",
   "no-inline-package-interface":
     "An exported interface belongs in its canonical type home; ui token authoring declares its shapes in packages/ui/token-contract.ts (D324; Spine-TypeScript-and-Patterns.md §7.4).",
 };
@@ -6735,7 +6726,6 @@ const restrictionPlugin = {
     "test-factory-contract": testFactoryContractRule,
     "no-opaque-test-fixture": opaqueTestFixtureRule,
     "no-context-returntype": contextReturnTypeRule,
-    "no-inline-domain-interface": interfacePlacementRule(TYPE_SHAPE_MESSAGES["no-inline-domain-interface"]),
     "no-inline-package-interface": interfacePlacementRule(TYPE_SHAPE_MESSAGES["no-inline-package-interface"]),
     "no-raw-z-index": rawZIndexRule,
     "no-raw-id": rawIdRule,

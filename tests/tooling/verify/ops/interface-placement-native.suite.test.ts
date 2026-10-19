@@ -3,7 +3,6 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 
-const DOMAIN = "orb/no-inline-domain-interface";
 const PACKAGE = "orb/no-inline-package-interface";
 
 const IFACE = "interface Foo {\n  readonly x: string;\n}\n";
@@ -30,33 +29,6 @@ async function count(subject: { readonly eslint: ESLint; readonly root: string }
   ).toEqual([]);
   return found.length;
 }
-
-test("a generated server domain file may not publish an interface, directly or through a local export list", async ({ repoRoot }) => {
-  const eslint = new ESLint({ cwd: repoRoot });
-  const generated = "packages/server/src/domain/x/result.gen.ts";
-  for (const [path, source, expected] of [
-    [generated, DIRECT, 1],
-    [generated, `${IFACE}export type { Foo };`, 1],
-    [generated, `${IFACE}export { Foo as Bar };`, 1],
-    [generated, `${IFACE}export default Foo;`, 1],
-    [generated, "export default interface Foo {\n  readonly x: string;\n}\n", 1],
-    [generated, `${IFACE}interface Bar {}\nexport { Foo, Bar };`, 2],
-    // The founding gate's mustPass rows: file-local interfaces, the type homes and the primitives boundary.
-    [generated, `${IFACE}export const use = (value: Foo): string => value.x;`, 0],
-    [generated, "type Foo = string;\nexport type { Foo };", 0],
-    [generated, "import type { Foo } from './owner.ts';\nexport type { Foo };", 0],
-    ["packages/server/src/domain/x/contract/types.gen.ts", DIRECT, 0],
-    ["packages/server/src/domain/x/contract/types.ts", DIRECT, 0],
-    ["packages/server/src/domain/x/contract.ts", DIRECT, 0],
-    ["packages/server/src/domain/x/verb.test.ts", DIRECT, 0],
-    ["packages/server/src/primitives/egress.ts", DIRECT, 0],
-    // An authored domain file is the typed `type-home-direct-export` rule's population, never double-reported here.
-    ["packages/server/src/domain/x/verb.ts", DIRECT, 0],
-    ["packages/server/src/domain/x/verb.ts", `${IFACE}export type { Foo };`, 0],
-  ] as const) {
-    expect(await count({ eslint, root: repoRoot }, DOMAIN, path, source), `${path}: ${source}`).toBe(expected);
-  }
-}, 120_000);
 
 test("an interface in a generated package file, the server root and the ui authoring files is refused outside its home", async ({ repoRoot }) => {
   const eslint = new ESLint({ cwd: repoRoot });

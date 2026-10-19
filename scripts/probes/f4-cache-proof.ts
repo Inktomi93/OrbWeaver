@@ -43,6 +43,7 @@ import { makeResolved } from "../../tests/legacy/inference/_support.ts";
 
 const BASE_REF = "9b99ac912d";
 const HISTORY_BUDGET_PATH = "packages/server/src/domain/chat/assembly/history-budget.ts";
+const ABSENT_AT_BASE_EXPORTS = "export function contextLimitOf(): null {\n  return null;\n}\nexport function fitCeilingTokens(): null {\n  return null;\n}\n";
 const REPO_ROOT = fileURLToPath(new URL("../../", import.meta.url));
 const REPORT_PATH = `${REPO_ROOT}reports/f4-proof/f4-cache-proof.md`;
 
@@ -108,7 +109,12 @@ const HUMAN = castId<UserId>("user_f4proof");
 async function runArm(arm: Arm): Promise<TurnRecord[]> {
   if (arm === "base") {
     const target = new URL(HISTORY_BUDGET_PATH, `file://${REPO_ROOT}`).href;
-    const source = execGit(REPO_ROOT, ["show", `${BASE_REF}:${HISTORY_BUDGET_PATH}`]);
+    // BASE_REF predates `contextLimitOf` and `fitCeilingTokens`, which the current assembly layer imports from this
+    // module for the preview bar and the compaction trigger. The wire the probe compares reads neither, and no
+    // commit has both the unchunked fit and those exports, so only they are supplied; the fit is the base's, byte
+    // for byte.
+    const base = execGit(REPO_ROOT, ["show", `${BASE_REF}:${HISTORY_BUDGET_PATH}`]);
+    const source = `${base}\n${ABSENT_AT_BASE_EXPORTS}`;
     registerHooks({
       load: (url, context, nextLoad) => (url === target ? { format: "module-typescript", source, shortCircuit: true } : nextLoad(url, context)),
     });

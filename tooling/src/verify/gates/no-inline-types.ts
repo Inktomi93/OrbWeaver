@@ -10,8 +10,8 @@
 // arm for: "current test/spec population exclusions remain population algebra where they define the
 // policy's subject". A NEW home would be a change to §7.4, never a row someone adds to a table here.
 //
-// THE INTERFACE ARM LIVES IN NATIVE LINT: exported interfaces are judged by `orb/type-home-direct-export` and the ESLint rows
-// `orb/no-inline-domain-interface` and `orb/no-inline-package-interface`, never by this policy.
+// THE INTERFACE ARM LIVES IN NATIVE LINT: exported interfaces are judged by `orb/type-home-direct-export` and the ESLint row
+// `orb/no-inline-package-interface`, never by this policy.
 //
 // IDENTITY, NOT SPELLING, on the schema arm: the legacy reader compared the callee's TEXT to `z.object` /
 // `z.enum` / `z.discriminatedUnion`, so `import * as zod from "zod"`, `import { object } from "zod"` and

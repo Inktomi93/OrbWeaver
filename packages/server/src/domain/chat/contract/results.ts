@@ -340,7 +340,7 @@ export interface TurnEconomics {
  *  materialized and stored, ready to become an `![alt](asset:<id>)` span. The `atChars` offset rides
  *  through from the provider's raw reply and is CLAMPED at the splice (`substrate/inline-reply-images`),
  *  because the receive tier rewrites those bytes in between. It lives here rather than beside the splice
- *  because a domain-internal shape's home is `contract/` (`no-inline-domain-interface`). */
+ *  because a domain-internal shape's home is `contract/`. */
 export interface OrderedReplyImage extends GeneratedImage {
   readonly eventOrdinal: number;
 }
