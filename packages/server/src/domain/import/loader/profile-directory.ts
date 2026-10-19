@@ -312,9 +312,9 @@ async function storeCollectedBackgrounds(
     if (deps.signal.aborted) {
       break;
     }
-    // @orb-waive caught-failure-ownership(err): bookkeeping — the failure is recorded into
-    // `skipped` (with reason), the function's own return value; one bad background never aborts the batch.
-    // Ends if `skipped` stops being read by the caller.
+    // @orb-waive caught-failure-ownership(err): the catch pushes `{ file, reason }` onto `skipped`, which
+    // `storeCollectedBackgrounds` returns and `reportFrom` lists as the report's `skippedBackgrounds`.
+    // Ends if `skipped` stops reaching the report.
     try {
       const stored = await store({
         principal: deps.principal,
@@ -611,9 +611,9 @@ async function importOrphanBundles(
     if (deps.signal.aborted) {
       break;
     }
-    // @orb-waive caught-failure-ownership(err): bookkeeping — the failure is recorded into
-    // `orphanSkipped` (with reason), part of the function's own return value; one bad orphan directory
-    // never aborts the batch. Ends if `orphanSkipped` stops being read by the caller.
+    // @orb-waive caught-failure-ownership(err): the catch pushes `{ dir, reason }` onto `orphanSkipped`, which
+    // `importOrphanBundles` returns and `runProfileDirectory` puts in the report's `orphanSkipped`.
+    // Ends if `orphanSkipped` stops reaching the report.
     try {
       const mint = await service.importOrphanCharacter({
         dirName: orphan.dirName,
@@ -754,9 +754,9 @@ async function importCollectedBundles(
     if (deps.signal.aborted) {
       break;
     }
-    // @orb-waive caught-failure-ownership(err): bookkeeping — the failure is recorded into
-    // `skippedCards` (with reason), part of the function's own return value; one bad card bundle never
-    // aborts the batch. Ends if `skippedCards` stops being read by the caller.
+    // @orb-waive caught-failure-ownership(err): the catch pushes `{ file, reason }` onto `skippedCards`, which
+    // `importCollectedBundles` returns and `runProfileDirectory` passes to `reportFrom` as `skippedCards`.
+    // Ends if `skippedCards` stops reaching the report.
     try {
       const result = await importOneBundle(service, bundle);
       changed += result.changed;

@@ -288,10 +288,9 @@ async function buildDistillWrites(
  *  and throws the retryable {@link DistillFailedError}, whose copy covers both causes honestly. */
 async function parseOneDistill(target: DistillTarget, batchText: string, pass: DistillPass): Promise<CharacterDistillation | null> {
   const run = (correction?: string): Promise<string> => (correction === undefined ? Promise.resolve(batchText) : retryDistillOne(target, correction, pass));
-  // @orb-waive caught-failure-ownership(catch): bookkeeping — the header states the contract:
-  // `null` counts THIS card `failed` in the caller's sweep counts so one bad card never aborts the batch;
-  // the caller reads `failed > 0` and throws the retryable `DistillFailedError`. Ends if a per-card cause
-  // needs to travel past this boundary.
+  // @orb-waive caught-failure-ownership(catch): the `null` is counted by `buildDistillWrites` (`failed += 1`),
+  // returned as `DistillStats.failed`, and the on-demand arm throws `DistillFailedError` when `writes.failed > 0`.
+  // Ends if either path stops reading `failed`.
   try {
     const p = await runStructuredTurn({ payloadSchema: DISTILL_PAYLOAD, run, onRetry: traceStructuredRetry("distill-card") });
     return { genre: p.genre, tone: p.tone, setting: p.setting, subGenres: p.subGenres, tags: p.tags, elevatorPitch: p.elevatorPitch, overview: p.overview };

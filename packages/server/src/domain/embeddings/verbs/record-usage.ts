@@ -23,7 +23,7 @@ export function createRecordUsage(input: EmbeddingAccountingAssemblyContext): Be
         appends.push(append);
         // Recover only the queue, never the caller's append promise: an earlier durable-write failure
         // must not suppress a different already-observed physical batch or repeat provider work.
-        // @orb-waive caught-failure-ownership(append): queue recovery never replaces the original returned append, which finish also joins via appends; ends if either failure propagation path is removed.
+        // @orb-waive caught-failure-ownership(append): this `.catch` only recovers the `pending` queue; the append's own rejection reaches the caller through the `return append` below and `finish`'s `await Promise.all(appends)`. Ends if both paths stop carrying `append`.
         pending = append.catch(() => undefined);
         return append;
       },

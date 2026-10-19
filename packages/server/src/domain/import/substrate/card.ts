@@ -132,9 +132,9 @@ function extractCardTags(raw: unknown): string[] {
 }
 
 function fromText(text: string, fallbackName: string, artHash: string | null): ParsedCard | null {
-  // @orb-waive caught-failure-ownership(catch): pure `JSON.parse` over untrusted import text —
-  // no infra I/O in this try. A malformed card degrades to the consumed `null` result the caller checks.
-  // Ends if this call gains a real infra step (then the infra half must escalate separately).
+  // @orb-waive caught-failure-ownership(catch): the `null` is read by every caller: `createImportCharacter`
+  // throws `ImportCardError("card_unreadable")`, `restoreCharacterBook` answers `ok: false`, and `collectCards`
+  // pushes the file onto `unreadableCards`. The try holds no I/O. Ends if a caller stops checking `null`.
   try {
     const parsed: unknown = JSON.parse(text);
     if (typeof parsed !== "object" || parsed === null) {
