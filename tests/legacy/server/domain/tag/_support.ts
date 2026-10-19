@@ -9,6 +9,8 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characters, chats, personas, presets, tags, worldBooks } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -22,7 +24,7 @@ import type { TagContext } from "#server/domain/tag/contract/service.ts";
 
 /** The harness: the TagContext + recorders/controls for the injected membership-gate fake. */
 export interface TagHarness {
-  readonly ctx: TagContext;
+  readonly ctx: DbAssemblyInput<TagContext>;
   /** Mark a chat as one the principal is a participant of (so `requireParticipant` resolves for it). */
   readonly allowChat: (chatId: ChatId) => void;
   /** Every `(chatId)` the gate was asked about — proves the chat junction routes through membership. */
@@ -39,8 +41,8 @@ export function makeTagHarness(db: Db): TagHarness {
   const allowed = new Set<string>();
   const participantChecks: ChatId[] = [];
   const audits: AuditEntry[] = [];
-  const ctx: TagContext = {
-    db,
+  const ctx: DbAssemblyInput<TagContext> = {
+    db: databaseHandle(db),
     now: clock.now,
     readAttachedEntity: (_caller, target) => Promise.resolve({ ...target, name: target.targetId }),
     newTagId: (): TagId => castId<TagId>(ids.next("tag")),

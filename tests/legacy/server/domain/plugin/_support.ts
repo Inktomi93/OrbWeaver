@@ -13,6 +13,7 @@ import type { PluginBundleHash, PluginCapability, PluginInstance } from "@orb/co
 import { pluginBundleHashSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { assets, pluginAssets, plugins } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
@@ -351,7 +352,13 @@ export function makePluginHarness(
       deactivate: (): Promise<void> => Promise.resolve(),
     } satisfies PluginProviderLifecycle);
 
-  return { ctx, service: createPluginService(ctx, distribution, providers), port: fakePort, storedBytes, advance: (ms) => clock.advance(ms) };
+  return {
+    ctx,
+    service: createPluginService({ ...ctx, db: databaseHandle(db) }, distribution, providers),
+    port: fakePort,
+    storedBytes,
+    advance: (ms) => clock.advance(ms),
+  };
 }
 
 /** An inert `PluginHostOps`: every op rejects/no-ops (the host functions are P4). The registrar seams record

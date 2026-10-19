@@ -16,12 +16,12 @@ describe("requireStorage", () => {
   test("refuses with the disabled code when the box has no key", async () => {
     const db = await freshDb();
     const { ctx } = makeHarness(db);
-    expect(() => requireStorage({ ...ctx, box: createSecretBox(null) })).toThrow(expect.objectContaining({ code: CREDENTIALS_OP_CODES.disabled }));
+    expect(() => requireStorage({ ...ctx, db, box: createSecretBox(null) })).toThrow(expect.objectContaining({ code: CREDENTIALS_OP_CODES.disabled }));
   });
 
   test("control: passes when a key is configured", async () => {
     const db = await freshDb();
-    expect(() => requireStorage(makeHarness(db).ctx)).not.toThrow();
+    expect(() => requireStorage({ ...makeHarness(db).ctx, db })).not.toThrow();
   });
 });
 
@@ -30,7 +30,7 @@ describe("reloadView", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const { owner, cred } = await seedCredential(db, h, { key: "sk-live-secret", label: "work" });
-    const view = await reloadView(h.ctx, owner, cred.id);
+    const view = await reloadView({ ...h.ctx, db }, owner, cred.id);
     expect(view).toEqual(cred);
     expect(JSON.stringify(view)).not.toContain("sk-live-secret");
   });
@@ -40,14 +40,14 @@ describe("reloadView", () => {
     const h = makeHarness(db);
     const { cred } = await seedCredential(db, h);
     const stranger = await seedUser(db, { id: "user_stranger" });
-    await expect(reloadView(h.ctx, stranger, cred.id)).rejects.toMatchObject({ code: CREDENTIALS_OP_CODES.notFound });
+    await expect(reloadView({ ...h.ctx, db }, stranger, cred.id)).rejects.toMatchObject({ code: CREDENTIALS_OP_CODES.notFound });
   });
 
   test("a missing id reads as not found", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const owner = await seedUser(db, { id: "user_owner" });
-    await expect(reloadView(h.ctx, owner, castId<UserCredentialId>("user_credential_missing"))).rejects.toMatchObject({
+    await expect(reloadView({ ...h.ctx, db }, owner, castId<UserCredentialId>("user_credential_missing"))).rejects.toMatchObject({
       code: CREDENTIALS_OP_CODES.notFound,
     });
   });

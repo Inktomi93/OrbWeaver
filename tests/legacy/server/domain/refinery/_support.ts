@@ -8,6 +8,7 @@ import type { RefineryAnalyzePayload, RefineryRewritePayload, RefineryScorePaylo
 import type { ResponseFormat, RoleClients, SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CharacterService } from "@orb/server/domain/character";
@@ -85,8 +86,9 @@ export function makeRefineryHarness(db: Db, options: RefineryHarnessOptions = {}
   // `structured`; the prose passes name `summarize`), and `resolved(task)` answers the fixed summarizer model.
   const roleClients = makeFakeRoleClients({ summarize, structured: summarize, summarizerContextTokens: 8192 });
   const roleClientsFor = (): Promise<RoleClients> => Promise.resolve(roleClients);
+  const handle = databaseHandle(db);
   const ctx: RefineryContext = {
-    db,
+    db: handle,
     now: (): number => clock.now(),
     newRefinerySessionId: (): RefinerySessionId => mintTypeId(ID_PREFIX.refinerySession),
     newRefineryRunId: (): RefineryRunId => mintTypeId(ID_PREFIX.refineryRun),
@@ -101,10 +103,10 @@ export function makeRefineryHarness(db: Db, options: RefineryHarnessOptions = {}
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
     },
-    loadOwnedCard: createLoadOwnedCard({ db }),
-    stampRefinerySignals: createStampRefinerySignals({ db }),
+    loadOwnedCard: createLoadOwnedCard({ db: handle }),
+    stampRefinerySignals: createStampRefinerySignals({ db: handle }),
     snapshotCharacter: character.snapshot,
-    deleteSnapshot: createDeleteSnapshot({ db }),
+    deleteSnapshot: createDeleteSnapshot({ db: handle }),
     updateCharacter: character.update,
     getCharacter: character.get,
     duplicateCharacter: character.duplicate,
@@ -133,7 +135,7 @@ export function refineryWorkloadDepsOf(db: Db, h: RefineryHarness): RefineryWork
     roleClientsFor: h.ctx.roleClientsFor,
     resolveUtilityPresetParams: h.ctx.resolveUtilityPresetParams,
     resolveUserProse: h.ctx.resolveUserProse,
-    listRefineryScoreTargets: createListRefineryScoreTargets({ db }),
+    listRefineryScoreTargets: createListRefineryScoreTargets({ db: databaseHandle(db) }),
     stampRefinerySignals: h.ctx.stampRefinerySignals,
     emitUserEvent: h.ctx.emitUserEvent,
   };

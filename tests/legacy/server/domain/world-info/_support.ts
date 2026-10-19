@@ -11,6 +11,8 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { characters, chats, personas } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -31,7 +33,7 @@ interface UserEventCall {
 }
 
 export interface WorldInfoHarness {
-  readonly ctx: WorldInfoContext;
+  readonly ctx: DbAssemblyInput<WorldInfoContext>;
   readonly audits: AuditCall[];
   /** Chat-scope verbs' bus emissions. */
   readonly wiEvents: Parameters<WorldInfoContext["emitWiEvent"]>[0][];
@@ -65,8 +67,8 @@ export function makeHarness(db: Db, overrides: HarnessOverrides = {}): WorldInfo
   const notStubbed = (): never => {
     throw new Error("WorldInfoContext chat-guard op not stubbed in this test");
   };
-  const ctx: WorldInfoContext = {
-    db,
+  const ctx: DbAssemblyInput<WorldInfoContext> = {
+    db: databaseHandle(db),
     now: (): number => clock.now(),
     newBookId: (): WorldBookId => castId<WorldBookId>(ids.next("world_book")),
     newEntryId: (): WorldEntryId => castId<WorldEntryId>(ids.next("world_entry")),

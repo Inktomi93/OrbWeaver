@@ -6,6 +6,7 @@
 // credential is a sealed secret with a label: the probes/inspect/fetch-models ops LEFT this domain for the
 // connection router (inference program §5.3), so there is nothing left here to fake but the audit recorder.
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { handleKey } from "@orb/kit/handle-key";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import type { Principal, UserRole } from "#contracts/identity/index.ts";
@@ -14,9 +15,8 @@ import type { Db } from "#db/client/index.ts";
 import { users } from "#db/schema/index.ts";
 import type { Handle, UserCredentialId, UserId } from "#kit/ids/index.ts";
 import { castId } from "#kit/ids/index.ts";
-import type { CredentialContext } from "#server/domain/credentials/context.ts";
 import type { CredentialView } from "#server/domain/credentials/contract/views.ts";
-import type { CredentialsService } from "#server/domain/credentials/index.ts";
+import type { CredentialContext, CredentialsService } from "#server/domain/credentials/index.ts";
 import { createCredentialsService } from "#server/domain/credentials/index.ts";
 import { createSecretBox } from "#server/infra/crypto/secrets.ts";
 
@@ -79,7 +79,7 @@ export function makeHarness(db: Db): CredentialHarness {
   const clock = createFrozenClock(FROZEN_AT_MS);
   const audits: AuditCall[] = [];
   const ctx: CredentialContext = {
-    db,
+    db: databaseHandle(db),
     now: (): number => clock.now(),
     newCredentialId: (): UserCredentialId => nextCredentialId(),
     box: createSecretBox(TEST_KEY),

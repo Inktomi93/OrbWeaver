@@ -15,6 +15,8 @@ import { groupConfigSchema, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AutomationRuleId, CharacterId, ChatId, ChatParticipantId, RosterPresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
@@ -73,7 +75,7 @@ interface RuleEnableCall {
 }
 
 export interface RosterPresetHarness {
-  readonly ctx: RosterPresetContext;
+  readonly ctx: DbAssemblyInput<RosterPresetContext>;
   readonly audits: AuditCall[];
   readonly userEvents: UserEventCall[];
   /** The recorded injected-chat-op calls, in fire order (the applyToChat ordering pins read these). */
@@ -166,7 +168,7 @@ function fakeSeatView(chatId: ChatId, characterId: CharacterId, participantId: C
 }
 
 /** Build the RosterPresetContext over a real db with deterministic + recording fakes. */
-export function makeHarness(db: Db, overrides: Partial<RosterPresetContext> = {}): RosterPresetHarness {
+export function makeHarness(db: Db, overrides: Partial<DbAssemblyInput<RosterPresetContext>> = {}): RosterPresetHarness {
   const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
@@ -182,8 +184,9 @@ export function makeHarness(db: Db, overrides: Partial<RosterPresetContext> = {}
   const ruleDeletes: AutomationRuleId[] = [];
   const ruleListReads = { count: 0 };
   const refuseMints = new Map<RulePresetId, string>();
-  const ctx: RosterPresetContext = {
-    db,
+  const handle = databaseHandle(db);
+  const ctx: DbAssemblyInput<RosterPresetContext> = {
+    db: handle,
     now: (): number => clock.now(),
     newRosterPresetId: (): RosterPresetId => castId<RosterPresetId>(ids.next("roster_preset")),
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {
@@ -195,8 +198,8 @@ export function makeHarness(db: Db, overrides: Partial<RosterPresetContext> = {}
     },
     // REAL belt reads (the compose seam's own queries) — the FK-vs-ownership distinction under test is
     // data, not wiring, so faking these would fake the subject.
-    verifyCharactersOwned: createOwnedCharacterIds(db),
-    verifyPersonaOwned: createPersonaOwned(db),
+    verifyCharactersOwned: createOwnedCharacterIds(handle),
+    verifyPersonaOwned: createPersonaOwned(handle),
     chat: {
       requireHost: (principalArg: Principal, chatId: ChatId): Promise<void> => {
         hostChecks.push({ principal: principalArg, chatId });

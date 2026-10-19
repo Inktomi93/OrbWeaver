@@ -13,7 +13,7 @@ import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters, chatParticipants, chats } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type {
   AssetId,
   CharacterHandle,
@@ -32,9 +32,8 @@ import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
-import type { CharacterContext } from "#server/domain/character/context.ts";
-import type { AttachCardTagOp, DetachCardTagOp } from "#server/domain/character/contract/service.ts";
-import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
+import type { AttachCardTagOp, CharacterAssemblyInput as CharacterContext, DetachCardTagOp } from "#server/domain/character/contract/service.ts";
+import { createStatsBatchWiring } from "#server/domain/stats/index.ts";
 import type { BulkImportLorebook, HasPrimaryBook } from "#server/domain/world-info/index.ts";
 import { createBulkImportLorebook, createCopyCharacterBooks, createHasPrimaryBook } from "#server/domain/world-info/index.ts";
 
@@ -99,9 +98,10 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
   // `preset.greetingTransform.*` slots the verb resolves through this op. `{}` = the shipped defaults.
   let greetingProse: ProseOverrides = {};
 
+  const handle = databaseHandle(db);
   const ctx: CharacterContext = {
-    db,
-    bumpStatsCanonVersion: (batch, opDb, ownerId) => bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId),
+    db: handle,
+    bumpStatsCanonVersion: createStatsBatchWiring().bumpStatsCanonVersion,
     now: (): number => clock.now(),
     newCharacterId: (): CharacterId => castId<CharacterId>(ids.next("character")),
     newSnapshotId: (): CharacterSnapshotId => castId<CharacterSnapshotId>(ids.next("character_snapshot")),
@@ -126,7 +126,7 @@ export function makeHarness(db: Db, overrides: { readonly materializeBackground?
     },
     // the REAL world-info carry (db-bound, deterministic) so a test can assert junction rows land —
     // faithful to compose, which wires this same persistence factory.
-    copyCharacterBooks: createCopyCharacterBooks({ db, now: (): number => clock.now() }),
+    copyCharacterBooks: createCopyCharacterBooks({ db: handle, now: (): number => clock.now() }),
     // PD user-bus lane: records the emit so a test can assert `charactersChanged` fires after a durable write.
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
@@ -344,13 +344,14 @@ export function principal(userId: UserId, role: UserRole = "user", handle: Handl
  *  clock (the harness determinism). */
 export function realLorebookImport(db: Db): { readonly importLorebook: BulkImportLorebook; readonly hasPrimaryBook: HasPrimaryBook } {
   const ids = createSeededIds();
+  const handle = databaseHandle(db);
   return {
     importLorebook: createBulkImportLorebook({
-      db,
+      db: handle,
       now: createFrozenClock().now,
       newBookId: () => castId<WorldBookId>(ids.next("world_book")),
       newEntryId: () => castId<WorldEntryId>(ids.next("world_entry")),
     }),
-    hasPrimaryBook: createHasPrimaryBook({ db }),
+    hasPrimaryBook: createHasPrimaryBook({ db: handle }),
   };
 }

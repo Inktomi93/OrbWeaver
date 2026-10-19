@@ -8,6 +8,8 @@ import type { PromptTransform, VariableWriteResult } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { automationFires } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
@@ -148,10 +150,11 @@ const NOT_WIRED_DISPATCH: ArmDispatch = () => Promise.resolve({ ok: false, kind:
  *  capturing `AutomationOps` through `overrides.ops`). Exported for suites that need the real reads beside their
  *  own write ops. */
 export function realAutomationOps(db: Db, overrides: Partial<Omit<AutomationActionOpsDeps, "db">> = {}): AutomationOps {
+  const handle = databaseHandle(db);
   return createAutomationOps({
-    db,
+    db: handle,
     // The plugin fan-out's delivery gate consumes this, so a stubbed verdict here would test nothing.
-    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+    resolveViewerVisibility: createResolveViewerVisibility({ db: handle }),
     applyVariableOps: async (): Promise<VariableWriteResult> => ({ outcome: "applied" }),
     upsertEntries: async () => ({ inserted: 0, updated: 0, skippedHandEdited: 0 }),
     emitNotification: async (): Promise<void> => undefined,
@@ -178,13 +181,14 @@ function realAuthorReads(db: Db): Pick<AutomationContext, "isAuthorEnabled" | "r
 /** Build an AutomationContext over a real db with the fixed clock/prng, the real `can()`, id minters, and the
  *  A5 watcher/dispatch seams (real enabled index, the author-principal resolver, injectable arm executors +
  *  notify). Call `ctx.enabled.reload()` after seeding enabled rules if the watcher pre-check is under test. */
-export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}): AutomationContext {
+export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}): DbAssemblyInput<AutomationContext> {
+  const handle = databaseHandle(db);
   const ops =
     overrides.ops ??
     realAutomationOps(db, overrides.tools === undefined ? {} : { isToolDrivableBy: overrides.tools.isToolDrivableBy, runTool: overrides.tools.runTool });
   const promptRegistry: TestPromptRegistry = overrides.promptRegistry ?? makeTestPromptRegistry();
   return {
-    db,
+    db: handle,
     now: () => FIXED_NOW_MS,
     prng: () => FIXED_PRNG,
     newRuleId: () => mintTypeId(ID_PREFIX.automationRule),
@@ -194,7 +198,7 @@ export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}):
     ops,
     listRuleTools: () => [],
     runArm: overrides.runArm ?? NOT_WIRED_DISPATCH,
-    enabled: overrides.enabled ?? createEnabledRuleIndex(db),
+    enabled: overrides.enabled ?? createEnabledRuleIndex(handle),
     // S4 — ONE store per harness (the compose posture): a test that raises through the dispatch and confirms
     // through the verbs must be looking at the same map, or every confirm would refuse as not-found.
     suggestions: overrides.suggestions ?? createSuggestionStore(),
@@ -202,7 +206,7 @@ export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}):
     transforms:
       overrides.transforms ??
       createPromptTransformIndex({
-        db,
+        db: handle,
         ops,
         prng: () => FIXED_PRNG,
         now: () => FIXED_NOW_MS,
@@ -274,7 +278,7 @@ export interface RuleFixture {
   readonly events: AutomationBusEvent[];
   /** The context the service was built over — S4 tests read `ctx.suggestions` to see what a fire stashed,
    *  and the end-to-end confirm tests need the SAME instance the verbs take from. */
-  readonly ctx: AutomationContext;
+  readonly ctx: DbAssemblyInput<AutomationContext>;
 }
 
 /** A fresh db + a host + their chat + the built service — the shared rule-lifecycle test setup. */

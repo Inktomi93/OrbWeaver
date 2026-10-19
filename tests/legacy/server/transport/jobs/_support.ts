@@ -6,11 +6,13 @@
 
 import type { WorkloadLane, WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { vi } from "vitest";
 import type { WorkloadContributions } from "#server/domain/workloads/contract/contribution.ts";
-import type { WorkloadRunnerDeps, WorkloadService } from "#server/domain/workloads/contract/service.ts";
+import type { ReapWorkloadsAssemblyArgs, WorkloadRunnerAssemblyDeps, WorkloadService } from "#server/domain/workloads/contract/service.ts";
 import type { WorkloadRowAnyKind, WorkloadRunnableRow } from "#server/domain/workloads/contract/workload-row.ts";
 import type { CatalogRefreshSchedulerDeps } from "#server/transport/jobs/catalog-refresh-scheduler.ts";
 import type { OidcGcSchedulerDeps } from "#server/transport/jobs/oidc-gc-scheduler.ts";
@@ -46,10 +48,10 @@ export function makeRow(
 
 /** The minimal `WorkloadRunnerDeps` the worker threads through to the faked `run` (it reads only `db`+`now`;
  *  the cross-feature env/binder are unused by the driver — casts at the test edge, per the workloads harness). */
-function makeRunnerDeps(overrides: Partial<WorkloadRunnerDeps> = {}): WorkloadRunnerDeps {
+function makeRunnerDeps(overrides: Partial<WorkloadRunnerAssemblyDeps> = {}): WorkloadRunnerAssemblyDeps {
   return {
     // @orb-waive no-test-fabrication(Db): the faked `run`/`nextRunnable` never dereference db — only threaded through. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    db: {} as Db,
+    db: databaseHandle({} as Db),
     // @orb-waive no-test-fabrication(WorkloadContributions): same — contributions is never dereferenced by the faked engine ops. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     contributions: {} as WorkloadContributions,
     audit: () => Promise.resolve(),
@@ -64,12 +66,12 @@ export function makeWorkerDeps(overrides: Partial<WorkloadsWorkerDeps> = {}): Wo
   return {
     runnerDeps: makeRunnerDeps(),
     signal: new AbortController().signal,
-    nextRunnable: vi.fn((_db: Db, _contributions: WorkloadContributions, _now: number, _lane: WorkloadLane) =>
+    nextRunnable: vi.fn((_db: DatabaseHandle, _contributions: WorkloadContributions, _now: number, _lane: WorkloadLane) =>
       Promise.resolve<WorkloadRunnableRow | null>(null),
     ),
-    run: vi.fn((_deps: WorkloadRunnerDeps, _row: WorkloadRunnableRow, _signal: AbortSignal) => Promise.resolve()),
-    reap: vi.fn((_args: { db: Db; now: number; staleThresholdMs?: number }) => Promise.resolve(0)),
-    load: vi.fn((_db: Db, _contributions: WorkloadContributions, _id: WorkloadId) => Promise.resolve<WorkloadRowAnyKind | null>(null)),
+    run: vi.fn((_deps: WorkloadRunnerAssemblyDeps, _row: WorkloadRunnableRow, _signal: AbortSignal) => Promise.resolve()),
+    reap: vi.fn((_args: ReapWorkloadsAssemblyArgs) => Promise.resolve(0)),
+    load: vi.fn((_db: DatabaseHandle, _contributions: WorkloadContributions, _id: WorkloadId) => Promise.resolve<WorkloadRowAnyKind | null>(null)),
     subscribeWake: vi.fn((_listener: () => void) => () => undefined),
     scheduleInterval: vi.fn((_fn: () => void, _ms: number) => () => undefined),
     scheduleTimeout: vi.fn((_fn: () => void, _ms: number) => () => undefined),

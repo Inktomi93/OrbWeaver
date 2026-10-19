@@ -14,6 +14,7 @@ import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, automationRules, plugins, users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { InferenceDeps, InferenceRuntime } from "@orb/inference";
 import { createInferenceRuntime } from "@orb/inference";
 import { handleKey } from "@orb/kit/handle-key";
@@ -39,7 +40,7 @@ import { createConnectionPorts, createConnectionService } from "#server/domain/c
 import type { EmbeddingsService } from "#server/domain/embeddings/contract/service.ts";
 import { createRecordUsage } from "#server/domain/embeddings/index.ts";
 import { countOwnedVectors } from "#server/domain/embeddings/persistence/owned-vector-counts.ts";
-import { applyStatsDelta } from "#server/domain/stats/index.ts";
+import { createStatsBatchWiring } from "#server/domain/stats/index.ts";
 import { fakeModelCache, makeResolvedSecret } from "../../../inference/_support.ts";
 
 /** A recorded `audit` op call — every connection mutation owes a durable row. */
@@ -243,16 +244,17 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
   const credentialRelabels: Parameters<ConnectionContext["relabelCredential"]>[0][] = [];
   const requests: RecordedRequest[] = [];
   const now = (): number => clock.now();
-  const ports = createConnectionPorts({ db, now, catalogSettings: createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, now) });
+  const handle = databaseHandle(db);
+  const ports = createConnectionPorts({ db: handle, now, catalogSettings: createSettingsKvPort(handle, CATALOG_SETTINGS_PREFIX, now) });
   let embeddings: EmbeddingTargetPorts = { syncTargetGenerations: () => Promise.resolve(null), targetWouldMove: () => Promise.resolve(null) };
 
   const deps: InferenceDeps = {
     beginEmbeddingAccounting: createRecordUsage({
-      db,
+      db: handle,
       now,
       newCallId: seededMinter<EmbeddingCallId>("embedding_call"),
       newInvocationId: seededMinter<EmbeddingInvocationId>("embedding_invocation"),
-      applyStatsDelta,
+      applyStatsDelta: createStatsBatchWiring().applyStatsDelta,
     }),
     now,
     log: { debug: (): void => undefined, info: (): void => undefined, warn: (): void => undefined, error: (): void => undefined },
@@ -291,7 +293,7 @@ export async function makeHarness(db: Db, options: HarnessOptions = {}): Promise
   const runtime = await createInferenceRuntime(deps);
 
   const ctx: ConnectionContext = {
-    db,
+    db: handle,
     now,
     newConnectionId: seededMinter<UserConnectionId>("user_connection"),
     newBindingId: seededMinter<ConnectionBindingId>("connection_binding"),

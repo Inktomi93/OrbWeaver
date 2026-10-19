@@ -11,6 +11,7 @@ import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { WorkloadKind, WorkloadLane, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
@@ -58,7 +59,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
     } as unknown as WorkloadFrame["discovery"],
     loadUserSettings: () => Promise.resolve(DEFAULT_USER_SETTINGS),
     // @orb-waive no-test-fabrication(Db): only the contribution's params schema is read from this Db stub frame (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    db: {} as Db,
+    db: databaseHandle({} as Db),
     now: () => T0,
     // @orb-waive no-test-fabrication(unknown): stub frame — only the contribution's params schema is read here (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     connection: { refreshCatalog: stub({ models: [] }), refreshAgentSdkCatalog: stub({ models: [] }) } as unknown as WorkloadFrame["connection"],
@@ -136,7 +137,7 @@ export function makeService(
     return castId<WorkloadScheduleId>(`workload_schedule_${sn}`);
   };
   return createWorkloadService({
-    db,
+    db: databaseHandle(db),
     getContributions: () => contributions,
     now: () => T0,
     newWorkloadId,

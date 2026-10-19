@@ -10,6 +10,7 @@ import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, userConnections, users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
 import { handleKey } from "@orb/kit/handle-key";
@@ -101,8 +102,9 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
     model: castId<ModelId>("img-model"),
     generation: { output: { maxTokens: { min: 1, max: 8192 }, modalities: ["image"] } },
   });
+  const handle = databaseHandle(db);
   const ctx: ImageryContext = {
-    db,
+    db: handle,
     now: () => FROZEN_AT_MS,
     newGenerationId: (): ImageryGenerationId => castId<ImageryGenerationId>(ids.next("imagery_generation")),
     newCallId: (): ImageryCallId => castId<ImageryCallId>(ids.next("imagery_call")),
@@ -154,7 +156,7 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
       recordedStats.push(delta);
     },
     // The character-owned read compose wires, so the auto-add gate is exercised for real.
-    ownsCharacter: createCharacterOwned(db),
+    ownsCharacter: createCharacterOwned(handle),
     addToGallery: (caller, assetId, subjectCharacterId) => {
       galleryAdds.push({ ownerId: caller.userId, assetId, subjectCharacterId });
       return Promise.resolve();

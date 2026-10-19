@@ -19,7 +19,8 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { auditLogs, sessions, users } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
+import { awaitableStatementToken, statementToken } from "@orb/db/wiring-owner";
 import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -28,17 +29,17 @@ import { createSessionsRolePolicy, createSessionsService } from "@orb/server/dom
 import { createLocalLightUserSeed } from "@orb/server/entry/boot";
 import { UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { env } from "@orb/server/foundation/env";
-import { buildAuditStatementIfPrecedingWrote } from "@orb/server/foundation/observability";
+import { buildAuditStatementIfPrecedingWrote, createAuditWiring } from "@orb/server/foundation/observability";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { and, asc, eq, isNull } from "drizzle-orm";
-import type { AdminContext } from "#server/domain/admin/context.ts";
 import type { UnclaimedLinkOutcome } from "#server/domain/admin/contract/results.ts";
+import type { AdminAssemblyContext as AdminContext } from "#server/domain/admin/contract/service.ts";
 import type { SessionAdminView } from "#server/domain/admin/contract/views.ts";
 import type { AdminService } from "#server/domain/admin/index.ts";
 import { createAdminService } from "#server/domain/admin/index.ts";
-import { insertSession, revokeAllForUserStatement } from "#server/domain/sessions/persistence/sessions.ts";
+import { insertSession } from "#server/domain/sessions/persistence/sessions.ts";
 
 interface AuditCall {
   readonly entry: Parameters<AdminContext["audit"]>[0];
@@ -87,8 +88,8 @@ export async function liveSessionIds(db: Db, userId: UserId): Promise<SessionId[
 export function withBrokenAudit(ctx: AdminContext, db: Db): AdminContext {
   return {
     ...ctx,
-    auditStatementAfterWrite: (entry, at): BatchStmt =>
-      buildAuditStatementIfPrecedingWrote(db, { ...entry, actorUserId: castId<UserId>("user_no_such_actor") }, at),
+    auditStatementAfterWrite: (entry, at) =>
+      statementToken(buildAuditStatementIfPrecedingWrote(db, { ...entry, actorUserId: castId<UserId>("user_no_such_actor") }, at)),
   };
 }
 
@@ -101,12 +102,14 @@ export function withBrokenKick(ctx: AdminContext, db: Db): AdminContext {
     ...ctx,
     sessions: {
       ...ctx.sessions,
-      revokeAllForUserStatement: (userId): BatchStmt =>
-        db
-          .update(sessions)
-          .set({ userId: castId<UserId>("user_no_such_owner") })
-          .where(eq(sessions.userId, userId))
-          .returning({ id: sessions.id }),
+      revokeAllForUserStatement: (userId) =>
+        statementToken(
+          db
+            .update(sessions)
+            .set({ userId: castId<UserId>("user_no_such_owner") })
+            .where(eq(sessions.userId, userId))
+            .returning({ id: sessions.id }),
+        ),
     },
   };
 }
@@ -121,7 +124,9 @@ export function withBrokenBind(ctx: AdminContext, db: Db): AdminContext {
     sessions: {
       ...ctx.sessions,
       linkExternalIdStatement: (userId, externalId, at) =>
-        db.update(users).set({ externalId, updatedAt: at, ownerUserId: userId }).where(eq(users.id, userId)).returning({ id: users.id }),
+        awaitableStatementToken(
+          db.update(users).set({ externalId, updatedAt: at, ownerUserId: userId }).where(eq(users.id, userId)).returning({ id: users.id }),
+        ),
     },
   };
 }
@@ -201,16 +206,17 @@ export function makeHarness(db: Db, policyConfig: SessionsRolePolicyConfig = env
 
   // #1707 — the REAL link capability over the same test db (see the header): the bind statement rides the
   // verb's audited batch and the settlement is read back from durable state.
+  const handle = databaseHandle(db);
   const sessionsSvc = createSessionsService({
     rolePolicy: createSessionsRolePolicy(policyConfig),
-    db,
+    db: handle,
     now: () => clock.now(),
     sessionSecret: HARNESS_PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: () => clock.now(), onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db: handle, now: () => clock.now(), onEmbedSpaceBound: () => undefined }),
   });
 
   const ctx: AdminContext = {
-    db,
+    db: handle,
     now: (): number => clock.now(),
     newUserId: (): UserId => castId<UserId>(ids.next("user")),
     hashPassword: (plain: string): Promise<string> => Promise.resolve(`scrypt$test$${plain}`),
@@ -218,7 +224,7 @@ export function makeHarness(db: Db, policyConfig: SessionsRolePolicyConfig = env
     // property under test is that a minted account ends up holding `user_connections` rows, so a
     // recorder here would pass while the seed it stands for was gone. Same op the composition root
     // builds.
-    seedUserConnections: createLocalLightUserSeed({ db, now: () => clock.now(), onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db: handle, now: () => clock.now(), onEmbedSpaceBound: () => undefined }),
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {
       audits.push({ entry, at });
       return Promise.resolve();
@@ -226,7 +232,7 @@ export function makeHarness(db: Db, policyConfig: SessionsRolePolicyConfig = env
     // #1691 — the ATOMIC audit channel is NOT faked: the verbs' whole point is that the row commits inside
     // the privileged write's batch, so the harness wires the REAL builder over the test db and the assertions
     // read `audit_logs`. A recorder here would pass while the atomicity it exists to prove was gone.
-    auditStatementAfterWrite: (entry: AuditCall["entry"], at: number): BatchStmt => buildAuditStatementIfPrecedingWrote(db, entry, at),
+    auditStatementAfterWrite: createAuditWiring(handle).statementAfterWrite,
     emitUserEvent: (userId: UserId, event: UserBusEvent): void => {
       userEvents.push({ userId, event });
     },
@@ -242,7 +248,7 @@ export function makeHarness(db: Db, policyConfig: SessionsRolePolicyConfig = env
       },
       // #1691 — REAL, for the same reason as the audit statement: it rides the verb's batch, so a fake would
       // erase the atomicity under test. Tests assert against the `sessions` rows themselves.
-      revokeAllForUserStatement: (userId: UserId, revokedAt: number): BatchStmt => revokeAllForUserStatement(db, userId, revokedAt),
+      revokeAllForUserStatement: sessionsSvc.revokeAllForUserStatement,
       evictUserSockets: (userId: UserId): void => {
         evictedSockets.push(userId);
       },

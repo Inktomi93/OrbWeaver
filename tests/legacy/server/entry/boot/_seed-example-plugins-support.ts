@@ -1,6 +1,7 @@
 import { join } from "node:path";
 import type { InvocationChat, PluginCapability, PluginHandlerRef } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, PluginId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { liftJsonSchema } from "@orb/kit/json-schema";
@@ -100,7 +101,7 @@ export function recordingOps(db: Db, globals: Map<string, string>): { ops: Plugi
   };
   const ops: PluginHostOps = {
     ...base,
-    storage: buildPluginStorage(db, () => FROZEN_AT_MS),
+    storage: buildPluginStorage(databaseHandle(db), () => FROZEN_AT_MS),
     variables: { ...base.variables, get: (_ownerId, key): Promise<string | null> => Promise.resolve(globals.get(key) ?? null) },
     worldInfo: {
       ...base.worldInfo,
@@ -204,10 +205,11 @@ export function recordingOps(db: Db, globals: Map<string, string>): { ops: Plugi
 
 // Room-effect drives must pass the same live membership/host guards as production, not an admission-time host bit.
 export function roomAuthority(db: Db): Pick<PluginHostOps["chat"], "resolveViewerVisibility" | "requireHost"> {
+  const handle = databaseHandle(db);
   return {
-    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+    resolveViewerVisibility: createResolveViewerVisibility({ db: handle }),
     requireHost: async (chatId, installerUserId): Promise<void> => {
-      await requireHost({ db, can }, principalFor(installerUserId), chatId);
+      await requireHost({ db: handle, can }, principalFor(installerUserId), chatId);
     },
   };
 }

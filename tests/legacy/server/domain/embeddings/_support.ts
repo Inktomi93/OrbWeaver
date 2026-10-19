@@ -50,8 +50,8 @@ import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
-import type { EmbeddingsContext } from "#server/domain/embeddings/context.ts";
 import type { EmbeddingsIndexerContext, EmbeddingsService } from "#server/domain/embeddings/contract/service.ts";
+import type { EmbeddingsContext } from "#server/domain/embeddings/index.ts";
 import { analyzeAvatarImage } from "#server/domain/embeddings/indexer/caption.ts";
 import { createImageIndexer } from "#server/domain/embeddings/indexer/image.ts";
 import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
@@ -266,6 +266,7 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
   // The owner's resolved embed DTYPE, overridable per test (`embedDtypeAs`). Undefined ⇒ the capability's own
   // answer (the fake declares none, so the space tag is the bare model).
   const embedDtype: { current: string | undefined } = { current: undefined };
+  const handle = databaseHandle(db);
   const ctx: EmbeddingsContext = {
     loadAssetKind: async (assetId) => (await db.select({ kind: assets.kind }).from(assets).where(eq(assets.id, assetId)))[0]?.kind ?? null,
     loadAssetMime: async (assetId) => (await db.select({ mime: assets.mime }).from(assets).where(eq(assets.id, assetId)))[0]?.mime ?? null,
@@ -275,7 +276,7 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
       const bytes = sources.assetBytes?.get(assetId);
       return Promise.resolve(bytes === undefined ? null : contentHash(bytes));
     },
-    db,
+    db: handle,
     roleClientsFor: () => Promise.resolve(roleClients),
     withStableEmbeddingBinding: (_ownerId, read) => read(),
     resolveUtilityPresetParams: () => Promise.resolve(undefined),
@@ -302,7 +303,7 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
     // test seeded; a null answer means "row gone", which the sweeps skip.
     loadCharacterOwner: (characterId) => loadOwnerOf(db, "character", characterId),
     loadAssetOwner: (assetId) => loadOwnerOf(db, "asset", assetId),
-    loadChatHostUserId: (chatId) => loadPresentHostUserId(databaseHandle(db), chatId),
+    loadChatHostUserId: (chatId) => loadPresentHostUserId(handle, chatId),
     // A target move queues the owner's rebuild at compose; a domain test that cares overrides this.
     onTargetGenerationMoved: () => undefined,
     onTargetPromoted: () => undefined,
@@ -359,7 +360,7 @@ export function makeIndexerHarness(
   const loadAssetBytes: Mock<EmbeddingsContext["loadAssetBytes"]> = vi.fn<EmbeddingsContext["loadAssetBytes"]>(() => Promise.resolve(sources.assetBytes));
   const ctx: EmbeddingsIndexerContext = {
     indexAsset: createImageIndexer(
-      { ...makeStoreHarness(db).ctx, loadAssetBytes, loadAssetMime, roleClientsFor: () => Promise.resolve(roleClients) },
+      { ...makeStoreHarness(db).ctx, db, loadAssetBytes, loadAssetMime, roleClientsFor: () => Promise.resolve(roleClients) },
       { store, analyze: (_ownerId, bytes) => analyzeAvatarImage(roleClients, bytes) },
     ),
     store,

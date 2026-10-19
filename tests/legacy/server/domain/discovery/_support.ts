@@ -25,6 +25,7 @@ import {
   messageVariants,
   users,
 } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { handleKey } from "@orb/kit/handle-key";
 import type {
   AssetId,
@@ -213,9 +214,10 @@ export function makeDiscoveryHarness(
   const tagAttach = makeTagAttachRecorder();
   // The injected `stats` economics seam — default to the REAL stats reads over the SAME db (the
   // "inject the real dep at the root" doctrine; the composition root wires `stats.characterEconomics`).
-  const stats = createStatsService(db, () => STATS_NOW);
+  const handle = databaseHandle(db);
+  const stats = createStatsService(handle, () => STATS_NOW);
   const ctx: DiscoveryContext = {
-    db,
+    db: handle,
     now: () => FROZEN_AT_MS,
     newDuplicateCharacterPairId: seededMinter<DuplicateCharacterPairId>("duplicate_character_pair"),
     newThemeClusterId: seededMinter<ThemeClusterId>("theme_cluster"),
@@ -240,7 +242,7 @@ export function makeDiscoveryHarness(
     // exactly what the composition root binds (over live AppSettings there).
     tier0RangeOf: (tier, blockIdx) => resolveTier0Range(undefined, tier, blockIdx),
     resolveDigestSources: createDigestSources({
-      db,
+      db: handle,
       digestConsolidationHash: consolidationHash,
       tier0RangeOf: (tier, blockIdx) => resolveTier0Range(undefined, tier, blockIdx),
     }),
