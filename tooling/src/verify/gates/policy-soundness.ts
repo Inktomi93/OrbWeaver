@@ -56,9 +56,9 @@
 //
 // FAMILY `policy-soundness` — this module is the family's namesake and the shared reader is
 // `lib/policy-descriptor-read.ts`, whose `finalRegistrationOf` decides by IMPORT ORIGIN which modules any
-// member may judge at all. Nine modules declare the family; the closed classes live here and each OPEN
-// class lives in its own module (`policy-legacy-imports`, `policy-binding-resolution`) so that this
-// module's held-at-zero pin cannot quietly absorb a class that is still moving.
+// member may judge at all. The family's closed classes live here and each OPEN class lives in its own
+// module (`policy-legacy-imports`) so that this module's held-at-zero pin cannot quietly absorb a class that
+// is still moving.
 // POPULATION PORT: NONE — no legacy population exists to port, because this module was BORN FINAL at
 // `8194754f7c`, the commit that created the family. `git show 8194754f7c^:<this file>` refuses with "exists
 // on disk, but not in 8194754f7c^", and that refusal IS the receipt (the `scrubber-factory-home`

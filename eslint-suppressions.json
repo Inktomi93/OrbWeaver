@@ -69,11 +69,6 @@
       "count": 1
     }
   },
-  "tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts": {
-    "max-lines": {
-      "count": 1
-    }
-  },
   "tests/tooling/verify/lib/policy-pass.test.ts": {
     "max-lines": {
       "count": 1

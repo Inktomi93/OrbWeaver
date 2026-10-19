@@ -18,7 +18,6 @@ import { gate as ctStorySingleImport } from "../../../../../tooling/src/verify/g
 import { gate as diagnosticLegibility } from "../../../../../tooling/src/verify/gates/diagnostic-legibility.ts";
 import { gate as noDirectReportsWrite } from "../../../../../tooling/src/verify/gates/no-direct-reports-write.ts";
 import { gate as noOpaqueTestFixture } from "../../../../../tooling/src/verify/gates/no-opaque-test-fixture.ts";
-import { gate as policyBindingResolution } from "../../../../../tooling/src/verify/gates/policy-binding-resolution.ts";
 import { gate as policyFixtureSubstrate } from "../../../../../tooling/src/verify/gates/policy-fixture-substrate.ts";
 import { gate as policyLegacyImports } from "../../../../../tooling/src/verify/gates/policy-legacy-imports.ts";
 import { gate as policyProofExpectations } from "../../../../../tooling/src/verify/gates/policy-proof-expectations.ts";
@@ -128,18 +127,6 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noOpaqueTestFixture,
     overlays: [add("tests/client/features/rpg/liveness.fixtures.ts", 'export function makeLivenessGame(): unknown {\n  return { ruleset: "d20" };\n}\n')],
     messageIncludes: "typed `unknown`",
-  },
-  {
-    policy: policyBindingResolution,
-    // On the real ts-morph `getDefinitionNodes` lives on the reference-findable nodes (an `Identifier`), not on
-    // the base `Node` the row's stub declares it on, so the probe walks an `Identifier` as a real gate would.
-    overlays: [
-      probeGate({
-        id: "liveness-binding",
-        head: 'import type { Identifier } from "ts-morph";\nexport const probe = (node: Identifier): unknown => node.getDefinitionNodes();\n',
-      }),
-    ],
-    messageIncludes: "Member: `getDefinitionNodes`.",
   },
   {
     policy: policyFixtureSubstrate,

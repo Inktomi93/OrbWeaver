@@ -98,7 +98,7 @@ Use:
    implementation through the same `overloadHome` the module axis uses. A bodyless declaration (`declare function`, an
    overload signature) RESOLVES with `body: undefined`, because identity and body are different questions.
    **The hand-written `lexicalReferenceSymbol(identifier).getDeclarations()` fallback this entry used to recommend is
-   now a `policy-binding-resolution` finding inside a gate module** (owner ruling #2097, guide §12.3): the three
+   now an `orb/policy-binding-resolution` lint finding inside a gate module** (owner ruling #2097, guide §12.3): the three
    modules that carried it — `audit-client-tests`, `class-token-splice`, `plugin-dump-guard` — each answered
    multiplicity, reassignment and cycles differently, which is the whole reason the question has one home.
 

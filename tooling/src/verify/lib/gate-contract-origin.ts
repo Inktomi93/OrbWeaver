@@ -118,9 +118,9 @@ function declarationOwnerName(node: MorphNode): string | undefined {
  *  load-bearing (#2202/#2199): `Type#getProperty` answers `undefined` for ANY union, and an OPTIONAL CHAIN
  *  produces exactly that — `node.getSymbol()?.…` types its receiver `Symbol | undefined`. Combined with the
  *  bracket spelling, whose nameNode is a STRING LITERAL carrying no symbol of its own, both doors closed at
- *  once and `isTsMorphMember` answered false: `node.getSymbol()?.getDeclarations()` resolved (nameNode door),
+ *  once and the walk identity answered false: `node.getSymbol()?.getDeclarations()` resolved (nameNode door),
  *  `node["getDefinitionNodes"]()` resolved (type door, non-nullable receiver), and
- *  `node.getSymbol()?.["getDeclarations"]()` — the SAME binding resolution one spelling over — did not. That
+ *  `node.getSymbol()?.["getDeclarations"]()` — the SAME member one spelling over — did not. That
  *  is a silent green on the accusing side for every policy asking this question, not only the one that
  *  measured it. */
 function receiverConstituents(member: CallableMember): readonly import("ts-morph").Type[] {
@@ -140,16 +140,6 @@ function callableDeclarations(member: CallableMember): readonly MorphNode[] {
       .map((signature) => signature.getDeclaration()),
   );
   return [...declarations, ...signatures];
-}
-
-/** True only when the member declaration and receiver type prove a ts-morph member — and, when `owner` is
- *  given, one declared on THAT ts-morph class or interface. The owner half is what tells `Symbol#getDeclarations`
- *  (binding resolution) from `VariableStatement#getDeclarations` (a syntax accessor of the same name): identity,
- *  not spelling, exactly as the walk test below reads `getSourceFiles` off `Project` and nothing else. */
-export function isTsMorphMember(member: CallableMember, owner?: string): boolean {
-  return callableDeclarations(member).some(
-    (declaration) => comesFromTsMorph(declaration) && (owner === undefined || declarationOwnerName(declaration) === owner),
-  );
 }
 
 /** True only when the member declaration and receiver type prove a ts-morph Project/Node walk. */

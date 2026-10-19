@@ -1835,6 +1835,37 @@ const modelProseRule = {
   },
 };
 
+// HARD bans on the verify framework's own gate modules. They are registered on `restrictionPlugin` and enabled
+// only by `hardConfig`: never spread into RESTRICTIONS, so no inline disable, bulk suppression or home can excuse them.
+const GATE_MODULES = ["tooling/src/verify/gates/**/*.{ts,tsx}"];
+const GATE_PROOF_FIXTURES = ["tooling/src/verify/gates/_proof/**"];
+const BINDING_RESOLUTION_MESSAGE =
+  "A gate module resolves no binding or origin itself (docs/law/gate-runtime-standardization.md §3): read through floor/code-facts/reference-fact.ts (resolveStableExpression, resolveModuleMemberOrigin, resolveGlobalMemberOrigin) or lib/origin-verdict.ts, or add the missing question to a shared reader.";
+const bindingMember = (name) => ({
+  selector: `:matches(MemberExpression${memberNamed(name)}, ObjectPattern > Property[computed=false][key.name='${name}'])`,
+  message: `${BINDING_RESOLUTION_MESSAGE} Member: \`${name}\`.`,
+});
+// `Symbol#getDeclarations` shares its name with the syntax accessors on variable statements, so only the chain that
+// starts at a symbol read is a resolution.
+const symbolRead = (prefix) =>
+  `[${prefix}type='CallExpression'][${prefix}callee.type='MemberExpression']:matches(${memberNamed("getSymbol", `${prefix}callee.`)}, ${memberNamed("getSymbolOrThrow", `${prefix}callee.`)})`;
+const VERIFY_HARD_RESTRICTIONS = [
+  {
+    id: "policy-binding-resolution",
+    scope: GATE_MODULES,
+    notUnder: GATE_PROOF_FIXTURES,
+    homes: [],
+    selectors: [
+      ...["getDefinitionNodes", "getDefinitions", "findReferences", "findReferencesAsNodes", "getImplementations"].map(bindingMember),
+      ...["getValueDeclaration", "getValueDeclarationOrThrow", "getAliasedSymbol", "getAliasedSymbolOrThrow"].map(bindingMember),
+      {
+        selector: `MemberExpression${memberNamed("getDeclarations")}:matches(${symbolRead("object.")}, [object.type='TSNonNullExpression']${symbolRead("object.expression.")})`,
+        message: `${BINDING_RESOLUTION_MESSAGE} Member: \`getDeclarations\`.`,
+      },
+    ],
+  },
+];
+
 const RESTRICTIONS = [
   {
     id: "no-test-fabrication",
@@ -4633,6 +4664,7 @@ const restrictionPlugin = {
     "tooling-cli-entry": toolingEntryRule(false),
     "tooling-ops-direct-invocation": toolingEntryRule(true),
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
+    ...Object.fromEntries(VERIFY_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     [TYPE_HOME_NATIVE_POLICY_ID]: typeHomeDeclarationRule,
     [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryPublicBoundaryRule,
     "no-inline-invalidate-outside-seam": nativePackageCallRule(["invalidateQueries"], true),
@@ -5573,6 +5605,12 @@ export const hardConfig = [
     },
     settings: typedNativeSettings(entry),
     rules: { [entry.ruleId]: "error" },
+  })),
+  ...VERIFY_HARD_RESTRICTIONS.map(({ id, scope, notUnder }) => ({
+    files: scope,
+    ignores: notUnder,
+    plugins: { orb: restrictionPlugin },
+    rules: { [`orb/${id}`]: "error" },
   })),
   { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: "off", reportUnusedInlineConfigs: "off" } },
 ];
