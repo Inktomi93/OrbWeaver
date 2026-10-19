@@ -1,10 +1,10 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-10-19
 priority: P2
 area: packages
-lane: wt/agent-a95ed6729b8988fa7
+blocked: on 1133
 plan: test-foundation
 ---
 
@@ -38,8 +38,8 @@ Reviewed non-macro kit cleanup removes obsolete exports and dead implementations
 
 Reviewed kit cleanup narrows internal exports and moves meaningful cases to public callers. Scoped native checks pass; legacy types remain red. Only exact stale baseline keys leave. CSS models await real producer/renderer qualification. Evidence: `reports/review/989-kit-b1b2-independent.md`.
 
-Reviewed client state doors preserve evaluation, public contracts and legacy cases. Retained decisions and compiler reds stay explicit. Only exact stale keys leave. Evidence: `reports/review/peer-state-population-independent.md`.
+Reviewed client state doors: evidence `reports/review/peer-state-population-independent.md`.
 
-Reviewed feature doors preserve emitted requests, bindings and legacy assertions. Header-described doors are narrowed; explicit test APIs and state decisions remain retained. Only exact stale keys leave. Evidence: `reports/review/989-feature-door-independent.md` and `reports/review/989-client-held-door-independent.md`.
+Reviewed feature doors: evidence `reports/review/989-feature-door-independent.md` and `reports/review/989-client-held-door-independent.md`.
 
 Plan-method evidence (`pnpm ast rot`/`apisurface`) does not complete at usable cost: rot server stopped at 2 h 54 min without a verdict. Bulk application waits on 1133 and 965, as the plan's public-doors section requires.
