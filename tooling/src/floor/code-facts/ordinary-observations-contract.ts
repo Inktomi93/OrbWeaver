@@ -7,6 +7,9 @@ import type { CallableDeclaration, ReferenceFact, ReturnedValueSource } from "./
 import type { DeclaredCallTerminalSelection } from "./type-member-origin-contract.ts";
 import type { NativeTypeProjection, NativeTypeSelections } from "./type-projection-contract.ts";
 
+/** Array members whose call result a JSON column field may flow through unchanged; the planner asks column-field questions only at these calls. */
+export const ORDINARY_ARRAY_REMAPS: ReadonlySet<string> = new Set(["filter", "map"]);
+
 export interface OrdinaryObservationDemand<Anchor = Node> {
   readonly roots: readonly Anchor[];
   readonly reads: readonly { readonly node: Anchor; readonly path: readonly string[] }[];
