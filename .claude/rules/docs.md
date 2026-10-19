@@ -65,6 +65,8 @@ overview` is the column view, and `--status` and `--area` narrow it; `pnpm doc d
 `pnpm check:agents` (the governed tree), `pnpm check:docs` (the formatter), `pnpm test:scoped tests/tooling/doc`
 (dangling references and D citations). A floor touching docs runs all three.
 
+A markdown link must resolve to a tracked file, because `reports/` is gitignored and absent in CI. Cite a report as a backticked `reports/...` path, which the checker does not resolve.
+
 ## Editing a formatted doc
 
 A scripted find-and-replace against a formatted doc asserts the match count is 1 before replacing. The

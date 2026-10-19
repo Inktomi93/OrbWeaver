@@ -22,7 +22,7 @@ Read the [side-plan priority note](../inference-flow/design.md#reading-priority)
 
 ### Recovery priority and analysis scope
 
-Follow D328 before analysis dispatch. The [bottleneck research](../../../reports/review/seven-day-bottleneck-claude-analysis.md) records source-specific diagnosis, not a mandate to resume its repair loop. Derive current affected claims without another whole-tree audit.
+Follow D328 before analysis dispatch. The bottleneck research (`reports/review/seven-day-bottleneck-claude-analysis.md`) records source-specific diagnosis, not a mandate to resume its repair loop. Derive current affected claims without another whole-tree audit.
 
 [D328](../../adr/0328-bounded-analysis-and-explicit-security-successors.md) bounds analyzer acceptance. Keep shared native facts and local analysis; stop exhaustive DI, callable and escape proofs. Prefer native tools and partial coverage. Unsupported flows stay explicit, not universal release blockers. Concrete violations block. Security migrations retain production authorization, native boundaries and real cross-tenant controls; record lost static guarantees. Preserve complete declared populations, world identity and store lifetimes. D323 prototype enforcement remains. No helper-specific repair, new unbounded diagnostic, TS7 experiment or heap increase.
 
@@ -38,7 +38,7 @@ Keep cold multi-world cost separate. Client typecheck consumes router declaratio
 
 D321 records the owner rulings; item 1041 owns the audited gate migration. Custom gate analysis serves the KEEP set. Do not port MOVE or DELETE rows into the fact store. Shared providers count once for cost.
 
-Continue audited migration independently of general callable closure. Qualify bounded retained-reader coverage and cost under D328. The [delivery-boundary report](../../../reports/review/1027-remaining-delivery-boundary.md) traces the remaining schema, clone and compose readers.
+Continue audited migration independently of general callable closure. Qualify bounded retained-reader coverage and cost under D328. The delivery-boundary report (`reports/review/1027-remaining-delivery-boundary.md`) traces the remaining schema, clone and compose readers.
 
 [D320](../../adr/0320-legacy-tests-run-and-typecheck-without-semantic-extraction.md) makes legacy tests run/typecheck-only. Keep their CI regression execution and native typecheck programs. Exclude legacy worlds from semantic extraction and legacy files from typed gate/provider populations and type-aware lint. Preserve cheap admission and boundary checks.
 
@@ -46,7 +46,7 @@ D320 eligibility is integrated; items 1002 and 1027 retain metadata qualificatio
 
 Prioritize D320 eligibility, native replacements and fresh declaration bridges. The [occurrence-index design](../native-occurrence-index/design.md) replaces repeated bulk reference searches. Preserve world-specific bindings and dependency invalidation. Attribute reference extraction separately from invocation and callable work. Compiler baselines do not prove equivalent analysis.
 
-The [typed-gate census](../../../reports/review/typed-gate-necessity-census.md) classifies source, not qualified successors. Re-derive partly written migrations before continuing.
+The typed-gate census (`reports/review/typed-gate-necessity-census.md`) classifies source, not qualified successors. Re-derive partly written migrations before continuing.
 
 Keep the existing TS6 analysis. Park TS7 benchmarking and adapter work; the measured prototype is slower, larger and semantically unqualified. Batching removes transport overhead, not deep lookup or proof work. Focus on existing reference and callable traversal costs, shared facts and native gate replacement. Preserve the external experiment without changing pins. Evidence: `reports/review/1002-ts7-checker-benchmark.md`.
 
