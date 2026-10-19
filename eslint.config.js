@@ -4497,11 +4497,13 @@ const STANDARD_CONFIG = tseslint.config(
   },
   {
     // The st-goldens rig's own tracked scripts are browser-world TypeScript the root program does not own, so they
-    // match no parser block above. A syntactic parse is all the decorator ban below needs from them.
+    // match no parser block above. The browser test program is the one that includes them, and the typed native
+    // rules the authored-source blocks enable here (orb/no-raw-intl-time, orb/zustand-selector-stability) need
+    // its checker: a syntax-only parser crashes those rules and leaves the file with no native compiler owner.
     files: ["scripts/probes/st-goldens/**/*.ts"],
     languageOptions: {
       parser: tseslint.parser,
-      parserOptions: { sourceType: "module" },
+      parserOptions: { project: [TEST_WORLD_PROGRAMS.browser], projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
     },
   },
   ...syntaxBlocks(FORM_SYNTAX_SRC, []),

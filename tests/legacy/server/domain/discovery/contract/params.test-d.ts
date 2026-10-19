@@ -7,12 +7,14 @@
 // THE ENFORCER IS `tsc`, so the pin is type-level: the assertions below ARE the boundary. Runtime behavior
 // (a foreign on-demand id collapses to NOT_FOUND) is covered by `verbs/distill.int.test.ts`.
 
+import type { EveryOwnerRun } from "@orb/contracts/workloads";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
 import type { DistillCharactersOptions, DistillTargetNarrow } from "#server/domain/discovery/index.ts";
 
 declare const characterId: CharacterId;
 declare const ownerId: UserId;
+declare const everyOwnerRun: EveryOwnerRun;
 
 test("an on-demand narrow CANNOT name a card without naming whose it is", () => {
   // The id-only narrow is the defect, and it must not typecheck.
@@ -21,7 +23,10 @@ test("an on-demand narrow CANNOT name a card without naming whose it is", () => 
 
   // The PAIRED narrow (the tRPC seam's shape — `ctx.auth.userId` + the wire id) still does.
   expectTypeOf({ characterId, ownerId }).toExtend<DistillTargetNarrow>();
-  // The whole-library sweeps still do: owner-scoped (a per-user workload row) and bulk (the box-wide arm).
+  // The whole-library sweeps still do: owner-scoped (a per-user workload row) and bulk (the box-wide arm, which
+  // must carry the runner's every-owner authority — a bare `{}` or a null owner alone grants nothing).
   expectTypeOf({ ownerId }).toExtend<DistillTargetNarrow>();
-  expectTypeOf({}).toExtend<DistillTargetNarrow>();
+  expectTypeOf({ ownerId: null, everyOwnerRun }).toExtend<DistillTargetNarrow>();
+  expectTypeOf({}).not.toExtend<DistillTargetNarrow>();
+  expectTypeOf({ ownerId: null }).not.toExtend<DistillTargetNarrow>();
 });

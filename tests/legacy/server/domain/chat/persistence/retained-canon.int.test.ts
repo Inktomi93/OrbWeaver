@@ -59,7 +59,11 @@ test.for([false, true])("retained canon and both owner deltas commit atomically;
     costUsd: 0.25,
     costSamples: 1,
   };
-  const operation = commitRetainedCanonStats(ctx, room.id, [batchStmt(db.update(chats).set({ title: "Committed" }).where(eq(chats.id, room.id)))], { deltas: [delta], sources: [], contributions: [] });
+  const operation = commitRetainedCanonStats(ctx, room.id, [batchStmt(db.update(chats).set({ title: "Committed" }).where(eq(chats.id, room.id)))], {
+    deltas: [delta],
+    sources: [],
+    contributions: [],
+  });
   const refusalCode = await operation.then(
     () => null,
     (error: unknown) => {
@@ -79,7 +83,11 @@ test.for([false, true])("retained canon and both owner deltas commit atomically;
       ].sort();
   expect((await db.select().from(ownerStats)).map((row) => [row.ownerId, row.costUsd, row.costSamples]).sort()).toEqual(expectedStats);
   if (!change) {
-    await commitRetainedCanonStats(base, room.id, [batchStmt(db.update(chats).set({ title: "Metadata edit" }).where(eq(chats.id, room.id)))], { deltas: [], sources: [], contributions: [] });
+    await commitRetainedCanonStats(base, room.id, [batchStmt(db.update(chats).set({ title: "Metadata edit" }).where(eq(chats.id, room.id)))], {
+      deltas: [],
+      sources: [],
+      contributions: [],
+    });
   }
   const expectedFences = change
     ? []

@@ -360,8 +360,7 @@ interface IndexerWiring {
 /** Reproduce the composition root's indexer wiring: real character/assets services (their UN-PRINCIPAL canon
  *  re-readers feed the indexer), a STUB store recording calls, subscribed to a real bus via the same
  *  dispatcher entry/compose/services.ts uses. */
-async function wireIndexer(db: Db): Promise<IndexerWiring> {
-  const bus = createDomainEventBus();
+async function wireIndexer(db: Db, bus: ReturnType<typeof createDomainEventBus>): Promise<IndexerWiring> {
   const character = createCharacterService(makeCharHarness(db).ctx);
   const assetsH = await makeAssetsHarness(db);
   const assets = createAssetsService(assetsH.ctx);
@@ -427,7 +426,8 @@ async function drain(done: () => boolean): Promise<void> {
 describe("embeddings indexer bus subscription", () => {
   test("character.updated drives the indexer to store the card-text projection", async () => {
     const db = await freshDb();
-    const w = await wireIndexer(db);
+    using bus = createDomainEventBus();
+    const w = await wireIndexer(db, bus);
     onTestFinished(w.cleanup);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await w.character.create({
@@ -451,7 +451,8 @@ describe("embeddings indexer bus subscription", () => {
 
   test("a flag-only character.updated (contentChanged=false) drives ZERO store work", async () => {
     const db = await freshDb();
-    const w = await wireIndexer(db);
+    using bus = createDomainEventBus();
+    const w = await wireIndexer(db, bus);
     onTestFinished(w.cleanup);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await w.character.create({
@@ -469,7 +470,8 @@ describe("embeddings indexer bus subscription", () => {
 
   test("asset.created drives the indexer to store both image lenses from the real CAS bytes", async () => {
     const db = await freshDb();
-    const w = await wireIndexer(db);
+    using bus = createDomainEventBus();
+    const w = await wireIndexer(db, bus);
     onTestFinished(w.cleanup);
     const owner = await seedVectorOwner(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(7, 7, 7, 7);

@@ -35,12 +35,12 @@ function registerFlush(barrier: ReturnType<typeof createRpgFlushBarrier>, flush:
 
 describe("rpg flush barrier", () => {
   test("no in-flight flush → awaitInFlight resolves immediately (the common fast path)", async () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+    await using barrier = createRpgFlushBarrier(() => undefined);
     await expect(barrier.awaitInFlight(CHAT)).resolves.toBeUndefined();
   });
 
   test("awaitInFlight blocks until the registered flush settles, then releases", async () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+    await using barrier = createRpgFlushBarrier(() => undefined);
     const flush = deferred();
     const registered = registerFlush(barrier, flush.promise);
 
@@ -59,7 +59,7 @@ describe("rpg flush barrier", () => {
   });
 
   test("a settled flush self-clears its entry (a later awaitInFlight is the fast path again)", async () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+    await using barrier = createRpgFlushBarrier(() => undefined);
     const flush = deferred();
     const registered = registerFlush(barrier, flush.promise);
     flush.resolve();
@@ -76,7 +76,7 @@ describe("rpg flush barrier", () => {
   });
 
   test("a REJECTING flush still settles the barrier (rejection swallowed, entry clears)", async () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+    await using barrier = createRpgFlushBarrier(() => undefined);
     const flush = deferred();
     const registered = registerFlush(barrier, flush.promise);
     flush.reject(new Error("flush blew up"));
@@ -89,7 +89,7 @@ describe("rpg flush barrier", () => {
   // flight, or a lock-free generate raced a send) are BOTH tracked and BOTH awaited. A latest-only slot would
   // drop the older → a one-beat-staler read. This pins that awaitInFlight waits for EVERY in-flight flush.
   test("S2: TWO concurrent flushes are both tracked — awaitInFlight waits for ALL, not just the latest", async () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+    await using barrier = createRpgFlushBarrier(() => undefined);
     const older = deferred();
     const newer = deferred();
     const olderRegistered = registerFlush(barrier, older.promise);
@@ -114,7 +114,7 @@ describe("rpg flush barrier", () => {
 
   // S2 corollary: after both settle the entry is gone (empty set deleted → fast path restored).
   test("S2: an emptied set is deleted (both concurrent flushes settling restores the fast path)", async () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+    await using barrier = createRpgFlushBarrier(() => undefined);
     const a = deferred();
     const b = deferred();
     const aRegistered = registerFlush(barrier, a.promise);
@@ -134,7 +134,7 @@ describe("rpg flush barrier", () => {
   test("a hung flush releases at the bound + fires onTimeout (never a deadlocked turn)", async () => {
     const timer = createManualTimer();
     const timeouts: { chatId: ChatId }[] = [];
-    const barrier = createRpgFlushBarrier((info) => timeouts.push({ chatId: info.chatId }), 1000, timer.schedule);
+    await using barrier = createRpgFlushBarrier((info) => timeouts.push({ chatId: info.chatId }), 1000, timer.schedule);
     const hung = deferred(); // never resolves — a black-holed state round
     const registered = registerFlush(barrier, hung.promise);
 
@@ -156,7 +156,7 @@ describe("rpg flush barrier", () => {
   test("a flush that settles cancels the armed bound (no dangling timer per gather)", async () => {
     const timer = createManualTimer();
     const timeouts: { chatId: ChatId }[] = [];
-    const barrier = createRpgFlushBarrier((info) => timeouts.push({ chatId: info.chatId }), 1000, timer.schedule);
+    await using barrier = createRpgFlushBarrier((info) => timeouts.push({ chatId: info.chatId }), 1000, timer.schedule);
     const flush = deferred();
     const registered = registerFlush(barrier, flush.promise);
     const wait = barrier.awaitInFlight(CHAT);
@@ -173,7 +173,7 @@ describe("rpg flush barrier", () => {
   // `activeTurns` registration has been released and can signal nobody.
 
   test("cancel aborts the running round's OWN signal (the turn's registration is long gone by then)", async () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+    await using barrier = createRpgFlushBarrier(() => undefined);
     const gate = deferred();
     let seen: AbortSignal | undefined;
     const registered = barrier.register({
@@ -194,7 +194,7 @@ describe("rpg flush barrier", () => {
   });
 
   test("cancel is OWNER-SCOPED — another member's Stop cannot kill this round (mirrors activeTurns.abort)", async () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+    await using barrier = createRpgFlushBarrier(() => undefined);
     const gate = deferred();
     let seen: AbortSignal | undefined;
     const registered = barrier.register({
@@ -217,8 +217,8 @@ describe("rpg flush barrier", () => {
     await registered;
   });
 
-  test("cancel on a chat with no in-flight round is an idempotent 0 (the no-op the abort verb reads)", () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+  test("cancel on a chat with no in-flight round is an idempotent 0 (the no-op the abort verb reads)", async () => {
+    await using barrier = createRpgFlushBarrier(() => undefined);
     expect(barrier.cancel(CHAT, OWNER)).toBe(0);
   });
 
@@ -226,7 +226,7 @@ describe("rpg flush barrier", () => {
   // in a round shares one registration, so speaker 1's round is still reachable while speaker 2 generates).
   // Arm B must not lose it while replacing it: the turn signal is folded into the round's controller.
   test("the character turn's signal is folded in — aborting it cancels the round (multi-speaker overlap)", async () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+    await using barrier = createRpgFlushBarrier(() => undefined);
     const turn = new AbortController();
     const gate = deferred();
     let seen: AbortSignal | undefined;
@@ -250,7 +250,7 @@ describe("rpg flush barrier", () => {
   // A turn aborted BEFORE its flush was even registered (an earlier speaker's round queued behind a Stop): the
   // round must be born cancelled, not run once and then notice.
   test("an ALREADY-aborted turn signal makes the round born-cancelled", async () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+    await using barrier = createRpgFlushBarrier(() => undefined);
     const turn = new AbortController();
     turn.abort();
     let seen: AbortSignal | undefined;
@@ -272,7 +272,7 @@ describe("rpg flush barrier", () => {
   // chat-domain abort reason carrying the word "timeout" would turn a cancelled round into a re-billed one.
   // The barrier re-aborts its own controller instead, flattening every cause to a plain AbortError.
   test("the composed signal does NOT propagate the turn's abort reason (a retryable-looking reason would re-run the round)", async () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+    await using barrier = createRpgFlushBarrier(() => undefined);
     const turn = new AbortController();
     let seen: AbortSignal | undefined;
     await barrier.register({
@@ -298,7 +298,7 @@ describe("rpg flush barrier", () => {
   // has to unwind and clear its staging, and the next gather must not read before that. Dropping it here would
   // re-open the very stale-read race this barrier exists to close.
   test("a CANCELLED round still holds the barrier until it actually settles", async () => {
-    const barrier = createRpgFlushBarrier(() => undefined);
+    await using barrier = createRpgFlushBarrier(() => undefined);
     const gate = deferred();
     const registered = registerFlush(barrier, gate.promise);
     expect(barrier.cancel(CHAT, OWNER)).toBe(1);

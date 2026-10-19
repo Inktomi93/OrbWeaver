@@ -102,7 +102,7 @@ describe("spawnQuickTunnel", () => {
   test("stop ends the process, onExit fires once, and a second stop is a no-op", async () => {
     const { executable } = await plantedCloudflared();
     const seen = observe();
-    const relay = spawnQuickTunnel(executable, ORIGIN, seen);
+    await using relay = spawnQuickTunnel(executable, ORIGIN, seen);
     await seen.firstUrl;
     relay.stop();
     relay.stop();

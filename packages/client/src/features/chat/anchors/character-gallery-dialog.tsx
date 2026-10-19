@@ -2,7 +2,6 @@
 // keyset-paged grid with "Load more", a lightbox whose remove sits behind a confirm, and the add-picker. The
 // "This chat" scope filters inside the caller's own gallery, never wider. Focus never leaves the dialog.
 
-import { PickerDialog } from "#components";
 import type { GallerySort } from "@orb/contracts/assets";
 import { blobUrl, DEFAULT_GALLERY_SORT, GALLERY_SORTS } from "@orb/contracts/assets";
 import type { CharacterId, ChatId, GalleryItemId } from "@orb/kit/ids";
@@ -18,6 +17,7 @@ import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, Ref } from "react";
 import { useRef, useState } from "react";
+import { PickerDialog } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { GalleryAddPicker } from "../components/gallery-add-picker.tsx";

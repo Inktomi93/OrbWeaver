@@ -11,7 +11,7 @@ import { startAutomationWatcher } from "#server/domain/automation/index.ts";
 import { createAutomationWatcherEnv } from "#server/entry/compose/automation-watcher.ts";
 
 test("stop detaches the domain-event handler from the composed watcher", async () => {
-  const eventBus = createDomainEventBus();
+  using eventBus = createDomainEventBus();
   const handleEvent = vi.fn(() => Promise.resolve());
   const watcher = startAutomationWatcher(createAutomationWatcherEnv({ automation: { handleEvent }, eventBus }));
   const event: AssetCreatedEvent = { type: "asset.created", assetId: castId<AssetId>("asset_watcher_stop") };

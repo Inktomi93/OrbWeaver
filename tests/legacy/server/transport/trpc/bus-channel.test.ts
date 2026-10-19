@@ -46,7 +46,7 @@ async function drain(stream: AsyncIterable<Ping>, abort: AbortController, expect
 
 describe("bus-channel — per-key isolation", () => {
   test("an event published to key A reaches A's stream and NEVER B's", async () => {
-    const bus = defineBusChannel<string, Ping>(channelFor);
+    using bus = defineBusChannel<string, Ping>(channelFor);
     const abortA = new AbortController();
     const abortB = new AbortController();
     const streamA = bus.subscribe("a", abortA.signal);
@@ -64,7 +64,7 @@ describe("bus-channel — per-key isolation", () => {
   });
 
   test("delivery is ordered and buffered from the instant subscribe was called", async () => {
-    const bus = defineBusChannel<string, Ping>(channelFor);
+    using bus = defineBusChannel<string, Ping>(channelFor);
     const abort = new AbortController();
     const stream = bus.subscribe("a", abort.signal);
 
@@ -80,7 +80,7 @@ describe("bus-channel — per-key isolation", () => {
   });
 
   test("an event published BEFORE anyone subscribed is gone — the bus is live-only, never a log", async () => {
-    const bus = defineBusChannel<string, Ping>(channelFor);
+    using bus = defineBusChannel<string, Ping>(channelFor);
     bus.publish("a", { key: "a", n: 0 });
 
     const abort = new AbortController();
@@ -96,7 +96,7 @@ describe("bus-channel — per-key isolation", () => {
   // that treats teardown as a normal `return` would swallow nothing and a pump that lets the throw escape
   // its error wrapper turns a client disconnect into a socket-level fault.
   test("aborting the signal terminates the stream (ABORT_ERR) rather than hanging the consumer", async () => {
-    const bus = defineBusChannel<string, Ping>(channelFor);
+    using bus = defineBusChannel<string, Ping>(channelFor);
     const abort = new AbortController();
     const stream = bus.subscribe("a", abort.signal);
 
@@ -108,7 +108,7 @@ describe("bus-channel — per-key isolation", () => {
 
 describe("bus-channel — the firehose is a declared opt-in", () => {
   test("a firehose channel taps EVERY key, and its unsubscribe stops delivery", () => {
-    const bus = defineBusChannel<string, Ping>(channelFor, { firehose: true });
+    using bus = defineBusChannel<string, Ping>(channelFor, { firehose: true });
     const listener = vi.fn();
 
     const off = bus.subscribeAll(listener);
@@ -124,13 +124,13 @@ describe("bus-channel — the firehose is a declared opt-in", () => {
   });
 
   test("a channel that did not opt in has NO subscribeAll member at all (the G10 typed opt-in)", () => {
-    const plain = defineBusChannel<string, Ping>(channelFor);
+    using plain = defineBusChannel<string, Ping>(channelFor);
 
     expect("subscribeAll" in plain).toBe(false);
   });
 
   test("the firehose fan does not double-deliver to the key's own subscriber", async () => {
-    const bus = defineBusChannel<string, Ping>(channelFor, { firehose: true });
+    using bus = defineBusChannel<string, Ping>(channelFor, { firehose: true });
     const abort = new AbortController();
     const stream = bus.subscribe("a", abort.signal);
     const listener = vi.fn();

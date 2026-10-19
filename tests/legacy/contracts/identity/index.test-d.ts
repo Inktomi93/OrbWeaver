@@ -1,4 +1,4 @@
-import type { Principal, ResolvedIdentity, UserRole } from "@orb/contracts/identity";
+import type { Principal, ResolvedIdentity, UserRole, UserRoleState } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
 
@@ -6,11 +6,13 @@ import { expectTypeOf, test } from "vitest";
 
 // D19: the caller is `Principal.userId`. There is no `callerUserId`, no `isOwner` (owner ⊇ admin lives in the
 // `can()` seam) and no `groups` (role is the sole carried authz axis). The owner-fallback path keys on handle,
-// so `externalId` may be null on a real Principal.
+// so `externalId` may be null on a real Principal. The carried role is opaque captured role data: a consumer cannot
+// read a role code off the Principal, only the authority and data-projection owners decode it.
 test("Principal is userId + role + handle + externalId + via, with no callerUserId, isOwner or groups", () => {
   expectTypeOf<keyof Principal>().toEqualTypeOf<"userId" | "role" | "handle" | "externalId" | "via">();
   expectTypeOf<Principal["userId"]>().toEqualTypeOf<UserId>();
-  expectTypeOf<Principal["role"]>().toEqualTypeOf<UserRole>();
+  expectTypeOf<Principal["role"]>().toEqualTypeOf<UserRoleState>();
+  expectTypeOf<Principal["role"]>().not.toExtend<UserRole>();
   expectTypeOf<Principal["externalId"]>().toEqualTypeOf<ExternalId | null>();
 });
 

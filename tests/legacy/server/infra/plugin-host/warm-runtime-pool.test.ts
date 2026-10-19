@@ -7,7 +7,7 @@ interface Target {
 
 test("warm pool evicts the least recently used idle runtime without invalidating its logical target", async () => {
   const retired: string[] = [];
-  const pool = new WarmRuntimePool<Target>(
+  await using pool = new WarmRuntimePool<Target>(
     2,
     (target) => {
       retired.push(target.id);
@@ -42,7 +42,7 @@ test("warm pool evicts the least recently used idle runtime without invalidating
 });
 
 test("all-pinned pressure waits in FIFO order and disable cancels a queued wake", async () => {
-  const pool = new WarmRuntimePool<Target>(1, () => Promise.resolve(), 4);
+  await using pool = new WarmRuntimePool<Target>(1, () => Promise.resolve(), 4);
   const active = { id: "active" };
   const disabled = { id: "disabled" };
   const next = { id: "next" };
@@ -63,7 +63,7 @@ test("all-pinned pressure waits in FIFO order and disable cancels a queued wake"
 });
 
 test("a broker failure rejects queued work and a discarded cold start leaves capacity reusable", async () => {
-  const pool = new WarmRuntimePool<Target>(1, () => Promise.resolve(), 4);
+  await using pool = new WarmRuntimePool<Target>(1, () => Promise.resolve(), 4);
   const crashed = { id: "crashed" };
   const retry = { id: "retry" };
   const held = await pool.acquire(crashed);
@@ -86,7 +86,7 @@ test("removing a pinned logical plugin retires its runtime immediately and makes
   let retired = false;
   const { promise: retiring, resolve: finishRetire } = Promise.withResolvers<void>();
   const target = { id: "disabled" };
-  const pool = new WarmRuntimePool<Target>(
+  await using pool = new WarmRuntimePool<Target>(
     1,
     async () => {
       retired = true;
@@ -111,7 +111,7 @@ test("removing a pinned logical plugin retires its runtime immediately and makes
 test("removing a cold-starting target cancels the unpublished lease and makes late ready inert", async () => {
   const retired: string[] = [];
   const target = { id: "loading" };
-  const pool = new WarmRuntimePool<Target>(
+  await using pool = new WarmRuntimePool<Target>(
     1,
     (retiring) => {
       retired.push(retiring.id);
@@ -136,7 +136,7 @@ test("removing a cold-starting target cancels the unpublished lease and makes la
 
 test("a second acquire for one cold target waits until replay publishes the runtime", async () => {
   const target = { id: "sleeping" };
-  const pool = new WarmRuntimePool<Target>(1, () => Promise.resolve(), 4);
+  await using pool = new WarmRuntimePool<Target>(1, () => Promise.resolve(), 4);
   const cold = await pool.acquire(target);
   const second = pool.acquire(target);
   let secondSettled = false;
@@ -156,7 +156,7 @@ test("a second acquire for one cold target waits until replay publishes the runt
 });
 
 test("pre-broker pressure is bounded and abort removes a queued request before it retains capacity", async () => {
-  const pool = new WarmRuntimePool<Target>(1, () => Promise.resolve(), 2);
+  await using pool = new WarmRuntimePool<Target>(1, () => Promise.resolve(), 2);
   const active = await pool.acquire({ id: "active" });
   active.ready();
   try {

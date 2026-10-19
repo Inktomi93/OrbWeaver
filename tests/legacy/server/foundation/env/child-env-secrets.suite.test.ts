@@ -94,7 +94,7 @@ test("tar unpacks the cloudflared archive and cloudflared starts, and neither re
 
   const exited = Promise.withResolvers<string>();
   const firstUrl = Promise.withResolvers<string>();
-  const relay = spawnQuickTunnel(join(unpacked, "cloudflared"), ORIGIN, {
+  await using relay = spawnQuickTunnel(join(unpacked, "cloudflared"), ORIGIN, {
     onUrl: (url) => firstUrl.resolve(url),
     onExit: (detail) => exited.resolve(detail),
   });

@@ -10,7 +10,7 @@ import { createDomainEventBus } from "@orb/server/entry/compose";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("emit delivers the event to a subscribed handler (the indexer subscription shape)", async () => {
-  const bus = createDomainEventBus();
+  using bus = createDomainEventBus();
   const seen: DomainEvent[] = [];
   bus.subscribe((received) => {
     seen.push(received);
@@ -31,7 +31,7 @@ test("emit delivers the event to a subscribed handler (the indexer subscription 
 });
 
 test("the returned unsubscribe removes only that subscriber", async () => {
-  const bus = createDomainEventBus();
+  using bus = createDomainEventBus();
   const removedSeen: DomainEvent[] = [];
   const retainedSeen: DomainEvent[] = [];
   // `unknown` keeps this behavioral proof compilable against the old `void` contract: the defect is the
@@ -58,7 +58,7 @@ test("the returned unsubscribe removes only that subscriber", async () => {
 });
 
 test("a throwing subscriber is isolated — emit does not throw and other handlers still run", async () => {
-  const bus = createDomainEventBus();
+  using bus = createDomainEventBus();
   const seen: string[] = [];
   bus.subscribe(() => {
     throw new Error("boom");

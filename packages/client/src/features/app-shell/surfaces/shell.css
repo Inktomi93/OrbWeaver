@@ -1587,8 +1587,6 @@
   pointer-events: auto;
 }
 
-
-
 /* The one @media: desktop columns flip to a mobile bottom tab bar + sliding sheets. */
 @media (max-width: 48rem) {
   .shell-grid {
