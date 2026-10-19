@@ -69,10 +69,9 @@ export type RealCorpusOverlay =
 export interface RealCorpusLivenessArm {
   readonly policy: GatePolicy;
   /** ONE OR MORE overlays, applied together. Plural because a tripwire's subject is routinely spread:
-   *  `windowed-infinite-query-health` fires only when NO `infiniteQueryOptions` call site remains and there
-   *  are six; `serde-core-seal-health` judges a whole sanctioned DOMAIN and the `import` domain carries the
-   *  engine import in three files. Neutralising one of six proves nothing, and a single-overlay contract
-   *  would have quietly pushed both arms into "assert the policy stayed silent". */
+   *  a tripwire that fires only when NO call site of its subject remains needs every site neutralised.
+   *  Neutralising one of six proves nothing, and a single-overlay contract would have quietly pushed such
+   *  an arm into "assert the policy stayed silent". */
   readonly overlays: readonly [RealCorpusOverlay, ...RealCorpusOverlay[]];
   /** A substring the reported message MUST contain. Required, not optional: an arm that asserts only THAT
    *  something fired cannot tell the intended verdict from a different one the same policy can emit, and

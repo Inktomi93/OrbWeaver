@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(134 registered gates)
+(131 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -158,8 +158,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `scrubber-home` | — | reviewed-grant/error | @product | the hidden-span stream scrubber is… |
 | `section-factory-contribution-bundle` | — | ordinary/error | @client | a section factory grew a positional… |
 | `seed-theme-ink-contrast` | — | reviewed-grant/error | @client,@ui | a colour token painted as TEXT does… |
-| `serde-core-definition-uniqueness` | — | hard/error | @server | a SECOND declaration of a serde-core… |
-| `serde-core-seal-health` | — | hard/error | @server,@kit | a sanctioned serde home… |
 | `session-channel-boundary` | — | ordinary/error | @client | a BroadcastChannel constructed… |
 | `single-stream-transport` | — | reviewed-grant/error | @server\* | a tRPC .subscription( outside… |
 | `sole-env-reader` | — | reviewed-grant/error | @server,@inference | touches process.env outside… |
@@ -189,7 +187,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `trpc-input-declarations` | — | hard/error | @server\* | a tRPC procedure reads input without… |
 | `trpc-output-declarations` | — | hard/error | @server\* | A mounted AppRouter query/mutation… |
 | `two-class-role-authority` | role-vocabulary | reviewed-grant/error | @server\* | inline participant-role comparison in… |
-| `types-in-contract` | — | hard/error | @server\* | contract/service.ts must declare the… |
 | `typography-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
 | `ui-accname-survives-spread` | — | ordinary/error | @ui | an accessible-name attribute written… |
 | `ui-variant-axes-stamped` | — | hard/error | @ui | @orb/ui variant-axis stamp: a tv()… |

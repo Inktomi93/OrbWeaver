@@ -2939,6 +2939,35 @@ const VERIFY_HARD_RESTRICTIONS = [
   },
 ];
 
+// HARD server structure bans, enabled only by `hardConfig` like the verify bans above.
+const SERDE_CARD_MAPPERS = alternation(["cardContentHash", "cardFromJson", "buildCardV3"]);
+const SERDE_CARD_HOME = "packages/server/src/primitives/serde/card/index.ts";
+const SERDE_CARD_MESSAGE = `A second declaration of a serde-core card mapper; each of cardContentHash, cardFromJson and buildCardV3 is declared once, in ${SERDE_CARD_HOME}. Import it from #primitives/serde/card.`;
+const SERVER_HARD_RESTRICTIONS = [
+  {
+    id: "types-in-contract",
+    scope: ["packages/server/src/domain/*/contract/service.ts"],
+    homes: [],
+    selectors: [
+      {
+        selector: "Program:not(:has(:matches(ExportNamedDeclaration, ExportDefaultDeclaration) > TSInterfaceDeclaration))",
+        message:
+          "contract/service.ts must declare the exported <Feature>Service interface (the feature's typed API surface, Spine-TypeScript-and-Patterns.md §7.4).",
+      },
+    ],
+  },
+  {
+    id: "serde-core-definition-uniqueness",
+    scope: rootSources("@server"),
+    notUnder: [SERDE_CARD_HOME],
+    homes: [],
+    selectors: [
+      `ExportNamedDeclaration > FunctionDeclaration[id.name=${SERDE_CARD_MAPPERS}]`,
+      `ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[id.type='Identifier'][id.name=${SERDE_CARD_MAPPERS}]`,
+    ].map((selector) => ({ selector, message: SERDE_CARD_MESSAGE })),
+  },
+];
+
 // D34: the db never re-spells a union. The runtime half (tests/db/schema/enum-tuples.suite.test.ts) judges the values.
 const DB_SCHEMA_RESTRICTIONS = [
   {
@@ -7329,6 +7358,7 @@ const restrictionPlugin = {
     "tooling-ops-direct-invocation": toolingEntryRule(true),
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(VERIFY_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
+    ...Object.fromEntries(SERVER_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(IDENTITY_WRITER_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(UI_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     [UI_CT_COLOR_RESTRICTION.id]: uiCtColorRule,
@@ -8349,7 +8379,7 @@ export const hardConfig = [
     plugins: { orb: restrictionPlugin },
     rules: { [`orb/${id}`]: "error" },
   })),
-  ...VERIFY_HARD_RESTRICTIONS.map(({ id, scope, notUnder }) => ({
+  ...[...VERIFY_HARD_RESTRICTIONS, ...SERVER_HARD_RESTRICTIONS].map(({ id, scope, notUnder }) => ({
     files: scope,
     // A flat-config `ignores` array must not be empty or absent-as-undefined.
     ...(notUnder === undefined ? {} : { ignores: notUnder }),

@@ -35,7 +35,6 @@ import { MULTI_ROOT_A_ARMS } from "./multi-root-a.ts";
 import { MULTI_ROOT_B_ARMS } from "./multi-root-b.ts";
 import { PRODUCT_DB_SERVER_ARMS } from "./product-db-server.ts";
 import { RESOURCE_ARMS } from "./resources.ts";
-import { SERVER_ARMS } from "./server.ts";
 import { SERVER_APP_ARMS } from "./server-app.ts";
 import { TESTS_ARMS } from "./tests.ts";
 import { TOOLING_ARMS } from "./tooling.ts";
@@ -52,7 +51,6 @@ const CHUNKS = {
   multiRootA: MULTI_ROOT_A_ARMS,
   multiRootB: MULTI_ROOT_B_ARMS,
   productDbServer: PRODUCT_DB_SERVER_ARMS,
-  server: SERVER_ARMS,
   resources: RESOURCE_ARMS,
   serverApp: SERVER_APP_ARMS,
   tests: TESTS_ARMS,

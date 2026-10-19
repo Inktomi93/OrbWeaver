@@ -45,7 +45,7 @@ Enforcement: the `own-tables-only` gate makes the ownership half structural — 
 - **DB row → `db`**; a domain may declare a derived local alias (`CharacterRow = typeof characters.$inferSelect`) in `persistence/`, never re-declare the column shape.
 - **Cross-boundary enum tuples → `contracts`** (`db` imports them down for column `enum:[...]`; a test-mirror pins db === contracts where derivation isn't direct).
 - **TypeID brands → `kit`**; the brand is type-only (SQL stays `TEXT`), so adding/removing a brand is never a migration.
-- **Wire schemas / domain params never live here.** Gates: `types-in-contract`, `no-inline-types`, `schema-branding`, dep-cruiser `db-cake`.
+- **Wire schemas / domain params never live here.** Gates: `no-inline-types`, `schema-branding`, dep-cruiser `db-cake`.
 
 ## The migration lifecycle — forward-only, post-launch
 
@@ -210,7 +210,7 @@ generate against the same parent?).
 
 1. **`db` imports only `kit` + `contracts`.** *(resolve-time physics; dep-cruiser `db-cake`.)*
 2. **Producer names the schema file; the barrel re-exports every file.** *(`tests/db/schema/module-structure.suite.test.ts`.)*
-3. **The DB row is the one home for column shapes; no wire schema in `db`.** *(`types-in-contract` / `no-inline-types`; `schema-branding` pins the `$type<>` brands.)*
+3. **The DB row is the one home for column shapes; no wire schema in `db`.** *(`no-inline-types`; `schema-branding` pins the `$type<>` brands.)*
 4. **All five primary vector tables (character_embeddings · image_embeddings · chat_digests · chat_segments · document_chunks, the last producer FK `documents.id`, owner derives via `documents.ownerId`) carry `content_hash` (staleness gate, NOT NULL) and `hub_score` (advisory `real`, written only by discovery via `embeddings.writeHubScores`, never nulled by a vector write).** *(compile-time DDL; `StoreParams` has no `hubScore`/`ownerId` field — D20.)*
 5. **`@orb/db/query` holds only drizzle-typed primitives** — they would fail `kit-purity` in `@orb/kit`. *(lint + resolve-time.)* `@orb/db/query` is their ONLY import path: the top barrel deliberately does NOT re-export `"./kit"` — re-exporting it lets the tree reach `batchMany`/`fetchOwned`/`isConstraintViolation` through `@orb/db`, which reads as "a table-ish thing from the schema barrel" and blurs the line invariant 6 draws. *(resolve-time: the wrong path does not compile.)*
 6. **A domain writes only its own tables.** Cross-domain reads belong in `persistence/` or injected ops; `own-tables-only` judges foreign writes inside persistence too. Settings alone imports its KV table and injects registered-prefix opaque-value ports. Native ESLint holds that import boundary; the KV port refuses foreign keys before I/O.

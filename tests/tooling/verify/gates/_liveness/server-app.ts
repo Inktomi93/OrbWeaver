@@ -18,22 +18,15 @@ import { gate as ownTablesOnly } from "../../../../../tooling/src/verify/gates/o
 import { gate as ownerScopedReads } from "../../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
 import { gate as ownerScopedUpserts } from "../../../../../tooling/src/verify/gates/owner-scoped-upserts.ts";
 import { gate as ownerScopedWrites } from "../../../../../tooling/src/verify/gates/owner-scoped-writes.ts";
-import { gate as serdeCoreDefinitionUniqueness } from "../../../../../tooling/src/verify/gates/serde-core-definition-uniqueness.ts";
 import { gate as singleStreamTransport } from "../../../../../tooling/src/verify/gates/single-stream-transport.ts";
 import { gate as twoClassRoleAuthority } from "../../../../../tooling/src/verify/gates/two-class-role-authority.ts";
-import { gate as typesInContract } from "../../../../../tooling/src/verify/gates/types-in-contract.ts";
 import { gate as verbNaming } from "../../../../../tooling/src/verify/gates/verb-naming.ts";
 
 const SERVER = "packages/server/src";
 const CHAT_VERBS = `${SERVER}/domain/chat/verbs`;
-const EMPTY = "export {};\n";
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
-}
-
-function neutralise(path: string, source = EMPTY): RealCorpusOverlay {
-  return { kind: "neutralise", path, source };
 }
 
 export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
@@ -116,11 +109,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "cross-tenant WRITE hole",
   },
   {
-    policy: serdeCoreDefinitionUniqueness,
-    overlays: [add(`${SERVER}/domain/import/substrate/liveness-dup.ts`, "export function cardFromJson(raw: unknown): unknown {\n  return raw;\n}\n")],
-    messageIncludes: "cardFromJson",
-  },
-  {
     policy: singleStreamTransport,
     overlays: [
       add(
@@ -139,11 +127,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "packages/server/src/domain/rpg/verbs/liveness-role.ts",
-  },
-  {
-    policy: typesInContract,
-    overlays: [neutralise(`${SERVER}/domain/admin/contract/service.ts`, "export const noInterface = 1;\n")],
-    messageIncludes: "must declare the exported",
   },
   {
     policy: verbNaming,
