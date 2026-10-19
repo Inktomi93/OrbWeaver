@@ -10,7 +10,7 @@ export type { ChatImportResult } from "./chat-result.ts";
 export { chatImportResultSchema } from "./chat-result.ts";
 export type { CardLorebookRestoreResult } from "./lorebook-restore.ts";
 export { cardLorebookRestoreResultSchema } from "./lorebook-restore.ts";
-export type { PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices, PersonaCollisionReview, PersonaDifference } from "./persona-collision.ts";
+export type { PersonaCollision, PersonaCollisionChoice, PersonaCollisionChoices, PersonaDifference } from "./persona-collision.ts";
 export {
   DEFAULT_PERSONA_COLLISION_CHOICE,
   decodePersonaCollisionChoices,

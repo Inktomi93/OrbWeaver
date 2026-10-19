@@ -75,4 +75,3 @@ export type PersonaCollision = z.infer<typeof personaCollisionSchema>;
 
 /** The review route's response. */
 export const personaCollisionReviewSchema = z.strictObject({ collisions: z.array(personaCollisionSchema).readonly() });
-export type PersonaCollisionReview = z.infer<typeof personaCollisionReviewSchema>;

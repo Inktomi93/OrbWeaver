@@ -6,8 +6,9 @@
 
 import { THEME_DENSITIES, THEME_FONT_ALLOWLIST, THEME_RADII, themeOverrideSchema } from "@orb/contracts/theme";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { THEME_SCOPE_DENSITIES, THEME_SCOPE_RADII, themeScopeTokensSchema, THEME_FONT_ALLOWLIST as UI_FONTS } from "@orb/ui/theme-scope";
+import { THEME_FONT_ALLOWLIST as UI_FONTS } from "@orb/ui/theme-scope";
 import { describe } from "vitest";
+import { THEME_SCOPE_DENSITIES, THEME_SCOPE_RADII, themeScopeTokensSchema } from "#ui/content/theme-scope/clamp.ts";
 
 describe("ThemeOverride wire ↔ ThemeScope render pairing (D44 §12.5)", () => {
   test("identical field-key sets", () => {

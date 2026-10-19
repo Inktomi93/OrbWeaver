@@ -30,7 +30,6 @@ export const rpgPlotActSchema = z.object({
   title: z.string().default(""),
   summary: z.string().default(""),
 });
-export type RpgPlotAct = z.infer<typeof rpgPlotActSchema>;
 
 /** The snapshot-resident plot object. `act` indexes 1-based into `acts` (the applier keeps
  *  `acts.length >= act`, padding untitled acts, so the rail is total). */

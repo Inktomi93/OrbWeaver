@@ -13,7 +13,6 @@ export { type ClipboardOutcome, writeClipboardText } from "./clipboard.ts";
 export { coarsePointerNow, finePointerNow, useCoarsePointer } from "./coarse-pointer-now.ts";
 export { CHIP_BOX, CONTROL_SIZE } from "./control-size.ts";
 export {
-  CSS_MERGE_TRACE_INPUT_LIMIT,
   type CssMergeTraceSnapshot,
   cssMergeTrace,
 } from "./css-merge-trace.ts";

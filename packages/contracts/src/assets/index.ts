@@ -108,7 +108,7 @@ export type AssetUploadRefusal = z.infer<typeof assetUploadRefusalSchema>;
 export const galleryItemIdSchema = typeIdSchema(ID_PREFIX.galleryItem) satisfies z.ZodType<GalleryItemId>;
 
 /** Keyset page-size bounds (shared by `listOwned` + `listGallery`). */
-export const ASSET_LIST_LIMIT_MIN = 1;
+const ASSET_LIST_LIMIT_MIN = 1;
 export const ASSET_LIST_LIMIT_MAX = 100;
 
 /** One row of the owned-asset grid. `(uploadedAt, id)` is the keyset cursor. `animated` lets the grid

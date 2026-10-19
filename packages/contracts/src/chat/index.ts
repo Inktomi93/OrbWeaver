@@ -87,7 +87,7 @@ export {
 // The two corpus-sweep workloads' params + results chat OWNS (the junk-drawer exit: a workload's wire shapes
 // are authored by the OWNING domain) — `memory-backfill` + `group-character-backfill`.
 export type { BackfillPassResult, ImportWindow, MemoryBackfillResult, MemoryBackfillWorkloadParams } from "./backfill.ts";
-export { importWindowSchema, memoryBackfillWorkloadParams, mergeImportWindows, storedImportWindowSchema } from "./backfill.ts";
+export { importWindowSchema, memoryBackfillWorkloadParams, mergeImportWindows } from "./backfill.ts";
 export type {
   BulkImportChatInput,
   BulkImportChatsResult,
@@ -195,7 +195,6 @@ export {
   legacyNotionalCostSamples,
   MESSAGE_ASSET_ORIGINS,
   macroFreezeRecordSchema,
-  macroFreezeSchema,
   messageViewSchema,
   parseVariantMetadata,
   reattributeScopeSchema,
@@ -233,7 +232,6 @@ export {
   groupConfigSchema,
   guidedSteerSchema,
   MEMBER_CARD_VISIBILITY_LEVELS,
-  memberCardVisibilitySchema,
   narratorPolicyOf,
   openingPolicySchema,
   resolveCharactersCanReact,
@@ -293,7 +291,6 @@ export {
   buildIdentityNameContext,
   CHAT_IDENTITY_KIND_POLICY,
   CHAT_IDENTITY_KINDS,
-  chatIdentitySchema,
   identityKey,
 } from "./producers.ts";
 // The PROSE-1 app-tier slot table (census 74-81) — `#prose` imports it to compose `PROSE_SLOTS`.
@@ -334,7 +331,6 @@ export type {
 export {
   characterRegexTierKey,
   effectiveRegexViewSchema,
-  FIXED_REGEX_TIER_KEYS,
   type HostTierRegexAllow,
   hostTierRegexAllowSchema,
   isRegexEnabledInChat,
@@ -385,7 +381,6 @@ export {
   createInviteResultSchema,
   createInviteSchema,
   HTML_TRUST_STEPS,
-  handoffOfferContentsSchema,
   handoffOfferSchema,
   historyFloor,
   INVITE_STATUSES,

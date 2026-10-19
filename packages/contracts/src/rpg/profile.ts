@@ -21,7 +21,7 @@ export const RPG_PROFILE_MAX_ATTRIBUTES = 12;
 /** The RESERVED resolution discriminant (§2.3) — a single-arm union today (`house-d20`). Full's check
  *  engine grows this with alt-arms (the D86 reserved-discriminant growth pattern); lite never reads it. */
 export const rpgStatResolutionSchema = z.discriminatedUnion("kind", [z.object({ kind: z.literal("house-d20") })]);
-export type RpgStatResolution = z.infer<typeof rpgStatResolutionSchema>;
+type RpgStatResolution = z.infer<typeof rpgStatResolutionSchema>;
 
 /** A `statProfile` — the full mechanical vocabulary, shipped whole. Manual ability rolls read `attributes` and `modifier`; the remaining fields reserve the full-engine contract. `skillGoverning` maps a skill name → the attribute
  *  key that governs it; `defaultAttribute`/`perceptionAttribute` name attribute keys; `resolution` is the

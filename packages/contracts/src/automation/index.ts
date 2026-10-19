@@ -395,7 +395,7 @@ const TOOL_NAME_MAX = 64;
  *  object", not a prompt. */
 const TOOL_ARGS_TEMPLATE_MAX = 8192;
 /** The ordered action-arm cap. A rule carries 1..8 arms. */
-export const AUTOMATION_ACTION_ARMS_MIN = 1;
+const AUTOMATION_ACTION_ARMS_MIN = 1;
 export const AUTOMATION_ACTION_ARMS_MAX = 8;
 /** Consecutive predicate, action or authority errors after which the dispatch turns a rule off. */
 export const AUTOMATION_CONSECUTIVE_ERROR_CEILING = 20;

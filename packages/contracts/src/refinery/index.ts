@@ -31,7 +31,7 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
 import { refineryVerdictSchema, SCORE_MAX, SCORE_MIN } from "./core.ts";
 
-export { REFINERY_VERDICTS, type RefineryVerdict, refineryVerdictSchema, SCORE_MAX, SCORE_MIN } from "./core.ts";
+export { REFINERY_VERDICTS, type RefineryVerdict, refineryVerdictSchema, SCORE_MAX } from "./core.ts";
 // The refinery prose slot table (R1) — composed into `PROSE_SLOTS` by `#prose` through this front door.
 export { REFINERY_PROSE_SLOTS } from "./prose.ts";
 // The raw-door PREFLIGHT (advisories + stats). Sits BESIDE the belt, never in front of it: the belt

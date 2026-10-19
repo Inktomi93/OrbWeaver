@@ -32,7 +32,7 @@ import { REFINERY_VERDICTS, SCORE_MAX, SCORE_MIN } from "./core.ts";
 
 /** ResponseFormat identifier grammar (the extension's own rule, `validate.ts:100`) — the stored name IS
  *  the wire `ResponseFormat.name`. */
-export const REFINERY_SCHEMA_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
+const REFINERY_SCHEMA_NAME_PATTERN = /^[a-zA-Z_][a-zA-Z0-9_]*$/;
 export const REFINERY_SCHEMA_NAME_MAX = 64;
 /** The NL origin / purpose note — editable, rides the editor and the generation prompt. */
 export const REFINERY_SCHEMA_DESCRIPTION_MAX = 2000;

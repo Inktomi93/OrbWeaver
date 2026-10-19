@@ -21,7 +21,6 @@ export {
   CADENCE_INTERVAL_MS,
   DEFAULT_ADMISSION_KEY,
   INDEX_SOURCES,
-  indexSourceSchema,
   REBUILD_ADMISSION_KEY_SUFFIX,
   SCHEDULE_CADENCES,
   scheduleCadenceSchema,

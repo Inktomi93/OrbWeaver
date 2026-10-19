@@ -77,7 +77,7 @@ export const roleHandlingSchema = z.enum(ROLE_HANDLING) satisfies z.ZodType<Role
 
 /** The levels only a model states: `slotted` is a measured fact about where a system row is legal, never a
  *  preference a preset can hold for every model. */
-export const MODEL_ONLY_ROLE_HANDLING = ["slotted"] as const satisfies readonly RoleHandling[];
+const MODEL_ONLY_ROLE_HANDLING = ["slotted"] as const satisfies readonly RoleHandling[];
 /** The preset knob's vocabulary: {@link ROLE_HANDLING} without {@link MODEL_ONLY_ROLE_HANDLING}, in ladder order. */
 export const userRoleHandlingSchema = roleHandlingSchema.exclude(MODEL_ONLY_ROLE_HANDLING);
 export type UserRoleHandling = z.infer<typeof userRoleHandlingSchema>;

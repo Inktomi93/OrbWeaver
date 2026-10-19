@@ -3,7 +3,6 @@ import {
   ACTIVE_WORKLOAD_STATUSES,
   DEFAULT_ADMISSION_KEY,
   INDEX_SOURCES,
-  indexSourceSchema,
   WORKLOAD_KIND_MODES,
   WORKLOAD_KINDS,
   WORKLOAD_LANES,
@@ -15,6 +14,7 @@ import {
   workloadStatusSchema,
 } from "@orb/contracts/workloads";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { indexSourceSchema } from "#contracts/workloads/axes.ts";
 
 // ── The `WorkloadKind` axis (D34 — promoted to contracts so the db column derives it) ─────────────────
 // The ONE home for the union (§7.5). This literal list is the pinned canonical membership; a drift here

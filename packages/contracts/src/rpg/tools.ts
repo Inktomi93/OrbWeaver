@@ -248,7 +248,7 @@ export type AddJournalEntryArgs = z.infer<typeof addJournalEntryArgsSchema>;
 /** The type a type-less journal entry HEALS to (EXT-4b) — the neutral built-in kind, so a beat whose only
  *  defect is a missing `type` still lands and still renders. One home: the applier heals through
  *  {@link journalTypeFor}, the observability counts the same absence, and neither can drift from the other. */
-export const RPG_JOURNAL_TYPE_FALLBACK: RpgJournalType = "note";
+const RPG_JOURNAL_TYPE_FALLBACK: RpgJournalType = "note";
 
 /** Resolve a journal entry's type: the model's `type` if it emitted one, else the healed
  *  {@link RPG_JOURNAL_TYPE_FALLBACK} (the nested-required blind spot — the `journalTitleFor` precedent). */

@@ -9,10 +9,9 @@ import {
   RPG_PROFILE_MAX_ATTRIBUTES,
   rpgGameConfigSchema,
   rpgSeedTrackers,
-  rpgStatProfileSchema,
 } from "@orb/contracts/rpg";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { RPG_SEED_HP_MAX } from "#contracts/rpg/profile.ts";
+import { RPG_SEED_HP_MAX, rpgStatProfileSchema } from "#contracts/rpg/profile.ts";
 
 test("freeform is lite's empty-attribute default with an identity-ish modifier", () => {
   expect(RPG_PROFILE_FREEFORM.attributes).toEqual([]);

@@ -95,7 +95,7 @@ export function characterProvenanceOf(row: { readonly importedFrom: string | nul
  *  import) and from the OTHER synthetic provenance keys already minted elsewhere (`handoff:<chatId>:<id>`,
  *  `rpg-promotion:v1:<chatId>:<actorKey>`). A reader that wants to special-case "came in through a plugin"
  *  (the client's provenance printer) keys on this prefix rather than re-deriving the shape. */
-export const PLUGIN_IMPORTED_FROM_PREFIX = "plugin";
+const PLUGIN_IMPORTED_FROM_PREFIX = "plugin";
 
 /**
  * Mint the deterministic `importedFrom` value for a card ingested through a plugin's `character.ingest` /

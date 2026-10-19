@@ -45,10 +45,8 @@ import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
 import { responseCacheSettingsSchema } from "./response-cache.ts";
 
 export {
-  PRESET_COMPACTION_SLOT_ID,
   PRESET_FORMAT_SLOT_IDS,
   PRESET_GREETING_TRANSFORM_PROSE_SLOTS,
-  PRESET_GUIDED_SLOT_IDS,
   PRESET_PROSE_SLOTS,
   PRESET_REWRITE_TOGGLE_PROSE_SLOTS,
 } from "./prose.ts";

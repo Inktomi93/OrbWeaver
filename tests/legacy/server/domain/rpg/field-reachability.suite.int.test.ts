@@ -38,8 +38,9 @@
 // `trackersReadOnly`, per-carrier `max` overrides, carriage via grants/revokes).
 
 import type { RpgDateMode, RpgTrackerDef } from "@orb/contracts/rpg";
-import { actorRefKey, actorTrackerWriteKeys } from "@orb/contracts/rpg";
+import { actorRefKey } from "@orb/contracts/rpg";
 import { freshDb } from "@orb/testkit/node/db.ts";
+import { actorTrackerWriteKeys } from "#contracts/rpg/tracker.ts";
 import { ACTOR_CARRIERS, CARRIERS, HOST, MANA, openGame, openingBeat, RPG_DELTA_HEADING, RPG_MACRO_KEYS, stageCast } from "./_field-reachability-support.ts";
 import { expect, seedLiteGame, test } from "./_support.ts";
 

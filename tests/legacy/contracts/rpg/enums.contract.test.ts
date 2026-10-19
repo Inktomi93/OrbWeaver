@@ -15,13 +15,15 @@ import {
   rpgGameModeSchema,
   rpgGameStatusSchema,
   rpgJournalTypeSchema,
+} from "@orb/contracts/rpg";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import {
   rpgQuestStatusSchema,
   rpgTrackerCarrierClassSchema,
   rpgTrackerShapeSchema,
   rpgTrackerSubjectSchema,
   rpgTrackerWriteSchema,
-} from "@orb/contracts/rpg";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
+} from "#contracts/rpg/enums.ts";
 
 test("RPG_GAME_MODES is the committed [lite, full] axis and the schema derives from it", () => {
   expect(RPG_GAME_MODES).toEqual(["lite", "full"]);

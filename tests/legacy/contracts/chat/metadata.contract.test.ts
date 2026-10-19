@@ -4,7 +4,6 @@ import {
   groupConfigInputSchema,
   groupConfigSchema,
   MEMBER_CARD_VISIBILITY_LEVELS,
-  memberCardVisibilitySchema,
   openingPolicySchema,
   roomOverridesSchema,
   storedGroupConfigSchema,
@@ -12,6 +11,7 @@ import {
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
+import { memberCardVisibilitySchema } from "#contracts/chat/metadata.ts";
 
 test("raw group input validation preserves a sparse input instead of applying room defaults", () => {
   for (const output of ["narrator", "per-speaker"] as const) {
