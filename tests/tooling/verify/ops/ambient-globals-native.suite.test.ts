@@ -123,6 +123,7 @@ const CASES: readonly (readonly [name: string, rule: string, path: string, sourc
     0,
   ],
   ["egress: const-bound key on the global", EGRESS, VERB, 'const KEY = "fetch";\nexport const a = globalThis[KEY]("https://x");\n', 1],
+  ["egress: pattern-default key on the global fails closed", EGRESS, VERB, 'const { K = "fetch" } = "x";\nexport const a = globalThis[K]("https://x");\n', 1],
   [
     "egress: reassigned key on the global fails closed",
     EGRESS,
@@ -544,7 +545,16 @@ const CASES: readonly (readonly [name: string, rule: string, path: string, sourc
   ["env: global declared in another file fails closed", ENV, HUB, "export const x = procezz.env.SOME_VAR;\n", 1],
   ["env: const env key off an imported door", ENV, AUTHZ, `${DOOR_IMPORT}\nconst KEY = "env";\nexport const x = processDoor[KEY]["OIDC_ADMIN_GROUPS"];\n`, 1],
   ["env: const env key off a global declared elsewhere", ENV, HUB, 'const KEY = "env";\nexport const x = procDoor[KEY].SOME_VAR;\n', 1],
+  ["env: const key chain off a global declared elsewhere", ENV, HUB, 'const A = "env";\nconst KEY = A;\nexport const x = procDoor[KEY].SOME_VAR;\n', 1],
   ["env pass: const key naming another process member", ENV, HUB, 'const KEY = "pid";\nexport const pid = process[KEY];\n', 0],
+  ["env: pattern-default key on the process fails closed", ENV, HUB, 'const { K = "env" } = "pid";\nexport const x = process[K].X;\n', 1],
+  [
+    "env: const key chain off an imported door",
+    ENV,
+    AUTHZ,
+    `${DOOR_IMPORT}\nconst A = "env";\nconst KEY = A;\nexport const x = processDoor[KEY]["OIDC_ADMIN_GROUPS"];\n`,
+    1,
+  ],
   ["env: reassigned key on the process fails closed", ENV, HUB, 'let key = "pid";\nkey = "env";\nexport const x = process[key];\n', 1],
   [
     "env: declare var shadow of process",

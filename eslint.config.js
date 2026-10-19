@@ -1865,7 +1865,8 @@ const injectedOpCallerParamRule = {
 // a.env.X = 1`), which throws in its temporal dead zone before the read; a per-key grain inside the sole
 // reader, which is one whole-file home; the process passed through a conditional, a logical, a call argument
 // or a parameter default; and an `env` key taken off an imported value or a declared global through a
-// run-time or reassigned key (`door[k]`). A key bound once by a `const` to a string literal is read as that name.
+// computed key no `const` binds to a string literal (`door[k]` with `k` a parameter, a `let`, a pattern binding or
+// a call). A key a `const` chain binds to a string literal is read as that name.
 const AMBIENT_ROOTS = new Set(["globalThis", "global", "self", "window"]);
 const VALUE_WRAPPERS = new Set(["TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression", "TSTypeAssertion"]);
 const RAW_FETCH = "fetch";
@@ -1923,22 +1924,31 @@ function writtenKeyName(key, computed) {
 }
 
 /**
- * A member's key name, also through a computed key bound once by a `const` to a string literal (`const K = "env";
- * x[K]`). Any other computed key, including a `let` or a reassigned binding, stays unknown and fails closed.
+ * A member's key name, also through a computed key a `const` binds to a string literal, directly or through other
+ * such `const` bindings (`const K = "env"; x[K]`). Any other computed key stays unknown: a `let`, a reassigned or
+ * pattern binding, a parameter or a call.
  */
 function memberKeyName(sourceCode, member) {
   const written = writtenKeyName(member.property, member.computed);
-  if (written !== undefined || !member.computed || member.property.type !== "Identifier") {
-    return written;
-  }
-  const variable = referencedVariable(sourceCode, member.property);
-  const [definition] = variable?.defs ?? [];
-  const init = definition?.type === "Variable" && definition.parent.kind === "const" ? definition.node.init : null;
-  if (variable?.defs.length !== 1 || init === null || init === undefined) {
+  return written !== undefined || !member.computed ? written : constKeyName(sourceCode, member.property, new Set());
+}
+
+function constKeyName(sourceCode, key, seen) {
+  if (key.type !== "Identifier" || seen.has(key)) {
     return;
   }
-  const value = unwrapValue(init);
-  return value.type === "Literal" && typeof value.value === "string" ? value.value : writtenKeyName(value, true);
+  const variable = referencedVariable(sourceCode, key);
+  const [definition] = variable?.defs ?? [];
+  // A pattern default (`const { K = "x" } = v`) takes the source's value first, so only `const K = …` names K.
+  const direct = variable?.defs.length === 1 && definition?.type === "Variable" && definition.parent.kind === "const" && definition.node.id === definition.name;
+  const value = direct && definition.node.init !== null ? unwrapValue(definition.node.init) : undefined;
+  if (value === undefined) {
+    return;
+  }
+  if (value.type === "Literal") {
+    return typeof value.value === "string" ? value.value : undefined;
+  }
+  return value.type === "Identifier" ? constKeyName(sourceCode, value, new Set(seen).add(key)) : writtenKeyName(value, true);
 }
 
 /** Whether a destructure can take `name` off its source: by key, by a run-time key, or through a rest element. */
