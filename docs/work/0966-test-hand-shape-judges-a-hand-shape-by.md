@@ -1,9 +1,8 @@
 ---
 kind: work
-status: blocked
-updated: 2026-10-18
+status: open
+updated: 2026-10-19
 priority: P2
-blocked: on 1051
 plan: test-foundation
 ---
 
