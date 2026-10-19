@@ -6,7 +6,6 @@ import { Project } from "ts-morph";
 import { vi } from "vitest";
 import { TOKEN_GENERATED_TYPE_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
 import { JSON_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/resource-json.ts";
-import { gate as resourceOwner } from "../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
 import { gate as aliases } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { planPolicyCommand } from "../../../../tooling/src/verify/lib/policy-plan.ts";
 import { normalizePathSet } from "../../../../tooling/src/verify/lib/policy-validation.ts";
@@ -14,6 +13,7 @@ import { repoRel } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { prepareTokenTypeGeneration, tokenTypeGenerationOwner } from "../../../../tooling/src/verify/ops/gen/theme-css.ts";
 import { runStructure } from "../../../../tooling/src/verify/ops/structure.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { policy } from "./_policy-plan-fixture.ts";
 
 test("native roots and compiler paths reconcile into exact repository identities", () => {
   expect(repoRel("D:\\a\\orbweaver", "D:/a/orbweaver/tooling/src/example.ts")).toBe("tooling/src/example.ts");
@@ -90,8 +90,11 @@ test(
   scaledBudget(60_000),
 );
 
+// A selected-files policy that owns a JSON resource, so the plan must schedule it without demanding token generation.
+const resourceOwner = policy("json-resource-owner", { analysis: "resource", population: ["@product", "@tooling"], resources: [{ kind: "json", id: "biome" }] });
+
 test("mixed resource-owner expansion cannot demand token generation for a skipped alias owner", async ({ repoRoot }) => {
-  const manifest = JSON_RESOURCE_PATHS["caught-failure-population"];
+  const manifest = JSON_RESOURCE_PATHS.biome;
   const unrelated = "packages/server/src/domain/x/read.ts";
   const paths = [unrelated, ...TOKEN_GENERATED_TYPE_PATHS];
   const program = { id: "tsconfig.json", config: "tsconfig.json", files: paths, references: [], configPaths: ["tsconfig.json"] };

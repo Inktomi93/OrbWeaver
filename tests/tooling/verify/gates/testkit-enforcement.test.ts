@@ -1,9 +1,9 @@
 // @subject tooling/src/verify/gates/test-determinism.ts
 // @subject tooling/src/verify/gates/test-mock-doctrine.ts
-import { readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, plantFile, plantLink, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { deriveTypeConfigFiles, executePolicyPlan, planPolicyArgv, policySourceCandidates, projectCtx } from "@orb/tooling/verify";
 import type { Project, SourceFile } from "ts-morph";
 import { Project as MorphProject, SyntaxKind, ts } from "ts-morph";
@@ -66,7 +66,7 @@ async function nativeProgram(
     "packages/server/src/subject.ts": "export class Subject {run():number{return 1;}} export function run():number{return 1;}",
     ...extraFiles,
   });
-  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
+  plantLink(root, "node_modules", join(repoRoot, "node_modules"), "dir");
   execFixtureGit(root, ["init", "--quiet", "--template="]);
   const view = createSemanticWorkspace({ root }).program("tsconfig.json");
   if (view === undefined) {
@@ -200,7 +200,7 @@ export const businessTime=${business}();`,
   const generated = configs["tsconfig.json"] ?? "";
   const withoutJavaScript = generated.replace('"allowJs": true', '"allowJs": false');
   expect(withoutJavaScript).not.toBe(generated);
-  writeFileSync(join(root, "tsconfig.json"), withoutJavaScript);
+  plantFile(root, "tsconfig.json", withoutJavaScript);
   expect(planPolicyArgv(root, ["--file", path, "--check", determinism.id, "--strict-scope"], corpus)).toMatchObject({
     ok: false,
     exitCode: 2,

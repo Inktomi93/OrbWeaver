@@ -9,11 +9,19 @@ import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { toRepoRelative } from "@orb/tooling/floor/testing/scoped-run-paths";
 import type { ApplicationTestPopulation } from "@orb/tooling/floor/testing/test-population";
 import { APPLICATION_TEST_POPULATIONS, isLegacyTestPath, LEGACY_SCOPED_FLAG } from "@orb/tooling/floor/testing/test-population";
+import { VERB_COVERAGE_DIR, VERB_COVERAGE_SCOPE } from "@orb/tooling/floor/testing/verb-coverage";
 import type { NativeDurationShardCollection, NativeNodeShard, ScopedTestRunner } from "@orb/tooling/verify";
 import { balanceNativeFiles, collectCtCases, collectNode, ownScheme, readNativeCtCases, requireNativeSelection } from "@orb/tooling/verify";
 import { z } from "zod";
 
 const POPULATION_OPTION = "--population=";
+// Every node shard records V8 coverage while it runs; scripts/ci-verb-coverage.ts judges the shards' union (D321).
+const VERB_COVERAGE_ARGS = [
+  "--coverage.enabled",
+  `--coverage.include=${VERB_COVERAGE_SCOPE}`,
+  "--coverage.reporter=json",
+  `--coverage.reportsDirectory=${VERB_COVERAGE_DIR}`,
+] as const;
 
 const BASELINE = z.object({
   node: z.array(z.object({ file: z.string(), durationMs: z.number().nonnegative() })),
@@ -134,7 +142,7 @@ function runWeightedShard(root: string, runner: string, shard: NativeNodeShard, 
     reportFile,
     `${JSON.stringify({ runner, population, ...selection, caseFiles: whole.cases, caseIds: whole.cases?.map((row) => row.id) ?? null, selectedCaseIds: selected.cases?.map((row) => row.id) ?? null }, null, 2)}\n`,
   );
-  const argv = runner === "node" ? ["test:node", ...filters] : ["test:ct", ...legacyFlag, ...filters, ...args, "--retries=2"];
+  const argv = runner === "node" ? ["test:node", ...filters, ...VERB_COVERAGE_ARGS] : ["test:ct", ...legacyFlag, ...filters, ...args, "--retries=2"];
   return list ? 0 : (runNicedSync("pnpm", argv, { cwd: root, env: testProcessEnv(), stdio: "inherit" }).status ?? 2);
 }
 

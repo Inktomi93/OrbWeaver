@@ -4,6 +4,7 @@
 import { posix } from "node:path";
 import type { ExportDeclaration, ImportDeclaration } from "ts-morph";
 import { Node } from "ts-morph";
+import { packageFileOf } from "../../floor/code-facts/module-specifier.ts";
 import type { PackageModule } from "../../floor/code-facts/package-module.ts";
 import { packageModuleOf, SOURCE_SUBPATH_PREFIX } from "../../floor/code-facts/package-module.ts";
 import { inventoryDeclarationKey, inventoryExports } from "../../floor/code-facts/semantic-inventory-reader.ts";
@@ -14,8 +15,8 @@ const DEEP_PARENT = "../../";
 const TYPE_ONLY_KINDS = new Set(["InterfaceDeclaration", "TypeAliasDeclaration"]);
 
 export function packageSourceOf(path: string): PackageSource | undefined {
-  const match = /^(packages\/([^/]+)\/src)\/(.+)$/u.exec(path);
-  return match?.[1] === undefined || match[2] === undefined || match[3] === undefined ? undefined : { pkg: match[2], srcRoot: match[1], relative: match[3] };
+  const file = packageFileOf(path);
+  return file === undefined ? undefined : { ...file, srcRoot: `packages/${file.pkg}/src` };
 }
 
 /** True for a relative specifier that climbs two or more directories. */
@@ -43,23 +44,27 @@ function isTypeDeclaration(nodes: readonly Node[]): boolean {
 }
 
 /**
- * Plan one deep specifier. `target` is the repo path it resolves to (a file).
+ * Plan one deep specifier at a floor module position (`owner`). `target` is the repo path it resolves to (a file).
  * @remarks A cross-module import needs named bindings: a default, namespace or side-effect import has no
- * door spelling that keeps its meaning, so it is refused for the operator rather than guessed.
+ * door spelling that keeps its meaning, and a call or `import()` type names no bindings at all, so both are
+ * refused for the operator rather than guessed.
  */
-export function planDeepImport(declaration: ImportDeclaration | ExportDeclaration, from: PackageSource, target: string, reader: DoorReader): DeepImportPlan {
+export function planDeepImport(owner: Node, from: PackageSource, target: string, reader: DoorReader): DeepImportPlan {
   const to = packageSourceOf(target);
   if (to === undefined || to.pkg !== from.pkg) {
     return { kind: "refuse", reason: `resolves outside ${from.srcRoot}` };
   }
-  const fromModule = packageModuleOf(from.pkg, from.relative);
-  const toModule: PackageModule = packageModuleOf(to.pkg, to.relative);
+  const fromModule = packageModuleOf(from.pkg, from.path);
+  const toModule: PackageModule = packageModuleOf(to.pkg, to.path);
   // The door itself is already the narrowest leaf of its module, so a narrow importer still spells it as the door.
-  const narrow = reader.narrowImporters.has(`${from.srcRoot}/${from.relative}`) && to.relative !== `${toModule.key}/index.ts`;
+  const narrow = reader.narrowImporters.has(`${from.srcRoot}/${from.path}`) && to.path !== `${toModule.key}/index.ts`;
   if (fromModule.key === toModule.key || toModule.kind === "file" || narrow) {
-    return { kind: "respell", spec: `${SOURCE_SUBPATH_PREFIX}${to.relative}`, exports: [] };
+    return { kind: "respell", spec: `${SOURCE_SUBPATH_PREFIX}${to.path}`, exports: [] };
   }
-  const names = namedTargets(declaration);
+  if (!(Node.isImportDeclaration(owner) || Node.isExportDeclaration(owner))) {
+    return { kind: "refuse", reason: `a call or import() type crosses into ${toModule.key}; it names no binding to route through the front door` };
+  }
+  const names = namedTargets(owner);
   if (names === undefined) {
     return { kind: "refuse", reason: `a default, namespace or side-effect import crosses into ${toModule.key}; it has no front-door spelling` };
   }

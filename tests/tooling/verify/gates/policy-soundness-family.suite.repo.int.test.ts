@@ -29,7 +29,6 @@ import {
   POLICY_CONTRACT_PATH,
   POLICY_CONTRACT_STUB,
 } from "../../../../tooling/src/verify/gates/_proof/policy-soundness.ts";
-import { gate as policyFixtureSubstrate } from "../../../../tooling/src/verify/gates/policy-fixture-substrate.ts";
 import { gate as policyLegacyImports } from "../../../../tooling/src/verify/gates/policy-legacy-imports.ts";
 import { gate as policyProofExpectations } from "../../../../tooling/src/verify/gates/policy-proof-expectations.ts";
 import { gate as policyRefusalCoverage } from "../../../../tooling/src/verify/gates/policy-refusal-coverage.ts";
@@ -41,14 +40,7 @@ import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const FAMILY: readonly GatePolicy[] = [
-  policyFixtureSubstrate,
-  policyLegacyImports,
-  policyProofExpectations,
-  policyRefusalCoverage,
-  policySoundness,
-  policyWaiverIdentity,
-];
+const FAMILY: readonly GatePolicy[] = [policyLegacyImports, policyProofExpectations, policyRefusalCoverage, policySoundness, policyWaiverIdentity];
 /** The second opinions for the two OPEN classes, restated as TEXT tests so each arm's real-corpus findings are
  *  compared against something the arm did not compute (#1969: a hardcoded count rots into a false pin).
  *  `policy-legacy-imports` ARM A: an import line whose specifier names one of the nine forbidden homes. */
@@ -469,13 +461,7 @@ const LOOKALIKE = (id: string): string =>
   `function defineGate(policy: unknown): unknown {\n  return policy;\n}\nexport const gate = defineGate({ id: "${id}" });\n`;
 const CANONICAL = (id: string): string => `import { defineGate } from "../contract/policy.ts";\nexport const gate = defineGate({ id: "${id}" });\n`;
 
-/** `policy-fixture-substrate` cannot take the self-anchor arm and the reason is structural, not an omission: its
- *  population is the TEST tree (`tests/tooling/verify/gates/**`), so its own module never enters `ctx.files` and
- *  there is no self to anchor on. Its blindness is stated the other way the family already knows — a zero-count
- *  receipt — and pinned by its own test directly below this loop. */
-const SELF_ANCHORED = FAMILY.filter((policy) => policy.id !== policyFixtureSubstrate.id);
-
-for (const policy of SELF_ANCHORED) {
+for (const policy of FAMILY) {
   test(`${policy.id} REFUSES the run when its own module no longer reads as final, and runs when it does`, () => {
     const self = `${GATES_DIR}${policy.id}.ts`;
     const blind = passOf(policy, { [self]: LOOKALIKE(policy.id) });
@@ -491,97 +477,6 @@ for (const policy of SELF_ANCHORED) {
     expect(seeing.authority.effectiveFindings).toEqual([]);
   });
 }
-
-test("policy-fixture-substrate REFUSES a population it read NOTHING from, and runs when it reads a file (#2185)", () => {
-  // THE BLIND DIRECTION. This policy's population is the TEST tree, so it has no own-module self-anchor; what
-  // holds it is the resolver one level up, which refuses an effective population that admits nothing BEFORE any
-  // hook runs. Measured: a zero-count receipt inside the module never executed, because this refusal fired first.
-  const blind = passOf(policyFixtureSubstrate, {});
-  expect(blind.toolErrors).toMatchObject([{ policyId: policyFixtureSubstrate.id, phase: "population" }]);
-  expect(blind.toolErrors[0]?.message).toContain("candidate corpus is empty");
-  expect(blind.authority.withheldPolicyIds).toEqual([policyFixtureSubstrate.id]);
-
-  // THE SEEING DIRECTION, which is what makes the arm above a control rather than an unfailable assertion: one
-  // real family-test file in the population, clean, no refusal. #2332 rewrote this fixture — it used to be an
-  // EXPORTED arrow whose write was rooted at its own parameter, which the pre-#2332 reader acquitted outright
-  // and the call-site reader correctly refuses (no complete authored caller set). The seeing arm needs a
-  // fixture that is genuinely CLEAN, not one that was clean only because the parameter was unreadable.
-  const seeing = passOf(policyFixtureSubstrate, {
-    [FIXTURE_SUPPORT_PATH]: FIXTURE_SUPPORT,
-    "tests/tooling/verify/gates/probe.test.ts":
-      'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\ntest("x", ({ scratch }) => writeFileSync(join(scratch, "x"), "x"));\n',
-  });
-  expect(seeing.toolErrors).toEqual([]);
-  expect(seeing.authority.withheldPolicyIds).toEqual([]);
-  expect(seeing.authority.effectiveFindings).toEqual([]);
-});
-
-// #2332 — THE PRODUCTION-DISPATCHER CONTROLS FOR THE OPERAND TABLE AND THE CALL-SITE READER. These cannot be
-// declared proof rows in the policy alone and be worth much: a row proves the module in isolation, while these
-// drive `runPolicyPass` exactly as `check:structure` does, which is the surface the #2332 census measured ZERO
-// on. Each is stated as a COUNT plus a verdict word, so a reader that silently stopped judging one operand
-// reds here rather than shrinking a list nobody re-derives.
-const FIXTURE_SUPPORT_PATH = "tests/support/node/tool-fixtures.ts";
-const FIXTURE_SUPPORT =
-  "export function test(name: string, body: (fixtures: { scratch: string; repoRoot: string }) => unknown): void { void name; void body; }\n";
-const PROBE_PATH = "tests/tooling/verify/gates/probe.test.ts";
-
-test("policy-fixture-substrate judges every copy/cp destination, both rename paths, and the async removal twins (#2332)", () => {
-  const result = passOf(policyFixtureSubstrate, {
-    [FIXTURE_SUPPORT_PATH]: FIXTURE_SUPPORT,
-    [PROBE_PATH]:
-      'import * as fs from "node:fs";\nimport * as fsp from "node:fs/promises";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\ntest("x", ({ scratch, repoRoot }) => {\n  fs.copyFileSync(join(scratch, "source"), join(repoRoot, "dest"));\n  void fsp["copyFile"](join(scratch, "source"), join(repoRoot, "dest"));\n  fs.cpSync(join(scratch, "source"), join(repoRoot, "dest"));\n  void fsp.cp(join(scratch, "source"), join(repoRoot, "dest"));\n  fs.renameSync(join(repoRoot, "old"), join(scratch, "new"));\n  void fsp.rename(join(scratch, "old"), join(repoRoot, "new"));\n  void fsp.unlink(join(repoRoot, "old"));\n  void fsp.rmdir(join(repoRoot, "old"));\n});\n',
-  });
-
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings).toHaveLength(8);
-  expect(result.authority.effectiveFindings.every(({ message }) => message?.includes("CHECKOUT") === true)).toBe(true);
-});
-
-test("policy-fixture-substrate leaves copy sources readable and accepts scratch on every affected rename path (#2332)", () => {
-  const result = passOf(policyFixtureSubstrate, {
-    [FIXTURE_SUPPORT_PATH]: FIXTURE_SUPPORT,
-    [PROBE_PATH]:
-      'import * as fs from "node:fs";\nimport * as fsp from "node:fs/promises";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\ntest("x", ({ scratch, repoRoot }) => {\n  fs.copyFileSync(join(repoRoot, "source"), join(scratch, "dest"));\n  void fsp.copyFile(join(repoRoot, "source"), join(scratch, "dest"));\n  fs.cpSync(join(repoRoot, "source"), join(scratch, "dest"));\n  void fsp.cp(join(repoRoot, "source"), join(scratch, "dest"));\n  fs.renameSync(join(scratch, "old-a"), join(scratch, "new-a"));\n  void fsp.rename(join(scratch, "old-b"), join(scratch, "new-b"));\n});\n',
-  });
-
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings).toEqual([]);
-});
-
-test("policy-fixture-substrate refuses mutable, relative and missing destinations through the production pass (#2332)", () => {
-  const result = passOf(policyFixtureSubstrate, {
-    [FIXTURE_SUPPORT_PATH]: FIXTURE_SUPPORT,
-    [PROBE_PATH]:
-      'import { copyFileSync, writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\ntest("x", ({ scratch, repoRoot }) => {\n  let target = join(scratch, "x");\n  target = join(repoRoot, "x");\n  writeFileSync(target, "x");\n  writeFileSync("relative.ts", "x");\n  copyFileSync(join(scratch, "source"));\n});\n',
-  });
-
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings).toHaveLength(3);
-  expect(result.authority.effectiveFindings.filter(({ message }) => message?.includes("UNREADABLE") === true)).toHaveLength(2);
-  expect(result.authority.effectiveFindings.filter(({ message }) => message?.includes("missing") === true)).toHaveLength(1);
-});
-
-test("policy-fixture-substrate carries checkout provenance ACROSS a helper parameter, which is the #2332 defect", () => {
-  // THE DISCRIMINATING PAIR, on the production dispatcher: one corpus where every caller is scratch and one
-  // where a single caller is the checkout, differing ONLY in that argument. Before #2332 both read zero.
-  const clean = passOf(policyFixtureSubstrate, {
-    [FIXTURE_SUPPORT_PATH]: FIXTURE_SUPPORT,
-    [PROBE_PATH]:
-      'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\ntest("x", ({ scratch }) => {\n  function plant(root: string, rel: string): void { writeFileSync(join(root, rel), "x"); }\n  plant(scratch, "a.ts");\n  plant(scratch, "b.ts");\n});\n',
-  });
-  expect(clean.toolErrors).toEqual([]);
-  expect(clean.authority.effectiveFindings).toEqual([]);
-
-  const dirty = passOf(policyFixtureSubstrate, {
-    [FIXTURE_SUPPORT_PATH]: FIXTURE_SUPPORT,
-    [PROBE_PATH]:
-      'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\ntest("x", ({ scratch, repoRoot }) => {\n  function plant(root: string, rel: string): void { writeFileSync(join(root, rel), "x"); }\n  plant(scratch, "a.ts");\n  plant(repoRoot, "b.ts");\n});\n',
-  });
-  expect(dirty.toolErrors).toEqual([]);
-  expect(dirty.authority.effectiveFindings).toHaveLength(1);
-  expect(dirty.authority.effectiveFindings[0]?.message).toContain("CHECKOUT");
-});
 
 // THE CLOSED DOOR for `policy-refusal-coverage` (#0038). Until #0038 this was the §4.2 discrimination control
 // for the `ordinary` tier's waiver door. The policy is `hard` now, so the property worth pinning is the
@@ -937,7 +832,7 @@ test(
     // OPEN = a class with live findings and a SECOND OPINION above (never a hardcoded count, #1969).
     // CLOSED = the tree itself is the proof the class is at zero.
     const openWithOpinion: ReadonlySet<string> = new Set([policyLegacyImports.id, policyRefusalCoverage.id]);
-    const closedAtZero: ReadonlySet<string> = new Set([policySoundness.id, policyFixtureSubstrate.id, policyProofExpectations.id, policyWaiverIdentity.id]);
+    const closedAtZero: ReadonlySet<string> = new Set([policySoundness.id, policyProofExpectations.id, policyWaiverIdentity.id]);
     expect(FAMILY.map(({ id }) => id).filter((id) => !(openWithOpinion.has(id) || closedAtZero.has(id)))).toEqual([]);
     for (const id of closedAtZero) {
       expect({ id, accused: accusedBy(id) }).toEqual({ id, accused: [] });

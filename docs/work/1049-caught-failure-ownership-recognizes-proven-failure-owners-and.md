@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: doing
-updated: 2026-10-18
+status: blocked
+updated: 2026-10-19
 priority: P2
 area: tooling
-lane: wt/agent-a4bd93033f54dc368
+blocked: on 1133
 plan: test-foundation
 ---
 

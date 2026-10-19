@@ -56,9 +56,14 @@ interface PendingCode {
   readonly identity: StagedIdentity;
 }
 
+/** Where {@link ensureIssuerTls} keeps the certificate in `dir`; a reader that must not mint takes the path from here. */
+export function issuerCertPath(dir: string): string {
+  return join(dir, CERT_FILE);
+}
+
 /** Mint the self-signed loopback certificate once per directory, again only after it expires. */
 export function ensureIssuerTls(dir: string, now: number = Date.now()): IssuerTls {
-  const certPath = join(dir, CERT_FILE);
+  const certPath = issuerCertPath(dir);
   const keyPath = join(dir, KEY_FILE);
   const current = existsSync(certPath) && existsSync(keyPath) && new Date(new X509Certificate(readFileSync(certPath)).validTo).getTime() > now + DAY_MS;
   if (!current) {

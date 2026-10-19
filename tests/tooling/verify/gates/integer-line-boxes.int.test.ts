@@ -1,8 +1,6 @@
 // Retained token arithmetic, semantic class pairing/rest scale and their failure lifetimes.
 // Stylesheet occurrence/permission/refusal controls belong to the native Stylelint suite.
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, plantFile, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project, ScriptKind } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
@@ -41,9 +39,7 @@ const CORPUS = {
 function pass(policy: GatePolicy, scratch: string, files: Readonly<Record<string, string>>): PolicyPassResult {
   const project = new Project({ skipAddingFilesFromTsConfig: true, compilerOptions: { jsx: 4 } });
   for (const [rel, text] of Object.entries(files)) {
-    const absolute = join(scratch, rel);
-    mkdirSync(dirname(absolute), { recursive: true });
-    writeFileSync(absolute, text);
+    const absolute = plantFile(scratch, rel, text);
     if (rel.endsWith(".ts") || rel.endsWith(".tsx")) {
       project.createSourceFile(absolute, text, { scriptKind: rel.endsWith(".tsx") ? ScriptKind.TSX : ScriptKind.TS, overwrite: true });
     }

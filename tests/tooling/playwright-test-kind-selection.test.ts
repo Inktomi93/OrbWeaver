@@ -78,6 +78,7 @@ test("every registered and authored e2e spec belongs to exactly one auth-mode pr
     expect(MODE_PROJECTS.filter(({ testMatch }) => testMatch.test(`representative${suffix}`)).map(({ name }) => name)).toEqual(["single-user"]);
     expect(MODE_PROJECTS.filter(({ testMatch }) => testMatch.test(`representative.local${suffix}`)).map(({ name }) => name)).toEqual(["local"]);
     expect(MODE_PROJECTS.filter(({ testMatch }) => testMatch.test(`representative.forward${suffix}`)).map(({ name }) => name)).toEqual(["forward-header"]);
+    expect(MODE_PROJECTS.filter(({ testMatch }) => testMatch.test(`representative.oidc${suffix}`)).map(({ name }) => name)).toEqual(["oidc"]);
   }
   expect(MODE_PROJECTS.some(({ testMatch }) => testMatch.test("representative.ct.tsx"))).toBe(false);
   const specs = readPolicyRepositoryInventory(repoRoot).trackedPaths.filter(

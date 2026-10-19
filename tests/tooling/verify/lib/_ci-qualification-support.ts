@@ -11,6 +11,7 @@ export const RUNTIME_JOB_NAMES = [
   "node legacy (1/3)",
   "node legacy (2/3)",
   "node legacy (3/3)",
+  "verb-coverage",
   "ct (1/1)",
   "ct legacy (1/5)",
   "ct legacy (2/5)",
@@ -23,6 +24,7 @@ export const RUNTIME_JOB_NAMES = [
 export const RUNTIME_JOB_GROUPS = [
   { name: "node (1/1)", jobs: ["node (1/1)"] },
   { name: "node legacy (${{ matrix.shard }}/3)", jobs: ["node legacy (1/3)", "node legacy (2/3)", "node legacy (3/3)"] },
+  { name: "verb-coverage", jobs: ["verb-coverage"] },
   { name: "ct (1/1)", jobs: ["ct (1/1)"] },
   { name: "ct legacy (${{ matrix.shard }}/5)", jobs: ["ct legacy (1/5)", "ct legacy (2/5)", "ct legacy (3/5)", "ct legacy (4/5)", "ct legacy (5/5)"] },
   { name: "e2e-smoke", jobs: ["e2e-smoke"] },

@@ -17,7 +17,6 @@ import { gate as ctPollScheduleAndPaint } from "../../../../../tooling/src/verif
 import { gate as diagnosticLegibility } from "../../../../../tooling/src/verify/gates/diagnostic-legibility.ts";
 import { gate as noDirectReportsWrite } from "../../../../../tooling/src/verify/gates/no-direct-reports-write.ts";
 import { gate as noOpaqueTestFixture } from "../../../../../tooling/src/verify/gates/no-opaque-test-fixture.ts";
-import { gate as policyFixtureSubstrate } from "../../../../../tooling/src/verify/gates/policy-fixture-substrate.ts";
 import { gate as policyLegacyImports } from "../../../../../tooling/src/verify/gates/policy-legacy-imports.ts";
 import { gate as policyProofExpectations } from "../../../../../tooling/src/verify/gates/policy-proof-expectations.ts";
 import { gate as policySoundness } from "../../../../../tooling/src/verify/gates/policy-soundness.ts";
@@ -116,16 +115,6 @@ export const TOOLING_TESTS_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noOpaqueTestFixture,
     overlays: [add("tests/client/features/rpg/liveness.fixtures.ts", 'export function makeLivenessGame(): unknown {\n  return { ruleset: "d20" };\n}\n')],
     messageIncludes: "typed `unknown`",
-  },
-  {
-    policy: policyFixtureSubstrate,
-    overlays: [
-      add(
-        "tests/tooling/verify/gates/liveness-probe.test.ts",
-        'import { writeFileSync } from "node:fs";\nimport { join } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\nwriteFileSync(join(process.cwd(), "tooling/src/verify/gates/x.ts"), "planted");\nexport const livenessTest = test;\n',
-      ),
-    ],
-    messageIncludes: "CHECKOUT",
   },
   {
     policy: policyLegacyImports,

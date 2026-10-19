@@ -242,14 +242,11 @@ const GATING_STAGES: readonly StageDef[] = [
     group: "structure",
     tiers: STATIC,
     argv: ["pnpm", "check:ledgers-fresh"],
-    // Our OWN 0/1/2/3-speaking op (tooling/src/verify/ops/ledgers-fresh.ts): the two committed single-writer
-    // ledgers — the caught-failure census (keyed by `siteId` since work item 0009, so a line move is not
-    // drift; an added, removed or re-verdicted site is) — vs a FRESH derivation. It already had a freshness
-    // check, but each was a VITEST suite, so `pnpm check` stayed green while main sat red on the next whole
-    // node run and regeneration was an unscheduled barrier ritual (#817; three re-lines in one night). It
-    // USES the tool-error code: a derivation that comes back EMPTY is blindness, not a clean ledger.
+    // Our OWN 0/1/2/3-speaking op (tooling/src/verify/ops/ledgers-fresh.ts): the committed single-writer
+    // ledgers vs a FRESH derivation (#817). It USES the tool-error code: a derivation that comes back EMPTY is
+    // blindness, not a clean ledger.
     classify: ownScheme,
-    // A census derived from a narrowed fileset describes a different tree. The changed-tier trigger
+    // An output derived from a narrowed fileset describes a different tree. The changed-tier trigger
     // decorator therefore runs this stage's whole argv whenever a changed selection owes it.
   },
 

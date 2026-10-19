@@ -48,7 +48,6 @@ import type {
   GetGroupConfigForChatParams,
   GetMemberCardParams,
   GetMessageWindowParams,
-  GetRoomOverridesForChatParams,
   GetRuntimeVariablesParams,
   GetShapeTraceParams,
   GetUserMacroPicksParams,
@@ -412,7 +411,6 @@ export interface ChatService {
   readonly setToolRecurseLimit: (params: SetToolRecurseLimitParams) => Promise<number>;
 
   readonly getGroupConfigForChat: (params: GetGroupConfigForChatParams) => Promise<GroupConfig>;
-  readonly getRoomOverridesForChat: (params: GetRoomOverridesForChatParams) => Promise<RoomOverrides>;
 
   /** The ONE AI-seat knob write (host-only; D80) — participantId-keyed, kind-blind. Patches a PRESENT
    *  AI-driven seat's (`character` today; `agent` grafts back on per docs/work/0048) `talkativeness`/`disabled` (both
