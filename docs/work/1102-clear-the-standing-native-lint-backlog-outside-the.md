@@ -1,8 +1,9 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
+lane: wt/agent-a9e5f5af9058b32d3
 ---
 
 # Clear the standing native lint backlog outside the server factory rule
