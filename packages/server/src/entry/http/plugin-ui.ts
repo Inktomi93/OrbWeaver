@@ -30,7 +30,7 @@ import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { Hono } from "hono";
-import type { PrincipalEnv } from "./blob.ts";
+import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;

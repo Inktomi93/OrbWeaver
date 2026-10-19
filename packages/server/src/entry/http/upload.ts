@@ -21,7 +21,7 @@ import { getHTTPStatusCodeFromError } from "@trpc/server/http";
 import type { Hono, MiddlewareHandler } from "hono";
 import { bodyLimit } from "hono/body-limit";
 import { z } from "zod";
-import type { ImportAssetPort } from "#domain/assets";
+import type { AssetsService, ImportAssetPort } from "#domain/assets";
 import { AssetContentRejectedError } from "#domain/assets";
 import type { ImportCharacterPort } from "#domain/character";
 import type { DatabankService } from "#domain/databank";
@@ -32,10 +32,10 @@ import { hasCsrfHeader } from "#infra/auth";
 import { classifyDomainError } from "#transport/trpc";
 import type { ImportFile } from "../import/index.ts";
 import { runCardLorebookRestore, runProfileImport } from "../import/index.ts";
-import type { PrincipalEnv } from "./blob.ts";
-import type { UploadAssetsPort } from "./contract/assets.ts";
+import type { PrincipalEnv } from "./contract/request-env.ts";
 
-export type { UploadAssetsPort } from "./contract/assets.ts";
+/** The assets slice this registrar consumes, derived from the service rather than restated. */
+export type UploadAssetsPort = Pick<AssetsService, "store">;
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;

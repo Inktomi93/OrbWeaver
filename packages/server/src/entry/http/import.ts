@@ -23,7 +23,7 @@ import { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "#domain/import";
 import type { WorkloadService } from "#domain/workloads";
 import { hasCsrfHeader } from "#infra/auth";
 import { IMPORT_MAX_TOTAL_BYTES } from "../import/index.ts";
-import type { PrincipalEnv } from "./blob.ts";
+import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;

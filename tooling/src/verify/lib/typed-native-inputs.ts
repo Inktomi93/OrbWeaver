@@ -6,6 +6,7 @@ import { resolve } from "node:path";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { z } from "zod";
 import { ID_BRAND_HOME } from "../../floor/code-facts/id-brand.ts";
+import { toolingModuleClosure } from "../../floor/code-facts/instrument-reach.ts";
 import {
   SERVER_FACTORY_TIER_REFERENCE_POLICY_ID,
   TYPE_HOME_NATIVE_CONTRACT_GLOBS,
@@ -86,18 +87,16 @@ const AMBIENT_INPUTS = [
   "tooling/src/verify/lib/origin-verdict.ts",
 ];
 
-const TYPE_HOME_INPUTS = [
-  ...SCALAR_INPUTS,
-  ...MEMBER_INPUTS,
+// The native type-home and tier-reference rules evaluate these modules; one import closure is their cache input, never a hand list.
+const TYPE_HOME_RULE_MODULES = [
   "tooling/src/floor/code-facts/type-home.ts",
   "tooling/src/floor/code-facts/server-factory-type-home.ts",
   "tooling/src/floor/code-facts/shape-declaration.ts",
-  "tooling/src/floor/code-facts/shape-derivation.ts",
-  "tooling/src/floor/code-facts/shape-derivation-contract.ts",
-  "tooling/src/floor/code-facts/type-member-origin.ts",
-  "tooling/src/floor/code-facts/type-member-origin-contract.ts",
-  "tooling/src/floor/code-facts/assignability.ts",
-  "tooling/src/floor/code-facts/zod-origin.ts",
+  "tooling/src/floor/code-facts/server-public-boundary.ts",
+  "tooling/src/floor/code-facts/server-public-boundary-grammar.ts",
+] as const;
+const TYPE_HOME_INPUTS = [
+  ...new Set([...SCALAR_INPUTS, ...MEMBER_INPUTS, ...toolingModuleClosure(resolve(import.meta.dirname, "../../../.."), TYPE_HOME_RULE_MODULES)]),
 ];
 
 export const TYPED_NATIVE_POLICIES = [
@@ -124,7 +123,7 @@ export const TYPED_NATIVE_POLICIES = [
     dependencyScope: POPULATION_ROOTS["@server"].map((root) => `${root}**/*.{ts,tsx}`),
     scope: POPULATION_ROOTS["@server"].map((root) => `${root}**/*.{ts,tsx}`),
     notUnder: TYPE_HOME_NATIVE_UNADMITTED_GLOBS,
-    inputs: [...TYPE_HOME_INPUTS, "tooling/src/floor/code-facts/server-public-boundary.ts", "tooling/src/floor/code-facts/server-public-boundary-grammar.ts"],
+    inputs: TYPE_HOME_INPUTS,
   },
   { id: "list-row-adoption", scope: ["packages/client/src/**/*.tsx"], inputs: SCALAR_INPUTS },
   {

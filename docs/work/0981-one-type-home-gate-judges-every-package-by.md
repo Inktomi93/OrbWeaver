@@ -38,4 +38,4 @@ Client-error telemetry derives the canonical diagnostics schema; root controls a
 
 Adapter contract homes keep runtime bodies and raw wire boundaries; their original placement findings are gone. Evidence: `reports/review/1042-canonical-adapter-type-homes.md`.
 
-Native placement owns export-listed aliases and interfaces and proven zod shape schemas in its whole admitted population. Custom owners subtract that population and keep generated, client, tooling, test and UI-authoring claims. The census found no live finding. Evidence: `reports/review/981-type-home-slice.md`.
+Native placement owns export-listed aliases and interfaces and proven zod shape schemas in its whole admitted population. Custom owners subtract that population and keep generated, client, tooling, test and UI-authoring claims. D329 adds the exact data-layout and portability-registry homes; the entry asset ports moved beside their factories. The native type-home cache input is the rule modules' derived import closure. Evidence: `reports/review/981-type-home-slice.md`.

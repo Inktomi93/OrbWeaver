@@ -43,7 +43,7 @@ import type { PersonaService } from "#domain/persona";
 import type { WorkloadService } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 import { hasCsrfHeader } from "#infra/auth";
-import type { PrincipalEnv } from "./blob.ts";
+import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const UNAUTHORIZED = 401;
 const FORBIDDEN = 403;

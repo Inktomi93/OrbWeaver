@@ -53,13 +53,13 @@ export const gate = defineGate({
       mode: "source",
       files: {
         "packages/server/src/entry/anchor.ts": "export const anchor = 1;\n",
-        "packages/server/src/domain/x/verb.ts": "export interface FooView {\n  readonly a: string;\n}\n",
+        "packages/server/src/domain/x/verb.gen.ts": "export interface FooView {\n  readonly a: string;\n}\n",
         "packages/server/src/primitives/x.ts": "export interface Bar {\n  readonly a: string;\n}\n",
         "packages/inference/src/contract/x.ts": "export interface Home {\n  readonly a: string;\n}\n",
-        "packages/server/src/infra/contract.ts": "export interface Flat {\n  readonly a: string;\n}\n",
-        "packages/server/src/infra/contract/x.ts": "export interface Nested {\n  readonly a: string;\n}\n",
+        "packages/server/src/infra/storage/contract.ts": "export interface Flat {\n  readonly a: string;\n}\n",
+        "packages/server/src/infra/storage/contract/x.ts": "export interface Nested {\n  readonly a: string;\n}\n",
       },
-      why: "every subtracted home in one row: server domains (judged by `no-inline-domain-interface`), server primitives, the inference `contract/` home, the flat `contract.ts` and nested `contract/` directories. Dropping any one clause reds this row",
+      why: "every subtracted home in one row, each on a path native lint does not admit: a generated server-domain file (judged by `no-inline-domain-interface`), server primitives, the inference `contract/` home, and the flat `contract.ts` and nested `contract/` adapter homes. Dropping any one clause reds this row",
     },
     {
       mode: "source",

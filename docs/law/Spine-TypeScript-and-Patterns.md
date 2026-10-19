@@ -25,6 +25,10 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** An a
 | **server adapter API shared across tiers** | adapter-owned contracts under [Tier-3-Infra](Tier-3-Infra.md#spine-intersections) | permitted server callers; no client reach |
 | **transport context, port and driver API** | explicit owners in [Tier-4-Transport](Tier-4-Transport.md#what-this-tier-owns) | permitted server callers |
 | **env policy API** | env-owned contract under [D327](../adr/0327-foundation-env-policy-contracts.md) | permitted server callers; no client reach |
+| **data-layout API crossing into entry** | `packages/server/src/foundation/data-layout/contract.ts` under [D329](../adr/0329-data-layout-and-portability-registry-type-homes.md) | foundation and entry callers; no client reach |
+| **portability registry value shapes** | `packages/server/src/entry/contract/portability.ts` under [D329](../adr/0329-data-layout-and-portability-registry-type-homes.md) | the entry portability registries and their tests |
+| **entry request env** | `packages/server/src/entry/http/contract/request-env.ts` under [D329](../adr/0329-data-layout-and-portability-registry-type-homes.md) | entry route registrars |
+| **tRPC router type bridge** | `packages/server/src/transport/trpc/router.ts` under [D329](../adr/0329-data-layout-and-portability-registry-type-homes.md) | the client, type-only |
 | **pure primitive shape** | `kit` | anyone (it's the bottom) |
 
 **The rule:** exported types, interfaces and schemas belong in the homes above. Domain, wire and database shapes never move into a component.
@@ -44,7 +48,7 @@ A server factory shape is owned by its production signature: it is a parameter, 
 | Gate | What it judges |
 | - | - |
 | ESLint `orb/type-home-direct-export` | exported aliases, interfaces and proven zod shape schemas, direct or export-listed, outside contract homes in inference, default-content, plugin-toolchain and every server tier except primitives; generated declarations and domain test mirrors retain custom ownership |
-| `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in client, tooling, tests and UI authoring, plus generated declarations; the native population is subtracted |
+| `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in client, tooling, tests and UI authoring, plus generated declarations, server root modules such as `packages/server/src/index.ts`, schemas in the transport API homes and server-domain test mirrors; the native population is subtracted |
 | `no-inline-domain-interface` | generated server-domain interface declarations outside contract homes; native lint owns authored domain declarations |
 | `no-inline-package-interface` | generated and token-authoring interfaces retain custom placement; authored server and inference declarations delegate to native lint, with D324 factory ownership |
 | `no-inline-wire-interface` | an exported interface in the client, outside a home, whose name is in the wire vocabulary (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) and whose type is plain data (no callable member anywhere in it); the client `data` tier is included |

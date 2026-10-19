@@ -26,9 +26,10 @@ export const TYPE_HOME_NATIVE_UNADMITTED_GLOBS = [`**/*${TYPE_HOME_GENERATED_SUF
 export const TYPE_HOME_NATIVE_POLICY_ID = "type-home-direct-export";
 export const SERVER_FACTORY_TIER_REFERENCE_POLICY_ID = "server-factory-tier-reference";
 
-// Tier-4 owns these driver/context APIs at their concrete canonical homes.
+// Tier-4 owns these driver/context APIs at their concrete canonical homes; D329 adds the client's AppRouter bridge.
 export const SERVER_TYPE_API_HOMES = [
   "packages/server/src/transport/trpc/context.ts",
+  "packages/server/src/transport/trpc/router.ts",
   "packages/server/src/transport/rate-limit.ts",
   "packages/server/src/transport/trpc/presence-registry.ts",
   "packages/server/src/transport/trpc/stream/socket-registry.ts",
@@ -45,6 +46,13 @@ export function serverTypeTier(path: string): string | undefined {
 export function serverTypeApiHome(path: string): boolean {
   return SERVER_TYPE_API_HOMES.some((home) => path === home);
 }
+// D327 and D329 sanction these exact files; their folders stay outside the home set.
+export const SERVER_EXACT_CONTRACT_HOMES = [
+  "packages/server/src/foundation/env/contract.ts",
+  "packages/server/src/foundation/data-layout/contract.ts",
+  "packages/server/src/entry/contract/portability.ts",
+  "packages/server/src/entry/http/contract/request-env.ts",
+] as const;
 export const SERVER_FACTORY_TYPE_HOME_ROOTS = ["entry", "transport", "infra", "foundation"].map((tier) => `packages/server/src/${tier}/`);
 
 function packageRoot(name: PackageName): string {
@@ -75,7 +83,7 @@ export const TYPE_HOME_NATIVE_CONTRACT_GLOBS = [
   "packages/server/src/infra/*/contract.ts",
   "packages/server/src/transport/trpc/contract/**/*.{ts,tsx}",
   "packages/server/src/transport/jobs/contract/**/*.{ts,tsx}",
-  "packages/server/src/foundation/env/contract.ts",
+  ...SERVER_EXACT_CONTRACT_HOMES,
 ];
 
 /** Classify the canonical package/world and answer only the sanctioned package-contract path question. */

@@ -1,6 +1,11 @@
 import { resolve } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { nativeTypeHomeAdmission, packageTypeHome, TYPE_HOME_NATIVE_POLICY_ID } from "@orb/tooling/floor/code-facts/type-home";
+import {
+  nativeTypeHomeAdmission,
+  packageTypeHome,
+  SERVER_FACTORY_TIER_REFERENCE_POLICY_ID,
+  TYPE_HOME_NATIVE_POLICY_ID,
+} from "@orb/tooling/floor/code-facts/type-home";
 import { ESLint, Linter } from "eslint";
 import { Project } from "ts-morph";
 import tseslint from "typescript-eslint";
@@ -9,6 +14,7 @@ import { gate as packageInterfaces } from "../../../../tooling/src/verify/gates/
 import { gate as inlineTypes } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as wireInterfaces } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { affectsTypedNativePolicy, TYPED_NATIVE_POLICIES } from "../../../../tooling/src/verify/lib/typed-native-inputs.ts";
 
 const RULE = `orb/${TYPE_HOME_NATIVE_POLICY_ID}`;
 const ZOD_DECLARATION = [
@@ -125,6 +131,50 @@ test("proven zod shape schemas exported directly or by list are native placement
     expect(await nativeFindings(eslint, path, cases[0][0], installed), path).toEqual([]);
   }
 }, 30_000);
+
+test("D329 admits its exact files while their folders and other contract-named files stay findings", async ({ repoRoot }) => {
+  const eslint = new ESLint({ cwd: repoRoot });
+  const source = "export interface Data {}; export type Scalar = string;";
+  for (const path of [
+    "packages/server/src/foundation/data-layout/contract.ts",
+    "packages/server/src/entry/contract/portability.ts",
+    "packages/server/src/entry/http/contract/request-env.ts",
+    "packages/server/src/transport/trpc/router.ts",
+  ]) {
+    expect(await nativeFindings(eslint, path, source), path).toEqual([]);
+    expect(nativeTypeHomeAdmission(path), path).toBe(false);
+  }
+  for (const path of [
+    "packages/server/src/foundation/data-layout/layout.ts",
+    "packages/server/src/foundation/data-layout/contract/probe.ts",
+    "packages/server/src/foundation/arbitrary/contract.ts",
+    "packages/server/src/entry/contract/wrong.ts",
+    "packages/server/src/entry/http/contract/assets.ts",
+    "packages/server/src/entry/http/blob.ts",
+    "packages/server/src/transport/trpc/routers/chat.ts",
+    "packages/server/src/transport/trpc/router-probe.ts",
+  ]) {
+    expect(await nativeFindings(eslint, path, source), path).toHaveLength(2);
+    expect(nativeTypeHomeAdmission(path), path).toBe(true);
+  }
+});
+
+test("the schema-path import closure invalidates both type-home native policies", () => {
+  for (const id of [TYPE_HOME_NATIVE_POLICY_ID, SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]) {
+    const entry = TYPED_NATIVE_POLICIES.find((policy) => policy.id === id);
+    expect(entry, id).toBeDefined();
+    for (const path of [
+      "tooling/src/floor/code-facts/zod-origin.ts",
+      "tooling/src/floor/code-facts/call-supplied.ts",
+      "tooling/src/floor/code-facts/schema-object.ts",
+      "tooling/src/floor/code-facts/reference-fact-call.ts",
+      "tooling/src/floor/code-facts/server-public-boundary-grammar.ts",
+    ]) {
+      expect(entry !== undefined && affectsTypedNativePolicy(entry, path), `${id}: ${path}`).toBe(true);
+    }
+    expect(entry !== undefined && affectsTypedNativePolicy(entry, "tooling/src/snap/ops/capture.ts"), id).toBe(false);
+  }
+});
 
 test("the existing custom placement owners do not duplicate the pilot's native accusations", async ({ repoRoot }) => {
   const eslint = new ESLint({ cwd: repoRoot });

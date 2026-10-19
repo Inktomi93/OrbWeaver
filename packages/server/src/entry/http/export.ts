@@ -28,7 +28,7 @@ import type { ExportCardFormat, ExportChatFormat, ExportService } from "#domain/
 import { createBundlePaths } from "#domain/export";
 import type { ZipEntry } from "#infra/storage";
 import { packZip } from "#infra/storage";
-import type { PrincipalEnv } from "./blob.ts";
+import type { PrincipalEnv } from "./contract/request-env.ts";
 
 const NOT_FOUND = 404;
 const UNAUTHORIZED = 401;
