@@ -165,8 +165,9 @@ export function createSemanticInventory(rawOptions: SemanticInventoryOptions): S
     const generation = published ? publishInventoryGeneration(db, partitions) : latestInventoryGeneration(db);
     validateInventoryReaderSources(db, partitions);
     shapeReaderContext(options, descriptors, partitions);
-    // Pure reuse ran no worker and published nothing, so the check above is its last input window; its readers
-    // still admit every source epoch on read. Only an extraction or publication needs the later rechecks.
+    // A pure-reuse acquisition ran no worker and published nothing, so it is a snapshot as of the
+    // assertSnapshotCurrent check above; its readers still admit every source epoch on read. Only an
+    // extraction or publication needs the later rechecks.
     const recheckPublication = publicationRecheck(published, () => {
       assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
     });

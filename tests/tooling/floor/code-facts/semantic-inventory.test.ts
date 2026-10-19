@@ -529,6 +529,8 @@ test("invocation query validation refuses corrupt unread rows after another ordi
   }
 });
 
+const NARROW_DECODES_PER_SAMPLE = 20;
+
 // Append one extra array member of `width` null atoms to a stored fact graph's root object. The fact schema
 // strips the unknown root key, so the decoded fact is unchanged while the decoder still walks every sibling.
 function appendWideSiblings(db: ReturnType<typeof openInventoryDatabase>, id: string, owner: number, width: number): void {
@@ -563,22 +565,25 @@ test("invocation graph decoding work grows linearly with sibling count and still
   }
   appendWideSiblings(writer, id, 0, narrow);
   appendWideSiblings(writer, id, 1, wide);
-  // Process CPU, best of three: input size against work done, independent of how siblings are compared.
-  const work = (query: InventoryInvocationQuery, expected: object): number => {
+  // Process CPU per decode, best of three samples: input size against work done, independent of how siblings
+  // are compared. The narrow sample repeats its decode so it is long enough (hundreds of ms) to resist load noise.
+  const work = (query: InventoryInvocationQuery, expected: object, decodes: number): number => {
     const samples: number[] = [];
     for (let run = 0; run < 3; run++) {
       const started = process.cpuUsage();
-      expect([...readInventoryInvocationEvidence(writer, id, query)]).toEqual([expected]);
+      for (let decode = 0; decode < decodes; decode++) {
+        expect([...readInventoryInvocationEvidence(writer, id, query)]).toEqual([expected]);
+      }
       const spent = process.cpuUsage(started);
-      samples.push(spent.user + spent.system);
+      samples.push((spent.user + spent.system) / decodes);
     }
     return Math.min(...samples);
   };
-  work(small.query, small);
-  const smallWork = work(small.query, small);
-  const ratio = work(large.query, large) / smallWork;
-  // At 16x the siblings, linear decoding stays well under 64x the work; comparing each key with every earlier one does not.
-  expect(ratio).toBeLessThan(64);
+  work(small.query, small, 1);
+  const smallWork = work(small.query, small, NARROW_DECODES_PER_SAMPLE);
+  const ratio = work(large.query, large, 1) / smallWork;
+  // At 16x the siblings, linear decoding stays well under 45x the work; comparing each key with every earlier one does not.
+  expect(ratio).toBeLessThan(45);
   writer
     .prepare("UPDATE inventory_invocation_atom SET key=? WHERE partition=? AND owner=0 AND parent=0 AND key=?")
     .run(JSON.stringify("callee"), id, JSON.stringify("wide"));
