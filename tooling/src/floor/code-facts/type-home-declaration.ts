@@ -14,16 +14,8 @@ import type {
   TypeHomeCategory,
   TypeHomeDeclarationInput,
   TypeHomeDeclarationJudgment,
-  TypeHomeDeclarationPlane,
   TypeHomeNativeSource,
 } from "./type-home-contract.ts";
-
-function declarationPlane(node: MorphNode): TypeHomeDeclarationPlane {
-  if (Node.isVariableStatement(node)) {
-    return "schema-origin";
-  }
-  return (Node.isInterfaceDeclaration(node) || Node.isTypeAliasDeclaration(node)) && node.hasExportKeyword() ? "direct-export" : "local-export";
-}
 
 /** Judge an existing admitted claim; unqualified ownership preserves its finding rather than granting a home. */
 export function judgeTypeHomeDeclaration(node: MorphNode, input: TypeHomeDeclarationInput): TypeHomeDeclarationJudgment {
@@ -45,12 +37,11 @@ export function judgeTypeHomeDeclaration(node: MorphNode, input: TypeHomeDeclara
   if (names.length === 0) {
     return { kind: "not-subject" };
   }
-  const plane = declarationPlane(node);
   const ownership = contextualDeclarationTypeHome(node, input);
   if (ownership.kind === "refused") {
     return ownership;
   }
-  return { kind: "subject", shapes: names.map((name) => ({ name, plane })), ownership };
+  return { kind: "subject", names, ownership };
 }
 
 const UNQUALIFIED_HOME_REASONS = {

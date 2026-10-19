@@ -59,6 +59,7 @@
 // intent to the trigger's ARIA-related Positioner, bounded by the popup's real opacity/scale transition.
 // The raw LoAF ring stays intact; motion-audit alone decides which confirmed intervals are budget inputs.
 
+import type { LongAnimationFrameTiming } from "@orb/kit/long-animation-frame";
 import { logClock } from "./log-clock.ts";
 import type { SelectEntranceEvidence } from "./select-entrance-evidence.ts";
 import { installSelectEntranceObserver, resetSelectEntranceEvidence, selectEntranceForFrame } from "./select-entrance-evidence.ts";
@@ -105,12 +106,7 @@ const loafRing: LoafRecord[] = [];
 /** One long animation frame as the ONE observer publishes it: the raw entry fields, undefaulted only
  *  where lib.dom cannot type them. Subscribers apply their OWN budget and attribution — the observer
  *  makes no judgement, which is what lets `[drop]` and `[frame]` disagree about what matters. */
-export interface LongAnimationFrameEvidence {
-  readonly startTime: number;
-  readonly duration: number;
-  readonly blockingDuration: number;
-  /** \>0 ⇒ style/layout ran inside this frame — `long-task-tracer.ts`'s `[reflow]` tell. */
-  readonly styleAndLayoutStart: number;
+export interface LongAnimationFrameEvidence extends LongAnimationFrameTiming {
   readonly scripts: readonly LoafScriptEntry[];
 }
 type LongAnimationFrameSubscriber = (frame: LongAnimationFrameEvidence) => void;

@@ -1,12 +1,12 @@
-// Handwritten e2e/support shapes must derive at direct annotated assignments, arguments and returns, judged by canonical native declarations (D328).
+// Handwritten e2e/support shapes must derive at direct annotated initializers, assignments, arguments and returns, judged by canonical native declarations (D328).
 // Boundaries resolve through aliases and a bounded walk of wrappers, containers, unions and intersections; function values and generic production parameters are UNKNOWN.
-// No-owner is clean only when no production declaration can own the site; an unseen identity is UNKNOWN, never a finding.
+// No-owner is clean only when no production declaration can own the site; an unseen identity or constructor argument is UNKNOWN, never a finding.
 // Limits: object literals and their properties, test classes, and workspace production .d.ts types are never judged or owners.
 // Singleton: direct boundary ownership is not the structural-copy family's field-fit judgment.
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
-import { readShapeAssociation, shapeAssociationQuestions, shapeAssociationSites } from "../../floor/code-facts/shape-association.ts";
+import { interfaceHeritage, readShapeAssociation, shapeAssociationQuestions, shapeAssociationSites } from "../../floor/code-facts/shape-association.ts";
 import type { ShapeAssociation, ShapeAssociationSite } from "../../floor/code-facts/shape-association-contract.ts";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 import { isLegacyTestPath } from "../../floor/testing/test-population.ts";
@@ -49,6 +49,7 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const sites: ShapeAssociationSite[] = [];
+    const heritage: Node[] = [];
     let sources: readonly SourceFile[] = [];
     let plan: InventoryInvocationPlan | undefined;
     if (ctx.nativeTypes === undefined) {
@@ -84,11 +85,22 @@ export const gate = defineGate({
     return {
       visitors: [
         {
-          kinds: [SyntaxKind.VariableDeclaration, SyntaxKind.BinaryExpression, SyntaxKind.CallExpression, SyntaxKind.ReturnStatement, SyntaxKind.ArrowFunction],
+          kinds: [
+            SyntaxKind.VariableDeclaration,
+            SyntaxKind.PropertyDeclaration,
+            SyntaxKind.Parameter,
+            SyntaxKind.BinaryExpression,
+            SyntaxKind.CallExpression,
+            SyntaxKind.NewExpression,
+            SyntaxKind.ReturnStatement,
+            SyntaxKind.ArrowFunction,
+            SyntaxKind.InterfaceDeclaration,
+          ],
           visit: (node, sourceFile) => {
             const file = ctx.relativePath(sourceFile);
             if (file.startsWith(TESTS)) {
               sites.push(...shapeAssociationSites(node));
+              heritage.push(...interfaceHeritage(node));
             }
           },
         },
@@ -96,7 +108,7 @@ export const gate = defineGate({
       prepare: () => {
         sources = [...new Set(sites.map((site) => site.boundary.getSourceFile()))];
         if (sources.length > 0) {
-          plan = typeObservationPlan(sources, [], shapeAssociationQuestions(sites));
+          plan = typeObservationPlan(sources, [], shapeAssociationQuestions(sites, heritage));
           native.request({ kind: "invocation-evidence", nodes: sources, plan });
         }
       },

@@ -210,6 +210,43 @@ const PROBES: readonly { readonly name: string; readonly body: string; readonly 
     unknown: [],
   },
   { name: "erased argument", body: "take(loose);", findings: [], unknown: [U.erasedValue] },
+  {
+    name: "method call argument at a production parameter",
+    body: "class Svc {\n  m(owner: Owner): void {\n    void owner;\n  }\n}\ndeclare const svc: Svc;\nsvc.m(hand);",
+    findings: ["Hand"],
+    unknown: [],
+  },
+  {
+    name: "constructor argument is counted, never silent",
+    body: "class Svc {\n  constructor(owner: Owner) {\n    void owner;\n  }\n}\nexport const svc = new Svc(hand);",
+    findings: [],
+    unknown: [U.constructedParameter],
+  },
+  {
+    name: "annotated class property initializer",
+    body: "export class Holder {\n  readonly owner: Owner = hand;\n}",
+    findings: ["Hand"],
+    unknown: [],
+  },
+  { name: "annotated parameter default", body: "export function f(owner: Owner = hand): void {\n  void owner;\n}", findings: ["Hand"], unknown: [] },
+  {
+    name: "interface extending a hand follows its heritage",
+    body: "interface H2 extends Hand {\n  readonly extra: number;\n}\ndeclare const h2: H2;\nexport const seen: Owner = h2;",
+    findings: ["H2"],
+    unknown: [],
+  },
+  {
+    name: "interface chain over a hand follows its heritage",
+    body: "interface H2 extends Hand {\n  readonly extra: number;\n}\ninterface H3 extends H2 {\n  readonly more: number;\n}\ndeclare const h3: H3;\nexport const seen: Owner = h3;",
+    findings: ["H3"],
+    unknown: [],
+  },
+  {
+    name: "interface extending the production owner stays derived",
+    body: "interface Derived extends Owner {\n  readonly extra: number;\n}\ndeclare const derived: Derived;\nexport const seen: Owner = derived;",
+    findings: [],
+    unknown: [],
+  },
   { name: "stated limit: an object literal spread has no declared identity", body: "export const seen: Owner = { ...hand };", findings: [], unknown: [] },
   {
     name: "stated limit: a property-level flow has no declared identity",

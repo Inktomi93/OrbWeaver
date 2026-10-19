@@ -1,6 +1,6 @@
 # 1056: default Knip adjudication
 
-Before-run: `pnpm knip` on 18b1d17c7d, 15s, exit 1: 2 files, 1 dependency, 4 devDependencies, 42 exports, 20 types, 3 config hints. After-run: 5 escalate rows plus one cascade orphan (see Open).
+Before-run: `pnpm knip` on 18b1d17c7d, 15s, exit 1: 2 files, 1 dependency, 4 devDependencies, 42 exports, 20 types, 3 config hints. Verified end state: `pnpm knip` on 1743de31e4 plus the kit `long-animation-frame` module and the tooling and test edits of the commit that records this line, exit 0, no findings (default view, run twice). The escalate rows below were open when the adjudication was written; the final run reports none of them.
 
 Search method for every symbol row: `rg -w` over the repo excluding node_modules and docs (repo-wide hit count shown by the finding's own definition line only), `ast-grep -l ts` and `-l tsx` over tooling, tests, scripts, packages and playwright (10453 tracked ts/tsx files in those dirs, 1654 tsx), codegraph_explore on the file, and a whole-file read. `pnpm ast` was not run: the owner rule forbids whole-repo `pnpm ast`.
 
@@ -46,6 +46,6 @@ I edited only package.json. The next ordinary `pnpm` command (`pnpm exec biome` 
 
 ## Open
 
-- Confirming `pnpm knip` (21 s, exit 1, reports/cb-1056-knip-after.txt): residue is exactly the escalate rows above (@anthropic-ai/sdk x2, cachedHead, extraction, SendOptions) plus `TenancySchema` (contract/tenancy.ts:43), orphaned by the removals. TenancySchema was then removed (single definition hit; tooling typecheck passes). That last removal is not covered by a third Knip run.
+- Confirming `pnpm knip` (21 s, exit 1, reports/cb-1056-knip-after.txt): residue is exactly the escalate rows above (@anthropic-ai/sdk x2, cachedHead, extraction, SendOptions) plus `TenancySchema` (contract/tenancy.ts:43), orphaned by the removals. TenancySchema was then removed (single definition hit; tooling typecheck passes). The verified end state at the top covers that removal.
 - tests/tooling/floor/code-facts/drizzle-statement.test.ts shows 58 failures (timeouts at 5000 ms and by-id findings that are empty). No removed symbol is referenced by that gate path (tsc for tooling passes), and commit d0d0bd8135 records the same suite as red; not proven against a clean tree.
 - tests/tooling/verify/gates/zod-output-twin-parity.suite.test.ts mustFlag arm times out at 5000 ms (7.9 s) under load; its other 14 tests pass.

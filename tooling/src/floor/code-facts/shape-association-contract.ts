@@ -6,6 +6,7 @@ export interface ShapeAssociationSite {
   readonly target: Node;
   readonly argument?: number;
   readonly assignment?: boolean;
+  readonly constructed?: boolean;
 }
 
 export interface ShapeAssociation {
@@ -22,6 +23,7 @@ export const SHAPE_ASSOCIATION_UNKNOWN = {
   manyHands: "the direct value has multiple handwritten declarations",
   unannotatedAssignment: "the assignment target has no direct explicit type annotation",
   unresolvedParameter: "the direct call has no resolved parameter for this argument",
+  constructedParameter: "the argument crosses a constructor whose parameters this walk does not read",
   genericParameter: "the callee declares this parameter as a type parameter whose constraint is not observed",
   unsupportedBoundary: "the boundary has no supported whole named production type",
   manyOwners: "the boundary has multiple canonical production declarations",

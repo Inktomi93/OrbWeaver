@@ -37,6 +37,7 @@
     "./ip": "./src/ip/index.ts",
     "./json": "./src/json/index.ts",
     "./json-schema": "./src/json-schema/index.ts",
+    "./long-animation-frame": "./src/long-animation-frame/index.ts",
     "./macro": "./src/macro/index.ts",
     "./message-role": "./src/message-role/index.ts",
     "./model-name": "./src/model-name/index.ts",

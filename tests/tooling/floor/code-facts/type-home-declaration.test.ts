@@ -39,9 +39,11 @@ interface Hidden {}
     ...file.getInterfaces().map((node) => judgeTypeHomeDeclaration(node, { path, claim: "interface" })),
   ];
   expect(judgments.map((judgment) => judgment.kind)).toEqual(["subject", "subject", "subject", "not-subject"]);
-  expect(
-    judgments.slice(0, 3).map((judgment) => (judgment.kind === "subject" ? judgment.shapes.map(({ name, plane }) => [name.getText(), plane]) : [])),
-  ).toEqual([[["Direct", "direct-export"]], [["Local", "local-export"]], [["Default", "direct-export"]]]);
+  expect(judgments.slice(0, 3).map((judgment) => (judgment.kind === "subject" ? judgment.names.map((name) => name.getText()) : []))).toEqual([
+    ["Direct"],
+    ["Local"],
+    ["Default"],
+  ]);
 });
 
 test("ownership evidence does not turn package categories or false paths into permission", () => {
@@ -246,17 +248,14 @@ export { Published as A, Published as B };
       config: program.descriptor.config,
       shapes: sourceFile.getVariableStatements().flatMap((node) => {
         const judgment = judgeTypeHomeDeclaration(node, { path, claim: "alias-or-schema" });
-        return judgment.kind === "subject" ? judgment.shapes.map(({ name, plane }) => [name.getText(), plane]) : [];
+        return judgment.kind === "subject" ? judgment.names.map((name) => name.getText()) : [];
       }),
     })),
   ).toEqual([
     { config: "packages/client/tsconfig.json", shapes: [] },
     {
       config: "packages/server/tsconfig.json",
-      shapes: [
-        ["Direct", "schema-origin"],
-        ["Published", "schema-origin"],
-      ],
+      shapes: ["Direct", "Published"],
     },
   ]);
   const unknown = new Project({ useInMemoryFileSystem: true }).createSourceFile(

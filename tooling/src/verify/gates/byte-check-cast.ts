@@ -359,7 +359,7 @@ export const gate = defineGate({
           'export const t = sqliteTable("t", { value: text("value") });\n' +
           `export const note = ${CHECK_EXPORT}("t_value_check", sql${TICK}${sqlText("value", BYTE_HOLE)}${TICK});\n`,
       },
-      why: "THE MERGED-TAG COUNTERFACTUAL — a sibling module whose own `sql` is a function merged with a namespace, the shape drizzle's `sql` has, tagging a byte-named cap with no cast. The merge reads as one origin, and its module is not `drizzle-orm`, so only the module comparison rejects it",
+      why: "THE MERGED-TAG MODULE COUNTERFACTUAL — a sibling module whose own `sql` is a function merged with a namespace, the shape drizzle's `sql` has, tagging a byte-named cap with no cast. The merged-callable fallback resolves it to one origin whose module is not `drizzle-orm`, so only the module comparison rejects it; dropping that comparison reds this row. The fallback itself is pinned by the tagged-template mustFlag row, which finds nothing without it",
     },
     {
       mode: "types",
