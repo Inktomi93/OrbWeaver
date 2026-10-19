@@ -21,4 +21,4 @@ Each listed waiver is KEEP with a named owner path:line, removed as redundant, o
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Fold in the p3-19 review notes: the line-112 record's diff field quotes the old marker text, the panel-flags.ts line 45 marker omits the --help consumer at panelPresetNames line 55, and the waiver playbook needs one sentence for a REAL DEFECT whose fault is in a consumer, where the marker stays.
