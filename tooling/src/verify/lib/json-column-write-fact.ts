@@ -7,6 +7,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { readUpsertSetArgument } from "../../floor/code-facts/drizzle-columns.ts";
 import type { DrizzleWriteRootVerb } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { DRIZZLE_INSERT_VERB, DRIZZLE_SET_VERB, DRIZZLE_UPDATE_VERB, DRIZZLE_UPSERT_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
+import { staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { defineFact } from "../contract/fact.ts";
@@ -273,6 +274,18 @@ export interface JsonColumnWriteFact {
   readonly analyze: (schema: SchemaProjectedModel) => JsonColumnWriteAnalysis;
 }
 
+// The calls this reader judges: a write whose callee member is a WRITE_VERBS verb (or a computed key the static
+// reader cannot name), and a contracts `defineVersionedConfig(` declaration. Every other call returns before any
+// observation is read, so these are the observation roots; the ordinary closure adds what their writes carry.
+function isJudgedCall(call: CallExpression): boolean {
+  const callee = call.getExpression();
+  if (Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee)) {
+    const name = staticMemberAccess(callee)?.name;
+    return name === undefined || WRITE_VERBS.has(name);
+  }
+  return call.getSourceFile().getFilePath().includes(CONTRACTS_DIR) && callee.getText() === DEFINE_VERSIONED_CONFIG;
+}
+
 /** One shared, invocation-local analysis of JSON columns and their writer shapes. */
 export const jsonColumnWriteFact = defineFact({
   id: "json-column-writes",
@@ -284,6 +297,7 @@ export const jsonColumnWriteFact = defineFact({
   resources: [],
   create: (ctx) => {
     const calls: CallExpression[] = [];
+    let judged: readonly CallExpression[] = [];
     const native = ctx.nativeTypes;
     if (native === undefined) {
       throw new Error("native JSON writer observation context is unavailable");
@@ -291,7 +305,8 @@ export const jsonColumnWriteFact = defineFact({
     let plan: InventoryInvocationPlan | undefined;
     return {
       prepare: (): void => {
-        plan = jsonColumnObservationPlan(calls, []);
+        judged = calls.filter(isJudgedCall);
+        plan = jsonColumnObservationPlan(judged, []);
         native.request({ kind: "invocation-evidence", nodes: ctx.files, plan });
       },
       visitors: [
@@ -339,7 +354,7 @@ export const jsonColumnWriteFact = defineFact({
               }
               return context;
             };
-            const versioned = deriveVersionedTypes(calls, (node) => {
+            const versioned = deriveVersionedTypes(judged, (node) => {
               const type = observationsFor(node).selected({ base: { kind: "node", node }, steps: [], displayAt: node });
               if (type?.display === null || type === null) {
                 throw new Error("native JSON versioned binding display is unavailable");
@@ -351,8 +366,8 @@ export const jsonColumnWriteFact = defineFact({
               throw new Error(`${JSON_UNREADABLE_CONFIG_MESSAGE} Unreadable declaration: ${declarations.join(", ")}.`);
             }
             const columns = deriveJsonColumns(schema, versioned.types);
-            const writers = collectJsonWritersByColumnWith(calls, columns.all, contextFor);
-            const guardTargets = collectJsonGuardTargets(calls, columns.versioned, root, contextFor);
+            const writers = collectJsonWritersByColumnWith(judged, columns.all, contextFor);
+            const guardTargets = collectJsonGuardTargets(judged, columns.versioned, root, contextFor);
             return Object.freeze({ writers, guardTargets });
           },
         });
