@@ -40,9 +40,9 @@
 //     shape. Identity is the RESOLVED declaration of the type name, never its spelling.
 //     **THE DECLARED LIMIT, and it is a LIMIT, not a gap that was overlooked.** ARM D is a TYPE-IDENTITY arm.
 //     A module that declares its OWN row interface locally and keeps the same per-subject table is INVISIBLE
-//     to it — the live example is `lib/injected-op-caller-param.ts#CallerFreeOpRow`, RETYPED rather than
-//     relocated, which appears in neither `ast refs ExemptionTable` nor this arm and carries a `mustPass` row
-//     saying so. The constructions attempted and REJECTED: a shape arm on `Record<string, { why }>` reds
+//     to it — a `lib/` module retyping its rows as a local `CallerFreeOpRow` rather than relocating them
+//     appears in neither `ast refs ExemptionTable` nor this arm, and a `mustPass` row says so.
+//     The constructions attempted and REJECTED: a shape arm on `Record<string, { why }>` reds
 //     `contract/tenancy-scope.ts#ScopingRow`, `lib/registry-triggers.ts#StageTrigger` and every honest cited
 //     vocabulary; a use-provenance arm ("a module-level per-subject collection consulted to SKIP a report")
 //     needs the membership test to reach the ABSENCE of a `ctx.report.*` call, which is control flow, and it
@@ -1429,7 +1429,7 @@ export const gate = defineGate({
         "tooling/src/verify/lib/injected-op-caller-param.ts":
           'export interface CallerFreeOpRow {\n  readonly op: string;\n  readonly why: string;\n}\nexport const CALLER_FREE_OP_ROWS: readonly CallerFreeOpRow[] = [{ op: "ReapAssetsOp", why: "w" }];\n',
       }),
-      why: "ARM D'S DECLARED LIMIT, PINNED AS A ROW RATHER THAN AS A SENTENCE (§4.1's fourth outcome): this is the LIVE `lib/injected-op-caller-param.ts` shape — the same per-subject table, RETYPED to a local one-field interface instead of relocated — and ARM D does not see it, by construction. Both constructions that would have were attempted and rejected: a shape arm on `Record<string, { why }>` reds `contract/tenancy-scope.ts#ScopingRow` and every honest cited vocabulary, and a use-provenance arm needs a membership test to reach the ABSENCE of a report, which is control flow and would red this module's own `FORBIDDEN_BASENAMES.has(...)`. The retype class remains a #1922 migration and per-module review obligation, never a closure this arm proves — a `mustPass` that says so is the honest output; a row pretending otherwise would be the lie",
+      why: "ARM D'S DECLARED LIMIT, PINNED AS A ROW RATHER THAN AS A SENTENCE (§4.1's fourth outcome): this is a `lib/` exemption-table shape — the same per-subject table, RETYPED to a local one-field interface instead of relocated — and ARM D does not see it, by construction. Both constructions that would have were attempted and rejected: a shape arm on `Record<string, { why }>` reds `contract/tenancy-scope.ts#ScopingRow` and every honest cited vocabulary, and a use-provenance arm needs a membership test to reach the ABSENCE of a report, which is control flow and would red this module's own `FORBIDDEN_BASENAMES.has(...)`. The retype class remains a #1922 migration and per-module review obligation, never a closure this arm proves — a `mustPass` that says so is the honest output; a row pretending otherwise would be the lie",
     },
     {
       mode: "types",

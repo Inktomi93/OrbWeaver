@@ -15,7 +15,6 @@ import { gate as externalIdSingleWriter } from "../../../../../tooling/src/verif
 import { gate as firehoseImportAllowlistHealth } from "../../../../../tooling/src/verify/gates/firehose-import-allowlist-health.ts";
 import { gate as handleKeyWriter } from "../../../../../tooling/src/verify/gates/handle-key-writer.ts";
 import { gate as membershipEnforcer } from "../../../../../tooling/src/verify/gates/membership-enforcer.ts";
-import { gate as membershipFanGuard } from "../../../../../tooling/src/verify/gates/membership-fan-guard.ts";
 import { gate as membershipWriteFan } from "../../../../../tooling/src/verify/gates/membership-write-fan.ts";
 import { gate as noDirectUsersRead } from "../../../../../tooling/src/verify/gates/no-direct-users-read.ts";
 import { gate as noHardcodedSideGenSampling } from "../../../../../tooling/src/verify/gates/no-hardcoded-side-gen-sampling.ts";
@@ -94,16 +93,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: membershipEnforcer,
     overlays: [add(`${CHAT_VERBS}/liveness-owner.ts`, "export const bad = (x: { readonly ownerId: string }, y: string): boolean => x.ownerId === y;\n")],
     messageIncludes: "ownerId",
-  },
-  {
-    policy: membershipFanGuard,
-    overlays: [
-      add(
-        `${CHAT_VERBS}/liveness-fan.ts`,
-        'export function leak(emitUserEvent: (u: string, e: unknown) => void): void {\n  emitUserEvent("u1", { type: "chatsChanged" });\n}\n',
-      ),
-    ],
-    messageIncludes: "emitUserEvent",
   },
   {
     policy: membershipWriteFan,

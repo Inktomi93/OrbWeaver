@@ -110,7 +110,7 @@ import { CHROME_ZONES } from "./packages/client/src/state/chrome-registry.ts";
 import { CONFIG_GROUP_IDS } from "./packages/client/src/state/config-group-ids.ts";
 import { MODAL_SLOT_IDS } from "./packages/client/src/state/modal-slot-ids.ts";
 import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
-import { ID_BRAND_HOME, nativeCanonicalIdBrand } from "./tooling/src/floor/code-facts/id-brand.ts";
+import { ID_BRAND_HOME, nativeCanonicalIdBrand, requireEntityIdTypeNames } from "./tooling/src/floor/code-facts/id-brand.ts";
 import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TOOLING_PREFIX } from "./tooling/src/floor/code-facts/module-specifier.ts";
 import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
 import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
@@ -1020,6 +1020,166 @@ const TURN_IDENTITY_RESTRICTIONS = [
     ],
   },
 ];
+
+// D22 member-card clamp, D16/D18 chat member fan, and the injected-op scope boundary (Spine-Identity-and-Auth §2b).
+const SERVER_SRC = "packages/server/src/**/*.{ts,tsx}";
+const MEMBER_CARD_VIEW = "MemberCardView";
+const MEMBER_CARD_CLAMPS = alternation(["clampMemberCard", "resolveCardVisibility"]);
+const INJECTED_OP_RULE = "injected-op-caller-param";
+/** A param name, destructured element, member name or type spelling that carries the caller scope. */
+const INJECTED_OP_SCOPE_NAMES = [
+  "principal",
+  "caller",
+  "actor",
+  "userId",
+  "ownerId",
+  "chatId",
+  "actorUserId",
+  "recipientUserId",
+  "forUserId",
+  "runAsUserId",
+  "hostUserId",
+  "subjectUserId",
+  "triggeredBy",
+  "Principal",
+  "UserId",
+];
+/** Ops whose authority is not the caller's. Each row says why and what ends it; the native suite reds a row
+ *  that no longer excuses a live contract declaration, so a stale name cannot license the next op. */
+const CALLER_FREE_OPS = [
+  {
+    op: "ReapAssetsOp",
+    why:
+      "the authority is structural, not the caller's: `reapIfOrphan` purges an id only when the whole asset-ref registry holds no " +
+      "reference to it (`selectReferencedAmong`), so a foreign id that is still referenced is skipped and a foreign id referenced by " +
+      "nothing is an orphan blob `collectGarbage` would reap anyway. Un-principal by design (D20, `assets/verbs/reap-if-orphan.ts`) " +
+      "and it returns no row data. Ends the day the reap stops consulting the reference registry first.",
+  },
+  {
+    op: "LoadAssetBytesOp",
+    why:
+      "D20 un-principal blob read for the databank ingest path, which runs after the enqueue authority check (the workload row's " +
+      "owner is the gate). `assets/contract/service.ts` names it the un-principal read, distinct from the principal-carrying door. " +
+      "Ends if ingest ever runs on caller-supplied ids.",
+  },
+  {
+    op: "LoadCardText",
+    why:
+      "the embeddings card-text read: the indexer and corpus passes read ids they enumerated themselves (`listEmbeddableCharacterIds`, " +
+      "D20 un-principal), and the admin inline embed (`admin/verbs/card-embed.ts`) reaches it only after `getCard({ principal, characterId })` " +
+      "owner-verified the id. Ends when the op takes the owner scope, or when a caller reaches it without an owner check first.",
+  },
+];
+// Settings carry the derived vocabulary so a TypeIdOf change in the ids home invalidates cached lint results.
+const INJECTED_OP_SETTINGS = {
+  [`orb/${INJECTED_OP_RULE}`]: {
+    entityIds: requireEntityIdTypeNames(readFileSync(join(ROOT, ID_BRAND_HOME), "utf8")),
+    scopeNames: INJECTED_OP_SCOPE_NAMES,
+    callerFreeOps: CALLER_FREE_OPS,
+  },
+};
+const SERVER_SCOPE_RESTRICTIONS = [
+  {
+    id: "member-card-clamped",
+    scope: AUTHORED_SRC,
+    notUnder: ["packages/contracts/**", `${LEGACY_TEST_ROOT}/**`],
+    homes: [],
+    selectors: [
+      {
+        selector: `:matches(TSInterfaceDeclaration, TSTypeAliasDeclaration) > Identifier.id[name='${MEMBER_CARD_VIEW}']`,
+        message: "D22: MemberCardView has one home, @orb/contracts/chat; a re-spelled projection is how the clamp levels diverged.",
+      },
+    ],
+  },
+  {
+    id: "member-card-clamped-clamp",
+    scope: [SERVER_SRC],
+    homes: [
+      {
+        path: "packages/server/src/domain/chat/substrate/auth/**",
+        why: "the one D22 decision site: `clamp.ts` owns `clampMemberCard` and `resolveCardVisibility`",
+      },
+    ],
+    selectors: [
+      {
+        selector: `:matches(FunctionDeclaration, TSDeclareFunction) > Identifier.id[name=${MEMBER_CARD_CLAMPS}], VariableDeclarator > Identifier.id[name=${MEMBER_CARD_CLAMPS}]`,
+        message: "D22: the member-card clamp lives only in domain/chat/substrate/auth; a second clamp re-spells the visibility levels.",
+      },
+    ],
+  },
+  {
+    id: "member-card-clamped-verb",
+    scope: [SERVER_SRC],
+    homes: [],
+    selectors: [
+      {
+        selector: ":matches(Identifier, JSXIdentifier)[name='getRosterCardView']",
+        message: "D22: getRosterCardView was the divergent second clamp; read a roster card through chat's getMemberCard.",
+      },
+    ],
+  },
+  {
+    id: "membership-fan-guard",
+    scope: ["packages/server/src/domain/chat/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [
+      {
+        selector: ":matches(Identifier, JSXIdentifier)[name='emitUserEvent']",
+        message:
+          "D16/D18: chat is membership-scoped; member-visible state rides emitChatChanged or the chat bus, never an actor-only emitUserEvent that can exclude a co-member.",
+      },
+    ],
+  },
+  { id: INJECTED_OP_RULE, scope: ["packages/server/src/domain/*/contract/**/*.{ts,tsx}"], homes: [] },
+];
+
+/** Every identifier name in a parameter subtree, the parameter's own binding name included. */
+function parameterNames(node, visitorKeys, names = []) {
+  if (node.type === "Identifier") {
+    names.push(node.name);
+  }
+  for (const key of visitorKeys[node.type] ?? []) {
+    for (const child of [node[key]].flat()) {
+      if (typeof child?.type === "string") {
+        parameterNames(child, visitorKeys, names);
+      }
+    }
+  }
+  return names;
+}
+
+// A Promise-returning function type in a contract is an I/O door; the scope must ride its parameters, because
+// otherwise the op is safe only by its call sites' discipline. A sync function type is a computation, and an id
+// reached through a named parameter type is outside this syntactic check.
+const injectedOpCallerParamRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const { entityIds, scopeNames, callerFreeOps } = context.settings[`orb/${INJECTED_OP_RULE}`];
+    const entity = new Set(entityIds);
+    const scope = new Set(scopeNames);
+    const exempt = new Set(callerFreeOps.map(({ op }) => op));
+    return {
+      "TSTypeAliasDeclaration[typeAnnotation.type='TSFunctionType']"(node) {
+        const fn = node.typeAnnotation;
+        const returned = fn.returnType?.typeAnnotation;
+        if (returned?.type !== "TSTypeReference" || returned.typeName.type !== "Identifier" || returned.typeName.name !== "Promise") {
+          return;
+        }
+        const names = fn.params.flatMap((param) => parameterNames(param, context.sourceCode.visitorKeys));
+        if (!names.some((name) => entity.has(name)) || names.some((name) => scope.has(name)) || exempt.has(node.id.name)) {
+          return;
+        }
+        context.report({
+          node: node.id,
+          message:
+            `${node.id.name}: a cross-domain op takes an entity id but no caller. The op is the domain boundary, so it must carry the scope: ` +
+            "a `principal: Principal`, an `ownerId`/`userId: UserId`, or the `chatId` the membership check runs on, applied in the implementing " +
+            "factory's WHERE. A genuinely un-principal op (D20) takes a CALLER_FREE_OPS row in eslint.config.js with its reason and end condition.",
+        });
+      },
+    };
+  },
+};
 const CONTEXT_NATIVE_SETTINGS = {
   "orb/context-vocabulary": {
     mintHome: { source: REGISTRY_CONTRACTS_RE.source, flags: REGISTRY_CONTRACTS_RE.flags },
@@ -1262,6 +1422,7 @@ const RESTRICTIONS = [
   ...CLASS_RESTRICTIONS,
   ...ROLE_DATA_RESTRICTIONS,
   ...TURN_IDENTITY_RESTRICTIONS,
+  ...SERVER_SCOPE_RESTRICTIONS,
   ...CLIENT_REGISTRY_RESTRICTIONS,
   ...CLIENT_CONTEXT_RESTRICTIONS,
   ...CLIENT_MAP_RESTRICTIONS,
@@ -3843,6 +4004,7 @@ const restrictionPlugin = {
     "no-raw-intl-time": rawIntlTimeRule,
     "list-row-adoption": listRowAdoptionRule,
     "brand-in-name-position": brandNamePositionRule,
+    [INJECTED_OP_RULE]: injectedOpCallerParamRule,
     "test-factory-contract": testFactoryContractRule,
     "no-opaque-test-fixture": opaqueTestFixtureRule,
     "no-context-returntype": contextReturnTypeRule,
@@ -3905,6 +4067,7 @@ const RESTRICTION_BLOCKS = [...RESTRICTIONS, ...DECLARATION_NATIVE_RESTRICTIONS]
       : {}),
     ...(CLIENT_MAP_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_MAP_NATIVE_SETTINGS } : {}),
     ...(CLIENT_LEXICAL_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_LEXICAL_NATIVE_SETTINGS } : {}),
+    ...(id === INJECTED_OP_RULE ? { settings: INJECTED_OP_SETTINGS } : {}),
     rules: { [`orb/${id}`]: "error" },
   };
 });
@@ -4615,6 +4778,7 @@ const ORDINARY_CONFIG = [
       ...CLASS_RESTRICTIONS,
       ...ROLE_DATA_RESTRICTIONS,
       ...TURN_IDENTITY_RESTRICTIONS,
+      ...SERVER_SCOPE_RESTRICTIONS,
       ...DETERMINISM_RESTRICTIONS,
       ...CLASS_TOKEN_RESTRICTIONS,
       ...Z_INDEX_RESTRICTIONS,

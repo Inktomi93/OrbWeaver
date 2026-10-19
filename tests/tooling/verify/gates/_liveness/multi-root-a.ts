@@ -35,7 +35,6 @@ import { gate as cssVarDefined } from "../../../../../tooling/src/verify/gates/c
 import { gate as cssVarDefinedGrants } from "../../../../../tooling/src/verify/gates/css-var-defined-grants.ts";
 import { gate as designAuditRuleProof } from "../../../../../tooling/src/verify/gates/design-audit-rule-proof.ts";
 import { gate as domainFreshnessPlane } from "../../../../../tooling/src/verify/gates/domain-freshness-plane.ts";
-import { gate as injectedOpCallerParam } from "../../../../../tooling/src/verify/gates/injected-op-caller-param.ts";
 import { gate as jsonColumnWriteParity } from "../../../../../tooling/src/verify/gates/json-column-write-parity.ts";
 import { gate as knobWireCoverage } from "../../../../../tooling/src/verify/gates/knob-wire-coverage.ts";
 import { gate as messageKindPolicyCoverage } from "../../../../../tooling/src/verify/gates/message-kind-policy-coverage.ts";
@@ -244,16 +243,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "MUTATING domain with NO row",
-  },
-  {
-    policy: injectedOpCallerParam,
-    overlays: [
-      add(
-        `${DOMAIN}/contract/liveness-op.ts`,
-        'import type { CharacterId } from "@orb/kit/ids";\nexport type LivenessCopyOp = (args: { readonly fromCharacterId: CharacterId; readonly toCharacterId: CharacterId }) => Promise<void>;\n',
-      ),
-    ],
-    messageIncludes: "entity id but NO caller",
   },
   {
     policy: jsonColumnWriteParity,

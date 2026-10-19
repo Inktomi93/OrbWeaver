@@ -4,7 +4,6 @@ import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as busOnDataNoStoreWrite } from "../../../../tooling/src/verify/gates/bus-on-data-no-store-write.ts";
-import { gate as membershipFanGuard } from "../../../../tooling/src/verify/gates/membership-fan-guard.ts";
 
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
@@ -12,7 +11,7 @@ import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/v
 
 const ROOT = "/singleton-ordinary-policies";
 
-const FAMILY: readonly GatePolicy[] = [busOnDataNoStoreWrite, membershipFanGuard];
+const FAMILY: readonly GatePolicy[] = [busOnDataNoStoreWrite];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -84,24 +83,12 @@ test("every relative import in every proof resolves inside the proof's own file 
 // The position each policy reports is NOT uniformly "the thing the message names", which is why each needs
 // its own arm:
 //   bus-on-data-no-store-write      the bare `setState` identifier — the marker grammar forbids parens
-//   membership-fan-guard            each banned identifier OCCURRENCE
 // ---------------------------------------------------------------------------------------------------
 const REASON = "the proof's stand-in reason; ends when this fixture stops flagging.";
 
 test("bus-on-data-no-store-write: a waiver naming the bare setState identifier binds to its own finding", () => {
   const waived = passOf(busOnDataNoStoreWrite, {
     "packages/client/src/data/bus/waived.ts": `export const sub = {\n  onData: () => {\n    // @orb-waive bus-on-data-no-store-write(setState): ${REASON}\n    useX.setState({ a: 1 });\n  },\n};\n`,
-  });
-
-  expect(waived.toolErrors).toEqual([]);
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
-  expect(waived.authority.authorityAlarms).toEqual([]);
-});
-
-test("membership-fan-guard: a waiver naming the banned identifier binds to its single occurrence", () => {
-  const waived = passOf(membershipFanGuard, {
-    "packages/server/src/domain/chat/verbs/waived.ts": `// @orb-waive membership-fan-guard(emitUserEvent): ${REASON}\nexport const forward = emitUserEvent;\n`,
   });
 
   expect(waived.toolErrors).toEqual([]);
@@ -126,12 +113,6 @@ test("a waiver naming a DEAD position suppresses nothing and alarms, for every p
       busOnDataNoStoreWrite,
       {
         "packages/client/src/data/bus/dead.ts": `export const sub = {\n  onData: () => {\n    // @orb-waive bus-on-data-no-store-write(setStateX): ${DEAD}\n    useX.setState({ a: 1 });\n  },\n};\n`,
-      },
-    ],
-    [
-      membershipFanGuard,
-      {
-        "packages/server/src/domain/chat/verbs/dead.ts": `// @orb-waive membership-fan-guard(emitChatChanged): ${DEAD}\nexport const forward = emitUserEvent;\n`,
       },
     ],
   ];
