@@ -15,7 +15,9 @@ const BACKREF_RE = /\$\d/u;
  *  an uncommitted shrink leaves a budget nobody can trust (#973 — never a silent counter). */
 // The helper-world rule adds one paired capture to permit same-world edges while refusing upward ones.
 // dependency-cruiser-worlds.int.test.ts proves that distinction, including transitive and type-only edges.
-const BACKREF_BUDGET = 14;
+// The package-subpath-crossing rule adds one paired capture: a `#src/` import is legal only inside the importer's own module.
+// package-subpath-boundaries.test.ts proves that distinction for every package module shape.
+const BACKREF_BUDGET = 15;
 
 /** The arm's REAL-TREE anchor — the budget is a fact about the real config set, so it is judged only where
  *  the enforcement ledger lives. A resource proof carries its own rows and would (correctly for itself,

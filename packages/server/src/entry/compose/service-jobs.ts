@@ -5,8 +5,8 @@ import type { TimerScheduler } from "@orb/kit/time";
 import type { WorkloadProgressBus, WorkloadRunnerDeps } from "#domain/workloads";
 import { createNextRunnableWorkload, loadWorkload, reapOrphanedWorkloads, runWorkload } from "#domain/workloads";
 import type { BackgroundWork } from "#infra/tasks";
-import type { ServiceJobs } from "#src/transport/jobs/contract/service-jobs.ts";
-import { createServiceJobs } from "#src/transport/jobs/service-jobs.ts";
+import type { ServiceJobs } from "#transport/jobs";
+import { createServiceJobs } from "#transport/jobs";
 import type { Services } from "#transport/trpc";
 
 type ServiceJobDeps = Pick<WorkloadRunnerDeps, "db" | "now" | "contributions" | "audit"> &

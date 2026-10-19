@@ -74,6 +74,7 @@
 const { BROWSER_TEST_SUFFIXES, TEST_KIND_SUFFIXES } = require("./tooling/src/floor/testing/test-kinds.ts");
 const { BROWSER_SURFACE_DIRS, HELPER_WORLD_DIRS } = require("./tooling/src/floor/compiler/project-worlds.ts");
 const { ENTRY_DRIVER_PATTERN, ENTRY_SOURCE } = require("./tooling/src/verify/contract/compose-query-capability.ts");
+const { GROUPING_DIRS } = require("./tooling/src/floor/code-facts/package-module.ts");
 
 const KIT = "^packages/kit/src/";
 const CONTRACTS = "^packages/contracts/src/";
@@ -104,6 +105,62 @@ const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
 /** Domain fixed-slot subdirs (the uniform 8-slot template, Core-0-Architecture-and-Structure.md §4). Anything ELSE under a
  *  feature dir is a named SUBSYSTEM (engine/ assembly/ memory/ themes/ …) — substrate-mediated. */
 const FIXED_SLOTS = "(contract|verbs|persistence|substrate)";
+
+/** The importable modules of each workspace package, from the floor module map: a grouping dir (a server tier, client
+ *  `features/`, inference `backends/`, every ui group) holds modules, any other top-level dir is one, and a file at the
+ *  grouping or package root is a single-file module entered by its own path. `own` matches the module an importer sits
+ *  in; `internal` matches a file inside a directory module. */
+function moduleShapes(pkg) {
+  const root = `packages/${pkg}/src/`;
+  const grouping = GROUPING_DIRS[pkg] ?? [];
+  if (grouping.includes("*")) {
+    return { own: [`${root}[^/]+/[^/]+`, `${root}[^/]+`], internal: [`${root}[^/]+/[^/]+/`] };
+  }
+  if (grouping.length === 0) {
+    return { own: [`${root}[^/]+`], internal: [`${root}[^/]+/`] };
+  }
+  const tier = `(?:${grouping.join("|")})`;
+  return {
+    own: [`${root}${tier}/[^/]+`, `${root}(?!${tier}/)[^/]+`],
+    internal: [`${root}${tier}/[^/]+/`, `${root}(?!${tier}/)[^/]+/`],
+  };
+}
+const SUBPATH_MODULES = ["client", "ui", "server", "db", "contracts", "kit", "inference"].map(moduleShapes);
+const SUBPATH_IMPORTER = `^(${SUBPATH_MODULES.flatMap(({ own }) => own).join("|")})(?:/|$)`;
+const SUBPATH_INTERNALS = `^(?:${SUBPATH_MODULES.flatMap(({ internal }) => internal).join("|")})`;
+
+/** Importers that keep a narrow leaf import across modules because the module's barrel would widen a graph that
+ *  another check bounds. Exact files only, each with the bounding check beside it. */
+const SUBPATH_LEAF_IMPORTERS = [
+  // plugin-worker-no-db: the plugin Worker reaches these through port.ts, bridge-rpc.ts and the network door, and
+  // the `#foundation/observability` barrel re-exports audit.ts, which imports @orb/db.
+  "packages/server/src/infra/network/egress.ts",
+  "packages/server/src/infra/plugin-host/membrane.ts",
+  "packages/server/src/infra/plugin-host/port.ts",
+  // The plugin broker runs under the Node permission model with no read grant outside its roots; the
+  // `#foundation/env` barrel parses the environment at load and probes the container marker files.
+  "packages/server/src/infra/plugin-host/process-permission.ts",
+  // local-light-worker-no-door: the model Worker's whole graph stays index-free, and every file below is in it
+  // (model-worker -> worker-cache -> http/timers).
+  "packages/inference/src/backends/http/timers.ts",
+  "packages/inference/src/backends/local-light/model-cache.ts",
+  "packages/inference/src/backends/local-light/model-worker.ts",
+  "packages/inference/src/backends/local-light/st-head.ts",
+  "packages/inference/src/backends/local-light/text-windows.ts",
+  "packages/inference/src/backends/local-light/worker-cache.ts",
+  // plugin-ui-guest-worker-no-react: the guest Worker has no window and the `#lib` barrel re-exports React modules.
+  "packages/client/src/features/plugin/lib/ui-guest/ui-guest-realm.ts",
+  "packages/client/src/features/plugin/lib/ui-guest/ui-guest.worker.ts",
+  // The DOM-free node test program (tsconfig.json) compiles these, and the `#lib` / `#art/web-weave` barrels
+  // re-export DOM modules.
+  "packages/client/src/features/chat/lib/message-render-context.ts",
+  "packages/client/src/features/credentials/lib/connection-editor-model.ts",
+  "packages/client/src/features/credentials/lib/connections-model.ts",
+  "packages/ui/src/primitives/icons/orb-web.ts",
+  // The `#lib` barrel deliberately omits these dev leaves (agent bridge, console ring, appearance registry).
+  "packages/client/src/features/app-shell/lib/bug-report-capture.ts",
+  "packages/client/src/features/chat/components/message-row.tsx",
+].map((path) => `^${path.replaceAll(".", "\\.")}$`);
 
 // The graph-reporter collapse pattern (one tier/package per node). Hoisted + suppressed once: biome's
 // noSecrets false-positives on the high-entropy regex alternation.
@@ -962,6 +1019,16 @@ module.exports = {
         path: `${INFERENCE}(backends|contract)/`,
         pathNot: `${INFERENCE}contract/index\\.ts$`,
       },
+    },
+
+    // ════════════════════════════ Package module front doors ════════════════════════════════════
+    {
+      name: "package-subpath-crossing",
+      comment:
+        "`#src/<path>` names a file in the importer's own module; another module is entered through its front door `#<module>` (index.ts). A file subpath into another module's internals bypasses that door, as an import, a re-export, a dynamic import or a type-only edge (docs/law/Core-0-Architecture-and-Structure.md §1; D321). The importer's own module, a single-file module and any index.ts stay legal. A listed leaf importer keeps a narrow import because the barrel would widen a graph that another check bounds.",
+      severity: "error",
+      from: { path: SUBPATH_IMPORTER, pathNot: SUBPATH_LEAF_IMPORTERS },
+      to: { dependencyTypes: ["aliased-subpath-import"], path: SUBPATH_INTERNALS, pathNot: ["^$1/", "/index\\.ts$"] },
     },
 
     // ════════════════════════════ Hygiene ═══════════════════════════════════════════════════════

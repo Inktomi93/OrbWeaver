@@ -45,7 +45,6 @@ const APPLICATION = Object.freeze({
   "over-art-plate-arm": 1,
   "owner-scoped-reads": 56,
   "owner-scoped-writes": 29,
-  "package-subpath-crossing": 17,
   "persistence-boundary": 4,
   "persistence-no-in-memory-state": 55,
   "query-freshness-coverage": 31,

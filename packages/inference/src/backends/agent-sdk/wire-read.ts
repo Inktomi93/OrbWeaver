@@ -2,8 +2,7 @@
 // Unused frames and fields stay opaque; known projections refuse before arithmetic, callbacks or accounting.
 import { generationUsageLegSchema, generationUsageSchema } from "@orb/contracts/inference";
 import { z } from "zod";
-import { ProviderError } from "#contract";
-import { compactionTriggerSchema, compactResultSchema } from "#src/contract/events.ts";
+import { compactionTriggerSchema, compactResultSchema, ProviderError } from "#contract";
 import { assertInitFrameShape } from "./verify.ts";
 
 const tokenCount = generationUsageSchema.shape.tokensIn.unwrap();
