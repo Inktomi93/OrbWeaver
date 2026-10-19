@@ -166,7 +166,9 @@ function handlerPosition(node: MorphNode): boolean {
   }
   if (Node.isArrayLiteralExpression(parent)) {
     const call = parent.getParent();
-    return call !== undefined && Node.isCallExpression(call) && call.getArguments().includes(parent) && applyArgumentValues(parent)?.includes(value) === true;
+    return (
+      call !== undefined && Node.isCallExpression(call) && call.getArguments().includes(parent) && applyArgumentValues(call, parent)?.includes(value) === true
+    );
   }
   return Node.isIdentifier(node) && Node.isVariableDeclaration(parent) && parent.getInitializer() === value;
 }

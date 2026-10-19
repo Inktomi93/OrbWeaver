@@ -1,7 +1,7 @@
 // The tooling composed test's own proof (docs/law/Core-Tooling-Law.md §5): each serializer rule + a
 // planted NEGATIVE (a deterministic string must pass through byte-identical), the toExitWith contract
 // diff, runCli's fail-loud unknown-tool refusal, and the scratch/plantedTree/fakeBin seams.
-import { existsSync, readFileSync, readlinkSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, readlinkSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -69,6 +69,28 @@ test("the scratch writers refuse the checkout, a traversal and a link escape wit
   plantLink(scratch, "back", repoRoot, "dir");
   expect(() => plantFile(scratch, "back/scratch-writer-leak.txt", "leak")).toThrow("resolves outside the owned root");
   expect(existsSync(leak)).toBe(false);
+});
+
+// A temp-dir ancestor of a checkout, or a sibling checkout, is under tmpdir() but was never handed out by a fixture.
+test("a root no fixture minted is refused even when it holds or is a checkout", () => {
+  const parent = mkdtempSync(join(tmpdir(), "orb-foreign-"));
+  try {
+    mkdirSync(join(parent, "checkout", ".git"), { recursive: true });
+    mkdirSync(join(parent, "sibling", ".git"), { recursive: true });
+    expect(() => plantFile(parent, join("checkout", "escaped.txt"), "escaped")).toThrow("is not an invocation-owned temp root");
+    expect(() => plantFile(join(parent, "sibling"), "escaped.txt", "escaped")).toThrow("is not an invocation-owned temp root");
+    expect(() => plantDir(parent, "checkout/escaped")).toThrow("is not an invocation-owned temp root");
+    expect(existsSync(join(parent, "checkout", "escaped.txt"))).toBe(false);
+    expect(existsSync(join(parent, "sibling", "escaped.txt"))).toBe(false);
+  } finally {
+    rmSync(parent, { recursive: true, force: true });
+  }
+});
+
+test("a git repo planted inside a minted root stays writable", ({ scratch }) => {
+  mkdirSync(join(scratch, ".git"), { recursive: true });
+  expect(plantFile(scratch, ".git/shallow", "abc\n")).toBe(join(scratch, ".git", "shallow"));
+  expect(readFileSync(join(scratch, ".git", "shallow"), "utf8")).toBe("abc\n");
 });
 
 test("plantedTree refuses traversal and absolute keys without writing outside its owned root", async ({ scratch, plantedTree }) => {

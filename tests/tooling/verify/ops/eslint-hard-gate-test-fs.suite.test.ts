@@ -11,7 +11,7 @@ const GATE_TEST = "tests/tooling/verify/gates/probe.test.ts";
 const HARD_CONFIG = "eslint-hard.config.js";
 
 async function lint(repoRoot: string, path: string, source: string): Promise<ESLint.LintResult | undefined> {
-  const eslint = new ESLint({ cwd: repoRoot, overrideConfigFile: join(repoRoot, HARD_CONFIG), allowInlineConfig: false });
+  const eslint = new ESLint({ cwd: repoRoot, overrideConfigFile: join(repoRoot, HARD_CONFIG) });
   const [result] = await eslint.lintText(source, { filePath: join(repoRoot, path) });
   return result;
 }
@@ -30,6 +30,11 @@ const flagged: readonly { readonly name: string; readonly source: string; readon
   { name: "re-export of the whole door", source: 'export * from "node:fs/promises";\n', errors: 1 },
   { name: "dynamic import", source: 'export const x = await import("node:fs");\n', errors: 1 },
   { name: "require", source: 'declare const require: (id: string) => unknown;\nexport const x = require("fs");\n', errors: 1 },
+  { name: "template-literal dynamic import", source: "export const x = await import(`node:fs`);\n", errors: 1 },
+  { name: "template-literal require", source: "declare const require: (id: string) => unknown;\nexport const x = require(`fs`);\n", errors: 1 },
+  { name: "process.getBuiltinModule", source: 'export const x = process.getBuiltinModule("node:fs");\n', errors: 1 },
+  { name: "template-literal process.getBuiltinModule", source: "export const x = process.getBuiltinModule(`fs/promises`);\n", errors: 1 },
+  { name: "import-equals require", source: 'import fs = require("node:fs");\nexport const x = fs;\n', errors: 1 },
   {
     name: "two imports are two findings",
     source: 'import { writeFileSync } from "node:fs";\nimport { rm } from "node:fs/promises";\nexport const x = [writeFileSync, rm];\n',
@@ -72,8 +77,21 @@ const passing: readonly { readonly name: string; readonly source: string; readon
 test.for(flagged)("native hard gate-test fs ban flags $name", { timeout: scaledBudget(60_000) }, async (row, { repoRoot }) => {
   const result = await lint(repoRoot, GATE_TEST, row.source);
   expect(result?.fatalErrorCount).toBe(0);
-  expect(result?.messages).toHaveLength(row.errors);
-  expect(result?.messages.every(({ ruleId }) => ruleId === RULE)).toBe(true);
+  expect(result?.messages.filter(({ ruleId }) => ruleId === RULE)).toHaveLength(row.errors);
+  // The hard profile ignores inline directives and says so; nothing else may be reported.
+  expect(result?.messages.filter(({ ruleId, message }) => ruleId !== RULE && !message.includes("noInlineConfig"))).toEqual([]);
+});
+
+test("an inline disable is ignored by the hard profile, so the finding stands and the directive is reported", { timeout: scaledBudget(60_000) }, async ({
+  repoRoot,
+}) => {
+  const result = await lint(
+    repoRoot,
+    GATE_TEST,
+    `// eslint-disable-next-line ${RULE} -- Attempted hard bypass.\nimport { writeFileSync } from "node:fs";\nexport const x = writeFileSync;\n`,
+  );
+  expect(result?.messages.filter(({ ruleId }) => ruleId === RULE)).toHaveLength(1);
+  expect(result?.messages.some(({ message }) => message.includes("noInlineConfig"))).toBe(true);
 });
 
 test.for(passing)("native hard gate-test fs ban passes $name", { timeout: scaledBudget(60_000) }, async (row, { repoRoot }) => {

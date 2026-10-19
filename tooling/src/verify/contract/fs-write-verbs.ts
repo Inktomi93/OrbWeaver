@@ -1,7 +1,8 @@
 // The filesystem doors and every export of them that creates, changes or removes an entry. A gate family test
 // writes only through the scratch writers in tests/support/node/tool-fixtures.ts; the hard lint rule
 // `orb/no-raw-fs-write-in-gate-tests` bans importing any name below. A sync verb and its async twin sit together:
-// a missing twin is a spelling that bypasses the ban.
+// a missing twin is a spelling that bypasses the ban. It is an IMPORT ban: a re-export of these names through a support
+// module, and a `getBuiltinModule` imported by name from `node:process` or `node:module`, are out of its scope.
 
 /** Module specifiers that reach the filesystem. A bare node builtin has no origin to resolve past. */
 export const FS_SPECIFIERS = ["fs", "node:fs", "fs/promises", "node:fs/promises", "fs-extra"] as const;

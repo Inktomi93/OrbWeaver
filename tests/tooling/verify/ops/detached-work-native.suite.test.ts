@@ -114,9 +114,34 @@ rows([
     "export function enqueue(w: W): void {\n  void withRequestSpan(id, NAME, {}, async () => {\n    await w.start(a).catch(() => undefined);\n  }).catch(() => undefined);\n}\n",
     1,
   ],
+  [
+    "a promise kept in a collection nothing reads is still invisible",
+    "export function make(): void {\n  const kept = new Set<Promise<number>>();\n  const stop = (w: W): void => {\n    const stopped = w.terminate();\n    kept.add(stopped);\n    void stopped.catch(() => undefined);\n  };\n  void stop;\n}\n",
+    1,
+  ],
+  [
+    "a bound promise that is never kept is still invisible",
+    "export function stop(w: W): void {\n  const stopped = w.terminate();\n  void stopped.catch(() => undefined);\n}\n",
+    1,
+  ],
 ]);
 
 rows([
+  [
+    "a promise added to a collection that disposal spreads into allSettled is retained",
+    "export function make(): void {\n  const terminations = new Set<Promise<number>>();\n  const terminate = (w: W): void => {\n    const stopped = w.terminate();\n    terminations.add(stopped);\n    void stopped.catch(() => undefined);\n  };\n  const dispose = async (): Promise<void> => {\n    await Promise.allSettled([...terminations]);\n  };\n  void terminate;\n  void dispose;\n}\n",
+    0,
+  ],
+  [
+    "a promise pushed to an array that is iterated is retained",
+    "export function make(): void {\n  const started: Promise<void>[] = [];\n  const start = (w: W): void => {\n    const work = w.run();\n    started.push(work);\n    work.catch(() => {});\n  };\n  const settle = async (): Promise<void> => {\n    for (const item of started) {\n      await item.catch(() => undefined);\n    }\n  };\n  void start;\n  void settle;\n}\n",
+    0,
+  ],
+  [
+    "a promise stored in a map that is awaited through values is retained",
+    "export function make(): void {\n  const jobs = new Map<string, Promise<void>>();\n  const start = (w: W, key: string): void => {\n    const job = w.run();\n    jobs.set(key, job);\n    void job.then(() => undefined, () => undefined);\n  };\n  const settle = async (): Promise<void> => {\n    await Promise.all(jobs.values());\n  };\n  void start;\n  void settle;\n}\n",
+    0,
+  ],
   ["supervised detach passes", "export function fire(ctx: C): void {\n  superviseDetached(id, NAME, {}, () => ctx.rpg.onTurnAborted(c, t, r));\n}\n", 0],
   [
     "an inference caller passes through the injected supervisor",

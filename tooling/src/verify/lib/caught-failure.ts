@@ -13,8 +13,7 @@
 // failure-shaped, and the explicit governed-sink recognizers), -scope.ts (framework provenance and the
 // statement-level `hasExplicitOwner` block walk), -handler.ts (catch/promise-handler verdicts), -promise.ts
 // (recognizing a rejection-handler invocation in every spelling). This file keeps only the ARMS
-// (`catchClauseSite`/`promiseAbsorberSite`) and the anchor/site assembly its consumers import; the move-stable
-// site identity is the sixth sibling, -identity.ts.
+// (`catchClauseSite`/`promiseAbsorberSite`) and the anchor/site assembly its consumers import.
 //
 // ── THE FINITE BLOCKING CLAIM (D328) ────────────────────────────────────────────────────────────────────
 // A verdict blocks only when the reader decides it from the site's enclosing statement plus at most

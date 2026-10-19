@@ -117,7 +117,7 @@ function appliedRejection(
   const receiver = call.getArguments()[reflect ? 1 : 0];
   const args = call.getArguments()[reflect ? 2 : 1];
   const link = rejectionNode === undefined ? undefined : rejectionLink(literalMember(rejectionNode, reads)?.name);
-  const spread = applyArgumentValues(args);
+  const spread = applyArgumentValues(call, args, member.name);
   if (link === undefined || receiver === undefined || spread === undefined) {
     return;
   }

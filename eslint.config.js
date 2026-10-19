@@ -2636,8 +2636,14 @@ const symbolRead = (prefix) =>
   `[${prefix}type='CallExpression'][${prefix}callee.type='MemberExpression']:matches(${memberNamed("getSymbol", `${prefix}callee.`)}, ${memberNamed("getSymbolOrThrow", `${prefix}callee.`)})`;
 // A gate family test writes only through the scratch writers in tests/support/node/tool-fixtures.ts. A raw fs write
 // verb is the way a probe lands in the checkout and blinds the gate it was probing, so the ban names every door.
-const FS_DOOR = FS_SPECIFIERS.map((specifier) => `[source.value=${JSON.stringify(specifier)}]`).join(", ");
-const FS_REQUIRE_DOOR = FS_SPECIFIERS.map((specifier) => `[arguments.0.value=${JSON.stringify(specifier)}]`).join(", ");
+// A specifier is a string literal or a substitution-free template literal at `path`.
+const fsDoor = (path) =>
+  FS_SPECIFIERS.flatMap((specifier) => [
+    `[${path}.value=${JSON.stringify(specifier)}]`,
+    `[${path}.type='TemplateLiteral'][${path}.expressions.length=0][${path}.quasis.0.value.cooked=${JSON.stringify(specifier)}]`,
+  ]).join(", ");
+const FS_DOOR = fsDoor("source");
+const FS_REQUIRE_DOOR = fsDoor("arguments.0");
 const FS_WRITE_VERB_PATTERN = `/^(?:${FS_WRITE_VERBS.join("|")})$/`;
 const RAW_FS_WRITE_MESSAGE =
   "A gate family test writes only through the scratch writers (plantFile, plantDir, plantLink, removePlanted, or the `scratch` and `plantedTree` fixtures in tests/support/node/tool-fixtures.ts); a raw fs write verb can land a probe in the checkout and blind the gate under test. Read with readFileSync, existsSync or readdirSync.";
@@ -2653,6 +2659,8 @@ const VERIFY_HARD_RESTRICTIONS = [
       `ExportAllDeclaration:matches(${FS_DOOR})`,
       `ImportExpression:matches(${FS_DOOR})`,
       `CallExpression[callee.name='require']:matches(${FS_REQUIRE_DOOR})`,
+      `CallExpression[callee.type='MemberExpression'][callee.object.name='process'][callee.property.name='getBuiltinModule']:matches(${FS_REQUIRE_DOOR})`,
+      `TSImportEqualsDeclaration > TSExternalModuleReference:matches(${fsDoor("expression")})`,
     ].map((selector) => ({ selector, message: RAW_FS_WRITE_MESSAGE })),
   },
   {
@@ -6682,6 +6690,10 @@ const wireJsonRule = {
 // Fire-and-forget work whose failure is invisible. The request root has sealed by the time detached work runs, so an
 // absorbed rejection reaches no log, trace or caller (A1); and a catch inside an opener callback that does not rethrow
 // seals the detached root `ok` on every failure (A2). Openers are the declared ROOT_SPAN_OPENERS tuple.
+// Declared narrowings: the rule is syntactic. A line-scoped `eslint-disable-next-line` waives EVERY statement on that
+// line, not one dispatch. A promise-link key known only from a literal TYPE (a parameter typed 'catch') is not read;
+// a literal, a `+` concatenation or a binding written once is. A promise kept by a callee (the callee records the
+// failure itself) is not seen; only one bound to a name and handed to a collection that is later read whole is.
 const ROOT_SPAN_OPENER_NAMES = new Set(ROOT_SPAN_OPENERS);
 const PROMISE_LINKS = new Set(["then", "catch", "finally"]);
 // Which argument of a promise link is its rejection handler.
@@ -6784,6 +6796,58 @@ function hasAbsorbingLink(context, expression) {
   return false;
 }
 
+// A promise bound to a name and handed to a collection (`set.add(p)`, `list.push(p)`, `map.set(k, p)`) that is later
+// read as a whole (spread, iterated, passed to `Promise.all`-style combinators, `.values()`) is kept: its failure is read
+// at the join, so the discarding link on the statement is not the only owner. Retention inside a callee is not read.
+const COLLECTING_MEMBERS = new Set(["add", "push", "set", "unshift"]);
+const COLLECTION_READ_MEMBERS = new Set(["values", "entries", "forEach"]);
+const COMBINATOR_MEMBERS = new Set(["all", "allSettled", "race", "any", "from"]);
+
+// The name a promise chain starts from: `p` in `p.catch(h)`, or undefined when the chain starts at a call.
+function chainRootName(context, expression) {
+  let current = unwrapTransparent(expression);
+  while (current.type === "CallExpression") {
+    const link = literalMember(context, current.callee);
+    if (link === undefined || !PROMISE_LINKS.has(link.name)) {
+      return;
+    }
+    current = link.receiver;
+  }
+  return current.type === "Identifier" ? current : undefined;
+}
+
+function readsWhole(context, collection) {
+  const variable = lexicalVariable(context, collection);
+  return (
+    variable?.references.some(({ identifier }) => {
+      const parent = identifier.parent;
+      if (parent.type === "SpreadElement" || (parent.type === "ForOfStatement" && parent.right === identifier)) {
+        return true;
+      }
+      if (parent.type === "MemberExpression" && parent.object === identifier) {
+        return COLLECTION_READ_MEMBERS.has(staticMemberName(parent));
+      }
+      return parent.type === "CallExpression" && parent.arguments.includes(identifier) && COMBINATOR_MEMBERS.has(staticMemberName(parent.callee));
+    }) === true
+  );
+}
+
+function isRetainedPromise(context, name) {
+  const variable = lexicalVariable(context, name);
+  return (
+    variable?.references.some(({ identifier }) => {
+      const call = identifier.parent;
+      const collecting = call.type === "CallExpression" && call.arguments.includes(identifier) ? call.callee : undefined;
+      return (
+        collecting?.type === "MemberExpression" &&
+        collecting.object.type === "Identifier" &&
+        COLLECTING_MEMBERS.has(staticMemberName(collecting)) &&
+        readsWhole(context, collecting.object)
+      );
+    }) === true
+  );
+}
+
 // A throw escapes only the nearest catch clause that holds it, unless a function or a guarded try block intervenes.
 function escapedCatchClause(thrown) {
   for (let node = thrown.parent; node !== null && node !== undefined; node = node.parent) {
@@ -6809,7 +6873,9 @@ const detachedWorkRule = {
       ExpressionStatement: (statement) => {
         const raw = unwrapTransparent(statement.expression);
         const expression = raw.type === "UnaryExpression" && raw.operator === "void" ? raw.argument : raw;
-        if (hasAbsorbingLink(context, expression) && !insideOpener(statement)) {
+        const root = chainRootName(context, expression);
+        const retained = root !== undefined && isRetainedPromise(context, root);
+        if (hasAbsorbingLink(context, expression) && !retained && !insideOpener(statement)) {
           statements.push(statement);
         }
       },

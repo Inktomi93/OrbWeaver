@@ -3,7 +3,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind, ts } from "ts-morph";
 import type { BoundedRead } from "../../../../tooling/src/floor/code-facts/bounded-closure.ts";
-import { withinClosureBound } from "../../../../tooling/src/floor/code-facts/bounded-closure.ts";
+import { walkBoundedClosure, withinClosureBound } from "../../../../tooling/src/floor/code-facts/bounded-closure.ts";
 import type { NativeInvocationEvidence } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { captureTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations.ts";
 import type { TypeObservationDemand } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
@@ -216,4 +216,40 @@ test("a Type question at a value position the plan does not type is past the bou
   ]) {
     expect(answer(at(kind)), SyntaxKind[kind]).toMatchObject({ kind: "unresolved" });
   }
+});
+
+// A multi-statement function reached from a call argument is walked; one reached from a dependency array is not.
+const HANDLER_ARRAYS = `
+declare function use(...values: readonly unknown[]): unknown;
+declare function halt(): never;
+function multi(): unknown { const owned = 1; void owned; return halt(); }
+export function direct() { return use(multi); }
+export function applied() { return use.apply(null, [multi]); }
+export function reflected() { return Reflect.apply(use, null, [multi]); }
+export function deps() { return use(1, [multi]); }
+`;
+
+test("only an apply-style call makes an array element a handler position, never a dependency array", () => {
+  const source = new Project({ useInMemoryFileSystem: true }).createSourceFile("/handlers.ts", HANDLER_ARRAYS);
+  const declined = (name: string): readonly string[] => {
+    const bound: string[] = [];
+    walkBoundedClosure(
+      { nodes: [source.getFunctionOrThrow(name)], closureHops: CAUGHT_FAILURE_CLOSURE_HOPS, closureHandlerBodiesOnly: true },
+      (node) =>
+        node.isKind(SyntaxKind.Identifier) &&
+        node.getText() === "multi" &&
+        node.getParent() !== undefined &&
+        !node.getParent()?.isKind(SyntaxKind.FunctionDeclaration)
+          ? [source.getFunctionOrThrow("multi")]
+          : [],
+      { closureBound: (declaration) => void bound.push((declaration as Node).getKindName()), closureWalked: () => undefined },
+    );
+    return bound;
+  };
+  expect({ direct: declined("direct"), applied: declined("applied"), reflected: declined("reflected"), deps: declined("deps") }).toEqual({
+    direct: [],
+    applied: [],
+    reflected: [],
+    deps: ["FunctionDeclaration"],
+  });
 });

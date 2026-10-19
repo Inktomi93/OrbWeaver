@@ -100,16 +100,43 @@ export function fixturePath(root: string, ...segments: readonly string[]): strin
   return candidate;
 }
 
-/** The target of a scratch write: `rel` composed below `root` through {@link fixturePath}, after `root` itself is
- *  proven to be an invocation-owned temp directory and not the checkout. */
+/** Canonical roots a fixture handed out (`scratch`); `plantedTree` roots sit below them. A temp directory that
+ *  merely lives under `tmpdir()` — a checkout's parent, a sibling checkout — is never a scratch root. */
+const MINTED_ROOTS = new Set<string>();
+
+/** The realpath of `path`, or of its nearest existing ancestor joined with the missing tail. */
+function canonicalPath(path: string): string {
+  let existing = path;
+  while (!existsSync(existing) && dirname(existing) !== existing) {
+    existing = dirname(existing);
+  }
+  return join(realpathSync(existing), relative(existing, path));
+}
+
+/** Does any directory strictly above `dir` hold a git entry, i.e. is `dir` inside a checkout? */
+function insideCheckout(dir: string): boolean {
+  for (let above = dirname(dir); dirname(above) !== above; above = dirname(above)) {
+    if (existsSync(join(above, ".git"))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** The target of a scratch write: `rel` composed below `root` through {@link fixturePath}, after `root` is proven
+ *  to be (inside) a fixture-minted directory, and the canonical target to stay inside it, outside the checkout. */
 function ownedTarget(root: string, rel: string): string {
   const lexicalRoot = resolve(root);
-  const canonicalRoot = existsSync(lexicalRoot) ? realpathSync(lexicalRoot) : lexicalRoot;
-  const temp = realpathSync(tmpdir());
-  if (!isWithinRoot(temp, canonicalRoot, { sep }) || canonicalRoot === temp || isWithinRoot(REPO_ROOT, canonicalRoot, { sep })) {
+  const canonicalRoot = canonicalPath(lexicalRoot);
+  const owner = [...MINTED_ROOTS].find((minted) => isWithinRoot(minted, canonicalRoot, { sep }));
+  if (owner === undefined || isWithinRoot(REPO_ROOT, canonicalRoot, { sep }) || insideCheckout(owner)) {
     throw new Error(`scratch write: ${root} is not an invocation-owned temp root`);
   }
-  return fixturePath(lexicalRoot, rel);
+  const target = fixturePath(lexicalRoot, rel);
+  if (!isWithinRoot(owner, canonicalPath(target), { sep }) || isWithinRoot(REPO_ROOT, canonicalPath(target), { sep })) {
+    throw new Error(`scratch write: ${target} resolves outside the owned root`);
+  }
+  return target;
 }
 
 /** Write a file below an owned temp root, creating its parent directories. */
@@ -146,7 +173,10 @@ export const test = houseTest.extend<ToolFixtures>({
   },
   scratch: async ({}, use): Promise<void> => {
     const dir = await mkdtemp(join(tmpdir(), "orb-tool-"));
+    const minted = realpathSync(dir);
+    MINTED_ROOTS.add(minted);
     await use(dir);
+    MINTED_ROOTS.delete(minted);
     await rm(dir, { recursive: true, force: true });
   },
   runCli: async ({}, use): Promise<void> => {
