@@ -221,7 +221,7 @@ export const chats = sqliteTable(
     // The lineage walk (membership-gated per ancestor — D18); also speeds the fork-children listing.
     index("chats_parent_idx").on(t.parentChatId),
     // SQLite auto-indexes NOTHING for a child FK: every `DELETE FROM personas/users` must scan this table to
-    // apply the SET NULL unless the referencing column LEADS an index (`fk-columns-indexed` gate).
+    // apply the SET NULL unless the referencing column LEADS an index (FK-index test).
     index("chats_anchor_persona_idx").on(t.anchorPersonaId),
     index("chats_pending_host_idx").on(t.pendingHostUserId),
   ],
@@ -378,7 +378,7 @@ export const messages = sqliteTable(
     uniqueIndex("messages_chat_seq_unique").on(t.chatId, t.seq),
     // The four attribution/selection FKs. SQLite auto-indexes nothing for a child FK, so without these a
     // user/character/persona/variant delete scans the whole (largest) table to apply its SET NULL, and the
-    // attribution reads ("this character's lines") scan too (`fk-columns-indexed` gate).
+    // attribution reads ("this character's lines") scan too (FK-index test).
     index("messages_author_user_idx").on(t.authorUserId),
     index("messages_character_idx").on(t.characterId),
     index("messages_persona_idx").on(t.personaId),
@@ -566,9 +566,9 @@ export const messageVariants = sqliteTable(
     // The swipe set + its position; idx is unique within a message.
     uniqueIndex("message_variants_message_idx_unique").on(t.messageId, t.idx),
     // The context-boundary self-FK: a message delete must find the variants pointing AT it to apply its
-    // rule, and SQLite auto-indexes no child FK (`fk-columns-indexed` gate).
+    // rule, and SQLite auto-indexes no child FK (FK-index test).
     index("message_variants_context_boundary_idx").on(t.contextBoundaryMessageId),
-    // The SET-NULL parent scan on a connection delete (`fk-columns-indexed` gate).
+    // The SET-NULL parent scan on a connection delete (FK-index test).
     index("message_variants_connection_idx").on(t.connectionId),
     check("message_variants_token_provenance_check", sql.raw(`token_provenance in (${checkList(TOKEN_PROVENANCES)})`)),
     check("message_variants_cost_provenance_check", sql.raw(`cost_provenance in (${checkList(TOKEN_PROVENANCES)})`)),
@@ -627,7 +627,7 @@ export const messageAssets = sqliteTable(
     // The per-message lookup ("what did this message attach?") + the CASCADE parent index.
     index("message_assets_message_idx").on(t.messageId),
     // The OTHER cascade parent: an asset delete (the only way this link dies — `assetId` is RETAINING in
-    // asset-refs.ts) scans every row without this (`fk-columns-indexed` gate).
+    // asset-refs.ts) scans every row without this (FK-index test).
     index("message_assets_asset_idx").on(t.assetId),
     check("message_assets_origin_check", sql.raw(`origin in (${checkList(MESSAGE_ASSET_ORIGINS)})`)),
   ],
@@ -705,7 +705,7 @@ export const chatParticipants = sqliteTable(
     index("chat_participants_character_idx").on(t.characterId),
     // `userId` LEADING: the (chatId,userId) unique cannot serve either user-keyed path — "list my chats" is
     // pure membership (D18) and a user hard-delete cascades these rows — and SQLite only uses an index whose
-    // LEFTMOST column is the one constrained (`fk-columns-indexed` gate).
+    // LEFTMOST column is the one constrained (FK-index test).
     index("chat_participants_user_idx").on(t.userId),
     index("chat_participants_active_persona_idx").on(t.activePersonaId),
     // The per-kind SHAPE CHECK (D60; docs/plans/agent-principals/design.md) — born at creation to REPLACE the 2-way
@@ -815,7 +815,7 @@ export const messageReactions = sqliteTable(
     ),
     // The pill row's own read ("this variant's reactions") AND the variant CASCADE parent — the unique above
     // already LEADS with `variantId`, so SQLite serves both from it; this index would be redundant. The two
-    // FKs that do NOT lead an index each get one (`fk-columns-indexed` gate): a participant delete and an
+    // FKs that do NOT lead an index each get one (FK-index test): a participant delete and an
     // asset delete would otherwise scan the whole table to apply their rule.
     index("message_reactions_reactor_idx").on(t.reactorParticipantId),
     index("message_reactions_emoji_asset_idx").on(t.emojiImageAssetId),
@@ -864,7 +864,7 @@ export const chatInvites = sqliteTable(
     uniqueIndex("chat_invites_token_hash_unique").on(t.tokenHash),
     index("chat_invites_chat_idx").on(t.chatId),
     // The targeted-invite FK: a user delete SET-NULLs these rows, and "my pending invites" reads by it
-    // (`fk-columns-indexed` gate).
+    // (FK-index test).
     index("chat_invites_invited_user_idx").on(t.invitedUserId),
     check("chat_invites_status_check", sql.raw(`status in (${checkList(INVITE_STATUSES)})`)),
     // #1378 item 7 — the redemption counters, physically. The `uses < max_uses` admission itself stays an
@@ -878,7 +878,7 @@ export const chatInvites = sqliteTable(
     check("chat_invites_signup_shape", sql.raw("allow_signup = 0 OR (invited_user_id IS NULL AND max_uses IS NOT NULL AND expires_at IS NOT NULL)")),
     check("chat_invites_signup_mode", sql.raw("allow_signup = 0 OR mint_mode IS NOT NULL")),
     check("chat_invites_mint_mode_check", sql.raw(`mint_mode is null or mint_mode in (${checkList(AUTH_MODES)})`)),
-    // The minter FK: a user delete SET-NULLs these rows (`fk-columns-indexed` gate).
+    // The minter FK: a user delete SET-NULLs these rows (FK-index test).
     index("chat_invites_created_by_user_idx").on(t.createdByUserId),
   ],
 );
@@ -915,7 +915,7 @@ export const pendingTurns = sqliteTable(
   (t) => [
     index("pending_turns_chat_idx").on(t.chatId),
     // Both turn-identity FKs CASCADE on user delete; SQLite auto-indexes neither, so a user hard-delete
-    // would scan the whole table twice (`fk-columns-indexed` gate).
+    // would scan the whole table twice (FK-index test).
     index("pending_turns_triggered_by_idx").on(t.triggeredBy),
     index("pending_turns_run_as_user_idx").on(t.runAsUserId),
   ],
@@ -1010,7 +1010,7 @@ export const chatStreamEvents = sqliteTable(
   (t) => [
     uniqueIndex("chat_stream_events_chat_seq_unique").on(t.chatId, t.seq),
     // The message CASCADE parent + the `loadStreamEvents` innerJoin on `messages.id` (queries.ts) — both
-    // scan without it, and SQLite auto-indexes no child FK (`fk-columns-indexed` gate).
+    // scan without it, and SQLite auto-indexes no child FK (FK-index test).
     index("chat_stream_events_message_idx").on(t.messageId),
     check("chat_stream_events_kind_check", sql.raw(`kind in (${checkList(STREAM_DELTA_KINDS)})`)),
   ],

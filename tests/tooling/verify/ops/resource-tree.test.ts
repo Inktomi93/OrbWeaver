@@ -55,7 +55,6 @@ test("the authored-tree axis resolves every closed id to its exact gate-root pat
   expect(AUTHORED_TREE_PATHS).toEqual({
     "ui-primitive": "packages/ui/src/primitives",
     "tooling-slot": "tooling/src",
-    "db-schema": "packages/db/src/schema",
     server: "packages/server/src",
     packages: "packages",
     tests: "tests",

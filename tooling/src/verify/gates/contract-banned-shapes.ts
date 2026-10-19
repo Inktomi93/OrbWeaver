@@ -1,44 +1,9 @@
-// The CONTRACT partition of the ledger's rejected shapes: a `kind` member on `Principal` (D60) and a
-// `guidedActions` key in `appSettingsSchema`'s Zod shape (D33). A different EVIDENCE PLANE from the schema
-// partition (`schema-banned-shapes`) — authored contract declarations, not the Drizzle fact — so it is its
-// own policy id. Rows + the message: ../lib/ledger-banned-shapes.ts. HARD: contest the D-cite, never the site.
-// TWO-SIDED: an unreadable Zod initializer is REPORTED (never skipped), and a row whose named subject no
-// longer resolves in its declared home is REPORTED too — a name-keyed ban that stops matching is a no-op.
-//
-// FAMILY: SINGLETON under its own id, and the reason is the READER, not the topic. It shares
-// `../lib/ledger-banned-shapes.ts` with `schema-banned-shapes`, but that module is a shared VOCABULARY —
-// the (location, forbidden shape, D-cite) rows plus `bannedMessage`/`contractBanHome`, which exist so one
-// D-cite has one spelling — and guide §2 decides a family on a shared SUBJECT READER or computation. The
-// two policies' subject readers are disjoint: the schema partition consumes `lib/schema-fact.ts`'s
-// `drizzleSchemaFact` and is `family: "drizzle-schema"`; this one reads AUTHORED contract declarations
-// through `floor/code-facts/reference-fact.ts#readMemberReference` and `lib/schema-fact-value.ts#objectEntries`, and
-// touches no Drizzle fact at all. Naming `drizzle-schema` here would claim a fact this policy never reads;
-// naming a joint "banned-shapes" family would make a shared data table a family key, which is the "theme
-// is not a family" shape §3 forbids. Same call, same reason, as `warning-code-coverage`'s singleton over
-// `tupleVocabularyFact`. The vocabulary module's own header states the split first: "TWO PARTITIONS, TWO
-// POLICIES, ONE VOCABULARY … they are separate policy ids because they read different subjects."
-// POPULATION PORT: an INTENTIONAL NARROWING, stated with its derivation and its positive control at the
-// `population:` field below.
-//
-// The legacy `schema-banned-shapes` descriptor (3034bdad6c79e4f9423c07c5a3133ce2a32e4a49 — the PARENT of
-// the `faf2dc3857` split commit; this policy's OWN file does not exist there, because this half was BORN at
-// that split, and the legacy blob verified 2026-09-12 at `schema-banned-shapes.ts`) checked both
-// the contract rows above and the schema rows below in one combined gate before this split by evidence
-// plane.
-//
-// POPULATION PORT — SET DIFFERENCES, MEASURED (standardization §2.1; lane cb-b-header-residue, 2026-09-13). Legacy
-// `schema-banned-shapes` descriptor at 3034bdad6c79e4f9423c07c5a3133ce2a32e4a49, the parent of the conversion
-// `faf2dc3857`; this module did not exist there, so it is measured against the module it was carved from,
-// `schema-banned-shapes` (blob read from git with no working-tree plant: a `GateDescriptor`, no `defineGate`). Over
-// the SAME 7,137 harness candidates at that tree (`git ls-tree` ∩ `floor/compiler/ts-workspace.ts#harnessGlobs`), legacy
-// harness dispatch (no `scanRoot`) admits 7,137 and final `population` admits 105. legacy − final = 7,032 harness
-// sources outside `@contracts` — the combined legacy module's IMPORT arm (now biome `noRestrictedImports`) and its
-// schema arm (now `schema-banned-shapes`) read them; the contract partition judges only `@contracts` declarations.
-// final − legacy = ∅. Controls: inside `packages/contracts/src/assets/__cbbhr_in_index.ts` (virtual) admitted by
-// both; outside `docs/__cbbhr_out_control.ts` (virtual) rejected by both.
-// OUTSIDE-CONTROL CAVEAT (verifier cb-v-header-residue): `docs/__cbbhr_out_control.ts` is rejected by `harnessGlobs`,
-// not by the legacy descriptor — which has no path predicate of its own and admits it — so it proves only that
-// neither side reaches outside the harness corpus, not that the legacy filter discriminates.
+// Policy: contract-banned-shapes — the ledger's rejected CONTRACT shapes: a `kind` member on `Principal` (D60) and a
+// `guidedActions` key in `appSettingsSchema`'s Zod shape (D33). Rows and the message: ../lib/ledger-banned-shapes.ts.
+// HARD: contest the D-cite, never the site. TWO-SIDED: an unreadable Zod initializer is REPORTED (never skipped), and a
+// row whose named subject no longer resolves in its declared home is REPORTED too — a name-keyed ban that stops matching is a no-op.
+// FAMILY: singleton. Its subject is authored contract declarations (floor/code-facts/reference-fact.ts#readMemberReference),
+// shared with no other policy. The schema partition of the ledger is tests/db/schema/table-integrity.suite.test.ts.
 import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberReference } from "../../floor/code-facts/reference-fact.ts";

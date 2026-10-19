@@ -7,7 +7,6 @@ import type { GateOwnerResult, ReviewedGateGrant } from "../../../../tooling/src
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as assetsSingleWriter } from "../../../../tooling/src/verify/gates/assets-single-writer.ts";
 import { gate as contractVerbPresence } from "../../../../tooling/src/verify/gates/contract-verb-presence.ts";
-import { gate as dbStructureProducerHome } from "../../../../tooling/src/verify/gates/db-structure-producer-home.ts";
 import { gate as jsonColumnWriteParity } from "../../../../tooling/src/verify/gates/json-column-write-parity.ts";
 import { gate as openJsonColumnKeyParity } from "../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
@@ -27,7 +26,7 @@ beforeEach(async () => {
   };
 });
 
-const POLICIES: readonly GatePolicy[] = [assetsSingleWriter, contractVerbPresence, dbStructureProducerHome, jsonColumnWriteParity, openJsonColumnKeyParity];
+const POLICIES: readonly GatePolicy[] = [assetsSingleWriter, contractVerbPresence, jsonColumnWriteParity, openJsonColumnKeyParity];
 const EXPECTED_GRANT_IDS = [
   "assets-single-writer:persistence-asset-refs",
   "assets-single-writer:persistence-queries",
@@ -38,10 +37,6 @@ const EXPECTED_GRANT_IDS = [
   "contract-verb-presence:chat-room-overrides",
   "contract-verb-presence:discovery-themes",
   "contract-verb-presence:sessions-getOwnerUserId",
-  "db-structure-producer-home:connection-bindings",
-  "db-structure-producer-home:gallery",
-  "db-structure-producer-home:rate-limit",
-  "db-structure-producer-home:sdk-session",
   "json-column-write-parity:chats-pending-handoff-offer",
   "json-column-write-parity:preset-replace",
   "json-column-write-parity:preset-system-reseed",

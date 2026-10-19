@@ -102,7 +102,7 @@ export const plugins = sqliteTable(
   (t) => [
     uniqueIndex("plugins_owner_slug_unique").on(t.ownerId, t.slug),
     // The bundle FK is RESTRICT — every asset delete must PROBE this table to decide whether to refuse, and
-    // without a leading index that probe is a full scan on the CAS-delete path (`fk-columns-indexed` gate).
+    // without a leading index that probe is a full scan on the CAS-delete path (FK-index test).
     index("plugins_bundle_asset_idx").on(t.bundleAssetId),
     check("plugins_status_check", sql.raw(`status in (${STATUS_CHECK_LIST})`)),
     check("plugins_origin_check", sql.raw(`origin in (${ORIGIN_CHECK_LIST})`)),
@@ -176,7 +176,7 @@ export const adminDistributedPlugins = sqliteTable(
     updatedAt: integer("updated_at").notNull(),
   },
   (t) => [
-    // Both FKs get a leading index (`fk-columns-indexed`): an asset delete and a user delete each probe this
+    // Both FKs get a leading index (FK-index test): an asset delete and a user delete each probe this
     // table, and neither column leads the PK.
     index("admin_distributed_plugins_bundle_asset_idx").on(t.bundleAssetId),
     index("admin_distributed_plugins_distributed_by_idx").on(t.distributedBy),
@@ -257,7 +257,7 @@ export const pluginAssets = sqliteTable(
     // The leading two columns are unchanged, so every read written against the old key keeps its plan.
     primaryKey({ columns: [t.pluginId, t.assetId, t.bundlePath] }),
     // `asset_id` sits SECOND in the PK, so every asset delete (the CASCADE probe) and every "who fetched this"
-    // lookup would full-scan without its own leading index (`fk-columns-indexed`).
+    // lookup would full-scan without its own leading index (FK-index test).
     index("plugin_assets_asset_idx").on(t.assetId),
     // The path is either the "runtime fetch" sentinel or a real bundle entry — never free text. At the
     // physics tier (constitution §2) because a writer that stamped an arbitrary string here would put a
@@ -299,7 +299,7 @@ export const pluginKv = sqliteTable(
   (t) => [
     primaryKey({ columns: [t.pluginId, t.key] }),
     // The denormalized owner guard is ALSO an FK: a user hard-delete cascades these rows, and `ownerId` is
-    // not the PK's leading column, so the delete scanned every KV row (`fk-columns-indexed` gate).
+    // not the PK's leading column, so the delete scanned every KV row (FK-index test).
     index("plugin_kv_owner_idx").on(t.ownerId),
     check("plugin_kv_key_check", sql.raw(`length(key) <= ${KV_KEY_MAX_CHARS}`)),
     // ≤ 64 KiB of BYTES — length() on TEXT counts characters, so cast to BLOB for the byte cap.

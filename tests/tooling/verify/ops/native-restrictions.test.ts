@@ -457,3 +457,24 @@ test("Base UI composition rejects direct asChild syntax without expanding into i
     expect(await findings(path, "<Menu.Trigger asChild />; interface Props { asChild?: boolean; }"), path).toEqual([]);
   }
 });
+
+test("db enum policy rejects inline arrays, wrapped arrays and call results and admits named tuples, inside the schema only", async () => {
+  const rule = ["orb/db-enum-from-tuple"];
+  const path = "packages/db/src/schema/probe.ts";
+  for (const source of [
+    'text("k", { enum: ["a", "b"] });',
+    'text("k", { enum: ["a"] as const });',
+    'text("k", { "enum": ["a"] satisfies readonly string[] });',
+    'text("k", { enum: build() });',
+    'text("k", { enum: ["a"] as const satisfies readonly string[] });',
+    'text("k", { enum: (["a"] as const satisfies readonly string[])! });',
+    'text("k", { enum: (build() as readonly string[]) satisfies readonly string[] });',
+    'const CONFIG = { enum: ["a", "b"] }; text("k", { ...CONFIG });',
+  ]) {
+    expect(await findings(path, source, rule), source).toHaveLength(1);
+  }
+  for (const source of ['text("k", { enum: KINDS });', 'text("k", { enum: contracts.KINDS });', 'text("k", { mode: "json" });']) {
+    expect(await findings(path, source, rule), source).toEqual([]);
+  }
+  expect(await findings("packages/server/src/probe.ts", 'text("k", { enum: ["a"] });', rule)).toEqual([]);
+});

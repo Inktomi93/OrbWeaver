@@ -130,8 +130,6 @@ export const drizzleSchemaIdentityFact = defineFact({
 export const drizzleSchemaDataFact = schemaDataFact("drizzle-schema-data");
 /** JSON vocabulary requests bind the actual canonical override Type inside its native catalog owner. */
 export const drizzleSchemaVocabularyFact = schemaDataFact("drizzle-schema-vocabulary", { typeVocabulary: true });
-/** Enum consumers request the canonical builder's effective configuration closure, not a policy result. */
-export const drizzleSchemaConfigurationFact = schemaDataFact("drizzle-schema-configuration", { builderConfig: true });
 
 function schemaDataFact(id: string, projection: SchemaDataProjection = {}): GateFact<SchemaFact<SchemaProjectedModel>> {
   return defineFact({

@@ -1,7 +1,7 @@
 // Ordinary-visitor proofs run through the production dispatcher on an isolated population; the pins
 // below cover what a proof row structurally cannot express — a receipt REFUSAL (a tool error, not a
 // finding), the ordinary marker identity each ordinary policy's report must supply, and the grant liveness
-// the four reviewed-grant policies' whole authority rests on.
+// the reviewed-grant policies' whole authority rests on.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
@@ -13,16 +13,12 @@ import { gate as noInlinePackageInterface } from "../../../../tooling/src/verify
 import { gate as noInlineTypes } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as noInlineWireInterface } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { gate as noRawEgress } from "../../../../tooling/src/verify/gates/no-raw-egress.ts";
-import { gate as noUntypedSoftRef } from "../../../../tooling/src/verify/gates/no-untyped-soft-ref.ts";
 import { gate as persistenceBoundary } from "../../../../tooling/src/verify/gates/persistence-boundary.ts";
 import { gate as pluginDumpGuard } from "../../../../tooling/src/verify/gates/plugin-dump-guard.ts";
 import { gate as registryAssemblyAtDoorOnly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as zodErrorIssuesHome } from "../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
-import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
-import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -33,7 +29,6 @@ const FAMILY: readonly GatePolicy[] = [
   noInlineTypes,
   noInlineWireInterface,
   noRawEgress,
-  noUntypedSoftRef,
   persistenceBoundary,
   pluginDumpGuard,
   registryAssemblyAtDoorOnly,
@@ -191,115 +186,9 @@ test("empty-state-has-action reports the AUTHORED tag as its position, so an ali
 });
 
 // ---------------------------------------------------------------------------------------------------
-// GRANT LIVENESS. Five of these policies' authority IS the central table, so the verdicts that make a row
-// honest are pinned on real policies rather than assumed. `no-untyped-soft-ref` is pinned specifically
-// because its subject is NOT a path — it is the SQL `table.column` pair, which is what survives a schema
-// module being renamed.
+// GRANT LIVENESS. A reviewed-grant policy's authority IS the central table, so the verdicts that make a row
+// honest are pinned on real policies rather than assumed.
 // ---------------------------------------------------------------------------------------------------
-const SOFT_REF_SCHEMA = {
-  "packages/db/src/schema/x.ts":
-    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const t = sqliteTable("t", { widgetId: text("widget_id") });\n',
-};
-const SOFT_REF_GRANT = {
-  id: "no-untyped-soft-ref:proof",
-  policyId: "no-untyped-soft-ref",
-  subject: "t.widgetId",
-  operation: "soft-reference",
-  why: "the proof's stand-in for a real D24 soft-reference row",
-  endsWhen: "the pin stops exercising a soft reference",
-};
-
-test("a soft-reference grant licenses its exact table.column pair and is consumed exactly once", () => {
-  const granted = passOf(noUntypedSoftRef, SOFT_REF_SCHEMA, [SOFT_REF_GRANT]);
-
-  expect(granted.authority.effectiveFindings).toEqual([]);
-  expect(granted.authority.grantedFindings).toHaveLength(1);
-  expect(granted.authority.reviewedGrantConsumption).toEqual([{ id: SOFT_REF_GRANT.id, count: 1 }]);
-  expect(granted.authority.authorityAlarms).toEqual([]);
-});
-
-test("a soft-reference grant keyed on the FILE rather than the pair licenses nothing", () => {
-  const mismatched = passOf(noUntypedSoftRef, SOFT_REF_SCHEMA, [{ ...SOFT_REF_GRANT, subject: "packages/db/src/schema/x.ts" }]);
-
-  expect(mismatched.authority.effectiveFindings).toHaveLength(1);
-  expect(mismatched.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant" }]);
-});
-
-test("the creation-request non-row grant licenses only its exact column and retains stale and over-broad controls", () => {
-  const files = {
-    "packages/db/src/schema/automation.ts":
-      'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\n' +
-      'export const automationRules = sqliteTable("automation_rules", { id: text("id").primaryKey(), creationRequestId: text("creation_request_id"), ruleId: text("rule_id") });\n' +
-      'export const unrelated = sqliteTable("unrelated", { creationRequestId: text("creation_request_id") });\n',
-  };
-  const raw = passOf(noUntypedSoftRef, files);
-  const subjects = ["automation_rules.creationRequestId", "automation_rules.ruleId", "unrelated.creationRequestId"];
-  expect(raw.toolErrors).toEqual([]);
-  expect(raw.authority.withheldPolicyIds).toEqual([]);
-  expect(raw.authority.effectiveFindings.map(({ subject }) => subject).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(subjects);
-
-  const grant = reviewedGrantsFor([noUntypedSoftRef]).find(({ subject }) => subject === "automation_rules.creationRequestId");
-  expect(grant).toBeDefined();
-  if (grant === undefined) {
-    throw new Error("The reviewed non-row creation-request grant is missing.");
-  }
-  const granted = passOf(noUntypedSoftRef, files, [grant]);
-  expect(granted.toolErrors).toEqual([]);
-  expect(granted.authority.grantedFindings.map(({ finding }) => finding.subject)).toEqual(["automation_rules.creationRequestId"]);
-  expect(granted.authority.effectiveFindings.map(({ subject }) => subject).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(
-    subjects.slice(1),
-  );
-  expect(granted.authority.reviewedGrantConsumption).toEqual([{ id: grant.id, count: 1 }]);
-  expect(granted.authority.authorityAlarms).toEqual([]);
-
-  const wrong = passOf(noUntypedSoftRef, files, [{ ...grant, operation: `${grant.operation}:wrong` }]);
-  expect(wrong.authority.grantedFindings).toEqual([]);
-  expect(wrong.authority.effectiveFindings.map(({ subject }) => subject).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(subjects);
-  expect(wrong.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: grant.id }]);
-
-  const stale = passOf(
-    noUntypedSoftRef,
-    {
-      "packages/db/src/schema/automation.ts":
-        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const automationRules = sqliteTable("automation_rules", { id: text("id").primaryKey() });\n',
-    },
-    [grant],
-  );
-  expect(stale.toolErrors).toEqual([]);
-  expect(stale.authority.effectiveFindings).toEqual([]);
-  expect(stale.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: grant.id }]);
-
-  const multiplied = coordinateGateAuthority({
-    knownPolicies: [noUntypedSoftRef],
-    selectedPolicies: [noUntypedSoftRef],
-    ordinaryWaiverSources: [],
-    ownerResults: raw.policies.map((policy) => {
-      const owner = authorityOwnerResult(policy);
-      return { ...owner, findings: owner.findings.flatMap((finding) => (finding.subject === grant.subject ? [finding, finding] : [finding])) };
-    }),
-    reviewedGrants: [grant],
-    failOnWarnings: false,
-  });
-  expect(multiplied.toolErrors).toEqual([]);
-  expect(multiplied.grantedFindings).toEqual([]);
-  expect(multiplied.effectiveFindings).toHaveLength(subjects.length + 1);
-  expect(multiplied.authorityAlarms).toMatchObject([{ kind: "over-broad-reviewed-grant", grantId: grant.id }]);
-});
-
-test("a soft-reference grant that matches nothing after a complete run is STALE", () => {
-  const stale = passOf(
-    noUntypedSoftRef,
-    {
-      "packages/db/src/schema/x.ts":
-        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const w = sqliteTable("w", { id: text("id").primaryKey() });\nexport const t = sqliteTable("t", { widgetId: text("widget_id").references(() => w.id) });\n',
-    },
-    [SOFT_REF_GRANT],
-  );
-
-  expect(stale.authority.effectiveFindings).toEqual([]);
-  expect(stale.authority.authorityAlarms).toMatchObject([{ kind: "stale-reviewed-grant", grantId: SOFT_REF_GRANT.id }]);
-});
-
 test("a raw-storage grant is keyed on the STORE as well as the file, so one licence is not two", () => {
   const files = {
     "packages/client/src/state/durable-local.ts":

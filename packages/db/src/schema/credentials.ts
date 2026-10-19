@@ -74,7 +74,7 @@ export const userCredentials = sqliteTable(
     // One slot per label: two concurrent adds that both read a label as free cannot both store it, so the
     // later insert collides and `add` takes the next free label.
     uniqueIndex("user_credentials_owner_provider_label_unique").on(table.ownerId, table.provider, table.label),
-    // The tuple is CHECK-bound like every other closed enum column (`db-enum-from-tuple` form); the TS
+    // The tuple is CHECK-bound like every other closed enum column (D34 form); the TS
     // `enum:` alone never reached SQLite, and the schema pin that asserted a refusal passed on nothing.
     check("user_credentials_revoked_reason_check", sql.raw(`revoked_reason is null or revoked_reason in (${checkList(CRED_REVOKED_REASONS)})`)),
   ],

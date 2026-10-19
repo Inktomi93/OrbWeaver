@@ -23,7 +23,7 @@ export function rawSqlBlob(project: SourceCorpus): string {
 }
 
 /** Word-boundary presence of a SQL column name in the raw-SQL blob. Escaped because a SQL name is
- *  `[a-z0-9_]` by our own db-structure gate, but the regex must not trust that. */
+ *  `[a-z0-9_]` by schema convention, but the regex must not trust that. */
 function mentionedInRawSql(blob: string, sqlColumn: string): boolean {
   return new RegExp(`\\b${sqlColumn.replace(GATE_META_RE, "\\$&")}\\b`, "u").test(blob);
 }

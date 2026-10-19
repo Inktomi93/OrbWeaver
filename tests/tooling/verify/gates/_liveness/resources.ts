@@ -17,7 +17,6 @@ import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node
 import { gate as commentedCode } from "../../../../../tooling/src/verify/gates/commented-code.ts";
 import { gate as cssFamilyOwnershipHealth } from "../../../../../tooling/src/verify/gates/css-family-ownership-health.ts";
 import { gate as cssSelectorHasAWriterHealth } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
-import { gate as dbStructureProducerHome } from "../../../../../tooling/src/verify/gates/db-structure-producer-home.ts";
 import { gate as noFormStateInUseeffect } from "../../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
 import { gate as overArtPlateArm } from "../../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
 import { gate as sanctionedCssHomes } from "../../../../../tooling/src/verify/gates/sanctioned-css-homes.ts";
@@ -43,10 +42,6 @@ function append(path: string, text: string): RealCorpusOverlay {
   return { kind: "resource", path, append: text };
 }
 
-function replace(path: string, search: string, replacement: string): RealCorpusOverlay {
-  return { kind: "resource", path, replace: [search, replacement] };
-}
-
 export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
   {
     policy: commentedCode,
@@ -67,14 +62,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
       ...PRODUCT_SHEETS.slice(1).map((path) => source(path, ":root {\n  --liveness-probe: 0;\n}\n")),
     ],
     messageIncludes: "learned ZERO authored hooks",
-  },
-  {
-    policy: dbStructureProducerHome,
-    overlays: [
-      source("packages/db/src/schema/livenessnowhere.ts", "export const livenessNowhere = 1;\n"),
-      append("packages/db/src/schema/index.ts", 'export * from "./livenessnowhere.ts";\n'),
-    ],
-    messageIncludes: "no same-named producer domain",
   },
   {
     policy: noFormStateInUseeffect,

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { defineFact, defineGate, executePolicyPlan, planPolicyArgv } from "@orb/tooling/verify";
 import { ModuleKind, ModuleResolutionKind, Project } from "ts-morph";
-import { gate as schemaShapes } from "../../../../tooling/src/verify/gates/schema-banned-shapes.ts";
+import { gate as schemaBranding } from "../../../../tooling/src/verify/gates/schema-branding.ts";
 import { gate as artifactSlot } from "../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyPassExitCode } from "../../../../tooling/src/verify/lib/policy-plan.ts";
@@ -106,25 +106,31 @@ test("application fact residue rejects app sites without judging an unrelated to
   expect(dirty.authority.effectiveFindings.map(({ file }) => file)).toEqual([APP]);
 });
 
+const UNBRANDED_PASS = {
+  "packages/db/src/schema/x.ts":
+    'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const things = sqliteTable("things", { name: text("name") });\n',
+};
+
 test.for([
-  { proof: schemaShapes.mustFlag[0], exit: 1, tokens: ["activePresetId"] },
-  { proof: schemaShapes.mustPass[0], exit: 0, tokens: [] },
-])("application schema enforcement keeps the real compiler-resolved Drizzle shape", async ({ proof, exit, tokens }, { plantedTree, repoRoot }) => {
-  const scratch = await plantedTree({ ...proof.files, "package.json": '{"type":"module"}\n' });
+  { files: schemaBranding.mustFlag[0].files, exit: 1, tokens: ["id"] },
+  { files: UNBRANDED_PASS, exit: 0, tokens: [] },
+])("application schema enforcement keeps the real compiler-resolved Drizzle shape", async ({ files, exit, tokens }, { plantedTree, repoRoot }) => {
+  const scratch = await plantedTree({ ...files, "package.json": '{"type":"module"}\n' });
   symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
   const project = new Project({
     compilerOptions: { module: ModuleKind.NodeNext, moduleResolution: ModuleResolutionKind.NodeNext },
     skipAddingFilesFromTsConfig: true,
   });
-  const paths = Object.keys(proof.files);
+  const paths = Object.keys(files);
   for (const path of paths) {
     project.addSourceFileAtPath(join(scratch, path));
   }
   const result = runPolicyPass({
-    knownPolicies: [schemaShapes],
-    policies: [schemaShapes],
+    knownPolicies: [schemaBranding],
+    policies: [schemaBranding],
     root: scratch,
     project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     applicationPaths: paths,
     reviewedGrants: [],
     failOnWarnings: false,

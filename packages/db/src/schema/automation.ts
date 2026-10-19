@@ -134,7 +134,7 @@ export const automationRules = sqliteTable(
     // The dispatch hot path: enabled rules of a chat for one trigger.
     index("automation_rules_chat_enabled").on(t.chatId, t.enabled, t.triggerType),
     // The owner CASCADE parent + the owner-global rule list: SQLite auto-indexes no child FK, so a user
-    // hard-delete would scan every rule (`fk-columns-indexed` gate).
+    // hard-delete would scan every rule (FK-index test).
     index("automation_rules_owner_idx").on(t.ownerId),
     uniqueIndex("automation_rules_owner_creation_request_unique").on(t.ownerId, t.creationRequestId),
     check("automation_rules_name_check", sql.raw(`length(name) <= ${AUTOMATION_RULE_NAME_MAX_CHARS}`)),
@@ -170,7 +170,7 @@ export const automationOwnerBudgets = sqliteTable(
   "automation_owner_budgets",
   {
     // NATURAL PK: the owner's own id + CASCADE FK (the chat_locks pattern) — the PK is also the child-FK
-    // index in one column (`fk-columns-indexed` satisfied).
+    // index in one column (FK-index test satisfied).
     ownerId: text("owner_id")
       .$type<UserId>()
       .primaryKey()
@@ -215,7 +215,7 @@ export const automationFires = sqliteTable(
     // The per-hour budget COUNT + the host's per-rule fire history, one indexed read.
     index("automation_fires_rule_time").on(t.ruleId, t.firedAt),
     // The chat CASCADE parent — a chat delete would scan the whole fire log without it, and the
-    // (ruleId, firedAt) index cannot serve a chatId-only predicate (`fk-columns-indexed` gate).
+    // (ruleId, firedAt) index cannot serve a chatId-only predicate (FK-index test).
     index("automation_fires_chat_idx").on(t.chatId),
     check("automation_fires_outcome_check", sql.raw(`outcome in (${checkList(AUTOMATION_FIRE_STORAGE_OUTCOMES)})`)),
     // #1378 item 3 — the HISTORICAL table was looser than the live one. `automation_rules.trigger_type`
@@ -243,7 +243,7 @@ export const automationRuleState = sqliteTable(
   "automation_rule_state",
   {
     // NATURAL PK: the rule's own id + CASCADE FK (the `automation_owner_budgets` ownerId-PK pattern above) — the
-    // PK is also the spec's UNIQUE and the child-FK index in one column (`fk-columns-indexed` satisfied).
+    // PK is also the spec's UNIQUE and the child-FK index in one column (FK-index test satisfied).
     ruleId: text("rule_id")
       .$type<AutomationRuleId>()
       .primaryKey()

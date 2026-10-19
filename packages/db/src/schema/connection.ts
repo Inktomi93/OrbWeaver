@@ -104,7 +104,7 @@ export const userConnections = sqliteTable(
     // One row per seed slot per owner — the local-light seed's idempotency key. NULLs (user rows) never collide.
     uniqueIndex("user_connections_owner_seed_slot_unique").on(t.ownerId, t.seedSlot),
     check("user_connections_seed_slot_check", sql.raw(`seed_slot is null or seed_slot in (${checkList(LOCAL_LIGHT_SEED_ROWS.map((seed) => seed.task))})`)),
-    // The SET-NULL parent scan on a credential delete (`fk-columns-indexed` gate).
+    // The SET-NULL parent scan on a credential delete (FK-index test).
     index("user_connections_credential_idx").on(t.credentialId),
     check("user_connections_api_check", sql.raw(`api in (${checkList(CONNECTION_APIS)})`)),
     check("user_connections_model_check_check", sql.raw(`model_check in (${checkList(MODEL_CHECKS)})`)),

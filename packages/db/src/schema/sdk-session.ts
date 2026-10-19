@@ -66,7 +66,7 @@ export const sessionEntries = sqliteTable(
     // ONE primary per (chat, connection) — the promotion is demote → promote in one batch (the
     // `chat.ts` host-handoff idiom), so the reseed-on-the-same-connection case never trips it.
     uniqueIndex("session_entries_primary_unique").on(t.chatId, t.connectionId).where(sql`${t.isPrimary} = 1`),
-    // The CASCADE parent scan on a connection delete (`fk-columns-indexed` gate).
+    // The CASCADE parent scan on a connection delete (FK-index test).
     index("session_entries_connection_idx").on(t.connectionId),
   ],
 );

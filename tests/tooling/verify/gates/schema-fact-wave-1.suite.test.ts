@@ -5,15 +5,10 @@ import { describe } from "vitest";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate as byteCheckCast } from "../../../../tooling/src/verify/gates/byte-check-cast.ts";
-import { gate as dbEnumFromTuple } from "../../../../tooling/src/verify/gates/db-enum-from-tuple.ts";
 import { gate as domainFreshnessPlane } from "../../../../tooling/src/verify/gates/domain-freshness-plane.ts";
-import { gate as fkColumnsIndexed } from "../../../../tooling/src/verify/gates/fk-columns-indexed.ts";
-import { gate as fkOnDeleteStated } from "../../../../tooling/src/verify/gates/fk-ondelete-stated.ts";
 import { gate as nullableColumnInequality } from "../../../../tooling/src/verify/gates/nullable-column-inequality.ts";
 import { gate as ownTablesOnly } from "../../../../tooling/src/verify/gates/own-tables-only.ts";
-import { gate as schemaBannedShapes } from "../../../../tooling/src/verify/gates/schema-banned-shapes.ts";
 import { gate as schemaBranding } from "../../../../tooling/src/verify/gates/schema-branding.ts";
-import { gate as tableExplicitPrimaryKey } from "../../../../tooling/src/verify/gates/table-explicit-primary-key.ts";
 import { readAuthoredKeySet } from "../../../../tooling/src/verify/lib/authored-key-set.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { ROOT } from "../../../../tooling/src/verify/lib/repo-paths.ts";
@@ -46,22 +41,21 @@ const FAMILY_TIMEOUT_MS = scaledBudget(120_000);
 // any non-`ready` status. The retirement ruling survives — its INPUT moved one phase later. See the describe
 // block at the bottom, which pins the guarantee where it actually lives.
 test(
-  "the first Drizzle schema policy wave proves relational integrity, ownership, and brands",
+  "the first Drizzle schema policy wave proves ownership and brands",
   () => {
-    expect(verifyPolicyProofs([schemaBranding, fkColumnsIndexed, fkOnDeleteStated, tableExplicitPrimaryKey, ownTablesOnly])).toEqual([]);
+    expect(verifyPolicyProofs([schemaBranding, ownTablesOnly])).toEqual([]);
   },
   FAMILY_TIMEOUT_MS,
 );
 
-// The second wave: the D34 enum derive and the D124 nullable-inequality reader.
-// Both consume the SAME `drizzleSchemaFact` and own no schema parsing of their own, which is why they
-// join this entry rather than growing a per-policy test file. Their ids are spelled quoted here because
-// `check:instrument-affected` reaches a family test by quoted id: "db-enum-from-tuple",
-// "nullable-column-inequality".
+// The second wave: the D124 nullable-inequality reader.
+// It consumes the SAME `drizzleSchemaFact` and owns no schema parsing of its own, which is why it
+// joins this entry rather than growing a per-policy test file. Its id is spelled quoted here because
+// `check:instrument-affected` reaches a family test by quoted id: "nullable-column-inequality".
 test(
-  "the schema-fact consumer wave proves enum derivation and nullable-inequality",
+  "the schema-fact consumer wave proves nullable-inequality",
   () => {
-    expect(verifyPolicyProofs([dbEnumFromTuple, nullableColumnInequality])).toEqual([]);
+    expect(verifyPolicyProofs([nullableColumnInequality])).toEqual([]);
   },
   FAMILY_TIMEOUT_MS,
 );
@@ -142,9 +136,9 @@ describe("the shared Drizzle fact's health is its CONSUMER's fail-closed read (s
 // That is #944's class, and it is the question `docs/law/resource-policy-contract.md` §3.6 asks of a fact exactly as
 // it asks it of a resource: derive the statuses THIS supply can emit, and pin each REACHABLE one.
 //
-// THE FOUR MEMBERS THAT JOIN THIS FILE FROM OTHER WAVES all declare `family: "drizzle-schema"` and consume
-// this provider (`byte-check-cast`, `domain-freshness-plane`, `schema-banned-shapes` — the fourth,
-// `freeze-provenance-write-pairing-health`, belongs to the `freeze-provenance` family and keeps its pin in
+// THE MEMBERS THAT JOIN THIS FILE FROM OTHER WAVES all declare `family: "drizzle-schema"` and consume
+// this provider (`byte-check-cast`, `domain-freshness-plane`; `freeze-provenance-write-pairing-health`
+// belongs to the `freeze-provenance` family and keeps its pin in
 // its own conversion test, because its `empty` arm REPORTS rather than refusing). Their conversion tests
 // live under other names and drive nothing; the shared fact's health has ONE home and this is it.
 //
@@ -238,17 +232,7 @@ test("own-tables-only reports every FILE_ALLOWLIST subject when the complete per
   );
 });
 
-for (const policy of [
-  byteCheckCast,
-  dbEnumFromTuple,
-  domainFreshnessPlane,
-  fkColumnsIndexed,
-  fkOnDeleteStated,
-  nullableColumnInequality,
-  ownTablesOnly,
-  schemaBannedShapes,
-  tableExplicitPrimaryKey,
-]) {
+for (const policy of [byteCheckCast, domainFreshnessPlane, nullableColumnInequality, ownTablesOnly]) {
   test(`${policy.id}: an EMPTY census refuses at evaluate — the fail-closed read, not a clean verdict`, () => {
     const result = consumerPass(policy, schemaCorpus(policy, NO_TABLE));
 

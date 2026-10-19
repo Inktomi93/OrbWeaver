@@ -60,7 +60,7 @@ const SCHEMA_OWNERS: Readonly<Record<string, OwnershipRuling>> = {
   },
   gallery: {
     owners: ["assets"],
-    why: "a satellite table of the assets producer — the same mapping `db-structure`'s NON_DOMAIN_PRODUCERS makes (gallery → domain/assets).",
+    why: "a satellite table of the assets producer — the same mapping tests/db/schema/module-structure.suite.test.ts makes (gallery → domain/assets).",
   },
   "connection-bindings": {
     owners: ["connection"],
@@ -81,7 +81,7 @@ const SCHEMA_OWNERS: Readonly<Record<string, OwnershipRuling>> = {
   },
   "rate-limit": {
     owners: [],
-    why: "`rate_limit_buckets` is produced by `transport/rate-limit.ts` (db-structure's NON_DOMAIN_PRODUCERS) — a transport-tier table, never a domain's.",
+    why: "`rate_limit_buckets` is produced by `transport/rate-limit.ts` (a NON_DOMAIN_PRODUCERS ruling in tests/db/schema/module-structure.suite.test.ts) — a transport-tier table, never a domain's.",
   },
 };
 

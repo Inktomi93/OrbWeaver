@@ -2144,6 +2144,22 @@ const VERIFY_HARD_RESTRICTIONS = [
   },
 ];
 
+// D34: the db never re-spells a union. The runtime half (tests/db/schema/enum-tuples.suite.test.ts) judges the values.
+const DB_SCHEMA_RESTRICTIONS = [
+  {
+    id: "db-enum-from-tuple",
+    scope: ["packages/db/src/schema/**/*.ts"],
+    homes: [],
+    selectors: [
+      {
+        selector: "Property:matches([key.name='enum'], [key.value='enum']) :matches(ArrayExpression, CallExpression)",
+        message:
+          "A Drizzle column enum derives from a named tuple (an @orb/contracts or @orb/kit export, or a local `as const satisfies` tuple), never an inline array or a call result (D34).",
+      },
+    ],
+  },
+];
+
 // ── Tooling plumbing literals (Core-Tooling-Law §4.4): ONE port registry, ONE load-budget policy ──────────────
 // A number has no declaration to resolve, so both laws are syntax: a numeric literal and the NAME of its position.
 // The registry values are IMPORTED, so a new reserved row or stage band widens the port law without an edit here.
@@ -2211,6 +2227,7 @@ const RESTRICTIONS = [
     homes: [],
     selectors: PROTOTYPE_MUTATION_SELECTORS,
   },
+  ...DB_SCHEMA_RESTRICTIONS,
   ...Z_INDEX_RESTRICTIONS,
   ...BASEUI_RESTRICTIONS,
   ...CLASS_TOKEN_RESTRICTIONS,
