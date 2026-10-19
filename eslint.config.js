@@ -1353,6 +1353,11 @@ const TURN_IDENTITY_RESTRICTIONS = [
           ":matches(ImportSpecifier[imported.name='Principal'], ImportSpecifier[imported.value='Principal'], ExportSpecifier[local.name='Principal'], ExportSpecifier[local.value='Principal'], TSQualifiedName[right.name='Principal'], TSImportType[qualifier.name='Principal'], :matches(TSInterfaceHeritage, TSClassImplements) > MemberExpression[property.name='Principal'])",
         message: "D19: the chat engine is Principal-blind; resolve the runAsUserId/triggeredBy triple at the verb layer and pass it down.",
       },
+      {
+        // `Parameters<typeof send>[0]` over a verb, or a verb module's renamed re-export, reaches the Principal unnamed.
+        selector: ":matches(ImportDeclaration, ExportNamedDeclaration, ExportAllDeclaration)[source.value=/(^|\\/)verbs(\\/|$)/]",
+        message: "D19: the chat engine reads nothing from the verb layer, where the caller's Principal lives; the verb passes the resolved triple down.",
+      },
     ],
   },
 ];
@@ -1580,7 +1585,89 @@ const principalBrandLaunderRule = {
   },
 };
 
+const PRINCIPAL_NAME = "Principal";
+const PRINCIPAL_ALIAS_MESSAGE =
+  "D1/D40: every Principal rule keys on the name `Principal`, so a renamed spelling would walk past all of them. Name the type `Principal` where it is used.";
+const isPrincipalName = (node) => (node?.type === "Identifier" && node.name === PRINCIPAL_NAME) || (node?.type === "Literal" && node.value === PRINCIPAL_NAME);
+const isPrincipalExpression = (node) => isPrincipalName(node) || (node?.type === "MemberExpression" && isPrincipalName(node.property));
+
+/** Whether `type` is a Principal, or lists, unions, wraps or indexes one. A function or object type only uses it. */
+function namesPrincipal(type) {
+  switch (type?.type) {
+    case "TSTypeReference":
+      return isPrincipalType(type) || (type.typeArguments?.params ?? []).some(namesPrincipal);
+    case "TSUnionType":
+    case "TSIntersectionType":
+      return type.types.some(namesPrincipal);
+    case "TSTupleType":
+      return type.elementTypes.some(namesPrincipal);
+    case "TSArrayType":
+    case "TSNamedTupleMember":
+    case "TSOptionalType":
+    case "TSRestType":
+      return namesPrincipal(type.elementType ?? type.typeAnnotation);
+    case "TSTypeOperator":
+      return namesPrincipal(type.typeAnnotation);
+    case "TSIndexedAccessType":
+      return namesPrincipal(type.objectType);
+    default:
+      return false;
+  }
+}
+
+/** Whether `identifier` binds, in its own file, a variable or parameter annotated as a Principal. */
+function principalTypedBinding(context, identifier) {
+  for (let scope = context.sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
+    const variable = scope.set.get(identifier.name);
+    if (variable !== undefined) {
+      return variable.defs.some((def) => namesPrincipal(def.name.typeAnnotation?.typeAnnotation));
+    }
+  }
+  return false;
+}
+
+const principalAliasRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = (node) => context.report({ node, message: PRINCIPAL_ALIAS_MESSAGE });
+    return {
+      "ImportSpecifier[imported]"(node) {
+        if (isPrincipalName(node.imported) && node.local.name !== PRINCIPAL_NAME) {
+          report(node);
+        }
+      },
+      "ExportSpecifier[local]"(node) {
+        if (isPrincipalName(node.local) && !isPrincipalName(node.exported)) {
+          report(node);
+        }
+      },
+      "TSTypeAliasDeclaration[typeAnnotation]"(node) {
+        if (namesPrincipal(node.typeAnnotation)) {
+          report(node.id);
+        }
+      },
+      ":matches(TSInterfaceHeritage, TSClassImplements)"(node) {
+        if (isPrincipalExpression(node.expression)) {
+          report(node);
+        }
+      },
+      "TSTypeParameter[constraint]"(node) {
+        if (namesPrincipal(node.constraint)) {
+          report(node);
+        }
+      },
+      // `typeof caller` in any type position, an assertion included, is a Principal spelled through its binding.
+      "TSTypeQuery > Identifier.exprName"(node) {
+        if (principalTypedBinding(context, node)) {
+          report(node.parent);
+        }
+      },
+    };
+  },
+};
+
 const PRINCIPAL_RULES = [
+  { id: "principal-alias", rule: principalAliasRule },
   { id: "principal-assertion", rule: principalAssertionRule },
   { id: "principal-return-site", rule: principalReturnSiteRule },
   { id: "principal-mint-site", rule: principalMintSiteRule },
