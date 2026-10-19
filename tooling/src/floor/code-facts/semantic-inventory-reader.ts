@@ -238,7 +238,8 @@ function createInventoryReader(
     }
     return canonical;
   };
-  const capturedSpan = (node: Node): InventorySpan => ({ ...nodeSpan(node), file: canonicalPath(node.getSourceFile().getFilePath()) });
+  const capturedFile = (node: Node): string => canonicalPath(node.getSourceFile().getFilePath());
+  const capturedSpan = (node: Node): InventorySpan => ({ ...nodeSpan(node), file: capturedFile(node) });
   const sourceFile = (path: string, context?: readonly string[]): SourceFile | undefined => {
     assertOpen();
     const file = canonicalPath(path);
@@ -353,7 +354,8 @@ function createInventoryReader(
       if (captured === undefined) {
         throw new SemanticInventoryError(`native ${label} source is unavailable`);
       }
-      const original = value.file === capturedSpan(node).file ? node.getSourceFile() : node.getProject().getSourceFile(value.file);
+      // Only the file is compared: a full span would rescan the anchor's leading trivia on every replayed read.
+      const original = value.file === capturedFile(node) ? node.getSourceFile() : node.getProject().getSourceFile(value.file);
       if (original !== undefined && (original.wasForgotten() || original.getFullText() !== captured.getFullText())) {
         throw new SemanticInventoryError(`native ${label} replay source/epoch is stale`);
       }
