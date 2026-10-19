@@ -138,7 +138,7 @@ function readShapedNames(node: Node): readonly string[] {
 }
 
 /** The PRESENCE-shaped name one node contributes: a bare identifier or a string literal, which is what arms
- *  B2 and F-write key on (the `contract-verb-presence` name-keyed posture). */
+ *  B2 and F-write key on (a name-keyed presence posture). */
 function presenceName(node: Node): string | undefined {
   if (MorphNode.isIdentifier(node)) {
     return node.getText();

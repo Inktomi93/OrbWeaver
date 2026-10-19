@@ -87,7 +87,6 @@ export function createDiscoveryService(input: DbAssemblyInput<DiscoveryContext>)
     ...createViews(ctx, viewsDeps),
     computeThemes: (opts) => runComputeThemes(ctx.db, themeDeps, opts),
     countThemeNameCalls: (opts) => countThemeNameCalls(ctx.db, opts),
-    themes: (userId, level) => readThemes(ctx.db, userId, level),
     backfillDigestStoryTime: (ownerId) => backfillMsgMidAt(ctx.db, ctx.tier0RangeOf, ownerId),
     ...createInsights(ctx),
     ...createEconomicsInsights(ctx),

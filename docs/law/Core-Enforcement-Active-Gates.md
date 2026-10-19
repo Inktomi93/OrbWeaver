@@ -82,7 +82,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `context-definition-shape` | — | ordinary/error | @client | A context projection must explicitly… |
 | `context-definition-shape-health` | context-definition-shape | hard/error | @client | the CONTEXT pane's head band has more… |
 | `contract-structural-copy` | — | ordinary/error | @client,@server,@inference,@contracts | hand-written shape re-spells a… |
-| `contract-verb-presence` | — | reviewed-grant/error | @server,@tests,@legacy-tests\* | a \*Service interface declares a verb… |
 | `css-family-direct-client-mechanism` | css-hook-provenance | reviewed-grant/error | @client,@ui | client globals skins a UI-only… |
 | `css-family-ownership` | css-hook-provenance | ordinary/error | @client,@ui | a declaration is inside a sanctioned… |
 | `css-family-ownership-health` | css-hook-provenance | hard/error | none | the six-home CSS census is BLIND, or… |

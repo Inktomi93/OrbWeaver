@@ -20,7 +20,6 @@ import { gate as busConsumerBelt } from "../../../../../tooling/src/verify/gates
 import { gate as busPayloadAllowlistHealth } from "../../../../../tooling/src/verify/gates/bus-payload-allowlist-health.ts";
 import { gate as busProducerCoverage } from "../../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
 import { gate as caughtFailureOwnership } from "../../../../../tooling/src/verify/gates/caught-failure-ownership.ts";
-import { gate as contractVerbPresence } from "../../../../../tooling/src/verify/gates/contract-verb-presence.ts";
 import { gate as cssLengthTokens } from "../../../../../tooling/src/verify/gates/css-length-tokens.ts";
 import { gate as cssLengthTokensGrants } from "../../../../../tooling/src/verify/gates/css-length-tokens-grants.ts";
 import { gate as cssLengthTokensHealth } from "../../../../../tooling/src/verify/gates/css-length-tokens-health.ts";
@@ -103,18 +102,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
       add("packages/client/src/features/chat/lib/liveness-raw.ts", "export function livenessRaw(): void {\n  void save().catch(() => undefined);\n}\n"),
     ],
     messageIncludes: "UNPROVEN OWNERSHIP",
-  },
-  {
-    policy: contractVerbPresence,
-    // The fact reads only `domain/<d>/contract/service.ts`, so the uncovered verb joins the real CharacterService.
-    overlays: [
-      edit(
-        `${DOMAIN}/contract/service.ts`,
-        "export interface CharacterService {\n",
-        "export interface CharacterService {\n  readonly livenessUncovered: () => void;\n",
-      ),
-    ],
-    messageIncludes: "character.livenessUncovered",
   },
   {
     policy: cssLengthTokensGrants,

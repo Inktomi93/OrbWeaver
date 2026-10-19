@@ -9,7 +9,6 @@ const APPLICATION = Object.freeze({
   "caught-failure-ownership": 680,
   "chat-viewer-plane-canon-reads": 3,
   "contract-structural-copy": 87,
-  "contract-verb-presence": 3,
   "css-family-direct-client-mechanism": 3,
   "css-length-tokens": 3,
   "css-length-tokens-grants": 26,

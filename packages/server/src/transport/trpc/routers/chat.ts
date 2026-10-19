@@ -256,15 +256,15 @@ const forkChatSchema = z.object({
 });
 
 // The CONTEXT-panel cluster (task #28 — the chat right-region: room-overrides · preview-request ·
-// manual injections). Same MISSING-API shape as the clusters above: `setRoomOverrides`/
-// `getRoomOverridesForChat` (verbs/participants.ts), `previewAssembly` (verbs/read.ts), and
+// manual injections). Same MISSING-API shape as the clusters above: `setRoomOverrides`
+// (verbs/participants.ts), `previewAssembly` (verbs/read.ts), and
 // `setChatInjection`/`listChatInjections`/`deleteChatInjection` (verbs/chat-lifecycle.ts) were ALL
 // already fully implemented — host/member gated via substrate/auth/matrix.ts, DB-backed where relevant,
 // bus-emitting — but none had ever been exposed on this router (swept via grep before this addition, no
 // call site referenced any). Thin pass-throughs; authz lives INSIDE each verb (the sibling-cluster shape).
 // The wire input schemas are DERIVED from contracts (`roomOverridesSchema`, `chatInjectionInputSchema`) —
 // no re-spelled union at the transport edge (§5.5). `previewAssembly` is a host-only READ (the assembled
-// prompt + trace is a debug surface); `getRoomOverridesForChat`/`peekPrompt`/`previewSection` stay
+// prompt + trace is a debug surface); `peekPrompt`/`previewSection` stay
 // unexposed for now (the room read rides `getChat`'s `ChatDetail.roomOverrides`; the member preview
 // affordance is deferred — task #28 flag).
 const setRoomOverridesSchema = z.object({
