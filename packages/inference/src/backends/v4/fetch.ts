@@ -88,7 +88,7 @@ async function readCappedStream(body: ReadableStream<Uint8Array>, limit: number)
         break;
       }
     }
-    // @orb-waive caught-failure-ownership(error): the read failure is retained in `tearDown`; callers either rethrow it or deliberately keep partial capture bytes. Precedent: the gate mustPass fixture tooling/src/probe/unproven-outcome.ts proves the same carried failure-as-data owner. Ends if CappedRead stops carrying the error.
+    // @orb-waive caught-failure-ownership(error): the read failure is held in `CappedRead.tearDown`; `readCapped` rethrows it for the error-body path, and the reply tap keeps the partial bytes while the same failure reaches the SDK on the teed downstream branch. Ends if CappedRead stops carrying the error.
   } catch (error) {
     tearDown = { error };
   } finally {
@@ -301,7 +301,7 @@ function parseBody(init: RequestInit | undefined): Record<string, unknown> | nul
   try {
     const parsed: unknown = JSON.parse(init.body);
     return isRecord(parsed) ? parsed : null;
-    // @orb-waive caught-failure-ownership(catch): malformed SDK body bytes disable shaping and capture while the original request still travels unchanged. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if null starts authorizing transformed output.
+    // @orb-waive caught-failure-ownership(catch): a body that is not a JSON object returns null, which `outbound` reads as "send the request exactly as given": shaping and wire capture are skipped and nothing is rewritten. Ends if null starts authorizing a transformed body.
   } catch {
     return null;
   }
@@ -384,7 +384,7 @@ function tapReply(res: Response, args: WrapFetchArgs, body: Record<string, unkno
   const emit = (reply: string): void => {
     emitCapture(args, body, res.headers, reply);
   };
-  // @orb-waive caught-failure-ownership(readCappedStream): both settlement arms emit the capture row; the reader currently carries teardown instead of rejecting. Precedent: packages/client/src/lib/app-ready-signal.ts accepts the same both-arms terminal settlement owner. Ends if either arm stops emitting.
+  // @orb-waive caught-failure-ownership(readCappedStream): both settlement arms call `emit`, which writes the wire-capture row (the rejection arm with an empty reply); `readCappedStream` carries its tear-down in `CappedRead` and does not reject. Ends if either arm stops emitting.
   void readCappedStream(ours, overreadLimit(args.secrets)).then(
     (read) => {
       emit(read.text);

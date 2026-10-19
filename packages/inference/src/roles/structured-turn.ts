@@ -93,8 +93,9 @@ function skipStringLiteral(raw: string, open: number): number {
 }
 
 function tryParse(slice: string): Record<string, unknown> | null {
-  // @orb-waive caught-failure-ownership(catch): null flows to extractJsonObject's null →
-  // the typed "no JSON object found in the reply" refusal path. Ends if that refusal path is removed.
+  // @orb-waive caught-failure-ownership(catch): null is `extractJsonObject`'s null, which `parseStructured` turns into the typed
+  // `ok: false` "no JSON object found in the reply"; `runStructuredTurn` retries once and then throws StructuredOutputError.
+  // Ends if that refusal path is removed.
   try {
     const parsed: unknown = JSON.parse(slice);
     return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;

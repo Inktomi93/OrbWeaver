@@ -86,7 +86,7 @@ export async function fetchGoogleModels(dial: GoogleModelsDial, fetchImpl: typeo
 }
 
 export async function listGoogleModels(dial: GoogleModelsDial, fetchImpl: typeof fetch): Promise<ModelListing> {
-  // @orb-waive caught-failure-ownership(err): optional discovery returns a failed listing with the scrubbed reason; explicit model entry remains available. Ends if discovery becomes required.
+  // @orb-waive caught-failure-ownership(err): optional discovery returns `failedListing(err, secrets)`, i.e. `{ listed: false, reason }` with the scrubbed reason (backends/wire/model-listing.ts), which the model picker shows as its failed arm; explicit model entry remains available. Ends if discovery becomes required.
   try {
     return listingOf(await fetchGoogleModels(dial, fetchImpl));
   } catch (err) {

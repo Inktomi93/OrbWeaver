@@ -114,7 +114,7 @@ export function createCatalogListing(deps: CatalogListingDeps): (draft: CatalogD
         },
       });
       return listingOf(rows.map((row) => bareCatalogEntry(row)));
-      // @orb-waive caught-failure-ownership(err): optional model discovery owns refusal as `listed:false` with the scrubbed reason; the pane offers a typed id. Precedent: the gate mustPass fixture packages/server/src/domain/probe/failed-status.ts proves the same explicit failure result. Ends if callers require a successful catalog.
+      // @orb-waive caught-failure-ownership(err): a failed dial is returned as `failedListing(err, secrets)`, i.e. `{ listed: false, reason }` with the scrubbed reason (backends/wire/model-listing.ts); the model picker (client credentials/lib/model-picker-model.ts) turns it into its failed arm with the reason and a retry, and the pane offers a typed id. Ends if callers require a successful catalog.
     } catch (err) {
       return failedListing(err, secrets);
     }

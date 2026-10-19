@@ -407,7 +407,7 @@ export async function cachedKind(ctx: ResolverContext, connection: UserConnectio
 // A kind read gathers evidence and never refuses: a revoked key or a server that does not answer leaves the facts the
 // mirrors already hold, and the task that needs the key refuses with its own reason.
 async function warmedOrCached(ctx: ResolverContext, provider: ProviderDef, connection: UserConnection): Promise<ProviderDef> {
-  // @orb-waive caught-failure-ownership(catch): the failed warm is owned by the next resolve of a task on this row, which runs the same warm and surfaces its error; the kind read degrades to the cached facts. Ends if a caller needs the kind read to refuse.
+  // @orb-waive caught-failure-ownership(catch): a failed warm leaves the kind read on the cached facts; the task that needs the row runs the same uncaught `warmFacts` in `resolveTaskFold`, which throws the failure to its caller. Ends if a caller needs the kind read to refuse.
   try {
     return (await warmFacts(ctx, provider, connection, false)).behaved;
   } catch {

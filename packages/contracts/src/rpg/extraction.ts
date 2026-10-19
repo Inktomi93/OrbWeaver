@@ -410,10 +410,10 @@ export interface RpgToolCall {
  *  `null` and is therefore indistinguishable from unparseable: both are "nothing a reader can act on", which
  *  is the same verdict both consumers want. */
 export function parseToolCallArgs(raw: string): unknown {
-  // @orb-waive caught-failure-ownership(catch): errors-as-data — a malformed tool call is
-  // DROPPED, mirroring the structured path's non-conforming-drop; the null return is consumed by the
-  // canon flush's non-JSON-args skip and by rpg's member projection (which WITHHOLDS the args). Ends if
-  // either consumer stops treating null as "this payload is not readable".
+  // @orb-waive caught-failure-ownership(catch): a malformed tool call is dropped on purpose and the null is read by two owners:
+  // `malformedToolCallDetails` records "arguments: not valid JSON" (the recorded call's `dropped` verdict), and
+  // `stripHiddenInJson` in rpg's tool-call-visibility marks the member view `withheld: "unparseable"`. Ends if either
+  // stops reading null as "this payload is not readable".
   try {
     return JSON.parse(raw);
   } catch {
