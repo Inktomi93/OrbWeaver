@@ -43,7 +43,7 @@ import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characters, chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messageAssets, messages, messageVariants } from "@orb/db";
 import { chatRecencyExpr, immutableCollection, memberVisibleChatScope, rowTuple } from "@orb/db/query";
-import { ASSET_SCHEME, HIDDEN_TAGS } from "@orb/kit/content";
+import { HIDDEN_TAGS } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatEventId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
@@ -721,26 +721,6 @@ export async function hasMessageAssetLinkInChat(db: Db, chatId: ChatId, assetId:
     .where(and(eq(messages.chatId, chatId), eq(messageAssets.assetId, assetId)))
     .limit(LIMIT_ONE);
   return rows.length > 0;
-}
-
-/** The selected bodies of `ownerId`'s own prompt-visible user messages in `chatId` whose text holds the asset's
- *  `asset:<id>` target. The text match only narrows: the caller confirms the ref with the content grammar. */
-export async function loadOwnerUserBodiesCitingAsset(db: Db, chatId: ChatId, ownerId: UserId, assetId: AssetId): Promise<string[]> {
-  const target = `${ASSET_SCHEME}${assetId}`;
-  const rows = await db
-    .select({ content: messageVariants.content })
-    .from(messages)
-    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
-    .where(
-      and(
-        eq(messages.chatId, chatId),
-        eq(messages.role, "user"),
-        eq(messages.authorUserId, ownerId),
-        eq(messages.excludedFromPrompt, false),
-        sql`instr(${messageVariants.content}, ${target}) > 0`,
-      ),
-    );
-  return rows.map((row) => row.content);
 }
 
 /** The whole `message_assets` rows on `messageIds`, chat-scoped through the `messages` join (the copy verbs' source). */

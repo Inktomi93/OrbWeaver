@@ -2,7 +2,7 @@
 // A group/multi-human chat member (not just the uploader) must render another present member's inline
 // attachment. The gate is NOT owner-scope and NOT bare chat-membership: it is the STRUCTURAL `message_assets`
 // reference in THIS chat + the asset owner is a PRESENT participant + the CALLER is a PRESENT participant.
-// The model path (`domain/chat/verbs/resolve-media-ref.ts`) admits the same link, or the owner's own citing message. Because that
+// The model path (`domain/chat/verbs/resolve-media-ref.ts`) requires the same link in the room. Because that
 // cross-domain join spans the chat schema (`message_assets`/`messages`/`chat_participants`), it arrives as
 // the injected `loadChatAssetRefs` op wired at the entry composition root (assets sideways-imports no chat —
 // the `loadCoParticipantOwner` precedent), so this verb is a thin, fail-closed delegate: no op ⇒ nothing

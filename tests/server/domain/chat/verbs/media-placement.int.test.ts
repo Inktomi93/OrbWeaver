@@ -3,6 +3,7 @@
 // @subject packages/server/src/domain/chat/verbs/resolve-media-ref.ts
 // @subject packages/server/src/domain/chat/verbs/fork.ts
 // @subject packages/server/src/domain/chat/verbs/edit.ts
+// @subject packages/server/src/domain/chat/substrate/owned-citations.ts
 
 import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -208,19 +209,65 @@ test("a quote stops riding once the owner deletes the message that placed the pi
   expect(await turnImageUrls(box, room)).toEqual([]);
 });
 
-test("the owner's own message that cites their unlinked picture sends it, and hiding that message stops it", async () => {
+test("a host's edit citing a member's picture in the member's row never reaches the wire, while the member's own edit does", async () => {
+  const box = await openBox();
+  const room = await openRoom(box, [box.member]);
+  const picture = await store(box, box.member, "gallery");
+  const hostEdited = await say(box, room, { as: box.member, content: "Hello." });
+  await box.root.services.chat.editMessage({ principal: box.host, chatId: room, messageId: hostEdited, content: `Hello. ${quote(picture)}` });
+  expect(await box.root.services.assets.resolveChatAssetRefs(box.member.userId, room, [picture])).toEqual([]);
+  expect(await turnImageUrls(box, room)).toEqual([]);
+
+  const ownEdit = await say(box, room, { as: box.member, content: "Mine." });
+  await box.root.services.chat.editMessage({ principal: box.member, chatId: room, messageId: ownEdit, content: `Mine. ${quote(picture)}` });
+
+  expect((await box.root.services.assets.resolveChatAssetRefs(box.host.userId, room, [picture])).map((ref) => ref.assetId)).toEqual([picture]);
+  const url = await wireUrl(box, picture);
+  expect(await turnImageUrls(box, room)).toEqual([url, url]);
+});
+
+test("a send links the typed pictures its author owns and never another member's", async () => {
+  const box = await openBox();
+  const room = await openRoom(box, [box.member]);
+  const own = await store(box, box.member, "gallery");
+  const hosts = await store(box, box.host, "gallery");
+  await say(box, room, { as: box.member, content: `Mine ${quote(own)} and the host's ${quote(hosts)}` });
+
+  expect(await turnImageUrls(box, room)).toEqual([await wireUrl(box, own)]);
+});
+
+test("a plain-text asset id in the owner's own message places nothing", async () => {
   const box = await openBox();
   const room = await openRoom(box, [box.member]);
   const picture = await store(box, box.host, "gallery");
-  const line = await say(box, room, { as: box.host, content: "The ledger." });
-  await box.root.services.chat.editMessage({ principal: box.host, chatId: room, messageId: line, content: `The ledger. ${quote(picture)}` });
-  await say(box, room, { as: box.member, content: `Again. ${quote(picture)}` });
-  const url = await wireUrl(box, picture);
-  expect(await turnImageUrls(box, room)).toEqual([url, url]);
-
-  await box.root.services.chat.setMessageHidden({ principal: box.host, chatId: room, messageId: line, hidden: true });
+  await say(box, room, { as: box.host, content: `id asset:${picture} only` });
+  await say(box, room, { as: box.member, content: `Quote. ${quote(picture)}` });
 
   expect(await turnImageUrls(box, room)).toEqual([]);
+});
+
+test("a fork drops a link its copied body no longer cites", async () => {
+  const box = await openBox();
+  const room = await openRoom(box, [box.member]);
+  const attached = await store(box, box.host, "attachment");
+  const posted = await say(box, room, { as: box.host, content: "", attached: [attached] });
+  await box.root.services.chat.editMessage({ principal: box.host, chatId: room, messageId: posted, content: "No picture now." });
+  const fork = (await box.root.services.chat.forkChat({ principal: box.host, chatId: room })).chat.id;
+  await admit(box, fork, box.member);
+
+  expect(await box.root.services.assets.resolveChatAssetRefs(box.member.userId, fork, [attached])).toEqual([]);
+});
+
+test("a duplicate drops a link its copied body no longer cites", async () => {
+  const box = await openBox();
+  const room = await openRoom(box, [box.member]);
+  const attached = await store(box, box.host, "attachment");
+  const posted = await say(box, room, { as: box.host, content: "", attached: [attached] });
+  await box.root.services.chat.editMessage({ principal: box.host, chatId: room, messageId: posted, content: "No picture now." });
+  await box.root.services.chat.duplicateMessage({ principal: box.host, chatId: room, messageId: posted });
+  await box.root.services.chat.deleteMessages({ principal: box.host, chatId: room, messageIds: [posted] });
+
+  expect(await box.root.services.assets.resolveChatAssetRefs(box.member.userId, room, [attached])).toEqual([]);
 });
 
 test("a member's generated post sends the host-owned picture through its link", async () => {

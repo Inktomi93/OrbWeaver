@@ -225,8 +225,15 @@ test("only host or PRESENT owner assets reach byte processing; conversion remain
   });
   const bytes = new Uint8Array([9, 8, 7]);
   const asset = await services.assets.store({ principal: await principal(harness, member.id), bytes, kind: "attachment", mime: "video/webm" });
-  // The member's own message cites the clip, so the room has placed it; this case pins presence and deferral.
-  await seedMessage(db, { chatId: room.id, seq: 1, role: "user", authorUserId: member.id, content: `![clip](asset:${asset.assetId})` });
+  // The member's own attachment link places the clip in the room; this case pins presence and deferral.
+  const attachedIn = await seedMessage(db, { chatId: room.id, seq: 1, role: "user", authorUserId: member.id, content: `![clip](asset:${asset.assetId})` });
+  await db.insert(messageAssets).values({
+    id: typeIdSchema(ID_PREFIX.messageAsset).parse(ids.next(ID_PREFIX.messageAsset)),
+    messageId: attachedIn.id,
+    assetId: asset.assetId,
+    origin: "attached",
+    createdAt: clock.now(),
+  });
   const prepareVideo = vi.fn<ResolveMediaRefDeps["mediaProcessing"]["prepareVideo"]>(() => Promise.resolve(bytes));
   const read = vi.spyOn(services.assets, "loadAssetBytes");
   let forbidden = false;

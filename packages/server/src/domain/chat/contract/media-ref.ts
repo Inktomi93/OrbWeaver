@@ -13,9 +13,9 @@ export interface ImageRefAssets {
 /** The room facts a stored asset must satisfy before its bytes are read for the model. */
 export interface MediaRoomAccess {
   readonly ownerIsPresent: (ownerId: UserId, chatId: ChatId) => Promise<boolean>;
-  /** The room placed the asset itself: a `message_assets` link on one of its messages, or a prompt-visible user
-   *  message its owner authored that cites it. A bare id spelled by anyone else places nothing. */
-  readonly isPlacedInRoom: (assetId: AssetId, ownerId: UserId, chatId: ChatId) => Promise<boolean>;
+  /** The room placed the asset itself: a `message_assets` link on one of its messages. Every link writer checks
+   *  that the writer owns a cited picture, so a bare id spelled in any body places nothing. */
+  readonly isPlacedInRoom: (assetId: AssetId, chatId: ChatId) => Promise<boolean>;
 }
 
 export interface ResolveMediaRefDeps {

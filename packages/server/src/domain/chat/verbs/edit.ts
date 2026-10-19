@@ -119,6 +119,7 @@ import { buildTurnMacroContext, freezeVolatileMacros } from "../substrate/assemb
 import { assertAuthorOrHost, isBelowHistoryFloor, permitsHost } from "../substrate/auth/index.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
 import { projectViewReturnForViewer } from "../substrate/member-visibility.ts";
+import { ownedCitedAssetIds } from "../substrate/owned-citations.ts";
 import { hostUserIdOf } from "../substrate/participants-host.ts";
 import { humanSeatPersonasOf, presentAndEnabledHumanUserIdsOf } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveHostTierRegexScripts } from "../substrate/regex-tier.ts";
@@ -577,6 +578,17 @@ function createEditMessage(ctx: ChatContext, deps: EditDeps): ChatService["editM
       editedAt: now,
       toolCalls: slot.toolCalls,
     });
+    // A picture the edit newly cites is placed in the room only when the EDITOR owns it: a host editing a
+    // member's row must not place that member's unplaced picture under the member's authorship.
+    const linked = (await loadMessageAssetLinks(ctx.db, chatId, [messageId])).map((link) => link.assetId);
+    const placed = await ownedCitedAssetIds(ctx, principal.userId, clean, linked);
+    statements.push(
+      ...insertMessageAssetStatements(ctx.db, {
+        rows: placed.map((assetId) => ({ id: ctx.newMessageAssetId(), messageId, assetId })),
+        origin: "attached",
+        now,
+      }),
+    );
     // The net word/byte change rides the same batch as the edit, bucketed on the slot's original day.
     statsDeltas.push(
       editMessageDelta({

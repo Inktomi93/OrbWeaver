@@ -1,16 +1,14 @@
 // Stored media authorization precedes byte reads and deferred quality conversion.
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
-import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
-import { assetIdsInContent } from "@orb/kit/content";
-import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
+import type { AssetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import type { ImageRefAssets, MediaRoomAccess, ResolveMediaRef, ResolveMediaRefDeps } from "../contract/media-ref.ts";
 import type { ResolvedMediaRef } from "../contract/results.ts";
 import { isPresentParticipant } from "../persistence/participants-read.ts";
-import { hasMessageAssetLinkInChat, loadOwnerUserBodiesCitingAsset } from "../persistence/queries.ts";
+import { hasMessageAssetLinkInChat } from "../persistence/queries.ts";
 
 const VIDEO_MIME_PREFIX = "video/";
 const GIF_MIME = "image/gif";
@@ -19,17 +17,9 @@ export function createResolveMediaRef(input: DbAssemblyInput<ResolveMediaRefDeps
   const deps: ResolveMediaRefDeps = { ...input, db: databaseForOwner(input.db) };
   const room: MediaRoomAccess = {
     ownerIsPresent: (userId, chatId) => isPresentParticipant(deps.db, chatId, userId),
-    isPlacedInRoom: (assetId, ownerId, chatId) => isPlacedInRoom(deps.db, assetId, ownerId, chatId),
+    isPlacedInRoom: (assetId, chatId) => hasMessageAssetLinkInChat(deps.db, chatId, assetId),
   };
   return (params) => resolveImageRefToUrl({ ...deps.assets, ...deps.mediaProcessing }, room, deps.forbidExternalMedia(), params);
-}
-
-async function isPlacedInRoom(db: Db, assetId: AssetId, ownerId: UserId, chatId: ChatId): Promise<boolean> {
-  if (await hasMessageAssetLinkInChat(db, chatId, assetId)) {
-    return true;
-  }
-  const bodies = await loadOwnerUserBodiesCitingAsset(db, chatId, ownerId, assetId);
-  return bodies.some((body) => assetIdsInContent(body).includes(assetId));
 }
 
 /** Resolve a parsed media ref to its kind and ready/deferred URL, or `null` when blocked/gone. An `external` ref
@@ -38,8 +28,8 @@ async function isPlacedInRoom(db: Db, assetId: AssetId, ownerId: UserId, chatId:
  *
  *  A stored asset needs BOTH room facts. Its owner is the host or a present member, and the room placed it
  *  ({@link MediaRoomAccess.isPlacedInRoom}). Presence alone would let any member's quote of an id read off a
- *  transcript send another member's picture to the model. The quoting row's author is no proof either: the
- *  history squash folds adjacent user rows under the first row's slot id. */
+ *  transcript send another member's picture to the model. The row's author is no proof either: the history
+ *  squash folds adjacent user rows under the first row's slot id, and a host may edit a member's row. */
 export async function resolveImageRefToUrl(
   assets: ImageRefAssets,
   room: MediaRoomAccess,
@@ -56,7 +46,7 @@ export async function resolveImageRefToUrl(
     return null;
   }
   const ownerAdmitted = meta.ownerId === hostId || (await room.ownerIsPresent(meta.ownerId, chatId));
-  if (!(ownerAdmitted && (await room.isPlacedInRoom(assetId, meta.ownerId, chatId)))) {
+  if (!(ownerAdmitted && (await room.isPlacedInRoom(assetId, chatId)))) {
     return null;
   }
   const bytes = await assets.loadAssetBytes(assetId);
