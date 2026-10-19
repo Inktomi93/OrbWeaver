@@ -13,16 +13,18 @@
 //
 // SO: AGE FIRST, COUNT SECOND, AND EVERY DELETION RECORDED. A citation that no longer resolves has to be
 // answerable ("pruned, and when") rather than silent, which reads as "that run never existed".
-import { readFileSync, renameSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { errorMessage } from "@orb/kit/error-message";
+import { warn } from "../cli/log.ts";
 
 /** Is this pid still running? `kill(pid, 0)` signals nothing and throws ESRCH when it is gone. Lives with
  *  retention because "may this slot go?" is first "is its owner still writing?" — and it is only ever asked
  *  about a marker from THIS box (a run slot's, a session row's daemon), so a pid from another machine can
  *  never be misread as live. */
 export function pidAlive(pid: number): boolean {
-  // @orb-waive caught-failure-ownership(catch): ESRCH from a signal-0 probe IS the answer — the pid is gone — and `false` is that answer at every call site (the racing census, the prune filter, the abandoned-run scan, the session registry's daemon liveness). Ends if this needs to distinguish EPERM (a live pid this user may not signal) from ESRCH.
+  // @orb-waive caught-failure-ownership(catch): ESRCH is the answer, the pid is gone, and false is the dead answer every caller acts on (censusRow reports the slot abandoned; the stage keeper, session registry and niced-exec read it as a dead owner). Ends if a marker can come from another user, where EPERM would read as dead.
   try {
     process.kill(pid, 0);
     return true;
@@ -70,16 +72,41 @@ export function selectPrunable(candidates: readonly RetentionCandidate[], now: n
     .filter((row) => row.at <= floor);
 }
 
-export function readPrunedRuns(base: string): readonly PrunedRun[] {
-  // @orb-waive caught-failure-ownership(catch): no ledger yet means this instrument has pruned nothing here — the empty list is that answer at both call sites (the bounded rewrite, and the reader answering a citation). Ends if a caller must distinguish "never pruned" from "ledger unreadable".
+type LedgerLine = { readonly row: PrunedRun } | { readonly error: string };
+
+/** One row, or why it is unreadable: a killed append leaves a torn line, and it must cost only itself. */
+function parseLedgerLine(line: string): LedgerLine {
   try {
-    return readFileSync(join(base, PRUNE_LEDGER), "utf-8")
-      .split(/\r?\n/u)
-      .filter((line) => line !== "")
-      .map((line) => JSON.parse(line) as PrunedRun);
-  } catch {
+    return { row: JSON.parse(line) as PrunedRun };
+  } catch (error) {
+    return { error: errorMessage(error) };
+  }
+}
+
+/** The ledger's rows. A missing ledger is the only empty answer: an unreadable file throws, and an
+ *  unreadable row is skipped with one stderr line so a short history is never silent about why. */
+export function readPrunedRuns(base: string): readonly PrunedRun[] {
+  const path = join(base, PRUNE_LEDGER);
+  if (!existsSync(path)) {
     return [];
   }
+  const rows: PrunedRun[] = [];
+  let unreadable = 0;
+  for (const line of readFileSync(path, "utf-8").split(/\r?\n/u)) {
+    if (line === "") {
+      continue;
+    }
+    const parsed = parseLedgerLine(line);
+    if ("error" in parsed) {
+      unreadable += 1;
+    } else {
+      rows.push(parsed.row);
+    }
+  }
+  if (unreadable > 0) {
+    warn(`PRUNE LEDGER  ${String(unreadable)} unreadable row(s) skipped in ${path}`);
+  }
+  return rows;
 }
 
 /** Record deletions in the instrument's bounded ledger. Append-first (one `writeFileSync` with `flag: "a"`,
