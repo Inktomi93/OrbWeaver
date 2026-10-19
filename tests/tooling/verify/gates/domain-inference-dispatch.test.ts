@@ -1,8 +1,8 @@
 // @subject tooling/src/floor/code-facts/type-member-origin-graph.ts
-import { readFileSync, symlinkSync } from "node:fs";
+import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, plantLink, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { createSemanticWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { Project, SourceFile } from "ts-morph";
@@ -33,7 +33,7 @@ async function nativeProgram(
     "consumer.ts": body,
     ...files,
   });
-  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
+  plantLink(root, "node_modules", join(repoRoot, "node_modules"), "dir");
   execFixtureGit(root, ["init", "--quiet", "--template="]);
   const world = createSemanticWorkspace({ root }).program("tsconfig.json");
   if (world === undefined) {

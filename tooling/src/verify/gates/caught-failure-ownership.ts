@@ -5,14 +5,7 @@
 //
 // ── FAMILY ──────────────────────────────────────────────────────────────────────────────────────────────
 // `caught-failure-ownership`, on the shared reader `lib/caught-failure.ts`
-// (`catchClauseSite` / `promiseAbsorberSite` / `caughtFailureReviewSites`). That extraction IS the census
-// blocker this conversion answers (the gate conversion census— "must split reusable failure
-// facts"): the reader's consumers are this policy, `ops/gen/caught-failure-population.ts`, which derives the
-// durable review record at tooling/src/verify/gates/caught-failure-ownership.population.json, and the hard
-// sibling `caught-failure-ownership-health`, which joins that record to the tree on `siteId`. One producer,
-// so the artifact and the policies can never disagree about what a site is. The sibling exists because a
-// two-sided join over the whole corpus is `entire-population` and `hard` — neither of which this per-file,
-// waivable policy is (§12.1 splits a module on authority).
+// (`catchClauseSite` / `promiseAbsorberSite` / `caughtFailureReviewSites`); this policy is its only gate consumer.
 //
 // ── ONE POLICY ID, DELIBERATELY — the arms do NOT split ──────────────────────────────────────────────────
 // §12.1 splits a module on AUTHORITY or SEVERITY. All three arms are `ordinary`/`error` and share the
@@ -48,12 +41,9 @@
 // no finding at its site) were DELETED, never converted into a waiver for an unmarked finding (§8.6).
 //
 // ── RETIRED ARM: `@swallowed-ok` IS NO LONGER A SUPPRESSION DOOR HERE (§4.6, classified) ─────────────────
-// The legacy gate accepted a live exact-position `@swallowed-ok` marker owned by `detached-work-traced` as
-// ownership evidence, through `hasLiveDetachedSwallowOwner`. That arm is disqualified four ways over: it is
-// a cross-GATE import, it walks `Project#getSourceFiles` (detached-work-traced.ts:497), it reads
-// module-scope pass state, and it is a PRIVATE MARKER PARSER for ANOTHER gate's custom grammar — which
-// §12.5 bans outright ("no gate-specific exemption grammar"). `detached-work-traced` is also still LEGACY,
-// so §7 forbids touching those sites' grammar at all. The arm is GONE. Every `@swallowed-ok` marker stays
+// The legacy gate accepted a live exact-position `@swallowed-ok` marker owned by a sibling gate as ownership
+// evidence. That arm is gone: it was a cross-GATE import and a PRIVATE MARKER PARSER for another gate's custom
+// grammar, which §12.5 bans outright ("no gate-specific exemption grammar"). Every `@swallowed-ok` marker stays
 // exactly where it is and keeps its own owner; the five sites it covered now carry an `@orb-waive` marker
 // of this policy's own, with the `@swallowed-ok` reason carried verbatim. Two markers, each stale-checked
 // by the engine that owns it.
@@ -106,10 +96,10 @@
 // RE-SPELLED 2026-09-20 (lane cb-population-truth, #2488) from explicit package roots to `@product` plus
 // the then-excluded content packages. The 2026-09-21 owner decision classifies both shipped content
 // packages into `@product`, making those explicit refs redundant while keeping the intended corpus. The
-// expression now lives in `lib/caught-failure.ts#CAUGHT_FAILURE_POPULATION` (work item 0009), because the
-// census and its health sibling must walk this exact corpus too.
+// expression now lives in `lib/caught-failure.ts#CAUGHT_FAILURE_POPULATION` (work item 0009).
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { withinClosureBound } from "../../floor/code-facts/bounded-closure.ts";
 import type { CaughtFailureArm } from "../contract/caught-failure.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -144,6 +134,18 @@ function reportSite(ctx: GatePolicyContext, site: CaughtFailureSite | undefined)
   ctx.report.node(site.node, { message: ARM_MESSAGE[site.arm], token: anchor.token, offset: anchor.offset });
 }
 
+// A multi-statement handler that owns its failure through `reportError`, handed over by one `statement`.
+const REPORTING_HANDLER = (statement: string): Readonly<Record<string, string>> => ({
+  "packages/client/src/features/probe/handler-spelling.ts": `declare function note(message: string): void;\nfunction onErr(error: unknown): void {\n  const message = String(error);\n  globalThis.reportError(error);\n  note(message);\n}\nexport function run(p: Promise<void>): void {\n  ${statement}\n}\n`,
+});
+const HANDLER_SPELLINGS = [
+  "void p.catch(onErr as (error: unknown) => void);",
+  "void p.catch((onErr));",
+  "const h = (onErr); void p.catch(h);",
+  "void Reflect.apply(p.catch, p, [onErr]);",
+  "void p.catch.apply(p, [onErr]);",
+] as const;
+
 export const gate = defineGate({
   id: "caught-failure-ownership",
   family: "caught-failure-ownership",
@@ -172,7 +174,12 @@ export const gate = defineGate({
       evaluate: (): void => {
         for (const node of nominees) {
           const reads = native.at(node.getSourceFile());
-          reportSite(ctx, caughtFailureSite(node, reads));
+          const verdict = withinClosureBound(() => caughtFailureSite(node, reads));
+          if (verdict.kind === "unresolved") {
+            ctx.report.analysis(node, { kind: "unknown", reason: verdict.reason });
+          } else {
+            reportSite(ctx, verdict.value);
+          }
         }
       },
     };
@@ -853,6 +860,24 @@ export const gate = defineGate({
       expect: { count: 1, token: "err" },
       why: "THE DECLARED LIMIT 'a rethrow or owner routed through an OPAQUE HELPER is invisible to a syntactic reader', in its honest direction — the limit is a KNOWN FALSE POSITIVE, so its proof is a mustFlag, not a mustPass. `rethrowLater` really does rethrow, but its body is a multi-statement block the single-expression factory reader cannot prove, so the catch still reds and the site owes a marker. The enforcement-catalogue row claimed a mustPass for this limit and there was none (§4.1)",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/alias-handler.ts":
+          "declare const logger: { error: (message: string, error: unknown) => void };\nfunction onErr(error: unknown): void {\n  const message = String(error);\n  logger.error(message, error);\n}\nconst handler = onErr;\nexport function run(p: Promise<void>): void {\n  void p.catch(handler);\n}\n",
+      },
+      expect: { count: 1, token: "p" },
+      why: "D328 INSIDE THE BOUND: a multi-statement handler reached through a bare alias (`const handler = onErr`) sits in a handler position, so its body is walked and an ungoverned local logger is still a finding, never an unknown or a tool error",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/near-factory.ts":
+          'declare function work(): void;\nfunction settle(): unknown { return { status: "ok" }; }\nexport function near(): unknown {\n  try { work(); } catch { return settle(); }\n}\n',
+      },
+      expect: { count: 1, token: "catch" },
+      why: "D328 INSIDE THE BOUND: a catch whose fallback is a success outcome one factory hop away still blocks",
+    },
   ],
   mustPass: [
     {
@@ -1155,6 +1180,35 @@ export const gate = defineGate({
           "import { notify } from '#lib';\nfunction reportSaveFailure(err: unknown): void { notify.error(err); }\nexport function named(): void {\n  void save().catch(reportSaveFailure);\n}\n",
       },
       why: "a named rejection handler is a machine-visible owner boundary",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/alias-report.ts":
+          "declare function note(message: string): void;\nfunction onErr(error: unknown): void {\n  const message = String(error);\n  globalThis.reportError(error);\n  note(message);\n}\nconst handler = onErr;\nexport function run(p: Promise<void>): void {\n  void p.catch(handler);\n}\n",
+      },
+      why: "D328 INSIDE THE BOUND: the same aliased multi-statement handler hands the failure to `reportError`, and the walked body owns it",
+    },
+    ...HANDLER_SPELLINGS.map((statement) => ({
+      mode: "types" as const,
+      files: REPORTING_HANDLER(statement),
+      why: `D328 HANDLER SPELLING: \`${statement}\` hands over the same multi-statement handler the rejection reader unwraps, so its body is walked and owns the failure, never an unknown (tests/tooling/verify/gates/caught-failure-bound.test.ts asserts no unknown)`,
+    })),
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/far-never.ts":
+          "declare function work(): void;\ndeclare function halt(): never;\nfunction hop3(): unknown { return halt(); }\nfunction hop2(): unknown { return hop3(); }\nfunction hop1(): unknown { return hop2(); }\nexport function past(): unknown {\n  try { work(); } catch { return hop1(); }\n}\n",
+      },
+      why: "D328 PAST THE BOUND: the `never` that owns this catch is three factory hops away, so the verdict is an advisory unknown — no finding, and never reported as owned (tests/tooling/verify/gates/caught-failure-bound.test.ts asserts the unknown)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/global-alias.ts": "declare const pending: Promise<void>;\nconst recover = pending.catch.bind(pending);\n",
+        "packages/client/src/features/probe/global-use.ts": "export function run(): void {\n  void recover(() => undefined);\n}\n",
+      },
+      why: "D328 PAST THE BOUND: a bound rejection alias declared in another (global script) file is reached by no root, so its call is an advisory unknown, never a tool error and never clean (tests/tooling/verify/gates/caught-failure-bound.test.ts asserts the unknown)",
     },
   ],
 });

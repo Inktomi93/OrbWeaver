@@ -63,13 +63,11 @@ The one waiver form is a line comment directly above the guarded `try` or promis
 
 The token is the exact source slice the gate reports. For a catch it is the binding name (`err`, `error`) or `catch` for a bindingless clause. For a promise it is the callee text of the guarded work, such as `save` or `a.save`. A nested catch inside a guarded try needs its own binding name. The gate's `FIX` text states the rule (`tooling/src/verify/gates/caught-failure-ownership.ts:132`).
 
-### The population record and its alarms
-
-`tooling/src/verify/gates/caught-failure-ownership.population.json` holds one row per reported site: `siteId` (`path::scope::token::ordinal`), `verdict` (`deliberate-absorb` or `unproven`) and `reason`. Its `totals` count sites by verdict and by site kind (`byGrammar`). `caught-failure-ownership-health` joins it to the tree, and `caught-failure-census-row` names a staged site with no row.
+### The waiver alarms
 
 The waiver engine raises two alarms for this gate:
 
-- A stale waiver: "no live caught-failure-ownership finding is bound to its comment carrier". The site no longer reports, so the reader now proves an owner. Delete the marker, its row, and adjust the totals.
+- A stale waiver: "no live caught-failure-ownership finding is bound to its comment carrier". The site no longer reports, so the reader now proves an owner. Delete the marker.
 - A dead position: the marker's token matches no finding at that carrier. Fix the token, or judge the site again.
 
 ## Dispositions

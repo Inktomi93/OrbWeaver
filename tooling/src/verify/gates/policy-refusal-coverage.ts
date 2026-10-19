@@ -84,10 +84,9 @@
 // ways across the ~60 live family tests, and all four are correct: a literal `[gate]`, a module const
 // (`policies: FAMILY`), a spread (`[...policies]`), and — the DOMINANT shape — a local `pass(policy, …)` helper
 // whose parameter is the driven set. `resolveStableExpression` cannot resolve a parameter BY CONTRACT
-// (`policy-fixture-substrate.ts:23`), so the walk hops one further step: the parameter's position in its
+// (by contract), so the walk hops one further step: the parameter's position in its
 // declaring function, then that function's call sites IN THE SAME FILE, then the argument at that position. The
-// hop is not optional politeness. This policy's unreadability direction is INVERTED from its
-// `policy-fixture-substrate` sibling — there an unresolved read ACQUITS, here it ACCUSES — so the family's own
+// hop is not optional politeness. This policy's unreadability direction ACCUSES, so the family's own
 // doctrine ("a positive-proof requirement the reader structurally cannot satisfy is fail-closed in name and
 // false-accusing in fact") lands on the helper shape as a hard requirement rather than a nicety.
 //
@@ -642,7 +641,7 @@ export const gate = defineGate({
     {
       mode: "types",
       files: familyFixture(DERIVING(""), { [PIN_TEST_PATH]: PIN_TEST(DRIVEN_THROUGH_HELPER) }),
-      why: "THE HELPER SHAPE, which is the DOMINANT one across the live family tests (`pass(policy, …)` wrapping the dispatcher, ~half of the ~60 files): the driven set is a PARAMETER, and `resolveStableExpression` cannot resolve a parameter by contract. The walk hops to the declaring function's call sites in the same file. This policy's unreadability direction is inverted from `policy-fixture-substrate`'s — an unresolved read here ACCUSES — so without the hop the family's own doctrine makes it a false-accusation engine over the correct majority",
+      why: "THE HELPER SHAPE, which is the DOMINANT one across the live family tests (`pass(policy, …)` wrapping the dispatcher, ~half of the ~60 files): the driven set is a PARAMETER, and `resolveStableExpression` cannot resolve a parameter by contract. The walk hops to the declaring function's call sites in the same file. This policy's unreadability direction ACCUSES: an unresolved read here is a finding, so without the hop the family's own doctrine makes it a false-accusation engine over the correct majority",
     },
     {
       mode: "types",

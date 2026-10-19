@@ -1881,7 +1881,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
             // warning code.
             getLog().warn({ err: memErr, chatId: prep.chatId }, "memory: post-turn build failed");
             // @orb-waive caught-failure-ownership(catch): a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).
-            // @orb-waive detached-work-traced(catch): a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).
+            // eslint-disable-next-line orb/detached-work-traced -- a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).
             try {
               await deps.emit({ type: "warning", chatId: prep.chatId, code: "memory_build_failed" });
             } catch {
@@ -2032,7 +2032,6 @@ async function runInLockWithHeartbeat(ctx: EngineContext, deps: OwnedEngineDeps,
     return await Promise.race([releasedBody, lockLostBarrier]);
   } finally {
     cancelBeat();
-    // @orb-waive detached-work-traced(releasedBody): this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.
     // @orb-waive caught-failure-ownership(releasedBody): this is the SAME promise the `await Promise.race` above returns, so a body rejection that wins is thrown to the caller; when the barrier wins, the caller gets `aborted` and the lock loss was already logged by `tick` (`getLog().error`). Ends if the release moves off this promise.
     trackSettledWork(
       ctx,

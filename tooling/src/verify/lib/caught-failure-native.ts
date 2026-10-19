@@ -7,8 +7,70 @@ import type { NativeTypeObservations, TypeObservationReader } from "../../floor/
 import { TYPE_OBSERVATION_PROFILE } from "../../floor/code-facts/type-observations-contract.ts";
 import { readTypeObservations } from "../../floor/code-facts/type-observations-read.ts";
 import type { CaughtFailureReadServices, NativeFailureContext, NativeFailureRead } from "../contract/caught-failure.ts";
+import { unwrapExpression } from "./ast-read.ts";
+import { REJECTION_INVOCATION_MEMBERS } from "./caught-failure-core.ts";
+import { CAUGHT_FAILURE_CLOSURE_HOPS, FAILURE_OUTCOME_DISCRIMINANTS, FAILURE_OUTCOME_OK_MEMBER, PROMISE_LIKE_MEMBER } from "./caught-failure-read.ts";
 
-const PROPERTIES = ["then", "ok", "kind", "status", "step", "verdict"];
+// Exactly the member reads the caught-failure reader repeats; every other member read refuses at replay.
+const MEMBERS = {
+  callLiteralMembers: [FAILURE_OUTCOME_OK_MEMBER, ...FAILURE_OUTCOME_DISCRIMINANTS],
+  presenceMembers: [PROMISE_LIKE_MEMBER],
+  closureHops: CAUGHT_FAILURE_CLOSURE_HOPS,
+  closureHandlerBodiesOnly: true,
+  closureTypedPositions: true,
+};
+
+interface NominatedRoots {
+  /** Sites the reader judges past syntax: try statements and calls it can read as rejection invocations. */
+  readonly roots: readonly MorphNode[];
+  /** The candidate calls themselves, whose held bindings the reference closure follows. */
+  readonly calls: readonly MorphNode[];
+  /** Identifier callees of every other call, whose declaration alone tells the reader the call is no alias. */
+  readonly callees: readonly MorphNode[];
+}
+
+/** Same-file names a call can invoke as a bound rejection alias: a variable initialized by a call. */
+function callInitializedNames(source: SourceFile): ReadonlySet<string> {
+  return new Set(
+    source
+      .getDescendantsOfKind(SyntaxKind.VariableDeclaration)
+      .filter((declaration) => Node.isCallExpression(declaration.getInitializer()))
+      .map((declaration) => declaration.getName()),
+  );
+}
+
+/** Splits nominees into closure roots and callee-only questions, mirroring `promiseRejectionInvocation`. */
+function nominatedRoots(nominees: readonly MorphNode[]): NominatedRoots {
+  const roots = new Set<MorphNode>();
+  const calls: MorphNode[] = [];
+  const callees: MorphNode[] = [];
+  const aliases = new Map<SourceFile, ReadonlySet<string>>();
+  for (const node of nominees) {
+    if (Node.isCatchClause(node)) {
+      roots.add(node.getParentIfKind(SyntaxKind.TryStatement) ?? node);
+      continue;
+    }
+    if (!Node.isCallExpression(node)) {
+      continue;
+    }
+    const callee = unwrapExpression(node.getExpression());
+    const source = node.getSourceFile();
+    const names = aliases.get(source) ?? callInitializedNames(source);
+    aliases.set(source, names);
+    if (
+      Node.isElementAccessExpression(callee) ||
+      (Node.isPropertyAccessExpression(callee) && REJECTION_INVOCATION_MEMBERS.has(callee.getName())) ||
+      (Node.isIdentifier(callee) && names.has(callee.getText()))
+    ) {
+      // The reader climbs from the call through its wrappers and consumers up to the enclosing statement.
+      roots.add(node.getFirstAncestor(Node.isStatement) ?? node);
+      calls.push(node);
+    } else if (Node.isIdentifier(callee)) {
+      callees.push(callee);
+    }
+  }
+  return { roots: [...roots], calls, callees };
+}
 
 function heldBindings(nodes: readonly MorphNode[]): readonly MorphNode[] {
   const bindings = new Set<MorphNode>();
@@ -30,11 +92,7 @@ function heldBindings(nodes: readonly MorphNode[]): readonly MorphNode[] {
   return [...bindings];
 }
 
-export function nativeFailureRead(
-  context: NativeFailureContext,
-  nominees: () => readonly MorphNode[],
-  tracingSources: readonly SourceFile[] = [],
-): NativeFailureRead {
+export function nativeFailureRead(context: NativeFailureContext, nominees: () => readonly MorphNode[]): NativeFailureRead {
   const native = context.nativeTypes;
   if (native === undefined) {
     throw new Error("native failure/tracing facts are unavailable");
@@ -51,10 +109,8 @@ export function nativeFailureRead(
   };
   return {
     prepare: (): void => {
-      const candidates = nominees();
-      const roots = [...new Set(candidates.map((node) => (Node.isCatchClause(node) ? (node.getParentIfKind(SyntaxKind.TryStatement) ?? node) : node)))];
-      const bindings = heldBindings(candidates);
-      const functions = tracingSources.flatMap((source) => source.getFunctions());
+      const { roots, calls, callees } = nominatedRoots(nominees());
+      const bindings = heldBindings(calls);
       plan = {
         mode: "types",
         facets: [],
@@ -65,9 +121,9 @@ export function nativeFailureRead(
             sources: context.files,
             nodes: [],
             questions: [
-              { kind: "symbol-closure", nodes: [...roots, ...functions], properties: PROPERTIES },
-              { kind: "reference-closure", nodes: bindings, properties: PROPERTIES },
-              { kind: "function-exports", nodes: functions },
+              { kind: "symbol-closure", nodes: roots, ...MEMBERS },
+              { kind: "reference-closure", nodes: bindings, ...MEMBERS },
+              { kind: "node-symbols", nodes: callees },
             ],
           },
           (node) => ({ file: node.getSourceFile().getFilePath().replaceAll("\\", "/"), start: node.getStart(), end: node.getEnd(), kind: node.getKind() }),
