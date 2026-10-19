@@ -25,7 +25,7 @@ const PURE_OPERATORS = new Set([
   SyntaxKind.BarBarToken,
   SyntaxKind.QuestionQuestionToken,
 ]);
-const PURE_MEMBERS = new Set(["filter", "map", "includes", "has"]);
+const PURE_MEMBERS: ReadonlySet<string> = new Set([...ORDINARY_ARRAY_REMAPS, "includes", "has"]);
 const ARRAY_OWNERS = new Set(["Array", "ReadonlyArray"]);
 const SET_OWNERS = new Set(["Set", "ReadonlySet"]);
 

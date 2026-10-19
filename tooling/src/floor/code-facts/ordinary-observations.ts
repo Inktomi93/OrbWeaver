@@ -14,15 +14,15 @@ import type {
   OrdinaryObservationDemand,
   OrdinaryObservationOwner,
 } from "./ordinary-observations-contract.ts";
-import { ORDINARY_ARRAY_REMAPS } from "./ordinary-observations-contract.ts";
+import { ordinaryTypeSelectionPlan } from "./ordinary-type-questions.ts";
 import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
 import { resolveCallableDeclaration, resolveCallableOrigin } from "./reference-fact-call.ts";
 import type { CallReturnObservations, ReferenceFact } from "./reference-fact-contract.ts";
-import type { SchemaColumn, SchemaModel, SchemaQuery } from "./schema-model-contract.ts";
+import type { SchemaModel, SchemaQuery } from "./schema-model-contract.ts";
 import { matchesDeclaredCallTerminal, readCallMemberDeclarationOrigin } from "./type-member-origin.ts";
 import { captureTypeProjection, captureTypeSelections } from "./type-projection.ts";
-import type { NativeTypeProjection, NativeTypeSelectionPlan, NativeTypeSelector } from "./type-projection-contract.ts";
+import type { NativeTypeProjection, NativeTypeSelector } from "./type-projection-contract.ts";
 import { carryingLiterals, readReturnedValue, referencesOf } from "./value-carrier.ts";
 
 interface SourceClosure {
@@ -35,11 +35,6 @@ interface SourceClosure {
   readonly keys: Set<MorphNode>;
   readonly calls: NativeOrdinaryCall[];
   readonly references: NativeOrdinaryObservations["references"][number][];
-}
-interface TypeQuestions {
-  readonly add: (selector: NativeTypeSelector) => number;
-  readonly selectors: NativeTypeSelector[];
-  readonly relations: { readonly left: number; readonly right: number }[];
 }
 
 function callableParameters(owner: MorphNode): readonly MorphNode[] {
@@ -391,161 +386,6 @@ export function captureOrdinaryObservations(demand: OrdinaryObservationDemand, o
   };
 }
 
-function typeQuestions(): TypeQuestions {
-  const selectors: NativeTypeSelector[] = [];
-  const keys = new Map<string, number>();
-  const nodes = new Map<MorphNode, number>();
-  const id = (node: MorphNode): number => {
-    const known = nodes.get(node);
-    if (known !== undefined) {
-      return known;
-    }
-    const value = nodes.size;
-    nodes.set(node, value);
-    return value;
-  };
-  return {
-    selectors,
-    relations: [],
-    add: (selector): number => {
-      const key = JSON.stringify({
-        ...selector,
-        base: selector.base.kind === "schema-column" ? selector.base : { ...selector.base, node: id(selector.base.node) },
-        steps: selector.steps.map((step) => (step.kind === "property" ? { ...step, at: id(step.at) } : step)),
-        displayAt: selector.displayAt === null ? null : id(selector.displayAt),
-      });
-      const known = keys.get(key);
-      if (known !== undefined) {
-        return known;
-      }
-      const index = selectors.length;
-      keys.set(key, index);
-      selectors.push(selector);
-      return index;
-    },
-  };
-}
-function nodeTypeQuestions(node: MorphNode, questions: TypeQuestions): void {
-  const { add } = questions;
-  add({ base: { kind: "node", node }, steps: [], displayAt: null });
-  add({ base: { kind: "node", node }, steps: [{ kind: "nonnullable" }], displayAt: null });
-  add({ base: { kind: "node", node }, steps: [{ kind: "nonnullable" }, { kind: "array-element-or-self" }], displayAt: null });
-  if (Node.isVariableDeclaration(node)) {
-    add({ base: { kind: "node", node }, steps: [], displayAt: node });
-  }
-  if (Node.isObjectLiteralExpression(node)) {
-    add({ base: { kind: "contextual", node }, steps: [], displayAt: null });
-    add({ base: { kind: "contextual", node }, steps: [{ kind: "nonnullable" }], displayAt: null });
-  }
-  const member = staticMemberAccess(node);
-  if (member !== undefined) {
-    const steps = [{ kind: "nonnullable" as const }, { kind: "property" as const, name: member.name, at: member.receiver }];
-    add({ base: { kind: "node", node: member.receiver }, steps, displayAt: null });
-    add({ base: { kind: "node", node: member.receiver }, steps: [...steps, { kind: "nonnullable" }, { kind: "array-element-or-self" }], displayAt: null });
-  }
-}
-// The column-independent half of a call's column questions, read once per call rather than once per column.
-interface ColumnCallSite {
-  readonly call: CallExpression;
-  // A parser receiver whose `_output` a normalizer proof relates to the column shape.
-  readonly parser: MorphNode | undefined;
-  // A member call that may carry one column field through unchanged; a computed key may still name a remap.
-  readonly remap: boolean;
-}
-function columnCallSite(call: CallExpression): ColumnCallSite {
-  const callee = call.getExpression();
-  const member = staticMemberAccess(callee);
-  return {
-    call,
-    parser: member !== undefined && member.receiver.getType().getProperty("_output") !== undefined ? member.receiver : undefined,
-    remap: Node.isElementAccessExpression(callee) || (member !== undefined && ORDINARY_ARRAY_REMAPS.has(member.name)),
-  };
-}
-function columnCallQuestions(column: SchemaColumn, site: ColumnCallSite, whole: number, questions: TypeQuestions): void {
-  const { add, relations } = questions;
-  const override = column.typeOverride;
-  if (override === null) {
-    return;
-  }
-  const { call, parser, remap } = site;
-  const properties = override.type.getProperties();
-  if (parser !== undefined) {
-    const output = add({ base: { kind: "node", node: parser }, steps: [{ kind: "property", name: "_output", at: parser }], displayAt: null });
-    relations.push({ left: output, right: whole });
-    for (const property of properties) {
-      const field = add({
-        base: { kind: "schema-column", column: column.identity.key },
-        steps: [{ kind: "property", name: property.getName(), at: call.getArguments()[0] ?? call }],
-        displayAt: null,
-      });
-      relations.push({ left: output, right: field });
-    }
-  }
-  // Field-at-call questions are read only at array remaps; planning them for every call overflows the selector Map.
-  if (!remap) {
-    return;
-  }
-  for (const property of properties) {
-    const field = add({
-      base: { kind: "schema-column", column: column.identity.key },
-      steps: [{ kind: "property", name: property.getName(), at: call }, { kind: "nonnullable" }],
-      displayAt: null,
-    });
-    const actual = add({ base: { kind: "node", node: call }, steps: [], displayAt: null });
-    relations.push({ left: actual, right: field });
-  }
-}
-function schemaTypeQuestions(schema: SchemaModel | undefined, calls: readonly CallExpression[], questions: TypeQuestions): void {
-  const { add } = questions;
-  const typed = schema?.tables.some((table) => table.columns.some((column) => column.typeOverride !== null)) === true;
-  const sites = typed ? calls.map(columnCallSite) : [];
-  for (const table of schema?.tables ?? []) {
-    for (const name of ["$inferSelect", "$inferInsert"]) {
-      add({ base: { kind: "node", node: table.declaration }, steps: [{ kind: "property", name, at: table.declaration }], displayAt: null });
-    }
-    for (const column of table.columns) {
-      if (column.typeOverride === null) {
-        continue;
-      }
-      const whole = add({ base: { kind: "schema-column", column: column.identity.key }, steps: [], displayAt: null });
-      add({
-        base: { kind: "schema-column", column: column.identity.key },
-        steps: [{ kind: "nonnullable" }, { kind: "array-element-or-self" }],
-        displayAt: null,
-      });
-      for (const site of sites) {
-        columnCallQuestions(column, site, whole, questions);
-      }
-    }
-  }
-}
-function ordinaryTypeSelectionPlan(
-  nodes: readonly MorphNode[],
-  calls: readonly CallExpression[],
-  schema: SchemaModel | undefined,
-  extra: readonly NativeTypeSelector[],
-): NativeTypeSelectionPlan {
-  const questions = typeQuestions();
-  for (const node of nodes) {
-    nodeTypeQuestions(node, questions);
-  }
-  schemaTypeQuestions(schema, calls, questions);
-  for (const selector of extra) {
-    questions.add(selector);
-  }
-  const seen = new Set<string>();
-  return {
-    selectors: questions.selectors,
-    relations: questions.relations.filter((pair) => {
-      const key = `${pair.left}:${pair.right}`;
-      if (seen.has(key)) {
-        return false;
-      }
-      seen.add(key);
-      return true;
-    }),
-  };
-}
 function mapSchemaKey<Value extends { readonly identity: { readonly key: string } }>(fact: ReferenceFact<Value>): ReferenceFact<string> {
   return fact.kind === "unresolved" ? fact : { ...fact, value: fact.value.identity.key };
 }
