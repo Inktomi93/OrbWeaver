@@ -3,7 +3,8 @@ import { readFileSync } from "node:fs";
 import type { NewExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { dynamicModuleTarget, relativeModuleTarget as resolveModule } from "../../floor/code-facts/module-target.ts";
+import { moduleClosure } from "../../floor/code-facts/module-reach.ts";
+import { dynamicModuleTarget, relativeModuleTarget as resolveModule, staticModuleEdges } from "../../floor/code-facts/module-target.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf } from "../lib/emit.ts";
@@ -208,14 +209,13 @@ function workerEntryTargets(sf: SourceFile, project: SourceCorpus): SourceFile[]
 }
 
 // Resolved out-edges of a file: every static import / re-export target (named, namespace, star, alias,
-// and @orb subpath all resolve via getModuleSpecifierSourceFile), dynamic import() targets, and Vite's
-// static relative Worker(new URL(..., import.meta.url)) entries.
+// and @orb subpath all resolve through the floor's native static target), dynamic import() targets, and
+// Vite's static relative Worker(new URL(..., import.meta.url)) entries.
 function fileEdges(sf: SourceFile, project: SourceCorpus): SourceFile[] {
   const out: SourceFile[] = [];
-  for (const d of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
-    const t = d.getModuleSpecifierSourceFile();
-    if (t !== undefined) {
-      out.push(t);
+  for (const { target } of staticModuleEdges(sf)) {
+    if (target !== undefined) {
+      out.push(target);
     }
   }
   for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
@@ -234,26 +234,13 @@ function fileEdges(sf: SourceFile, project: SourceCorpus): SourceFile[] {
   return out;
 }
 
-/** Files reachable from the entry set by a resolved-edge BFS (no test files as nodes — a test importer
- *  cannot keep a prod file alive in this lens). */
-function reachableFrom(entries: Set<string>, project: SourceCorpus): Set<string> {
-  const seen = new Set<string>(entries);
-  const stack = [...entries];
-  while (stack.length > 0) {
-    const fp = stack.pop();
-    const sf = fp === undefined ? undefined : project.getSourceFile(fp);
-    if (sf === undefined) {
-      continue;
-    }
-    for (const t of fileEdges(sf, project)) {
-      const tp = t.getFilePath();
-      if (!(seen.has(tp) || isTestPath(tp))) {
-        seen.add(tp);
-        stack.push(tp);
-      }
-    }
-  }
-  return seen;
+/** Files reachable from the entry set through the floor module closure over resolved edges (no test files
+ *  as nodes — a test importer cannot keep a prod file alive in this lens). */
+function reachableFrom(entries: Set<string>, project: SourceCorpus): ReadonlySet<string> {
+  return moduleClosure([...entries], (fp) => {
+    const sf = project.getSourceFile(fp);
+    return sf === undefined ? [] : fileEdges(sf, project).flatMap((target) => (isTestPath(target.getFilePath()) ? [] : [target.getFilePath()]));
+  });
 }
 
 /** Source FILES in `<scope>` no production entry can reach (the knip Unused-files verdict, entry-closure

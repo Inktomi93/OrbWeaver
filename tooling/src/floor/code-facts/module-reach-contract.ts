@@ -1,4 +1,4 @@
-import type { Node as MorphNode } from "ts-morph";
+import type { ExportDeclaration, ImportDeclaration, Node as MorphNode, SourceFile } from "ts-morph";
 import type { TestFamily } from "../testing/test-kinds.ts";
 
 /** One `@subject` declaration, kept whether or not its path names a real module so a stale header can red. */
@@ -37,6 +37,12 @@ export interface PackageFileReach {
 
 /** Where a relative specifier climbs to when it leaves its legal tree. */
 export type RelativeClimb = ({ readonly kind: "package" } & PackageFileReach) | { readonly kind: "testkit"; readonly door: string };
+
+/** One static import or re-export declaration and the native module it resolves to, if any. */
+export interface StaticModuleEdge {
+  readonly declaration: ImportDeclaration | ExportDeclaration;
+  readonly target: SourceFile | undefined;
+}
 
 export const MODULE_IMPORT_KINDS = ["import", "dynamic-import"] as const;
 
