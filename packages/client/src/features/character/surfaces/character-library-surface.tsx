@@ -219,8 +219,8 @@ export function CharacterLibrarySurface({ ariaLabel = "Character library" }: Cha
       // A real `chat.startChat` through the ONE shared creation seam (`#data`), which enters the room
       // itself; the section switch is this surface's own half.
       setActiveSection("chats");
-      // @orb-waive caught-failure-ownership(startChat): useStartChat's mutation carries
-      // errorToast: "Couldn't start the chat." — the toast is the surface. Ends if useStartChat drops errorToast.
+      // @orb-waive caught-failure-ownership(startChat): startChat awaits `mutation.mutateAsync`
+      // (use-start-chat.ts:62), whose mutation sets `errorToast` (use-start-chat.ts:41); MutationCache.onError toasts it (query-client.ts:81-83). Ends if that errorToast is dropped.
       startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
       return;
     }

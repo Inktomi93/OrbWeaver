@@ -56,8 +56,7 @@ export async function mintPluginFrame(body: string): Promise<string | undefined>
 
 /** Revoke a minted frame handle. Best-effort: teardown must never surface an error into React cleanup. */
 export async function revokePluginFrame(url: string): Promise<void> {
-  // @orb-waive caught-failure-ownership(catch): cleanup is best-effort; server TTL remains the final bound if
-  // navigation wins the race or the network is already gone. Ends if handle revocation becomes user-visible.
+  // @orb-waive caught-failure-ownership(catch): a failed DELETE strands only a server-side handle, which the frame-handle store expires on its own (`live()` drops an entry past `expiresAt`, `packages/server/src/entry/http/frame-handle-store.ts:116`, set from `FRAME_HANDLE_TTL_MS` at `plugin-frame.ts:209`). Ends if the store stops expiring unrevoked handles.
   try {
     await fetch(url, { method: "DELETE", headers: { [CSRF_HEADER]: "1" } });
   } catch {
@@ -66,9 +65,8 @@ export async function revokePluginFrame(url: string): Promise<void> {
 }
 
 function revokeFrameInBackground(url: string): void {
-  // @orb-waive caught-failure-ownership(revokePluginFrame): revokePluginFrame contains network failures, and
-  // teardown must remain best-effort. Ends if revocation gains a user-visible failure path.
-  revokePluginFrame(url).catch(() => undefined);
+  // `revokePluginFrame` contains its own network failure, so this promise never rejects.
+  void revokePluginFrame(url);
 }
 
 /**
@@ -89,22 +87,15 @@ export function usePluginFrameSrc(request: PluginFrameRequest | undefined): stri
     let live = true;
     let handle: string | undefined;
     const pending = mintPluginFrame(body);
-    // @orb-waive caught-failure-ownership(pending): mintPluginFrame's own catch already collapsed any failure to `undefined`; the reject arm here only exists for symmetry and sets the same render-floor state as the resolve arm. Ends if mintPluginFrame stops swallowing its own failures.
-    pending.then(
-      (url) => {
-        handle = url;
-        if (live) {
-          setResolved({ body, url });
-        } else if (url !== undefined) {
-          revokeFrameInBackground(url);
-        }
-      },
-      () => {
-        if (live) {
-          setResolved({ body, url: undefined });
-        }
-      },
-    );
+    // `pending` never rejects: `mintPluginFrame` collapses every failure to `undefined`.
+    void pending.then((url) => {
+      handle = url;
+      if (live) {
+        setResolved({ body, url });
+      } else if (url !== undefined) {
+        revokeFrameInBackground(url);
+      }
+    });
     return (): void => {
       live = false;
       if (handle !== undefined) {

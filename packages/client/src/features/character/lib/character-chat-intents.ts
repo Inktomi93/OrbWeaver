@@ -27,8 +27,8 @@ export function useStartChatWithCharacter(): (characterId: CharacterId) => void 
   return (characterId): void => {
     clearChatListCharacterFilter();
     setActiveSection("chats");
-    // @orb-waive caught-failure-ownership(startChat): useStartChat's mutation carries
-    // errorToast: "Couldn't start the chat." — the toast is the surface. Ends if useStartChat drops errorToast.
+    // @orb-waive caught-failure-ownership(startChat): startChat awaits `mutation.mutateAsync`
+    // (use-start-chat.ts:62), whose mutation sets `errorToast` (use-start-chat.ts:41); MutationCache.onError toasts it (query-client.ts:81-83). Ends if that errorToast is dropped.
     startChat({ characterIds: [characterId] }).catch(() => undefined); // useStartChat's errorToast owns failure.
   };
 }

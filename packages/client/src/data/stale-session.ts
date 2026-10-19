@@ -185,7 +185,7 @@ async function runLadder(): Promise<void> {
     resume(me.handle);
     return;
   }
-  // @orb-waive caught-failure-ownership(fetchAuthConfig): a null config falls through every mode branch to the ladder's fail-closed `signOut()` floor at the end of the function. Ends if a branch after this stops reaching signOut().
+  // @orb-waive caught-failure-ownership(fetchAuthConfig): a failed config read leaves `config` null, which matches neither `config?.mode` branch and reaches `signOut()` at the end of runLadder, which broadcasts `signed-out` and navigates to /login. Ends if a branch after this stops reaching signOut().
   const config = await fetchAuthConfig().catch(() => null);
   if (config?.mode === "oidc") {
     writeSessionResume({ chatId: host?.resumeChatId() ?? null });
@@ -193,7 +193,7 @@ async function runLadder(): Promise<void> {
     return;
   }
   if (config?.mode === "local" && (await promptReauth()) === "recovered") {
-    // @orb-waive caught-failure-ownership(fetchAuthMe): a null/unauthenticated read falls through to the ladder's fail-closed `signOut()` floor at the end of the function. Ends if this branch stops reaching signOut().
+    // @orb-waive caught-failure-ownership(fetchAuthMe): a failed re-auth read leaves `reauthed` null, so `reauthed?.authenticated === true` is false and control reaches `signOut()` at the end of runLadder, which broadcasts `signed-out` and navigates to /login. Ends if this branch stops reaching signOut().
     const reauthed = await fetchAuthMe().catch(() => null);
     if (reauthed?.authenticated === true) {
       // §4.2.1's identity boundary: a DIFFERENT handle just signed in on this browser, so every warm cache
