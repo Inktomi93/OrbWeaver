@@ -26,7 +26,8 @@ export interface CastIdLiteralsOptions {
    *  `["chatId", "parentChatId"]` — wrapped wherever they appear. */
   readonly alwaysProps: readonly string[];
   /** Property names that are this brand ONLY inside a specific table's insert/update,
-   *  e.g. `[{ table: "chats", prop: "id" }]` — disambiguates the generic `id`. */
+   *  e.g. `[{ table: "chats", prop: "id" }]` — disambiguates the generic `id`. The table is the floor
+   *  Drizzle write-chain answer, agreed by every native world that owns the file. */
   readonly tableScopedIdProps?: readonly { readonly table: string; readonly prop: string }[];
   /** Restrict to test files (default true — production literals are rare + the gate
    *  flags them; casting production values would mask real drift). */
@@ -49,8 +50,8 @@ export interface CastIdComparisonsOptions {
   /** Column references whose comparand is this brand: an exact `table.col` (`"chats.id"`) or a
    *  `.suffix` matched against the end of the column text (`".chatId"` → every FK column). */
   readonly columns: readonly string[];
-  /** Comparison/membership helpers to scan (default drizzle's `eq`/`ne`/`gt`/`gte`/`lt`/`lte`
-   *  + `inArray`/`notInArray`). */
+  /** drizzle-orm comparison/membership exports to scan, matched by their import in every native world rather than
+   *  by callee spelling (default `eq`/`ne`/`gt`/`gte`/`lt`/`lte` + `inArray`/`notInArray`). */
   readonly ops?: readonly string[];
   /** Restrict to test files (default true). */
   readonly testFilesOnly?: boolean;

@@ -1,4 +1,13 @@
 import type { ImportDeclaration, ImportSpecifier, SourceFile } from "ts-morph";
+import { Node } from "ts-morph";
+import { collectModuleImporters } from "../../floor/code-facts/module-importers.ts";
+
+/** The import declarations in `files` that spell `moduleSpecifier` exactly, in file then source order. */
+export function exactImportDeclarations(files: readonly SourceFile[], moduleSpecifier: string): ImportDeclaration[] {
+  return collectModuleImporters(files, moduleSpecifier, "exact-import-spelling")
+    .hits.map(({ node }) => node)
+    .filter(Node.isImportDeclaration);
+}
 
 /** Merge a named import into an existing declaration without losing value/type intent. */
 export function mergeNamedImportInto(
@@ -58,14 +67,9 @@ export function routeSpecifiersToDestination(sourceFile: SourceFile, destination
       isTypeOnly: sourceDeclaration?.isTypeOnly() === true || specifier.isTypeOnly(),
     };
   });
-  const target = sourceFile
-    .getImportDeclarations()
-    .find(
-      (declaration) =>
-        declaration.getModuleSpecifierValue() === destination &&
-        declaration.getNamespaceImport() === undefined &&
-        !(declaration.isTypeOnly() && declaration.getDefaultImport() !== undefined),
-    );
+  const target = exactImportDeclarations([sourceFile], destination).find(
+    (declaration) => declaration.getNamespaceImport() === undefined && !(declaration.isTypeOnly() && declaration.getDefaultImport() !== undefined),
+  );
   if (target !== undefined) {
     for (const named of incoming) {
       mergeNamedImportInto(target, named);

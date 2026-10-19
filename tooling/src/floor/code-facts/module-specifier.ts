@@ -46,15 +46,21 @@ export function nativeModulePositionSpecifier(node: ts.Node, admission: ModulePo
     : undefined;
 }
 
+/** The package and `src/`-relative path of a repo-relative path inside `packages/<pkg>/src/`, or undefined. */
+export function packageFileOf(path: string): PackageFileReach | undefined {
+  const source = PACKAGE_SOURCE.exec(path);
+  return source?.[1] === undefined || source[2] === undefined ? undefined : { pkg: source[1], path: source[2] };
+}
+
 /** A relative specifier from `importer` that climbs into a package's `src/`, or into the test kit from outside it. */
 export function relativeClimb(importer: string, spec: string): RelativeClimb | undefined {
   const target = resolveRelativeImport(importer, spec);
   if (target === null) {
     return;
   }
-  const source = PACKAGE_SOURCE.exec(target);
-  if (source?.[1] !== undefined && source[2] !== undefined) {
-    return { kind: "package", pkg: source[1], path: source[2] };
+  const file = packageFileOf(target);
+  if (file !== undefined) {
+    return { kind: "package", ...file };
   }
   return target.startsWith(TESTKIT_ROOT) && !importer.startsWith(TESTKIT_ROOT)
     ? { kind: "testkit", door: `${TESTKIT_PACKAGE}${target.slice(TESTKIT_ROOT.length)}` }
