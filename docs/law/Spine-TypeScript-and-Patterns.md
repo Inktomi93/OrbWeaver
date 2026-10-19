@@ -49,7 +49,6 @@ A server factory shape is owned by its production signature: it is a parameter, 
 | - | - |
 | ESLint `orb/type-home-direct-export` | exported aliases, interfaces and proven zod shape schemas, direct or export-listed, outside contract homes in inference, default-content, plugin-toolchain and every server tier except primitives; generated declarations and domain test mirrors retain custom ownership |
 | `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in client, tooling, tests and UI authoring, plus generated declarations, server root modules such as `packages/server/src/index.ts`, schemas in the transport API homes and server-domain test mirrors; the native population is subtracted |
-| ESLint `orb/no-inline-domain-interface` | exported interfaces, direct or export-listed, in generated server-domain files outside contract homes |
 | ESLint `orb/no-inline-package-interface` | exported interfaces, direct or export-listed, in generated server and inference files, `packages/server/src/index.ts` and the UI authoring files outside `packages/ui/token-contract.ts` |
 | ESLint `orb/no-inline-union-alias` | an inline string-literal union type alias of three or more members in authored code |
 | `no-inline-wire-interface` | an exported interface in the client, outside a home, whose name is in the wire vocabulary (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) and whose type is plain data (no callable member anywhere in it); the client `data` tier is included |

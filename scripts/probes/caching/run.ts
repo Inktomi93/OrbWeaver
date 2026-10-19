@@ -408,15 +408,19 @@ async function executeCapturedPost(input: Parameters<typeof fetch>[0], init: Req
 }
 
 function capturedFetch(capture: Capture): typeof fetch {
-  return (input, init): Promise<Response> => {
-    const url = new URL(input instanceof Request ? input.url : input);
+  return async (input, init): Promise<Response> => {
+    // The egress door hands the transport a built Request with only a signal in `init`, so the method, headers and
+    // body live on the request. Read them from there; `init` alone sees every call as an empty GET.
+    const request = new Request(input, init);
+    const url = new URL(request.url);
     if (!ALLOWED_HOSTS.has(url.hostname)) {
-      return Promise.reject(new ProviderError({ kind: "invalid", retryable: false, message: "Probe refused a non-admitted endpoint" }));
+      throw new ProviderError({ kind: "invalid", retryable: false, message: "Probe refused a non-admitted endpoint" });
     }
-    if ((init?.method ?? "GET") === "POST") {
-      return executeCapturedPost(input, init, capture);
+    if (request.method === "POST") {
+      const normalized: RequestInit = { method: request.method, headers: request.headers, body: await request.text(), signal: request.signal };
+      return executeCapturedPost(request.url, normalized, capture);
     }
-    return LIVE ? fetch(input, init) : Promise.resolve(Response.json({ data: [{ id: "qwen/qwen3-coder-plus", ["context_length"]: 1_000_000 }], models: [] }));
+    return LIVE ? fetch(request) : Response.json({ data: [{ id: "qwen/qwen3-coder-plus", ["context_length"]: 1_000_000 }], models: [] });
   };
 }
 

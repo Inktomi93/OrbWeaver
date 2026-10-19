@@ -6,7 +6,7 @@
 //
 // FAMILY `no-inline-types` (split by POPULATION): shared reporting lives in `lib/type-home-policy.ts`;
 // declaration and wire eligibility live in `floor/code-facts/type-home-declaration.ts`. Server and inference code is subtracted because
-// native `orb/type-home-direct-export` and the ESLint rows `orb/no-inline-domain-interface` and `orb/no-inline-package-interface` judge every exported interface there.
+// native `orb/type-home-direct-export` and the ESLint row `orb/no-inline-package-interface` judge every exported interface there.
 // POPULATION: the client minus its type homes (forms, state, lib, `contract/`); the `data/` tier is judged, since
 // hand-spelled HTTP response shapes live there. Each clause has a mustPass row that dies without it.
 import { SyntaxKind } from "ts-morph";
