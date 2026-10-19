@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(146 registered gates)
+(142 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -119,7 +119,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-blanket-suppression` | — | hard/error | @authored\* | a FILE-WIDE lint/type suppression —… |
 | `no-direct-reports-write` | — | ordinary/error | @tests | a .screenshot({ path }) call in… |
 | `no-effect-on-shared-selection` | react-origin | reviewed-grant/error | @client\* | an effect keyed on a shared-selection… |
-| `no-fake-disabled-id` | id-brand-flow | ordinary/error | @client | empty-string branded id creates a… |
 | `no-form-reset-in-autosave` | editor-form-factory | ordinary/error | @client | reset() survives on an autosave form… |
 | `no-form-reset-in-autosave-health` | editor-form-factory | hard/error | @client\* | the reset type-strip (Omit<…,… |
 | `no-form-state-in-useeffect` | — | ordinary/error | all | A computed form dependency resolves… |
@@ -129,13 +128,11 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-inline-types` | — | ordinary/error | @client,@server,@inference,@tooling,@tests,@ui-authoring\* ∪ @ui\* | exported type/zod-schema outside a… |
 | `no-inline-union-redecl` | — | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data… |
-| `no-loose-id-cast` | id-brand-flow | ordinary/error | @product,@tests | a cast bypasses branded-id type… |
 | `no-manual-memo` | react-origin | reviewed-grant/error | @client,@ui,@tests | manual React memoization in… |
 | `no-manual-token-estimate` | — | ordinary/error | @client,@ui,@server,@kit,@inference\* | hand-rolled .length / 4 token… |
 | `no-opaque-test-fixture` | — | ordinary/error | @tests\* | a test fixture export is typed… |
 | `no-raw-egress` | — | reviewed-grant/error | @server,@inference | a raw fetch in server source — route… |
 | `no-raw-history-writes` | — | hard/error | @client | client code captures a browser… |
-| `no-raw-id` | id-brand-flow | ordinary/error | @authored | an id-named Zod field is a raw string… |
 | `no-vanity-alias` | — | ordinary/error | @product,@tests | vanity rename — one symbol, one name;… |
 | `nullable-column-inequality` | drizzle-schema | ordinary/error | @packages,@tests | an inequality predicate (ne /… |
 | `one-principal-mint-population` | — | ordinary/error | @server,@inference | a new Principal construction site in… |
@@ -210,7 +207,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `warning-workitem-liveness` | policy-soundness | hard/error | @tooling\* | a warning policy's workItem must name… |
 | `windowed-infinite-query` | — | ordinary/error | @client | maxPages WINDOWS an infinite query's… |
 | `windowed-infinite-query-health` | windowed-infinite-query | hard/error | @client | DERIVED NOTHING — no… |
-| `wire-json-parsed-at-consumer` | — | ordinary/error | @client,@server,@inference | a response body is cast instead of… |
 | `zod-error-issues-home` | — | reviewed-grant/error | @product,@tests | a hand-flattened zod issues read on a… |
 | `zod-output-twin-parity` | — | hard/error | @product | a hand-authored ZodType twin… |
 
