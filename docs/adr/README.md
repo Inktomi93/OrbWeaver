@@ -276,3 +276,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D327 | [Foundation env policy APIs have an owned contract](0327-foundation-env-policy-contracts.md) | active |
 | D328 | [Bounded analysis and explicit security successors](0328-bounded-analysis-and-explicit-security-successors.md) | active |
 | D329 | [Data-layout and portability registry shapes have exact homes](0329-data-layout-and-portability-registry-type-homes.md) | active |
+| D330 | [Multi-human persona resolution is membership-gated, and the first-run persona ask can be opted into on an automation stack](0330-multi-human-persona-resolution-and-first-run-seed-opt-out.md) | active |

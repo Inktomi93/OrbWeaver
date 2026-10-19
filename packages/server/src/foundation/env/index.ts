@@ -16,6 +16,7 @@ import { localLightCpuPercentSchema } from "@orb/contracts/inference";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { ENV_FROM_FILE_KEY, envFromFileKeys } from "@orb/kit/env-file";
+import { handleKey } from "@orb/kit/handle-key";
 import type { Handle } from "@orb/kit/ids";
 import { isSupervised, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { z } from "zod";
@@ -788,12 +789,20 @@ export const APP_SECRET_ENV_KEYS = [
 /** The parsed, frozen env floor. File secrets never enter `process.env`; explicit env values take precedence. */
 export const env: Readonly<z.infer<typeof envSchema>> = Object.freeze(parseProcessEnv());
 
+/** The three stamps the persona auto-create policy reads, so a test can supply them without the frozen process env. */
+type PersonaSeedStamps = Pick<z.infer<typeof envSchema>, "E2E_HARNESS" | "DEV_SEED" | "E2E_FIRST_RUN_ASK_HANDLES">;
+
 /** Human-started stacks leave the first-run persona ask intact; only automation receives the default. An automation
- *  stack still leaves the ask intact for a handle named in `E2E_FIRST_RUN_ASK_HANDLES`: the harness boots through the
- *  dev stack tool, which pins `DEV_SEED=on` as well, so the opt-out subtracts from both stamps. */
+ *  stack still leaves the ask intact for a handle named in `E2E_FIRST_RUN_ASK_HANDLES` (compared on the D257 key): the
+ *  harness boots through the dev stack tool, which pins `DEV_SEED=on` as well, so the opt-out subtracts from both stamps. */
+export function personaAutoSeedAdmits(stamps: PersonaSeedStamps, handle: Handle): boolean {
+  const key = handleKey(handle);
+  const asksFirstRun = (stamps.E2E_FIRST_RUN_ASK_HANDLES ?? "").split(",").some((entry) => handleKey(entry.trim()) === key);
+  return !asksFirstRun && (stamps.E2E_HARNESS === "on" || stamps.DEV_SEED === "on");
+}
+
 export function isAutomatedPersonaSeedEnabled(handle: Handle): boolean {
-  const asksFirstRun = (env.E2E_FIRST_RUN_ASK_HANDLES ?? "").split(",").some((entry) => entry.trim() === handle);
-  return !asksFirstRun && (env.E2E_HARNESS === "on" || env.DEV_SEED === "on");
+  return personaAutoSeedAdmits(env, handle);
 }
 
 /** Deletes every {@link APP_SECRET_ENV_KEYS} entry from `process.env`, so no child process started afterwards inherits

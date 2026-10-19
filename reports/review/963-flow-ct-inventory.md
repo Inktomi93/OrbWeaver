@@ -54,7 +54,7 @@ Real differences from the CT cases:
 | - | - | - |
 | app-root 211 fresh state lands on Home | stay | Its teaching empty states ("Create your first character", "Add your first document") need an empty library the corpus does not have |
 | app-root 504 owner persona never sees the gate | moved | Corpus owner has a current persona |
-| app-root 551 joiner with no persona names one first | moved (leg 5, item 1083) | Real flow in local mode: invite, signup, first-run ask, join dialog. Needs the local project (`corpus-local-*` cells), which this leg may not run |
+| app-root 551 joiner with no persona names one first | moved (leg 5, item 1083) | `corpus-joiner.local.spec.ts`, once the harness stack could leave the account out of the persona auto-create |
 | app-root 591 control: joiner who speaks gets the join dialog | moved (leg 3) | `corpus-joiner.local.spec.ts` |
 | router 66 `/analytics` alias heals before the auth redirect | moved (leg 3) | Signed-out flow. Target: a local-project spec using a cookie-less `browser.newContext()`; single-user never signs out |
 | router 116 OIDC pending join Not now | stay | Needs the OIDC project, which `tests/e2e/support/modes.ts` documents as absent. Target: that project when it exists |
@@ -102,7 +102,7 @@ Differences from the CT cases:
 
 Stays, with evidence:
 
-- app-root 551 (a joiner with no persona meets the first-run ask; moved in leg 5 below): was not reachable on an automation stack by owner ruling. `domain/persona/seeder/default.ts` keeps its auto-create arm on exactly where `E2E_HARNESS=on` (header, owner ruling of 2026-08-03), so a persona is re-created on the next request after every delete. Observed in the local cell: `persona.list` returned a seeded "Traveler" after the test had deleted the account's personas and nulled both seed pointers. A real stack asks; an e2e stack never does. The case stays in CT as hard-state.
+- app-root 551 (a joiner with no persona meets the first-run ask) stayed in CT in leg 3 and moved in leg 5 below. It was not reachable on an automation stack by owner ruling. `domain/persona/seeder/default.ts` keeps its auto-create arm on exactly where `E2E_HARNESS=on` (header, owner ruling of 2026-08-03), so a persona is re-created on the next request after every delete. Observed in the local cell: `persona.list` returned a seeded "Traveler" after the test had deleted the account's personas and nulled both seed pointers. A real stack asks; an e2e stack never does. The case stays in CT as hard-state.
 - router 116 (OIDC pending join): not built. An OIDC e2e project needs, at minimum:
   1. an HTTPS mock issuer, because `entry/http/oidc.ts` calls `discovery()` without `allowInsecureRequests`, so an `http://127.0.0.1` issuer is refused by the real client;
   2. a certificate the server child trusts (a generated CA through the child's environment) and a loopback entry in the egress and private-endpoint allowlists;
