@@ -150,6 +150,8 @@ jobs:
         name: Set up FFmpeg and FFprobe
         timeout-minutes: 15
         run: bash scripts/ci/install-media.sh
+      # The seeder and notification corpus tests install the release-built showcase bundles, which a fresh checkout does not have.
+      - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/1
       - if: failure()
         name: Say how to reproduce
@@ -188,6 +190,8 @@ jobs:
         name: Set up FFmpeg and FFprobe
         timeout-minutes: 15
         run: bash scripts/ci/install-media.sh
+      # The legacy seeder and plugin-host tests install the release-built showcase bundles, which a fresh checkout does not have.
+      - run: pnpm --filter @orb/showcase-plugins build
       - run: pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/3 --population=legacy
       - if: failure()
         name: Say how to reproduce

@@ -10,9 +10,15 @@ import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 
-test("boot continues across a real binding refusal, and the composed post-boot account mint survives and repairs its own floor", async ({ db, app, clock }) => {
-  const first = await seedUser(db);
-  const second = await seedUser(db, { enabled: false });
+test("boot continues across a real binding refusal, and the composed post-boot account mint survives and repairs its own floor", async ({
+  db,
+  app,
+  clock,
+  harness,
+}) => {
+  // Seed from the harness id source: the factory counter and the composed mint both start at 1, so ensureUser would collide with the second row's primary key.
+  const first = await seedUser(db, {}, harness.idSource);
+  const second = await seedUser(db, { enabled: false }, harness.idSource);
   const bound: string[] = [];
   const deps = {
     db: databaseHandle(db),
