@@ -63,42 +63,27 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(242 registered gates)
+(146 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
 | `agent-bridge-lock` | — | hard/error | @client,@legacy-tests\* | the dev introspection bridge lost its… |
-| `appearance-carrier-contract` | appearance-carrier | ordinary/error | @client,@contracts,@tooling\* | Appearance carrier graph drift: a… |
-| `appearance-carrier-health` | appearance-carrier | hard/error | @client,@contracts,@tooling\* | Appearance carrier graph drift:… |
 | `assets-single-writer` | — | reviewed-grant/error | @server,@db\* | an assets-table write or storeBlob… |
-| `assumes-single-replica` | — | ordinary/error | @server,@inference\* | module-scope mutable per-process… |
 | `audit-client-tests` | — | ordinary/error | @tests\* | a test file carries a structural… |
-| `bound-field-via-hook` | — | reviewed-grant/error | @client\* | a bound field reaches the raw… |
 | `bounded-list-limit` | — | ordinary/error | @server,@contracts\* | an unbounded limit in a list/paged… |
-| `bus-belt-total` | bus-definition | hard/error | @contracts,@client,@server | bus set is not TOTAL over its union —… |
-| `bus-consumer-belt` | bus-definition | hard/error | @contracts,@client,@server | a bus union has NO consumer coverage… |
-| `bus-definition-belts` | bus-definition | hard/error | @contracts,@client,@server | bus event union in @orb/contracts… |
-| `bus-on-data-no-store-write` | — | ordinary/error | @client\* | raw store write (.setState) inside a… |
+| `bus-consumer-belt` | — | hard/error | @contracts,@client,@server | a bus union has NO consumer coverage… |
 | `bus-payload-allowlist-health` | — | hard/error | @contracts | a bus-event wire shape could not be… |
 | `bus-producer-coverage` | — | ordinary/error | @contracts,@server | declared bus member has NO server… |
 | `byte-check-cast` | drizzle-schema | ordinary/error | @db\* | a schema CHECK's length(\<col>) <= \<N>… |
 | `caught-failure-census-row` | caught-failure-ownership | hard/error | @product,@tooling | a caught-failure site has no row in… |
 | `caught-failure-ownership` | — | ordinary/error | @product,@tooling | UNPROVEN OWNERSHIP for a caught… |
 | `caught-failure-ownership-health` | caught-failure-ownership | hard/error | @product,@tooling | the committed caught-failure census… |
-| `chat-stream-writes-in-bus-only` | — | reviewed-grant/error | @authored\* | the chatStream WRITE api is taken… |
 | `chat-viewer-plane-canon-reads` | — | ordinary/error | @server\* | a VIEWER-PLANE chat verb (matrix… |
-| `chrome-registry-completeness` | registry-definitions | ordinary/error | @client | a chrome widget is dishonest: a… |
 | `class-token-splice` | — | ordinary/error | @client,@ui | a ${…} spliced INSIDE a class token —… |
-| `client-structure` | — | hard/error | @client\* | a BUILT @orb/client feature slice… |
-| `commented-code` | — | hard/error | all | commented-out code — delete it (git… |
 | `compose-wiring-only` | — | ordinary/error | @server\* | a function value an entry/compose… |
-| `config-group-completeness` | registry-definitions | ordinary/error | @client | a config group is dishonest: a… |
-| `content-part-seam` | — | reviewed-grant/error | @product | ChatContentPart is named outside the… |
 | `context-definition-shape` | — | ordinary/error | @client | A context projection must explicitly… |
 | `context-definition-shape-health` | context-definition-shape | hard/error | @client | the CONTEXT pane's head band has more… |
-| `contract-banned-shapes` | — | hard/error | @contracts | a ledger-REJECTED contract shape has… |
-| `contract-derives-not-respells` | — | reviewed-grant/error | @server,@contracts,@db | a domain contract/ re-spells a shape… |
-| `contract-structural-copy` | contract-derives-not-respells | ordinary/error | @client,@server,@inference,@contracts | hand-written shape re-spells a… |
+| `contract-structural-copy` | — | ordinary/error | @client,@server,@inference,@contracts | hand-written shape re-spells a… |
 | `contract-verb-presence` | — | reviewed-grant/error | @server,@tests,@legacy-tests\* | a \*Service interface declares a verb… |
 | `css-family-direct-client-mechanism` | css-hook-provenance | reviewed-grant/error | @client,@ui | client globals skins a UI-only… |
 | `css-family-ownership` | css-hook-provenance | ordinary/error | @client,@ui | a declaration is inside a sanctioned… |
@@ -115,83 +100,42 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `ct-no-oneshot-live-read-assert` | — | ordinary/error | @tests\* | a non-retrying expect() reads MUTABLE… |
 | `ct-poll-schedule-and-paint` | — | hard/error | @tests | a Playwright poll idiom that loses… |
 | `ct-poll-schedule-and-paint-health` | ct-poll-schedule-and-paint | hard/error | @legacy-tests\* | the founding CT for the… |
-| `ct-story-single-import` | — | hard/error | @tests\* | a CT story/component identifier is… |
-| `d-citation-integrity` | text-citation | hard/error | @product | a bare D\<n> ledger citation resolves… |
-| `dangling-doc-cite` | text-citation | hard/error | @authored | a source COMMENT cites a docs/\*\*.md… |
-| `dangling-ref-citations` | dangling-refs | reviewed-grant/error | @authored | a backticked path or UPPER_SNAKE… |
-| `dangling-refs` | — | hard/error | @authored | a doc-path pointer leads nowhere — a… |
-| `db-enum-from-tuple` | drizzle-schema | hard/error | @db\* | a Drizzle column enum config is an… |
-| `db-structure` | — | hard/error | @db\* | a schema file is not re-exported from… |
-| `db-structure-producer-home` | db-structure | reviewed-grant/error | none | a schema module has no same-named… |
 | `density-tier` | — | reviewed-grant/error | @client,@ui | density-tier violation… |
-| `density-tier-slot-map` | density-tier | hard/error | @client,@ui | the tier SLOT MAP and the primitives… |
-| `depcruise-grant-liveness-health` | — | hard/error | none | the count of IRREDUCIBLE… |
-| `design-audit-rule-proof` | — | hard/error | @tooling,@tests\* | the design-audit proof denominator is… |
 | `detached-work-traced` | — | ordinary/error | @server,@inference | fire-and-forget work whose FAILURE IS… |
 | `diagnostic-legibility` | policy-soundness | ordinary/error | @tooling\* | a gate/policy diagnostic carries no… |
 | `discovery-no-stats-rollups` | — | ordinary/error | @server\* | the stats rollup tables (ownerStats /… |
 | `domain-freshness-plane` | drizzle-schema | hard/error | @server,@db\* | a MUTATING domain must declare its… |
 | `domain-inference-dispatch` | — | hard/error | @server\* | a domain dispatches on an inference… |
-| `duplicate-action-doors` | action-doors | reviewed-grant/error | @client\* | one tRPC mutation is invoked from… |
-| `duplicate-action-doors-health` | action-doors | hard/error | @client\* | the duplicate-action-door family's… |
-| `empty-state-has-action` | — | ordinary/error | @client\* | an \<EmptyState> with no action CTA… |
+| `duplicate-action-doors` | — | reviewed-grant/error | @client\* | one tRPC mutation is invoked from… |
 | `entry-synthetic-role-is-user` | — | hard/error | @server,@inference\* | a hardcoded role: "user" inside a… |
-| `evaluate-no-scope-capture` | — | ordinary/error | @tooling | a .evaluate()/.evaluateAll() FUNCTION… |
-| `external-id-single-writer` | — | hard/error | @server | a users.externalId write or… |
-| `external-id-single-writer-health` | external-id-single-writer | hard/error | @server | the U1 externalId single-writer… |
-| `feature-owns-definition` | — | hard/error | none | a features/\* dir owns no registered… |
-| `feature-structure` | — | hard/error | none | a domain feature does not follow the… |
-| `firehose-import-allowlist-health` | — | hard/error | @server | subscribeAllChatEvents is no longer… |
-| `fk-columns-indexed` | drizzle-schema | hard/error | @db\* | a foreign-key column does not LEAD… |
-| `fk-ondelete-stated` | drizzle-schema | ordinary/error | @db\* | a .references(...) has no onDelete… |
 | `form-factory-for-multifield` | editor-form-factory | ordinary/error | @client\* | a feature component hand-rolls ≥3… |
-| `gate-ignore-inventory` | — | hard/error | @authored\* | a dead @orb-gate-ignore marker… |
-| `handle-key-writer` | external-id-single-writer | hard/error | @server | a users write that sets handle… |
-| `home-tile-registry-completeness` | registry-definitions | ordinary/error | @client | a home tile is dishonest: a… |
-| `injected-op-caller-param` | — | ordinary/error | @server,@kit | a cross-domain op takes an entity id… |
-| `injected-op-caller-param-health` | injected-op-caller-param | hard/error | @server,@kit,@db | either the injected-op-caller-param… |
 | `integer-line-boxes` | static-class-expression | ordinary/error | @client,@ui | A line box off the integer-px grid… |
 | `json-column-read-parsed` | open-json-column-key-parity | ordinary/error | @server\* | typed JSON column read by cast — the… |
 | `json-column-write-parity` | — | reviewed-grant/error | @db,@server,@contracts\* | WHOLE-RECORD REPLACE of a JSON column… |
 | `knob-wire-coverage` | — | reviewed-grant/error | @contracts,@server,@client,@ui | a declared knob is wired to nothing —… |
-| `ledger-symbol-liveness` | — | ordinary/error | none | a backticked file path in a D-ledger… |
-| `macro-resolution-home` | — | reviewed-grant/error | @client,@ui | macro resolution requires an exact… |
-| `member-card-clamped` | — | ordinary/error | @authored | a member-card clamp boundary broke:… |
 | `membership-enforcer` | — | ordinary/error | @server\* | the chat scope is MEMBERSHIP-scoped,… |
-| `membership-fan-guard` | — | ordinary/error | @server\* | emitUserEvent identifier under… |
 | `membership-write-fan` | tenancy-scope | reviewed-grant/error | @server\* | a MEMBERSHIP-class write announced… |
-| `message-kind-policy-coverage` | — | ordinary/error | @contracts,@server,@client | a MESSAGE_KIND_POLICY axis has NO… |
-| `modal-body-not-placeholder` | registry-definitions | ordinary/error | @client | a ModalDefinition is unreadable or… |
-| `modal-registry-completeness` | registry-definitions | ordinary/error | @client | a modal is dishonest: a… |
 | `no-await-db-in-loop` | — | ordinary/error | @authored\* | an awaited Drizzle query runs inside… |
 | `no-blanket-suppression` | — | hard/error | @authored\* | a FILE-WIDE lint/type suppression —… |
 | `no-direct-reports-write` | — | ordinary/error | @tests | a .screenshot({ path }) call in… |
-| `no-direct-users-read` | — | reviewed-grant/error | @server\* | the users table is read/written ONLY… |
 | `no-effect-on-shared-selection` | react-origin | reviewed-grant/error | @client\* | an effect keyed on a shared-selection… |
 | `no-fake-disabled-id` | id-brand-flow | ordinary/error | @client | empty-string branded id creates a… |
 | `no-form-reset-in-autosave` | editor-form-factory | ordinary/error | @client | reset() survives on an autosave form… |
 | `no-form-reset-in-autosave-health` | editor-form-factory | hard/error | @client\* | the reset type-strip (Omit<…,… |
 | `no-form-state-in-useeffect` | — | ordinary/error | all | A computed form dependency resolves… |
 | `no-handwritten-wire-json-schema` | — | ordinary/error | @server,@contracts,@kit,@inference\* | a hand-authored JSON-Schema literal… |
-| `no-hardcoded-model-prose` | — | ordinary/error | @authored | model-facing prose hardcoded at a… |
+| `no-hardcoded-model-prose` | — | ordinary/error | @authored | DEAD catalog prose: authored,… |
 | `no-hardcoded-side-gen-sampling` | — | ordinary/error | @server\* | hardcoded side-gen sampling value — a… |
-| `no-inline-domain-interface` | no-inline-types | ordinary/error | @server\* | exported interface in a server domain… |
-| `no-inline-package-interface` | no-inline-types | ordinary/error | @server,@inference,@ui-authoring\* | exported interface outside its… |
 | `no-inline-types` | — | ordinary/error | @client,@server,@inference,@tooling,@tests,@ui-authoring\* ∪ @ui\* | exported type/zod-schema outside a… |
-| `no-inline-union-alias` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
-| `no-inline-union-redecl` | union-axis | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
+| `no-inline-union-redecl` | — | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data… |
 | `no-loose-id-cast` | id-brand-flow | ordinary/error | @product,@tests | a cast bypasses branded-id type… |
 | `no-manual-memo` | react-origin | reviewed-grant/error | @client,@ui,@tests | manual React memoization in… |
 | `no-manual-token-estimate` | — | ordinary/error | @client,@ui,@server,@kit,@inference\* | hand-rolled .length / 4 token… |
-| `no-off-token-inline-style` | — | ordinary/error | @client,@ui | off-token raw-literal inline style… |
 | `no-opaque-test-fixture` | — | ordinary/error | @tests\* | a test fixture export is typed… |
 | `no-raw-egress` | — | reviewed-grant/error | @server,@inference | a raw fetch in server source — route… |
 | `no-raw-history-writes` | — | hard/error | @client | client code captures a browser… |
 | `no-raw-id` | id-brand-flow | ordinary/error | @authored | an id-named Zod field is a raw string… |
-| `no-tailwind-dark-variant` | — | ordinary/error | @client,@ui | Tailwind dark: utility creates a… |
-| `no-unruled-flip-inversion` | — | reviewed-grant/error | @ui,@client | a FLIP INVERSION outside the ruled… |
-| `no-untyped-soft-ref` | drizzle-schema | reviewed-grant/error | @db\* | an id-shaped column (its JS key ends… |
 | `no-vanity-alias` | — | ordinary/error | @product,@tests | vanity rename — one symbol, one name;… |
 | `nullable-column-inequality` | drizzle-schema | ordinary/error | @packages,@tests | an inequality predicate (ne /… |
 | `one-principal-mint-population` | — | ordinary/error | @server,@inference | a new Principal construction site in… |
@@ -199,21 +143,13 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `over-art-plate-arm` | — | ordinary/error | none | over-art plate law (UI-Theming-and-Con… |
 | `own-tables-only` | drizzle-schema | hard/error | @server\* | a domain touches its OWN tables… |
 | `owner-role-split` | role-vocabulary | reviewed-grant/error | @server,@inference | global-role literal comparison… |
-| `owner-scoped-reads` | tenancy-scope | ordinary/error | @server | a by-id READ of an ownerId-scoped… |
+| `owner-scoped-reads` | tenancy-scope | ordinary/error | @server | a direct by-id READ of an… |
 | `owner-scoped-upserts` | tenancy-scope | ordinary/error | @server | an onConflictDoUpdate upsert of an… |
 | `owner-scoped-writes` | tenancy-scope | ordinary/error | @server | an update/delete of an ownerId-scoped… |
-| `ownerid-registry` | drizzle-schema | hard/error | @db\* | a table stamps an ownerId column but… |
 | `package-deep-import` | — | hard/error | @client,@ui,@server,@db,@contracts,@kit,@inference | a parent-relative import climbs two… |
-| `package-layout` | — | reviewed-grant/error | @client,@ui,@db,@contracts,@kit,@inference | a loose .ts file (not index.ts) sits… |
-| `package-subpath-crossing` | — | reviewed-grant/error | @client,@ui,@server,@db,@contracts,@kit,@inference | a #src/ subpath reaches into another… |
 | `persistence-boundary` | — | reviewed-grant/error | @client | raw browser storage outside the… |
 | `persistence-no-in-memory-state` | — | ordinary/error | @authored\* | an ambient Map/Set/WeakMap/WeakSet is… |
-| `placeholder-copy-registry` | registry-definitions | ordinary/error | @client | a SectionDefinition's placeholder is… |
 | `platform-spellings` | — | ordinary/error | @product,@tests | a superseded pre-node-26 spelling —… |
-| `playwright-css-topology` | css-home-topology | hard/error | @client,@tests | Playwright CT must derive the ordered… |
-| `playwright-lane-outside-fast-check` | — | hard/error | @tooling | browser-mode test suffixes (.ct.tsx,… |
-| `plugin-dump-guard` | — | hard/error | @server\* | a QuickJS membrane ctx.dump can… |
-| `policy-binding-resolution` | policy-soundness | hard/error | @tooling\* | a FINAL policy module resolves a… |
 | `policy-fixture-substrate` | policy-soundness | hard/error | @tests\* | a family test filesystem mutation has… |
 | `policy-legacy-imports` | policy-soundness | hard/error | @tooling\* | a FINAL policy module imports the… |
 | `policy-proof-expectations` | policy-soundness | hard/error | @tooling\* | a mustFlag proof row is… |
@@ -225,95 +161,62 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `query-freshness-coverage` | — | reviewed-grant/error | @client | a client-consumed tRPC query key… |
 | `real-corpus-liveness-manifest` | — | hard/error | @tooling,@tests\* | Every final policy owes a real-corpus… |
 | `receded-ink-integrity` | — | ordinary/error | @client,@ui | RECEDED_INK is carried behind a… |
-| `registry-assembly-at-door-only` | — | ordinary/error | @client\* | createRegistry()/createContributorRegi… |
-| `registry-context-via-mint` | react-origin | ordinary/error | @client | a createContext typed over a registry… |
 | `render-error-via-battery` | — | reviewed-grant/error | @client | a hand-rolled renderError prop on… |
 | `rest-transform-grid` | static-class-expression | hard/error | @client,@ui | A REST-state transform that cannot… |
-| `route-trpc-lifo-order` | — | ordinary/error | @tests\* | a page.route("\*\*/api/trpc...", …) is… |
 | `route-trpc-no-broad-spread` | — | hard/error | @tests\* | a routeTrpc fixture object spreads a… |
-| `runner-config-path-liveness` | — | hard/error | none | a FILE-EXACT path in a test-runner… |
-| `sanctioned-css-homes` | css-home-topology | hard/error | none | a repository-owned product stylesheet… |
-| `schema-banned-shapes` | drizzle-schema | hard/error | @db\* | a ledger-REJECTED schema shape has… |
 | `schema-branding` | drizzle-schema | ordinary/error | @db\* | a schema entity id is unbranded or an… |
 | `scrubber-home` | — | reviewed-grant/error | @product | the hidden-span stream scrubber is… |
-| `section-factory-contribution-bundle` | registry-definitions | ordinary/error | @client | a section factory grew a positional… |
-| `section-registry-completeness` | registry-definitions | ordinary/error | @client | a section is dishonest: a… |
+| `section-factory-contribution-bundle` | — | ordinary/error | @client | a section factory grew a positional… |
 | `seed-theme-ink-contrast` | — | reviewed-grant/error | @client,@ui | a colour token painted as TEXT does… |
-| `selection-store-via-factory` | — | reviewed-grant/error | @client\* | a \*-selection-store.ts mints the raw… |
 | `serde-core-definition-uniqueness` | — | hard/error | @server | a SECOND declaration of a serde-core… |
 | `serde-core-seal-health` | — | hard/error | @server,@kit | a sanctioned serde home… |
-| `server-layout` | — | hard/error | none | an illegal or missing top-level entry… |
 | `session-channel-boundary` | — | ordinary/error | @client | a BroadcastChannel constructed… |
 | `single-stream-transport` | — | reviewed-grant/error | @server\* | a tRPC .subscription( outside… |
 | `sole-env-reader` | — | reviewed-grant/error | @server,@inference | touches process.env outside… |
 | `spacing-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
-| `stale-draft-commit` | draft-commit | ordinary/error | @client | a once-seeded draft is being… |
-| `stale-draft-decision-health` | draft-commit | hard/error | @client,@db\* | the draft decision home no longer… |
-| `state-files` | — | ordinary/error | @client\* | the minted store handle is exported… |
-| `structured-plan-one-home` | — | ordinary/error | @server,@client,@contracts,@kit\* | a structured-output or tool-call… |
-| `sub-floor-disclosure` | — | ordinary/error | @client,@ui | a size="text" CollapsibleTrigger with… |
-| `sub-floor-disclosure-health` | sub-floor-disclosure | hard/error | @ui\* | a collapsible size member is no… |
+| `stale-draft-commit` | — | ordinary/error | @client | a once-seeded draft is being… |
+| `sub-floor-disclosure-health` | — | hard/error | @ui\* | a collapsible size member is no… |
 | `suppressions` | — | reviewed-grant/error | all | a foreign-tool suppression directive… |
-| `surface-a11y-focus` | surface-composition | ordinary/error | @client\* | surface is missing A11y focus… |
-| `surface-in-a-container` | surface-composition | ordinary/error | @client\* | surface establishes raw structural… |
-| `table-explicit-primary-key` | drizzle-schema | hard/error | @db\* | a sqliteTable has no PRIMARY KEY —… |
-| `table-scoping-class` | tenancy-scope | hard/error | @db\* | every schema table must declare HOW a… |
+| `surface-in-a-container` | — | ordinary/error | @client\* | surface establishes raw structural… |
 | `test-assembly-home` | test-production-clone | hard/error | @tests | a test constructs a server service… |
 | `test-determinism` | — | ordinary/error | @tests\* | ambient nondeterminism in a test… |
 | `test-hand-shape` | — | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content | a test support or e2e module… |
 | `test-layout` | mirror-index | hard/error | none | a test under tests/ has the wrong… |
 | `test-mock-doctrine` | — | ordinary/error | @authored\* | vi.mock on an internal module — fake… |
-| `test-presence-client` | mirror-index | hard/error | @client\* | the standing DOM-derived… |
 | `test-production-clone` | — | reviewed-grant/error | @tests,@client,@ui,@server,@db,@contracts,@kit,@inference,@showcase,@plugin-toolchain,@default-content,@tooling | a test-side function has the shape of… |
 | `test-reach` | mirror-index | reviewed-grant/error | @server,@contracts,@inference,@client,@ui,@tests | a presence-gated module is reached by… |
 | `test-world-browser-contracts` | — | hard/error | @tests | a Node-intent test consumes a… |
 | `testid-liveness` | — | ordinary/error | @packages,@showcase,@tests,@legacy-tests | dead test-id (UI-Gates-and-Lessons.md… |
-| `testid-liveness-health` | testid-liveness | hard/error | @client\* | testid-liveness read ZERO rows out of… |
-| `testid-typed-only-stories` | — | ordinary/error | @tests\* | freeform data-testid string in a CT… |
 | `tests-raw-package-reach` | — | reviewed-grant/error | @tests | a test reaches a package's internals… |
-| `theme-override-only-via-scope` | — | reviewed-grant/error | @client,@ui | an inline style prop overrides a… |
 | `tooling-argv-front-door` | process-member | reviewed-grant/error | @tooling | a second argv reader — the operator's… |
 | `tooling-artifact-path-home` | tooling-artifact | reviewed-grant/error | @tooling | a hand-rolled reports/\<kind> path —… |
 | `tooling-artifact-run-slot` | tooling-artifact | hard/error | @tooling | an instrument that files artifacts… |
 | `tooling-browser-door` | — | reviewed-grant/error | @tooling | a second Playwright door — a browser… |
 | `tooling-child-process-door` | — | reviewed-grant/error | @tooling | a subprocess outside the ONE home —… |
-| `tooling-clock-budget` | plumbing-literals | ordinary/error | @tooling,@tests\* | a fixed wall clock — a numeric… |
-| `tooling-instrument-proof` | — | hard/error | @tooling,@tests\* | the instrument-proof contract is… |
 | `tooling-os-neutral` | — | hard/error | @tooling,@scripts,@tests\* | an OS-specific program, path, env key… |
-| `tooling-port-registry` | plumbing-literals | reviewed-grant/error | @tooling,@tests\* | a TCP port outside the ONE registry —… |
 | `tooling-process-exit-home` | process-member | reviewed-grant/error | @tooling | a bare process.exit outside the… |
 | `tooling-project-home` | — | reviewed-grant/error | @tooling | a second ts-morph loader — the shared… |
-| `tooling-runner-config-literals` | plumbing-literals | hard/error | none | a runner-config literal outside its… |
-| `tooling-slot-template` | — | hard/error | @tooling | a @orb/tooling tree entry violates… |
 | `trpc-input-declarations` | — | hard/error | @server\* | a tRPC procedure reads input without… |
 | `trpc-output-declarations` | — | hard/error | @server\* | A mounted AppRouter query/mutation… |
 | `turn-identity` | — | ordinary/error | @server\* | the chat engine is Principal-BLIND… |
 | `two-class-role-authority` | role-vocabulary | reviewed-grant/error | @server\* | inline participant-role comparison in… |
-| `typeid-prefix-boundary` | id-brand-flow | hard/error | @product | a canonical TypeID crosses a trust… |
 | `types-in-contract` | — | hard/error | @server\* | contract/service.ts must declare the… |
 | `typography-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
 | `ui-accname-survives-spread` | — | ordinary/error | @ui | an accessible-name attribute written… |
-| `ui-primitive-overlay-health` | ui-primitive | hard/error | @ui | the primitive overlay is missing its… |
-| `ui-primitive-permissions` | ui-primitive | reviewed-grant/error | @ui,@tests\* | a primitive shape, CT obligation,… |
-| `ui-primitive-structure` | ui-primitive | ordinary/error | @ui | UI source re-exports private variants… |
 | `ui-variant-axes-stamped` | — | hard/error | @ui | @orb/ui variant-axis stamp: a tv()… |
 | `ui-variant-axes-stamped-health` | ui-variant-axes-stamped | hard/error | @ui\* | packages/ui/src/lib/variant-attrs.ts… |
-| `vector-scope-derived` | — | ordinary/error | @server | a vector-substrate chokepoint was… |
 | `verb-naming` | — | hard/error | @server\* | a domain verb file does not export… |
 | `warning-code-coverage` | — | ordinary/error | @server,@contracts,@inference | a warning-code tuple member has NO… |
 | `warning-workitem-liveness` | policy-soundness | hard/error | @tooling\* | a warning policy's workItem must name… |
 | `windowed-infinite-query` | — | ordinary/error | @client | maxPages WINDOWS an infinite query's… |
 | `windowed-infinite-query-health` | windowed-infinite-query | hard/error | @client | DERIVED NOTHING — no… |
 | `wire-json-parsed-at-consumer` | — | ordinary/error | @client,@server,@inference | a response body is cast instead of… |
-| `wire-schema-vocab-one-home` | — | reviewed-grant/error | @server,@kit,@inference\* | a JSON-Schema wire keyword vocabulary… |
-| `z-index-tier-health` | — | hard/error | @client,@ui | the z-index implementation home set… |
 | `zod-error-issues-home` | — | reviewed-grant/error | @product,@tests | a hand-flattened zod issues read on a… |
 | `zod-output-twin-parity` | — | hard/error | @product | a hand-authored ZodType twin… |
 
-Two deleted gate-local tables are still named here, on purpose, so their `dangling-ref-citations`
-reviewed grants stay live: `duplicate-action-doors`'s `EXEMPT_PROCEDURES` (its successor grants name
-the open follow-up that must land before this citation can go too) and `density-tier`'s
-`ELEVATED_ALLOW` (also named in `UI-Density-Law.md` §5.1).
+Two deleted gate-local tables are still named here, on purpose, to record where they went:
+`duplicate-action-doors`'s `EXEMPT_PROCEDURES` (its successor grants name the open follow-up that must
+land before this citation can go too) and `density-tier`'s `ELEVATED_ALLOW`.
 
 ## Layer 4 — dependency-cruiser (`.dependency-cruiser.cjs`) — active
 
