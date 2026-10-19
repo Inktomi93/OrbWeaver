@@ -301,7 +301,8 @@ const LOCAL: ModeProject = {
   name: "local",
   baseUrl: `http://localhost:${LOCAL_VITE_PORT}`,
   backendUrl: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
-  testMatch: SELECTED_CORPUS_FIXTURE === undefined ? new RegExp(`\\.local${E2E_TEST_END_PATTERN}`, "u") : /\/corpus-shared\.local\.spec\.ts$/u,
+  // A corpus run takes only the corpus-prefixed local specs: the others seed through global-setup or drive live engines.
+  testMatch: new RegExp(`${SELECTED_CORPUS_FIXTURE === undefined ? "" : "/corpus-[^/]*"}\\.local${E2E_TEST_END_PATTERN}`, "u"),
   webServerEnv: {
     AUTH_MODE: "local",
     SESSION_SECRET,

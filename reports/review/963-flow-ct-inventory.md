@@ -14,21 +14,21 @@ Scope: CTs that mount a route, the app root or the app shell and drive it over s
 
 | Class | Sites |
 | - | - |
-| Moved to e2e (leg 1: 3, leg 2: 3) | 6 |
-| Flow, move later (needs a local-mode or phone spec) | 4 |
-| Stays CT | 262 |
+| Moved to e2e (leg 1: 3, leg 2: 3, leg 3: 3) | 9 |
+| Flow, move later | 0 |
+| Stays CT | 263 |
 | Total | 272 |
 
 Per file:
 
 | File | Sites | Moved | Move later | Stays |
 | - | - | - | - | - |
-| `routes/app-root.ct.tsx` | 33 | 6 | 2 | 25 |
-| `routes/router.ct.tsx` | 5 | 0 | 1 | 4 |
+| `routes/app-root.ct.tsx` | 33 | 7 | 0 | 26 |
+| `routes/router.ct.tsx` | 5 | 1 | 0 | 4 |
 | `routes/route-pending.ct.tsx` | 3 | 0 | 0 | 3 |
 | `routes/stuck-splash.suite.ct.tsx` | 3 | 0 | 0 | 3 |
 | `app-shell/surfaces/app-shell.ct.tsx` | 222 | 0 | 0 | 222 |
-| config shell and login transition CTs | 6 | 0 | 1 | 5 |
+| config shell and login transition CTs | 6 | 1 | 0 | 5 |
 
 ## Moved cases and their specs
 
@@ -54,9 +54,9 @@ Real differences from the CT cases:
 | - | - | - |
 | app-root 211 fresh state lands on Home | stay | Its teaching empty states ("Create your first character", "Add your first document") need an empty library the corpus does not have |
 | app-root 504 owner persona never sees the gate | moved | Corpus owner has a current persona |
-| app-root 551 joiner with no persona names one first | move later | Real flow in local mode: invite, signup, first-run ask, join dialog. Needs the local project (`corpus-local-*` cells), which this leg may not run |
-| app-root 591 control: joiner who speaks gets the join dialog | move later | Same spec as 551 |
-| router 66 `/analytics` alias heals before the auth redirect | move later | Signed-out flow. Target: a local-project spec using a cookie-less `browser.newContext()`; single-user never signs out |
+| app-root 551 joiner with no persona names one first | stay | Real flow in local mode: invite, signup, first-run ask, join dialog. Needs the local project (`corpus-local-*` cells), which this leg may not run |
+| app-root 591 control: joiner who speaks gets the join dialog | moved (leg 3) | `corpus-joiner.local.spec.ts` |
+| router 66 `/analytics` alias heals before the auth redirect | moved (leg 3) | Signed-out flow. Target: a local-project spec using a cookie-less `browser.newContext()`; single-user never signs out |
 | router 116 OIDC pending join Not now | stay | Needs the OIDC project, which `tests/e2e/support/modes.ts` documents as absent. Target: that project when it exists |
 | app-shell 406 rail click switches CONTENT and LIST slots | stay | Fake registry strings ("corpus content pane"); Activity pane keeping is component behaviour |
 | app-shell 559 rail foot has no modal trigger, Settings routes as a section | stay | Shell chrome in a fake registry; the real Settings route is covered by `corpus-settings.spec.ts` |
@@ -64,7 +64,7 @@ Real differences from the CT cases:
 | app-shell 1819 Refinery row in the You sheet | stay | Coarse-pointer row-floor measurement |
 | config-teacher docked 1040px shell | stay | Title-floor geometry measurement |
 | config-section 134 cold phone arrival lands on the LIST | stay | Layout-effect ordering at mount; a state a backend does not produce |
-| config-section 150 phone back stack pops one rung at a time | move later | Real flow (World Info, book, member, back). The corpus has world books; needs a phone-only spec |
+| config-section 150 phone back stack pops one rung at a time | moved (leg 3) | Real flow (World Info, book, member, back). The corpus has world books; needs a phone-only spec |
 | config-section 208 phone draws no in-content drill row | stay | Absence-of-chrome assertions; component |
 | config-content-surface door focus and in-viewport | stay | Focus and viewport measurement |
 | login-shell-anchor card keeps its top edge while config resolves | stay | Held response plus layout-shift measurement |
@@ -81,3 +81,38 @@ Original flow candidates that stay, and why:
 - `pnpm test:ct --legacy tests/legacy/client/routes/app-root.ct.tsx`: 43 passed, 0 failed. The unfed-read ratchet needed `regex.listForCharacter` fed in the held-member case; that case now stubs it.
 - `tsconfig.tests-legacy-dom.json` run bare: 86 errors, none in `app-root.ct.tsx`.
 - Not run: the other 30 corpus project cells, including all local-mode cells. CI runs the matrix.
+
+## Leg 3 (item 1080)
+
+Moved, one CT case each deleted:
+
+| Deleted CT case | New e2e case | Project |
+| - | - | - |
+| `app-root.ct.tsx` control: a joiner who already speaks as a persona gets the join dialog at once | `corpus-joiner.local.spec.ts` (same title) | local, desktop and phone |
+| `router.ct.tsx` the /analytics alias heals to Corpus Insights before the auth redirect | `corpus-signed-out.local.spec.ts` (heals before the redirect and survives sign-in) | local, desktop and phone |
+| `config-section.ct.tsx` the phone's back stack pops ONE rung at a time | `corpus-config-back-stack.spec.ts` (same title) | single-user, phone only |
+
+Differences from the CT cases:
+
+- The local `testMatch` in `tests/e2e/support/modes.ts` now follows the convention `corpus-*.local.spec.ts` for a corpus run (it listed one spec). A non-corpus run keeps `*.local.spec.ts`.
+- A loopback request with no relay tell resolves as the box owner even with no cookie, so the signed-out browser sends an empty `forwarded` header. The assertion is stronger than the CT's: after sign-in the app opens on Corpus Insights, rather than a story's probe text.
+- The joiner is a real account created by the admin verb, with a real persona and invite; each project mints its own handle because the cells share one local database.
+- The back-stack case reads the corpus book and its first entry; the CT stubbed both.
+- `ProductionRouterAliasStory` and the CT constants only the deleted cases used are deleted with them.
+
+Stays, with evidence:
+
+- app-root 551 (a joiner with no persona meets the first-run ask): not reachable on an automation stack by owner ruling. `domain/persona/seeder/default.ts` keeps its auto-create arm on exactly where `E2E_HARNESS=on` (header, owner ruling of 2026-08-03), so a persona is re-created on the next request after every delete. Observed in the local cell: `persona.list` returned a seeded "Traveler" after the test had deleted the account's personas and nulled both seed pointers. A real stack asks; an e2e stack never does. The case stays in CT as hard-state.
+- router 116 (OIDC pending join): not built. An OIDC e2e project needs, at minimum:
+  1. an HTTPS mock issuer, because `entry/http/oidc.ts` calls `discovery()` without `allowInsecureRequests`, so an `http://127.0.0.1` issuer is refused by the real client;
+  2. a certificate the server child trusts (a generated CA through the child's environment) and a loopback entry in the egress and private-endpoint allowlists;
+  3. authorize, token and JWKS endpoints, with RS256 id_tokens that echo the state and nonce and carry the username, uid and groups claims the server maps;
+  4. a new project in `modes.ts` with `AUTH_MODE=oidc`, its own ports, `OIDC_ISSUER`, `OIDC_CLIENT_ID`, `OIDC_CLIENT_SECRET`, `OIDC_REDIRECT_URIS`, `OIDC_SIGNUP=on` and an invite for the pending-join arm, plus global-setup seeding for it.
+  That is more than one project and a small mock: a TLS trust chain and four moving parts. The comment in `modes.ts` already refuses an env-selectable substitute for the token exchange, which rules out the shortcut of an insecure issuer.
+
+Verification (leg 3):
+
+- Local cells `corpus-local-desktop-bubble` and `corpus-local-phone-bubble`: control and alias cases passed on both. Single-user `corpus-phone-bubble`: back stack passed. The joiner and alias specs were reformatted by Biome after their last green run; the code is unchanged.
+- Planted defects, restored afterwards: `healCorpusModeFrom(params.section)` replaced by `healCorpusModeFrom("chats")` in `router.tsx` turned the alias case red (Insights radio `aria-checked` false); inverting `useViewerCanSpeak` turned the control red (join dialog never opened); renaming the World Info group label to "Lore" turned the back stack red. A first plant that deleted the `healCorpusModeFrom` call left an unused import and a Vite error overlay, so it was replaced as above.
+- `pnpm test:ct --legacy` on `app-root.ct.tsx`, `router.ct.tsx` and `config-section.ct.tsx`: 46 passed and 2 failed. The two failures are in `app-root.ct.tsx` ("every registered roster and Corpus mode renders a structural band and search" and "roster census rejects an omitted search"): the story's census navigation renders no buttons, so the production section registry returned no list-bearing sections. They passed on the leg 2 tree, they do not touch any case deleted here, and `git diff HEAD` for `packages/` is empty; the cause is most likely in the main commits fast-forwarded into this branch before leg 3. Reported, not fixed.
+- Not run: the other local and single-user cells; CI runs the matrix.
