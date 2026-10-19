@@ -115,22 +115,11 @@ export type {
 export { hasCsrfHeader } from "./csrf.ts";
 export { MODE_RESOLVERS, ownerFallbackAllowed } from "./dispatch.ts";
 export { hasForwardingHeader } from "./forwarded.ts";
-export { normalizeHost } from "./host.ts";
-export {
-  allowedHostsReader,
-  canonicalHost,
-  createHostNotAllowedNotice,
-  createRelayHostRegistry,
-  isHostAllowed,
-  refusedHost,
-  reportHostNotAllowed,
-} from "./host-allowlist.ts";
+export { allowedHostsReader, createHostNotAllowedNotice, createRelayHostRegistry, refusedHost } from "./host-allowlist.ts";
 export { createForwardJwtVerifier, createJwksReader } from "./jwks.ts";
-export { readRequestCookie, SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE, SESSION_COOKIES, sessionCookieFor } from "./modes/cookie-session.ts";
+export { readRequestCookie, SESSION_COOKIES, sessionCookieFor } from "./modes/cookie-session.ts";
 export { selectSignedForwardJwt } from "./modes/forward-header.ts";
 export {
-  OIDC_BINDING_COOKIE_NAME_INSECURE,
-  OIDC_BINDING_COOKIE_NAME_SECURE,
   OIDC_BINDING_COOKIES,
   OIDC_PENDING_JOIN_COOKIES,
   OIDC_PENDING_JOIN_TTL_MS,
@@ -147,11 +136,4 @@ export {
   MIN_PASSWORD_LENGTH,
 } from "./password.ts";
 export { createRelayedFallbackNotice } from "./relay-notice.ts";
-export {
-  createPublicHttpMintNotice,
-  reportPublicHttpMint,
-  requestClientScope,
-  requestTransport,
-  resolveClientScope,
-  resolveTransport,
-} from "./transport.ts";
+export { createPublicHttpMintNotice, reportPublicHttpMint, requestClientScope, requestTransport } from "./transport.ts";

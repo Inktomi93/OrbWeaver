@@ -10,7 +10,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { getTableName } from "drizzle-orm";
-import { tableCounts } from "#server/foundation/observability/debug/index.ts";
+import { tableCounts } from "#server/foundation/observability/debug/inspect/stats.ts";
 
 test("a fresh db reports zero for every backbone table (labels = schema names)", async () => {
   const db = await freshDb();

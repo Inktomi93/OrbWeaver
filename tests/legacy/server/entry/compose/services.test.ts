@@ -48,7 +48,7 @@ import { createAssetsService } from "@orb/server/domain/assets";
 import type { CharacterService } from "@orb/server/domain/character";
 import { createCharacterService, WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import { seedLocalLightOnBoot } from "@orb/server/entry/boot";
-import { createDomainEventBus, createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
 import { logger } from "@orb/server/foundation/observability";
 import type { SocketListener } from "@orb/server/transport/trpc";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -67,6 +67,7 @@ import { upsertChatSegment } from "#server/domain/embeddings/persistence/queries
 import { readGeneration } from "#server/domain/search/persistence/active-space.ts";
 import { listSeededItemKeys } from "#server/domain/settings/index.ts";
 import { writeAppOverride } from "#server/domain/settings/persistence/queries.ts";
+import { createDomainEventBus } from "#server/entry/compose/event-bus.ts";
 import { subscribeChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
 import { subscribeNotifications } from "#server/transport/trpc/notifications-bus.ts";
 import { subscribeUserEvents } from "#server/transport/trpc/user-events-bus.ts";

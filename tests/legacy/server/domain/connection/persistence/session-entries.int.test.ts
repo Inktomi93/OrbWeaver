@@ -20,7 +20,7 @@ import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { createSessionEntryWriter } from "#server/domain/connection/index.ts";
-import { tableCounts } from "#server/foundation/observability/debug/index.ts";
+import { tableCounts } from "#server/foundation/observability/debug/inspect/stats.ts";
 
 const SEEDED_THROUGH_SEQ = 2;
 const CANON_HASH = "canon-hash-abc";

@@ -19,7 +19,7 @@ import { unzipSync } from "fflate";
 import { afterEach, beforeEach, vi } from "vitest";
 import { startAutomationWatcher } from "#server/domain/automation/index.ts";
 import { createAutomationWatcherEnv } from "#server/entry/compose/automation-watcher.ts";
-import { __setEgressResolverForTest } from "#server/infra/network/index.ts";
+import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
 
 const fetches: string[] = [];
 beforeEach(() => {

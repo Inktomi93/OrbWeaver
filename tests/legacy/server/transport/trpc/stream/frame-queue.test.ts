@@ -13,9 +13,10 @@ import type { StreamDataFrame, StreamFrame, StreamRoomRef } from "@orb/contracts
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { FrameQueue } from "@orb/server/transport/trpc";
-import { createFrameQueue, OVERFLOW_POLICIES } from "@orb/server/transport/trpc";
+import { OVERFLOW_POLICIES } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { createFrameQueue } from "#server/transport/trpc/stream/frame-queue.ts";
 
 const CHAT = castId<ChatId>("chat_q1");
 const OTHER_CHAT = castId<ChatId>("chat_q2");

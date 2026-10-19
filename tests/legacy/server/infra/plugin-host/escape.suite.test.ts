@@ -22,20 +22,14 @@ import { setTimeout as sleep } from "node:timers/promises";
 import type { PluginBridge } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
-import {
-  createPluginHost,
-  getPluginQuickJS,
-  HOST_FN_DEADLINE_MS,
-  installRealm,
-  LogRing,
-  PLUGIN_MEMORY_LIMIT_BYTES,
-  Sandbox,
-} from "@orb/server/infra/plugin-host";
+import { createPluginHost, Sandbox } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe, vi } from "vitest";
-import { PLUGIN_AUTHORITY_TAIL_CALLS_MAX } from "#server/infra/plugin-host/budgets.ts";
+import { HOST_FN_DEADLINE_MS, PLUGIN_AUTHORITY_TAIL_CALLS_MAX, PLUGIN_MEMORY_LIMIT_BYTES } from "#server/infra/plugin-host/budgets.ts";
+import { getPluginQuickJS } from "#server/infra/plugin-host/module.ts";
+import { installRealm, LogRing } from "#server/infra/plugin-host/realm.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
 const CHAT_A = "chat_aaaa000000000000000000000" as ChatId;

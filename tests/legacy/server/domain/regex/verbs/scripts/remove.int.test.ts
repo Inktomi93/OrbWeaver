@@ -7,12 +7,12 @@ import { regexScripts } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createDeleteReachCapture } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createRegexService, RegexNotFoundError } from "#server/domain/regex/index.ts";
+import { createDeleteReachCapture } from "#server/entry/compose/room-reach.ts";
 import { allowChat, makeHarness, principal, seedChat, seedScript, seedUser } from "../../_support.ts";
 
 describe("removeScript", () => {

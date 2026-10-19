@@ -7,7 +7,6 @@ import {
   getTraceByRequestId,
   initTracing,
   logger,
-  recordThrownRequest,
   span,
   superviseDetached,
   superviseSettled,
@@ -16,6 +15,7 @@ import {
 } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import { recordThrownRequest } from "#server/foundation/observability/tracing.ts";
 
 const PROBE_VALUE = 7;
 

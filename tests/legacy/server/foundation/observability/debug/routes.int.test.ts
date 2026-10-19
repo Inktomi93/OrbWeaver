@@ -21,7 +21,9 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { afterEach, describe } from "vitest";
-import { BUG_REPORT_MAX_BODY_BYTES, recordWireCapture, registerDebugRoutes, resetWireCaptures } from "#server/foundation/observability/debug/index.ts";
+import { recordWireCapture, registerDebugRoutes } from "#server/foundation/observability/debug/index.ts";
+import { BUG_REPORT_MAX_BODY_BYTES } from "#server/foundation/observability/debug/routes.ts";
+import { resetWireCaptures } from "#server/foundation/observability/debug/wire-capture.ts";
 
 const TOKEN = "operator-token";
 const UNAUTHORIZED = 401;

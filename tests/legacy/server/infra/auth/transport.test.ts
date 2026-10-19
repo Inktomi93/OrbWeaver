@@ -4,7 +4,7 @@
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { resolveClientScope, resolveTransport } from "#server/infra/auth/index.ts";
+import { resolveClientScope, resolveTransport } from "#server/infra/auth/transport.ts";
 
 const NO_PROXIES: readonly string[] = [];
 

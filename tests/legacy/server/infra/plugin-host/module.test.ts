@@ -2,11 +2,11 @@
 // is a singleton within the isolate and that it actually produces working, ISOLATED
 // contexts (own globals per context — the property the runtime was chosen for).
 
-import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { isFail } from "quickjs-emscripten-core";
 import { describe } from "vitest";
+import { getPluginQuickJS } from "#server/infra/plugin-host/module.ts";
 
 /** Eval a string-returning guest expression, disposing the handle. Throws if the guest errored. */
 function evalString(ctx: QuickJSContext, code: string): string {

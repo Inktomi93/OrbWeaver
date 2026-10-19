@@ -1,15 +1,8 @@
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
-import {
-  __setEgressResolverForTest,
-  ANY_HOST,
-  DEFAULT_TRUSTED_RANGES,
-  EgressBlockedError,
-  fetchImageBytes,
-  privateEgressRanges,
-  safeFetch,
-  shouldBlockEgress,
-} from "#server/infra/network/index.ts";
+import { __setEgressResolverForTest, privateEgressRanges, shouldBlockEgress } from "#server/infra/network/egress.ts";
+import { ANY_HOST, EgressBlockedError, fetchImageBytes, safeFetch } from "#server/infra/network/index.ts";
+import { DEFAULT_TRUSTED_RANGES } from "#server/infra/network/ip-ranges.ts";
 
 const allow = (...hosts: string[]): ReadonlySet<string> => new Set(hosts);
 const ABORT_RE = /abort/i;

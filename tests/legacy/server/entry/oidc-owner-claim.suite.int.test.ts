@@ -22,13 +22,9 @@ import { createOidcStore } from "#server/domain/sessions/persistence/oidc-store.
 import type { OidcRoutesDeps } from "#server/entry/http/index.ts";
 import { registerAuthRoutes } from "#server/entry/http/index.ts";
 import type { OwnerClaimCode } from "#server/infra/auth/index.ts";
-import {
-  createOwnerClaimCode,
-  OIDC_BINDING_COOKIE_NAME_INSECURE,
-  OIDC_BINDING_COOKIE_NAME_SECURE,
-  SESSION_COOKIE_NAME_INSECURE,
-  SESSION_COOKIE_NAME_SECURE,
-} from "#server/infra/auth/index.ts";
+import { createOwnerClaimCode } from "#server/infra/auth/index.ts";
+import { SESSION_COOKIE_NAME_INSECURE, SESSION_COOKIE_NAME_SECURE } from "#server/infra/auth/modes/cookie-session.ts";
+import { OIDC_BINDING_COOKIE_NAME_INSECURE, OIDC_BINDING_COOKIE_NAME_SECURE } from "#server/infra/auth/modes/oidc.ts";
 
 const PEPPER = "test-session-secret-at-least-32-chars-long";
 const PUBLIC_CALLBACK = "https://app.example/api/auth/oidc/callback";

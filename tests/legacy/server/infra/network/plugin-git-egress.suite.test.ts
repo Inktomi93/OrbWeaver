@@ -4,7 +4,8 @@
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, vi } from "vitest";
-import { __setEgressResolverForTest, guardedGitHttp } from "#server/infra/network/index.ts";
+import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
+import { guardedGitHttp } from "#server/infra/network/plugin-git.ts";
 
 const PUBLIC_ADDR = "93.184.216.34";
 

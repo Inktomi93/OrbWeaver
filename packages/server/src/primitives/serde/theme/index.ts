@@ -22,7 +22,7 @@ import type { ParsedStTheme } from "./st.ts";
 import { stThemeFromJson } from "./st.ts";
 
 export type { ParsedStTheme, StThemeParse } from "./st.ts";
-export { stThemeFromJson, stThemeName } from "./st.ts";
+export { stThemeFromJson } from "./st.ts";
 
 export const THEME_SCHEMA_KIND = "orb.theme";
 export const THEME_SCHEMA_VERSION = 1;

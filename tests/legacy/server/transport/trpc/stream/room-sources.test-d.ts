@@ -9,8 +9,9 @@
 
 import type { StreamChannel, StreamDataFrame, StreamRoomRef } from "@orb/contracts/stream";
 import type { RoomArgs, RoomSourceDef } from "@orb/server/transport/trpc";
-import { ROOM_SOURCES, roomSourceFor } from "@orb/server/transport/trpc";
+import { ROOM_SOURCES } from "@orb/server/transport/trpc";
 import { expectTypeOf, test } from "vitest";
+import { roomSourceFor } from "#server/transport/trpc/stream/room-sources.ts";
 
 test("ROOM_SOURCES is total over StreamChannel, and no wider", () => {
   expectTypeOf<keyof typeof ROOM_SOURCES>().toEqualTypeOf<StreamChannel>();

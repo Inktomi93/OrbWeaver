@@ -8,7 +8,6 @@ import { optimizeDb } from "@orb/db";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
-import { subscribeUserEvents } from "@orb/server/transport/trpc";
 import { freshCountedDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { test as base, expect, OWNER_USER_ID } from "@orb/testkit/node/fixtures.ts";
@@ -17,6 +16,7 @@ import { sql } from "drizzle-orm";
 import { SQLiteAsyncDialect } from "drizzle-orm/sqlite-core";
 import { vi } from "vitest";
 import { startPlannerMaintenance } from "#server/entry/boot/planner-maintenance.ts";
+import { subscribeUserEvents } from "#server/transport/trpc/user-events-bus.ts";
 
 const test = base.extend<{ db: Db; observed: Awaited<ReturnType<typeof freshCountedDb>> }>({
   observed: async ({}, use) => await use(await freshCountedDb()),

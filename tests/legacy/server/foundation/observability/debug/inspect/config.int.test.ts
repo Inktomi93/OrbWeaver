@@ -18,7 +18,7 @@ import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { characterDetailRow, characterPolicySweep, chatConfigRow, rpgGameForChat } from "#server/foundation/observability/debug/index.ts";
+import { characterDetailRow, characterPolicySweep, chatConfigRow, rpgGameForChat } from "#server/foundation/observability/debug/inspect/config.ts";
 
 const OWNER = castId<UserId>("user_config_probe");
 const OPEN_FLOOR: DeploymentRenderPolicy = { trustHtml: false, forbidExternalMedia: false, allowInteractiveCards: false };

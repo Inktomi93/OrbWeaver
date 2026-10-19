@@ -8,7 +8,8 @@
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
-import { __setEgressResolverForTest, EgressBlockedError, fetchPluginBundle } from "#server/infra/network/index.ts";
+import { __setEgressResolverForTest } from "#server/infra/network/egress.ts";
+import { EgressBlockedError, fetchPluginBundle } from "#server/infra/network/index.ts";
 
 const PUBLIC_ADDR = "93.184.216.34";
 

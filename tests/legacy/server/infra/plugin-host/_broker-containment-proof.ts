@@ -11,7 +11,8 @@ import { tmpdir } from "node:os";
 import { join, parse, relative, sep } from "node:path";
 import process from "node:process";
 import { DatabaseSync } from "node:sqlite";
-import type { formatPluginBrokerArguments, pluginBrokerExecArgv } from "@orb/server/infra/plugin-host";
+import type { formatPluginBrokerArguments } from "#server/infra/plugin-host/process-argv.ts";
+import type { pluginBrokerExecArgv } from "#server/infra/plugin-host/process-permission.ts";
 
 const DENIED = "ERR_ACCESS_DENIED";
 const PROBE = join(import.meta.dirname, "_broker-permission-probe.ts");

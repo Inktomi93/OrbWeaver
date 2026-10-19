@@ -23,4 +23,4 @@ export type {
 export { CLOUDFLARED_TARGETS } from "./contract.ts";
 export { createOwnedRelayLauncher } from "./execution.ts";
 export { CLOUDFLARED_PIN } from "./pin.ts";
-export { createQuickTunnelLauncher, quickTunnelOrigin, spawnQuickTunnel } from "./quick-tunnel.ts";
+export { createQuickTunnelLauncher, spawnQuickTunnel } from "./quick-tunnel.ts";

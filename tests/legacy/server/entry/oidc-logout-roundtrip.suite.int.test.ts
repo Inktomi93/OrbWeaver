@@ -53,7 +53,8 @@ import { beforeEach, describe } from "vitest";
 import type { AuthRoutesDeps, OidcRoutesDeps } from "#server/entry/http/index.ts";
 import { registerAuthRoutes } from "#server/entry/http/index.ts";
 import type { OidcTransaction, OidcVerifiedTokens } from "#server/infra/auth/index.ts";
-import { createOwnerClaimCode, OIDC_BINDING_COOKIE_NAME_SECURE } from "#server/infra/auth/index.ts";
+import { createOwnerClaimCode } from "#server/infra/auth/index.ts";
+import { OIDC_BINDING_COOKIE_NAME_SECURE } from "#server/infra/auth/modes/oidc.ts";
 
 /** The compact ID token standing in for what the IdP returned at the callback. Nothing under test parses
  *  it; its BYTES are the assertion — a mangled hint is one authentik rejects. */

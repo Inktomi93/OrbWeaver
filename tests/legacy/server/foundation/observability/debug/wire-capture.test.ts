@@ -10,9 +10,10 @@ import type { ProviderId } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { env } from "@orb/server/foundation/env";
-import { isWireCaptureEnabled, recentWireCaptures, recordWireCapture, resetWireCaptures } from "@orb/server/foundation/observability";
+import { isWireCaptureEnabled, recordWireCapture } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
+import { recentWireCaptures, resetWireCaptures } from "#server/foundation/observability/debug/wire-capture.ts";
 
 function capture(chatId: ChatId, wire: "openai-compat" | "agent-sdk", body: Record<string, unknown> = {}): void {
   recordWireCapture({

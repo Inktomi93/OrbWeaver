@@ -6,8 +6,8 @@
 import type { AssetCreatedEvent, CharacterUpdatedEvent, DomainEvent } from "@orb/contracts/events";
 import type { AssetId, CharacterId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createDomainEventBus } from "@orb/server/entry/compose";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createDomainEventBus } from "#server/entry/compose/event-bus.ts";
 
 test("emit delivers the event to a subscribed handler (the indexer subscription shape)", async () => {
   using bus = createDomainEventBus();

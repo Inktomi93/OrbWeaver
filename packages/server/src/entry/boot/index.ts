@@ -11,9 +11,9 @@ export { healLegacyBackgroundPinsOnBoot } from "./heal-legacy-background-pins.ts
 export type { LocalLightPrefetchPlanDeps } from "./local-light-prefetch.ts";
 export { planLocalLightPrefetch } from "./local-light-prefetch.ts";
 export type { MigrateDeps } from "./migrate.ts";
-export { DB_LAUNCHED, resolveMigrationsFolder, runBootMigrations } from "./migrate.ts";
+export { DB_LAUNCHED, runBootMigrations } from "./migrate.ts";
 export type { DataLayoutMigrationReport, DataLayoutMove, MigrateDataLayoutDeps } from "./migrate-data-layout.ts";
-export { LAYOUT_JOURNAL, migrateDataLayout } from "./migrate-data-layout.ts";
+export { migrateDataLayout } from "./migrate-data-layout.ts";
 export type { MigrateHandoffOfferVocabDeps } from "./migrate-handoff-offer-vocab.ts";
 export { migrateHandoffOfferVocabOnBoot } from "./migrate-handoff-offer-vocab.ts";
 export type { MigratePluginToolWireNamesDeps } from "./migrate-plugin-tool-wire-names.ts";

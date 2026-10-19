@@ -15,11 +15,11 @@ import { characterBooks, chatBooks, chatRegexScripts, globalBooks, personaBooks,
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { createDeleteReachCapture, createRoomEntityFan } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { createDeleteReachCapture, createRoomEntityFan } from "#server/entry/compose/room-reach.ts";
 import { seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "../../domain/chat/_support.ts";
 // The regex library-row factory (a plain insert, no verb) — the regex domain's own, so this file never
 // re-spells a `regex_scripts` fixture.

@@ -1,4 +1,3 @@
-
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 // foundation/observability/debug/routes — the /api/_debug two-tier auth gate (this gate previously
@@ -15,7 +14,7 @@ import { describe } from "vitest";
 // only c.req.header(), c.json(body,status), and next() — all mocked here — plus whatever the injected
 // `isAdmin` reads off the context, which in production is the request's already-resolved principal.
 import type { DebugAuthOptions } from "#server/foundation/observability/debug/index.ts";
-import { createDebugAuthMiddleware, toDebugLimit, tokenMatches } from "#server/foundation/observability/debug/index.ts";
+import { createDebugAuthMiddleware, toDebugLimit, tokenMatches } from "#server/foundation/observability/debug/routes.ts";
 
 interface MockResult {
   readonly body: unknown;

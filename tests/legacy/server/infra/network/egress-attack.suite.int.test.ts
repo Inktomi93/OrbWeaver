@@ -24,15 +24,14 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Dispatcher } from "undici";
 import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { afterAll, afterEach, beforeAll, describe, vi } from "vitest";
+import { __setEgressResolverForTest, shouldBlockEgress } from "#server/infra/network/egress.ts";
 import {
-  __setEgressResolverForTest,
   ANY_HOST,
   EgressBlockedError,
   endpointAdmission,
   installEgressFirewall,
   publishPrivateEndpointAllowlist,
   safeFetch,
-  shouldBlockEgress,
 } from "#server/infra/network/index.ts";
 
 // Capture/restore via undici's PUBLIC accessors — NEVER a hardcoded `Symbol.for("undici.globalDispatcher.N")`.

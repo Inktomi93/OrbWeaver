@@ -10,7 +10,7 @@ import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { sql } from "drizzle-orm";
-import { integrityProbe } from "#server/foundation/observability/debug/index.ts";
+import { integrityProbe } from "#server/foundation/observability/debug/inspect/integrity.ts";
 
 const SEEDED_THROUGH_SEQ = 4;
 const CANON_HASH = "canon-hash-integrity";

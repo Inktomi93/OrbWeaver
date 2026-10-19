@@ -11,8 +11,6 @@ import { ASSET_UPLOAD_MAX_BYTES } from "@orb/contracts/uploads";
 import { ffmpegPath } from "node-av/ffmpeg";
 import type { VideoPreparationOptions } from "./contract.ts";
 
-export type { VideoPreparationOptions } from "./contract.ts";
-
 const VIDEO_1080_WIDTH = 1920;
 const VIDEO_1080_HEIGHT = 1080;
 const VIDEO_720_WIDTH = 1280;

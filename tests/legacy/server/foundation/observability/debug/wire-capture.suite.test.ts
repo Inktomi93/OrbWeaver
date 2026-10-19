@@ -43,11 +43,11 @@ afterAll(() => {
   rmSync(EMPTY_DIR, { recursive: true, force: true });
 });
 
-/** Reimport the observability barrel under a controlled env — mirrors `reimportEnvWith` in
- *  `tests/server/foundation/env/index.test.ts`, but reimports the barrel that consumes `env` (wire-capture is
+/** Reimport the wire-capture module under a controlled env — mirrors `reimportEnvWith` in
+ *  `tests/server/foundation/env/index.test.ts`, but reimports the module that consumes `env` (wire-capture is
  *  a downstream module of the frozen env singleton, not env itself). */
 // biome-ignore-start lint/style/noProcessEnv: this test DRIVES the env reimport by crafting process.env, the same seam `tests/server/foundation/env/index.test.ts` uses.
-async function reimportWireCaptureWith(wireCapture: "on" | "off"): Promise<typeof import("@orb/server/foundation/observability")> {
+async function reimportWireCaptureWith(wireCapture: "on" | "off"): Promise<typeof import("#server/foundation/observability/debug/wire-capture.ts")> {
   for (const k of Object.keys(process.env)) {
     delete process.env[k];
   }
@@ -60,7 +60,7 @@ async function reimportWireCaptureWith(wireCapture: "on" | "off"): Promise<typeo
   const previousCwd = process.cwd();
   process.chdir(EMPTY_DIR);
   try {
-    return await import("@orb/server/foundation/observability");
+    return await import("#server/foundation/observability/debug/wire-capture.ts");
   } finally {
     process.chdir(previousCwd);
   }

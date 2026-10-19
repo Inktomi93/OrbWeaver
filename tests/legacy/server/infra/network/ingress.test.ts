@@ -6,7 +6,8 @@
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
-import { addressThrottleKey, ipAllowlistMiddleware, isIngressAllowed, parseAllowlist, resolveClientIp } from "#server/infra/network/index.ts";
+import { addressThrottleKey, ipAllowlistMiddleware, parseAllowlist } from "#server/infra/network/index.ts";
+import { isIngressAllowed, resolveClientIp } from "#server/infra/network/ingress.ts";
 
 describe("parseAllowlist", () => {
   test("splits, trims, and drops empties; unset is the empty belt-off list", () => {

@@ -118,7 +118,7 @@ export function allowedHostsReader(configured: readonly string[], relayHosts: Al
 }
 
 /** The unthrottled line for one refused host. The host rides in its own field, never in the message: the sender picks it. */
-export function reportHostNotAllowed(host: string, inContainer: boolean): void {
+function reportHostNotAllowed(host: string, inContainer: boolean): void {
   securityEvent(
     "host_not_allowed",
     { host },

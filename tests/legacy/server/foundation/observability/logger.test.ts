@@ -6,19 +6,10 @@ import { ProviderError } from "@orb/inference";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { RequestRecord } from "@orb/server/foundation/observability";
-import {
-  bindRequestUser,
-  getLog,
-  getRequestUserId,
-  logger,
-  logSerializers,
-  recentRequests,
-  recordRequest,
-  runInRequest,
-  securityEvent,
-} from "@orb/server/foundation/observability";
+import { bindRequestUser, getLog, logger, logSerializers, recordRequest, runInRequest, securityEvent } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import { getRequestUserId, recentRequests } from "#server/foundation/observability/logger.ts";
 
 function rec(id: string): RequestRecord {
   return { id, method: "GET", path: `/${id}`, status: 200, durationMs: 1, at: 1 };

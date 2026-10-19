@@ -9,7 +9,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { PluginGitPreviewStaleError, PluginGitSourceError, PluginNotFoundError } from "#server/domain/plugin/index.ts";
-import { createPluginGitSource } from "#server/infra/network/index.ts";
+import { createPluginGitSource } from "#server/infra/network/plugin-git.ts";
 import { makeBundle, makePluginHarness, ownerPrincipalFor, seedUser } from "../_support.ts";
 
 const REPOSITORY = "https://git.example/plugins/weather.git";

@@ -35,7 +35,6 @@ import type { CharacterId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CharacterService } from "@orb/server/domain/character";
 import { createEnqueueImportIndex, createSettleImportMemory } from "@orb/server/domain/import";
-import { subscribeUserEvents } from "@orb/server/transport/trpc";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
@@ -46,6 +45,7 @@ import type { StartWorkloadParams, WorkloadService } from "#server/domain/worklo
 import { WORKLOAD_NOT_ADMISSIBLE } from "#server/domain/workloads/index.ts";
 import type { PortabilityRunnerComposeDeps } from "#server/entry/compose/portability-runner.ts";
 import { buildPortabilityRunner } from "#server/entry/compose/portability-runner.ts";
+import { subscribeUserEvents } from "#server/transport/trpc/user-events-bus.ts";
 
 const OWNER = castId<UserId>("usr_runner_owner");
 const OTHER = castId<UserId>("usr_runner_other");

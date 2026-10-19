@@ -4,11 +4,11 @@
 // non-JSON typeof (function / symbol / bigint / undefined) collapses to guest `null`, even nested inside an
 // object, so a live host reference can never cross the membrane as anything but inert data.
 
-import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QuickJSContext } from "quickjs-emscripten-core";
 import { describe } from "vitest";
 import { jsToHandle } from "#server/infra/plugin-host/marshal.ts";
+import { getPluginQuickJS } from "#server/infra/plugin-host/module.ts";
 
 /** Marshal `value` into a guest handle, dump it back to a JS value, and dispose the handle — the round-trip the
  *  membrane performs on every host-fn result. */

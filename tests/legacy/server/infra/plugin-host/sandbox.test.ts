@@ -12,10 +12,11 @@
 
 import process from "node:process";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
-import { PLUGIN_INVOCATION_ENDED, Sandbox } from "@orb/server/infra/plugin-host";
+import { Sandbox } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { describe } from "vitest";
+import { PLUGIN_INVOCATION_ENDED } from "#server/infra/plugin-host/sandbox.ts";
 
 const FIXED_EPOCH = 1_700_000_000_000;
 const MS_PER_SEC = 1000;
