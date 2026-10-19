@@ -63,6 +63,12 @@ function enclosingDeclaration(node: Node): string {
   return names.length === 0 ? MODULE : names.join(".");
 }
 
+/** The id prefix every site keyed in `node`'s named container shares; an unresolved site there makes its
+ *  siblings' ordinals unknown, so neither join judges an id under it. */
+export function caughtFailureScope(path: string, node: Node): string {
+  return `${path}::${enclosingDeclaration(node)}::`;
+}
+
 /** One site with its identity, or with `siteId: undefined` when the classifier derived no anchor — such a
  *  site has no position to key on, and each consumer refuses it in its own terms rather than inventing one. */
 interface KeyedCaughtFailureSite {

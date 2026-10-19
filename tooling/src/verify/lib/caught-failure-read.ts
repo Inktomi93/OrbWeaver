@@ -8,6 +8,8 @@ import type { CaughtFailureReadServices } from "../contract/caught-failure.ts";
 /** Members whose literal values type a call as a failure outcome; the native plan asks exactly these. */
 export const FAILURE_OUTCOME_OK_MEMBER = "ok";
 export const FAILURE_OUTCOME_DISCRIMINANTS = ["kind", "status", "step", "verdict"] as const;
+/** Declaration hops the native closure walks past each nominated site; a read beyond them is unresolved (D328). */
+export const CAUGHT_FAILURE_CLOSURE_HOPS = 2;
 /** The member whose presence makes a rejection receiver promise-like. */
 export const PROMISE_LIKE_MEMBER = "then";
 

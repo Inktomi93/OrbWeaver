@@ -26,6 +26,8 @@ export function typeObservationDemandSchema<Anchor>(span: z.ZodType<Anchor>): z.
           properties: z.array(z.string()).optional(),
           callLiteralMembers: z.array(z.string()).optional(),
           presenceMembers: z.array(z.string()).optional(),
+          closureHops: z.number().int().nonnegative().optional(),
+          closureArgumentBodiesOnly: z.boolean().optional(),
           receiverMethods: z.array(z.string()).optional(),
           selectedPropertyGraph: z
             .strictObject({

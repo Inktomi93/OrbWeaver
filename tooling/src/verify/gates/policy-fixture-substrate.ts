@@ -75,6 +75,7 @@
 // waive out of it would re-open the door the 2026-08-24 incident closed.
 import type { CallExpression, Identifier } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { withinClosureBound } from "../../floor/code-facts/bounded-closure.ts";
 import type { FixturePathNativeRead, FixturePathOriginReader } from "../contract/fixture-path-origin.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -186,6 +187,14 @@ function judge(ctx: GatePolicyContext, paths: FixturePathOriginReader, { call, v
   }
 }
 
+/** A path origin that needs a fact past the bounded closure is an advisory unknown, never a clean pass. */
+function judgeWithinBound(ctx: GatePolicyContext, paths: FixturePathOriginReader, candidate: WriteCandidate): void {
+  const verdict = withinClosureBound(() => judge(ctx, paths, candidate));
+  if (verdict.kind === "unresolved") {
+    ctx.report.analysis(candidate.call, { kind: "unknown", reason: verdict.reason });
+  }
+}
+
 /** The canonical fixture door, restated in the proof mini-project: `fixtureBinding` resolves `test` through
  *  module identity, so a LOCAL callback carrying a `scratch` property mints nothing (a `mustFlag` row). */
 const SUPPORT = {
@@ -253,7 +262,7 @@ export const gate = defineGate({
           for (const call of sourceCalls) {
             const door = writeDoor(call, read);
             if (door !== undefined) {
-              judge(ctx, paths, { call, ...door });
+              judgeWithinBound(ctx, paths, { call, ...door });
             }
           }
         }

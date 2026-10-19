@@ -10,6 +10,7 @@ import {
   resolveStableExpression,
 } from "../../floor/code-facts/reference-fact.ts";
 import { resolved, unresolved } from "../../floor/code-facts/type-member-origin-core.ts";
+import { ClosureBoundError } from "../../floor/code-facts/type-observations-contract.ts";
 import type { FixturePathNativeRead } from "../contract/fixture-path-origin.ts";
 import type { GlobalOriginServices } from "../contract/origin-verdict.ts";
 import { requiredInvocationFact } from "./native-invocation.ts";
@@ -20,6 +21,10 @@ function assertCurrent(node: Node, read: FixturePathNativeRead | undefined): voi
       throw new Error("native fixture provenance type owner is unavailable");
     }
     read.evidence.typeObservations.assertNode(node);
+    const declaration = read.types.closureFrontier(node);
+    if (declaration !== undefined) {
+      throw new ClosureBoundError(node, declaration);
+    }
   }
 }
 

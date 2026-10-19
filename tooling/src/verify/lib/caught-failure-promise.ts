@@ -7,7 +7,16 @@ import { SyntaxKind } from "ts-morph";
 import { hasMember, memberReceivers } from "../../floor/code-facts/member-type-reads.ts";
 import type { CaughtFailureReadServices } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import { ambientIdentifier, hasInterveningWrite, importedName, literalMember, REJECTION_HANDLER_INDEX } from "./caught-failure-core.ts";
+import {
+  APPLY_FORWARDER,
+  ambientIdentifier,
+  BIND_FORWARDER,
+  CALL_FORWARDER,
+  hasInterveningWrite,
+  importedName,
+  literalMember,
+  REJECTION_HANDLER_INDEX,
+} from "./caught-failure-core.ts";
 import { PROMISE_LIKE_MEMBER, rawFailureDeclarations } from "./caught-failure-read.ts";
 
 function isZodSchemaExpression(node: Node, seen: ReadonlySet<Node> = new Set(), reads?: CaughtFailureReadServices): boolean {
@@ -84,7 +93,7 @@ function calledRejection(
   member: { readonly name: string; readonly receiver: Node },
   reads?: CaughtFailureReadServices,
 ): PromiseRejectionInvocation | undefined {
-  const link = member.name === "call" ? rejectionLink(literalMember(member.receiver, reads)?.name) : undefined;
+  const link = member.name === CALL_FORWARDER ? rejectionLink(literalMember(member.receiver, reads)?.name) : undefined;
   if (link === undefined) {
     return;
   }
@@ -99,7 +108,7 @@ function appliedRejection(
   member: { readonly name: string; readonly receiver: Node },
   reads?: CaughtFailureReadServices,
 ): PromiseRejectionInvocation | undefined {
-  if (member.name !== "apply") {
+  if (member.name !== APPLY_FORWARDER) {
     return;
   }
   const reflect = ambientIdentifier(member.receiver, "Reflect", new Set(), reads);
@@ -120,12 +129,11 @@ function boundRejection(call: CallExpression, callee: Node, reads?: CaughtFailur
     return;
   }
   const declaration = rawFailureDeclarations(callee, reads)[0];
-  if (declaration?.isKind(SyntaxKind.VariableDeclaration) !== true || hasInterveningWrite(callee, declaration, reads)) {
-    return;
-  }
-  const initializer = declaration.getInitializerIfKind(SyntaxKind.CallExpression);
+  // The call-initializer test runs before the write guard: the native plan roots only callees whose
+  // same-file declaration is initialized by a call, so only those carry the file's write facts.
+  const initializer = declaration?.asKind(SyntaxKind.VariableDeclaration)?.getInitializerIfKind(SyntaxKind.CallExpression);
   const bind = initializer === undefined ? undefined : literalMember(initializer.getExpression(), reads);
-  if (initializer === undefined || bind?.name !== "bind") {
+  if (declaration === undefined || initializer === undefined || bind?.name !== BIND_FORWARDER || hasInterveningWrite(callee, declaration, reads)) {
     return;
   }
   const link = rejectionLink(literalMember(bind.receiver, reads)?.name);

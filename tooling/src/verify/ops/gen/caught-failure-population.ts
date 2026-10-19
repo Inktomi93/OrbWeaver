@@ -26,6 +26,7 @@ import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import type { SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { withinClosureBound } from "../../../floor/code-facts/bounded-closure.ts";
 import type {
   CaughtFailureArm,
   CaughtFailurePopulation,
@@ -69,7 +70,12 @@ interface DerivedSite {
  *  loudly: a census row naming no position would read exactly like a waivable site that nobody waived. */
 function derivedSites(sf: SourceFile, path: string, reads: CaughtFailureReadServices): readonly DerivedSite[] {
   const lines = sf.getFullText().split(/\r?\n/u);
-  return keyCaughtFailureSites(path, caughtFailureReviewSites(sf, reads)).map(({ site, siteId, ordinal }) => {
+  const read = withinClosureBound(() => caughtFailureReviewSites(sf, reads));
+  if (read.kind === "unresolved") {
+    // The census records every site's judgment; an unknown site can be neither recorded nor dropped.
+    throw new Error(`caught-failure-population: ${path} has a site past the bounded native closure (${read.reason}); the census cannot be derived.`);
+  }
+  return keyCaughtFailureSites(path, read.value).map(({ site, siteId, ordinal }) => {
     if (site.anchor === undefined || siteId === undefined) {
       throw new Error(
         `caught-failure-population: the site at ${path}:${site.node.getStartLineNumber()} has no derivable waiver position. ` +

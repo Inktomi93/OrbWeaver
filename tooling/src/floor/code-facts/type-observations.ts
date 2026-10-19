@@ -233,6 +233,8 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
   const arrayElements = new Map<number, NonNullable<NativeTypeObservations["arrayElements"]>[number]>();
   const predicateInputs = new Map<MorphNode, PredicateInputValues>();
   const reader: TypeObservationCapture["reader"] = {
+    // The live checker answers every node; only a delivered replay has a closure frontier.
+    closureFrontier: () => undefined,
     callableBody: (node) => {
       admit(node);
       if (!rawSlots || owner.callableDeclaration === undefined) {

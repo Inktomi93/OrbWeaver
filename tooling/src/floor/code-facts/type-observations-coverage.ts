@@ -201,6 +201,17 @@ function assertTypeArgumentIdentity<Anchor>(
     throw new Error("native Type argument identity is foreign");
   }
 }
+function assertClosureNominations<Anchor>(questions: readonly import("./type-observations-contract.ts").TypeObservationQuestion<Anchor>[]): void {
+  for (const q of questions) {
+    const closure = q.kind === "symbol-closure" || q.kind === "reference-closure";
+    if (!closure && [q.callLiteralMembers, q.presenceMembers, q.closureHops, q.closureArgumentBodiesOnly].some((value) => value !== undefined)) {
+      throw new Error("native closure member nomination is foreign");
+    }
+    if (closure && q.closureHops === undefined) {
+      throw new Error("native symbol closure is unbounded");
+    }
+  }
+}
 function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
   const questions = facts.demand.questions ?? [];
   if (
@@ -239,13 +250,7 @@ function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key:
   if (questions.some((q) => q.properties !== undefined && new Set(q.properties).size !== q.properties.length)) {
     throw new Error("native raw property nomination is ambiguous");
   }
-  for (const members of questions.flatMap((q) =>
-    q.kind === "symbol-closure" || q.kind === "reference-closure" ? [] : [q.callLiteralMembers, q.presenceMembers],
-  )) {
-    if (members !== undefined) {
-      throw new Error("native closure member nomination is foreign");
-    }
-  }
+  assertClosureNominations(questions);
   uniqueRawKeys(questions.map((q) => q.kind));
   for (const q of questions) {
     uniqueRawKeys(q.nodes.map(key));

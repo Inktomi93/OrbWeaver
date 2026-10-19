@@ -21,6 +21,13 @@
 // (`catchClauseSite`/`promiseAbsorberSite`) and the anchor/site assembly its consumers import; the move-stable
 // site identity is the sixth sibling, -identity.ts.
 //
+// ── THE FINITE BLOCKING CLAIM (D328) ────────────────────────────────────────────────────────────────────
+// A verdict blocks only when the reader decides it from the site's own subtree plus at most
+// `CAUGHT_FAILURE_CLOSURE_HOPS` declaration hops: a named handler, factory or hook body, a logger, notice,
+// zod or factory-origin initializer, a const string, a bound alias. A verdict that needs a Type answer past
+// that bound is an explicit advisory unknown (`report.analysis`): never owned, never a finding. The census
+// generator refuses rather than record or drop such a site.
+//
 // ── THE ARMS ────────────────────────────────────────────────────────────────────────────────────────────
 //   promise   a `.catch(h)` / `.then(_, h)` — in ANY spelling: dot or bracket key (literal,
 //             parenthesized, literal-typed, `+`-concatenated, same-file const), optional access, and

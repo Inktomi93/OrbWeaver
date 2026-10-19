@@ -2,15 +2,23 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node, SourceFile } from "ts-morph";
 import { Project, SyntaxKind, ts } from "ts-morph";
+import type { BoundedRead } from "../../../../tooling/src/floor/code-facts/bounded-closure.ts";
+import { withinClosureBound } from "../../../../tooling/src/floor/code-facts/bounded-closure.ts";
 import type { NativeInvocationEvidence } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { captureTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations.ts";
+import type { TypeObservationDemand } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
 import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
 import type { NativeTypeSelector } from "../../../../tooling/src/floor/code-facts/type-projection-contract.ts";
 import { nodeTypeSelector } from "../../../../tooling/src/floor/code-facts/type-projection-contract.ts";
 import type { CaughtFailureReadServices } from "../../../../tooling/src/verify/contract/caught-failure.ts";
-import { caughtFailureReviewSites } from "../../../../tooling/src/verify/lib/caught-failure.ts";
+import { catchClauseSite, caughtFailureReviewSites, caughtFailureSite } from "../../../../tooling/src/verify/lib/caught-failure.ts";
 import { nativeFailureRead } from "../../../../tooling/src/verify/lib/caught-failure-native.ts";
-import { FAILURE_OUTCOME_DISCRIMINANTS, FAILURE_OUTCOME_OK_MEMBER, PROMISE_LIKE_MEMBER } from "../../../../tooling/src/verify/lib/caught-failure-read.ts";
+import {
+  CAUGHT_FAILURE_CLOSURE_HOPS,
+  FAILURE_OUTCOME_DISCRIMINANTS,
+  FAILURE_OUTCOME_OK_MEMBER,
+  PROMISE_LIKE_MEMBER,
+} from "../../../../tooling/src/verify/lib/caught-failure-read.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const OUTCOME_MEMBERS: readonly string[] = [FAILURE_OUTCOME_OK_MEMBER, ...FAILURE_OUTCOME_DISCRIMINANTS];
@@ -44,9 +52,9 @@ interface PlannedRead {
   readonly reads: CaughtFailureReadServices;
 }
 
-function plannedRead(count: number): PlannedRead {
+function plannedRead(count: number, text = `${SITES}\n${fillers(count)}`): PlannedRead {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { strict: true, target: ts.ScriptTarget.ES2022 } });
-  const source = project.createSourceFile("/packages/server/src/probe.ts", `${SITES}\n${fillers(count)}`);
+  const source = project.createSourceFile("/packages/server/src/probe.ts", text);
   const facts = isolatedTypeFacts(project);
   const owner = "caught-failure-type-plan";
   const evidence: NativeInvocationEvidence[] = [];
@@ -127,11 +135,37 @@ test("closure member nominations on a non-closure question refuse instead of pla
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { strict: true } });
   const source = project.createSourceFile("/members.ts", "declare const held: Promise<void>;");
   const node = source.getVariableDeclarationOrThrow("held");
-  const demand = {
+  const demand: TypeObservationDemand = {
     profile: TYPE_OBSERVATION_PROFILE,
     sources: [source],
     nodes: [],
-    questions: [{ kind: "type-details" as const, nodes: [node], presenceMembers: [PROMISE_LIKE_MEMBER] }],
+    questions: [{ kind: "type-details", nodes: [node], presenceMembers: [PROMISE_LIKE_MEMBER] }],
   };
   expect(() => captureTypeObservations(demand, { anchor: source, admit: () => undefined })).toThrow("native closure member nomination is foreign");
+});
+
+// A refusal one factory hop away, and the same refusal one hop past the closure bound: `never` decides both.
+const BOUNDED = `
+declare function work(): void;
+declare function halt(): never;
+function near(): unknown { return halt(); }
+function hop3(): unknown { return halt(); }
+function hop2(): unknown { return hop3(); }
+function hop1(): unknown { return hop2(); }
+function settle() { return { status: "ok" }; }
+export function inside() { try { work(); } catch { return settle(); } }
+export function owned() { try { work(); } catch { return near(); } }
+export function past() { try { work(); } catch { return hop1(); } }
+`;
+
+test("a verdict inside the closure bound still blocks, and one past it is unknown rather than clean", () => {
+  expect(CAUGHT_FAILURE_CLOSURE_HOPS).toBe(2);
+  const { source, reads } = plannedRead(0, BOUNDED);
+  const verdict = (name: string): BoundedRead<string | undefined> =>
+    withinClosureBound(() => caughtFailureSite(source.getFunctionOrThrow(name).getFirstDescendantByKindOrThrow(SyntaxKind.CatchClause), reads)?.arm);
+  expect(verdict("inside")).toEqual({ kind: "resolved", value: "empty" });
+  expect(verdict("owned")).toEqual({ kind: "resolved", value: undefined });
+  expect(verdict("past")).toMatchObject({ kind: "unresolved" });
+  // The unbounded ts-morph reading owns the same chain, so the bound replaces a clean verdict with an unknown.
+  expect(catchClauseSite(source.getFunctionOrThrow("past").getFirstDescendantByKindOrThrow(SyntaxKind.CatchClause))).toBeUndefined();
 });

@@ -110,6 +110,7 @@
 // census and its health sibling must walk this exact corpus too.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { withinClosureBound } from "../../floor/code-facts/bounded-closure.ts";
 import type { CaughtFailureArm } from "../contract/caught-failure.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
@@ -172,7 +173,12 @@ export const gate = defineGate({
       evaluate: (): void => {
         for (const node of nominees) {
           const reads = native.at(node.getSourceFile());
-          reportSite(ctx, caughtFailureSite(node, reads));
+          const verdict = withinClosureBound(() => caughtFailureSite(node, reads));
+          if (verdict.kind === "unresolved") {
+            ctx.report.analysis(node, { kind: "unknown", reason: verdict.reason });
+          } else {
+            reportSite(ctx, verdict.value);
+          }
         }
       },
     };

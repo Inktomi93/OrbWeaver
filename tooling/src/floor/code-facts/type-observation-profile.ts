@@ -15,7 +15,7 @@ export function observeAuthoredTypeSlots(
   demand: TypeObservationDemand,
   readers: TypeObservationReader,
   profile?: TypeObservationCaptureOwner["profile"],
-  captureOwner?: Pick<TypeObservationCaptureOwner, "references" | "module" | "node">,
+  captureOwner?: Pick<TypeObservationCaptureOwner, "references" | "module" | "node" | "closureBound">,
 ): void {
   if (demand.questions !== undefined) {
     observeRawQuestions(demand, readers, profile, captureOwner);

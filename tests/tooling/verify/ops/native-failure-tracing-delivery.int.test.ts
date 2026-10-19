@@ -15,6 +15,7 @@ import { gate as ownership } from "../../../../tooling/src/verify/gates/caught-f
 import { gate as ownershipHealth } from "../../../../tooling/src/verify/gates/caught-failure-ownership-health.ts";
 import { gate as traced } from "../../../../tooling/src/verify/gates/detached-work-traced.ts";
 import { catchClauseSite, promiseAbsorberSite } from "../../../../tooling/src/verify/lib/caught-failure.ts";
+import { CAUGHT_FAILURE_CLOSURE_HOPS, PROMISE_LIKE_MEMBER } from "../../../../tooling/src/verify/lib/caught-failure-read.ts";
 import { deriveRootSpanOpeners, TRACING_MODULE, untracedDispatchSite } from "../../../../tooling/src/verify/lib/detached-work.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
@@ -61,7 +62,7 @@ test(
           profile: TYPE_OBSERVATION_PROFILE,
           sources: [source],
           nodes: [],
-          questions: [{ kind: "reference-closure", nodes: [name], properties: ["then", "ok", "kind", "status", "step", "verdict"] }],
+          questions: [{ kind: "reference-closure", nodes: [name], presenceMembers: [PROMISE_LIKE_MEMBER], closureHops: CAUGHT_FAILURE_CLOSURE_HOPS }],
         },
         (node) => ({ file: node.getSourceFile().getFilePath(), start: node.getStart(), end: node.getEnd(), kind: node.getKind() }),
       ),

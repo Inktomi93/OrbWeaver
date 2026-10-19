@@ -7,10 +7,9 @@ import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
-import type { CaughtFailureSite } from "../lib/caught-failure.ts";
-import { CAUGHT_FAILURE_POPULATION, caughtFailureSite } from "../lib/caught-failure.ts";
+import { CAUGHT_FAILURE_POPULATION } from "../lib/caught-failure.ts";
 import { censusSiteIds, keyCaughtFailureSites } from "../lib/caught-failure-identity.ts";
-import { nativeFailureRead } from "../lib/caught-failure-native.ts";
+import { boundedFailureSites, nativeFailureRead } from "../lib/caught-failure-native.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const POPULATION_PATH = JSON_RESOURCE_PATHS["caught-failure-population"];
@@ -44,14 +43,8 @@ export const gate = defineGate({
   message: MESSAGE,
   fix: FIX,
   create: (ctx) => {
-    const sitesByPath = new Map<string, CaughtFailureSite[]>();
     const nominees: Node[] = [];
     const native = nativeFailureRead(ctx, () => nominees);
-    const collect = (path: string, site: CaughtFailureSite | undefined): void => {
-      if (site !== undefined) {
-        sitesByPath.set(path, [...(sitesByPath.get(path) ?? []), site]);
-      }
-    };
     return {
       visitors: [
         {
@@ -63,10 +56,9 @@ export const gate = defineGate({
       ],
       prepare: native.prepare,
       evaluate: () => {
-        for (const node of nominees) {
-          const reads = native.at(node.getSourceFile());
-          collect(ctx.relativePath(node.getSourceFile()), caughtFailureSite(node, reads));
-        }
+        const { sitesByPath, uncertainScopes } = boundedFailureSites(nominees, native, ctx.relativePath, (node, reason) =>
+          ctx.report.analysis(node, { kind: "unknown", reason }),
+        );
         const read = censusSiteIds(readyResourceValue(ctx.resources.json("caught-failure-population")).value);
         // A census that is not a census is `caught-failure-ownership-health`'s finding; this arm cannot join against it.
         if (!read.ok) {
@@ -76,7 +68,7 @@ export const gate = defineGate({
         for (const [path, sites] of sitesByPath) {
           for (const { site, siteId } of keyCaughtFailureSites(path, sites)) {
             // A site with no derivable anchor has no id; the health policy reports it.
-            if (siteId !== undefined && !committed.has(siteId)) {
+            if (siteId !== undefined && !committed.has(siteId) && !uncertainScopes.some((scope) => siteId.startsWith(scope))) {
               ctx.report.node(site.node, { message: missingRow(siteId) });
             }
           }

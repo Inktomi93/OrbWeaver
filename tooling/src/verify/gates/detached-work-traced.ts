@@ -109,6 +109,7 @@
 // both.
 import type { Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { withinClosureBound } from "../../floor/code-facts/bounded-closure.ts";
 import type { GatePolicyContext } from "../contract/policy.ts";
 import { defineGate } from "../contract/policy.ts";
 import { nativeFailureRead } from "../lib/caught-failure-native.ts";
@@ -185,14 +186,22 @@ export const gate = defineGate({
         if (openers.size === 0) {
           throw new Error(`detached-work-traced derived ZERO root-span openers from ${TRACING_MODULE}; the occurrence vocabulary is unavailable`);
         }
+        const judge = (node: Node, site: () => DetachedWorkSite | undefined): void => {
+          const verdict = withinClosureBound(site);
+          if (verdict.kind === "unresolved") {
+            ctx.report.analysis(node, { kind: "unknown", reason: verdict.reason });
+          } else {
+            reportSite(ctx, verdict.value);
+          }
+        };
         for (const statement of statements) {
-          reportSite(ctx, untracedDispatchSite(statement, openers, native.at(statement.getSourceFile())));
+          judge(statement, () => untracedDispatchSite(statement, openers, native.at(statement.getSourceFile())));
         }
         for (const clause of clauses) {
-          reportSite(ctx, swallowingCatchSite(clause, openers, native.at(clause.getSourceFile())));
+          judge(clause, () => swallowingCatchSite(clause, openers, native.at(clause.getSourceFile())));
         }
         for (const call of calls) {
-          reportSite(ctx, blindedRejectionSite(call, openers, native.at(call.getSourceFile())));
+          judge(call, () => blindedRejectionSite(call, openers, native.at(call.getSourceFile())));
         }
       },
     };

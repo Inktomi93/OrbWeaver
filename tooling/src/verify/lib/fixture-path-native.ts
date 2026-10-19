@@ -1,4 +1,6 @@
 // Closed fixture grammar questions retain the actual importing owner, including imported const terminals.
+// Finite blocking claim (D328): a path origin decided within `FIXTURE_PATH_CLOSURE_HOPS` declaration hops of the
+// fixture's calls; one that needs a fact past the bound is an advisory unknown, never a clean pass.
 import type { CallExpression, Identifier, Node, SourceFile } from "ts-morph";
 import { Node as MorphNode } from "ts-morph";
 import type { InventoryInvocationPlan, InventorySpan, NativeInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";
@@ -7,6 +9,9 @@ import { TYPE_OBSERVATION_PROFILE } from "../../floor/code-facts/type-observatio
 import { readTypeObservations } from "../../floor/code-facts/type-observations-read.ts";
 import type { FixturePathNativeContext, FixturePathNativePass, FixturePathNativeRead } from "../contract/fixture-path-origin.ts";
 import { requiredInvocationFact } from "./native-invocation.ts";
+
+/** Declaration hops the fixture closure walks past each nominated call; a read beyond them is unresolved (D328). */
+export const FIXTURE_PATH_CLOSURE_HOPS = 2;
 
 export function nativeFixturePathPass(
   ctx: FixturePathNativeContext,
@@ -51,7 +56,7 @@ export function nativeFixturePathPass(
             nodes: [],
             questions: [
               { kind: "const-initializers", nodes: identifiers },
-              { kind: "symbol-closure", nodes: calls, valueFacets: ["module", "global", "stable"] },
+              { kind: "symbol-closure", nodes: calls, valueFacets: ["module", "global", "stable"], closureHops: FIXTURE_PATH_CLOSURE_HOPS },
               { kind: "function-exports", nodes: exports },
             ],
           },
