@@ -83,9 +83,11 @@ import { fileURLToPath } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import {
   SERVER_FACTORY_TIER_REFERENCE_POLICY_ID,
+  serverFactoryTier,
   serverTypeTier,
   TYPE_HOME_NATIVE_POLICY_ID,
   UI_TOKEN_AUTHORING_CONTRACT_HOME,
+  unjudgedServerFile,
 } from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
 import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
@@ -124,7 +126,7 @@ import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TO
 import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
 import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
 import { serverFactoryTypeHome } from "./tooling/src/floor/code-facts/server-factory-type-home.ts";
-import { readServerPublicBoundary } from "./tooling/src/floor/code-facts/server-public-boundary.ts";
+import { readServerAugmentationBoundary, readServerPublicBoundary } from "./tooling/src/floor/code-facts/server-public-boundary.ts";
 import { isZodShapeCall } from "./tooling/src/floor/code-facts/shape-declaration.ts";
 import { readStaticAuthoredScalar } from "./tooling/src/floor/code-facts/static-authored-value.ts";
 import {
@@ -144,6 +146,8 @@ import {
   ENTRY_WIRING_GLOBS,
   QUERY_FREE_BOOT_GLOBS,
 } from "./tooling/src/verify/contract/compose-query-capability.ts";
+import { ROOT_SPAN_OPENERS } from "./tooling/src/verify/contract/detached-work.ts";
+import { FS_SPECIFIERS, FS_WRITE_VERBS } from "./tooling/src/verify/contract/fs-write-verbs.ts";
 import { MANUAL_MEMO_CUSTOM_HOMES, MANUAL_MEMO_EXPORTS } from "./tooling/src/verify/contract/manual-memo.ts";
 import { MODEL_PROSE_SEAM_FILES, MODEL_PROSE_SEAM_PREFIXES } from "./tooling/src/verify/contract/model-prose-seam.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
@@ -1340,6 +1344,264 @@ const TURN_IDENTITY_RESTRICTIONS = [
         message: "D19: the turn engine receives frozen runAsUserId/funderUserId/triggeredBy facts, never a request principal binding.",
       },
     ],
+  },
+  {
+    // Matching the imported name from any source also covers barrels, re-exports and an unresolvable door.
+    id: "turn-identity-principal",
+    scope: ["packages/server/src/domain/chat/engine/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [
+      {
+        selector:
+          // A heritage clause names a namespace member as a MemberExpression, which TSQualifiedName does not match.
+          ":matches(ImportSpecifier[imported.name='Principal'], ImportSpecifier[imported.value='Principal'], ExportSpecifier[local.name='Principal'], ExportSpecifier[local.value='Principal'], TSQualifiedName[right.name='Principal'], TSImportType[qualifier.name='Principal'], :matches(TSInterfaceHeritage, TSClassImplements) > MemberExpression[property.name='Principal'])",
+        message: "D19: the chat engine is Principal-blind; resolve the runAsUserId/triggeredBy triple at the verb layer and pass it down.",
+      },
+    ],
+  },
+];
+
+// ── PRINCIPAL CONSTRUCTION (D1/D40)───────────────────────────────────────────────────────────────────────
+// SECURITY: the contracts brand makes a literal, a spread or a `satisfies` check a type error. tsc still accepts an
+// `any` value, an Object.assign intersection and any value asserted past the brand, so these rules refuse those
+// spellings in server and inference code. HARD (`hardConfig` only): no inline directive or bulk suppression excuses
+// one. Each rule exempts registered functions, never a whole file, so a new mint site is a reviewed edit here.
+const PRINCIPAL_SCOPE = rootSources("@server", "@inference");
+const PRINCIPAL_MINT_HOME = "packages/server/src/entry/auth/principal-mint.ts";
+const AUTH_SEAM = "packages/server/src/entry/auth/seam.ts";
+const HOST_BRIDGE = "packages/server/src/entry/compose/chat.ts";
+const PRINCIPAL_MINT_NAME = "mintPrincipal";
+const PRINCIPAL_CONSTRUCTOR = { path: PRINCIPAL_MINT_HOME, name: PRINCIPAL_MINT_NAME };
+const ROW_MAPPER = { path: AUTH_SEAM, name: "principalFromRow" };
+const HOST_FLOOR = { path: HOST_BRIDGE, name: "hostPrincipal" };
+/** Functions that may return a bare Principal: the constructor, the row mapper (D135) and the host floor (invariant 1). */
+const PRINCIPAL_RETURN_SITES = [PRINCIPAL_CONSTRUCTOR, ROW_MAPPER, HOST_FLOOR];
+/** Functions that may call the constructor: the three request paths of the seam, the row mapper and the host floor. */
+const PRINCIPAL_MINT_CALLERS = [
+  PRINCIPAL_CONSTRUCTOR,
+  { path: AUTH_SEAM, name: "resolveCookiePrincipal" },
+  { path: AUTH_SEAM, name: "resolveHeaderOrFallbackPrincipal" },
+  ROW_MAPPER,
+  HOST_FLOOR,
+];
+const PRINCIPAL_TYPE_REFERENCE = "TSTypeReference:matches([typeName.name='Principal'], [typeName.right.name='Principal'])";
+const PRINCIPAL_FUNCTIONS = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
+const PRINCIPAL_CASTS = new Set(["TSAsExpression", "TSTypeAssertion"]);
+const PRINCIPAL_WRAPPERS = new Set([...PRINCIPAL_CASTS, "TSSatisfiesExpression", "TSNonNullExpression"]);
+// The children an expression's value or leading `{` can come from. The walk has no depth bound, so stacking
+// assertions, parentheses or a member read cannot carry a literal past it.
+const PRINCIPAL_VALUE_SOURCES = {
+  TSAsExpression: ["expression"],
+  TSSatisfiesExpression: ["expression"],
+  TSTypeAssertion: ["expression"],
+  TSNonNullExpression: ["expression"],
+  TSInstantiationExpression: ["expression"],
+  ChainExpression: ["expression"],
+  AwaitExpression: ["argument"],
+  AssignmentExpression: ["right"],
+  ConditionalExpression: ["test", "consequent", "alternate"],
+  LogicalExpression: ["left", "right"],
+  BinaryExpression: ["left"],
+  MemberExpression: ["object"],
+  CallExpression: ["callee"],
+  TaggedTemplateExpression: ["tag"],
+};
+const PRINCIPAL_LITERAL_MESSAGE =
+  "D1/D40: an object literal in a Principal position is a hand-built identity; tsc accepts it only when the literal is any-typed or asserted past the brand. Receive the caller's Principal or resolve one through the entry mint.";
+
+const isPrincipalType = (type) =>
+  type?.type === "TSTypeReference" &&
+  ((type.typeName.type === "Identifier" && type.typeName.name === "Principal") ||
+    (type.typeName.type === "TSQualifiedName" && type.typeName.right.name === "Principal"));
+
+/** The declared name of a function: its own id, or the binding, property or method key that holds it. */
+function principalFunctionName(fn) {
+  if (fn.id?.type === "Identifier") {
+    return fn.id.name;
+  }
+  const { parent } = fn;
+  if (parent.type === "VariableDeclarator") {
+    return parent.id.type === "Identifier" ? parent.id.name : null;
+  }
+  const keyed = ["Property", "MethodDefinition", "PropertyDefinition"].includes(parent.type);
+  return keyed && parent.key.type === "Identifier" ? parent.key.name : null;
+}
+
+/** Whether the function nearest `node` (or `node` itself) is one of `sites` in this file. A nested callback is not. */
+function inPrincipalSite(context, node, sites) {
+  const path = relative(context.cwd, context.filename).replaceAll("\\", "/");
+  const fn = PRINCIPAL_FUNCTIONS.has(node.type) ? node : context.sourceCode.getAncestors(node).findLast((ancestor) => PRINCIPAL_FUNCTIONS.has(ancestor.type));
+  const name = fn === undefined ? null : principalFunctionName(fn);
+  return sites.some((site) => site.path === path && site.name === name);
+}
+
+/** Every object literal the value of `expression` can be built from, at any depth. */
+function principalLiterals(expression) {
+  if (expression === null || expression === undefined) {
+    return [];
+  }
+  if (expression.type === "ObjectExpression") {
+    return [expression];
+  }
+  if (expression.type === "SequenceExpression") {
+    return [...principalLiterals(expression.expressions[0]), ...principalLiterals(expression.expressions.at(-1))];
+  }
+  return (PRINCIPAL_VALUE_SOURCES[expression.type] ?? []).flatMap((key) => principalLiterals(expression[key]));
+}
+
+const principalAssertionRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      // Any Principal inside the asserted type counts: `as Principal[]`, `as Principal | null` and `satisfies` launder alike.
+      [`:matches(TSAsExpression, TSTypeAssertion, TSSatisfiesExpression) > .typeAnnotation:matches(${PRINCIPAL_TYPE_REFERENCE}, :has(${PRINCIPAL_TYPE_REFERENCE}))`](
+        node,
+      ) {
+        if (!inPrincipalSite(context, node, [PRINCIPAL_CONSTRUCTOR])) {
+          context.report({
+            node,
+            message: "D1/D40: an asserted Principal skips the entry mint. Receive the caller's Principal or resolve one with createHostPrincipalResolver.",
+          });
+        }
+      },
+    };
+  },
+};
+
+// tsc accepts an `any` value (JSON.parse, an untyped row) in a Principal return position, so each return site is registered.
+const principalReturnSiteRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      ":matches(FunctionDeclaration, FunctionExpression, ArrowFunctionExpression, TSDeclareFunction)"(fn) {
+        const type = fn.returnType?.typeAnnotation;
+        if (isPrincipalType(type) && !(PRINCIPAL_FUNCTIONS.has(fn.type) && inPrincipalSite(context, fn, PRINCIPAL_RETURN_SITES))) {
+          context.report({
+            node: type,
+            message:
+              "D1/D40: a function returning a bare Principal is a mint site. Receive the caller's Principal or resolve one with createHostPrincipalResolver.",
+          });
+        }
+      },
+    };
+  },
+};
+
+const principalMintSiteRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = (node) => {
+      if (!inPrincipalSite(context, node, PRINCIPAL_MINT_CALLERS)) {
+        context.report({
+          node,
+          message: `D1/D40: only the registered entry mint sites (PRINCIPAL_MINT_CALLERS in eslint.config.js) name ${PRINCIPAL_MINT_NAME}. Receive the caller's Principal or resolve one with createHostPrincipalResolver.`,
+        });
+      }
+    };
+    return {
+      [`Identifier[name='${PRINCIPAL_MINT_NAME}']`](node) {
+        // A plain import is the edge dependency-cruiser's principal-mint-owners judges; an alias hides later calls.
+        const plainImport =
+          node.parent.type === "ImportSpecifier" && node.parent.imported.name === PRINCIPAL_MINT_NAME && node.parent.local.name === PRINCIPAL_MINT_NAME;
+        if (!plainImport) {
+          report(node);
+        }
+      },
+      // A computed member or a string import name spells the constructor without an identifier.
+      [`:matches(MemberExpression[computed=true] > Literal.property, ImportSpecifier > Literal.imported, ExportSpecifier > Literal.local)[value='${PRINCIPAL_MINT_NAME}']`]:
+        report,
+      [`MemberExpression[computed=true] > TemplateLiteral.property[expressions.length=0][quasis.0.value.cooked='${PRINCIPAL_MINT_NAME}']`]: report,
+    };
+  },
+};
+
+const principalLiteralRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const judge = (type, value) => {
+      if (isPrincipalType(type)) {
+        for (const node of principalLiterals(value)) {
+          context.report({ node, message: PRINCIPAL_LITERAL_MESSAGE });
+        }
+      }
+    };
+    const enclosingReturnType = (node) =>
+      context.sourceCode.getAncestors(node).findLast((ancestor) => PRINCIPAL_FUNCTIONS.has(ancestor.type))?.returnType?.typeAnnotation;
+    return {
+      "VariableDeclarator[init]"(node) {
+        judge(node.id.typeAnnotation?.typeAnnotation, node.init);
+      },
+      "AssignmentPattern[right]"(node) {
+        judge(node.left.typeAnnotation?.typeAnnotation, node.right);
+      },
+      // An `accessor` field is its own node type; abstract fields cannot carry an initializer (TS1267).
+      ":matches(PropertyDefinition, AccessorProperty, TSAbstractPropertyDefinition, TSAbstractAccessorProperty)"(node) {
+        judge(node.typeAnnotation?.typeAnnotation, node.value);
+      },
+      "ReturnStatement[argument]"(node) {
+        judge(enclosingReturnType(node), node.argument);
+      },
+      "ArrowFunctionExpression[expression=true]"(node) {
+        judge(node.returnType?.typeAnnotation, node.body);
+      },
+      "CallExpression:matches([callee.property.name='assign'], [callee.property.value='assign'])[callee.object.name='Object']"(node) {
+        context.report({
+          node,
+          message:
+            "D1/D40: Object.assign returns an intersection, so it can graft a new userId or role onto a minted Principal past the brand. Use an object spread, which the brand type-checks.",
+        });
+      },
+    };
+  },
+};
+
+// At a call such as `actAs({ ...caller, userId } as never)` no Principal annotation exists for principal-literal to read.
+const principalBrandLaunderRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      ":matches(TSAsExpression, TSTypeAssertion) > TSNeverKeyword.typeAnnotation"(node) {
+        context.report({
+          node,
+          message:
+            "D1/D40: `never` is assignable to every type, so this assertion would let a hand-built value pass for a Principal past the entry mint. Narrow the value to its real type instead.",
+        });
+      },
+      ":matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion, TSNonNullExpression) > ObjectExpression.expression"(node) {
+        let casts = 0;
+        for (let child = node; PRINCIPAL_WRAPPERS.has(child.parent.type) && child.parent.expression === child; child = child.parent) {
+          casts += PRINCIPAL_CASTS.has(child.parent.type) ? 1 : 0;
+        }
+        if (casts >= 2) {
+          context.report({
+            node,
+            message:
+              "D1/D40: an object literal asserted through a second assertion can pass for any type, the Principal brand included. Build the value with its real type, or receive the caller's Principal.",
+          });
+        }
+      },
+    };
+  },
+};
+
+const PRINCIPAL_RULES = [
+  { id: "principal-assertion", rule: principalAssertionRule },
+  { id: "principal-return-site", rule: principalReturnSiteRule },
+  { id: "principal-mint-site", rule: principalMintSiteRule },
+  { id: "principal-literal", rule: principalLiteralRule },
+  { id: "principal-brand-launder", rule: principalBrandLaunderRule },
+  {
+    id: "principal-synthetic-role",
+    notUnder: ["packages/server/src/entry/**"],
+    rule: restrictionRule({
+      selectors: [
+        {
+          selector:
+            "ObjectExpression:has(> Property:matches([key.name='externalId'], [key.value='externalId'])):has(> Property:matches([key.name='via'], [key.value='via'])) > Property:matches([key.name='role'], [key.value='role'])[value.value='user']",
+          message: 'D1: a Principal-shaped literal with a hardcoded role: "user" belongs only in the entry layer; receive the Principal from the caller.',
+        },
+      ],
+    }),
   },
 ];
 
@@ -2632,7 +2894,35 @@ const bindingMember = (name) => ({
 // starts at a symbol read is a resolution.
 const symbolRead = (prefix) =>
   `[${prefix}type='CallExpression'][${prefix}callee.type='MemberExpression']:matches(${memberNamed("getSymbol", `${prefix}callee.`)}, ${memberNamed("getSymbolOrThrow", `${prefix}callee.`)})`;
+// A gate family test writes only through the scratch writers in tests/support/node/tool-fixtures.ts. A raw fs write
+// verb is the way a probe lands in the checkout and blinds the gate it was probing, so the ban names every door.
+// A specifier is a string literal or a substitution-free template literal at `path`.
+const fsDoor = (path) =>
+  FS_SPECIFIERS.flatMap((specifier) => [
+    `[${path}.value=${JSON.stringify(specifier)}]`,
+    `[${path}.type='TemplateLiteral'][${path}.expressions.length=0][${path}.quasis.0.value.cooked=${JSON.stringify(specifier)}]`,
+  ]).join(", ");
+const FS_DOOR = fsDoor("source");
+const FS_REQUIRE_DOOR = fsDoor("arguments.0");
+const FS_WRITE_VERB_PATTERN = `/^(?:${FS_WRITE_VERBS.join("|")})$/`;
+const RAW_FS_WRITE_MESSAGE =
+  "A gate family test writes only through the scratch writers (plantFile, plantDir, plantLink, removePlanted, or the `scratch` and `plantedTree` fixtures in tests/support/node/tool-fixtures.ts); a raw fs write verb can land a probe in the checkout and blind the gate under test. Read with readFileSync, existsSync or readdirSync.";
 const VERIFY_HARD_RESTRICTIONS = [
+  {
+    id: "no-raw-fs-write-in-gate-tests",
+    scope: ["tests/tooling/verify/gates/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [
+      `ImportDeclaration:matches(${FS_DOOR}) > ImportSpecifier[imported.name=${FS_WRITE_VERB_PATTERN}]`,
+      `ImportDeclaration:matches(${FS_DOOR}) > :matches(ImportNamespaceSpecifier, ImportDefaultSpecifier)`,
+      `ExportNamedDeclaration:matches(${FS_DOOR}) > ExportSpecifier[local.name=${FS_WRITE_VERB_PATTERN}]`,
+      `ExportAllDeclaration:matches(${FS_DOOR})`,
+      `ImportExpression:matches(${FS_DOOR})`,
+      `CallExpression[callee.name='require']:matches(${FS_REQUIRE_DOOR})`,
+      `CallExpression[callee.type='MemberExpression'][callee.object.name='process'][callee.property.name='getBuiltinModule']:matches(${FS_REQUIRE_DOOR})`,
+      `TSImportEqualsDeclaration > TSExternalModuleReference:matches(${fsDoor("expression")})`,
+    ].map((selector) => ({ selector, message: RAW_FS_WRITE_MESSAGE })),
+  },
   {
     id: "policy-binding-resolution",
     scope: GATE_MODULES,
@@ -2910,6 +3200,7 @@ const RESTRICTIONS = [
   // Only tooling drives browser pages, so app code may close over module scope.
   { id: "evaluate-no-scope-capture", scope: rootSources("@tooling"), homes: [] },
   { id: "assumes-single-replica", scope: rootSources("@server", "@inference"), notUnder: ["packages/server/src/**/persistence/**"], homes: [] },
+  { id: "detached-work-traced", scope: rootSources("@server", "@inference"), homes: [] },
   ...CLIENT_SEAL_RESTRICTIONS,
   ...CLIENT_STYLE_RESTRICTIONS,
   {
@@ -5182,10 +5473,12 @@ const serverFactoryPublicBoundaryRule = {
         }
         return;
       }
+      // A domain or primitives target exposes a factory shape only through its own import, judged in that file.
+      // A file this rule does not lint judges nothing itself, so it is walked from every importer, same tier included.
       if (
         !declarations.some((declaration) => {
           const owner = relative(context.cwd, declaration.getSourceFile().fileName).replaceAll("\\", "/");
-          return serverTypeTier(owner) !== undefined && serverTypeTier(owner) !== serverTypeTier(consumer);
+          return unjudgedServerFile(owner) || (serverFactoryTier(owner) && serverTypeTier(owner) !== serverTypeTier(consumer));
         })
       ) {
         return;
@@ -5255,12 +5548,43 @@ const serverFactoryPublicBoundaryRule = {
         inspect(raw.qualifier, node, new Set(), true);
       }
     };
+    const augmentation = (node) => {
+      const raw = native.esTreeNodeToTSNodeMap.get(node);
+      if (!(serverFactoryTier(consumer) && ts.isSourceFile(raw.parent))) {
+        return;
+      }
+      const boundary = readServerAugmentationBoundary(
+        raw,
+        { kind: "parser", program: native.program, checker: native.checker, source: raw.getSourceFile() },
+        context.cwd,
+      );
+      const seen = new Set();
+      for (const declaration of boundary.trace.declarations) {
+        if (seen.has(declaration)) {
+          continue;
+        }
+        seen.add(declaration);
+        context.report({
+          node,
+          messageId: "crossTierFactoryType",
+          data: {
+            name: declaration.name?.text ?? "default",
+            owner: relative(context.cwd, declaration.getSourceFile().fileName),
+            consumer: `every tier through the ambient augmentation in ${consumer}`,
+          },
+        });
+      }
+      if (boundary.kind === "unresolved") {
+        context.report({ node, messageId: "unreadableFactoryExposure", data: { detail: boundary.detail } });
+      }
+    };
     return {
       ImportDeclaration: importDeclaration,
       ExportNamedDeclaration: exportNamedDeclaration,
       ExportAllDeclaration: exportAllDeclaration,
       ImportExpression: importExpression,
       TSImportType: importType,
+      TSModuleDeclaration: augmentation,
     };
   },
 };
@@ -6656,6 +6980,314 @@ const wireJsonRule = {
   },
 };
 
+// Fire-and-forget work whose failure is invisible. The request root has sealed by the time detached work runs, so an
+// absorbed rejection reaches no log, trace or caller (A1); and a catch inside an opener callback that does not rethrow
+// seals the detached root `ok` on every failure (A2). Openers are the declared ROOT_SPAN_OPENERS tuple.
+// Declared narrowings: the rule is syntactic. A line-scoped `eslint-disable-next-line` waives EVERY statement on that
+// line, not one dispatch. A promise-link key known only from a literal TYPE (a parameter typed 'catch') is not read;
+// a literal, a `+` concatenation or a binding written once is. A promise kept by a callee (the callee records the
+// failure itself) is not seen; only one bound to a name and handed to a collection whose elements later reach an await
+// or a return is kept. A value handed to an unrelated call (`ignore(Promise.allSettled(kept))`) counts as handed on:
+// the callee's handling is not read.
+const ROOT_SPAN_OPENER_NAMES = new Set(ROOT_SPAN_OPENERS);
+const PROMISE_LINKS = new Set(["then", "catch", "finally"]);
+// Which argument of a promise link is its rejection handler.
+const REJECTION_HANDLER_ARGUMENT = new Map([
+  ["catch", 0],
+  ["then", 1],
+]);
+const DISCARD_BODIES = new Set(["undefined", "null", "void 0"]);
+const DETACHED_MESSAGES = {
+  untraced:
+    "Fire-and-forget work with a discarded rejection is invisible: the request root has sealed, so the failure reaches no log, trace or caller. " +
+    "Await it so the caller owns completion, or start it with `superviseDetached(<ownRequestId>, <spanName>, <attrs>, () => work())`. " +
+    "Work that has nothing to trace and no caller to inform takes `// eslint-disable-next-line orb/detached-work-traced -- <why it is invisible on purpose and what would end the exemption>`.",
+  swallowed:
+    "A catch inside a detached root span that does not rethrow seals the span `ok` on every failure. Warn or emit, then rethrow so the span marks ERROR; the supervisor owns the terminal rejection.",
+  blinded:
+    "A discarding `.catch` nested inside a detached root callback blinds the span: it can mark ERROR only if the rejection reaches it. Attach the absorber to the opener call, outside the callback.",
+};
+
+function unwrapTransparent(node) {
+  let current = node;
+  while (
+    current.type === "ChainExpression" ||
+    current.type === "TSNonNullExpression" ||
+    current.type === "TSAsExpression" ||
+    current.type === "TSSatisfiesExpression" ||
+    current.type === "TSTypeAssertion"
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
+// The ORDERED runtime string of a statically knowable key: a literal, a `+` concatenation, or a binding written once.
+function staticDetachedKey(context, node, hops = 4) {
+  const value = unwrapTransparent(node);
+  if (value.type === "Literal") {
+    return typeof value.value === "string" ? value.value : undefined;
+  }
+  if (value.type === "TemplateLiteral") {
+    return value.expressions.length === 0 ? value.quasis[0].value.cooked : undefined;
+  }
+  if (value.type === "BinaryExpression" && value.operator === "+") {
+    const left = staticDetachedKey(context, value.left, hops);
+    const right = staticDetachedKey(context, value.right, hops);
+    return left === undefined || right === undefined ? undefined : left + right;
+  }
+  const initializer = value.type === "Identifier" && hops > 0 ? singleInitializer(context, value) : undefined;
+  return initializer === undefined ? undefined : staticDetachedKey(context, initializer, hops - 1);
+}
+
+// `p.catch` and `p["catch"]` are the same read.
+function literalMember(context, node) {
+  const member = unwrapTransparent(node);
+  if (member.type !== "MemberExpression") {
+    return;
+  }
+  const name = member.computed ? staticDetachedKey(context, member.property) : member.property.name;
+  return name === undefined ? undefined : { name, receiver: unwrapTransparent(member.object) };
+}
+
+function isOpenerCall(context, node) {
+  if (node.type !== "CallExpression") {
+    return false;
+  }
+  const callee = unwrapTransparent(node.callee);
+  return ROOT_SPAN_OPENER_NAMES.has(callee.type === "Identifier" ? callee.name : literalMember(context, callee)?.name);
+}
+
+function isDiscardingHandler(context, node) {
+  const handler = node === undefined ? undefined : unwrapTransparent(node);
+  if (handler?.type !== "ArrowFunctionExpression" && handler?.type !== "FunctionExpression") {
+    return false;
+  }
+  return handler.body.type === "BlockStatement"
+    ? handler.body.body.length === 0
+    : DISCARD_BODIES.has(context.sourceCode.getText(unwrapTransparent(handler.body)));
+}
+
+// The call that is itself a `.catch(<discard>)` / `.then(_, <discard>)` link.
+function discardsRejection(context, call) {
+  const link = literalMember(context, call.callee);
+  const index = link === undefined ? undefined : REJECTION_HANDLER_ARGUMENT.get(link.name);
+  return index !== undefined && isDiscardingHandler(context, call.arguments[index]);
+}
+
+// Walk inward through promise links to the first discarding one; a non-link callee ends the chain.
+function hasAbsorbingLink(context, expression) {
+  let current = unwrapTransparent(expression);
+  while (current.type === "CallExpression") {
+    if (discardsRejection(context, current)) {
+      return true;
+    }
+    const link = literalMember(context, current.callee);
+    if (link === undefined || !PROMISE_LINKS.has(link.name)) {
+      return false;
+    }
+    current = link.receiver;
+  }
+  return false;
+}
+
+// A promise bound to a name and handed to a collection (`set.add(p)`, `list.push(p)`, `map.set(k, p)`) that is later
+// read as a whole (spread, iterated, passed to `Promise.all`-style combinators, `.values()`) is kept: its failure is read
+// at the join, so the discarding link on the statement is not the only owner. Retention inside a callee is not read.
+const COLLECTING_MEMBERS = new Set(["add", "push", "set", "unshift"]);
+const COLLECTION_READ_MEMBERS = new Set(["values", "entries", "forEach"]);
+const COMBINATOR_MEMBERS = new Set(["all", "allSettled", "race", "any", "from"]);
+
+// The name a promise chain starts from: `p` in `p.catch(h)`, or undefined when the chain starts at a call.
+function chainRootName(context, expression) {
+  let current = unwrapTransparent(expression);
+  while (current.type === "CallExpression") {
+    const link = literalMember(context, current.callee);
+    if (link === undefined || !PROMISE_LINKS.has(link.name)) {
+      return;
+    }
+    current = link.receiver;
+  }
+  return current.type === "Identifier" ? current : undefined;
+}
+
+// Does the value of `node` reach an await, a return, or a call that takes it on? A `void`, a bare statement, a binding
+// nothing consumes, and a chain that ends in one of those keep nothing. Passing a value to an unrelated call counts as
+// handing it on (a declared narrowing): the callee's own handling is not read.
+const PROMISE_CHAIN_MEMBERS = new Set(["then", "catch", "finally"]);
+const FLOW_DEPTH = 4;
+const TRANSPARENT_PARENTS = new Set(["ChainExpression", "TSAsExpression", "TSNonNullExpression", "TSSatisfiesExpression"]);
+
+// A binding is consumed when one of its reads is itself consumed.
+function bindingConsumed(context, id, depth) {
+  const variable = lexicalVariable(context, id);
+  return variable?.references.some((reference) => reference.isRead() && flowConsumed(context, reference.identifier, depth)) === true;
+}
+
+// Does a `for...of` over the carrier consume its elements: `for await`, or an element binding whose reads are consumed?
+function loopConsumes(context, loop, depth) {
+  const declarator = loop.left.type === "VariableDeclaration" ? loop.left.declarations[0] : undefined;
+  return loop.await || declarator?.id.type !== "Identifier" || bindingConsumed(context, declarator.id, depth);
+}
+
+// A `forEach` callback consumes its elements when its first parameter is consumed; a callback it cannot see is handed on.
+function callbackConsumes(context, callback, depth) {
+  if (callback?.type !== "ArrowFunctionExpression" && callback?.type !== "FunctionExpression") {
+    return callback !== undefined;
+  }
+  const [first] = callback.params;
+  return first !== undefined && (first.type !== "Identifier" || bindingConsumed(context, first, depth));
+}
+
+// A value used as a call argument: where does the call's result go?
+function callFlowConsumed(context, parent, current, depth) {
+  if (parent.callee === current) {
+    return false;
+  }
+  return COMBINATOR_MEMBERS.has(staticMemberName(parent.callee)) ? flowConsumed(context, parent, depth) : true;
+}
+
+function memberFlowConsumed(context, parent, current, depth) {
+  const call = parent.object === current && parent.parent.type === "CallExpression" && parent.parent.callee === parent ? parent.parent : undefined;
+  const member = staticMemberName(parent);
+  if (call === undefined) {
+    return false;
+  }
+  if (member === "forEach") {
+    return callbackConsumes(context, call.arguments[0], depth - 1);
+  }
+  return (COLLECTION_READ_MEMBERS.has(member) || PROMISE_CHAIN_MEMBERS.has(member)) && flowConsumed(context, call, depth);
+}
+
+// A value bound by a declaration or assignment is consumed when a read of the bound name is.
+function boundFlowConsumed(context, parent, current, depth) {
+  const target = parent.type === "VariableDeclarator" ? parent.id : parent.left;
+  const source = parent.type === "VariableDeclarator" ? parent.init : parent.right;
+  return source === current && target.type === "Identifier" && bindingConsumed(context, target, depth - 1);
+}
+
+function flowConsumed(context, node, depth = FLOW_DEPTH) {
+  let current = node;
+  while (TRANSPARENT_PARENTS.has(current.parent?.type)) {
+    current = current.parent;
+  }
+  const parent = current.parent;
+  if (depth === 0 || parent === undefined || parent === null) {
+    return false;
+  }
+  switch (parent.type) {
+    case "AwaitExpression":
+    case "ReturnStatement":
+      return true;
+    case "ArrowFunctionExpression":
+      return parent.body === current;
+    case "ArrayExpression":
+    case "ConditionalExpression":
+    case "LogicalExpression":
+      return flowConsumed(context, parent, depth);
+    case "SpreadElement":
+      return parent.parent.type === "ArrayExpression" ? flowConsumed(context, parent.parent, depth) : true;
+    case "ForOfStatement":
+      return parent.right === current && loopConsumes(context, parent, depth - 1);
+    case "VariableDeclarator":
+    case "AssignmentExpression":
+      return boundFlowConsumed(context, parent, current, depth);
+    case "CallExpression":
+      return callFlowConsumed(context, parent, current, depth);
+    case "MemberExpression":
+      return memberFlowConsumed(context, parent, current, depth);
+    default:
+      return false;
+  }
+}
+
+// A collection is read whole, and the elements reach a consumer, when any read of it flows on.
+function readsWhole(context, collection) {
+  const variable = lexicalVariable(context, collection);
+  return variable?.references.some(({ identifier }) => identifier !== collection && flowConsumed(context, identifier)) === true;
+}
+
+function isRetainedPromise(context, name) {
+  const variable = lexicalVariable(context, name);
+  return (
+    variable?.references.some(({ identifier }) => {
+      const call = identifier.parent;
+      const collecting = call.type === "CallExpression" && call.arguments.includes(identifier) ? call.callee : undefined;
+      return (
+        collecting?.type === "MemberExpression" &&
+        collecting.object.type === "Identifier" &&
+        COLLECTING_MEMBERS.has(staticMemberName(collecting)) &&
+        readsWhole(context, collecting.object)
+      );
+    }) === true
+  );
+}
+
+// A throw escapes only the nearest catch clause that holds it, unless a function or a guarded try block intervenes.
+function escapedCatchClause(thrown) {
+  for (let node = thrown.parent; node !== null && node !== undefined; node = node.parent) {
+    if (node.type === "CatchClause") {
+      return node;
+    }
+    const guardedTry = node.type === "BlockStatement" && node.parent?.type === "TryStatement" && node.parent.block === node && node.parent.handler !== null;
+    if (FUNCTION_NODES.has(node.type) || guardedTry) {
+      return;
+    }
+  }
+}
+
+const detachedWorkRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const insideOpener = (node) => context.sourceCode.getAncestors(node).some((ancestor) => isOpenerCall(context, ancestor));
+    const statements = [];
+    const openers = [];
+    const clauses = [];
+    const rethrowing = new Set();
+    return {
+      ExpressionStatement: (statement) => {
+        const raw = unwrapTransparent(statement.expression);
+        const expression = raw.type === "UnaryExpression" && raw.operator === "void" ? raw.argument : raw;
+        const root = chainRootName(context, expression);
+        const retained = root !== undefined && isRetainedPromise(context, root);
+        if (hasAbsorbingLink(context, expression) && !retained && !insideOpener(statement)) {
+          statements.push(statement);
+        }
+      },
+      CallExpression: (call) => {
+        if (isOpenerCall(context, call)) {
+          openers.push(call);
+        } else if (discardsRejection(context, call) && insideOpener(call)) {
+          context.report({ node: call, message: DETACHED_MESSAGES.blinded });
+        }
+      },
+      CatchClause: (clause) => {
+        if (insideOpener(clause)) {
+          clauses.push(clause);
+        }
+      },
+      ThrowStatement: (thrown) => {
+        const clause = escapedCatchClause(thrown);
+        if (clause !== undefined) {
+          rethrowing.add(clause);
+        }
+      },
+      "Program:exit": () => {
+        // "Traced" is any opener call anywhere in the statement: proving the opener wraps the work needs types.
+        for (const statement of statements) {
+          if (!openers.some(({ range }) => range[0] >= statement.range[0] && range[1] <= statement.range[1])) {
+            context.report({ node: statement, message: DETACHED_MESSAGES.untraced });
+          }
+        }
+        // Reported at the owning `try`, so a waiver sits above the statement a reader sees.
+        for (const clause of clauses.filter((candidate) => !rethrowing.has(candidate))) {
+          context.report({ node: clause.parent, message: DETACHED_MESSAGES.swallowed });
+        }
+      },
+    };
+  },
+};
+
 const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES.filter(({ ruleId, hard }) => !hard && ruleId.startsWith("orb/"));
 
 // D46: `ctx.dump` walks a guest value on the HOST stack, so a deep value overflows it and corrupts the shared
@@ -6700,6 +7332,7 @@ const restrictionPlugin = {
     ...Object.fromEntries(IDENTITY_WRITER_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(UI_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     [UI_CT_COLOR_RESTRICTION.id]: uiCtColorRule,
+    ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule])),
     [TYPE_HOME_NATIVE_POLICY_ID]: typeHomeDeclarationRule,
     [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryPublicBoundaryRule,
     "no-inline-invalidate-outside-seam": nativePackageCallRule(["invalidateQueries"], true),
@@ -6771,6 +7404,7 @@ const restrictionPlugin = {
     [TOOLING_ROOT_CONFIG_IMPORT_RULE.slice("orb/".length)]: toolingRootConfigImportRule,
     "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
     "assumes-single-replica": assumesSingleReplicaRule,
+    "detached-work-traced": detachedWorkRule,
     "commented-code": commentedCodeRule,
     "ct-story-single-import": ctStorySingleImportRule,
   },
@@ -7709,9 +8343,16 @@ export const hardConfig = [
     settings: typedNativeSettings(entry),
     rules: { [entry.ruleId]: "error" },
   })),
+  ...PRINCIPAL_RULES.map(({ id, notUnder }) => ({
+    files: PRINCIPAL_SCOPE,
+    ...(notUnder === undefined ? {} : { ignores: notUnder }),
+    plugins: { orb: restrictionPlugin },
+    rules: { [`orb/${id}`]: "error" },
+  })),
   ...VERIFY_HARD_RESTRICTIONS.map(({ id, scope, notUnder }) => ({
     files: scope,
-    ignores: notUnder,
+    // A flat-config `ignores` array must not be empty or absent-as-undefined.
+    ...(notUnder === undefined ? {} : { ignores: notUnder }),
     plugins: { orb: restrictionPlugin },
     rules: { [`orb/${id}`]: "error" },
   })),

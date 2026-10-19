@@ -81,7 +81,7 @@ export function RpgPopulateControl({ chatId, actor, canPopulate }: RpgPopulateCo
           disabled={populate.isPending || reason !== ""}
           {...(reason === "" ? {} : { title: reason })}
           onClick={(): void => {
-            void onFill();
+            void onFill().catch(globalThis.reportError);
           }}
         >
           <Icon icon={Sparkles} size="xs" />

@@ -19,9 +19,7 @@ import { gate as boundedListLimit } from "../../../../../tooling/src/verify/gate
 import { gate as busConsumerBelt } from "../../../../../tooling/src/verify/gates/bus-consumer-belt.ts";
 import { gate as busPayloadAllowlistHealth } from "../../../../../tooling/src/verify/gates/bus-payload-allowlist-health.ts";
 import { gate as busProducerCoverage } from "../../../../../tooling/src/verify/gates/bus-producer-coverage.ts";
-import { gate as caughtFailureCensusRow } from "../../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
 import { gate as caughtFailureOwnership } from "../../../../../tooling/src/verify/gates/caught-failure-ownership.ts";
-import { gate as caughtFailureOwnershipHealth } from "../../../../../tooling/src/verify/gates/caught-failure-ownership-health.ts";
 import { gate as cssLengthTokens } from "../../../../../tooling/src/verify/gates/css-length-tokens.ts";
 import { gate as cssLengthTokensGrants } from "../../../../../tooling/src/verify/gates/css-length-tokens-grants.ts";
 import { gate as cssLengthTokensHealth } from "../../../../../tooling/src/verify/gates/css-length-tokens-health.ts";
@@ -35,8 +33,6 @@ const CONTRACTS = "packages/contracts/src";
 const DOMAIN = "packages/server/src/domain/character";
 const SHELL_SHEET = "packages/client/src/features/app-shell/surfaces/shell.css";
 const USER_BUS = `${CONTRACTS}/user-bus/index.ts`;
-const CENSUS = "tooling/src/verify/gates/caught-failure-ownership.population.json";
-const LIFT = "packages/kit/src/json-schema/lift.ts";
 const USER_BUS_HEAD = "export type UserBusEvent =\n";
 
 function add(path: string, source: string): RealCorpusOverlay {
@@ -99,19 +95,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "livenessNeverEmitted",
-  },
-  {
-    policy: caughtFailureCensusRow,
-    // A new caught-failure site the committed census has no row for.
-    overlays: [add(`${DOMAIN}/liveness-absorb.ts`, "export function livenessAbsorb(): void {\n  try {\n    risky();\n  } catch {}\n}\n")],
-    messageIncludes: "has no census row",
-  },
-  {
-    policy: caughtFailureOwnershipHealth,
-    // The recorded `compilePattern` catch now rethrows, so its committed row names a site that is no longer there.
-    overlays: [edit(LIFT, "  } catch {\n    return null;\n  }", "  } catch (error) {\n    throw error;\n  }")],
-    reportsAt: [CENSUS],
-    messageIncludes: "names a site that is no longer on the tree",
   },
   {
     policy: caughtFailureOwnership,

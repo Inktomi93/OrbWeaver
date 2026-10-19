@@ -1,6 +1,7 @@
 // contract-field-liveness collectors: producers / consumers / model-projection fences.
 import type { JsxAttribute, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { FieldHitClass, FieldIndexes, TemplateBracket } from "../contract/fields.ts";
 import type { ContractField, FieldReadSites, Hit } from "../contract/types.ts";
@@ -220,17 +221,10 @@ function producedNamesOf(sf: SourceFile, out: Set<string>): void {
     if (!isAssignmentOperator(bin.getOperatorToken().getKind())) {
       continue;
     }
-    const left = bin.getLeft();
-    const dotted = left.asKind(SyntaxKind.PropertyAccessExpression);
-    if (dotted !== undefined) {
-      out.add(dotted.getName());
-      continue;
-    }
-    // `out["creation_date"] = fields.creationDate` — the card serde's emit shape, and a producer the
-    // dot-only sweep read as "nothing populates this" (triage §4 F2).
-    const indexed = left.asKind(SyntaxKind.ElementAccessExpression)?.getArgumentExpression()?.asKind(SyntaxKind.StringLiteral);
-    if (indexed !== undefined) {
-      out.add(indexed.getLiteralText());
+    // `out["creation_date"] = fields.creationDate` — the card serde's emit shape — produces like the dotted form.
+    const target = literalMemberAccess(bin.getLeft(), true);
+    if (target !== undefined) {
+      out.add(target.name);
     }
   }
 }
@@ -269,13 +263,10 @@ function consumedNamesOf(sf: SourceFile, out: Map<string, FieldReadSites>): void
     bucket.set(filePath, sites);
     out.set(name, bucket);
   };
-  for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
-    credit(pa.getName(), pa.getStart());
-  }
-  for (const ea of sf.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
-    const arg = ea.getArgumentExpression();
-    if (arg !== undefined && Node.isStringLiteral(arg)) {
-      credit(arg.getLiteralText(), ea.getStart());
+  for (const access of [...sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression), ...sf.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)]) {
+    const read = literalMemberAccess(access, true);
+    if (read !== undefined) {
+      credit(read.name, access.getStart());
     }
   }
   for (const be of sf.getDescendantsOfKind(SyntaxKind.BindingElement)) {

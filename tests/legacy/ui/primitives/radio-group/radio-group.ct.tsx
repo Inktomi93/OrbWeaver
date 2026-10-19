@@ -1,4 +1,3 @@
-
 // CT: the radio-group seal — one-of-many selection (role="radio" per item, name from the wrapping
 // label). Pointer selects one; arrow keys move the selection (Base UI roving tabindex).
 

@@ -1,4 +1,3 @@
-
 // <Icon> CT (ui-package-design §6.1 icons seal) — the lucide glyph renders at the named type-scale
 // px const, decorative by default, accessible when labelled, and the three appearance axes
 // (weight / fill / partialFill) land as RENDERED SVG, asserted on computed values and real geometry

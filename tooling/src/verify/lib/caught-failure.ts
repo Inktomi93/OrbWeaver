@@ -4,13 +4,8 @@
 //
 // ── WHY THIS IS A SHARED READER AND NOT A GATE-PRIVATE ONE (#1584, the conversion census's blocker for
 //    this gate: "must split reusable failure facts")
-// THREE consumers read the SAME producer, and that is the whole point: `gates/caught-failure-ownership.ts`
-// reports from it, `ops/gen/caught-failure-population.ts` derives the durable census at
-// tooling/src/verify/gates/caught-failure-ownership.population.json from it, and
-// `gates/caught-failure-ownership-health.ts` joins that census back to the tree on `siteId`. Several readers
-// of one population is exactly how an artifact and a gate silently disagree, so there is ONE classifier, ONE
-// site identity (`caught-failure-identity.ts#keyCaughtFailureSites`) and ONE corpus (`CAUGHT_FAILURE_POPULATION`),
-// and all of them call it.
+// `gates/caught-failure-ownership.ts` reports from it, so there is ONE classifier and ONE corpus
+// (`CAUGHT_FAILURE_POPULATION`).
 //
 // ── THE SPLIT (#1584 tooling-size) ──────────────────────────────────────────────────────────────────────
 // The classifier grew past the 450-line cap and now lives in five siblings by responsibility: -core.ts (AST
@@ -18,8 +13,20 @@
 // failure-shaped, and the explicit governed-sink recognizers), -scope.ts (framework provenance and the
 // statement-level `hasExplicitOwner` block walk), -handler.ts (catch/promise-handler verdicts), -promise.ts
 // (recognizing a rejection-handler invocation in every spelling). This file keeps only the ARMS
-// (`catchClauseSite`/`promiseAbsorberSite`) and the anchor/site assembly its consumers import; the move-stable
-// site identity is the sixth sibling, -identity.ts.
+// (`catchClauseSite`/`promiseAbsorberSite`) and the anchor/site assembly its consumers import.
+//
+// ── THE FINITE BLOCKING CLAIM (D328) ────────────────────────────────────────────────────────────────────
+// A verdict blocks only when the reader decides it from the site's enclosing statement plus at most
+// `CAUGHT_FAILURE_CLOSURE_HOPS` declaration hops. A hop walks a multi-statement function body only from a
+// handler position, read through the same unwrap and `apply` spread as the rejection reader: a call argument,
+// an element an `apply`-style call spreads, or the bare initializer of an alias such as `const h = onErr`. Any
+// other multi-statement body, and a callee's call-initialized declaration in another file (a bound alias no
+// root reaches), is past the bound. Inside the bound, Type answers exist only at reader positions
+// (`readerTypedPosition`): calls, and values in call arguments, returns, arrow bodies, conditionals, initializers,
+// member and element receivers, element keys and `+` operands; a Type question anywhere else is past the bound
+// too. Symbols are answered at every walked node. A verdict that needs a Type answer past the bound is an explicit
+// advisory unknown (`report.analysis`) on that site alone: never owned, never a finding, and no other site's
+// verdict or waiver depends on it, because each site is judged and anchored by its own position.
 //
 // ── THE ARMS ────────────────────────────────────────────────────────────────────────────────────────────
 //   promise   a `.catch(h)` / `.then(_, h)` — in ANY spelling: dot or bracket key (literal,
@@ -88,8 +95,7 @@
 // read takes `ok` through `literalValue`, which is undefined for a boolean, so `ok: false` is proven only from
 // a literal or a single-return factory body
 // · a guarded rethrow's guard must read the binding, but how narrow it is stays unjudged. The POPULATION
-// fence (which files carry a failure contract at all) is declared once at the foot of this file, because two
-// policies and the census generator must walk the same corpus.
+// fence (which files carry a failure contract at all) is declared once at the foot of this file.
 //
 // Descendant reads here are bounded SUBTREE analysis of a delivered node plus same-file binding identity —
 // the shared-reader layer's own job (docs/law/gate-runtime-standardization.md §3: "binding identity, static-value
@@ -150,7 +156,7 @@ function memberNameNode(node: Node): Node | undefined {
 /** One call's anchors, WIDEST identity first: the whole callee chain (`a.save`), then just its member name
  *  (`save`). The chain is preferred because it is what keeps two same-named siblings in one marker carrier
  *  separately waivable; the name is what survives a MULTI-LINE chain, which the marker grammar cannot hold. */
-export function calleeAnchorCandidates(call: CallExpression): readonly Node[] {
+function calleeAnchorCandidates(call: CallExpression): readonly Node[] {
   const callee = unwrapExpression(call.getExpression());
   const name = memberNameNode(callee);
   return name === undefined ? [callee] : [callee, name];
@@ -214,12 +220,16 @@ export function promiseAbsorberSite(call: CallExpression, reads?: CaughtFailureR
   // whole callee in a position group, so the member NAME carries it; an indirect `Reflect.apply` /
   // bound-alias spelling has its work node OUTSIDE the reported call, so the ABSORBER's own callee — always
   // a prefix of the reported node — carries it, and its link name is the last resort. Only a wholly
-  // parenthesized or computed callee leaves the anchor underivable, and the census REFUSES loudly on one.
+  // parenthesized or computed callee leaves the anchor underivable.
   return {
     arm: "promise",
     node: call,
-    anchor: firstAnchor(call, [...workAnchorCandidates(call, invocation, reads), ...calleeAnchorCandidates(call)]),
+    anchor: promiseAnchor(call, invocation, reads),
   };
+}
+
+function promiseAnchor(call: CallExpression, invocation: PromiseRejectionInvocation, reads?: CaughtFailureReadServices): CaughtFailureAnchor | undefined {
+  return firstAnchor(call, [...workAnchorCandidates(call, invocation, reads), ...calleeAnchorCandidates(call)]);
 }
 
 /** The call that produced the promise, walking inward past `then`/`catch`/`finally` — the node a framework
@@ -315,7 +325,7 @@ export interface CaughtFailureSite {
 
 /** The catch arm's anchor: the caught BINDING's name, or the `catch` keyword when the clause is bindingless
  *  (always offset 0 of the clause, so it can never fail to anchor). */
-export function catchAnchor(clause: CatchClause): CaughtFailureAnchor | undefined {
+function catchAnchor(clause: CatchClause): CaughtFailureAnchor | undefined {
   const binding = clause.getVariableDeclaration()?.getNameNode();
   return (binding === undefined ? undefined : anchorWithin(clause, binding)) ?? { token: "catch", offset: 0 };
 }
@@ -339,10 +349,9 @@ export function caughtFailureSite(node: Node, reads: CaughtFailureReadServices):
   return node.isKind(SyntaxKind.CatchClause) ? catchClauseSite(node, reads) : promiseAbsorberSite(node.asKindOrThrow(SyntaxKind.CallExpression), reads);
 }
 
-/** Every caught-failure site in ONE file, in source order — the file-level door the durable census
- *  (`ops/gen/caught-failure-population.ts`) walks. The POLICY does not call this: its dispatcher delivers
- *  `CatchClause` and `CallExpression` nodes to `catchClauseSite`/`promiseAbsorberSite` directly, so the two
- *  consumers share the per-site verdict without sharing a walk. */
+/** Every caught-failure site in ONE file, in source order — the file-level door. The POLICY does not call this:
+ *  its dispatcher delivers `CatchClause` and `CallExpression` nodes to `catchClauseSite`/`promiseAbsorberSite`
+ *  directly, so both share the per-site verdict without sharing a walk. */
 export function caughtFailureReviewSites(sf: SourceFile, reads?: CaughtFailureReadServices): readonly CaughtFailureSite[] {
   const sites: CaughtFailureSite[] = [];
   for (const clause of sf.getDescendantsOfKind(SyntaxKind.CatchClause)) {
@@ -360,8 +369,6 @@ export function caughtFailureReviewSites(sf: SourceFile, reads?: CaughtFailureRe
   return sites.toSorted((left, right) => left.node.getStart() - right.node.getStart());
 }
 
-/** The corpus that carries a failure contract: every shipped product package plus `tooling/src`. Homed here,
- *  not in either policy, because the ordinary occurrence policy, its hard census-join sibling and the census
- *  generator must walk the SAME files — a census over a different corpus reads every missing file's sites as
- *  `gone`. The port history of this expression is in the `caught-failure-ownership` policy header. */
+/** The corpus that carries a failure contract: every shipped product package plus `tooling/src`. The port
+ *  history of this expression is in the `caught-failure-ownership` policy header. */
 export const CAUGHT_FAILURE_POPULATION = ["@product", "@tooling"] as const;

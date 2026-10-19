@@ -1,4 +1,3 @@
-
 // Consent settlement must reach the notification room after the durable grant write, without rebadging.
 import "@orb/testkit/node/composed-real.ts";
 import type { InboxView } from "@orb/contracts/notifications";

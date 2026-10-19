@@ -1,4 +1,3 @@
-
 // CT: the density tier MECHANISM, asserted by COMPUTED VALUE (UI-Density-Law.md §4.2 build step 0 +
 // §5.3). This is the second lens the `density-tier` gate structurally cannot be: that gate reads literal
 // class shapes, so a computed className, a `cn(cond && X)`, or a stylesheet regression is INVISIBLE to it

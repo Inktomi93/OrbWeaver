@@ -1,6 +1,8 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 import { ruleMessages } from "./native-rule-probe.ts";
 
+const THEME_OVERRIDE_NATIVE_BASE_MS = 60_000;
 const THEME_OVERRIDE = "orb/theme-override-only-via-scope";
 const CLIENT = "packages/client/src/components/probe.tsx";
 const CLAMP = "packages/ui/src/content/theme-scope/theme-scope.tsx";
@@ -55,7 +57,7 @@ for (const [name, source, path, count] of [
   ["an imported object is not followed", 'import { vars } from "./vars.ts";\nexport const A = () => <div style={vars} />;', CLIENT, 0],
   ["server package is outside the population", "export const A = () => <div style={{ '--color-primary': 'red' }} />;", "packages/server/src/probe.tsx", 0],
 ] as const) {
-  test(`native theme override ${name}`, { timeout: 60_000 }, async ({ repoRoot }) => {
+  test(`native theme override ${name}`, { timeout: scaledBudget(THEME_OVERRIDE_NATIVE_BASE_MS) }, async ({ repoRoot }) => {
     expect(await ruleMessages(repoRoot, THEME_OVERRIDE, source, path)).toHaveLength(count);
   });
 }

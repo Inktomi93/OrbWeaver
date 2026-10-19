@@ -1,4 +1,3 @@
-
 // The ThemeScope emit-COMPLETENESS gate (WS0) — drift-proofs the theme override API surface. The
 // generated TOKENS map (packages/ui/src/tokens/index.ts, derived from tokens.json) is the single
 // source of truth for what's themeable; this test proves `clampThemeTokens` can never emit a

@@ -268,6 +268,42 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/db/src/schema/sql-door.ts": `export { sql } from "${DRIZZLE_ORM}";\n`,
+        "packages/db/src/schema/reexported-tag.ts": schemaFixture({
+          declarations: BYTE_CONST,
+          capExpression: "value",
+          capHole: BYTE_HOLE,
+          tagged: true,
+        }).replace(`import { sql } from "${DRIZZLE_ORM}";`, 'import { sql } from "./sql-door.ts";'),
+      },
+      expect: { count: 1, token: "KV_VALUE_MAX_BYTES" },
+      why: "A TAGGED `sql` reached through a sibling's name-preserving re-export of drizzle is still drizzle's merged function-and-namespace tag; the merged-callable fallback follows the re-export to its package door",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/sql-door.ts": `export { sql } from "${DRIZZLE_ORM}";\n`,
+        "packages/db/src/schema/reexported-raw.ts": schemaFixture({ declarations: BYTE_CONST, capExpression: "value", capHole: BYTE_HOLE }).replace(
+          `import { sql } from "${DRIZZLE_ORM}";`,
+          'import { sql } from "./sql-door.ts";',
+        ),
+      },
+      expect: { count: 1, token: "KV_VALUE_MAX_BYTES" },
+      why: "`sql.raw` read off a re-exported `sql` is the same builder: the receiver's merge resolves through the re-export and the member path continues to `raw`",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/namespaced-tag.ts": schemaFixture({ declarations: BYTE_CONST, capExpression: "value", capHole: BYTE_HOLE, tagged: true })
+          .replace(`import { sql } from "${DRIZZLE_ORM}";`, `import * as orm from "${DRIZZLE_ORM}";`)
+          .replace(`  ${CHECK_EXPORT}("t_value_check", sql`, `  ${CHECK_EXPORT}("t_value_check", orm.sql`),
+      },
+      expect: { count: 1, token: "KV_VALUE_MAX_BYTES" },
+      why: "A tag read off a namespace import (`orm.sql`) is the merged `sql` export, not an ambiguous pair of declarations",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/db/src/schema/member-cap.ts": schemaFixture({
           declarations: `const LIMITS = { valueMaxBytes: ${FIXTURE_BYTE_CAP} };\n`,
           capExpression: "value",
@@ -347,6 +383,21 @@ export const gate = defineGate({
           `export const note = check("t_value_check", sql.${DRIZZLE_SQL_RAW_MEMBER}(${TICK}${sqlText("value", BYTE_HOLE)}${TICK}));\n`,
       },
       why: "THE MODULE COUNTERFACTUAL, AND IT RESOLVES — a sibling project module exporting its own `check` and `sql`, with the byte-named cap and no cast. Both origins resolve cleanly and both exported-NAME tails are the right ones (`check`, `raw`); only `originModuleSpecifier(…) !== moduleSpecifier` rejects them. A LOCAL declaration never resolves to a module member, so the row above cannot reach this comparison (w9 D2, #2046)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/vendor-merge.ts":
+          "export declare function sql(strings: TemplateStringsArray, ...params: number[]): string;\nexport declare namespace sql {\n  function raw(text: string): string;\n}\n",
+        "packages/db/src/schema/vendor-door.ts": 'export { sql } from "./vendor-merge.ts";\n',
+        "packages/db/src/schema/vendored-door.ts": schemaFixture({
+          declarations: BYTE_CONST,
+          capExpression: "value",
+          capHole: BYTE_HOLE,
+          tagged: true,
+        }).replace(`import { sql } from "${DRIZZLE_ORM}";`, 'import { sql } from "./vendor-door.ts";'),
+      },
+      why: "THE RE-EXPORTED MERGED-TAG COUNTERFACTUAL — a sibling's own merged `sql` re-exported through a second sibling keeps its relative door, so the module comparison still rejects it; following re-exports must not turn every re-exported `sql` into drizzle's",
     },
     {
       mode: "types",

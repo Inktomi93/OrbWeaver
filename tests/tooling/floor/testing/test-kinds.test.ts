@@ -45,7 +45,7 @@ test.each(CONFIG_VARIANTS)("no Vitest project include in %s selects a Playwright
   const projects = config.test?.projects ?? [];
   expect(projects.length).toBeGreaterThan(0);
   // A string path or a factory carries includes this check cannot read; refuse it instead of passing it unseen.
-  expect(projects.filter((project) => typeof project !== "object" || project === null)).toEqual([]);
+  expect(projects.filter((project) => typeof project !== "object")).toEqual([]);
   // Every runtime project sets `extends: true`, and Vitest concatenates the root's include arrays into each child,
   // so a root-level glob reaches every project. The root is judged as one more project.
   expect(playwrightSuffixIncludes([config, ...(projects as readonly ProjectShape[])], PLAYWRIGHT_SUFFIXES)).toEqual([]);

@@ -14,8 +14,7 @@ import { nativeCompilerSourceFiles } from "./ts-workspace.ts";
 
 /** Capture native fields and origins; policy floors and copy judgments stay with consumers. */
 export function extractShape(node: MorphNode, span: (node: MorphNode) => InventorySpan): InventoryShape {
-  const fields = (mode: "copy" | "respell"): InventoryShape["copy"] =>
-    resolvedShapeProperties(node, mode)?.map((property) => ({ name: property.getName(), type: property.getTypeAtLocation(node).getText() })) ?? null;
+  const fields = (mode: "copy" | "respell"): InventoryShape["copy"] => resolvedShapeProperties(node, mode)?.map((property) => property.getName()) ?? null;
   return {
     node: span(node),
     copy: fields("copy"),

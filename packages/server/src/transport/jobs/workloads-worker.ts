@@ -207,6 +207,9 @@ export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<v
         waiters.add(finish);
       });
 
+    // A call, so the checker does not carry the loop condition's `aborted === false` across the awaited claim/run step.
+    const shutdownRequested = (): boolean => deps.signal.aborted;
+
     /** ONE lane's poll loop — sequential within the lane, independent of every other lane. */
     const runLane = async (lane: WorkloadLane): Promise<void> => {
       while (!deps.signal.aborted) {
@@ -215,8 +218,7 @@ export async function startWorkloadsWorker(deps: WorkloadsWorkerDeps): Promise<v
         let sleeping: Promise<void> | undefined;
         try {
           const outcome = await claimAndRunNext(deps, lane);
-          // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- the live getter can flip during the awaited native claim/run step.
-          if (!deps.signal.aborted) {
+          if (!shutdownRequested()) {
             const waitMs = outcome.ran && !outcome.backOff ? busyMs : pollMs;
             sleeping = sleep(waitMs);
           }

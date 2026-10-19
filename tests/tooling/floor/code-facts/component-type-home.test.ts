@@ -43,13 +43,21 @@ function writeFixture(root: string, repoRoot: string): string {
   const path = "packages/client/src/panel.tsx";
   mkdirSync(join(root, "packages/client"), { recursive: true });
   symlinkSync(join(repoRoot, "packages/ui/node_modules"), join(root, "packages/client/node_modules"), "dir");
-  write("packages/contracts/src/wire.ts", "export interface Wire { id: string; label: string; enabled: boolean; order: number; }");
+  write(
+    "packages/contracts/src/wire.ts",
+    'import { z } from "zod"; export interface Wire { id: string; label: string; enabled: boolean; order: number; } export const wireSchema = z.object({ caption: z.string(), size: z.number() }); export type WireOutput = z.infer<typeof wireSchema>; export interface Route<B> { readonly body: B } declare function route<B>(body: B): Route<B>; export const aRoute = route(z.object({ caption: z.string() })); export const bRoute = route(z.object({ caption: z.number() })); export type WireBody = z.infer<typeof bRoute.body>;',
+  );
   write(
     path,
     `import { z } from "zod";
 import { useRender as nativeUseRender } from "@base-ui/react/use-render";
 import type { ReactNode, Ref } from "react";
 import type { Wire } from "../../contracts/src/wire.ts";
+import { aRoute, wireSchema } from "../../contracts/src/wire.ts";
+export type SchemaApi = z.infer<typeof wireSchema>;
+export function SchemaSurface(props: SchemaApi) { return <div>{props.caption}</div>; }
+export type RouteApi = z.infer<typeof aRoute.body>;
+export function RouteSurface(props: RouteApi) { return <div>{props.caption}</div>; }
 export type Dimension = "small" | "large";
 export type Renderer = (value: Dimension) => ReactNode;
 export interface Arbitrary { size: Dimension; render: Renderer; }
@@ -319,6 +327,28 @@ test("names, unused declarations, wrappers and known lower-data overlaps never m
   } finally {
     endReferencePass();
   }
+});
+
+test("lower-data derivation uses the shared pair judgment, so shared schema provenance derives", ({ scratch, repoRoot }) => {
+  const { path, sourceFile, view } = fixture(scratch, repoRoot);
+  const wire = view.program.sourceFile("packages/contracts/src/wire.ts");
+  const lower = wire?.getTypeAliasOrThrow("WireOutput");
+  if (lower === undefined) {
+    throw new Error("wire schema fixture did not resolve");
+  }
+  const result = componentTypeHome({ declaration: sourceFile.getTypeAliasOrThrow("SchemaApi"), path, view, lowerDeclarations: [lower] });
+  expect(result).toMatchObject({ kind: "owned", lowerData: { kind: "derived" } });
+  const origins = result.kind === "owned" && result.lowerData.kind === "derived" ? result.lowerData.origins : [];
+  expect(origins).toHaveLength(1);
+  expect(origins[0]).toBe(lower);
+  const otherRoute = wire?.getTypeAliasOrThrow("WireBody");
+  if (otherRoute === undefined) {
+    throw new Error("wire route fixture did not resolve");
+  }
+  expect(componentTypeHome({ declaration: sourceFile.getTypeAliasOrThrow("RouteApi"), path, view, lowerDeclarations: [otherRoute] })).toMatchObject({
+    kind: "owned",
+    lowerData: { kind: "unqualified" },
+  });
 });
 
 test("Node React fallback, foreign/barrel views, and forgotten source identities refuse", ({ scratch, repoRoot }) => {

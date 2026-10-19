@@ -31,7 +31,7 @@ import { DRIZZLE_ALIAS_VERB, DRIZZLE_SELECT_VERBS, DRIZZLE_SQL_EXPORT } from "./
 import { declaredInDrizzle, readCalledMember } from "./drizzle-write-chain.ts";
 import { readMemberReference, referenceResolutionServices, resolveModuleMemberOrigin, staticMemberAccess } from "./reference-fact.ts";
 import type { CallReturnObservations, CallReturnProgram, ModuleMemberOrigin, ReferenceFact, ReturnedValueSource } from "./reference-fact-contract.ts";
-import { sameFileMergedCallableValueOrigin } from "./reference-fact-same-file-merge.ts";
+import { sameFileMergedCallableValueOrigin, sameFileMergedExportOrigin } from "./reference-fact-same-file-merge.ts";
 import { moduleState } from "./reference-fact-state.ts";
 import { readSchemaObjectMembers } from "./schema-object.ts";
 import { terminalCall } from "./schema-value.ts";
@@ -42,28 +42,26 @@ export function readSqlAliasStability(node: MorphNode, active: ReadonlySet<objec
   return !(Node.isIdentifier(node) && sqlValue(node.getType())) || sqlBindingStable(node, active, program);
 }
 
-/** A tag is a callee, so a function merged with a namespace of its own name (drizzle's `sql`) is one origin
- *  there, though the module-origin reader refuses it as two declarations. */
-function taggedOrigin(tag: MorphNode): ReferenceFact<ModuleMemberOrigin> {
-  const origin = resolveModuleMemberOrigin(tag);
-  if (origin.kind === "resolved" || origin.reason !== "ambiguous") {
-    return origin;
-  }
-  return sameFileMergedCallableValueOrigin(tag, moduleState(referenceResolutionServices)) ?? origin;
+/** A callee naming a function merged with a namespace of its own name (drizzle's `sql`) is one origin there,
+ *  though the module-origin reader refuses it as two declarations. The fallback reaches it through a namespace
+ *  import and through a sibling's re-export too. */
+function mergedOrigin(callee: MorphNode, merge: typeof sameFileMergedCallableValueOrigin): ReferenceFact<ModuleMemberOrigin> {
+  const origin = resolveModuleMemberOrigin(callee);
+  return origin.kind === "resolved" || origin.reason !== "ambiguous" ? origin : (merge(callee, moduleState(referenceResolutionServices)) ?? origin);
 }
 
 /** Template carrier provenance; consumers choose the accepted constructor exports and the SQL obligation. */
 export function readSqlTemplateCarrier(node: MorphNode): SqlTemplateCarrier | undefined {
   if (Node.isTaggedTemplateExpression(node)) {
     const callee = node.getTag();
-    return { kind: "tagged", template: node.getTemplate(), callee, origin: taggedOrigin(callee) };
+    return { kind: "tagged", template: node.getTemplate(), callee, origin: mergedOrigin(callee, sameFileMergedCallableValueOrigin) };
   }
   if (Node.isCallExpression(node)) {
     const template = node.getArguments()[0];
     const callee = node.getExpression();
     return template === undefined
       ? undefined
-      : { kind: "call", template, callee, origin: resolveModuleMemberOrigin(callee), member: readMemberReference(callee) };
+      : { kind: "call", template, callee, origin: mergedOrigin(callee, sameFileMergedExportOrigin), member: readMemberReference(callee) };
   }
   return Node.isNoSubstitutionTemplateLiteral(node) || Node.isTemplateExpression(node) ? { kind: "bare", template: node } : undefined;
 }

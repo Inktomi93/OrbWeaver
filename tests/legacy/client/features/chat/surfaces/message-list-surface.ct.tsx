@@ -18,7 +18,6 @@
 // The owner-scoped `persona.list` read is GONE (the member-gated producer replaced it), so no stub for
 // it remains.
 
-
 import type { ChatBusEvent, ChatIdentity } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, groupConfigSchema } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";

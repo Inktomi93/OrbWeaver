@@ -7,9 +7,10 @@ import { pluginGrantTasks, pluginViewSchema } from "@orb/contracts/plugin";
 import { plugins } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { createPluginGrantTasksOf } from "@orb/server/domain/plugin";
-import { packShowcaseBundle, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
+import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
+import { requireShowcaseBundle } from "@orb/testkit/node/showcase-bundle.ts";
 import { eq, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -18,10 +19,7 @@ async function installed(harness: ServerTestHarness): Promise<{
   readonly view: Awaited<ReturnType<ServerTestHarness["services"]["plugin"]["install"]>>;
 }> {
   const caller = await harness.principalFor((await harness.actor()).id);
-  const bundle = await packShowcaseBundle(SHOWCASE_PLUGIN_SLUGS[0]);
-  if (bundle === null) {
-    throw new Error("the actual showcase package did not produce its bundle");
-  }
+  const bundle = await requireShowcaseBundle(SHOWCASE_PLUGIN_SLUGS[0]);
   const view = await harness.services.plugin.install({ caller, bundle, grant: [] });
   return { caller, view };
 }

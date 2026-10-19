@@ -1,6 +1,5 @@
 // The per-user example-plugin seeder on the real release-built bundles: a fresh pass, retry on a missing bundle, the one durable ask, and the #803 auto-upgrade arms.
 
-
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability } from "@orb/contracts/plugin";
 import { databaseHandle } from "@orb/db/wiring-driver";

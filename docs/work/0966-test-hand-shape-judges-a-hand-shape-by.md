@@ -1,9 +1,8 @@
 ---
 kind: work
-status: blocked
+status: open
 updated: 2026-10-19
 priority: P2
-blocked: on 954
 plan: test-foundation
 ---
 

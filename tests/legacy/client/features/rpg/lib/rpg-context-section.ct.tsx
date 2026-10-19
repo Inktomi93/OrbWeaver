@@ -8,7 +8,6 @@
 // `trackersReadOnly`. The participants/view stubs return only what the panel reads (a partial shape, the chats-
 // section.ct ROSTER_STUB posture); every value crosses the routeTrpc JSON boundary as a plain object.
 
-
 import type { RpgExtractionMode, RpgTrackerCarrier, RpgTrackerDef } from "@orb/contracts/rpg";
 import { actorRefKey, carriesTracker, RPG_PROFILE_D20, rpgSeedTrackers } from "@orb/contracts/rpg";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";

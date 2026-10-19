@@ -347,6 +347,15 @@ export const gate = defineGate({
       why: "arms B2/C composed green: an imported base through `.extend` plus a `{ ...base.shape }` re-spread resolves to exactly its two keys, and a spread that only RE-declares the base's key is a contribution (the tally counts declared members, not new ones) — never a zero-contribution refusal",
     },
     {
+      mode: "types",
+      files: {
+        [SETTINGS]:
+          'import { z } from "zod";\nexport const USER_SETTINGS_SECTIONS = [] as const;\nexport const appSettingsSchema = z.object({ wiredTemplateKey: z.boolean() });\n',
+        "packages/client/src/features/config/lib/x.ts": "declare const view: { wiredTemplateKey?: boolean };\nexport const a = view[`wiredTemplateKey`];\n",
+      },
+      why: "arm C: a no-substitution template key reads the leaf exactly like its quoted twin",
+    },
+    {
       // Arm B: a client section-patch writes the member → passes.
       mode: "types",
       files: {

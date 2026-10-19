@@ -23,6 +23,7 @@
 // reads live in `ops/dev-instrument-absence.ts`, and the build in `ops/boot-chunk-ratchet.ts`.
 import { posix } from "node:path";
 import { ts } from "ts-morph";
+import { moduleClosure } from "../../floor/code-facts/module-reach.ts";
 import type { DevInstrumentInputs, DevInstrumentLeak, DevInstrumentVerdict, ModuleValueGraph } from "../contract/dev-instrument-absence.ts";
 
 /** The condition `main.tsx` gates every dev instrument behind; the bundler constant-folds it. */
@@ -102,21 +103,8 @@ export function valueGraphFromCruise(json: unknown): ModuleValueGraph {
   return graph;
 }
 
-function reach(graph: ModuleValueGraph, starts: readonly string[], cut: ReadonlySet<string>): Set<string> {
-  const seen = new Set<string>();
-  const stack = [...starts];
-  for (let next = stack.pop(); next !== undefined; next = stack.pop()) {
-    if (seen.has(next)) {
-      continue;
-    }
-    seen.add(next);
-    for (const target of graph.get(next) ?? []) {
-      if (!cut.has(target)) {
-        stack.push(target);
-      }
-    }
-  }
-  return seen;
+function reach(graph: ModuleValueGraph, starts: readonly string[], cut: ReadonlySet<string>): ReadonlySet<string> {
+  return moduleClosure(starts, (module) => (graph.get(module) ?? []).filter((target) => !cut.has(target)));
 }
 
 /** A chunk sourcemap's `sources`, resolved against the map's own directory to repo-relative paths. Entries

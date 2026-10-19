@@ -111,7 +111,7 @@ export const WHOLE_COMMAND_PATH_TRIGGERS: Readonly<Record<string, StageTrigger>>
   },
   "ledgers:fresh": {
     paths: new RegExp(`${NOT_MARKDOWN.source}|^(?:${MARKDOWN_LEDGERS})$`, "u"),
-    why: "the caught-failure census is derived from a whole-repo ts-morph walk, so any source edit can add, remove or re-verdict a site. Every ledger derives from source, never from markdown, so a markdown edit matters only when it is one of the markdown ledgers themselves (`contract/ledger-paths.ts`).",
+    why: "the gate roster, the type-config intent and the theme tokens derive from source, so any source edit can move a generated output. Every ledger derives from source, never from markdown, so a markdown edit matters only when it is one of the markdown ledgers themselves (`contract/ledger-paths.ts`).",
   },
   "release:showcase-versions": {
     paths: NOT_MARKDOWN,

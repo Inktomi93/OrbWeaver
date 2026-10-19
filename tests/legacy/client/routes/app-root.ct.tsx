@@ -15,7 +15,6 @@
 // structurally invisible there (its header states the same split). Shell CHROME — regions, panel clamp,
 // rail, modal host, tab bar — stays that file's floor and is not re-pinned here.
 
-
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { UserId } from "@orb/kit/ids";

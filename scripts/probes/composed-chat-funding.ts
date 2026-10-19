@@ -2,6 +2,7 @@
 // the owner's connection and resolves it, so the executor re-reads owned connection and credential authority per call.
 // It boots only under ORB_ENV_NO_FILE=1, so the operator's `.env` never configures the graph or its data paths.
 
+import "./_composed-env.ts";
 import { randomBytes } from "node:crypto";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -14,7 +15,6 @@ import type { UserId } from "@orb/kit/ids";
 import type { createRunChatTurnBridge } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
-import { readEnvKey } from "./openrouter/_kit.ts";
 
 const SECRET_BOX_BYTES = 32;
 const SESSION_SECRET = "composed-chat-funding-probe-session-secret";
@@ -33,9 +33,6 @@ export async function composeChatFunding(args: {
   readonly fetch: typeof fetch;
   readonly captureWire: WireCaptureSink;
 }): Promise<AsyncDisposable & { readonly connection: Resolved<"chat">; readonly runChatTurn: ReturnType<typeof createRunChatTurnBridge> }> {
-  if (readEnvKey("ORB_ENV_NO_FILE") !== "1") {
-    throw new Error("A composed probe requires ORB_ENV_NO_FILE=1 so its graph cannot load production configuration");
-  }
   const compose = await import("@orb/server/entry/compose");
   const { createHostPrincipalResolver } = await import("@orb/server/entry/auth");
   await using construction = new AsyncDisposableStack();
