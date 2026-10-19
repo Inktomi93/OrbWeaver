@@ -5,6 +5,7 @@
 
 import type { Db } from "@orb/db";
 import { sessions as sessionsTable, users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -49,10 +50,10 @@ beforeEach(async () => {
   const now = (): number => FROZEN_AT_MS;
   sessions = createSessionsService({
     rolePolicy: createSessionsRolePolicy(env),
-    db,
+    db: databaseHandle(db),
     now,
     sessionSecret: PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now, onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db: databaseHandle(db), now, onEmbedSpaceBound: () => undefined }),
   });
   exchanges = 0;
   app = new Hono();
@@ -60,7 +61,7 @@ beforeEach(async () => {
     sessions,
     sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
     now,
-    db,
+    db: databaseHandle(db),
     resolveLoginLimit: (): number => 10,
     discreetLogin: (): boolean => false,
     oidc: {
@@ -77,7 +78,7 @@ beforeEach(async () => {
       allowJitProvision: true,
       requireApproval: false,
       ownerClaim: createOwnerClaimCode(),
-      store: createOidcStore(db, now),
+      store: createOidcStore(databaseHandle(db), now),
     },
   };
   registerAuthRoutes(app, deps);

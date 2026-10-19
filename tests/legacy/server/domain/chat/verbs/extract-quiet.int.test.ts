@@ -9,6 +9,7 @@ import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { SummarizeInput, SummarizeOptions } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { parseIanaTimeZone } from "@orb/kit/time";
@@ -72,7 +73,7 @@ describe("createExtractQuiet", () => {
 
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
-      db,
+      db: databaseHandle(db),
       now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
@@ -106,7 +107,7 @@ describe("createExtractQuiet", () => {
 
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
-      db,
+      db: databaseHandle(db),
       now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
@@ -127,7 +128,7 @@ describe("createExtractQuiet", () => {
 
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
-      db,
+      db: databaseHandle(db),
       now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
@@ -152,7 +153,7 @@ describe("createExtractQuiet", () => {
 
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
-      db,
+      db: databaseHandle(db),
       now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
@@ -180,7 +181,7 @@ describe("createExtractQuiet", () => {
 
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
-      db,
+      db: databaseHandle(db),
       now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
@@ -207,7 +208,7 @@ describe("createExtractQuiet", () => {
 
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
-      db,
+      db: databaseHandle(db),
       now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
@@ -226,7 +227,7 @@ describe("createExtractQuiet", () => {
 
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
-      db,
+      db: databaseHandle(db),
       now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
@@ -246,7 +247,7 @@ describe("createExtractQuiet", () => {
 
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
-      db,
+      db: databaseHandle(db),
       now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
@@ -273,7 +274,7 @@ describe("createExtractQuiet", () => {
 
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
-      db,
+      db: databaseHandle(db),
       now: () => at,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
@@ -302,7 +303,7 @@ describe("createExtractQuiet", () => {
 
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
-      db,
+      db: databaseHandle(db),
       now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),
@@ -330,7 +331,7 @@ describe("createExtractQuiet", () => {
 
     const calls: SummarizeCall[] = [];
     const extractQuiet = createExtractQuiet({
-      db,
+      db: databaseHandle(db),
       now: () => FROZEN_AT_MS,
       summarize: fakeSummarize(calls),
       getCard: fakeGetCard("Aria"),

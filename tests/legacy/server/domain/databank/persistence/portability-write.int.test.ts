@@ -13,6 +13,7 @@
 
 import type { Db } from "@orb/db";
 import { characterDocuments, documents, globalDocuments } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { DocumentId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -92,7 +93,7 @@ describe("createListOwnedDocumentIds", () => {
     await seedDocument(db, { id: "document_mine", ownerId: owner, name: "Mine", text: "mine", importHash: "h_mine" });
     await seedDocument(db, { id: "document_theirs", ownerId: stranger, name: "Theirs", text: "theirs", importHash: "h_theirs" });
 
-    expect(await createListOwnedDocumentIds({ db })({ ownerId: owner })).toEqual(["document_mine"]);
+    expect(await createListOwnedDocumentIds({ db: databaseHandle(db) })({ ownerId: owner })).toEqual(["document_mine"]);
   });
 });
 
@@ -105,7 +106,7 @@ describe("createExportDocument", () => {
     await db.insert(globalDocuments).values({ ownerId: owner, documentId });
     await db.insert(characterDocuments).values({ characterId: hero, documentId });
 
-    const file = await createExportDocument({ db })({ ownerId: owner, documentId });
+    const file = await createExportDocument({ db: databaseHandle(db) })({ ownerId: owner, documentId });
     if (file === null) {
       throw new Error("export returned null for an owned document");
     }
@@ -126,15 +127,15 @@ describe("createExportDocument", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const documentId = await seedDocument(db, { id: "document_theirs2", ownerId: stranger, name: "Theirs", text: "t", importHash: "h_t" });
 
-    expect(await createExportDocument({ db })({ ownerId: owner, documentId })).toBeNull();
-    expect(await createExportDocument({ db })({ ownerId: owner, documentId: castId<DocumentId>("document_absent") })).toBeNull();
+    expect(await createExportDocument({ db: databaseHandle(db) })({ ownerId: owner, documentId })).toBeNull();
+    expect(await createExportDocument({ db: databaseHandle(db) })({ ownerId: owner, documentId: castId<DocumentId>("document_absent") })).toBeNull();
   });
 });
 
 describe("createImportDocument", () => {
   /** Export from one owner, import into another — the real cross-box shape (fresh ids, handle re-link). */
   async function exportFrom(db: Db, ownerId: UserId, documentId: DocumentId): Promise<Uint8Array> {
-    const file = await createExportDocument({ db })({ ownerId, documentId });
+    const file = await createExportDocument({ db: databaseHandle(db) })({ ownerId, documentId });
     if (file === null) {
       throw new Error("export returned null");
     }
@@ -152,7 +153,10 @@ describe("createImportDocument", () => {
     await db.insert(characterDocuments).values({ characterId: sourceHero, documentId });
 
     const h = harness(db);
-    const outcome = await createImportDocument(h.ctx)({ ownerId: target, bytes: await exportFrom(db, source, documentId) });
+    const outcome = await createImportDocument({ ...h.ctx, db: databaseHandle(h.ctx.db) })({
+      ownerId: target,
+      bytes: await exportFrom(db, source, documentId),
+    });
 
     expect(outcome).toEqual({ ok: true, created: true });
     const restored = await db.select().from(documents).where(eq(documents.ownerId, target));
@@ -182,8 +186,8 @@ describe("createImportDocument", () => {
     const bytes = await exportFrom(db, source, documentId);
 
     const h = harness(db);
-    const first = await createImportDocument(h.ctx)({ ownerId: target, bytes });
-    const second = await createImportDocument(h.ctx)({ ownerId: target, bytes });
+    const first = await createImportDocument({ ...h.ctx, db: databaseHandle(h.ctx.db) })({ ownerId: target, bytes });
+    const second = await createImportDocument({ ...h.ctx, db: databaseHandle(h.ctx.db) })({ ownerId: target, bytes });
 
     expect(first).toEqual({ ok: true, created: true });
     expect(second).toEqual({ ok: true, created: false });
@@ -201,7 +205,10 @@ describe("createImportDocument", () => {
     await db.insert(characterDocuments).values({ characterId: sourceHero, documentId });
 
     // The target owns NO character with that handle.
-    const outcome = await createImportDocument(harness(db).ctx)({ ownerId: target, bytes: await exportFrom(db, source, documentId) });
+    const outcome = await createImportDocument({ ...harness(db).ctx, db: databaseHandle(db) })({
+      ownerId: target,
+      bytes: await exportFrom(db, source, documentId),
+    });
 
     expect(outcome).toEqual({ ok: true, created: true });
     const restored = await db.select().from(documents).where(eq(documents.ownerId, target));
@@ -219,7 +226,7 @@ describe("createImportDocument", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const h = harness(db);
 
-    const garbage = await createImportDocument(h.ctx)({ ownerId: owner, bytes: new TextEncoder().encode("{not json") });
+    const garbage = await createImportDocument({ ...h.ctx, db: databaseHandle(h.ctx.db) })({ ownerId: owner, bytes: new TextEncoder().encode("{not json") });
     expect(garbage.ok).toBe(false);
     expect(garbage.ok ? "" : garbage.error).toContain("not JSON");
     expect(await db.select().from(documents).where(eq(documents.ownerId, owner))).toHaveLength(0);

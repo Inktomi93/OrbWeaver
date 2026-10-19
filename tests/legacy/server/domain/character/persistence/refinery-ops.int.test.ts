@@ -6,6 +6,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { RefineryAnalyzePayload } from "@orb/contracts/refinery";
 import type { Db } from "@orb/db";
 import { characterSnapshots, characters } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, CharacterId, CharacterSnapshotId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -45,7 +46,7 @@ test("createLoadOwnedCard: the owned card projects whole; foreign and absent col
   const owner = await seedUser(db, { handle: castId<Handle>("ops-owner") });
   const stranger = await seedUser(db, { handle: castId<Handle>("ops-stranger") });
   const characterId = await seedCard(db, owner.id, "ops_read");
-  const load = createLoadOwnedCard({ db });
+  const load = createLoadOwnedCard({ db: databaseHandle(db) });
 
   const card = await load({ ownerId: owner.id, characterId });
   expect(card?.name).toBe("Aria");
@@ -60,7 +61,7 @@ test("createStampRefinerySignals: halves merge independently; a foreign stamp wr
   const owner = await seedUser(db, { handle: castId<Handle>("ops-owner2") });
   const stranger = await seedUser(db, { handle: castId<Handle>("ops-stranger2") });
   const characterId = await seedCard(db, owner.id, "ops_stamp");
-  const stamp = createStampRefinerySignals({ db });
+  const stamp = createStampRefinerySignals({ db: databaseHandle(db) });
 
   // Score half first…
   await stamp({ ownerId: owner.id, characterId, patch: { score: 6.5 } });
@@ -85,7 +86,7 @@ test("createStampRefinerySignals: two CONCURRENT stamps of the independent halve
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("ops-owner3") });
   const characterId = await seedCard(db, owner.id, "ops_race");
-  const stamp = createStampRefinerySignals({ db });
+  const stamp = createStampRefinerySignals({ db: databaseHandle(db) });
 
   // A score run and an analyze run are legitimate concurrent workloads. Under the read-merge-write this
   // op used to do, both read the same blob and whoever wrote second clobbered the other's half —
@@ -104,7 +105,7 @@ test("createStampRefinerySignals: an unusable stored blob degrades to the skelet
   // drops the write. The SQL heal is the twin of the read seam's field-level `.catch`.
   await db.update(characters).set({ refinery: sql`'"legacy-garbage"'` }).where(eq(characters.id, characterId));
 
-  await createStampRefinerySignals({ db })({ ownerId: owner.id, characterId, patch: { score: 3 } });
+  await createStampRefinerySignals({ db: databaseHandle(db) })({ ownerId: owner.id, characterId, patch: { score: 3 } });
 
   const row = (await db.select({ refinery: characters.refinery }).from(characters).where(eq(characters.id, characterId)))[0];
   expect(row?.refinery).toEqual({ score: 3, analysis: null });
@@ -120,7 +121,7 @@ test("#1571 (train-78, injected-op-caller-param): createDeleteSnapshot retracts 
   // presence is the subject, so a two-field stub is the honest fixture (a full card would assert nothing more).
   const content = { name: "Aria", description: "keeps the ledger" } as unknown as CharacterCard;
   await db.insert(characterSnapshots).values({ id: snapshotId, characterId, content, label: "auto: before refinery apply" });
-  const del = createDeleteSnapshot({ db });
+  const del = createDeleteSnapshot({ db: databaseHandle(db) });
 
   // A foreign owner's retraction deletes NOTHING — the row survives, exactly as a foreign stamp writes
   // nothing (the sibling test above).

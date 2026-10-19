@@ -11,6 +11,7 @@
 // reaches the driver's own catch.
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -40,7 +41,7 @@ function makeDeps(
   checkIntervalMs?: number,
 ): WorkloadScheduleSchedulerDeps {
   return {
-    db,
+    db: databaseHandle(db),
     now: (): number => T0,
     start,
     scheduleInterval,

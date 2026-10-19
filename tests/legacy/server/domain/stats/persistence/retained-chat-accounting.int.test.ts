@@ -1,4 +1,5 @@
 import { characterStats, characters, chatParticipants, chats, messageVariants, ownerStats } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -16,8 +17,8 @@ test("multi-owner retained canon rebuild writes only its owned character grain a
   await seedParticipant(db, { chatId, key: "cohort_other", characterId: other, role: "member", joinSeq: 1 });
   const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant", characterId: voice, content: "Retained reply." });
   await db.update(messageVariants).set({ costUsd: 0.25, tokensIn: 10, tokensOut: 20, tokenProvenance: "measured" }).where(eq(messageVariants.id, variantId));
-  await reconcileStats(db, { ownerId: a, now: () => FROZEN_AT_MS });
-  await expect(reconcileStats(db, { ownerId: b, now: () => FROZEN_AT_MS })).resolves.toMatchObject({ owners: 1, characters: 1 });
+  await reconcileStats(databaseHandle(db), { ownerId: a, now: () => FROZEN_AT_MS });
+  await expect(reconcileStats(databaseHandle(db), { ownerId: b, now: () => FROZEN_AT_MS })).resolves.toMatchObject({ owners: 1, characters: 1 });
   for (const ownerId of [a, b]) {
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0]).toMatchObject({
       costUsd: 0.25,
@@ -38,7 +39,7 @@ test("multi-owner retained canon rebuild writes only its owned character grain a
     tokensOut: 0,
     assistantTurns: 0,
   });
-  await reconcileStats(db, { ownerId: a, now: () => FROZEN_AT_MS });
+  await reconcileStats(databaseHandle(db), { ownerId: a, now: () => FROZEN_AT_MS });
   expect(await db.select().from(characterStats)).toHaveLength(2);
 });
 
@@ -50,7 +51,7 @@ test("canonical scope deduplicates departed seats, fences equal-cardinality repl
   const duplicate = await seedCharacter(db, a, "scope_duplicate");
   await seedParticipant(db, { chatId, key: "scope_voice", characterId: voice, role: "member", leftSeq: 3 });
   const seat = await seedParticipant(db, { chatId, key: "scope_duplicate", characterId: duplicate, role: "member" });
-  const resolve = createResolveRetainedChatAccountingScope(db);
+  const resolve = createResolveRetainedChatAccountingScope(databaseHandle(db));
   const snapshot = await resolve(chatId, voice);
   expect(snapshot.ownerIds).toEqual([a]);
   expect(snapshot.characterOwnerId).toBe(a);
@@ -83,7 +84,7 @@ test("voice owner changes refuse even when the retained owner cohort is unchange
   ] as const) {
     await seedParticipant(db, { chatId, key, characterId });
   }
-  const resolve = createResolveRetainedChatAccountingScope(db);
+  const resolve = createResolveRetainedChatAccountingScope(databaseHandle(db));
   const snapshot = await resolve(chatId, voice);
   expect(snapshot.ownerIds).toEqual([a, b]);
   await db.update(characters).set({ ownerId: b }).where(eq(characters.id, voice));

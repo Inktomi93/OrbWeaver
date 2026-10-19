@@ -14,6 +14,7 @@
 // not for that reason: there is nothing to write.
 
 import { characters } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createLinkCharacterAvatars } from "@orb/server/domain/character";
@@ -37,7 +38,7 @@ describe("persistence/avatar-link-write", () => {
 
     const before = (await db.select({ at: characters.updatedAt }).from(characters).where(eq(characters.id, mine)))[0]?.at;
 
-    await createLinkCharacterAvatars({ db, now: () => RELINK_AT })({
+    await createLinkCharacterAvatars({ db: databaseHandle(db), now: () => RELINK_AT })({
       ownerId: owner,
       links: [
         { characterId: mine, assetId: asset },
@@ -72,7 +73,10 @@ describe("persistence/avatar-link-write", () => {
     const mine = await seedRawCharacter(db, { id: "character_mine", ownerId: owner, handle: castId<CharacterHandle>("mine") });
 
     // Receipt taken AS `owner` (the op's `ownerId` argument IS the principal this write runs under).
-    await createLinkCharacterAvatars({ db, now: () => RELINK_AT })({ ownerId: owner, links: [{ characterId: mine, assetId: foreignAsset }] });
+    await createLinkCharacterAvatars({ db: databaseHandle(db), now: () => RELINK_AT })({
+      ownerId: owner,
+      links: [{ characterId: mine, assetId: foreignAsset }],
+    });
 
     const refused = (await db.select({ avatar: characters.avatarAssetId, at: characters.updatedAt }).from(characters).where(eq(characters.id, mine)))[0];
     expect(refused?.avatar).toBeNull();
@@ -81,7 +85,7 @@ describe("persistence/avatar-link-write", () => {
 
     // POSITIVE ARM — the same op, the same principal, the owner's OWN asset: it lands. (Without this the
     // empty read above would be evidence about the query, not about the predicate.)
-    await createLinkCharacterAvatars({ db, now: () => RELINK_AT })({ ownerId: owner, links: [{ characterId: mine, assetId: ownAsset }] });
+    await createLinkCharacterAvatars({ db: databaseHandle(db), now: () => RELINK_AT })({ ownerId: owner, links: [{ characterId: mine, assetId: ownAsset }] });
     const linked = (await db.select({ avatar: characters.avatarAssetId, at: characters.updatedAt }).from(characters).where(eq(characters.id, mine)))[0];
     expect(linked?.avatar).toBe(ownAsset);
     expect(linked?.at).toBe(RELINK_AT);
@@ -92,7 +96,7 @@ describe("persistence/avatar-link-write", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const mine = await seedRawCharacter(db, { id: "character_mine", ownerId: owner, handle: castId<CharacterHandle>("mine") });
 
-    await createLinkCharacterAvatars({ db, now: () => RELINK_AT })({ ownerId: owner, links: [] });
+    await createLinkCharacterAvatars({ db: databaseHandle(db), now: () => RELINK_AT })({ ownerId: owner, links: [] });
 
     const rows = await db.select({ avatar: characters.avatarAssetId }).from(characters).where(eq(characters.id, mine));
     expect(rows[0]?.avatar).toBeNull();

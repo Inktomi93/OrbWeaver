@@ -8,6 +8,7 @@ import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatEvents, chatHandoffResumptions, chats } from "@orb/db";
 import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatEventId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
@@ -29,7 +30,7 @@ beforeEach(async () => {
 describe("createChatBus.emit — durable-first + the replay ring", () => {
   test("a prepared chatCreated joins room birth and publishes its already-committed cursor without re-appending", async () => {
     const chatId = castId<ChatId>("chat_prepared_birth");
-    const bus = createChatBus(makeChatContext(db));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db) });
     const prepared = bus.prepareCreation({ type: "chatCreated", chatId });
 
     await db.batch(batchMany([batchStmt(db.insert(chats).values({ id: chatId })), prepared.statement]));
@@ -43,7 +44,7 @@ describe("createChatBus.emit — durable-first + the replay ring", () => {
 
   test("emit commits a chat_events row (durable) and assigns a monotonic per-chat seq", async () => {
     const chatId = await seedChat(db, "a");
-    const bus = createChatBus(makeChatContext(db));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db) });
 
     await bus.emit({ type: "chatUpdated", chatId });
     await bus.emit({ type: "chatCreated", chatId });
@@ -58,7 +59,7 @@ describe("createChatBus.emit — durable-first + the replay ring", () => {
   test("the per-chat seq is independent across chats", async () => {
     const a = await seedChat(db, "a");
     const b = await seedChat(db, "b");
-    const bus = createChatBus(makeChatContext(db));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db) });
 
     await bus.emit({ type: "chatUpdated", chatId: a });
     await bus.emit({ type: "chatUpdated", chatId: b });
@@ -69,7 +70,7 @@ describe("createChatBus.emit — durable-first + the replay ring", () => {
 
   test("readRing returns the in-process tail; afterSeq replays only newer events", async () => {
     const chatId = await seedChat(db, "a");
-    const bus = createChatBus(makeChatContext(db));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db) });
 
     await bus.emit({ type: "chatUpdated", chatId });
     await bus.emit({ type: "chatCreated", chatId });
@@ -187,7 +188,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
 
   test("a delta emitted into a deleted chat resolves null, writes nothing, does not push the ring, and is NOT an error", async () => {
     const chatId = await seedChat(db, "a");
-    const bus = createChatBus(makeChatContext(db));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db) });
     await bus.emit({ type: "chatUpdated", chatId });
     await db.delete(chats).where(eq(chats.id, chatId));
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
@@ -209,7 +210,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
     const chatId = await seedChat(db, "a");
     // A constant event id ⇒ the second append is a PRIMARY-KEY collision on a live chat: a genuine db fault,
     // not the delete race, so it must surface loudly instead of being classified as benign.
-    const bus = createChatBus({ ...makeChatContext(db), newEventId: () => castId<ChatEventId>("chat_event_fixed") });
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db), newEventId: () => castId<ChatEventId>("chat_event_fixed") });
     await bus.emit({ type: "chatUpdated", chatId });
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
     const debugSpy = vi.spyOn(getLog(), "debug").mockImplementation(() => undefined);
@@ -228,7 +229,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
     // A lost durable event on a LIVE chat is a permanent replay gap — a missing turn terminal, a missed
     // automation trigger, a stranded client — so the transient half of that class must not be reported as a
     // drop and forgotten. This fault dies BEFORE the write, so a replay is the whole recovery.
-    const bus = createChatBus(makeChatContext(faultyAppendDb(db, "before-commit")));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(faultyAppendDb(db, "before-commit")) });
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
     const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
 
@@ -253,7 +254,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
     // therefore delivers the event exactly once. #1821: `committedRowSeq` PROVES that standing row's seq, so
     // `emit` now publishes it on the live fan too — the SAME emission the ordinary success path returns —
     // retiring the earlier "we cannot prove what seq landed" premise that skipped the fan on this branch.
-    const bus = createChatBus(makeChatContext(faultyAppendDb(db, "after-commit")));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(faultyAppendDb(db, "after-commit")) });
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
     const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
 
@@ -287,7 +288,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
 
   test("#1544 the AFTER-COMMIT retry is reported as recovered, naming the seq that was fanned (#1821)", async () => {
     const chatId = await seedChat(db, "drop-msg-committed");
-    const bus = createChatBus(makeChatContext(faultyAppendDb(db, "after-commit")));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(faultyAppendDb(db, "after-commit")) });
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
     const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
 
@@ -308,7 +309,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
     const chatId = await seedChat(db, "drop-msg-lost");
     // A constant event id: the `chatUpdated` below takes the id first, so the delta's own append can never
     // land — a row EXISTS under that id and it is NOT this event. Ground truth, not id-existence.
-    const bus = createChatBus({ ...makeChatContext(db), newEventId: () => castId<ChatEventId>("chat_event_1544_fixed") });
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db), newEventId: () => castId<ChatEventId>("chat_event_1544_fixed") });
     await bus.emit({ type: "chatUpdated", chatId });
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
     const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
@@ -324,7 +325,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
 
   test("a DELETED chat is still terminal on the first look — never retried (#1454)", async () => {
     const chatId = await seedChat(db, "gone-noretry");
-    const bus = createChatBus(makeChatContext(db));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db) });
     await db.delete(chats).where(eq(chats.id, chatId));
     const debugSpy = vi.spyOn(getLog(), "debug").mockImplementation(() => undefined);
     const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
@@ -342,7 +343,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
   test("a claimed marker rolls back when the following append fails", async () => {
     const chatId = await seedChat(db, "atomic-fault");
     const fixedEventId = castId<ChatEventId>("chat_event_fixed_claim");
-    const bus = createChatBus({ ...makeChatContext(db), newEventId: () => fixedEventId });
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db), newEventId: () => fixedEventId });
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
     await bus.emit({ type: "chatUpdated", chatId });
     const acceptedByUserId = await seedUser(db, castId<Handle>("claim"));
@@ -383,7 +384,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
     });
     const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
-    const bus = createChatBus(makeChatContext(afterCommitBatchDb(db)));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(afterCommitBatchDb(db)) });
 
     // The door reports "not published" — honest, because it cannot prove which seq landed.
     await expect(bus.emitAfterClaim({ type: "chatUpdated", chatId }, claim)).resolves.toBeNull();
@@ -409,7 +410,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
       createdAt: FROZEN_AT_MS,
     });
     const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
-    const bus = createChatBus(makeChatContext(db));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db) });
 
     const first = await bus.emitAfterClaim({ type: "chatUpdated", chatId }, claim);
     // A SECOND call with the SAME claim — the shape a retry would take. The claim now changes zero rows, so
@@ -425,7 +426,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
 
   test("REGRESSION GUARD: a normal emit into a live chat still writes durably, returns what it logged, and fans the ring", async () => {
     const chatId = await seedChat(db, "a");
-    const bus = createChatBus(makeChatContext(db));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db) });
 
     const logged = await bus.emit(deltaEvent(chatId));
 

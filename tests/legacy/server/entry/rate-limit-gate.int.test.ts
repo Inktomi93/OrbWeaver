@@ -24,6 +24,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { AppSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { rateLimitBuckets } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -61,7 +62,7 @@ const NON_SPENDING_PATHS = ["chat.fork", "chat.abort", "chat.undoContinue", "cha
 /** A gate over `db` whose clock the test drives (fixed-window rollover) and whose caps are the env floor
  *  unless `overrides` tightens one (the same AppSettings layer an admin edit writes). */
 function gateAt(db: Db, clock: { now: number }, overrides: AppSettings = {}): ReturnType<typeof createRateLimitGate> {
-  return createRateLimitGate({ db, now: () => clock.now, resolveRateLimits: () => layer(overrides).rateLimits });
+  return createRateLimitGate({ db: databaseHandle(db), now: () => clock.now, resolveRateLimits: () => layer(overrides).rateLimits });
 }
 
 function principalFor(userId: UserId): Principal {

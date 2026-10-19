@@ -6,6 +6,7 @@ import { RESPONSE_CACHE_STATUSES, responseCacheSchema } from "@orb/contracts/inf
 import type { PortableFile } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats, imageryGenerations, imageryImportCalls, modelStats, ownerStats, statsCanonVersions, userConnections, users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
@@ -22,7 +23,7 @@ import { buildImageryCall } from "#server/primitives/serde/imagery/index.ts";
 
 function service(db: Db): ReturnType<typeof createImageryPortability> {
   return createImageryPortability({
-    db,
+    db: databaseHandle(db),
     newCallId: () => mintTypeId(ID_PREFIX.imageryCall),
     newGenerationId: () => mintTypeId(ID_PREFIX.imageryGeneration),
     bumpStatsCanonVersion,
@@ -38,7 +39,7 @@ async function ownAssets(db: Db, ownerId: UserId, call: PortableImageryCall): Pr
   }
 }
 async function spend(db: Db, ownerId: UserId): Promise<number | undefined> {
-  await reconcileStats(db, { ownerId, now: () => 1_750_000_001_000 });
+  await reconcileStats(databaseHandle(db), { ownerId, now: () => 1_750_000_001_000 });
   return (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0]?.costUsd;
 }
 

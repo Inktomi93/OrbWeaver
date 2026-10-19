@@ -5,6 +5,7 @@
 
 // @orb-waive-file no-test-fabrication({ spanName?: string }): baselined when the gate widened to value casts; burn-down item 906.
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
@@ -113,7 +114,7 @@ test("createServices builds the full graph: every Services key + the boot handle
   const result = await createServices({
     serverRestart: UNSUPERVISED_RESTART,
     share: NO_SHARE_RELAY,
-    db,
+    db: databaseHandle(db),
     now: clock.now,
     ownerId: castId<UserId>("u_owner"),
     secretBoxKey: null,
@@ -153,7 +154,7 @@ test("W7a an admin revoke-all evicts that user's live sockets through the compos
   const result = await createServices({
     serverRestart: UNSUPERVISED_RESTART,
     share: NO_SHARE_RELAY,
-    db,
+    db: databaseHandle(db),
     now: clock.now,
     ownerId,
     secretBoxKey: null,
@@ -192,7 +193,7 @@ test("character.bulkAddCardTag attaches via the real tag wiring — not the iner
   const result = await createServices({
     serverRestart: UNSUPERVISED_RESTART,
     share: NO_SHARE_RELAY,
-    db,
+    db: databaseHandle(db),
     now: clock.now,
     ownerId: castId<UserId>("u_owner"),
     secretBoxKey: null,
@@ -232,7 +233,7 @@ function buildGraph(db: Db): ReturnType<typeof createServices> {
   return createServices({
     serverRestart: UNSUPERVISED_RESTART,
     share: NO_SHARE_RELAY,
-    db,
+    db: databaseHandle(db),
     now: createFrozenClock().now,
     ownerId: castId<UserId>("u_owner"),
     secretBoxKey: null,
@@ -302,7 +303,7 @@ describe("user seed wiring", () => {
       throw new Error("the manifest seeds no campaign roster");
     }
     // The ledger records the campaign's own key, so a user who deletes it never gets it back.
-    expect(await listSeededItemKeys(db, owner)).toEqual(expect.arrayContaining(MANIFEST_CAMPAIGN_KEYS));
+    expect(await listSeededItemKeys(databaseHandle(db), owner)).toEqual(expect.arrayContaining(MANIFEST_CAMPAIGN_KEYS));
 
     // The start door's two calls, as `useStartRoster` makes them.
     const started = await result.services.chat.startChat({
@@ -511,7 +512,7 @@ function buildGatedGraph(db: Db, cache = fakeLocalLightCache(BUILT_IN_EMBED_DIMS
   return createServices({
     serverRestart: UNSUPERVISED_RESTART,
     share: NO_SHARE_RELAY,
-    db,
+    db: databaseHandle(db),
     now: createFrozenClock().now,
     ownerId: castId<UserId>("u_owner"),
     secretBoxKey: null,
@@ -529,7 +530,7 @@ describe("notifications fan-out — record (durable) → publishNotification (li
     const result = await createServices({
       serverRestart: UNSUPERVISED_RESTART,
       share: NO_SHARE_RELAY,
-      db,
+      db: databaseHandle(db),
       now: clock.now,
       ownerId: castId<UserId>("u_owner"),
       secretBoxKey: null,
@@ -599,7 +600,7 @@ describe("persona.setActivePersona → chat bus", () => {
     const result = await createServices({
       serverRestart: UNSUPERVISED_RESTART,
       share: NO_SHARE_RELAY,
-      db,
+      db: databaseHandle(db),
       now: clock.now,
       ownerId: castId<UserId>("u_owner"),
       secretBoxKey: null,
@@ -670,7 +671,7 @@ describe("persona.remove seed re-point (owner invariant)", () => {
     return createServices({
       serverRestart: UNSUPERVISED_RESTART,
       share: NO_SHARE_RELAY,
-      db,
+      db: databaseHandle(db),
       now: createFrozenClock().now,
       ownerId: castId<UserId>("u_owner"),
       secretBoxKey: null,
@@ -1076,7 +1077,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     const imageCalls = vi.spyOn(cache, "embedImages").mockRejectedValue(new Error("seed image reached inference"));
     const result = await buildGatedGraph(db, cache);
     const owner = await seedUser(db, { handle: castId<Handle>("seeded-owner") });
-    await seedLocalLightOnBoot({ db, now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
+    await seedLocalLightOnBoot({ db: databaseHandle(db), now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
     await result.contentSeeder.ensureSeeded(principal(owner));
     await runEmbedSweeps(result, owner, null);
     await drain(() => false);
@@ -1102,7 +1103,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     const db = await freshDb();
     const result = await buildGatedGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await seedLocalLightOnBoot({ db, now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
+    await seedLocalLightOnBoot({ db: databaseHandle(db), now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
     const actor = { ...principal(owner), role: "admin" as const };
     await result.services.settings.updateAppSettings({ principal: actor, partial: { corpusAutoindex: true } });
     await drain(() => false);
@@ -1128,7 +1129,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     await writeAppOverride(db, { corpusAutoindex: true, schemaVersion: 2 }, createFrozenClock().now());
     const result = await buildGatedGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await seedLocalLightOnBoot({ db, now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
+    await seedLocalLightOnBoot({ db: databaseHandle(db), now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
 
     const created = await result.services.character.create({
       principal: principal(owner),
@@ -1238,7 +1239,7 @@ describe("search when the memory scope can build no digests (0215)", () => {
     const db = await freshDb();
     const result = await buildGatedGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await seedLocalLightOnBoot({ db, now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
+    await seedLocalLightOnBoot({ db: databaseHandle(db), now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
     await result.services.character.create({
       principal: principal(owner),
       input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
@@ -1284,7 +1285,7 @@ describe("search when the memory scope can build no digests (0215)", () => {
     const db = await freshDb();
     const result = await buildGatedGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await seedLocalLightOnBoot({ db, now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
+    await seedLocalLightOnBoot({ db: databaseHandle(db), now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
     await result.services.settings.updateUserSettingsSection({ principal: principal(owner), input: { section: "memory", patch: { enabled: true } } });
     await result.services.character.create({
       principal: principal(owner),

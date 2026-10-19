@@ -8,6 +8,7 @@
 
 import type { Db } from "@orb/db";
 import { messageVariants, ownerStats } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainConflictError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -66,7 +67,7 @@ describe("stats.reconcile", () => {
       role: "assistant",
       variants: [{ content: "Imported reply", model: "model-imported" }],
     });
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
     await svc.reconcile(ownerId);
     expect(await svc.character(ownerId, measured)).toMatchObject({
       assistantTurns: 1,
@@ -117,7 +118,7 @@ describe("stats.reconcile", () => {
   });
   test("rebuilds the CALLER's rollups from canon and stamps computedAt from the injected clock", async () => {
     const ownerId = await seedOwnerWithCanon("user_owner", "owner", "hello world");
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
 
     // No rollup exists until something computes one (the live write path never ran here).
     expect(await svc.freshness(ownerId)).toEqual({ computedAt: null, stale: false, hasData: false });
@@ -132,7 +133,7 @@ describe("stats.reconcile", () => {
   test("touches NO other owner's rollups — the scope is the caller, not the deployment", async () => {
     const alice = await seedOwnerWithCanon("user_alice", "owner", "alice speaks here");
     const bob = await seedOwnerWithCanon("user_bob", "user", "bob speaks here");
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
 
     await svc.reconcile(alice);
 
@@ -145,7 +146,7 @@ describe("stats.reconcile", () => {
 
   test("refuses a CONCURRENT second recompute for the same caller, and allows one after it settles", async () => {
     const ownerId = await seedOwnerWithCanon("user_owner", "owner", "hello world twice over");
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
 
     // Both calls are made in the SAME tick — the first is still awaiting its rebuild when the second enters,
     // which is exactly the raced double-click / second-tab case the single-flight gate exists for.
@@ -163,7 +164,7 @@ describe("stats.reconcile", () => {
   test("one caller's in-flight recompute does not refuse ANOTHER caller's", async () => {
     const alice = await seedOwnerWithCanon("user_alice", "owner", "alice speaks here");
     const bob = await seedOwnerWithCanon("user_bob", "user", "bob speaks here");
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
 
     const [first, second] = await Promise.allSettled([svc.reconcile(alice), svc.reconcile(bob)]);
 
@@ -175,7 +176,7 @@ describe("stats.reconcile", () => {
 
   test("is idempotent — a second run replaces, never doubles", async () => {
     const ownerId = await seedOwnerWithCanon("user_owner", "owner", "hello world again");
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
 
     const first = await svc.reconcile(ownerId);
     const second = await svc.reconcile(ownerId);

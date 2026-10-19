@@ -7,6 +7,7 @@
 import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 // @orb-waive-file no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
@@ -407,7 +408,7 @@ describe("local login — registration", () => {
       sessions: rec.sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     };
@@ -420,7 +421,7 @@ describe("local login — registration", () => {
       sessions: rec.sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       authenticate: ownerAuth(castId<UserId>("usr_owner")),
@@ -439,7 +440,7 @@ describe("logout — CSRF gate", () => {
       sessions: rec.sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     };
@@ -457,7 +458,7 @@ describe("logout — CSRF gate", () => {
       sessions: rec.sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     };
@@ -479,7 +480,7 @@ describe("logout — CSRF gate", () => {
       sessions: rec.sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     };
@@ -502,7 +503,7 @@ describe("logout — CSRF gate", () => {
       sessions: rec.sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     };
@@ -522,7 +523,7 @@ describe("logout — CSRF gate", () => {
       sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     };
@@ -539,7 +540,7 @@ describe("logout — CSRF gate", () => {
       sessions: rec.sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     };
@@ -556,7 +557,7 @@ describe("logout — CSRF gate", () => {
       sessions: rec.sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     };
@@ -578,7 +579,7 @@ describe("logout — CSRF gate", () => {
       sessions: rec.sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       oidc,
@@ -606,7 +607,7 @@ describe("logout — CSRF gate", () => {
     sessions: rec.sessions,
     sockets: rec.sockets,
     now: (): number => NOW,
-    db: STUB_DB,
+    db: databaseHandle(STUB_DB),
     resolveLoginLimit: (): number => 10,
     discreetLogin: (): boolean => false,
     oidc: fakeOidcDeps({
@@ -1145,7 +1146,7 @@ describe("OIDC route registration", () => {
       sessions: rec.sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     };
@@ -1155,7 +1156,7 @@ describe("OIDC route registration", () => {
       sessions: rec.sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       oidc: fakeOidcDeps(),
@@ -1251,7 +1252,7 @@ describe("OIDC login — the redirect_uri allowlist gate", () => {
       sessions: recordingSessions().sessions,
       sockets: INERT_EVICTION,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       oidc: rec.deps,
@@ -1360,7 +1361,7 @@ describe("OIDC login — the browser binding cookie", () => {
       sessions: recordingSessions().sessions,
       sockets: INERT_EVICTION,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       oidc: fakeOidcDeps({
@@ -1428,7 +1429,7 @@ describe("OIDC callback — the browser binding (login CSRF)", () => {
       sessions: session.sessions,
       sockets: session.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       oidc: fakeOidcDeps({
@@ -1558,7 +1559,7 @@ describe("OIDC callback — single-use state consume (replay/forgery/TTL gate)",
       sessions: session.sessions,
       sockets: session.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       oidc: {
@@ -1665,7 +1666,7 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
       sessions: session.sessions,
       sockets: session.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       oidc: {
@@ -1781,7 +1782,7 @@ describe("OIDC callback — the injected code→token exchange (#867)", () => {
       sessions,
       sockets: session.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       oidc: fakeOidcDeps({
@@ -2004,7 +2005,7 @@ describe("OIDC login + callback — the owner-claim proof handed to provisionIde
       },
       sockets: session.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       oidc: fakeOidcDeps({
@@ -2135,7 +2136,15 @@ describe("OIDC back-channel logout route (A5)", () => {
       backchannelLogout,
     });
     return {
-      deps: { sessions, sockets, now: (): number => NOW, db: STUB_DB, resolveLoginLimit: (): number => 10, discreetLogin: (): boolean => false, oidc },
+      deps: {
+        sessions,
+        sockets,
+        now: (): number => NOW,
+        db: databaseHandle(STUB_DB),
+        resolveLoginLimit: (): number => 10,
+        discreetLogin: (): boolean => false,
+        oidc,
+      },
       rec,
     };
   }
@@ -2146,7 +2155,7 @@ describe("OIDC back-channel logout route (A5)", () => {
       sessions: rec.sessions,
       sockets: rec.sockets,
       now: (): number => NOW,
-      db: STUB_DB,
+      db: databaseHandle(STUB_DB),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
       oidc: fakeOidcDeps(),

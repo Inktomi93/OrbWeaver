@@ -18,6 +18,7 @@ import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { messageReactions, messageVariants } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -301,12 +302,15 @@ describe("toggleReaction — the segment anchor", () => {
 describe("createReactAsCharacter", () => {
   /** The op over the test db, with the room's react-tool opt-in ON via metadata (the plane defaults ON). */
   function reactOp(): ReturnType<typeof createReactAsCharacter> {
-    return createReactAsCharacter(makeChatContext(db), {
-      emit: (event) => {
-        emitted.push(event);
-        return Promise.resolve();
+    return createReactAsCharacter(
+      { ...makeChatContext(db), db: databaseHandle(db) },
+      {
+        emit: (event) => {
+          emitted.push(event);
+          return Promise.resolve();
+        },
       },
-    });
+    );
   }
 
   test("attributes the reaction to the CHARACTER's seat on the newest slot, and narrates the target", async () => {

@@ -3,6 +3,7 @@
 
 import type { Db } from "@orb/db";
 import { chats, messageVariants } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { estimateTokens } from "@orb/kit/tokens";
@@ -42,8 +43,8 @@ describe("createBackfillTokenUsage", () => {
     await db.update(messageVariants).set({ tokensIn: 9, tokensOut: 11, tokenProvenance: "measured" }).where(eq(messageVariants.id, measured.variantId));
     const reconcileImportStats = vi.fn(async () => undefined);
     const deps = {
-      listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),
-      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, bumpStatsCanonVersion),
+      listTokenUsageCandidates: createListImportedTokenUsageCandidates(databaseHandle(db)),
+      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(databaseHandle(db), bumpStatsCanonVersion),
       reconcileImportStats,
     };
     const backfillTokenUsage = createBackfillTokenUsage(deps);
@@ -122,8 +123,8 @@ describe("createBackfillTokenUsage", () => {
     const clock = createFrozenClock();
 
     const result = await createBackfillTokenUsage({
-      listTokenUsageCandidates: createListImportedTokenUsageCandidates(db),
-      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(db, bumpStatsCanonVersion),
+      listTokenUsageCandidates: createListImportedTokenUsageCandidates(databaseHandle(db)),
+      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(databaseHandle(db), bumpStatsCanonVersion),
       reconcileImportStats: ({ ownerId: owner }) => reconcileStats(db, { ownerId: owner, now: clock.now }).then(() => undefined),
     })({ ownerId, dryRun: false, report: vi.fn(), signal: new AbortController().signal });
 

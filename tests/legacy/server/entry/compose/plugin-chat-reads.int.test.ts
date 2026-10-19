@@ -7,6 +7,7 @@
 // read honours it. A non-member never reaches here — the bridge short-circuits to `[]`.
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -34,7 +35,7 @@ describe("loadPluginMessages — the guest canon read honours the viewer floor",
     const chatId = await seedChat(db, "a");
     await seedRows(chatId, [1, 2, 3, 4, 5]);
 
-    const clamped = await loadPluginMessages(db, chatId, {
+    const clamped = await loadPluginMessages(databaseHandle(db), chatId, {
       floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" }),
       readsHidden: true,
     });
@@ -47,7 +48,7 @@ describe("loadPluginMessages — the guest canon read honours the viewer floor",
     const chatId = await seedChat(db, "a");
     await seedRows(chatId, [1, 2, 3]);
 
-    const unclamped = await loadPluginMessages(db, chatId, {
+    const unclamped = await loadPluginMessages(databaseHandle(db), chatId, {
       floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 0, joinHistoryVisibility: "from-join" }),
       readsHidden: true,
     });
@@ -61,14 +62,14 @@ describe("loadPluginMessages — the guest canon read honours the viewer floor",
 
     // limit 3 with floor 6: a post-filter would take the newest 3 (8,9,10) then drop nothing here, but on a
     // page that STRADDLES the floor it would return fewer than 3. Ask for a straddling page to prove it.
-    const page = await loadPluginMessages(db, chatId, {
+    const page = await loadPluginMessages(databaseHandle(db), chatId, {
       limit: 3,
       floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 6, joinHistoryVisibility: "from-join" }),
       readsHidden: true,
     });
 
     expect(page.map((m) => m.seq)).toEqual([8, 9, 10]);
-    const straddling = await loadPluginMessages(db, chatId, {
+    const straddling = await loadPluginMessages(databaseHandle(db), chatId, {
       limit: 6,
       floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 6, joinHistoryVisibility: "from-join" }),
       readsHidden: true,
@@ -84,14 +85,14 @@ describe("loadPluginMessages — the guest canon read honours the viewer floor",
     const lie = '<lie character="Z" truth="he is the mole"/>';
     await seedMessage(db, chatId, 1, { content: `He smiles. ${lie} "Nothing."` });
 
-    const member = await loadPluginMessages(db, chatId, {
+    const member = await loadPluginMessages(databaseHandle(db), chatId, {
       floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 0, joinHistoryVisibility: "from-join" }),
       readsHidden: false,
     });
     expect(member[0]?.content).toBe('He smiles.  "Nothing."');
     expect(member[0]?.content).not.toContain("mole");
 
-    const host = await loadPluginMessages(db, chatId, {
+    const host = await loadPluginMessages(databaseHandle(db), chatId, {
       floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 0, joinHistoryVisibility: "from-join" }),
       readsHidden: true,
     });

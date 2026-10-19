@@ -7,6 +7,7 @@
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { worldBooks, worldEntries } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -63,7 +64,7 @@ describe("createExport", () => {
     const bookId = castId<WorldBookId>("world_book_export");
     await seedBook(db, owner.id, bookId);
 
-    const result = await createExport({ db })({ ownerId: owner.id, bookId });
+    const result = await createExport({ db: databaseHandle(db) })({ ownerId: owner.id, bookId });
     if (result === null) {
       throw new Error("export returned null for an owned book");
     }
@@ -112,7 +113,7 @@ describe("createExport", () => {
     const bookId = castId<WorldBookId>("world_book_owned");
     await seedBook(db, owner.id, bookId);
 
-    expect(await createExport({ db })({ ownerId: stranger.id, bookId })).toBeNull();
-    expect(await createExport({ db })({ ownerId: owner.id, bookId: castId("world_book_missing") })).toBeNull();
+    expect(await createExport({ db: databaseHandle(db) })({ ownerId: stranger.id, bookId })).toBeNull();
+    expect(await createExport({ db: databaseHandle(db) })({ ownerId: owner.id, bookId: castId("world_book_missing") })).toBeNull();
   });
 });

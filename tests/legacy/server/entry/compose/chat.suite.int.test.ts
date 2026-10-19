@@ -1,3 +1,4 @@
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import assert from "node:assert/strict";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
@@ -85,7 +86,7 @@ test("a fresh paid turn after no-copy handoff and its signed inverse retain ever
   });
   await db.insert(connectionBindings).values({ id: mintTypeId(ID_PREFIX.connectionBinding), actorKind: "user", userId: b.id, task: "chat", connectionId });
   for (const ownerId of [a.id, b.id]) {
-    await reconcileStats(db, { ownerId, now: clock.now });
+    await reconcileStats(databaseHandle(db), { ownerId, now: clock.now });
   }
   const versions = await db.select().from(statsCanonVersions);
   const online = new AbortController();
@@ -107,7 +108,7 @@ test("a fresh paid turn after no-copy handoff and its signed inverse retain ever
     );
     const daily = await db.select().from(dailyStats).where(eq(dailyStats.ownerId, ownerId));
     const model = await db.select().from(modelStats).where(eq(modelStats.ownerId, ownerId));
-    await reconcileStats(db, { ownerId, now: clock.now });
+    await reconcileStats(databaseHandle(db), { ownerId, now: clock.now });
     const rebuilt = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
     expect(rebuilt).toEqual(live);
     expect((await db.select().from(dailyStats).where(eq(dailyStats.ownerId, ownerId))).map(({ id: _id, ...row }) => row)).toEqual(
@@ -128,7 +129,7 @@ test("a fresh paid turn after no-copy handoff and its signed inverse retain ever
     const live = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
     const daily = await db.select().from(dailyStats).where(eq(dailyStats.ownerId, ownerId));
     const models = await db.select().from(modelStats).where(eq(modelStats.ownerId, ownerId));
-    await reconcileStats(db, { ownerId, now: clock.now });
+    await reconcileStats(databaseHandle(db), { ownerId, now: clock.now });
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0]).toEqual(live);
     expect((await db.select().from(dailyStats).where(eq(dailyStats.ownerId, ownerId))).map(({ id: _id, ...row }) => row)).toEqual(
       daily.map(({ id: _id, ...row }) => row),
@@ -143,7 +144,7 @@ test("a fresh paid turn after no-copy handoff and its signed inverse retain ever
   for (const ownerId of [a.id, b.id]) {
     const live = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
     expect(live).toMatchObject({ assistantTurns: 1, userTurns: 1, costUsd: 0.125 });
-    await reconcileStats(db, { ownerId, now: clock.now });
+    await reconcileStats(databaseHandle(db), { ownerId, now: clock.now });
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0]).toEqual(live);
   }
   const beforeDeleteVersions = await db.select().from(statsCanonVersions);
@@ -152,7 +153,7 @@ test("a fresh paid turn after no-copy handoff and its signed inverse retain ever
     expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, ownerId)))[0]?.version).toBeGreaterThan(
       beforeDeleteVersions.find((v) => v.ownerId === ownerId)?.version ?? 0,
     );
-    await reconcileStats(db, { ownerId, now: clock.now });
+    await reconcileStats(databaseHandle(db), { ownerId, now: clock.now });
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0]).toMatchObject({ userTurns: 0, assistantTurns: 0, costUsd: 0 });
   }
   expect(requests.filter((r) => r.url.endsWith("/chat/completions"))).toHaveLength(1);

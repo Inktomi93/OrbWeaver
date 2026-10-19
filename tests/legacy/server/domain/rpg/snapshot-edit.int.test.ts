@@ -66,7 +66,7 @@ describe("foldTurnWriteIntoHandHead — the supersede check runs INSIDE the seri
     });
     await holding.promise;
 
-    const folding = foldTurnWriteIntoHandHead(h.ctx, game, { patches: [], snapshotId }, 1);
+    const folding = foldTurnWriteIntoHandHead({ ...h.ctx, db }, game, { patches: [], snapshotId }, 1);
     await settle();
     held.resolve();
     await occupant;
@@ -86,7 +86,7 @@ describe("foldTurnWriteIntoHandHead — the supersede check runs INSIDE the seri
     const before = await countSnapshots(db, gameId);
     const game = await gameRow(db, chatId, gameId);
 
-    const outcome = await foldTurnWriteIntoHandHead(h.ctx, game, { patches: [], snapshotId }, 1);
+    const outcome = await foldTurnWriteIntoHandHead({ ...h.ctx, db }, game, { patches: [], snapshotId }, 1);
 
     expect(outcome.kind).toBe("folded");
     expect(await countSnapshots(db, gameId)).toBe(before + 1);

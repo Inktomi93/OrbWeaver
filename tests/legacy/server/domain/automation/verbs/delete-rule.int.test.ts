@@ -1,6 +1,7 @@
 // verb: deleteRule — remove a rule (host-only).
 // @subject packages/server/src/domain/automation/verbs/delete-rule.ts
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -29,7 +30,7 @@ test("an index-refresh failure does not reject the committed delete, and the del
   const host = await seedUser(db, "user_host");
   const chatId = await seedHostChat(db, host);
   const failing = { fail: false };
-  const enabled = createEnabledRuleIndex(readFailingDb(db, failing));
+  const enabled = createEnabledRuleIndex(databaseHandle(readFailingDb(db, failing)));
   const calls: string[] = [];
   const ctx = makeAutomationHarness(db, {
     enabled,

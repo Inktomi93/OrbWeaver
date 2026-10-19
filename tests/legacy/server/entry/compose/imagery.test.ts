@@ -25,6 +25,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { UserSettings } from "@orb/contracts/settings";
 import { parseUserSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { isCharacterSeated } from "@orb/server/domain/chat";
@@ -291,7 +292,7 @@ describe("buildImagery — a room preview's subject comes from the room roster",
 
   function roomFakes(db: Db): Fakes {
     const f = fakes();
-    f.isCharacterSeated.mockImplementation((chatId, characterId) => isCharacterSeated(db, chatId, characterId));
+    f.isCharacterSeated.mockImplementation((chatId, characterId) => isCharacterSeated(databaseHandle(db), chatId, characterId));
     return f;
   }
 

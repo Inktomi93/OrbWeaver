@@ -4,6 +4,7 @@
 
 import type { Db } from "@orb/db";
 import { worldBooks } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -27,7 +28,7 @@ describe("createListOwnedBookIds", () => {
     await seedBook(db, owner.id, "world_book_mine_b", "Mine B");
     await seedBook(db, stranger.id, "world_book_theirs", "Theirs");
 
-    const ids = await createListOwnedBookIds({ db })({ ownerId: owner.id });
+    const ids = await createListOwnedBookIds({ db: databaseHandle(db) })({ ownerId: owner.id });
 
     expect(ids.toSorted()).toEqual(["world_book_mine_a", "world_book_mine_b"]);
   });
@@ -41,7 +42,7 @@ describe("createListOwnedBookIds", () => {
     await seedBook(db, owner.id, "world_book_a", "A");
     await seedBook(db, owner.id, "world_book_b", "B");
 
-    expect(await createListOwnedBookIds({ db })({ ownerId: owner.id })).toEqual(["world_book_a", "world_book_b", "world_book_c"]);
+    expect(await createListOwnedBookIds({ db: databaseHandle(db) })({ ownerId: owner.id })).toEqual(["world_book_a", "world_book_b", "world_book_c"]);
   });
 
   test("an owner with no books enumerates empty (never every book on the box)", async () => {
@@ -50,6 +51,6 @@ describe("createListOwnedBookIds", () => {
     const stranger = await seedUser(db, {});
     await seedBook(db, stranger.id, "world_book_theirs", "Theirs");
 
-    expect(await createListOwnedBookIds({ db })({ ownerId: owner.id })).toEqual([]);
+    expect(await createListOwnedBookIds({ db: databaseHandle(db) })({ ownerId: owner.id })).toEqual([]);
   });
 });

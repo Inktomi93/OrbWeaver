@@ -1,6 +1,7 @@
 // verb: listRuleTools — the caller-scoped catalog of installed plugin tools, driven through the composed service.
 // @subject packages/server/src/domain/automation/verbs/list-rule-tools.ts
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import type { AutomationRuleToolView } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
@@ -30,7 +31,7 @@ function installTool(app: ServicesResult, db: Db, owner: UserId, probe: { readon
       calls.push(marker);
       return Promise.resolve(`${marker} private execution result`);
     },
-    resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db, can })(principal(owner), chatId),
+    resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db: databaseHandle(db), can })(principal(owner), chatId),
   });
 }
 

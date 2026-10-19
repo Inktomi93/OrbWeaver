@@ -21,6 +21,7 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { SessionsService } from "@orb/server/domain/sessions";
 import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import { env } from "@orb/server/foundation/env";
@@ -149,7 +150,7 @@ async function viaLogout(cookieLines: readonly string[], transport: RequestTrans
     sessions,
     sockets: INERT_EVICTION,
     now: (): number => FROZEN_AT_MS,
-    db: NO_DB,
+    db: databaseHandle(NO_DB),
     resolveLoginLimit: (): number => 10,
     discreetLogin: (): boolean => false,
   });
@@ -194,7 +195,7 @@ function appDeps(): AppDeps {
   const services = { settings: { getEffectiveConfig: (): EffectiveAppConfig => layer({}) } } as unknown as AppDeps["services"];
   return {
     now: (): number => FROZEN_AT_MS,
-    db: NO_DB,
+    db: databaseHandle(NO_DB),
     oidcProviderName: "your identity provider",
     seam: {
       // The slide fires on every request: the middleware re-issues Set-Cookie ONLY from the token it

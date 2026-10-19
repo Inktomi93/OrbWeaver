@@ -55,7 +55,7 @@ describe("bulk add card tag", () => {
     const h = makeHarness(db);
     // Bind the REAL tag verb over the SAME db, exactly as compose does (`attachCardTag: tag.attachCardTagByName`).
     const tagHarness = makeTagHarness(db);
-    const attachCardTagByName = createAttachCardTagByName(tagHarness.ctx);
+    const attachCardTagByName = createAttachCardTagByName({ ...tagHarness.ctx, db });
     const svc = createCharacterService({ ...h.ctx, attachCardTag: attachCardTagByName });
 
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

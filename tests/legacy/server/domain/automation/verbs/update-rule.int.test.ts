@@ -2,6 +2,7 @@
 // @subject packages/server/src/domain/automation/verbs/update-rule.ts
 
 import { automationRules, chatParticipants } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
@@ -151,7 +152,7 @@ test("an index-refresh failure does NOT reject the committed edit, and the stale
   const host = await seedUser(db, "user_host");
   const chatId = await seedHostChat(db, host);
   const failing = { fail: false };
-  const enabled = createEnabledRuleIndex(readFailingDb(db, failing));
+  const enabled = createEnabledRuleIndex(databaseHandle(readFailingDb(db, failing)));
   const ctx = makeAutomationHarness(db, { enabled });
   const svc = createAutomationService(ctx);
   const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "greet", trigger: MSG_COMMITTED, actions: [SET_VAR] });
@@ -276,7 +277,7 @@ test("the pending-ask void runs BEFORE the row is written (and again after, for 
       return Reflect.get(target, prop, receiver) as unknown;
     },
   });
-  const svc = createAutomationService({ ...fx.ctx, db: tracingDb, suggestions: recordingStore });
+  const svc = createAutomationService({ ...fx.ctx, db: databaseHandle(tracingDb), suggestions: recordingStore });
 
   await svc.updateRule({ timeZone: UTC_TIME_ZONE, principal: principal(fx.host), ruleId: rule.id, name: "greet2", trigger: MSG_COMMITTED, actions: [SET_VAR] });
 

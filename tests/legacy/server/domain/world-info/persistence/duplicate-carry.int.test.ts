@@ -6,6 +6,7 @@
 import type { WorldBookRole } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, worldBooks } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -43,7 +44,7 @@ describe("createCopyCharacterBooks", () => {
     const primary = await seedAttachedBook(db, { bookId: "world_book_primary", ownerId: owner, characterId: from, role: "primary" });
     const aux = await seedAttachedBook(db, { bookId: "world_book_aux", ownerId: owner, characterId: from, role: "auxiliary" });
 
-    await createCopyCharacterBooks({ db, now: (): number => NOW })({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
+    await createCopyCharacterBooks({ db: databaseHandle(db), now: (): number => NOW })({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
 
     expect(new Set(await junctionsFor(db, to))).toEqual(
       new Set([
@@ -74,7 +75,7 @@ describe("createCopyCharacterBooks", () => {
     const mine = (await seedCharacter(db, { ownerId: owner })).id;
     await seedAttachedBook(db, { bookId: "world_book_theirs", ownerId: stranger, characterId: foreign, role: "primary" });
 
-    await createCopyCharacterBooks({ db, now: (): number => NOW })({ ownerId: owner, fromCharacterId: foreign, toCharacterId: mine });
+    await createCopyCharacterBooks({ db: databaseHandle(db), now: (): number => NOW })({ ownerId: owner, fromCharacterId: foreign, toCharacterId: mine });
 
     expect(await junctionsFor(db, mine)).toEqual([]);
   });
@@ -88,7 +89,7 @@ describe("createCopyCharacterBooks", () => {
     const theirs = (await seedCharacter(db, { ownerId: stranger })).id;
     await seedAttachedBook(db, { bookId: "world_book_mine", ownerId: owner, characterId: mine, role: "primary" });
 
-    await createCopyCharacterBooks({ db, now: (): number => NOW })({ ownerId: owner, fromCharacterId: mine, toCharacterId: theirs });
+    await createCopyCharacterBooks({ db: databaseHandle(db), now: (): number => NOW })({ ownerId: owner, fromCharacterId: mine, toCharacterId: theirs });
 
     expect(await junctionsFor(db, theirs)).toEqual([]);
   });
@@ -107,7 +108,7 @@ describe("createCopyCharacterBooks", () => {
     const mine = await seedAttachedBook(db, { bookId: "world_book_mine", ownerId: owner, characterId: from, role: "primary" });
     const theirs = await seedAttachedBook(db, { bookId: "world_book_theirs", ownerId: stranger, characterId: from, role: "auxiliary" });
 
-    await createCopyCharacterBooks({ db, now: (): number => NOW })({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
+    await createCopyCharacterBooks({ db: databaseHandle(db), now: (): number => NOW })({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
 
     expect(await junctionsFor(db, to)).toEqual([{ worldBookId: mine, role: "primary" }]);
     expect((await junctionsFor(db, to)).map((j) => j.worldBookId)).not.toContain(theirs);
@@ -125,7 +126,7 @@ describe("createCopyCharacterBooks", () => {
     const from = (await seedCharacter(db, { ownerId: owner })).id;
     const to = (await seedCharacter(db, { ownerId: owner })).id;
     const primary = await seedAttachedBook(db, { bookId: "world_book_primary", ownerId: owner, characterId: from, role: "primary" });
-    const carry = createCopyCharacterBooks({ db, now: (): number => NOW });
+    const carry = createCopyCharacterBooks({ db: databaseHandle(db), now: (): number => NOW });
 
     await carry({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
     await carry({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
@@ -139,7 +140,7 @@ describe("createCopyCharacterBooks", () => {
     const from = (await seedCharacter(db, { ownerId: owner })).id;
     const to = (await seedCharacter(db, { ownerId: owner })).id;
 
-    await createCopyCharacterBooks({ db, now: (): number => NOW })({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
+    await createCopyCharacterBooks({ db: databaseHandle(db), now: (): number => NOW })({ ownerId: owner, fromCharacterId: from, toCharacterId: to });
 
     expect(await junctionsFor(db, to)).toEqual([]);
     expect(await db.select().from(worldBooks)).toEqual([]);

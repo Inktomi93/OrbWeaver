@@ -10,6 +10,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
@@ -156,7 +157,7 @@ function makeService(
       },
     },
   };
-  return { service: createChatService(ctx, deps).service, events };
+  return { service: createChatService({ ...ctx, db: databaseHandle(ctx.db) }, deps).service, events };
 }
 
 /** Seed a solo room (host + one character) with `per-speaker`/`natural` group config. */

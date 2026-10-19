@@ -7,6 +7,7 @@
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { characters } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
@@ -43,7 +44,7 @@ function build(): {
     collectGarbage: vi.fn(async () => ({ scanned: 10, reclaimed: 4 })),
     fsck: vi.fn(async () => ({ danglingRows: 1, corruptBlobs: 0, orphanBlobs: 2 })),
   } as unknown as AssetsWorkloadDeps["assets"];
-  return { assets, contributions: createAssetsWorkloadContributions({ db, cas, assets }) };
+  return { assets, contributions: createAssetsWorkloadContributions({ db: databaseHandle(db), cas, assets }) };
 }
 
 /** A character with a recorded import hash whose card blob IS in the CAS (a real backfill candidate). */
@@ -73,7 +74,7 @@ describe("assets-backfill", () => {
       controller.abort();
       return bytes;
     });
-    const contributions = createAssetsWorkloadContributions({ db, cas, assets: createAssetsService(harness.ctx) });
+    const contributions = createAssetsWorkloadContributions({ db: databaseHandle(db), cas, assets: createAssetsService(harness.ctx) });
     expect(await contributions[0].run(ctxFor(null), {}, vi.fn(), controller.signal)).toEqual({ scanned: 0, changed: 0, dryRun: false });
     expect(read).toHaveBeenCalledTimes(1);
     expect((await db.select().from(characters)).every((row) => row.avatarAssetId === null)).toBe(true);
@@ -89,7 +90,7 @@ describe("assets-backfill", () => {
       controller.abort();
     });
     const assets = createAssetsService({ ...harness.ctx, linkCharacterAvatars: link });
-    const contributions = createAssetsWorkloadContributions({ db, cas, assets });
+    const contributions = createAssetsWorkloadContributions({ db: databaseHandle(db), cas, assets });
     expect(await contributions[0].run(ctxFor(null), {}, vi.fn(), controller.signal)).toEqual({ scanned: 1, changed: 1, dryRun: false });
     expect(link).toHaveBeenCalledTimes(1);
     expect((await db.select().from(characters)).filter((row) => row.avatarAssetId !== null)).toHaveLength(1);

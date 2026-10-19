@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/stats/verbs/freshness.ts
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
@@ -19,7 +20,7 @@ beforeEach(async () => {
 describe("stats.freshness", () => {
   test("hasData flips once a rollup exists; stale is always false", async () => {
     const owner = await seedUser(db);
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
     expect(await svc.freshness(owner)).toEqual({ computedAt: null, stale: false, hasData: false });
     await seedOwnerStats(db, owner, { computedAt: T0 });
     expect(await svc.freshness(owner)).toEqual({ computedAt: T0, stale: false, hasData: true });

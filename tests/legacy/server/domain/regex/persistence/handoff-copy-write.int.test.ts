@@ -16,6 +16,7 @@
 
 import { chatRegexScripts, regexScripts } from "@orb/db";
 import { batchMany } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -32,7 +33,7 @@ const AT = 4242;
 function copier(db: Parameters<typeof makeHarness>[0]): ReturnType<typeof createCopyHandoffRegexScripts> {
   let n = 0;
   return createCopyHandoffRegexScripts({
-    db,
+    db: databaseHandle(db),
     now: (): number => AT,
     newScriptId: (): RegexScriptId => {
       n += 1;

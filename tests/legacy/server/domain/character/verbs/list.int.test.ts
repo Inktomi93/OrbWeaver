@@ -6,9 +6,9 @@
 // @subject packages/server/src/domain/character/verbs/list.ts
 
 import type { CharacterLibraryLens } from "@orb/contracts/character";
-
 import { AUTHORED_CARD_CREATOR, CHARACTER_PROVENANCES } from "@orb/contracts/character";
 import { characterTags, tags } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, CharacterId, ChatId, Handle, TagId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createCharacterService, createStampRefinerySignals } from "@orb/server/domain/character";
@@ -366,7 +366,7 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     const low = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("low"), name: "Low", description: "b" } });
     const unscored = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("none"), name: "None", description: "c" } });
     // Stamp through the REAL refinery op — the same writer the sweep and a session's score run use.
-    const stamp = createStampRefinerySignals({ db });
+    const stamp = createStampRefinerySignals({ db: databaseHandle(db) });
     await stamp({ ownerId: owner, characterId: high.id, patch: { score: 9.5 } });
     await stamp({ ownerId: owner, characterId: low.id, patch: { score: 2 } });
 
@@ -384,7 +384,7 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     const high = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("h"), name: "H", description: "a" } });
     const low = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("l"), name: "L", description: "b" } });
     const unscored = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("u"), name: "U", description: "c" } });
-    const stamp = createStampRefinerySignals({ db });
+    const stamp = createStampRefinerySignals({ db: databaseHandle(db) });
     await stamp({ ownerId: owner, characterId: high.id, patch: { score: 8 } });
     await stamp({ ownerId: owner, characterId: low.id, patch: { score: 4 } });
 

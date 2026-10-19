@@ -12,6 +12,7 @@
 
 import { REACTION_ATTRIBUTION_MAX_PER_MESSAGE, REACTION_EMOJIS } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, ChatParticipantId, Handle, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -31,7 +32,7 @@ beforeEach(async () => {
 });
 
 function attribution(): TeachingContribution {
-  const found = createChatTeachingContributions({ db }).find((c) => c.id === "chat.reaction-attribution");
+  const found = createChatTeachingContributions({ db: databaseHandle(db) }).find((c) => c.id === "chat.reaction-attribution");
   if (found === undefined) {
     throw new Error("chat.reaction-attribution is not registered");
   }

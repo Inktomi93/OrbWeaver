@@ -10,6 +10,7 @@
 
 import { characterCardV3Schema } from "@orb/contracts/character";
 import { characterBooks } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, CharacterId, Handle, WorldBookId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { isPng, readCardChunk } from "@orb/kit/png-card-chunk";
@@ -49,7 +50,7 @@ describe("exportCharacter", () => {
   test("serializes the live card to a V3 PNG that re-parses cleanly (round-trip)", async () => {
     const db = await freshDb();
     const { ctx } = makeHarness(db);
-    const svc = createExportService(ctx);
+    const svc = createExportService({ ...ctx, db: databaseHandle(ctx.db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, {
       ownerId: owner,
@@ -82,7 +83,7 @@ describe("exportCharacter", () => {
 
   test("serializes ACCEPTED tags only; pending suggestions are dropped", async () => {
     const db = await freshDb();
-    const svc = createExportService(makeHarness(db).ctx);
+    const svc = createExportService({ ...makeHarness(db).ctx, db: databaseHandle(db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner, name: "Tagged" });
     const accepted = await seedTag(db, owner, "fantasy");
@@ -100,7 +101,7 @@ describe("exportCharacter", () => {
 
   test("embeds the PRIMARY book as the card's character_book under its name; an auxiliary book is not merged in", async () => {
     const db = await freshDb();
-    const svc = createExportService(makeHarness(db).ctx);
+    const svc = createExportService({ ...makeHarness(db).ctx, db: databaseHandle(db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
     const primary = await seedWorldBook(db, owner, "world_book_0000000000000000000000000c", "Dragon Lore");
@@ -132,7 +133,7 @@ describe("exportCharacter", () => {
 
   test("never serializes another owner's tag, even when a junction row links it to the card", async () => {
     const db = await freshDb();
-    const svc = createExportService(makeHarness(db).ctx);
+    const svc = createExportService({ ...makeHarness(db).ctx, db: databaseHandle(db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const character = await seedCharacter(db, { ownerId: owner, name: "Tagged" });
@@ -147,7 +148,7 @@ describe("exportCharacter", () => {
 
   test("never embeds another owner's book, even when a junction row names it the card's primary book", async () => {
     const db = await freshDb();
-    const svc = createExportService(makeHarness(db).ctx);
+    const svc = createExportService({ ...makeHarness(db).ctx, db: databaseHandle(db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const character = await seedCharacter(db, { ownerId: owner });
@@ -164,7 +165,7 @@ describe("exportCharacter", () => {
 
   test("bundles the attached-book references with their roles (never the book content)", async () => {
     const db = await freshDb();
-    const svc = createExportService(makeHarness(db).ctx);
+    const svc = createExportService({ ...makeHarness(db).ctx, db: databaseHandle(db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
     const primary = await seedWorldBook(db, owner, "world_book_000000000000000000000000p1");
@@ -185,7 +186,7 @@ describe("exportCharacter", () => {
 
   test("round-trip on the SAME install: the references restore the exact junctions + roles", async () => {
     const db = await freshDb();
-    const svc = createExportService(makeHarness(db).ctx);
+    const svc = createExportService({ ...makeHarness(db).ctx, db: databaseHandle(db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await seedCharacter(db, { ownerId: owner, id: "character_src", handle: castId<CharacterHandle>("src") });
     const primary = await seedWorldBook(db, owner, "world_book_000000000000000000000000p1");
@@ -199,7 +200,7 @@ describe("exportCharacter", () => {
 
     // Import lands a fresh character on the same install; the re-link op re-points the SAME books at it.
     const target = await seedCharacter(db, { ownerId: owner, id: "character_dst", handle: castId<CharacterHandle>("dst") });
-    const linked = await createLinkCarriedBooks({ db, now: (): number => 1 })({ ownerId: owner, characterId: target, refs });
+    const linked = await createLinkCarriedBooks({ db: databaseHandle(db), now: (): number => 1 })({ ownerId: owner, characterId: target, refs });
 
     expect(linked).toEqual({ linked: 2, skipped: 0 });
     const junctions = await db
@@ -217,7 +218,7 @@ describe("exportCharacter", () => {
   test("embeds the owner's PNG avatar as the base (single cas.read; no transcode)", async () => {
     const db = await freshDb();
     const harness = makeHarness(db);
-    const svc = createExportService(harness.ctx);
+    const svc = createExportService({ ...harness.ctx, db: databaseHandle(harness.ctx.db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner, hash: AVATAR_HASH, mime: "image/png" });
     harness.putBlob(owner, AVATAR_HASH, AVATAR_PNG);
@@ -244,7 +245,7 @@ describe("exportCharacter", () => {
   test("transcodes a non-PNG avatar via the injected imageTransform op", async () => {
     const db = await freshDb();
     const harness = makeHarness(db);
-    const svc = createExportService(harness.ctx);
+    const svc = createExportService({ ...harness.ctx, db: databaseHandle(harness.ctx.db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner, hash: AVATAR_HASH, mime: "image/jpeg" });
     harness.putBlob(owner, AVATAR_HASH, AVATAR_PNG);
@@ -262,7 +263,7 @@ describe("exportCharacter", () => {
   test("falls back to the placeholder when the avatar blob is absent (ENOENT)", async () => {
     const db = await freshDb();
     const harness = makeHarness(db);
-    const svc = createExportService(harness.ctx);
+    const svc = createExportService({ ...harness.ctx, db: databaseHandle(harness.ctx.db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // asset row exists but the blob was never put into the CAS → cas.read rejects ENOENT.
     const avatar = await seedAsset(db, { ownerId: owner, hash: AVATAR_HASH });
@@ -280,7 +281,7 @@ describe("exportCharacter", () => {
 
   test("returns null for a character owned by someone else (no existence leak)", async () => {
     const db = await freshDb();
-    const svc = createExportService(makeHarness(db).ctx);
+    const svc = createExportService({ ...makeHarness(db).ctx, db: databaseHandle(db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const character = await seedCharacter(db, { ownerId: owner });
@@ -294,7 +295,7 @@ describe("exportCharacter", () => {
 
   test("returns null for a missing character", async () => {
     const db = await freshDb();
-    const svc = createExportService(makeHarness(db).ctx);
+    const svc = createExportService({ ...makeHarness(db).ctx, db: databaseHandle(db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const result = await svc.exportCharacter({
       principal: principal(owner),

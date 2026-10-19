@@ -44,6 +44,7 @@
 import type { UserRole } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SessionsService } from "@orb/server/domain/sessions";
@@ -261,8 +262,8 @@ function gateApp(opts: GateAppOptions): GateApp {
   // @orb-waive no-test-fabrication(unknown): a deliberately unusable db is the assertion — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const db = {} as unknown as Db;
   registerDebugRoutes(widenedApp, {
-    db,
-    appSettingRows: () => readGlobalSettings(db),
+    db: databaseHandle(db),
+    appSettingRows: () => readGlobalSettings(databaseHandle(db)),
     auth: {
       expectedToken: opts.expectedToken,
       adminAuth: { isAdmin: (c): boolean => seam.debugGateAdmits((c as Context<PrincipalEnv>).get("principal") ?? null, c.req.raw.headers) },

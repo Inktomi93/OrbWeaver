@@ -3,6 +3,7 @@
 // wins (never a later assistant/narrator line), an empty chat is `null`, and a message with no user line is null.
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
@@ -21,7 +22,7 @@ describe("getPendingUserText", () => {
     await seedMessage(db, chatId, 1, { role: "user", content: "I sneak up. [dice: d20 = 14 (14)]" });
     await seedMessage(db, chatId, 2, { role: "assistant", content: "The guard turns…" });
 
-    const getPendingUserText = createGetPendingUserText(makeChatContext(db));
+    const getPendingUserText = createGetPendingUserText({ ...makeChatContext(db), db: databaseHandle(db) });
     expect(await getPendingUserText(chatId)).toBe("I sneak up. [dice: d20 = 14 (14)]");
   });
 
@@ -30,13 +31,13 @@ describe("getPendingUserText", () => {
     await seedMessage(db, chatId, 1, { role: "user", content: "first" });
     await seedMessage(db, chatId, 3, { role: "user", content: "latest" });
 
-    const getPendingUserText = createGetPendingUserText(makeChatContext(db));
+    const getPendingUserText = createGetPendingUserText({ ...makeChatContext(db), db: databaseHandle(db) });
     expect(await getPendingUserText(chatId)).toBe("latest");
   });
 
   test("null when the chat has no user message (empty, or only assistant lines)", async () => {
     const chatId = await seedChat(db, "a");
-    const getPendingUserText = createGetPendingUserText(makeChatContext(db));
+    const getPendingUserText = createGetPendingUserText({ ...makeChatContext(db), db: databaseHandle(db) });
     expect(await getPendingUserText(chatId)).toBeNull();
 
     await seedMessage(db, chatId, 1, { role: "assistant", content: "narration" });

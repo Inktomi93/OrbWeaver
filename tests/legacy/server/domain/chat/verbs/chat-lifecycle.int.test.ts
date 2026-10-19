@@ -10,6 +10,7 @@ import type { ChoiceBlockSpec, UserMacroSpec } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { chatEvents, chatInjections, chats, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatInjectionId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
@@ -156,7 +157,7 @@ describe("chat-row flags (host-only)", () => {
       yield { kind: "final", economics: { content: "hello", tokensIn: 4, tokensOut: 2, model: testModelId("test-model") } };
     }
     // The REAL durable bus (not the recorder) — this test exists to exercise the `chat_events` FK itself.
-    const bus = createChatBus(makeChatContext(db));
+    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db) });
     const sc = await scenario.chat(tape(), { db, emit: bus.emit, ctx: { runChatTurn: () => gatedStream() } });
     // The verb's DURABLE emit goes through the SAME bus the turn does (that shared FK is the crash's
     // substrate); its `chatDeleted` now rides the live lane instead, which is exactly what lets the delete

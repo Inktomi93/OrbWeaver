@@ -7,6 +7,7 @@
 // @orb-waive-file no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -36,7 +37,7 @@ describe("setRpgPointer", () => {
   test("writes the opaque {gameId} pointer into metadata.rpg", async () => {
     const chatId = await seedChat(db, "a");
     const gameId = mintTypeId(ID_PREFIX.rpgGame);
-    await createSetRpgPointer(makeChatContext(db), { claimChat: noClaim })(chatId, { gameId, engaged: true });
+    await createSetRpgPointer({ ...makeChatContext(db), db: databaseHandle(db) }, { claimChat: noClaim })(chatId, { gameId, engaged: true });
     expect((await readMetadata(chatId)).rpg).toEqual({ engaged: true, gameId });
   });
 
@@ -48,14 +49,17 @@ describe("setRpgPointer", () => {
       .set({ metadata: { roomOverrides: { scenario: "a haunted keep" } } })
       .where(eq(chats.id, chatId));
     const gameId = mintTypeId(ID_PREFIX.rpgGame);
-    await createSetRpgPointer(makeChatContext(db), { claimChat: noClaim })(chatId, { gameId, engaged: true });
+    await createSetRpgPointer({ ...makeChatContext(db), db: databaseHandle(db) }, { claimChat: noClaim })(chatId, { gameId, engaged: true });
     const meta = await readMetadata(chatId);
     expect(meta.rpg).toEqual({ engaged: true, gameId });
     expect(meta.roomOverrides?.scenario).toBe("a haunted keep");
   });
 
   test("a racing-deleted chat is a no-op (no throw)", async () => {
-    await createSetRpgPointer(makeChatContext(db), { claimChat: noClaim })(castId("chat_ghost"), { engaged: true, gameId: mintTypeId(ID_PREFIX.rpgGame) });
+    await createSetRpgPointer({ ...makeChatContext(db), db: databaseHandle(db) }, { claimChat: noClaim })(castId("chat_ghost"), {
+      engaged: true,
+      gameId: mintTypeId(ID_PREFIX.rpgGame),
+    });
     expect(true).toBe(true);
   });
 
@@ -74,9 +78,10 @@ describe("setRpgPointer", () => {
       },
     });
 
-    const err = await createSetRpgPointer(makeChatContext(db), { claimChat: noClaim })(chatId, { engaged: true, gameId: mintTypeId(ID_PREFIX.rpgGame) }).catch(
-      (e: unknown) => e,
-    );
+    const err = await createSetRpgPointer({ ...makeChatContext(db), db: databaseHandle(db) }, { claimChat: noClaim })(chatId, {
+      engaged: true,
+      gameId: mintTypeId(ID_PREFIX.rpgGame),
+    }).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("background_unavailable");
@@ -91,10 +96,10 @@ describe("setRpgPointer", () => {
       .update(chats)
       .set({ metadata: { roomOverrides: { scenario: "a haunted keep" } } })
       .where(eq(chats.id, chatId));
-    await createSetRpgPointer(makeChatContext(db), { claimChat: noClaim })(chatId, { gameId, engaged: true });
+    await createSetRpgPointer({ ...makeChatContext(db), db: databaseHandle(db) }, { claimChat: noClaim })(chatId, { gameId, engaged: true });
     expect((await readMetadata(chatId)).rpg).toEqual({ engaged: true, gameId });
 
-    await createSetRpgPointer(makeChatContext(db), { claimChat: noClaim })(chatId, null);
+    await createSetRpgPointer({ ...makeChatContext(db), db: databaseHandle(db) }, { claimChat: noClaim })(chatId, null);
     const meta = await readMetadata(chatId);
     // The pointer is GONE (absent, not `rpg: null` — the gate reads presence), the sibling survives.
     expect(meta.rpg).toBeUndefined();

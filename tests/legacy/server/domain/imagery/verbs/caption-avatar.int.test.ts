@@ -16,7 +16,7 @@ describe("createCaptionAvatar", () => {
     const owner = await seedOwner(db, castId<Handle>("owner"));
     const h = makeHarness(db);
 
-    const result = await createCaptionAvatar(h.ctx)({
+    const result = await createCaptionAvatar({ ...h.ctx, db })({
       runAs: principal(owner),
       mode: "character_multimodal",
       subjectCharacterId: castId("character_aria"),
@@ -32,7 +32,7 @@ describe("createCaptionAvatar", () => {
     const owner = await seedOwner(db, castId<Handle>("owner"));
     const h = makeHarness(db);
 
-    const result = await createCaptionAvatar(h.ctx)({
+    const result = await createCaptionAvatar({ ...h.ctx, db })({
       runAs: principal(owner),
       mode: "face_multimodal",
       subjectCharacterId: undefined,
@@ -47,7 +47,7 @@ describe("createCaptionAvatar", () => {
     const owner = await seedOwner(db, castId<Handle>("owner"));
     const h = makeHarness(db, { getCard: () => Promise.resolve(fakeCard(null)) });
 
-    const result = await createCaptionAvatar(h.ctx)({
+    const result = await createCaptionAvatar({ ...h.ctx, db })({
       runAs: principal(owner),
       mode: "character_multimodal",
       subjectCharacterId: castId("character_aria"),
@@ -63,7 +63,7 @@ describe("createCaptionAvatar", () => {
     const h = makeHarness(db, { captionImage: () => Promise.resolve({ text: "()[]{}", costUsd: 0.001 }) });
 
     await expect(
-      createCaptionAvatar(h.ctx)({ runAs: principal(owner), mode: "face_multimodal", subjectCharacterId: castId("character_aria") }),
+      createCaptionAvatar({ ...h.ctx, db })({ runAs: principal(owner), mode: "face_multimodal", subjectCharacterId: castId("character_aria") }),
     ).rejects.toThrow();
   });
 });

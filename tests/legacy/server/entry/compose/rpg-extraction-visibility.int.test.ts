@@ -1,6 +1,7 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 // @subject packages/server/src/domain/rpg/tools/rounds/round-connection.ts
 // @subject packages/server/src/domain/rpg/tools/rounds/round-log.ts
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — per-call enums over the live scene and cast, usage logging, the empty and phantom extraction signals, host resolution and the unresolvable-connection degrade.
@@ -271,11 +272,11 @@ test("F3: the host is resolved by ROLE, not join order (post-handoff: first-join
  *  never let it escape as a 500. */
 function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unknown): ReturnType<typeof buildRpg> {
   return buildRpg({
-    db,
+    db: databaseHandle(db),
     now: () => FROZEN_AT_MS,
     rpgChatOps: app.chatRpgOps,
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
-    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+    resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
     connection: {
       resolve: (): Promise<ResolveOutcome> => Promise.reject(err),
     },

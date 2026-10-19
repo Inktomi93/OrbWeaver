@@ -14,6 +14,7 @@ import { join } from "node:path";
 import { pid } from "node:process";
 import type { Db, LibSqlWrap } from "@orb/db";
 import { createDb, rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnToolCalls, runMigrations } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, MessageId, MessageVariantId, RpgCheckpointId, RpgGameId, RpgSheetId, RpgTurnToolCallsId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -176,7 +177,7 @@ async function seedSourceCampaign(database: Db): Promise<{ chatId: ChatId; gameI
 describe("createExportRpgGame", () => {
   test("reads the whole campaign; a chat with no game answers null (the common case is not an error)", async () => {
     const gameless = await seedChat(db, "gameless");
-    const exportGame = createExportRpgGame({ db });
+    const exportGame = createExportRpgGame({ db: databaseHandle(db) });
     expect(await exportGame({ chatId: gameless })).toBeNull();
 
     const { chatId } = await seedSourceCampaign(db);
@@ -190,7 +191,7 @@ describe("createExportRpgGame", () => {
 
   test("a checkpoint names its snapshot by POSITION in the exported array — the only ref that survives an id-less move", async () => {
     const { chatId } = await seedSourceCampaign(db);
-    const game = await createExportRpgGame({ db })({ chatId });
+    const game = await createExportRpgGame({ db: databaseHandle(db) })({ chatId });
     expect(game?.checkpoints[0]?.snapshotIndex).toBe(0);
     expect(game?.checkpoints[0]?.label).toBe("before the bridge");
   });
@@ -222,7 +223,7 @@ describe("createExportRpgGame", () => {
         }),
       );
 
-      const exported = await createExportRpgGame({ db: reader })({ chatId });
+      const exported = await createExportRpgGame({ db: databaseHandle(reader) })({ chatId });
       expect(mutationApplied).toBe(true); // planted control: this green cannot come from a writer that never ran
       expect(exported).not.toBeNull();
       // Both the pre-write and post-write database states carry one checkpoint. Zero is possible only when the
@@ -244,7 +245,7 @@ describe("createExportRpgGame", () => {
     const gmUser = await seedUser(db, castId<Handle>("gm"));
     await db.update(rpgGames).set({ gmUserId: gmUser }).where(eq(rpgGames.id, gameId));
 
-    const game = await createExportRpgGame({ db })({ chatId });
+    const game = await createExportRpgGame({ db: databaseHandle(db) })({ chatId });
     // The payload has no slot for either — the shape itself is the enforcement, so assert on what it DOES
     // carry and let tsc keep the absence honest.
     expect(Object.keys(game ?? {})).not.toContain("gmUserId");
@@ -255,7 +256,7 @@ describe("createExportRpgGame", () => {
 describe("createImportRpgGame", () => {
   test("writes the whole campaign onto a fresh chat, with every ref pointing at the ids it was HANDED", async () => {
     const { chatId: sourceChat } = await seedSourceCampaign(db);
-    const exported = await createExportRpgGame({ db })({ chatId: sourceChat });
+    const exported = await createExportRpgGame({ db: databaseHandle(db) })({ chatId: sourceChat });
     if (exported === null) {
       throw new Error("the source campaign did not export");
     }
@@ -271,9 +272,9 @@ describe("createImportRpgGame", () => {
       turnToolCalls: exported.turnToolCalls.map((t) => ({ ...t, messageId: target.messageId, variantId: target.variantId })),
     };
 
-    await createImportRpgGame(portabilityCtx(db))({ chatId: targetChat, hostUserId, game: remapped });
+    await createImportRpgGame({ ...portabilityCtx(db), db: databaseHandle(db) })({ chatId: targetChat, hostUserId, game: remapped });
     // Retry after the campaign batch committed but before the bundle caller observed completion.
-    await createImportRpgGame(portabilityCtx(db))({ chatId: targetChat, hostUserId, game: remapped });
+    await createImportRpgGame({ ...portabilityCtx(db), db: databaseHandle(db) })({ chatId: targetChat, hostUserId, game: remapped });
 
     const games = await db.select().from(rpgGames).where(eq(rpgGames.chatId, targetChat));
     expect(games).toHaveLength(1);
@@ -307,7 +308,7 @@ describe("createImportRpgGame", () => {
         updatedAt: FROZEN_AT_MS,
       },
     ]);
-    const exported = await createExportRpgGame({ db })({ chatId: sourceChat });
+    const exported = await createExportRpgGame({ db: databaseHandle(db) })({ chatId: sourceChat });
     if (exported === null) {
       throw new Error("the source campaign did not export");
     }
@@ -316,7 +317,7 @@ describe("createImportRpgGame", () => {
 
     const targetChat = await seedChat(db, "dst2");
     const hostUserId = await seedUser(db, castId<Handle>("newhost"));
-    await createImportRpgGame(portabilityCtx(db))({
+    await createImportRpgGame({ ...portabilityCtx(db), db: databaseHandle(db) })({
       chatId: targetChat,
       hostUserId,
       game: { ...exported, snapshots: [], journal: [], turnToolCalls: [], checkpoints: [] },

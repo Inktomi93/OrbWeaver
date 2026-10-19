@@ -5,6 +5,7 @@
 import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { personas } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { selectHandleById } from "@orb/server/domain/sessions";
@@ -31,8 +32,8 @@ describe("resolveUserPublics", () => {
     const zara = await svc.create({ principal: principal(alice), input: { name: "Zara", description: "a cartographer" } });
     await db.update(personas).set({ avatarAssetId: face }).where(eq(personas.id, zara.id));
     const resolve = createResolveUserPublics(
-      { db },
-      { loadUserHandle: (id) => selectHandleById(db, id), loadUserSettings: settingsWithAvatar(PROFILE_AVATAR) },
+      { db: databaseHandle(db) },
+      { loadUserHandle: (id) => selectHandleById(databaseHandle(db), id), loadUserSettings: settingsWithAvatar(PROFILE_AVATAR) },
     );
 
     expect(await resolve(alice, zara.id)).toEqual({ displayName: "Zara", handle: "alice", avatarAssetId: face });
@@ -44,12 +45,12 @@ describe("resolveUserPublics", () => {
     const db = await freshDb();
     const carol = await seedUser(db, { handle: castId<Handle>("carol") });
     const withProfile = createResolveUserPublics(
-      { db },
-      { loadUserHandle: (id) => selectHandleById(db, id), loadUserSettings: settingsWithAvatar(PROFILE_AVATAR) },
+      { db: databaseHandle(db) },
+      { loadUserHandle: (id) => selectHandleById(databaseHandle(db), id), loadUserSettings: settingsWithAvatar(PROFILE_AVATAR) },
     );
     const failing = createResolveUserPublics(
-      { db },
-      { loadUserHandle: (id) => selectHandleById(db, id), loadUserSettings: () => Promise.reject(new Error("settings unavailable")) },
+      { db: databaseHandle(db) },
+      { loadUserHandle: (id) => selectHandleById(databaseHandle(db), id), loadUserSettings: () => Promise.reject(new Error("settings unavailable")) },
     );
 
     expect(await withProfile(carol, null)).toEqual({ displayName: "carol", handle: "carol", avatarAssetId: PROFILE_AVATAR });

@@ -24,6 +24,7 @@
 // that plugins and etc use them." / "probably just make it consistent." — the inbox behaves the SAME on
 // every deployment mode, which is what the `multiHumanCapable: false` context here is asserting.
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveStandingAsks } from "@orb/server/domain/chat";
@@ -41,7 +42,7 @@ describe("the inbox on a single-user deployment (#1627) — a durable row its ow
   /** The real service + a ladder context that says "this deployment cannot seat a second human". */
   async function soloDeployment(db: Parameters<typeof seedUser>[0], now: () => number): Promise<NotificationsService> {
     await seedUser(db, { id: SOLO, handle: castId<Handle>("solo") });
-    return createNotificationsService({ db, now, resolveStandingAsks: createResolveStandingAsks(db) });
+    return createNotificationsService({ db: databaseHandle(db), now, resolveStandingAsks: createResolveStandingAsks(databaseHandle(db)) });
   }
 
   test("a plugin the crash policy auto-disabled reaches its OWNER's inbox", async ({ db, clock }) => {

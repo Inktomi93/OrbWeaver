@@ -8,6 +8,7 @@
 import type { BulkImportPersonaInput } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import { personas } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -47,7 +48,7 @@ describe("createBulkImportPersonas", () => {
   test("writes new personas, returns idByName (lowercased) + the default", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createBulkImportPersonas(importCtx(db));
+    const op = createBulkImportPersonas({ ...importCtx(db), db: databaseHandle(db) });
 
     const result = await op({
       ownerId: owner.id,
@@ -68,7 +69,7 @@ describe("createBulkImportPersonas", () => {
   test("keep-both: equal content reuses the row; the same name with DIFFERENT content lands beside it as 'Alex 2'", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createBulkImportPersonas(importCtx(db));
+    const op = createBulkImportPersonas({ ...importCtx(db), db: databaseHandle(db) });
     const otherAlex: BulkImportPersonaInput = { ...persona("Alex"), description: "a different Alex" };
     const keepBoth = { alex: "keep-both" } as const;
 
@@ -97,7 +98,7 @@ describe("createBulkImportPersonas", () => {
   test("merge (the default): a same-name, different-content input links to the owned persona and mints nothing", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createBulkImportPersonas(importCtx(db));
+    const op = createBulkImportPersonas({ ...importCtx(db), db: databaseHandle(db) });
     const otherAlex: BulkImportPersonaInput = { ...persona("Alex", true), description: "a different Alex" };
 
     const first = await op({ ownerId: owner.id, personas: [persona("Alex")] });
@@ -121,7 +122,7 @@ describe("createBulkImportPersonas", () => {
   test("the default merge resolves each owned name on its own: 'Nate' and 'Nate 2' merge into their own rows", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createBulkImportPersonas(importCtx(db));
+    const op = createBulkImportPersonas({ ...importCtx(db), db: databaseHandle(db) });
     const a = await op({ ownerId: owner.id, personas: [{ ...persona("Nate"), description: "A" }] });
     const b = await op({ ownerId: owner.id, personas: [{ ...persona("Nate 2"), description: "B" }] });
 
@@ -142,7 +143,7 @@ describe("createBulkImportPersonas", () => {
   test("keep-both mints the name the review shows: the next one no owned name folds to", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createBulkImportPersonas(importCtx(db));
+    const op = createBulkImportPersonas({ ...importCtx(db), db: databaseHandle(db) });
     await op({ ownerId: owner.id, personas: [persona("Eve"), persona("eve 2")] });
 
     await op({ ownerId: owner.id, personas: [{ ...persona("Eve"), description: "other" }], collisions: { eve: "keep-both" } });
@@ -154,7 +155,7 @@ describe("createBulkImportPersonas", () => {
   test("keep-both lands the name the review previews when the folder also adds 'Nate 2'", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createBulkImportPersonas(importCtx(db));
+    const op = createBulkImportPersonas({ ...importCtx(db), db: databaseHandle(db) });
     await op({ ownerId: owner.id, personas: [persona("Nate")] });
 
     await op({
@@ -170,7 +171,7 @@ describe("createBulkImportPersonas", () => {
   test("a name is trimmed before it is minted: ' Eve ' keeps both as 'Eve 2', not 'Eve  2'", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createBulkImportPersonas(importCtx(db));
+    const op = createBulkImportPersonas({ ...importCtx(db), db: databaseHandle(db) });
     await op({ ownerId: owner.id, personas: [persona("Eve")] });
 
     await op({ ownerId: owner.id, personas: [{ ...persona(" Eve "), description: "other" }], collisions: { eve: "keep-both" } });
@@ -182,7 +183,7 @@ describe("createBulkImportPersonas", () => {
   test("a persona named like an Object.prototype member still merges by default", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createBulkImportPersonas(importCtx(db));
+    const op = createBulkImportPersonas({ ...importCtx(db), db: databaseHandle(db) });
     const first = await op({ ownerId: owner.id, personas: [persona("constructor")] });
 
     const result = await op({ ownerId: owner.id, personas: [{ ...persona("constructor"), description: "a different one" }], collisions: {} });
@@ -195,7 +196,7 @@ describe("createBulkImportPersonas", () => {
   test("a choice is keyed by folded name: keep-both for one name does not split another", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createBulkImportPersonas(importCtx(db));
+    const op = createBulkImportPersonas({ ...importCtx(db), db: databaseHandle(db) });
     await op({ ownerId: owner.id, personas: [persona("Alex"), persona("Eve")] });
 
     const result = await op({

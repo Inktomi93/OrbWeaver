@@ -10,6 +10,7 @@
 // @orb-waive-file no-test-fabrication({ token: string } | null): baselined when the gate widened to value casts; burn-down item 906.
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 import type { WorkloadRef } from "@orb/contracts/workloads";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
@@ -171,7 +172,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
       const { workloadId } = (await res.json()) as { workloadId: WorkloadId };
       const row = await loadRunnableWorkload(db, app.workloadContributions, workloadId);
       await runWorkload(makeRunnerDeps(db, app.workloadContributions), row, new AbortController().signal);
-      const done = await loadWorkload(db, app.workloadContributions, workloadId);
+      const done = await loadWorkload(databaseHandle(db), app.workloadContributions, workloadId);
       expect(done?.status).toBe("succeeded");
       return done?.result as { imported: number; skipped: number; failed: number };
     };
@@ -240,7 +241,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     const { workloadId: uploaderRun } = (await staged.json()) as { workloadId: WorkloadId };
 
     // The handle, read straight off the uploader's own row — the disclosure path, not a test shortcut.
-    const uploaderRow = await loadWorkload(db, app.workloadContributions, uploaderRun);
+    const uploaderRow = await loadWorkload(databaseHandle(db), app.workloadContributions, uploaderRun);
     const token = (uploaderRow?.params as { token: string } | null)?.token ?? "";
     expect(token).toMatch(/^import-bundle-/u);
 
@@ -253,7 +254,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     });
     const theftRow = await loadRunnableWorkload(db, app.workloadContributions, theft.id);
     await runWorkload(makeRunnerDeps(db, app.workloadContributions), theftRow, new AbortController().signal);
-    const theftDone = await loadWorkload(db, app.workloadContributions, theft.id);
+    const theftDone = await loadWorkload(databaseHandle(db), app.workloadContributions, theft.id);
     expect(theftDone?.status).toBe("failed");
     expect(theftDone?.error ?? "").toMatch(/staging root/u);
     // Nothing of A's landed in B's library.
@@ -263,7 +264,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     // …and B's cleanup did not delete A's staged bytes: A's own run still imports.
     const uploaderRunnable = await loadRunnableWorkload(db, app.workloadContributions, uploaderRun);
     await runWorkload(makeRunnerDeps(db, app.workloadContributions), uploaderRunnable, new AbortController().signal);
-    const uploaderDone = await loadWorkload(db, app.workloadContributions, uploaderRun);
+    const uploaderDone = await loadWorkload(databaseHandle(db), app.workloadContributions, uploaderRun);
     expect(uploaderDone?.status).toBe("succeeded");
     const uploaderReport = uploaderDone?.result as { imported: number };
     expect(uploaderReport.imported).toBeGreaterThanOrEqual(1);

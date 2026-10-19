@@ -13,6 +13,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import { chatInjections } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -130,7 +131,7 @@ async function mergedInjections(args: {
 }
 
 function ctxOf(extra: ChatTeachingRegistry = []): ChatContext {
-  return makeChatContext(db, { teaching: [...createChatTeachingContributions({ db }), ...extra] });
+  return makeChatContext(db, { teaching: [...createChatTeachingContributions({ db: databaseHandle(db) }), ...extra] });
 }
 
 /** A foreign contribution that teaches the choices fence as its OWN injection — the shape the collector's

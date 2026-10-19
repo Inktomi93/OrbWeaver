@@ -6,6 +6,7 @@ import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { chatBookViewSchema } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, chatParticipants, chats, globalBooks, personaBooks, personas, users, worldBooks, worldEntries } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatParticipantId, Handle, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { createCharacterService } from "@orb/server/domain/character";
@@ -83,7 +84,7 @@ async function setup(suppliedDb?: Db): Promise<WorldBookFixture> {
     fans.push(event);
     invalidation.invalidate(event);
   };
-  const fan = createRoomEntityFan(db, emitRoom);
+  const fan = createRoomEntityFan(databaseHandle(db), emitRoom);
   const emit: Parameters<typeof createWorldInfoService>[0]["emit"] = (event) => {
     pendingFans.push(fan(event));
   };
@@ -100,16 +101,16 @@ async function setup(suppliedDb?: Db): Promise<WorldBookFixture> {
   const sessions = createLoadUserById({ db });
   const resolvePrincipal = createHostPrincipalResolver(sessions);
   const readInheritedChatBooks = createReadInheritedChatBooks({
-    db,
+    db: databaseHandle(db),
     can,
     getCard: async ({ ownerId, characterId }) => character.getCard({ principal: await resolvePrincipal(ownerId), characterId }),
     resolveUserEnabled: createResolveUserEnabled(sessions),
   });
   const ctx = makeHarness(db, {
-    requireChatHost: (actor, id) => requireHost({ db, can }, actor, id).then((): void => undefined),
-    requireChatMember: (actor, id) => requireParticipant({ db, can }, actor, id).then((): void => undefined),
+    requireChatHost: (actor, id) => requireHost({ db: databaseHandle(db), can }, actor, id).then((): void => undefined),
+    requireChatMember: (actor, id) => requireParticipant({ db: databaseHandle(db), can }, actor, id).then((): void => undefined),
     readInheritedChatBooks,
-    captureRoomReachForDelete: createDeleteReachCapture(db, emitRoom)["world-info"],
+    captureRoomReachForDelete: createDeleteReachCapture(databaseHandle(db), emitRoom)["world-info"],
   }).ctx;
   const svc = createWorldInfoService({ ...ctx, emit });
   const persona = createPersonaService(personaHarness(db, { emit }).ctx);

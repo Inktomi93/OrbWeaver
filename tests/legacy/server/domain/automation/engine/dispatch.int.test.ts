@@ -15,6 +15,7 @@
 import type { AutomationActionInput } from "@orb/contracts/automation";
 import type { VariableWriteResult } from "@orb/contracts/chat";
 import { automationRules, worldBooks } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AutomationRuleId, UserId, WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -116,7 +117,7 @@ async function pauseFixture(): Promise<{ fixture: Fixture; gate: ToolGate; varOp
       newSuggestionId: base.ctx.newSuggestionId,
     }),
   };
-  return { fixture: { ...base, ctx, svc: createAutomationService(ctx) }, gate, varOps };
+  return { fixture: { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) }, gate, varOps };
 }
 
 /** Mint + enable a rule whose arms are `run_tool` plus (optionally) a bookkeeping `set_variable` BEFORE it. */
@@ -567,7 +568,7 @@ describe("#1419 a confirm-first arm stops the chain", () => {
   async function fireChain(seen: string[], askAt: string): Promise<{ readonly fixture: Fixture; readonly ruleId: AutomationRuleId }> {
     const base = await ruleFixture();
     const ctx: AutomationContext = { ...base.ctx, runArm: chainDispatch(seen, askAt) };
-    const fixture: Fixture = { ...base, ctx, svc: createAutomationService(ctx) };
+    const fixture: Fixture = { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) };
     const rule = await fixture.svc.createRule({
       timeZone: UTC_TIME_ZONE,
       principal: principal(fixture.host),
@@ -628,7 +629,7 @@ describe("the fire reservation admits exactly one of two overlapping dispatches"
         return { ok: true };
       },
     };
-    const svc = createAutomationService(ctx);
+    const svc = createAutomationService({ ...ctx, db: databaseHandle(ctx.db) });
     const rule = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
       principal: principal(base.host),

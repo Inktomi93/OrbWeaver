@@ -6,6 +6,7 @@
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { Db } from "@orb/db";
 import { chats, messages, personas } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type {
   AssetId,
   CharacterId,
@@ -83,9 +84,9 @@ function runContext(db: Db, ownerId: UserId): ImportContext {
     profile: {
       now: (): number => NOW,
       personaByUserName: new Map(),
-      bulkImportChats: createBulkImportChats(chatImportCtx(db)),
+      bulkImportChats: createBulkImportChats({ ...chatImportCtx(db), db: databaseHandle(db) }),
       bulkImportPersonas: createBulkImportPersonas({
-        db,
+        db: databaseHandle(db),
         now: (): number => NOW,
         newPersonaId: (): PersonaId => mintTypeId(ID_PREFIX.persona),
       }),

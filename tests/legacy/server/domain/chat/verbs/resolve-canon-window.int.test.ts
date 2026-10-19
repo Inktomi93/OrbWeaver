@@ -5,6 +5,7 @@
 // is the injected chat op the rpg resync verb reads its window through (rpg reads no chat table).
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -29,7 +30,7 @@ test("projects the selected-lineage canon, name-stamped + chronological, within 
   await seedMessage(db, chatId, 1, { role: "user", personaId, content: "I draw my sword." });
   await seedMessage(db, chatId, 2, { role: "assistant", characterId, content: "Mira parries." });
 
-  const resolveCanonWindow = createResolveCanonWindow(makeChatContext(db));
+  const resolveCanonWindow = createResolveCanonWindow({ ...makeChatContext(db), db: databaseHandle(db) });
   const window = await resolveCanonWindow(chatId, { maxTokens: 10_000 });
 
   // Chronological (oldest→newest), name-stamped by role origin (user→persona, assistant→character).
@@ -46,7 +47,7 @@ test("a tiny budget keeps the RECENT tail (newest-first fill), never the oldest"
   await seedMessage(db, chatId, 1, { role: "assistant", content: "the oldest beat that should fall out of a tiny window" });
   await seedMessage(db, chatId, 2, { role: "assistant", content: "newest" });
 
-  const resolveCanonWindow = createResolveCanonWindow(makeChatContext(db));
+  const resolveCanonWindow = createResolveCanonWindow({ ...makeChatContext(db), db: databaseHandle(db) });
   // A budget that fits only ~one short message — the newest survives, the long oldest is dropped.
   const window = await resolveCanonWindow(chatId, { maxTokens: 3 });
 
@@ -56,6 +57,6 @@ test("a tiny budget keeps the RECENT tail (newest-first fill), never the oldest"
 
 test("an empty chat returns an empty window (no throw)", async () => {
   const chatId = await seedChat(db, "w3");
-  const resolveCanonWindow = createResolveCanonWindow(makeChatContext(db));
+  const resolveCanonWindow = createResolveCanonWindow({ ...makeChatContext(db), db: databaseHandle(db) });
   await expect(resolveCanonWindow(chatId, { maxTokens: 4096 })).resolves.toEqual([]);
 });

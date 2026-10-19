@@ -14,6 +14,7 @@
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import type { Db } from "@orb/db";
 import { characterRegexScripts, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -58,7 +59,7 @@ describe("card LIFT", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
 
-    const result = await createImportCardScripts(ctxOf(db, "l"))({
+    const result = await createImportCardScripts({ ...ctxOf(db, "l"), db: databaseHandle(db) })({
       ownerId: owner,
       characterId,
       scripts: [cardScript("st-1", "first", "a"), cardScript("st-2", "second", "b")],
@@ -78,7 +79,7 @@ describe("card LIFT", () => {
     const characterId = await seedCharacter(db, owner);
     const existing = await seedScript(db, { ownerId: owner, name: "already mine", behavior: behavior({ findRegex: "a" }) });
 
-    const result = await createImportCardScripts(ctxOf(db, "l"))({
+    const result = await createImportCardScripts({ ...ctxOf(db, "l"), db: databaseHandle(db) })({
       ownerId: owner,
       characterId,
       // The card carries BOTH channels — the reference AND the by-value copy of the same script.
@@ -98,7 +99,7 @@ describe("card LIFT", () => {
     // The LIVE row has been edited since the card was exported: same name, DIFFERENT body.
     const edited = await seedScript(db, { ownerId: owner, name: "tweaked", behavior: behavior({ findRegex: "new-pattern" }) });
 
-    const result = await createImportCardScripts(ctxOf(db, "l"))({
+    const result = await createImportCardScripts({ ...ctxOf(db, "l"), db: databaseHandle(db) })({
       ownerId: owner,
       characterId,
       // The card still carries the OLD body by value…
@@ -123,7 +124,12 @@ describe("card LIFT", () => {
     const characterId = await seedCharacter(db, owner);
     const theirs = await seedScript(db, { ownerId: stranger, name: "theirs" });
 
-    const result = await createImportCardScripts(ctxOf(db, "l"))({ ownerId: owner, characterId, scripts: [], carried: [theirs] });
+    const result = await createImportCardScripts({ ...ctxOf(db, "l"), db: databaseHandle(db) })({
+      ownerId: owner,
+      characterId,
+      scripts: [],
+      carried: [theirs],
+    });
 
     // The reference channel can never launder a foreign script onto this owner's character.
     expect(result).toEqual({ created: 0, reused: 0 });
@@ -135,7 +141,7 @@ describe("card LIFT", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const first = await seedCharacter(db, owner, "one");
     const second = await seedCharacter(db, owner, "two");
-    const lift = createImportCardScripts(ctxOf(db, "l"));
+    const lift = createImportCardScripts({ ...ctxOf(db, "l"), db: databaseHandle(db) });
 
     await lift({ ownerId: owner, characterId: first, scripts: [cardScript("st-a", "shared", "a")], carried: [] });
     // A DIFFERENT foreign id, same name + same body — re-importing card packs is the norm, and always-new
@@ -159,7 +165,7 @@ describe("PRESET lift", () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const presetId = await seedPreset(db, owner);
-    const lift = createImportPresetScripts(ctxOf(db, "p"));
+    const lift = createImportPresetScripts({ ...ctxOf(db, "p"), db: databaseHandle(db) });
 
     const first = await lift({ ownerId: owner, presetId, scripts: [cardScript("st-1", "first", "a"), cardScript("st-2", "second", "b")] });
     expect(first).toEqual({ created: 2, reused: 0 });
@@ -167,7 +173,7 @@ describe("PRESET lift", () => {
     expect(attached.sort((a, b) => a.position - b.position).map((r) => r.position)).toEqual([0, 1]);
 
     // The idempotent re-run: content-dedup attaches the existing rows, mints nothing, duplicates nothing.
-    const again = await createImportPresetScripts(ctxOf(db, "q"))({
+    const again = await createImportPresetScripts({ ...ctxOf(db, "q"), db: databaseHandle(db) })({
       ownerId: owner,
       presetId,
       scripts: [cardScript("st-1", "first", "a"), cardScript("st-2", "second", "b")],
@@ -183,8 +189,17 @@ describe("PRESET lift", () => {
     const characterId = await seedCharacter(db, owner);
     const presetId = await seedPreset(db, owner);
 
-    await createImportCardScripts(ctxOf(db, "c"))({ ownerId: owner, characterId, scripts: [cardScript("st-1", "shared", "a")], carried: [] });
-    const result = await createImportPresetScripts(ctxOf(db, "p"))({ ownerId: owner, presetId, scripts: [cardScript("st-9", "shared", "a")] });
+    await createImportCardScripts({ ...ctxOf(db, "c"), db: databaseHandle(db) })({
+      ownerId: owner,
+      characterId,
+      scripts: [cardScript("st-1", "shared", "a")],
+      carried: [],
+    });
+    const result = await createImportPresetScripts({ ...ctxOf(db, "p"), db: databaseHandle(db) })({
+      ownerId: owner,
+      presetId,
+      scripts: [cardScript("st-9", "shared", "a")],
+    });
 
     expect(result).toEqual({ created: 0, reused: 1 });
     const rows = await db.select().from(regexScripts);
@@ -199,13 +214,16 @@ describe("GLOBAL lift", () => {
   test("mints rows with the global attachment; a re-run re-asserts the attachment and mints nothing", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const lift = createImportGlobalScripts(ctxOf(db, "g"));
+    const lift = createImportGlobalScripts({ ...ctxOf(db, "g"), db: databaseHandle(db) });
 
     const first = await lift({ ownerId: owner, scripts: [cardScript("st-1", "everywhere", "a")] });
     expect(first).toEqual({ created: 1, reused: 0 });
     expect(await db.select().from(globalRegexScripts)).toHaveLength(1);
 
-    const again = await createImportGlobalScripts(ctxOf(db, "h"))({ ownerId: owner, scripts: [cardScript("st-1", "everywhere", "a")] });
+    const again = await createImportGlobalScripts({ ...ctxOf(db, "h"), db: databaseHandle(db) })({
+      ownerId: owner,
+      scripts: [cardScript("st-1", "everywhere", "a")],
+    });
     expect(again).toEqual({ created: 0, reused: 1 });
     expect(await db.select().from(regexScripts)).toHaveLength(1);
     expect(await db.select().from(globalRegexScripts)).toHaveLength(1);
@@ -224,7 +242,7 @@ describe("card RE-EMBED", () => {
     await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: a });
     await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: b });
 
-    const out = await createExportCardScripts({ db })({ ownerId: owner, characterId });
+    const out = await createExportCardScripts({ db: databaseHandle(db) })({ ownerId: owner, characterId });
 
     expect(out.scripts.map((s) => s.name)).toEqual(["a", "b"]);
     // The reference list is the same-install re-link channel (the attached-book twin).
@@ -243,10 +261,10 @@ describe("card RE-EMBED", () => {
     await svc.attachToCharacter({ principal: principal(owner), characterId: source, scriptId: b });
 
     // EXPORT the card …
-    const exported = await createExportCardScripts({ db })({ ownerId: owner, characterId: source });
+    const exported = await createExportCardScripts({ db: databaseHandle(db) })({ ownerId: owner, characterId: source });
     // … and IMPORT it back as a new character on the SAME install.
     const target = await seedCharacter(db, owner, "target");
-    const result = await createImportCardScripts(ctxOf(db, "rt"))({
+    const result = await createImportCardScripts({ ...ctxOf(db, "rt"), db: databaseHandle(db) })({
       ownerId: owner,
       characterId: target,
       scripts: exported.scripts,
@@ -270,7 +288,7 @@ describe("BUNDLE round-trip (the `regex` portable entity)", () => {
     await seedScript(db, { ownerId: owner, id: "regex_script_l", name: "local only" });
     await svc.attachGlobal({ principal: principal(owner), scriptId: g });
 
-    const files = await createExportRegexScripts({ db })({ ownerId: owner });
+    const files = await createExportRegexScripts({ db: databaseHandle(db) })({ ownerId: owner });
 
     expect(files).toHaveLength(2);
     const payloads = files.map((f) => JSON.parse(new TextDecoder().decode(f.bytes)) as { name: string; global: boolean });
@@ -287,11 +305,11 @@ describe("BUNDLE round-trip (the `regex` portable entity)", () => {
     await seedScript(db, { ownerId: source, id: "regex_script_l", name: "local only", behavior: behavior({ findRegex: "l" }) });
     await svc.attachGlobal({ principal: principal(source), scriptId: g });
 
-    const files = await createExportRegexScripts({ db })({ ownerId: source });
+    const files = await createExportRegexScripts({ db: databaseHandle(db) })({ ownerId: source });
 
     // A DIFFERENT tenant restores the bundle.
     const restored = await seedUser(db, { handle: castId<Handle>("restored") });
-    const importOne = createImportRegexScript(ctxOf(db, "b"));
+    const importOne = createImportRegexScript({ ...ctxOf(db, "b"), db: databaseHandle(db) });
     // Bundle files are independent of each other (each mints its own row), so the restore is concurrent —
     // which also proves the import op does not rely on being called in any particular order.
     const outcomes = await Promise.all(files.map((file) => importOne({ ownerId: restored, bytes: file.bytes })));
@@ -310,8 +328,8 @@ describe("BUNDLE round-trip (the `regex` portable entity)", () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedScript(db, { ownerId: owner, id: "regex_script_x", name: "x", behavior: behavior({ findRegex: "x" }) });
-    const files = await createExportRegexScripts({ db })({ ownerId: owner });
-    const importOne = createImportRegexScript(ctxOf(db, "b"));
+    const files = await createExportRegexScripts({ db: databaseHandle(db) })({ ownerId: owner });
+    const importOne = createImportRegexScript({ ...ctxOf(db, "b"), db: databaseHandle(db) });
 
     const target = await seedUser(db, { handle: castId<Handle>("target") });
     const [only] = files;
@@ -339,8 +357,8 @@ describe("the single-script export door", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, id: "regex_script_x", name: "x", behavior: behavior({ findRegex: "x" }) });
 
-    const [bundled] = await createExportRegexScripts({ db })({ ownerId: owner });
-    const door = await createExportRegexScript({ db })({ ownerId: owner, scriptId });
+    const [bundled] = await createExportRegexScripts({ db: databaseHandle(db) })({ ownerId: owner });
+    const door = await createExportRegexScript({ db: databaseHandle(db) })({ ownerId: owner, scriptId });
 
     expect(door).not.toBeNull();
     // Filename AND bytes: a divergence in either is a second serialization path, which is exactly what the
@@ -357,7 +375,7 @@ describe("the single-script export door", () => {
     const scriptId = await seedScript(db, { ownerId: owner, id: "regex_script_g", name: "everywhere" });
     await svc.attachGlobal({ principal: principal(owner), scriptId });
 
-    const door = await createExportRegexScript({ db })({ ownerId: owner, scriptId });
+    const door = await createExportRegexScript({ db: databaseHandle(db) })({ ownerId: owner, scriptId });
     // The portable file is FLAT (`schemaKind`/`schemaVersion` beside the payload's own fields), and `global`
     // is the one attachment that rides in it — a property OF the script, unlike the three FK-bound scopes.
     expect(JSON.parse(new TextDecoder().decode(door?.bytes ?? new Uint8Array()))).toMatchObject({ name: "everywhere", global: true });
@@ -369,19 +387,19 @@ describe("the single-script export door", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
 
-    expect(await createExportRegexScript({ db })({ ownerId: owner, scriptId: theirs })).toBeNull();
-    expect(await createExportRegexScript({ db })({ ownerId: owner, scriptId: castId<RegexScriptId>("regex_script_nothere") })).toBeNull();
+    expect(await createExportRegexScript({ db: databaseHandle(db) })({ ownerId: owner, scriptId: theirs })).toBeNull();
+    expect(await createExportRegexScript({ db: databaseHandle(db) })({ ownerId: owner, scriptId: castId<RegexScriptId>("regex_script_nothere") })).toBeNull();
   });
 
   test("the exported file imports back through the BUNDLE's own verb — one round trip, two doors", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, id: "regex_script_x", name: "shared", behavior: behavior({ findRegex: "q" }) });
-    const file = await createExportRegexScript({ db })({ ownerId: owner, scriptId });
+    const file = await createExportRegexScript({ db: databaseHandle(db) })({ ownerId: owner, scriptId });
     expect(file).not.toBeNull();
 
     const target = await seedUser(db, { handle: castId<Handle>("target") });
-    const importOne = createImportRegexScript(ctxOf(db, "d"));
+    const importOne = createImportRegexScript({ ...ctxOf(db, "d"), db: databaseHandle(db) });
     // @orb-waive no-test-fabrication(NonNullable<typeof file>): baselined when the gate widened to value casts; burn-down item 906.
     expect(await importOne({ ownerId: target, bytes: (file as NonNullable<typeof file>).bytes })).toEqual({ created: true });
 
@@ -406,7 +424,12 @@ describe("#1414 — the attachment TARGET is owner-gated, not just the scripts",
     const theirCharacter = await seedCharacter(db, stranger, "theirs");
 
     await expect(
-      createImportCardScripts(ctxOf(db, "fc"))({ ownerId: owner, characterId: theirCharacter, scripts: [cardScript("st-1", "x", "a")], carried: [] }),
+      createImportCardScripts({ ...ctxOf(db, "fc"), db: databaseHandle(db) })({
+        ownerId: owner,
+        characterId: theirCharacter,
+        scripts: [cardScript("st-1", "x", "a")],
+        carried: [],
+      }),
     ).rejects.toThrow();
 
     // The whole lift is refused BEFORE the batch: no script row minted under the caller, no junction written.
@@ -424,10 +447,18 @@ describe("#1414 — the attachment TARGET is owner-gated, not just the scripts",
     const systemPreset = await seedPreset(db, null, "system");
 
     await expect(
-      createImportPresetScripts(ctxOf(db, "fp"))({ ownerId: owner, presetId: theirPreset, scripts: [cardScript("st-1", "x", "a")] }),
+      createImportPresetScripts({ ...ctxOf(db, "fp"), db: databaseHandle(db) })({
+        ownerId: owner,
+        presetId: theirPreset,
+        scripts: [cardScript("st-1", "x", "a")],
+      }),
     ).rejects.toThrow();
     await expect(
-      createImportPresetScripts(ctxOf(db, "sp"))({ ownerId: owner, presetId: systemPreset, scripts: [cardScript("st-2", "y", "b")] }),
+      createImportPresetScripts({ ...ctxOf(db, "sp"), db: databaseHandle(db) })({
+        ownerId: owner,
+        presetId: systemPreset,
+        scripts: [cardScript("st-2", "y", "b")],
+      }),
     ).rejects.toThrow();
 
     expect(await db.select().from(presetRegexScripts)).toEqual([]);
@@ -445,7 +476,7 @@ describe("#1414 — the attachment TARGET is owner-gated, not just the scripts",
     const mine = await seedScript(db, { ownerId: owner, id: "regex_script_mine", name: "mine" });
     await db.insert(characterRegexScripts).values({ characterId: theirCharacter, regexScriptId: mine, position: 0, createdAt: FROZEN });
 
-    expect(await createExportCardScripts({ db })({ ownerId: owner, characterId: theirCharacter })).toEqual({ scripts: [], carried: [] });
+    expect(await createExportCardScripts({ db: databaseHandle(db) })({ ownerId: owner, characterId: theirCharacter })).toEqual({ scripts: [], carried: [] });
   });
 
   test("the OWNER's own card still re-embeds (the predicate is a gate, not a removal)", async () => {
@@ -455,7 +486,7 @@ describe("#1414 — the attachment TARGET is owner-gated, not just the scripts",
     const mine = await seedScript(db, { ownerId: owner, id: "regex_script_mine", name: "mine" });
     await db.insert(characterRegexScripts).values({ characterId, regexScriptId: mine, position: 0, createdAt: FROZEN });
 
-    const exported = await createExportCardScripts({ db })({ ownerId: owner, characterId });
+    const exported = await createExportCardScripts({ db: databaseHandle(db) })({ ownerId: owner, characterId });
     expect(exported.carried).toEqual([mine]);
     expect(exported.scripts.map((s) => s.name)).toEqual(["mine"]);
   });

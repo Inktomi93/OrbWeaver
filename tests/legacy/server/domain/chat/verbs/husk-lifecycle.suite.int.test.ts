@@ -29,6 +29,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -267,7 +268,7 @@ describe("game mode — turning a husk into a game is doing something with it", 
   test("the rpg pointer write claims the room into the list; the dangling-pointer detach does not", async () => {
     const { host, chatId } = await seedHusk("game");
     const ctx = makeChatContext(db);
-    const setRpgPointer = createSetRpgPointer(ctx, { claimChat: createClaimChat(ctx) });
+    const setRpgPointer = createSetRpgPointer({ ...ctx, db: databaseHandle(ctx.db) }, { claimChat: createClaimChat(ctx) });
 
     // The detach is a heal the server runs on a pointer at a vanished game, never the host's own act.
     await setRpgPointer(chatId, null);

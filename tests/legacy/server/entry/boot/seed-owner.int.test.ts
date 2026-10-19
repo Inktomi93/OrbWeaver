@@ -146,7 +146,7 @@ test("AUTH_MODE=local: a fresh owner is form-loginable via the real authenticate
     db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db: databaseHandle(db), now: clock.now, onEmbedSpaceBound: () => undefined }),
   };
   const sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
 
@@ -179,7 +179,7 @@ test("re-boot does NOT clobber a subsequently-rotated owner password", async ({ 
     db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db: databaseHandle(db), now: clock.now, onEmbedSpaceBound: () => undefined }),
   };
   const sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   const hasher = createPasswordHasher(PEPPER);
@@ -238,7 +238,7 @@ test("the ADOPTED OIDC owner survives a re-boot: same owner id, same row, no pha
     db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db: databaseHandle(db), now: clock.now, onEmbedSpaceBound: () => undefined }),
   };
   let sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
@@ -292,7 +292,7 @@ test("a member's IdP rename onto the seed key never becomes the owner across a m
     db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db: databaseHandle(db), now: clock.now, onEmbedSpaceBound: () => undefined }),
   };
   let sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
@@ -324,7 +324,7 @@ test("after a stranger's JIT sign-in as a seed-key look-alike, a seeded-mode boo
     db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db: databaseHandle(db), now: clock.now, onEmbedSpaceBound: () => undefined }),
   };
   let sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
@@ -344,7 +344,7 @@ test("an operator who MOVES OWNER_HANDLES: the owner row follows the new key, bo
     db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db: databaseHandle(db), now: clock.now, onEmbedSpaceBound: () => undefined }),
   };
   let sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
@@ -382,7 +382,7 @@ test("moving OWNER_HANDLES onto a handle a MEMBER already holds refuses loudly a
     db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db: databaseHandle(db), now: clock.now, onEmbedSpaceBound: () => undefined }),
   };
   let sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
   policyConfig = { ...policyConfig, ["OWNER_HANDLES"]: "owner" };
@@ -408,7 +408,7 @@ test("no initialPassword (single-user / SSO): the owner row is seeded WITHOUT a 
     db: databaseHandle(db),
     now: clock.now,
     sessionSecret: PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db: databaseHandle(db), now: clock.now, onEmbedSpaceBound: () => undefined }),
   };
   const sessions = createSessionsService({ ...sessionInputs, rolePolicy: createSessionsRolePolicy(policyConfig) });
 

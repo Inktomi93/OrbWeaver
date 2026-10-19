@@ -30,6 +30,7 @@ import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, documentChunks } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterEmbeddingId, CharacterId, ChatId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
@@ -159,7 +160,7 @@ async function driveOwnerWithBoundEncoder(
     // Compose's own resolve over the real runtime: the snapshot the generation is minted from is production's.
     resolveEmbeddingConnection: createResolveEmbeddingConnection(harness.runtime, () => Promise.resolve(principal)),
   };
-  const svc = createEmbeddingsService(ctx);
+  const svc = createEmbeddingsService({ ...ctx, db: databaseHandle(ctx.db) });
   // A binding write moves the owner's target through the embeddings service, as the composition root wires it.
   // biome-ignore lint/correctness/useHookAtTopLevel: a connection-harness method named use*, not a React hook.
   harness.useEmbeddings(svc);
@@ -244,7 +245,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     await runEmbedSweeps(drive);
 
     const readTag = await spaceModel(drive.ctx, drive.userId, "embed");
-    const hits = await nearestDocumentChunks(db, (scope) => resolveActiveDocumentScope(db, scope), {
+    const hits = await nearestDocumentChunks(db, (scope) => resolveActiveDocumentScope(databaseHandle(db), scope), {
       scope: { ownerId: drive.userId },
       documentIds: [documentId],
       queryVector: queryVector(),
@@ -293,7 +294,7 @@ describe("the embed space round trip — write tag === read tag (§10-2)", () =>
     });
     expect(await db.select().from(documentChunks)).toHaveLength(1);
     expect(
-      await nearestDocumentChunks(db, (scope) => resolveActiveDocumentScope(db, scope), {
+      await nearestDocumentChunks(db, (scope) => resolveActiveDocumentScope(databaseHandle(db), scope), {
         scope: { ownerId: drive.userId },
         documentIds: [documentId],
         queryVector: queryVector(),

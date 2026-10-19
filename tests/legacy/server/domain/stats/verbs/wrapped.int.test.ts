@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/stats/verbs/wrapped.ts
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
@@ -19,7 +20,7 @@ beforeEach(async () => {
 describe("stats.wrapped", () => {
   test("assembles the headline; null without a rollup", async () => {
     const owner = await seedUser(db);
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
     expect(await svc.wrapped(owner)).toBeNull();
     const ch = await seedCharacter(db, owner, { name: "Star" });
     await seedOwnerStats(db, owner, { assistantTurns: 3, userWords: 4, assistantWords: 6 });

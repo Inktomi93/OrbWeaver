@@ -12,6 +12,7 @@
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
 import { automationRules } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import { castId, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -72,7 +73,7 @@ async function setup(): Promise<{ db: Db; host: UserId; chatId: ChatId }> {
 
 test("BYTE-IDENTITY: no rule / no guidance / a handed-off room all collect to the empty collection — deep-equal to a registry without this contribution", async () => {
   const { db, host, chatId } = await setup();
-  const registry = createAutomationTeachingContributions({ db });
+  const registry = createAutomationTeachingContributions({ db: databaseHandle(db) });
 
   // No rule at all.
   expect(await collectTeaching(registry, tctxFor(chatId, host))).toEqual(await collectTeaching([], tctxFor(chatId, host)));
@@ -94,7 +95,7 @@ test("standing guidance collects as ONE verbatim authors-note-register injection
   const ruleId = await seedAnalysisRule(db, { id: "automation_rule_tch2", ownerId: host, chatId, enabled: true });
   await upsertRuleState(db, { ruleId, state: EMPTY_ANALYSIS_STATE, guidance: GUIDANCE, nowMs: NOW });
 
-  const collected = await collectTeaching(createAutomationTeachingContributions({ db }), tctxFor(chatId, host));
+  const collected = await collectTeaching(createAutomationTeachingContributions({ db: databaseHandle(db) }), tctxFor(chatId, host));
   expect(collected.toolNames).toEqual([]);
   expect(collected.injections).toEqual([
     // VERBATIM — the exact stored bytes, braces and all, inside the shipped frame at the authors-note register
@@ -121,7 +122,10 @@ test("a DISABLED rule's guidance stops teaching (consent withdrawn ⇒ the steer
   const { db, host, chatId } = await setup();
   const ruleId = await seedAnalysisRule(db, { id: "automation_rule_tch3", ownerId: host, chatId, enabled: false });
   await upsertRuleState(db, { ruleId, state: EMPTY_ANALYSIS_STATE, guidance: GUIDANCE, nowMs: NOW });
-  expect(await collectTeaching(createAutomationTeachingContributions({ db }), tctxFor(chatId, host))).toEqual({ injections: [], toolNames: [] });
+  expect(await collectTeaching(createAutomationTeachingContributions({ db: databaseHandle(db) }), tctxFor(chatId, host))).toEqual({
+    injections: [],
+    toolNames: [],
+  });
 });
 
 // On a model that takes no system row the depth-4 guidance folds into a player's message and leads their labelled
@@ -135,7 +139,7 @@ test("folded guidance is delimited from the player's label line in a labelled mu
   expect(open.trim()).not.toBe("");
   expect(close.trim()).not.toBe("");
 
-  const collected = await collectTeaching(createAutomationTeachingContributions({ db }), tctxFor(chatId, host));
+  const collected = await collectTeaching(createAutomationTeachingContributions({ db: databaseHandle(db) }), tctxFor(chatId, host));
   // Four rows below the players' pair, so the depth-4 note splices directly after it and folds mid-history.
   const shaped = shape({
     canon: [
@@ -173,7 +177,7 @@ test("the frame is the preset's slot: a host override replaces the delimiter aro
   await upsertRuleState(db, { ruleId, state: EMPTY_ANALYSIS_STATE, guidance: GUIDANCE, nowMs: NOW });
 
   const tctx = { ...tctxFor(chatId, host), prose: { "automation.guidance.frame": { text: "<<{{guidance}}>>", baseVersion: 1 } } };
-  const collected = await collectTeaching(createAutomationTeachingContributions({ db }), tctx);
+  const collected = await collectTeaching(createAutomationTeachingContributions({ db: databaseHandle(db) }), tctx);
 
   expect(collected.injections.map((i) => i.content)).toEqual([`<<${GUIDANCE}>>`]);
 });

@@ -4,6 +4,7 @@
 // window, the reaper's stale sweep input, and `toView` poison tolerance.
 
 import type { WorkloadStatus } from "@orb/contracts/workloads";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -205,7 +206,7 @@ describe("nextRunnableWorkload (queue head + poison fail-in-place)", () => {
     const db = await freshDb();
     await seedWorkloadRow(db, { id: "newer", kind: "compute-themes", scheduledAt: T0 + 100 });
     await seedWorkloadRow(db, { id: "older", kind: "reconcile-stats", scheduledAt: T0 });
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep"))?.id).toBe("older");
+    expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep"))?.id).toBe("older");
   });
 
   test("fails a poison head row in place and returns the next valid one", async () => {
@@ -217,7 +218,7 @@ describe("nextRunnableWorkload (queue head + poison fail-in-place)", () => {
       scheduledAt: T0,
     });
     await seedWorkloadRow(db, { id: "valid", kind: "reconcile-stats", scheduledAt: T0 + 1 });
-    const next = await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 50, "sweep");
+    const next = await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 50, "sweep");
     expect(next?.id).toBe("valid");
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("poison"))).toBe("failed");
   });
@@ -238,8 +239,8 @@ describe("nextRunnableWorkload (queue head + poison fail-in-place)", () => {
     };
     workloadStreamEmitter.on("workload", listener);
     try {
-      await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep");
-      await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 1, "sweep");
+      await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep");
+      await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 1, "sweep");
     } finally {
       workloadStreamEmitter.off("workload", listener);
     }
@@ -265,16 +266,16 @@ describe("nextRunnableWorkload (lane scoping)", () => {
     });
     // The interactive row is DEFERRED to T0+1000, so at T0 it is not due (the deferral gate, below) — the
     // lane-scoping claim is asserted at its instant, where both lanes hand back their OWN head.
-    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "interactive")).toBeNull();
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 1000, "interactive"))?.id).toBe("interactive_row");
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 1000, "sweep"))?.id).toBe("sweep_head");
+    expect(await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "interactive")).toBeNull();
+    expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 1000, "interactive"))?.id).toBe("interactive_row");
+    expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 1000, "sweep"))?.id).toBe("sweep_head");
   });
 
   test("a lane with no queued rows polls null while the other lane has work", async () => {
     const db = await freshDb();
     await seedWorkloadRow(db, { id: "sweep_only", kind: "reconcile-stats", lane: "sweep" });
-    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "interactive")).toBeNull();
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep"))?.id).toBe("sweep_only");
+    expect(await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "interactive")).toBeNull();
+    expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep"))?.id).toBe("sweep_only");
   });
 });
 
@@ -285,11 +286,11 @@ describe("nextRunnableWorkload (scheduledAt deferral gate)", () => {
   test("a future-dated row is NOT dispatched before its instant, and IS at/after it", async () => {
     const db = await freshDb();
     await seedWorkloadRow(db, { id: "deferred", kind: "reconcile-stats", scheduledAt: T0 + 1000 });
-    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep")).toBeNull();
-    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 999, "sweep")).toBeNull();
+    expect(await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep")).toBeNull();
+    expect(await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 999, "sweep")).toBeNull();
     // Its own instant counts as due (the gate is `<=`, so a poll landing exactly on it dispatches).
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 1000, "sweep"))?.id).toBe("deferred");
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 5000, "sweep"))?.id).toBe("deferred");
+    expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 1000, "sweep"))?.id).toBe("deferred");
+    expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 5000, "sweep"))?.id).toBe("deferred");
     // …and it was never touched while it waited (deferred ≠ failed/poison — it is still queued).
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("deferred"))).toBe("queued");
   });
@@ -299,9 +300,9 @@ describe("nextRunnableWorkload (scheduledAt deferral gate)", () => {
     // Queued FIRST and sorting first by both order keys if it were visible — the starvation shape.
     await seedWorkloadRow(db, { id: "deferred", kind: "compute-themes", params: { k: 1 }, scheduledAt: T0 + 1000, createdAt: T0 });
     await seedWorkloadRow(db, { id: "due", kind: "reconcile-stats", scheduledAt: T0 + 10, createdAt: T0 + 10 });
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 10, "sweep"))?.id).toBe("due");
+    expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 10, "sweep"))?.id).toBe("due");
     // Once BOTH are due the (scheduledAt, createdAt) order resumes — the due row is still earliest.
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 1000, "sweep"))?.id).toBe("due");
+    expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 1000, "sweep"))?.id).toBe("due");
   });
 });
 
@@ -312,7 +313,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
   test("an empty dependsOn dispatches immediately (unchanged)", async () => {
     const db = await freshDb();
     await seedWorkloadRow(db, { id: "solo", kind: "reconcile-stats", dependsOn: null });
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep"))?.id).toBe("solo");
+    expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep"))?.id).toBe("solo");
   });
 
   test("waits (not dispatched, not failed) while a dependency is still active", async () => {
@@ -324,7 +325,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       status: "queued",
       dependsOn: [depId],
     });
-    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep")).toBeNull();
+    expect(await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep")).toBeNull();
     // still queued — the gate leaves it un-dispatched, it did NOT fail.
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("queued");
   });
@@ -338,7 +339,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       status: "queued",
       dependsOn: [depId],
     });
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep"))?.id).toBe("dependent");
+    expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep"))?.id).toBe("dependent");
   });
 
   // The blocked row FRONTS the head window (earliest by both order keys) — the gate must SKIP it, not stop
@@ -355,7 +356,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       createdAt: T0,
     });
     await seedWorkloadRow(db, { id: "unblocked", kind: "reconcile-stats", status: "queued", scheduledAt: T0 + 5, createdAt: T0 + 5 });
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 5, "sweep"))?.id).toBe("unblocked");
+    expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 5, "sweep"))?.id).toBe("unblocked");
     // …and the skip is not a mutation: the blocked row is untouched, still waiting on its dep.
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("blocked"))).toBe("queued");
   });
@@ -382,7 +383,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       createdAt: T0 + 20,
     });
 
-    expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 20, "sweep"))?.id).toBe("runnable_tail");
+    expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 20, "sweep"))?.id).toBe("runnable_tail");
   });
 
   test("a FAILED dependency fails the dependent with dependency_failed (it never runs)", async () => {
@@ -394,7 +395,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       status: "queued",
       dependsOn: [depId],
     });
-    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 9, "sweep")).toBeNull();
+    expect(await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 9, "sweep")).toBeNull();
     const dependent = await loadWorkload(db, CONTRIBUTIONS, castId<WorkloadId>("dependent"));
     expect(dependent?.status).toBe("failed");
     expect(dependent?.error).toContain("did not succeed");
@@ -417,8 +418,8 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
     };
     workloadStreamEmitter.on("workload", listener);
     try {
-      await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep");
-      await nextRunnableWorkload(db, CONTRIBUTIONS, T0 + 1, "sweep");
+      await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep");
+      await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0 + 1, "sweep");
     } finally {
       workloadStreamEmitter.off("workload", listener);
     }
@@ -436,7 +437,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       status: "queued",
       dependsOn: [depId],
     });
-    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep")).toBeNull();
+    expect(await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep")).toBeNull();
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("failed");
   });
 
@@ -448,7 +449,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
       status: "queued",
       dependsOn: [castId<WorkloadId>("never_existed")],
     });
-    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep")).toBeNull();
+    expect(await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep")).toBeNull();
     expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("failed");
   });
 
@@ -466,7 +467,7 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
 
     // The fixture bypasses the enqueue validation deliberately. An id-only lookup would observe Bob's
     // success and dispatch Alice's row; the scoped gate treats the foreign row exactly like an absent dep.
-    expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep")).toBeNull();
+    expect(await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep")).toBeNull();
     expect(await loadWorkloadStatus(db, dependent)).toBe("failed");
   });
 
@@ -485,20 +486,20 @@ describe("nextRunnableWorkload (dependsOn DAG gate)", () => {
     test("waits while one of two deps is still active", async () => {
       const db = await freshDb();
       await seedTwoDepDependent(db, "succeeded", "running");
-      expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep")).toBeNull();
+      expect(await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep")).toBeNull();
       expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("queued");
     });
 
     test("dispatches only when BOTH deps succeeded", async () => {
       const db = await freshDb();
       await seedTwoDepDependent(db, "succeeded", "succeeded");
-      expect((await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep"))?.id).toBe("dependent");
+      expect((await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep"))?.id).toBe("dependent");
     });
 
     test("fails fast when one dep failed even if the other is still active", async () => {
       const db = await freshDb();
       await seedTwoDepDependent(db, "running", "failed");
-      expect(await nextRunnableWorkload(db, CONTRIBUTIONS, T0, "sweep")).toBeNull();
+      expect(await nextRunnableWorkload(databaseHandle(db), CONTRIBUTIONS, T0, "sweep")).toBeNull();
       expect(await loadWorkloadStatus(db, castId<WorkloadId>("dependent"))).toBe("failed");
     });
   });

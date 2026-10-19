@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/stats/verbs/momentum.ts
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { statsBucketStart } from "@orb/kit/stats-tally";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -20,7 +21,7 @@ beforeEach(async () => {
 describe("stats.momentum", () => {
   test("returns the owner's reply timeline per character and bucket; empty for an empty library", async () => {
     const owner = await seedUser(db);
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
     expect(await svc.momentum(owner)).toEqual([]);
     const characterId = await seedCharacter(db, owner, { name: "Aria" });
     const chatId = await seedChat(db, characterId);

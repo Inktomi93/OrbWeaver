@@ -12,6 +12,7 @@
 
 import type { ProviderId } from "@orb/contracts/inference";
 import { automationFires, automationRules, chats, users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { handleKey } from "@orb/kit/handle-key";
 import type { AutomationFireId, AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -224,7 +225,7 @@ describe("/api/_debug/automation/fires — the durable fire log behind the gate"
       },
     ]);
     const app = new Hono();
-    registerDebugRoutes(app, { appSettingRows: () => readGlobalSettings(db), auth: { expectedToken: TOKEN }, db });
+    registerDebugRoutes(app, { appSettingRows: () => readGlobalSettings(databaseHandle(db)), auth: { expectedToken: TOKEN }, db: databaseHandle(db) });
     return { app, chatA, chatB };
   }
 

@@ -13,6 +13,7 @@
 // @subject packages/server/src/domain/chat/persistence/visible-rooms.ts
 
 import { chats, personas } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createResolveVisibleRooms } from "@orb/server/domain/chat";
@@ -37,7 +38,7 @@ describe("chat/resolve-visible-rooms — the shared reverse-roster filter", () =
     // The kicked case: they HOSTED it (so their attachment row is legitimately there) and their seat closed.
     await seedParticipant(db, { chatId: kicked, key: "k", userId: owner, role: "host", leftSeq: 12 });
 
-    const resolve = createResolveVisibleRooms({ db }, (userIds) => selectHandlesByIds(db, userIds));
+    const resolve = createResolveVisibleRooms({ db: databaseHandle(db) }, (userIds) => selectHandlesByIds(databaseHandle(db), userIds));
     const rooms = await resolve(principal(owner), [present, kicked, never]);
 
     expect(rooms.map((room) => room.id)).toEqual([present]);
@@ -60,7 +61,9 @@ describe("chat/resolve-visible-rooms — the shared reverse-roster filter", () =
     await seedParticipant(db, { chatId: room, key: "friend", userId: friend, role: "member", activePersonaId: personaId });
     await seedParticipant(db, { chatId: room, key: "c", characterId, role: "member" });
 
-    const rooms = await createResolveVisibleRooms({ db }, (userIds) => selectHandlesByIds(db, userIds))(principal(owner), [room]);
+    const rooms = await createResolveVisibleRooms({ db: databaseHandle(db) }, (userIds) => selectHandlesByIds(databaseHandle(db), userIds))(principal(owner), [
+      room,
+    ]);
 
     // The blank title arrives UNTRIMMED — deciding that "   " means unnamed is the client chain's job, and a
     // second copy of that rule here is what produced the "Untitled chat" defect this shape was minted to fix.
@@ -79,7 +82,9 @@ describe("chat/resolve-visible-rooms — the shared reverse-roster filter", () =
     await seedParticipant(db, { chatId: room, key: "me", userId: owner, role: "host" });
     await seedParticipant(db, { chatId: room, key: "friend", userId: friend, role: "member", activePersonaId: borrowed });
 
-    const rooms = await createResolveVisibleRooms({ db }, (userIds) => selectHandlesByIds(db, userIds))(principal(owner), [room]);
+    const rooms = await createResolveVisibleRooms({ db: databaseHandle(db) }, (userIds) => selectHandlesByIds(databaseHandle(db), userIds))(principal(owner), [
+      room,
+    ]);
 
     // The pointer names a persona the friend does not own, so the seat falls back to the friend's own handle.
     expect(rooms[0]?.participantNames).toEqual(["friend"]);
@@ -93,7 +98,10 @@ describe("chat/resolve-visible-rooms — the shared reverse-roster filter", () =
     await seedParticipant(db, { chatId: older, key: "o", userId: owner, role: "host" });
     await seedParticipant(db, { chatId: newer, key: "n", userId: owner, role: "host" });
 
-    const rooms = await createResolveVisibleRooms({ db }, (userIds) => selectHandlesByIds(db, userIds))(principal(owner), [older, newer]);
+    const rooms = await createResolveVisibleRooms({ db: databaseHandle(db) }, (userIds) => selectHandlesByIds(databaseHandle(db), userIds))(principal(owner), [
+      older,
+      newer,
+    ]);
 
     expect(rooms.map((room) => room.id)).toEqual([newer, older]);
     // Suppressing the only seat would collapse a solo room to "Untitled chat" — the floor keeps the name.
@@ -107,7 +115,9 @@ describe("chat/resolve-visible-rooms — the shared reverse-roster filter", () =
     await seedParticipant(db, { chatId: room, key: "me", userId: owner, role: "host" });
 
     // The candidates are a consumer's junction rows; no junction ⇒ no answer, never "every room you are in".
-    expect(await createResolveVisibleRooms({ db }, (userIds) => selectHandlesByIds(db, userIds))(principal(owner), [])).toEqual([]);
+    expect(
+      await createResolveVisibleRooms({ db: databaseHandle(db) }, (userIds) => selectHandlesByIds(databaseHandle(db), userIds))(principal(owner), []),
+    ).toEqual([]);
     // …and the room really is visible when asked for, so the empty above is about the CANDIDATES.
     const found = await db.select({ id: chats.id }).from(chats).where(eq(chats.id, room));
     expect(found).toHaveLength(1);

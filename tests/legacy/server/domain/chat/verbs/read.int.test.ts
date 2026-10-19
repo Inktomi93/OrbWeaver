@@ -29,6 +29,7 @@ import {
   worldBooks,
   worldEntries,
 } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { NoConnectionError } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type {
@@ -1757,7 +1758,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     // (the case a cursor floor alone would let straight through: high durable seq, low view seq), and finally
     // the token stream of a turn writing INTO the post-join slot (the member's own content).
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     const preView = await loadMessageView(db, pre.messageId);
     const postView = await loadMessageView(db, post.messageId);
     await bus.emit({ type: "messageCommitted", chatId, messageId: pre.messageId, ...(preView === undefined ? {} : { view: preView }) });
@@ -1810,7 +1811,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     await seedParticipant(db, { chatId, key: "jhrf_m", userId: joiner, role: "member", joinSeq: 5, joinHistoryVisibility: "full" });
 
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     const preView = await loadMessageView(db, pre.messageId);
     await bus.emit({ type: "messageCommitted", chatId, messageId: pre.messageId, ...(preView === undefined ? {} : { view: preView }) });
     // A delta anchored to the PRE-join slot — withheld from a `from-join` member, delivered here.
@@ -2476,7 +2477,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const ctx = makeChatContext(db);
     const emit = async (): Promise<void> => undefined;
     // "Playing as Alex" — the REAL write `persona.setActivePersona` delegates to (verbs/participants.ts).
-    await setParticipantActivePersona(db, emit, { chatId, targetUserId: me, personaId: newPersona });
+    await setParticipantActivePersona(databaseHandle(db), emit, { chatId, targetUserId: me, personaId: newPersona });
     const life = createChatLifecycle(ctx, {
       claimChat: (): Promise<void> => Promise.resolve(),
       emit,
@@ -3157,7 +3158,7 @@ describe("read — durable chat-bus log (the chat room SSE resume)", () => {
     const chatId = await seedRoom("room", me);
     // Emit through the REAL domain bus (durable-first) — the replay reads what emit wrote.
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     await bus.emit({ type: "chatUpdated", chatId });
     await bus.emit({ type: "chatCreated", chatId });
     await bus.emit({ type: "chatUpdated", chatId });
@@ -3191,7 +3192,7 @@ describe("read — durable chat-bus log (the chat room SSE resume)", () => {
     // Emit the HEAD of a turn through the REAL domain bus (durable-first: the chat_events INSERT commits
     // before the ring push) — turnStarted + two text deltas, exactly the shape that races the attach.
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     await bus.emit({
       type: "turnStarted",
       chatId,
@@ -3726,7 +3727,7 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     const { messageId } = await seedMessage(db, chatId, 1, { role: "assistant", content: `prose ${lieTag}` });
 
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     const view = await loadMessageView(db, messageId);
     await bus.emit({ type: "messageCommitted", chatId, messageId, ...(view === undefined ? {} : { view }) });
 
@@ -3763,7 +3764,7 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — only `resolveReasoningHostOnly` is reached by these reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const deceptionRpg = { resolveReasoningHostOnly: () => Promise.resolve(true) } as unknown as NonNullable<ChatContext["rpg"]>;
     const ctx = makeChatContext(db, { rpg: deceptionRpg });
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     const view = await loadMessageView(db, messageId);
     // The exact durable log a member's reconnect re-drains: a reasoning delta (spells the truth), the hidden
     // `<lie>` TEXT delta, the reasoningStreamDone signal, then the at-commit committed view.
@@ -3804,7 +3805,7 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     await seedParticipant(db, { chatId, key: "midspan_m", userId: member, role: "member" });
 
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     const text = (t: string): Parameters<typeof bus.emit>[0] => ({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: t } });
     // ONE chunk carrying prose AND the opener (the ordinary provider chunking shape) — its safe prefix is
     // delivered, so the member's cursor sits at that row, mid-tag. Then the closer, then more prose.

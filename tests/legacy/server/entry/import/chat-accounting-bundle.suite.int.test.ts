@@ -1,4 +1,5 @@
 // Native accounting crosses actual HTTP/library export, upload and the composed import workload.
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -139,7 +140,7 @@ test("two-box native workload preserves retained legs and pending positional fac
   const restored = await createServices({
     serverRestart: UNSUPERVISED_RESTART,
     share: NO_SHARE_RELAY,
-    db: restoredDb,
+    db: databaseHandle(restoredDb),
     now: () => clock.now(),
     ownerId: targetUser.id,
     secretBoxKey: null,
@@ -162,7 +163,7 @@ test("two-box native workload preserves retained legs and pending positional fac
     const started = z.object({ workloadId: typeIdSchema(ID_PREFIX.workload) }).parse(await uploaded.json());
     const row = await loadRunnableWorkload(restoredDb, restored.workloadContributions, started.workloadId);
     await runWorkload(makeRunnerDeps(restoredDb, restored.workloadContributions), row, new AbortController().signal);
-    const done = await loadWorkload(restoredDb, restored.workloadContributions, started.workloadId);
+    const done = await loadWorkload(databaseHandle(restoredDb), restored.workloadContributions, started.workloadId);
     expect(done?.status).toBe("succeeded");
     expect(done?.result).toMatchObject({ failed: 0 });
   };
@@ -192,7 +193,7 @@ test("two-box native workload preserves retained legs and pending positional fac
   expect(restoredVariants[0]?.id).not.toBe(variantId);
   const live = await restoredDb.select().from(ownerStats).where(eq(ownerStats.ownerId, targetUser.id));
   expect(live[0]).toMatchObject({ costUsd: 0.375, costSamples: 2, tokensIn: 80, tokensOut: 2068, assistantTurns: 1 });
-  await reconcileStats(restoredDb, { ownerId: targetUser.id, now: () => clock.now() });
+  await reconcileStats(databaseHandle(restoredDb), { ownerId: targetUser.id, now: () => clock.now() });
   expect(await restoredDb.select().from(ownerStats).where(eq(ownerStats.ownerId, targetUser.id))).toEqual(live);
   const reexported = await targetWeb.request(`/api/export/chat/${restoredChat.id}?format=orb`);
   expect(reexported.status).toBe(200);

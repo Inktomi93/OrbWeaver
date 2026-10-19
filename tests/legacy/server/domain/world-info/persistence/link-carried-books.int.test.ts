@@ -6,6 +6,7 @@
 
 import type { Db } from "@orb/db";
 import { characterBooks, worldBooks } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -30,7 +31,7 @@ function junctionsFor(db: Db, characterId: CharacterId): Promise<{ worldBookId: 
     .where(eq(characterBooks.characterId, characterId));
 }
 
-const link = (db: Db): ReturnType<typeof createLinkCarriedBooks> => createLinkCarriedBooks({ db, now: (): number => NOW });
+const link = (db: Db): ReturnType<typeof createLinkCarriedBooks> => createLinkCarriedBooks({ db: databaseHandle(db), now: (): number => NOW });
 
 describe("createLinkCarriedBooks", () => {
   test("links the owner's books (roles preserved) and reports them; books are not cloned", async () => {

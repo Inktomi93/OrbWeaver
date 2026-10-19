@@ -6,6 +6,7 @@ import type { Db } from "@orb/db";
 import { personas, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -43,7 +44,7 @@ function ownerTouch(): BatchStmt {
 
 describe("verbs/joiner-persona-statement — createJoinerPersonaStatement", () => {
   test("the id it returns is the id the statement writes, owned by the joiner", async () => {
-    const op = createJoinerPersonaStatement({ db, newPersonaId });
+    const op = createJoinerPersonaStatement({ db: databaseHandle(db), newPersonaId });
     const { personaId, statement } = op({ ownerId: owner, persona: { name: "Mira", description: "" }, at: AT });
 
     expect(personaId).toBe(MINTED[0]);
@@ -53,7 +54,7 @@ describe("verbs/joiner-persona-statement — createJoinerPersonaStatement", () =
   });
 
   test("each call mints its own id, so two joiners never share a persona", () => {
-    const op = createJoinerPersonaStatement({ db, newPersonaId });
+    const op = createJoinerPersonaStatement({ db: databaseHandle(db), newPersonaId });
     const first = op({ ownerId: owner, persona: { name: "Mira", description: "" }, at: AT });
     const second = op({ ownerId: owner, persona: { name: "Oren", description: "" }, at: AT });
     expect([first.personaId, second.personaId]).toEqual([...MINTED]);

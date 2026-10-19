@@ -8,6 +8,7 @@
 import type { DeclaredCapability } from "@orb/contracts/inference";
 import { LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
 import { connectionBindings, userConnections, userSeedLedger } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ConnectionBindingId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -26,7 +27,7 @@ function seedDeps(db: Awaited<ReturnType<typeof freshDb>>, serial = 0): Paramete
   let connections = serial * 100;
   let bindings = serial * 100;
   return {
-    db,
+    db: databaseHandle(db),
     now: (): number => FROZEN_AT_MS,
     newConnectionId: (): UserConnectionId => {
       connections += 1;

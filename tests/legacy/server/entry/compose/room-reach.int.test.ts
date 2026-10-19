@@ -12,6 +12,7 @@
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, chatRegexScripts, globalBooks, personaBooks, personas, regexScripts, worldBooks, worldEntries } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDeleteReachCapture, createRoomEntityFan } from "@orb/server/entry/compose";
@@ -29,7 +30,7 @@ const FROZEN_AT = 1_700_000_000_000;
 /** A capturing fan: returns the spy's buffer plus the built subscriber. */
 function spyFan(db: Db): { readonly captured: LiveOnlyChatBusEvent[]; readonly fan: ReturnType<typeof createRoomEntityFan> } {
   const captured: LiveOnlyChatBusEvent[] = [];
-  return { captured, fan: createRoomEntityFan(db, (event) => captured.push(event)) };
+  return { captured, fan: createRoomEntityFan(databaseHandle(db), (event) => captured.push(event)) };
 }
 
 /** The rooms an entity kind reached, as a SET — the engine promises no emit ORDER, and a Set comparison
@@ -246,7 +247,7 @@ describe("room-reach: pre-write delete capture (§3.6 residual)", () => {
     await seedParticipant(db, { chatId: seatChat, key: "del_p_seat", userId: owner, activePersonaId: doomed });
 
     const captured: LiveOnlyChatBusEvent[] = [];
-    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
 
     // Snapshot WHILE the seat + anchor pointers still resolve.
     const fanReach = await capture.persona(doomed);
@@ -276,7 +277,7 @@ describe("room-reach: pre-write delete capture (§3.6 residual)", () => {
     await seedParticipant(db, { chatId: charScoped, key: "del_w_char", characterId: seatedChar });
 
     const captured: LiveOnlyChatBusEvent[] = [];
-    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
 
     const fanReach = await capture["world-info"](doomed);
     // The verb's own delete: `chat_books` + `character_books` CASCADE away.
@@ -302,7 +303,7 @@ describe("room-reach: pre-write delete capture (§3.6 residual)", () => {
     await db.insert(chatRegexScripts).values({ chatId: other, regexScriptId: kept, position: 0, createdAt: FROZEN_AT });
 
     const captured: LiveOnlyChatBusEvent[] = [];
-    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
 
     // Snapshot WHILE `chat_regex_scripts` still names the row.
     const fanReach = await capture.regex([doomed]);
@@ -311,7 +312,7 @@ describe("room-reach: pre-write delete capture (§3.6 residual)", () => {
     // THE DEFECT the capture exists for: the same reach taken after the CASCADE resolves nothing at all, so a
     // verb that fanned post-write would leave every OTHER member of `attached` on a stale rack.
     const post: LiveOnlyChatBusEvent[] = [];
-    (await createDeleteReachCapture(db, (event) => post.push(event)).regex([doomed]))([doomed]);
+    (await createDeleteReachCapture(databaseHandle(db), (event) => post.push(event)).regex([doomed]))([doomed]);
     expect(post).toEqual([]);
 
     // THE FIX: the captured thunk still reaches the room — and only the confirmed-deleted id's rooms.
@@ -326,7 +327,7 @@ describe("room-reach: pre-write delete capture (§3.6 residual)", () => {
     const lonely = await seedPersona(db, owner, "rr_del_none");
 
     const captured: LiveOnlyChatBusEvent[] = [];
-    const fanReach = await createDeleteReachCapture(db, (event) => captured.push(event)).persona(lonely);
+    const fanReach = await createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event)).persona(lonely);
     await db.delete(personas).where(eq(personas.id, lonely));
     fanReach();
 

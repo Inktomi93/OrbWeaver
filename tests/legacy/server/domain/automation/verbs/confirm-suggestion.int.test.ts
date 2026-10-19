@@ -17,6 +17,7 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { VariableWriteResult } from "@orb/contracts/chat";
 import { automationFires, chatParticipants } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AutomationRuleId, AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -109,7 +110,7 @@ async function suggestFixture(): Promise<{
       newSuggestionId: base.ctx.newSuggestionId,
     }),
   };
-  return { fixture: { ...base, ctx, svc: createAutomationService(ctx) }, turns };
+  return { fixture: { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) }, turns };
 }
 
 /** Mint + enable a confirm-first `trigger_turn` rule on the fixture's chat. */
@@ -147,7 +148,7 @@ async function continuationFixture(): Promise<{
       newSuggestionId: base.ctx.newSuggestionId,
     }),
   };
-  return { fixture: { ...base, ctx, svc: createAutomationService(ctx) }, turns, varWrites };
+  return { fixture: { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) }, turns, varWrites };
 }
 
 /** Mint + enable a MIXED rule: a direct `set_variable`, a confirm-first `trigger_turn`, and a second
@@ -733,7 +734,7 @@ describe("#1425 the confirmed fire row and the rule stamp land together or not a
         newSuggestionId: base.ctx.newSuggestionId,
       }),
     };
-    const fixture = { ...base, ctx, svc: createAutomationService(ctx) };
+    const fixture = { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) };
     const ruleId = await enableConfirmFirstRule(fixture);
     await fireChatOpened(fixture);
     const [ask] = fixture.ctx.suggestions.listForChat(fixture.chatId, FIXED_NOW_MS);
@@ -809,7 +810,7 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
         return realArm(action, frame);
       },
     };
-    const fixture = { ...base, ctx, svc: createAutomationService(ctx) };
+    const fixture = { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) };
 
     // TWO rules on one chat: an ordinary arm to hold the lane with, and the confirm-first arm that raises the
     // card. Both fire off the same `chatOpened`, in position order.

@@ -17,6 +17,7 @@
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { Db } from "@orb/db";
 import { characterBooks, worldBooks, worldEntries } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { seedCharacter, seedUser } from "@orb/testkit/node/factories/index.ts";
@@ -48,12 +49,12 @@ function worldInfoOps(db: Db): {
   };
   return {
     importLorebook: createBulkImportLorebook({
-      db,
+      db: databaseHandle(db),
       now: (): number => NOW,
       newBookId: (): WorldBookId => castId<WorldBookId>(`world_book_${counter()}`),
       newEntryId: (): WorldEntryId => castId<WorldEntryId>(`world_entry_${counter()}`),
     }),
-    hasPrimaryBook: createHasPrimaryBook({ db }),
+    hasPrimaryBook: createHasPrimaryBook({ db: databaseHandle(db) }),
   };
 }
 

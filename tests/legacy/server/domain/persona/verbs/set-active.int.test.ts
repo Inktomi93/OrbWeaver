@@ -3,6 +3,7 @@
 
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatParticipants } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -210,10 +211,10 @@ describe("setActivePersona", () => {
     const events: ChatBusEvent[] = [];
     // Bind the REAL chat fns exactly as compose does: the guard over {db, can}; the participant write over db + emit.
     const harness = makeHarness(db, {
-      requireChatAuthorOrHost: (p, cid, target) => requireAuthorOrHost({ db, can }, p, cid, target).then(() => undefined),
+      requireChatAuthorOrHost: (p, cid, target) => requireAuthorOrHost({ db: databaseHandle(db), can }, p, cid, target).then(() => undefined),
       setChatActivePersona: (cid, target, pid) =>
         setParticipantActivePersona(
-          db,
+          databaseHandle(db),
           (e) => {
             events.push(e);
             return Promise.resolve();
@@ -250,7 +251,7 @@ describe("setActivePersona", () => {
     const db = await freshDb();
     let wrote = false;
     const harness = makeHarness(db, {
-      requireChatAuthorOrHost: (p, cid, target) => requireAuthorOrHost({ db, can }, p, cid, target).then(() => undefined),
+      requireChatAuthorOrHost: (p, cid, target) => requireAuthorOrHost({ db: databaseHandle(db), can }, p, cid, target).then(() => undefined),
       setChatActivePersona: () => {
         wrote = true;
         return Promise.resolve();

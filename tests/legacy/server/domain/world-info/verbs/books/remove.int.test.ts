@@ -4,6 +4,7 @@
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { chatBooks, worldEntries } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDeleteReachCapture } from "@orb/server/entry/compose";
@@ -49,7 +50,7 @@ describe("removeBook", () => {
   test("deleting a chat-attached book fans roomEntityChanged to that room", async () => {
     const db = await freshDb();
     const captured: LiveOnlyChatBusEvent[] = [];
-    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
     const svc = createWorldInfoService(makeHarness(db, { captureRoomReachForDelete: capture["world-info"] }).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const book = await svc.createBook({ principal: principal(owner), input: { name: "Doomed" } });
@@ -65,7 +66,7 @@ describe("removeBook", () => {
   test("a foreign (NotFound) book delete fans NO room event — the thunk is past the guard", async () => {
     const db = await freshDb();
     const captured: LiveOnlyChatBusEvent[] = [];
-    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
     const svc = createWorldInfoService(makeHarness(db, { captureRoomReachForDelete: capture["world-info"] }).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });

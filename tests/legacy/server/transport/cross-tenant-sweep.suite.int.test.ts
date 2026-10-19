@@ -18,6 +18,7 @@
 // security-executor), NOT something the docs/test lane fixes.
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
@@ -2890,7 +2891,7 @@ describe("cross-tenant IDOR sweep — every id-taking procedure is leak-free for
       },
       installer: ownerPrincipal,
       invoke: (): Promise<string> => Promise.resolve("catalog probe never executes a tool"),
-      resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db, can })(ownerPrincipal, chatId),
+      resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db: databaseHandle(db), can })(ownerPrincipal, chatId),
     });
     onTestFinished(() => catalogTool.unregister());
 

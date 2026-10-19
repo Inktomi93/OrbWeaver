@@ -1,5 +1,6 @@
 // @orb-waive-file no-test-fabrication(RecordedRequest["body"]): baselined when the gate widened to value casts; burn-down item 906.
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptCacheSettings } from "@orb/contracts/inference";
@@ -284,7 +285,7 @@ replayAccountingTest(
       expect(liveStats).toMatchObject([{ costUsd: 0.125, tokensIn: 10, tokensOut: 5 }]);
       const daily = await db.select().from(dailyStats).where(eq(dailyStats.ownerId, host.id));
       const models = await db.select().from(modelStats).where(eq(modelStats.ownerId, host.id));
-      await reconcileStats(db, { ownerId: host.id, now: clock.now });
+      await reconcileStats(databaseHandle(db), { ownerId: host.id, now: clock.now });
       expect(await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host.id))).toEqual(liveStats);
       expect((await db.select().from(dailyStats).where(eq(dailyStats.ownerId, host.id))).map(({ id: _id, ...row }) => row)).toEqual(
         daily.map(({ id: _id, ...row }) => row),
