@@ -41,7 +41,13 @@ export function guardedMember(o:{readonly x:unknown}){if(isLocal(o.x)){return o.
 export const guardedConst=((x:unknown)=>{assertLocal(x);return {x}})(null);
 export function present(x:Local|undefined){if(x){return x}throw new Error("fixture")}
 export function literal(x:string){return x==="a"?x:"b"}
+function isLocalAnd(x:{readonly a:number}):x is {readonly a:number}&Local{return true}
+function wrapIt<T>(v:T):{readonly v:T}{return {v}}
+export function viaGeneric<T>(x:T){if(isLocal(x)){return x}return null}
+export function viaGenericWrap<T>(x:T){if(isLocal(x)){return wrapIt(x)}return null}
+export function viaIntersection(x:{readonly a:number}){if(isLocalAnd(x)){return x}return null}
 `,
+  "packages/server/src/entry/hop.gen.ts": 'import {promised} from "../infra/adapter/factory.ts";\nexport function hopE(){return promised()}',
   "packages/server/src/domain/feature/bridge.gen.ts":
     'import {promised} from "../../infra/adapter/factory.ts";\nexport function bridged():ReturnType<typeof promised>{return promised()}export function plain():number{return 1}',
   "packages/server/src/infra/adapter/relay.gen.ts": 'import type {Lane} from "../../foundation/trace/lane.ts";\nexport function relayed(lane:Lane):void{}',
@@ -82,10 +88,11 @@ const CASES = [
   ["entry/bridged", 'import {bridged} from "../domain/feature/bridge.gen.ts";export const value=bridged;', 1, "Local"],
   ["entry/plain", 'import {plain} from "../domain/feature/bridge.gen.ts";export const value=plain;', 0, ""],
   ["entry/relayed", 'import {relayed} from "../infra/adapter/relay.gen.ts";export const value=relayed;', 1, "Lane"],
+  ["entry/use-entry-gen", 'import {hopE} from "./hop.gen.ts";export const value=hopE;', 1, "Local"],
 ] as const;
 
 // Control-flow narrowing gives a reference a type its declaration never names, so each read refuses.
-const NARROWED = ["guarded", "asserted", "narrowed", "guardedMember", "guardedConst"] as const;
+const NARROWED = ["guarded", "asserted", "narrowed", "guardedMember", "guardedConst", "viaGeneric", "viaGenericWrap", "viaIntersection"] as const;
 
 // The owners of each stop: the importing file in its own tier, or the ambient augmentation itself.
 const OWNERS = [

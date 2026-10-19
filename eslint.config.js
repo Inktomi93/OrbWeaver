@@ -5442,12 +5442,12 @@ const serverFactoryPublicBoundaryRule = {
         }
         return;
       }
-      // A domain or primitives target exposes a factory shape only through its own import, judged in that file,
-      // unless that file is one this rule does not lint.
+      // A domain or primitives target exposes a factory shape only through its own import, judged in that file.
+      // A file this rule does not lint judges nothing itself, so it is walked from every importer, same tier included.
       if (
         !declarations.some((declaration) => {
           const owner = relative(context.cwd, declaration.getSourceFile().fileName).replaceAll("\\", "/");
-          return (serverFactoryTier(owner) || unjudgedServerFile(owner)) && serverTypeTier(owner) !== serverTypeTier(consumer);
+          return unjudgedServerFile(owner) || (serverFactoryTier(owner) && serverTypeTier(owner) !== serverTypeTier(consumer));
         })
       ) {
         return;

@@ -19,6 +19,7 @@ import {
   isPublicSignature,
   namedDeclaration,
   primitiveLiteral,
+  primitiveType,
   publicAnnotationDeclaration,
   publicClassMember,
   publicParameterProperty,
@@ -338,7 +339,7 @@ function boundaryWalk(parser: NativeParserTypeContext, root: string, consumer: s
       return false;
     }
     const declared = new Set(constituents(checker.getNonNullableType(checker.getTypeOfSymbol(aliasTarget(symbol, checker)))));
-    return constituents(checker.getNonNullableType(checker.getTypeAtLocation(reference))).some((part) => !declared.has(part) && part.getSymbol() !== undefined);
+    return constituents(checker.getNonNullableType(checker.getTypeAtLocation(reference))).some((part) => !(declared.has(part) || primitiveType(part)));
   };
   const narrowed = (expression: ts.Expression): boolean => {
     let name: ts.Node | undefined;

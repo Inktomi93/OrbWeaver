@@ -152,8 +152,26 @@ export function inferredOperands(node: ts.Expression): readonly ts.Node[] | unde
   return ts.isBinaryExpression(node) ? [node.left, node.right] : undefined;
 }
 
+/** A type's union and intersection members, flattened, so a narrowing to `T & Local` exposes `Local`. */
 export function constituents(type: ts.Type): readonly ts.Type[] {
-  return type.isUnion() ? type.types : [type];
+  return type.isUnionOrIntersection() ? type.types.flatMap(constituents) : [type];
+}
+
+const PRIMITIVE_FLAGS = [
+  ts.TypeFlags.StringLike,
+  ts.TypeFlags.NumberLike,
+  ts.TypeFlags.BigIntLike,
+  ts.TypeFlags.BooleanLike,
+  ts.TypeFlags.EnumLike,
+  ts.TypeFlags.ESSymbolLike,
+  ts.TypeFlags.VoidLike,
+  ts.TypeFlags.Null,
+] as const;
+
+/** A primitive or literal type carries no declaration a narrowing could add. */
+export function primitiveType(type: ts.Type): boolean {
+  // biome-ignore lint/suspicious/noBitwiseOperators: TypeFlags is a compiler-owned bitfield.
+  return PRIMITIVE_FLAGS.some((flag) => (type.flags & flag) !== 0);
 }
 
 /** The returned and yielded expressions of one function body, excluding nested functions and classes. */
