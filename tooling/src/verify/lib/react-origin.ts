@@ -93,7 +93,7 @@ function verdictOf(fact: ReferenceFact<ModuleMemberOrigin>, exportedName: string
 
 /** Every local spelling in `source` that a React named import could have bound `exportedName` to, plus the
  *  canonical name itself and every namespace binding over a `react` door. The set is the CANDIDATE filter:
- *  resolving module origin for every call in the corpus costs a ten-minute run (`no-fake-disabled-id`). */
+ *  resolving module origin for every call in the corpus costs a ten-minute run. */
 function reactSpellings(source: SourceFile, exportedName: string): ReadonlySet<string> {
   const names = new Set<string>([exportedName]);
   for (const declaration of source.getImportDeclarations()) {

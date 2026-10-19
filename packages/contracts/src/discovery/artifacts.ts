@@ -95,7 +95,7 @@ export const archetypeMemberSchema = z.strictObject({
 
 export const archetypeSchema = z.strictObject({
   baseLabel: z.string(),
-  // @orb-waive no-raw-id(passId): SHA-256 corpus fingerprint produced by clustering, not a minted row identity; ends if clustering passes become persisted identity-bearing rows.
+  // SHA-256 corpus fingerprint produced by clustering, not a minted row identity; ends if clustering passes become persisted identity-bearing rows.
   passId: z.string(),
   generationId: brandedId<EmbedGenerationId>(),
   fingerprint: z.string().nullable(),
@@ -110,7 +110,7 @@ export const archetypeSchema = z.strictObject({
 
 export const visualArchetypeSchema = z.strictObject({
   baseLabel: z.string(),
-  // @orb-waive no-raw-id(passId): SHA-256 corpus fingerprint produced by clustering, not a minted row identity; ends if clustering passes become persisted identity-bearing rows.
+  // SHA-256 corpus fingerprint produced by clustering, not a minted row identity; ends if clustering passes become persisted identity-bearing rows.
   passId: z.string(),
   generationId: brandedId<EmbedGenerationId>(),
   fingerprint: z.string().nullable(),

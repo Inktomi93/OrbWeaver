@@ -91,7 +91,6 @@ describe("patchSheet", () => {
     const ref = { kind: "user" as const, userId };
     // The point is that a caller still sending the retired dial writes nothing — only expressible by sending
     // a key the type no longer has.
-    // @orb-waive no-loose-id-cast({ maxHp: 30 }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     await service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: ref, patch: { maxHp: 30 } as never });
     const game = await findGameByChat(db, chatId);
     if (!game) {

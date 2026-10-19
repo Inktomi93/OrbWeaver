@@ -830,7 +830,7 @@ const assemblyBudgetSliceSchema = z.strictObject({
 const assemblySectionRowSchema = z.strictObject({ label: z.string(), tokens: z.number() }) satisfies z.ZodType<AssemblySectionRow>;
 
 const assemblySectionCostSchema = z.strictObject({
-  // @orb-waive no-raw-id(sectionId): preset-local authored/imported section key, not a row identity; ends if prompt sections acquire a canonical minted identity.
+  // preset-local authored/imported section key, not a row identity; ends if prompt sections acquire a canonical minted identity.
   sectionId: z.string(),
   tokens: z.number(),
   rows: z.array(assemblySectionRowSchema).readonly(),

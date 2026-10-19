@@ -1354,6 +1354,8 @@ export function resolvePluginBoundAssetId(state: Record<string, unknown>, bindin
 /** A surface's `id` grammar (`host.ui.register`'s `id`) — unique per plugin, a bounded
  *  programmatic identifier (the values-bag / registry key discipline), never arbitrary text. */
 export const PLUGIN_SURFACE_ID_RE = /^[a-z][a-z0-9_]{0,40}$/;
+/** The wire schema of that grammar: a plugin-local selector, never an entity id, so it carries no brand. */
+export const pluginSurfaceIdSchema = z.string().regex(PLUGIN_SURFACE_ID_RE);
 /** The GUEST-LOCAL tool name a `tool-card` surface names (`host.tools.register`'s `name` — the grammar
  *  `host-v1.ts` documents for it, before the host namespaces it to `plugin_<slug'>_<name>`). A surface names
  *  the tool the way its own `main.js` registered it; the WIRE name is derived host-side and never guessed

@@ -127,8 +127,7 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
       draftSeededRef.current = true;
       if (draftSeed !== undefined && draftSeedRef.current !== undefined) {
         for (const [name, value] of Object.entries(draftSeedRef.current)) {
-          // @orb-waive no-loose-id-cast(name): not a branded-id cast — a draft FIELD KEY erased to `never` to satisfy setFieldValue's `TField extends DeepKeys<TFormData>` generic, which Object.entries cannot narrow to (see promote()). ENDS WHEN: draftSeed is typed as a partial of TValues instead of an entries loop.
-          // @orb-waive no-loose-id-cast(value): not a branded-id cast — the field's VALUE erased to `never` because setFieldValue's value type is keyed off the (already erased) field generic. Same end condition as the key above.
+          // Not a branded-id cast: the draft field key and value are erased to `never` to satisfy setFieldValue's `TField extends DeepKeys<TFormData>` generic, which Object.entries cannot narrow to. Ends when draftSeed is typed as a partial of TValues instead of an entries loop.
           form.setFieldValue(name as never, value as never);
         }
       }
@@ -161,8 +160,7 @@ export function createSavedEntityForm<TValues extends object>(config: SavedEntit
       form,
       mountKey: entityId,
       promote: (name: string, value: unknown): void => {
-        // @orb-waive no-loose-id-cast(name): not a branded-id cast — an arbitrary DeepKeys PATH erased to `never` ONLY to satisfy setFieldValue's generic `TField extends DeepKeys<TFormData>` at this loose public boundary (see header). ENDS WHEN: promote() takes a typed DeepKeys<TValues> instead of `string`.
-        // @orb-waive no-loose-id-cast(value): not a branded-id cast — the path's VALUE (`unknown` at this public boundary) erased to `never` because setFieldValue's value type is keyed off the (already erased) field generic. Same end condition as the path above.
+        // Not a branded-id cast: the path and its value are erased to `never` only to satisfy setFieldValue's `TField extends DeepKeys<TFormData>` generic at this loose public boundary. Ends when promote() takes a typed DeepKeys<TValues> instead of `string`.
         form.setFieldValue(name as never, value as never, {
           dontUpdateMeta: true,
         } satisfies UpdateMetaOptions);

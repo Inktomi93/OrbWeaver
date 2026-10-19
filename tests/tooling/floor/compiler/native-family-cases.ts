@@ -33,12 +33,12 @@ async function run(mode: string, root: string): Promise<object> {
   const { openInventoryDatabase, latestInventoryGeneration } = await import("../../../../tooling/src/floor/code-facts/semantic-inventory-database.ts");
   try {
     if (mode === "scalar-drift") {
-      using previous = createSemanticInventory({ root, families: ["id-brands"] });
+      using previous = createSemanticInventory({ root, families: ["declaration-outputs"] });
       writeFileSync(join(root, "source.ts"), "declare const original:string; export const value=original as number;");
       active = true;
       let refusal: string | null = null;
       try {
-        using _next = createSemanticInventory({ root, families: ["id-brands"] });
+        using _next = createSemanticInventory({ root, families: ["declaration-outputs"] });
       } catch (error) {
         refusal = String(error);
       }

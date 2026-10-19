@@ -13,7 +13,6 @@ import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node
 import { gate as byteCheckCast } from "../../../../../tooling/src/verify/gates/byte-check-cast.ts";
 import { gate as detachedWorkTraced } from "../../../../../tooling/src/verify/gates/detached-work-traced.ts";
 import { gate as entrySyntheticRoleIsUser } from "../../../../../tooling/src/verify/gates/entry-synthetic-role-is-user.ts";
-import { gate as noLooseIdCast } from "../../../../../tooling/src/verify/gates/no-loose-id-cast.ts";
 import { gate as noRawEgress } from "../../../../../tooling/src/verify/gates/no-raw-egress.ts";
 import { gate as noVanityAlias } from "../../../../../tooling/src/verify/gates/no-vanity-alias.ts";
 import { gate as onePrincipalMintPopulation } from "../../../../../tooling/src/verify/gates/one-principal-mint-population.ts";
@@ -54,11 +53,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: 'hardcoded `role: "user"`',
-  },
-  {
-    policy: noLooseIdCast,
-    overlays: [add("packages/server/src/liveness-cast.ts", "export const livenessCast = value as never;\n")],
-    messageIncludes: "bypasses branded-id type safety",
   },
   {
     policy: noRawEgress,

@@ -281,6 +281,6 @@ test("native resource failures stay explicit and do not execute another config f
   expect(missing.status).toBe("missing");
   writeFileSync(join(scratch, "vitest.config.ts"), "");
   expect(createResourceHost({ root: scratch }).host.nativeConfig("vitest").status).toBe("empty");
-  // @orb-waive no-loose-id-cast("ct"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
+  // forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
   expect(createResourceHost({ root: scratch }).host.nativeConfig("ct" as never).status).toBe("unresolved");
 });

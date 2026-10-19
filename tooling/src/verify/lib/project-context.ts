@@ -13,12 +13,12 @@ import {
   semanticProgramMatchesDescriptor,
   semanticWorkspaceOf,
 } from "@orb/tooling/floor/compiler/ts-workspace";
-import type { Node, SourceFile, TypeNode } from "ts-morph";
+import type { Node, SourceFile } from "ts-morph";
 import { Node as MorphNode } from "ts-morph";
 import type { SchemaDataProjection } from "../../floor/code-facts/schema-projection-contract.ts";
 import { schemaDataProjectionSchema } from "../../floor/code-facts/schema-projection-contract.ts";
 import { createSemanticInventory } from "../../floor/code-facts/semantic-inventory.ts";
-import type { InventoryFamily, InventoryInvocationPlan, SemanticInventoryOptions } from "../../floor/code-facts/semantic-inventory-contract.ts";
+import type { InventoryFamily, InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import {
   invocationNeedsValueSourceCatalog,
   invocationPlanSchema,
@@ -232,9 +232,6 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
           case "invocation-evidence":
             rows.push({ kind: query.kind, nodes: [...query.nodes], plan: invocationPlanSchema.parse(query.plan) });
             break;
-          case "id-brands":
-            rows.push({ kind: query.kind, nodes: [...query.nodes] });
-            break;
           case "runtime-exports":
             rows.push({ kind: query.kind, nodes: [...query.nodes] });
             break;
@@ -373,13 +370,6 @@ export function nativeTypeFactSession(acquire: (queries: readonly NativeTypeRequ
         return new Map();
       }
       return selected(owner, "computed-names", nodes).computedNames(nodes);
-    },
-    idBrands: (owner, nodes): ReturnType<NativeTypeContext["idBrands"]> => {
-      if (nodes.length === 0) {
-        assertReadable();
-        return new Map();
-      }
-      return selected(owner, "id-brands", nodes).idBrands(nodes);
     },
     prepareShapes: (owner, sources): void => {
       if (sources.length === 0) {
@@ -606,7 +596,6 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
     throw new SemanticInventoryError("native schema roster crosses canonical owners");
   }
   const inventory = createSemanticInventory({
-    ...idBrandOptions(queries, owner, families),
     root,
     programs: descriptors,
     ...referenceOptions(queries, referenceOwner),
@@ -789,7 +778,6 @@ function nativeTypeReader(root: string, workspace: SemanticWorkspace, queries: r
     },
     runtimeExports: (sources): ReturnType<NativeTypeFactReader["runtimeExports"]> =>
       new Map(sources.map((source) => [source, inventory.runtimeExports(source, owner(source))])),
-    idBrands: (brands): ReadonlyMap<TypeNode, string | null> => new Map(brands.map((node) => [node, inventory.idBrand(node, owner(node))])),
     [Symbol.dispose]: (): void => {
       binding?.[Symbol.dispose]();
       inventory[Symbol.dispose]();
@@ -805,25 +793,6 @@ export function nativeTypeFactOptions(
     ...(context.nativeTypeFacts === undefined ? {} : { nativeTypeFacts: context.nativeTypeFacts }),
     ...(context.nativeSourceView === undefined ? {} : { nativeSourceView: context.nativeSourceView }),
   };
-}
-
-function idBrandOptions(
-  queries: readonly NativeTypeRequest[],
-  owner: (node: Node) => string,
-  families: readonly InventoryFamily[],
-): Pick<SemanticInventoryOptions, "idBrandQueries"> {
-  return families.includes("id-brands")
-    ? {
-        idBrandQueries: queries
-          .filter((query) => query.kind === "id-brands")
-          .flatMap((query) =>
-            query.nodes.map((node) => ({
-              program: owner(node),
-              node: { file: canonicalInventoryPath(node.getSourceFile().getFilePath()), start: node.getStart(), end: node.getEnd(), kind: node.getKind() },
-            })),
-          ),
-      }
-    : {};
 }
 
 function requestedSchemaProjection(queries: readonly NativeTypeRequest[]): SchemaDataProjection {

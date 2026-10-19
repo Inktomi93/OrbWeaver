@@ -31,7 +31,7 @@ const RECEIPT = z.object({
   scope: z.literal("application"),
   partition: z.object({ name: z.enum(APPLICATION_PARTITIONS), shard: z.string().nullable(), head: z.string().regex(/^[a-f0-9]{40}$/u) }),
   run: z.object({
-    // @orb-waive no-raw-id(runId): openRunSlot owns checkout/pid/ISO artifact names, not domain TypeIDs; ends if RunSlot adopts TypeIDs.
+    // openRunSlot owns checkout/pid/ISO artifact names, not domain TypeIDs; ends if RunSlot adopts TypeIDs.
     runId: z.string().min(1),
     checkout: z.string().min(1),
     artifactDir: z.string().min(1),

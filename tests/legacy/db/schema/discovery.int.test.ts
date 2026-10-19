@@ -203,7 +203,6 @@ test("duplicate_chat_pairs.relation CHECK rejects a non-member value", async () 
       chatIdB: b,
       cslsScore: 0.5,
       similarity: 0.5,
-      // @orb-waive no-loose-id-cast("nope"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       relation: "nope" as never,
       model: MODEL,
     });

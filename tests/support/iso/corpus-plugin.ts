@@ -1,12 +1,12 @@
 // Native plugin snapshots retain their viewer and lifecycle boundary; private guest state is not a publication input.
 import {
   distributedPluginViewSchema,
-  PLUGIN_SURFACE_ID_RE,
   pluginBundleAssetViewSchema,
   pluginCommandViewSchema,
   pluginDisplayTransformViewSchema,
   pluginFanoutResultSchema,
   pluginLogViewSchema,
+  pluginSurfaceIdSchema,
   pluginSurfaceStateSchema,
   pluginSurfaceViewSchema,
   pluginViewSchema,
@@ -16,7 +16,7 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { CorpusRead, CorpusViewerRead } from "./corpus-read.ts";
 
-const pluginIdsSchema = z.strictObject({ pluginId: typeIdSchema(ID_PREFIX.plugin), surfaceId: z.string().regex(PLUGIN_SURFACE_ID_RE) });
+const pluginIdsSchema = z.strictObject({ pluginId: typeIdSchema(ID_PREFIX.plugin), surfaceId: pluginSurfaceIdSchema });
 const pluginStageSchema = z
   .strictObject({
     viewerUserId: brandedId<UserId>(),

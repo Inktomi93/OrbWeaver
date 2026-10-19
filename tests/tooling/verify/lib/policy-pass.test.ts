@@ -502,7 +502,6 @@ test("semantic and resource receipt failures remain visible and withhold their o
   });
   const bogus = policy("bogus-receipt", {
     authority: "ordinary",
-    // @orb-waive no-loose-id-cast({ kind: "bogus", source: "bogus-kind", resources: 1 }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     // eslint-disable-next-line @typescript-eslint/consistent-type-assertions -- Deliberately invalid receipt discriminant must reach ctx.receipt's real dispatcher intake and withhold the owner. Ends when that runtime validation is removed.
     create: (ctx) => ({ evaluate: () => ctx.receipt({ kind: "bogus", source: "bogus-kind", resources: 1 } as never) }),
   });

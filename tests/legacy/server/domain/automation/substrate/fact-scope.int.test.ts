@@ -15,7 +15,6 @@ describe("ownsFactSubject", () => {
     const fixture = await ruleFixture();
     const fact = {
       bus: "chat" as const,
-      // @orb-waive no-loose-id-cast("character.updated"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       type: "character.updated" as never,
       chatId: fixture.chatId as ChatId,
       character: { id: "character_x", contentChanged: true },
@@ -51,7 +50,6 @@ describe("ownsFactSubject", () => {
 
   test("a fact naming NO subject at all fails-closed — 'I could not identify a subject' is not ownership", async () => {
     const fixture = await ruleFixture();
-    // @orb-waive no-loose-id-cast("world-info.updated"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     const fact = { bus: "domain" as const, type: "world-info.updated" as never, chatId: null };
     await expect(ownsFactSubject(fixture.db, fact, fixture.host)).resolves.toBe(false);
   });

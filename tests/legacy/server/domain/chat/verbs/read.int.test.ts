@@ -3064,7 +3064,6 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const host = await seedUser(db, castId<Handle>("host"));
       const chatId = await seedRoom("wire_bad_freeze", host);
       const m = await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "x" });
-      // @orb-waive no-loose-id-cast({ roll: 9 }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       const garbage = { roll: 9 } as never;
       await db
         .update(messageVariants)
@@ -3083,7 +3082,6 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const m = await seedMessage(db, chatId, 1, { role: "assistant", content: "x" });
       // A garbage blob is exactly what the read seam exists to bound: `$type<>` is a compile-time claim, and
       // the bytes at rest are untyped JSON that a prior schema version (or a hand edit) can have written.
-      // @orb-waive no-loose-id-cast({ static: 42 }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       const garbage = { static: 42 } as never;
       await db
         .update(messageVariants)

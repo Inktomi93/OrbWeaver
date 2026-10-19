@@ -114,7 +114,6 @@ describe("assertSettingsKeyPartition", () => {
   });
 
   test("an APP-tier claim never collides with a same-named USER-tier key", () => {
-    // @orb-waive no-loose-id-cast("one"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     const app: ConfigSectionContribution = { ...section("app"), owns: { tier: "app", keys: ["one" as never] } };
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [claiming("a", "chat", ["one"]), app]);
     expect(() => assertSettingsKeyPartition(registry, defaults({ chat: { one: 1 } }), NO_CITES)).not.toThrow();
@@ -155,7 +154,6 @@ describe("assertSettingsKeyPartition", () => {
   // check keys on the dot, never on a bare string prefix.
   test("a sibling key sharing a name PREFIX is not a nesting conflict", () => {
     const one: ConfigSectionContribution = { ...section("one"), owns: { tier: "app", keys: ["rateLimits"] } };
-    // @orb-waive no-loose-id-cast("rateLimitsExtra"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     const two: ConfigSectionContribution = { ...section("two"), owns: { tier: "app", keys: ["rateLimitsExtra" as never] } };
     const registry = createContributorRegistry<ConfigSectionContribution>("t", [one, two]);
     expect(() => assertSettingsKeyPartition(registry, defaults({}), NO_CITES)).not.toThrow();

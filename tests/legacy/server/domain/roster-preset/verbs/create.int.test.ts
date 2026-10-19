@@ -129,7 +129,6 @@ describe("create", () => {
         input: {
           name: "Garbage",
           description: "",
-          // @orb-waive no-loose-id-cast({ output: "narrator", bogusKnob: true }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
           groupConfig: { output: "narrator", bogusKnob: true } as never,
           members: [memberSpec(c, 0)],
         },
@@ -277,7 +276,6 @@ describe("create — the game template", () => {
         input: {
           name: "Bad game",
           description: "",
-          // @orb-waive no-loose-id-cast({ ruleset: "gurps" }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
           game: { ruleset: "gurps" } as never,
           members: [memberSpec(c, 0)],
         },

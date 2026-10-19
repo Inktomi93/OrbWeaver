@@ -57,7 +57,6 @@ describe("parse-on-read corruption belt", () => {
     // Poison the steeringNote past its max (a string longer than 500 chars).
     await db
       .update(rpgGames)
-      // @orb-waive no-loose-id-cast({ statProfile: liteConfig): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       .set({ config: { statProfile: liteConfig().statProfile, lite: { steeringNote: "x".repeat(600) } } as never })
       .where(eq(rpgGames.id, id));
     await expect(findGameById(db, id)).rejects.toThrow(CORRUPT_RE);
@@ -71,7 +70,6 @@ describe("parse-on-read corruption belt", () => {
     await insertGame(db, { id, chatId, mode: "lite", status: "active", config: liteConfig(), createdAt: FROZEN_AT_MS, updatedAt: FROZEN_AT_MS });
     await db
       .update(rpgGames)
-      // @orb-waive no-loose-id-cast({ ...liteConfig): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       .set({ config: { ...liteConfig(), extractionMode: "a-mode-that-no-longer-exists" } as never })
       .where(eq(rpgGames.id, id));
 

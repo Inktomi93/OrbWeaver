@@ -14,7 +14,7 @@
 // `AppRouter` in `data/trpc.ts` precisely so a feature hook can satisfy `useExplicitReturnType` without
 // re-spelling the router's error shape here (§5.4 — one home, derive, never re-spell).
 //
-// THE DETAIL READS ARE GATED, NOT FAKE-DISABLED (`no-fake-disabled-id`): with no session selected the key is
+// THE DETAIL READS ARE GATED, NOT FAKE-DISABLED (`orb/no-fake-disabled-id`): with no session selected the key is
 // never built and nothing hits the server (`useGatedQuery` → `skipToken`), instead of a request for an empty-
 // string id that the server would answer NOT_FOUND. `refetch()` does not work on a skipped query — a caller
 // that needs an imperative refetch keeps a session selected, which is the only state where a refetch means

@@ -257,7 +257,7 @@ reduced-motion floor and per-theme `color-scheme`.
   `no-raw-intl-time`.*
 - **`castId<X>("")` empty-id sentinel → `skipToken`.** The fake branded id paired with `enabled:` hits
   the server if the guard is ever dropped. `useGatedQuery(id, optsFn)` refuses to build the key when `id`
-  is null. *Gate `no-fake-disabled-id`.*
+  is null. *ESLint `orb/no-fake-disabled-id`.*
 - **Zustand selector stability** — a fresh `{}`/`[]` per render spins `useSyncExternalStore` (runtime-only,
   no compile signal). Split per-token stream fields from lifecycle fields so chrome physically cannot
   subscribe to token churn. *Gates: `zustand-selector-stability.ts` (narrow) + `zustand-selector-derived.ts`

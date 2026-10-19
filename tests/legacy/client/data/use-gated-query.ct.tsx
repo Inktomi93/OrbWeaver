@@ -3,10 +3,8 @@
 // key type would hide the exact key-variance bug the fix pins — the whole reason this factory
 // exists is to wrap tRPC's `queryOptions()` output). Two properties: (1) a real id flows the query
 // through end-to-end (fires, resolves, renders); (2) a null id NEVER builds the real key — the
-// `skipToken` gate — so the server-bound procedure is NEVER called (the `no-fake-disabled-id`
+// `skipToken` gate — so the server-bound procedure is NEVER called (the `orb/no-fake-disabled-id`
 // invariant, verified here at the network-recorder level, not just by type).
-
-// @orb-waive-file no-loose-id-cast(CHAT_ID): baselined when the gate widened; burn-down item 906.
 
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

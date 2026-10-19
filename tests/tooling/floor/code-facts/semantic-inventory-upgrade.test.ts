@@ -19,7 +19,6 @@ import { SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
 import {
   readInventoryBindings,
-  readInventoryBrands,
   readInventoryDeclarationOutputs,
   readInventoryExportDeclarations,
   readInventoryInputs,
@@ -147,6 +146,10 @@ function createPriorStorage(path: string, version: 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7
     inventoryString("{}"),
   );
   db.prepare("INSERT INTO inventory_family(partition,ordinal,name) VALUES(?,0,'exports'),(?,1,'cast-relations')").run(LEGACY_PARTITION, LEGACY_PARTITION);
+  // Format 5 introduced the now-retired id-brands tag; every rebuilt family table must still admit its historical rows.
+  if (version > 0) {
+    db.prepare("INSERT INTO inventory_family(partition,ordinal,name) VALUES(?,2,'id-brands')").run(LEGACY_PARTITION);
+  }
   db.prepare("INSERT INTO inventory_input(partition,ordinal,path,kind,version) VALUES(?,3,?,'file',?),(?,7,?,'exists',?)").run(
     LEGACY_PARTITION,
     file,
@@ -202,7 +205,6 @@ function brandPartition(program: string): InventoryPartition {
     format: INVENTORY_FORMAT,
     families: [
       "export-declarations",
-      "id-brands",
       "runtime-exports",
       "shape-catalog",
       "shape-pairs",
@@ -224,7 +226,6 @@ function brandPartition(program: string): InventoryPartition {
       { path: `${file}.external`, kind: "authored", version: "false" },
     ],
     sources: [{ file, path: file, text, consumerClass: "product", authored: true }],
-    brands: [{ node: { file, start: text.indexOf("string &"), end: text.length - 1, kind: SyntaxKind.IntersectionType }, brand: '"chat"' }],
     memberOrigins: [],
     callableDeclarations: [],
     computedNames: [],
@@ -563,7 +564,6 @@ test.for([0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11] as const)(
       for (const capture of facts.exportDeclarations ?? []) {
         expect([...readInventoryExportDeclarations(current, imported.id, capture.query)]).toEqual([capture]);
       }
-      expect([...readInventoryBrands(current, imported.id)].map(({ brand }) => brand)).toEqual(['"chat"']);
       expect([...readInventoryInputs(current, imported.id)]).toEqual(facts.inputs);
       const output = facts.declarationOutputs[0];
       if (output === undefined) {

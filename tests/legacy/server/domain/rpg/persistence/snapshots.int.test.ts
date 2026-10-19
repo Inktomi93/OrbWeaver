@@ -332,7 +332,6 @@ describe("parse-on-read corruption belt", () => {
     // Poison the quests column past the schema (a string where an array of quest objects belongs).
     await db
       .update(rpgSnapshots)
-      // @orb-waive no-loose-id-cast("not-an-array"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       .set({ quests: "not-an-array" as never })
       .where(eq(rpgSnapshots.variantId, variantId));
 

@@ -11,7 +11,7 @@ const draftActionSchema = z.discriminatedUnion("type", [
   variable.extend({ key: z.string(), value: z.string().optional() }),
   transform.extend({ template: z.string() }),
   lore.extend({
-    // @orb-waive no-raw-id(bookId): unfinished editor selections are draft text; ruleEditorCommitSchema and ruleEditable validate canonical IDs before transport. Ends if drafts become commit-ready values.
+    // unfinished editor selections are draft text; ruleEditorCommitSchema and ruleEditable validate canonical IDs before transport. Ends if drafts become commit-ready values.
     bookId: z.string(),
     entryKey: z.string(),
     keys: z.array(z.string()),
@@ -19,9 +19,9 @@ const draftActionSchema = z.discriminatedUnion("type", [
   }),
   reply.extend({ choices: z.array(reply.shape.choices.element.extend({ label: z.string(), sendTemplate: z.string() })) }),
   notification.extend({ messageTemplate: z.string() }),
-  // @orb-waive no-raw-id(speakerCharacterId): unfinished editor selections are draft text; ruleEditorCommitSchema and ruleEditable validate canonical IDs before transport. Ends if drafts become commit-ready values.
+  // unfinished editor selections are draft text; ruleEditorCommitSchema and ruleEditable validate canonical IDs before transport. Ends if drafts become commit-ready values.
   turn.extend({ speakerCharacterId: z.string().optional(), guidedTemplate: z.string().optional() }),
-  // @orb-waive no-raw-id(subjectCharacterId): unfinished editor selections are draft text; ruleEditorCommitSchema and ruleEditable validate canonical IDs before transport. Ends if drafts become commit-ready values.
+  // unfinished editor selections are draft text; ruleEditorCommitSchema and ruleEditable validate canonical IDs before transport. Ends if drafts become commit-ready values.
   image.extend({ prompt: z.string().optional(), negative: z.string().optional(), subjectCharacterId: z.string().optional(), n: z.number() }),
   background.extend({ instruction: z.string().optional() }),
   analysis.extend({
@@ -31,7 +31,7 @@ const draftActionSchema = z.discriminatedUnion("type", [
       lore: analysis.shape.routes.shape.lore
         .unwrap()
         .extend({
-          // @orb-waive no-raw-id(bookId): unfinished editor selections are draft text; ruleEditorCommitSchema and ruleEditable validate canonical IDs before transport. Ends if drafts become commit-ready values.
+          // unfinished editor selections are draft text; ruleEditorCommitSchema and ruleEditable validate canonical IDs before transport. Ends if drafts become commit-ready values.
           bookId: z.string(),
         })
         .optional(),

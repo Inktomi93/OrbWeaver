@@ -7,7 +7,7 @@
 
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { PLUGIN_SURFACE_ID_RE } from "./ui.ts";
+import { pluginSurfaceIdSchema } from "./ui.ts";
 /** The `plugin.getLog` page CEILING, enforced at the transport trust boundary (the `CHARACTER_LIST_MAX_LIMIT`
  *  precedent) — a plugin's execution log is a growing per-plugin catalog, so an over-bound ask is a
  *  BAD_REQUEST rather than an unbounded log fetch (the #45 class). */
@@ -234,6 +234,7 @@ export {
   pluginCommandRegistrationMetaSchema,
   pluginComposerDraftSchema,
   pluginFrameBodySchema,
+  pluginSurfaceIdSchema,
   pluginSurfaceRegistrationMetaSchema,
   pluginSurfaceSpecSchema,
   pluginUiOutcomeSchema,
@@ -277,6 +278,6 @@ export const pluginLogInputSchema = z.object({ pluginId: typeIdSchema(ID_PREFIX.
 
 export const pluginSurfaceStateInputSchema = z.object({
   pluginId: typeIdSchema(ID_PREFIX.plugin),
-  surfaceId: z.string().regex(PLUGIN_SURFACE_ID_RE),
+  surfaceId: pluginSurfaceIdSchema,
   chatId: typeIdSchema(ID_PREFIX.chat).optional(),
 });

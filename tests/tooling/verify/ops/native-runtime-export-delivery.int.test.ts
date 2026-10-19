@@ -133,8 +133,8 @@ test(
     ]);
     expect(() => inventory.runtimeExports(source, "foreign")).toThrow("partition is unavailable");
     expect(() => inventory.exports(source)).toThrow("family unavailable: exports");
-    using brands = nativeInventoryFixture({ root: scratch, programs: [descriptor], families: ["id-brands"] });
-    expect(() => brands.runtimeExports(source, descriptor.id)).toThrow("family unavailable: runtime-exports");
+    using outputs = nativeInventoryFixture({ root: scratch, programs: [descriptor], families: ["declaration-outputs"] });
+    expect(() => outputs.runtimeExports(source, descriptor.id)).toThrow("family unavailable: runtime-exports");
     source.replaceWithText("export const createStartChat=0;");
     expect(() => inventory.runtimeExports(source, descriptor.id)).toThrow("source/epoch");
     inventory[Symbol.dispose]();

@@ -117,7 +117,6 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
             id: castId<ChatEventId>("chat_event_invalid_birth"),
             chatId: event.chatId,
             seq: 1,
-            // @orb-waive no-loose-id-cast("not-a-chat-event"): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
             type: "not-a-chat-event" as never,
             payload: event,
             createdAt: FROZEN_AT_MS,

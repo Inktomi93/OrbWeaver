@@ -13,7 +13,6 @@
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as contextDefinitionShape } from "../../../../../tooling/src/verify/gates/context-definition-shape.ts";
 import { gate as contextDefinitionShapeHealth } from "../../../../../tooling/src/verify/gates/context-definition-shape-health.ts";
-import { gate as noFakeDisabledId } from "../../../../../tooling/src/verify/gates/no-fake-disabled-id.ts";
 import { gate as noFormResetInAutosave } from "../../../../../tooling/src/verify/gates/no-form-reset-in-autosave.ts";
 
 import { gate as persistenceBoundary } from "../../../../../tooling/src/verify/gates/persistence-boundary.ts";
@@ -68,12 +67,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "O5 strict",
-  },
-  {
-    policy: noFakeDisabledId,
-    // The empty-string branded id, minted through the real kit door the client already uses.
-    overlays: [add(`${CHAT_LIB}/liveness-fake-id.ts`, 'import { castId } from "@orb/kit/ids";\nexport const disabled = castId("");\n')],
-    messageIncludes: "empty-string branded id",
   },
   {
     policy: noFormResetInAutosave,

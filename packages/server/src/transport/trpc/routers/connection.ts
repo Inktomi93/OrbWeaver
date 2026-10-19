@@ -188,7 +188,7 @@ export const connectionRouter = t.router({
     .input(
       z.object({
         connectionId,
-        // @orb-waive no-raw-id(generationId): the provider's UPSTREAM generation handle (their id namespace), not a branded orbweaver entity id.
+        // the provider's UPSTREAM generation handle (their id namespace), not a branded orbweaver entity id.
         generationId: z.string().min(1),
       }),
     )

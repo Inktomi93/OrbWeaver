@@ -45,7 +45,7 @@ import { columnRowObservationSchema, storedValueObservationSchema } from "./valu
 import type { NativeColumnRowObservation, ProjectedStoredValueShape } from "./value-observation-contract.ts";
 import { VALUE_OBSERVATION_FACETS } from "./value-observation-contract.ts";
 
-export const INVENTORY_FORMAT = 23;
+export const INVENTORY_FORMAT = 24;
 export const INVENTORY_FAMILIES = [
   "exports",
   "export-declarations",
@@ -53,7 +53,6 @@ export const INVENTORY_FAMILIES = [
   "bindings",
   "references",
   "witnesses",
-  "id-brands",
   "runtime-exports",
   "shape-catalog",
   "shape-pairs",
@@ -655,7 +654,6 @@ export const partitionSchema = z.object({
   schemaIdentity: drizzleSchemas.catalog.optional(),
   schemaData: schemaDataCatalogSchema.optional(),
   drizzleCalls: z.array(drizzleSchemas.call).optional(),
-  brands: z.array(z.object({ node: spanSchema, brand: z.string().nullable() })),
   format: z.literal(INVENTORY_FORMAT),
   program: z.string(),
   descriptorVersion: z.string(),
@@ -697,7 +695,6 @@ export const partitionMetadataSchema = partitionSchema.omit({
   pairs: true,
   runtimeExports: true,
   exportDeclarations: true,
-  brands: true,
   inputs: true,
   implementation: true,
   sources: true,
@@ -718,7 +715,6 @@ export const INVENTORY_FAMILY_FIELDS = {
   bindings: "bindings",
   references: "references",
   witnesses: "witnesses",
-  "id-brands": "brands",
   "runtime-exports": "runtimeExports",
   "shape-catalog": "shapes",
   "shape-pairs": "pairs",
@@ -750,7 +746,6 @@ export const INVENTORY_RECORD_TABLES = [
   "referenceName",
   "referenceQuery",
   "referenceQueryNode",
-  "brand",
   "runtimeExport",
   "exportDeclaration",
   "exportDeclarationNode",
@@ -805,7 +800,6 @@ export interface InventoryOverlay {
 export type InventoryFileProjection = Pick<InventoryOverlay, "root" | "files" | "deleted">;
 
 export interface InventoryBuildRequest {
-  readonly idBrandQueries?: readonly InventorySpan[];
   readonly referenceDemand?: InventoryReferenceDemand<InventoryReferencePair>;
   readonly moduleTargetQueries?: readonly InventoryModuleTargetQuery[];
   readonly schemaSources?: readonly InventorySpan[];
@@ -833,7 +827,6 @@ export interface InventoryWorkerRequest extends InventoryBuildRequest {
 }
 
 export interface SemanticInventoryOptions {
-  readonly idBrandQueries?: readonly InventoryNativeQuery[];
   readonly referenceDemand?: InventoryReferenceDemand<InventoryNativeReferenceQuery>;
   readonly moduleTargetQueries?: readonly InventoryNativeModuleTargetQuery[];
   readonly schemaQuery?: { readonly program: string; readonly sources: readonly InventorySpan[] };
@@ -881,7 +874,6 @@ export interface SemanticInventory extends Disposable {
   readonly shape: (node: Node) => InventoryShape;
   readonly shapePair: (query: InventoryShapeQuery) => readonly { readonly program: string; readonly result: InventoryShapePairResult }[];
   readonly runtimeExports: (node: SourceFile, program: string) => readonly InventoryRuntimeExport[];
-  readonly idBrand: (node: Node, program: string) => string | null;
   readonly generation: number;
   readonly programs: readonly string[];
   readonly canonicalPath: (path: string) => string;

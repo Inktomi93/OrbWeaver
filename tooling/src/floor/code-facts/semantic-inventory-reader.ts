@@ -44,7 +44,6 @@ import { canonicalInventoryPath } from "./semantic-inventory-inputs.ts";
 
 import {
   readInventoryBindings,
-  readInventoryBrands,
   readInventoryCallableDeclarations,
   readInventoryComputedNames,
   readInventoryDeclarationOutputs,
@@ -767,15 +766,6 @@ function createInventoryReader(
         throw new SemanticInventoryError("native runtime exports require an exporting source file");
       }
       return [...readInventoryRuntimeExports(db, partition.id, span.file)];
-    },
-    idBrand: (node, program) => {
-      const { partition, span } = nativeSpan(node, program, "id-brands");
-      const matches = [...readInventoryBrands(db, partition.id, span)];
-      const match = matches[0];
-      if (matches.length !== 1 || match === undefined) {
-        throw new SemanticInventoryError("native id brand span is unavailable in its native partition");
-      }
-      return match.brand;
     },
     programs: partitions.map((partition) => partition.program),
     canonicalPath,
