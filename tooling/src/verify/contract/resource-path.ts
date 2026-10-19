@@ -4,8 +4,7 @@
 // containment, and it is why an arbitrary selector is admissible here when it would be forbidden anywhere
 // else in the contract.
 //
-// WHY IT EXISTS (`gates/runner-config-path-liveness.ts:23-39`, a measured and orchestrator-approved
-// conversion REFUSAL that is this door's specification):
+// WHY IT EXISTS (a measured and orchestrator-approved conversion REFUSAL that is this door's specification):
 //   1. `trackedFiles()` returns repo paths and Git lists a SYMLINK as an ordinary path, so an in-repo
 //      symlink pointing outside the tree silently PASSES a liveness check built on tracked membership.
 //      `ResourceFileSnapshot`'s `symlink` variant (`resource.ts`) does not close this: it is internal and
@@ -42,9 +41,6 @@ export const AUTHORED_PATH_STATUSES = ["file", "directory", "absent", "outside",
  *  for the axis (Spine-TypeScript-and-Patterns.md §5.5), which consumers reach through the literal today rather than by naming
  *  the alias. */
 export type AuthoredPathStatus = (typeof AUTHORED_PATH_STATUSES)[number];
-
-/** A repo-path → identity lookup for the dangling-refs reader and any policy that needs path status. */
-export type PathStatusIndex = ReadonlyMap<string, AuthoredPathStatus>;
 
 export type AuthoredPathIdentity = {
   /** Exactly the string the policy supplied, so a finding can anchor on the authored selector. */

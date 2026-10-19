@@ -37,7 +37,7 @@ updated: 2026-10-17
 | a rail section whose content ISN'T BUILT yet | a full `SectionDefinition` with `content: { planned: "<reason>" }` — the planned/live union in `state/section-registry.ts` bars list, header and tab context in this case (§6a) | a rail entry with no registration; shipping half-wired | G1 + tsc |
 | a settings group | a `ConfigGroupDefinition` (a `sections` SKIMMER) owned by your feature + one `ConfigSectionContribution` per anchored section, both registered at the root (§8) | a surface inside `features/settings` + an if-ladder branch; a body that stamps an independently minted anchor | G4 + tsc |
 | a tab on the chat context panel from ANOTHER feature | a `ContextTabDef` contributor with a `when` predicate, registered in `main.tsx` (§6c) | importing `#features/chat`; editing the chat panel | G8 + `client-features-no-cross` |
-| a modal | a `ModalDefinition` owned by your feature (self-declares its `trigger`), registered at the root (§6d) | a body in app-shell's `MODAL_SLOTS` + a route override; a `RAIL_ACTIONS`-style parallel trigger map | `modal-registry-completeness` + G2 |
+| a modal | a `ModalDefinition` owned by your feature (self-declares its `trigger`), registered at the root (§6d) | a body in a shell-owned modal-slot map + a route override; a parallel modal trigger map | `modal-registry-completeness` + G2 |
 | an entity list row | `@orb/ui/list-row` or `#components` `LibraryRow` | a hand-rolled interactive row | G6 |
 | a browse/list over a PAGINATED collection | `createCollectionSurface` | hand-wired `useInfiniteQuery` + list | G9 (seal) |
 | a small bounded list (one-shot fetch) | `useSuspenseQuery` + `LibrarySurfaceShell`/`LibraryListLayout` | `createCollectionSurface` ceremony; a bespoke shell | R1 |
@@ -82,9 +82,9 @@ door glue), which is how `agent-handles/` legally assembles the other four behin
 dynamic import.
 
 **Bucket nesting is legal in every bucket, and it changes no rule.** A bucket may group its modules into
-sub-dirs. Grouping is presentation for the reader — it never alters a file's role — so `client-structure`'s
-per-file contracts recurse to any depth. What nesting may not do is re-declare the bucket axis: a group
-dir named after a bucket (`components/hooks/`, `surfaces/anchors/`) is RED — `client-structure` rule 8
+sub-dirs. Grouping is presentation for the reader — it never alters a file's role — so the per-file contracts in
+`tests/client/feature-layout.suite.test.ts` recurse to any depth. What nesting may not do is re-declare the bucket axis: a group
+dir named after a bucket (`components/hooks/`, `surfaces/anchors/`) is RED — the feature layout test's group-axis rule
 catches it, and rule 4 (known buckets only) keeps keying on the feature root regardless of nesting.
 
 **Tier-placement rule:** a domain-aware composite needed by ≥2 features belongs in `components/`, never
@@ -92,7 +92,7 @@ duplicated per-feature — `UI-Primitives-and-Reuse.md` §13.0's bar (3+ and cha
 when to hoist. `jscpd` (tsx
 scanned, 5% threshold) is the standing tripwire; the hoist itself is review R2.
 
-**What is a feature:** a feature dir earns its existence by owning at least one registered definition — a rail section, a Corpus mode, a modal, a settings pane, a chrome widget, or a config collection. `feature-owns-definition` (G23) is RED when a feature dir co-locates no `lib/*-{section,mode,modal,group,chrome}.{ts,tsx}`. No exemptions. A feature whose whole product surface is a member library contributed to the Configuration workspace — the collection case — satisfies this with its `*-group.tsx` (the `ConfigGroupDefinition`) and additionally owns a `*-collection.tsx`, never a settings pane.
+**What is a feature:** a feature dir earns its existence by owning at least one registered definition — a rail section, a Corpus mode, a modal, a settings pane, a chrome widget, or a config collection. `tests/client/feature-layout.suite.test.ts` (G23) is RED when a feature dir co-locates no `lib/*-{section,mode,modal,group,chrome}.{ts,tsx}`. No exemptions. A feature whose whole product surface is a member library contributed to the Configuration workspace — the collection case — satisfies this with its `*-group.tsx` (the `ConfigGroupDefinition`) and additionally owns a `*-collection.tsx`, never a settings pane.
 
 ## 4. The paint law — who may write CSS, and WHY
 
@@ -259,7 +259,7 @@ Binding rules (each is a §16 gate or tsc):
 1. **No side-effect registration.** A definition is an exported value on its feature's front door; the composition root imports and assembles. A mutating `register()` API is banned.
 2. **Exactly one assembly per registry, at the registration door (§7)** — `createRegistry(`/`createContributorRegistry(` call sites anywhere else are RED (G8).
 3. **Completeness is tsc.** The `Record<Id, Def>` assembly is total over the vocabulary tuple. G1 adds what tsc can't see: co-location and uniqueness.
-4. **The anti-hardcode law:** a keyed static map covering the id space outside {the vocabulary tuple, definition files, the one assembly} is RED (G2). Derive, don't re-declare — `MOBILE_PRIMARY_SECTIONS` derives from `RAIL_SECTIONS`; that shape is the standard.
+4. **The anti-hardcode law:** a keyed static map covering the id space outside {the vocabulary tuple, definition files, the one assembly} is RED (G2). Derive, don't re-declare: a subset of the id space derives from the vocabulary tuple, never from a second hand-typed list.
 5. **Vocabulary tuples keep their one home:** each shell vocabulary tuple has its own two-reader module in `state/` (`SECTION_IDS` in `state/section-ids.ts`, `MODAL_SLOT_IDS` in `state/modal-slot-ids.ts`, `PanelMode` in `state/panel-resolve.ts`, `CONFIG_GROUP_IDS` in `state/config-group-ids.ts`). State owns the shell vocabulary so features import from state, never the reverse; `client-state-below-data` makes the reverse impossible. An id union is shell vocabulary iff it keys a door-assembled total registry whose definitions span features, or appears in `ShellState`/a shell action. An open-ended id a single host interprets (`contextTab`) is not vocabulary — it stays an opaque `string` by design.
 6. **A Def's higher-tier need inverts to a projection; the Def never moves up.** Every registry `*Definition` homes in `state/`, and `client-state-below-data` stays exemption-free — even `import type` from `data/` is RED. When a Def member needs a `data/`-tier value type (viewer gating), the Def declares a named state-owned projection consumed contravariantly (`when: (v: SettingsViewerView) => boolean`), and the host — a feature, which may import `#data` — computes and supplies it at filter/render time. The projection homes beside its Def; hoist to `lib/registry-contracts.ts` only when a second party needs it without importing state.
 
@@ -285,9 +285,8 @@ The shape's law is the header of `client/src/state/section-registry.ts` (§15).
 **The planned state.** A real, planned-but-unbuilt section registers fully with `content: { planned: "<the tracked reason>" }` — the shell renders the definition's own `placeholder` copy for its content. The `SectionDefinition` union in `state/section-registry.ts` excludes list, header and tab context in this case. G1 still checks the non-empty reason, authored declarations and rail membership. The planned marker and the real body are the same field, so building the section removes the marker in the same edit. A section id is full, declared-planned with a reason, or absent from the tuple.
 
 Register a section by exporting its `SectionDefinition` from the owning feature's `lib/`, then adding it to
-the `main.tsx` door assembly, total over `SECTION_IDS`. Never add a `RAIL_SECTIONS` entry, a
-`SECTION_PANEL_DEFAULTS` key, a `SECTION_PLACEHOLDER_COPY` key, or a `sections={{…}}` branch in a route —
-those structures do not exist.
+the `main.tsx` door assembly, total over `SECTION_IDS`. Never add an entry to a parallel rail, panel-default or placeholder-copy map, or a `sections={{…}}` branch in a
+route — those structures do not exist.
 
 **The `SECTION_IDS` coupled-site checklist.** A rail membership change (adding a section, removing one,
 re-homing a surface between the rail and settings) touches a fixed set of sites; tsc only carries some of
@@ -368,7 +367,7 @@ A `ModalDefinition` `{ id, title, presentation?, size?, trigger, body }` registe
 the door. Two shape rules: (a) each modal self-declares its `trigger: { placement, label, icon }` over a
 closed `MODAL_TRIGGER_PLACEMENTS` vocabulary (`rail-footer`/`avatar`/`topbar-command`/`content`/`mobile-tab`),
 and the rail-footer/topbar/mobile-bar derive their modal affordances from the registry — never a
-`RAIL_ACTIONS`-style parallel map. The `avatar` placement is the one exception: its desktop affordance is
+parallel trigger map. The `avatar` placement is the one exception: its desktop affordance is
 the feature-provided `railFoot`, which owns the account trigger itself. (b) `body` carries the
 declared-planned case `(() => ReactElement) | { planned: string }`, mirroring `SectionDefinition`.
 Delivered via `ModalRegistryContext`, consumed blind by `ModalHost`.

@@ -1,9 +1,8 @@
 // A once-seeded draft compared to its moving live seed can overwrite another writer.
 // The shared visitor-fed reader preserves the legacy textual useState/if grammar,
 // including its documented dirty-flag, setter-only, constant and package limits.
-// FAMILY `draft-commit`: the diagnostic and remedy name the decision home `DRAFT_DECISION_HOME`, and
-// `stale-draft-decision-health` proves that same declaration still resolves. Both come from
-// `lib/stale-draft-read.ts`, so the health cannot guard a different path from the one findings send readers to.
+// FAMILY `draft-commit`: the diagnostic and remedy name the decision home `DRAFT_DECISION_HOME` from
+// `lib/stale-draft-read.ts`; the family suite proves that path still resolves and exports `resolveCommit`.
 import { defineGate } from "../contract/policy.ts";
 import { createDraftCommitHooks, DRAFT_COMMIT_FIX, DRAFT_COMMIT_MESSAGE } from "../lib/stale-draft-read.ts";
 

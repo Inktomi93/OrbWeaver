@@ -63,4 +63,4 @@ Exported API uses `/** */` TSDoc; a non-exported helper uses `//`. The `tsdoc/sy
 
 - `FLAG[<name>]` marks a deliberate design. Do not remove it.
 - Tracked debt is a `docs/work` item, not a comment marker. File it there and cite the item id or path.
-- A doc path in a comment must name a doc that exists; the `dangling-doc-cite` gate checks it. Move a doc and repoint its citers in the same commit.
+- A doc path in a comment must name a doc that exists; `tests/tooling/doc/comment-doc-citations.suite.repo.int.test.ts` checks it. Move a doc and repoint its citers in the same commit.

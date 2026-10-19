@@ -1,7 +1,7 @@
 // The source/test MIRROR index — one derived identity over authored trees a policy already cannot walk.
 //
-// WHAT IT OWNS AND WHAT IT REFUSES TO OWN. The `mirror-index` family (`test-layout`, `test-reach`,
-// `test-presence-client`) asks membership questions — "does this source file exist", "does this source directory
+// WHAT IT OWNS AND WHAT IT REFUSES TO OWN. The `mirror-index` family (`test-layout`, `test-reach`) asks
+// membership questions — "does this source file exist", "does this source directory
 // exist", "which tests sit in this directory" — thousands of times per run. This door answers them from one index
 // with a receipt and a refusal, where a per-gate `existsSync` could not tell an absent tree from an empty one. It
 // does NOT own any mirror RULE: the directory swap, the kind suffixes, the exemption classes and the tooling §4.7
@@ -12,9 +12,8 @@
 //
 // MEMBERSHIP IS PUBLISHED AS SETS, ITERABLE IN SORTED ORDER. A policy asking "is this exact path live" gets
 // an O(1) answer instead of a syscall; a policy enumerating the test corpus iterates the same set. The
-// directory map exists because `test-presence-client` needs the LISTING of one mirror directory, and
-// deriving that by prefix-scanning the whole corpus per question is how a shared index becomes slower than
-// the syscalls it replaced. The one honest limit of that choice: `Object.freeze` is real protection for the
+// directory map answers the LISTING of one mirror directory; deriving that by prefix-scanning the whole
+// corpus per question is how a shared index becomes slower than the syscalls it replaced. The one honest limit of that choice: `Object.freeze` is real protection for the
 // arrays every other resource fact publishes and is ADVISORY for a Set/Map, so these members are immutable
 // by TYPE rather than at runtime — stated here because a reader who assumes otherwise would be wrong.
 

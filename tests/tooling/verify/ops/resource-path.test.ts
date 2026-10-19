@@ -1,7 +1,7 @@
 // The authored-path identity door. The load-bearing arm is the LAST one: an in-repo symlink whose target
 // resolves outside the root must be `outside`, because `trackedFiles()` returns repo paths and Git lists a
 // symlink as an ordinary path — so without this door that escape satisfies every membership check a policy
-// has and silently PASSES (`gates/runner-config-path-liveness.ts:23-31`).
+// has and silently PASSES.
 //
 // Every arm below plants a REAL filesystem object and reads a REAL verdict; there is no in-memory stand-in
 // for a symlink, which is exactly why the door exists at this layer rather than in a pure reader.

@@ -88,7 +88,7 @@ const NUMBERED_DOC_RE = /^(\d{4,})-[a-z0-9]+(?:-[a-z0-9]+)*\.md$/u;
  *  draws: the door's promise is "this parsed", never "this is shaped the way your policy wants"). */
 export const LEDGER_DEFINITIONS = {
   /** The D-ledger: one decision per `docs/adr/NNNN-<slug>.md`, its id the file number.
-   *  `d-citation-integrity` adjudicates every `D<n>` cite against the file names. */
+   *  The decision-citation suite adjudicates every `D<n>` cite against the file names. */
   "d-ledger": { nature: "markdown", tree: "docs/adr", member: NUMBERED_DOC_RE },
   /** The work items: one per `docs/work/NNNN-<slug>.md`, its id the file number. `warning-workitem-liveness`
    *  holds every warning policy's `workItem` against the item's state. */

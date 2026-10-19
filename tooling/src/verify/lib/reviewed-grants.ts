@@ -9,7 +9,6 @@
 // partial `ReviewedGateGrant[]`. This barrel combines them with a frozen, sorted array.
 import type { ReviewedGateGrant, SelectedGatePolicy } from "../contract/gate-authority.ts";
 import { REVIEWED_GRANTS_ASSETS_TO_HOME } from "./reviewed-grants-assets-to-home.ts";
-import { REVIEWED_GRANTS_DANGLINGREFCITATIONS } from "./reviewed-grants-danglingrefcitations.ts";
 import { REVIEWED_GRANTS_DBSTRUCTUREPRODUCERHOME_DANGLINGREFCITATIONS } from "./reviewed-grants-dbstructureproducerhome-danglingrefcitations.ts";
 import { REVIEWED_GRANTS_DENSITY_TIER_A } from "./reviewed-grants-density-tier-a.ts";
 import { REVIEWED_GRANTS_DENSITY_TIER_B } from "./reviewed-grants-density-tier-b.ts";
@@ -54,7 +53,6 @@ export const REVIEWED_GRANTS: readonly ReviewedGateGrant[] = Object.freeze(
       ...REVIEWED_GRANTS_TOOLING_TO_PERMISSION,
       ...REVIEWED_GRANTS_Z_TO_CITATIONS,
       ...REVIEWED_GRANTS_ZODERRORISSUES_ZINDEX,
-      ...REVIEWED_GRANTS_DANGLINGREFCITATIONS,
     ] satisfies ReviewedGateGrant[]
   ).toSorted((a, b) => {
     const p = a.policyId.localeCompare(b.policyId);

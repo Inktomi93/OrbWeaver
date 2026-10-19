@@ -16,10 +16,8 @@
 // never the shared workspace — the walk lives here so that no gate module walks (guide §5).
 //
 // SINGLE-CONSUMER TODAY, and why `lib/` is still right (orchestrator ruling 2026-09-12, #1950 group 4):
-// `runnerConfigLiteralFacts` has one consumer, `tooling-runner-config-literals`. The natural second is
-// `runner-config-path-liveness`, which reads the SAME three files through `static-config` for their
-// SELECTOR rows and would take these literal facts the day it judges a numeric option (a `timeout` beside a
-// `testDir`). It belongs in `lib/` regardless: the three `exact-file` ids ARE the capability (a contract
+// `runnerConfigLiteralFacts` has one consumer, `tooling-runner-config-literals`. It belongs in `lib/`
+// regardless: the three `exact-file` ids ARE the capability (a contract
 // edit with a named consumer, `contract/resource-exact.ts`), and this module is ARITHMETIC over them — a
 // weaker claim than a resource kind, which is what §12.4's "one scratch parser, many readers" shape asks
 // for. Moving it into the gate would make the gate a walker and the parser private.

@@ -1,6 +1,6 @@
 // The rpg CONTEXT-panel SECTION contribution (client-architecture-lockdown
 // §6c) — the FIRST real `chatContextContributors` consumer + rpg's registered definition (the
-// feature-owns-definition anchor). The GAME-rail tabs: Status · Inventory · Scene ·
+// feature layout test anchor). The GAME-rail tabs: Status · Inventory · Scene ·
 // Quests · Journal (Quests + Journal are LIVE lite tabs — real data planes, the owner correction) + the
 // Map (declared with a `disabledReason` but hidden by its `when` while the map program is parked).
 // **Sheet is NOT a tab** (the tracked-field unification): Status is the only list of people and expanding

@@ -1,5 +1,5 @@
 // The boot seeder (lives at the domain root, not a subsystem folder — a sanctioned root singleton in
-// the feature-structure gate). `ensureSystemDefaultPreset` makes the single `ownerId IS NULL` row
+// the server layout test). `ensureSystemDefaultPreset` makes the single `ownerId IS NULL` row
 // exist, and is `schemaVersion`-gated on reseed: when the stored row's version is below
 // `DEFAULT_PROMPT_CONFIG.schemaVersion`, the row is overwritten with the current default — a version
 // bump is the ONLY reseed trigger (a direct DB config edit that doesn't bump the version survives). The

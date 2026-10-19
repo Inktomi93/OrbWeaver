@@ -42,7 +42,7 @@ export const ANTIPATTERN_CLASSES = [
   { name: "impossible-fixture", gates: ["no-opaque-test-fixture", "test-determinism"] },
   { name: "mock-of-own-code", gates: ["test-mock-doctrine"] },
   { name: "copied-door-list", gates: ["ct-config-mirror-parity"] },
-  { name: "file-name-mirror", gates: ["test-layout", "test-reach", "test-presence-client"] },
+  { name: "file-name-mirror", gates: ["test-layout", "test-reach"] },
   { name: "one-shot-live-read", gates: ["ct-no-oneshot-live-read-assert"] },
   { name: "swallowed-failure", gates: ["caught-failure-ownership"] },
   { name: "unscoped-owner-read", gates: ["owner-scoped-reads", "owner-scoped-writes"] },

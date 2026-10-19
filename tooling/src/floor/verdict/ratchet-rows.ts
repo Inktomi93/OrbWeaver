@@ -16,9 +16,9 @@
 // baseline ledgers (`lib/gate-contract.ts`, `[baseline-ledger]`), so the gate corpus holds zero ledgers to
 // judge. Ops-tier CT baselines own their row integrity. The migrated half
 // of the property — cites that moved into reviewed-grant `why`/`endsWhen` prose — is owed by #2349. DECLARED LIMIT: a `§`/`#` suffix on a cite is prose (stripped before the existence check),
-// and a D-number named inside a `why` is NOT resolved here — `d-citation-integrity` owns D-number integrity
-// over packages/** + docs/law/**, and re-spelling its registry reader here would be a second
-// home for it.
+// and a D-number named inside a `why` is NOT resolved here — the decision-citation suite (`tests/tooling/doc/decision-citations.suite.repo.int.test.ts`)
+// owns D-number integrity over packages/** + docs/law/**, and re-spelling its registry reader here would be a
+// second home for it.
 //
 // TWO ON-DISK SHAPES, ONE READER (sniffed, never configured — a consumer that had to be TOLD the shape is a
 // consumer that reads a new ledger as zero rows):

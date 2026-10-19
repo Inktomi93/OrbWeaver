@@ -11,7 +11,7 @@
 //
 // Homed in components/ (NOT surfaces/): this is a FRAGMENT mounted INSIDE the chat-behavior pane surface —
 // the settings shell owns containment + focus-on-mount, so it is not itself a surface (extracted-fragment
-// precedent; client-structure + surface-a11y-focus therefore do not apply).
+// precedent; the feature layout test + surface-a11y-focus therefore do not apply).
 
 import { Button } from "@orb/ui/button";
 import { ExternalLink, Icon } from "@orb/ui/icons";

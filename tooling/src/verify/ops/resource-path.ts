@@ -6,7 +6,7 @@
 // absolute selector aimed elsewhere. It does NOT catch the case this door was built for: a selector that is
 // lexically inside the repository but reaches outside THROUGH A SYMLINK. Git lists a symlink as an ordinary
 // tracked path and `trackedFiles()` returns repo paths, so that escape satisfies every membership check
-// available to a policy and silently PASSES (`gates/runner-config-path-liveness.ts:23-31`). Hence the second
+// available to a policy and silently PASSES. Hence the second
 // test, against the REALPATH of both the root and the target, exactly as `resolveExactRows` does today.
 //
 // The root is realpathed too, and separately, because the invocation root can itself be reached through a

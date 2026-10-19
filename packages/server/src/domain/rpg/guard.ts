@@ -1,5 +1,5 @@
 // domain/rpg/guard — the ONE authority chokepoint every verb resolves through (docs/plans/rpg/design.md). The
-// ratified `guard.ts` 9th-slot pattern (feature-structure §): an I/O-touching, non-verb authority-gate
+// ratified `guard.ts` 9th-slot pattern (`tests/server/layout.suite.test.ts`): an I/O-touching, non-verb authority-gate
 // primitive — it awaits the injected `getMembership` op + reads the game row, so it can't live in zero-I/O
 // `substrate/`, and verb-to-verb VALUE imports are banned, so it homes at the domain root (the `can()` seam
 // precedent).

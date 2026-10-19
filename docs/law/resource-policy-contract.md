@@ -84,7 +84,7 @@ RED, and the one that is prose-only is called out as the gap.
 1. **Declare what you read; read what you declare.** Enforcer: RUNTIME — an undeclared read throws at the
    binding (`resource-policy.ts:25-28`); an unconsumed declaration refuses at the evidence phase
    (`policy-pass.ts:736-743`). Consequence for a policy that reads a resource only for its PATH (an anchor):
-   the read still happens, and the header says why (`server-layout`'s manifest).
+   the read still happens, and the header says why.
 2. **Narrow through `readyResourceValue`, never a branch.** Enforcer: TYPE for the narrowing itself (`.value`
    does not exist on the union) AND LINT — `policy-soundness` CASE E4 reds a `ctx.resources.<door>(…)`
    result that is not the direct argument of `readyResourceValue`, plus the alias escape (`ctx.resources`

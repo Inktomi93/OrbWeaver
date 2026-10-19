@@ -5,7 +5,7 @@
 // package or tooling source space. Current debt is reviewed-grant rows in `lib/reviewed-grants-test-reach*.ts`.
 // The client `data/`, `forms/` and `state/` seals and the non-primitive `@orb/ui` logic groups are demanded here too,
 // and every action a client store file exports must be CALLED by a test, not only imported. The standing
-// worst-legal-art CT, a named-file floor rather than a reach demand, stays in `test-presence-client`.
+// worst-legal-art CT, a named-file floor rather than a reach demand, is held by `tests/tooling/standing-contrast-ct.test.ts`.
 import type { Expression, Node as MorphNode, SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { DeclaredSubject } from "../../floor/code-facts/module-reach-contract.ts";

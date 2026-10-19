@@ -9,7 +9,7 @@ POINTER card; both docs win on any conflict, and the gates below win over all pr
 
 **A feature dir earns its existence by OWNING at least one registered definition** — a rail section, a
 modal, a settings group, or a chrome widget, co-located at `lib/*-{section,modal,group,chrome}.tsx` and
-exported on the front door. Gate `feature-owns-definition` (G23) deletes-or-reds anything else; there are
+exported on the front door. `tests/client/feature-layout.suite.test.ts` (G23) reds anything else; there are
 no exemptions (`prompt-manager` was deleted rather than exempted). A dir of helpers with no definition is
 not a feature — it is either tier-2 `components/`, tier-4 `lib/`, or nothing.
 
@@ -33,14 +33,14 @@ WHERE the definition lives; G1 keys on location, never on name derivation.
   index.ts      # the feature's ONLY public surface (front door)
 ```
 
-Naming is gated (`client-structure`): `surfaces/*.tsx` end `-surface.tsx` and may not render their own
+Naming is tested (`tests/client/feature-layout.suite.test.ts`): `surfaces/*.tsx` end `-surface.tsx` and may not render their own
 outer `Dialog`/`AlertDialog`/`Drawer` (that box is an anchor's job); `hooks/` files are `use-*` (or
 `*-context.tsx`/`*-provider.tsx`); `anchors/` files end in a container-type suffix. Only `index.ts` and
 notes live at the slice root, and the bucket set is closed.
 
 **Bucket nesting is legal in EVERY bucket, and changes no rule** (lockdown §3, F-4): group a big bucket
 into sub-dirs (`preset/components/{prompt-assembly,readout}/`) and the per-file contracts follow the files
-down — `client-structure` recurses. A group dir may not be NAMED after a bucket (`components/hooks/` is a
+down — the layout test recurses. A group dir may not be NAMED after a bucket (`components/hooks/` is a
 slice growing inside a slice).
 
 **A bucket may be absent.** `rpg` ships no `surfaces/` and no `anchors/` at all: everything it owns mounts
@@ -53,7 +53,7 @@ inside a host's region, so all of it is `components/`. That is correct, not an o
 | Where does a view-model go? | `lib/` — `preset/lib/preset-editor-model.ts`, `character/lib/character-card-form-model.ts`, `user-admin/lib/*-model.ts`. Uniform across every feature |
 | Context-tab / claimed-pane body: surface or component? | `components/`. `surfaces/` is region-level only; anything mounted INSIDE a region is a component |
 | Settings-section anatomy | four files, two buckets: def `lib/<x>-section.tsx` + nav `lib/<x>-nav.ts` + model `lib/<x>-model.ts` + body `components/<x>-section.tsx`. The def and its body deliberately share a basename across buckets. UNIFORM: every settings-section def on the tree delegates to a `components/` body — none inlines one |
-| `-section.tsx` means two things | `lib/chats-section.tsx` is a `SectionDefinition` (a rail section); `lib/appearance-avatars-section.tsx` is a `ConfigSectionContribution` (a settings section). The exported type distinguishes them. `feature-owns-definition` owns the accepted definition shapes |
+| `-section.tsx` means two things | `lib/chats-section.tsx` is a `SectionDefinition` (a rail section); `lib/appearance-avatars-section.tsx` is a `ConfigSectionContribution` (a settings section). The exported type distinguishes them. `tests/client/feature-layout.suite.test.ts` owns the accepted definition shapes |
 | Feature-local store? | No such thing. EVERY store lives in the central `state/` commons, minted through one of the three doors — so a pointer another feature must read is never trapped behind a feature boundary (lockdown §9) |
 | A new `.css` file for my feature? | Never. The path-closed six-home paint law and the one bounded shell-frame exception live only in `docs/law/client-architecture-lockdown.md` §4; do not restate or widen them here |
 
@@ -80,8 +80,8 @@ imports ARE allowed (a shape wired at the composition root).
 
 ## 4. Building a new feature — the checklist
 
-1. **Name it** after the server domain it serves (`client-structure` rule 2 checks against
-   `packages/server/src/domain/*`), or add it to the gate's `RESERVED` set with the reason it is UI-only.
+1. **Name it** after the server domain it serves (the layout test checks against
+   `packages/server/src/domain/*`), or add it to the test's `RESERVED` set with the reason it is UI-only.
 2. **Decide what it OWNS** before writing UI: a rail section (`SECTION_IDS` member + a
    `SectionDefinition`), a modal, a settings group, a chrome widget — or, if it owns none of those, it is
    a contribution to an existing host and probably not a new feature at all (G23).

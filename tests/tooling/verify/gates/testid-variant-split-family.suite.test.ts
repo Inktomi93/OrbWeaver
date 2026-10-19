@@ -1,8 +1,8 @@
 // The standing family floor for the two mixed-hook splits converted in #1950 group 5/6:
 //
-//   `testid-liveness`            → `testid-liveness` (ordinary A1 dead consumer + A2 dead registry row) +
-//                                  `testid-liveness-health` (hard registry-read tripwire) — family
-//                                  `testid-liveness` over `lib/testid-registry.ts`.
+//   `testid-liveness`            → `testid-liveness` (ordinary A1 dead consumer + A2 dead registry row) over
+//                                  `lib/testid-registry.ts`. Its registry-read tripwire (arm A3) is the
+//                                  real-registry and registry-shape tests at the foot of this file.
 //   `ui-variant-axes-stamped`    → `ui-variant-axes-stamped` (hard A1 unstamped + A2 unreadable `tv()` +
 //                                  A3 duplicate NAME) + `ui-variant-axes-stamped-health` (hard axis
 //                                  vocabulary tripwire) — family `ui-variant-axes-stamped` over
@@ -14,9 +14,9 @@
 //   §4.2 — the ordinary identity arm for `testid-liveness`, in BOTH reported position shapes (the quoted
 //          selector literal and the bare registry key), plus the dead-position control that proves the arm
 //          DISCRIMINATES rather than passing by luck.
-//   §4.5 — each `-health` sibling's population is EXACTLY its home file, so an ABSENT home admits zero
+//   §4.5 — the `-health` sibling's population is EXACTLY its home file, so an ABSENT home admits zero
 //          paths and the runtime REFUSES at the population phase (louder than the legacy `fileLoaded`
-//          anchor's silent skip, which is why both anchors retired), and a narrowed request DEFERS every
+//          anchor's silent skip, which is why the anchor retired), and a narrowed request DEFERS every
 //          `entire-population` policy in the family.
 //   THE HARD REFUSAL — `ui-variant-axes-stamped` is `authority: "hard"`, so a marker aimed at it ALARMS
 //          and suppresses nothing. A split that silently softened an authority would pass every other check.
@@ -28,23 +28,24 @@
 //   THE POPULATION PORT — `testid-liveness` retains showcase but excludes package roots that cannot
 //          produce UI selectors; the exact legacy-only difference is measured below.
 
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { Project } from "ts-morph";
+import type { SourceFile } from "ts-morph";
+import { Project, SyntaxKind } from "ts-morph";
+import { TEST_IDS } from "../../../../packages/client/src/lib/test-ids.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { POPULATION_ROOTS } from "../../../../tooling/src/verify/contract/population.ts";
 import { gate as testid } from "../../../../tooling/src/verify/gates/testid-liveness.ts";
-import { gate as testidHealth } from "../../../../tooling/src/verify/gates/testid-liveness-health.ts";
 import { gate as variant } from "../../../../tooling/src/verify/gates/ui-variant-axes-stamped.ts";
 import { gate as variantHealth } from "../../../../tooling/src/verify/gates/ui-variant-axes-stamped-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { TESTID_REGISTRY_HOME } from "../../../../tooling/src/verify/lib/testid-registry.ts";
+import { TESTID_REGISTRY_HOME, testIdRegistryRow } from "../../../../tooling/src/verify/lib/testid-registry.ts";
 import { AXIS_HOME_REL } from "../../../../tooling/src/verify/lib/variant-axis-stamp.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/testid-variant-split-family";
-const TESTID_FAMILY: readonly GatePolicy[] = [testid, testidHealth];
 const VARIANT_FAMILY: readonly GatePolicy[] = [variant, variantHealth];
-const ALL: readonly GatePolicy[] = [...TESTID_FAMILY, ...VARIANT_FAMILY];
+const ALL: readonly GatePolicy[] = [testid, ...VARIANT_FAMILY];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -70,7 +71,7 @@ function passOf(
   });
 }
 
-test("all four policies preserve their founding fixtures", () => {
+test("all three policies preserve their founding fixtures", () => {
   expect(verifyPolicyProofs(ALL)).toEqual([]);
 });
 
@@ -143,10 +144,7 @@ test("ui-variant-axes-stamped is HARD: a marker aimed at it alarms and suppresse
 });
 
 // ─── §4.5 REFUSAL / DEFERRAL PINS ───────────────────────────────────────────────────────────────────────
-test("each -health sibling REFUSES at the population phase when its home is absent", () => {
-  const testidRun = passOf([testidHealth], { "packages/client/src/lib/other.ts": "export const x = 1;\n" });
-  expect(testidRun.toolErrors.map((error) => `${error.policyId}/${error.phase}`)).toEqual(["testid-liveness-health/population"]);
-  expect(testidRun.authority.effectiveFindings).toEqual([]);
+test("the -health sibling REFUSES at the population phase when its home is absent", () => {
   const variantRun = passOf([variantHealth], { "packages/ui/src/lib/other.ts": "export const x = 1;\n" });
   expect(variantRun.toolErrors.map((error) => `${error.policyId}/${error.phase}`)).toEqual(["ui-variant-axes-stamped-health/population"]);
   expect(variantRun.authority.effectiveFindings).toEqual([]);
@@ -154,7 +152,7 @@ test("each -health sibling REFUSES at the population phase when its home is abse
   // their real-tree anchor was absent, which is the state a converted tripwire must never reproduce.
 });
 
-test("a narrowed request DEFERS every entire-population policy in both families", () => {
+test("a narrowed request DEFERS every entire-population policy in the family", () => {
   const deferred = passOf(
     ALL,
     {
@@ -167,4 +165,28 @@ test("a narrowed request DEFERS every entire-population policy in both families"
   // Nothing is judged on a subset: every policy here composes only over its whole population.
   expect(deferred.authority.effectiveFindings).toEqual([]);
   expect(deferred.toolErrors).toEqual([]);
+});
+
+// ─── THE REGISTRY READER STILL YIELDS ROWS — the blindness `testid-liveness` would otherwise read as clean ──
+function registryRows(file: SourceFile): number {
+  return file.getDescendantsOfKind(SyntaxKind.PropertyAssignment).filter((node) => testIdRegistryRow(node) !== undefined).length;
+}
+
+test("the reader yields exactly the rows the real registry declares", ({ repoRoot }) => {
+  const file = new Project({ skipAddingFilesFromTsConfig: true }).addSourceFileAtPath(join(repoRoot, TESTID_REGISTRY_HOME));
+  const declared = Object.keys(TEST_IDS).length;
+  expect(declared, "the imported registry is the non-empty denominator").toBeGreaterThan(0);
+  expect(registryRows(file)).toBe(declared);
+});
+
+test.for([
+  ["the registry const is renamed", 'export const IDS = {\n  appShell: "app-shell",\n} as const;\n', 0],
+  ["the const stops being an authored object literal", 'import { build } from "./build.ts";\nexport const TEST_IDS = build();\n', 0],
+  ["no row value resolves to an authored string", "const shell = {};\nexport const TEST_IDS = {\n  appShell: shell,\n} as const;\n", 0],
+  ["the live shape", 'export const TEST_IDS = {\n  appShell: "app-shell",\n  loginPage: "login-page",\n} as const;\n', 2],
+  ["a quoted key is still an authored row", 'export const TEST_IDS = {\n  "app-shell": "app-shell",\n} as const;\n', 1],
+  ["a sibling object is not a registry row", 'const other = { notARow: 1 };\nexport const TEST_IDS = {\n  appShell: "app-shell",\n} as const;\n', 1],
+] as const)("the reader over a registry file: %s", ([, source, rows]) => {
+  const file = new Project({ useInMemoryFileSystem: true }).createSourceFile("/registry.ts", source);
+  expect(registryRows(file)).toBe(rows);
 });

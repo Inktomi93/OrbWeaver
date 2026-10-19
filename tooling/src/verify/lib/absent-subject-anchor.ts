@@ -4,8 +4,8 @@
 // (`lib/policy-pass-context.ts:314`, `finding file is outside the effective population`). A policy whose
 // verdict is "the file I judge is GONE" therefore cannot anchor on its own subject: the thing it is
 // accusing does not exist, so no declaration and no population can make its path reportable. Every legacy
-// descriptor that reported an absent file at that file (`agent-bridge-lock`, `design-audit-rule-proof`,
-// `tooling-instrument-proof`) becomes a runtime throw on conversion unless the verdict is re-anchored.
+// descriptor that reported an absent file at that file (`agent-bridge-lock`, `design-audit-rule-proof`)
+// becomes a runtime throw on conversion unless the verdict is re-anchored.
 //
 // THE RULE. Anchor on the subject when it is PRESENT; otherwise on the first present member of the
 // policy's own ordered subject list; otherwise on the lexicographically first admitted path. The name of

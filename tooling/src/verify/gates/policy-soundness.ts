@@ -1028,7 +1028,7 @@ export const gate = defineGate({
           'import { dirname } from "node:path";\nexport const home = dirname("a/b");\n',
         ),
       ),
-      why: "E3 NEAR-MISS: `node:path` is pure string arithmetic, not a door — the one Node builtin a live final module imports (`test-presence-client`)",
+      why: "E3 NEAR-MISS: `node:path` is pure string arithmetic, not a door — the one Node builtin a live final module imports",
     },
     {
       mode: "types",

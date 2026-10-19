@@ -27,18 +27,14 @@ import { gate as noManualTokenEstimate } from "../../../../../tooling/src/verify
 import { gate as nullableColumnInequality } from "../../../../../tooling/src/verify/gates/nullable-column-inequality.ts";
 import { gate as openJsonColumnKeyParity } from "../../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
 import { gate as packageDeepImport } from "../../../../../tooling/src/verify/gates/package-deep-import.ts";
-import { gate as packageLayout } from "../../../../../tooling/src/verify/gates/package-layout.ts";
 import { gate as playwrightCssTopology } from "../../../../../tooling/src/verify/gates/playwright-css-topology.ts";
 import { gate as policyRefusalCoverage } from "../../../../../tooling/src/verify/gates/policy-refusal-coverage.ts";
 import { gate as policyWaiverIdentity } from "../../../../../tooling/src/verify/gates/policy-waiver-identity.ts";
 import { gate as realCorpusLivenessManifest } from "../../../../../tooling/src/verify/gates/real-corpus-liveness-manifest.ts";
-import { gate as staleDraftDecisionHealth } from "../../../../../tooling/src/verify/gates/stale-draft-decision-health.ts";
 
-import { gate as testPresenceClient } from "../../../../../tooling/src/verify/gates/test-presence-client.ts";
 import { gate as testReach } from "../../../../../tooling/src/verify/gates/test-reach.ts";
 import { gate as testidLiveness } from "../../../../../tooling/src/verify/gates/testid-liveness.ts";
 import { gate as toolingClockBudget } from "../../../../../tooling/src/verify/gates/tooling-clock-budget.ts";
-import { gate as toolingInstrumentProof } from "../../../../../tooling/src/verify/gates/tooling-instrument-proof.ts";
 import { gate as toolingPortRegistry } from "../../../../../tooling/src/verify/gates/tooling-port-registry.ts";
 import { gate as uiPrimitivePermissions } from "../../../../../tooling/src/verify/gates/ui-primitive-permissions.ts";
 import { gate as warningCodeCoverage } from "../../../../../tooling/src/verify/gates/warning-code-coverage.ts";
@@ -47,7 +43,6 @@ import { probeGate } from "./tooling-tests.ts";
 const DOMAIN = "packages/server/src/domain/character";
 const FEATURE = "packages/client/src/features/chat";
 const PRIMITIVE = "packages/ui/src/primitives/livenessthing";
-const STANDING_CONTRAST_CT = "tests/legacy/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
@@ -122,11 +117,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "Subject: auditLogs.metadata",
   },
   {
-    policy: packageLayout,
-    overlays: planted("packages/inference/src/liveness-loose.ts", "export const livenessLoose = 1;\n"),
-    messageIncludes: "a loose `.ts` file",
-  },
-  {
     policy: playwrightCssTopology,
     overlays: [
       { kind: "resource", path: "playwright/index.tsx", replace: ['import "@orb/client/styles";', 'import "../packages/client/src/styles/globals.css";'] },
@@ -154,21 +144,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "no real-corpus liveness pin",
   },
   {
-    policy: staleDraftDecisionHealth,
-    overlays: [{ kind: "remove", path: "packages/client/src/lib/edit-session.ts" }],
-    messageIncludes: "edit-session",
-  },
-  {
-    policy: testPresenceClient,
-    // The standing contrast CT leaves both views; the absence is reported at the room it covers.
-    overlays: [
-      { kind: "remove", path: STANDING_CONTRAST_CT },
-      { kind: "resource", path: STANDING_CONTRAST_CT, delete: true },
-    ],
-    reportsAt: ["packages/client/src/features/chat/surfaces/chat-room-surface.tsx"],
-    messageIncludes: "standing DOM-derived worst-legal-art contrast CT",
-  },
-  {
     policy: testReach,
     overlays: [add(`${DOMAIN}/persistence/liveness-record.ts`, "export const livenessRecord = () => 1;\n")],
     messageIncludes: "persistence module is reached by no integration test",
@@ -187,12 +162,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: toolingClockBudget,
     overlays: [add("tooling/src/ui-audit/ops/liveness-walk.ts", "export const livenessOpts = { timeout: 30_000 };\n")],
     messageIncludes: "Clock: `timeout: 30_000`",
-  },
-  {
-    policy: toolingInstrumentProof,
-    // A registry row naming a tool with no directory.
-    overlays: [edit("tooling/src/floor/instrument/instruments.ts", "INSTRUMENT_TOOLS = [\n", 'INSTRUMENT_TOOLS = [\n  "livenessghost",\n')],
-    messageIncludes: "is not a live directory",
   },
   {
     policy: toolingPortRegistry,

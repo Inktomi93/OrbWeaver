@@ -5,8 +5,6 @@ export const NON_AUTHORED_DIRECTORIES: ReadonlySet<string> = new Set(["node_modu
 
 /** Closed authored roots used by high-fanout resource policies. */
 export const AUTHORED_TREE_PATHS = {
-  "server-domain": "packages/server/src/domain",
-  "client-feature": "packages/client/src/features",
   "ui-primitive": "packages/ui/src/primitives",
   "tooling-slot": "tooling/src",
   "db-schema": "packages/db/src/schema",

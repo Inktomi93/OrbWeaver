@@ -407,7 +407,7 @@ test("real native collection keeps runtime-only inside the caller's exact projec
   const list = join(dir, "runtime-project-list.json");
   const report = join(dir, "runtime-project-list-report.json");
   const contractFile = "tests/contracts/assets/index.contract.test.ts";
-  const repositoryFile = "tests/tooling/verify/gates/dangling-refs.repo.int.test.ts";
+  const repositoryFile = "tests/tooling/ast/cli.repo.int.test.ts";
   const args = [
     SUPERVISOR,
     "list",

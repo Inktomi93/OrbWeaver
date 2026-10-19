@@ -1,4 +1,4 @@
-// The FAMILY test for the `mirror-index` family — `test-layout`, `test-reach` and `test-presence-client`. The three
+// The FAMILY test for the `mirror-index` family — `test-layout` and `test-reach`. The two
 // share ONE subject reader: `ops/resource-mirror.ts` `loadMirrorIndex`, reached through the `mirrorIndex` host door.
 //
 // WHAT LIVES HERE AND WHAT DOES NOT (guide §6.6). The declared `mustFlag`/`mustPass` rows run on the static
@@ -7,7 +7,7 @@
 // the arm verdict, so an arm whose correct outcome is a refusal is neither `mustFlag` nor `mustPass`. Those
 // are `runPolicyPass` pins — one per declared resource per reachable status, plus the complete-run receipt
 // pair. `test-reach` is `reviewed-grant`; its grant identity and its staleness once a module is reached are pinned
-// below. The other two are `hard`, so no identity arm is owed for them.
+// below. The other is `hard`, so no identity arm is owed for it.
 //
 // WHY THE REFUSAL PINS ARE THE POINT OF THE WHOLE CONVERSION. Every legacy arm answered its mirror question
 // with `existsSync`, which cannot tell "the test tree has no member here" from "the test tree is not there
@@ -33,13 +33,12 @@ import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/p
 import type { ResourceHostOptions } from "../../../../tooling/src/verify/contract/resource-host.ts";
 import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as testLayout } from "../../../../tooling/src/verify/gates/test-layout.ts";
-import { gate as testPresenceClient } from "../../../../tooling/src/verify/gates/test-presence-client.ts";
 import { gate as testReach } from "../../../../tooling/src/verify/gates/test-reach.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const policies = [testLayout, testReach, testPresenceClient] as const;
+const policies = [testLayout, testReach] as const;
 
 // Every mirror policy blocks: none is a warning and none carries a `workItem`. `test-reach` is the one with an
 // exception door, the reviewed-grant table that holds the modules no test reached when presence became reach.
@@ -54,7 +53,6 @@ test("every mirror policy is an error with no temporary work item", () => {
   ).toEqual([
     { id: "test-layout", authority: "hard", severity: "error", workItem: null },
     { id: "test-reach", authority: "reviewed-grant", severity: "error", workItem: null },
-    { id: "test-presence-client", authority: "hard", severity: "error", workItem: null },
   ]);
 });
 
@@ -483,76 +481,6 @@ test("test-reach: the SAME substrate with planted test members reaches a verdict
 
   expect(result.toolErrors).toEqual([]);
   expect(result.policies.map(({ id, owner }) => [id, owner.status])).toEqual([["test-reach", "success"]]);
-});
-
-const WORST_ART_TREE = {
-  "packages/client/src/index.ts": "export const app = 1;\n",
-  "packages/client/src/data/use-thing.ts": "export const useThing = () => 1;\n",
-  "tests/client/data/use-thing.test.ts": "export const t = 1;\n",
-} as const;
-
-test("test-presence-client: the standing-CT absence fires on a whole run and the application run, not on a staged subset", ({ scratch }) => {
-  const sources = ["packages/client/src/index.ts", "packages/client/src/data/use-thing.ts"];
-  const messages = (result: PolicyPassResult): string[] => result.authority.effectiveFindings.map(({ message }) => message ?? "");
-  const whole = pass(testPresenceClient, scratch, WORST_ART_TREE);
-  const application = passApplication(testPresenceClient, scratch, WORST_ART_TREE, sources);
-  const staged = passRequesting([testPresenceClient], scratch, WORST_ART_TREE, { requestedPaths: ["packages/client/src/data/use-thing.ts"] });
-
-  expect(messages(whole)).toEqual([expect.stringContaining("standing DOM-derived worst-legal-art contrast CT")]);
-  expect(messages(application)).toEqual(messages(whole));
-  expect(messages(staged)).toEqual([]);
-});
-
-const ROOM = "packages/client/src/features/chat/surfaces/chat-room-surface.tsx";
-const ROOM_SOURCE = "export function ChatRoomSurface(): null {\n  return null;\n}\n";
-const STANDING_CT = "tests/legacy/client/features/chat/surfaces/worst-legal-art-contrast.suite.ct.tsx";
-
-/** The room exists and its standing contrast CT does not. */
-const MISSING_STANDING_CT_TREE = {
-  [ROOM]: ROOM_SOURCE,
-  "tests/client/features/chat/surfaces/chat-room-surface.ct.tsx": "export const t = 1;\n",
-} as const;
-
-test("test-presence-client: a missing standing CT is an unsuppressible error that blocks WITHOUT promotion", ({ scratch }) => {
-  const unpromoted = pass(testPresenceClient, scratch, MISSING_STANDING_CT_TREE);
-  const promoted = pass(testPresenceClient, scratch, MISSING_STANDING_CT_TREE, true);
-
-  expect(unpromoted.policies[0]?.findings).toHaveLength(1);
-  expect(unpromoted.authority.effectiveFindings).toMatchObject([{ policyId: "test-presence-client", severity: "error" }]);
-  expect(unpromoted.authority.waivedFindings).toEqual([]);
-  expect(unpromoted.authority.authorityAlarms).toEqual([]);
-  expect(unpromoted.authority.verdict).toEqual({ errors: 1, warnings: 0, blocking: 1, failOnWarnings: false });
-  expect(promoted.authority.effectiveFindings).toEqual(unpromoted.authority.effectiveFindings);
-  expect(promoted.authority.verdict).toEqual({ errors: 1, warnings: 0, blocking: 1, failOnWarnings: true });
-});
-
-test("test-presence-client: a marker cannot suppress the hard finding", ({ scratch }) => {
-  const attempted = pass(testPresenceClient, scratch, {
-    ...MISSING_STANDING_CT_TREE,
-    [ROOM]: `// @orb-waive test-presence-client(export): hard finding must reject this marker.\n${ROOM_SOURCE}`,
-  });
-
-  expect(attempted.authority.effectiveFindings).toHaveLength(1);
-  expect(attempted.authority.waivedFindings).toEqual([]);
-  expect(attempted.authority.authorityAlarms.map(({ message }) => message)).toContainEqual(
-    expect.stringContaining("targets non-ordinary policy test-presence-client"),
-  );
-});
-
-test("test-presence-client: a complete population files the mirror receipt", ({ scratch }) => {
-  const result = pass(testPresenceClient, scratch, { [ROOM]: ROOM_SOURCE, [STANDING_CT]: "export const t = 1;\n" });
-
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings).toEqual([]);
-  expect(result.policies.map(({ receipts }) => receipts.map(({ source, unresolved }) => `${source}=${String(unresolved)}`))).toEqual([
-    ["mirror-index:package-test=0"],
-  ]);
-});
-
-test("test-presence-client: an absent test tree REFUSES rather than reading as a missing standing CT", ({ scratch }) => {
-  const result = pass(testPresenceClient, scratch, { [ROOM]: ROOM_SOURCE });
-
-  expect(refusalShape(result)).toEqual(populationRefusal("test-presence-client", "resource declaration mirror-index:package-test is missing"));
 });
 
 /** #2142'S `test-layout` PARK IS RETIRED, AND SO ARE ITS THREE PINS (#2388, 2026-09-18).

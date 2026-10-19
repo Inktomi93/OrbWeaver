@@ -95,10 +95,9 @@ Ordinary waiver remediation metadata is validated by \`lib/policy-validation.ts\
 `;
 
 const ELEVATED_ALLOW_NOTE = `
-Two deleted gate-local tables are still named here, on purpose, so their \`dangling-ref-citations\`
-reviewed grants stay live: \`duplicate-action-doors\`'s \`EXEMPT_PROCEDURES\` (its successor grants name
-the open follow-up that must land before this citation can go too) and \`density-tier\`'s
-\`ELEVATED_ALLOW\` (also named in \`UI-Density-Law.md\` §5.1).
+Two deleted gate-local tables are still named here, on purpose, to record where they went:
+\`duplicate-action-doors\`'s \`EXEMPT_PROCEDURES\` (its successor grants name the open follow-up that must
+land before this citation can go too) and \`density-tier\`'s \`ELEVATED_ALLOW\`.
 `;
 
 const TAIL = `

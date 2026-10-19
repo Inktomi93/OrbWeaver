@@ -54,7 +54,7 @@ declarations remain a separate scoped input and do not inherit ownership from a 
 
 ### 2.4 `floor/` — the ONE plumbing floor
 
-The floor is the pinned plumbing tools compose, and it reaches UP to no tool. It is role-subfoldered, never a flat drawer (`Core-0-Architecture-and-Structure.md` §1 principle 3): every module lives in the folder named for its role (`browser/`, `process/`, …), and each role folder holds flat modules. `tooling-slot-template` reds a loose module directly under `floor/` and a folder nested inside a role folder. The enforcer that it stays the ONLY home: `tooling-shared-plumbing` (§4.4).
+The floor is the pinned plumbing tools compose, and it reaches UP to no tool. It is role-subfoldered, never a flat drawer (`Core-0-Architecture-and-Structure.md` §1 principle 3): every module lives in the folder named for its role (`browser/`, `process/`, …), and each role folder holds flat modules. `tests/tooling/tool-slot-template.int.test.ts` reds a loose module directly under `floor/` and a folder nested inside a role folder. The enforcer that it stays the ONLY home: `tooling-shared-plumbing` (§4.4).
 
 | module | contract |
 | - | - |
@@ -120,7 +120,7 @@ Every row is reached by the pnpm script name in the last column, never by path.
 
 **A TOOL DIR IS NOT A COMMAND.** `ui-audit/`, `motion-audit/` and `cpu-profile/` are ENGINES: Snap is the
 only rendered front door, they are entered through their own `index.ts`, and they own NO `cli.ts` at all
-— gate `tooling-slot-template` case B recognises an ENGINE DIR (an `index.ts`-only tool dir that some
+— `tests/tooling/tool-slot-template.int.test.ts` recognises an ENGINE DIR (an `index.ts`-only tool dir that some
 module under `snap/` imports through that index, derived from Snap's own import specifiers, never a row)
 and asks it for no argv door. The product is unlaunched, so a dropped command is fixed by grepping and
 removing its call sites rather than kept alive behind a redirect that must be maintained, tested and
@@ -198,14 +198,14 @@ A tool move, rename, or new tool touches these. Each row is a place a path or a 
 | `tests/tooling/**` path literals | swept per move — but the `runCli` fixture (§5.1) kills the class going forward: tests name TOOLS, not paths |
 | `tooling/src/verify/lib/selection.ts` | the graph-tree classifier and `depcruisePaths` must both admit `tooling/` |
 | `floor/compiler/ts-workspace.ts` `harnessGlobs` | the shared walk's scope — §3.2 governs any widening |
-| law-doc + `.claude/` cites | `pnpm check:docs` + `dangling-refs` are the guards. Lanes never edit `.claude/` — flag those for the orchestrator |
+| law-doc + `.claude/` cites | `pnpm check:docs` + the citation suites in `tests/tooling/doc` are the guards. Lanes never edit `.claude/` — flag those for the orchestrator |
 | `tests/**/*.ct.tsx` importers | a moved file with test-side importers may affect compiler programs outside its nearest config; run every native program selected by affected-mode routing through `pnpm typecheck --config <path>` |
 | comment/prose cites of the moved BASENAME | live code + `status: active` docs are updated; dated reviews and `history/` are frozen evidence and are never rewritten |
 | a ZONE-KEYED EXCLUSION | a predicate that excludes a file's former zone (`startsWith("scripts/")`) is a path literal too. After any cross-ZONE move, grep the gate corpus for the OLD ZONE PREFIX, not only for old file paths — these fail SILENTLY and in both directions (an exclusion starts reporting the corpus's own documentation, or stops scanning it at all) |
 | a spawner naming an ops FILE | an ops file stops being independently runnable; its spawners must name a VERB through the one cli door |
 | `pnpm-lock.yaml` | the workspace add + each dep addition re-resolve it |
 
-**Population changes require current native evidence.** ESLint covers configured application, tooling, test and Node-launcher surfaces; CPD covers authored package and tooling implementation. Their configs own the selectors, and native observations prove their meaning. A workspace addition does not automatically expand application-specific policy scopes such as `package-layout`. Stryker's native configuration and sandbox behavior must be checked against the changed dependency closure. The Bash tool guard is Claude-only by the later owner ruling; its header in `.claude/hooks/tool-guard.mjs` records the registration boundary and rationale.
+**Population changes require current native evidence.** ESLint covers configured application, tooling, test and Node-launcher surfaces; CPD covers authored package and tooling implementation. Their configs own the selectors, and native observations prove their meaning. A workspace addition does not automatically expand application-specific scopes such as the package list in `tests/kit/package-layout.suite.test.ts`. Stryker's native configuration and sandbox behavior must be checked against the changed dependency closure. The Bash tool guard is Claude-only by the later owner ruling; its header in `.claude/hooks/tool-guard.mjs` records the registration boundary and rationale.
 
 ### 3.2 The `harnessGlobs` widening protocol
 
@@ -220,13 +220,11 @@ A tool move, rename, or new tool touches these. Each row is a place a path or a 
 
 The live roster derives from the loader. Final policies follow `docs/law/gate-runtime-standardization.md` and the final `../../tooling/src/verify/gates/GATE-AUTHORING.md`; legacy descriptor maintenance uses that guide’s verbatim archive. **Live violations found at any landing are FIXED in that lane** — no debt baselines are minted for tooling.
 
-### 4.1 `tooling-slot-template`
+### 4.1 Tool slot template
 
-fsBacked, whole-project, comment-SAFE (fs shape, reads no file text); scan unit is the `tooling/src/` tree.
+`tests/tooling/tool-slot-template.int.test.ts` reads the authored `tooling/src/` file inventory. It reds a top-level entry that is a loose file rather than a dir; a tool dir missing `cli.ts` or `index.ts`; a tool-root entry outside `{cli.ts, index.ts, contract/, ops/, lib/}`; a loose module directly under `floor/`; a folder nested inside a floor role folder. `floor/` is exempt from the tool SHAPE (role folders of flat modules). **An ENGINE DIR owes no `cli.ts`**: a tool dir with `index.ts` that some module under `tooling/src/snap/` imports through `<tool>/index.ts` (ui-audit, motion-audit, cpu-profile — Snap is the sole rendered front door). The test derives the set from Snap's relative import specifiers on every run: an engine nothing under Snap imports any more owes its argv door again.
 
-REDs: a top-level entry that is a loose file rather than a dir; a tool dir missing `cli.ts` or `index.ts`; a tool-root entry outside `{cli.ts, index.ts, contract/, ops/, lib/}`; a loose module directly under `floor/`; a folder nested inside a floor role folder. `floor/` is exempt from the tool SHAPE (role folders of flat modules). **An ENGINE DIR owes no `cli.ts`**: a tool dir with `index.ts` that some module under `tooling/src/snap/` imports through `<tool>/index.ts` (ui-audit, motion-audit, cpu-profile — Snap is the sole rendered front door). The set is DERIVED from Snap's relative import specifiers on every run, never declared: an engine nothing under Snap imports any more reverts to owing its argv door by itself, and the positive control is a `mustFlag` row.
-
-One typed exemption table, two-sided: `CORPUS_SLOTS` (the `verify/gates/` sixth slot) — a row naming a dead dir or a tool that lost its extra slot is RED. A shell file at a tool root is a stray: no tool is shell-fronted.
+One typed exemption, keyed per tool: the `verify/gates/` sixth slot. A row naming a dead dir or a tool that lost its extra slot is RED. A shell file at a tool root is a stray: no tool is shell-fronted.
 
 ### 4.2 `tooling-front-door`
 
@@ -268,9 +266,11 @@ Native ESLint and structural policies enforce the floor homes below. Structural 
 
 **Identity, not spelling** governs matching through shared declaration-origin readers. Aliases retain canonical identity; a same-named local cannot establish a required entry. Unreadable authority refuses. **Exceptions follow authority:** ordinary clock sites may use a valid waiver; structural home and caller permissions use reviewed grants. HARD entry rules permit neither. **Homes are located and evidenced:** `floor/process/proc.ts`, `floor/cli/run-tool.ts` and `floor/artifacts/artifact-out.ts` are found in the population and evidenced one record per home, so a moved home refuses the run instead of silently carrying its exemption. The root-config policy's closed `exact-file` ids name the three configs that exist; a fourth runner config is unjudged until it gets an id.
 
-### 4.5 `tooling-instrument-proof`
+### 4.5 Instrument proof
 
-fsBacked, whole-project. Keys off a LIVE registry, not a path list: `floor/instrument/instruments.ts` exports `INSTRUMENT_TOOLS` (an `as const` tuple) — the tools whose output is a VERDICT about the app, where a blind zero reads as a pass. The gate reads the tuple through `ast-read.ts` unwrapping (the `as const satisfies` ts-morph blindness is a known trap) and REDs an empty derivation as its blindness tripwire. An EMPTY registry is a valid state; a missing or unreadable one is not.
+Keyed off a LIVE registry, not a path list: `floor/instrument/instruments.ts` exports `INSTRUMENT_TOOLS` (an `as const` tuple) — the tools whose output is a VERDICT about the app, where a blind zero reads as a pass. `tests/tooling/instrument-proof.int.test.ts` imports the tuple, so a moved or unreadable registry fails to load. An EMPTY registry is a valid state.
+
+A registered instrument enters the shared `printVerdict` denominator door and never calls `printResult`: the `orb/instrument-verdict-door` restriction in `eslint.config.js` bans the name `printResult` and the namespace and star forms of the artifacts door under `tooling/src/<tool>/` for every member.
 
 **Two proof classes, one of EACH per member**, with one finding per class so a missing absence proof can never hide behind a present defect proof:
 
@@ -281,7 +281,7 @@ fsBacked, whole-project. Keys off a LIVE registry, not a path list: `floor/instr
 
 Three cases per class: a member with no marker-carrying test in its `tests/tooling/<tool>/` mirror; a marker in a NON-member's tree (two-sided vocabulary — an unregistered "proof" is either a lie or a missing registry row); a malformed marker (the reason is REQUIRED). Plus the rename tripwire: a member naming a tool dir that does not exist.
 
-A registry member joins in the SAME commit its tool dir lands. An incident instrument (`wire-tap`) satisfies the gate uniformly rather than through a second tier: its CI proof plants a LOOPBACK fixture server and asserts the tap reports exactly the planted frames — **a committed proof never depends on the dev stack**; a live connect smoke is landing EVIDENCE, not a test.
+A registry member joins in the SAME commit its tool dir lands. An incident instrument (`wire-tap`) satisfies the test uniformly rather than through a second tier: its CI proof plants a LOOPBACK fixture server and asserts the tap reports exactly the planted frames — **a committed proof never depends on the dev stack**; a live connect smoke is landing EVIDENCE, not a test.
 
 ### 4.9 `tooling-argv-front-door`
 
