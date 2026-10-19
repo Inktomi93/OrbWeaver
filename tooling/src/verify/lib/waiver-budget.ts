@@ -15,7 +15,6 @@ const APPLICATION = Object.freeze({
   "css-length-tokens-grants": 26,
   "css-var-defined-grants": 19,
   "density-tier": 49,
-  "detached-work-traced": 4,
   "duplicate-action-doors": 10,
   "integer-line-boxes": 4,
   "json-column-write-parity": 6,

@@ -16,7 +16,7 @@ A promise is awaited or returned, handled by the boundary that owns its failure,
 
 ## Consequences
 
-`detached-work-traced` teaches the supervisor, never `void withRequestSpan(...).catch(...)`. Client code keeps its own owners: a resultless mutation may use the `mutate` door whose `onError` owns the failure. `monotonic-tests` flags a hand-written `skipped` annotation, because only the runner may report a skip.
+`orb/detached-work-traced` teaches the supervisor, never `void withRequestSpan(...).catch(...)`. Client code keeps its own owners: a resultless mutation may use the `mutate` door whose `onError` owns the failure. `monotonic-tests` flags a hand-written `skipped` annotation, because only the runner may report a skip.
 
 ## Alternatives rejected
 

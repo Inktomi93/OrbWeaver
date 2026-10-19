@@ -144,6 +144,8 @@ import {
   ENTRY_WIRING_GLOBS,
   QUERY_FREE_BOOT_GLOBS,
 } from "./tooling/src/verify/contract/compose-query-capability.ts";
+import { ROOT_SPAN_OPENERS } from "./tooling/src/verify/contract/detached-work.ts";
+import { FS_SPECIFIERS, FS_WRITE_VERBS } from "./tooling/src/verify/contract/fs-write-verbs.ts";
 import { MANUAL_MEMO_CUSTOM_HOMES, MANUAL_MEMO_EXPORTS } from "./tooling/src/verify/contract/manual-memo.ts";
 import { MODEL_PROSE_SEAM_FILES, MODEL_PROSE_SEAM_PREFIXES } from "./tooling/src/verify/contract/model-prose-seam.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
@@ -2632,7 +2634,27 @@ const bindingMember = (name) => ({
 // starts at a symbol read is a resolution.
 const symbolRead = (prefix) =>
   `[${prefix}type='CallExpression'][${prefix}callee.type='MemberExpression']:matches(${memberNamed("getSymbol", `${prefix}callee.`)}, ${memberNamed("getSymbolOrThrow", `${prefix}callee.`)})`;
+// A gate family test writes only through the scratch writers in tests/support/node/tool-fixtures.ts. A raw fs write
+// verb is the way a probe lands in the checkout and blinds the gate it was probing, so the ban names every door.
+const FS_DOOR = FS_SPECIFIERS.map((specifier) => `[source.value=${JSON.stringify(specifier)}]`).join(", ");
+const FS_REQUIRE_DOOR = FS_SPECIFIERS.map((specifier) => `[arguments.0.value=${JSON.stringify(specifier)}]`).join(", ");
+const FS_WRITE_VERB_PATTERN = `/^(?:${FS_WRITE_VERBS.join("|")})$/`;
+const RAW_FS_WRITE_MESSAGE =
+  "A gate family test writes only through the scratch writers (plantFile, plantDir, plantLink, removePlanted, or the `scratch` and `plantedTree` fixtures in tests/support/node/tool-fixtures.ts); a raw fs write verb can land a probe in the checkout and blind the gate under test. Read with readFileSync, existsSync or readdirSync.";
 const VERIFY_HARD_RESTRICTIONS = [
+  {
+    id: "no-raw-fs-write-in-gate-tests",
+    scope: ["tests/tooling/verify/gates/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [
+      `ImportDeclaration:matches(${FS_DOOR}) > ImportSpecifier[imported.name=${FS_WRITE_VERB_PATTERN}]`,
+      `ImportDeclaration:matches(${FS_DOOR}) > :matches(ImportNamespaceSpecifier, ImportDefaultSpecifier)`,
+      `ExportNamedDeclaration:matches(${FS_DOOR}) > ExportSpecifier[local.name=${FS_WRITE_VERB_PATTERN}]`,
+      `ExportAllDeclaration:matches(${FS_DOOR})`,
+      `ImportExpression:matches(${FS_DOOR})`,
+      `CallExpression[callee.name='require']:matches(${FS_REQUIRE_DOOR})`,
+    ].map((selector) => ({ selector, message: RAW_FS_WRITE_MESSAGE })),
+  },
   {
     id: "policy-binding-resolution",
     scope: GATE_MODULES,
@@ -2910,6 +2932,7 @@ const RESTRICTIONS = [
   // Only tooling drives browser pages, so app code may close over module scope.
   { id: "evaluate-no-scope-capture", scope: rootSources("@tooling"), homes: [] },
   { id: "assumes-single-replica", scope: rootSources("@server", "@inference"), notUnder: ["packages/server/src/**/persistence/**"], homes: [] },
+  { id: "detached-work-traced", scope: rootSources("@server", "@inference"), homes: [] },
   ...CLIENT_SEAL_RESTRICTIONS,
   ...CLIENT_STYLE_RESTRICTIONS,
   {
@@ -6656,6 +6679,174 @@ const wireJsonRule = {
   },
 };
 
+// Fire-and-forget work whose failure is invisible. The request root has sealed by the time detached work runs, so an
+// absorbed rejection reaches no log, trace or caller (A1); and a catch inside an opener callback that does not rethrow
+// seals the detached root `ok` on every failure (A2). Openers are the declared ROOT_SPAN_OPENERS tuple.
+const ROOT_SPAN_OPENER_NAMES = new Set(ROOT_SPAN_OPENERS);
+const PROMISE_LINKS = new Set(["then", "catch", "finally"]);
+// Which argument of a promise link is its rejection handler.
+const REJECTION_HANDLER_ARGUMENT = new Map([
+  ["catch", 0],
+  ["then", 1],
+]);
+const DISCARD_BODIES = new Set(["undefined", "null", "void 0"]);
+const DETACHED_MESSAGES = {
+  untraced:
+    "Fire-and-forget work with a discarded rejection is invisible: the request root has sealed, so the failure reaches no log, trace or caller. " +
+    "Await it so the caller owns completion, or start it with `superviseDetached(<ownRequestId>, <spanName>, <attrs>, () => work())`. " +
+    "Work that has nothing to trace and no caller to inform takes `// eslint-disable-next-line orb/detached-work-traced -- <why it is invisible on purpose and what would end the exemption>`.",
+  swallowed:
+    "A catch inside a detached root span that does not rethrow seals the span `ok` on every failure. Warn or emit, then rethrow so the span marks ERROR; the supervisor owns the terminal rejection.",
+  blinded:
+    "A discarding `.catch` nested inside a detached root callback blinds the span: it can mark ERROR only if the rejection reaches it. Attach the absorber to the opener call, outside the callback.",
+};
+
+function unwrapTransparent(node) {
+  let current = node;
+  while (
+    current.type === "ChainExpression" ||
+    current.type === "TSNonNullExpression" ||
+    current.type === "TSAsExpression" ||
+    current.type === "TSSatisfiesExpression" ||
+    current.type === "TSTypeAssertion"
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
+// The ORDERED runtime string of a statically knowable key: a literal, a `+` concatenation, or a binding written once.
+function staticDetachedKey(context, node, hops = 4) {
+  const value = unwrapTransparent(node);
+  if (value.type === "Literal") {
+    return typeof value.value === "string" ? value.value : undefined;
+  }
+  if (value.type === "TemplateLiteral") {
+    return value.expressions.length === 0 ? value.quasis[0].value.cooked : undefined;
+  }
+  if (value.type === "BinaryExpression" && value.operator === "+") {
+    const left = staticDetachedKey(context, value.left, hops);
+    const right = staticDetachedKey(context, value.right, hops);
+    return left === undefined || right === undefined ? undefined : left + right;
+  }
+  const initializer = value.type === "Identifier" && hops > 0 ? singleInitializer(context, value) : undefined;
+  return initializer === undefined ? undefined : staticDetachedKey(context, initializer, hops - 1);
+}
+
+// `p.catch` and `p["catch"]` are the same read.
+function literalMember(context, node) {
+  const member = unwrapTransparent(node);
+  if (member.type !== "MemberExpression") {
+    return;
+  }
+  const name = member.computed ? staticDetachedKey(context, member.property) : member.property.name;
+  return name === undefined ? undefined : { name, receiver: unwrapTransparent(member.object) };
+}
+
+function isOpenerCall(context, node) {
+  if (node.type !== "CallExpression") {
+    return false;
+  }
+  const callee = unwrapTransparent(node.callee);
+  return ROOT_SPAN_OPENER_NAMES.has(callee.type === "Identifier" ? callee.name : literalMember(context, callee)?.name);
+}
+
+function isDiscardingHandler(context, node) {
+  const handler = node === undefined ? undefined : unwrapTransparent(node);
+  if (handler?.type !== "ArrowFunctionExpression" && handler?.type !== "FunctionExpression") {
+    return false;
+  }
+  return handler.body.type === "BlockStatement"
+    ? handler.body.body.length === 0
+    : DISCARD_BODIES.has(context.sourceCode.getText(unwrapTransparent(handler.body)));
+}
+
+// The call that is itself a `.catch(<discard>)` / `.then(_, <discard>)` link.
+function discardsRejection(context, call) {
+  const link = literalMember(context, call.callee);
+  const index = link === undefined ? undefined : REJECTION_HANDLER_ARGUMENT.get(link.name);
+  return index !== undefined && isDiscardingHandler(context, call.arguments[index]);
+}
+
+// Walk inward through promise links to the first discarding one; a non-link callee ends the chain.
+function hasAbsorbingLink(context, expression) {
+  let current = unwrapTransparent(expression);
+  while (current.type === "CallExpression") {
+    if (discardsRejection(context, current)) {
+      return true;
+    }
+    const link = literalMember(context, current.callee);
+    if (link === undefined || !PROMISE_LINKS.has(link.name)) {
+      return false;
+    }
+    current = link.receiver;
+  }
+  return false;
+}
+
+// A throw escapes only the nearest catch clause that holds it, unless a function or a guarded try block intervenes.
+function escapedCatchClause(thrown) {
+  for (let node = thrown.parent; node !== null && node !== undefined; node = node.parent) {
+    if (node.type === "CatchClause") {
+      return node;
+    }
+    const guardedTry = node.type === "BlockStatement" && node.parent?.type === "TryStatement" && node.parent.block === node && node.parent.handler !== null;
+    if (FUNCTION_NODES.has(node.type) || guardedTry) {
+      return;
+    }
+  }
+}
+
+const detachedWorkRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const insideOpener = (node) => context.sourceCode.getAncestors(node).some((ancestor) => isOpenerCall(context, ancestor));
+    const statements = [];
+    const openers = [];
+    const clauses = [];
+    const rethrowing = new Set();
+    return {
+      ExpressionStatement: (statement) => {
+        const raw = unwrapTransparent(statement.expression);
+        const expression = raw.type === "UnaryExpression" && raw.operator === "void" ? raw.argument : raw;
+        if (hasAbsorbingLink(context, expression) && !insideOpener(statement)) {
+          statements.push(statement);
+        }
+      },
+      CallExpression: (call) => {
+        if (isOpenerCall(context, call)) {
+          openers.push(call);
+        } else if (discardsRejection(context, call) && insideOpener(call)) {
+          context.report({ node: call, message: DETACHED_MESSAGES.blinded });
+        }
+      },
+      CatchClause: (clause) => {
+        if (insideOpener(clause)) {
+          clauses.push(clause);
+        }
+      },
+      ThrowStatement: (thrown) => {
+        const clause = escapedCatchClause(thrown);
+        if (clause !== undefined) {
+          rethrowing.add(clause);
+        }
+      },
+      "Program:exit": () => {
+        // "Traced" is any opener call anywhere in the statement: proving the opener wraps the work needs types.
+        for (const statement of statements) {
+          if (!openers.some(({ range }) => range[0] >= statement.range[0] && range[1] <= statement.range[1])) {
+            context.report({ node: statement, message: DETACHED_MESSAGES.untraced });
+          }
+        }
+        // Reported at the owning `try`, so a waiver sits above the statement a reader sees.
+        for (const clause of clauses.filter((candidate) => !rethrowing.has(candidate))) {
+          context.report({ node: clause.parent, message: DETACHED_MESSAGES.swallowed });
+        }
+      },
+    };
+  },
+};
+
 const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES.filter(({ ruleId, hard }) => !hard && ruleId.startsWith("orb/"));
 
 // D46: `ctx.dump` walks a guest value on the HOST stack, so a deep value overflows it and corrupts the shared
@@ -6771,6 +6962,7 @@ const restrictionPlugin = {
     [TOOLING_ROOT_CONFIG_IMPORT_RULE.slice("orb/".length)]: toolingRootConfigImportRule,
     "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
     "assumes-single-replica": assumesSingleReplicaRule,
+    "detached-work-traced": detachedWorkRule,
     "commented-code": commentedCodeRule,
     "ct-story-single-import": ctStorySingleImportRule,
   },
@@ -7711,7 +7903,8 @@ export const hardConfig = [
   })),
   ...VERIFY_HARD_RESTRICTIONS.map(({ id, scope, notUnder }) => ({
     files: scope,
-    ignores: notUnder,
+    // A flat-config `ignores` array must not be empty or absent-as-undefined.
+    ...(notUnder === undefined ? {} : { ignores: notUnder }),
     plugins: { orb: restrictionPlugin },
     rules: { [`orb/${id}`]: "error" },
   })),

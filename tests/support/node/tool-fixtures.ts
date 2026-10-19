@@ -12,10 +12,11 @@
 //   fakeBin      — a Node-backed POSIX + Windows command pair prepended to PATH for the test; auto-restored.
 //   plantedTree  — materialize a throwaway violation tree under scratch (the conformance-harness
 //                  pattern as a fixture); fsBacked tool tests write only below the owned scratch root.
-//   fixturePath  — compose a path below an owned root and REFUSE lexical or symlink escape (#2332); the
-//                  runtime half of `policy-fixture-substrate`, for the dynamic keys static provenance
-//                  cannot read.
-import { existsSync, lstatSync, realpathSync } from "node:fs";
+//   fixturePath  — compose a path below an owned root and REFUSE lexical or symlink escape.
+//   plantFile / plantDir / plantLink / removePlanted — the only write door a gate family test has: each
+//                  refuses a root that is not an invocation-owned temp dir (never the checkout) and composes
+//                  through fixturePath. The `orb/no-raw-fs-write-in-gate-tests` lint rule bans the raw fs verbs.
+import { existsSync, lstatSync, mkdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { chmod, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { delimiter, dirname, join, relative, resolve, sep, win32 } from "node:path";
@@ -54,13 +55,8 @@ function windowsBatchLiteral(value: string): string {
   return value.replaceAll("%", "%%");
 }
 
-/** Compose a runtime fixture path and refuse lexical or already-present symlink escape.
- *
- *  THE STATIC HALF CANNOT REACH HERE, which is why this exists: `policy-fixture-substrate` proves an
- *  AUTHORED root, and a key computed at runtime (a proof-row name, a git SHA, a basename read off disk)
- *  has no authored value to prove. A writer with a dynamic key crosses this one checked door instead, and
- *  the policy recognises it as root-preserving — the root argument keeps its proven provenance while the
- *  dynamic segments are bounded HERE rather than statically.
+/** Compose a runtime fixture path and refuse lexical or already-present symlink escape. A key computed at
+ *  runtime (a proof-row name, a git SHA, a basename read off disk) is bounded here, at construction.
  *
  *  It validates at construction time. `win32.isAbsolute` is deliberate: it also rejects `C:\…` and `\\?\…`
  *  spellings that POSIX `isAbsolute` reads as relative segments. Callers must still not race or replace an
@@ -102,6 +98,46 @@ export function fixturePath(root: string, ...segments: readonly string[]): strin
     }
   }
   return candidate;
+}
+
+/** The target of a scratch write: `rel` composed below `root` through {@link fixturePath}, after `root` itself is
+ *  proven to be an invocation-owned temp directory and not the checkout. */
+function ownedTarget(root: string, rel: string): string {
+  const lexicalRoot = resolve(root);
+  const canonicalRoot = existsSync(lexicalRoot) ? realpathSync(lexicalRoot) : lexicalRoot;
+  const temp = realpathSync(tmpdir());
+  if (!isWithinRoot(temp, canonicalRoot, { sep }) || canonicalRoot === temp || isWithinRoot(REPO_ROOT, canonicalRoot, { sep })) {
+    throw new Error(`scratch write: ${root} is not an invocation-owned temp root`);
+  }
+  return fixturePath(lexicalRoot, rel);
+}
+
+/** Write a file below an owned temp root, creating its parent directories. */
+export function plantFile(root: string, rel: string, content: string | Uint8Array): string {
+  const target = ownedTarget(root, rel);
+  mkdirSync(dirname(target), { recursive: true });
+  writeFileSync(target, content);
+  return target;
+}
+
+/** Create a directory (and its parents) below an owned temp root. */
+export function plantDir(root: string, rel: string): string {
+  const target = ownedTarget(root, rel);
+  mkdirSync(target, { recursive: true });
+  return target;
+}
+
+/** Create a symlink at `rel` below an owned temp root. The link target is read, never written, so it may name the checkout. */
+export function plantLink(root: string, rel: string, target: string, type?: "dir" | "file"): string {
+  const link = ownedTarget(root, rel);
+  mkdirSync(dirname(link), { recursive: true });
+  symlinkSync(target, link, type);
+  return link;
+}
+
+/** Remove one planted entry below an owned temp root; a missing entry throws. */
+export function removePlanted(root: string, rel: string): void {
+  rmSync(ownedTarget(root, rel), { recursive: true });
 }
 
 export const test = houseTest.extend<ToolFixtures>({

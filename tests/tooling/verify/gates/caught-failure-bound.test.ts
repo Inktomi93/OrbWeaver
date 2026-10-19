@@ -8,7 +8,6 @@ import { JSON_RESOURCE_PATHS } from "../../../../tooling/src/verify/contract/res
 import { gate as censusRow } from "../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
 import { gate as ownership } from "../../../../tooling/src/verify/gates/caught-failure-ownership.ts";
 import { gate as health } from "../../../../tooling/src/verify/gates/caught-failure-ownership-health.ts";
-import { gate as fixtureSubstrate } from "../../../../tooling/src/verify/gates/policy-fixture-substrate.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -62,7 +61,6 @@ test.each([
   [ownership, 2],
   [censusRow, 1],
   [health, 1],
-  [fixtureSubstrate, 2],
 ] as const)("every past-the-bound row of %s reports an explicit unknown, never a clean pass", (policy, rows) => {
   const proofs = pastRows(policy);
   expect(proofs).toHaveLength(rows);

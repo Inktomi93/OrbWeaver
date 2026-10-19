@@ -11,7 +11,6 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as byteCheckCast } from "../../../../../tooling/src/verify/gates/byte-check-cast.ts";
-import { gate as detachedWorkTraced } from "../../../../../tooling/src/verify/gates/detached-work-traced.ts";
 import { gate as entrySyntheticRoleIsUser } from "../../../../../tooling/src/verify/gates/entry-synthetic-role-is-user.ts";
 import { gate as noRawEgress } from "../../../../../tooling/src/verify/gates/no-raw-egress.ts";
 import { gate as noVanityAlias } from "../../../../../tooling/src/verify/gates/no-vanity-alias.ts";
@@ -34,16 +33,6 @@ function add(path: string, source: string): RealCorpusOverlay {
 }
 
 export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: detachedWorkTraced,
-    overlays: [
-      add(
-        "packages/inference/src/liveness-detached.ts",
-        "export function livenessDispose(model: { dispose(): Promise<void> }): void {\n  void model.dispose().catch(() => undefined);\n}\n",
-      ),
-    ],
-    messageIncludes: "FAILURE IS INVISIBLE",
-  },
   {
     policy: entrySyntheticRoleIsUser,
     overlays: [

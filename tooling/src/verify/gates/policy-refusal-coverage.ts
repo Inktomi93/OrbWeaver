@@ -84,10 +84,9 @@
 // ways across the ~60 live family tests, and all four are correct: a literal `[gate]`, a module const
 // (`policies: FAMILY`), a spread (`[...policies]`), and — the DOMINANT shape — a local `pass(policy, …)` helper
 // whose parameter is the driven set. `resolveStableExpression` cannot resolve a parameter BY CONTRACT
-// (`policy-fixture-substrate.ts:23`), so the walk hops one further step: the parameter's position in its
+// (by contract), so the walk hops one further step: the parameter's position in its
 // declaring function, then that function's call sites IN THE SAME FILE, then the argument at that position. The
-// hop is not optional politeness. This policy's unreadability direction is INVERTED from its
-// `policy-fixture-substrate` sibling — there an unresolved read ACQUITS, here it ACCUSES — so the family's own
+// hop is not optional politeness. This policy's unreadability direction ACCUSES, so the family's own
 // doctrine ("a positive-proof requirement the reader structurally cannot satisfy is fail-closed in name and
 // false-accusing in fact") lands on the helper shape as a hard requirement rather than a nicety.
 //

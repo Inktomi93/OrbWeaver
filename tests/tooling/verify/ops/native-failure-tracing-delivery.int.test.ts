@@ -13,10 +13,8 @@ import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts
 import { gate as census } from "../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
 import { gate as ownership } from "../../../../tooling/src/verify/gates/caught-failure-ownership.ts";
 import { gate as ownershipHealth } from "../../../../tooling/src/verify/gates/caught-failure-ownership-health.ts";
-import { gate as traced } from "../../../../tooling/src/verify/gates/detached-work-traced.ts";
 import { catchClauseSite, promiseAbsorberSite } from "../../../../tooling/src/verify/lib/caught-failure.ts";
 import { CAUGHT_FAILURE_CLOSURE_HOPS, PROMISE_LIKE_MEMBER } from "../../../../tooling/src/verify/lib/caught-failure-read.ts";
-import { deriveRootSpanOpeners, TRACING_MODULE, untracedDispatchSite } from "../../../../tooling/src/verify/lib/detached-work.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { deriveCaughtFailureSites } from "../../../../tooling/src/verify/ops/gen/caught-failure-population.ts";
@@ -124,7 +122,7 @@ test(
   scaledBudget(120_000),
 );
 
-const POLICIES = [ownership, ownershipHealth, census, traced];
+const POLICIES = [ownership, ownershipHealth, census];
 
 test(
   "native census derivation retains the central waiver's exact site, coordinates and continued reason",
@@ -210,13 +208,8 @@ function fixture(root: string, repoRoot: string): void {
     [SERVER]: ENTRY,
     [CLIENT]: ENTRY,
     [DETACHED]: "declare function background(): Promise<void>;export function launch(): void {void background().catch(() => undefined);}",
-    [TRACING_MODULE]: `import {OPENER} from "#trace-key";
-declare const tracer: {startActiveSpan(name: string, options: {root: true}, fn: () => Promise<void>): Promise<void>};
-function detached(name: string, fn: () => Promise<void>): Promise<void> {return tracer[OPENER](name, {root: true}, fn);}
-export {detached as superviseDetached};`,
     "packages/contracts/src/meaning-node.ts": 'export declare function terminal(error: unknown): never;export declare const LINK: "catch";',
     "packages/contracts/src/meaning-browser.ts": 'export declare function terminal(error: unknown): void;export declare const LINK: "finally";',
-    "packages/contracts/src/trace-key.ts": 'export declare const OPENER: "startActiveSpan";',
   };
   for (const [path, text] of Object.entries(files)) {
     put(path, text);
@@ -227,7 +220,6 @@ export {detached as superviseDetached};`,
       type: "module",
       imports: {
         "#meaning": { browser: "./packages/contracts/src/meaning-browser.ts", default: "./packages/contracts/src/meaning-node.ts" },
-        "#trace-key": "./packages/contracts/src/trace-key.ts",
       },
     }),
   );
@@ -236,7 +228,7 @@ export {detached as superviseDetached};`,
     "packages/server/tsconfig.json",
     JSON.stringify({
       compilerOptions: { ...COMPILER_OPTIONS, lib: ["ES2022"] },
-      files: ["src/probe.ts", "src/domain/probe/detach.ts", "src/foundation/observability/tracing.ts"],
+      files: ["src/probe.ts", "src/domain/probe/detach.ts"],
     }),
   );
   put(
@@ -245,7 +237,7 @@ export {detached as superviseDetached};`,
   );
   put(
     "packages/contracts/tsconfig.json",
-    JSON.stringify({ compilerOptions: { ...COMPILER_OPTIONS, lib: ["ES2022"] }, files: ["src/meaning-node.ts", "src/meaning-browser.ts", "src/trace-key.ts"] }),
+    JSON.stringify({ compilerOptions: { ...COMPILER_OPTIONS, lib: ["ES2022"] }, files: ["src/meaning-node.ts", "src/meaning-browser.ts"] }),
   );
   put("tooling/tsconfig.json", JSON.stringify({ compilerOptions: COMPILER_OPTIONS, files: POLICIES.map(({ id }) => `src/verify/gates/${id}.ts`) }));
   for (const { id } of POLICIES) {
@@ -284,25 +276,12 @@ function nativeFailureBaseline(context: ReturnType<typeof projectCtx>, scratch: 
     throw new Error("native rejection calls are missing");
   }
   expect(promiseAbsorberSite(link)?.anchor?.token).toBe(browser ? undefined : "p");
-  expect(untracedDispatchSite(link.getFirstAncestorByKindOrThrow(SyntaxKind.ExpressionStatement), new Set())?.anchor?.token).toBe(browser ? undefined : "p");
   expect(promiseAbsorberSite(propagated)).toBeUndefined();
 }
 
 function nativeBaseline(context: ReturnType<typeof projectCtx>, scratch: string): void {
   nativeFailureBaseline(context, scratch, SERVER, false);
   nativeFailureBaseline(context, scratch, CLIENT, true);
-  const tracing = context.nativeSourceView?.(join(scratch, TRACING_MODULE));
-  const detached = context.nativeSourceView?.(join(scratch, DETACHED));
-  if (tracing === undefined || detached === undefined) {
-    throw new Error("actual native tracing sources are missing");
-  }
-  const openers = deriveRootSpanOpeners([tracing.sourceFile]);
-  expect([...openers]).toEqual(["detached"]);
-  const statement = detached.sourceFile.getDescendantsOfKind(SyntaxKind.ExpressionStatement)[0];
-  if (statement === undefined) {
-    throw new Error("native detached statement is missing");
-  }
-  expect(untracedDispatchSite(statement, openers)?.anchor?.token).toBe("background");
 }
 
 test(
@@ -373,10 +352,6 @@ test(
       expect.soft(result.toolErrors).toEqual([]);
       expect.soft(result.policies.find(({ id }) => id === ownership.id)?.findings).toMatchObject([
         { file: CLIENT, token: "error" },
-        { file: DETACHED, token: "background" },
-        { file: SERVER, token: "p" },
-      ]);
-      expect.soft(result.policies.find(({ id }) => id === traced.id)?.findings).toMatchObject([
         { file: DETACHED, token: "background" },
         { file: SERVER, token: "p" },
       ]);

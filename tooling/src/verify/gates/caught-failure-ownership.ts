@@ -48,12 +48,9 @@
 // no finding at its site) were DELETED, never converted into a waiver for an unmarked finding (§8.6).
 //
 // ── RETIRED ARM: `@swallowed-ok` IS NO LONGER A SUPPRESSION DOOR HERE (§4.6, classified) ─────────────────
-// The legacy gate accepted a live exact-position `@swallowed-ok` marker owned by `detached-work-traced` as
-// ownership evidence, through `hasLiveDetachedSwallowOwner`. That arm is disqualified four ways over: it is
-// a cross-GATE import, it walks `Project#getSourceFiles` (detached-work-traced.ts:497), it reads
-// module-scope pass state, and it is a PRIVATE MARKER PARSER for ANOTHER gate's custom grammar — which
-// §12.5 bans outright ("no gate-specific exemption grammar"). `detached-work-traced` is also still LEGACY,
-// so §7 forbids touching those sites' grammar at all. The arm is GONE. Every `@swallowed-ok` marker stays
+// The legacy gate accepted a live exact-position `@swallowed-ok` marker owned by a sibling gate as ownership
+// evidence. That arm is gone: it was a cross-GATE import and a PRIVATE MARKER PARSER for another gate's custom
+// grammar, which §12.5 bans outright ("no gate-specific exemption grammar"). Every `@swallowed-ok` marker stays
 // exactly where it is and keeps its own owner; the five sites it covered now carry an `@orb-waive` marker
 // of this policy's own, with the `@swallowed-ok` reason carried verbatim. Two markers, each stale-checked
 // by the engine that owns it.

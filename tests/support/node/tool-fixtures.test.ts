@@ -1,12 +1,12 @@
 // The tooling composed test's own proof (docs/law/Core-Tooling-Law.md §5): each serializer rule + a
 // planted NEGATIVE (a deterministic string must pass through byte-identical), the toExitWith contract
 // diff, runCli's fail-loud unknown-tool refusal, and the scratch/plantedTree/fakeBin seams.
-import { existsSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readlinkSync, statSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
-import { expect, fixturePath, test } from "./tool-fixtures.ts";
+import { expect, fixturePath, plantDir, plantFile, plantLink, removePlanted, test } from "./tool-fixtures.ts";
 
 // The mismatch-diff contract: both codes by NAME + the stdout tail.
 const MISMATCH_RE = /0 \(clean\).*1 \(violations\)[\s\S]*stdout: 12 findings/u;
@@ -18,8 +18,8 @@ test("scratch is a real dir and plantedTree materializes a violation tree inside
   expect(readFileSync(join(root, "tooling/src/badtool/stray.ts"), "utf8")).toBe("export const x = 1;\n");
 });
 
-// #2332: the RUNTIME half of fixture isolation. `policy-fixture-substrate` proves an AUTHORED root
-// statically; a dynamic key has none, so the composition door is what bounds it. Both directions:
+// The runtime half of fixture isolation: a dynamic key has no authored value, so the composition door is
+// what bounds it. Both directions:
 // the sanctioned compose SUCCEEDS, and each escape shape throws WITHOUT touching the checkout.
 test("fixturePath proves the actual target stays in its owned root", ({ repoRoot, scratch }) => {
   const safe = fixturePath(scratch, "written.txt");
@@ -34,6 +34,41 @@ test("fixturePath proves the actual target stays in its owned root", ({ repoRoot
   symlinkSync(repoRoot, fixturePath(scratch, "outside-link"));
   expect(() => fixturePath(scratch, "outside-link", "would-write.txt")).toThrow("resolves outside the owned root");
   expect(existsSync(join(repoRoot, "would-write.txt"))).toBe(false);
+});
+
+// The scratch writers are the only write door a gate family test has (the `orb/no-raw-fs-write-in-gate-tests`
+// lint rule bans the raw verbs), so the door itself must refuse the checkout and any escape.
+test("plantFile, plantDir, plantLink and removePlanted write only below an invocation-owned temp root", ({ repoRoot, scratch }) => {
+  const planted = plantFile(scratch, "a/b/c.txt", "owned");
+  expect(planted).toBe(join(scratch, "a", "b", "c.txt"));
+  expect(readFileSync(planted, "utf8")).toBe("owned");
+  expect([...readFileSync(plantFile(scratch, "bytes.bin", new Uint8Array([1, 2, 3])))]).toEqual([1, 2, 3]);
+
+  expect(statSync(plantDir(scratch, "empty/dir")).isDirectory()).toBe(true);
+  expect(readlinkSync(plantLink(scratch, "links/node_modules", join(repoRoot, "node_modules"), "dir"))).toBe(join(repoRoot, "node_modules"));
+
+  removePlanted(scratch, "a/b/c.txt");
+  expect(existsSync(planted)).toBe(false);
+  expect(() => removePlanted(scratch, "a/b/c.txt")).toThrow("ENOENT");
+});
+
+test("the scratch writers refuse the checkout, a traversal and a link escape without touching the filesystem", ({ repoRoot, scratch }) => {
+  const leak = join(repoRoot, "scratch-writer-leak.txt");
+  expect(() => plantFile(repoRoot, "scratch-writer-leak.txt", "leak")).toThrow("is not an invocation-owned temp root");
+  expect(() => plantFile(scratch, "../scratch-writer-leak.txt", "leak")).toThrow("escapes the owned root");
+  expect(() => plantFile(scratch, repoRoot, "leak")).toThrow("contains an absolute path");
+  expect(() => plantDir(repoRoot, "scratch-writer-leak")).toThrow("is not an invocation-owned temp root");
+  expect(() => plantLink(repoRoot, "scratch-writer-leak", scratch)).toThrow("is not an invocation-owned temp root");
+  expect(() => removePlanted(repoRoot, "package.json")).toThrow("is not an invocation-owned temp root");
+  expect(existsSync(leak)).toBe(false);
+  expect(existsSync(join(repoRoot, "package.json"))).toBe(true);
+
+  // A temp-looking sibling of the real temp dir is not the temp dir.
+  expect(() => plantFile(`${tmpdir()}-sibling`, "x.txt", "leak")).toThrow("is not an invocation-owned temp root");
+  // The lexical check alone would pass a link that points back into the checkout.
+  plantLink(scratch, "back", repoRoot, "dir");
+  expect(() => plantFile(scratch, "back/scratch-writer-leak.txt", "leak")).toThrow("resolves outside the owned root");
+  expect(existsSync(leak)).toBe(false);
 });
 
 test("plantedTree refuses traversal and absolute keys without writing outside its owned root", async ({ scratch, plantedTree }) => {

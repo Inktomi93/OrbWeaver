@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(142 registered gates)
+(140 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -101,7 +101,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `ct-poll-schedule-and-paint` | — | hard/error | @tests | a Playwright poll idiom that loses… |
 | `ct-poll-schedule-and-paint-health` | ct-poll-schedule-and-paint | hard/error | @legacy-tests\* | the founding CT for the… |
 | `density-tier` | — | reviewed-grant/error | @client,@ui | density-tier violation… |
-| `detached-work-traced` | — | ordinary/error | @server,@inference | fire-and-forget work whose FAILURE IS… |
 | `diagnostic-legibility` | policy-soundness | ordinary/error | @tooling\* | a gate/policy diagnostic carries no… |
 | `discovery-no-stats-rollups` | — | ordinary/error | @server\* | the stats rollup tables (ownerStats /… |
 | `domain-freshness-plane` | drizzle-schema | hard/error | @server,@db\* | a MUTATING domain must declare its… |
@@ -147,7 +146,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `persistence-boundary` | — | reviewed-grant/error | @client | raw browser storage outside the… |
 | `persistence-no-in-memory-state` | — | ordinary/error | @authored\* | an ambient Map/Set/WeakMap/WeakSet is… |
 | `platform-spellings` | — | ordinary/error | @product,@tests | a superseded pre-node-26 spelling —… |
-| `policy-fixture-substrate` | policy-soundness | hard/error | @tests\* | a family test filesystem mutation has… |
 | `policy-legacy-imports` | policy-soundness | hard/error | @tooling\* | a FINAL policy module imports the… |
 | `policy-proof-expectations` | policy-soundness | hard/error | @tooling\* | a mustFlag proof row is… |
 | `policy-refusal-coverage` | policy-soundness | hard/error | @tooling,@tests\* | a FINAL policy declares facts or… |

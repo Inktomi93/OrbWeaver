@@ -1,6 +1,5 @@
-import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, plantFile, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
@@ -342,12 +341,10 @@ const DISK_CSS: Readonly<Record<string, string>> = {
 
 function passOnDisk(scratch: string, files: Readonly<Record<string, string>>, bytes: Readonly<Record<string, readonly number[]>>): PolicyPassResult {
   for (const [path, content] of Object.entries(files)) {
-    mkdirSync(join(scratch, path, ".."), { recursive: true });
-    writeFileSync(join(scratch, path), content);
+    plantFile(scratch, path, content);
   }
   for (const [path, raw] of Object.entries(bytes)) {
-    mkdirSync(join(scratch, path, ".."), { recursive: true });
-    writeFileSync(join(scratch, path), Buffer.from(raw));
+    plantFile(scratch, path, Buffer.from(raw));
   }
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   project.createSourceFile(join(scratch, CARRIER), OVERLAY[CARRIER], { overwrite: true });
