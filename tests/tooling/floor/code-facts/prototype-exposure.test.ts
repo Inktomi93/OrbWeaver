@@ -236,6 +236,40 @@ for (const fresh of [true, false]) {
   });
 }
 
+// A fresh target is only safe from `__proto__` when no inherited setter can re-parent it: a primitive value, a number
+// key, an own-key define, or a null-prototype target. Model-chosen keys reach such writes (tool-call argument salvage).
+test.for([
+  { name: "a string key with an object value", write: "const bag={};bag[key]=value;", sound: false },
+  { name: "Reflect.set with a string key", write: "const bag={};Reflect.set(bag,key,value);", sound: false },
+  { name: "a primitive value", write: "const bag={};bag[key]=1;", sound: true },
+  { name: "a number key", write: "declare const index:number;const bag:object[]=[];bag[index]=value;", sound: true },
+  { name: "a null-prototype target", write: "const bag={__proto__:null};bag[key]=value;", sound: true },
+])("prototype census refuses a fresh target that a __proto__ key could re-parent: $name", ({ write, sound }) => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const source = project.createSourceFile(
+    "/fresh-reparent.ts",
+    `
+    function consume(value:object|undefined){return value;}
+    function selected(ctx:{settle:()=>number;signal?:object}){consume(ctx.signal);return ctx.settle();}
+    declare const key:string;declare const value:object;${write}
+    const context={settle:()=>1};selected(context);
+  `,
+  );
+  const calls = source.getDescendantsOfKind(SyntaxKind.CallExpression);
+  const selected = calls.find((call) => call.getExpression().getText() === "ctx.settle");
+  if (selected === undefined) {
+    throw new Error("the selected re-parent contrast is missing");
+  }
+  beginReferencePass();
+  try {
+    const observed = observeCallReturns(calls, source.getDescendants(), { suppliedCallableTargets: true });
+    const first = readAuthoredCallableSources(selected.getExpression(), undefined, observed);
+    expect(first.kind, first.kind === "unresolved" ? `${first.detail} at ${first.node.getText()}` : "resolved").toBe(sound ? "resolved" : "unresolved");
+  } finally {
+    endReferencePass();
+  }
+});
+
 for (const intrinsic of [false, true]) {
   test("prototype census distinguishes data fields from an actual global capability: " + intrinsic, () => {
     const project = new Project({ useInMemoryFileSystem: true });

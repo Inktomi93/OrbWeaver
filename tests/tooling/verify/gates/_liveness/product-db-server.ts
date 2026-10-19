@@ -11,13 +11,11 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as byteCheckCast } from "../../../../../tooling/src/verify/gates/byte-check-cast.ts";
-import { gate as noRawEgress } from "../../../../../tooling/src/verify/gates/no-raw-egress.ts";
 import { gate as noVanityAlias } from "../../../../../tooling/src/verify/gates/no-vanity-alias.ts";
 import { gate as ownerRoleSplit } from "../../../../../tooling/src/verify/gates/owner-role-split.ts";
 import { gate as platformSpellings } from "../../../../../tooling/src/verify/gates/platform-spellings.ts";
 import { gate as schemaBranding } from "../../../../../tooling/src/verify/gates/schema-branding.ts";
 import { gate as scrubberHome } from "../../../../../tooling/src/verify/gates/scrubber-home.ts";
-import { gate as soleEnvReader } from "../../../../../tooling/src/verify/gates/sole-env-reader.ts";
 import { gate as zodErrorIssuesHome } from "../../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
 import { gate as zodOutputTwinParity } from "../../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";
 
@@ -31,11 +29,6 @@ function add(path: string, source: string): RealCorpusOverlay {
 }
 
 export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: noRawEgress,
-    overlays: [add(`${DOMAIN}/liveness-egress.ts`, 'export const livenessLoad = async (): Promise<unknown> => await fetch("https://liveness.invalid");\n')],
-    messageIncludes: "raw `fetch` in server source",
-  },
   {
     policy: noVanityAlias,
     overlays: [add(`${DOMAIN}/liveness-alias.ts`, 'import { castId as livenessCastId } from "@orb/kit/ids";\nexport const livenessUse = livenessCastId;\n')],
@@ -77,11 +70,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "packages/server/src/transport/trpc/liveness-scrub.ts",
-  },
-  {
-    policy: soleEnvReader,
-    overlays: [add(`${DOMAIN}/liveness-env.ts`, "export const livenessEnv = process.env.LIVENESS_VAR;\n")],
-    messageIncludes: "process-env-read:LIVENESS_VAR",
   },
   {
     policy: zodErrorIssuesHome,

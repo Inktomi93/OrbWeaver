@@ -3,10 +3,9 @@
 
 import type { CallExpression, ImportDeclaration, Project, SourceFile, SourceFileReferencingNodes, StringLiteral } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { collectModuleImporters } from "../../floor/code-facts/module-importers.ts";
 import { declarationBindingKeys, inventoryDeclarationKey } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { CodemodContext, ImportSpecFilter, OperationOptions, Plan } from "../contract/types.ts";
-import { groupImportsByDestination, mergeNamedImportInto, routeSpecifiersToDestination } from "./import-routing.ts";
+import { exactImportDeclarations, groupImportsByDestination, mergeNamedImportInto, routeSpecifiersToDestination } from "./import-routing.ts";
 import { absolutePath, assert, assertPathString, noteSuffix, repoRelative } from "./plans.ts";
 
 /**
@@ -16,9 +15,7 @@ import { absolutePath, assert, assertPathString, noteSuffix, repoRelative } from
  * importing file.
  */
 export function findImporters(project: Project, moduleSpecifier: string): ImportDeclaration[] {
-  return collectModuleImporters(project.getSourceFiles(), moduleSpecifier, "exact-import-spelling")
-    .hits.map(({ node }) => node)
-    .filter(Node.isImportDeclaration);
+  return exactImportDeclarations(project.getSourceFiles(), moduleSpecifier);
 }
 
 /**
@@ -127,6 +124,8 @@ function applyRewrites(text: string, rewrites: ReadonlyArray<readonly [RegExp, s
 /** vi's module-mocking methods whose first argument is a module-specifier string.
  *  A codemod that rewrites import paths must rewrite these strings too. */
 const VI_MODULE_METHODS: ReadonlySet<string> = new Set(["mock", "doMock", "importActual", "importMock", "unmock"]);
+const VITEST_MODULE = "vitest";
+const VITEST_BINDING = "vi";
 
 function isVitestModuleMethod(expr: Node): boolean {
   if (!(Node.isPropertyAccessExpression(expr) && VI_MODULE_METHODS.has(expr.getName()))) {
@@ -137,11 +136,9 @@ function isVitestModuleMethod(expr: Node): boolean {
     return false;
   }
   const bindings = new Set(declarationBindingKeys(receiver, false));
-  return receiver
-    .getSourceFile()
-    .getImportDeclarations()
-    .filter((declaration) => declaration.getModuleSpecifierValue() === "vitest")
-    .some((declaration) => declaration.getNamedImports().some((specifier) => specifier.getName() === "vi" && bindings.has(inventoryDeclarationKey(specifier))));
+  return exactImportDeclarations([receiver.getSourceFile()], VITEST_MODULE).some((declaration) =>
+    declaration.getNamedImports().some((specifier) => specifier.getName() === VITEST_BINDING && bindings.has(inventoryDeclarationKey(specifier))),
+  );
 }
 
 /**
@@ -195,9 +192,7 @@ export function addNamedImport(
       // while a type-only declaration already carries X mints a TS2300 duplicate identifier (measured:
       // the 2026-08-03 brand campaign hit this in ~60 files across three passes).
       if (named.isTypeOnly === true) {
-        const alreadyImported = sf
-          .getImportDeclarations()
-          .some((d) => d.getModuleSpecifierValue() === moduleSpecifier && d.getNamedImports().some((n) => n.getName() === named.name));
+        const alreadyImported = exactImportDeclarations([sf], moduleSpecifier).some((d) => d.getNamedImports().some((n) => n.getName() === named.name));
         if (alreadyImported) {
           return;
         }
@@ -205,7 +200,7 @@ export function addNamedImport(
       // A value-import lookup by string alone can't tell a value declaration from a type-only one
       // sharing the same specifier (`import type { X } from "m"` + `import { Y } from "m"`) — match
       // on the non-type-only declaration explicitly, or we'd silently merge into the wrong one.
-      const existing = sf.getImportDeclaration((d) => d.getModuleSpecifierValue() === moduleSpecifier && !d.isTypeOnly());
+      const existing = exactImportDeclarations([sf], moduleSpecifier).find((d) => !d.isTypeOnly());
       if (existing !== undefined) {
         mergeNamedImportInto(existing, named);
         return;
@@ -257,7 +252,7 @@ export function removeNamedImportBinding(
     description: `Remove import binding { ${name}${localName === name ? "" : ` as ${localName}`} } from "${moduleSpecifier}" in ${repoRelative(abs, ctx.repoRoot)}${noteSuffix(opts)}`,
     touchedFiles: [abs],
     transform(): void {
-      for (const decl of sf.getImportDeclarations().filter((candidate) => candidate.getModuleSpecifierValue() === moduleSpecifier)) {
+      for (const decl of exactImportDeclarations([sf], moduleSpecifier)) {
         for (const specifier of decl.getNamedImports()) {
           const specifierLocalName = specifier.getAliasNode()?.getText() ?? specifier.getName();
           if (specifier.getName() === name && specifierLocalName === localName) {
@@ -300,7 +295,7 @@ export function removeNamedImport(
       // symbol, not one declaration spelling: leaving the type-only twin behind is how a codemod that
       // removes the symbol's final use creates TS6196/TS6192 residue. Iterate every matching declaration;
       // addNamedImport's value/type distinction is an insertion concern, not a removal exception.
-      for (const decl of sf.getImportDeclarations().filter((candidate) => candidate.getModuleSpecifierValue() === moduleSpecifier)) {
+      for (const decl of exactImportDeclarations([sf], moduleSpecifier)) {
         removeNamesFromImport(decl, namesSet, opts.removeWholeDeclaration === true);
       }
     },

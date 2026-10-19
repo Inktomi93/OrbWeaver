@@ -77,6 +77,16 @@ test.each([
   expect(await root.db.select({ handle: users.handle }).from(users).where(eq(users.id, root.ownerId))).toEqual([{ handle: "owner" }]);
 });
 
+test("an identity first seen after a late process-environment admin grant is provisioned from the composed policy", async () => {
+  await using root = await rootForPolicy();
+  vi.stubEnv("OIDC_ADMIN_GROUPS", "late-process-admins");
+  expect(await me(root, headerIdentity("late-process-admins", "late-arrival", "late-arrival-subject"))).toEqual({
+    authenticated: true,
+    handle: "late-arrival",
+    role: "user",
+  });
+});
+
 test("copied config and exposed owner handles cannot mutate a live graph's authorization", async () => {
   const config = { ...env };
   config.OWNER_HANDLES = "box-owner";

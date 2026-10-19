@@ -22,10 +22,6 @@
 // NAME where the law is about an IDENTITY. `mustPass[4]` on `tooling-argv-front-door` is the pin, red
 // before this line and green after.
 //
-// THIS IS `sole-env-reader.ts#readsProcessEnv` GENERALIZED over the member name. That module keeps its own
-// copy today because it sits outside the lane that minted this reader (#1950); it is the recorded MERGE
-// CANDIDATE — two spellings of one concept — and re-homing it here is the follow-up, per guide §8.
-//
 // A pure reader over one delivered node: no walk, no Project, no filesystem, no cache.
 
 import {

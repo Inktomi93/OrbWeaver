@@ -219,6 +219,22 @@ export function createSemanticInventory(rawOptions: SemanticInventoryOptions): S
   }
 }
 
+const availableSources = new WeakMap<StoredInventoryPartition, ReadonlySet<string>>();
+
+// Pair demand is filtered per query and per program; scanning the available paths each time is quadratic.
+function hasAvailableSource(partition: StoredInventoryPartition, file: string): boolean {
+  let available = availableSources.get(partition);
+  if (available === undefined) {
+    available = new Set(partition.available);
+    availableSources.set(partition, available);
+  }
+  return available.has(file);
+}
+
+function pairQueriesIn(partition: StoredInventoryPartition, queries: readonly InventoryShapeQuery[]): InventoryShapeQuery[] {
+  return queries.filter((query) => hasAvailableSource(partition, query.left.file) && hasAvailableSource(partition, query.right.file));
+}
+
 function publicationRecheck(published: boolean, check: () => void): () => void {
   return published ? check : (): void => undefined;
 }
@@ -524,7 +540,7 @@ function demandShapePartitions(
     if (partition === undefined) {
       throw new Error("native membership cohort is incomplete");
     }
-    const selected = queries.filter((query) => partition.available.includes(query.left.file) && partition.available.includes(query.right.file));
+    const selected = pairQueriesIn(partition, queries);
     if (selected.length > 0) {
       assertCohortCurrent();
       acquire(
@@ -560,7 +576,7 @@ function reconcileDrizzleShapeDemand(context: {
     if (partition === undefined) {
       throw new Error("native Drizzle/shape cohort is incomplete");
     }
-    const selected = queries.filter((query) => partition.available.includes(query.left.file) && partition.available.includes(query.right.file));
+    const selected = pairQueriesIn(partition, queries);
     acquire(descriptor, partition.families, selected);
   }
   context.assertCurrent();
@@ -590,16 +606,20 @@ function shapeCatalogOwners(
   partitions: readonly StoredInventoryPartition[],
 ): ReadonlyMap<import("ts-morph").SourceFile, string> {
   const owners = new Map<import("ts-morph").SourceFile, string>();
+  // Canonical paths resolve through the filesystem; resolve each descriptor's roster once, not once per source.
+  const rosters = new Map(
+    descriptors.map((descriptor) => [descriptor, new Set(descriptor.files.map((path) => canonicalInventoryPath(resolve(options.root, path))))]),
+  );
   for (const source of sources) {
     const file = canonicalInventoryPath(source.getFilePath());
     const native = options.shapePlan?.owners?.get(source);
-    const declared = descriptors.filter((descriptor) => descriptor.files.some((path) => canonicalInventoryPath(resolve(options.root, path)) === file));
+    const declared = descriptors.filter((descriptor) => rosters.get(descriptor)?.has(file) === true);
     const predicted = predictedProgram(file.slice(options.root.length + 1));
     const selected =
       native === undefined
         ? (declared.find(({ id }) => id === predicted) ?? (declared.length === 1 ? declared[0] : undefined))
         : descriptors.find((descriptor) => descriptor.id === native.id && descriptorVersion(descriptor) === descriptorVersion(native));
-    if (selected === undefined || !partitions.some((partition) => partition.program === selected.id && partition.available.includes(file))) {
+    if (selected === undefined || !partitions.some((partition) => partition.program === selected.id && hasAvailableSource(partition, file))) {
       throw new Error("native shape source has no unambiguous catalog owner");
     }
     owners.set(source, selected.id);
@@ -622,7 +642,7 @@ function assertPairCoverage(
   queries: readonly InventoryShapeQuery[],
 ): void {
   for (const partition of partitions) {
-    const selected = queries.filter((query) => partition.available.includes(query.left.file) && partition.available.includes(query.right.file));
+    const selected = pairQueriesIn(partition, queries);
     if (selected.length === 0) {
       continue;
     }

@@ -10,6 +10,7 @@ import { isFactoryCallFromPackage, resolveFactoryCallFromPackage, ZOD_PACKAGE } 
 import { ModuleKind, ModuleResolutionKind, Node, Project, ScriptTarget, SyntaxKind } from "ts-morph";
 import { z } from "zod";
 import { isZodCall } from "../../../../tooling/src/verify/lib/zod-origin.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const STRING_FACTORY = "string";
 
@@ -445,6 +446,11 @@ const CLASSIFIED_ENV_PROGRAM_EXPOSURES: readonly { readonly site: string; readon
     site: "packages/contracts/src/inference/wire-subset.ts: properties[name] = { ...(description === undefined ? {} : { description }), anyOf: [rest, { ...NULL_ARM }] }",
     why: "rewrites a key read from Object.keys of the same object; an own data property shadows the inherited accessor",
   },
+  {
+    site: "packages/contracts/src/inference/usage.ts: detail[axis] = modalitySchema.options.flatMap((modality) => {",
+    why: "the key is a tokenDetailsSchema.keyof() option",
+  },
+  { site: "packages/contracts/src/theme/override.ts: subset[key] = value", why: "the key is a CARD_EMBEDDABLE_THEME_KEYS literal" },
   { site: "packages/kit/src/macro/parser.ts: flags[key] = true", why: "the key is a FLAG_KEY_BY_CHAR value, a closed MacroFlagKey" },
   {
     site: "packages/kit/src/macro/variables.ts: Object.defineProperty(plane, key, { value, writable: true, enumerable: true, configurable: true })",
@@ -452,10 +458,15 @@ const CLASSIFIED_ENV_PROGRAM_EXPOSURES: readonly { readonly site: string; readon
   },
   { site: "packages/kit/src/macro/variables.ts: Reflect.deleteProperty(env, op.key)", why: "deletes an own property only; delete never reaches a prototype" },
   { site: "packages/kit/src/macro/user-macros.ts: draws[input.name] = drawn", why: "the name matches MACRO_NAME_RE, which cannot spell __proto__" },
+  { site: "packages/contracts/src/preset/index.ts: out[field] = params[field]", why: "the key is a ROLE_PRESET_FIELDS literal" },
   { site: "packages/contracts/src/preset/index.ts: out[k] = v", why: "every setNum caller passes a literal field name" },
   { site: "packages/contracts/src/preset/index.ts: out[k] = v", why: "every setNumAbove caller passes a literal field name" },
   { site: "packages/contracts/src/rpg/extraction.ts: props[field]", why: "removeField callers pass literal schema field names" },
   { site: "packages/kit/src/json-schema/lift.ts: this.constructor.name", why: "a read of the error class's own constructor, not a write" },
+  {
+    site: "packages/kit/src/json-schema/lift.ts: shape[key] = requiredSet.has(key) ? lifted : boxGeneratedSchema(lifted.schema.optional())",
+    why: "authored schema property names; liftObject refuses __proto__ before this write",
+  },
   {
     site: "packages/kit/src/json-schema/index.ts: normalized[key] = Object.fromEntries(Object.entries(value).map(([name, child]) => [name, normalizeSchemaChild(child)]))",
     why: "rewrites an own key from Object.entries of the same object, gated to SCHEMA_MAP_KEYS",
@@ -473,6 +484,7 @@ const CLASSIFIED_ENV_PROGRAM_EXPOSURES: readonly { readonly site: string; readon
     why: "the key is a static schema property name; model output supplies only the value",
   },
   { site: "packages/contracts/src/rpg/structured-patch.ts: owner[key] = Object.entries(elements)", why: "the key is a static schema property name" },
+  { site: "packages/contracts/src/refinery/schema-forge.ts: node[RENDER_HINT_KEY] = hint", why: "the key is the RENDER_HINT_KEY literal" },
   {
     site: 'packages/contracts/src/refinery/schema-forge.ts: properties[key] = isArray ? { type: "array", items: owner } : owner',
     why: "model-designed key: segmentsOf refuses __proto__ and reads test Object.hasOwn",
@@ -482,16 +494,25 @@ const CLASSIFIED_ENV_PROGRAM_EXPOSURES: readonly { readonly site: string; readon
     why: "model-designed key: segmentsOf refuses __proto__ and reads test Object.hasOwn",
   },
   { site: "packages/contracts/src/refinery/schema-forge.ts: properties[core.name] = { ...core.node }", why: "the key is a REFINERY_FORGE_CORE_NODES literal" },
+  {
+    site: "packages/contracts/src/prose/index.ts: out[id] = override",
+    why: "isProseSlotId and the slot's own home check admit only PROSE_SLOTS ids",
+  },
   { site: "packages/kit/src/handle-key/index.ts: data.prototype.get(char)", why: "a read of a Map the confusables table names prototype" },
   { site: "packages/server/src/foundation/env/index.ts: process.env[key] = value", why: "the operator's own .env key, written to Node's environment object" },
   { site: "packages/server/src/foundation/env/index.ts: Reflect.deleteProperty(process.env, key)", why: "the key is an APP_SECRET_ENV_KEYS literal" },
 ];
 
+const ENV_PROGRAM_CENSUS_BUDGET_MS = 30_000;
+
 function exposureName(repoRoot: string, site: Node): string {
   return `${relative(repoRoot, site.getSourceFile().getFilePath())}: ${site.getText().split("\n")[0] ?? ""}`;
 }
 
-test("the actual env parser's AUTH_MODE proof refuses on the classified prototype census", ({ repoRoot }) => {
+// The case loads the env parser's whole program and runs the census over every source in it.
+test("the actual env parser's AUTH_MODE proof refuses on the classified prototype census", { timeout: scaledBudget(ENV_PROGRAM_CENSUS_BUDGET_MS) }, ({
+  repoRoot,
+}) => {
   const project = new Project({ tsConfigFilePath: join(repoRoot, "packages/server/tsconfig.json"), skipAddingFilesFromTsConfig: true });
   const source = project.addSourceFileAtPath(join(repoRoot, "packages/server/src/foundation/env/index.ts"));
   const output = source.getVariableDeclarationOrThrow("env").getNameNode();
