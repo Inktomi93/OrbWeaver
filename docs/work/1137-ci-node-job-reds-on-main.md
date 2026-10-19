@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P1
+lane: wt/agent-abfd204c12b726edb
 ---
 
 # CI node job reds on main
