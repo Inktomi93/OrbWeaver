@@ -72,7 +72,7 @@ export const BOOT_TRACE_ARM = {
             failure = "no owned page exists for the pre-navigation trace";
             return;
           }
-          // @orb-waive caught-failure-ownership(error): failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
+          // @orb-waive caught-failure-ownership(error): the closure variable `failure` is printed by report() through printEvidenceGaps. Ends if report() stops printing failure.
           try {
             rawTracePath = await artifactFile("boot-trace", "snap-boot", ".trace.json", rawMetadata);
             active = await beginBootTrace(page);
@@ -84,7 +84,7 @@ export const BOOT_TRACE_ARM = {
           if (!opts.bootTrace || ctx.pageIndex !== 0 || active === null || rawTracePath === null) {
             return;
           }
-          // @orb-waive caught-failure-ownership(error): failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
+          // @orb-waive caught-failure-ownership(error): the closure variable `failure` turns the arm's fact state to "refused" in facts(). Ends if facts() stops reading failure.
           try {
             const path = rawTracePath;
             receipt = await active.finish(path, async ({ complete, eventCount }) => {
@@ -114,7 +114,7 @@ export const BOOT_TRACE_ARM = {
             failure ??= "trace never reached the post-navigation readiness boundary";
           }
           if (receipt !== null && receiptPath === null) {
-            // @orb-waive caught-failure-ownership(error): failure is printed by report(), publishes boot-trace=REFUSED, and forces exit 2 below. Ends if any of those three owners stop reading failure.
+            // @orb-waive caught-failure-ownership(error): the closure variable `failure` forces EXIT.toolError in exit(). Ends if exit() stops reading failure.
             try {
               receiptPath = await artifactFile("boot-trace", `${ctx.name}-boot`, ".json", {
                 producer: "boot-trace",

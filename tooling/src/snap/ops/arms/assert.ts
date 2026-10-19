@@ -116,8 +116,9 @@ async function runAssertion(page: Page, assertion: Assertion, includeHidden: boo
     // flag report FAIL about an element the user can see. `visibleLocators` is asked for the VISIBLE
     // population unconditionally — `--include-hidden` widens the other assertions' population, but for
     // this one visibility IS the question, so widening it would answer a different one.
-    // @orb-waive caught-failure-ownership(visibleLocators): probe-whose-failure-is-its-return-value — a locator failure converts to an empty population and so to pass=false, which the very next line reports as ASSERT visible … FAIL. Ends if that FAIL line stops being printed/read.
-    const matched = await visibleLocators(locator, false).catch((): Locator[] => []);
+    // A locator throw (a selector the engine rejects, a closed page) propagates to `runAssertions`, which prints
+    // the ERROR line: it is a failure to ask, not an absent element.
+    const matched = await visibleLocators(locator, false);
     const pass = matched.length > 0;
     // NEVER a NO-MATCH: an absent element is precisely the finding this flag exists to report.
     return judged(`ASSERT visible ${assertion.selector}: ${pass ? "PASS" : "FAIL"}`, !pass);
@@ -128,7 +129,7 @@ async function runAssertion(page: Page, assertion: Assertion, includeHidden: boo
 async function runAssertions(page: Page, assertions: readonly Assertion[], includeHidden: boolean): Promise<AssertionOutcome[]> {
   const outcomes: AssertionOutcome[] = [];
   for (const assertion of assertions) {
-    // @orb-waive caught-failure-ownership(error): captured as an ERROR outcome line pushed into the returned outcomes array, which the caller counts as failed and reports. Ends if the outcomes array stops being read.
+    // @orb-waive caught-failure-ownership(error): the ERROR outcome (failed: true) joins the returned outcomes; assertionFailures counts it into assertion-fails and the evidence file records its line. Ends if assertionFailures stops reading entry.failed.
     try {
       outcomes.push(await runAssertion(page, assertion, includeHidden));
     } catch (error) {

@@ -143,7 +143,7 @@ export async function driveOppositeDensity(page: Page, before: AppearanceDomSnap
     try {
       await page.getByRole("radio", { name: label, exact: true }).click();
     } catch (error) {
-      // @orb-waive caught-failure-ownership(mutation): the DEFUSED rejection is the response wait, whose failure is meaningless once the click that should have caused it failed — the click's error is re-thrown on the next line and owns the outcome. Ends if the wait stops being started before the click.
+      // @orb-waive caught-failure-ownership(mutation): the defused rejection is the response wait; the click error that explains it is rethrown on the next line (`throw error`). Ends if that rethrow goes.
       void mutation.catch(() => undefined);
       throw error;
     }
