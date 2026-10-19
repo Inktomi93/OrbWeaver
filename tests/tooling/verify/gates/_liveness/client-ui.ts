@@ -11,15 +11,10 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 
-import { gate as boundFieldViaHook } from "../../../../../tooling/src/verify/gates/bound-field-via-hook.ts";
-import { gate as busOnDataNoStoreWrite } from "../../../../../tooling/src/verify/gates/bus-on-data-no-store-write.ts";
 import { gate as formFactoryForMultifield } from "../../../../../tooling/src/verify/gates/form-factory-for-multifield.ts";
 import { gate as noEffectOnSharedSelection } from "../../../../../tooling/src/verify/gates/no-effect-on-shared-selection.ts";
 import { gate as noFormResetInAutosaveHealth } from "../../../../../tooling/src/verify/gates/no-form-reset-in-autosave-health.ts";
 
-import { gate as registryAssemblyAtDoorOnly } from "../../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
-import { gate as selectionStoreViaFactory } from "../../../../../tooling/src/verify/gates/selection-store-via-factory.ts";
-import { gate as stateFiles } from "../../../../../tooling/src/verify/gates/state-files.ts";
 import { gate as subFloorDisclosureHealth } from "../../../../../tooling/src/verify/gates/sub-floor-disclosure-health.ts";
 import { gate as surfaceA11yFocus } from "../../../../../tooling/src/verify/gates/surface-a11y-focus.ts";
 import { gate as surfaceInAContainer } from "../../../../../tooling/src/verify/gates/surface-in-a-container.ts";
@@ -39,23 +34,6 @@ function neutralise(path: string, source: string): RealCorpusOverlay {
 }
 
 export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: boundFieldViaHook,
-    overlays: [
-      add(
-        "packages/client/src/forms/editor/bound-fields/liveness-field.tsx",
-        'import { useFieldContext } from "../contexts.ts";\nexport const LivenessField = (): unknown => useFieldContext<string>();\n',
-      ),
-    ],
-    messageIncludes: "useFieldContext",
-  },
-  {
-    policy: busOnDataNoStoreWrite,
-    overlays: [
-      add("packages/client/src/data/bus/liveness-bus.ts", "export const livenessSub = {\n  onData: () => {\n    useX.setState({ a: 1 });\n  },\n};\n"),
-    ],
-    messageIncludes: "raw store write",
-  },
   {
     policy: formFactoryForMultifield,
     overlays: [
@@ -84,36 +62,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "reset type-strip",
   },
 
-  {
-    policy: registryAssemblyAtDoorOnly,
-    overlays: [
-      add(
-        `${CHAT}/lib/liveness-registry.ts`,
-        'import { createRegistry } from "#lib";\nexport const livenessRegistry = createRegistry("liveness", ["a"], { a: 1 });\n',
-      ),
-    ],
-    messageIncludes: "createRegistry",
-  },
-  {
-    policy: selectionStoreViaFactory,
-    overlays: [
-      add(
-        "packages/client/src/state/liveness-selection-store.ts",
-        'import { createGatedStore } from "./create-gated-store.ts";\nexport const useLivenessSelection = createGatedStore<{ id: string | null }>("liveness-selection", () => ({ id: null }));\n',
-      ),
-    ],
-    messageIncludes: "createGatedStore",
-  },
-  {
-    policy: stateFiles,
-    overlays: [
-      add(
-        "packages/client/src/state/liveness-grab-bag.ts",
-        "declare const create: (f: () => unknown) => unknown;\nexport const useLivenessA = create(() => ({}));\nexport const useLivenessB = create(() => ({}));\n",
-      ),
-    ],
-    messageIncludes: "minted store handle is exported",
-  },
   {
     policy: subFloorDisclosureHealth,
     overlays: [

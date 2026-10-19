@@ -3,7 +3,7 @@
 // byte-identical hook-backed store: a primary id (the drilled entity — `null` = the section's overview/
 // welcome), plus an OPTIONAL secondary sub-drill (a facet/section/entry inside the primary) and the
 // `fromList`/`dismiss` overlay dual-writes that also close an open slide-over. This factory IS that shape,
-// composing the sanctioned `createGatedStore` door internally. Sealed by G27 `selection-store-via-factory`:
+// composing the sanctioned `createGatedStore` door internally. Sealed by G27 `orb/selection-store-via-factory`:
 // a `state/*-selection-store.ts` calling `createGatedStore(` directly (instead of this mint) is RED.
 
 import { createGatedStore } from "./create-gated-store.ts";

@@ -5,7 +5,7 @@
 // Write ownership: every action here is bus-only (called only from `applyChatBusEvent`) except
 // `markStopping` + its guarded `recoverAfterStopFailure`, which the composer's Stop button reaches via
 // `data/bus` wrappers for instant feedback and rejected-request recovery (`chatStream` itself may only be
-// imported inside data/bus/ — gate `chat-stream-writes-in-bus-only`). The slot does not close there — it
+// imported inside data/bus/ — lint rule `orb/chat-stream-writes-in-bus-only`). The slot does not close there — it
 // closes only on the bus's turnAborted (or a race-won turnCompleted).
 
 import type { CharacterId, ChatId, MessageId } from "@orb/kit/ids";

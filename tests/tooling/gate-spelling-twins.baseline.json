@@ -3,7 +3,6 @@
     "assets-single-writer": ["bracket", "namespace"],
     "baseui-portal-container-seam": ["namespace"],
     "bounded-list-limit": ["namespace"],
-    "bus-on-data-no-store-write": ["bracket"],
     "caught-failure-ownership": ["bracket"],
     "chat-viewer-plane-canon-reads": ["namespace"],
     "ct-no-oneshot-live-read-assert": ["bracket", "namespace"],

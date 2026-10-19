@@ -5,7 +5,7 @@
 // projection, not a second navigation surface).
 //
 // Why its own store file rather than a third field on `preset-selection-store.ts`: that file is sealed by
-// G27 (`selection-store-via-factory`) to the `createDrillSelectionStore` mint — a `*-selection-store.ts`
+// G27 (`orb/selection-store-via-factory`) to the `createDrillSelectionStore` mint — a `*-selection-store.ts`
 // calling the raw `createGatedStore` door is RED, and the drill factory models a primary+secondary DRILL,
 // not a view axis. A separate state store is the gate's own sanctioned shape (its `shell-store.ts`
 // mustPass row: "a NON-selection state store may call createGatedStore freely").

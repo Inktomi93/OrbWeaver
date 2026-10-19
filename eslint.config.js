@@ -1719,6 +1719,276 @@ const CLIENT_CONFIG_HOST_RESTRICTIONS = [
   },
 ];
 
+// Client seals: one door per capability. These match the written name of the sealed symbol (its import
+// specifier, a namespace or computed member read), so a barrel that renames the symbol on re-export is not followed.
+const BOUND_FIELDS_ROOT = "packages/client/src/forms/editor/bound-fields";
+const STATE_ROOT = "packages/client/src/state";
+const REGISTRY_FACTORY_NAMES = ["createRegistry", "createContributorRegistry"];
+const REGISTRY_FACTORIES = alternation(REGISTRY_FACTORY_NAMES);
+// The written name read three ways: an import specifier, a member read (dotted, bracketed or template), and a destructured binding.
+const sealedName = (name) =>
+  `ImportSpecifier[imported.name='${name}'], MemberExpression${memberNamed(name)}, ObjectPattern > Property[computed=false][key.name='${name}']`;
+const REGISTRY_CONTEXT_MESSAGE =
+  "A createContext typed over a registry belongs in the createRegistryContext mint (packages/client/src/lib/create-registry-context.tsx); a hand-rolled context, hook and provider trio drifts from the one shape.";
+const REGISTRY_CONTEXT_UNREADABLE =
+  "This createContext call is on a receiver that is not an import, so whether it is React's context constructor cannot be established. Reported rather than passed; call createContext through a named React import.";
+const REGISTRY_NAME = /Registry$/u;
+const REGISTRY_ALIAS_HOPS = 8;
+// Identity is read from the file's own imports: React's createContext, or a project module's re-export of it (named, renamed, or off a namespace), and every
+// *Registry type imported under any local name, plus the local type aliases that reach one. A *Registry type that a
+// different module declares under a name without "Registry" in it is not followed.
+function writtenTypeNames(type) {
+  if (type.type === "TSUnionType") {
+    return type.types.flatMap(writtenTypeNames);
+  }
+  return type.type === "TSTypeReference" ? [type.typeName] : [];
+}
+function namesRegistry(typeName, registryNames) {
+  if (typeName.type === "Identifier") {
+    return registryNames.has(typeName.name);
+  }
+  return typeName.type === "TSQualifiedName" && REGISTRY_NAME.test(typeName.right.name);
+}
+// A module of this project (relative, `#` or `@orb/`) that re-exports React's createContext keeps its identity; another package's does not.
+const PROJECT_MODULE = /^(?:\.|#|@orb\/)/u;
+function recordRegistryImport(node, imports) {
+  const react = node.source.value === "react" || PROJECT_MODULE.test(node.source.value);
+  for (const specifier of node.specifiers) {
+    const named = specifier.type === "ImportSpecifier";
+    const local = specifier.local.name;
+    if (react && named && specifier.imported.name === "createContext") {
+      imports.constructors.add(local);
+    } else if (react && !named) {
+      imports.namespaces.add(local);
+    } else {
+      imports.others.add(local);
+    }
+    if (named && REGISTRY_NAME.test(specifier.imported.name)) {
+      imports.registryNames.add(local);
+    }
+  }
+}
+// A computed member is the constructor when it is a string literal or a template without substitutions that spells the name.
+function isCreateContextMember(callee) {
+  if (callee.type !== "MemberExpression") {
+    return false;
+  }
+  if (!callee.computed) {
+    return callee.property.name === "createContext";
+  }
+  const { property } = callee;
+  if (property.type === "TemplateLiteral") {
+    return property.expressions.length === 0 && property.quasis[0].value.cooked === "createContext";
+  }
+  return property.type === "Literal" && property.value === "createContext";
+}
+function createContextVerdict(callee, imports) {
+  if (callee.type === "Identifier") {
+    return imports.constructors.has(callee.name) ? "react" : "other";
+  }
+  if (!isCreateContextMember(callee)) {
+    return "other";
+  }
+  const receiver = callee.object.type === "Identifier" ? callee.object.name : undefined;
+  if (receiver !== undefined && imports.namespaces.has(receiver)) {
+    return "react";
+  }
+  return receiver !== undefined && imports.others.has(receiver) ? "other" : "unreadable";
+}
+function closeRegistryAliases(aliases, registryNames) {
+  for (let hop = 0; hop < REGISTRY_ALIAS_HOPS; hop += 1) {
+    const known = registryNames.size;
+    for (const { name, refs } of aliases) {
+      if (refs.some((ref) => namesRegistry(ref, registryNames))) {
+        registryNames.add(name);
+      }
+    }
+    if (registryNames.size === known) {
+      return;
+    }
+  }
+}
+const registryContextRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const imports = { constructors: new Set(), namespaces: new Set(), others: new Set(), registryNames: new Set() };
+    const aliases = [];
+    const calls = [];
+    return {
+      "ImportDeclaration:exit"(node) {
+        recordRegistryImport(node, imports);
+      },
+      "TSTypeAliasDeclaration:exit"(node) {
+        aliases.push({ name: node.id.name, refs: writtenTypeNames(node.typeAnnotation) });
+      },
+      "CallExpression:exit"(node) {
+        const argument = (node.typeArguments ?? node.typeParameters)?.params[0];
+        if (argument !== undefined) {
+          calls.push({ callee: node.callee, argument });
+        }
+      },
+      "Program:exit"() {
+        closeRegistryAliases(aliases, imports.registryNames);
+        for (const { callee, argument } of calls) {
+          const verdict = createContextVerdict(callee, imports);
+          if (verdict === "unreadable") {
+            context.report({ node: argument, message: REGISTRY_CONTEXT_UNREADABLE });
+          } else if (verdict === "react" && writtenTypeNames(argument).some((ref) => namesRegistry(ref, imports.registryNames))) {
+            context.report({ node: argument, message: REGISTRY_CONTEXT_MESSAGE });
+          }
+        }
+      },
+    };
+  },
+};
+const STATE_MINT_NAMES = ["create", "createStore", "createGatedStore", "createEntityDraftStore"];
+const STATE_MINT = alternation(STATE_MINT_NAMES);
+const STATE_MAX_FIELDS = 10;
+const STATE_FIELD_CAP_MESSAGE = `A state store initializer declares more than ${STATE_MAX_FIELDS} top-level fields; the store is doing several jobs, so split it.`;
+const STATE_FILES_SELECTORS = [
+  {
+    selector: `CallExpression[callee.name=${STATE_MINT}] > ArrowFunctionExpression[body.type='ObjectExpression'][body.properties.length>${STATE_MAX_FIELDS}]`,
+    message: STATE_FIELD_CAP_MESSAGE,
+  },
+  {
+    selector: `CallExpression[callee.name=${STATE_MINT}] > :matches(ArrowFunctionExpression, FunctionExpression) > BlockStatement > ReturnStatement > ObjectExpression[properties.length>${STATE_MAX_FIELDS}]`,
+    message: STATE_FIELD_CAP_MESSAGE,
+  },
+];
+// The selector arms plus two walks esquery cannot express: the per-file mint tally (the second mint is the finding) and
+// the exported-handle spine, which follows the callee chain of `create<T>()(...)` to any depth.
+const stateFilesRule = (() => {
+  const selectorRule = restrictionRule({ selectors: STATE_FILES_SELECTORS });
+  return {
+    meta: selectorRule.meta,
+    create(context) {
+      let mints = 0;
+      return {
+        ...selectorRule.create(context),
+        "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator"(node) {
+          for (let cursor = node.init; cursor?.type === "CallExpression"; cursor = cursor.callee) {
+            if (cursor.callee.type === "Identifier" && STATE_MINT_NAMES.includes(cursor.callee.name)) {
+              context.report({
+                node,
+                message:
+                  "The minted store handle is exported. Export intent-named actions and narrow read hooks, never a raw set/getState handle across the module boundary.",
+              });
+              return;
+            }
+          }
+        },
+        [`CallExpression[callee.name=${STATE_MINT}]`](node) {
+          mints += 1;
+          if (mints > 1) {
+            context.report({ node, message: "A second store-minting call in one state file; one store per file, so split them." });
+          }
+        },
+      };
+    },
+  };
+})();
+const CLIENT_SEAL_RESTRICTIONS = [
+  {
+    id: "bound-field-via-hook",
+    scope: [`${BOUND_FIELDS_ROOT}/**/*.{ts,tsx}`],
+    homes: [
+      {
+        path: `${BOUND_FIELDS_ROOT}/use-bound-field.ts`,
+        why: "useBoundField is the one home for the bound-field wiring; it reads the raw form context once, so the seal cannot be built without the read it seals",
+      },
+    ],
+    selectors: [
+      {
+        selector: sealedName("useFieldContext"),
+        message:
+          "A bound field reaches the raw useFieldContext form context directly. Use useBoundField<T>(shell) from ./use-bound-field; every bound field's context read, touch-gated error and Field prop bundle live in that one hook.",
+      },
+    ],
+  },
+  {
+    id: "chat-stream-writes-in-bus-only",
+    scope: AUTHORED_SRC,
+    notUnder: [TEST_FILES, "**/*.spec.{ts,tsx}", ...STRICT_SYNTAX_IGNORES],
+    homes: [
+      {
+        path: "packages/client/src/data/bus/chat-bus-writes.ts",
+        why: "the bus applier is the one writer the rule exists to make singular: it turns bus events into turn-slot writes",
+      },
+    ],
+    selectors: [
+      {
+        selector: sealedName("chatStream"),
+        message:
+          "The chatStream write api is taken outside the bus applier. Turn slots are driven by bus events through applyChatBusEvent only; components read with useTurnSlot and useTurnPhase.",
+      },
+    ],
+  },
+  {
+    id: "bus-on-data-no-store-write",
+    scope: ["packages/client/src/data/bus/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [
+      {
+        selector:
+          ":matches(Property, MethodDefinition)[key.name=/^(onData|onConnectionStateChange)$/] CallExpression[callee.type='MemberExpression'][callee.computed=false][callee.property.name='setState']",
+        message:
+          "A raw store write (.setState) inside a bus onData or onConnectionStateChange body forks canon into a second store. Route into the pure reducer (apply-chat-bus-event.ts), buffer through the chatStream api, or drive the invalidation seam.",
+      },
+    ],
+  },
+  {
+    id: "selection-store-via-factory",
+    scope: [`${STATE_ROOT}/*-selection-store.ts`],
+    homes: [
+      {
+        path: `${STATE_ROOT}/create-drill-selection-store.ts`,
+        why: "the drill factory composes the raw createGatedStore door on purpose; that composition is the seal every per-section selection store mints through",
+      },
+      {
+        path: `${STATE_ROOT}/create-kinded-selection-store.ts`,
+        why: "the kinded-selection factory is the same composition one shape over",
+      },
+      {
+        path: `${STATE_ROOT}/message-selection-store.ts`,
+        why: "message selection is a bulk multi-select (presence in a Set keyed by message id), a shape the drill factory does not model",
+      },
+    ],
+    selectors: [
+      {
+        selector: sealedName("createGatedStore"),
+        message:
+          "A *-selection-store.ts mints the raw createGatedStore door directly. Mint it with createDrillSelectionStore(name, { secondary? }); the per-section drill stores are one shape.",
+      },
+    ],
+  },
+  {
+    id: "registry-assembly-at-door-only",
+    scope: [CLIENT_SRC],
+    notUnder: ["packages/client/src/main.tsx", "packages/client/src/**/compose/**"],
+    homes: [],
+    selectors: [
+      {
+        selector: `ImportSpecifier[imported.name=${REGISTRY_FACTORIES}], ${REGISTRY_FACTORY_NAMES.map((name) => `MemberExpression${memberNamed(name)}`).join(", ")}, ObjectPattern > Property[computed=false][key.name=${REGISTRY_FACTORIES}]`,
+        message:
+          "createRegistry and createContributorRegistry are called only at the composition root (main.tsx) or in a compose/ module; any other call site is a private assembly outside the one registration door.",
+      },
+    ],
+  },
+  {
+    id: "registry-context-via-mint",
+    scope: [CLIENT_SRC],
+    homes: [],
+    selectors: [],
+  },
+  {
+    id: "state-files",
+    scope: [`${STATE_ROOT}/*.{ts,tsx}`],
+    notUnder: [`${STATE_ROOT}/index.ts`],
+    homes: [],
+    selectors: STATE_FILES_SELECTORS,
+  },
+];
+
 const BANNED_UTILITY = String.raw`(?:[^\s]*:)?!?max-w-prose!?`;
 const CLASS_TOKEN_RESTRICTIONS = [
   {
@@ -2426,6 +2696,7 @@ const RESTRICTIONS = [
   // Only tooling drives browser pages, so app code may close over module scope.
   { id: "evaluate-no-scope-capture", scope: rootSources("@tooling"), homes: [] },
   { id: "assumes-single-replica", scope: rootSources("@server", "@inference"), notUnder: ["packages/server/src/**/persistence/**"], homes: [] },
+  ...CLIENT_SEAL_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -5510,6 +5781,8 @@ const restrictionPlugin = {
     "structured-plan-one-home": structuredPlanRule,
     "wire-schema-vocab-one-home": wireSchemaVocabularyRule,
     "no-hardcoded-model-prose": modelProseRule,
+    "state-files": stateFilesRule,
+    "registry-context-via-mint": registryContextRule,
     [CLIENT_MAP_NATIVE_RULE.slice("orb/".length)]: parallelMapRule,
     "testid-typed-only": typedTestIdRule('Freeform data-testid string; use the typed registry via testId("key").'),
     "testid-typed-only-stories": typedTestIdRule(

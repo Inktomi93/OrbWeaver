@@ -1,7 +1,7 @@
 // Conformance entry for the ORDINARY CLIENT-AND-CT wave (#1584): legacy `GateDescriptor` modules
 // converted into final policies. They are grouped here by CONVERSION WAVE and nothing else — the
 // header says so plainly rather than inventing a shared theme, because §5b.4 of
-// docs/law/gate-runtime-standardization.md is explicit that a theme is not a family. Three real
+// docs/law/gate-runtime-standardization.md is explicit that a theme is not a family. Two real
 // families are represented:
 //
 //   editor-form-factory        — form-factory-for-multifield · no-form-reset-in-autosave ·
@@ -9,7 +9,6 @@
 //                                tooling/src/verify/lib/editor-form-factory.ts.
 //   context-definition-shape   — context-definition-shape · context-definition-shape-health (the two
 //                                COUNT arms, split out because their execution is entire-population).
-//   state-files                — a declared singleton; the module's header records why.
 //
 // WHAT THIS FILE CARRIES, AND WHY IT IS NOT A SECOND CONFORMANCE RUNNER. Every declared
 // `mustFlag`/`mustPass` row already executes on the static bar (`structure:policy-conformance`). What a
@@ -41,7 +40,6 @@ import { gate as contextDefinitionShapeHealth } from "../../../../tooling/src/ve
 import { gate as formFactoryForMultifield } from "../../../../tooling/src/verify/gates/form-factory-for-multifield.ts";
 import { gate as noFormResetInAutosave } from "../../../../tooling/src/verify/gates/no-form-reset-in-autosave.ts";
 import { gate as noFormResetInAutosaveHealth } from "../../../../tooling/src/verify/gates/no-form-reset-in-autosave-health.ts";
-import { gate as stateFiles } from "../../../../tooling/src/verify/gates/state-files.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -56,7 +54,6 @@ const WAVE: readonly GatePolicy[] = [
   formFactoryForMultifield,
   noFormResetInAutosave,
   noFormResetInAutosaveHealth,
-  stateFiles,
 ];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
@@ -119,18 +116,6 @@ test(
 // finding is gone, exactly one marker was CONSUMED, and no authority alarm fired. Two of the three
 // assertions are invisible to the module's own `mustPass` twin, which is why they live here.
 // ---------------------------------------------------------------------------------------------------
-test("a waiver at the exported handle's NAME binds the state-files finding", () => {
-  const waived = passOf(stateFiles, {
-    "packages/client/src/state/leak.ts":
-      "// @orb-waive state-files(useX): the proof's stand-in reason; ends when this fixture stops flagging.\n" +
-      'export const useX = createGatedStore("x", () => ({ n: 0 }));\n',
-  });
-
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
-  expect(waived.authority.authorityAlarms).toEqual([]);
-});
-
 test("a waiver at `reset` binds the no-form-reset-in-autosave finding", () => {
   const waived = passOf(noFormResetInAutosave, {
     "packages/client/src/features/persona/x.ts":
@@ -172,13 +157,17 @@ test("a waiver at the type argument binds the context projection publication fin
 // two-command control"). A marker naming a position the policy does not report must suppress NOTHING and
 // must ALARM — otherwise every arm above is green for the wrong reason.
 test("THE DISCRIMINATION CONTROL: a waiver naming a dead position suppresses nothing and alarms", () => {
-  const mismatched = passOf(stateFiles, {
-    "packages/client/src/state/leak.ts":
-      '// @orb-waive state-files(useY): names a declaration this carrier does not bind.\nexport const useX = createGatedStore("x", () => ({ n: 0 }));\n',
+  const mismatched = passOf(noFormResetInAutosave, {
+    "packages/client/src/features/persona/x.ts":
+      'import { createAutosaveEntityForm } from "#forms/editor";\n' +
+      "export function f(personaForm: { reset: (v?: unknown) => void }) {\n" +
+      "  // @orb-waive no-form-reset-in-autosave(resetX): names a position this carrier does not bind.\n" +
+      "  personaForm.reset();\n" +
+      "}\n",
   });
 
   expect(mismatched.authority.effectiveFindings).toHaveLength(1);
-  expect(mismatched.authority.authorityAlarms).toMatchObject([{ kind: "ordinary-waiver", policyId: "state-files" }]);
+  expect(mismatched.authority.authorityAlarms).toMatchObject([{ kind: "ordinary-waiver", policyId: "no-form-reset-in-autosave" }]);
 });
 
 // ---------------------------------------------------------------------------------------------------

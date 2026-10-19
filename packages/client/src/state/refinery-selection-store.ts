@@ -1,7 +1,7 @@
 // The refinery section's DRILL selection (R3 — the D62 sessions roster → the pipeline CONTENT). Primary
 // = the open session; NO secondary: the stage stepper is in-session UI state, so the phone back gesture
 // pops to the roster, never stage-by-stage (the NL design's shell audit). Minted through the ONE
-// door (G27 `selection-store-via-factory`); centrally homed so the shell's ONE-SHELL rule reads the
+// door (G27 `orb/selection-store-via-factory`); centrally homed so the shell's ONE-SHELL rule reads the
 // `selection` seam and a sibling could read the pointer without reaching into the feature.
 
 import type { RefinerySessionId } from "@orb/kit/ids";

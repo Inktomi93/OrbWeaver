@@ -1,5 +1,5 @@
 // createKindedSelectionStore — the MIXED-KIND arm of the drill-selection mint (review F-7): ONE selection
-// across N sibling collections in one pane, as a (kind, member) PAIR. Its own file because `state-files`
+// across N sibling collections in one pane, as a (kind, member) PAIR. Its own file because `orb/state-files`
 // allows exactly ONE store-minting call per module, and because the two shapes have nothing to share but
 // the door: a `P extends string` primary cannot express a kind axis without string-packing, which is the
 // stringly state the house style rejects.
@@ -8,7 +8,7 @@
 // implementation signature returning `DrillSelectionStore<P,S> | KindedDrillStore` is not assignable to the
 // narrow overload (TS2394), and the only ways to force it are a cast through the union or a lie about the
 // return type. The seam that matters is unchanged — one `createGatedStore` door, one action-label grammar,
-// the same LIST dual-write — and G27's `selection-store-via-factory` seal still holds, since a
+// the same LIST dual-write — and G27's `orb/selection-store-via-factory` seal still holds, since a
 // `state/*-selection-store.ts` calls THIS mint and never the raw door.
 
 import { createGatedStore } from "./create-gated-store.ts";

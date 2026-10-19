@@ -23,7 +23,6 @@ import { gate as placeholderCopyRegistry } from "../../../../../tooling/src/veri
 import { gate as queryBoundaryReservation } from "../../../../../tooling/src/verify/gates/query-boundary-reservation.ts";
 import { gate as queryBoundaryReservationHealth } from "../../../../../tooling/src/verify/gates/query-boundary-reservation-health.ts";
 import { gate as queryFreshnessCoverage } from "../../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
-import { gate as registryContextViaMint } from "../../../../../tooling/src/verify/gates/registry-context-via-mint.ts";
 import { gate as renderErrorViaBattery } from "../../../../../tooling/src/verify/gates/render-error-via-battery.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
 import { gate as sessionChannelBoundary } from "../../../../../tooling/src/verify/gates/session-channel-boundary.ts";
@@ -152,16 +151,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "zero reachable invalidation rows",
-  },
-  {
-    policy: registryContextViaMint,
-    overlays: [
-      add(
-        "packages/client/src/state/liveness-registry-context.ts",
-        'import { createContext } from "react";\nimport type { Registry } from "#lib";\nexport const C = createContext<Registry<string, number> | null>(null);\n',
-      ),
-    ],
-    messageIncludes: "createRegistryContext",
   },
   {
     policy: renderErrorViaBattery,

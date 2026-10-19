@@ -124,7 +124,7 @@ packages/client/
     forms/              # Node-safe models, draft/store helpers and save-status seams — #forms
       editor/           # browser editor composition — #forms/editor — §13.1/§13.4
         use-app-form.ts · create-saved-entity-form.ts · create-autosave-entity-form.tsx · bound-fields/
-    state/              # ALL gated Zustand stores, FLAT (gate `state-files`: one create/file, ≤10 fields, no exported set/getState)
+    state/              # ALL gated Zustand stores, FLAT (lint rule `orb/state-files`: one create/file, ≤10 fields, no exported set/getState)
     features/           # the slices — NO _shared/ drawer. The cross-feature channel is CHANNEL-SPECIFIC:
                         #   the decision table is client-architecture-state-and-gates.md §12 (the old blanket
                         #   "reads ONLY via trpc.*" is superseded — it is wrong for ephemeral state)

@@ -13,7 +13,6 @@ import { gate as noInlineTypes } from "../../../../tooling/src/verify/gates/no-i
 import { gate as noInlineWireInterface } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { gate as noRawEgress } from "../../../../tooling/src/verify/gates/no-raw-egress.ts";
 import { gate as persistenceBoundary } from "../../../../tooling/src/verify/gates/persistence-boundary.ts";
-import { gate as registryAssemblyAtDoorOnly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as zodErrorIssuesHome } from "../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
@@ -27,7 +26,6 @@ const FAMILY: readonly GatePolicy[] = [
   noInlineWireInterface,
   noRawEgress,
   persistenceBoundary,
-  registryAssemblyAtDoorOnly,
   zodErrorIssuesHome,
 ];
 
@@ -115,22 +113,6 @@ test(
   },
   PER_ROW_TIMEOUT_MS,
 );
-
-// ---------------------------------------------------------------------------------------------------
-// RECEIPT REFUSALS. Policies LOCATE a subject and refuse when it is gone — the final form of the
-// legacy blindness arms (`canonicalSeen === 0`) and rename tripwires, which conformance
-// cannot express because a refusal is a TOOL ERROR rather than a finding.
-// ---------------------------------------------------------------------------------------------------
-test("registry-assembly-at-door-only REFUSES when the registry home no longer exports both factories", () => {
-  const renamed = passOf(registryAssemblyAtDoorOnly, {
-    "packages/client/src/lib/registry.ts":
-      "export declare function createRegistry(name: string, ids: readonly string[], definitions: Record<string, unknown>): unknown;\n",
-    "packages/client/src/features/x/lib/x.ts": "export const x = null;\n",
-  });
-
-  expect(renamed.toolErrors).toMatchObject([{ policyId: "registry-assembly-at-door-only", phase: "receipt" }]);
-  expect(renamed.policies[0]?.receipts).toMatchObject([{ kind: "population", source: "registry factories", members: 1, unresolved: 1 }]);
-});
 
 // ---------------------------------------------------------------------------------------------------
 // ORDINARY MARKER IDENTITY. Each ordinary policy's report must supply the policy id AND a position token

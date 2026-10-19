@@ -53,7 +53,7 @@ updated: 2026-10-17
 | observing production readiness and dev tooling state | `lib/app-ready-signal.ts` for the lean production signal; `lib/agent-bridge.ts` for the DEV-only observer surface | importing the dev instrumentation graph from production or importing features to introspect them | §12 row 11 |
 | styling ANYTHING | follow §4's paint law: token value → `tv()` skin → primitive layout; a shell-frame mechanism is the bounded exception, so STOP and flag it for shell-tier ownership | raw values; a new `.css` file; `className` on a `<div>` | ESLint keystone + token gates + G14 |
 | a shared domain-aware composite (2+ features need it) | `components/` (tier 2) | copy-paste per feature; stuffing it into `@orb/ui` | R2 + `ui-cake` |
-| a new client store | one of the 3 doors (`createGatedStore`/`createPersistedStore`/`createEntityDraftStore`) in `state/` | bare zustand `create()`; fields on an existing store past the cap | `state-files` + persist gates (LIVE) |
+| a new client store | one of the 3 doors (`createGatedStore`/`createPersistedStore`/`createEntityDraftStore`) in `state/` | bare zustand `create()`; fields on an existing store past the cap | `orb/state-files` + persist gates (LIVE) |
 
 ## 3. The five-tier reuse ladder (the canonical client layering)
 

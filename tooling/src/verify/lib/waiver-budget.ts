@@ -6,9 +6,7 @@ import type { WaiverBudget } from "../contract/gate-authority.ts";
 const APPLICATION = Object.freeze({
   "assets-single-writer": 6,
   "audit-client-tests": 1,
-  "bound-field-via-hook": 1,
   "caught-failure-ownership": 680,
-  "chat-stream-writes-in-bus-only": 1,
   "chat-viewer-plane-canon-reads": 3,
   "contract-structural-copy": 87,
   "contract-verb-presence": 3,
@@ -44,7 +42,6 @@ const APPLICATION = Object.freeze({
   "render-error-via-battery": 4,
   "scrubber-home": 1,
   "seed-theme-ink-contrast": 9,
-  "selection-store-via-factory": 3,
   "single-stream-transport": 2,
   "sole-env-reader": 10,
   "sub-floor-disclosure": 2,

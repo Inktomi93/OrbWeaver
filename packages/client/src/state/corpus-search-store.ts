@@ -1,7 +1,7 @@
 // The corpus OMNIBOX store: what the Corpus LIST pane is searching — the query text and the active target
 // axis id. A sibling of `corpus-selection-store.ts` (which owns the drilled dossier), split out because a
 // search is not a selection and the drill store is minted by the sealed `createDrillSelectionStore` factory
-// (G27 `selection-store-via-factory`: a `*-selection-store.ts` may not call `createGatedStore` itself).
+// (G27 `orb/selection-store-via-factory`: a `*-selection-store.ts` may not call `createGatedStore` itself).
 //
 // WHY IT IS A STORE AND NOT `useState` (side-eye corpus re-pass 2026-08-19, U1). The omnibox held both
 // values in component state on `CorpusListSurface`, which the shell UNMOUNTS on a rail switch — so

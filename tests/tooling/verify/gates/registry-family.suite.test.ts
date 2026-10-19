@@ -5,7 +5,6 @@ import { gate as messageKindPolicyCoverage } from "../../../../tooling/src/verif
 import { gate as modalBodyNotPlaceholder } from "../../../../tooling/src/verify/gates/modal-body-not-placeholder.ts";
 import { gate as modalRegistryCompleteness } from "../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
 import { gate as placeholderCopyRegistry } from "../../../../tooling/src/verify/gates/placeholder-copy-registry.ts";
-import { gate as registryAssemblyAtDoorOnly } from "../../../../tooling/src/verify/gates/registry-assembly-at-door-only.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
 import { gate as warningCodeCoverage } from "../../../../tooling/src/verify/gates/warning-code-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -161,45 +160,6 @@ test("one kind's blind provider withholds only ITS consumers — the other kinds
   ]);
   expect(result.authority.withheldPolicyIds).toEqual(["modal-registry-completeness"]);
   expect(result.authority.effectiveFindings).toMatchObject([{ policyId: "placeholder-copy-registry", token: "bSection" }]);
-});
-
-// ---------------------------------------------------------------------------------------------------
-// THE SUCCESSOR PROOF for the former home-tile gate's RETIRED anti-god-map arm (guide §8 MERGE rule).
-// The legacy gate flagged a `createContributorRegistry("home-tiles", …)` outside the door by CALLEE
-// SPELLING, justifying the overlap in its header as catching "the shape G8's file allowlist would miss".
-// That sentence described the LEGACY `registry-assembly-at-door-only` and became false at its conversion:
-// the door is now population algebra, the callee is judged by resolved origin, and the subject is every
-// registry mint. Retiring an arm owes a proof that its successor still bites the retired fixture — the
-// EXACT bytes and the EXACT path the retired `mustFlag` row used — plus the door control beside it,
-// because the successor's door is a DIRECTORY fence (`packages/client/src/**/compose/**`) and the retired
-// fixture's file merely BEGINS with "compose".
-// ---------------------------------------------------------------------------------------------------
-
-const REGISTRY_FACTORY_HOME =
-  "export declare function createRegistry(name: string, ids: readonly string[], definitions: Record<string, unknown>): unknown;\nexport declare function createContributorRegistry(name: string, contributions: readonly unknown[]): unknown;\n";
-const HOME_TILES_ASSEMBLY =
-  'import { createContributorRegistry } from "../../../lib/registry.ts";\nexport const tiles = createContributorRegistry("home-tiles", []);\n';
-
-test("the retired home-tile anti-god-map fixture is still red, under its successor", () => {
-  const stray = passOf(registryAssemblyAtDoorOnly, {
-    "packages/client/src/lib/registry.ts": REGISTRY_FACTORY_HOME,
-    "packages/client/src/features/home/lib/compose-tiles.ts": HOME_TILES_ASSEMBLY,
-  });
-
-  expect(stray.toolErrors).toEqual([]);
-  expect(stray.authority.withheldPolicyIds).toEqual([]);
-  expect(stray.authority.effectiveFindings).toMatchObject([{ policyId: "registry-assembly-at-door-only", token: "createContributorRegistry" }]);
-
-  // THE DOOR CONTROL, proving the red above is the SITE and not the shape: the same assembly at the
-  // composition root passes, which is the half of the retired arm that was an allowance rather than a ban.
-  const door = passOf(registryAssemblyAtDoorOnly, {
-    "packages/client/src/lib/registry.ts": REGISTRY_FACTORY_HOME,
-    "packages/client/src/main.tsx":
-      'import { createContributorRegistry } from "./lib/registry.ts";\nexport const tiles = createContributorRegistry("home-tiles", []);\n',
-  });
-
-  expect(door.toolErrors).toEqual([]);
-  expect(door.authority.effectiveFindings).toEqual([]);
 });
 
 // RE-POINTED 2026-09-20 (#2497): the provider warning channel's home and emit scope left

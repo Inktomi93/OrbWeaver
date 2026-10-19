@@ -92,7 +92,7 @@ The UI enforcement families:
   better-tailwindcss compiled-class validation on ui.
 - **Structural (ts-morph, `tooling/src/verify/gates/`).** The UI structural family: `tests/ui/primitives/primitive-topology.test.ts`
   (the §13.7 primitive/CT contract), `tests/client/feature-layout.suite.test.ts` (the §2.1 slice shape),
-  `state-files` (the §5 Zustand discipline), the two selector-stability gates
+  `orb/state-files` (the §5 Zustand discipline), the two selector-stability gates
   (`zustand-selector-stability.ts` is the fast narrow-literal check; `zustand-selector-derived.ts` is the
   full-body/second-call-shape comprehensive check), `no-effect-on-shared-selection` (§5.1),
   `persistence-boundary` (§12.1), `no-interactive-role-in-features` (closes the layout-kit
@@ -100,7 +100,7 @@ The UI enforcement families:
   `orb/section-definition-home` and `orb/chrome-definition-home` rules — the rail derives modal affordances from the
   registry, so the bijection is structural — plus `modal-body-not-placeholder`, `placeholder-copy-registry`), and the
   client-foundation checks (the `queryKey` selector of `no-restricted-syntax`, `no-inline-invalidate-outside-seam`,
-  `bus-on-data-no-store-write`, `no-form-reset-in-autosave`), plus the native persisted-store factory
+  `orb/bus-on-data-no-store-write`, `no-form-reset-in-autosave`), plus the native persisted-store factory
   required-key types and `orb/no-raw-zustand-persist`.
 - **Tests.** The token-freshness invariant (§3 derived theme) + the CT containment tests on the D44
   trio (UI-Theming-and-Content.md §12.6).
@@ -170,7 +170,7 @@ three seams. The three standing rulings (also D43 (1)/(2)/(3)):
   `applyChatBusEvent(event,deps)` is a pure, extracted, exhaustive switch over a server-authoritative
   discriminated union, node-testable against a real QueryClient with no SSE; the hook is a thin
   transport adapter. Slot lifecycle is owned by the TERMINAL turn events; `openSlot` is idempotent with
-  a lazy id factory. *Gate `chat-stream-writes-in-bus-only`.*
+  a lazy id factory. *Gate `orb/chat-stream-writes-in-bus-only`.*
 - **Per-mutation error channels, never multiplexed.** TanStack v5 mutation errors are sticky until the
   next fire; `a.error ?? b.error` leaks action A's failure into B's surface. One error slot per
   mutation. *Gate `no-multiplexed-mutation-error`.*
@@ -183,7 +183,7 @@ three seams. The three standing rulings (also D43 (1)/(2)/(3)):
 - **The bus→cache sync seam is the only sanctioned SSE shape.** A subscription `onData` may (a) buffer
   transient progress in LOCAL state and (b) `invalidateQueries(readKey)` — it must NEVER become a second
   store. The invalidation key is produced by the same `*.queryKey(args)` the reader uses. *Gate
-  `bus-on-data-no-store-write`.*
+  `orb/bus-on-data-no-store-write`.*
 
 ### 11.2 The container model is a FREEZE, not an unwind
 

@@ -7,7 +7,7 @@
 // Its own store rather than a third field on `preset-selection-store.ts`: that store's secondary slot is the
 // rack SECTION id, a different axis on a different view (a template id landing in it would silently un-select
 // the Prompt readout's highlighted row on every view switch). Minted through the sanctioned
-// `createDrillSelectionStore` door, which G27 (`selection-store-via-factory`) requires of any
+// `createDrillSelectionStore` door, which G27 (`orb/selection-store-via-factory`) requires of any
 // `state/*-selection-store.ts` — primary-only, since a template has no sub-drill.
 //
 // The id is a plain string (a `TemplateDefId` from the contracts registry): state sits BELOW features in the
