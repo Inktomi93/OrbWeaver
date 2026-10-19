@@ -202,9 +202,7 @@ function spill(kind: "request" | "outcome", record: WireCapture | WireOutcome): 
     .then(async () => {
       await mkdir(SPILL_DIR, { recursive: true });
       let bytes = 0;
-      // @orb-waive caught-failure-ownership(catch): documented — first write of a fresh
-      // generation has no prior file to stat, treated as size 0 (nothing to rotate). Ends if the rotation
-      // logic stops treating a missing file as size 0.
+      // @orb-waive caught-failure-ownership(catch): a missing file is the normal first write of a generation and counts as size 0, so nothing rotates. Any other stat fault is met again by the `appendFile` below, whose rejection ends in the chain's catch (waived separately). Ends if rotation needs the stat fault itself.
       try {
         bytes = (await stat(SPILL_PATH)).size;
       } catch {

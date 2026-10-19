@@ -85,15 +85,9 @@ export function createPasswordHasher(pepperSecret: string | null | undefined): P
         return false;
       }
       const [, saltB64, hashB64] = parts as [string, string, string];
-      let salt: Buffer;
-      let expected: Buffer;
-      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — an undecodable stored hash returns `false` from verify(), which is the same answer as a wrong password, so a malformed row can never authenticate. Distinguishing the two for the caller would be a credential oracle. Ends if verify() gains a typed "stored credential is corrupt" arm for an operator surface.
-      try {
-        salt = Buffer.from(saltB64, "base64");
-        expected = Buffer.from(hashB64, "base64");
-      } catch {
-        return false;
-      }
+      // base64 decoding of a string never throws; garbage decodes to the wrong length and fails the check below.
+      const salt = Buffer.from(saltB64, "base64");
+      const expected = Buffer.from(hashB64, "base64");
       // Pin the derive length to our own KEY_LEN — a malformed/oversized stored hash can never steer
       // scrypt toward maxmem; a row whose hash isn't KEY_LEN bytes can't have come from hash().
       if (expected.length !== KEY_LEN) {

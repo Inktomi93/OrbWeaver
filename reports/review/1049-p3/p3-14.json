@@ -1,0 +1,170 @@
+[
+  {
+    "site": "packages/server/src/entry/index.ts:33 shutdown",
+    "claimedOwner": "owned: the handler logs through getLog and exits non-zero; getLog is imported after the env parse, where this policy cannot resolve it as the logger.",
+    "verifiedOwner": "packages/server/src/entry/index.ts:40 getLog().error({ err, signal }, \"entry: shutdown failed — exiting non-zero\"); then process.exit(EXIT_BOOT_FAILURE) at :41. getLog is bound at :20 by const { getLog } = await import(\"#foundation/observability\").",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/entry/index.ts:33:5 packages/server/src/entry/index.ts:35 shutdown ... THIS SITE: a promise rejection handler that discards the failure.\" (findings=2 alarms=0). Control: the same shutdown handler with a static import { getLog } from \"#foundation/observability\" in place of the dynamic destructure, probed in memory under the same path: \"findings=0 alarms=0\". Reader miss: importedName (tooling/src/verify/lib/caught-failure-core.ts:137) only matches getNamedImports() specifiers of a static import declaration, so a BindingElement from await import(...) is never credited as the governed logger.",
+    "disposition": "GATE FALSE POSITIVE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/entry/index.ts:46 lifecycle.boot",
+    "claimedOwner": "owned: the handler logs through getLog and exits non-zero; getLog is imported after the env parse, where this policy cannot resolve it as the logger.",
+    "verifiedOwner": "packages/server/src/entry/index.ts:48 getLog().error({ err }, \"entry: boot failed — exiting\"); then process.exit(EXIT_BOOT_FAILURE) at :49. Same dynamic-import binding as :20.",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/entry/index.ts:46:1 packages/server/src/entry/index.ts:47 lifecycle.boot ... THIS SITE: a promise rejection handler that discards the failure.\" Control with a static getLog import and the identical lifecycle.boot().catch handler: \"findings=0 alarms=0\". Proposed mustPass row: mode types, one file in the population holding const { getLog } = await import(\"#foundation/observability\"); then work().catch((err: unknown) => { getLog().error({ err }, \"boot failed\"); process.exit(1); }), expect count 0, why \"dynamic-import-logger\". Escalate to an Opus lane; no shard edit.",
+    "disposition": "GATE FALSE POSITIVE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/foundation/env/index.ts:118 catch",
+    "claimedOwner": "a missing .env is a normal deploy state — envFileKeys stays empty, correctly read by the #301 superRefine as \"not declared\".",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/foundation/env/index.ts:118:3 packages/server/src/foundation/env/index.ts:123 catch ... is a constant fallback — the behaviour changed and nobody was told.\" (findings=1 alarms=0). The try wraps readFileSync(resolve(process.cwd(), ENV_FILE)) at :122, which also throws EACCES and EISDIR, not only ENOENT. The sibling secret-file read at :759-:766 refuses an unreadable file with EnvRefusedError, so the two reads disagree.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/foundation/observability/debug/bug-report.ts:85 catch",
+    "claimedOwner": "git being absent, or the cwd not being a checkout, is a legitimate answer here — the report says `sha: null` instead of failing the capture.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/foundation/observability/debug/bug-report.ts:85:3 packages/server/src/foundation/observability/debug/bug-report.ts:90 catch ... is a constant fallback — the behaviour changed and nobody was told.\" (findings=1 alarms=0). gitOutput serves two calls in readBuildIdentity (:97 rev-parse HEAD, :98 status --short). The null-sha arm in noteMarkdown (:240) only sees the first. A failed status call gives lines = [] at :99, so dirty:false and statusHead:[] describe a tree git never answered about. Fixing it means either a dirty-unknown state in BugReportBuildIdentity (packages/kit/src/bug-report/index.ts:28, read by tooling/src/bug-reports/ops/list.ts) or dropping the known sha, which is a shape decision.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/foundation/observability/debug/log-ring-read.ts:51 catch",
+    "claimedOwner": "null is consumed by every caller as \"skip this ring line\".",
+    "verifiedOwner": "packages/server/src/foundation/observability/debug/routes.ts:195 if (record === null) {",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/foundation/observability/debug/log-ring-read.ts:51:3 packages/server/src/foundation/observability/debug/log-ring-read.ts:56 catch ... is a constant fallback — the behaviour changed and nobody was told.\" (findings=1 alarms=0). Four readers of the null, all by ast-grep/codegraph callers of parseLogRingLine: routes.ts collectLogs :195 and collectErrors :216, bug-report.ts errorLines :146, bug-report-diagnostics.ts serverErrors :74. The only writer to logRing is logger.ts:44 (ringStream), which pushes whole pino JSON lines. Post-edit tree probe: findings=1 alarms=0, still waived.",
+    "disposition": "KEEP",
+    "diff": "-  // @orb-waive caught-failure-ownership(catch): null is consumed by every caller as \"skip this\n-  // ring line\". Ends if a caller stops filtering out the null.\n+  // @orb-waive caught-failure-ownership(catch): owned by the null the readers consume: routes.ts::collectLogs and collectErrors, bug-report.ts::errorLines and bug-report-diagnostics.ts::serverErrors each filter it out. The only writer, logger.ts ringStream, pushes whole pino JSON lines. Ends if a reader stops filtering the null or a non-JSON writer joins the ring."
+  },
+  {
+    "site": "packages/server/src/foundation/observability/debug/routes.ts:152 catch",
+    "claimedOwner": "a malformed body is a 400 the caller sees, and the null flows straight into the schema's own failure path.",
+    "verifiedOwner": "packages/server/src/foundation/observability/debug/routes.ts:330 const parsed = bugReportInput.safeParse(await readJsonBody(c));",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/foundation/observability/debug/routes.ts:152:3 packages/server/src/foundation/observability/debug/routes.ts:156 catch ... is a constant fallback — the behaviour changed and nobody was told.\" The null feeds bugReportInput (z.object, :103), which refuses null; the handler then returns c.json({ error: \"invalid bug report\", ... }, BAD_REQUEST) at :332. readJsonBody has two callers by codegraph, both in routes.ts. Post-edit tree probe of routes.ts: \"routes.ts:152:3 ... catch\" still waived, alarms=0.",
+    "disposition": "KEEP",
+    "diff": "-  // @orb-waive caught-failure-ownership(catch): a malformed body is a 400 the caller sees, and\n-  // the null flows straight into the schema's own failure path. Ends if the null stops being validated.\n+  // @orb-waive caught-failure-ownership(catch): owned by the POST handler, which feeds this null to bugReportInput.safeParse and answers 400 invalid bug report to the caller (z.object refuses null). Ends if the null stops reaching that safeParse or its 400."
+  },
+  {
+    "site": "packages/server/src/foundation/observability/debug/routes.ts:249 catch",
+    "claimedOwner": "documented below — a checker error falls through to the token check, never opening the gate.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/foundation/observability/debug/routes.ts:249:7 packages/server/src/foundation/observability/debug/routes.ts:255 catch ... THIS SITE: a catch block (and its finally) that names no owner at all.\" The gate stays closed on a throw (tests/legacy/server/foundation/observability/debug/routes.test.ts:150 pins fall-through). The only production isAdmin is entry/auth/seam.ts debugGateAdmits (:425), documented total. But a throwing checker leaves no log line, and the refusal text then says the admin arm \"carries no owner session\", which is not true. Whether the fall-through should also log is a contract question on AdminAuthChecker (contract/debug.ts:18).",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/foundation/observability/debug/wire-capture.ts:190 catch",
+    "claimedOwner": "documented — an unserializable body is not worth failing (or retrying) a turn over, best-effort observability spill.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/foundation/observability/debug/wire-capture.ts:190:3 packages/server/src/foundation/observability/debug/wire-capture.ts:195 catch ... is a constant fallback — the behaviour changed and nobody was told.\" (findings=3 alarms=0 for the file). WireCapture.body is z.record(z.string(), z.unknown()) (packages/contracts/src/debug/index.ts:23), so JSON.stringify at :194 can throw; this is not a redundant catch. The in-memory ring already holds the record (ring.push at :103, :155), so only the disk copy is lost, silently. A log line from here would need a governed door: #foundation/observability is a cycle from this file and ../logger.ts is not in the reader's LOGGER_MODULES.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/foundation/observability/debug/wire-capture.ts:198 spillChain",
+    "claimedOwner": "documented above the spillChain declaration — failures are swallowed into the chain, never rethrown; an unwritable spill directory must not fail a chat turn.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/foundation/observability/debug/wire-capture.ts:198:3 packages/server/src/foundation/observability/debug/wire-capture.ts:201 spillChain ... .md) THIS SITE: a promise rejection handler that discards the failure.\" The handler is .catch(() => undefined) at :218. An operator who set WIRE_CAPTURE=on for evidence gets no log line and no file when the data dir is unwritable (mkdir, rename or appendFile reject). tests/server/foundation/observability/debug/wire-capture-spill.int.test.ts pins only the happy path. Contract question: is a silent disk-evidence loss acceptable, or should the first failure log once?",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/server/src/foundation/observability/debug/wire-capture.ts:205 catch",
+    "claimedOwner": "documented — first write of a fresh generation has no prior file to stat, treated as size 0 (nothing to rotate).",
+    "verifiedOwner": "packages/server/src/foundation/observability/debug/wire-capture.ts:216 await appendFile(SPILL_PATH, line, \"utf8\");",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/foundation/observability/debug/wire-capture.ts:205:7 packages/server/src/foundation/observability/debug/wire-capture.ts:210 catch ... THIS SITE: a catch block (and its finally) that names no owner at all.\" The stat at :209 fails with ENOENT on a fresh generation, which is the normal case and correctly means size 0. Any other stat fault on SPILL_PATH is met again by the appendFile at :216 in the same chained callback. That rejection ends at the chain's catch (:218), judged in its own record as UNSURE. Post-edit tree probe: the :205 marker still binds, alarms=0.",
+    "disposition": "KEEP",
+    "diff": "-      // @orb-waive caught-failure-ownership(catch): documented — first write of a fresh\n-      // generation has no prior file to stat, treated as size 0 (nothing to rotate). Ends if the rotation\n-      // logic stops treating a missing file as size 0.\n+      // @orb-waive caught-failure-ownership(catch): a missing file is the normal first write of a generation and counts as size 0, so nothing rotates. Any other stat fault is met again by the appendFile below, whose rejection ends in the chain's catch (waived separately). Ends if rotation needs the stat fault itself."
+  },
+  {
+    "site": "packages/server/src/foundation/version/index.ts:62 catch",
+    "claimedOwner": "a path this process may not stat answers exactly like an absent one, the `unknown` arm the surfaces render.",
+    "verifiedOwner": "packages/server/src/foundation/version/index.ts:230 commit: commit ?? UNKNOWN_COMMIT",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/foundation/version/index.ts:62:3 packages/server/src/foundation/version/index.ts:66 catch ... is a constant fallback — the behaviour changed and nobody was told.\" statOrNull has two callers (readText :74, gitLocationOf :101). The null becomes UNKNOWN_COMMIT in readCheckout :230; entry/lifecycle.ts:244 logs the identity on the first boot line; packages/kit/src/version-identity/index.ts:266 compareToMainHead answers \"this build carries no commit\". Post-edit tree probe: findings=4 alarms=0, all four version markers still waived.",
+    "disposition": "KEEP",
+    "diff": "-  // @orb-waive caught-failure-ownership(catch): a path this process may not stat answers exactly like an absent one,\n-  // the `unknown` arm the surfaces render. Ends if a caller needs to tell a denied path from a missing one.\n+  // @orb-waive caught-failure-ownership(catch): owned by the `unknown` identity: a denied path reads as absent, readCheckout turns the missing commit or version into UNKNOWN_COMMIT or UNKNOWN_VERSION, entry/lifecycle.ts prints it on the first boot line, and compareToMainHead reports \"this build carries no commit\". Ends if a caller must tell a denied path from a missing one."
+  },
+  {
+    "site": "packages/server/src/foundation/version/index.ts:78 catch",
+    "claimedOwner": "\"this file did not answer\" IS the result here — it becomes the `unknown` arm the surfaces render, and a boot must never die because it could not read its own version.",
+    "verifiedOwner": "packages/server/src/entry/lifecycle.ts:244 log.info({ ...build }, `boot: orbweaver",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/foundation/version/index.ts:78:3 packages/server/src/foundation/version/index.ts:83 catch ... is a constant fallback — the behaviour changed and nobody was told.\" The readFileSync at :82 runs only after statOrNull and isFile pass (:74-:77), so the catch is the unlink race. readText feeds readPackageVersion, readVersionStamp, gitLocationOf and readFirst; the identity fields fall to UNKNOWN_COMMIT or UNKNOWN_VERSION (:230), and lifecycle.ts:243-244 prints versionIdentity() as the first boot line.",
+    "disposition": "KEEP",
+    "diff": "-  // @orb-waive caught-failure-ownership(catch): \"this file did not answer\" IS the result here — it becomes\n-  // the `unknown` arm the surfaces render, and a boot must never die because it could not read its own\n-  // version. Ends if a caller starts treating null as an error rather than as \"the file could not be read\".\n+  // @orb-waive caught-failure-ownership(catch): owned by the `unknown` identity: a file lost to a race between the stat and the read gives null, which readCheckout renders as UNKNOWN_COMMIT or UNKNOWN_VERSION on the first boot line (entry/lifecycle.ts). Ends if a caller must treat an unreadable file as an error."
+  },
+  {
+    "site": "packages/server/src/foundation/version/index.ts:171 catch",
+    "claimedOwner": "a manifest that is not JSON degrades to the `unknown` version the surfaces render, exactly like an absent one.",
+    "verifiedOwner": "packages/server/src/foundation/version/index.ts:230 version: version ?? UNKNOWN_VERSION",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/foundation/version/index.ts:171:3 packages/server/src/foundation/version/index.ts:178 catch ... is a constant fallback — the behaviour changed and nobody was told.\" readPackageVersion is called once, from readCheckout :228; its null becomes UNKNOWN_VERSION at :230, which versionIdentity() carries into the boot log line (lifecycle.ts:243), the OTel service version (observability/tracing.ts:201) and /api/_debug/info (routes.ts:296).",
+    "disposition": "KEEP",
+    "diff": "-  // @orb-waive caught-failure-ownership(catch): a manifest that is not JSON degrades to the `unknown`\n-  // version the surfaces render, exactly like an absent one — this reader reports what it found and never\n-  // decides a boot. Ends if the caller starts distinguishing \"corrupt manifest\" from \"absent manifest\".\n+  // @orb-waive caught-failure-ownership(catch): owned by the `unknown` version: a manifest that is not JSON returns null, and readCheckout (version ?? UNKNOWN_VERSION) puts \"unknown\" on the first boot line (entry/lifecycle.ts). Ends if a corrupt manifest must be told apart from an absent one."
+  },
+  {
+    "site": "packages/server/src/foundation/version/index.ts:190 catch",
+    "claimedOwner": "a stamp that is not JSON is INDISTINGUISHABLE from an absent stamp for this reader's purpose — both mean \"no stamped answer\", and the `.git` fallback below handles both identically.",
+    "verifiedOwner": "packages/server/src/foundation/version/index.ts:215 const checkout = readCheckout(root);",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/foundation/version/index.ts:190:3 packages/server/src/foundation/version/index.ts:196 catch ... is a constant fallback — the behaviour changed and nobody was told.\" readVersionStamp has one caller, readVersionIdentity :204; a null stamp skips the container branch (:205-:214) and reaches :215, so the identity reports source \"checkout\" with the checkout's commit or UNKNOWN_COMMIT instead of source \"container\". That difference is on the boot line (lifecycle.ts:244). The corrupt-stamp-plus-.git case answers from .git, an accepted degradation.",
+    "disposition": "KEEP",
+    "diff": "-  // @orb-waive caught-failure-ownership(catch): a stamp that is not JSON is INDISTINGUISHABLE from an\n-  // absent stamp for this reader's purpose — both mean \"no stamped answer\", and the `.git` fallback below\n-  // handles both identically. Ends if a corrupt stamp ever needs to be reported differently from a missing one.\n+  // @orb-waive caught-failure-ownership(catch): owned by the fallthrough in readVersionIdentity: a stamp that is not JSON returns null, the identity is read from the checkout and reports source \"checkout\" (or UNKNOWN_COMMIT with no .git), which the first boot line prints. Ends if a corrupt stamp must be reported apart from a missing one."
+  },
+  {
+    "site": "packages/server/src/infra/auth/config.ts:37 catch",
+    "claimedOwner": "a malformed OIDC_ISSUER yields an EMPTY allowlist, which this function's own contract makes FAIL-CLOSED at the resolver.",
+    "verifiedOwner": "packages/server/src/foundation/env/index.ts:519 OIDC_ISSUER: z.url().optional(),",
+    "toolOutput": "base-HEAD probe: \"packages/server/src/infra/auth/config.ts:37:5 packages/server/src/infra/auth/config.ts:40 catch ... is a constant fallback\". After removal, tree probe of config.ts: \"findings=0 alarms=0\". zod 4.6.5 $ZodURL.check (zod/v4/core/schemas.js:263) accepts only inputs URL.canParse accepts (canParseURL, validateURL) and returns the tab/newline-stripped string; z.url() sets no hostname/protocol/normalize, so the canParse path is the one used. Probe script output: \"z.url accepted=10 of 15; accepted-but-unparseable=0; new URL threw=0\". normalizeHost (infra/auth/host.ts:8) is string methods only. env.OIDC_ISSUER is the frozen post-parse value, and a refused parse is boot-fatal (EnvRefusedError). pnpm test:scoped --legacy config.test.ts password.test.ts key.test.ts (ORB_ENV_NO_FILE=1): Test Files 3 passed (3), Tests 37 passed (37).",
+    "disposition": "REDUNDANT CATCH",
+    "diff": "@@ jwksAllowlistFromEnv\n   if (env.OIDC_ISSUER !== undefined) {\n-    // @orb-waive caught-failure-ownership(catch): a malformed OIDC_ISSUER yields an EMPTY allowlist, ...\n-    try {\n-      return [normalizeHost(new URL(env.OIDC_ISSUER).host)];\n-    } catch {\n-      return [];\n-    }\n+    // The env parse (`z.url()`) already refused an issuer `new URL` cannot read, so this construction cannot throw.\n+    return [normalizeHost(new URL(env.OIDC_ISSUER).host)];\n   }"
+  },
+  {
+    "site": "packages/server/src/infra/auth/modes/cookie-session.ts:73 catch",
+    "claimedOwner": "a cookie value that fails to percent-decode is not a credential, and `null` here means exactly \"no such cookie\" — the caller's unauthenticated path.",
+    "verifiedOwner": "packages/server/src/entry/auth/seam.ts:142 if (token === null) {",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/infra/auth/modes/cookie-session.ts:73:7 packages/server/src/infra/auth/modes/cookie-session.ts:76 catch ... is a constant fallback — the behaviour changed and nobody was told.\" readSessionCookie (seam.ts:128) wraps the value in castId only when non-null; resolveCookiePrincipal (:140) returns null on a null token (:142-:143), and the request falls to the owner-fallback or unauthenticated arm. The other callers (auth-routes.ts:298, :1315) read null as \"no binding cookie\" and \"no pending secret\". Post-edit tree probe: findings=1 alarms=0, still waived.",
+    "disposition": "KEEP",
+    "diff": "-      // @orb-waive caught-failure-ownership(catch): a cookie value that fails to percent-decode is not a credential, and `null` here means exactly \"no such cookie\" — the caller's unauthenticated path. A client-supplied malformed header is not an operator event. Ends if a malformed cookie should be distinguished from an absent one.\n+      // @orb-waive caught-failure-ownership(catch): owned by the callers' null arm: entry/auth/seam.ts::resolveCookiePrincipal returns null on a null token and the request falls through to the owner-fallback or unauthenticated arm. A malformed client header is not an operator event. Ends if a malformed cookie must be told apart from an absent one."
+  },
+  {
+    "site": "packages/server/src/infra/auth/password.ts:90 catch",
+    "claimedOwner": "FAIL-CLOSED — an undecodable stored hash returns `false` from verify(), which is the same answer as a wrong password, so a malformed row can never authenticate.",
+    "verifiedOwner": "packages/server/src/infra/auth/password.ts:99 if (expected.length !== KEY_LEN) {",
+    "toolOutput": "base-HEAD probe: \"packages/server/src/infra/auth/password.ts:90:7 packages/server/src/infra/auth/password.ts:94 catch ... is a constant fallback\". After removal, tree probe of password.ts: \"findings=0 alarms=0\". The try held only Buffer.from(<string>, \"base64\") twice; saltB64 and hashB64 are strings (split of a string, :83-:87). Fuzz (20010 strings incl. lone surrogates, 1 MB, NUL, latin1/utf16 random): \"base64 inputs=20010 threw=0\". A garbage hash decodes to the wrong length and returns false at :99 before scrypt, exactly as before. ast-grep Buffer.from($S, \"base64\") over packages/server/src/infra (116 .ts, 0 .tsx files) matches password.ts:91-92 (the guarded pair), crypto/key.ts:41 and crypto/secrets.ts:43-47 (outside this shard).pnpm test:scoped --legacy config.test.ts password.test.ts key.test.ts (ORB_ENV_NO_FILE=1): Test Files 3 passed (3), Tests 37 passed (37).",
+    "disposition": "REDUNDANT CATCH",
+    "diff": "@@ verify\n-      let salt: Buffer;\n-      let expected: Buffer;\n-      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — an undecodable stored hash returns `false` ...\n-      try {\n-        salt = Buffer.from(saltB64, \"base64\");\n-        expected = Buffer.from(hashB64, \"base64\");\n-      } catch {\n-        return false;\n-      }\n+      // base64 decoding of a string never throws; garbage decodes to the wrong length and fails the check below.\n+      const salt = Buffer.from(saltB64, \"base64\");\n+      const expected = Buffer.from(hashB64, \"base64\");"
+  },
+  {
+    "site": "packages/server/src/infra/crypto/key.ts:135 err",
+    "claimedOwner": "FAIL-CLOSED at boot by design — any filesystem fault returns null so no caller ever re-keys over the only recovery copy. The fault is reported on stderr; the credentials box then runs DISABLED and a cookie mode refuses to boot (`entry/lifecycle.ts`).",
+    "verifiedOwner": "packages/server/src/entry/lifecycle.ts:323 if (sessionSecret === null && isCookieAuthMode(env.AUTH_MODE)) {",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/infra/crypto/key.ts:135:3 packages/server/src/infra/crypto/key.ts:146 err ... is a constant fallback — the behaviour changed and nobody was told.\" The catch calls reportKeyfile (:147), which writes process.stderr at :65 unless NODE_ENV is test. loadOrCreateKeyfile has callers in entry/boot/boot-secrets.ts :63 and :75; settleBootSecrets returns the null and lifecycle.ts:322-:324 throws missingSessionSecretMessage for a cookie mode. Post-edit tree probe of key.ts: findings=3 alarms=0, all waived.",
+    "disposition": "KEEP",
+    "diff": "-  // @orb-waive caught-failure-ownership(err): FAIL-CLOSED at boot by design — any filesystem fault (permission, read-only, corrupt keyfile) returns null ... Ends if every caller moves to refusing startup on a crypto fault.\n+  // @orb-waive caught-failure-ownership(err): owned by `reportKeyfile` (the fault goes to process.stderr, silent only under NODE_ENV=test) and by the null return: `settleBootSecrets` hands it to `entry/lifecycle.ts`, which refuses a cookie mode whose session secret is null, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null."
+  },
+  {
+    "site": "packages/server/src/infra/crypto/key.ts:155 err",
+    "claimedOwner": "FAIL-CLOSED at boot by design — an unreadable keyfile returns null so no caller ever re-keys over the only recovery copy; the fault is reported on stderr and the caller degrades or refuses (`entry/lifecycle.ts`).",
+    "verifiedOwner": "packages/server/src/entry/lifecycle.ts:266 if (sessionSecretSource.kind === \"resolved\" && sessionSecretSource.value === null && isCookieAuthMode(env.AUTH_MODE)) {",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/infra/crypto/key.ts:155:3 packages/server/src/infra/crypto/key.ts:158 err ... is a constant fallback — the behaviour changed and nobody was told.\" readExistingKeyfile has two callers: resolveKeyfile :216 and readSessionSecretKeyfile :172. The catch calls reportKeyfile (:159, stderr at :65). resolveSessionSecret returns the null as value (:252); lifecycle.ts:264-:267 throws for a cookie mode. readSessionSecretKeyfile's caller, migrate-data-layout.ts:381, treats null as \"no legacy secret\" and skips the warning.",
+    "disposition": "KEEP",
+    "diff": "-  // @orb-waive caught-failure-ownership(err): FAIL-CLOSED at boot by design — an unreadable keyfile returns null ... Ends if every caller moves to refusing startup on a crypto fault.\n+  // @orb-waive caught-failure-ownership(err): owned by `reportKeyfile` (the fault goes to process.stderr, silent only under NODE_ENV=test) and by the null return: `resolveKeyfile` hands it to `resolveSessionSecret`, where `entry/lifecycle.ts` refuses a cookie mode with a null secret, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null."
+  },
+  {
+    "site": "packages/server/src/infra/crypto/key.ts:39 catch",
+    "claimedOwner": "a non-decodable key is INDISTINGUISHABLE from a wrong-length one here, and both must reach the same null — the 32-byte check below is the validator.",
+    "verifiedOwner": "packages/server/src/infra/crypto/key.ts:42 if (b64.length === CREDENTIALS_KEY_BYTES) {",
+    "toolOutput": "base-HEAD probe: \"packages/server/src/infra/crypto/key.ts:39:3 packages/server/src/infra/crypto/key.ts:45 catch ... THIS SITE: a catch block (and its finally) that names no owner at all.\" After removal, tree probe of key.ts: three findings (:75, :127, :147), all waived, none at the removed site, alarms=0. The try held only Buffer.from(trimmed, \"base64\") (trimmed is a string, :30) and a length compare. Fuzz: \"base64 inputs=20010 threw=0\". pnpm test:scoped --legacy config.test.ts password.test.ts key.test.ts (ORB_ENV_NO_FILE=1): Test Files 3 passed (3), Tests 37 passed (37) (key.test.ts: 24 tests incl. base64 round-trip).",
+    "disposition": "REDUNDANT CATCH",
+    "diff": "@@ decode32Bytes\n-  // base64: Buffer.from is lenient (truncates short inputs), so the byte-length check is the real gate.\n-  // @orb-waive caught-failure-ownership(catch): a non-decodable key is INDISTINGUISHABLE ...\n-  try {\n-    const b64 = Buffer.from(trimmed, \"base64\");\n-    if (b64.length === CREDENTIALS_KEY_BYTES) {\n-      return b64;\n-    }\n-  } catch {\n-    // fall through to null\n-  }\n-  return null;\n+  // base64: Buffer.from is lenient (truncates short inputs) and never throws, so the byte-length check is the real gate.\n+  const b64 = Buffer.from(trimmed, \"base64\");\n+  return b64.length === CREDENTIALS_KEY_BYTES ? b64 : null;"
+  },
+  {
+    "site": "packages/server/src/infra/crypto/key.ts:83 err",
+    "claimedOwner": "the key is already linked into place with its bytes fsynced, so a directory that cannot be fsynced costs only crash durability of the new entry. Reported on stderr.",
+    "verifiedOwner": "packages/server/src/infra/crypto/key.ts:65 process.stderr.write",
+    "toolOutput": "in-memory probe at base HEAD: \"packages/server/src/infra/crypto/key.ts:83:1 packages/server/src/infra/crypto/key.ts:92 err ... THIS SITE: a catch block (and its finally) that names no owner at all.\" The catch body calls reportKeyfile (:93) with errorText(err); reportKeyfile writes process.stderr at :65 unless env.NODE_ENV is test. The call is opaque to the reader (declared limit: owner behind a helper). fsyncDirectory has one caller, publishKeyfile :124, after linkSync (:114) and fsyncSync (:109) of the key itself. Post-edit tree probe: marker at the new :75 still binds, alarms=0.",
+    "disposition": "KEEP",
+    "diff": "-// @orb-waive caught-failure-ownership(err): the key is already linked into place with its bytes fsynced, ... Reported on stderr. Ends if the entry fsync becomes required for correctness.\n+// @orb-waive caught-failure-ownership(err): owned by `reportKeyfile`, which the catch calls with the fault text and which writes it to process.stderr (silent only under NODE_ENV=test). The key is already linked with its bytes fsynced, so the fault costs only crash durability of the directory entry. Ends if the directory fsync becomes required for the key to be valid."
+  }
+]
