@@ -7,7 +7,6 @@ import { Node } from "ts-morph";
 import { beforeEach, vi } from "vitest";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as verbs } from "../../../../tooling/src/verify/gates/contract-verb-presence.ts";
 import { gate as knobs } from "../../../../tooling/src/verify/gates/knob-wire-coverage.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
@@ -25,21 +24,14 @@ beforeEach(async () => {
   };
 });
 
-const POLICIES = [verbs, knobs];
-const SERVICE = "packages/server/src/domain/hub/contract/service.ts";
+const POLICIES = [knobs];
 const SETTINGS = "packages/contracts/src/settings/index.ts";
 const CLIENT = "packages/client/src/native-inherited.ts";
 const SOURCES = {
-  "packages/server/src/domain/hub/contract/node.ts": "export interface ServiceBase {nodeVerb():void}",
-  "packages/server/src/domain/hub/contract/browser.ts": "export interface ServiceBase {browserVerb():void}",
-  [SERVICE]: 'import type {ServiceBase} from "#native-service-base"; export interface HubService extends ServiceBase {local():void}',
   [SETTINGS]: 'import type {ConfigBase} from "#native-base"; export interface EffectiveAppConfig extends ConfigBase {localConfig:number}',
   "packages/server/src/domain/hub/read.ts":
     'import type {EffectiveAppConfig} from "../../../../contracts/src/settings/index.ts"; declare const config:EffectiveAppConfig;export const used=config.localConfig;',
-  "tests/server/domain/hub/inherited.test.ts":
-    'declare function createHubService():import("../../../../packages/server/src/domain/hub/contract/service.ts").HubService;createHubService().local();',
-  [CLIENT]:
-    'export type{HubService}from"../../server/src/domain/hub/contract/service.ts";export type{EffectiveAppConfig}from"../../contracts/src/settings/index.ts";',
+  [CLIENT]: 'export type{EffectiveAppConfig}from"../../contracts/src/settings/index.ts";',
   "packages/contracts/src/native/node.ts": "export interface ConfigBase {nodeConfig:number}",
   "packages/contracts/src/native/browser.ts": "export interface ConfigBase {browserConfig:number}",
 };
@@ -67,10 +59,6 @@ function fixture(root: string, repoRoot: string): void {
       type: "module",
       imports: {
         "#native-base": { browser: "./packages/contracts/src/native/browser.ts", default: "./packages/contracts/src/native/node.ts" },
-        "#native-service-base": {
-          browser: "./packages/server/src/domain/hub/contract/browser.ts",
-          default: "./packages/server/src/domain/hub/contract/node.ts",
-        },
       },
     }),
   );
@@ -125,7 +113,7 @@ function poisonSyntax(project: Project): Disposable {
 }
 
 test(
-  "inherited service, config and policy members retain actual Node and browser denominators",
+  "inherited config and policy members retain actual Node and browser denominators",
   ({ scratch, repoRoot }) => {
     fixture(scratch, repoRoot);
     const workspace = createSemanticWorkspace({ root: scratch });
@@ -133,7 +121,7 @@ test(
       ["tsconfig.json", "node"],
       ["tsconfig.tests-dom.json", "browser"],
     ] as const) {
-      const source = workspace.program(config)?.sourceFile(SERVICE);
+      const source = workspace.program(config)?.sourceFile(SETTINGS);
       if (source === undefined) {
         throw new Error("native inherited fixture owner missing");
       }
@@ -150,22 +138,13 @@ test(
       expect(result.toolErrors).toEqual([]);
       expect(result.factErrors).toEqual([]);
       expect(result.authority.withheldPolicyIds).toEqual([]);
-      const expected = [
-        [verbs.id, `${prefix}Verb`],
-        [knobs.id, `${prefix}Config`],
-      ];
+      const expected = [[knobs.id, `${prefix}Config`]];
       if (config === "tsconfig.tests-dom.json") {
-        expected.push([verbs.id, "local"], [knobs.id, "localConfig"]);
+        expected.push([knobs.id, "localConfig"]);
       }
       expect(
         result.authority.effectiveFindings.map(({ policyId, token }) => [policyId, token]).toSorted((left, right) => left.join().localeCompare(right.join())),
       ).toEqual(expected.toSorted((left, right) => left.join().localeCompare(right.join())));
-      expect(result.policies.find(({ id }) => id === verbs.id)?.receipts).toContainEqual({
-        kind: "population",
-        source: "service-verbs[interfaces=1;local=1;inherited=1]",
-        members: 2,
-        unresolved: 0,
-      });
     }
   },
   scaledBudget(60_000),

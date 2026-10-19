@@ -1,6 +1,8 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 import { ruleMessages } from "./native-rule-probe.ts";
 
+const DARK_VARIANT_NATIVE_BASE_MS = 60_000;
 const DARK = "orb/no-tailwind-dark-variant";
 const UI = "packages/ui/src/primitives/probe.tsx";
 const CLIENT = "packages/client/src/features/probe.tsx";
@@ -92,7 +94,7 @@ for (const [name, source, path, count] of [
   ["server package is outside the population", '<div className="dark:bg-card" />;', "packages/server/src/probe.tsx", 0],
   ["tests are outside the population", '<div className="dark:bg-card" />;', "tests/ui/probe.ct.tsx", 0],
 ] as const) {
-  test(`native dark variant ${name}`, { timeout: 60_000 }, async ({ repoRoot }) => {
+  test(`native dark variant ${name}`, { timeout: scaledBudget(DARK_VARIANT_NATIVE_BASE_MS) }, async ({ repoRoot }) => {
     expect(await ruleMessages(repoRoot, DARK, source, path)).toHaveLength(count);
   });
 }

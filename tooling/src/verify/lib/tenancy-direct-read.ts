@@ -53,7 +53,9 @@ interface PredicateObservation {
   readonly edges: ReadonlySet<string>;
 }
 
-type OwnerValue = "plain" | "column" | "opaque";
+/** Owner-term value classes, least to most uncertain; {@link worstValue} keeps the latest any operand reaches. */
+const OWNER_VALUES = ["plain", "column", "opaque"] as const;
+type OwnerValue = (typeof OWNER_VALUES)[number];
 
 function unknown(reason: string): DirectOwnerRead {
   return { kind: "unknown", reason };
@@ -218,10 +220,7 @@ function ownerValue(operand: Node, scope: DirectOwnerReadScope): OwnerValue {
 }
 
 function worstValue(values: readonly OwnerValue[]): OwnerValue {
-  if (values.includes("opaque")) {
-    return "opaque";
-  }
-  return values.includes("column") ? "column" : "plain";
+  return values.reduce<OwnerValue>((worst, value) => (OWNER_VALUES.indexOf(value) > OWNER_VALUES.indexOf(worst) ? value : worst), "plain");
 }
 
 // Imported members that are not resolved schema columns are foreign values; local data members are plain.

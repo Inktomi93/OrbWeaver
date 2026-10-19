@@ -1,8 +1,6 @@
 // Fixture export types and native assertions retain separate source subjects and exception authority.
 
-import { mkdirSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, plantFile, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ESLint, Linter } from "eslint";
 import { Project } from "ts-morph";
 import ts from "typescript";
@@ -45,9 +43,7 @@ function run(policies: readonly GatePolicy[], files: Readonly<Record<string, str
 }
 
 async function nativeFindings(root: string, repoRoot: string, source: string): Promise<readonly string[]> {
-  const path = join(root, FIXTURE);
-  mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, source);
+  const path = plantFile(root, FIXTURE, source);
   const program = ts.createProgram([path], { strict: true, noLib: true, types: [] });
   const config = await new ESLint({ cwd: repoRoot }).calculateConfigForFile(FIXTURE);
   const rules = ["orb/no-test-fabrication", "@typescript-eslint/consistent-type-assertions", "@typescript-eslint/no-unsafe-type-assertion"];

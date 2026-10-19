@@ -2,6 +2,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ModuleKind, ModuleResolutionKind, Project, SyntaxKind } from "ts-morph";
 import { buildLiveness, collectApiSurface, collectOrphanCandidates, deadEvidenceFor } from "../../../../tooling/src/ast/index.ts";
 import { INVENTORY_VERBS } from "../../../../tooling/src/ast/ops/verbs.ts";
+import { collectModuleImporters } from "../../../../tooling/src/floor/code-facts/module-importers.ts";
 import { dynamicModuleTarget, importerModulePath, relativeModuleTarget as resolveModule } from "../../../../tooling/src/floor/code-facts/module-target.ts";
 import { declarationsNamed } from "../../../../tooling/src/floor/code-facts/reference-declarations.ts";
 import {
@@ -80,17 +81,24 @@ test("indexed type extraction accepts only a literal string index, not value mem
   expect(literalTypeIndex(access)).toBeUndefined();
 });
 
-test("native importer lookup and relative-only module policy preserve different admitted suffixes and unresolved outcomes", () => {
+test("relative module probes match native resolution: an extensionless specifier never reaches an .mts file", () => {
   const project = new Project({
     useInMemoryFileSystem: true,
-    compilerOptions: { module: ModuleKind.NodeNext, moduleResolution: ModuleResolutionKind.NodeNext },
+    compilerOptions: { module: ModuleKind.NodeNext, moduleResolution: ModuleResolutionKind.NodeNext, allowImportingTsExtensions: true, noEmit: true },
   });
   const target = project.createSourceFile("/repo/target.mts", "export const value = 1;");
+  const explicit = project.createSourceFile("/repo/explicit.ts", 'import { value } from "./target.mts";\nexport const seen = value;');
   const source = project.createSourceFile("/repo/from.ts", 'export const load = () => import("./target");');
   const call = source.getFirstDescendantByKindOrThrow(SyntaxKind.CallExpression);
-  expect(importerModulePath(source, "./target")).toBe(target.getFilePath());
-  expect(resolveModule(project, source.getDirectoryPath(), "./target")).toBeUndefined();
+  // The importers verb credits the explicit-extension door, never the extensionless dynamic import. Its emit
+  // collapses the raw-text and resolved-target arms' repeat of one declaration, so the distinct set is what it prints.
+  const { hits, targetPaths } = collectModuleImporters([target, explicit, source], "target.mts");
+  expect([...targetPaths]).toEqual([target.getFilePath()]);
+  expect([...new Set(hits.map(({ node, kind }) => `${node.getSourceFile().getBaseName()}:${kind}`))]).toEqual(["explicit.ts:import"]);
+  // Native TypeScript refuses `./target` -> `target.mts`; every floor probe agrees with it.
   expect(dynamicModuleTarget(call)).toBeUndefined();
+  expect(importerModulePath(source, "./target")).toBeUndefined();
+  expect(resolveModule(project, source.getDirectoryPath(), "./target")).toBeUndefined();
   expect(importerModulePath(source, "./missing")).toBeUndefined();
   expect(resolveModule(project, source.getDirectoryPath(), "@fixture/target")).toBeUndefined();
 });

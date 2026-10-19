@@ -2,12 +2,6 @@
 import type { InterfaceDeclaration, Node as MorphNode, Symbol as TsSymbol, TypeLiteralNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 
-/** A field's name and report-only display type; assignability decides identity. */
-export interface ShapeField {
-  readonly name: string;
-  readonly type: string;
-}
-
 /** The two existing discovery populations: exact respells and contract-copy candidates. */
 export const SHAPE_FIELD_MODES = ["respell", "copy"] as const;
 export type ShapeFieldMode = (typeof SHAPE_FIELD_MODES)[number];

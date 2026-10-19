@@ -270,4 +270,4 @@ export { withoutUrlSearchParam } from "./url-search.ts";
 export { useDebouncedValue } from "./use-debounced-value.ts";
 export { useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
 export { useRouterUrlReplace } from "./use-router-url-replace.ts";
-export { motionIsReduced, runAfterViewTransition } from "./view-transition.ts";
+export { motionIsReduced, runAfterViewTransition, surfaceDeferredFailure } from "./view-transition.ts";

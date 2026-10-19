@@ -8,7 +8,7 @@
 // FAMILY `discovery-no-stats-rollups` — a declared SINGLETON. Its subject is ONE cross-domain boundary
 // (Knowledge-Cluster.md's stats fence) named by ONE home, and the only machinery it shares is
 // `lib/sealed-origin.ts` (`readSealedOrigin` for the verdict, `sealedOriginReports` for the decision) with
-// its near-twin `membership-enforcer` and with `turn-identity`.
+// its near-twin `membership-enforcer`.
 // A shared READER is not a family (guide §2): those policies seal different homes for different laws and share
 // no computation beyond the reader itself.
 //

@@ -175,15 +175,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     endsWhen: "the actual native API/trusted outbound subject changes or the declaration warning disappears.",
   },
   {
-    id: "suppressions:tests-linux-proc-assertion",
-    policyId: "suppressions",
-    subject: "lint/nursery/noConditionalExpect",
-    operation: "tests",
-    why: "RULING — only the physical /proc/self/fd assertion is conditional on the independent Linux platform capability. Portable capsule assertions remain unconditional; neither success nor a product result decides whether this expect runs.",
-    endsWhen:
-      "a portable physical-descriptor proof replaces proc, or an actual platform-selected suite preserves this same production subject without the directive.",
-  },
-  {
     id: "suppressions:source-lint-style-use-shorthand-function-type",
     policyId: "suppressions",
     subject: "lint/style/useShorthandFunctionType",
@@ -209,15 +200,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     why: "RULING — byte codecs (PNG/CRC) are DEFINED in bitwise terms — the operators are the specification (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 22 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `lint/suspicious/noBitwiseOperators` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
-    id: "suppressions:source-lint-suspicious-no-control-characters-in-regex",
-    policyId: "suppressions",
-    subject: "lint/suspicious/noControlCharactersInRegex",
-    operation: "source",
-    why: "RULING — the regex exists to STRIP control characters — naming them is the function (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 2 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the ruling itself is reversed, or the last governed source site under `lint/suspicious/noControlCharactersInRegex` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
     id: "suppressions:source-lint-suspicious-no-explicit-any",
@@ -254,15 +236,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     why: "RULING — the subscription drives an IMPERATIVE flush (jump the reveal cursor), not a state mirror (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 1 live site(s) under governed source at conversion.)",
     endsWhen:
       "the ruling itself is reversed, or the last governed source site under `react-you-might-not-need-an-effect/no-external-store-subscription` disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
-  },
-  {
-    id: "suppressions:source-typescript-eslint-no-unnecessary-condition",
-    policyId: "suppressions",
-    subject: "@typescript-eslint/no-unnecessary-condition",
-    operation: "source",
-    why: "TOOL FALSE POSITIVE — the lib type is wider than the runtime value (JSON.stringify(undefined) is `undefined` despite a `string` signature) (Carried VERBATIM from the legacy RATIFIED_RULES table at 65aa7f4743; 5 live site(s) under governed source at conversion.)",
-    endsWhen:
-      "the analyzer stops mis-reading this shape — an upgrade whose `@typescript-eslint/no-unnecessary-condition` understands it — or the last governed source site under the rule disappears; either way this row is consumed zero times and reds as a stale reviewed grant.",
   },
   {
     id: "suppressions:tests-lint-performance-no-namespace-import",
@@ -307,15 +280,6 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     operation: "tests",
     why: 'RULING — this is the NAMED ASSERTION HELPER pattern, and the rule cannot see it. `tests/support/node/chat/assertions.ts:31,43,78` each state "named assertion helper — asserts for the calling test (satisfies requireAssertions)": three shared helpers whose whole purpose is to own one non-obvious assertion (static prompt-prefix drift, KV-cache poisoning, bus event ordering) for every caller. The rule flags an `expect` outside a `test` body, which is exactly what a shared helper is; inlining them would duplicate the assertion and its failure message across every call site.',
     endsWhen: "the shared chat assertions move behind a custom vitest matcher the rule recognises, or the helpers lose their callers.",
-  },
-  {
-    id: "suppressions:tests-lint-suspicious-no-template-curly-in-string",
-    policyId: "suppressions",
-    subject: "lint/suspicious/noTemplateCurlyInString",
-    operation: "tests",
-    why: 'TOOL FALSE POSITIVE — the source table already rules this rule for "gate self-proof strings [that] intentionally carry template-literal source text for the synthetic project to parse", and both remaining test sites are that same shape. `tests/tooling/review-mirror/index.test.ts:64` is "the parser fixture\'s template source" and `:68` asserts the "expected source bytes, not a test interpolation". (The three former `split-arm-parity.test.ts` sites were retired with the legacy fixture suite at #2176 Phase F.)',
-    endsWhen:
-      "the gate and parser fixtures are authored as files rather than as embedded source strings, at which point the interpolation is real code and the rule stops firing.",
   },
   {
     id: "suppressions:tests-native-node-test-child",

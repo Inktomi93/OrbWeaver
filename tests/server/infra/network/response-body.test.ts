@@ -1,3 +1,4 @@
+import process from "node:process";
 import { createOwnedResponseBody } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
@@ -269,5 +270,72 @@ test("shutdown starts every requested clone cancellation before joining their he
     await owned.cancel();
     originalReader?.releaseLock();
     cloneReader?.releaseLock();
+  }
+});
+
+test("a consumer cancel rejects with the physical cleanup error, and settled and cancel() carry the same error", async () => {
+  const failure = new Error("physical upstream cancellation failed");
+  const abort = new AbortController();
+  const owned = createOwnedResponseBody(new Response(new ReadableStream<Uint8Array>({ cancel: () => Promise.reject(failure) })), abort.signal);
+  const reader = owned.response.body?.getReader();
+  if (reader === undefined) {
+    throw new Error("owned streaming body is missing");
+  }
+  await expect(reader.cancel()).rejects.toBe(failure);
+  await expect(owned.settled).rejects.toBe(failure);
+  await expect(owned.cancel()).rejects.toBe(failure);
+});
+
+test("settled is one promise: reading it twice and handling one copy raises no unhandled rejection", async () => {
+  const unhandled: unknown[] = [];
+  const record = (reason: unknown): void => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", record);
+  try {
+    const failure = new Error("physical upstream cancellation failed");
+    const owned = createOwnedResponseBody(
+      new Response(new ReadableStream<Uint8Array>({ cancel: () => Promise.reject(failure) })),
+      new AbortController().signal,
+    );
+    const first = owned.settled;
+    const second = owned.settled;
+    expect(second).toBe(first);
+    expect(owned.cancel()).toBe(first);
+    await owned.response.body?.cancel().catch(() => undefined);
+    await expect(first).rejects.toBe(failure);
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(unhandled).toEqual([]);
+  } finally {
+    process.off("unhandledRejection", record);
+  }
+});
+
+test("an abort followed by a failing cancel raises no unhandled rejection when nobody reads settled", async () => {
+  const unhandled: unknown[] = [];
+  const record = (reason: unknown): void => {
+    unhandled.push(reason);
+  };
+  process.on("unhandledRejection", record);
+  try {
+    const abort = new AbortController();
+    const started = Promise.withResolvers<void>();
+    createOwnedResponseBody(
+      new Response(
+        new ReadableStream<Uint8Array>({
+          cancel(): Promise<void> {
+            started.resolve();
+            return Promise.reject(new Error("physical upstream cancellation failed"));
+          },
+        }),
+      ),
+      abort.signal,
+    );
+    abort.abort();
+    await started.promise;
+    await new Promise((resolve) => setTimeout(resolve, 25));
+    expect(unhandled).toEqual([]);
+  } finally {
+    process.off("unhandledRejection", record);
   }
 });

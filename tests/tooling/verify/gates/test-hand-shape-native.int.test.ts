@@ -1,6 +1,6 @@
-import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { expect, plantFile, plantLink, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Node } from "ts-morph";
 import { vi } from "vitest";
 import { SHAPE_ASSOCIATION_UNKNOWN } from "../../../../tooling/src/floor/code-facts/shape-association-contract.ts";
@@ -16,11 +16,10 @@ const SHAPE = "tests/support/node/shape.ts";
 
 function fixture(root: string, repoRoot: string, browser: boolean): void {
   const put = (path: string, text: string): void => {
-    mkdirSync(dirname(join(root, path)), { recursive: true });
-    writeFileSync(join(root, path), text);
+    plantFile(root, path, text);
   };
   put(".gitignore", "node_modules\n.cache\nreports\n");
-  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
+  plantLink(root, "node_modules", join(repoRoot, "node_modules"), "dir");
   put(
     "package.json",
     JSON.stringify({
@@ -127,7 +126,7 @@ test(
       }
       const native = join(scratch, "native");
       // A changed constituent invalidates the captured walk: the array no longer carries a hand.
-      writeFileSync(join(native, SHAPE), readFileSync(join(native, SHAPE), "utf8").replace("declare const rows: Hand[];", "declare const rows: Derived[];"));
+      plantFile(native, SHAPE, readFileSync(join(native, SHAPE), "utf8").replace("declare const rows: Hand[];", "declare const rows: Derived[];"));
       const changed = projectCtx(native);
       const rerun = runPolicyPass({
         root: native,

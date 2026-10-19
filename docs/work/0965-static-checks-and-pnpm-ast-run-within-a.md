@@ -28,7 +28,7 @@ The supported `pnpm ast apisurface --in /src/ --public --json --max 1000000` com
 
 Bounded native UI projection completes with worker release: elapsed 1:58.62, maximum RSS 2,501,396 KiB, no swaps. This is not aggregate concurrent memory or a full apisurface measurement.
 
-Tests-DOM publication at `7394d01aaf` revalidates inputs and releases workers. Sampled RSS is not a continuous peak. Evidence: `.claude/worktrees/codex-tests-dom-profile-1002/reports/review/1002-tests-dom-postfix-qualification.md`. Multi-world equivalence, concurrent reuse and hosted measurements remain open.
+Tests-DOM publication at `7394d01aaf` revalidates inputs and releases workers. Sampled RSS is not a continuous peak. Evidence: the 1002-tests-dom-postfix-qualification review (report not retained). Multi-world equivalence, concurrent reuse and hosted measurements remain open.
 
 Portable corpus contracts remove the Node/server closure while preserving exhaustive router conformance. Declaration bridges still require freshness and closure qualification. Evidence: `reports/review/1040-portable-corpus-ordinary.md`.
 

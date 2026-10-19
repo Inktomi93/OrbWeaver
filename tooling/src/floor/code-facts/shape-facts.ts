@@ -4,7 +4,7 @@ import type { InventoryShapeQuery, SemanticInventory, ShapeQuerySide } from "./s
 import { SemanticInventoryError } from "./semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "./semantic-inventory-inputs.ts";
 import { inventoryExports, semanticInventoryOf } from "./semantic-inventory-reader.ts";
-import type { ShapeField, ShapeFieldMode } from "./shape-fields.ts";
+import type { ShapeFieldMode } from "./shape-fields.ts";
 import { resolvedShapeProperties } from "./shape-fields.ts";
 import { collectShapeQueries, recordShapeQuery, shapeInventoryOf } from "./shape-inventory-scope.ts";
 
@@ -23,12 +23,11 @@ export function shapeFactsOf(node: MorphNode): SemanticInventory | undefined {
   return shapeInventoryOf(node.getSourceFile()) ?? semanticInventoryOf(node.getSourceFile());
 }
 
-/** Native discovery and stored discovery share exactly the same admission and field order. */
-export function readShapeFields(node: MorphNode, mode: ShapeFieldMode): readonly ShapeField[] | undefined {
+/** Field names only. Native discovery and stored discovery share exactly the same admission and field order;
+ *  field types are compared through assignability, never printed. */
+export function readShapeFields(node: MorphNode, mode: ShapeFieldMode): readonly string[] | undefined {
   const inventory = shapeFactsOf(node);
-  return inventory === undefined
-    ? resolvedShapeProperties(node, mode)?.map((property) => ({ name: property.getName(), type: property.getTypeAtLocation(node).getText() }))
-    : (inventory.shape(node)[mode] ?? undefined);
+  return inventory === undefined ? resolvedShapeProperties(node, mode)?.map((property) => property.getName()) : (inventory.shape(node)[mode] ?? undefined);
 }
 
 /** Preserve exported declaration multiplicity and aliases without consulting the syntax checker. */

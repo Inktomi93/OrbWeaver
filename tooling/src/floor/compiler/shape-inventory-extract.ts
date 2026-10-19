@@ -1,4 +1,4 @@
-import type { Node as MorphNode, Type, ts } from "ts-morph";
+import type { Node as MorphNode, ts } from "ts-morph";
 import type { AssignabilityChecker } from "../code-facts/assignability.ts";
 import { readAssignabilityChecker, readNativeMutualAgreement, readNativeTypeRelation } from "../code-facts/assignability.ts";
 import type {
@@ -12,23 +12,9 @@ import { directDerivationTargetKeys, typeQueryDerivationKeys } from "../code-fac
 import { resolvedShapeProperties } from "../code-facts/shape-fields.ts";
 import { nativeCompilerSourceFiles } from "./ts-workspace.ts";
 
-// Without an enclosing node the printed text depends only on the native type object. Printing is most of
-// catalog extraction: inferred library members print unbounded, and copy and respell list the same properties.
-const typeTexts = new WeakMap<ts.Type, string>();
-
-function typeText(type: Type): string {
-  let text = typeTexts.get(type.compilerType);
-  if (text === undefined) {
-    text = type.getText();
-    typeTexts.set(type.compilerType, text);
-  }
-  return text;
-}
-
 /** Capture native fields and origins; policy floors and copy judgments stay with consumers. */
 export function extractShape(node: MorphNode, span: (node: MorphNode) => InventorySpan): InventoryShape {
-  const fields = (mode: "copy" | "respell"): InventoryShape["copy"] =>
-    resolvedShapeProperties(node, mode)?.map((property) => ({ name: property.getName(), type: typeText(property.getTypeAtLocation(node)) })) ?? null;
+  const fields = (mode: "copy" | "respell"): InventoryShape["copy"] => resolvedShapeProperties(node, mode)?.map((property) => property.getName()) ?? null;
   return {
     node: span(node),
     copy: fields("copy"),

@@ -20,7 +20,6 @@ import { gate as ownerScopedUpserts } from "../../../../../tooling/src/verify/ga
 import { gate as ownerScopedWrites } from "../../../../../tooling/src/verify/gates/owner-scoped-writes.ts";
 import { gate as serdeCoreDefinitionUniqueness } from "../../../../../tooling/src/verify/gates/serde-core-definition-uniqueness.ts";
 import { gate as singleStreamTransport } from "../../../../../tooling/src/verify/gates/single-stream-transport.ts";
-import { gate as turnIdentity } from "../../../../../tooling/src/verify/gates/turn-identity.ts";
 import { gate as twoClassRoleAuthority } from "../../../../../tooling/src/verify/gates/two-class-role-authority.ts";
 import { gate as typesInContract } from "../../../../../tooling/src/verify/gates/types-in-contract.ts";
 import { gate as verbNaming } from "../../../../../tooling/src/verify/gates/verb-naming.ts";
@@ -130,16 +129,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "sse-subscription",
-  },
-  {
-    policy: turnIdentity,
-    overlays: [
-      add(
-        `${SERVER}/domain/chat/engine/liveness-principal.ts`,
-        'import type { Principal } from "@orb/contracts/identity";\nexport function livenessIdentity(principal: Principal): Principal {\n  return principal;\n}\n',
-      ),
-    ],
-    messageIncludes: "Principal",
   },
   {
     policy: twoClassRoleAuthority,

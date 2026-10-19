@@ -2,6 +2,7 @@
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit, RegistryDef } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
@@ -246,28 +247,13 @@ function qualifiedBucket(registryName: string, index: Map<string, Set<string>>):
   return created;
 }
 
-/** Record `registryName.key`/`registryName?.key` reads in `sf` into `index`, for every name in
- *  `registryNames`. Split off `qualifiedAccessIndex` to keep both node-kind walks under the complexity
- *  ceiling. */
-function creditPropertyAccesses(sf: SourceFile, registryNames: ReadonlySet<string>, index: Map<string, Set<string>>): void {
-  for (const pa of sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression)) {
-    const expr = pa.getExpression().getText();
-    if (registryNames.has(expr)) {
-      qualifiedBucket(expr, index).add(pa.getName());
-    }
-  }
-}
-
-/** Record `registryName["key"]` reads in `sf` into `index`, for every name in `registryNames`. */
-function creditElementAccesses(sf: SourceFile, registryNames: ReadonlySet<string>, index: Map<string, Set<string>>): void {
-  for (const ea of sf.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)) {
-    const expr = ea.getExpression().getText();
-    if (!registryNames.has(expr)) {
-      continue;
-    }
-    const arg = ea.getArgumentExpression();
-    if (arg !== undefined && Node.isStringLiteral(arg)) {
-      qualifiedBucket(expr, index).add(arg.getLiteralText());
+/** Record `registryName.key`/`registryName?.key`/`registryName["key"]` reads in `sf` into `index`, for every
+ *  name in `registryNames`. */
+function creditMemberReads(sf: SourceFile, registryNames: ReadonlySet<string>, index: Map<string, Set<string>>): void {
+  for (const access of [...sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression), ...sf.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)]) {
+    const read = literalMemberAccess(access, true);
+    if (read !== undefined && registryNames.has(read.receiver.getText())) {
+      qualifiedBucket(read.receiver.getText(), index).add(read.name);
     }
   }
 }
@@ -283,8 +269,7 @@ export function qualifiedAccessIndex(project: SourceCorpus, registryNames: Reado
     if (isTestPath(sf.getFilePath())) {
       continue;
     }
-    creditPropertyAccesses(sf, registryNames, index);
-    creditElementAccesses(sf, registryNames, index);
+    creditMemberReads(sf, registryNames, index);
   }
   return index;
 }

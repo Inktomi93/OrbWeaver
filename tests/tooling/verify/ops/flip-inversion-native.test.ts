@@ -1,6 +1,8 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 import { ruleMessages } from "./native-rule-probe.ts";
 
+const FLIP_INVERSION_NATIVE_BASE_MS = 60_000;
 const FLIP = "orb/no-unruled-flip-inversion";
 const CLIENT = "packages/client/src/features/gallery/lib/probe.ts";
 const TABS = "packages/ui/src/primitives/tabs/tabs.tsx";
@@ -147,7 +149,7 @@ for (const [name, source, path, count] of [
   ["the same two pairs in a sibling of the home", `${GLIDE}\n${GLIDE.replace("glide", "glide2")}`, "packages/ui/src/primitives/tabs/tabs-other.tsx", 2],
   ["the server package is outside the population", GLIDE, "packages/server/src/probe.ts", 0],
 ] as const) {
-  test(`native flip inversion ${name}`, { timeout: 60_000 }, async ({ repoRoot }) => {
+  test(`native flip inversion ${name}`, { timeout: scaledBudget(FLIP_INVERSION_NATIVE_BASE_MS) }, async ({ repoRoot }) => {
     expect(await ruleMessages(repoRoot, FLIP, source, path)).toHaveLength(count);
   });
 }

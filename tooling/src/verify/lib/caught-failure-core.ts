@@ -23,6 +23,12 @@ export const REJECTION_HANDLER_INDEX: ReadonlyMap<string, number> = new Map([
   ["catch", 0],
   ["then", 1],
 ]);
+/** The forwarders that hand a promise a rejection handler one hop away: `p.catch.call(p, h)`, `.apply`, a bound alias. */
+export const CALL_FORWARDER = "call";
+export const APPLY_FORWARDER = "apply";
+export const BIND_FORWARDER = "bind";
+/** Callee members a call can carry and still be judged a rejection-handler invocation; the native plan roots exactly these. */
+export const REJECTION_INVOCATION_MEMBERS: ReadonlySet<string> = new Set([...REJECTION_HANDLER_INDEX.keys(), CALL_FORWARDER, APPLY_FORWARDER]);
 
 export function literalMember(node: Node, reads?: CaughtFailureReadServices): { readonly name: string; readonly receiver: Node } | undefined {
   const member = unwrapExpression(node);

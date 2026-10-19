@@ -100,9 +100,11 @@ export async function runWithPreCommitRetry<T>(
   const addSpanEvent = opts.addSpanEvent ?? NO_SPAN_EVENT;
   let lastError: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
-    let committed = false;
+    // A property of an object, not a `let`: the checker narrows a `let` to `false` inside the catch, but `op`
+    // flips this flag mid-stream before it throws.
+    const stream = { committed: false };
     const markCommitted = (): void => {
-      committed = true;
+      stream.committed = true;
     };
     try {
       return await op(markCommitted);
@@ -111,11 +113,10 @@ export async function runWithPreCommitRetry<T>(
       const mapped = classify(raw);
       const exhausted = attempt >= maxAttempts;
       // Can't retry once a delta streamed (replay duplicates tokens); non-retryable kinds also bail.
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- FALSE POSITIVE: the typed-lint checker over-narrows `committed` to the `false` literal inside this `catch` (it can't see across the `await op(markCommitted)` that a real runner uses to mutate it synchronously mid-stream before throwing). Confirmed a real runner calls `markCommitted()` then throws in the same `op` call — this guard is load-bearing (prevents a retry from replaying already-streamed tokens to the caller).
-      if (committed || !mapped.retryable || exhausted) {
+      if (stream.committed || !mapped.retryable || exhausted) {
         // WHY the loop stopped is not recoverable from the thrown error: "a delta already streamed" and
         // "three attempts burned" surface as the same provider failure at the caller. The span carries it.
-        addSpanEvent("provider.retry.abandoned", { attempt, kind: mapped.kind, reason: abandonReason(committed, mapped.retryable) });
+        addSpanEvent("provider.retry.abandoned", { attempt, kind: mapped.kind, reason: abandonReason(stream.committed, mapped.retryable) });
         throw raw;
       }
       const delayMs = computeBackoffMs(attempt, mapped, opts);

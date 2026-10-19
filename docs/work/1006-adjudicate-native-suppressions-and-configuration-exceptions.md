@@ -23,19 +23,19 @@ Every entry has source evidence and a retain, remove, fix or unresolved decision
 
 ## Evidence
 
-AST/codemod permissions remain in `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-ast-codemod-regexp-disposition.md`; root diagnostics remain separate.
+AST/codemod permissions remain in the 1006-ast-codemod-regexp-disposition review (report not retained); root diagnostics remain separate.
 
-DB, framework and naming permissions retain actual subjects. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-mixed-framework-independent-review.md`.
+DB, framework and naming permissions retain actual subjects. Evidence: the 1006-mixed-framework-independent-review review (report not retained).
 
-Rendered identity and destructive-action controls qualify. Broader transformations and replacement focus remain open. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/1006-client-list-lifetimes.md`.
+Rendered identity and destructive-action controls qualify. Broader transformations and replacement focus remain open. Evidence: the 1006-client-list-lifetimes review (report not retained).
 
-Native Drizzle checks cover neighboring scoped writes. Intentional replacements have statement-local permissions; unused wipe permissions are removed. Evidence: `.claude/worktrees/codex-identity-notification-suppliers-1036/reports/review/1006-drizzle-delete-scope-independent-review.md`.
+Native Drizzle checks cover neighboring scoped writes. Intentional replacements have statement-local permissions; unused wipe permissions are removed. Evidence: the 1006-drizzle-delete-scope-independent-review review (report not retained).
 
 Explicit string templates resolve native Vitest scenario-title false positives without changing registration, case names, fixtures or assertions. Native rules remain enabled; no suppression is added. Evidence: `reports/review/1006-native-scenario-title-ordinary.md`.
 
 File-size migration rejudges existing test monolith grants as shrinking native bulk debt. New subjects remain blocking. Evidence: `reports/review/native-foundation-wave-ordinary.md`.
 
-Remaining Zod issue permissions serve structured paths, model correction or recorded loss data. RPG and versioned-config reasons match their actual consumers. Evidence: `.claude/worktrees/codex-drizzle-native-953/reports/review/1041-zod-issues-adjudication.md`. No runtime or permission change is required.
+Remaining Zod issue permissions serve structured paths, model correction or recorded loss data. RPG and versioned-config reasons match their actual consumers. Evidence: the 1041-zod-issues-adjudication review (report not retained). No runtime or permission change is required.
 
 Native parser-fixture permissions apply only to source-string restrictions. Runtime clock and entropy judgments remain active. Evidence: `reports/review/1041-native-determinism-ordinary.md`.
 
