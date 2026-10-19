@@ -370,9 +370,9 @@ export function executeRegexScripts(args: ExecuteRegexScriptsArgs): string {
       continue;
     }
 
-    // @orb-waive caught-failure-ownership(err): documented in the JSDoc above — caught and
-    // reported via onScriptFailure so one bad regex can't poison the list. Ends if onScriptFailure stops
-    // being called.
+    // @orb-waive caught-failure-ownership(err): reported to the optional args.onScriptFailure. Every server caller wires it
+    // to getLog().warn (chat engine pipeline, assembly context and history-regex, the edit re-apply) and the regex
+    // preview shows it to the author; only the client display tier omits it, by design. Ends if a server caller drops the sink.
     try {
       const regex = compilePattern(script, ctx);
       result = applyReplace(result, regex, makeReplacer(script, ctx));

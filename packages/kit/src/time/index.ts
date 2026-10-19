@@ -57,16 +57,15 @@ export function secondsToMs(seconds: number | null | undefined): number | undefi
 /** An `[IANA/Zone]`-annotated or offset/`Z`-designated string names an EXACT instant — the string's own
  *  zone decides it, never the caller's. `null` when it carries neither (the zone-less arm below). */
 function exactInstantMs(value: string): number | null {
-  // @orb-waive caught-failure-ownership(catch): documented — no [IANA/Zone] annotation falls
-  // through to the designator arm below. Ends if the fallthrough is removed.
+  // @orb-waive caught-failure-ownership(catch): not a failure but a fallthrough: a value with no [IANA/Zone] annotation
+  // goes to the Instant.from arm below, whose catch returns the null that isoToMs hands to naiveIsoMs. Ends if the fallthrough is removed.
   try {
     return Temporal.ZonedDateTime.from(value).epochMilliseconds;
   } catch {
     // No `[IANA/Zone]` annotation — fall through to the designator arm.
   }
-  // @orb-waive caught-failure-ownership(catch): documented in the function's JSDoc — null
-  // when the value carries neither zone form, consumed by isoToMs's ?? naiveIsoMs fallback. Ends if
-  // isoToMs stops handling the null.
+  // @orb-waive caught-failure-ownership(catch): the null is exactInstantMs's typed "no zone form" result; isoToMs reads it with
+  // `?? naiveIsoMs(value)` and returns null when both arms fail. Ends if isoToMs stops reading the null.
   try {
     return Temporal.Instant.from(value).epochMilliseconds;
   } catch {
@@ -77,9 +76,8 @@ function exactInstantMs(value: string): number | null {
 /** A zone-less ISO reading resolved as UTC. `overflow:"reject"` so an impossible date (`2026-02-30`)
  *  is `null` rather than silently CONSTRAINED to the month's last day — Temporal's default. */
 function naiveIsoMs(value: string): number | null {
-  // @orb-waive caught-failure-ownership(catch): documented — null on an invalid/impossible
-  // reading, consumed by isoToMs (this function's sole caller) as the terminal fallback arm. Ends if
-  // isoToMs stops handling the null.
+  // @orb-waive caught-failure-ownership(catch): the null is the typed "invalid or impossible reading" result; isoToMs
+  // (the sole caller) returns it as its own null, which parseStDate in serde/chat reads as an unreadable date. Ends if isoToMs stops returning it.
   try {
     return Temporal.PlainDateTime.from(value, { overflow: "reject" }).toZonedDateTime("UTC").epochMilliseconds;
   } catch {
@@ -144,9 +142,8 @@ export function wallClockToMs(
     return null;
   }
   const endOfDay = parts.hour === END_OF_DAY_HOUR && parts.minute === 0 && parts.second === 0;
-  // @orb-waive caught-failure-ownership(catch): documented in the JSDoc — null when the
-  // parts or zone name are invalid, part of this function's stated contract. Ends if a caller stops
-  // treating the null return as "invalid input".
+  // @orb-waive caught-failure-ownership(catch): the null is the typed "invalid parts or zone" result; the callers (parseAtDate and the
+  // human-date arms in serde/chat) return it into parseStDate's `??` chain, which ends in null for an unreadable date. Ends if a caller stops reading the null.
   try {
     // `overflow:"reject"` — an impossible reading (month 13, 30 February) is null, never CONSTRAINED to
     // a nearby valid one, which is Temporal's default and would silently land a wrong instant.
@@ -167,9 +164,8 @@ export function msToWallClock(
   if (!Number.isFinite(ms)) {
     return null;
   }
-  // @orb-waive caught-failure-ownership(catch): documented in the JSDoc — null when the
-  // instant or zone name is invalid, part of this function's stated contract. Ends if a caller stops
-  // treating the null return as "invalid input".
+  // @orb-waive caught-failure-ownership(catch): the null is the typed "invalid instant or zone" result; formatStDate (serde/chat) returns null for it
+  // and importedChatTitle (import chat-input) falls back to the chat name. Ends if a caller stops reading the null.
   try {
     // Truncate toward zero before the instant: `Temporal` takes integer ms only, and truncation is
     // exactly what `Date`/luxon did with a sub-ms fraction, so a fractional input lands the same clock.
@@ -195,8 +191,8 @@ const OFFSET_ZONE_ID = /^[+-]/;
  *  offset (`+05:45`) is refused: it is not an IANA name and carries no daylight-saving rules, so a clock
  *  stored in one would drift an hour from its owner twice a year. */
 export function parseIanaTimeZone(value: string): IanaTimeZone | null {
-  // @orb-waive caught-failure-ownership(catch): documented in the JSDoc — null when the platform does not
-  // know the zone, part of this function's stated contract. Ends if a caller stops treating null as "unknown zone".
+  // @orb-waive caught-failure-ownership(catch): the null is the typed "platform does not know the zone" result; reportedTimeZoneSchema
+  // (the sole caller) turns it into UTC_TIME_ZONE by design, as its doc states. Ends if a caller stops reading the null.
   try {
     const id = Temporal.Instant.fromEpochMilliseconds(0).toZonedDateTimeISO(value).timeZoneId;
     return OFFSET_ZONE_ID.test(id) ? null : (id as IanaTimeZone);

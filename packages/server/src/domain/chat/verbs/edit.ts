@@ -49,6 +49,7 @@ import type { RegexPlacement } from "@orb/kit/regex";
 import { executeRegexScripts } from "@orb/kit/regex";
 import { stripSelfSpeakerLabel } from "@orb/kit/speaker-label";
 import type { IanaTimeZone } from "@orb/kit/time";
+import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { ChatContext } from "../context.ts";
@@ -307,6 +308,8 @@ async function applyRunOnEditRegex(
     placement,
     ctx: buildTurnMacroContext({ assembleCtx: assembleContext, model, chatId }),
     applyReplace: ctx.applyRegexReplace,
+    onScriptFailure: (err, script) =>
+      getLog().warn({ err, placement, findRegex: script.findRegex }, "chat: host-tier regex script failed on an edit re-apply (D53 watchdog)"),
   });
 }
 

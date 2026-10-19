@@ -1,0 +1,162 @@
+[
+  {
+    "site": "packages/kit/src/cel/index.ts:113 err",
+    "claimedOwner": "documented contract \"parseCel never throws\" — any parse error is returned as CelParseError data, consumed by every caller as the error arm of the union. Ends if a caller stops handling the CelParseError arm.",
+    "verifiedOwner": "packages/server/src/domain/automation/substrate/validate.ts:369 throw new RuleValidationError(\"bad_cel\", `predicate does not parse: ${program.message}`);",
+    "toolOutput": "codegraph_explore 'parseCel isCelParseError CelParseError' (14 callers listed, none in client). in-memory single-file probe at 0e5f189e00: packages/kit/src/cel/index.ts:113:3 -> :131 err 'THIS SITE: a catch block (and its finally) that names no owner at all.'. ast-grep parseCel($$$A): ast-grep -l ts scanned 4902 files, -l tsx scanned 932 files: 4 callers (macro/registry.ts:414, validate.ts:281, validate.ts:367, dry-run.ts:55). Read each: validate.ts:367-369 throws RuleValidationError bad_cel; dry-run.ts:55-57 returns { error: program.message }; validate.ts:281-284 returns because the bad_cel refusal at :367 fires first; registry.ts:414-418 routes to pushExprError (the sink-only question is the registry.ts:419 UNSURE record).",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'the parse error is returned as a CelParseError value, and each caller branches on isCelParseError: validate.ts throws RuleValidationError(\"bad_cel\"), dry-run.ts evaluatePredicate returns { error }, macro/registry.ts reports it through pushExprError. Ends if a caller drops that branch.'"
+  },
+  {
+    "site": "packages/kit/src/ids/index.ts:380 catch",
+    "claimedOwner": "zod transform pattern — fromString's throw is caught and converted to ctx.addIssue + z.NEVER, zod's own consumption channel for a failed transform. Ends if the transform stops routing the caught failure through ctx.addIssue.",
+    "verifiedOwner": "packages/kit/src/ids/index.ts:390 ctx.addIssue({ code: \"custom\", message: `Invalid ${prefix} id` });",
+    "toolOutput": "codegraph_explore 'typeIdSchema fromString ids/index.ts': typeIdSchema has 498 callers across contracts and server, all going through the same zod transform. in-memory single-file probe at 0e5f189e00: packages/kit/src/ids/index.ts:380:5 -> :386 catch 'THIS SITE: a catch block (and its finally) that names no owner at all.'. rg 'addIssue' over tooling/src/verify/lib/caught-failure.ts, caught-failure-scope.ts, caught-failure-outcome.ts, caught-failure-handler.ts and gates/caught-failure-ownership.ts: 0 matches, so the reader does not know this owner. ast-grep fromString($$$A) over packages/kit (76 files ts, 0 files tsx): 2 matches (ids:344 generatedTypeId, a different throw path; ids:385 the guarded call). ctx is injected by zod on every transform call, so the sink cannot be absent.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'the failure is recorded as a zod issue (ctx.addIssue with a fixed message) and z.NEVER, so the parse fails and the caller gets the ZodError. Ends if the catch stops calling ctx.addIssue.'"
+  },
+  {
+    "site": "packages/kit/src/json-schema/lift.ts:169 catch",
+    "claimedOwner": "documented — the caller (liftString) turns null into a typed JsonSchemaLiftError refusal rather than a thrown SyntaxError. Ends if the caller stops checking for null.",
+    "verifiedOwner": "packages/kit/src/json-schema/lift.ts:159 throw new JsonSchemaLiftError(\"pattern (invalid regex)\", path);",
+    "toolOutput": "codegraph_explore 'packages/kit/src/json-schema/lift.ts liftString parseJson JsonSchemaLiftError': liftString has 1 caller, liftNode. in-memory single-file probe at 0e5f189e00: packages/kit/src/json-schema/lift.ts:169:3 -> :174 catch 'pe is a constant fallback — the behaviour changed and nobody was told.'. ast-grep compilePattern($$$A): ast-grep -l ts scanned 4902 files, -l tsx scanned 932 files: 2 matches, lift.ts:157 (this function's sole caller, checks `compiled === null` at :158) and regex/index.ts:377 (a different, file-local compilePattern in the regex executor that throws). liftJsonSchema is documented to throw JsonSchemaLiftError (lift.ts:374-377).",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'liftString, the sole caller, throws a typed JsonSchemaLiftError (\"pattern (invalid regex)\") when this returns null. Ends if liftString stops checking for null.'"
+  },
+  {
+    "site": "packages/kit/src/macro/evaluator.ts:123 err",
+    "claimedOwner": "documented fail-open policy below — consumed via ctx.onWarn?.() and a literal `{{name}}` fallback. Ends if the handler stops calling onWarn.",
+    "verifiedOwner": "none: the owner (ctx.onWarn at evaluator.ts:133) exists only when the caller supplies it",
+    "toolOutput": "codegraph_explore 'processMacros onWarn MacroContext evaluateMacros callers': processMacros has 41 callers. in-memory single-file probe at 0e5f189e00: packages/kit/src/macro/evaluator.ts:123:3 -> :128 err 'THIS SITE: a catch block (and its finally) that names no owner at all.'. ast-grep processMacros($$$A): ast-grep -l ts scanned 4902 files, -l tsx scanned 932 files: 14 production call sites. Behaviour probe p3-09-macro-probe.ts (inline form, handler that throws): silent (no onWarn) -> out 'x{{boom}}y', nothing reported; wired -> same output plus warn '[Macro Engine] Error evaluating macro boom'. rg onWarn packages/server/src: only pipeline.ts:448, :499, context.ts:840, macros.ts:64/:123/:330/:342. QUESTION: the catch reports only through ctx.onWarn, which is optional. Production processMacros callers that pass no onWarn: domain/chat/teaching-contribution.ts:86, domain/chat/engine/character-line.ts:53, domain/rpg/substrate/reminder.ts:439, and the automation arm (substrate/macro-render.ts:55 passes diagnostics, not onWarn). Only the chat turn pipeline (engine/pipeline.ts:448, :499) and assembly/context.ts:840 wire it. Should a throwing macro handler on an unwired path stay silent (fail-open policy as written), or does the engine need a default sink or per-caller wiring? That is a design call, so no KEEP.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/kit/src/macro/evaluator.ts:217 err",
+    "claimedOwner": "same fail-open policy as evalKnownCall — consumed via ctx.onWarn?.() plus a reconstructed open-tag fallback. Ends if the handler stops calling onWarn.",
+    "verifiedOwner": "none: the owner (ctx.onWarn at evaluator.ts:229) exists only when the caller supplies it",
+    "toolOutput": "codegraph_explore on the same processMacros/MacroContext symbols (evalKnownBlock is reached only through evaluateMacros). in-memory single-file probe at 0e5f189e00: packages/kit/src/macro/evaluator.ts:217:3 -> :221 err 'THIS SITE: a catch block (and its finally) that names no owner at all.'. Behaviour probe p3-09-macro-probe.ts (scoped-block form, handler that throws): silentBlock (no onWarn) -> 'x{{boom}}body{{/boom}}y', nothing reported; loudBlock -> same text plus warn '[Macro Engine] Error evaluating block boom'. The block degrades to the literal tags through reconstructBlock (evaluator.ts:237), so the author's body survives; only the cause is lost on unwired paths. QUESTION: the catch reports only through ctx.onWarn, which is optional. Production processMacros callers that pass no onWarn: domain/chat/teaching-contribution.ts:86, domain/chat/engine/character-line.ts:53, domain/rpg/substrate/reminder.ts:439, and the automation arm (substrate/macro-render.ts:55 passes diagnostics, not onWarn). Only the chat turn pipeline (engine/pipeline.ts:448, :499) and assembly/context.ts:840 wire it. Should a throwing macro handler on an unwired path stay silent (fail-open policy as written), or does the engine need a default sink or per-caller wiring? That is a design call, so no KEEP.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/kit/src/macro/registry.ts:419 err",
+    "claimedOwner": "documented — macros never throw into assembly; a CEL eval failure renders \"\" + a diagnostic via pushExprError. Ends if pushExprError stops being called.",
+    "verifiedOwner": "none on the chat path: pushExprError (registry.ts:392-396) records only when ctx.diagnostics is set, and chat prompt assembly passes celBindings and onWarn but no diagnostics",
+    "toolOutput": "codegraph_explore 'parseCel isCelParseError CelParseError' names exprHandler as a parseCel caller. in-memory single-file probe at 0e5f189e00: packages/kit/src/macro/registry.ts:419:3 -> :423 err 'pe is a constant fallback — the behaviour changed and nobody was told.'. Behaviour probe p3-09-macro-probe.ts, chat-assembly shape processMacros('A[{{expr::rpg.scene.missing}}]B', { celBindings, onWarn }): {\"out\":\"A[]B\",\"warns\":[]}. With a diagnostics sink the same input: {\"out\":\"A[]B\",\"diagnostics\":[{\"severity\":\"error\",\"code\":\"expr-error\",\"message\":\"No such key: missing\",...}]}. The only code that supplies diagnostics is automation/substrate/macro-render.ts:43/:54. The same sink-only gap applies to the parse-error arm at registry.ts:416. QUESTION: registry.ts:410 documents errors-to-\"\" as intended for assembly. Is a chat-path {{expr}} failure meant to be invisible to the author, or should the chat path pass a diagnostics sink or warn? Ruling needed; the fix would change what the user sees in a prompt, so no KEEP and no edit.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "packages/kit/src/png-card-chunk/index.ts:213 catch",
+    "claimedOwner": "documented — this module's shared fail-soft null contract, consumed by every reader of decodeBase64Utf8 as \"no value here\". Ends if a caller stops treating the null return as absent.",
+    "verifiedOwner": "packages/kit/src/png-card-chunk/index.ts:137 if (value !== null) {",
+    "toolOutput": "codegraph_explore 'readCardChunk writeCardChunk decodeBase64Utf8 inflate png-card-chunk' (readCardChunk: 6 callers, all in domain/import/substrate/card.ts; decodeBase64Utf8: 2 callers, both in this file) plus a whole-file Read of png-card-chunk/index.ts. in-memory single-file probe at 0e5f189e00: packages/kit/src/png-card-chunk/index.ts:213:3 -> :218 catch 'pe is a constant fallback — the behaviour changed and nobody was told.'. ast-grep decodeBase64Utf8($$$A) over packages/kit (76 files ts, 0 files tsx): 2 matches, index.ts:136 (readCardChunk loop, skips a null candidate) and :203 (readCompressedTextValue). ast-grep readCardChunk($$$A) (ast-grep -l ts scanned 4902 files, -l tsx scanned 932 files): 1 file, domain/import/substrate/card.ts:159 (two calls), where `decoded === null` returns null (card.ts:160-162) and import-character.ts:211 takes ParsedCard | null.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'the null is the typed \"undecodable candidate\" result; readCardChunk skips it for the next candidate and returns null when none decode, which parseCardPng (import substrate) passes on as \"no card\". Ends if readCardChunk stops reading the null.'"
+  },
+  {
+    "site": "packages/kit/src/png-card-chunk/index.ts:358 catch",
+    "claimedOwner": "documented — falls back to the original string when it doesn't parse as an object, consumed by writeCardChunk's V2 chunk write. Ends if the fallback stops being applied.",
+    "verifiedOwner": "packages/kit/src/png-card-chunk/index.ts:245 const v2Chunk = makeTextChunk(CHARA_KEY, stripSpecKeys(cardJson));",
+    "toolOutput": "codegraph_explore 'readCardChunk writeCardChunk decodeBase64Utf8 inflate png-card-chunk' (writeCardChunk and stripSpecKeys sit in the same file; stripSpecKeys is file-local). in-memory single-file probe at 0e5f189e00: packages/kit/src/png-card-chunk/index.ts:358:3 -> :363 catch 'THIS SITE: a catch block (and its finally) that names no owner at all.'. ast-grep stripSpecKeys($$$A) over packages/kit (76 files ts, 0 files tsx): 1 match, index.ts:245. ast-grep writeCardChunk($$$A) (ast-grep -l ts scanned 4902 files, -l tsx scanned 932 files): 1 production caller, domain/export/verbs/export-character.ts:190 passing JSON.stringify(card). The unchanged text is written to the V3 chunk too (index.ts:246), so a non-JSON string is preserved, not dropped. Read side: domain/import/substrate/card.ts fromText JSON.parse failure returns null (card.ts:150-152), the import refusal.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'text that is not JSON is returned unchanged, so writeCardChunk stores the same text in both chunks and the card import parser refuses it when read back; the only production caller passes JSON.stringify output. Ends if the unchanged return is dropped.'"
+  },
+  {
+    "site": "packages/kit/src/png-card-chunk/index.ts:405 writer.write",
+    "claimedOwner": "documented above — the reader is the sole error path; a write rejection would also surface on the reader's read(). Ends if the reader stops being the consumed error path.",
+    "verifiedOwner": "packages/kit/src/png-card-chunk/index.ts:420 const { done, value } = await reader.read();",
+    "toolOutput": "codegraph_explore 'readCardChunk writeCardChunk decodeBase64Utf8 inflate png-card-chunk': flow readCardChunk -> readCompressedTextValue -> inflate. in-memory single-file probe at 0e5f189e00: packages/kit/src/png-card-chunk/index.ts:405:3 -> :408 writer.write '.md) THIS SITE: a promise rejection handler that discards the failure.'. Behaviour probe p3-09-ds.mjs (node DecompressionStream('deflate') over a corrupt zlib body, write/close/read all attached): {\"write\":\"resolved\",\"close\":\"rejected TypeError\",\"read\":\"rejected TypeError\"}. A stream error errors both sides (streams spec), so a rejected write is paired with a rejected read(), which the awaited loop at :419-427 catches at :428 and returns null. ast-grep inflate($$$A) over packages/kit (76 files ts): 1 caller, index.ts:202.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'a stream error rejects both sides, so the same error reaches the awaited reader.read() below and its catch returns null. Ends if the read loop stops being awaited inside that try.'"
+  },
+  {
+    "site": "packages/kit/src/png-card-chunk/index.ts:409 writer.close",
+    "claimedOwner": "same reasoning as the write above — the reader is the sole error path. Ends if the reader stops being the consumed error path.",
+    "verifiedOwner": "packages/kit/src/png-card-chunk/index.ts:420 const { done, value } = await reader.read();",
+    "toolOutput": "codegraph_explore 'readCardChunk writeCardChunk decodeBase64Utf8 inflate png-card-chunk' (inflate is reached only from readCompressedTextValue). in-memory single-file probe at 0e5f189e00: packages/kit/src/png-card-chunk/index.ts:409:3 -> :411 writer.close '.md) THIS SITE: a promise rejection handler that discards the failure.'. Behaviour probe p3-09-ds.mjs on a corrupt zlib body: close() settled 'rejected TypeError' and the reader's read() settled 'rejected TypeError', so the close rejection is the same error the awaited read loop catches (index.ts:428 returns null). The corrupt-stream case is the one that rejects close; a valid stream resolves both.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'a corrupt stream rejects close() and reader.read() with the same error, and the awaited read below catches it. Ends if the read loop stops being awaited inside that try.'"
+  },
+  {
+    "site": "packages/kit/src/png-card-chunk/index.ts:415 catch",
+    "claimedOwner": "documented — corrupt zlib payload returns null per this module's fail-soft read contract (see the function doc). Ends if the caller stops treating null as \"not a valid card\".",
+    "verifiedOwner": "packages/kit/src/png-card-chunk/index.ts:203 return inflated === null ? null : decodeBase64Utf8(inflated);",
+    "toolOutput": "codegraph_explore 'readCardChunk writeCardChunk decodeBase64Utf8 inflate png-card-chunk' (call path readCardChunk -> readCompressedTextValue -> inflate). in-memory single-file probe at 0e5f189e00: packages/kit/src/png-card-chunk/index.ts:415:3 -> :428 catch 'pe is a constant fallback — the behaviour changed and nobody was told.'. ast-grep inflate($$$A) over packages/kit (76 files ts, 0 files tsx): 1 match, index.ts:202 inside readCompressedTextValue, whose null reaches the readCardChunk loop (index.ts:136-139) and then parseCardPng (card.ts:160). Probe p3-09-ds.mjs: a corrupt zlib body makes reader.read() reject with TypeError, which is exactly what this catch turns into null.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'the null is the typed \"corrupt zlib payload\" result; readCompressedTextValue maps it to null and readCardChunk skips that candidate. Ends if readCompressedTextValue stops reading the null.'"
+  },
+  {
+    "site": "packages/kit/src/regex/index.ts:373 err",
+    "claimedOwner": "documented in the JSDoc above — caught and reported via onScriptFailure so one bad regex can't poison the list. Ends if onScriptFailure stops being called.",
+    "verifiedOwner": "none on the edit path at base: packages/server/src/domain/chat/verbs/edit.ts:304 return executeRegexScripts({ ... applyReplace: ctx.applyRegexReplace, }) passed no onScriptFailure, so args.onScriptFailure?.() at kit regex/index.ts:380 was a no-op. Other callers wire it: engine/pipeline.ts:452/:510/:525, assembly/context.ts:264/:849, history-regex.ts:101, client regex-preview.ts:139. client lib/message-render.ts:122 omits it by design (display tier, comment at :129).",
+    "toolOutput": "codegraph_explore 'executeRegexScripts onScriptFailure applyRegexReplace edit.ts runOnEdit'. in-memory single-file probe at 0e5f189e00: packages/kit/src/regex/index.ts:373:5 -> :379 err 'THIS SITE: a catch block (and its finally) that names no owner at all.'. ast-grep executeRegexScripts($$$A) (ast-grep -l ts scanned 4902 files, -l tsx scanned 932 files): 8 call sites (message-render.ts:122, regex-preview.ts:125, edit.ts:304, history-regex.ts:94, pipeline.ts:504, :519, context.ts:258, :843); literal rg onScriptFailure found the sink at every one except message-render.ts and edit.ts. RED: tests/server/domain/chat/verbs/edit-regex-failure.int.test.ts on the unfixed edit.ts: 'AssertionError: expected \"noop\" to be called at least once' at the warnSpy assertion (a runOnEdit AI_OUTPUT script with findRegex (a+)+$ over 40 a's plus ! fails in the vm watchdog during editMessage; the edit succeeds, nothing is logged). GREEN after the fix: 'tests/server/domain/chat/verbs/edit-regex-failure.int.test.ts (1 test) passed', warn payload matches { placement: \"AI_OUTPUT\", findRegex: \"(a+)+$\" }. Typecheck: packages/kit, packages/server PASS; root tsconfig.json only the 3 inherited tests/legacy errors.",
+    "disposition": "REAL DEFECT",
+    "diff": "packages/server/src/domain/chat/verbs/edit.ts: +import { getLog } from \"#foundation/observability\"; and in applyRunOnEditRegex the executeRegexScripts call gains `onScriptFailure: (err, script) => getLog().warn({ err, placement, findRegex: script.findRegex }, \"chat: host-tier regex script failed on an edit re-apply (D53 watchdog)\"),`. tests/server/domain/chat/verbs/edit-regex-failure.int.test.ts: new test. packages/kit/src/regex/index.ts marker reason rewritten to: 'reported to the optional args.onScriptFailure. Every server caller wires it to getLog().warn (chat engine pipeline, assembly context and history-regex, the edit re-apply) and the regex preview shows it to the author; only the client display tier omits it, by design. Ends if a server caller drops the sink.' The marker stays because the sink is optional and the reader cannot see the callers."
+  },
+  {
+    "site": "packages/kit/src/time/index.ts:60 catch",
+    "claimedOwner": "documented — no [IANA/Zone] annotation falls through to the designator arm below. Ends if the fallthrough is removed.",
+    "verifiedOwner": "packages/kit/src/time/index.ts:105 return exactInstantMs(value) ?? naiveIsoMs(value);",
+    "toolOutput": "codegraph_explore 'packages/kit/src/time/index.ts zoneOffset parseZone isoToMs msToWallClock zone name callers': isoToMs has 3 callers in serde/chat. in-memory single-file probe at 0e5f189e00: packages/kit/src/time/index.ts:60:3 -> :64 catch 'THIS SITE: a catch block (and its finally) that names no owner at all.'. ast-grep isoToMs($$$A) (ast-grep -l ts scanned 4902 files, -l tsx scanned 932 files): 1 match, serde/chat/index.ts:408. The first arm falls through to the Instant.from arm (index.ts:70-74) whose catch returns null; that null reaches isoToMs :105 and parseStDate :409.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'not a failure but a fallthrough: a value with no [IANA/Zone] annotation goes to the Instant.from arm below, whose catch returns the null that isoToMs hands to naiveIsoMs. Ends if the fallthrough is removed.'"
+  },
+  {
+    "site": "packages/kit/src/time/index.ts:67 catch",
+    "claimedOwner": "documented in the function's JSDoc — null when the value carries neither zone form, consumed by isoToMs's ?? naiveIsoMs fallback. Ends if isoToMs stops handling the null.",
+    "verifiedOwner": "packages/server/src/primitives/serde/chat/index.ts:409 return parseNumericEpoch(s) ?? iso ?? parseAtDate(s, zone) ?? parseHumanDate(s.toLowerCase(), zone);",
+    "toolOutput": "codegraph_explore 'packages/kit/src/time/index.ts zoneOffset parseZone isoToMs msToWallClock zone name callers' (isoToMs 3 callers and msToWallClock 5 callers, all in serde/chat and import chat-input). in-memory single-file probe at 0e5f189e00: packages/kit/src/time/index.ts:67:3 -> :72 catch 'pe is a constant fallback — the behaviour changed and nobody was told.'. exactInstantMs is file-local; its only call is time/index.ts:105 (`?? naiveIsoMs(value)`), and isoToMs's only importer is serde/chat (ast-grep isoToMs: 1 match at :408 over 4902 ts / 932 tsx files). parseStDate returns the chain's null as an unreadable date (sendDate: null at serde/chat:829).",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'the null is exactInstantMs's typed \"no zone form\" result; isoToMs reads it with `?? naiveIsoMs(value)` and returns null when both arms fail. Ends if isoToMs stops reading the null.'"
+  },
+  {
+    "site": "packages/kit/src/time/index.ts:80 catch",
+    "claimedOwner": "documented — null on an invalid/impossible reading, consumed by isoToMs (this function's sole caller) as the terminal fallback arm. Ends if isoToMs stops handling the null.",
+    "verifiedOwner": "packages/kit/src/time/index.ts:105 return exactInstantMs(value) ?? naiveIsoMs(value);",
+    "toolOutput": "codegraph_explore 'packages/kit/src/time/index.ts zoneOffset parseZone isoToMs msToWallClock zone name callers' (isoToMs 3 callers and msToWallClock 5 callers, all in serde/chat and import chat-input). in-memory single-file probe at 0e5f189e00: packages/kit/src/time/index.ts:80:3 -> :85 catch 'pe is a constant fallback — the behaviour changed and nobody was told.'. naiveIsoMs is file-local with one call (time/index.ts:105, the terminal arm), whose null is isoToMs's return; its only importer parseStDate treats null as 'try the other date forms' (serde/chat:409) and ends in null for an unreadable date.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'the null is the typed \"invalid or impossible reading\" result; isoToMs (the sole caller) returns it as its own null, which parseStDate in serde/chat reads as an unreadable date. Ends if isoToMs stops returning it.'"
+  },
+  {
+    "site": "packages/kit/src/time/index.ts:147 catch",
+    "claimedOwner": "documented in the JSDoc — null when the parts or zone name are invalid, part of this function's stated contract. Ends if a caller stops treating the null return as \"invalid input\".",
+    "verifiedOwner": "packages/server/src/primitives/serde/chat/index.ts:320 return wallClockToMs({",
+    "toolOutput": "codegraph_explore 'packages/kit/src/time/index.ts zoneOffset parseZone isoToMs msToWallClock zone name callers' (isoToMs 3 callers and msToWallClock 5 callers, all in serde/chat and import chat-input). in-memory single-file probe at 0e5f189e00: packages/kit/src/time/index.ts:147:3 -> :155 catch 'pe is a constant fallback — the behaviour changed and nobody was told.'. ast-grep wallClockToMs($$$A) (ast-grep -l ts scanned 4902 files, -l tsx scanned 932 files): 3 matches, all in serde/chat/index.ts (:320 parseAtDate, :354 and :364 the human-date arms), each `return wallClockToMs(...)` into parseStDate's `??` chain (:409); literal rg over packages (5945 files) found no other caller.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'the null is the typed \"invalid parts or zone\" result; the callers (parseAtDate and the human-date arms in serde/chat) return it into parseStDate's `??` chain, which ends in null for an unreadable date. Ends if a caller stops reading the null.'"
+  },
+  {
+    "site": "packages/kit/src/time/index.ts:170 catch",
+    "claimedOwner": "documented in the JSDoc — null when the instant or zone name is invalid, part of this function's stated contract. Ends if a caller stops treating the null return as \"invalid input\".",
+    "verifiedOwner": "packages/server/src/primitives/serde/chat/index.ts:423 if (wc === null) {",
+    "toolOutput": "codegraph_explore 'packages/kit/src/time/index.ts zoneOffset parseZone isoToMs msToWallClock zone name callers' (isoToMs 3 callers and msToWallClock 5 callers, all in serde/chat and import chat-input). in-memory single-file probe at 0e5f189e00: packages/kit/src/time/index.ts:170:3 -> :178 catch 'pe is a constant fallback — the behaviour changed and nobody was told.'. ast-grep msToWallClock($$$A) (ast-grep -l ts scanned 4902 files, -l tsx scanned 932 files): 2 matches, serde/chat/index.ts:422 (formatStDate returns null at :423-425) and domain/import/substrate/chat-input.ts:230 (importedChatTitle: `date = wc === null ? null : ...` at :231, falls back to the trimmed chat name).",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'the null is the typed \"invalid instant or zone\" result; formatStDate (serde/chat) returns null for it and importedChatTitle (import chat-input) falls back to the chat name. Ends if a caller stops reading the null.'"
+  },
+  {
+    "site": "packages/kit/src/time/index.ts:198 catch",
+    "claimedOwner": "documented in the JSDoc — null when the platform does not know the zone, part of this function's stated contract. Ends if a caller stops treating null as \"unknown zone\".",
+    "verifiedOwner": "packages/kit/src/time/index.ts:212 export const reportedTimeZoneSchema: z.ZodType<IanaTimeZone, string> = z.string().transform((value): IanaTimeZone => parseIanaTimeZone(value) ?? UTC_TIME_ZONE);",
+    "toolOutput": "codegraph_explore 'packages/kit/src/time/index.ts zoneOffset parseZone isoToMs msToWallClock zone name callers' (isoToMs 3 callers and msToWallClock 5 callers, all in serde/chat and import chat-input). in-memory single-file probe at 0e5f189e00: packages/kit/src/time/index.ts:198:3 -> :203 catch 'pe is a constant fallback — the behaviour changed and nobody was told.'. ast-grep parseIanaTimeZone($$$A) (ast-grep -l ts scanned 4902 files, -l tsx scanned 932 files): 1 match, time/index.ts:212; literal rg over 5945 files outside tests/docs found no other caller. The fallback to UTC is the stated design of reportedTimeZoneSchema (doc at index.ts:208-211: 'never refuses, because a refusal would block every save from that browser').",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'the null is the typed \"platform does not know the zone\" result; reportedTimeZoneSchema (the sole caller) turns it into UTC_TIME_ZONE by design, as its doc states. Ends if a caller stops reading the null.'"
+  },
+  {
+    "site": "packages/kit/src/world-info/index.ts:187 err",
+    "claimedOwner": "documented — null reported via onCompileFailure, caller falls back to a literal compile. Ends if the caller stops checking for null.",
+    "verifiedOwner": "packages/server/src/domain/chat/assembly/context.ts:57 getLog().warn({ key, reason }, \"chat: world-info regex key failed to compile — matched literally\");",
+    "toolOutput": "codegraph_explore 'onCompileFailure onKeyCompileFailure scanWorldInfo compileKey world-info callers' returned no world-info callers, so callers were taken from ast-grep. in-memory single-file probe at 0e5f189e00: packages/kit/src/world-info/index.ts:187:3 -> :191 err 'pe is a constant fallback — the behaviour changed and nobody was told.'. ast-grep matchEntryKeys($$$A) (ast-grep -l ts scanned 4902 files, -l tsx scanned 932 files): 2 matches, both domain/chat/assembly/context.ts (:222, :251), both through keyMatchOptions, which sets onKeyCompileFailure at context.ts:215; literal rg onKeyCompileFailure confirms that is the only wiring. ast-grep isDelimitedKeyPattern($$$A): 1 match, serde/world-info/index.ts:129, which reads the null from compileKeyPattern as 'not a pattern' (kit world-info:221) so the key imports as literal.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'reported to the optional onCompileFailure, which matchEntryKeys passes down from its options; the only chat caller (assembly/context.ts keyMatchOptions) wires it to getLog().warn. The null makes keyRegex compile the key literally, and isDelimitedKeyPattern reads it as \"not a pattern\". Ends if a matchEntryKeys caller omits onKeyCompileFailure.'"
+  },
+  {
+    "site": "packages/kit/src/world-info/index.ts:265 err",
+    "claimedOwner": "documented above (#710) — a throw is treated as a non-match (fail-closed) and reported through onKeyCompileFailure. Ends if the report call is removed.",
+    "verifiedOwner": "packages/server/src/domain/chat/assembly/context.ts:215 onKeyCompileFailure: onWorldInfoKeyCompileFailure",
+    "toolOutput": "codegraph_explore 'onCompileFailure onKeyCompileFailure scanWorldInfo compileKey world-info callers' (no world-info callers indexed; callers taken from ast-grep). in-memory single-file probe at 0e5f189e00: packages/kit/src/world-info/index.ts:265:7 -> :270 err 'pe is a constant fallback — the behaviour changed and nobody was told.'. The throw is the injected testRegex (server node:vm watchdog, keyMatchOptions passes testRegex at context.ts:215). Every matchEntryKeys call (context.ts:222, :251) builds its options with keyMatchOptions, so the sink is always present on the server; the client has no matchEntryKeys caller (ast-grep -l tsx over 932 files: 0). The same call also returns false (fail-closed non-match) so a pathological key cannot fire its entry.",
+    "disposition": "KEEP",
+    "diff": "marker reason rewritten to: 'a throw is a non-match (fail-closed) and is reported to the optional onKeyCompileFailure, which the only chat caller (assembly/context.ts keyMatchOptions) wires to getLog().warn. Ends if the report call is removed or a matchEntryKeys caller omits the sink.'"
+  }
+]
