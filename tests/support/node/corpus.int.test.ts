@@ -93,6 +93,27 @@ async function assertNativeSearchReads(caller: Awaited<ReturnType<ServerTestHarn
   expect(await caller.search.spaceStatus(section.reads.status.input)).toEqual(section.reads.status.output);
 }
 
+/** Descriptors this process still holds under `root`. /proc is Linux-only, so other platforms report none. */
+async function openDescriptorsUnder(root: string): Promise<string[]> {
+  if (process.platform !== "linux") {
+    return [];
+  }
+  const ownedRoot = await realpath(root);
+  const targets = await Promise.all(
+    (await readdir("/proc/self/fd")).map(async (descriptor) => {
+      try {
+        return await readlink(`/proc/self/fd/${descriptor}`);
+      } catch (error) {
+        if (error instanceof Error && "code" in error && error.code === "ENOENT") {
+          return null;
+        }
+        throw error;
+      }
+    }),
+  );
+  return targets.filter((path): path is string => path?.startsWith(`${ownedRoot}/`) === true);
+}
+
 test("a completed migrated capsule closes its real producers before cloning scrubbed independent DB and CAS bytes", { tags: ["slow"] }, async () => {
   const parent = await mkdtemp(join(tmpdir(), "orb-completed-corpus-"));
   await using ownership = new AsyncDisposableStack();
@@ -320,23 +341,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
       [asset.hash, "image-captioned"],
     ]);
   }
-  if (process.platform === "linux") {
-    const ownedRoot = await realpath(capsule.layout.root);
-    const descriptors = await Promise.all(
-      (await readdir("/proc/self/fd")).map(async (descriptor) => {
-        try {
-          return await readlink(`/proc/self/fd/${descriptor}`);
-        } catch (error) {
-          if (error instanceof Error && "code" in error && error.code === "ENOENT") {
-            return null;
-          }
-          throw error;
-        }
-      }),
-    );
-    // biome-ignore lint/nursery/noConditionalExpect: /proc is Linux-only; portable capsule assertions run on every platform.
-    expect(descriptors.filter((path) => path?.startsWith(`${ownedRoot}/`))).toEqual([]);
-  }
+  expect(await openDescriptorsUnder(capsule.layout.root)).toEqual([]);
   const source = await createDb(capsule.layout.databaseUrl);
   let sourceMarker: Awaited<ReturnType<typeof source.all>>;
   let notificationPlugin: typeof plugins.$inferSelect | undefined;
