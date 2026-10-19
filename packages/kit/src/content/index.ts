@@ -921,6 +921,14 @@ export function contentSpanRaw(span: ContentSpan): string {
   return span.raw;
 }
 
+/** The distinct `asset:<id>` image refs a stored body cites, first-seen order. It reads the committed grammar
+ *  the transcript renders and the model wire converts, so an image an EOF-closed card swallowed is no ref here. */
+export function assetIdsInContent(content: string): AssetId[] {
+  return [
+    ...new Set(tokenizeContent(content, { committed: true }).flatMap((span) => (span.kind === "image" && span.ref.kind === "asset" ? [span.ref.assetId] : []))),
+  ];
+}
+
 /** One hidden-class span — the §3.6 secret carrier. Named here so the strip, the host-reveal projection, and
  *  any future hidden-channel consumer share ONE spelling instead of re-`Extract`ing the union member. */
 export type HiddenContentSpan = Extract<ContentSpan, { kind: "hidden" }>;

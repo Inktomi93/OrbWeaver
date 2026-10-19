@@ -164,7 +164,9 @@ test("assembly and context-fit previews preserve host quality and drop unsupport
     frameCount: () => Promise.resolve(2),
     prepareVideo,
   };
-  const resolveImageUrl = vi.fn<ChatContext["resolveImageUrl"]>((params) => resolveImageRefToUrl(assets, () => Promise.resolve(false), false, params));
+  const resolveImageUrl = vi.fn<ChatContext["resolveImageUrl"]>((params) =>
+    resolveImageRefToUrl(assets, { ownerIsPresent: () => Promise.resolve(false), isPlacedInRoom: () => Promise.resolve(true) }, false, params),
+  );
   const read = createRead(
     makeChatContext(db, { resolveImageUrl }),
     makeDeps({

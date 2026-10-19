@@ -16,8 +16,8 @@
 //
 // Copied: the chat row's behavior (title/metadata/anchor/variables/user-macro picks), the character roster the forker owns
 // (an owner forking their own chat keeps all), the canon (whole, even a dropped character's prior lines),
-// the injections. Reset: `parentChatId`/`forkedAt`/timestamps/`starred`/`archived`; the host becomes the
-// forker. Other human participants are NOT copied (a fresh `chat_participants` insert is invite/host-action
+// each copied slot's asset links that its copied bodies still cite, the injections. Reset:
+// `parentChatId`/`forkedAt`/timestamps/`starred`/`archived`; the host becomes the forker. Other human participants are NOT copied (a fresh `chat_participants` insert is invite/host-action
 // only). The compaction checkpoint copies only when covered by the fork point, else reset to null — and under
 // a floor the variable delta LOG collapses the same way, into ONE synthetic baseline batch
 // (`buildForkStandaloneDeltas`, D79 ruling #8).
@@ -32,11 +32,11 @@ import {
 } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
-import { chatInjections, chatParticipants, chats, messages, messageVariants } from "@orb/db";
+import { chatInjections, chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/query";
-import { stripHiddenSpans } from "@orb/kit/content";
-import type { CharacterId, ChatId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
+import { assetIdsInContent, stripHiddenSpans } from "@orb/kit/content";
+import type { AssetId, CharacterId, ChatId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { eq } from "drizzle-orm";
 import { getLog } from "#foundation/observability";
@@ -55,6 +55,7 @@ import { loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadChatInjections,
   loadChatRow,
+  loadMessageAssetLinks,
   loadMessageSlots,
   loadStoredUserMacroValues,
   loadStoredVariables,
@@ -292,23 +293,48 @@ function forkSlotValues(args: {
   };
 }
 
+/** THE LINK COPY, same allow-list discipline (`Required<…$inferInsert>`). A `message_assets` link is MEMBER-PLANE:
+ *  the room render grant reads it for every present member and the model wire reads it as the room's placement of
+ *  the picture, so it is COPIED. The caller copies it only onto a copied slot whose copied body still cites the
+ *  asset ({@link citedAssetIds}), so the fork places no picture its own canon does not show. */
+function forkAssetLinkValues(args: {
+  readonly link: typeof messageAssets.$inferSelect;
+  readonly newId: MessageAssetId;
+  readonly newMessageId: MessageId;
+}): Required<typeof messageAssets.$inferInsert> {
+  const { link } = args;
+  return {
+    // ── REMAPPED ──
+    id: args.newId,
+    messageId: args.newMessageId,
+    // ── COPIED ──
+    assetId: link.assetId,
+    origin: link.origin,
+    createdAt: link.createdAt,
+  };
+}
+
+/** The `asset:` refs a copied variant's body columns cite, as written to the fork after the member strip. */
+function citedAssetIds(values: Required<typeof messageVariants.$inferInsert>): AssetId[] {
+  return [values.content, values.preContinueContent, values.lastContinuationContent].flatMap((body) =>
+    typeof body === "string" ? assetIdsInContent(body) : [],
+  );
+}
+
 /** Build the deep-copy statements (per slot: a fresh slot with a null pointer, then every variant, then
  *  the remapped `selectedVariantId` flip — FK-safe in that order). */
 /** Copy ONE variant into the fork: fresh id, remapped slot + boundary pointers, and the §3.6 member→host
  *  projection ({@link forkVariantValues} owns the per-column classification). */
-function copyVariantStmt(
-  db: Db,
-  args: {
-    readonly variant: typeof messageVariants.$inferSelect;
-    readonly newId: MessageVariantId;
-    readonly newMessageId: MessageId;
-    readonly slotIdMap: ReadonlyMap<MessageId, MessageId>;
-    readonly posture: ForkCopyPosture;
-  },
-): BatchStmt {
+function copyVariantValues(args: {
+  readonly variant: typeof messageVariants.$inferSelect;
+  readonly newId: MessageVariantId;
+  readonly newMessageId: MessageId;
+  readonly slotIdMap: ReadonlyMap<MessageId, MessageId>;
+  readonly posture: ForkCopyPosture;
+}): Required<typeof messageVariants.$inferInsert> {
   const { variant, newId, newMessageId, slotIdMap, posture } = args;
   const newBoundaryId = variant.contextBoundaryMessageId !== null ? (slotIdMap.get(variant.contextBoundaryMessageId) ?? null) : null;
-  return batchStmt(db.insert(messageVariants).values(forkVariantValues({ variant, newId, newMessageId, newBoundaryId, posture })));
+  return forkVariantValues({ variant, newId, newMessageId, newBoundaryId, posture });
 }
 
 /** The canon copy's statements PLUS the id remaps it built — the maps are handed to `ChatRpgOps.forkGame` so
@@ -332,11 +358,14 @@ function buildCanonCopy(
      *  plane there, so copying it forward would launder it past the transition (they become HOST of the copy).
      *  `stripReasoning` adds the P3 deception arm. Both `false` for a host forker (they already read it all). */
     readonly posture: ForkCopyPosture;
+    /** The source slots' `message_assets` links; {@link forkAssetLinkValues} says which survive. */
+    readonly links: readonly (typeof messageAssets.$inferSelect)[];
   },
 ): CanonCopy {
   const db: Db = ctx.db;
   const slotIdMap = new Map<MessageId, MessageId>();
   const variantIdMap = new Map<MessageVariantId, MessageVariantId>();
+  const citedBySlot = new Map<MessageId, Set<AssetId>>();
   const slotInserts: BatchStmt[] = [];
   const variantInserts: BatchStmt[] = [];
   const pointerFlips: BatchStmt[] = [];
@@ -351,7 +380,9 @@ function buildCanonCopy(
     variantIdMap.set(variant.id, newId);
     const newMessageId = slotIdMap.get(variant.messageId);
     if (newMessageId !== undefined) {
-      variantInserts.push(copyVariantStmt(db, { variant, newId, newMessageId, slotIdMap, posture: args.posture }));
+      const values = copyVariantValues({ variant, newId, newMessageId, slotIdMap, posture: args.posture });
+      variantInserts.push(batchStmt(db.insert(messageVariants).values(values)));
+      citedBySlot.set(newMessageId, new Set([...(citedBySlot.get(newMessageId) ?? []), ...citedAssetIds(values)]));
     }
   }
   for (const slot of args.slots) {
@@ -361,7 +392,13 @@ function buildCanonCopy(
       pointerFlips.push(batchStmt(db.update(messages).set({ selectedVariantId: newSelected }).where(eq(messages.id, newId))));
     }
   }
-  return { stmts: [...slotInserts, ...variantInserts, ...pointerFlips], slotIdMap, variantIdMap };
+  const linkInserts = args.links.flatMap((link) => {
+    const newMessageId = slotIdMap.get(link.messageId);
+    return newMessageId !== undefined && citedBySlot.get(newMessageId)?.has(link.assetId) === true
+      ? [batchStmt(db.insert(messageAssets).values(forkAssetLinkValues({ link, newId: ctx.newMessageAssetId(), newMessageId })))]
+      : [];
+  });
+  return { stmts: [...slotInserts, ...variantInserts, ...pointerFlips, ...linkInserts], slotIdMap, variantIdMap };
 }
 
 /** The fork's stats push (see the call-site note): chat-created/fork-lineage + every copied slot's
@@ -674,10 +711,8 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     // The pin carries whoever owns it: a pin resolves live even when its owner is not in the room (item 885),
     // so forking never changes who the card means.
     const forkAnchorPersonaId = source.anchorPersonaId;
-    const variants = await loadVariantsByMessageIds(
-      ctx.db,
-      slots.map((s) => s.id),
-    );
+    const slotIds = slots.map((s) => s.id);
+    const [variants, links] = await Promise.all([loadVariantsByMessageIds(ctx.db, slotIds), loadMessageAssetLinks(ctx.db, chatId, slotIds)]);
 
     // The compaction checkpoint copies only when it is covered by the fork point (else a truncated fork
     // would claim a summary over trimmed turns) AND the forker is unclamped (a `from-join` forker's floor
@@ -723,7 +758,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
       })),
     ];
 
-    const canonCopy = buildCanonCopy(ctx, { newChatId, slots, variants, posture: { stripHidden: forkerReadsHidden === false, stripReasoning } });
+    const canonCopy = buildCanonCopy(ctx, { newChatId, slots, variants, links, posture: { stripHidden: forkerReadsHidden === false, stripReasoning } });
     const forkMetadata = forkMetadataWithoutGame(source.metadata);
     const stmts: BatchStmt[] = [
       batchStmt(

@@ -1,5 +1,5 @@
 import type { assets, Db } from "@orb/db";
-import type { AssetId } from "@orb/kit/ids";
+import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
 import type { ImageAdapter } from "#infra/image";
 import type { prepareVideo } from "#infra/media";
 import type { ChatContext } from "./context.ts";
@@ -8,6 +8,14 @@ export interface ImageRefAssets {
   readonly prepareVideo: typeof prepareVideo;
   readonly assetCasRefById: (id: AssetId) => Promise<Pick<typeof assets.$inferSelect, "ownerId" | "mime"> | undefined>;
   readonly loadAssetBytes: (id: AssetId) => Promise<Uint8Array | null>;
+}
+
+/** The room facts a stored asset must satisfy before its bytes are read for the model. */
+export interface MediaRoomAccess {
+  readonly ownerIsPresent: (ownerId: UserId, chatId: ChatId) => Promise<boolean>;
+  /** The room placed the asset itself: a `message_assets` link on one of its messages, or a prompt-visible user
+   *  message its owner authored that cites it. A bare id spelled by anyone else places nothing. */
+  readonly isPlacedInRoom: (assetId: AssetId, ownerId: UserId, chatId: ChatId) => Promise<boolean>;
 }
 
 export interface ResolveMediaRefDeps {

@@ -8,12 +8,13 @@
 // image refs issues NO query (`enabled` gate).
 
 import { blobUrl } from "@orb/contracts/assets";
+import { assetIdsInContent } from "@orb/kit/content";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useTRPC } from "#data";
 import type { ResolvedAttachment } from "./attachment-url-context.tsx";
-import { AttachmentUrlContext, assetIdsInContent } from "./attachment-url-context.tsx";
+import { AttachmentUrlContext } from "./attachment-url-context.tsx";
 
 export interface AttachmentUrlProviderProps {
   /** The chat the row belongs to — scopes the co-participant render gate (`message.chatId`). */

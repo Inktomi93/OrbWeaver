@@ -76,7 +76,7 @@ export type {
   VisibleExtractQuietParams,
 } from "./contract/imagery-access.ts";
 export type { BulkImportChats, ChatImportAssemblyContext as ChatImportContext } from "./contract/import.ts";
-export type { ImageRefAssets, ResolveMediaRef, ResolveMediaRefDeps } from "./contract/media-ref.ts";
+export type { ImageRefAssets, MediaRoomAccess, ResolveMediaRef, ResolveMediaRefDeps } from "./contract/media-ref.ts";
 export type {
   MemoryConfig,
   MemoryEmbedSpace,

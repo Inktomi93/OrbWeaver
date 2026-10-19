@@ -43,12 +43,12 @@ import { userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characters, chatEvents, chatInjections, chatParticipants, chatStreamEvents, chats, messageAssets, messages, messageVariants } from "@orb/db";
 import { chatRecencyExpr, immutableCollection, memberVisibleChatScope, rowTuple } from "@orb/db/query";
-import { HIDDEN_TAGS } from "@orb/kit/content";
+import { ASSET_SCHEME, HIDDEN_TAGS } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatEventId, ChatId, MessageId, MessageVariantId, PersonaId, UserId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { SQL } from "drizzle-orm";
-import { and, asc, count, desc, eq, exists, gt, gte, inArray, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, exists, getTableColumns, gt, gte, inArray, isNull, lt, lte, max, min, ne, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { RetainedCanonContributions } from "../contract/generation-observation.ts";
@@ -709,6 +709,51 @@ export async function loadInlineReplyAssetIds(db: Db, chatId: ChatId): Promise<R
     }
   }
   return out;
+}
+
+/** Whether a `message_assets` link of any origin places `assetId` on a message of `chatId`. Chat-scoped through
+ *  the `messages` join, so a link in another room never answers for this one. */
+export async function hasMessageAssetLinkInChat(db: Db, chatId: ChatId, assetId: AssetId): Promise<boolean> {
+  const rows = await db
+    .select({ id: messageAssets.id })
+    .from(messageAssets)
+    .innerJoin(messages, eq(messages.id, messageAssets.messageId))
+    .where(and(eq(messages.chatId, chatId), eq(messageAssets.assetId, assetId)))
+    .limit(LIMIT_ONE);
+  return rows.length > 0;
+}
+
+/** The selected bodies of `ownerId`'s own prompt-visible user messages in `chatId` whose text holds the asset's
+ *  `asset:<id>` target. The text match only narrows: the caller confirms the ref with the content grammar. */
+export async function loadOwnerUserBodiesCitingAsset(db: Db, chatId: ChatId, ownerId: UserId, assetId: AssetId): Promise<string[]> {
+  const target = `${ASSET_SCHEME}${assetId}`;
+  const rows = await db
+    .select({ content: messageVariants.content })
+    .from(messages)
+    .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
+    .where(
+      and(
+        eq(messages.chatId, chatId),
+        eq(messages.role, "user"),
+        eq(messages.authorUserId, ownerId),
+        eq(messages.excludedFromPrompt, false),
+        sql`instr(${messageVariants.content}, ${target}) > 0`,
+      ),
+    );
+  return rows.map((row) => row.content);
+}
+
+/** The whole `message_assets` rows on `messageIds`, chat-scoped through the `messages` join (the copy verbs' source). */
+export async function loadMessageAssetLinks(db: Db, chatId: ChatId, messageIds: readonly MessageId[]): Promise<(typeof messageAssets.$inferSelect)[]> {
+  if (messageIds.length === 0) {
+    return [];
+  }
+  return await db
+    .select(getTableColumns(messageAssets))
+    .from(messageAssets)
+    .innerJoin(messages, eq(messages.id, messageAssets.messageId))
+    .where(and(eq(messages.chatId, chatId), inArray(messageAssets.messageId, [...messageIds])))
+    .orderBy(asc(messageAssets.createdAt), asc(messageAssets.id));
 }
 
 /** The system-prompt cost the newest reply's turn recorded (`VariantMetadata.systemTokens`), or 0 when it recorded

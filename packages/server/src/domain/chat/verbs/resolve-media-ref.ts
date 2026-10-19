@@ -1,36 +1,48 @@
 // Stored media authorization precedes byte reads and deferred quality conversion.
 import { DEFAULT_ATTACHMENT_QUALITY } from "@orb/contracts/inference";
+import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
+import { assetIdsInContent } from "@orb/kit/content";
 import type { AssetId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
-import type { ImageRefAssets, ResolveMediaRef, ResolveMediaRefDeps } from "../contract/media-ref.ts";
+import type { ImageRefAssets, MediaRoomAccess, ResolveMediaRef, ResolveMediaRefDeps } from "../contract/media-ref.ts";
 import type { ResolvedMediaRef } from "../contract/results.ts";
 import { isPresentParticipant } from "../persistence/participants-read.ts";
+import { hasMessageAssetLinkInChat, loadOwnerUserBodiesCitingAsset } from "../persistence/queries.ts";
 
 const VIDEO_MIME_PREFIX = "video/";
 const GIF_MIME = "image/gif";
 
 export function createResolveMediaRef(input: DbAssemblyInput<ResolveMediaRefDeps>): ResolveMediaRef {
   const deps: ResolveMediaRefDeps = { ...input, db: databaseForOwner(input.db) };
-  return (params) =>
-    resolveImageRefToUrl(
-      { ...deps.assets, ...deps.mediaProcessing },
-      (userId, chatId) => isPresentParticipant(deps.db, chatId, userId),
-      deps.forbidExternalMedia(),
-      params,
-    );
+  const room: MediaRoomAccess = {
+    ownerIsPresent: (userId, chatId) => isPresentParticipant(deps.db, chatId, userId),
+    isPlacedInRoom: (assetId, ownerId, chatId) => isPlacedInRoom(deps.db, assetId, ownerId, chatId),
+  };
+  return (params) => resolveImageRefToUrl({ ...deps.assets, ...deps.mediaProcessing }, room, deps.forbidExternalMedia(), params);
 }
 
-/** Resolve a parsed media ref to its kind and ready/deferred URL, or `null` when
- *  blocked/gone. An `external` ref is blocked when `forbidExternalMedia` is set (the load itself is a
- *  tracking-pixel/exfil vector) and classifies as `image` (the attachment machinery never mints external
- *  refs, so the arm is defensive). `isPresentParticipant(userId, chatId)` checks whether the asset's owner
- *  is a present member of the referencing chat. */
+async function isPlacedInRoom(db: Db, assetId: AssetId, ownerId: UserId, chatId: ChatId): Promise<boolean> {
+  if (await hasMessageAssetLinkInChat(db, chatId, assetId)) {
+    return true;
+  }
+  const bodies = await loadOwnerUserBodiesCitingAsset(db, chatId, ownerId, assetId);
+  return bodies.some((body) => assetIdsInContent(body).includes(assetId));
+}
+
+/** Resolve a parsed media ref to its kind and ready/deferred URL, or `null` when blocked/gone. An `external` ref
+ *  is blocked when `forbidExternalMedia` is set (the load itself is a tracking-pixel/exfil vector) and classifies
+ *  as `image` (the attachment machinery never mints external refs, so the arm is defensive).
+ *
+ *  A stored asset needs BOTH room facts. Its owner is the host or a present member, and the room placed it
+ *  ({@link MediaRoomAccess.isPlacedInRoom}). Presence alone would let any member's quote of an id read off a
+ *  transcript send another member's picture to the model. The quoting row's author is no proof either: the
+ *  history squash folds adjacent user rows under the first row's slot id. */
 export async function resolveImageRefToUrl(
   assets: ImageRefAssets,
-  ownerIsPresent: (userId: UserId, chatId: ChatId) => Promise<boolean>,
+  room: MediaRoomAccess,
   forbidExternalMedia: boolean,
   params: Parameters<ResolveMediaRef>[0],
 ): Promise<ResolvedMediaRef | null> {
@@ -43,8 +55,8 @@ export async function resolveImageRefToUrl(
   if (!meta) {
     return null;
   }
-  const authorized = meta.ownerId === hostId || (await ownerIsPresent(meta.ownerId, chatId));
-  if (!authorized) {
+  const ownerAdmitted = meta.ownerId === hostId || (await room.ownerIsPresent(meta.ownerId, chatId));
+  if (!(ownerAdmitted && (await room.isPlacedInRoom(assetId, meta.ownerId, chatId)))) {
     return null;
   }
   const bytes = await assets.loadAssetBytes(assetId);
