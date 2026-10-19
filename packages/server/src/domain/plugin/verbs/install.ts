@@ -21,6 +21,7 @@ import { getByOwnerSlug, insertPlugin, toPluginView } from "../persistence/plugi
 import { storeBundleAssets } from "../substrate/bundle-assets.ts";
 import { normalizeGrant, ungrantableCapabilities } from "../substrate/grants.ts";
 import { PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
+import { reapReleasedAssets } from "../substrate/reap-released.ts";
 
 export function createInstall(ctx: PluginContext): PluginService["install"] {
   return async ({ caller, bundle, grant, source }: InstallPluginParams) => {
@@ -54,7 +55,7 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
     // bytes another plugin's within-owner dedup already shares are left alone.
     const bundleAssets = await storeBundleAssets(ctx.assets.store, caller, uiAssets, now);
     if (!bundleAssets.ok) {
-      await ctx.assets.reapOrphans([stored.assetId, ...bundleAssets.stored]);
+      await reapReleasedAssets(ctx, { slug: manifest.id }, [stored.assetId, ...bundleAssets.stored], bundleAssets.error);
       throw bundleAssets.error;
     }
 

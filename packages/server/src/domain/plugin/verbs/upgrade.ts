@@ -48,6 +48,7 @@ import { storeBundleAssets } from "../substrate/bundle-assets.ts";
 import { refreshConsentPrompt } from "../substrate/consent-prompt.ts";
 import { newlyDeclaredCapabilities, normalizeGrant, pendingWidenedNetHosts, widenedNetHosts } from "../substrate/grants.ts";
 import { isVersionDowngrade, PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
+import { reapReleasedAssets } from "../substrate/reap-released.ts";
 
 function requireActivated(outcome: Awaited<ReturnType<ActivationDeps["activate"]>>): void {
   if (!outcome.ok) {
@@ -110,14 +111,7 @@ async function repairAfterFailedSwap(ctx: PluginContext, pluginId: PluginId, cau
       "plugin: upgrade FAILED and the row repair failed too — the row may still read `enabled` with no resident instance (re-enable or retry the upgrade to reconcile)",
     );
   }
-  try {
-    await ctx.assets.reapOrphans([...attemptAssetIds]);
-  } catch (reapErr) {
-    getLog().warn(
-      { pluginId, upgradeError: errorMessage(cause), reapError: errorMessage(reapErr) },
-      "plugin: upgrade FAILED and the attempt's assets could not be reaped — the weekly assets-gc sweep collects them",
-    );
-  }
+  await reapReleasedAssets(ctx, { pluginId }, attemptAssetIds, cause);
 }
 
 /** The two things a REPLACEMENT bundle must be before anything is written: the same plugin (slug match — a
@@ -200,7 +194,7 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
       // Reap what THIS attempt wrote (the new zip + the images that landed before the failure) and leave the
       // installed version exactly as it was, still running. `reapIfOrphan` re-checks references per id, so an
       // asset the CURRENT version still points at — an unchanged zip dedups to the same id — is never taken.
-      await ctx.assets.reapOrphans([stored.assetId, ...bundleAssets.stored]);
+      await reapReleasedAssets(ctx, { pluginId }, [stored.assetId, ...bundleAssets.stored], bundleAssets.error);
       throw bundleAssets.error;
     }
 
@@ -251,7 +245,8 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
     // image the OLD bundle held (#820). `reapIfOrphan` re-checks references per id, so a within-user dedup that
     // reused the SAME asset (identical bytes — an unchanged bundle zip, or a sprite this version still ships)
     // is never reaped, and neither is one a second plugin holds. Only what this upgrade genuinely dropped goes.
-    await ctx.assets.reapOrphans([existing.bundleAssetId, ...priorBundleAssetIds]);
+    // The old resident is already stopped, so a failed reap must not stand between the swap and reactivation.
+    await reapReleasedAssets(ctx, { pluginId }, [existing.bundleAssetId, ...priorBundleAssetIds]);
 
     if (reactivate) {
       // `reactivate` only happens when THIS upgrade widened nothing — but a re-consent carried in from an

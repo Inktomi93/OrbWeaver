@@ -149,7 +149,7 @@ test("a file over the per-file cap stays on disk with its reason; the file count
   }
 });
 
-test("a non-SillyTavern tree (an unzipped orb backup) is split in path order with nothing left out", async () => {
+test("a non-SillyTavern tree (an unzipped orb backup) is split in import dependency order with nothing left out", async () => {
   const plan = await planTreeImport(
     [pickedFile("backup/personas/me.json", "x".repeat(3000)), pickedFile("backup/presets/rp.json", "x".repeat(3000))],
     { totalBytes: 5000, fileBytes: 4000, files: 50_000 },

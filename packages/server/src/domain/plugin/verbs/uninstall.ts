@@ -13,6 +13,7 @@ import type { ActivationDeps, PluginContext, PluginService } from "../contract/s
 import { listPluginFetchedAssetIds } from "../persistence/plugin-assets.ts";
 import { deletePlugin, getById } from "../persistence/plugins.ts";
 import { refreshConsentPrompt } from "../substrate/consent-prompt.ts";
+import { reapReleasedAssets } from "../substrate/reap-released.ts";
 
 export function createUninstall(ctx: PluginContext, deps: Pick<ActivationDeps, "deactivate">): PluginService["uninstall"] {
   return async ({ caller, pluginId }: UninstallPluginParams): Promise<void> => {
@@ -29,7 +30,7 @@ export function createUninstall(ctx: PluginContext, deps: Pick<ActivationDeps, "
     // The bundle (RESTRICT — the row had to go first) plus every cover this plugin fetched (#802), now
     // unreferenced by the same delete. `reapIfOrphan` re-checks the whole registry per id, so a within-user
     // dedup that another plugin (or a character avatar) still shares is left alone.
-    await ctx.assets.reapOrphans([existing.bundleAssetId, ...fetched]);
+    await reapReleasedAssets(ctx, { pluginId }, [existing.bundleAssetId, ...fetched]);
     // Removing a plugin ANSWERS its ask by withdrawing the question (#1041): the row is gone, so the
     // aggregate must not keep counting it — and when it was the last one standing, the ask is retracted
     // rather than left pointing at a screen with nothing to answer. Never `raised`: an uninstall can only
