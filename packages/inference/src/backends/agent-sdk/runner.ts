@@ -453,7 +453,7 @@ async function probeContextUsage(query: Query, scheduleTimeout: AgentSdkDeps["sc
 export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: TurnStreamContext, log: AgentSdkLog): Promise<ChatResult> {
   const acc = new TurnAccumulator(ctx, log);
   let streamFailure: unknown;
-  // @orb-waive caught-failure-ownership(error): the original stream failure is retained until completed facts are durably observed, then finishWithError rethrows it; ends if capture no longer precedes refusal.
+  // @orb-waive caught-failure-ownership(error): the stream failure is held in `streamFailure` and returned through finishTurnWithError at runner.ts:474 (typed Promise<never>) once the observed result is captured. Ends if capture stops preceding that refusal.
   try {
     for await (const message of stream) {
       assertSdkMessageRead(message);

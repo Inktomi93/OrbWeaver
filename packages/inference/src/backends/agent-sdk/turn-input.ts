@@ -248,7 +248,7 @@ function answeredIdsAfter(history: readonly ChatHistoryMessage[], index: number)
  *  literal would set the prototype. */
 function isJsonObject(raw: string): boolean {
   let parsed: unknown;
-  // @orb-waive caught-failure-ownership(catch): CLASSIFIER, not a failure — "does this model-emitted blob parse to an object" is the question, and `false` IS the answer (the pair degrades to announced text, which the caller renders). Reporting it would raise a user-facing error for a turn that runs correctly. Ends if this ever gates something other than the structural-vs-text choice.
+  // @orb-waive caught-failure-ownership(catch): classifier: the `false` answer is read by pairedToolCallIds at turn-input.ts:224, so a non-object call and its pair degrade to announced text the model receives. Ends if this ever gates something other than the structural-vs-text choice.
   try {
     parsed = JSON.parse(raw);
   } catch {

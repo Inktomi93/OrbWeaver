@@ -104,7 +104,7 @@ function toToolInput(raw: string): Record<string, unknown> | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
-    // @orb-waive caught-failure-ownership(catch): malformed model-emitted arguments become `null`, which toSdkBlock maps to an empty object so the tool pair remains wire-valid. Precedent: the gate mustPass fixture packages/server/src/infra/auth/parser.ts proves the same fail-closed parse default. Ends if null loses that owner.
+    // @orb-waive caught-failure-ownership(catch): an unparseable argument blob cannot reach this parse: turn-input.ts:224 (`isJsonObject`) degrades such a call and its pair to announced text before a seed block exists, and the null feeds `?? {}` at frames.ts:85. Ends if a seed producer other than splitAgentHistory appears.
   } catch {
     return null;
   }

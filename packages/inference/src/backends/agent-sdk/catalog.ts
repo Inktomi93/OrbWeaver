@@ -78,7 +78,7 @@ export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: Agent
     // Billing cleanup for a turn that never started — best-effort AND BOUNDED; logged, never thrown.
     try {
       await withTimeout(stream.interrupt(), deps, INTERRUPT_TIMEOUT_MS, "discovery turn teardown");
-      // @orb-waive caught-failure-ownership(err): bounded best-effort teardown is owned by the warning log; the model-discovery result or primary failure remains authoritative. Precedent: the gate mustPass fixture packages/server/src/infra/probe/cleanup.ts proves the same bounded teardown absorber. Ends if the warning disappears.
+      // @orb-waive caught-failure-ownership(err): the catch logs a structured warning with the scrubbed teardown error (`log.warn` at catalog.ts:83); the discovery result or primary failure stays authoritative. Ends if that warning is removed.
     } catch (err) {
       log.warn({ err: new Error(lease.safeErrorMessage(err)) }, "agent-sdk model discovery: turn teardown did not complete — the spawn may already be gone");
     }

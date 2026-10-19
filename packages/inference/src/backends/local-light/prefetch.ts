@@ -48,7 +48,7 @@ export function createLocalLightPrefetch(deps: LocalLightPrefetchDeps): LocalLig
     publish(slot, "downloading", `downloading ${modelId}`);
     const run = deps
       .cache()
-      // @orb-waive caught-failure-ownership(preload): speculative prefetch owns failure through a warning and published `failed` state; first use retains the lazy load path. Precedent: packages/server/src/entry/boot/local-light-prefetch.ts accepts the same warning plus lazy-path fallback. Ends if prefetch becomes required.
+      // @orb-waive caught-failure-ownership(preload): the `deps.log.warn` at prefetch.ts:56 and the published `failed` state at prefetch.ts:57 own the failure; first use keeps the lazy load path. Ends if prefetch becomes required.
       .preload(slot, modelId, onnx)
       .then(() => publish(slot, "ready", `${modelId} ready`))
       .catch((err: unknown) => {

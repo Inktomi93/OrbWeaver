@@ -110,7 +110,7 @@ function joinWake(flight: WakeFlight, signal: AbortSignal | undefined): Promise<
     if (signal?.aborted === true) {
       onAbort();
     }
-    // @orb-waive caught-failure-ownership(flight.run): the rejection is forwarded to this task's own promise, which its caller awaits. Ends if the handler stops rejecting with the error.
+    // @orb-waive caught-failure-ownership(flight.run): the rejection arm calls `reject(err)` at reachability.ts:121 on this task's own promise, which its caller awaits. Ends if the handler stops rejecting with the error.
     flight.run.then(
       (woke) => {
         leave();
