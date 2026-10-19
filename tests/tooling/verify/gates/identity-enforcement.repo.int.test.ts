@@ -1,31 +1,20 @@
-// The widened identity populations must detect entry and room-effect ceilings on the actual compiler graph.
+// The widened role-authority population must detect entry and room-effect ceilings on the actual compiler graph.
 import type { RealCorpusLivenessArm } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { assertArmVerdict, openRealCorpusLiveness } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { loadGateCorpus, reviewedGrantsFor, runPolicyPass } from "@orb/tooling/verify";
-import { gate as users } from "../../../../tooling/src/verify/gates/no-direct-users-read.ts";
 import { gate as role } from "../../../../tooling/src/verify/gates/two-class-role-authority.ts";
 import { WAIVER_BUDGET } from "../../../../tooling/src/verify/lib/waiver-budget.ts";
 import { ALL_ARMS } from "./_liveness/runner.ts";
 
-const USERS_PATHS = ["packages/server/src/entry/boot/liveness-identity-users.ts", "packages/server/src/entry/compose/liveness-identity-users.ts"] as const;
 const ROLE_PATHS = [
   "packages/server/src/entry/compose/liveness-identity-role.ts",
   "packages/server/src/domain/plugin/verbs/liveness-identity-role.ts",
 ] as const;
-const USERS_SOURCE = 'import { users } from "@orb/db"; export const identityRoot = users;\n';
 const ROLE_SOURCE =
   'import type { ParticipantRole } from "@orb/contracts/identity"; export function ceiling(role: ParticipantRole) { return { canWrite: role === "host" }; }\n';
 const ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: users,
-    overlays: [
-      { kind: "add", path: USERS_PATHS[0], source: USERS_SOURCE },
-      { kind: "add", path: USERS_PATHS[1], source: USERS_SOURCE },
-    ],
-    messageIncludes: "liveness-identity-users.ts",
-  },
   {
     policy: role,
     overlays: [
@@ -36,8 +25,8 @@ const ARMS: readonly RealCorpusLivenessArm[] = [
   },
 ];
 
-test("the complete current identity populations are clean with their existing sanctioned-module grants", async ({ repoRoot }) => {
-  const policies = [users, role];
+test("the complete current role-authority population is clean with its existing sanctioned-module grants", async ({ repoRoot }) => {
+  const policies = [role];
   const corpus = await loadGateCorpus(repoRoot);
   const result = runPolicyPass({
     knownPolicies: corpus.gates,
@@ -63,7 +52,7 @@ test("the complete current identity populations are clean with their existing sa
   expect(result.authority.reviewedGrantConsumption.every((grant) => grant.count === 1)).toBe(true);
 });
 
-test("actual entry boot/compose and domain authority fields remain in both identity gates", ({ repoRoot }) => {
+test("actual entry compose and domain authority fields remain in the role-authority gate", ({ repoRoot }) => {
   const ids = new Set(ARMS.map((arm) => arm.policy.id));
   const runner = openRealCorpusLiveness(repoRoot, ARMS, [...ALL_ARMS.filter((arm) => !ids.has(arm.policy.id)), ...ARMS]);
   for (const arm of ARMS) {

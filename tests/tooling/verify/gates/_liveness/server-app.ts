@@ -17,7 +17,6 @@ import { gate as handleKeyWriter } from "../../../../../tooling/src/verify/gates
 import { gate as membershipEnforcer } from "../../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as membershipFanGuard } from "../../../../../tooling/src/verify/gates/membership-fan-guard.ts";
 import { gate as membershipWriteFan } from "../../../../../tooling/src/verify/gates/membership-write-fan.ts";
-import { gate as noDirectUsersRead } from "../../../../../tooling/src/verify/gates/no-direct-users-read.ts";
 import { gate as noHardcodedSideGenSampling } from "../../../../../tooling/src/verify/gates/no-hardcoded-side-gen-sampling.ts";
 import { gate as noInlineDomainInterface } from "../../../../../tooling/src/verify/gates/no-inline-domain-interface.ts";
 import { gate as ownTablesOnly } from "../../../../../tooling/src/verify/gates/own-tables-only.ts";
@@ -30,7 +29,6 @@ import { gate as singleStreamTransport } from "../../../../../tooling/src/verify
 import { gate as turnIdentity } from "../../../../../tooling/src/verify/gates/turn-identity.ts";
 import { gate as twoClassRoleAuthority } from "../../../../../tooling/src/verify/gates/two-class-role-authority.ts";
 import { gate as typesInContract } from "../../../../../tooling/src/verify/gates/types-in-contract.ts";
-import { gate as vectorScopeDerived } from "../../../../../tooling/src/verify/gates/vector-scope-derived.ts";
 import { gate as verbNaming } from "../../../../../tooling/src/verify/gates/verb-naming.ts";
 
 const SERVER = "packages/server/src";
@@ -114,11 +112,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "MEMBERSHIP-class write",
-  },
-  {
-    policy: noDirectUsersRead,
-    overlays: [add(`${SERVER}/domain/character/liveness-users.ts`, 'import { users } from "@orb/db";\nexport const livenessUsers = users;\n')],
-    messageIncludes: "packages/server/src/domain/character/liveness-users.ts",
   },
   {
     policy: noHardcodedSideGenSampling,
@@ -224,11 +217,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: typesInContract,
     overlays: [neutralise(`${SERVER}/domain/admin/contract/service.ts`, "export const noInterface = 1;\n")],
     messageIncludes: "must declare the exported",
-  },
-  {
-    policy: vectorScopeDerived,
-    overlays: [add(`${SERVER}/domain/character/liveness-vector.ts`, 'import { chatDigests } from "@orb/db";\nexport const livenessDigests = chatDigests;\n')],
-    messageIncludes: "vector-substrate chokepoint was bypassed",
   },
   {
     policy: verbNaming,

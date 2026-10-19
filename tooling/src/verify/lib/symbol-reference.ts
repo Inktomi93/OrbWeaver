@@ -5,8 +5,7 @@
 // and blindness is a silent GREEN — the worst gate failure mode (memory: gate-blind-spots-are-spelling-shaped).
 // Three spelling families escaped 21 live gates at once:
 //   • BRACKET ACCESS — `db["insert"](schema["chatDigests"])` is an ElementAccessExpression, so a gate keyed
-//     on `PropertyAccessExpression.getName()` never sees it (measured on vector-scope-derived: the
-//     property spelling flagged 2, all three bracket spellings flagged 0).
+//     on `PropertyAccessExpression.getName()` never sees it.
 //   • NAMESPACE IMPORT — `import * as events from …; events.subscribeAllChatEvents(…)` produces NO
 //     ImportSpecifier, so an import-specifier-keyed gate never sees the reference at all.
 //   • AN IDENTIFIER STANDING FOR A LITERAL — `role={ROLE}` / `margin: -8` are not StringLiteral /

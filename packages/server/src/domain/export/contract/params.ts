@@ -1,5 +1,5 @@
 // domain/export/contract/params — every verb's *Params, declared once. Every verb carries the resolved
-// principal; ownership is scoped off principal.userId (never a users read — no-direct-users-read gate).
+// principal; ownership is scoped off principal.userId (never a users read — the `orb/no-direct-users-read` lint rule).
 
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, ChatId } from "@orb/kit/ids";

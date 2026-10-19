@@ -29,7 +29,7 @@ of truth), and **building it never blocks a reply** (post-commit fire-and-forget
 
 1. **ONE vector write path.** Every insert/update on the six vector tables (`character_embeddings` ·
    `image_embeddings` · `chat_digests` · `chat_segments` · `chat_digest_speakers` · `document_chunks` —
-   the set the `vector-scope-derived` gate pins) lives in
+   the set the `orb/vector-scope-derived` lint rules pin) lives in
    `embeddings/persistence/queries.ts`, reached only via `embeddings.store` / `embeddings.storeSegments`
    (+ `writeHubScores`, inv 3). Producers (card/avatar/digest) call `store`; they never insert directly.
    `store`'s params are discriminated by kind, and `segment` is deliberately not one of its cases:

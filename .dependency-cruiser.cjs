@@ -914,7 +914,7 @@ module.exports = {
     // never fire (empirically verified: a probe `import { ownerStats }` in discovery cruised green). The
     // real enforcement is the ts-morph structure gate `discovery-no-stats-rollups`
     // (scripts/check/gates/) which matches the named table symbols at the ImportSpecifier level — the
-    // same mechanism vector-scope-derived/no-direct-users-read use for barrel-resolved table seals.
+    // same import-name level the orb/vector-scope-derived and orb/no-direct-users-read lint rules use.
 
     // ════════════════════ @orb/tooling — the tool fleet ABOVE the cake (docs/law/Core-Tooling-Law.md §4.6) ════════════════════
     {

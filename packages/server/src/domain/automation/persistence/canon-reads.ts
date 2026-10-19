@@ -143,7 +143,7 @@ export async function isBookOwnedBy(db: Db, bookId: WorldBookId, userId: UserId)
 }
 
 // C5 — "is this author still an ENABLED account?" is DELIBERATELY NOT HERE. It was, briefly, and the
-// `no-direct-users-read` gate was right to refuse it: the `users` table is read and written by
+// `orb/no-direct-users-read` boundary refuses it: the `users` table is read and written by
 // `domain/sessions` + `domain/admin` ONLY (Spine-Identity-and-Auth.md), and every other domain takes what it
 // needs about a user from the resolved Principal or an injected op. So the owner-global lane's standing read
 // crosses as `IsAuthorEnabled` (`contract/ops.ts`), wired at compose to sessions' own `loadUserById`. The

@@ -10,7 +10,7 @@
 //     ANY of these tables. A row carries only its PRODUCER FK (characterId / assetId / chatId, all NOT
 //     NULL); owner-scope is DERIVED at search time from the producer (membership `chatId ∈ {my chats}`
 //     for digests/segments; `characters.ownerId` for card embeds; the now-per-user owned asset, D21, for
-//     images). Enforced downstream by the `vector-scope-derived` gate.
+//     images). Enforced downstream by the `orb/vector-scope-derived` lint rules.
 //   • D28 — `character_versions` is GONE: `character_embeddings.characterId` FKs `characters.id` (the
 //     live card); there is NO `characterVersionId` on any table (was a chat-pinning artifact).
 //   • content_hash on ALL five primary tables (notNull) — the staleness gate (re-embed iff the hash
@@ -465,7 +465,7 @@ export const chatDigestSpeakers = sqliteTable(
 // Structurally identical to chat_segments: re-chunk/re-embed regenerates it from
 // `documents.extractedText`; a document delete CASCADEs it away. NO ownerId (D20 — scope derives via
 // `documents.ownerId`). The write path (an `embeddings.store` lens arm) + the search read arm land with
-// DB2 proper; the table is born into the baseline now (the vector-scope-derived gate enforces the
+// DB2 proper; the table is born into the baseline now (the `orb/vector-scope-derived` lint rules enforce the
 // chokepoint from birth). `charStart`/`charEnd` are the non-overlap span offsets into extractedText
 // (source highlighting + lossless-coverage assertions).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
