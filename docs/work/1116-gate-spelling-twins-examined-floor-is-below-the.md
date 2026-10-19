@@ -1,9 +1,9 @@
 ---
 kind: bug
-status: doing
+status: blocked
 updated: 2026-10-19
 priority: P2
-lane: wt/agent-acb14f15173490df8
+blocked: on 1120
 ---
 
 # gate-spelling-twins examined floor is below the post-1041 gate corpus
