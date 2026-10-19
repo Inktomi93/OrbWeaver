@@ -151,13 +151,16 @@ jobs:
         timeout-minutes: 15
         run: bash scripts/ci/install-media.sh
       - run: pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/1
+      # D321: the whole server suite, strict and legacy, must execute every domain verb implementation.
+      - name: Domain verb coverage
+        run: pnpm exec node scripts/ci-verb-coverage.ts
       - if: failure()
         name: Say how to reproduce
         run: |
           {
             echo "### $GITHUB_JOB failed"
             echo
-            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/1\`"
+            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/1\`, then \`pnpm exec node scripts/ci-verb-coverage.ts\`"
             echo
             echo "Logs and reports are in the \`reports-node-${{ matrix.shard }}\` artifact on this run."
           } >> "$GITHUB_STEP_SUMMARY"

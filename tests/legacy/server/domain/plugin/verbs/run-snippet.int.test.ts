@@ -5,7 +5,7 @@
 // existence oracle) — the port is never reached. It also pins the PER-USER CONCURRENCY CEILING, the one belt on
 // this member-reachable path that speaks in held contexts rather than requests-per-minute. The end-to-end sandbox
 // run lives in port.test.ts + the composed-real transport int; this is the domain-tree behavioral mirror
-// (test-presence + contract-verb-presence).
+// (test-presence).
 
 import type { InvocationChat, PluginCapability } from "@orb/contracts/plugin";
 import { DomainNotFoundError } from "@orb/kit/errors";

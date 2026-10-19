@@ -265,7 +265,7 @@ export function declaredMembers(sf: SourceFile, varName: string, moduleSource: S
 
 /** Every `extends` clause of the member-source interface must RESOLVE. A base binding no interface
  *  declaration would silently contribute zero fields — the shrunken-denominator failure verbatim — so it is
- *  a refusal instead (the `contract-verb-presence` #943 precedent). */
+ *  a refusal instead. */
 function assertHeritageResolves(iface: InterfaceDeclaration, reader: TypeObservationReader): void {
   for (const clause of iface.getExtends()) {
     const symbol = reader.symbol(clause.getExpression());
