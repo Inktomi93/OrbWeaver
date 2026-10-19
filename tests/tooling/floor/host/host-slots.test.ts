@@ -450,6 +450,31 @@ test("release is idempotent and never deletes a slot a LATER run legitimately re
   rmSync(env[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
 });
 
+test("release never deletes a slot file it cannot prove is its own, and says so", async () => {
+  // A torn record is not ours: the lease writes through rename, so it never produces one. Deleting it would
+  // remove a file whose writer is unknown, with nothing printed.
+  const torn = scratchRuntime();
+  const tornNotices: string[] = [];
+  const tornLease = await acquireHostSlot(poolOf(1), { env: torn, pid: 5101, alive: aliveOnly(5101), onNotice: (m) => tornNotices.push(m) });
+  const tornPath = join(hostPoolDir(poolOf(1), torn), "1.lock");
+  writeFileSync(tornPath, '{"pid": 999999, "startedAt": "x", "lab');
+  tornLease.release();
+  expect(existsSync(tornPath), "an unreadable record is kept").toBe(true);
+  expect(tornNotices.join("\n"), "and the keep is announced").toContain("an unreadable record");
+  rmSync(torn[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+
+  // Control: a parseable record naming another holder was already kept, and needs no notice.
+  const foreign = scratchRuntime();
+  const foreignNotices: string[] = [];
+  const foreignLease = await acquireHostSlot(poolOf(1), { env: foreign, pid: 5102, alive: aliveOnly(5102), onNotice: (m) => foreignNotices.push(m) });
+  const foreignPath = join(hostPoolDir(poolOf(1), foreign), "1.lock");
+  writeFileSync(foreignPath, JSON.stringify({ pid: 5103, startedAt: "x", label: "other", beatMs: 1 }));
+  foreignLease.release();
+  expect(existsSync(foreignPath), "a parseable foreign record is kept").toBe(true);
+  expect(foreignNotices, "a later run legitimately re-creating the slot is not an event").toStrictEqual([]);
+  rmSync(foreign[HOST_POOL_ROOT_ENV] ?? "", { recursive: true, force: true });
+});
+
 // ── the advisory door (0176): the edit hook's answer to a full pool is "skipped", never a wait ─────────
 
 test("tryAcquireHostSlot takes a free slot at once and releases it, leaving no ticket behind", () => {
