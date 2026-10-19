@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
 area: server
+lane: wt/agent-a2e888bf73456f7ae
 ---
 
 # Model image parts from user rows need author or link proof

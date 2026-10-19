@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-19
 priority: P3
 area: tooling
+lane: wt/agent-ac21421f778510584
 ---
 
 # Generated outputs keep only their migrated restrictions

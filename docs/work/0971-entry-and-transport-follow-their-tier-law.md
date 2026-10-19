@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-12
+status: doing
+updated: 2026-10-19
 priority: P1
+lane: wt/agent-a94ab45e8b5437f01
 ---
 
 # Entry and transport follow their tier law
