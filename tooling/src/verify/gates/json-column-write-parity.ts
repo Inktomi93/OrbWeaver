@@ -20,7 +20,8 @@
 // carry the caller's actual expression. A local declaration is NOT row provenance: the bounded reader
 // traces actual Drizzle reads/projections and callable bodies, validates same-column known schema bodies,
 // and proves real omitted-member fallbacks/spreads. Unknown/fabricated/opaque producer or normalizer
-// paths refuse. A documented catch carries historical-heal provenance, never a value-identity claim;
+// paths refuse, except a normalizer outside the captured cohort, which is an advisory unknown for that write
+// alone (D328). A documented catch carries historical-heal provenance, never a value-identity claim;
 // heal-fed versioned-config writes still owe the existing ARM-B dominance guard.
 //
 // DERIVED, NEVER HAND-LISTED: the JSON-column set comes from `packages/db/src/schema/**`'s
@@ -119,6 +120,9 @@ export const gate = defineGate({
       const schema = ctx.fact(drizzleSchemaDataFact);
       recordReadySchemaFact(ctx, schema);
       const analysis = ctx.fact(jsonColumnWriteFact).analyze(schema.value);
+      for (const unknown of analysis.unknowns) {
+        ctx.report.analysis(unknown.node, { kind: "unknown", reason: unknown.reason });
+      }
       const candidates = analysis.guardTargets
         .filter((target) => !target.dominated)
         .map((target) => ({ node: target.node, subject: target.key, operation: "versioned-config-replace" }));
@@ -135,6 +139,17 @@ export const gate = defineGate({
   }),
 
   mustFlag: [
+    {
+      mode: "types",
+      files: jsonWriteProofFiles({
+        "packages/db/src/schema/settings.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core"; export const userSettings = sqliteTable("user_settings", { userId: text("user_id"), selection: text("selection", { mode: "json" }) });\n',
+        "packages/server/src/domain/settings/persistence/probe.ts":
+          'import { refinerySelectionSchema } from "../../../../../contracts/src/refinery/index.ts";\nconst parser = refinerySelectionSchema.catch(() => ({ fields: [] }));\nconst DEFAULTS = parser.parse({ fields: [] });\nfunction view(row) { return { ...parser.parse(row.selection), fields: DEFAULTS.fields }; }\nexport async function merge(ctx, id) { const row = await readStored(ctx.db); await ctx.db.update(userSettings).set({ selection: view(row) }).where(id); }\nexport async function replace(db, config, id) { await db.update(userSettings).set({ selection: config }).where(id); }\n',
+      }),
+      expect: { count: 1 },
+      why: "D328 cohort: a helper body's module-const normalizer is carried into the partial observation cohort, so the straddle is still judged",
+    },
     {
       mode: "types",
       files: jsonWriteProofFiles({

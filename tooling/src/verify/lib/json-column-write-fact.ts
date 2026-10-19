@@ -7,6 +7,7 @@ import { Node, SyntaxKind } from "ts-morph";
 import { readUpsertSetArgument } from "../../floor/code-facts/drizzle-columns.ts";
 import type { DrizzleWriteRootVerb } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { DRIZZLE_INSERT_VERB, DRIZZLE_SET_VERB, DRIZZLE_UPDATE_VERB, DRIZZLE_UPSERT_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
+import { staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
 import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
 import { defineFact } from "../contract/fact.ts";
@@ -14,8 +15,16 @@ import type { JsonColumnOriginContext } from "../contract/json-column-origin.ts"
 import type { jsonColumnObservedReaders } from "./json-column-observed-readers.ts";
 import { jsonColumnObservationPlan, jsonColumnObservedCohort } from "./json-column-observed-readers.ts";
 import { createObservedJsonColumnOriginContext } from "./json-column-origin-context.ts";
-import type { JsonColumnWriter } from "./json-column-writers.ts";
-import { collectJsonWritersByColumnWith, collectWriters, DOMAIN_DIR, jsonWriterColumn, updatedTable, updatedTableWith } from "./json-column-writers.ts";
+import type { JsonColumnWriter, JsonWriteScan, JsonWriteUnknown } from "./json-column-writers.ts";
+import {
+  collectJsonWritersByColumnWith,
+  collectWriters,
+  DOMAIN_DIR,
+  jsonWriterColumn,
+  judgeOrUnknown,
+  updatedTable,
+  updatedTableWith,
+} from "./json-column-writers.ts";
 
 const CONTRACTS_DIR = "/packages/contracts/src/";
 
@@ -244,12 +253,12 @@ function collectJsonGuardTargets(
   calls: readonly CallExpression[],
   versionedColumns: ReadonlyMap<string, ReadonlySet<string>>,
   root: string,
-  contextFor: (call: CallExpression) => JsonColumnOriginContext,
+  scan: JsonWriteScan,
 ): JsonGuardTarget[] {
   const out: JsonGuardTarget[] = [];
   for (const call of calls) {
     if (call.getSourceFile().getFilePath().includes(DOMAIN_DIR)) {
-      const context = contextFor(call);
+      const context = scan.contextFor(call);
       const schema = context.schema;
       const target = versionedSetArg(call, versionedColumns, context);
       if (target !== undefined) {
@@ -257,7 +266,7 @@ function collectJsonGuardTargets(
         if (table === undefined) {
           throw new Error(`json-column-writes: versioned table disappeared: ${target.table}`);
         }
-        out.push(...guardTargetsOf(target.arg, { cols: target.cols, table }, root, context));
+        out.push(...(judgeOrUnknown(call, scan.unknowns, () => guardTargetsOf(target.arg, { cols: target.cols, table }, root, context)) ?? []));
       }
     }
   }
@@ -267,10 +276,24 @@ function collectJsonGuardTargets(
 export interface JsonColumnWriteAnalysis {
   readonly writers: ReadonlyMap<string, readonly JsonColumnWriter[]>;
   readonly guardTargets: readonly JsonGuardTarget[];
+  /** Writes judged unknown (D328), one entry per write; the gate reports each as an advisory unknown. */
+  readonly unknowns: readonly JsonWriteUnknown[];
 }
 
 export interface JsonColumnWriteFact {
   readonly analyze: (schema: SchemaProjectedModel) => JsonColumnWriteAnalysis;
+}
+
+// The calls this reader judges: a write whose callee member is a WRITE_VERBS verb (or a computed key the static
+// reader cannot name), and a contracts `defineVersionedConfig(` declaration. Every other call returns before any
+// observation is read, so these are the observation roots; the ordinary closure adds what their writes carry.
+function isJudgedCall(call: CallExpression): boolean {
+  const callee = call.getExpression();
+  if (Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee)) {
+    const name = staticMemberAccess(callee)?.name;
+    return name === undefined || WRITE_VERBS.has(name);
+  }
+  return call.getSourceFile().getFilePath().includes(CONTRACTS_DIR) && callee.getText() === DEFINE_VERSIONED_CONFIG;
 }
 
 /** One shared, invocation-local analysis of JSON columns and their writer shapes. */
@@ -284,6 +307,7 @@ export const jsonColumnWriteFact = defineFact({
   resources: [],
   create: (ctx) => {
     const calls: CallExpression[] = [];
+    let judged: readonly CallExpression[] = [];
     const native = ctx.nativeTypes;
     if (native === undefined) {
       throw new Error("native JSON writer observation context is unavailable");
@@ -291,7 +315,8 @@ export const jsonColumnWriteFact = defineFact({
     let plan: InventoryInvocationPlan | undefined;
     return {
       prepare: (): void => {
-        plan = jsonColumnObservationPlan(calls, []);
+        judged = calls.filter(isJudgedCall);
+        plan = jsonColumnObservationPlan(judged, []);
         native.request({ kind: "invocation-evidence", nodes: ctx.files, plan });
       },
       visitors: [
@@ -339,7 +364,7 @@ export const jsonColumnWriteFact = defineFact({
               }
               return context;
             };
-            const versioned = deriveVersionedTypes(calls, (node) => {
+            const versioned = deriveVersionedTypes(judged, (node) => {
               const type = observationsFor(node).selected({ base: { kind: "node", node }, steps: [], displayAt: node });
               if (type?.display === null || type === null) {
                 throw new Error("native JSON versioned binding display is unavailable");
@@ -351,9 +376,12 @@ export const jsonColumnWriteFact = defineFact({
               throw new Error(`${JSON_UNREADABLE_CONFIG_MESSAGE} Unreadable declaration: ${declarations.join(", ")}.`);
             }
             const columns = deriveJsonColumns(schema, versioned.types);
-            const writers = collectJsonWritersByColumnWith(calls, columns.all, contextFor);
-            const guardTargets = collectJsonGuardTargets(calls, columns.versioned, root, contextFor);
-            return Object.freeze({ writers, guardTargets });
+            const unknowns: JsonWriteUnknown[] = [];
+            const scan: JsonWriteScan = { contextFor, unknowns };
+            const writers = collectJsonWritersByColumnWith(judged, columns.all, scan);
+            const guardTargets = collectJsonGuardTargets(judged, columns.versioned, root, scan);
+            const unknownWrites = [...new Map(unknowns.map((unknown) => [unknown.node, unknown])).values()];
+            return Object.freeze({ writers, guardTargets, unknowns: unknownWrites });
           },
         });
       },
