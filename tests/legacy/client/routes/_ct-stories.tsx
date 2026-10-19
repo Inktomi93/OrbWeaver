@@ -13,7 +13,7 @@ import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 
 import { consumeInboundJoinToken, peekInboundJoinToken } from "@orb/client/data";
 import { AppErrorBoundary, useRouterUrlReplace } from "@orb/client/lib";
-import { useActiveSection } from "@orb/client/state";
+import { useActiveSection, useCorpusMode } from "@orb/client/state";
 import { CtDataProviders, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { useQueryClient } from "@tanstack/react-query";
 import { createRootRoute, createRoute, createRouter, RouterProvider } from "@tanstack/react-router";
