@@ -1,0 +1,290 @@
+[
+  {
+    "site": "tooling/src/snap/ops/matrix.ts:401 error",
+    "claimedOwner": "every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.",
+    "verifiedOwner": "tooling/src/snap/ops/matrix.ts:400 `let verdict: number = EXIT.toolError;`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/matrix.ts:401:3\ttooling/src/snap/ops/matrix.ts:405\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding, not stale). verdict keeps this initializer when the try throws and snapMatrixOnSession returns it at matrix.ts:417 `return verdict;`; the catch prints INSTRUMENT ERROR at :406. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(error): every lifecycle/discovery/planning failure is printed as INSTRUMENT ERROR and returned as EXIT.toolError below; cleanup still runs. Ends if this catch stops terminating the command.\n+ // @orb-waive caught-failure-ownership(error): the failure is printed as INSTRUMENT ERROR and `verdict` keeps its EXIT.toolError initializer (matrix.ts:400), which snapMatrixOnSession returns at :417. Ends if `verdict` stops starting at toolError or the print goes."
+  },
+  {
+    "site": "tooling/src/snap/ops/matrix.ts:409 error",
+    "claimedOwner": "cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.",
+    "verifiedOwner": "tooling/src/snap/ops/matrix.ts:414 `verdict = EXIT.toolError;`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/matrix.ts:409:5\ttooling/src/snap/ops/matrix.ts:412\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding, not stale). the cleanup catch prints INSTRUMENT ERROR at :413 and assigns the verdict, returned at :417. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(error): cleanup failure is printed to the operator and forces EXIT.toolError below. Ends if cleanup is delegated to an owner that returns its own verdict.\n+ // @orb-waive caught-failure-ownership(error): the cleanup failure is printed as INSTRUMENT ERROR and the catch assigns `verdict = EXIT.toolError` (matrix.ts:414), returned at :417. Ends if that assignment or the print goes."
+  },
+  {
+    "site": "tooling/src/snap/ops/request-ring.ts:271 error",
+    "claimedOwner": "sizes=null plus the caught reason on entry.failed are the exported request-row receipt. Ends if either evidence field stops being written.",
+    "verifiedOwner": "tooling/src/snap/ops/request-ring.ts:277 `entry.failed ??=`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/request-ring.ts:271:5\ttooling/src/snap/ops/request-ring.ts:275\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding, not stale). entry.failed is exported by publicEntry at :85, persisted at arms/requests.ts:28 and rendered by lib/request-log.ts:42. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(error): sizes=null plus the caught reason on\n- // entry.failed are the exported request-row receipt. Ends if either evidence field stops being written.\n+ // @orb-waive caught-failure-ownership(error): the catch writes the reason to entry.failed (request-ring.ts:277),\n+ // which publicEntry exports (:85) and request-log.ts:42 renders on the request row. Ends if the write or the render goes."
+  },
+  {
+    "site": "tooling/src/snap/ops/request-ring.ts:285 error",
+    "claimedOwner": "#reject persists the explicit read-error receipt and the caught reason is also retained on the request row. Ends if either write disappears.",
+    "verifiedOwner": "tooling/src/snap/ops/request-ring.ts:307 `entry.failed ??=`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/request-ring.ts:285:5\ttooling/src/snap/ops/request-ring.ts:305\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding, not stale). the same catch calls this.#reject(entry, \"read-error\", ...) at :306, counted in notRetained; entry.failed is rendered by lib/request-log.ts:42. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(error): #reject persists the explicit read-error\n- // receipt and the caught reason is also retained on the request row. Ends if either write disappears.\n+ // @orb-waive caught-failure-ownership(error): the catch records a read-error receipt via #reject (request-ring.ts:306)\n+ // and the reason on entry.failed (:307), rendered at request-log.ts:42. Ends if either write or the render goes."
+  },
+  {
+    "site": "tooling/src/snap/ops/run-report-render.ts:156 error",
+    "claimedOwner": "a PRESENT-but-unreadable values artifact is an instrument defect, printed as EVAL REFUSED and never as an empty value set; the strict index reader above still owns the run's verdict. Ends if that refusal line disappears.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/run-report-render.ts:156:5\ttooling/src/snap/ops/run-report-render.ts:161\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding). Question: Is it acceptable that an unreadable eval values artifact prints EVAL REFUSED (run-report-render.ts:162) while printSnapReport still returns EXIT.clean (run-report.ts:161)? Checked: the print is the only owner; renderSnapRunReport returns void so no exit vote reaches the caller.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/run-report.ts:136 catch",
+    "claimedOwner": "a neighbouring run's corruption is not this report's verdict — the subject index is read by the strict door in printSnapReport, and a skipped neighbour only means no delta row. Ends if this reader becomes the only read of those files.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/run-report.ts:136:5\ttooling/src/snap/ops/run-report.ts:144\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding). Question: Is dropping a corrupt neighbour index with no output acceptable for the display-only delta? Checked: the subject index is read strictly at run-report.ts:155; list mode reports corrupt indices (run-report.ts:179, run-report-render.ts:282) but this path never does.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/run-report.ts:152 error",
+    "claimedOwner": "this is the browser-free reader's terminal owner; it prints RUN INDEX REFUSED and returns tool-error for every resolution/validation/artifact failure. Ends if either output or exit vote disappears.",
+    "verifiedOwner": "tooling/src/snap/ops/run-report.ts:164 `return EXIT.toolError;`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/run-report.ts:152:3\ttooling/src/snap/ops/run-report.ts:162\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding, not stale). the catch prints RUN INDEX REFUSED at :163; printSnapReport's return is the report command's exit code (callers in snap/cli.ts and snap/index.ts per codegraph). ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(error): this is the browser-free reader's terminal owner; it prints RUN INDEX REFUSED and returns tool-error for every resolution/validation/artifact failure. Ends if either output or exit vote disappears.\n+ // @orb-waive caught-failure-ownership(error): the catch prints RUN INDEX REFUSED and returns EXIT.toolError (run-report.ts:164), the report command's exit code. Ends if either goes."
+  },
+  {
+    "site": "tooling/src/snap/ops/run-report.ts:175 error",
+    "claimedOwner": "list mode retains path+reason in `invalid` and `printSnapReports` emits the bounded aggregate; the strict single-index reader remains the detailed refusal door. Ends if either retention or aggregate output disappears.",
+    "verifiedOwner": "tooling/src/snap/ops/run-report.ts:179 `invalid.push({ path, reason`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/run-report.ts:175:7\ttooling/src/snap/ops/run-report.ts:178\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding, not stale). scanSnapRunIndices returns `invalid` at :183 and renderSnapRunList prints RUN INDEX SKIPPED from scan.invalid at run-report-render.ts:282-286. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(error): list mode retains path+reason in `invalid` and `printSnapReports` emits the bounded aggregate; the strict single-index reader remains the detailed refusal door. Ends if either retention or aggregate output disappears.\n+ // @orb-waive caught-failure-ownership(error): the catch keeps path and reason in `invalid` (run-report.ts:179), returned in the scan and printed as RUN INDEX SKIPPED by renderSnapRunList (run-report-render.ts:285). Ends if either goes."
+  },
+  {
+    "site": "tooling/src/snap/ops/session-admin.ts:145 catch",
+    "claimedOwner": "a daemon that does not answer its close is REAPED below (group signal + marker settle) and the reap's receipt is printed — the failure path is the louder one. Ends if the reap stops being unconditional after a refused close.",
+    "verifiedOwner": "tooling/src/snap/ops/session-admin.ts:160 `did not close cleanly — reaped:`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-admin.ts:145:3\ttooling/src/snap/ops/session-admin.ts:151\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding, not stale). a refused or unanswered close leaves answered=false (:144,:152), so control reaches the reap and its printed receipt at :160. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(catch): a daemon that does not answer its close is REAPED below (group signal + marker settle) and the reap's receipt is printed — the failure path is the louder one. Ends if the reap stops being unconditional after a refused close.\n+ // @orb-waive caught-failure-ownership(catch): a daemon that does not answer close is reaped and the receipt is printed as \"did not close cleanly — reaped\" (session-admin.ts:160). Ends if the reap stops being unconditional after a refused close."
+  },
+  {
+    "site": "tooling/src/snap/ops/session-admin.ts:54 catch",
+    "claimedOwner": "a live pid whose socket does not answer is REPORTED from its row with the \"not answering\" mark the caller prints — the read degrades to the evidence it has, it never hides the session. Ends if a silent daemon must become a hard error.",
+    "verifiedOwner": "tooling/src/snap/ops/session-admin.ts:81 `return \"not answering on its socket\";`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-admin.ts:54:3\ttooling/src/snap/ops/session-admin.ts:68\tcatch\tpe is a constant fallback — the behaviour changed and nobody was told.` (live finding, not stale). askStatus returns null (:69) and describeSession passes it to describeActivity (:91-93), which prints the not-answering mark on the LIVE status line. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(catch): a live pid whose socket does not answer is REPORTED from its row with the \"not answering\" mark the caller prints — the read degrades to the evidence it has, it never hides the session. Ends if a silent daemon must become a hard error.\n+ // @orb-waive caught-failure-ownership(catch): a silent daemon yields null, which describeActivity renders as \"not answering on its socket\" (session-admin.ts:81) on the session's status line (:93). Ends if null stops being rendered."
+  },
+  {
+    "site": "tooling/src/snap/ops/session-call-watchdog.ts:111 cdp.send",
+    "claimedOwner": "the reload below is the second cancellation path and the watchdog reports the original timeout to the caller. Ends if reload stops following this bounded acknowledgement wait.",
+    "verifiedOwner": "tooling/src/snap/ops/session-call-watchdog.ts:180 `throw new TerminalSessionCallError(`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-call-watchdog.ts:111:5\ttooling/src/snap/ops/session-call-watchdog.ts:112\tcdp.send\t.md) THIS SITE: a promise rejection handler that discards the failure.` (live finding, not stale). if terminateExecution fails and the call never settles, Promise.all([cancel, work]) at :169-176 never resolves, the sleep at :178 wins and :180 throws. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(cdp.send): the reload below is the second cancellation path and the watchdog reports the original timeout to the caller. Ends if reload stops following this bounded acknowledgement wait.\n+ // @orb-waive caught-failure-ownership(cdp.send): a failed terminateExecution leaves the call unsettled, so recovery loses the race to sleep(recoveryWaitMs) (session-call-watchdog.ts:178) and throws TerminalSessionCallError (:180). Ends if that race or throw goes."
+  },
+  {
+    "site": "tooling/src/snap/ops/session-call-watchdog.ts:113 session.page.reload",
+    "claimedOwner": "reload is best-effort cancellation after the timeout already owns the caller-visible error; the next-call survival gate detects a context that failed to recover. Ends if the timeout stops being reported or the survival gate is removed.",
+    "verifiedOwner": "tooling/src/snap/ops/session-call-watchdog.ts:178 `const recovered = await Promise.race([recovery, sleep(recoveryWaitMs)`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-call-watchdog.ts:113:5\ttooling/src/snap/ops/session-call-watchdog.ts:114\tsession.page.reload\t.md) THIS SITE: a promise rejection handler that discards the failure.` (live finding, not stale). a failed reload leaves work unsettled, so the sleep wins the race at :178 and :180 throws TerminalSessionCallError. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(session.page.reload): reload is best-effort cancellation after the timeout already owns the caller-visible error; the next-call survival gate detects a context that failed to recover. Ends if the timeout stops being reported or the survival gate is removed.\n+ // @orb-waive caught-failure-ownership(session.page.reload): a failed reload leaves the call unsettled, so recovery loses the race to sleep(recoveryWaitMs) (session-call-watchdog.ts:178) and throws TerminalSessionCallError (:180). Ends if that race or throw goes."
+  },
+  {
+    "site": "tooling/src/snap/ops/session-call-watchdog.ts:149 Promise.resolve",
+    "claimedOwner": "the rejection is retained in the discriminated work outcome and the rejected arm below rethrows the original binding; timeout recovery also awaits this owned outcome. Ends if the rejected arm stops propagating the original failure.",
+    "verifiedOwner": "tooling/src/snap/ops/session-call-watchdog.ts:163 `throw result.error;`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-call-watchdog.ts:149:3\ttooling/src/snap/ops/session-call-watchdog.ts:150\tPromise.resolve\t.md) THIS SITE: a promise rejection handler that discards the failure.` (live finding). Scratch probe of the same shape with `Promise.race([work, other])` then `if (result.status === \"rejected\") { throw result.error; }`: `UNWAIVED tooling/src/snap/ops/zz-probe.ts:2 Promise.resolve THIS SITE: a promise rejection handler that discards the failure.`; the same chain with `return await work;` prints no finding. The handler returns `{ status: \"rejected\", error }`, a failure outcome (FAILURE_DISCRIMINATOR_RE, caught-failure-outcome.ts:36), so handlerReturnsOwnedFailure holds and the verdict turns on recoveredFailureIsConsumed (caught-failure.ts:246). valueHasMeaningfulConsumer (caught-failure.ts:286) accepts only a return or recordTurnOutcome, so `work` as an array element of Promise.race / Promise.all (watchdog :156, :169-176) is not consumption, though :162-163 rethrows the stored error.",
+    "disposition": "GATE FALSE POSITIVE",
+    "diff": "none (escalate to an Opus lane; proposed mustPass row, mode types, path tooling/src/snap/ops/x.ts: `export async function f(run: () => Promise<number>, other: Promise<never>): Promise<number> { const work = Promise.resolve().then(run).then((code) => ({ status: \"done\" as const, code }), (error: unknown) => ({ status: \"rejected\" as const, error })); const result = await Promise.race([work, other]); if (result.status === \"rejected\") { throw result.error; } return result.code; }`, expect count 0; the marker stays until the reader changes)"
+  },
+  {
+    "site": "tooling/src/snap/ops/session-call-watchdog.ts:170 then",
+    "claimedOwner": "failed injected or browser cancellation becomes `false`, which makes `recovered` false and throws TerminalSessionCallError; the daemon then emits DEAD/toolError, records terminalReason, tears down, and kills its owned process group. Ends if false stops forcing terminal teardown.",
+    "verifiedOwner": "tooling/src/snap/ops/session-call-watchdog.ts:180 `throw new TerminalSessionCallError(`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-call-watchdog.ts:170:5\ttooling/src/snap/ops/session-call-watchdog.ts:171\tthen\t.md) THIS SITE: a promise rejection handler that discards the failure.` (live finding, not stale). the handler returns false, so `cancelled` is false, `recovered` is false at :178 and :180 throws; session-daemon-request.ts:161-163 prints SESSION DEAD for that error. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(then): failed injected or browser cancellation becomes `false`, which makes `recovered` false and throws TerminalSessionCallError; the daemon then emits DEAD/toolError, records terminalReason, tears down, and kills its owned process group. Ends if false stops forcing terminal teardown.\n+ // @orb-waive caught-failure-ownership(then): a failed cancellation becomes false, `recovered` goes false (session-call-watchdog.ts:178) and :180 throws TerminalSessionCallError, which the daemon reports as SESSION DEAD. Ends if false stops forcing that throw."
+  },
+  {
+    "site": "tooling/src/snap/ops/session-client.ts:136 catch",
+    "claimedOwner": "a refused or absent socket IS the negative answer of a readiness poll — the caller keeps polling until the daemon answers, exits, or the boot budget names the failure. Ends if the poll stops bounding the wait.",
+    "verifiedOwner": "tooling/src/snap/ops/session-client.ts:234 `SESSION BOOT FAILED`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-client.ts:136:3\ttooling/src/snap/ops/session-client.ts:139\tcatch\tpe is a constant fallback — the behaviour changed and nobody was told.` (live finding, not stale). bootSession loops over pingOk at :229 and, when bootExpired() holds, prints SESSION BOOT FAILED and returns EXIT.toolError at :234-235; a dead daemon is caught at :225-227. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(catch): a refused or absent socket IS the negative answer of a readiness poll — the caller keeps polling until the daemon answers, exits, or the boot budget names the failure. Ends if the poll stops bounding the wait.\n+ // @orb-waive caught-failure-ownership(catch): a refused or silent socket is a false ping; bootSession keeps polling until the daemon exits (session-client.ts:226) or the budget prints SESSION BOOT FAILED and returns EXIT.toolError (:234). Ends if the poll stops being bounded."
+  },
+  {
+    "site": "tooling/src/snap/ops/session-client.ts:147 catch",
+    "claimedOwner": "the log does not exist until the daemon's first write — an absent file is \"nothing to relay yet\" (the offset is handed back unchanged) and the poll reads again next tick. Ends if a missing log must be reported instead.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-client.ts:147:3\ttooling/src/snap/ops/session-client.ts:158\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding). Question: Does a relayLog failure other than an absent log (EACCES, a read error) need a note? Checked: relayLog's only caller is the boot poll at session-client.ts:224; a failed boot prints the log path at :226/:234 but says the log is 'above', which is false when the relay failed.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/session-client.ts:269 error",
+    "claimedOwner": "a daemon that vanished mid-call is reported as SESSION DEAD (or SESSION ERROR with the reason) and the call exits toolError — the failure is the printed verdict. Ends if that exit code stops being surfaced.",
+    "verifiedOwner": "tooling/src/snap/ops/session-client.ts:294 `return EXIT.toolError;`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-client.ts:269:3\ttooling/src/snap/ops/session-client.ts:291\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding, not stale). the catch prints SESSION ERROR or sessionDeadText at :293 and returns the exit to runSessionCall's caller at :361. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(error): a daemon that vanished mid-call is reported as SESSION DEAD (or SESSION ERROR with the reason) and the call exits toolError — the failure is the printed verdict. Ends if that exit code stops being surfaced.\n+ // @orb-waive caught-failure-ownership(error): the catch prints SESSION DEAD or SESSION ERROR (session-client.ts:293) and returns EXIT.toolError (:294) as the call's exit. Ends if either goes."
+  },
+  {
+    "site": "tooling/src/snap/ops/session-daemon-request.ts:149 error",
+    "claimedOwner": "the failure is printed to the caller as SESSION CALL ERROR and the request's `done` carries toolError — the caller's exit IS the report; the daemon stays up by design (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.",
+    "verifiedOwner": "tooling/src/snap/ops/session-daemon-request.ts:176 `exit,`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-daemon-request.ts:149:3\ttooling/src/snap/ops/session-daemon-request.ts:159\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding, not stale). the catch prints SESSION CALL ERROR at :160 and sets exit = EXIT.toolError at :165; the done event at :174-183 carries `exit` to the client. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(error): the failure is printed to the caller as SESSION CALL ERROR and the request's `done` carries toolError — the caller's exit IS the report; the daemon stays up by design (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.\n+ // @orb-waive caught-failure-ownership(error): the catch prints SESSION CALL ERROR (session-daemon-request.ts:160) and sets exit = EXIT.toolError (:165), which the done event carries to the client (:176). Ends if the done event stops carrying exit."
+  },
+  {
+    "site": "tooling/src/snap/ops/session-daemon-request.ts:98 work",
+    "claimedOwner": "a timer/signal boundary has no caller to carry an exit code, so the daemon log IS the report; the `closed` latch is already released by shutdown's `finally`, so the process leaves regardless. Ends if shutdown stops releasing the latch unconditionally.",
+    "verifiedOwner": "tooling/src/snap/ops/session-daemon-request.ts:100 `warn(`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-daemon-request.ts:98:3\ttooling/src/snap/ops/session-daemon-request.ts:99\twork\t.md) THIS SITE: a promise rejection handler that discards the failure.` (live finding, not stale). warn writes to process.stderr (floor/cli/log.ts:37), the daemon's log file; the callers (:114 and session-daemon.ts:286,289) are timer and signal boundaries with no caller to return to. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(work): a timer/signal boundary has no caller to carry an exit code, so the daemon log IS the report; the `closed` latch is already released by shutdown's `finally`, so the process leaves regardless. Ends if shutdown stops releasing the latch unconditionally.\n+ // @orb-waive caught-failure-ownership(work): a timer or signal boundary has no caller for an exit code, so the catch warns (session-daemon-request.ts:100) to stderr, the daemon log (floor/cli/log.ts:37). Ends if shutdown's failure stops being warned."
+  },
+  {
+    "site": "tooling/src/snap/ops/session-daemon.ts:216 readSessionRequestLine",
+    "claimedOwner": "the failure is reported to the caller as SESSION SERVE ERROR and the request's `done` carries toolError — the caller's exit IS the report, and the daemon stays up (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.",
+    "verifiedOwner": "tooling/src/snap/ops/session-daemon.ts:229 `exit: EXIT.toolError`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-daemon.ts:216:5\ttooling/src/snap/ops/session-daemon.ts:217\treadSessionRequestLine\t.md) THIS SITE: a promise rejection handler that discards the failure.` (live finding, not stale). the catch handler emits SESSION SERVE ERROR (:228) and a done event with toolError (:229); the client resolves with event.exit (session-client.ts:92-93). ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(readSessionRequestLine): the failure is reported to the caller as SESSION SERVE ERROR and the request's `done` carries toolError — the caller's exit IS the report, and the daemon stays up (a session survives a failed call, §7.1). Ends if the done event stops carrying the exit.\n+ // @orb-waive caught-failure-ownership(readSessionRequestLine): the handler emits SESSION SERVE ERROR and a done event with exit EXIT.toolError (session-daemon.ts:228-229), which the client returns as its exit. Ends if the done event stops carrying the exit."
+  },
+  {
+    "site": "tooling/src/snap/ops/session-daemon.ts:243 error",
+    "claimedOwner": "a browser that fails to close is logged and the teardown proceeds to the registry half — the row + socket must go regardless, or the session reads as live forever. Ends if a failed browser close must abort the teardown.",
+    "verifiedOwner": "tooling/src/snap/ops/session-daemon.ts:248 `browser close failed`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-daemon.ts:243:5\ttooling/src/snap/ops/session-daemon.ts:247\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding, not stale). warn writes to process.stderr (floor/cli/log.ts:37), the daemon log; the registry half of shutdown still runs after it (:253-278). ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(error): a browser that fails to close is logged and the teardown proceeds to the registry half — the row + socket must go regardless, or the session reads as live forever. Ends if a failed browser close must abort the teardown.\n+ // @orb-waive caught-failure-ownership(error): the catch warns \"browser close failed\" (session-daemon.ts:248) to stderr, the daemon log (floor/cli/log.ts:37); the row and socket removal still follows. Ends if a failed close must abort the teardown."
+  },
+  {
+    "site": "tooling/src/snap/ops/session-registry.ts:134 catch",
+    "claimedOwner": "an unreadable reservation cannot hold capacity; the lock owner removes that exact file below before returning false. Ends if malformed reservations must block acquisition instead of being reclaimed.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/session-registry.ts:134:5\ttooling/src/snap/ops/session-registry.ts:140\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding). Question: Should any read or parse failure of a reservation (not only a dead pid or corrupt JSON) be silently reclaimed by the rmSync at :143? Checked: the removal is the recovery, nothing is printed, and cap accounting at :178 simply stops counting that file.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/session-registry.ts:151 error",
+    "claimedOwner": "only EEXIST is the expected lock-contention signal and it retries after a bounded poll; every other mkdir failure rethrows. Ends if the lock stops being represented by exclusive directory creation.",
+    "verifiedOwner": "tooling/src/snap/ops/session-registry.ts:157 `throw error;`",
+    "toolOutput": "in-memory one-file probe at base printed `alarm\tstale ordinary waiver at tooling/src/snap/ops/session-registry.ts:151:5; no live caught-failure-ownership finding is bound to its comment carrier`. The catch at :155-160 is `if (!(error instanceof Error && \"code\" in error && error.code === \"EEXIST\")) { throw error; }`: the guard reads the caught binding and its branch rethrows it, a guarded rethrow (caught-failure-scope.ts:311). After the marker removal the probe over the edited file printed 1 session-registry.ts line, the still-waived :134 finding `tooling/src/snap/ops/session-registry.ts:134:5`, no line for the :151 catch and no alarm line (35 waived findings across the 17 files, 0 alarms).",
+    "disposition": "REDUNDANT CATCH",
+    "diff": "@@ tooling/src/snap/ops/session-registry.ts @@\n-    // @orb-waive caught-failure-ownership(error): only EEXIST is the expected lock-contention signal and it retries after a bounded poll; every other mkdir failure rethrows. Ends if the lock stops being represented by exclusive directory creation.\n     try {\n       mkdirSync(path);"
+  },
+  {
+    "site": "tooling/src/snap/ops/stage-holders.ts:54 error",
+    "claimedOwner": "retried, and after the last attempt rethrown as the bind's own failure below. Ends if the first beat stops being retried.",
+    "verifiedOwner": "tooling/src/snap/ops/stage-holders.ts:66 `throw new Error(`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/stage-holders.ts:54:5\ttooling/src/snap/ops/stage-holders.ts:61\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding, not stale). the loop at :53 retries FIRST_BEAT_ATTEMPTS times; with held still false the throw at :66-68 fails the bind with lastError's message. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(error): retried, and after the last attempt rethrown as the bind's own failure below. Ends if the first beat stops being retried.\n+ // @orb-waive caught-failure-ownership(error): retried; after FIRST_BEAT_ATTEMPTS the loop falls to the throw at stage-holders.ts:66, which carries lastError's message and fails the bind. Ends if the retry or the throw goes."
+  },
+  {
+    "site": "tooling/src/snap/ops/stage-holders.ts:71 error",
+    "claimedOwner": "a later heartbeat is advisory; the failure is logged and the next interval retries, and the run it guards must never fail on it. Ends if a missed heartbeat must fail the run.",
+    "verifiedOwner": "tooling/src/snap/ops/stage-holders.ts:75 `use heartbeat skipped`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/stage-holders.ts:71:5\ttooling/src/snap/ops/stage-holders.ts:74\terror\tpe is a constant fallback — the behaviour changed and nobody was told.` (live finding, not stale). warn writes to process.stderr (floor/cli/log.ts:37); the interval at :79 retries the next beat. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(error): a later heartbeat is advisory; the failure is logged and the next interval retries, and the run it guards must never fail on it. Ends if a missed heartbeat must fail the run.\n+ // @orb-waive caught-failure-ownership(error): the catch warns \"use heartbeat skipped\" (stage-holders.ts:75) to stderr (floor/cli/log.ts:37) and the next interval retries. Ends if a missed heartbeat must fail the run."
+  },
+  {
+    "site": "tooling/src/snap/ops/stage-marker.ts:158 catch",
+    "claimedOwner": "optional-read-as-absent — a truncated/garbage legacy marker is treated as \"no legacy stage\", which is the same clean-rebuild path a missing one takes. Ends if a legacy marker ever carries state the table cannot re-derive.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/stage-marker.ts:158:3\ttooling/src/snap/ops/stage-marker.ts:167\tcatch\tpe is a constant fallback — the behaviour changed and nobody was told.` (live finding). Question: Is a garbage legacy active.json safe to read as 'no legacy stage'? Checked: migrateLegacyMarker deletes the file at :148 right after the read, so a legacy stage row that failed to parse is dropped with no trace.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/stage-marker.ts:180 catch",
+    "claimedOwner": "optional-read-as-absent — a truncated/garbage table (a killed mid-write) is treated as \"no stages\", which triggers the same clean-allocate path an ABSENT table takes, legacy migration included; the operator sees the empty census on the next `--stage-status`. Ends if the sweep/status readers stop tolerating an empty table.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/stage-marker.ts:180:3\ttooling/src/snap/ops/stage-marker.ts:188\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding). Question: Should a corrupt bands.json read as an empty table? Checked: writeBands writes a temp file and renames (:202-205), so a killed write cannot truncate it; a garbage table implies a hand edit or disk fault, and every caller then allocates as if no stage were live, with no print.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/stage-marker.ts:308 catch",
+    "claimedOwner": "optional-read-as-absent — an unreadable holder file means \"I cannot identify the holder\", which the age check below then judges. Ends if a lock ever carries state beyond its holder pid.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/stage-marker.ts:308:3\ttooling/src/snap/ops/stage-marker.ts:312\tcatch\tpe is a constant fallback — the behaviour changed and nobody was told.` (live finding). Question: Is null the right answer for an unreadable lock holder file? Checked: breakStaleLock treats null as unknown and falls to the age check at :358, and release at :401 compares against process.pid; the read error itself (EACCES versus ENOENT) is not kept.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/stage-marker.ts:335 catch",
+    "claimedOwner": "the rename target is already gone — someone else's break or release beat us to it — which means there is nothing left for THIS caller to remove. Ends if this ever stops being a \"someone else already finished the job\" race.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/stage-marker.ts:335:3\ttooling/src/snap/ops/stage-marker.ts:340\tcatch\tpe is a constant fallback — the behaviour changed and nobody was told.` (live finding). Question: Should releaseLockDir swallow only ENOENT? Checked: tests/tooling/snap/ops/stage-marker.int.test.ts:508 pins the vanished-path case only; any other renameSync failure leaves the lock directory and shows up later as the waiters' timeout at stage-marker.ts:392.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/stage-marker.ts:356 catch",
+    "claimedOwner": "a removed lock is already free; its next claimant retries mkdir.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/stage-marker.ts:356:3\ttooling/src/snap/ops/stage-marker.ts:361\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding). Question: Is the empty catch in breakStaleLock too wide? Checked: it covers statSync ENOENT (lock already free) and any throw from releaseLockDir; the next withBandsLock turn retries or times out at :392, but a persistent stat or release failure is never named.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/stage-marker.ts:382 catch",
+    "claimedOwner": "EEXIST is the mutex's SUCCESS-of-the-other-caller signal, not a failure — the loop below judges the holder and either waits or breaks it. Ends if mkdir stops being the lock primitive.",
+    "verifiedOwner": "tooling/src/snap/ops/stage-marker.ts:392 `timed out waiting for the stage band table lock`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/stage-marker.ts:382:5\ttooling/src/snap/ops/stage-marker.ts:387\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding, not stale). the for(;;) at :381 retries until Date.now() > deadline (:391), then throws; an unwritable home therefore surfaces as that timeout. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(catch): EEXIST is the mutex's SUCCESS-of-the-other-caller signal, not a failure — the loop below judges the holder and either waits or breaks it. Ends if mkdir stops being the lock primitive.\n+ // @orb-waive caught-failure-ownership(catch): a held or unwritable lock is retried until the deadline, then withBandsLock throws the timeout (stage-marker.ts:392). Ends if the loop stops throwing at the deadline."
+  },
+  {
+    "site": "tooling/src/snap/ops/stage-reap-log.ts:63 catch",
+    "claimedOwner": "optional-read-as-absent — a truncated/garbage ledger reads as \"no reaps recorded\", which is the same line a fresh checkout prints; nothing decides anything on this file. Ends if any verdict starts reading it back.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/stage-reap-log.ts:63:3\ttooling/src/snap/ops/stage-reap-log.ts:70\tcatch\tpe is a constant fallback — the behaviour changed and nobody was told.` (live finding). Question: Should a corrupt reaps.json read differently from an empty one? Checked: readStageReaps returns [] and describeStageReaps prints 'none recorded' (:105), the same line a fresh checkout prints; recordStageReap then rewrites the file from [] (:88-94), so the corruption is erased with no note.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/stage-source.ts:262 catch",
+    "claimedOwner": "documented degraded-but-non-fatal floor — the stage renders without avatars/cards rather than aborting the stage build, per the trailing comment. Ends if a caller starts requiring assetsDir to exist.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/stage-source.ts:262:3\ttooling/src/snap/ops/stage-source.ts:265\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding). Question: Should a failed assets symlink print a note? Checked: cloneStageAssets prints one for the equivalent missing-assets case (:205-207) but linkStageAssets prints nothing, so a stage that serves no avatars gives the operator no cause.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/stage-status.ts:209 catch",
+    "claimedOwner": "best-effort cleanup per the comment above — the row (cleared unconditionally below) is the actual deliverable of this branch, not the dir removal. Ends if the row clear stops happening unconditionally.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/stage-status.ts:209:3\ttooling/src/snap/ops/stage-status.ts:212\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.` (live finding). Question: Is a swallowed removeStageDir failure safe once the row is cleared (stage-status.ts:215) and the reap recorded? Checked: orphan pruning at :193-196 only covers this checkout's stageDirs(root), while removeStageDir targets row.checkout, so a sibling's surviving dir is listed by --stage-status but not pruned here.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/stage-teardown.ts:220 catch",
+    "claimedOwner": "documented best-effort evidence copy — the doc comment above states the teardown must proceed regardless of it, and the OWNER of the failure is the printed teardown line, which says \"No stack log was found to preserve\" rather than naming a path it does not have. Ends if a caller starts requiring the copy to have happened.",
+    "verifiedOwner": "none",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/stage-teardown.ts:220:3\ttooling/src/snap/ops/stage-teardown.ts:224\tcatch\tpe is a constant fallback — the behaviour changed and nobody was told.` (live finding). Question: Should preserveStageLogs tell a failed copy from a missing log? Checked: both return null and tearDownBootDeadStage prints 'No stack log was found to preserve.' (stage-teardown.ts:205), which is false when cpSync threw.",
+    "disposition": "UNSURE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/snap/ops/watch.ts:24 page.screenshot",
+    "claimedOwner": "captured into shotError on the returned tick, which report.ts prints as FAILED and run.ts counts into the verdict. Ends if that count/print stops being read.",
+    "verifiedOwner": "tooling/src/snap/ops/run.ts:178 `tick.shotError !== null`",
+    "toolOutput": "in-memory one-file probe at base: `tooling/src/snap/ops/watch.ts:24:5\ttooling/src/snap/ops/watch.ts:25\tpage.screenshot\t.md) THIS SITE: a promise rejection handler that discards the failure.` (live finding, not stale). watchFailures (run.ts:177-179) feeds buildFailureSummary watch: (:187), which sets the run's red verdict (:193); report.ts:381 prints FAILED for the tick. ast-grep `try { $$$A } catch { $$$B }` over tooling/src/snap/ops: -l ts 26 matches in 112 tracked .ts files, -l tsx 0 matches, 0 .tsx files.",
+    "disposition": "KEEP",
+    "diff": "- // @orb-waive caught-failure-ownership(page.screenshot): captured into shotError on the returned tick, which report.ts prints as FAILED and run.ts counts into the verdict. Ends if that count/print stops being read.\n+ // @orb-waive caught-failure-ownership(page.screenshot): the message lands in tick.shotError (watch.ts:25); run.ts:178 counts it into the watch failures that vote the verdict and report.ts:381 prints FAILED. Ends if either consumer stops reading it."
+  }
+]

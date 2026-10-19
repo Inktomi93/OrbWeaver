@@ -379,7 +379,7 @@ export function withBandsLock<T>(home: string, fn: () => T, waitMs: number = LOC
   const path = lockPath(home);
   const deadline = Date.now() + waitMs;
   for (;;) {
-    // @orb-waive caught-failure-ownership(catch): EEXIST is the mutex's SUCCESS-of-the-other-caller signal, not a failure — the loop below judges the holder and either waits or breaks it. Ends if mkdir stops being the lock primitive.
+    // @orb-waive caught-failure-ownership(catch): a held or unwritable lock is retried until the deadline, then withBandsLock throws the timeout (stage-marker.ts:392). Ends if the loop stops throwing at the deadline.
     try {
       mkdirSync(path);
       writeFileSync(join(path, "pid"), `${process.pid}\n`);

@@ -149,7 +149,7 @@ async function previousRunWithSameName(root: string, current: SnapRunIndex): Pro
 }
 
 export async function printSnapReport(root: string, query: SnapReportQuery): Promise<number> {
-  // @orb-waive caught-failure-ownership(error): this is the browser-free reader's terminal owner; it prints RUN INDEX REFUSED and returns tool-error for every resolution/validation/artifact failure. Ends if either output or exit vote disappears.
+  // @orb-waive caught-failure-ownership(error): the catch prints RUN INDEX REFUSED and returns EXIT.toolError (run-report.ts:164), the report command's exit code. Ends if either goes.
   try {
     const path = await resolveSnapRunIndex(root, query.target);
     const index = await readSnapRunIndex(path);
@@ -172,7 +172,7 @@ async function scanSnapRunIndices(root: string): Promise<SnapRunIndexScan> {
   for (const worktree of snapWorktreeRoots(root)) {
     for (const path of await localSnapRunIndexPaths(worktree)) {
       scanned += 1;
-      // @orb-waive caught-failure-ownership(error): list mode retains path+reason in `invalid` and `printSnapReports` emits the bounded aggregate; the strict single-index reader remains the detailed refusal door. Ends if either retention or aggregate output disappears.
+      // @orb-waive caught-failure-ownership(error): the catch keeps path and reason in `invalid` (run-report.ts:179), returned in the scan and printed as RUN INDEX SKIPPED by renderSnapRunList (run-report-render.ts:285). Ends if either goes.
       try {
         rows.push(await readSnapRunIndex(path));
       } catch (error) {

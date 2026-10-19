@@ -148,7 +148,6 @@ function reservationNames(home: string): readonly string[] {
 function withBootLock<T>(home: string, fn: () => T): T {
   const path = join(home, BOOT_LOCK);
   for (;;) {
-    // @orb-waive caught-failure-ownership(error): only EEXIST is the expected lock-contention signal and it retries after a bounded poll; every other mkdir failure rethrows. Ends if the lock stops being represented by exclusive directory creation.
     try {
       mkdirSync(path);
       break;
