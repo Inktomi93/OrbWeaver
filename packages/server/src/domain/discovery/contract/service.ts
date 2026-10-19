@@ -285,8 +285,6 @@ export interface DiscoveryService {
   readonly computeThemes: (opts: ComputeThemesOptions) => Promise<ThemeComputeStats>;
   /** The cluster-naming model calls a {@link computeThemes} over the same scope and `k` would make. Reads only. */
   readonly countThemeNameCalls: (opts: ThemeNameEstimateOptions) => Promise<number>;
-  /** The owner's theme clusters at `level` (both levels when omitted), ordered by `clusterIdx`. */
-  readonly themes: (userId: UserId, level?: ThemeLevel) => Promise<ThemeRow[]>;
   /** Idempotently stamp `digest_theme_assignments.msgMidAt` for the owner, or every owner when omitted. */
   readonly backfillDigestStoryTime: (scope: WorkloadRunScope) => Promise<StoryTimeBackfillStats>;
 
