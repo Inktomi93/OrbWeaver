@@ -7,7 +7,9 @@ import tseslint from "typescript-eslint";
 import { gate as splice } from "../../../../tooling/src/verify/gates/class-token-splice.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
+const TAILWIND_SYNTAX_NATIVE_BASE_MS = 60_000;
 const SPLICE = "orb/class-token-splice";
 const DARK = "orb/no-tailwind-dark-variant";
 const PLUGIN_SPLICE = "better-tailwindcss/no-concatenated-classes";
@@ -34,9 +36,9 @@ async function configured(eslint: ESLint, path: string, source: string, rules?: 
 }
 
 // The first test pays the cost of loading the whole ESLint config.
-test("effective native JSX restrictions reject literal splice junctions and direct dark prefixes without accusing valid classes", { timeout: 60_000 }, async ({
-  repoRoot,
-}) => {
+test("effective native JSX restrictions reject literal splice junctions and direct dark prefixes without accusing valid classes", {
+  timeout: scaledBudget(TAILWIND_SYNTAX_NATIVE_BASE_MS),
+}, async ({ repoRoot }) => {
   const eslint = new ESLint({ cwd: repoRoot });
   for (const path of ["packages/ui/src/primitives/probe.tsx", "packages/client/src/features/probe.tsx"]) {
     for (const source of ['<div className={`inset-${"end"}-0`} />;', '<div className={`p-row ${"flex"}-row`} />;', '<div className="dark:bg-card" />;']) {

@@ -15,6 +15,7 @@ import { CARD_FRAME_ROUTE, cardFrameMintResponseSchema } from "@orb/contracts/ch
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { useEffect, useState } from "react";
 import type { z } from "zod";
+import { surfaceDeferredFailure } from "#lib";
 import { forgetIfCurrent, rememberBounded } from "./bounded-memo.ts";
 
 export type CardFrameRequest = Readonly<z.input<typeof cardFrameMintRequestSchema>> & Pick<CardFrameMintRequest, "chatId" | "characterId">;
@@ -90,19 +91,21 @@ export function useCardFrameSrc(request: CardFrameRequest | undefined): string |
     let live = true;
     const pending = minted.get(body) ?? mintCardFrame(body);
     rememberBounded(minted, body, pending, MINTED_CACHE_CAP);
-    // `pending` never rejects: `mintCardFrame` collapses every failure to `undefined`.
-    void pending.then((url) => {
-      // A FAILED MINT IS NOT AN ANSWER, so it must not be remembered as one: `mintCardFrame` collapses a
-      // 401, an offline blip and a version-skewed body alike into `undefined`, and caching that settled
-      // promise would serve one bad second to those exact bytes for the rest of the tab's life. Evicted
-      // OUTSIDE the `live` gate — an unmounted card must not leave the poison behind for its neighbours.
-      if (url === undefined) {
-        forgetIfCurrent(minted, body, pending);
-      }
-      if (live) {
-        setResolved({ body, url });
-      }
-    });
+    // `mintCardFrame` collapses every mint failure to `undefined`; `.catch` owns a throw from the callback.
+    pending
+      .then((url) => {
+        // A FAILED MINT IS NOT AN ANSWER, so it must not be remembered as one: `mintCardFrame` collapses a
+        // 401, an offline blip and a version-skewed body alike into `undefined`, and caching that settled
+        // promise would serve one bad second to those exact bytes for the rest of the tab's life. Evicted
+        // OUTSIDE the `live` gate — an unmounted card must not leave the poison behind for its neighbours.
+        if (url === undefined) {
+          forgetIfCurrent(minted, body, pending);
+        }
+        if (live) {
+          setResolved({ body, url });
+        }
+      })
+      .catch(surfaceDeferredFailure);
     return (): void => {
       live = false;
     };

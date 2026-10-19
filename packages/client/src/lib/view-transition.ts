@@ -79,7 +79,9 @@ export function __resetViewTransition(): void {
   holdingTransition = false;
 }
 
-function surfaceDeferredFailure(error: unknown): never {
+/** Ends a detached promise by re-throwing, so a failure reaches the global handler instead of vanishing. Used where
+ *  `globalThis.reportError` is not typed (the node-world tests compile this package without the DOM lib). */
+export function surfaceDeferredFailure(error: unknown): never {
   throw error;
 }
 
