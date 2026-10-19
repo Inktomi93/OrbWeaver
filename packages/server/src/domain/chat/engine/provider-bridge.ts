@@ -229,9 +229,9 @@ export function createRunChatTurnBridge(deps: {
     // `apis` on write and at resolve, §7.3) — including the refusal of a chat row with no chat api.
     const chatReq = toChatRequest(chatTurnInputOf({ req, onDelta, promptCacheMinDepth: deps.promptCacheMinDepth?.() ?? 0 }));
 
-    // @orb-waive caught-failure-ownership(runChatTurn): propagated — the rejection reaches
-    // `pump.fail(err)` in the `.catch` below, which the consuming `yield* pump.drain()` surfaces to the
-    // caller; never swallowed. Ends if `pump.fail` stops being read by the drain.
+    // @orb-waive caught-failure-ownership(runChatTurn): the `.catch` below hands the rejection to `pump.fail`, which
+    // stores it in `createChunkPump`'s `failure` box; `pump.drain()` rethrows it (`throw failure.err`) to the consumer of
+    // `yield* pump.drain()`. Ends if `drain` stops rethrowing the recorded failure.
     void deps
       .runChatTurn(chatReq)
       .then((result) => {

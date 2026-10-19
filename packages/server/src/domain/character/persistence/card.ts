@@ -170,11 +170,10 @@ export async function insertCharacterClaimingProvenance(
       .from(claimedBy)
       .where(and(eq(claimedBy.ownerId, values.ownerId), eq(claimedBy.importedFrom, values.importedFrom))),
   );
-  // @orb-waive caught-failure-ownership(err): the ONE absorbed arm is a LOST RACE, and it is
-  // absorbed into this function's own return value rather than swallowed — `false` is the caller's contract
-  // ("someone else claimed this key; converge on their row"), which is the same answer the sequential
-  // find-before-mint path gives. Every violation with no provenance row behind it is classified and RETHROWN
-  // (`classifyInsertFailure`). Ends if the claim ever needs to distinguish WHICH constraint refused.
+  // @orb-waive caught-failure-ownership(err): the catch ends in `throw classifyInsertFailure(err, values)`, which
+  // returns `err` itself or a `CharacterOperationError` carrying it as `cause`. The one absorbed arm is a constraint
+  // violation with a provenance row behind it (`provenanceClaimed`): that `false` is the lost-race answer the caller
+  // reads to converge on the other copy. Ends if `classifyInsertFailure` stops returning the caught error.
   try {
     const statements = guardedInsertStatements(
       db,

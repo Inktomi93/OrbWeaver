@@ -130,9 +130,9 @@ const RING_CAPACITY = 256;
 async function classifyFailedAppend(db: Db, event: ChatBusEvent): Promise<"chat-gone" | "live-fault"> {
   const chatId = event.chatId;
   let chatGone = false;
-  // @orb-waive caught-failure-ownership(catch): the ground-truth probe failing means the db is
-  // unwell — fall through to the `live-fault` verdict, which the CALLER reports with the original `err`. Ends
-  // if the probe grows its own retry/backoff (then it owns classifying its own failure).
+  // @orb-waive caught-failure-ownership(catch): a failed probe leaves `chatGone` false, so the verdict is `live-fault`,
+  // which both callers log with the original append error: `handleAppendFailure` (warn on retry, `reportTerminalDrop`
+  // error on the last attempt) and `emitAfterClaim` (error). Ends if a caller stops logging `live-fault`.
   try {
     chatGone = (await loadChatRow(db, chatId)) === undefined;
   } catch {
@@ -184,11 +184,9 @@ type AppendOutcome =
  *  FLAG discussion and `handleAppendFailure`'s doc for why re-using the id is what makes the DB the arbiter. */
 async function appendWithRetry(deps: ChatBusDeps, id: ChatEventId, event: ChatBusEvent): Promise<AppendOutcome> {
   for (let attempt = 1; attempt <= LIVE_APPEND_ATTEMPTS; attempt += 1) {
-    // @orb-waive caught-failure-ownership(err): `err` is handed to `handleAppendFailure`, which
-    // classifies it (classifyFailedAppend, ground-truth probe) and reports it (getLog().warn on a live retry,
-    // getLog().error via reportTerminalDrop on the last attempt) per FLAG[emit-is-total] above — never
-    // rethrown, never silently dropped, just not directly visible to the gate's own-file scan since the
-    // report lives one call away. Ends if a caller needs the durable-write failure to propagate.
+    // @orb-waive caught-failure-ownership(err): `err` goes to `handleAppendFailure`, which logs it on every live-chat
+    // arm: `getLog().warn` while attempts remain, `getLog().error` through `reportTerminalDrop` on the last. The
+    // `chat-gone` arm drops a benign delete-mid-turn race at debug. Ends if `handleAppendFailure` stops logging `err`.
     try {
       const seq = await appendChatEvent(deps.db, { id, chatId: event.chatId, event, createdAt: deps.now() });
       return { kind: "seq", seq };
@@ -221,9 +219,9 @@ const LIVE_APPEND_ATTEMPTS = 2;
  *  error code. Never throws: a probe that fails leaves the loud arm, which is the honest answer when the db
  *  is too unwell to say. */
 async function committedRowSeq(db: Db, id: ChatEventId, event: ChatBusEvent): Promise<number | null> {
-  // @orb-waive caught-failure-ownership(catch): the probe failing means the db is unwell — the
-  // `null` falls through to "we cannot prove it landed", which is the LOUD arm the CALLER reports with the
-  // original `err` (never silent). Ends if this probe grows its own retry (then it owns its own failure).
+  // @orb-waive caught-failure-ownership(catch): a failed probe returns `null`, "cannot prove it landed", and the
+  // only caller `reportTerminalDrop` then logs the original append error at error level with the dropped-event
+  // message. Ends if another caller reads `null` without logging.
   try {
     const row = await loadChatEventById(db, id);
     return row !== undefined && JSON.stringify(row.payload) === JSON.stringify(event) ? row.seq : null;
@@ -327,10 +325,9 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
   const emitAfterClaim: EmitChatEventAfterClaim = async (raw, claimStatement) => {
     const chatId = raw.chatId;
     const event = stamper.stamp(raw);
-    // @orb-waive caught-failure-ownership(err): same FLAG[emit-is-total] contract as `emit`
-    // above — classifyFailedAppend classifies + reports, never rethrown. Ends if a caller needs the durable
-    // write failure to propagate. NOT retried, unlike `emit`: the batch carries the caller's CLAIM statement,
-    // which is single-consumption by construction — a replay could apply it twice.
+    // @orb-waive caught-failure-ownership(err): the catch below logs `err` with `getLog().error` whenever
+    // `classifyFailedAppend` says `live-fault`; the other verdict is the benign delete-mid-turn race, logged at debug
+    // there. Not retried: the batch carries a single-consumption claim. Ends if the `live-fault` log is dropped.
     try {
       const append = appendChatEventAfterClaimStatement(deps.db, {
         id: deps.newEventId(),

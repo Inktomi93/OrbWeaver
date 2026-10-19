@@ -7,6 +7,7 @@
 
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
+import { getLog } from "#foundation/observability";
 import type { ChatContext } from "../context.ts";
 import type { EmitChatChanged, PublishChatChangedOp } from "../contract/context.ts";
 import { loadPresentHumanUserIds } from "../persistence/participants-read.ts";
@@ -16,16 +17,14 @@ export function createEmitChatChanged(input: DbAssemblyInput<Pick<ChatContext, "
   return async (chatId, options = {}): Promise<void> => {
     const payloadChatId = options.detail === true ? chatId : undefined;
     const recipients = new Set(options.extraUserIds ?? []);
-    // @orb-waive caught-failure-ownership(catch): best-effort — documented below: a failed roster
-    // read fans only the pre-captured extras; the rest heals on the next client reconnect (this is a live-
-    // notification fan-out, not the durable write itself). Ends if a client stops reconnect-healing.
     try {
       for (const userId of await loadPresentHumanUserIds(ctx.db, chatId)) {
         recipients.add(userId);
       }
-    } catch {
+    } catch (err) {
       // Best-effort live delivery — a failed roster read fans only the pre-captured extras (a
       // just-kicked/deleted member still gets their drop); the rest heals on the next client reconnect.
+      getLog().warn({ err, chatId }, "chat: chatsChanged roster read failed — fanning only the pre-captured recipients");
     }
     for (const userId of recipients) {
       publishChatChanged(userId, payloadChatId);

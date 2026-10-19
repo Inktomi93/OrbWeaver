@@ -1903,10 +1903,9 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
 
     return committedOutcome([view]);
   } catch (err) {
-    // @orb-waive caught-failure-ownership(deltaErr): explicitly classified below — a `deltaErr` equal
-    // to `err` is already owned by the outer catch; a distinct secondary failure is logged via
-    // getLog().warn so it stays visible while the primary error still wins. Ends if this needs to fail the
-    // turn outcome instead of only warning.
+    // @orb-waive caught-failure-ownership(deltaErr): a `deltaErr` that is `err` is owned by this catch (`captureTurnFault`,
+    // the `turnAborted` emit, then `throw err` or `abortedOutcome`); a distinct one is logged by the `getLog().warn`
+    // in the handler. Ends if the `deltaErr !== err` warn is dropped.
     try {
       await deltaTail;
     } catch (deltaErr) {
@@ -2034,7 +2033,7 @@ async function runInLockWithHeartbeat(ctx: EngineContext, deps: OwnedEngineDeps,
   } finally {
     cancelBeat();
     // @orb-waive detached-work-traced(releasedBody): this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.
-    // @orb-waive caught-failure-ownership(releasedBody): this is not a second dispatch — it is the SAME promise the race above returns, and whichever arm won already delivered its outcome (the body's own value, or the barrier's `aborted` throw). Nothing here is invisible: the turn body traces itself, and the only work still pending is the holder-scoped `releaseLock`. Ends if the release moves off this promise.
+    // @orb-waive caught-failure-ownership(releasedBody): this is the SAME promise the `await Promise.race` above returns, so a body rejection that wins is thrown to the caller; when the barrier wins, the caller gets `aborted` and the lock loss was already logged by `tick` (`getLog().error`). Ends if the release moves off this promise.
     trackSettledWork(
       ctx,
       releasedBody.catch((): undefined => undefined).then(() => undefined),
