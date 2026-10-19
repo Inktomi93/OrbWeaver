@@ -8,6 +8,7 @@ import { gate as censusRow } from "../../../../tooling/src/verify/gates/caught-f
 import { gate as health } from "../../../../tooling/src/verify/gates/caught-failure-ownership-health.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/census-row";
 const CENSUS = "tooling/src/verify/gates/caught-failure-ownership.population.json";
@@ -40,7 +41,8 @@ function narrowed(rows: readonly string[], requestedPaths: readonly string[]): r
   return result.policies.flatMap((owner) => owner.findings.map((finding) => finding.message ?? ""));
 }
 
-test("both halves of the census join dispatch their own proof rows", () => {
+// Two policies' whole proof sets run here, each through the native type plan.
+test("both halves of the census join dispatch their own proof rows", { timeout: scaledBudget(30_000) }, () => {
   expect(verifyPolicyProofs([censusRow, health])).toEqual([]);
 });
 

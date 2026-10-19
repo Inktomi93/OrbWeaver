@@ -413,7 +413,7 @@ function assertObservationDemand<Anchor>(facts: TypeObservationValues<Anchor>, k
   }
   const selected = facts.selections;
   if (selected === null) {
-    if (facts.types.length > 0 || facts.nodes.length > 0) {
+    if (facts.types.length > 0) {
       throw new Error("native type observation selectors are missing");
     }
   } else {
@@ -460,7 +460,6 @@ function assertBaseIndices<Anchor>(facts: TypeObservationValues<Anchor>, indices
     }
   }
   for (const entry of facts.nodes) {
-    presentType(entry.type);
     symbol(entry.symbol);
     if (entry.contextual.kind === "value") {
       presentType(entry.contextual.value);
@@ -541,13 +540,6 @@ function assertTypeObservationRows<Anchor>(facts: TypeObservationValues<Anchor>,
   unique(facts.localTargets.map((entry) => key(entry.node)));
   unique(facts.computedNames.map((entry) => String(entry.selector)));
   unique(facts.dependencies.map((entry) => `${entry.type}:${key(entry.owner)}:${key(entry.at)}`));
-  const plan = facts.selections?.plan;
-  for (const entry of facts.nodes) {
-    const selector = plan?.selectors[entry.type];
-    if (selector?.base.kind !== "node" || key(selector.base.node) !== key(entry.node) || selector.steps.length > 0 || selector.displayAt !== null) {
-      throw new Error("native type node selector identity is foreign");
-    }
-  }
 }
 
 function assertContextualSlots<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {

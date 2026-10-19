@@ -169,3 +169,51 @@ test("a verdict inside the closure bound still blocks, and one past it is unknow
   // The unbounded ts-morph reading owns the same chain, so the bound replaces a clean verdict with an unknown.
   expect(catchClauseSite(source.getFunctionOrThrow("past").getFirstDescendantByKindOrThrow(SyntaxKind.CatchClause))).toBeUndefined();
 });
+
+// Every value position the plan no longer types, beside two it still types; `error` is the caught binding.
+const POSITIONS = `
+declare function work(): void;
+declare function note(...values: readonly unknown[]): void;
+declare class Box { constructor(value: unknown); }
+declare const flag: boolean;
+export function positions() {
+  try { work(); } catch (error) {
+    note(error);
+    note((error as Error).message);
+    void (flag && error);
+    note(\`\${String(flag)}:\${error}\`);
+    note([error]);
+    void new Box(error);
+    note({ error });
+    void !error;
+    void typeof error;
+  }
+}
+`;
+
+test("a Type question at a value position the plan does not type is past the bound, never a guess", () => {
+  const { source, reads } = plannedRead(0, POSITIONS);
+  const binding = source.getFirstDescendantByKindOrThrow(SyntaxKind.CatchClause).getVariableDeclarationOrThrow().getNameNode();
+  const uses = source.getDescendantsOfKind(SyntaxKind.Identifier).filter((node) => node.getText() === "error" && node !== binding);
+  const at = (kind: SyntaxKind): Node => {
+    const use = uses.find((node) => node.getParentOrThrow().getKind() === kind);
+    if (use === undefined) {
+      throw new Error(`no use of the binding under ${SyntaxKind[kind]}`);
+    }
+    return use;
+  };
+  const answer = (node: Node): BoundedRead<unknown> => withinClosureBound(() => reads.types.select(nodeTypeSelector(node)));
+  expect(answer(at(SyntaxKind.CallExpression))).toMatchObject({ kind: "resolved" });
+  expect(answer(at(SyntaxKind.AsExpression))).toMatchObject({ kind: "resolved" });
+  for (const kind of [
+    SyntaxKind.BinaryExpression,
+    SyntaxKind.TemplateSpan,
+    SyntaxKind.ArrayLiteralExpression,
+    SyntaxKind.NewExpression,
+    SyntaxKind.ShorthandPropertyAssignment,
+    SyntaxKind.PrefixUnaryExpression,
+    SyntaxKind.TypeOfExpression,
+  ]) {
+    expect(answer(at(kind)), SyntaxKind[kind]).toMatchObject({ kind: "unresolved" });
+  }
+});

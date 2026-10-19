@@ -2,7 +2,9 @@
 
 ## Outcome
 
-Item 1098 is not closed. The client caught-failure derivation now completes: 137 sites in 26:20.
+Superseded by lane cb-1098b: see "Headroom pass (lane cb-1098b)" at the end. The client derivation on the rebased tree finishes in 8:59, with a 14.67 GB worker peak. The text below records the first lane's state.
+
+The first lane left item 1098 open. The client caught-failure derivation then completed: 137 sites in 26:20.
 
 It completes only at the edge of the heap. The worker peaked at 16.75 GB RSS, with a 15.2 GB heap at finish against the 16 GiB cap. The whole process tree peaked at 19.7 GB. That is not a run a 16 GB runner can be trusted with.
 
@@ -192,3 +194,143 @@ They now end below their `main` line counts. Code moved into cohesive new module
 - `type-observations-replay-usage.ts`: the replay's unasked-row checks, moved verbatim.
 - The live capture reader no longer stubs `closureFrontier`; the field is optional.
 - Splitting these files further toward the 450-line cap is still owed.
+
+## The 137 vs 140 client census gap (Part 2)
+
+The client derivation was first run at the Part 1 state, before the rebase. It hit the 30-minute group timeout at 16.8 GB, with no output. The site-id diff therefore comes from the Part 3 runs. The harness (`cb-1098b-census.ts`) lists every unresolved site by position and counts it as a diff entry. There were none.
+
+Diff of live ids against the committed census, both runs: before the rebase onto `97b639a30d`, and on the rebased tree.
+
+| Row | Before the rebase | Why | Status on main |
+| - | - | - | - |
+| `imported-chats-memory-offer.tsx::ImportedChatsMemoryOffer.runBuild::error::1` | committed, not live | A guarded rethrow (`if (!conflict) throw error`) that the 1049 reader proves owned. | Row and marker removed by `3d3df26151` |
+| `image-detail-body.tsx::ImageDetail.onSetBackground::catch::1` | committed, not live | Cross-file owner. The try holds only `await setBackground.mutateAsync(...)`. `useSetChatBackground` (`use-imagery-mutations.ts:47-51`) is a `createEntityMutation` with `errorToast: "Couldn't set the chat background."`, so the sole-operation framework rule owns the catch. A per-file probe cannot see the hook: the verifier's per-file run reports it as `W:79:catch`. The whole-program reader proves it owned. | Row and marker removed by `3d3df26151` |
+| `admin-reset-password-dialog.tsx::ResetPasswordBody.submit::catch::1` | committed, not live | Same shape: a sole-operation `await resetPassword.mutateAsync(...)`, where `useResetPassword` carries a failure-valued `errorToast`. Per-file it reads `W:60:catch`; the whole program owns it. | Row and marker removed by `3d3df26151` |
+
+- Before the rebase: 137 live, 0 unresolved, 140 committed. The three rows above are the whole gap, and no live site lacked a row.
+- After the rebase: main's census has 137 client rows. All three rows above are gone, with exact totals. This lane edits no census row.
+- On the rebased tree: 130 live, 0 unresolved, 137 committed. All 7 committed-not-live rows are in files that 1049 phase-3 shards edited after the census was last written:
+  - `p3-01`, `34961a6f31`;
+  - `p3-02`, `e753a06cf8`: "four redundant catches removed";
+  - `p3-05`, `a74928875a`.
+- The 7 rows:
+  - `invalidation.ts::createInvalidation.invalidateFilters::deps.queryClient.invalidateQueries::1`
+  - `use-card-frame.ts::useCardFrameSrc::pending::1`
+  - `use-plugin-frame.ts::revokeFrameInBackground::revokePluginFrame::1`
+  - `use-plugin-frame.ts::usePluginFrameSrc::pending::1`
+  - `use-is-mobile-viewport.ts::useShellContentPrimacyObserver::document.fonts.ready::1`
+  - `rpg-game-tab.tsx::ResyncControl::onResync::1`
+  - `rpg-populate-control.tsx::RpgPopulateControl::onFill::1`
+- The per-file verdicts on those files are identical on main `97b639a30d`, on Part 1 and on Part 3. They are stale census rows on main, not a lane effect. Primary's census regeneration removes them.
+
+## Headroom pass (lane cb-1098b, Part 3)
+
+### The server slowdown, explained first
+
+The 500 server files took 334 s after the Part 1 fixes, against 254 s on the refuted commit. Both runs used the in-process harness `cb-1098b-measure.ts`.
+
+- A CPU profile at 300 files did not find the census join. The join is not on that path at all.
+- It found linear `.find` scans in the replay reader: `type-observations-read.ts` `unions` and `definitions`. The cost is one scan per query. The Part 1 fixes walk more nodes, and that amplifies the quadratic cost.
+- Turning the two Part 1 additions off made no difference: no alias handler positions gave 100 s, and no foreign bound aliases gave 100 s.
+- Fix: index both tables by key, the same way `returns` and `signatures` already were. The result is verdict-neutral.
+
+| 500 server files, in-process | Wall |
+| - | - |
+| refuted commit `ed935d3aef` | 254 s |
+| Part 1 fixes | 334 s |
+| Part 1 + indexed unions/definitions | 106 s |
+| Part 3 (final) | 56 s |
+
+### What was measured, and the choice
+
+- The previous heap profile blamed checker instantiation. An instrumented run over 300 client files counted it directly (`cb-1098b-asked.ts`):
+  - 20,100 nodes got a Type selector;
+  - the caught-failure reader asked a Type question about 88 of them;
+  - every one of the 88 sits in a value position: a call, a call argument, a return, a conditional branch, a member receiver or an element key.
+- Two causes:
+  - The closure asked `type-details` at every walked node.
+  - Capture-time `symbolAt` typed every node whose symbol was asked (`type: nodeType(node)` on the node row). Nothing ever read that type: the replay reads only `symbol` from a node row. Of the 20,100 typed nodes, 13,068 were outside any reader position.
+- Choice: option (b), because a symbol lookup is what the reader needs at every walked node, while a Type answer it needs only at 88. Option (a) would have narrowed the symbol lookups instead. The reader reads binding identity at arbitrary positions (a `throw err`, a guard), so (a) would have turned many real verdicts into unknowns.
+
+### The change
+
+- `closureTypedPositions` (closure questions only; set by `caught-failure-native.ts`) asks Type details only where `readerTypedPosition` (`bounded-closure.ts`) holds:
+  - every call;
+  - a value in a call argument, a return, an arrow body, a conditional, an initializer, a member or element receiver, an element key, or a `+` operand;
+  - through any parentheses, `as`, `satisfies`, `!` or `await` around it.
+- Symbols are still answered at every walked node.
+- A walked node outside those positions is recorded on the replay. A Type selector miss on it is `ClosureBoundError` (`ClosureFrontier.selectorMiss`), so it becomes an explicit unknown, never a guess.
+- `fixture-path` does not set the flag and keeps typing every walked node.
+- The node row no longer carries an eager Type: contract, zod, coverage and capture all drop it. A symbol is resolved without typing the node. Full `pnpm check:policy-conformance` holds: 146 policies, 2,401 rows, 0 failures.
+- The finite claim is stated in the header of `caught-failure.ts`, in the `closureTypedPositions` field doc, and on `readerTypedPosition`.
+- Red-first planted cases: `caught-failure-type-plan.test.ts`, "a Type question at a value position the plan does not type is past the bound". It covers every newly untyped position class: a `&&` operand, a template span, an array element, a `new` argument, a shorthand property, a `!` operand and a `typeof` operand.
+  - Each must read `unresolved` through the production plan.
+  - A call argument and an `as` receiver must still read `resolved`.
+  - Red on `c5be18d7d8`: the `&&` operand read `resolved`, a guessed answer. Green now.
+  - A gate-level row for these positions is not constructible. No reader in the caught-failure family asks a Type question there; that is the census above, which found 0 asked nodes off the rule. So the claim is pinned at the floor, where a future reader that starts asking there gets an unknown, not a guess.
+
+### Results
+
+Single-program runs: one at a time, under `heavy.lock`, `setsid`, `timeout -s TERM -k 30` on the group, `/usr/bin/time -v`, and a tree-RSS sampler. Harness: `cb-1098b-census.ts`. It derives the way `deriveCaughtFailureSites` does, but lists unresolved sites instead of throwing.
+
+| Run (tree) | Wall | Worker peak RSS | Tree peak | Sites | Unresolved |
+| - | - | - | - | - | - |
+| client, refuted commit (first lane) | 26:20 | 16.75 GB | 19.7 GB | 137 | 0 |
+| client, Part 1 (before the rebase) | timeout at 30:00 | 16.83 GB | 17.20 GB | n/a | n/a |
+| client, Part 3 (before the rebase) | 10:59 | 14.28 GB | 16.05 GB | 137 | 0 |
+| client, Part 3, rebased on `97b639a30d` | 8:59 | 14.67 GB | 17.39 GB | 130 | 0 |
+| db, Part 1 | 0:57 | 2.63 GB | 4.07 GB | 2 | 0 |
+| db, Part 3 rebased | 0:37 | 2.68 GB | 4.04 GB | 2 | 0 |
+| server, Part 1 | timeout at 30:00 | 4.40 GB | 7.18 GB | n/a | n/a |
+| server, Part 3 rebased (measured with a 3600 s ceiling) | 14:03 | 13.06 GB | 13.02 GB | 173 | 0 |
+
+- GB here is KiB / 10^6, as the first lane reported it. In GiB, the rebased client worker is 13.99 GiB and its tree is 16.59 GiB.
+- The client worker finishes 2 GiB under the 16 GiB heap cap. The tree figure adds the parent process, which holds the ts-morph workspace: about 2.7 GB.
+- The server finished inside the shipped 30-minute group timeout. The 3600 s ceiling was a measurement allowance only.
+- CI stage: these derivations are the `ledgers:fresh` stage (`tooling/src/verify/lib/registry.ts`: group `structure`, `STATIC` tiers, `pnpm check:ledgers-fresh`). The caught-failure census is one of its two ledgers.
+
+### The D328 census of sites that moved to unresolved
+
+- Client 0, db 0, server 0 unresolved sites on the final tree. No site moved from a concrete finding to unresolved in any of the three programs.
+- The only designed move is the cross-file global bind alias, `mustPass` "D328 PAST THE BOUND ... global script". No live site in these three programs has that shape.
+- Server diff against its committed rows: 16 live ids without a row and 11 rows not live. The per-file verdicts for every such file are identical on main `97b639a30d`, Part 1 and Part 3. They come from files that 1049 phase-3 shards edited after the census was written:
+  - `p3-10`, `ab17ffbf95`;
+  - `p3-12`, `8bac4fa3fd`;
+  - `p3-14`, `cc7b6cc04e`;
+  - `974a32b239` (infra and plugin-host);
+  - `2f466df58d`.
+- Those findings are main's own, not a lane effect. The 16 live sites are real unwaived findings on main.
+
+### The 1085 cohort harness, rerun
+
+The 1085 harness `cb-1085-cohort.ts` was used unchanged. Single program, under the lock.
+
+| Cohort | Tree | Selectors | Relations | Wall | Peak RSS |
+| - | - | - | - | - | - |
+| db | lane | 214,716 | 74,661 | 1:00 | 1.84 GB |
+| db | main `97b639a30d` | 214,716 | 74,661 | 1:23 | 1.86 GB |
+| server read-parsed | lane | 2,486,992 | 1,914,048 | 7:17 | 8.15 GB |
+| server read-parsed | main `97b639a30d` | 2,486,992 | 1,914,048 | 8:43 | 8.28 GB |
+
+- The counts are identical, so the node-row and typed-position changes are neutral for the ordinary cohorts.
+- The rise against the first lane's numbers (178,492 and 2,342,474) is main's own change since then.
+
+### Item 1112 (policy-soundness-family real corpus)
+
+- The real-corpus arm (`policy-soundness-family.suite.repo.int.test.ts`, the `runPolicyPass({ knownPolicies: FAMILY, ... project ... })` call) passes no `nativeTypeFacts`.
+- `policy-fixture-substrate` is a `types` policy. Its first native request therefore refuses in `policy-pass-context.ts` `nativeFacts` with `POLICY_PASS_REFUSALS.nativeTypeContextAbsent`. That happens before any closure question is planned or read.
+- No change in this lane reaches that refusal, so it neither causes 1112 nor fixes it. The test was not run (whole-workspace).
+- The likely fix is in the test: pass `...nativeTypeFactOptions(projectCtx(repoRoot))`, as `native-failure-tracing-delivery.int.test.ts` does.
+
+### Checks run (lane cb-1098b, final tree)
+
+| Check | Result |
+| - | - |
+| per-gate conformance (`verifyPolicyProofs`), rebased | ownership 77/37/0, census-row 4/3/0, health 4/4/0, detached-work-traced 8/12/0, policy-fixture-substrate 17/14/0 |
+| `pnpm check:policy-conformance` (all rows, in memory, after the node-row change) | 146 policies, 2,401 proof rows, 0 failures |
+| `pnpm test:scoped` on caught-failure-type-plan, caught-failure-bound, caught-failure-census-row, native-failure-observations, type-replay-admission, native-failure-classification | 19/19 |
+| `tests/tooling/verify/ops/native-failure-tracing-delivery.int.test.ts` | 5/5 on the rebased tree, including the new generator-refusal test |
+| Biome on every changed file | clean |
+| `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` under the lock | tooling PASS, root PASS |
+
+- `caught-failure-census-row.test.ts` took 7.25 s while the box was loaded, against the 5 s vitest default, then 3.5 s on a quiet rerun. That suite runs two policies' whole proof sets, so it now carries `scaledBudget(30_000)`, per the node-test rule for proof-row loops.

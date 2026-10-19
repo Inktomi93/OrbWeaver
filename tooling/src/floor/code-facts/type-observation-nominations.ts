@@ -23,7 +23,10 @@ export function assertQuestionNominations<Anchor>(questions: readonly TypeObserv
   }
   for (const q of questions) {
     const closure = CLOSURE_KINDS.has(q.kind);
-    if (!closure && [q.callLiteralMembers, q.presenceMembers, q.closureHops, q.closureHandlerBodiesOnly].some((value) => value !== undefined)) {
+    if (
+      !closure &&
+      [q.callLiteralMembers, q.presenceMembers, q.closureHops, q.closureHandlerBodiesOnly, q.closureTypedPositions].some((value) => value !== undefined)
+    ) {
       throw new Error("native closure member nomination is foreign");
     }
     if (closure && q.closureHops === undefined) {

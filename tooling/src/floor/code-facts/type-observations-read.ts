@@ -30,10 +30,12 @@ export function readTypeObservations(
   const typeKeys = new Map<number, object>();
   const symbolKeys = facts.symbols.map(() => ({}));
   const nodes = new Map(facts.nodes.map((entry) => [entry.node, entry]));
-  const { reach, at: closureAt, past: closurePast, query: queried } = closureFrontier((node) => nodes.has(node), facts.assertNode);
+  const { reach, at: closureAt, past: closurePast, query: queried, selectorMiss } = closureFrontier((node) => nodes.has(node), facts.assertNode);
   const exports = new Map(facts.exports.map((entry) => [entry.source, entry]));
   const returns = new Map(facts.callReturns.map((entry) => [entry.node, entry]));
   const signatures = new Map(facts.signatures.map((entry) => [entry.call, entry]));
+  const unionRows = new Map(facts.unions.map((entry) => [entry.selector, entry]));
+  const definitionRows = new Map((facts.definitions ?? []).map((entry) => [entry.node, entry]));
   const locals = new Map(facts.localTargets.map((entry) => [entry.node, entry]));
   const typeRef = (index: number): ObservedReference<"type"> => ({ kind: "type", scope, index });
   const symbolRef = (index: number): ObservedReference<"symbol"> => ({ kind: "symbol", scope, index });
@@ -61,6 +63,22 @@ export function readTypeObservations(
     }
     return value;
   };
+  // A selector the plan never asked because its base was walked without Type details is past the bound,
+  // including when the capture asked no Type question at all.
+  const selectedOrPast = (selector: NativeTypeSelector): number => {
+    assertLive();
+    try {
+      if (selectedIndex === undefined) {
+        throw new Error("native type observation cohort has no registered selectors");
+      }
+      return selectedIndex(selector);
+    } catch (error) {
+      if (selector.base.kind === "schema-column") {
+        throw error;
+      }
+      return selectorMiss(selector.base.node, error);
+    }
+  };
   const indexOf = (selector: NativeTypeSelector): number => {
     if (selector.base.kind !== "schema-column") {
       queried(selector.base.node);
@@ -73,11 +91,7 @@ export function readTypeObservations(
     if (selector.displayAt !== null) {
       facts.assertNode(selector.displayAt);
     }
-    selections();
-    if (selectedIndex === undefined) {
-      throw new Error("native type observation cohort has no registered selectors");
-    }
-    return selectedIndex(selector);
+    return selectedOrPast(selector);
   };
   const nodeOf = (node: Node): NativeTypeObservations["nodes"][number] => {
     queried(node);
@@ -259,7 +273,7 @@ export function readTypeObservations(
     },
     unions: (selector) => {
       const index = indexOf(selector);
-      const row = facts.unions.find((entry) => entry.selector === index);
+      const row = unionRows.get(index);
       if (row === undefined) {
         throw new Error("native union-slot question was not captured");
       }
@@ -338,7 +352,7 @@ export function readTypeObservations(
     },
     definitions: (node) => {
       queried(node);
-      const row = facts.definitions?.find((entry) => entry.node === node);
+      const row = definitionRows.get(node);
       if (row === undefined) {
         throw new Error("native definition-node question was not captured");
       }

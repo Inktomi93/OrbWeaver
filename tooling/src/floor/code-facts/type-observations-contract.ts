@@ -75,6 +75,9 @@ export interface TypeObservationQuestion<Anchor = Node> {
   /** Closure questions only: a hop walks a multi-statement function body only from a handler position (a call
    *  argument or a bare alias initializer); every other such body is past the bound. */
   readonly closureHandlerBodiesOnly?: boolean | undefined;
+  /** Closure questions only: Type details are asked only at reader positions (`readerTypedPosition`); a Type
+   *  question about any other walked node is past the bound. */
+  readonly closureTypedPositions?: boolean | undefined;
   /** Exact zero-argument property-call receiver questions inside the admitted declaration closure. */
   readonly receiverMethods?: readonly string[] | undefined;
   readonly valueFacets?: readonly (typeof TYPE_OBSERVATION_VALUE_FACETS)[number][] | undefined;
@@ -140,10 +143,10 @@ export interface NativeObservedType {
 
 export type ObservedLiteralValue = string | number | boolean | { readonly negative: boolean; readonly base10Value: string };
 
+/** A node's symbol. Its Type is a separate, explicitly requested selector: resolving a symbol never types the node. */
 export interface NativeObservedNode<Anchor = Node> {
   readonly node: Anchor;
   readonly symbol: number | null;
-  readonly type: number;
   readonly contextual: NativeTypeObservation<number>;
 }
 
@@ -229,8 +232,8 @@ export interface TypeObservationCaptureOwner {
   readonly node?: ((span: InventorySpan) => Node) | undefined;
   /** Receives each declaration a bounded closure reached but did not walk. */
   readonly closureBound?: ((declaration: Node) => void) | undefined;
-  /** Receives each node a bounded closure walked. */
-  readonly closureWalked?: ((node: Node) => void) | undefined;
+  /** Receives each node a bounded closure walked, and whether its Type details were asked. */
+  readonly closureWalked?: ((node: Node, typed: boolean) => void) | undefined;
 }
 
 /** A Type question about a node that lies past a bounded closure's frontier: an unresolved answer, not a defect. */

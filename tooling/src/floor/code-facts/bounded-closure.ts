@@ -33,11 +33,14 @@ export interface ClosureFrontier {
   readonly past: (node: MorphNode) => MorphNode | undefined;
   /** Admits a question about `node`; one about an uncaptured node past the frontier throws {@link ClosureBoundError}. */
   readonly query: (node: MorphNode) => void;
+  /** Rethrows a Type selector miss as {@link ClosureBoundError} when its base was walked without Type details. */
+  readonly selectorMiss: (node: MorphNode, error: unknown) => never;
 }
 
 export function closureFrontier(captured: (node: MorphNode) => boolean, admit: (node: MorphNode) => void): ClosureFrontier {
   const frontier = new Set<MorphNode>();
   const walked = new Set<MorphNode>();
+  const untyped = new Set<MorphNode>();
   const at = (node: MorphNode): MorphNode | undefined =>
     frontier.size === 0 || captured(node) ? undefined : [node, ...node.getAncestors()].find((ancestor) => frontier.has(ancestor));
   return {
@@ -45,9 +48,15 @@ export function closureFrontier(captured: (node: MorphNode) => boolean, admit: (
       closureBound: (declaration): void => {
         frontier.add(declaration);
       },
-      closureWalked: (node): void => {
+      closureWalked: (node, typed): void => {
         walked.add(node);
+        if (!typed) {
+          untyped.add(node);
+        }
       },
+    },
+    selectorMiss: (node, error): never => {
+      throw untyped.has(node) ? new ClosureBoundError(node, node.getFirstAncestor(Node.isStatement) ?? node) : error;
     },
     at,
     past: (node) => (walked.size === 0 || walked.has(node) ? undefined : (at(node) ?? node.getFirstAncestor(Node.isStatement) ?? node)),
@@ -93,6 +102,53 @@ function multiStatementBody(declaration: MorphNode): boolean {
   const fn = Node.isFunctionDeclaration(declaration) ? declaration : initializer;
   const body = Node.isFunctionDeclaration(fn) || Node.isArrowFunction(fn) || Node.isFunctionExpression(fn) ? fn.getBody() : undefined;
   return body !== undefined && Node.isBlock(body) && body.getStatements().length > 1;
+}
+
+const TYPE_WRAPPERS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.ParenthesizedExpression,
+  SyntaxKind.AsExpression,
+  SyntaxKind.SatisfiesExpression,
+  SyntaxKind.NonNullExpression,
+  SyntaxKind.AwaitExpression,
+  SyntaxKind.TypeAssertionExpression,
+]);
+
+// The slot `value` fills in `parent`, for the value positions a reader asks a Type answer about.
+function typedSlot(value: MorphNode, parent: MorphNode): boolean {
+  if (Node.isCallExpression(parent)) {
+    return parent.getArguments().includes(value);
+  }
+  if (Node.isPropertyAccessExpression(parent) || Node.isArrowFunction(parent)) {
+    return Node.isPropertyAccessExpression(parent) ? parent.getExpression() === value : parent.getBody() === value;
+  }
+  if (Node.isVariableDeclaration(parent) || Node.isPropertyAssignment(parent)) {
+    return parent.getInitializer() === value;
+  }
+  if (Node.isBinaryExpression(parent)) {
+    return parent.getOperatorToken().getKind() === SyntaxKind.PlusToken;
+  }
+  return Node.isReturnStatement(parent) || Node.isConditionalExpression(parent) || Node.isElementAccessExpression(parent);
+}
+
+/**
+ * The walked nodes a question with `closureTypedPositions` asks Type details for: every call, and a value in a call
+ * argument, a return, an arrow body, a conditional, an initializer, a member or element receiver, an element key,
+ * or a `+` operand, through any parentheses, `as`, `satisfies`, `!` or `await` around it.
+ */
+export function readerTypedPosition(node: MorphNode): boolean {
+  if (Node.isCallExpression(node)) {
+    return true;
+  }
+  if (!Node.isExpression(node)) {
+    return false;
+  }
+  let value: MorphNode = node;
+  let parent = value.getParent();
+  while (parent !== undefined && TYPE_WRAPPERS.has(parent.getKind())) {
+    value = parent;
+    parent = value.getParent();
+  }
+  return parent !== undefined && typedSlot(value, parent);
 }
 
 // A handler position: a call argument, or the bare-identifier initializer of an alias (`const h = onErr`)
@@ -142,11 +198,12 @@ function walkSubtree(root: MorphNode, seen: Set<MorphNode>, observe: (node: Morp
  *
  * @remarks Each hop level finishes before the next starts, so a declaration is walked at its shortest distance.
  * `closureBound` receives exactly the unwalked declarations one hop past the bound, plus every body a
- * handler-bodies-only question declined to walk that no other path walked; `closureWalked` every walked node.
+ * handler-bodies-only question declined to walk that no other path walked; `closureWalked` every walked node,
+ * with whether `observe` was told to ask its Type details.
  */
 export function walkBoundedClosure(
-  question: Pick<TypeObservationQuestion, "nodes" | "closureHops" | "closureHandlerBodiesOnly">,
-  observe: (node: MorphNode) => readonly MorphNode[],
+  question: Pick<TypeObservationQuestion, "nodes" | "closureHops" | "closureHandlerBodiesOnly" | "closureTypedPositions">,
+  observe: (node: MorphNode, typed: boolean) => readonly MorphNode[],
   reach: Pick<TypeObservationCaptureOwner, "closureBound" | "closureWalked"> | undefined,
 ): void {
   const hops = question.closureHops;
@@ -154,13 +211,20 @@ export function walkBoundedClosure(
     throw new Error("native symbol closure is unbounded");
   }
   const seen = new Set<MorphNode>();
+  const untyped = new Set<MorphNode>();
   const sources = new Set<SourceFile>();
   const declined = new Set<MorphNode>();
   const decline = (declaration: MorphNode): void => {
     declined.add(declaration);
   };
-  const hop = (node: MorphNode): readonly MorphNode[] =>
-    question.closureHandlerBodiesOnly === true ? handlerBodyHops(node, observe(node), decline) : observe(node);
+  const hop = (node: MorphNode): readonly MorphNode[] => {
+    const typed = question.closureTypedPositions !== true || readerTypedPosition(node);
+    if (!typed) {
+      untyped.add(node);
+    }
+    const bodies = observe(node, typed);
+    return question.closureHandlerBodiesOnly === true ? handlerBodyHops(node, bodies, decline) : bodies;
+  };
   let level: MorphNode[] = [...question.nodes];
   for (let depth = 0; level.length > 0 && depth <= hops; depth += 1) {
     const next: MorphNode[] = [];
@@ -184,6 +248,6 @@ export function walkBoundedClosure(
     reach?.closureBound?.(declaration);
   }
   for (const node of seen) {
-    reach?.closureWalked?.(node);
+    reach?.closureWalked?.(node, !untyped.has(node));
   }
 }

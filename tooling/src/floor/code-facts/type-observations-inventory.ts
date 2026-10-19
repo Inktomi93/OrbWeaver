@@ -28,6 +28,7 @@ export function typeObservationDemandSchema<Anchor>(span: z.ZodType<Anchor>): z.
           presenceMembers: z.array(z.string()).optional(),
           closureHops: z.number().int().nonnegative().optional(),
           closureHandlerBodiesOnly: z.boolean().optional(),
+          closureTypedPositions: z.boolean().optional(),
           receiverMethods: z.array(z.string()).optional(),
           selectedPropertyGraph: z
             .strictObject({
@@ -73,7 +74,7 @@ export function typeObservationsSchema(span: z.ZodType<InventorySpan>): z.ZodTyp
       anchor: span,
       demand: typeObservationDemandSchema(span),
       symbols: z.array(symbol),
-      nodes: z.array(z.strictObject({ node: span, symbol: index.nullable(), type: index, contextual: observation(index) })),
+      nodes: z.array(z.strictObject({ node: span, symbol: index.nullable(), contextual: observation(index) })),
       predicateInputs: z.array(z.strictObject({ node: span, predicates: z.array(span), values: z.array(span) })).optional(),
       constInitializers: z.array(z.strictObject({ node: span, values: z.array(span) })).optional(),
       types: z.array(type.nullable()),

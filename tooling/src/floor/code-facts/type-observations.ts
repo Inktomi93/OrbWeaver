@@ -195,7 +195,7 @@ export function createTypeObservationCapture(owner: TypeObservationCaptureOwner,
       return previous.symbol;
     }
     const symbol = symbolOf(node.getSymbol());
-    nodes.set(node, { node, symbol, type: nodeType(node), contextual: { kind: "unrequested" } });
+    nodes.set(node, { node, symbol, contextual: { kind: "unrequested" } });
     return symbol;
   };
   const exportLocalTargets = (source: SourceFile): readonly number[] => {

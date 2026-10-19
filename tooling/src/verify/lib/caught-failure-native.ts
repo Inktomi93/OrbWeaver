@@ -21,6 +21,7 @@ const MEMBERS = {
   presenceMembers: [PROMISE_LIKE_MEMBER],
   closureHops: CAUGHT_FAILURE_CLOSURE_HOPS,
   closureHandlerBodiesOnly: true,
+  closureTypedPositions: true,
 };
 
 interface NominatedRoots {
