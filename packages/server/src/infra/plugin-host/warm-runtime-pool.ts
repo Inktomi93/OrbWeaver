@@ -114,7 +114,7 @@ export class WarmRuntimePool<T extends object> implements AsyncDisposable {
   }
 
   private startDrain(): void {
-    // @orb-waive caught-failure-ownership(this.drainChain): a drain failure rejects every queued caller, then leaves the chain usable for later lifecycle work. Ends if a queued request can remain unresolved.
+    // @orb-waive caught-failure-ownership(this.drainChain): a drain failure rejects every queued request (request.reject(failure)) and leaves the chain usable for later lifecycle work. Ends if a queued request can stay unresolved after a drain failure.
     this.drainChain = this.drainChain
       .then(() => this.drain())
       .catch((error: unknown) => {
@@ -209,7 +209,7 @@ export class WarmRuntimePool<T extends object> implements AsyncDisposable {
   }
 
   private retireCancelled(target: T): void {
-    // @orb-waive caught-failure-ownership(this.retire): failed terminal retirement cancels the target with the same error and releases the capacity reservation. Ends if acquire can proceed for the target.
+    // @orb-waive caught-failure-ownership(this.retire): a failed terminal retirement records the failure in cancelled, so acquire for that target rejects with it, and in retirementFailures, which asyncDispose throws as an AggregateError. Ends if acquire can proceed for the target or asyncDispose stops reporting the failures.
     const retirement = this.retire(target)
       .then(
         () => this.finishRetirement(),
