@@ -43,7 +43,7 @@ Compose census is preserved; reindex/auth classifications remain unproven.
 
 The staged-selection release-promotion cases fail on current qualification generation with both original and changed source. Their CI fixtures need tooling adjudication, not release bypasses.
 
-Modal/panel focus return and owned-provider native preview controls pass. Separate provider recipes, cancellation reporting and software snapshots remain unqualified. Evidence: `.claude/worktrees/codex-native-config-999/reports/review/977-corpus-provider-stage-independent-review.md`.
+Modal/panel focus return and owned-provider native preview controls pass. Separate provider recipes, cancellation reporting and software snapshots remain unqualified. Evidence: the 977-corpus-provider-stage-independent-review review (report not retained).
 
 Parsing allowances are zero; application qualification remains open.
 
