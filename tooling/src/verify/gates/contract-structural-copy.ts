@@ -4,7 +4,7 @@
 // aliases and inline type literals, exported or local, in every client tier. Skipped: a shape that derives
 // (`extends`), `*Props`, callable and indexed-access members. Agreement is the checker's, per field, never type text.
 // Reader: `lib/contract-structural-copy.ts`.
-// FAMILY `contract-derives-not-respells`: arm C beside the name-collision and table-row arms, split off because it
+// The name-collision and table-row checks beside it are `tests/tooling/verify/ops/contract-derives-native.test.ts`; this one
 // needs a wider population, a type graph and ordinary authority. Both read `DOMAIN_CONTRACT_RE` for the domain home.
 import type { InterfaceDeclaration, Node, SourceFile, TypeLiteralNode } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
@@ -76,7 +76,7 @@ function literalCandidate(node: TypeLiteralNode): Candidate | undefined {
 
 export const gate = defineGate({
   id: "contract-structural-copy",
-  family: "contract-derives-not-respells",
+  family: "contract-structural-copy",
   authority: "ordinary",
   severity: "error",
   // Contract homes are read for the index and never judged; ui and kit sit below contracts and cannot import them.

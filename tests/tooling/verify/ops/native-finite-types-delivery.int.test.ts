@@ -14,7 +14,6 @@ import { captureTypeOriginProjection } from "../../../../tooling/src/floor/code-
 import { encodeTypeOriginProjection, replayTypeOriginProjection } from "../../../../tooling/src/floor/code-facts/type-origin-projection-codec.ts";
 import { inventoryQueryNode } from "../../../../tooling/src/floor/compiler/drizzle-inventory-extract.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as unions } from "../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
 import { gate as owner } from "../../../../tooling/src/verify/gates/owner-role-split.ts";
 import { gate as participant } from "../../../../tooling/src/verify/gates/two-class-role-authority.ts";
@@ -36,7 +35,6 @@ beforeEach(async () => {
 });
 
 const POLICIES = [unions, owner, participant];
-const KNOWN = [...POLICIES, unionAlias];
 const HOME = "packages/client/src/state/create-gated-store.ts";
 const ROLE = "packages/server/src/domain/x/roles.ts";
 const HOOK = "packages/client/src/components/hook.tsx";
@@ -67,7 +65,7 @@ function fixture(root: string, repoRoot: string): void {
   write("package.json", JSON.stringify({ type: "module", imports: { "#realm": { browser: "./browser-realm.ts", default: "./node-realm.ts" } } }));
   write("node-realm.ts", "export interface Database {read():void} export type RealmHook<T> = {():T;<U>(selector:(state:T)=>U):U};");
   write("browser-realm.ts", `export type Database = string; export type {GatedStoreHook as RealmHook} from "./${HOME}";`);
-  write("tooling/tsconfig.json", JSON.stringify({ compilerOptions: options, files: KNOWN.map(({ id }) => `src/verify/gates/${id}.ts`) }));
+  write("tooling/tsconfig.json", JSON.stringify({ compilerOptions: options, files: POLICIES.map(({ id }) => `src/verify/gates/${id}.ts`) }));
   write(
     "packages/contracts/src/identity/index.ts",
     'export const USER_ROLES=["owner","admin","user"] as const; export const PARTICIPANT_ROLES=["host","member"] as const;',
@@ -85,7 +83,7 @@ function fixture(root: string, repoRoot: string): void {
     UNION,
     'export interface Config {mode:"left"|"right"} export const MODES=["left","right"] as const satisfies readonly Config["mode"][]; export interface Copy {mode:"left"|"right"}',
   );
-  for (const { id } of KNOWN) {
+  for (const { id } of POLICIES) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
       `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
@@ -129,7 +127,7 @@ test(
       project: context.project,
       ...nativeTypeFactOptions(context),
       policies: POLICIES,
-      knownPolicies: KNOWN,
+      knownPolicies: POLICIES,
       reviewedGrants: [],
       failOnWarnings: false,
     });
@@ -146,7 +144,7 @@ test(
         project: context.project,
         ...nativeTypeFactOptions(context),
         policies: POLICIES,
-        knownPolicies: KNOWN,
+        knownPolicies: POLICIES,
         reviewedGrants: [],
         failOnWarnings: false,
       });
@@ -267,7 +265,7 @@ test("finite typed consumers withhold their verdict when native context is absen
     root: scratch,
     project: context.project,
     policies: POLICIES,
-    knownPolicies: KNOWN,
+    knownPolicies: POLICIES,
     reviewedGrants: [],
     failOnWarnings: false,
   });
@@ -321,7 +319,7 @@ test(
       project: context.project,
       ...nativeTypeFactOptions(context),
       policies: POLICIES,
-      knownPolicies: KNOWN,
+      knownPolicies: POLICIES,
       reviewedGrants: [],
       failOnWarnings: false,
       nativeTypeFacts: () => {

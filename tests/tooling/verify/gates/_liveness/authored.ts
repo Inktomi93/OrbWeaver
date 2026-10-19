@@ -11,8 +11,6 @@
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as noAwaitDbInLoop } from "../../../../../tooling/src/verify/gates/no-await-db-in-loop.ts";
 import { gate as noBlanketSuppression } from "../../../../../tooling/src/verify/gates/no-blanket-suppression.ts";
-
-import { gate as noInlineUnionAlias } from "../../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as noInlineUnionRedecl } from "../../../../../tooling/src/verify/gates/no-inline-union-redecl.ts";
 import { gate as persistenceNoInMemoryState } from "../../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
 import { gate as testMockDoctrine } from "../../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
@@ -47,11 +45,6 @@ export const AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: BLANKET_SUPPRESSION,
   },
 
-  {
-    policy: noInlineUnionAlias,
-    overlays: [add("packages/contracts/src/liveness-mode.ts", "export type LivenessMode = 'a' | 'b' | 'c';\n")],
-    messageIncludes: "TYPE ALIAS",
-  },
   {
     policy: noInlineUnionRedecl,
     overlays: [

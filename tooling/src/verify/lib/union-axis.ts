@@ -1,6 +1,7 @@
-// Shared reader: the STRING-UNION AXIS identity reader. Given one delivered node it answers the three
-// questions `Spine-TypeScript-and-Patterns.md` §7.5 asks about a string axis — is this an inline union
-// ALIAS, is this a CANONICAL `as const` tuple home, and is this inline literal SET a re-spell candidate —
+// Shared reader: the STRING-UNION AXIS identity reader. Given one delivered node it answers the two
+// questions `Spine-TypeScript-and-Patterns.md` §7.5 asks about a string axis that need identity — is this a
+// CANONICAL `as const` tuple home, and is this inline literal SET a re-spell candidate; the inline union
+// ALIAS is the syntax-only ESLint rule `orb/no-inline-union-alias` —
 // plus the two identity fences a caller cannot re-derive without re-implementing the same AST walk: the
 // `satisfies` CO-DECLARATION a registered tuple derives from, and whether a candidate's package can even
 // IMPORT the home it would have to derive from.
@@ -13,11 +14,9 @@
 // arm reports, what it says, and where the waiver anchors — to the consuming policy. The split is the same
 // one `schema-branding` has against `schema-fact`: the reader owns identity, the policy owns intent.
 //
-// ── THE TWO MEMBER FLOORS, AND WHY THEY DIFFER ──────────────────────────────────────────────────────────
-// An ALIAS floor of 3 (`ALIAS_MIN_MEMBERS`): a bare `"ok" | "error"` type alias is not noise-worthy, and
-// flagging it would price every two-state result type as a defect. A canonical-tuple REGISTRATION floor of
-// 3 by default, dropping to 2 for a tuple homed in `packages/contracts/` or `packages/kit/`: a two-member
-// exact-set match is only a low-false-positive signal when the home demonstrably IS the axis home, and
+// ── THE TUPLE MEMBER FLOOR ──────────────────────────────────────────────────────────────────────────────
+// A canonical-tuple REGISTRATION floor of 3 by default, dropping to 2 for a tuple homed in `packages/contracts/`
+// or `packages/kit/`: a two-member exact-set match is only a low-false-positive signal when the home demonstrably IS the axis home, and
 // those two packages are where a cross-boundary axis lives by law. A coincidental generic pair (`'x' | 'y'`)
 // homed in `server/` stays below the floor and is not matched.
 //
@@ -30,10 +29,10 @@
 // No Project, no workspace cache, no filesystem, no marker parser: every door takes a node the caller was
 // handed. Indexed co-declarations consume supplied native type-symbol declarations; syntax-only callers
 // never acquire a checker.
-import type { ArrayLiteralExpression, CallExpression, Expression, Node, TypeAliasDeclaration, UnionTypeNode, VariableDeclaration } from "ts-morph";
+import type { ArrayLiteralExpression, CallExpression, Expression, Node, UnionTypeNode, VariableDeclaration } from "ts-morph";
 import { SyntaxKind, Node as TsNode } from "ts-morph";
 
-/** The node kinds a consumer must subscribe to for BOTH arms to see their subjects. */
+/** The node kinds a consumer must subscribe to for the tuple and re-spell readers to see their subjects. */
 export const UNION_AXIS_VISITOR_KINDS = [
   SyntaxKind.VariableDeclaration,
   SyntaxKind.TypeAliasDeclaration,
@@ -41,8 +40,6 @@ export const UNION_AXIS_VISITOR_KINDS = [
   SyntaxKind.CallExpression,
 ] as const;
 
-/** The inline-ALIAS floor: below this a one-off union is not an axis worth homing. */
-export const ALIAS_MIN_MEMBERS = 3;
 /** The canonical-tuple REGISTRATION floor, and the lower floor for a contracts/kit home (see the header). */
 const TUPLE_MIN_MEMBERS = 3;
 const TUPLE_MIN_MEMBERS_HOMED = 2;
@@ -177,25 +174,6 @@ export function canonicalAxisTuple(
     signature: axisSignature(members),
     coDeclaration: unwrapped.satisfiesElement === undefined ? undefined : coDeclarationUnionNode(unwrapped.satisfiesElement, declarations),
   };
-}
-
-/** An inline string-literal union TYPE ALIAS of at least `ALIAS_MIN_MEMBERS` members — the arm-A subject.
- *  `nameNode` is the alias's own identifier: the waiver anchor, and the thing a reader would call it. */
-export interface InlineUnionAlias {
-  readonly alias: TypeAliasDeclaration;
-  readonly nameNode: Node;
-}
-
-export function inlineUnionAlias(node: Node): InlineUnionAlias | undefined {
-  if (!TsNode.isTypeAliasDeclaration(node)) {
-    return;
-  }
-  const typeNode = node.getTypeNode();
-  if (typeNode === undefined || !TsNode.isUnionTypeNode(typeNode)) {
-    return;
-  }
-  const members = unionStringMembers(typeNode);
-  return members !== undefined && members.length >= ALIAS_MIN_MEMBERS ? { alias: node, nameNode: node.getNameNode() } : undefined;
 }
 
 /** An inline literal SET that may re-spell a canonical tuple — the arm-B subject. `reported` is the SET

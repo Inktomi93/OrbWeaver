@@ -403,7 +403,6 @@ async function resolveEndSessionUrl(
   }
 }
 
-// @orb-waive no-inline-package-interface(AuthSessionsPort): baselined when the gate landed; burn-down item 952.
 /** The `domain/sessions` slice the mint routes consume (the seam owns resolution; this is the write side). */
 export interface AuthSessionsPort {
   readonly create: (params: {
@@ -424,7 +423,6 @@ export interface AuthSessionsPort {
   readonly revokeByExternalId: (externalId: ExternalId) => Promise<RevokedSessionsSummary>;
 }
 
-// @orb-waive no-inline-package-interface(SessionSocketEviction): baselined when the gate landed; burn-down item 952.
 /**
  * W7a — THE SESSION-DEATH → SOCKET-DEATH EDGE, as a port.
  *
@@ -455,7 +453,6 @@ type ProvisionOutcome = Awaited<ReturnType<SessionsService["provisionIdentity"]>
  *  own authError, and `jit-closed` alone may become a pending join (D259). */
 type ProvisionDenyReason = "account-exists" | "jit-closed";
 
-// @orb-waive no-inline-package-interface(FirstRunRouteDeps): baselined when the gate landed; burn-down item 952.
 /**
  * B4 — the local-mode FIRST-RUN owner-password setup deps. Present ONLY in local mode; its presence registers
  * `POST /api/auth/first-run`. This is an UNAUTHENTICATED endpoint that sets the owner's initial password, so
@@ -474,14 +471,12 @@ export interface FirstRunRouteDeps {
   readonly originAllowed: (peerIp: string | undefined, headers: Headers) => boolean;
 }
 
-// @orb-waive no-inline-package-interface(LocalAuthenticator): baselined when the gate landed; burn-down item 952.
 /** Local password verification, supplied from `sessions.authenticate` by the composition root in local mode. */
 export interface LocalAuthenticator {
   // biome-ignore lint/style/useShorthandFunctionType: the shorthand `export type X = (...) => ...` alias trips the no-inline-types rule's broad `export type` arm (entry/ is not a contract type home), so keep the call-signature interface and suppress the biome INFO instead.
   (handle: Handle, password: string): Promise<UserId | null>;
 }
 
-// @orb-waive no-inline-package-interface(OidcMintStore): baselined when the gate landed; burn-down item 952.
 /** The OIDC transaction store the route needs — mint (authorize) + consume (callback). Wider than
  *  infra/auth's consume-only store because the authorize-redirect route also mints. */
 export interface OidcMintStore {
@@ -489,7 +484,6 @@ export interface OidcMintStore {
   readonly consume: (state: string) => Promise<OidcTransaction | null>;
 }
 
-// @orb-waive no-inline-package-interface(OidcClaimMap): baselined when the gate landed; burn-down item 952.
 /** The OIDC claim-name mapping, provider-agnostic. Any name may be a dot-path for a nested claim. */
 export interface OidcClaimMap {
   readonly usernameClaim: string;
@@ -498,7 +492,6 @@ export interface OidcClaimMap {
   readonly emailClaim: string;
 }
 
-// @orb-waive no-inline-package-interface(OidcRoutesDeps): baselined when the gate landed; burn-down item 952.
 export interface OidcRoutesDeps {
   readonly rolePolicy: SessionsRolePolicy;
   readonly getConfig: () => Promise<Configuration>;
@@ -547,7 +540,6 @@ interface OidcSignupDeps {
   readonly seedUserConnections: (userId: UserId) => Promise<void>;
 }
 
-// @orb-waive no-inline-package-interface(AuthRoutesDeps): baselined when the gate landed; burn-down item 952.
 export interface AuthRoutesDeps {
   readonly emitUserEvent?: LiveBuses["user"]["publishUserEvent"];
   readonly sessions: AuthSessionsPort;
@@ -573,7 +565,6 @@ export interface AuthRoutesDeps {
   readonly signup?: SignupRouteDeps;
 }
 
-// @orb-waive no-inline-package-interface(SignupRouteDeps): baselined when the gate landed; burn-down item 952.
 /** D259 — the local signup route's collaborators. Every op is injected: the route orders them and owns the
  *  cookie, and it never reads a table itself. */
 export interface SignupRouteDeps {

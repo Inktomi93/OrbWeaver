@@ -4,7 +4,7 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { NativeTypeRequest } from "../../../../tooling/src/verify/contract/project-context.ts";
 import type { TupleVocabularyFact } from "../../../../tooling/src/verify/contract/tuple-vocabulary-fact.ts";
-import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
+import { gate as staleDraftCommit } from "../../../../tooling/src/verify/gates/stale-draft-commit.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { tupleVocabularyFact, tupleVocabularyReceipt } from "../../../../tooling/src/verify/lib/tuple-vocabulary-fact.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -175,7 +175,7 @@ test("selected consumers union exact tuple demands without capturing unrelated e
   });
   const first = tuplePolicy(() => undefined, ["A"], "A", "tuple-first");
   const second = tuplePolicy(() => undefined, ["B", "A"], "B", "tuple-second");
-  const known = [first, second, unionAlias];
+  const known = [first, second, staleDraftCommit];
   const run = (selected: readonly GatePolicy[]): { readonly captured: readonly string[]; readonly result: ReturnType<typeof runPolicyPass> } => {
     const requests: NativeTypeRequest[] = [];
     const result = runPolicyPass({
@@ -210,7 +210,7 @@ test("selected consumers union exact tuple demands without capturing unrelated e
   const one = run([first]);
   expect(one.result.toolErrors).toEqual([]);
   expect(one.captured).toEqual(['A=["a"] as const']);
-  const none = run([unionAlias]);
+  const none = run([staleDraftCommit]);
   expect(none.result.toolErrors).toEqual([]);
   expect(none.result.facts).toEqual([]);
   expect(none.captured).toEqual([]);

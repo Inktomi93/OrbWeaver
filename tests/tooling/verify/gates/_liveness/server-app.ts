@@ -14,7 +14,6 @@ import { gate as discoveryNoStatsRollups } from "../../../../../tooling/src/veri
 import { gate as membershipEnforcer } from "../../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as membershipWriteFan } from "../../../../../tooling/src/verify/gates/membership-write-fan.ts";
 import { gate as noHardcodedSideGenSampling } from "../../../../../tooling/src/verify/gates/no-hardcoded-side-gen-sampling.ts";
-import { gate as noInlineDomainInterface } from "../../../../../tooling/src/verify/gates/no-inline-domain-interface.ts";
 import { gate as ownTablesOnly } from "../../../../../tooling/src/verify/gates/own-tables-only.ts";
 import { gate as ownerScopedReads } from "../../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
 import { gate as ownerScopedUpserts } from "../../../../../tooling/src/verify/gates/owner-scoped-upserts.ts";
@@ -76,11 +75,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: noHardcodedSideGenSampling,
     overlays: [add(`${CHAT_VERBS}/liveness-sampling.ts`, "export const livenessOpts = { temperature: 0.3, maxTokens: 24 };\n")],
     messageIncludes: "hardcoded side-gen sampling",
-  },
-  {
-    policy: noInlineDomainInterface,
-    overlays: [add(`${SERVER}/domain/character/verbs/liveness-shape.gen.ts`, "export interface LivenessShape {\n  readonly x: string;\n}\n")],
-    messageIncludes: "exported interface in a server domain",
   },
   {
     policy: ownTablesOnly,

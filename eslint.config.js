@@ -81,7 +81,12 @@ import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import { fileURLToPath } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
-import { SERVER_FACTORY_TIER_REFERENCE_POLICY_ID, serverTypeTier, TYPE_HOME_NATIVE_POLICY_ID } from "@orb/tooling/floor/code-facts/type-home";
+import {
+  SERVER_FACTORY_TIER_REFERENCE_POLICY_ID,
+  serverTypeTier,
+  TYPE_HOME_NATIVE_POLICY_ID,
+  UI_TOKEN_AUTHORING_CONTRACT_HOME,
+} from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
 import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
 import { RESERVED_PORT_NUMBERS, STAGE_BAND_PORT_NUMBERS } from "@orb/tooling/floor/host/ports";
@@ -2770,6 +2775,47 @@ const UI_HARD_RESTRICTIONS = [
     ],
   },
 ];
+// An alias is an axis only when every member is a string literal; any other member makes it a type, not a vocabulary.
+const STRING_LITERAL_MEMBER = "TSLiteralType[literal.type='Literal'][literal.value=type(string)]";
+// `orb/type-home-direct-export` owns every authored declaration in its admitted population; the two interface rows keep
+// what that population excludes: generated files, the server entry module and the ui authoring files.
+const TYPE_SHAPE_RESTRICTIONS = [
+  {
+    id: "no-inline-union-alias",
+    scope: AUTHORED_SRC,
+    // Every gate module's proof fixtures re-spell axes by design.
+    notUnder: [...STRICT_SYNTAX_IGNORES, "tooling/src/verify/gates/**"],
+    homes: [],
+    selectors: [
+      {
+        selector: `TSTypeAliasDeclaration > TSUnionType[types.length>=3]:not(:has(> :not(${STRING_LITERAL_MEMBER})))`,
+        message:
+          "A string-union axis is declared once as an `as const` tuple and the union derived with `(typeof X)[number]`, never re-spelled as an inline alias (Spine-TypeScript-and-Patterns.md §7.5).",
+      },
+    ],
+  },
+  {
+    id: "no-inline-domain-interface",
+    scope: ["packages/server/src/domain/**/*.gen.ts"],
+    notUnder: ["**/contract/**"],
+    notNamed: ["**/contract.ts", TEST_FILES],
+    homes: [],
+  },
+  {
+    id: "no-inline-package-interface",
+    scope: ["packages/server/**/*.gen.ts", "packages/inference/**/*.gen.ts", "packages/server/src/index.ts", ...rootSources("@ui-authoring")],
+    // `@ui-authoring` is the ui package outside `src/`; `src/` is `@ui`, which this ban never judged.
+    notUnder: [UI_SRC, "packages/server/src/domain/**", "packages/server/src/primitives/**", "**/contract/**", UI_TOKEN_AUTHORING_CONTRACT_HOME],
+    notNamed: ["**/contract.ts"],
+    homes: [],
+  },
+];
+const TYPE_SHAPE_MESSAGES = {
+  "no-inline-domain-interface":
+    "An exported interface in a generated server domain file belongs in that domain's contract/ (or @orb/contracts when it crosses a boundary) (Spine-TypeScript-and-Patterns.md §7.4).",
+  "no-inline-package-interface":
+    "An exported interface belongs in its canonical type home; ui token authoring declares its shapes in packages/ui/token-contract.ts (D324; Spine-TypeScript-and-Patterns.md §7.4).",
+};
 
 const RESTRICTIONS = [
   {
@@ -2816,6 +2862,7 @@ const RESTRICTIONS = [
   ...CLIENT_CONTEXT_RESTRICTIONS,
   ...CLIENT_MAP_RESTRICTIONS,
   ...CLIENT_LEXICAL_RESTRICTIONS,
+  ...TYPE_SHAPE_RESTRICTIONS,
   ...MEMBERSHIP_WRITE_FAN_RESTRICTIONS,
   ...SERVER_ONE_HOME_RESTRICTIONS,
   ...CT_SPEC_RESTRICTIONS,
@@ -5015,6 +5062,45 @@ const typeHomeDeclarationRule = {
   },
 };
 
+/** The names a module publishes from its own scope: `export { A, B as C }` and `export default A`. */
+function locallyListedNames(program) {
+  const listed = new Set();
+  for (const statement of program.body) {
+    if (statement.type === "ExportNamedDeclaration" && statement.source === null && statement.declaration === null) {
+      for (const specifier of statement.specifiers) {
+        listed.add(specifier.local.name);
+      }
+    } else if (statement.type === "ExportDefaultDeclaration" && statement.declaration.type === "Identifier") {
+      listed.add(statement.declaration.name);
+    }
+  }
+  return listed;
+}
+
+// An interface a module publishes, directly or through a local export list. The row scope is the population the typed
+// `type-home-direct-export` rule does not admit, so this rule never judges a file that rule already owns.
+function interfacePlacementRule(message) {
+  return {
+    meta: { type: "problem", schema: [] },
+    create(context) {
+      const direct = (node) => {
+        if (node.declaration?.type === "TSInterfaceDeclaration") {
+          context.report({ node: node.declaration.id, message });
+        }
+      };
+      const listed = (program) => {
+        const names = locallyListedNames(program);
+        for (const statement of program.body) {
+          if (statement.type === "TSInterfaceDeclaration" && names.has(statement.id.name)) {
+            context.report({ node: statement.id, message });
+          }
+        }
+      };
+      return { ExportNamedDeclaration: direct, ExportDefaultDeclaration: direct, Program: listed };
+    },
+  };
+}
+
 const serverFactoryPublicBoundaryRule = {
   meta: {
     type: "problem",
@@ -6385,6 +6471,8 @@ const restrictionPlugin = {
     "test-factory-contract": testFactoryContractRule,
     "no-opaque-test-fixture": opaqueTestFixtureRule,
     "no-context-returntype": contextReturnTypeRule,
+    "no-inline-domain-interface": interfacePlacementRule(TYPE_SHAPE_MESSAGES["no-inline-domain-interface"]),
+    "no-inline-package-interface": interfacePlacementRule(TYPE_SHAPE_MESSAGES["no-inline-package-interface"]),
     "no-raw-z-index": rawZIndexRule,
     "no-raw-spacing-in-features": rawTierClassRule(
       /\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])/u,
@@ -7197,6 +7285,7 @@ const ORDINARY_CONFIG = [
       ...CLIENT_CONTEXT_RESTRICTIONS,
       ...CLIENT_MAP_RESTRICTIONS,
       ...CLIENT_LEXICAL_RESTRICTIONS,
+      ...TYPE_SHAPE_RESTRICTIONS,
       ...DECLARATION_NATIVE_RESTRICTIONS,
     ].some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
       ? block

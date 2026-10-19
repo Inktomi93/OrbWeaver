@@ -7,8 +7,6 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as noInlineDomainInterface } from "../../../../tooling/src/verify/gates/no-inline-domain-interface.ts";
-import { gate as noInlinePackageInterface } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as noInlineTypes } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as noInlineWireInterface } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { gate as noRawEgress } from "../../../../tooling/src/verify/gates/no-raw-egress.ts";
@@ -19,15 +17,7 @@ import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-const FAMILY: readonly GatePolicy[] = [
-  noInlineDomainInterface,
-  noInlinePackageInterface,
-  noInlineTypes,
-  noInlineWireInterface,
-  noRawEgress,
-  persistenceBoundary,
-  zodErrorIssuesHome,
-];
+const FAMILY: readonly GatePolicy[] = [noInlineTypes, noInlineWireInterface, noRawEgress, persistenceBoundary, zodErrorIssuesHome];
 
 // EVERY row-scaled test here says its own budget. The default is a per-TEST number and these tests
 // concentrate the whole wave's proof set into ONE test, so growth in the set walks them into a timeout that

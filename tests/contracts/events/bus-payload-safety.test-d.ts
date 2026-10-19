@@ -8,12 +8,11 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { MaintenanceResult, WorkloadEvent } from "@orb/contracts/workloads";
 import type { WiBusEvent } from "@orb/contracts/world-info";
 import type { ChatId, UserCredentialId } from "@orb/kit/ids";
-import type { BusPayloadFailure } from "@orb/testkit/iso/bus-payload-policy.ts";
+import type { BusPayloadFailure, EconomicsField } from "@orb/testkit/iso/bus-payload-policy.ts";
 import { expectTypeOf, test } from "vitest";
 import { z } from "zod";
 
 type UnsafeAny = z.output<z.ZodAny>;
-type EconomicsField = "tokensIn" | "tokensOut" | "cacheReadTokens" | "cacheWriteTokens";
 
 test("actual canonical bus roots and approved property types remain closed", () => {
   expectTypeOf<BusPayloadFailure<ChatBusEvent, "chat">>().toBeNever();

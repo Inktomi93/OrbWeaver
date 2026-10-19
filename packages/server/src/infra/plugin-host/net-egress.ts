@@ -9,7 +9,6 @@ import { isAllowedImageBuffer } from "../network/image-guard.ts";
 import { HOST_FN_DEADLINE_MS, PLUGIN_ASSET_MAX_BYTES, PLUGIN_NET_MAX_BYTES } from "./budgets.ts";
 import type { PluginNetEgress, PluginNetResponse } from "./contract/net-egress.ts";
 
-// @orb-waive no-inline-package-interface(PluginEgressBridge): baselined when the gate landed; burn-down item 952.
 /** The only domain closures egress reaches: the two hourly belts and the installer's CAS store. */
 export interface PluginEgressBridge extends Pick<PluginBridge, "admitEgress" | "admitAssetEgress"> {
   readonly assets: Pick<PluginBridge["assets"], "storeFetched">;

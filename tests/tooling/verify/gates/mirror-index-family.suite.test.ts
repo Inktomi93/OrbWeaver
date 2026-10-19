@@ -31,9 +31,9 @@ import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import type { ResourceHostOptions } from "../../../../tooling/src/verify/contract/resource-host.ts";
-import { gate as unionAlias } from "../../../../tooling/src/verify/gates/no-inline-union-alias.ts";
 import { gate as testLayout } from "../../../../tooling/src/verify/gates/test-layout.ts";
 import { gate as testReach } from "../../../../tooling/src/verify/gates/test-reach.ts";
+import { gate as uiAccname } from "../../../../tooling/src/verify/gates/ui-accname-survives-spread.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -330,14 +330,16 @@ test("test-reach: a staged run defers to the whole run, which judges a new unrea
 // A run narrowed to one path must not call another policy's waiver stale in a file it never judged.
 test("a subset run does not call a waiver stale in a file only a sibling policy reselected", ({ scratch }) => {
   const added = "packages/server/src/domain/chat/verbs/new-verb.ts";
+  const judged = "packages/ui/src/primitives/judged.ts";
   const tree = {
     ...REACH_TREE,
     [added]: "export const createNewVerb = () => 1;\n",
-    "packages/server/src/domain/chat/verbs/waived.ts":
-      "// @orb-waive no-inline-union-alias(Mode): fixture stand-in; ends with the fixture.\nexport type Mode = 'a' | 'b';\n",
+    "packages/ui/src/primitives/waived.ts":
+      "// @orb-waive ui-accname-survives-spread(Mode): fixture stand-in; ends with the fixture.\nexport const Mode = 1;\n",
+    [judged]: "export const Judged = 1;\n",
   };
 
-  const result = passRequesting([unionAlias, testReach], scratch, tree, { requestedPaths: [added] });
+  const result = passRequesting([uiAccname, testReach], scratch, tree, { requestedPaths: [added, judged] });
 
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.authorityAlarms).toEqual([]);

@@ -67,7 +67,6 @@ function isAiTurnPath(path: string): path is AiTurnPath {
   return path in AI_TURN_PATHS;
 }
 
-// @orb-waive no-inline-package-interface(RateLimitGateDeps): baselined when the gate landed; burn-down item 952.
 export interface RateLimitGateDeps {
   readonly db: DatabaseHandle;
   readonly now: () => number;

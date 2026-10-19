@@ -10,8 +10,6 @@ import { createSemanticWorkspace, registeredSemanticSourceView } from "../../../
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
 import { TOKEN_GENERATION_INPUT_PATHS } from "../../../../tooling/src/verify/contract/resource-artifact.ts";
-import { gate as domainInterfaces } from "../../../../tooling/src/verify/gates/no-inline-domain-interface.ts";
-import { gate as packageInterfaces } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as inlineTypes } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { gate as wireInterfaces } from "../../../../tooling/src/verify/gates/no-inline-wire-interface.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -77,7 +75,7 @@ test("ownership evidence does not turn package categories or false paths into pe
   expect(judgeTypeHomeDeclaration(node, { path: "packages/inference/src/contract/copy.tsx", claim: "interface" })).toMatchObject({ kind: "refused" });
 });
 
-const POLICIES = [inlineTypes, domainInterfaces, packageInterfaces, wireInterfaces];
+const POLICIES = [inlineTypes, wireInterfaces];
 
 test("server factory ownership follows local signatures without admitting wire data or shadowed names", ({ scratch }) => {
   const paths: { readonly path: string; readonly target: string }[] = [];
@@ -170,7 +168,7 @@ export { Local as A, Local as B };
 export type Waived = string;
 `,
     ],
-    // The whole server domain is native-admitted, so the domain-interface arm judges no path and owes no finding.
+    // The whole server domain is native-admitted, so these custom adapters judge no path there and owe no finding.
     ["packages/server/src/domain/chat/verbs/read.ts", "interface Default { readonly value: string; }\nexport { Default as default };\n"],
     ["packages/server/src/infra/read.ts", "export interface Infra { readonly value: string; }"],
     ["packages/inference/src/backends/read.ts", "export type Alias = string; export interface Backend { readonly value: string; }"],
@@ -317,19 +315,11 @@ test("ordinary placement exposes misplaced authoring types but preserves its sin
     "export interface Misplaced { readonly value:string; } export type Extra=number; export type { Owned } from './token-contract.ts';",
   );
   project.createSourceFile(`${root}/packages/ui/src/ordinary.tsx`, "export type BrowserProps={readonly children:string};");
-  const policies = [inlineTypes, packageInterfaces];
+  const policies = [inlineTypes];
   const result = runPolicyPass({ root, project, knownPolicies: policies, policies, reviewedGrants: [], failOnWarnings: false });
   expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings.map(({ fix }) => fix)).toEqual([
-    expect.stringContaining("packages/ui/token-contract.ts"),
-    expect.stringContaining("packages/ui/token-contract.ts"),
-  ]);
-  expect(result.authority.effectiveFindings.map(({ policyId, token }) => [policyId, token]).toSorted((a, b) => a.join(":").localeCompare(b.join(":")))).toEqual(
-    [
-      ["no-inline-package-interface", "Misplaced"],
-      ["no-inline-types", "Extra"],
-    ],
-  );
+  expect(result.authority.effectiveFindings.map(({ fix }) => fix)).toEqual([expect.stringContaining("packages/ui/token-contract.ts")]);
+  expect(result.authority.effectiveFindings.map(({ policyId, token }) => [policyId, token])).toEqual([["no-inline-types", "Extra"]]);
 });
 
 test("generated vocabulary requires current producer bytes and the local native value binding", async ({ scratch }) => {

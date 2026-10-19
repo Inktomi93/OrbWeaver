@@ -15,7 +15,6 @@ import {
 } from "../../../../tooling/src/floor/code-facts/shape-derivation.ts";
 import { TYPE_HOME_NATIVE_POLICY_ID } from "../../../../tooling/src/floor/code-facts/type-home.ts";
 import { parserTypeOperations } from "../../../../tooling/src/floor/code-facts/type-member-origin-core.ts";
-import { gate as interfaces } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as aliases } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 
@@ -419,18 +418,15 @@ test("custom declaration owners delegate the native population, including infere
   for (const tier of TIERS) {
     project.createSourceFile(`${root}/packages/server/src/${tier}/factory.ts`, SOURCE);
   }
-  project.createSourceFile(`${root}/packages/server/src/infra/retained.gen.ts`, "export interface Retained {readonly n:number}");
-  project.createSourceFile(`${root}/packages/inference/src/backends/retained.ts`, "interface Local {readonly n:number};export {Local};");
+  project.createSourceFile(`${root}/packages/inference/src/backends/retained.ts`, "type Local = number;export {Local};");
   const checker = vi.spyOn(project, "getTypeChecker").mockImplementation(() => {
     throw new Error("custom factory ownership consulted a syntax checker");
   });
   try {
-    const policies = [aliases, interfaces];
+    const policies = [aliases];
     const result = runPolicyPass({ root, project, knownPolicies: policies, policies, reviewedGrants: [], failOnWarnings: false });
     expect(result.toolErrors).toEqual([]);
-    expect(
-      result.authority.effectiveFindings.map((finding) => [finding.policyId, finding.token]).toSorted((left, right) => left.join().localeCompare(right.join())),
-    ).toEqual([["no-inline-package-interface", "Retained"]]);
+    expect(result.authority.effectiveFindings).toEqual([]);
     expect(checker).not.toHaveBeenCalled();
   } finally {
     checker.mockRestore();

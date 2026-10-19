@@ -38,7 +38,6 @@ const REFRESH_INPUT: StartWorkloadInput = { kind: "refresh-model-catalog", param
 /** A timer seam (entry wires setInterval; tests pass a synchronous fake). */
 type ScheduleOp = (fn: () => void, ms: number) => () => void;
 
-// @orb-waive no-inline-package-interface(CatalogRefreshSchedulerDeps): baselined when the gate landed; burn-down item 952.
 export interface CatalogRefreshSchedulerDeps {
   readonly track?: BackgroundWork["track"];
   readonly service: WorkloadService;

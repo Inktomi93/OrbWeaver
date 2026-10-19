@@ -101,7 +101,6 @@ async function requestGitHttp(request: GitHttpRequest, fetchImpl: ScopedEgress["
 
 export const guardedGitHttp: HttpClient = { request: requestGitHttp };
 
-// @orb-waive no-inline-package-interface(PluginGitSourceDeps): baselined when the gate landed; burn-down item 952.
 export interface PluginGitSourceDeps {
   readonly makeScratch: () => Promise<string>;
   readonly removeScratch: (directory: string) => Promise<void>;

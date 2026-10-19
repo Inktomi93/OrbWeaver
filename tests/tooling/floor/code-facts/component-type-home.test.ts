@@ -20,7 +20,6 @@ import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts
 import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as packageInterfaces } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { reportTypeHomeDeclaration } from "../../../../tooling/src/verify/lib/type-home-policy.ts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -642,9 +641,27 @@ test("ordinary reporting accepts only delivered component ownership and preserve
     throw new Error("missing native placement subjects");
   }
   const unqualified = defineGate({
-    ...packageInterfaces,
     id: "component-placement-fixture",
+    family: "no-inline-types",
+    authority: "ordinary",
+    severity: "error",
     population: { in: ["@ui"], under: [path] },
+    analysis: "syntax",
+    execution: "selected-files",
+    facts: [],
+    resources: [],
+    message: "fixture placement",
+    fix: "retain actual ownership; a deliberate keep waives with `@orb-waive component-placement-fixture(<position>): <reason>`",
+    create: (ctx) => ({
+      visitors: [
+        {
+          kinds: [SyntaxKind.InterfaceDeclaration],
+          visit: (node): void => {
+            reportTypeHomeDeclaration(ctx, node, "interface", { message: "fixture placement", fix: "retain actual ownership" });
+          },
+        },
+      ],
+    }),
     mustFlag: [
       {
         mode: "source",

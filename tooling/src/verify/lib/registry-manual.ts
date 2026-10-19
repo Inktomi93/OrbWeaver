@@ -73,8 +73,8 @@ export const MANUAL_ONLY_STAGES: readonly StageDef[] = [
     // A CANDIDATE lens, so it is `manual` BY NATURE and not by cost: it reports domain `contract/` shapes
     // structurally identical to an @orb/contracts shape, which is EVIDENCE of a re-spell, never proof (two
     // shapes may agree today and be free to diverge tomorrow). Gating a commit on that would train agents to
-    // rename a field to dodge it — worse than the rot. The syntactic half IS enforced, at the
-    // `contract-derives-not-respells` gate; this row keeps the judgment half discoverable in `verify --list`
+    // rename a field to dodge it — worse than the rot. The syntactic half IS enforced, by the
+    // `contract-derives-native` test; this row keeps the judgment half discoverable in `verify --list`
     // (and reachable by the parity gate) rather than living only in a lens verb nobody remembers.
     tiers: ["manual"],
     argv: ["pnpm", "check:respell"],

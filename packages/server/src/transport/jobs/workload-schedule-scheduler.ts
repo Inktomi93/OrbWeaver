@@ -25,7 +25,6 @@ const DEFAULT_CHECK_INTERVAL_MS = MS_PER_MINUTE;
 /** A timer seam (entry wires `setInterval`; tests pass a synchronous fake). Returns a `clear` closure. */
 type ScheduleOp = (fn: () => void, ms: number) => () => void;
 
-// @orb-waive no-inline-package-interface(WorkloadScheduleSchedulerDeps): baselined when the gate landed; burn-down item 952.
 /** The DI bundle the scheduler driver closes over — the tick deps (db + clock + `start`) + the timer, all
  *  injected at entry/. */
 export interface WorkloadScheduleSchedulerDeps {

@@ -22,7 +22,6 @@ const APPLICATION = Object.freeze({
   "knob-wire-coverage": 4,
   "membership-enforcer": 6,
   "no-await-db-in-loop": 13,
-  "no-inline-package-interface": 206,
   "no-inline-types": 5,
   "no-inline-wire-interface": 31,
   "no-loose-id-cast": 6,

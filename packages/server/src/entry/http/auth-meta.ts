@@ -14,7 +14,6 @@ import { peerIp } from "#infra/network";
 import { userRoleValue } from "#primitives/role-data/decode";
 import type { PrincipalEnv } from "./contract/request-env.ts";
 
-// @orb-waive no-inline-package-interface(AuthMetaDeps): baselined when the gate landed; burn-down item 952.
 export interface AuthMetaDeps {
   readonly mode: AuthMode;
   readonly defaultHandle: string;

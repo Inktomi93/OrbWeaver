@@ -49,11 +49,12 @@ A server factory shape is owned by its production signature: it is a parameter, 
 | - | - |
 | ESLint `orb/type-home-direct-export` | exported aliases, interfaces and proven zod shape schemas, direct or export-listed, outside contract homes in inference, default-content, plugin-toolchain and every server tier except primitives; generated declarations and domain test mirrors retain custom ownership |
 | `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in client, tooling, tests and UI authoring, plus generated declarations, server root modules such as `packages/server/src/index.ts`, schemas in the transport API homes and server-domain test mirrors; the native population is subtracted |
-| `no-inline-domain-interface` | generated server-domain interface declarations outside contract homes; native lint owns authored domain declarations |
-| `no-inline-package-interface` | generated and token-authoring interfaces retain custom placement; authored server and inference declarations delegate to native lint, with D324 factory ownership |
+| ESLint `orb/no-inline-domain-interface` | exported interfaces, direct or export-listed, in generated server-domain files outside contract homes |
+| ESLint `orb/no-inline-package-interface` | exported interfaces, direct or export-listed, in generated server and inference files, `packages/server/src/index.ts` and the UI authoring files outside `packages/ui/token-contract.ts` |
+| ESLint `orb/no-inline-union-alias` | an inline string-literal union type alias of three or more members in authored code |
 | `no-inline-wire-interface` | an exported interface in the client, outside a home, whose name is in the wire vocabulary (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) and whose type is plain data (no callable member anywhere in it); the client `data` tier is included |
 | `contract-structural-copy` | any interface, object-literal alias or inline type literal, exported or local, in client, server or inference, whose data fields are a subset of a contract export's with agreeing types |
-| `contract-derives-not-respells` | a domain `contract/` shape whose name collides with an `@orb/contracts` export or a drizzle table |
+| `tests/tooling/verify/ops/contract-derives-native.test.ts` | a domain `contract/` shape whose name collides with an `@orb/contracts` export or a drizzle table |
 | `types-in-contract` | each feature's `contract/service.ts` declares its exported service interface; no exported `ReturnType<typeof fn>` in `context.ts` |
 | `no-loose-id-cast`, `no-mint-via-cast` | semantic ID-brand construction and cast claims |
 | ESLint `orb/no-test-fabrication`, `@typescript-eslint/consistent-type-assertions`, `@typescript-eslint/no-unsafe-type-assertion` | maintained tests reject fabricated literal construction and unsafe narrowing; tooling value casts follow D325, while double-cast fabrication remains forbidden |

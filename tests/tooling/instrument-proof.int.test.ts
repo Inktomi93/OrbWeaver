@@ -22,7 +22,8 @@ const PROOF_CLASSES = {
 type ProofClass = keyof typeof PROOF_CLASSES;
 const PROOF_CLASS_NAMES = Object.keys(PROOF_CLASSES) as readonly ProofClass[];
 
-type Rule = "dead-row" | "missing-proof" | "unregistered-marker" | "malformed-marker";
+const RULES = ["dead-row", "missing-proof", "unregistered-marker", "malformed-marker"] as const;
+type Rule = (typeof RULES)[number];
 
 interface Violation {
   readonly rule: Rule;

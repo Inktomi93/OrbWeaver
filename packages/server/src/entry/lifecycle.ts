@@ -178,7 +178,6 @@ function missingSessionSecretMessage(mode: AuthMode, keyfile: string | null): st
   return `boot: AUTH_MODE=${mode} needs a session secret, and ${keyfile} could not be read or generated (the crypto: line above says why). Set SESSION_SECRET (32+ characters), or fix that file.`;
 }
 
-// @orb-waive no-inline-package-interface(Lifecycle): baselined when the gate landed; burn-down item 952.
 /** The lifecycle handle `index.ts` drives: boot once, shut down once (idempotent). */
 export interface Lifecycle {
   readonly boot: () => Promise<void>;

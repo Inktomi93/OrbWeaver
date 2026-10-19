@@ -25,7 +25,6 @@ export class PluginHostBusyError extends DomainConflictError {
   }
 }
 
-// @orb-waive no-inline-package-interface(WarmRuntimeLease): baselined when the gate landed; burn-down item 952.
 export interface WarmRuntimeLease {
   /** `true` means the caller owns a reserved empty slot and must create the physical runtime. */
   readonly cold: boolean;
