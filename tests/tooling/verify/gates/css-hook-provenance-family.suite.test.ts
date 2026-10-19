@@ -141,6 +141,25 @@ test("every direct-client-mechanism grant names a slot operation on the client g
 const GATES_DIR = join(dirname(fileURLToPath(import.meta.url)), "../../../../tooling/src/verify/gates");
 const CONSUMERS = ["css-family-direct-client-mechanism", "css-family-ownership", "css-selector-has-a-writer"];
 
+/** The sweep's subject is the live gate directory, so its anti-vacuum control names the family's own modules
+ *  rather than a corpus size that rots with every gate deletion. */
+function sweepGap(modules: readonly string[], expected: readonly string[]): string | undefined {
+  const missing = expected.filter((id) => !modules.includes(`${id}.ts`));
+  return missing.length === 0 ? undefined : `the gate-module sweep did not see ${missing.join(", ")}`;
+}
+
+test("the gate-module sweep control fails on an empty or misdirected sweep and passes on the family", () => {
+  const ids = [...CONSUMERS, "css-family-ownership-health"];
+  expect(sweepGap([], ids)).toContain("did not see css-family-direct-client-mechanism");
+  expect(sweepGap(["unrelated.ts"], ids)).toContain("css-selector-has-a-writer");
+  expect(
+    sweepGap(
+      ids.map((id) => `${id}.ts`),
+      ids,
+    ),
+  ).toBeUndefined();
+});
+
 test("the css-hook-provenance fact has exactly THREE consumers, declared and called, held two-sided", () => {
   // Typed as the CONTRACT rather than as the five literal descriptors: tsc narrows a `-health` module's
   // `facts` to `readonly []`, and `includes` on that takes `never` — the identity check is the point, so the
@@ -161,7 +180,12 @@ test("the css-hook-provenance fact has exactly THREE consumers, declared and cal
   // PLANTED POSITIVE CONTROL, same invocation: the sweep can see a `ctx.fact(` call at all.
   const anyFactCall = modules.filter((name) => readFileSync(join(GATES_DIR, name), "utf8").includes("ctx.fact(")).length;
 
-  expect(modules.length).toBeGreaterThan(200);
+  expect(
+    sweepGap(
+      modules,
+      family.map((policy) => policy.id),
+    ),
+  ).toBeUndefined();
   expect(anyFactCall).toBeGreaterThan(CONSUMERS.length);
   expect(called).toEqual(CONSUMERS);
 });
