@@ -41,3 +41,5 @@ Reviewed kit cleanup narrows internal exports and moves meaningful cases to publ
 Reviewed client state doors preserve evaluation, public contracts and legacy cases. Retained decisions and compiler reds stay explicit. Only exact stale keys leave. Evidence: `reports/review/peer-state-population-independent.md`.
 
 Reviewed feature doors preserve emitted requests, bindings and legacy assertions. Header-described doors are narrowed; explicit test APIs and state decisions remain retained. Only exact stale keys leave. Evidence: `reports/review/989-feature-door-independent.md` and `reports/review/989-client-held-door-independent.md`.
+
+Plan-method evidence (`pnpm ast rot`/`apisurface`) does not complete at usable cost: rot server stopped at 2 h 54 min without a verdict. Bulk application waits on 1133 and 965, as the plan's public-doors section requires.
