@@ -182,9 +182,9 @@ async function listDir(dir: string): Promise<readonly string[] | null> {
 
 /** A parsed bundle object, or `null` when the file is unreadable/not an object — the `unreadable` row. */
 async function parseBundle(path: string): Promise<Readonly<Record<string, unknown>> | null> {
-  // @orb-waive caught-failure-ownership(catch): the null is consumed as an `unreadable` ROW in
-  // the listing, which is printed — a report the reader cannot open is reported, never skipped. Ends if the
-  // caller stops recording the row.
+  // @orb-waive caught-failure-ownership(catch): readBugReports records the null as an `unreadable` row, and
+  // formatListing's withUnreadable prints it ("could NOT be read as a report") on every arm. Ends if the row
+  // stops being recorded or printed.
   try {
     const parsed: unknown = JSON.parse(await readFile(path, "utf8"));
     return isRecord(parsed) ? parsed : null;

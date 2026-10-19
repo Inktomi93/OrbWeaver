@@ -159,7 +159,7 @@ async function openRoom(api: OrbApi, roomRun: RoomRun, probe: { readonly tag: st
 export async function runRoom(api: OrbApi, roomRun: RoomRun, probe: { readonly tag: string; readonly rows: ProbeRows }): Promise<RoomResult> {
   let chatId: ChatId;
   let prefix: CaseRun;
-  // @orb-waive caught-failure-ownership(error): a failed room opening becomes an ERROR line for every case in the room, and those lines make the run exit as a tool error.
+  // @orb-waive caught-failure-ownership(error): the failure becomes an `error` result on every case in the room; judgeRoom (run.ts) maps each to a verdict "ERROR" outcome, runRoute prints it with formatOutcome, and exitFor returns EXIT.toolError for any ERROR outcome. Ends if a room-open failure stops producing ERROR outcomes.
   try {
     chatId = await openRoom(api, roomRun, probe);
     prefix = await runSteps(api, chatId, ROOMS[roomRun.room].prefixSteps);
@@ -169,7 +169,7 @@ export async function runRoom(api: OrbApi, roomRun: RoomRun, probe: { readonly t
   const cases: RoomCaseResult[] = [];
   let opening = prefix.calls;
   for (const c of roomRun.cases) {
-    // @orb-waive caught-failure-ownership(error): a failed step becomes this case's ERROR line with its message, and the ERROR line makes the run exit as a tool error.
+    // @orb-waive caught-failure-ownership(error): the failure becomes this case's `error` result with its message; judgeRoom (run.ts) maps it to a verdict "ERROR" outcome, runRoute prints it with formatOutcome, and exitFor returns EXIT.toolError for any ERROR outcome. Ends if a step failure stops producing an ERROR outcome.
     try {
       const run = await runSteps(api, chatId, CASE_PLANS[c].steps);
       cases.push({ case: c, run: { calls: [...opening, ...run.calls], replyCosts: run.replyCosts } });

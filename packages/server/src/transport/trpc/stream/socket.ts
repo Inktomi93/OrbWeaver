@@ -110,9 +110,9 @@ export async function* runSocket(args: RunSocketArgs): AsyncGenerator<TrackedEnv
   const pendingPumps = new Set<Promise<void>>();
 
   async function pumpRoom(ref: StreamRoomRef, cursor: number | null, control: AbortController): Promise<void> {
-    // @orb-waive caught-failure-ownership(err): documented below — a non-abort failure is
-    // logged, pushed as a "roomFailed" control frame to the subscriber, and the room detaches. Ends if any
-    // of those three consumption steps is removed.
+    // @orb-waive caught-failure-ownership(err): a non-abort failure is logged with getLog().warn, pushed to the
+    // subscriber as a roomFailed control frame, and the room detaches; the early return is teardown after our own
+    // abort. Ends if any of those three steps is removed or the abort return stops being teardown-only.
     try {
       const source = roomSourceFor(ref);
       for await (const frame of source.run({ ref, principal, services, liveBuses, multiHumanCapable, cursor, signal: control.signal })) {

@@ -74,7 +74,7 @@ export function flushBuffer(buffer: readonly string[], tag: string, maxLines?: n
   // shows up in the banner.
   const slug = tag.replace(/[^a-zA-Z0-9._-]/gu, "_");
   const tmpPath = join(osTmpdir(), `codemod-${slug}-${Date.now()}.txt`);
-  // @orb-waive caught-failure-ownership(err): an unwritable /tmp falls back to printing the whole buffer plus an explicit warning banner naming the failure — the comment above states the intent directly ("better noisy than silent loss"). Ends if the fallback stops printing the warning.
+  // @orb-waive caught-failure-ownership(err): the catch prints "(warning: couldn't write overflow file …: <err.message>)" through print() and then prints the whole buffer, so nothing is lost. Ends if the err.message print or the full-buffer fallback is removed.
   try {
     // Exclusive create: the name is predictable in a shared tmpdir, so an existing entry (a planted
     // symlink included) must fail into the fallback instead of being written through.
