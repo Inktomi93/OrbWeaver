@@ -4,6 +4,7 @@
 // verdict lives here — this reader only names WHICH invocation is a rejection handler and what it touches.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
+import { applyArgumentValues } from "../../floor/code-facts/expression-value.ts";
 import { hasMember, memberReceivers } from "../../floor/code-facts/member-type-reads.ts";
 import type { CaughtFailureReadServices } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
@@ -116,10 +117,11 @@ function appliedRejection(
   const receiver = call.getArguments()[reflect ? 1 : 0];
   const args = call.getArguments()[reflect ? 2 : 1];
   const link = rejectionNode === undefined ? undefined : rejectionLink(literalMember(rejectionNode, reads)?.name);
-  if (link === undefined || receiver === undefined || args?.isKind(SyntaxKind.ArrayLiteralExpression) !== true) {
+  const spread = applyArgumentValues(args);
+  if (link === undefined || receiver === undefined || spread === undefined) {
     return;
   }
-  const handler = args.getElements()[REJECTION_HANDLER_INDEX.get(link) ?? -1];
+  const handler = spread[REJECTION_HANDLER_INDEX.get(link) ?? -1];
   return handler === undefined ? undefined : { handler, link, receiver, direct: false };
 }
 

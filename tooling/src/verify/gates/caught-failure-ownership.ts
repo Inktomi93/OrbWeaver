@@ -145,6 +145,18 @@ function reportSite(ctx: GatePolicyContext, site: CaughtFailureSite | undefined)
   ctx.report.node(site.node, { message: ARM_MESSAGE[site.arm], token: anchor.token, offset: anchor.offset });
 }
 
+// A multi-statement handler that owns its failure through `reportError`, handed over by one `statement`.
+const REPORTING_HANDLER = (statement: string): Readonly<Record<string, string>> => ({
+  "packages/client/src/features/probe/handler-spelling.ts": `declare function note(message: string): void;\nfunction onErr(error: unknown): void {\n  const message = String(error);\n  globalThis.reportError(error);\n  note(message);\n}\nexport function run(p: Promise<void>): void {\n  ${statement}\n}\n`,
+});
+const HANDLER_SPELLINGS = [
+  "void p.catch(onErr as (error: unknown) => void);",
+  "void p.catch((onErr));",
+  "const h = (onErr); void p.catch(h);",
+  "void Reflect.apply(p.catch, p, [onErr]);",
+  "void p.catch.apply(p, [onErr]);",
+] as const;
+
 export const gate = defineGate({
   id: "caught-failure-ownership",
   family: "caught-failure-ownership",
@@ -1188,6 +1200,11 @@ export const gate = defineGate({
       },
       why: "D328 INSIDE THE BOUND: the same aliased multi-statement handler hands the failure to `reportError`, and the walked body owns it",
     },
+    ...HANDLER_SPELLINGS.map((statement) => ({
+      mode: "types" as const,
+      files: REPORTING_HANDLER(statement),
+      why: `D328 HANDLER SPELLING: \`${statement}\` hands over the same multi-statement handler the rejection reader unwraps, so its body is walked and owns the failure, never an unknown (tests/tooling/verify/gates/caught-failure-bound.test.ts asserts no unknown)`,
+    })),
     {
       mode: "types",
       files: {

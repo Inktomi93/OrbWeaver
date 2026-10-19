@@ -24,14 +24,15 @@
 // ── THE FINITE BLOCKING CLAIM (D328) ────────────────────────────────────────────────────────────────────
 // A verdict blocks only when the reader decides it from the site's enclosing statement plus at most
 // `CAUGHT_FAILURE_CLOSURE_HOPS` declaration hops. A hop walks a multi-statement function body only from a
-// handler position (a call argument, or the bare initializer of an alias such as `const h = onErr`); any
+// handler position, read through the same unwrap and `apply` spread as the rejection reader: a call argument,
+// an element an `apply`-style call spreads, or the bare initializer of an alias such as `const h = onErr`. Any
 // other multi-statement body, and a callee's call-initialized declaration in another file (a bound alias no
 // root reaches), is past the bound. Inside the bound, Type answers exist only at reader positions
 // (`readerTypedPosition`): calls, and values in call arguments, returns, arrow bodies, conditionals, initializers,
 // member and element receivers, element keys and `+` operands; a Type question anywhere else is past the bound
 // too. Symbols are answered at every walked node. A verdict that needs a Type answer past the bound is an explicit
-// advisory unknown (`report.analysis`): never owned, never a finding. The census joins withhold only the ids
-// in that site's own (declaration, token) ordinal series and report each one; the census generator refuses.
+// advisory unknown (`report.analysis`) on that site alone: never owned, never a finding, and no other site's
+// verdict or waiver depends on it, because each site is judged and anchored by its own position.
 //
 // ── THE ARMS ────────────────────────────────────────────────────────────────────────────────────────────
 //   promise   a `.catch(h)` / `.then(_, h)` — in ANY spelling: dot or bracket key (literal,

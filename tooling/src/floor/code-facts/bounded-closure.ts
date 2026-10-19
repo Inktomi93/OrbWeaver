@@ -1,6 +1,7 @@
 // A symbol closure walked breadth-first by declaration hops; whatever lies past the last hop is reported, never walked.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { applyArgumentValues, wrappedValue } from "./expression-value.ts";
 import type { TypeObservationCaptureOwner, TypeObservationQuestion, TypeObservationReader } from "./type-observations-contract.ts";
 import { ClosureBoundError } from "./type-observations-contract.ts";
 
@@ -151,14 +152,23 @@ export function readerTypedPosition(node: MorphNode): boolean {
   return parent !== undefined && typedSlot(value, parent);
 }
 
-// A handler position: a call argument, or the bare-identifier initializer of an alias (`const h = onErr`)
-// that a call argument may name in turn.
+// A handler position, read through the same unwrap and `apply` spread the rejection reader uses: a call
+// argument, an element an `apply`-style call spreads, or the bare-identifier initializer of an alias
+// (`const h = onErr`) that a call argument may name in turn.
 function handlerPosition(node: MorphNode): boolean {
-  const parent = node.getParent();
-  if (parent !== undefined && Node.isCallExpression(parent)) {
-    return parent.getArguments().includes(node);
+  const value = wrappedValue(node);
+  const parent = value.getParent();
+  if (parent === undefined) {
+    return false;
   }
-  return Node.isIdentifier(node) && parent !== undefined && Node.isVariableDeclaration(parent) && parent.getInitializer() === node;
+  if (Node.isCallExpression(parent)) {
+    return parent.getArguments().includes(value);
+  }
+  if (Node.isArrayLiteralExpression(parent)) {
+    const call = parent.getParent();
+    return call !== undefined && Node.isCallExpression(call) && call.getArguments().includes(parent) && applyArgumentValues(parent)?.includes(value) === true;
+  }
+  return Node.isIdentifier(node) && Node.isVariableDeclaration(parent) && parent.getInitializer() === value;
 }
 
 // A handler-bodies-only question walks a whole multi-statement body only from a handler position, and

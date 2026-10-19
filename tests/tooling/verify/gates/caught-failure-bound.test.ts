@@ -11,6 +11,7 @@ import { gate as health } from "../../../../tooling/src/verify/gates/caught-fail
 import { gate as fixtureSubstrate } from "../../../../tooling/src/verify/gates/policy-fixture-substrate.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/bound";
 const POPULATION = JSON_RESOURCE_PATHS["caught-failure-population"];
@@ -20,6 +21,15 @@ const PAST_THE_BOUND = "D328 PAST THE BOUND";
 type Analysis = NonNullable<ReturnType<typeof runPolicyPass>["policies"][number]["analysis"]>;
 
 function analysisOf(policy: GatePolicy, proof: GatePolicyProof): Analysis {
+  const analysis = cleanPassAnalysis(policy, proof);
+  if (analysis === undefined) {
+    throw new Error(`${policy.id} reported no analysis coverage`);
+  }
+  return analysis;
+}
+
+// A clean pass's analysis; undefined when the policy reported none, which means it reported no unknown.
+function cleanPassAnalysis(policy: GatePolicy, proof: GatePolicyProof): Analysis | undefined {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { strict: true, target: ts.ScriptTarget.ES2022 } });
   const overlay: Record<string, string> = {};
   for (const [path, text] of Object.entries(proof.files)) {
@@ -41,11 +51,7 @@ function analysisOf(policy: GatePolicy, proof: GatePolicyProof): Analysis {
   });
   expect(result.toolErrors).toEqual([]);
   expect(result.authority.effectiveFindings).toEqual([]);
-  const analysis = result.policies[0]?.analysis;
-  if (analysis === undefined) {
-    throw new Error(`${policy.id} reported no analysis coverage`);
-  }
-  return analysis;
+  return result.policies[0]?.analysis;
 }
 
 function pastRows(policy: GatePolicy): readonly GatePolicyProof[] {
@@ -64,6 +70,13 @@ test.each([
     const { unknown } = analysisOf(policy, proof);
     expect(unknown, proof.why).toEqual(expect.arrayContaining([expect.objectContaining({ reason: expect.stringContaining("past the closure bound") })]));
   }
+});
+
+test("a handler spelling the rejection reader unwraps is walked and owned, never pushed past the bound", { timeout: scaledBudget(30_000) }, () => {
+  const spellings = ownership.mustPass.filter((proof) => proof.why.startsWith("D328 HANDLER SPELLING"));
+  expect(spellings.length).toBeGreaterThan(0);
+  const unknowns = Object.fromEntries(spellings.map((proof) => [proof.why, (cleanPassAnalysis(ownership, proof)?.unknown ?? []).map(({ reason }) => reason)]));
+  expect(unknowns).toEqual(Object.fromEntries(spellings.map((proof) => [proof.why, []])));
 });
 
 test("each census join names the id it withholds, with the withheld count", () => {

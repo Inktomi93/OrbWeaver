@@ -184,9 +184,9 @@ They now end below their `main` line counts. Code moved into cohesive new module
 
 | File | main | now |
 | - | - | - |
-| type-observation-questions.ts | 853 | 844 |
-| type-observations-coverage.ts | 989 | 972 |
-| type-observations-read.ts | 554 | 501 |
+| type-observation-questions.ts | 853 | 846 |
+| type-observations-coverage.ts | 989 | 964 |
+| type-observations-read.ts | 554 | 515 |
 | type-observations.ts | 873 | 873 |
 
 - `bounded-closure.ts`: the frontier and walked set (`closureFrontier`), `symbolBodies`, the walk, and handler hops.
@@ -334,3 +334,34 @@ The 1085 harness `cb-1085-cohort.ts` was used unchanged. Single program, under t
 | `pnpm typecheck --config tooling/tsconfig.json --config tsconfig.json` under the lock | tooling PASS, root PASS |
 
 - `caught-failure-census-row.test.ts` took 7.25 s while the box was loaded, against the 5 s vitest default, then 3.5 s on a quiet rerun. That suite runs two policies' whole proof sets, so it now carries `scaledBudget(30_000)`, per the node-test rule for proof-row loops.
+
+## Verifier cb-1098v2 leg
+
+Context: by owner ruling, `caught-failure-ownership` stays and stays bounded. Item 1139 deletes `caught-failure-census-row`, `caught-failure-ownership-health`, the population record, its generator and its `ledgers:fresh` derivation.
+
+### The census-row matched-id hole, and the ownership gate
+
+- **The defect.** census-row passes only the uncommitted live ids to `judgeableSiteIds`. A live id inside an unresolved site's ordinal series that happens to match a committed row is therefore judged clean.
+- **Not fixed here.** Item 1139 deletes that gate.
+- **The header claim.** `caught-failure.ts` claimed the census joins withhold the whole series. It now describes only what stays true for the ownership gate.
+- **The ownership gate has no such hole.** It judges each nominee by itself (`caught-failure-ownership.ts`, `evaluate`). An unresolved verdict becomes that site's own analysis unknown. The ordinary-waiver engine binds waivers by authored position (carrier plus token), never by a census ordinal. So no other site's verdict or waiver changes when a neighbor is unresolved. There is nothing to fix.
+
+### Handler spellings the reader unwraps
+
+- **The defect.** `handlerPosition` checked the raw parent. These spellings were owned on the base but read as an explicit unknown on the branch:
+  - `onErr as T`
+  - `(onErr)`
+  - `const h = (onErr)`
+  - `Reflect.apply(p.catch, p, [onErr])`
+  - `p.catch.apply(p, [onErr])`
+- **The fix.** `handlerPosition` now reads the position through `wrappedValue`, the inverse of the reader's `unwrapExpression`. Both use one wrapper predicate in `floor/code-facts/expression-value.ts`. It reads `apply`-style handlers through `applyArgumentValues`, which `appliedRejection` (`caught-failure-promise.ts`) now uses too. The two readings cannot drift.
+- **Red-first.** Five `mustPass` rows ("D328 HANDLER SPELLING") cover the spellings. A test in `caught-failure-bound.test.ts` asserts that none reports an unknown.
+  - Red on `30d7fcc1e0`: all five reported "past the closure bound".
+  - Green after the fix.
+- A non-null `onErr!` is a finding on both trees, because the reader does not unwrap `!`. A three-alias chain stays unknown, as the bound expects.
+
+### Open question for the re-measure: the parent process
+
+- The client tree peak (17.39 GB) is about 2.7 GB above the worker (14.67 GB). The extra is the parent process.
+- `projectCtx(root)` parses the whole repository's ts-morph workspace before the harness filters to one package, and the parent also holds the replayed tables.
+- The census derivation that measured this is deleted in 1139. Whoever re-measures the surviving ownership gate's single-program run should decide whether the parent's workspace counts against the 16 GB bar.
