@@ -18,6 +18,7 @@ import { readDrizzlePredicate } from "../../floor/code-facts/drizzle-predicate.t
 import { readPredicateArgument, readPredicateColumn } from "../../floor/code-facts/drizzle-predicate-argument.ts";
 import type { DrizzlePredicate } from "../../floor/code-facts/drizzle-predicate-contract.ts";
 import { readReturnOccurrences, resultReferenceDepths } from "../../floor/code-facts/drizzle-row-flow.ts";
+import { readDrizzleSelection } from "../../floor/code-facts/drizzle-select.ts";
 import { readFollowingBuilderChain } from "../../floor/code-facts/drizzle-statement.ts";
 import {
   DRIZZLE_CONFLICT_VERBS,
@@ -158,6 +159,7 @@ interface PredicateSite {
 
 interface ColumnRead {
   readonly name: string;
+  readonly access: Node;
   readonly receiver: Node;
   readonly bindings: ReadonlyMap<Node, Node>;
 }
@@ -204,7 +206,7 @@ function columnReadsOf({ node, bindings }: PredicateSite): readonly ColumnRead[]
     : [];
   return [...written, ...bound].flatMap((candidate) => {
     const read = staticMemberAccess(candidate);
-    return read === undefined ? [] : [{ name: read.name, receiver: read.receiver, bindings }];
+    return read === undefined ? [] : [{ name: read.name, access: candidate, receiver: read.receiver, bindings }];
   });
 }
 
@@ -222,13 +224,66 @@ export function readsTableColumn(predicate: Node, tables: ReadonlySet<string>, c
   );
 }
 
+/** Is there a drizzle select between this node and the predicate root? A column read there binds to that select's
+ *  own row source, so it never constrains the written row. */
+function insideNestedSelect(node: Node, root: Node): boolean {
+  for (let current: Node | undefined = node; current !== undefined && current !== root.getParent(); current = current.getParent()) {
+    if (Node.isCallExpression(current) && readDrizzleSelection(current) !== undefined) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/** Does this receiver name its table through declarations and imports only, the way the floor resolver walks it,
+ *  with no call on the way? A drizzle `alias()` or `aliasedTable()` resolves to its base table there but is its
+ *  own SQL row source, and any other call computes the table at run time. */
+function namesTableDirectly(node: Node, index: SchemaTableIndex, active: ReadonlySet<object> = new Set()): boolean {
+  const value = unwrapExpression(node);
+  if (active.has(value.compilerNode)) {
+    return false;
+  }
+  const next = new Set(active).add(value.compilerNode);
+  if (Node.isConditionalExpression(value)) {
+    return namesTableDirectly(value.getWhenTrue(), index, next) && namesTableDirectly(value.getWhenFalse(), index, next);
+  }
+  if (Node.isPropertyAccessExpression(value) || Node.isElementAccessExpression(value)) {
+    return true;
+  }
+  if (!Node.isIdentifier(value)) {
+    return false;
+  }
+  return value.getDefinitionNodes().every((definition) => {
+    if (Node.isImportSpecifier(definition)) {
+      return true;
+    }
+    if (!Node.isVariableDeclaration(definition)) {
+      return false;
+    }
+    if (index.idents.has(definition.getName()) && definition.getSourceFile().getFilePath().includes(SCHEMA_DIR)) {
+      return true;
+    }
+    const initializer = definition.getInitializer();
+    return initializer !== undefined && namesTableDirectly(initializer, index, next);
+  });
+}
+
 /** The acquitting half: does this predicate read `column` on exactly `table`, every arm of the receiver naming
- *  that one declared table? A conditional or unreadable receiver proves nothing. */
+ *  that one declared table directly? A conditional or unreadable receiver, an aliased copy of the table, and a read
+ *  inside a nested select prove nothing about the written row. */
 export function predicatesTableColumn(predicate: Node, table: string, column: string, index: SchemaTableIndex): boolean {
   return predicateSites(predicate, false).some((site) =>
     columnReadsOf(site).some((read) => {
+      if (read.name !== column || insideNestedSelect(read.access, site.node)) {
+        return false;
+      }
+      const actual = readPredicateArgument(read.receiver, read.bindings);
       const refs = receiverTables(read, index);
-      return read.name === column && refs.length > 0 && refs.every((ref) => ref.kind === "table" && ref.ident === table);
+      return (
+        namesTableDirectly(actual.kind === "resolved" ? actual.value : read.receiver, index) &&
+        refs.length > 0 &&
+        refs.every((ref) => ref.kind === "table" && ref.ident === table)
+      );
     }),
   );
 }

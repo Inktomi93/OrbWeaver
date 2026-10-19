@@ -361,6 +361,39 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: UNRESOLVABLE },
       why: "SQLite resolves identifiers case-insensitively, so a raw SQL row source spelling a schema table in another case names that table and is unresolvable, not a table-free constant",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { alias } from "drizzle-orm/sqlite-core";\nimport { and, eq, exists } from "drizzle-orm";\nimport { characters } from "@orb/db";\nconst mine = alias(characters, "mine");\nexport async function renameCard(db: Db, id: string, callerId: string, name: string) {\n  return db.update(characters).set({ name }).where(and(eq(characters.id, id), exists(db.select().from(mine).where(eq(mine.ownerId, callerId)))));\n}\n',
+      },
+      expect: { count: 1, token: "characters", messageIncludes: "cross-tenant WRITE hole" },
+      why: "An owner term on an aliased copy of the table inside an EXISTS subquery scopes the subquery, not the written row: a caller who owns any character could rename every character by id",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { alias } from "drizzle-orm/sqlite-core";\nimport { and, eq, exists } from "drizzle-orm";\nimport { characters } from "@orb/db";\nexport async function renameCard(db: Db, id: string, callerId: string, name: string) {\n  return db.update(characters).set({ name }).where(and(eq(characters.id, id), exists(db.select().from(characters).where(eq(characters.ownerId, callerId)))));\n}\n',
+      },
+      expect: { count: 1, token: "characters", messageIncludes: "cross-tenant WRITE hole" },
+      why: "An owner read inside a nested select binds to that select's own row source, even when it names the written table, so it is never the target's owner term",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { alias } from "drizzle-orm/sqlite-core";\nimport { and, eq, exists } from "drizzle-orm";\nimport { characters } from "@orb/db";\nconst mine = alias(characters, "mine");\nexport async function renameCard(db: Db, id: string, callerId: string, name: string) {\n  return db.update(characters).set({ name }).where(and(eq(characters.id, id), eq(mine.ownerId, callerId)));\n}\n',
+      },
+      expect: { count: 1, token: "characters", messageIncludes: "cross-tenant WRITE hole" },
+      why: "A drizzle alias is its own SQL row source, so an owner column read through it is not the written table's owner term",
+    },
   ],
   mustPass: [
     {

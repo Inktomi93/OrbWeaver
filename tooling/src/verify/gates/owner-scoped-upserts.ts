@@ -336,6 +336,17 @@ export const gate = defineGate({
       expect: { count: 1, token: "pluginKv", messageIncludes: "cross-tenant UPSERT hole" },
       why: "Another owner-scoped table's owner column scopes nothing here: the guard must name the insert target's own declared table",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { alias } from "drizzle-orm/sqlite-core";\nimport { and, eq, exists } from "drizzle-orm";\nimport { characters } from "@orb/db";\nconst mine = alias(characters, "mine");\nexport async function put(db: Db, row: R, ownerId: string) {\n  return db.insert(characters).values(row).onConflictDoUpdate({ target: characters.id, setWhere: exists(db.select().from(mine).where(eq(mine.ownerId, ownerId))), set: { name: row.name } });\n}\n',
+      },
+      expect: { count: 1, token: "characters", messageIncludes: "cross-tenant UPSERT hole" },
+      why: "An owner term on an aliased copy of the table inside an EXISTS subquery scopes the subquery, not the row the DO UPDATE overwrites",
+    },
   ],
   mustPass: [
     {
