@@ -198,7 +198,10 @@ export function memoryStores(): MemoryStores {
   return {
     connections: {
       rows,
-      get: (id) => Promise.resolve(rows.get(id) ?? null),
+      get: (id): ReturnType<ConnectionStore["get"]> => {
+        const row = rows.get(id);
+        return Promise.resolve(row === undefined ? null : { ownerId: row.ownerId, parse: () => row });
+      },
       listForOwner: (ownerId) => Promise.resolve([...rows.values()].filter((row) => row.ownerId === ownerId)),
     },
     bindings: {
