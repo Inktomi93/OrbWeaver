@@ -1,8 +1,9 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
+lane: wt/agent-acb14f15173490df8
 ---
 
 # Clean up what deleted gates left behind

@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-19
 priority: P3
+lane: wt/agent-ad739f2452e6d1aa5
 ---
 
 # registryDefinitionFacts carries kinds no policy consumes; stale comment in warning-code-coverage

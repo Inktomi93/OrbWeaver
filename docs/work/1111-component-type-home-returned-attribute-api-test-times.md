@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
+lane: wt/agent-ad739f2452e6d1aa5
 ---
 
 # component-type-home returned attribute API test times out on main
