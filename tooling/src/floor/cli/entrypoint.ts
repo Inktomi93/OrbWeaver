@@ -11,7 +11,7 @@ import { EXIT } from "./exit-contract.ts";
 
 /** Real path, or the input verbatim when it does not resolve (a deleted or virtual `argv[1]`). */
 function realOrSelf(path: string): string {
-  // @orb-waive caught-failure-ownership(catch): a deleted or virtual argv[1] fails to resolve; the caller's own doc says exactly that case is expected, so falling back to the input verbatim is the correct optional-read-as-absent behavior, not a lost failure. Ends if a resolve failure here starts meaning something other than "no real path".
+  // @orb-waive caught-failure-ownership(catch): the fallback degrades refuseDirectInvocation to a lexical path comparison of argv[1] against the module path, which still refuses a direct run. Ends if the comparison in refuseDirectInvocation stops accepting unresolved paths.
   try {
     return realpathSync(path);
   } catch {

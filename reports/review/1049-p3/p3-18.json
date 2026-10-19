@@ -1,0 +1,178 @@
+[
+  {
+    "site": "tooling/src/floor/browser/browser-capture.ts:205 (wire)",
+    "claimedOwner": "the event has no awaiter; setup rejection is retained in pageErrors, which makes Snap's verdict red",
+    "verifiedOwner": "tooling/src/floor/browser/browser-capture.ts:207 - capture.evidence.pageErrors.push(",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/browser/browser-capture.ts:205:5\ttooling/src/floor/browser/browser-capture.ts:206\twire\t.md) THIS SITE: a promise rejection handler that discards the failure.  (waived, no stale/dead alarm) || owner detail: tooling/src/floor/browser/browser-capture.ts:207 - capture.evidence.pageErrors.push(; the pageErrors count is the pageErrors member of SnapFailureSummary at tooling/src/snap/ops/verdict.ts:63",
+    "disposition": "KEEP",
+    "diff": "browser-capture.ts:205 marker reason rewritten to name evidence.pageErrors and buildFailureSummary (snap/ops/verdict.ts) with the end condition"
+  },
+  {
+    "site": "tooling/src/floor/browser/browser-diagnostics.ts:315 (error)",
+    "claimedOwner": "unsupported experimental Audits becomes an explicit instrument-limit diagnostic; Log capture remains live",
+    "verifiedOwner": "tooling/src/floor/browser/browser-diagnostics.ts:319 - recordLimit(ring, identity,",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/browser/browser-diagnostics.ts:315:3\ttooling/src/floor/browser/browser-diagnostics.ts:318\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/floor/browser/browser-diagnostics.ts:319 - recordLimit(ring, identity, `Audits.enable unsupported: ${error instanceof Error ? error.message : String(error)}`);",
+    "disposition": "KEEP",
+    "diff": "browser-diagnostics.ts:315 marker reason rewritten to name recordLimit pushing the caught message into the diagnostics ring"
+  },
+  {
+    "site": "tooling/src/floor/browser/browser-network.ts:136 (error)",
+    "claimedOwner": "a failed or timed-out CDP request-body read is retained as an explicit unavailableReason and serialized as a HAR omission",
+    "verifiedOwner": "tooling/src/floor/browser/browser-network.ts:145 - unavailableReason: error === BODY_READ_TIMEOUT",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/browser/browser-network.ts:136:3\ttooling/src/floor/browser/browser-network.ts:144\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/floor/browser/browser-network.ts:145 - unavailableReason: error === BODY_READ_TIMEOUT ? 'timeout' : 'unavailable'; read at tooling/src/snap/lib/har-redaction.ts:303-304 (omittedBody)",
+    "disposition": "KEEP",
+    "diff": "browser-network.ts:136 marker reason rewritten to name record.requestBody.unavailableReason and har-redaction omittedBody"
+  },
+  {
+    "site": "tooling/src/floor/browser/browser-network.ts:162 (error)",
+    "claimedOwner": "a failed or timed-out CDP response-body read is retained as timeout/evicted/failed and serialized as a HAR omission",
+    "verifiedOwner": "tooling/src/floor/browser/browser-network.ts:172 - unavailableReason: responseBodyFailureReason(error, record)",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/browser/browser-network.ts:162:3\ttooling/src/floor/browser/browser-network.ts:171\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/floor/browser/browser-network.ts:172 - unavailableReason: responseBodyFailureReason(error, record), truncatedAt: null };",
+    "disposition": "KEEP",
+    "diff": "browser-network.ts:162 marker reason rewritten to name record.responseBody.unavailableReason and har-redaction omittedBody"
+  },
+  {
+    "site": "tooling/src/floor/browser/browser-network.ts:214 (pending)",
+    "claimedOwner": "the original promise remains in controller.pending and networkRecordsForPages awaits it, so rejection still propagates",
+    "verifiedOwner": "tooling/src/floor/browser/browser-network.ts:331 - await Promise.all(controllers.flatMap",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/browser/browser-network.ts:214:3\ttooling/src/floor/browser/browser-network.ts:215\tpending\t.md) THIS SITE: a promise rejection handler that discards the failure.  (waived) || owner detail: tooling/src/floor/browser/browser-network.ts:331 - await Promise.all(controllers.flatMap((controller) => [...controller.pending]));",
+    "disposition": "KEEP",
+    "diff": "browser-network.ts:214 marker reason rewritten to name the Promise.all in networkRecordsForPages"
+  },
+  {
+    "site": "tooling/src/floor/browser/browser-request-url.ts:11 (catch)",
+    "claimedOwner": "an unparsable page-controlled URL becomes the branded explicit omission instead of leaking raw credentials/path/query bytes",
+    "verifiedOwner": "tooling/src/floor/browser/browser-request-url.ts:32 - [UNPARSEABLE URL OMITTED]",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/browser/browser-request-url.ts:11:3\ttooling/src/floor/browser/browser-request-url.ts:31\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/floor/browser/browser-request-url.ts:32 - return redactedRequestUrlSchema.parse('[UNPARSEABLE URL OMITTED]');",
+    "disposition": "KEEP",
+    "diff": "browser-request-url.ts:11 marker reason rewritten to name the visible sentinel value that lands in CapturedRequest.url"
+  },
+  {
+    "site": "tooling/src/floor/browser/browser.ts:218 (error)",
+    "claimedOwner": "closeProbeSessionAfterError is typed Promise<never> - it always rethrows the primary error, never returns",
+    "verifiedOwner": "tooling/src/floor/browser/browser.ts:318 - export async function closeProbeSessionAfterError(session: ProbeResourceOwner, primary: unknown): Promise<never> {  (body :319-324 throws probeFailureWithCleanup(primary, cleanup) or primary on every path). The reader misses it: a bare `await neverCall(error)` expression statement is not credited, while `return await neverCall(error)` is (browser.ts:284 is the same call as a return and is not reported). cannotReturn (caught-failure-outcome.ts:103) is only reached from isFailureOutcome for returned/thrown values.",
+    "toolOutput": "in-memory single-file probe on browser.ts: tooling/src/floor/browser/browser.ts:218:3\ttooling/src/floor/browser/browser.ts:233\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived). Minimal repro (scratch file, same Promise<never> function, two catches): UNWAIVED\ttooling/src/floor/browser/x.ts:7\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all. -- only line 7 (`await closeAfter(error);`) reports; line 16 (`return await closeAfter(error);`) does not. Proposed mustPass row: mode types, files { 'tooling/src/x.ts': an async fn returning Promise<never> that throws its argument, plus try { await work(); } catch (error) { await neverFn(error); } }, count 0, why 'bare-await-never-statement'. Escalate to the Opus gate lane; marker left in place, product code untouched.",
+    "disposition": "GATE FALSE POSITIVE",
+    "diff": "none"
+  },
+  {
+    "site": "tooling/src/floor/browser/browser.ts:293 (error)",
+    "claimedOwner": "collected into failures[] which the two checks below rethrow as-is or as an AggregateError - never silently dropped",
+    "verifiedOwner": "tooling/src/floor/browser/browser.ts:297 - failures.push(error);",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/browser/browser.ts:293:3\ttooling/src/floor/browser/browser.ts:296\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/floor/browser/browser.ts:297 - failures.push(error);  surfaced at :302 throw failures[0] and :305 throw new AggregateError(failures,",
+    "disposition": "KEEP",
+    "diff": "browser.ts:293 marker reason rewritten to name failures[] thrown at the end of closeProbeSession"
+  },
+  {
+    "site": "tooling/src/floor/browser/debugging-endpoint.ts:42 (catch)",
+    "claimedOwner": "the file exists only after Chrome binds its ephemeral endpoint; the bounded loop owns the race and throws below when its budget expires",
+    "verifiedOwner": "tooling/src/floor/browser/debugging-endpoint.ts:54 - throw new Error(`Chrome did not publish",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/browser/debugging-endpoint.ts:42:5\ttooling/src/floor/browser/debugging-endpoint.ts:49\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/floor/browser/debugging-endpoint.ts:54 - throw new Error(`Chrome did not publish ${ACTIVE_PORT_FILE} under ${profileDir}`);",
+    "disposition": "KEEP",
+    "diff": "debugging-endpoint.ts:42 marker reason rewritten to name the exhaustion throw in readDebuggingPort"
+  },
+  {
+    "site": "tooling/src/floor/browser/upload.ts:139 (evaluate)",
+    "claimedOwner": "this best-effort type probe converts a detached/unreadable target into 'not a direct input' and delegates to the descendant/chooser arms; those interactions surface the actionable target failure",
+    "verifiedOwner": "tooling/src/floor/browser/upload.ts:206 - throw error;",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/browser/upload.ts:139:3\ttooling/src/floor/browser/upload.ts:141\tevaluate\t.md) THIS SITE: a promise rejection handler that discards the failure.  (waived) || owner detail: tooling/src/floor/browser/upload.ts:206 - throw error;  (the chooser arm's target.click at :202 is the failing interaction; resolveFileInputLocator has one caller, driveFileUpload at :193, found by rg over tooling and tests)",
+    "disposition": "KEEP",
+    "diff": "upload.ts:139 marker reason rewritten to name the click rethrow in driveFileUpload and the single-caller end condition"
+  },
+  {
+    "site": "tooling/src/floor/browser/upload.ts:204 (chooserPromise)",
+    "claimedOwner": "the target click already failed and is rethrown below; drain the paired chooser promise so its later timeout cannot become an unhandled secondary failure",
+    "verifiedOwner": "tooling/src/floor/browser/upload.ts:206 - throw error;",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/browser/upload.ts:204:5\ttooling/src/floor/browser/upload.ts:205\tchooserPromise\t.md) THIS SITE: a promise rejection handler that discards the failure.  (waived) || owner detail: tooling/src/floor/browser/upload.ts:206 - throw error;",
+    "disposition": "KEEP",
+    "diff": "upload.ts:204 marker reason rewritten to name the `throw error` on the next line"
+  },
+  {
+    "site": "tooling/src/floor/cli/entrypoint.ts:14 (catch)",
+    "claimedOwner": "a deleted or virtual argv[1] fails to resolve; falling back to the input verbatim is the correct optional-read-as-absent behavior",
+    "verifiedOwner": "tooling/src/floor/cli/entrypoint.ts:39 - if (realOrSelf(resolve(entry)) !== self) {",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/cli/entrypoint.ts:14:3\ttooling/src/floor/cli/entrypoint.ts:17\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/floor/cli/entrypoint.ts:39 - if (realOrSelf(resolve(entry)) !== self) {  (both sides go through realOrSelf, so an unresolvable pair compares lexically and the refusal at :42-45 still fires)",
+    "disposition": "KEEP",
+    "diff": "entrypoint.ts:14 marker reason rewritten to name the lexical comparison in refuseDirectInvocation"
+  },
+  {
+    "site": "tooling/src/floor/cli/run-tool.ts:46 (e)",
+    "claimedOwner": "UsageError writes ARG ERROR and escalates misuse, anything else routes through crashExit which writes stderr, escalates toolError and hard-exits",
+    "verifiedOwner": "tooling/src/floor/cli/run-tool.ts:59 - process.stderr.write(`ARG ERROR",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/cli/run-tool.ts:46:3\ttooling/src/floor/cli/run-tool.ts:57\te\tpe is a constant fallback - the behaviour changed and nobody was told.  (waived, default kind) || owner detail: tooling/src/floor/cli/run-tool.ts:59 - process.stderr.write(`ARG ERROR    ${e.message}\\n`);  then :60 escalate(EXIT.misuse); other throws reach :63 crashExit('thrown', e), typed never at :32",
+    "disposition": "KEEP",
+    "diff": "run-tool.ts:46 marker reason rewritten to name the stderr write and the misuse exit code"
+  },
+  {
+    "site": "tooling/src/floor/code-facts/module-target.ts:28 (catch)",
+    "claimedOwner": "TypeScript intentionally probes nonexistent module candidates; an unreadable candidate is undefined so resolution continues",
+    "verifiedOwner": "tooling/src/floor/code-facts/module-target.ts:34 - return ts.resolveModuleName(",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/code-facts/module-target.ts:28:7\ttooling/src/floor/code-facts/module-target.ts:29\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/floor/code-facts/module-target.ts:34 - return ts.resolveModuleName(spec, sf.getFilePath(), sf.getProject().getCompilerOptions(), {  (readFile at :38 is the ts.ModuleResolutionHost callback; node_modules/typescript/lib/typescript.js:8412-8418 statSync and sys.readFile return undefined on any error, the same contract)",
+    "disposition": "KEEP",
+    "diff": "module-target.ts:28 marker reason rewritten to name the ts.ModuleResolutionHost.readFile contract"
+  },
+  {
+    "site": "tooling/src/floor/code-facts/schema-query.ts:116 (error)",
+    "claimedOwner": "drizzle schema parse error: surfaced as a structured tool-error in the schema-fact report; the broken schema is excluded from the fact census",
+    "verifiedOwner": "tooling/src/verify/contract/schema-fact.ts:21 - throw new Error(`drizzle schema fact",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/code-facts/schema-query.ts:116:3\ttooling/src/floor/code-facts/schema-query.ts:158\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/verify/contract/schema-fact.ts:21 - throw new Error(`drizzle schema fact ${fact.status}: ${fact.reason}`);  (recordReadySchemaFact, called by the ordinary schema consumers; ast/lib/columns.ts:125 throws on unresolved too). The returned status 'unresolved' is not in the reader's failure literals, so the reader cannot see it.",
+    "disposition": "KEEP",
+    "diff": "schema-query.ts:116 marker reason rewritten (old text said excluded from the census, which is false: consumers throw) to name recordReadySchemaFact and collectSchemaTables"
+  },
+  {
+    "site": "tooling/src/floor/code-facts/schema-query.ts:212 (error)",
+    "claimedOwner": "drizzle column parse error: surfaced as a structured tool-error in the schema-fact report; the broken column is excluded from the fact census",
+    "verifiedOwner": "tooling/src/ast/lib/columns.ts:125 - throw new Error(`ast columns: unresolved schema:",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/code-facts/schema-query.ts:212:3\ttooling/src/floor/code-facts/schema-query.ts:215\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/ast/lib/columns.ts:125 - throw new Error(`ast columns: unresolved schema: ${schema.reason}`);  (reached through schemaFromOwners -> createSchemaQuery(...).schema() at schema-query.ts:261-266; policies reach it through recordReadySchemaFact, schema-fact.ts:21)",
+    "disposition": "KEEP",
+    "diff": "schema-query.ts:212 marker reason rewritten (old text said excluded from the census, which is false: consumers throw) to name unresolvedDiscovery, recordReadySchemaFact and collectSchemaTables"
+  },
+  {
+    "site": "tooling/src/floor/compiler/compiler-source-filename-overlay.ts:104 (catch)",
+    "claimedOwner": "native ts.sys.readDirectory treats an unreadable directory as empty; this adapter preserves that behavior",
+    "verifiedOwner": "tooling/src/floor/compiler/compiler-source-filename-overlay.ts:198 - return matchFiles(",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/compiler/compiler-source-filename-overlay.ts:104:3\ttooling/src/floor/compiler/compiler-source-filename-overlay.ts:108\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/floor/compiler/compiler-source-filename-overlay.ts:198 - return matchFiles(  (this adapter is the getFileSystemEntries argument at :206; TypeScript's own getAccessibleFileSystemEntries, node_modules/typescript/lib/typescript.js:8578-8609, returns emptyFileSystemEntries from a catch, so membership matches tsc)",
+    "disposition": "KEEP",
+    "diff": "compiler-source-filename-overlay.ts:104-105 two-line marker collapsed to one line naming getAccessibleFileSystemEntries parity with tsc and its end condition"
+  },
+  {
+    "site": "tooling/src/floor/compiler/compiler-source-filename-overlay.ts:117 (catch)",
+    "claimedOwner": "native ts.sys directory reads skip dangling or unreadable symlink entries",
+    "verifiedOwner": "tooling/src/floor/compiler/compiler-source-filename-overlay.ts:120 - kind = statSync(path);",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/compiler/compiler-source-filename-overlay.ts:117:7\ttooling/src/floor/compiler/compiler-source-filename-overlay.ts:121\tcatch\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/floor/compiler/compiler-source-filename-overlay.ts:120 - kind = statSync(path);  (TypeScript's getAccessibleFileSystemEntries at typescript.js:8589-8594 skips a symlink whose statSync, :8412-8418, returns undefined)",
+    "disposition": "KEEP",
+    "diff": "compiler-source-filename-overlay.ts:117-118 two-line marker collapsed to one line naming the native statSync skip"
+  },
+  {
+    "site": "tooling/src/floor/devtools/devtools-runtime.ts:413 (error)",
+    "claimedOwner": "cleanup failures are retained in failures and surfaced together as the terminal AggregateError below",
+    "verifiedOwner": "tooling/src/floor/devtools/devtools-runtime.ts:426 - throw new AggregateError(failures,",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/devtools/devtools-runtime.ts:413:9\ttooling/src/floor/devtools/devtools-runtime.ts:416\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/floor/devtools/devtools-runtime.ts:426 - throw new AggregateError(failures, \"DevTools cascade runtime cleanup failed\");",
+    "disposition": "KEEP",
+    "diff": "devtools-runtime.ts:413 marker reason rewritten to name the failures.length > 0 AggregateError throw in close()"
+  },
+  {
+    "site": "tooling/src/floor/devtools/devtools-runtime.ts:419 (error)",
+    "claimedOwner": "cleanup failures are retained in failures and surfaced together as the terminal AggregateError below",
+    "verifiedOwner": "tooling/src/floor/devtools/devtools-runtime.ts:423 - failures.push(error);",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/devtools/devtools-runtime.ts:419:9\ttooling/src/floor/devtools/devtools-runtime.ts:422\terror\tTHIS SITE: a catch block (and its finally) that names no owner at all.  (waived) || owner detail: tooling/src/floor/devtools/devtools-runtime.ts:423 - failures.push(error);  surfaced by :426 throw new AggregateError(failures,",
+    "disposition": "KEEP",
+    "diff": "devtools-runtime.ts:419 marker reason rewritten to name the failures.length > 0 AggregateError throw in close()"
+  },
+  {
+    "site": "tooling/src/floor/devtools/devtools-runtime.ts:433 (server.close)",
+    "claimedOwner": "initialization cleanup joins the original failure in the AggregateError below",
+    "verifiedOwner": "tooling/src/floor/devtools/devtools-runtime.ts:438 - throw initializationFailure(failures, error);",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/devtools/devtools-runtime.ts:433:7\ttooling/src/floor/devtools/devtools-runtime.ts:434\tserver.close\t.md) THIS SITE: a promise rejection handler that discards the failure.  (waived) || owner detail: tooling/src/floor/devtools/devtools-runtime.ts:438 - throw initializationFailure(failures, error);  (initializationFailure at :73-75 returns new AggregateError(failures, ..., { cause }))",
+    "disposition": "KEEP",
+    "diff": "devtools-runtime.ts:433 marker reason rewritten to name initializationFailure wrapping failures"
+  },
+  {
+    "site": "tooling/src/floor/devtools/devtools-runtime.ts:436 (rm)",
+    "claimedOwner": "initialization cleanup joins the original failure in the AggregateError below",
+    "verifiedOwner": "tooling/src/floor/devtools/devtools-runtime.ts:437 - await rm(tempRoot",
+    "toolOutput": "in-memory single-file probe, 13 files: tooling/src/floor/devtools/devtools-runtime.ts:436:5\ttooling/src/floor/devtools/devtools-runtime.ts:437\trm\t.md) THIS SITE: a promise rejection handler that discards the failure.  (waived) || owner detail: tooling/src/floor/devtools/devtools-runtime.ts:437 - await rm(tempRoot, { recursive: true, force: true }).catch((cleanupError: unknown) => failures.push(cleanupError));  then :438 throw initializationFailure(failures, error)",
+    "disposition": "KEEP",
+    "diff": "devtools-runtime.ts:436 marker reason rewritten to name initializationFailure wrapping failures"
+  }
+]
