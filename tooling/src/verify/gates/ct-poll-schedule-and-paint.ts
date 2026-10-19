@@ -1,18 +1,15 @@
-// Gate: ct-poll-schedule-and-paint (issue #121) — the two Playwright poll idioms that lose their evidence
-// SILENTLY. ARM A: an `intervals` schedule reached by IDENTIFIER (shared/spread/shorthand) — the poll loop
-// MUTATES the array it is handed, so the second poll runs the drained default. ARM B: an
-// `evaluate(el => el.click())` trigger fired with no presented-paint barrier before it while a later poll
-// reads layout-shift-derived motion — a shift entry needs a PAINTED "before", so the poll times out on
-// evidence that never existed. Pure AST — comment-SAFE by construction. DECLARED LIMITS: an options
-// identifier declared outside module scope or imported is unresolvable, and a computed `intervals` value is
-// invisible — each owns a mustPass row.
+// Gate: ct-poll-schedule-and-paint (issue #121) — ARM B of the two Playwright poll idioms that lose their evidence
+// SILENTLY: an `evaluate(el => el.click())` trigger fired with no presented-paint barrier before it while a later
+// poll reads layout-shift-derived motion — a shift entry needs a PAINTED "before", so the poll times out on
+// evidence that never existed. ARM A (an `intervals` schedule shared by identifier) is the native HARD rule
+// `orb/ct-poll-intervals-shared`. Pure AST — comment-SAFE by construction.
 //
 // FAMILY DECISION (docs/law/gate-runtime-standardization.md): this module SPLITS into two policies sharing one
 // family, `ct-poll-schedule-and-paint`. Both consume the EXACT SAME computation — `barrierNames`,
 // `isFreshSchedule`/`isMotionPoll`/`isUntrustedTrigger`, and the founding-file counters below — so they are
 // a real shared-reader family, not a filename-prefix coincidence:
-//   - `ct-poll-schedule-and-paint` (this file): the PER-OCCURRENCE policy (ARM A + ARM B). Neither
-//     arm ever carried an escape door in the legacy descriptor (a shared schedule or an unbarriered trigger
+//   - `ct-poll-schedule-and-paint` (this file): the PER-OCCURRENCE policy (ARM B). Neither
+//     arm ever carried an escape door in the legacy descriptor (an unbarriered trigger
 //     is always a real defect), so authority stays `hard` — no suppression door existed before and none is
 //     introduced now. (The word `ordinary` stood in that first sentence as ENGLISH until #2092. In this
 //     corpus `ordinary` and `hard` are CONTRACT VALUES — `ordinary` names a waiver door — and this is a file
@@ -44,30 +41,18 @@
 import type { CallExpression, SourceFile, Node as TsNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineGate } from "../contract/policy.ts";
-import {
-  ancestorContains,
-  barrierNames,
-  EVALUATE,
-  isBarrierCall,
-  isMotionPoll,
-  isUntrustedTrigger,
-  pollOptionsArg,
-  reportSharedSchedule,
-} from "../lib/ct-poll-schedule-and-paint.ts";
+import { ancestorContains, barrierNames, EVALUATE, isBarrierCall, isMotionPoll, isUntrustedTrigger } from "../lib/ct-poll-schedule-and-paint.ts";
 
 const TEST_CALLEE = "test";
 const MESSAGE =
-  "a Playwright poll idiom that loses its evidence silently: an `intervals` schedule reached by identifier " +
-  "(Playwright's pollAgainstDeadline pops/shifts the caller's array, so every later poll falls back to the " +
-  "1000ms default), or an `evaluate(el => el.click())` trigger with no presented-paint barrier before it " +
-  "while a later poll reads layout-shift-derived motion (a shift entry exists only relative to a PAINTED " +
-  "previous position, so the poll runs out its budget on evidence that was never produced). Both laws are " +
-  "written in tests/client/lib/motion-stats.ct.tsx.";
+  "a Playwright poll idiom that loses its evidence silently: an `evaluate(el => el.click())` trigger with no " +
+  "presented-paint barrier before it while a later poll reads layout-shift-derived motion (a shift entry exists " +
+  "only relative to a PAINTED previous position, so the poll runs out its budget on evidence that was never " +
+  "produced). The law is written in tests/client/lib/motion-stats.ct.tsx.";
 
 const FIX =
-  "mint the schedule fresh per call (`intervals: [50, 100, 200, 250]` inline, or a factory call like " +
-  "`evidencePoll()`), and await two presented animation frames (`settlePaint`) before an untrusted " +
-  "evaluate-click whose evidence is a layout shift — tests/client/lib/motion-stats.ct.tsx.";
+  "await two presented animation frames (`settlePaint`) before an untrusted evaluate-click whose evidence is a " +
+  "layout shift — tests/client/lib/motion-stats.ct.tsx.";
 
 /** This node's own `test(…)` body, if it IS a test call. */
 function testBodyOf(node: TsNode): TsNode | undefined {
@@ -156,10 +141,6 @@ export const gate = defineGate({
           const calls = callsBySource.get(sf) ?? [];
           const facts: FileFacts = { sf, identifiers, calls };
           for (const call of calls) {
-            const options = pollOptionsArg(call);
-            if (options !== undefined) {
-              reportSharedSchedule(options, sf, (target, token) => ctx.report.node(target, { token, offset: 0 }));
-            }
             if (isUntrustedTrigger(call, calls)) {
               reportUnbarrieredTrigger(call, facts, (target, token) =>
                 ctx.report.node(target, { token, offset: Math.max(target.getText().indexOf(token), 0) }),
@@ -171,51 +152,6 @@ export const gate = defineGate({
     };
   },
   mustFlag: [
-    {
-      mode: "source",
-      files: {
-        "tests/client/features/chat/components/shared-array.ct.tsx":
-          'import { expect, test } from "@playwright/experimental-ct-react";\nconst SCHEDULE = [50, 100, 250];\ntest("g", async () => {\n  await expect.poll(() => 1, { intervals: SCHEDULE, timeout: 10_000 }).toBe(1);\n});\n',
-      },
-      expect: { count: 1, token: "SCHEDULE" },
-      why: "the founding ARM A shape (#121): a module-scope array handed to `intervals` — pollAgainstDeadline pops/shifts it, so the SECOND poll in the file runs the drained 1000ms default. Deeply-nested path",
-    },
-    {
-      mode: "source",
-      files: {
-        "tests/x.ct.tsx":
-          'import { expect, test } from "@playwright/experimental-ct-react";\nconst POLL_OPTS = { intervals: [50, 100], timeout: 10_000 };\ntest("g", async () => {\n  await expect.poll(() => 1, POLL_OPTS).toBe(1);\n});\n',
-      },
-      expect: { count: 1, token: "POLL_OPTS" },
-      why: "the WHOLE options object shared by identifier — the same drained array one indirection out. Shallow path, so the reader is proven not to depend on directory depth",
-    },
-    {
-      mode: "source",
-      files: {
-        "tests/client/lib/spread.ct.tsx":
-          'import { expect, test } from "@playwright/experimental-ct-react";\nconst BASE = { intervals: [50, 100], timeout: 10_000 };\ntest("g", async () => {\n  await expect.poll(() => 1, { ...BASE, timeout: 20_000 }).toBe(1);\n});\n',
-      },
-      expect: { count: 1, token: "BASE" },
-      why: "the SPREAD spelling — a spread copies the object but not the array inside it, so the shared reference survives; a literal-shape reader that only checked `intervals:` would ship a false clean",
-    },
-    {
-      mode: "source",
-      files: {
-        "tests/client/lib/shorthand.ct.tsx":
-          'import { expect, test } from "@playwright/experimental-ct-react";\nconst intervals = [50, 100];\ntest("g", async () => {\n  await expect.poll(() => 1, { intervals, timeout: 10_000 }).toBe(1);\n});\n',
-      },
-      expect: { count: 1, token: "intervals" },
-      why: "the SHORTHAND spelling `{ intervals }` — the third syntactic form of the same shared reference",
-    },
-    {
-      mode: "source",
-      files: {
-        "tests/client/lib/topass.ct.tsx":
-          'import { expect, test } from "@playwright/experimental-ct-react";\nconst SCHEDULE = [50, 100];\ntest("g", async () => {\n  await expect(() => {}).toPass({ intervals: SCHEDULE });\n});\n',
-      },
-      expect: { count: 1, token: "SCHEDULE" },
-      why: "`toPass` is the OTHER door into the same pollAgainstDeadline loop — an expect.poll-only reader would leave half the API unguarded",
-    },
     {
       mode: "source",
       files: {
@@ -236,38 +172,6 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
-    {
-      mode: "source",
-      files: {
-        "tests/client/lib/inline.ct.tsx":
-          'import { expect, test } from "@playwright/experimental-ct-react";\ntest("g", async () => {\n  await expect.poll(() => 1, { intervals: [50, 100, 200, 250], timeout: 10_000 }).toBe(1);\n});\n',
-      },
-      why: "the sanctioned ARM A shape: an INLINE array literal is a new array per evaluation, so the mutation has nothing to leak into",
-    },
-    {
-      mode: "source",
-      files: {
-        "tests/client/lib/factory.ct.tsx":
-          'import { expect, test } from "@playwright/experimental-ct-react";\nfunction evidencePoll() {\n  return { intervals: [50, 100, 200, 250], timeout: 10_000 };\n}\ntest("g", async () => {\n  await expect.poll(() => 1, evidencePoll()).toBe(1);\n});\n',
-      },
-      why: "the other sanctioned shape: a CALL mints a fresh object (and a fresh array) per poll — the `evidencePoll()` idiom the founding file uses",
-    },
-    {
-      mode: "source",
-      files: {
-        "tests/client/lib/imported.ct.tsx":
-          'import { expect, test } from "@playwright/experimental-ct-react";\nimport { POLL_OPTS } from "./support.ts";\ntest("g", async () => {\n  await expect.poll(() => 1, POLL_OPTS).toBe(1);\n});\n',
-      },
-      why: "DECLARED LIMIT: an options identifier with no module-scope declaration IN THIS FILE is unresolvable, so it is not judged — an imported factory result and an imported shared object are indistinguishable here without a checker walk",
-    },
-    {
-      mode: "source",
-      files: {
-        "tests/client/lib/computed.ct.tsx":
-          'import { expect, test } from "@playwright/experimental-ct-react";\nconst FAST = [50, 100];\ntest("g", async () => {\n  await expect.poll(() => 1, { intervals: FAST.slice(), timeout: 10_000 }).toBe(1);\n});\n',
-      },
-      why: "DECLARED LIMIT: a COMPUTED intervals value is invisible to a literal-shape reader. `.slice()` happens to be the correct fix, but any expression passes here — the arm judges identifiers, not aliasing",
-    },
     {
       mode: "source",
       files: {

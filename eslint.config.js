@@ -1476,6 +1476,47 @@ const BASEUI_INPUT_REVISION = createHash("sha256")
   .update(JSON.stringify(BASE_UI_NATIVE_INPUT_PATHS.map((path) => [path, readFileSync(new URL(path, import.meta.url), "utf8")])))
   .digest("hex");
 
+// A `page.route` is buried by a LATER `routeTrpc` registered as a sibling statement: Playwright resolves routes LIFO and
+// `routeTrpc`'s handler never falls back, so the earlier route never runs. Each side is a statement whose leading call
+// (optionally awaited, bound or returned) is the registration; the finding lands on the burying `routeTrpc` statement.
+const TRPC_ROUTE_PATTERN = String.raw`/^\*\*\/api\/trpc/`;
+const PAGE_ROUTE_CALL = "CallExpression[callee.object.name='page'][callee.property.name='route']";
+const TRPC_PAGE_ROUTES = [
+  `${PAGE_ROUTE_CALL}[arguments.0.value=${TRPC_ROUTE_PATTERN}]`,
+  `${PAGE_ROUTE_CALL}[arguments.0.expressions.length=0][arguments.0.quasis.0.value.cooked=${TRPC_ROUTE_PATTERN}]`,
+  `${PAGE_ROUTE_CALL}[arguments.0.expression.value=${TRPC_ROUTE_PATTERN}]`,
+];
+const leadingCallStatements = (calls) =>
+  `:matches(${calls
+    .flatMap((call) => [
+      `:matches(ExpressionStatement, ReturnStatement):has(> ${call})`,
+      `:matches(ExpressionStatement, ReturnStatement):has(> AwaitExpression:has(> ${call}))`,
+      `VariableDeclaration:has(> VariableDeclarator:has(> ${call}))`,
+      `VariableDeclaration:has(> VariableDeclarator:has(> AwaitExpression:has(> ${call})))`,
+    ])
+    .join(", ")})`;
+const CT_SPEC_RESTRICTIONS = [
+  {
+    id: "testid-typed-only-stories",
+    scope: ["tests/**/_*stories.tsx", "tests/**/*.stories.tsx"],
+    notUnder: [`${LEGACY_TEST_ROOT}/**`],
+    homes: [],
+  },
+  {
+    id: "route-trpc-lifo-order",
+    scope: ["tests/**/*.ct.tsx"],
+    notUnder: [`${LEGACY_TEST_ROOT}/**`],
+    homes: [],
+    selectors: [
+      {
+        selector: `${leadingCallStatements(TRPC_PAGE_ROUTES)} ~ ${leadingCallStatements(["CallExpression[callee.name='routeTrpc']"])}`,
+        message:
+          'A `page.route("**/api/trpc...")` registered before this routeTrpc never runs: Playwright resolves routes LIFO and routeTrpc answers every trpc request. Register the override after routeTrpc, or use trpcHold() and barrier on hold.requested.',
+      },
+    ],
+  },
+];
+
 const PROTOTYPE_NATIVE_IGNORES = [...STRICT_SYNTAX_IGNORES, "**/*.d.{ts,mts,cts}", "tooling/src/snap/lib/devtools-frontend/**"];
 const PROTOTYPE_MUTATION_SELECTORS = [
   {
@@ -1834,6 +1875,7 @@ const RESTRICTIONS = [
   ...CLIENT_LEXICAL_RESTRICTIONS,
   ...MEMBERSHIP_WRITE_FAN_RESTRICTIONS,
   ...SERVER_ONE_HOME_RESTRICTIONS,
+  ...CT_SPEC_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -2766,7 +2808,7 @@ const parallelMapRule = {
   },
 };
 
-const typedTestIdRule = {
+const typedTestIdRule = (message) => ({
   meta: { type: "problem", schema: [] },
   create(context) {
     return {
@@ -2774,7 +2816,68 @@ const typedTestIdRule = {
         const value = node.value;
         const literal = value?.type === "Literal" && typeof value.value === "string";
         if (literal || (value?.type === "JSXExpressionContainer" && contextLiteral(value.expression) !== undefined)) {
-          context.report({ node: node.name, message: 'Freeform data-testid string; use the typed registry via testId("key").' });
+          context.report({ node: node.name, message });
+        }
+      },
+    };
+  },
+});
+
+// Playwright's poll loop pops the interval array it is handed, so a schedule shared by reference leaves every later
+// poll on the 1000ms default. Only a module-scope object that carries `intervals` is resolvable as shared; a function-local
+// options object is minted per call.
+const POLL_SCHEDULE_MESSAGE =
+  "A poll `intervals` schedule shared by identifier is drained by the first poll; mint it inline (`intervals: [50, 100]`) or from a factory call such as evidencePoll().";
+function moduleScopeIntervalsObject(sourceCode, identifier) {
+  for (let scope = sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
+    const variable = scope.set.get(identifier.name);
+    if (variable === undefined) {
+      continue;
+    }
+    const init = variable.defs.length === 1 && variable.defs[0].type === "Variable" ? variable.defs[0].node.init : null;
+    return (
+      (scope.type === "module" || scope.type === "global") &&
+      init?.type === "ObjectExpression" &&
+      init.properties.some(
+        (property) => property.type === "Property" && !property.computed && property.key.type === "Identifier" && property.key.name === "intervals",
+      )
+    );
+  }
+  return false;
+}
+const ctPollIntervalsSharedRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = (node) => context.report({ node, message: POLL_SCHEDULE_MESSAGE });
+    const judgeProperty = (property) => {
+      if (property.type === "SpreadElement") {
+        if (property.argument.type === "Identifier" && moduleScopeIntervalsObject(context.sourceCode, property.argument)) {
+          report(property.argument);
+        }
+      } else if (property.type === "Property" && !property.computed && property.key.type === "Identifier" && property.key.name === "intervals") {
+        if (property.shorthand) {
+          report(property);
+        } else if (property.value.type === "Identifier") {
+          report(property.value);
+        }
+      }
+    };
+    const judgeOptions = (options) => {
+      if (options?.type === "Identifier") {
+        if (moduleScopeIntervalsObject(context.sourceCode, options)) {
+          report(options);
+        }
+      } else if (options?.type === "ObjectExpression") {
+        options.properties.forEach(judgeProperty);
+      }
+    };
+    return {
+      "CallExpression[callee.type='MemberExpression'][callee.computed=false][callee.property.type='Identifier']"(call) {
+        const { callee } = call;
+        if (callee.property.name === "toPass") {
+          judgeOptions(call.arguments[0]);
+        } else if (callee.property.name === "poll" && callee.object.type === "Identifier" && callee.object.name === "expect") {
+          judgeOptions(call.arguments[1]);
         }
       },
     };
@@ -4576,7 +4679,11 @@ const restrictionPlugin = {
     "wire-schema-vocab-one-home": wireSchemaVocabularyRule,
     "no-hardcoded-model-prose": modelProseRule,
     [CLIENT_MAP_NATIVE_RULE.slice("orb/".length)]: parallelMapRule,
-    "testid-typed-only": typedTestIdRule,
+    "testid-typed-only": typedTestIdRule('Freeform data-testid string; use the typed registry via testId("key").'),
+    "testid-typed-only-stories": typedTestIdRule(
+      'Freeform data-testid string in a CT story; use storyTestId("key") for a story-only id or testId("key") for a production id.',
+    ),
+    "ct-poll-intervals-shared": ctPollIntervalsSharedRule,
     "scroll-container-positioned": scrollContainerRule,
     "ui-size-via-variant": uiSizeRule,
     "no-floorless-control-in-wrap": floorlessControlRule,
@@ -5406,6 +5513,13 @@ export const hardConfig = [
     },
   },
   { files: [UI_SRC], rules: { "orb/baseui-derives-not-respells-health": "error" } },
+  {
+    files: ["tests/**/*.{ts,tsx}"],
+    ignores: [`${LEGACY_TEST_ROOT}/**`],
+    plugins: { orb: restrictionPlugin },
+    languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
+    rules: { "orb/ct-poll-intervals-shared": "error" },
+  },
   {
     files: SOURCE_TYPE_SUPPRESSION_GLOBS,
     ignores: SOURCE_TYPE_SUPPRESSION_EXCLUSIONS,
