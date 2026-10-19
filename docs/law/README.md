@@ -11,6 +11,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 
 | Law | Status |
 | - | - |
+| [caught-failure-ownership waiver rejudgment playbook](caught-failure-waiver-playbook.md) | active |
 | [Chat macro/persona resolution — the one home](Chat-Macro-Resolution.md) | active |
 | [Client Architecture Lockdown](client-architecture-lockdown.md) | active |
 | [Client architecture: state, data, error handling, sync spine and the gate spec](client-architecture-state-and-gates.md) | active |
