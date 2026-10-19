@@ -22,3 +22,5 @@ The read goes through readVarKey (own keys only) with a red-first test for const
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+The security review found the same inherited-key read at packages/kit/src/macro/user-macros.ts lines 258, 324 and 332; fix all four sites together.
