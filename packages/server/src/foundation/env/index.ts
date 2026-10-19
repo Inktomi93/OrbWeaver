@@ -16,6 +16,7 @@ import { localLightCpuPercentSchema } from "@orb/contracts/inference";
 import { LOG_LEVELS } from "@orb/contracts/settings";
 import { ALLOWED_HOSTS_KEY, parseAllowedHosts } from "@orb/kit/allowed-hosts";
 import { ENV_FROM_FILE_KEY, envFromFileKeys } from "@orb/kit/env-file";
+import type { Handle } from "@orb/kit/ids";
 import { isSupervised, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { z } from "zod";
 import { DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
@@ -327,6 +328,10 @@ const envSchema = z
     // the default-persona seeder's AUTO-CREATE arm, so a harness stack never lands a spec on the blocking
     // first-run persona ask. It stays a self-stamp otherwise (`/healthz`), and nothing else branches on it.
     E2E_HARNESS: z.enum(["on", "off"]).default("off"),
+    // The harness's opt-out of the persona AUTO-CREATE arm, per account: a comma list of handles that must meet the
+    // real first-run ask. It can only SUBTRACT from the harness's arm (see `isAutomatedPersonaSeedEnabled`), so on a
+    // stack without `E2E_HARNESS=on` or `DEV_SEED=on` it changes nothing and no value of it can turn the auto-seed on.
+    E2E_FIRST_RUN_ASK_HANDLES: z.string().optional(),
     // The DEV-STACK SEED stamp — the dev twin of `E2E_HARNESS` for automation-started stacks. `on` is set by
     // the stack tool's dev pins (host export wins, so `DEV_SEED=off pnpm stack restart` rehearses a REAL first
     // sign-in). It enables the default-persona seeder's auto-create arm: without it every dev DB regen would
@@ -783,9 +788,12 @@ export const APP_SECRET_ENV_KEYS = [
 /** The parsed, frozen env floor. File secrets never enter `process.env`; explicit env values take precedence. */
 export const env: Readonly<z.infer<typeof envSchema>> = Object.freeze(parseProcessEnv());
 
-/** Human-started stacks leave the first-run persona ask intact; only automation receives the default. */
-export function isAutomatedPersonaSeedEnabled(): boolean {
-  return env.E2E_HARNESS === "on" || env.DEV_SEED === "on";
+/** Human-started stacks leave the first-run persona ask intact; only automation receives the default. An automation
+ *  stack still leaves the ask intact for a handle named in `E2E_FIRST_RUN_ASK_HANDLES`: the harness boots through the
+ *  dev stack tool, which pins `DEV_SEED=on` as well, so the opt-out subtracts from both stamps. */
+export function isAutomatedPersonaSeedEnabled(handle: Handle): boolean {
+  const asksFirstRun = (env.E2E_FIRST_RUN_ASK_HANDLES ?? "").split(",").some((entry) => entry.trim() === handle);
+  return !asksFirstRun && (env.E2E_HARNESS === "on" || env.DEV_SEED === "on");
 }
 
 /** Deletes every {@link APP_SECRET_ENV_KEYS} entry from `process.env`, so no child process started afterwards inherits

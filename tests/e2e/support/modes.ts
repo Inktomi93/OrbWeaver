@@ -291,6 +291,24 @@ export const SINGLE_USER: ModeProject = {
   clientWarmup: "room",
 };
 
+const CORPUS_DEVICES = ["Desktop Chrome", "Pixel 7"] as const;
+
+function corpusCellName(modeName: string, device: (typeof CORPUS_DEVICES)[number], chatStyle: string): string {
+  return `corpus-${modeName === "local" ? "local-" : ""}${device === "Desktop Chrome" ? "desktop" : "phone"}-${chatStyle}`;
+}
+
+/**
+ * The account a local corpus cell's spec signs in as when it must meet the real first-run persona ask. The harness stack
+ * auto-creates a persona for every account (`domain/persona/seeder/default.ts`); these handles, named to the server in
+ * `E2E_FIRST_RUN_ASK_HANDLES`, are the only accounts it leaves alone. A cell mints its own because the cells share one database.
+ */
+export function firstRunAskHandle(projectName: string): string {
+  return `ask-${projectName.replace(/^corpus-local-/u, "")}`;
+}
+const FIRST_RUN_ASK_HANDLES = CORPUS_DEVICES.flatMap((device) =>
+  THEME_CHAT_STYLES.map((chatStyle) => firstRunAskHandle(corpusCellName("local", device, chatStyle))),
+);
+
 // ── local (cookie/BFF sessions) — ports 8799/5183, ISOLATED DB/assets under .cache. AUTH_MODE=local +
 // the local-mode secrets; global-setup flips localMultiUser on + seeds a member. adopt-only + WIRE_CAPTURE
 // so the member-strip @live spec can plant a lie AND (optionally) drive a real turn. ──
@@ -311,6 +329,7 @@ const LOCAL: ModeProject = {
     WIRE_CAPTURE: "on",
     DEBUG_TOKEN: E2E_DEBUG_TOKEN,
     E2E_HARNESS: "on",
+    E2E_FIRST_RUN_ASK_HANDLES: FIRST_RUN_ASK_HANDLES.join(","),
     PORT: LOCAL_BACKEND_PORT,
     VITE_PORT: LOCAL_VITE_PORT,
     VITE_API_TARGET: `http://127.0.0.1:${LOCAL_BACKEND_PORT}`,
@@ -399,9 +418,9 @@ export const MODE_PROJECTS: readonly ModeProject[] = SELECTED_CORPUS_FIXTURE ===
 
 /** Native browser projects share a mode stack; corpus cells derive their style from production. */
 export const CORPUS_PROJECT_CELLS = [SINGLE_USER, LOCAL].flatMap((mode) =>
-  ["Desktop Chrome", "Pixel 7"].flatMap((device) =>
+  CORPUS_DEVICES.flatMap((device) =>
     THEME_CHAT_STYLES.map((chatStyle) => ({
-      name: `corpus-${mode.name === "local" ? "local-" : ""}${device === "Desktop Chrome" ? "desktop" : "phone"}-${chatStyle}`,
+      name: corpusCellName(mode.name, device, chatStyle),
       mode,
       device,
       chatStyle,

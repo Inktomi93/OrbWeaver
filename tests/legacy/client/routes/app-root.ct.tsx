@@ -19,7 +19,7 @@
 
 import { DEFAULT_GROUP_CONFIG } from "@orb/contracts/chat";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import type { PersonaId, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { makeChatDetail, makeChatId } from "@orb/testkit/node/factories/chat-view.ts";
 import { makeBrowseCharactersPage, makeHomeView } from "@orb/testkit/node/factories/discovery-view.ts";
@@ -35,7 +35,6 @@ import { testId } from "#client/lib/test-ids.ts";
 import { STREAM_MUTATION_ROUTES } from "../data/bus/fixtures.ts";
 import { CHARACTER_EDITOR_AMBIENT_ROUTES, makeCharacterDetail, makeCharacterSummary } from "../features/character/fixtures.ts";
 import { CHAT_AMBIENT_ROUTES, chatListResponder, makeChatSummary } from "../features/chat/fixtures.ts";
-import { stubAuthConfig } from "../features/user-admin/auth-config-fixtures.ts";
 import { HomePagePendingStory, HomePageReadinessStory, HomePageStory, SectionRosterCensusStory } from "./_ct-stories.tsx";
 
 const ARIA = makeCharacterSummary({ id: "char_home_aria", name: "Aria Nightshade" });
@@ -295,70 +294,6 @@ test("zero personas: the first-run persona ask is FORCED open — no dismiss, on
   await expect(create).toBeDisabled();
   await page.getByTestId(testId("firstRunPersonaName")).fill("Sarah");
   await expect(create).toBeEnabled();
-});
-
-// ── A JOINER NAMES A PERSONA BEFORE THEIR SEAT (owner ruling on sign-up joiners) ──
-// The /join landing waits until the viewer can speak: a joiner with no persona meets the first-run ask first, and
-// the join dialog opens only once the ask has set the pointers, so the seat the join creates is never born empty.
-
-const JOIN_TOKEN = "tok_ct_join_after_persona";
-const JOIN_PREVIEW = { chatId: "chat_ct_join", roomName: "Tavern Night", hostHandle: "alex", memberCount: 2, modeLabel: "The characters take turns." };
-
-/** A multi-human deployment and a join token the signed-out visit stashed, both in place before the app boots. */
-async function arriveWithInvite(page: Page): Promise<void> {
-  await stubAuthConfig(page, "local");
-  await page.addInitScript((token) => sessionStorage.setItem("orb:join-token", token), JOIN_TOKEN);
-  await page.reload();
-}
-
-function settingsWithSeeds(personaId: PersonaId | null): TrpcWireOutput<"settings.getUserSettings"> {
-  return {
-    userId: castId<UserId>("user_ct"),
-    schemaVersion: 1,
-    config: { ...DEFAULT_USER_SETTINGS, seeds: { ...DEFAULT_USER_SETTINGS.seeds, currentPersonaId: personaId, defaultPersonaId: personaId } },
-    updatedAt: 0,
-    configUnreadable: null,
-  };
-}
-
-test("a joiner with no persona names one in the first-run ask before the join dialog opens", async ({ mount, page }) => {
-  await arriveWithInvite(page);
-  let personas: TrpcWireOutput<"persona.list"> = [];
-  let seeded: PersonaId | null = null;
-  const trpc = await routeTrpc(page, {
-    ...HOME_AMBIENT_ROUTES,
-    "chat.listChats": chatListResponder([]),
-    "databank.list": { items: [], nextCursor: null, totalCount: 0 },
-    "databank.bankHealth": EMPTY_BANK_HEALTH,
-    "character.list": NO_CHARACTERS,
-    "persona.list": () => personas,
-    "persona.create": () => {
-      personas = [{ ...HOME_PERSONA, name: "Mira" }];
-      return { ...HOME_PERSONA, name: "Mira", title: null, metadata: null, avatarAssetId: null, createdAt: 0, updatedAt: 0 };
-    },
-    "settings.getUserSettings": () => settingsWithSeeds(seeded),
-    "settings.updateUserSettingsSection": () => {
-      seeded = castId<PersonaId>(HOME_PERSONA.id);
-      return settingsWithSeeds(seeded);
-    },
-    "invites.previewInvite": () => JOIN_PREVIEW,
-  });
-  await mount(<HomePageStory />);
-
-  const gate = page.getByTestId(testId("firstRunPersonaDialog"));
-  const join = page.getByTestId(testId("joinInviteDialog"));
-  // The gate renders only once both of its reads settled, so its presence is the barrier for the join's absence.
-  await expect(gate).toBeVisible();
-  await expect(join).toHaveCount(0);
-  await expect.poll(() => trpc.count("invites.previewInvite")).toBe(0);
-
-  await page.getByTestId(testId("firstRunPersonaName")).fill("Mira");
-  await page.getByTestId(testId("firstRunPersonaCreate")).click();
-
-  await expect(gate).toHaveCount(0);
-  await expect(join).toBeVisible();
-  await expect(join.getByTestId(testId("joinInviteConfirm"))).toBeVisible();
-  await expect.poll(() => trpc.count("persona.create")).toBe(1);
 });
 
 // ── THE PHONE PRINTS THE LIBRARY'S SIZE (#1670) ────────────────────────────────────────────
