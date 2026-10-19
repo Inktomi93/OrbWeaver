@@ -37,16 +37,36 @@ function createConsumptionView(body: ReadableStream<Uint8Array>, producer: Respo
   return response;
 }
 
-type BodyBranch = Pick<OwnedResponseBody, "cancel">;
+/** What a branch's physical cancellation ended with: nothing, or the cleanup error to hand to whoever asks. */
+type CancelOutcome = { readonly error: unknown } | undefined;
 
-/** Own actual reads and cancellation of the producer and every caller-requested clone, without an unused tee. */
+interface BodyBranch {
+  /** Start the physical cancellation once and record its outcome; creates no promise anyone must handle. */
+  readonly begin: (reason?: unknown) => void;
+  /** `begin`, then a promise derived from the recorded outcome: it rejects with the cleanup error. */
+  readonly cancel: (reason?: unknown) => Promise<void>;
+}
+
+const rethrow = (outcome: CancelOutcome): void => {
+  if (outcome !== undefined) {
+    throw outcome.error;
+  }
+};
+
+/**
+ * Own actual reads and cancellation of the producer and every caller-requested clone, without an unused tee.
+ *
+ * @remarks A cancellation failure is recorded as state (`failures`) and a rejecting promise exists only for a caller
+ * that reads `settled` or calls `cancel`, so an ignored failure cannot surface as an unhandled rejection.
+ */
 export function createOwnedResponseBody(response: Response, signal: AbortSignal): OwnedResponseBody {
   if (response.body === null) {
     return { response, settled: Promise.resolve(), cancel: () => Promise.resolve() };
   }
-  const completion = Promise.withResolvers<void>();
+  const done = Promise.withResolvers<void>();
   const branches = new Set<BodyBranch>();
   const failures = new Set<unknown>();
+  let aggregate: AggregateError | undefined;
 
   const finish = (branch: BodyBranch): void => {
     branches.delete(branch);
@@ -54,36 +74,40 @@ export function createOwnedResponseBody(response: Response, signal: AbortSignal)
       return;
     }
     signal.removeEventListener("abort", abort);
-    if (failures.size === 0) {
-      completion.resolve();
-    } else if (failures.size === 1) {
-      completion.reject([...failures][0]);
-    } else {
-      completion.reject(new AggregateError(failures, "response body cancellation failed"));
-    }
+    done.resolve();
   };
 
-  const cancel = (reason?: unknown): Promise<void> => {
+  // Derived on demand from the recorded failures: one failure is itself, several are one shared aggregate.
+  const join = (): Promise<void> =>
+    done.promise.then(() => {
+      if (failures.size === 1) {
+        throw [...failures][0];
+      }
+      if (failures.size > 1) {
+        aggregate ??= new AggregateError(failures, "response body cancellation failed");
+        throw aggregate;
+      }
+    });
+
+  const startCancel = (reason?: unknown): void => {
     // Tee cancellation can wait for the other branch, so every cancellation must start before any join.
     for (const branch of branches) {
-      void branch.cancel(reason).then(
-        () => undefined,
-        () => undefined,
-      );
+      branch.begin(reason);
     }
-    return completion.promise;
+  };
+  const cancel = (reason?: unknown): Promise<void> => {
+    startCancel(reason);
+    return join();
   };
   const abort = (): void => {
-    void cancel(signal.reason).then(
-      () => undefined,
-      () => undefined,
-    );
+    startCancel(signal.reason);
   };
 
   const ownBranch = (producer: Response): Response => {
     let reader: ReadableStreamDefaultReader<Uint8Array> | undefined;
     let finished = false;
-    let cancellation: Promise<void> | undefined;
+    // Never rejects: a failure is an outcome value, rethrown only into a promise a caller asked for.
+    let cancellation: Promise<CancelOutcome> | undefined;
     const release = (): void => {
       if (finished) {
         return;
@@ -93,37 +117,42 @@ export function createOwnedResponseBody(response: Response, signal: AbortSignal)
       finish(branch);
     };
     let outward: ReadableStreamDefaultController<Uint8Array>;
-    const branch: BodyBranch = {
-      cancel(reason): Promise<void> {
-        if (finished) {
-          return cancellation ?? Promise.resolve();
-        }
-        // Native clone() changes the producer's branch; acquire its current body only when work starts.
-        reader ??= producer.body?.getReader();
-        const closedByAbort =
-          reader?.closed.then(
-            () => false,
-            (error: unknown) => signal.aborted && error === reason && error === signal.reason,
-          ) ?? Promise.resolve(false);
-        cancellation ??= (reader?.cancel(reason) ?? Promise.resolve()).then(
-          () => {
+    const begin = (reason?: unknown): void => {
+      if (finished) {
+        return;
+      }
+      // Native clone() changes the producer's branch; acquire its current body only when work starts.
+      reader ??= producer.body?.getReader();
+      const closedByAbort =
+        reader?.closed.then(
+          () => false,
+          (error: unknown) => signal.aborted && error === reason && error === signal.reason,
+        ) ?? Promise.resolve(false);
+      cancellation ??= (reader?.cancel(reason) ?? Promise.resolve()).then(
+        (): CancelOutcome => {
+          release();
+          outward.error(reason);
+          return undefined;
+        },
+        async (error: unknown): Promise<CancelOutcome> => {
+          // An already-errored native fetch rejects cancel with its owned abort; a rejecting cancel hook closes its reader instead.
+          if (error === reason && (await closedByAbort)) {
             release();
             outward.error(reason);
-          },
-          async (error: unknown) => {
-            // An already-errored native fetch rejects cancel with its owned abort; a rejecting cancel hook closes its reader instead.
-            if (error === reason && (await closedByAbort)) {
-              release();
-              outward.error(reason);
-              return;
-            }
-            failures.add(error);
-            release();
-            outward.error(error);
-            throw error;
-          },
-        );
-        return cancellation;
+            return undefined;
+          }
+          failures.add(error);
+          release();
+          outward.error(error);
+          return { error };
+        },
+      );
+    };
+    const branch: BodyBranch = {
+      begin,
+      cancel(reason): Promise<void> {
+        begin(reason);
+        return cancellation === undefined ? Promise.resolve() : cancellation.then(rethrow);
       },
     };
     branches.add(branch);
@@ -166,5 +195,11 @@ export function createOwnedResponseBody(response: Response, signal: AbortSignal)
   } else {
     signal.addEventListener("abort", abort, { once: true });
   }
-  return { response: owned, settled: completion.promise, cancel };
+  return {
+    response: owned,
+    get settled(): Promise<void> {
+      return join();
+    },
+    cancel,
+  };
 }
