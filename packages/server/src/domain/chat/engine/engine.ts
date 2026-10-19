@@ -1880,12 +1880,11 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
             // Must never surface to the caller, but must not be invisible — log + emit a machine-dispatchable
             // warning code.
             getLog().warn({ err: memErr, chatId: prep.chatId }, "memory: post-turn build failed");
-            // @orb-waive caught-failure-ownership(catch): a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).
-            // eslint-disable-next-line orb/detached-work-traced -- a failed WARNING emit must not mask `memErr` — the build failure the outer catch rethrows below is what the span must record, and it already reached the log. Ends if the emit ever becomes retryable (then it owns its own reporting).
-            try {
-              await deps.emit({ type: "warning", chatId: prep.chatId, code: "memory_build_failed" });
-            } catch {
-              // A failed warning emit must never re-throw out of the fire-and-forget.
+            // A failed WARNING emit must not mask `memErr` — the build failure rethrown below is what the span must
+            // record. The emit's own failure is read as a value and logged, never re-thrown out of the fire-and-forget.
+            const [warned] = await Promise.allSettled([deps.emit({ type: "warning", chatId: prep.chatId, code: "memory_build_failed" })]);
+            if (warned?.status === "rejected") {
+              getLog().warn({ err: warned.reason, chatId: prep.chatId }, "memory: build-failure warning emit also failed");
             }
             // Rethrow so the span marks itself ERROR (I-7: previously swallowed here, so a failed build always
             // looked "ok" on the trace ring even though the warning above fired). Still fire-and-forget to the
