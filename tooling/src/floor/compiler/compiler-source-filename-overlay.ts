@@ -101,8 +101,7 @@ function authoredIdentities(inventory: AuthoredRepositoryInventory): ReadonlySet
 
 function diskEntries(directory: string, deleted: ReadonlyMap<string, string>): DirectoryEntries {
   let entries: Dirent<string>[];
-  // @orb-waive caught-failure-ownership(catch): native ts.sys.readDirectory treats an unreadable
-  // directory as empty. This adapter preserves that behavior; virtual entries are merged separately below.
+  // @orb-waive caught-failure-ownership(catch): TypeScript's getAccessibleFileSystemEntries (typescript.js, used by ts.sys.readDirectory) returns empty entries when readdir throws; this adapter keeps program membership identical to tsc and virtual entries merge in directoryEntries. Ends if overlay membership may differ from native tsc.
   try {
     entries = readdirSync(directory, { withFileTypes: true });
   } catch {
@@ -114,8 +113,7 @@ function diskEntries(directory: string, deleted: ReadonlyMap<string, string>): D
     const path = resolve(directory, entry.name);
     let kind: ReturnType<typeof statSync> | typeof entry = entry;
     if (entry.isSymbolicLink()) {
-      // @orb-waive caught-failure-ownership(catch): native ts.sys directory reads skip dangling
-      // or unreadable symlink entries. Ends if this absence becomes an authored-path authorization decision.
+      // @orb-waive caught-failure-ownership(catch): TypeScript's getAccessibleFileSystemEntries skips a symlink entry whose statSync fails (its statSync returns undefined), so skipping keeps membership identical to tsc. Ends if this absence becomes an authored-path authorization decision.
       try {
         kind = statSync(path);
       } catch {

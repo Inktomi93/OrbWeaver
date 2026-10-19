@@ -290,7 +290,7 @@ export async function attachProbeSession(endpoint: string, environment: ProbeAtt
 export async function closeProbeSession(session: ProbeResourceOwner): Promise<void> {
   const contextResults = await Promise.allSettled(session.contexts.filter(({ owned }) => owned !== false).map(({ context }) => context.close()));
   const failures = contextResults.flatMap((result) => (result.status === "rejected" ? [result.reason] : []));
-  // @orb-waive caught-failure-ownership(error): collected into failures[] which the two checks below rethrow as-is or as an AggregateError — never silently dropped. Ends if the failures array stops being surfaced after this block.
+  // @orb-waive caught-failure-ownership(error): the catch appends to failures[], which closeProbeSession throws as failures[0] or an AggregateError after the cleanup step. Ends if failures stops being thrown at the end of closeProbeSession.
   try {
     await session.browser.close();
   } catch (error) {

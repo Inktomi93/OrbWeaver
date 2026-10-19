@@ -43,7 +43,7 @@ function crashExit(label: string, e: unknown): never {
 export async function runTool(main: () => Promise<number> | number): Promise<void> {
   process.on("uncaughtException", (e) => crashExit("uncaught", e));
   process.on("unhandledRejection", (e) => crashExit("unhandled rejection", e));
-  // @orb-waive caught-failure-ownership(e): the exit-contract's own door — UsageError writes ARG ERROR and escalates misuse, anything else routes through crashExit which writes stderr, escalates toolError and hard-exits. Ends if a branch here stops writing stderr or escalating.
+  // @orb-waive caught-failure-ownership(e): the UsageError branch writes "ARG ERROR" to stderr and sets exit 3 through escalate(EXIT.misuse); every other throw goes to crashExit, typed never. Ends if either branch stops writing stderr or setting the exit code.
   try {
     // THE AMBIENT-KNOB DOOR (#1666). A mis-spelled `ORB_BOX_LOAD` is MISUSE — the same class as bad argv —
     // but it is read lazily by whichever module first needs a budget, which for several instruments is the

@@ -202,7 +202,7 @@ export function watchProbeContextPages(
     return pending;
   };
   context.on("page", (page) => {
-    // @orb-waive caught-failure-ownership(wire): the event has no awaiter; setup rejection is retained in pageErrors, which makes Snap's verdict red. Ends if pageErrors stops contributing to the verdict.
+    // @orb-waive caught-failure-ownership(wire): the page event has no awaiter; the handler pushes the setup failure into evidence.pageErrors, which buildFailureSummary (snap/ops/verdict.ts) counts as pageErrors. Ends if pageErrors stops feeding that summary.
     wire(page).catch((error: unknown) => {
       capture.evidence.pageErrors.push(
         instrumentPageError(`browser diagnostic setup failed: ${error instanceof Error ? error.message : String(error)}`),

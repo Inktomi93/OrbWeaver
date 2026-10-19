@@ -113,7 +113,7 @@ function buildSchema(
   if (options.files.length === 0) {
     return { status: "missing", reason: "schema source population is missing", receipt: receipt("missing", paths, []) };
   }
-  // @orb-waive caught-failure-ownership(error): drizzle schema parse error: surfaced as a structured tool-error in the schema-fact report; the broken schema is excluded from the fact census
+  // @orb-waive caught-failure-ownership(error): returns status "unresolved" with the caught reason; recordReadySchemaFact (verify/contract/schema-fact.ts) throws on any non-ready status and collectSchemaTables (ast/lib/columns.ts) throws on unresolved. Ends if a consumer stops refusing a non-ready fact.
   try {
     if (calls.length === 0) {
       return { status: "empty", reason: "schema source population declares no Drizzle SQLite tables", receipt: receipt("empty", paths, []) };
@@ -209,7 +209,7 @@ export function queryForCalls(
 
 /** Direct test/query helper. Production policies consume `drizzleSchemaFact` through the shared dispatcher. */
 export function createSchemaQuery(options: SchemaQueryOptions): SchemaQuery {
-  // @orb-waive caught-failure-ownership(error): drizzle column parse error: surfaced as a structured tool-error in the schema-fact report; the broken column is excluded from the fact census
+  // @orb-waive caught-failure-ownership(error): unresolvedDiscovery turns the caught error into an unresolved SchemaQuery carrying its message; recordReadySchemaFact (verify/contract/schema-fact.ts) throws on any non-ready status and collectSchemaTables (ast/lib/columns.ts) throws on unresolved. Ends if a consumer stops refusing a non-ready fact.
   try {
     return queryForCalls(options, schemaTableCalls(options.files));
   } catch (error) {
