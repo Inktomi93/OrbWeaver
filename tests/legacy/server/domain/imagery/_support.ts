@@ -68,7 +68,6 @@ type ImageryCardDouble = Awaited<ReturnType<ImageryContext["getCard"]>>;
 
 /** A minimal imagery card double — only `avatarAssetId` (caption path) + `contentHash` (reuse gate) are read. */
 export function fakeCard(avatarAssetId: AssetId | null, contentHash = "hash_aria"): ImageryCardDouble {
-  // @orb-waive no-test-fabrication(unknown): minimal card double — imagery reads only name + avatarAssetId + contentHash. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { name: "Aria", avatarAssetId, contentHash } as unknown as ImageryCardDouble;
 }
 

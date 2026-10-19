@@ -1,7 +1,6 @@
 // Integration: the near-duplicate CHARACTER pass — detection at the cosine threshold, CSLS ranking, owner +
 // space scoping, synthetic exclusion, canonical A<B, and the content-hash collapse invariant (esoteric #3).
 
-// @orb-waive-file no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
 import type { Db } from "@orb/db";
 import { chats, duplicateCharacterPairs, duplicateChatPairs } from "@orb/db";
 import type { ChatId, UserId } from "@orb/kit/ids";

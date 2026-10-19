@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 
 // Consent settlement must reach the notification room after the durable grant write, without rebadging.
 import "@orb/testkit/node/composed-real.ts";

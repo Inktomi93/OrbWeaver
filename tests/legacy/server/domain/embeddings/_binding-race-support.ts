@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication({ model: string; input: string | string[] }): baselined when the gate widened to value casts; burn-down item 906.
 
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { characterEmbeddings, embedGenerationTargets } from "@orb/db";

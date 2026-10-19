@@ -10,7 +10,6 @@
 // model named the reason), so a divergence between the two shows up as a stage that claims a reason while
 // the engine would have run it.
 
-// @orb-waive-file no-test-fabrication(Partial<RegexScriptRow>): baselined when the gate widened to value casts; burn-down item 906.
 import type { CreateRegexScriptInput, RegexScriptRow } from "@orb/contracts/regex";
 import type { RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

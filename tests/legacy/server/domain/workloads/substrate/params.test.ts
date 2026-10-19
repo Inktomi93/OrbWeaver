@@ -3,8 +3,6 @@
 // schema validation collapses a bad blob to a typed domain error (never an escaping ZodError), the
 // admission-key default bucket vs a declared one, and the admit() precondition's refusal shape.
 
-// @orb-waive-file no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 import { databankIngestWorkloadParams } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { DocumentId, UserId } from "@orb/kit/ids";
@@ -29,7 +27,6 @@ function contributionsWith(over: Partial<WorkloadContribution<"databank-ingest">
     run: () => Promise.reject(new Error("not invoked by this test")),
     ...over,
   };
-  // @orb-waive no-test-fabrication(WorkloadContributions): a minimal single-kind registry double — only the "databank-ingest" contribution this file's tests exercise. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { "databank-ingest": base } as WorkloadContributions;
 }
 

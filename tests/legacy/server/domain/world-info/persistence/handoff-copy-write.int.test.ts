@@ -164,7 +164,6 @@ test("the ROOM's attached book is re-pointed at a copy — returned UNEXECUTED, 
   // The BOOK landed already (orphan-safe, ahead of the swap) but the room still reads the original — the
   // attachment is room state and moves only when chat commits its batch.
   expect((await db.select().from(chatBooks).where(eq(chatBooks.chatId, chatId)))[0]?.worldBookId).toBe(roomBook);
-  // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
   await db.batch(batchMany(repoint as BatchStmt[]));
 
   const attached = await db.select().from(chatBooks).where(eq(chatBooks.chatId, chatId));
@@ -211,11 +210,9 @@ test("a RETRIED room re-point converges on the book the recipient already owns o
   const args = { fromOwnerId: oldHost.id, toOwnerId: nominee.id, chatId, cardCopies: [] };
 
   // First attempt: the copy lands, the re-point is committed.
-  // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
   await db.batch(batchMany((await copyBooks(args)) as BatchStmt[]));
   // The retry sees the original detached already, so there is nothing left to copy — and the room keeps ONE
   // attachment rather than accumulating a second identical book on every re-run.
-  // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
   await db.batch(batchMany([...((await copyBooks(args)) as BatchStmt[]), db.update(worldBooks).set({ name: "room" }).where(eq(worldBooks.id, roomBook))]));
 
   expect(await db.select().from(chatBooks).where(eq(chatBooks.chatId, chatId))).toHaveLength(1);

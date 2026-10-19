@@ -137,7 +137,6 @@ test("content_hash is NOT NULL — a vector write missing it is rejected", async
   const { id: characterId } = await seedCharacter(db, { id: castId<CharacterId>("character_ch"), ownerId });
   let caught: unknown;
   try {
-    // @orb-waive no-test-fabrication(never): the invalid-input probe THIS test asserts the NOT-NULL constraint rejects (contentHash omitted). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     // @orb-waive no-loose-id-cast({): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     await db.insert(characterEmbeddings).values({
       id: castId<CharacterEmbeddingId>("character_embedding_nohash"),
@@ -475,7 +474,6 @@ test("chat_digests.text is NOT NULL — a digest write missing its body is rejec
   const chatId = await seedChat(db, { id: "chat_dnull" });
   let caught: unknown;
   try {
-    // @orb-waive no-test-fabrication(never): the invalid-input probe THIS test asserts the NOT-NULL constraint rejects (text omitted). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     // @orb-waive no-loose-id-cast({): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
     await db.insert(chatDigests).values({
       id: castId<ChatDigestId>("chat_digest_nulltext"),

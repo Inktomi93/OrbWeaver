@@ -397,12 +397,10 @@ test("empty context keeps absolute descendants inside its scroll container", asy
   await expect(scroller).toHaveCSS("position", "relative");
   await expect.poll(() => readPhantomScrollers(page)).toEqual([]);
   await scroller.evaluate((node) => {
-    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (node as HTMLElement).style.position = "static";
   });
   await expect.poll(async () => (await readPhantomScrollers(page)).length).toBeGreaterThan(0);
   await scroller.evaluate((node) => {
-    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (node as HTMLElement).style.removeProperty("position");
   });
   await expect.poll(() => readPhantomScrollers(page)).toEqual([]);

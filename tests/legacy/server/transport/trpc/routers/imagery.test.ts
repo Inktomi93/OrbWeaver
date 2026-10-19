@@ -56,7 +56,6 @@ describe("imagery.extractPrompt — the preview-before-spend wire", () => {
       caller(extractingContext(extractPrompt)).imagery.extractPrompt({
         chatId: CHAT,
         // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — free is the one mode the wire excludes.
-        // @orb-waive no-test-fabrication(any): deliberate excluded mode proves the wire schema refuses it before the verb; ends when the caller accepts unknown input directly.
         mode: "free" as any,
         timeZone: UTC_TIME_ZONE,
       }),

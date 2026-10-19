@@ -2,7 +2,6 @@
 // nav, per-cell accessible names, selection mode, and the animated/thumbnail src dispatch
 // (ui-package-design §6.1 / work-order #6).
 
-// @orb-waive-file no-test-fabrication(HTMLImageElement): baselined when the gate widened to value casts; burn-down item 906.
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/experimental-ct-react";
 import {

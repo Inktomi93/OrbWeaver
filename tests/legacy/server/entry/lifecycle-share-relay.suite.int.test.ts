@@ -2,7 +2,6 @@
 // `AUTH_MODE=local` box launched with `SHARE_RELAY=quick` must not start the relay while the owner is unclaimed; the
 // loopback first-run claim starts it in-process; its host is admitted only while it is up; shutdown ends it.
 
-// @orb-waive-file no-test-fabrication({ share: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

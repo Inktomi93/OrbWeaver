@@ -43,13 +43,11 @@ test("OR Anthropic history breakpoints ride the content part, never the message"
       ],
     }),
   );
-  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const messages = body["messages"] as Record<string, unknown>[];
   for (const message of messages) {
     expect(message, `${String(message["role"])} row carries a message-level marker`).not.toHaveProperty("cache_control");
   }
   const marked = messages.flatMap((message, index) =>
-    // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
     Array.isArray(message["content"]) && (message["content"] as Record<string, unknown>[]).some((part) => part["cache_control"] !== undefined) ? [index] : [],
   );
   // system (0) plus depth 1 (a2, index 5) and depth 3 (a1, index 3).
@@ -88,7 +86,6 @@ test("the openrouter mandatory-reasoning 400 is peeled, stripped and replayed on
   const fetchImpl: typeof fetch = (input, init) => {
     call += 1;
     const raw = typeof init?.body === "string" ? init.body : "{}";
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     recorded.push({ url: String(input), body: JSON.parse(raw) as Record<string, unknown> });
     if (call === 1) {
       return Promise.resolve(new Response(rejection, { status: 400, headers: { "content-type": "application/json" } }));
@@ -117,7 +114,6 @@ test("a 400 that is NOT a mandatory-reasoning refusal is NOT replayed, and reach
   const recorded: RecordedRequest[] = [];
   const fetchImpl: typeof fetch = (input, init) => {
     const raw = typeof init?.body === "string" ? init.body : "{}";
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     recorded.push({ url: String(input), body: JSON.parse(raw) as Record<string, unknown> });
     return Promise.resolve(
       new Response(JSON.stringify({ error: { message: "model not found on this route", code: 400 } }), {

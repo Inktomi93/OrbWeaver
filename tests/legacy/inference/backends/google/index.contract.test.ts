@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication({ readonly responseJsonSchema: { readonly properties: Record<string, unknown> } }): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import type { Task } from "@orb/contracts/inference";

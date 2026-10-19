@@ -3,12 +3,6 @@
 // the emitted `chatUpdated` bus event, and the kick `kicked` notification — with the REAL admin `can()`. The
 // verbs are reached through the grouped-file BUNDLE (`createParticipants(ctx, { emit, claimChat: noClaim })`).
 
-// @orb-waive-file no-test-fabrication({ charactersCanReact?: boolean; reactionsEnabled?: boolean; roomOverrides?: { scenario?: string } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ hostDisplayScripts?: boolean }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ hostDisplayScripts?: boolean; roomOverrides?: { scenario?: string } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ memberPersonaLore?: boolean; roomOverrides?: { scenario?: string } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ offerChoices?: boolean }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ offerChoices?: boolean; roomOverrides?: { scenario?: string } }): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, ChatMetadata, DurableChatBusEvent, RoomOverrides } from "@orb/contracts/chat";
 import { roomOverridesSchema } from "@orb/contracts/chat";
@@ -65,7 +59,6 @@ function recordingEmit(notes: NotificationEvent[]): (event: NotificationEvent, c
   return async (event, coStatements) => {
     notes.push(event);
     if (coStatements !== undefined && coStatements.length > 0) {
-      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       await db.batch(batchMany(coStatements as BatchStmt[]));
     }
   };
@@ -119,7 +112,6 @@ function runMetadataWriter(kind: MetadataWriter, participants: ReturnType<typeof
  *  `greetings[0]` for the F6 in-window join greeting — a double that omits it is a lying double, so the
  *  default is the honest "card with no greetings" (`[]`), never absent. */
 const card = (name: string, greetings: readonly string[] = []): CharacterCard =>
-  // @orb-waive no-test-fabrication(unknown): minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/avatarAssetId/greetings. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   ({ name, avatarAssetId: null, greetings: greetings.map((text) => ({ text })) }) as unknown as CharacterCard;
 
 /** An owner-scoped `getCard` fake mirroring the REAL one (D28 — `loadOwnedCharacterRow`): the card resolves
@@ -296,7 +288,6 @@ describe("setGroupConfig — host-only metadata write", () => {
       })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
     expect(emitted).toEqual([]);
   });
@@ -329,12 +320,10 @@ describe("setRoomOverrides — the four-field allowlist", () => {
       .setRoomOverrides({
         principal: principal(host),
         chatId,
-        // @orb-waive no-test-fabrication(unknown): the invalid-input probe THIS test asserts is default-denied (a stray field). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         overrides: { scenario: "ok", evil: "system prompt" } as unknown as RoomOverrides,
       })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("forbidden_override");
   });
 });
@@ -384,7 +373,6 @@ describe("setChatDocumentVisibility — host-only databank visibility override (
 
     const err = await participants.setChatDocumentVisibility({ principal: principal(member), chatId, visibility: { hidden: [] } }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
     expect(emitted).toEqual([]);
   });
@@ -396,11 +384,9 @@ describe("setChatDocumentVisibility — host-only databank visibility override (
     const participants = createParticipants(makeChatContext(db), { emit, claimChat: noClaim });
 
     const err = await participants
-      // @orb-waive no-test-fabrication(unknown): a malformed (non-TypeID) hidden id is exactly the invalid input the verb must reject. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       .setChatDocumentVisibility({ principal: principal(host), chatId, visibility: { hidden: ["not-a-document-id"] } as unknown as { hidden: DocumentId[] } })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("forbidden_override");
   });
 });
@@ -462,7 +448,6 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
       .setChatBackground({ principal: principal(host), chatId, background: bg({ kind: "external", externalUrl: "https://cdn.example/notimage.txt" }) })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("background_unavailable");
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.metadata?.background).toBeUndefined();
@@ -500,7 +485,6 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
 
     const err = await participants.setChatBackground({ principal: principal(member), chatId, background: bg({ kind: "none" }) }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
     expect(emitted).toEqual([]);
   });
@@ -517,7 +501,6 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
       .setChatBackground({ principal: principal(host), chatId, background: bg({ kind: "asset", assetId, assetHash: "h" }) })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("forbidden_override");
     expect(emitted).toEqual([]);
   });
@@ -552,7 +535,6 @@ describe("setChatBackground — host-only per-chat carried background (BG-C)", (
       .catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("background_unavailable");
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.metadata?.background).toBeUndefined();
@@ -644,7 +626,6 @@ describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
 
     const err = await participants.setToolRecurseLimit({ principal: principal(host), chatId, limit: 999 }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("forbidden_override");
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.metadata?.toolRecurseLimit).toBeUndefined();
@@ -660,7 +641,6 @@ describe("setToolRecurseLimit — host-only per-chat tool-recurse cap", () => {
 
     const err = await participants.setToolRecurseLimit({ principal: principal(member), chatId, limit: 5 }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
     expect(emitted).toEqual([]);
   });
@@ -849,7 +829,6 @@ describe("add character to chat — the participant-insert chokepoint", () => {
     const participants = createParticipants(
       makeChatContext(db, {
         getCard: () => Promise.resolve(card("Aria")),
-        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         applyStatsDelta: (batch, deltaDb, delta) => applyStatsDelta(batch as BatchStmt[], deltaDb, delta),
       }),
       { emit, claimChat: noClaim },
@@ -1064,7 +1043,6 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
       .setSeatKnobs({ principal: principal(host), chatId, participantId: castId<ChatParticipantId>("chat_participant_ghost"), patch: { disabled: true } })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("participant_not_found");
     expect(emitted).toEqual([]);
   });
@@ -1081,7 +1059,6 @@ describe("setSeatKnobs — the ONE participantId-keyed AI-seat knob write (D80)"
       .setSeatKnobs({ principal: principal(host), chatId, participantId: memberSeatId, patch: { disabled: true } })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("participant_not_found");
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, member));
     expect(row?.disabled).toBe(false);
@@ -1137,7 +1114,6 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
       .catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
     // A clamped member cannot self-unclamp — the row is untouched and nothing was announced.
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, member));
@@ -1162,7 +1138,6 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
       .catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("participant_not_found");
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.id, seatId));
     expect(row?.joinHistoryVisibility).toBe("full");
@@ -1182,7 +1157,6 @@ describe("setMemberHistoryVisibility — the host's per-member join-history writ
       .catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("participant_not_found");
   });
 });
@@ -1265,7 +1239,6 @@ describe("nominateHostHandoff — host nominates a present member (step 1)", () 
 
     const err = await participants.nominateHostHandoff({ principal: principal(member), chatId, userId: other }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect(row?.pendingHostUserId).toBeNull();
@@ -1352,7 +1325,6 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
 
     let arrivals = 0;
     const { promise: bothLoaded, resolve: release } = Promise.withResolvers<void>();
-    // @orb-waive no-test-fabrication(unknown): minimal RPG handoff fixture — only handoffRekeyActors is reached by this retry barrier. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       handoffRekeyActors: async (): Promise<void> => {
         arrivals += 1;
@@ -1438,7 +1410,6 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
 
     const err = await participants.acceptHostHandoff({ principal: principal(attacker), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_turn_owner");
     // Roles untouched; the nomination still stands for the real nominee; nothing emitted.
     const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
@@ -1459,7 +1430,6 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
 
     const err = await participants.acceptHostHandoff({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_turn_owner");
   });
 
@@ -1483,7 +1453,6 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
       makeChatContext(db, {
         getCard: ownedCard(),
         emitNotification: recordingEmit(notes),
-        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         bumpStatsCanonVersion: (batch, opDb, ownerId) => bumpStatsCanonVersion(batch as BatchStmt[], opDb, ownerId),
       }),
       { emit, claimChat: noClaim },
@@ -1526,7 +1495,6 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const asked: { chatId: ChatId; newHostUserId: string; copyGmPreset: boolean; cardCopies: number }[] = [];
     // The returned statement stands in for the rpg write (chat commits it blind); `chats.title` is the observable.
-    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the accept reaches ONLY `handoffHealStatements`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       handoffHealStatements: (args: { chatId: ChatId; newHostUserId: UserId; copyGmPreset: boolean; cardCopies: readonly unknown[] }): Promise<unknown[]> => {
         asked.push({ chatId: args.chatId, newHostUserId: args.newHostUserId, copyGmPreset: args.copyGmPreset, cardCopies: args.cardCopies.length });
@@ -1837,7 +1805,6 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
     }).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("participant_not_found");
     expect(emitted).toEqual([]);
   });
@@ -1857,7 +1824,6 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
     }).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("participant_not_found");
     expect(emitted).toEqual([]);
   });
@@ -1910,7 +1876,6 @@ describe("setHostDisplayScripts — the host's display-tier broadcast option", (
 
     const err = await participants.setHostDisplayScripts({ principal: principal(member), chatId, enabled: true }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     // A never-written metadata column is NULL, not an empty object — either way the option is absent.
@@ -1937,7 +1902,6 @@ describe("setMemberPersonaLore — the host's switch for members' persona lore",
 
     await participants.setMemberPersonaLore({ principal: principal(host), chatId, enabled: true });
     const [on] = await db.select().from(chats).where(eq(chats.id, chatId));
-    // @orb-waive no-test-fabrication({ memberPersonaLore?: boolean }): baselined when the gate widened to value casts; burn-down item 906.
     expect((on?.metadata as { memberPersonaLore?: boolean })?.memberPersonaLore).toBe(true);
   });
 
@@ -1951,10 +1915,8 @@ describe("setMemberPersonaLore — the host's switch for members' persona lore",
 
     const err = await participants.setMemberPersonaLore({ principal: principal(member), chatId, enabled: true }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
-    // @orb-waive no-test-fabrication({ memberPersonaLore?: boolean }): baselined when the gate widened to value casts; burn-down item 906.
     expect((row?.metadata as { memberPersonaLore?: boolean })?.memberPersonaLore).toBe(false);
     expect(emitted).toEqual([]);
   });
@@ -2010,7 +1972,6 @@ describe("setOfferChoices — the per-room offer-choices posture", () => {
 
     const err = await participants.setOfferChoices({ principal: principal(member), chatId, enabled: true }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
     expect((row?.metadata as { offerChoices?: boolean } | null)?.offerChoices).toBeUndefined();
@@ -2060,10 +2021,8 @@ describe("setCharactersCanReact / setReactionsEnabled — the B7 reaction postur
     // One knob reaches the PROMPT (the react-tool attach), the other every member's write path — both are
     // room-wide behavior, so host is the floor for each.
     const reactErr = await participants.setCharactersCanReact({ principal: principal(member), chatId, enabled: true }).catch((e: unknown) => e);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((reactErr as ChatOperationError).code).toBe("not_host");
     const planeErr = await participants.setReactionsEnabled({ principal: principal(member), chatId, enabled: false }).catch((e: unknown) => e);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((planeErr as ChatOperationError).code).toBe("not_host");
 
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));

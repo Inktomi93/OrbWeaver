@@ -346,7 +346,6 @@ test("RESYNC: the catch-up round sends the per-plane TOOLS (not a monolithic sch
   // Every per-plane schema is SMALL — that is the whole point of the round (the 46-optional monolith is what
   // Anthropic's grammar compiler refused). None of them is the whole extraction object.
   for (const tool of roundTools) {
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     expect(Object.keys((tool.parameters["properties"] ?? {}) as Record<string, unknown>)).not.toContain("journal");
   }
   // …and the calls folded through the SAME tail the in-turn vehicles use: the state plane landed. (The

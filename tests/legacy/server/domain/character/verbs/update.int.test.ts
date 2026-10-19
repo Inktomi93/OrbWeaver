@@ -3,7 +3,6 @@
 // neither writes nor emits; not-owned throws.
 // @subject packages/server/src/domain/character/verbs/update.ts
 
-// @orb-waive-file no-test-fabrication(CharacterOperationError): baselined when the gate widened to value casts; burn-down item 906.
 import { utimes } from "node:fs/promises";
 import type { MaterializeBackgroundOp, ThemeBackground } from "@orb/contracts/theme";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";

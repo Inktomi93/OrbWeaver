@@ -62,7 +62,6 @@ afterAll(async () => {
 async function isOwner(host: string, headers: Record<string, string> = {}): Promise<boolean> {
   const res = await requestWithHost(`http://${host}:${String(port)}`, "/api/auth/me", { host, headers });
   expect(res.status).toBe(OK);
-  // @orb-waive no-test-fabrication({ authenticated: boolean }): baselined when the gate widened to value casts; burn-down item 906.
   return (JSON.parse(res.body) as { authenticated: boolean }).authenticated;
 }
 
@@ -85,7 +84,6 @@ test("an owner-fallback request through the https hop is refused by its forwardi
   try {
     const relayed = await tlsRequest({ host: LAN, port: terminator.port, ca: pair.certificatePem, path: "/api/auth/me" });
     expect(relayed.status).toBe(OK);
-    // @orb-waive no-test-fabrication({ authenticated: boolean }): baselined when the gate widened to value casts; burn-down item 906.
     expect((JSON.parse(relayed.body) as { authenticated: boolean }).authenticated).toBe(false);
   } finally {
     await terminator.close();

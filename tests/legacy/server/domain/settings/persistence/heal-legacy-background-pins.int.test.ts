@@ -3,7 +3,6 @@
 // that user; the heal clears the stale pointer so the row is writable again, and does not touch a row that
 // has nothing stale to clear.
 
-// @orb-waive-file no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { assets, userSettings } from "@orb/db";
@@ -110,7 +109,6 @@ test("an unreadable row is skipped, not healed — it is #471's refusal to fix, 
     userId: u,
     // A negative schemaVersion + no per-field .catch on the top-level shape degrades the WHOLE parse.
     schemaVersion: 9,
-    // @orb-waive no-test-fabrication(unknown): a deliberately UNREADABLE blob — this arm proves the heal SKIPS a row the read seam cannot parse Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     config: { schemaVersion: -5 } as unknown as typeof DEFAULT_USER_SETTINGS,
     updatedAt: FROZEN_AT_MS,
   });

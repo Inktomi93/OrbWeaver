@@ -6,7 +6,6 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — per-call enums over the live scene and cast, usage logging, the empty and phantom extraction signals, host resolution and the unresolvable-connection degrade.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import type { ResolveOutcome } from "@orb/inference";
@@ -180,7 +179,6 @@ test("§10.1a: the cheap TOOL ROUND logs its usage (tokens + cost) — the vehic
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = infoSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.toolround.usage")?.[0] as Record<string, unknown> | undefined;
   expect(line).toBeDefined();
   expect(line).toMatchObject({
@@ -206,7 +204,6 @@ test("R3: an extraction that writes NOTHING renderable logs rpg.extraction.empty
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Nothing tracked changed." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = infoSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty");
   expect(line).toBeDefined();
 });
@@ -231,15 +228,12 @@ test("R5: an extraction targeting a GHOST actor is DROPPED (no cast mint) + logs
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A stranger appears." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.phantom");
   expect(line).toBeDefined();
-  // @orb-waive no-test-fabrication({ phantomTargets?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((line?.[0] as { phantomTargets?: string[] })?.phantomTargets).toContain("Zzyzx the Unknown");
   // R5: the ghost arg was DROPPED, so nothing was tracked — the panel never gains a hallucinated actor. The
   // empty-outcome line fires ALONGSIDE the ghost line (independent branches: the cause must not hide behind
   // the symptom now that a ghost-only extraction is by definition a write-nothing extraction).
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty")).toBe(true);
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.actors.some((a) => a.actorRef.kind === "npc")).toBe(false);

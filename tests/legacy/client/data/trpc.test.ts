@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication({ data?: { code?: string } }): baselined when the gate widened to value casts; burn-down item 906.
 
 // The mirror for `packages/client/src/data/trpc.ts` (#2103). It exists because the gate exclusion it
 // replaces asserted the opposite: the retired presence gate's `CLIENT_EXCLUDE_FILES` row said the module's
@@ -183,11 +182,8 @@ describe("the client's tRPC wiring", () => {
       .settings.getUserSettings.query()
       .catch((error: unknown) => error);
     expect(failure).toBeInstanceOf(Error);
-    // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
     expect((failure as Error).message).toContain("HTTP 200");
-    // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
     expect((failure as Error).message).toContain("text/html");
-    // @orb-waive no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
     expect((failure as Error).message).not.toContain("Unexpected token");
   });
 

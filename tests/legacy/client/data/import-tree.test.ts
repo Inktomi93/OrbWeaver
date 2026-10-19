@@ -39,13 +39,10 @@ test("POSTs multipart with each part's relative path as its filename + the CSRF 
 
   expect(captured?.url).toBe("/api/import/tree");
   expect(captured?.init.method).toBe("POST");
-  // @orb-waive no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
   const headers = captured?.init.headers as Record<string, string>;
   expect(headers[CSRF_HEADER]).toBe("1");
   // The part filenames carry the relative paths the server sanitizes + reconstructs.
-  // @orb-waive no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
   const form = captured?.init.body as FormData;
-  // @orb-waive no-test-fabrication(File): baselined when the gate widened to value casts; burn-down item 906.
   const names = form.getAll("file").map((f) => (f as File).name);
   expect(names).toEqual(["backup/characters/Aria.png", "backup/personas/me.json"]);
   expect(result.workloadId).toBe("workload_ct_1");
@@ -67,7 +64,6 @@ test("throws with the server message on a non-OK response (e.g. the 400 unrecogn
 test("importTree drops a secrets.json part whatever the caller passed", async () => {
   let form: FormData | undefined;
   vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
-    // @orb-waive no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
     form = init.body as FormData;
     return Promise.resolve(new Response(JSON.stringify({ workloadId: "workload_ct_2" }), { status: 202 }));
   });
@@ -78,7 +74,6 @@ test("importTree drops a secrets.json part whatever the caller passed", async ()
     pickedFile("default-user/settings.json"),
   ]);
 
-  // @orb-waive no-test-fabrication(File): baselined when the gate widened to value casts; burn-down item 906.
   const names = form?.getAll("file").map((f) => (f as File).name) ?? [];
   expect(names).toEqual(["default-user/characters/Aria.png", "default-user/settings.json"]);
 });
@@ -87,7 +82,6 @@ test("importTree drops a secrets.json part whatever the caller passed", async ()
 test("importTree carries each persona collision choice as its own multipart value", async () => {
   let form: FormData | undefined;
   vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
-    // @orb-waive no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
     form = init.body as FormData;
     return Promise.resolve(new Response(JSON.stringify({ workloadId: "workload_ct_3" }), { status: 202 }));
   });
@@ -113,10 +107,7 @@ test("reviewTreePersonas posts ONLY settings.json and User Avatars parts, and re
   ]);
 
   expect(captured?.url).toBe("/api/import/tree/review");
-  // @orb-waive no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
   expect((captured?.init.headers as Record<string, string>)?.[CSRF_HEADER]).toBe("1");
-  // @orb-waive no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
-  // @orb-waive no-test-fabrication(File): baselined when the gate widened to value casts; burn-down item 906.
   expect((captured?.init.body as FormData)?.getAll("file").map((f) => (f as File).name)).toEqual([
     "default-user/settings.json",
     "default-user/User Avatars/nate.png",

@@ -2,7 +2,6 @@
 // tunnel sees every visitor as one loopback peer carrying a relay tell; the booted seam must log that once, not
 // once per request. The unit suites inject their own notice, so only a booted lifecycle proves the wiring.
 
-// @orb-waive-file no-test-fabrication({ authenticated: boolean }): baselined when the gate widened to value casts; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

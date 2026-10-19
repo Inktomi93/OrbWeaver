@@ -4,7 +4,6 @@
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — the extraction wire: ref enums, the state-tracking guide, cancellation, schema shape, the turn connection, the story window and the plane registry, composed-real.
 
-// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { ModelId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
@@ -176,7 +175,6 @@ function objectNodes(node: unknown, out: Record<string, unknown>[] = []): Record
   if (node === null || typeof node !== "object") {
     return out;
   }
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const record = node as Record<string, unknown>;
   if (record["type"] === "object" && typeof record["properties"] === "object" && record["properties"] !== null) {
     out.push(record);
@@ -187,7 +185,6 @@ function objectNodes(node: unknown, out: Record<string, unknown>[] = []): Record
   return out;
 }
 
-// @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 const propertyNames = (node: Record<string, unknown>): string[] => Object.keys(node["properties"] as Record<string, unknown>);
 const requiredNames = (node: Record<string, unknown>): string[] => (Array.isArray(node["required"]) ? (node["required"] as string[]) : []);
 
@@ -199,10 +196,8 @@ function nullUnionCount(node: unknown, count = 0): number {
   if (node === null || typeof node !== "object") {
     return count;
   }
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const record = node as Record<string, unknown>;
   const arms = record["anyOf"];
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const isNullUnion = Array.isArray(arms) && arms.some((arm) => arm !== null && typeof arm === "object" && (arm as Record<string, unknown>)["type"] === "null");
   return Object.values(record).reduce<number>((n, value) => nullUnionCount(value, n), count + (isNullUnion ? 1 : 0));
 }

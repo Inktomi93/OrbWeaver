@@ -83,7 +83,6 @@ describe("persistence/pending-signups", () => {
     const results = await db.batch(
       batchMany([takePendingSignupStatement(db, "h1", FROZEN_AT_MS), insertPendingSignupUserStatement(db, account("friend", "friend@example.test"), ADMITS)]),
     );
-    // @orb-waive no-test-fabrication(readonly object[]): baselined when the gate widened to value casts; burn-down item 906.
     expect((results[1] as readonly object[]).length).toBe(0);
     expect(
       await db

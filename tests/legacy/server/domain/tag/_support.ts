@@ -135,7 +135,6 @@ export async function seedPreset(db: Db, ownerId: UserId, id = "preset_x"): Prom
     ownerId,
     name: id,
     kind: "roleplay",
-    // @orb-waive no-test-fabrication(unknown): the tag tests only exercise the preset's tag-junction rows; config is opaque here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     config: {} as unknown as PromptConfig,
   });
   return presetId;

@@ -82,7 +82,6 @@ function apiErrorTurn(args: { readonly model: string; readonly code: string; rea
   async function* gen(): AsyncGenerator<SdkFrame> {
     await Promise.resolve();
     for (const frame of frames) {
-      // @orb-waive no-test-fabrication(unknown): the frames are the CLI's captured output trimmed to what the reducer reads; the SDK frame types carry many unrelated required fields. Ends if the SDK exports a frame factory.
       yield frame as unknown as SdkFrame;
     }
   }
@@ -189,7 +188,6 @@ test("an earlier leg's error code does not classify a later, unrelated failure",
   async function* gen(): AsyncGenerator<SdkFrame> {
     await Promise.resolve();
     for (const frame of frames) {
-      // @orb-waive no-test-fabrication(unknown): hand-built SDK frames trimmed to what the reducer reads. Ends if the SDK exports a frame factory.
       yield frame as unknown as SdkFrame;
     }
   }
@@ -242,7 +240,6 @@ const SESSION_TOTALS = { inputTokens: 972, outputTokens: 61, cacheReadInputToken
 async function* streamOf(frames: readonly unknown[]): AsyncGenerator<SdkFrame> {
   await Promise.resolve();
   for (const frame of frames) {
-    // @orb-waive no-test-fabrication(unknown): hand-built SDK frames trimmed to what the reducer reads. Ends if the SDK exports a frame factory.
     yield frame as unknown as SdkFrame;
   }
 }
@@ -306,7 +303,6 @@ test("a resumed turn records its own cost: the session total less what the trans
   const deps: AgentSdkDeps = {
     now: () => 0,
     log: quietLog,
-    // @orb-waive no-test-fabrication(unknown): the SDK `query` seam returns its own `Query` object; the reducer only iterates it, so a generator over captured-shape frames is the honest double. Ends if the SDK exports a query fake.
     query: (() => resumedTurn()) as unknown as AgentSdkDeps["query"],
     sessionStore: sessions.store,
     normalizeImageBytes: passthroughImageNormalizer,
@@ -479,7 +475,6 @@ async function capturedBody(tailSystem: string | undefined): Promise<Record<stri
   const deps: AgentSdkDeps = {
     now: () => 0,
     log: quietLog,
-    // @orb-waive no-test-fabrication(unknown): the SDK `query` seam returns its own `Query` object; the reducer only iterates it, so a generator over captured-shape frames is the honest double. Ends if the SDK exports a query fake.
     query: (() =>
       (async function* stream(): AsyncGenerator<unknown> {
         await Promise.resolve();
@@ -538,7 +533,6 @@ async function outputFormatOf(schema: Record<string, unknown>): Promise<unknown>
   const deps: AgentSdkDeps = {
     now: () => 0,
     log: quietLog,
-    // @orb-waive no-test-fabrication(unknown): the SDK `query` seam returns its own `Query` object; the reducer only iterates it, so a generator over captured-shape frames is the honest double. Ends if the SDK exports a query fake.
     query: ((input: { readonly options: Record<string, unknown> }) => {
       options.push(input.options);
       return (async function* stream(): AsyncGenerator<unknown> {

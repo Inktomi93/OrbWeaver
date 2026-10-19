@@ -1,7 +1,5 @@
 // The per-user example-plugin seeder on the real release-built bundles: a fresh pass, retry on a missing bundle, the one durable ask, and the #803 auto-upgrade arms.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ dealt: number; countLabel: string }): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability } from "@orb/contracts/plugin";
@@ -72,7 +70,6 @@ function seederDeps(h: ReturnType<typeof makePluginHarness>, latch: SeedLatch, o
  *  forges different guest code too, so a test can tell which version's code is running. */
 async function bundleAtVersion(slug: string, version: string, rewriteMain?: (mainJs: string) => string): Promise<Uint8Array> {
   const packed = await packShowcaseBundle(slug);
-  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const entries = unzipSync(packed as Uint8Array);
   const manifest = JSON.parse(new TextDecoder().decode(entries["manifest.json"])) as Record<string, unknown>;
   manifest["version"] = version;
@@ -168,7 +165,6 @@ test("every seeded example packs to a bundle the real install verb accepts", asy
   for (const slug of SHOWCASE_PLUGIN_SLUGS) {
     const bundle = await packShowcaseBundle(slug);
     expect(bundle, `${slug} has no packable source directory`).not.toBeNull();
-    // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
     const row = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
     expect(row.slug).toBe(slug);
     ids.push(row.id);
@@ -322,7 +318,6 @@ test("#803 a DIVERGED install is left alone — the user has taken the plugin ov
   // The user replaces it with their own build, through the real upgrade verb — the row moves to a version
   // this system never wrote, which is the plugin domain's own divergence oracle
   // (`verbs/uninstall-for-all-users.ts`: a `version-diverged` row is one its owner has taken over).
-  // @orb-waive no-test-fabrication(PluginId): baselined when the gate widened to value casts; burn-down item 906.
   await h.service.upgrade({ caller, pluginId: seeded?.id as PluginId, bundle: await bundleAtVersion(UPGRADE_SLUG, "5.0.0") });
   expect(rowFor(await h.service.list({ caller }), UPGRADE_SLUG)?.version).toBe("5.0.0");
 
@@ -347,7 +342,6 @@ test("#803 a DELETED seeded plugin stays deleted, even when a newer bundle ships
 
   await seedOnce(h, latch, caller);
   const seeded = rowFor(await h.service.list({ caller }), UPGRADE_SLUG);
-  // @orb-waive no-test-fabrication(PluginId): baselined when the gate widened to value casts; burn-down item 906.
   await h.service.uninstall({ caller, pluginId: seeded?.id as PluginId });
 
   const shipped = "9.9.9";
@@ -413,7 +407,6 @@ test("an enabled older install upgrades to the release-built bundle and the new 
   const installed = await h.service.install({ caller, bundle: await bundleAtVersion("oracle-deck", "0.0.1", olderGuest), grant: [] });
   await h.service.setGrant({ caller, pluginId: installed.id, grant, acknowledgedNetHosts: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const before = JSON.parse(await requireInvoke(captured)(requireHandler(captured.tools, 0, "tool"), JSON.stringify({ count: 2 }), null)) as {
     dealt: number;
     countLabel: string;

@@ -25,7 +25,6 @@ beforeEach(async () => {
 /** A card double carrying only the fields the corpus renders; the rest of the (large) card shape is inert
  *  here, so a full construction would be noise. */
 function card(over: { name: string; description?: string | null; personality?: string | null; scenario?: string | null }): CharacterCard {
-  // @orb-waive no-test-fabrication(CharacterCard): the three prose fields ARE this op's whole input; a card gaining a field cannot change it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { name: over.name, description: over.description ?? null, personality: over.personality ?? null, scenario: over.scenario ?? null } as CharacterCard;
 }
 

@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication(keyof PaneMetrics): baselined when the gate widened to value casts; burn-down item 906.
 
 // CT: the density tier MECHANISM, asserted by COMPUTED VALUE (UI-Density-Law.md §4.2 build step 0 +
 // §5.3). This is the second lens the `density-tier` gate structurally cannot be: that gate reads literal

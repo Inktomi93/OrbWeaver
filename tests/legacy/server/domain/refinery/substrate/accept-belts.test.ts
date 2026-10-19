@@ -4,7 +4,6 @@
 // greetings ordering (replace before remove, append after both) and remapSelection's index shift across a
 // removal (§15.2's worked example).
 
-// @orb-waive-file no-test-fabrication({ text: string }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { RefineryRewriteField, RefinerySelection } from "@orb/contracts/refinery";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

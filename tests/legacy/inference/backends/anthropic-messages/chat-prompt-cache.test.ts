@@ -1,6 +1,5 @@
 // backends/anthropic-messages/chat — the cached prefix across a group round and the connection's prompt-cache settings, pinned on the BYTES the converter produced.
 
-// @orb-waive-file no-test-fabrication({ ttl?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import type { PromptCacheSettings } from "@orb/contracts/inference";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -19,12 +18,10 @@ import { deps, recordedTurn, runAnthropicChatTurn, turnRequest } from "./_chat-s
  *  the `cache_control` marker set aside (it is not prompt bytes) and reported as the block index it rode on. */
 function cachedBlocks(recorded: RecordedRequest | undefined): { readonly blocks: readonly string[]; readonly marked: readonly number[] } {
   const body = recorded?.body ?? {};
-  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const turns = [{ role: "system", content: body["system"] }, ...(Array.isArray(body["messages"]) ? (body["messages"] as Record<string, unknown>[]) : [])];
   const blocks: string[] = [];
   const marked: number[] = [];
   for (const turn of turns) {
-    // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
     for (const block of Array.isArray(turn["content"]) ? (turn["content"] as Record<string, unknown>[]) : []) {
       const { cache_control: marker, ...bytes } = block;
       if (marker !== undefined) {
@@ -76,7 +73,6 @@ test("a group round keeps the block the previous call marked: same bytes, same e
   expect(n.marked).toEqual([0, 2]);
   expect(next.blocks.slice(0, deepest + 1)).toEqual(n.blocks.slice(0, deepest + 1));
   // The run is still ONE assistant turn on the wire, made of two blocks, and the marker moved to the newest one.
-  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const messages = kai?.body["messages"] as Record<string, unknown>[];
   expect(messages.map((message) => message["role"])).toEqual(["user", "assistant", "user"]);
   expect(messages[1]?.["content"]).toEqual([
@@ -102,7 +98,6 @@ test("SDK pin: adjacent same-role rows group into one message and each row's mar
     }),
     anthropicTextStream("ok"),
   );
-  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const messages = body?.body["messages"] as Record<string, unknown>[];
   expect(messages.map((message) => message["role"])).toEqual(["user", "assistant", "user"]);
   expect(messages[1]?.["content"]).toEqual([
@@ -128,7 +123,6 @@ interface WireMarker {
 function markersInPrefixOrder(recorded: RecordedRequest | undefined): readonly WireMarker[] {
   const body = recorded?.body ?? {};
   const found: WireMarker[] = [];
-  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const blocksOf = (value: unknown): readonly Record<string, unknown>[] => (Array.isArray(value) ? (value as Record<string, unknown>[]) : []);
   for (const [index, tool] of blocksOf(body["tools"]).entries()) {
     if (tool["cache_control"] !== undefined) {
@@ -253,7 +247,6 @@ test("the TTL order check reds on a 5m marker ahead of a 1h one (the rule the on
 test("prompt cache: with the system block off, the system carries no marker and the tools and history keep theirs", async () => {
   const { body } = await recordedTurn(cacheTurn({ ...SHIPPED_PROMPT_CACHE, cacheSystem: false }), anthropicTextStream("ok"));
   expect(markersInPrefixOrder(body).map(({ at }) => at)).toEqual(["tool:1", "message:3", "message:5"]);
-  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const system = body?.body["system"] as Record<string, unknown>[];
   expect(system).toEqual([{ type: "text", text: "You are a helpful assistant." }]);
 });

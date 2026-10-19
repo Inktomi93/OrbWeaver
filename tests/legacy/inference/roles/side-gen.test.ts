@@ -4,11 +4,6 @@
 // separate batch path had from the chat turn.
 
 import { setTimeout as sleep } from "node:timers/promises";
-// @orb-waive-file no-test-fabrication(AbortController | undefined): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly effort?: string } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { Capability, ProviderId } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { castId } from "@orb/kit/ids";
@@ -60,7 +55,6 @@ function warnedCodes(lines: readonly LogLine[]): readonly unknown[] {
 }
 
 function bodyOf(init: RequestInit | undefined): Record<string, unknown> {
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   return JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown>;
 }
 
@@ -436,7 +430,6 @@ test("(7) agent-sdk summarize runs a preset's effort with thinking on, and drops
   expect(result.items.map((item) => item.text)).toEqual(["a summary"]);
   expect(options[0]?.["thinking"]).toMatchObject({ type: "adaptive" });
   expect(options[0]?.["effort"]).toBe("high");
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   expect((options[0]?.["env"] as Record<string, unknown>)?.["CLAUDE_CODE_DISABLE_THINKING"]).toBeUndefined();
   expect(warnedCodes(lines)).toContain("sampling_knob_dropped");
 });

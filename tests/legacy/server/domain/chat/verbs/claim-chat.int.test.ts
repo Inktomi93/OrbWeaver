@@ -7,7 +7,6 @@
 //   • the degenerate rooms — no canon, no host, already gone — are silent no-ops, never throws, because the
 //     callers invoke it unconditionally and must not have to ask whether the room is a husk.
 
-// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { characterStats, chats, ownerStats, statsCanonVersions } from "@orb/db";
@@ -135,7 +134,6 @@ describe("claimChat — the conditional stamp", () => {
     const held = holdNextBatch(db);
     const claim = createClaimChat(
       makeChatContext(held.heldDb, {
-        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         applyStatsDelta: (batch, deltaDb, delta) => applyStatsDelta(batch as BatchStmt[], deltaDb, delta),
         emitChatChanged: (id): Promise<void> => {
           fanned.push(id);
@@ -163,7 +161,6 @@ describe("claimChat — the conditional stamp", () => {
     const claim = createClaimChat(
       makeChatContext(db, {
         applyStatsDelta: (batch, deltaDb, delta) => {
-          // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
           const statements = batch as BatchStmt[];
           applyStatsDelta(statements, deltaDb, delta);
           if (injectFailure) {
@@ -194,7 +191,6 @@ describe("claimChat — the creation-stats replay", () => {
     const held = holdNextBatch(db);
     const claiming = createClaimChat(
       makeChatContext(held.heldDb, {
-        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         applyStatsDelta: (batch, deltaDb, delta) => applyStatsDelta(batch as BatchStmt[], deltaDb, delta),
         emitChatChanged: () => Promise.resolve(),
       }),
@@ -281,7 +277,6 @@ async function seedTwoSeatHusk(key: string, opts: { readonly bSpeaks: boolean })
 async function claimWithRealStats(chatId: ChatId): Promise<void> {
   await createClaimChat(
     makeChatContext(db, {
-      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyStatsDelta: (batch, deltaDb, delta) => applyStatsDelta(batch as BatchStmt[], deltaDb, delta),
       emitChatChanged: () => Promise.resolve(),
     }),

@@ -27,7 +27,6 @@ import { buildWorldInfo } from "#server/entry/compose/world-info.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 
-// @orb-waive no-test-fabrication(unknown): never dereferenced — the seam threads `db` into the factories it builds and calls none. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const NO_DB = {} as unknown as Db;
 
 interface Row {
@@ -38,8 +37,6 @@ interface Row {
 
 function build(row: Row | null): { readonly built: ReturnType<typeof buildWorldInfo>; readonly loadUserById: ReturnType<typeof vi.fn> } {
   const loadUserById = vi.fn(() => Promise.resolve(row));
-  // @orb-waive no-test-fabrication(unknown): structural stand-ins for the sessions/assets/character front doors; only Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // `loadUserById` is ever called below.
   const deps = {
     db: NO_DB,
     now: () => 1000,

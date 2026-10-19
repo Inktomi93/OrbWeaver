@@ -243,7 +243,6 @@ test("M5: a mounting code block never overshoots its settled height", async ({ m
   // time a test body runs, so an init script never fires. The sampler must be installed before `mount`.
   await page.evaluate(() => {
     const heights: number[] = [];
-    // @orb-waive no-test-fabrication(HeightProbe): baselined when the gate widened to value casts; burn-down item 906.
     (globalThis as HeightProbe).__csHeights = heights;
     const tick = (): void => {
       const el = document.querySelector('[data-streamdown="code-block"]');
@@ -260,9 +259,7 @@ test("M5: a mounting code block never overshoots its settled height", async ({ m
     </Markdown>,
   );
   await expect(cmp.locator("pre code")).toContainText("const c = 3;");
-  // @orb-waive no-test-fabrication(HeightProbe): baselined when the gate widened to value casts; burn-down item 906.
   await expect.poll(() => page.evaluate(() => (globalThis as HeightProbe).__csHeights.length)).toBeGreaterThan(20);
-  // @orb-waive no-test-fabrication(HeightProbe): baselined when the gate widened to value casts; burn-down item 906.
   const heights = await page.evaluate(() => (globalThis as HeightProbe).__csHeights);
   const settled = heights.at(-1) ?? 0;
   expect(settled).toBeGreaterThan(0);

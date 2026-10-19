@@ -36,9 +36,7 @@ export function PickerStory({
         aria-label="Sample picker"
         detail={detail}
         onValueChange={(next): void => {
-          // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
           setValue(next as string);
-          // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
           onPick?.(next as string);
         }}
         value={value}

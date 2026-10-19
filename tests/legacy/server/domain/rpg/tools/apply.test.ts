@@ -4,11 +4,6 @@
 // `presentRemove` drops presence and NOTHING else), the MA-4 scene patch (omit keeps), the timeOfDay→hour
 // mapping, quest create-vs-flip, and item add/remove.
 
-// @orb-waive-file no-test-fabrication(RpgSnapshotState["actorState"]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(RpgSnapshotState["trackerValues"]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ actorRef: unknown; volatile: { status: string } }[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ actorRef: { kind: string }; volatile: { status: string; inventory: unknown[] } }[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ identity?: { name: string }; volatile: { trackerValues: Record<string, unknown> } }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { RpgSnapshotState, RpgToolCall, RpgTrackerDef } from "@orb/contracts/rpg";
 import { RPG_RULESET_PROFILE, rpgSeedTrackers, toolCallsToExtraction } from "@orb/contracts/rpg";
 import type { CharacterId, RpgQuestId, UserId } from "@orb/kit/ids";
@@ -636,7 +631,6 @@ test("upsert_quest create mints a quest; a later flip addresses it by name", () 
   const created = applyUpsertQuest(
     emptyState(),
     { name: "Find the key", action: "create", objectives: ["Search the crypt"] },
-    // @orb-waive no-test-fabrication(RpgQuestId): baselined when the gate widened to value casts; burn-down item 906.
     () => "q_1" as RpgQuestId,
     idSeq("obj"),
   );
@@ -646,7 +640,6 @@ test("upsert_quest create mints a quest; a later flip addresses it by name", () 
   const flipped = applyUpsertQuest(
     emptyState({ quests: created.quests }),
     { name: "Find the key", action: "complete" },
-    // @orb-waive no-test-fabrication(RpgQuestId): baselined when the gate widened to value casts; burn-down item 906.
     () => "q_2" as RpgQuestId,
     idSeq("obj"),
   );

@@ -151,7 +151,6 @@ describe("sessions.provisionIdentity — a null-subject login onto a BOUND row i
     const nullSubject = asProvisioned(await svc.provisionIdentity(identity({ externalId: null, handle: castId<Handle>("alice") }), PROVEN));
     expect(nullSubject.userId).toBe(bound.userId); // unchanged outcome — this is a signal, not a gate
     expect(spy).toHaveBeenCalledOnce();
-    // @orb-waive no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
     const [bindings] = spy.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
     expect(bindings["security"]).toBe(true);
     expect(bindings["event"]).toBe("sso_null_subject_on_bound_row");
@@ -330,9 +329,7 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
     expect(rows).toHaveLength(1);
     expect(rows[0]?.externalId).toBe("authentik|someone-else");
     // …and the refusal rides the security trail, naming the collision rather than a stack trace.
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const call = warn.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "sso_insert_lost_race");
-    // @orb-waive no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
     const line = call?.[0] as Record<string, unknown> | undefined;
     expect(line?.["security"]).toBe(true);
     // An exact handle match is an account an admin may link to this subject, so the line says how.
@@ -359,9 +356,7 @@ describe("sessions.provisionIdentity — the first-login INSERT race (#1478)", (
     expect(await pending).toEqual({ outcome: "denied", reason: "account-exists" });
     // A key-only match is a DIFFERENT account that merely looks alike: linking it to this subject would hand
     // the look-alike's row to the wrong person, so the operator line must not suggest it.
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const call = warn.mock.calls.find(([bindings]) => (bindings as Record<string, unknown>)["event"] === "sso_insert_lost_race");
-    // @orb-waive no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
     expect((call?.[0] as Record<string, unknown> | undefined)?.["match"]).toBe("key-only");
     expect(String(call?.[1])).not.toContain("linkSsoIdentity");
   });

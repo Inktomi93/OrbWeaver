@@ -4,7 +4,6 @@
 // `asset:` ref per media (D51) with a `message_assets` retaining row, `messageCommitted` is emitted, and the
 // op returns BOTH ids (the variant id rpg's checkpoint-restore couples a snapshot to — rpg_snapshots.variantId).
 
-// @orb-waive-file no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messageAssets, messages, messageVariants, ownerStats, statsCanonVersions } from "@orb/db";

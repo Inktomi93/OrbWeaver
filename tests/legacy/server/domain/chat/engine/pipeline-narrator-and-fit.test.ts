@@ -170,7 +170,6 @@ describe("runTurnPipeline — the history fit on a squashed run", () => {
   const Authors = [ARIA, KAI] as const;
 
   const storedRow = (seq: number, role: "user" | "assistant", content: string, characterId: CharacterId | null = null): MessageView =>
-    // @orb-waive no-test-fabrication(unknown): same slim-double judgment as seqRow/rowOf above, with the seq the compaction cut reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     ({
       id: mintTypeId(ID_PREFIX.message),
       seq,

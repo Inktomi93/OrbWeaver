@@ -2,7 +2,6 @@
 // load-bearing assertion is the a11y contract: a clickable row is ONE role="button" element and
 // its trailing actions are SEPARATE tab stops OUTSIDE that element, never nested inside it.
 
-// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import { Button } from "@orb/ui/button";
 import { ListRow } from "@orb/ui/list-row";
 import { TOKENS } from "@orb/ui/tokens";

@@ -32,7 +32,6 @@ const THEME_NAME_CALLS = 5;
 function fakeDiscovery(planes: PlaneOverrides = {}): Discovery {
   const { distill = {}, themes = {}, cooccurrence = {}, embeddingPlane = {} } = planes;
   // The contributions read ONLY the counts fields off each verb's stats — a full DiscoveryService factory
-  // @orb-waive no-test-fabrication(unknown): would state far more than these five run bodies touch. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     // `digestsRead`/`soloDigestsRead` are the pass's REFUSAL signals (issue #166, widened by #558) — the
     // contribution branches on them, so the fake has to carry them or every test here silently exercises the
@@ -223,7 +222,6 @@ describe("distill-characters", () => {
     const { contributions } = build(DEFAULT_USER_SETTINGS, { distill: { scanned: 8, distilled: 6, skipped: 2 } });
     const report = vi.fn();
     await contributions[1].run(ctx, {}, report, sig());
-    // @orb-waive no-test-fabrication({ message?: string }): baselined when the gate widened to value casts; burn-down item 906.
     const messages = report.mock.calls.map((c) => (c[0] as { message?: string }).message ?? "");
     expect(messages.at(-1)).toBe("distilled 6 of 8 characters — skipped 2 with no card text to summarize (add a description first)");
   });
@@ -232,7 +230,6 @@ describe("distill-characters", () => {
     const { contributions } = build();
     const report = vi.fn();
     await contributions[1].run(ctx, {}, report, sig());
-    // @orb-waive no-test-fabrication({ message?: string }): baselined when the gate widened to value casts; burn-down item 906.
     const messages = report.mock.calls.map((c) => (c[0] as { message?: string }).message ?? "");
     expect(messages.at(-1)).toBe("distilled 8 of 8 characters");
   });

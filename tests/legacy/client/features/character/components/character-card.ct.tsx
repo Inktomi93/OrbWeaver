@@ -17,7 +17,6 @@
 // the float arm specifically (an invisible control sitting ON the title text must not be hit-testable); an
 // IN-FLOW cluster keeps its live hit target, which is what bulk mode's checkbox relies on.
 
-// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import { chatWithActionName, rowActionsName, selectActionName } from "@orb/client/lib";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

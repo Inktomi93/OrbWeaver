@@ -72,7 +72,6 @@ test("PROMPT-CACHE (probe F4): only the SCENE-derived enums are dropped (targetR
 
 test("PROMPT-CACHE (probe F4): a game with NO actor trackers keeps a targetable party plane (both arms pruned, condition/status intact)", () => {
   const constrained = constrainExtractionSchema(projectJsonSchema(rpgExtractionSchema), cacheStableExtractionRefs({ ...BARE_REFS, actorRefs: ["Kael"] }, []));
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const props = refEnum(constrained, ["properties", "party", "items", "properties"]) as Record<string, unknown>;
   expect(props["trackerDeltas"]).toBeUndefined();
   expect(props["trackerSets"]).toBeUndefined();

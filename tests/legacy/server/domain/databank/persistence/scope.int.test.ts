@@ -238,14 +238,12 @@ test("a corrupt databankVisibility blob heals to default-visible (fault-isolated
   await h.service.attachGlobal({ principal: principalFor(host), documentId: hg.document.id });
 
   // A garbage sub-blob (wrong shape) must NOT throw and must NOT silently hide — widening is default-on.
-  // @orb-waive no-test-fabrication(unknown): deliberately writing a corrupt metadata blob to prove the fault-isolated read heals it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // @orb-waive no-loose-id-cast({ databankVisibility: { hidden: "not-an-array" } } as unknown): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
   const corruptShape = { databankVisibility: { hidden: "not-an-array" } } as unknown as never;
   await db.update(chats).set({ metadata: corruptShape }).where(eq(chats.id, chatId));
   expect(await resolveActiveDocumentIds(databaseHandle(db), { chatId })).toEqual([hg.document.id]);
 
   // A totally non-object metadata blob heals the same way.
-  // @orb-waive no-test-fabrication(unknown): a non-object metadata column value is exactly the corruption the read must survive. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // @orb-waive no-loose-id-cast(42 as unknown): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
   const corruptScalar = 42 as unknown as never;
   await db.update(chats).set({ metadata: corruptScalar }).where(eq(chats.id, chatId));

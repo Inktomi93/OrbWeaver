@@ -23,13 +23,6 @@
 // `tests/legacy/client/routes/app-root.ct.tsx`; a defect in title composition must be pinned THERE. Do not restate
 // that file's pins here — a duplicate over a fake registry proves the fake, not the product.
 
-// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(KeyframeEffect | null): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(number[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(typeof globalThis & {): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(typeof globalThis & { __commandListenerProbe: { active: Set<EventListenerOrEventListenerObject>; adds: number; removes: number } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(typeof globalThis & { __ctPanelTasks: { tick: number; mode: boolean; body: boolean }[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ state?: { panelOverrides?: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { BlurSurface } from "@orb/contracts/settings";
 import { appearanceSettingsSchema, BLUR_SURFACES, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -3202,7 +3195,6 @@ test("toggling the docked LIST panel is compositor-only: no meaningful layout sh
 
   // Installed AFTER the mount settles, so boot/data-arrival shifts are never attributed to the toggle.
   await page.evaluate(() => {
-    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read in this test alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const bag = globalThis as unknown as { __shiftTotal: number };
     bag.__shiftTotal = 0;
     // `hadRecentInput` is deliberately NOT filtered: a click drives this toggle, so the CWV metric would
@@ -3210,7 +3202,6 @@ test("toggling the docked LIST panel is compositor-only: no meaningful layout sh
     // two-totals note — that exclusion is precisely what hid this defect).
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        // @orb-waive no-test-fabrication(PerformanceEntry & { value: number }): baselined when the gate widened to value casts; burn-down item 906.
         bag.__shiftTotal += (entry as PerformanceEntry & { value: number }).value;
       }
     }).observe({ type: "layout-shift" });
@@ -3231,7 +3222,6 @@ test("toggling the docked LIST panel is compositor-only: no meaningful layout sh
   await waitForShellFlipToSettle(page);
 
   const readTotal = (): Promise<number> =>
-    // @orb-waive no-test-fabrication(unknown): reads back the probe slot installed above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     page.evaluate(() => (globalThis as unknown as { __shiftTotal: number }).__shiftTotal);
   // A short poll remains for the observer's OWN dispatch latency (PerformanceObserver callbacks fire on a
   // microtask after the frame that produced the entry, not synchronously with `finished`), never for the
@@ -3299,7 +3289,6 @@ test("#151 reduced motion: no LIST-track FLIP is stamped, and .shell-main never 
   // A bounded per-frame sampler — rAF, not a screenshot loop: the jolt is two frames wide, so anything
   // slower than the frame clock samples past it. Bounded so it cannot outlive the test.
   await page.evaluate(() => {
-    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read in this test alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const bag = globalThis as unknown as { __mainX: number[] };
     bag.__mainX = [];
     const el = document.querySelector(".shell-main");
@@ -3330,7 +3319,6 @@ test("#151 reduced motion: no LIST-track FLIP is stamped, and .shell-main never 
   expect(await page.locator(".shell-grid").getAttribute("data-list-flip"), "no flip may be armed with motion off").toBeNull();
   expect(await readShellFlipStarts(page), "no shell FLIP animation may START with motion off").toEqual([]);
   // Read ONCE (never poll a shared array — a poll drains the very samples it is judging).
-  // @orb-waive no-test-fabrication(unknown): reads back the probe slot installed above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const samples = await page.evaluate(() => (globalThis as unknown as { __mainX: number[] }).__mainX);
 
   expect(samples.length, "the rAF sampler must have run — an empty ring proves nothing").toBeGreaterThan(2);
@@ -3379,7 +3367,6 @@ test("#151 the LIST-track FLIP IS still armed on the same swap when motion is al
  *  `animationstart` listener installed before the trigger cannot race the window the way a poll can. */
 function recordShellFlipStarts(page: Page): Promise<void> {
   return page.evaluate(() => {
-    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read in this file alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const bag = globalThis as unknown as { __flipStarts: string[] };
     bag.__flipStarts = [];
     document.addEventListener("animationstart", (event) => {
@@ -3390,7 +3377,6 @@ function recordShellFlipStarts(page: Page): Promise<void> {
 
 /** Read the recorder ONCE per poll — it is append-only, so re-reading is safe (unlike a drained ring). */
 function readShellFlipStarts(page: Page): Promise<string[]> {
-  // @orb-waive no-test-fabrication(unknown): reads back the probe slot installed above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return page.evaluate(() => (globalThis as unknown as { __flipStarts: string[] }).__flipStarts);
 }
 
@@ -3442,7 +3428,6 @@ test("#1316 the END-pinned topbar trail never leaves its corridor while the FLIP
   // A bounded per-frame sampler over BOTH boxes — the excursion is ~150ms wide and a poll would sample
   // past its start. Installed before the click so the very first flipped frame is in the ring.
   await page.evaluate(() => {
-    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read in this test alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const bag = globalThis as unknown as { __flipXs: { main: number; trail: number }[] };
     bag.__flipXs = [];
     const mainEl = document.querySelector(".shell-main");
@@ -3472,7 +3457,6 @@ test("#1316 the END-pinned topbar trail never leaves its corridor while the FLIP
   const endTrailX = await readX(trail);
 
   // Read ONCE — a poll over a shared ring drains the samples it is judging.
-  // @orb-waive no-test-fabrication(unknown): reads back the probe slot installed above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const samples = await page.evaluate(() => (globalThis as unknown as { __flipXs: { main: number; trail: number }[] }).__flipXs);
   expect(samples.length, "the rAF sampler must have run — an empty ring proves nothing").toBeGreaterThan(2);
   // The FLIP really happened (a no-op toggle would pass every arm below vacuously). The ring rides the
@@ -3796,7 +3780,6 @@ function assertHeldFromCorner(
  *  Installed BEFORE the click so the first flipped frame is in the ring. */
 function installTrackSampler(page: Page): Promise<void> {
   return page.evaluate(() => {
-    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read in this block alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const bag = globalThis as unknown as { __trackXs: { main: number; mainWidth: number; row: number; composer: number }[] };
     bag.__trackXs = [];
     const main = document.querySelector(".shell-main");
@@ -3821,7 +3804,6 @@ function installTrackSampler(page: Page): Promise<void> {
 
 /** Read the ring ONCE — a poll over a shared array drains the samples it is judging. */
 function readTrackSamples(page: Page): Promise<{ main: number; mainWidth: number; row: number; composer: number }[]> {
-  // @orb-waive no-test-fabrication(unknown): reads back the probe slot installed above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return page.evaluate(() => (globalThis as unknown as { __trackXs: { main: number; mainWidth: number; row: number; composer: number }[] }).__trackXs);
 }
 
@@ -4017,7 +3999,6 @@ test("#2442 the phone's docking list sheet never enters from beyond its own widt
   expect(panelWidth, "the phone sheet must be a real full-viewport width").toBeGreaterThan(100);
 
   await page.evaluate(() => {
-    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read in this test alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const bag = globalThis as unknown as { __panelXs: number[] };
     bag.__panelXs = [];
     const panel = document.querySelector('.shell-panel[data-panel-side="list"]');
@@ -4042,7 +4023,6 @@ test("#2442 the phone's docking list sheet never enters from beyond its own widt
   await page.waitForFunction(
     () => !(document.querySelector('.shell-panel[data-panel-side="list"]')?.getAnimations() ?? []).some((a) => a.playState === "running"),
   );
-  // @orb-waive no-test-fabrication(unknown): reads back the probe slot installed above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const samples = await page.evaluate(() => (globalThis as unknown as { __panelXs: number[] }).__panelXs);
   expect(samples.length, "the rAF sampler must have run — an empty ring proves nothing").toBeGreaterThan(2);
   // ARM 2, the user-visible half: the sheet travels from ONE width off-canvas to 0. Anything beyond that
@@ -4093,7 +4073,6 @@ const DOOR_BOXES = {
  *  construction (that is the whole mechanism) and therefore cannot say when the commit landed. */
 function installDoorSampler(page: Page): Promise<void> {
   return page.evaluate((selectors) => {
-    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read in this block alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const bag = globalThis as unknown as { __doorXs: Record<string, number>[] };
     bag.__doorXs = [];
     /** One box's WIDTH, or NaN when it is not on the page — the two width readings below share it so the
@@ -4141,7 +4120,6 @@ function readDoorBoxes(page: Page): Promise<Record<string, number>> {
 
 /** Read the ring ONCE — a poll over a shared array drains the samples it is judging. */
 function readDoorSamples(page: Page): Promise<Record<string, number>[]> {
-  // @orb-waive no-test-fabrication(unknown): reads back the probe slot installed above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return page.evaluate(() => (globalThis as unknown as { __doorXs: Record<string, number>[] }).__doorXs);
 }
 
@@ -4668,12 +4646,10 @@ test("#262 reduced motion: the section swap records no meaningful layout shift",
   const startX = await readX();
   // Installed AFTER the mount settles, so boot/data-arrival shifts are never attributed to the swap.
   await page.evaluate(() => {
-    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read in this test alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const bag = globalThis as unknown as { __settleShift: number };
     bag.__settleShift = 0;
     new PerformanceObserver((list) => {
       for (const entry of list.getEntries()) {
-        // @orb-waive no-test-fabrication(PerformanceEntry & { value: number }): baselined when the gate widened to value casts; burn-down item 906.
         bag.__settleShift += (entry as PerformanceEntry & { value: number }).value;
       }
     }).observe({ type: "layout-shift" });
@@ -4699,7 +4675,6 @@ test("#262 reduced motion: the section swap records no meaningful layout shift",
         requestAnimationFrame(() => requestAnimationFrame(() => setTimeout(resolve, 100)));
       }),
   );
-  // @orb-waive no-test-fabrication(unknown): reads back the probe slot installed above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const total = await page.evaluate(() => (globalThis as unknown as { __settleShift: number }).__settleShift);
   expect(total, `the reduced-motion swap must stay inside the CWV budget — scored ${total}`).toBeLessThan(0.1);
 
@@ -4736,7 +4711,6 @@ test("#176 full motion: the section swap captures the CONTENT pane only — the 
     ["prefers-contrast", "no-preference"],
   ]);
   await page.addInitScript(() => {
-    // @orb-waive no-test-fabrication(unknown): a browser-context probe slot, written and read in this test alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const bag = globalThis as unknown as { __vtNames: string[] };
     bag.__vtNames = [];
     const original = document.startViewTransition.bind(document);
@@ -4779,7 +4753,6 @@ test("#176 full motion: the section swap captures the CONTENT pane only — the 
   await expect(grid).toHaveAttribute("data-section", "characters");
 
   // Read ONCE (never poll a shared array — a poll drains the samples it is judging).
-  // @orb-waive no-test-fabrication(unknown): reads back the probe slot installed above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const names = await page.evaluate(() => (globalThis as unknown as { __vtNames: string[] }).__vtNames);
   expect(names.length, "the swap must actually run a View Transition under full motion — an empty probe proves nothing").toBeGreaterThan(0);
   expect(
@@ -4865,7 +4838,6 @@ test("boot: the grid's FIRST committed template already carries the resolved tra
   // template. `getComputedStyle` forces the style pass, so this IS what the first commit carries.
   await page.evaluate(() => {
     // The PAGE's global object with a probe-only capture slot — no domain type to drift from.
-    // @orb-waive no-test-fabrication(unknown): a browser-context globals bag, declared and read in this test alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const bag = globalThis as unknown as { __bootGrid: { cols: string; list: string | null } | null };
     bag.__bootGrid = null;
     const observer = new MutationObserver(() => {
@@ -4883,7 +4855,6 @@ test("boot: the grid's FIRST committed template already carries the resolved tra
   await expect(listPanel).toHaveAttribute("data-panel-mode", "docked");
 
   const readBoot = (): Promise<{ cols: string; list: string | null } | null> =>
-    // @orb-waive no-test-fabrication(unknown): reads back the same probe-only slot on the PAGE global (see the capture above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     page.evaluate(() => (globalThis as unknown as { __bootGrid: { cols: string; list: string | null } | null }).__bootGrid);
 
   // The capture is written ONCE (the observer disconnects) — poll until it lands, then read it settled.
@@ -5530,7 +5501,6 @@ async function samplePixel(page: Page, x: number, y: number): Promise<Rgb> {
 async function listPanelEdgeRatio(page: Page, panel: Locator): Promise<number> {
   const box = await panel.boundingBox();
   expect(box, "the list panel probe must be laid out before its edge can be sampled").not.toBeNull();
-  // @orb-waive no-test-fabrication(NonNullable<typeof box>): baselined when the gate widened to value casts; burn-down item 906.
   const { x, y, width, height } = box as NonNullable<typeof box>;
   const midY = Math.floor(y + height / 2);
   const [edge, interior] = await Promise.all([samplePixel(page, Math.floor(x + width) - 1, midY), samplePixel(page, Math.floor(x + width) - 8, midY)]);
@@ -7344,7 +7314,6 @@ test("#237: the LIGHT pane's SECONDARY ink clears AA against what LANDS over wor
   const panel = light.getByTestId("panel-probe");
   const box = await panel.boundingBox();
   expect(box, "the pane must be laid out before its fill can be sampled").not.toBeNull();
-  // @orb-waive no-test-fabrication(NonNullable<typeof box>): baselined when the gate widened to value casts; burn-down item 906.
   const { x, y, width, height } = box as NonNullable<typeof box>;
   const landed = await samplePixel(page, Math.floor(x + width / 2), Math.floor(y + height / 2));
   const ink = await panel.evaluate((el) => {
@@ -7428,7 +7397,6 @@ function tokenInk(probe: Locator, varName: string): Promise<Rgb> {
 async function landedMutedContrast(page: Page, probe: Locator): Promise<{ readonly ratio: number; readonly landed: Rgb; readonly ink: Rgb }> {
   const box = await probe.boundingBox();
   expect(box, "the probe must be laid out before its pixels can be sampled").not.toBeNull();
-  // @orb-waive no-test-fabrication(NonNullable<typeof box>): baselined when the gate widened to value casts; burn-down item 906.
   const { x, y, width, height } = box as NonNullable<typeof box>;
   const landed = await samplePixel(page, Math.floor(x + width / 2), Math.floor(y + height / 2));
   const ink = await tokenInk(probe, "--color-muted-foreground");

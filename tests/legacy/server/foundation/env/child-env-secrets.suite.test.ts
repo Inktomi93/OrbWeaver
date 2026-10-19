@@ -122,12 +122,10 @@ test("every child-creation API with no explicit env starts a child that holds no
   const forkedEntry = join(root, "forked.cjs");
   writeFileSync(forkedEntry, "process.send(Object.keys(process.env), () => process.exit(0));\n");
   const forked = fork(forkedEntry);
-  // @orb-waive no-test-fabrication([string[]]): baselined when the gate widened to value casts; burn-down item 906.
   const [forkedKeys] = (await once(forked, "message")) as [string[]];
   expect(keysOf(forkedKeys)).toEqual([]);
 
   const worker = new Worker("require('node:worker_threads').parentPort.postMessage(Object.keys(process.env));", { eval: true });
-  // @orb-waive no-test-fabrication([string[]]): baselined when the gate widened to value casts; burn-down item 906.
   const [workerKeys] = (await once(worker, "message")) as [string[]];
   await worker.terminate();
   expect(keysOf(workerKeys)).toEqual([]);

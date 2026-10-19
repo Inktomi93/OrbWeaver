@@ -9,7 +9,6 @@
 // The SSRF belt ITSELF is proven in tests/legacy/server/infra/network/egress.test.ts; this asserts only the pass-through.
 // @subject packages/server/src/domain/databank/verbs/scrape/scrape-wiki.ts
 
-// @orb-waive-file no-test-fabrication(ScrapeFailedError): baselined when the gate widened to value casts; burn-down item 906.
 import { documents } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

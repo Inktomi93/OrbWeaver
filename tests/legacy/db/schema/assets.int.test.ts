@@ -2,7 +2,6 @@
 // ON). Covers: insert→select round-trip (branded id survives), the `unique(owner_id, hash)` composite,
 // the FK-on-owner enforcement, the `kind` CHECK, and the test-mirror (db enum members === ASSET_KINDS).
 
-// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import { ASSET_KINDS } from "@orb/contracts/assets";
 import { assets } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";

@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
 
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";

@@ -82,7 +82,6 @@ function RackBody({
   readonly savedCount: number;
   readonly savedTrig: string;
 }): ReactElement {
-  // @orb-waive no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
   const form = session.form as AppFormInstance<PromptConfig>;
   useFreshSectionDrill();
   return (
@@ -113,7 +112,6 @@ export function MainPromptStory(): ReactElement {
         save={(): Promise<void> => Promise.resolve()}
         serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections: [...MAIN_PROMPT_SECTIONS] }}
       >
-        {/* @orb-waive no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906. */}
         {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} tab="prompt" />}
       </StoryForm>
       <Toaster />
@@ -154,7 +152,6 @@ export function SectionForkStory(): ReactElement {
       </button>
       <output>{`entity=${entity}`}</output>
       <StoryForm entityId={entity} save={(): Promise<void> => Promise.resolve()} serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections: [...FORK_SECTIONS] }}>
-        {/* @orb-waive no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906. */}
         {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} presetId={entity} tab="prompt" />}
       </StoryForm>
       <Toaster />
@@ -247,7 +244,6 @@ export function CacheWarningStory({ placement }: { readonly placement: CacheWarn
   return (
     <ToastProvider>
       <StoryForm entityId={STORY_PRESET} save={(): Promise<void> => Promise.resolve()} serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections, userMacros }}>
-        {/* @orb-waive no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906. */}
         {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} tab="prompt" />}
       </StoryForm>
       <Toaster />

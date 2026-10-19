@@ -289,7 +289,6 @@ test("the stage CHECK constraint rejects a foreign stage member", async () => {
       id: castId<RefineryRunId>("refinery_run_bad_stage"),
       sessionId,
       // Force an off-tuple value past the TS enum to exercise the SQL CHECK (the assets idiom).
-      // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
       stage: "polish" as (typeof REFINERY_STAGES)[number],
       payloadConfig: { kind: "fixed", mode: "full" },
       payload: SCORE_PAYLOAD,
@@ -315,7 +314,6 @@ test("the session status CHECK constraint rejects a foreign status member", asyn
       characterId,
       // Force an off-tuple value past the TS enum to exercise the SQL CHECK (the runs-stage twin above —
       // the sessions CHECK was DECLARED but never bitten until this pin).
-      // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
       status: "paused" as (typeof REFINERY_SESSION_STATUSES)[number],
       originalCard: ORIGINAL_CARD,
       selection: SELECTION,

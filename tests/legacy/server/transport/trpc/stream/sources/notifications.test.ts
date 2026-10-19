@@ -22,7 +22,6 @@
 // mid-replay resumes at exactly the row it last delivered.
 
 import { setTimeout as sleep } from "node:timers/promises";
-// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
 import { DomainUnavailableError } from "@orb/kit/errors";

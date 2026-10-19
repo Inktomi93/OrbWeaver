@@ -11,8 +11,6 @@
 // Seeds the FK parents (`users` → `characters` / `assets`) directly — a fixture may read/write `users` (the
 // `no-direct-users-read` gate scopes only `packages/server/src/domain`).
 
-// @orb-waive-file no-test-fabrication(AssetId): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { ImageBreakdown } from "@orb/contracts/embeddings";
 import type { ImageEmbedInput, RoleClients } from "@orb/contracts/role-clients";

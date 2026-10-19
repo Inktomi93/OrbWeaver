@@ -7,9 +7,6 @@
 
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-// @orb-waive-file no-test-fabrication(Extract<SchemaForgeResult, { kind: K }>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
 import type { SchemaForgeResult } from "#server/domain/refinery/index.ts";
 import { makeRefineryHarness, principal, seedUser } from "../_support.ts";
 
@@ -41,7 +38,6 @@ test("a design becomes a belt-legal draft; the call rides the ENFORCED grammar a
   const result = asArm(await h.svc.generateSchema({ principal: principal(owner), description: "rate the vibe 1-10 plus a mood", stage: "score" }), "draft");
 
   // The stage core was SPLICED — the model never described it, and it is required at the exact 1-10 scale.
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const properties = result.schema["properties"] as Record<string, Record<string, unknown>>;
   expect(properties["overallScore"]).toMatchObject({ type: "number", minimum: 1, maximum: 10 });
   expect(result.schema["required"]).toContain("overallScore");
@@ -167,7 +163,6 @@ test("the TWO-STAGE arm designs the structure hint-free, then a second call choo
   h.queueReply(JSON.stringify({ hints: [{ path: "mood", role: "verdict", tones: [{ member: "calm", tone: "good" }] }] }));
 
   const result = asArm(await h.svc.generateSchema({ principal: principal(owner), description: "a vibe read", stage: "score", arm: "two-stage" }), "draft");
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const mood = (result.schema["properties"] as Record<string, Record<string, unknown>>)["mood"] ?? {};
   expect(mood["x-orb-ui"]).toEqual({ role: "verdict", tone: { calm: "good" } });
 

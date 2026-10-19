@@ -10,7 +10,6 @@
 //  - a NON-claiming contributor is ignored — the section's own band renders (the §3.3 regression floor);
 //  - the shell's own band slot renders NOTHING over a tabs pane, claimed or not.
 
-// @orb-waive-file no-test-fabrication(Element): baselined when the gate widened to value casts; burn-down item 906.
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/pixel-contrast.ts";
 import { expect, test } from "@playwright/experimental-ct-react";

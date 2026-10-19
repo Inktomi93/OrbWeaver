@@ -120,7 +120,6 @@ describe("runTurnPipeline — compaction shrinkage (covered turns fall out of hi
   // A slim MessageView double for the shrinkage-exclusion pin — only role/content/seq/excluded/id are read by
   // toShapeCanon; a full factory would carry irrelevant canon fields.
   const seqRow = (seq: number, role: "user" | "assistant", content: string): MessageView =>
-    // @orb-waive no-test-fabrication(unknown): slim MessageView double — toShapeCanon reads only role/content/seq/excludedFromPrompt/id. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     ({
       role,
       kind: "standard",
@@ -176,7 +175,6 @@ describe("runTurnPipeline — compaction shrinkage (covered turns fall out of hi
 // depicted (the describe block's own subject is narrator rows).
 describe("runTurnPipeline — <speaker> markers convert to plain attribution in the prompt history", () => {
   const markerRow = (seq: number, content: string, kind: MessageView["kind"] = "narrator"): MessageView =>
-    // @orb-waive no-test-fabrication(unknown): slim MessageView double — toShapeCanon reads only role/kind/content/seq/excludedFromPrompt/id. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     ({
       role: "assistant",
       kind,

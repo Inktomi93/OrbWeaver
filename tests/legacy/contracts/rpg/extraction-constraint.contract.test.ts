@@ -1,6 +1,4 @@
 // @orb/contracts/rpg/extraction — the per-call ref constraint and the per-actor write surface.
-// @orb-waive-file no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
 
 import { buildTrackerWriteGroups, constrainExtractionSchema, gameTrackerWriteKeys, rpgExtractionSchema } from "@orb/contracts/rpg";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -89,7 +87,6 @@ test("R6: an actor who does NOT carry a tracker is never offered it (the whole p
   expect(branches).toHaveLength(3);
   const byTarget = new Map(
     branches.map((b) => {
-      // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
       const props = b["properties"] as Record<string, Record<string, unknown>>;
       const target = ((props["targetRef"]?.["enum"] ?? []) as string[])[0] ?? "";
       return [target, props] as const;

@@ -9,7 +9,6 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { z } from "zod";
 import type { StateStorage } from "zustand/middleware";
-// @orb-waive-file no-test-fabrication({ state: { drafts: Record<string, { values: object; schemaVersion: number }> }; version: number }): baselined when the gate widened to value casts; burn-down item 906.
 import { __resetDurableLocal, bindDurableLocalToUser, createEntityDraftStore } from "../../../../packages/client/src/state/legacy-test-factories/index.ts";
 
 const DUPLICATE_NAME_RE = /duplicate store name/u;
@@ -120,7 +119,6 @@ describe("createEntityDraftStore", () => {
     const { storage } = memoryStorage();
     // A store whose validator wants a `CardDraft`, seeded with an envelope carrying a shape that fails it.
     const store = createEntityDraftStore<CardDraft>({ name: "t-validate", storage, validate, schemaVersion: 1 });
-    // @orb-waive no-test-fabrication(Partial<CardDraft>): a deliberately INVALID shape — the test exists to prove the validator rejects it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     store.setDraft("a", { name: "only-name" } as Partial<CardDraft>, "h");
     // `description` missing → cardSchema rejects → discarded.
     expect(store.readDraft("a", "h")).toBeUndefined();

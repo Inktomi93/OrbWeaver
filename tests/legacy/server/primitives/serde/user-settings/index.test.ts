@@ -47,7 +47,6 @@ function settingsWithSecrets(): UserSettings {
 }
 
 function decode(bytes: Uint8Array): Record<string, unknown> {
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
 }
 
@@ -55,7 +54,6 @@ describe("the secrets fence (R3 — a settings export MUST be safe to share)", (
   test("a blob WITH secret-adjacent fields exports WITHOUT them (routing/seeds structurally absent)", () => {
     const bytes = buildUserSettingsBackup(projectShareSafe(settingsWithSecrets()));
     const wire = decode(bytes);
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const carried = wire["settings"] as Record<string, unknown>;
 
     // Only the allowlisted namespaces travel — routing/seeds/profile/onboarding/etc. are absent by construction.
@@ -72,7 +70,6 @@ describe("the secrets fence (R3 — a settings export MUST be safe to share)", (
 
     // The genuinely share-safe prefs DID travel.
     expect(text).toContain("theme_keepme");
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     expect((carried["appearance"] as Record<string, unknown>)["fontScale"]).toBe(1.3);
   });
 

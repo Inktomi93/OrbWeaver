@@ -22,7 +22,6 @@
 // source with only the `started_at` column added, not a build error. The `reapHusk` arms could not be
 // expressed against the old surface (the verb did not exist) and are post-implementation coverage.
 
-// @orb-waive-file no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
@@ -111,7 +110,6 @@ function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
       get(target, prop, receiver): unknown {
         const value: unknown = Reflect.get(target, prop, receiver);
         if (prop === "then" && typeof value === "function") {
-          // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
           const then = value as (ok: (v: unknown) => unknown, err?: (e: unknown) => unknown) => unknown;
           return (ok: (v: unknown) => unknown, err?: (e: unknown) => unknown): unknown => {
             const ready = fired ? Promise.resolve() : hook();
@@ -122,7 +120,6 @@ function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
         if (typeof value !== "function") {
           return value;
         }
-        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
         const method = value as (...args: unknown[]) => unknown;
         return (...args: unknown[]): unknown => {
           const out = method.apply(target, args);
@@ -134,7 +131,6 @@ function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
     get(target, prop, receiver): unknown {
       const value: unknown = Reflect.get(target, prop, receiver);
       if (prop === "batch" && typeof value === "function") {
-        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
         const batch = value as (...args: unknown[]) => Promise<unknown>;
         return async (...args: unknown[]): Promise<unknown> => {
           if (deleteBuilt && !fired) {
@@ -147,7 +143,6 @@ function dbClaimingBeforeDelete(base: Db, hook: () => Promise<void>): Db {
       if (prop !== "delete" || typeof value !== "function") {
         return value;
       }
-      // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
       const del = value as (...args: unknown[]) => object;
       return (...args: unknown[]): object => {
         deleteBuilt = true;
@@ -213,7 +208,6 @@ describe("claim — the one-way, idempotent stamp", () => {
   test("startChat mints a HUSK (started_at NULL) and the room is not in the list until something claims it", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
-    // @orb-waive no-test-fabrication(unknown): startChat reads exactly one card field on this path (`greetings[0]`, absent here) — a full CharacterCard literal is twenty nulls of noise around it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve({ name: "Aria", greetings: [] } as unknown as CharacterCard) });
     const { startChat } = createStartChat(ctx, startDeps(ctx));
 
@@ -286,7 +280,6 @@ describe("stats timing — the creation deltas fire at CLAIM, never at creation 
     const aria = await seedCharacter(db, host, "aria");
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
-      // @orb-waive no-test-fabrication(unknown): startChat reads only `greetings[0].text` off the card on this path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       getCard: () => Promise.resolve({ name: "Aria", greetings: [{ text: "Hello there friend." }] } as unknown as CharacterCard),
       applyStatsDelta: (_b, _d, delta) => {
         deltas.push(delta as StatsDelta);
@@ -313,7 +306,6 @@ describe("stats timing — the creation deltas fire at CLAIM, never at creation 
     const aria = await seedCharacter(db, host, "aria");
     const deltas: StatsDelta[] = [];
     const ctx = makeChatContext(db, {
-      // @orb-waive no-test-fabrication(unknown): startChat reads only `greetings[0].text` off the card on this path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       getCard: () => Promise.resolve({ name: "Aria", greetings: [{ text: "Hi." }] } as unknown as CharacterCard),
       applyStatsDelta: (_b, _d, delta) => {
         deltas.push(delta as StatsDelta);

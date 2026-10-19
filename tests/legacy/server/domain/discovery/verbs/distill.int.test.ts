@@ -11,7 +11,6 @@
 // @subject packages/server/src/domain/discovery/verbs/distill.ts
 
 import { setTimeout as sleep } from "node:timers/promises";
-// @orb-waive-file no-test-fabrication(Error | null): baselined when the gate widened to value casts; burn-down item 906.
 import { PROSE_SLOTS } from "@orb/contracts/prose";
 import type { RoleClients, StructuredOptions, SummarizeInput } from "@orb/contracts/role-clients";
 import { characterSummaries, characterTags, tags as tagsTable } from "@orb/db";

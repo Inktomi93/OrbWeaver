@@ -7,7 +7,6 @@
 // a reject leaves nothing behind. The Hono app + File aren't test-resolvable through Hono, so the registrar
 // runs over a captured mock app + ctx (the same seam upload.test uses).
 
-// @orb-waive-file no-test-fabrication({ error: string }): baselined when the gate widened to value casts; burn-down item 906.
 import { createHash } from "node:crypto";
 import { mkdtemp, readdir, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -119,7 +118,6 @@ function chain(route: string = TREE_ROUTE): Handler[] {
       return app;
     },
   };
-  // @orb-waive no-test-fabrication(unknown): narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerImportTree(app as unknown as Parameters<typeof registerImportTree>[0], deps());
   const c = routes.get(route);
   if (c === undefined) {
@@ -186,7 +184,6 @@ describe("registerImportTree — belt chain + guard", () => {
 
   test("anonymous → 401, never reaches next", async () => {
     let nexted = false;
-    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware (chain[0]) to the minimal call-shape for a stub ctx. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const guard = chain()[0] as unknown as GuardMw;
     const res = await guard(guardCtx(null), () => {
       nexted = true;
@@ -197,7 +194,6 @@ describe("registerImportTree — belt chain + guard", () => {
   });
 
   test("cookie session WITHOUT the CSRF header → 403", async () => {
-    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware (chain[0]) to the minimal call-shape for a stub ctx. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const guard = chain()[0] as unknown as GuardMw;
     const res = await guard(guardCtx(COOKIE_OWNER), () => Promise.resolve());
     expect(res instanceof Response ? res.status : null).toBe(403);
@@ -206,7 +202,6 @@ describe("registerImportTree — belt chain + guard", () => {
   // #300 — the loopback owner FALLBACK arm is ambient-credential too; this CORS-simple multipart route must
   // require the CSRF header for it (OWNER is via:"fallback"), else a loopback web origin drives an owner import.
   test("fallback session WITHOUT the CSRF header → 403 (#300)", async () => {
-    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware (chain[0]) to the minimal call-shape for a stub ctx. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const guard = chain()[0] as unknown as GuardMw;
     const res = await guard(guardCtx(OWNER), () => Promise.resolve());
     expect(res instanceof Response ? res.status : null).toBe(403);
@@ -226,7 +221,6 @@ describe("registerImportTree — the review route's guard chain", () => {
 
   test("anonymous → 401, never reaches next", async () => {
     let nexted = false;
-    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal call-shape for a stub ctx. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const guard = chain(REVIEW_ROUTE)[0] as unknown as GuardMw;
     const res = await guard(guardCtx(null), () => {
       nexted = true;
@@ -237,14 +231,12 @@ describe("registerImportTree — the review route's guard chain", () => {
   });
 
   test("cookie session WITHOUT the CSRF header → 403", async () => {
-    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal call-shape for a stub ctx. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const guard = chain(REVIEW_ROUTE)[0] as unknown as GuardMw;
     const res = await guard(guardCtx(COOKIE_OWNER), () => Promise.resolve());
     expect(res instanceof Response ? res.status : null).toBe(403);
   });
 
   test("fallback session WITHOUT the CSRF header → 403", async () => {
-    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal call-shape for a stub ctx. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const guard = chain(REVIEW_ROUTE)[0] as unknown as GuardMw;
     const res = await guard(guardCtx(OWNER), () => Promise.resolve());
     expect(res instanceof Response ? res.status : null).toBe(403);
@@ -274,7 +266,6 @@ describe("registerImportTree — secrets.json never stages", () => {
     const res = await handler()(makeCtx(OWNER, form));
     expect(res.status).toBe(202);
     const call = startSpy.mock.calls[0]?.[0];
-    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const token = call?.input.params["stagedDir"] as string;
     const roots = await readdir(join(ownerStagingRoot(), token), { withFileTypes: true });
     const profile = roots.find((e) => e.isDirectory())?.name ?? "";
@@ -319,7 +310,6 @@ describe("registerImportTree — layout sniff dispatch (caller-scoped ownerId)",
     expect(call?.input.params["source"]).toBe("dir");
     expect(call?.ownerId).toBe(OWNER.userId);
     // The picked-folder wrapper is stripped: the staged tree has entity dirs at its root.
-    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const token = call?.input.params["token"] as string;
     expect(await readdir(join(ownerStagingRoot(), token))).toEqual(expect.arrayContaining(["characters", "personas", "presets"]));
     // The staged tree sits under the UPLOADER, never at the shared root.
@@ -333,7 +323,6 @@ describe("registerImportTree — layout sniff dispatch (caller-scoped ownerId)",
     const call = startSpy.mock.calls[0]?.[0];
     expect(call?.input.kind).toBe("import-st");
     expect(call?.ownerId).toBe(OWNER.userId);
-    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const token = call?.input.params["stagedDir"] as string;
     // importAll walks a PARENT-of-profiles: exactly one profile subdir under the staged root.
     const roots = await readdir(join(ownerStagingRoot(), token), { withFileTypes: true });

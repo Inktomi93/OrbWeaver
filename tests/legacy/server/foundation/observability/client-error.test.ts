@@ -19,7 +19,6 @@ describe("recordClientError", () => {
     const spy = vi.spyOn(logger, "error");
     recordClientError(report());
     expect(spy).toHaveBeenCalledOnce();
-    // @orb-waive no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
     const [fields, msg] = spy.mock.calls[0] as [Record<string, unknown>, string];
     expect(fields["clientError"]).toBe(true);
     expect(fields["url"]).toBe("https://example.test/chats/abc");
@@ -29,7 +28,6 @@ describe("recordClientError", () => {
   test("optional fields (stack/ownerStack) pass through untouched when under the cap", () => {
     const spy = vi.spyOn(logger, "error");
     recordClientError(report({ stack: "Error: boom\n  at Foo", ownerStack: "at <Foo>" }));
-    // @orb-waive no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
     const [fields] = spy.mock.calls[0] as [Record<string, unknown>, string];
     expect(fields["stack"]).toBe("Error: boom\n  at Foo");
     expect(fields["ownerStack"]).toBe("at <Foo>");
@@ -38,7 +36,6 @@ describe("recordClientError", () => {
   test("undefined optional fields stay undefined (never coerced to a string)", () => {
     const spy = vi.spyOn(logger, "error");
     recordClientError(report());
-    // @orb-waive no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
     const [fields] = spy.mock.calls[0] as [Record<string, unknown>, string];
     expect(fields["stack"]).toBeUndefined();
     expect(fields["ownerStack"]).toBeUndefined();
@@ -48,7 +45,6 @@ describe("recordClientError", () => {
   test("the client-supplied requestId lands as clientRequestId (never bare requestId)", () => {
     const spy = vi.spyOn(logger, "error");
     recordClientError(report({ requestId: "req-from-a-prior-call" }));
-    // @orb-waive no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
     const [fields] = spy.mock.calls[0] as [Record<string, unknown>, string];
     expect(fields["clientRequestId"]).toBe("req-from-a-prior-call");
     expect(fields["requestId"]).toBeUndefined();
@@ -58,9 +54,7 @@ describe("recordClientError", () => {
     const spy = vi.spyOn(logger, "error");
     const hugeStack = "x".repeat(5000);
     recordClientError(report({ stack: hugeStack }));
-    // @orb-waive no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
     const [fields] = spy.mock.calls[0] as [Record<string, unknown>, string];
-    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const stack = fields["stack"] as string;
     expect(stack.length).toBeLessThan(hugeStack.length);
     expect(stack.endsWith("…")).toBe(true);
@@ -72,7 +66,6 @@ describe("recordClientError", () => {
   test("the URL query string and fragment are DROPPED before logging (a callback code is not a log line)", () => {
     const spy = vi.spyOn(logger, "error");
     recordClientError(report({ url: "https://example.test/auth/callback?code=SECRET-OAUTH-CODE&state=xyz#tok=SECRET-FRAGMENT" }));
-    // @orb-waive no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
     const [fields] = spy.mock.calls[0] as [Record<string, unknown>, string];
     expect(fields["url"]).toBe("https://example.test/auth/callback");
     expect(String(fields["url"])).not.toContain("SECRET-OAUTH-CODE");
@@ -82,7 +75,6 @@ describe("recordClientError", () => {
   test("a non-absolute URL still degrades to its path — never logged whole, never dropped entirely", () => {
     const spy = vi.spyOn(logger, "error");
     recordClientError(report({ url: "/chats/abc?invite=SECRET-INVITE#x" }));
-    // @orb-waive no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
     const [fields] = spy.mock.calls[0] as [Record<string, unknown>, string];
     expect(fields["url"]).toBe("/chats/abc");
   });
@@ -90,9 +82,7 @@ describe("recordClientError", () => {
   test("the client-supplied requestId is bounded and charset-checked (it had NO cap at all)", () => {
     const spy = vi.spyOn(logger, "error");
     recordClientError(report({ requestId: `${"r".repeat(5000)}\nX-Injected: 1\u0000` }));
-    // @orb-waive no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
     const [fields] = spy.mock.calls[0] as [Record<string, unknown>, string];
-    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const id = fields["clientRequestId"] as string;
     expect(id.length).toBeLessThanOrEqual(200);
     expect(id).toMatch(/^[A-Za-z0-9._:-]*$/u);
@@ -101,7 +91,6 @@ describe("recordClientError", () => {
   test("an oversized message is truncated in the log line too", () => {
     const spy = vi.spyOn(logger, "error");
     recordClientError(report({ message: "y".repeat(5000) }));
-    // @orb-waive no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
     const [, msg] = spy.mock.calls[0] as [Record<string, unknown>, string];
     expect(msg.length).toBeLessThan(5000);
     expect(msg.endsWith("…")).toBe(true);

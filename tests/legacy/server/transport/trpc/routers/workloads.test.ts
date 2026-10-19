@@ -37,7 +37,6 @@ describe("workloads.start dependency TypeID boundary", () => {
         input: { kind: "index", params: { source: "text" } },
         mode: "singular",
         // biome-ignore lint/suspicious/noExplicitAny: deliberately wrong wire prefix; the runtime schema is the subject.
-        // @orb-waive no-test-fabrication(any): deliberately wrong TypeID prefix proves the real wire schema refuses before the domain; ends when the caller accepts unknown input directly.
         dependsOn: [STARTED.replace(`${ID_PREFIX.workload}_`, `${ID_PREFIX.asset}_`)] as any,
       }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -52,7 +51,6 @@ describe("workloads.start dependency TypeID boundary", () => {
         input: { kind: "index", params: { source: "text" } },
         mode: "singular",
         // biome-ignore lint/suspicious/noExplicitAny: deliberately malformed wire text; the runtime schema is the subject.
-        // @orb-waive no-test-fabrication(any): deliberately malformed TypeID proves the real wire schema refuses before the domain; ends when the caller accepts unknown input directly.
         dependsOn: ["workload_not-a-typeid"] as any,
       }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -102,7 +100,6 @@ describe("workloads.list over stored rows from before the import memory scope", 
       result: { imported: 2, skipped: 0, failed: 0, notes: [] },
       poison: false,
     } as const;
-    // @orb-waive no-test-fabrication(unknown): the stored row is the subject; the domain double hands it to the real output schema unchanged. Ends when the list verb can be driven over a seeded row here.
     const list = vi.fn<WorkloadService["list"]>(() => Promise.resolve([stored] as unknown as Awaited<ReturnType<WorkloadService["list"]>>));
     const call = caller(makeContext({ auth: principal("user"), services: { workloads: { list } } }));
 

@@ -1,7 +1,6 @@
 // classifyDomainError — the pure DomainError→tRPC classifier (transport Invariant #5: one case per
 // subclass; load-bearing ORDER — NoCredential before Operation; the `.cause` walk survives re-wrapping).
 
-// @orb-waive-file no-test-fabrication(ProviderErrorKind): baselined when the gate widened to value casts; burn-down item 906.
 import { STREAM_ERROR_CODES } from "@orb/contracts/stream";
 import type { ProviderErrorKind } from "@orb/inference";
 import { NoConnectionError, PROVIDER_ERROR_KINDS, ProviderError } from "@orb/inference";

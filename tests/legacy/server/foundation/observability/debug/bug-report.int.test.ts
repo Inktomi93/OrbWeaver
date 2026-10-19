@@ -9,8 +9,6 @@
 // the exact position a field allowlist would miss and a value-based scrub cannot (the
 // credential-display-response-echo-leak class: redacting the fields you thought of is not redacting).
 
-// @orb-waive-file no-test-fabrication(BugReportRecord): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ msg?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

@@ -131,7 +131,6 @@ describe("HTTP server timeout policy", () => {
       },
     );
     await listening.promise;
-    // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
     const { port } = timeoutServer.address() as AddressInfo;
     const socket = connect(port, "127.0.0.1");
     try {
@@ -176,7 +175,6 @@ describe("drainHttpServer — the bounded drain (DRAIN-UNBOUNDED)", () => {
     await new Promise<void>((resolve) => {
       server?.listen(0, "127.0.0.1", resolve);
     });
-    // @orb-waive no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
     const { port } = server.address() as AddressInfo;
 
     const socket = connect(port, "127.0.0.1");

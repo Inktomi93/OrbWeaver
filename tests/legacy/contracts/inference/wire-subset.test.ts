@@ -3,7 +3,6 @@
 // must KEEP the bounds xgrammar compiles (the populate lever). Both directions matter — a blanket strip would
 // silently disarm the local enforcing wire, and no strip at all is what shipped the banned keywords.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { WireSchemaMode } from "@orb/contracts/inference";
 import { checkWireSchema, effectiveStructuredLimits, scrubWireSchema, WIRE_SCHEMA_MODES, WIRE_SUBSETS } from "@orb/contracts/inference";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -118,7 +117,6 @@ test("strict-compatible: EVERY property lands in `required`, and each optional b
   const projected = projectJsonSchema(z.object({ targetRef: z.string(), status: z.string().optional(), hp: z.number().int().optional() }));
   expect(projected["required"]).toEqual(["targetRef"]); // the projection is optional-by-construction…
   const strict = scrubWireSchema(projected, "strict-compatible").schema;
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const props = strict["properties"] as Record<string, Record<string, unknown>>;
   expect(strict["required"]).toEqual(["targetRef", "status", "hp"]); // …and every property is required here
   // The REQUIRED field is untouched — no pointless union on a field that was never optional.
@@ -147,10 +145,8 @@ test("strict-compatible: nested objects are reshaped too, `description` is HOIST
   ).schema;
   // `scene` was itself optional, so it is the null-union too — its OBJECT arm carries the nested reshape.
   const sceneField = (strict["properties"] as Record<string, Record<string, unknown>>)["scene"] as Record<string, unknown>;
-  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const scene = (sceneField["anyOf"] as Record<string, unknown>[])[0] as Record<string, unknown>;
   expect(scene["required"]).toEqual(["location", "note"]);
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const sceneProps = scene["properties"] as Record<string, Record<string, unknown>>;
   // The instruction stays AT the property (a model reading the field sees it, not buried in arm 0).
   expect(sceneProps["location"]).toEqual({ description: "where", anyOf: [{ type: "string" }, { type: "null" }] });
@@ -177,7 +173,6 @@ test("hosted: every stripped bound class lands in the node's description, existi
     },
     "hosted-common",
   ).schema;
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const props = scrubbed["properties"] as Record<string, Record<string, unknown>>;
   // Numeric bounds — appended after the author's own prose, with exactly one space.
   expect(props["hp"]?.["description"]).toBe("current hit points [Constraints: minimum: 1, maximum: 10, multipleOf: 2]");
@@ -206,7 +201,6 @@ test("the note's spelling is DETERMINISTIC: keyword order is the table's, never 
 
 test("zod's `.int()` safe-integer bounds are NOT noted — a projection artifact is not the author's intent", () => {
   const projected = projectJsonSchema(z.object({ n: z.number().int(), rated: z.number().int().min(1).max(5) }));
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const props = scrubWireSchema(projected, "hosted-common").schema["properties"] as Record<string, Record<string, unknown>>;
   // `z.number().int()` stamps ±Number.MAX_SAFE_INTEGER on EVERY integer node; noting it would put 34 bytes of
   // machine noise in front of the model on every int field, and it says nothing the type does not.
@@ -272,7 +266,6 @@ test("strict-compatible: the note is HOISTED with the description, so it sits AT
 test("the BELT is untouched: the wire loses the keyword, the caller's zod still refuses the out-of-range reply", () => {
   const belt = z.object({ rating: z.number().min(1).max(10) });
   const wire = scrubWireSchema(projectJsonSchema(belt), "hosted-common").schema;
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const props = wire["properties"] as Record<string, Record<string, unknown>>;
   expect(props["rating"]?.["maximum"]).toBeUndefined(); // off the wire…
   expect(props["rating"]?.["description"]).toBe("[Constraints: minimum: 1, maximum: 10]"); // …stated to the model…
@@ -298,7 +291,6 @@ test("the CLOSED-OBJECT pin is per-mode: on where the wire requires it, and byte
   const constrained = { type: "object", required: ["t"], properties: { t: { oneOf: [{ type: "object", properties: { a: { type: "string" } } }] } } };
   const armOf = (mode: WireSchemaMode): Record<string, unknown> | undefined => {
     const scrubbed = scrubWireSchema(constrained, mode).schema;
-    // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
     return ((scrubbed["properties"] as Record<string, Record<string, unknown>>)["t"]?.["oneOf"] as Record<string, unknown>[])?.[0];
   };
   expect(armOf("guided-decoding")?.["additionalProperties"]).toBe(false); // xgrammar compiles the closure

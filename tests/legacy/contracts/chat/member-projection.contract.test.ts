@@ -16,7 +16,6 @@ const TOOL_BASE = { toolCallId: "native", callOrdinal: 4, name: "draw", argument
 
 function viewOf(content: string, reasoning: string | null = null): MessageView {
   // The projection reads content, reasoning and tool positions only; the byte checks below are the assertion.
-  // @orb-waive no-test-fabrication(unknown): content/reasoning-only strip probe (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { id: messageId, chatId, content, reasoning, toolCalls: [] } as unknown as MessageView;
 }
 

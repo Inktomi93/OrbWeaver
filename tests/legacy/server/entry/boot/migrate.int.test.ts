@@ -382,7 +382,6 @@ test("OMITTING `launched` cannot reach the destructive branch — absence is fai
   const db = await createDb(":memory:");
   await runBootMigrations({ db, ...memoryDeps, launched: false });
   await db.run(sql`UPDATE __drizzle_migrations SET created_at = 0`);
-  // @orb-waive no-test-fabrication(unknown): the deliberate deps-without-the-flag probe — the pre-#1392 lifecycle call verbatim. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const withoutFlag = { db, databaseUrl: ":memory:" } as unknown as Parameters<typeof runBootMigrations>[0];
   await expect(runBootMigrations(withoutFlag)).rejects.toThrow(LAUNCHED_FATAL_RE);
 });

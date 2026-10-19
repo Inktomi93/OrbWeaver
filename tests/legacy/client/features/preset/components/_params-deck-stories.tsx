@@ -20,7 +20,6 @@ import { ParamsDeck } from "#client/features/preset/components/params-deck.tsx";
 import { samplerSpellingOf } from "#client/features/preset/lib/capability-panel-model.ts";
 import { validatePresetConfig } from "#client/features/preset/lib/preset-editor-model.ts";
 import type { ReadFailure } from "#client/features/preset/lib/resolve-failure.ts";
-// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppFormInstance } from "#client/forms/editor/index.ts";
 import { AutosaveStatus, createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 

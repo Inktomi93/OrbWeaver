@@ -104,7 +104,6 @@ test("§3.6 config: EVERY host-plane config field is stripped for a NON-HOST for
     forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
   });
 
-  // @orb-waive no-test-fabrication(RpgGameConfig): baselined when the gate widened to value casts; burn-down item 906.
   const forkConfig = (await findGameByChat(db, forkChatId))?.config as RpgGameConfig;
   // ONE assertion names EVERY field that crossed the member→host boundary. Before the strips landed this read
   // `[ 'userMacros', 'features.relationshipHints', 'features.journalTypeHints' ]`.
@@ -114,7 +113,6 @@ test("§3.6 config: EVERY host-plane config field is stripped for a NON-HOST for
   expect(JSON.stringify(forkConfig)).not.toContain("GM SECRET");
 
   // The SOURCE is untouched — a fork copies, never mutates (and never "fixes" the host's own room).
-  // @orb-waive no-test-fabrication(RpgGameConfig): baselined when the gate widened to value casts; burn-down item 906.
   const srcConfig = (await findGameByChat(db, src.chatId))?.config as RpgGameConfig;
   expect(configLeaks(srcConfig)).toEqual(["lite.steeringNote", "userMacros", "features.relationshipHints", "features.journalTypeHints"]);
 });
@@ -133,7 +131,6 @@ test("§3.6 config: a HOST forker carries every host-plane config field verbatim
     forker: { userId: castId<UserId>("user_cfghost"), readsHidden: true },
   });
 
-  // @orb-waive no-test-fabrication(RpgGameConfig): baselined when the gate widened to value casts; burn-down item 906.
   const forkConfig = (await findGameByChat(db, forkChatId))?.config as RpgGameConfig;
   expect(forkConfig.lite.steeringNote).toBe("GM SECRET: Mira betrays the party in act 3");
   expect(forkConfig.userMacros).toEqual([SECRET_MACRO]);
@@ -155,9 +152,7 @@ test("§3.6 config: the MEMBER-readable config fields survive the strip (it is a
     forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
   });
 
-  // @orb-waive no-test-fabrication(RpgGameConfig): baselined when the gate widened to value casts; burn-down item 906.
   const srcConfig = (await findGameByChat(db, src.chatId))?.config as RpgGameConfig;
-  // @orb-waive no-test-fabrication(RpgGameConfig): baselined when the gate widened to value casts; burn-down item 906.
   const forkConfig = (await findGameByChat(db, forkChatId))?.config as RpgGameConfig;
   // Everything a member reads through `getGame`/`getTrackerView` — plus the prose-free host-only scalars,
   // whose strip would silently re-tune the fork's own game for zero secrecy gain.
@@ -225,7 +220,6 @@ test("§3.6 beats: a NON-HOST forker carries ONLY the source's member-visible be
     forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
   });
 
-  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const fg = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
   // EXACTLY the window `buildTrackerView` served that member in the source. The forker is HOST of the copy and
   // may widen `recentBeatsKeepLast` at will — so anything carried beyond the window IS the leak.
@@ -248,7 +242,6 @@ test("§3.6 beats: `recentBeatsKeepLast: 0` means the member read NO beats — t
     forker: { userId: castId<UserId>("user_mallory"), readsHidden: false },
   });
 
-  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const fg = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
   // The sharp arm: keepLast 0 drops the whole "Recent beats" block for every member, so the ENTIRE log is
   // host-plane and none of it may cross.
@@ -269,7 +262,6 @@ test("§3.6 beats: a HOST forker carries the WHOLE durable log (the window never
     forker: { userId: castId<UserId>("user_winhost"), readsHidden: true },
   });
 
-  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const fg = (await findGameByChat(db, forkChatId))?.id as RpgGameId;
   expect((await listSnapshots(db, fg))[0]?.recentEvents).toEqual(["beat-1", "beat-2", "beat-3", "beat-4", "beat-5"]);
 });

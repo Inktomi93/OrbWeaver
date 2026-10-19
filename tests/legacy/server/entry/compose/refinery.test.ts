@@ -37,7 +37,6 @@ import { FROZEN_NOW, fakeConnection, fakeDeps, makeResolved, memoryStores, newUs
 const USER = castId<UserId>("usr_author");
 const OTHER = castId<UserId>("usr_other");
 
-// @orb-waive no-test-fabrication(unknown): never dereferenced — the seam only threads `db` into the factories it builds. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const NO_DB = {} as unknown as Db;
 
 /** The EXACT dep set the workload half is allowed to close over (R4). */
@@ -61,7 +60,6 @@ function harness(prose: UserSettings["prose"] = {}): Harness {
   const roleClientsFor = vi.fn<RefineryComposeDeps["roleClientsFor"]>();
   const loadUserSettings = vi.fn((userId: UserId) => Promise.resolve({ prose: userId === USER ? prose : {} }));
   const resolveUtilityPresetParams = vi.fn(() => Promise.resolve({}));
-  // @orb-waive no-test-fabrication(unknown): the seam stores the character front door and the db and calls neither here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const deps = {
     db: NO_DB,
     now: () => 1000,
@@ -100,7 +98,6 @@ describe("buildRefinery — the queue's actor gets a SMALLER bundle than the ser
 describe("buildRefinery — the summarizer binding stays LIVE (a role re-point must reach the sweep)", () => {
   test("roleClientsFor is threaded verbatim into the workload bundle — a role re-point reaches the sweep on the very next call", () => {
     const roleClientsFor = vi.fn<RefineryComposeDeps["roleClientsFor"]>();
-    // @orb-waive no-test-fabrication(unknown): the seam stores the character front door and the db and calls neither here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const deps = {
       db: NO_DB,
       now: () => 1000,
@@ -122,8 +119,6 @@ describe("buildRefinery — the summarizer binding stays LIVE (a role re-point m
 
 describe("buildRefinery — the prose resolver is caller-scoped and single-homed", () => {
   test("it reads the settings of the userId it is handed, and returns that user's prose overrides", async () => {
-    // @orb-waive no-test-fabrication(UserSettings["prose"]): a hand-shaped prose OVERRIDE map — the point is an arbitrary authored slot, which is Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    // exactly what an override is; the resolver must return it verbatim for its own user and nothing for another.
     const authored = { "some.slot": "authored" } as UserSettings["prose"];
     const h = harness(authored);
     const { refineryWorkloads } = buildRefinery(h.deps);

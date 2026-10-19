@@ -79,25 +79,21 @@ describe("preyPose — the five-state response", () => {
       expect(frame.pose.moving).toBe(false);
     }
     // …and the freeze lasts the beat, not a frame.
-    // @orb-waive no-test-fabrication(Frame): baselined when the gate widened to value casts; burn-down item 906.
     const span = (alert.at(-1) as Frame).now - (alert[0] as Frame).now;
     expect(span).toBeGreaterThanOrEqual(ALERT_MS - 2 * FRAME_MS);
     // …while she TURNS to face it: the freeze is a read, not a stall.
-    // @orb-waive no-test-fabrication(Frame): baselined when the gate widened to value casts; burn-down item 906.
     expect((alert.at(-1) as Frame).pose.angle).not.toBe((alert[0] as Frame).pose.angle);
   });
 
   test("she reaches what she is chasing, palpates it, and comes home", () => {
     const state = createPreyState();
     const frames = run(state, { hub, frames: 400, from: 1000, events: [{ at: 1016, point: target }] });
-    // @orb-waive no-test-fabrication(Frame): baselined when the gate widened to value casts; burn-down item 906.
     const arrived = frames.find((f) => f.mode === "inspect") as Frame;
     expect(Math.hypot(arrived.pose.x - target.x, arrived.pose.y - target.y)).toBeLessThan(6);
     // Inspecting shows in the pose the painter reads (front legs tap), and she is NOT "moving".
     expect(arrived.pose.tap).toBe(1);
     expect(arrived.pose.moving).toBe(false);
     // Home again at the hub, head-down, settled.
-    // @orb-waive no-test-fabrication(Frame): baselined when the gate widened to value casts; burn-down item 906.
     const last = frames.at(-1) as Frame;
     expect(last.mode).toBe("rest");
     expect(Math.hypot(last.pose.x - hub.x, last.pose.y - hub.y)).toBeLessThan(2);

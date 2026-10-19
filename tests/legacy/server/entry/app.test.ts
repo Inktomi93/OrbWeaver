@@ -3,7 +3,6 @@
 // then 401s an anonymous caller); the seam is consulted exactly once per request (no double-resolve). The
 // tRPC mount + the multipart routes are exercised by their own slice tests; here we prove the assembly.
 
-// @orb-waive-file no-test-fabrication({ readonly error: { readonly data: Record<string, unknown> } }): baselined when the gate widened to value casts; burn-down item 906.
 import { createTrpcClient } from "@orb/client/data";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
@@ -107,19 +106,16 @@ function fakeSeam(principal: Principal | null, onResolve?: () => void): AuthSeam
  *  deliberate: a route that reaches one throws loudly instead of a stub answering for a domain this slice
  *  does not own. */
 function testServices(extra: Record<string, unknown> = {}): AppDeps["services"] {
-  // @orb-waive no-test-fabrication(unknown): the app tests exercise only the settings read plus whatever slice a test injects; the other 16 domain services are deliberately absent (their routes are covered by slice tests). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { settings: { getEffectiveConfig: (): EffectiveAppConfig => layer({}) }, ...extra } as unknown as AppDeps["services"];
 }
 
 /** Build `AppDeps` with inert fakes; overrides patch in the per-test seam / getters. The unhit ports are
  *  typed stubs (the routes that would touch them are covered by their own slice tests). */
 function deps(overrides: Partial<AppDeps>): AppDeps {
-  // @orb-waive no-test-fabrication(unknown): the unhit-port stub the header above describes — routes that reach it throw loudly. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const stub = <T>(): T => ({}) as unknown as T;
   const services = testServices();
   return {
     now: (): number => FROZEN_AT_MS,
-    // @orb-waive no-test-fabrication(unknown): `db` is never touched on this app-assembly slice — routes are covered by slice tests. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     db: databaseHandle({} as unknown as Db),
     oidcProviderName: "your identity provider",
     seam: fakeSeam(null),

@@ -3,7 +3,6 @@
 // checker cannot drift from the vendor's own arithmetic, and the shape and forced-round answers are the structured
 // plan's for a row resolved through the shipped curated tables rather than a hand-built capability.
 
-// @orb-waive-file no-test-fabrication({ error: { message: string } }): baselined when the gate widened to value casts; burn-down item 906.
 import type { GenerationCapability, ProviderId, WireSchemaMode } from "@orb/contracts/inference";
 import { checkWireSchema, effectiveStructuredLimits, structuredSchemaComplexity } from "@orb/contracts/inference";
 import type { ExtractionRefs, RpgToolCall } from "@orb/contracts/rpg";

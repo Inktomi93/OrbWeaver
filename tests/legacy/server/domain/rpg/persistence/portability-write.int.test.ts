@@ -7,7 +7,6 @@
 // ordered, and the import mints snapshot ids up front so that index resolves back. Export and import own
 // opposite halves of one convention — this is where they are proven to agree.
 
-// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

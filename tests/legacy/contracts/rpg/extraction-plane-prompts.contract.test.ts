@@ -75,11 +75,8 @@ test("weather.type reaches the WIRE schema as an enum (the grammar binds it); we
   // response_format mapping enforces it with zero per-provider code. Read off the PROJECTED schema — the thing
   // the model is actually handed.
   const projected = projectJsonSchema(rpgExtractionSchema) as Record<string, unknown>;
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const scene = (projected["properties"] as Record<string, Record<string, unknown>>)["scene"];
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const weather = (scene?.["properties"] as Record<string, Record<string, unknown>>)?.["weather"];
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const weatherProps = weather?.["properties"] as Record<string, Record<string, unknown>>;
   expect(weatherProps["type"]?.["enum"]).toEqual(["clear", "cloudy", "rain", "storm", "snow", "fog", "wind", "ash", "indoors"]);
   // The xgrammar-visible arm of the widening: `indoors` has to reach the PROJECTED schema, or the model is

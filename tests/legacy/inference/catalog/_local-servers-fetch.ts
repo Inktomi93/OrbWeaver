@@ -1,8 +1,6 @@
 // A fake `fetch` over one rig arm's recorded advertisements (`_local-servers-fixtures.ts`), keyed the way the
 // probe runner named them, so the catalog reader tests and the resolver tests dial exactly what each server said.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly model?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { LocalServerArm, TranscriptArm } from "../_support.ts";
 import { LOCAL_SERVER_FIXTURES } from "./_local-servers-fixtures.ts";
 import { LOCAL_SERVER_TRANSCRIPTS } from "./_local-servers-transcripts.ts";

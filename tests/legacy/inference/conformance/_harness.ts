@@ -25,7 +25,6 @@
 // fixture already built — and has reached a real listening vLLM engine on this box once. Every arm here
 // therefore builds its OWN services with the fake already in `deps`. No arm needs a credential; none may.
 
-// @orb-waive-file no-test-fabrication(Wire[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { Capability, GenerationCapability, Task, Wire } from "@orb/contracts/inference";
 import { BUILTIN_PROVIDERS, EMBEDDING_FLOOR, WIRE_DEFS } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";

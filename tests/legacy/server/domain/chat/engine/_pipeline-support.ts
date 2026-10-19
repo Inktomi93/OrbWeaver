@@ -65,7 +65,6 @@ export const rowOf = (role: "user" | "assistant", content: string): MessageView 
   nextRowId += 1;
   // Slim MessageView double — runTurnPipeline reads only id/role/kind/content/excludedFromPrompt/
   // characterId/personaId/authorUserId off a canon row (see file header).
-  // @orb-waive no-test-fabrication(unknown): same slim-double judgment as seqRow above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     id: `message_fixture_${nextRowId}`,
     role,
@@ -179,7 +178,6 @@ export const KAI = castId<CharacterId>("char_kai");
 // Slim MessageView doubles — the history-macro resolver reads only role/kind/content/excludedFromPrompt/
 // characterId/personaId(/authorUserId) off a canon row (see file header).
 export const assistantRow = (content: string, characterId: CharacterId): MessageView =>
-  // @orb-waive no-test-fabrication(unknown): same slim-double judgment as seqRow/rowOf above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   ({
     role: "assistant",
     kind: "standard",
@@ -190,7 +188,6 @@ export const assistantRow = (content: string, characterId: CharacterId): Message
   }) as unknown as MessageView;
 
 export const userRowWithPersona = (content: string, personaId: PersonaId): MessageView =>
-  // @orb-waive no-test-fabrication(unknown): same slim-double judgment as seqRow/rowOf/assistantRow above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   ({
     role: "user",
     kind: "standard",

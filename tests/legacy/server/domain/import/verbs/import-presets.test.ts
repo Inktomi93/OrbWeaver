@@ -4,8 +4,6 @@
 // emits a note for every preset that landed — including the empty-fields "landed whole" note.
 // @subject packages/server/src/domain/import/verbs/import-presets.ts
 
-// @orb-waive-file no-test-fabrication({ name?: string }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ schemaKind?: string; name?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

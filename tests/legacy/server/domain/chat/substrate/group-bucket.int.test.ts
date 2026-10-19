@@ -110,7 +110,6 @@ describe("group memory build↔recall round-trip (F1 regression)", () => {
     // A direct insert with the fabricated handle (what engine.ts:477 / backfill.ts:50 did) violates the
     // `chat_digests.scopedCharacterId → characters.id` FK — this is the throw the engine silently swallowed.
     await expect(
-      // @orb-waive no-test-fabrication(never): this IS the invalid-input probe — a fabricated non-row id whose FK MUST reject. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       // @orb-waive no-loose-id-cast({): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       db.insert(chatDigests).values({
         id: castId("chat_digest_bad"),

@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication(keyof typeof TOKENS): baselined when the gate widened to value casts; burn-down item 906.
 
 // The ThemeScope emit-COMPLETENESS gate (WS0) — drift-proofs the theme override API surface. The
 // generated TOKENS map (packages/ui/src/tokens/index.ts, derived from tokens.json) is the single

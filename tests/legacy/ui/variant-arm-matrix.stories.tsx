@@ -15,7 +15,6 @@
 // COMPONENT'S own props; the dispatch narrows the runtime arm record once (`as never`), which is honest
 // because every value in it was derived from that component's own tv config (plan module).
 
-// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Badge } from "@orb/ui/badge";
 import type { ButtonProps } from "@orb/ui/button";

@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication({ reason?: unknown } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
@@ -52,7 +51,6 @@ async function runGate(opts: DebugAuthOptions | string | undefined, reqToken?: s
     passed = true;
     return Promise.resolve();
   };
-  // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal test-local call-shape. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const gate = createDebugAuthMiddleware(opts) as unknown as GateFn;
   const result = await gate(ctx, next);
   if (passed) {

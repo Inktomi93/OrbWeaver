@@ -180,7 +180,6 @@ describe("updateUserSettingsSection", () => {
     await db.insert(userSettings).values({
       userId: u,
       schemaVersion: USER_SETTINGS_SCHEMA_VERSION,
-      // @orb-waive no-test-fabrication(unknown): a non-object config column IS the corruption under test; no typed factory expresses it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       config: stored as unknown as UserSettings,
       updatedAt: FROZEN_AT_MS,
     });

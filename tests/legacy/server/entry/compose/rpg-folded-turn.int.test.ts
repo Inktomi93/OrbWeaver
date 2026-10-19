@@ -393,9 +393,7 @@ test("R1 degrade: a MALFORMED tool arg is dropped + logged; the rest of the turn
   const rows = await db.select({ content: messageVariants.content }).from(messageVariants).where(eq(messageVariants.id, variantId));
   expect(rows[0]?.content).toBe("The prose is fine.");
   // The loss is NAMED (D109-7 totality) — both bad calls, by tool name.
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable");
-  // @orb-waive no-test-fabrication({ droppedTools?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((line?.[0] as { droppedTools?: string[] })?.droppedTools).toEqual(["update_party", "upsert_quest"]);
 });
 
@@ -433,13 +431,10 @@ test("D112 (3): an INVENTED key on an otherwise-valid folded call is NAMED, neve
   expect(view.ambient?.location).toBe("the ford");
   expect(view.actors.map((a) => a.volatile?.status ?? null)).toContain("wounded");
   // …and the vanished writes are NAMED, with the path that says which key on which tool.
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.stripped");
   expect(line).toBeDefined();
-  // @orb-waive no-test-fabrication({ strippedKeys?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((line?.[0] as { strippedKeys?: string[] })?.strippedKeys).toEqual(["update_party.mana", "update_scene.presentUpsert.0.vibe"]);
   // A strip is NOT a drop: nothing was thrown away whole, so the drop channel must stay silent about it.
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable")).toBe(false);
 });
 
@@ -466,10 +461,8 @@ test("D112 (3): the STRUCTURED arm names the same strips — incl. a whole plane
 
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.ambient?.location).toBe("the ford"); // the conforming writes landed
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.stripped");
   expect(line).toBeDefined();
-  // @orb-waive no-test-fabrication({ strippedKeys?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((line?.[0] as { strippedKeys?: string[] })?.strippedKeys).toEqual(["trackerDeltas", "party.0.mana"]);
 });
 
@@ -486,13 +479,10 @@ test("R1 degrade: ZERO terminal tool calls trigger the required fallback round i
 
   expect(spy.summarizeModels).toEqual([]);
   expect(spy.chatTurns).toHaveLength(1); // no terminal call is ambiguous, so the required round gets one chance
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const path = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.path");
   expect(path?.[0]).toMatchObject({ mode: "folded", path: "tool-round", fallbackReason: "no-terminal-calls" });
   // The fallback produced nothing: name the empty extraction, but never misreport it as a parse failure.
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable")).toBe(false);
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty")).toBe(true);
 });
 
@@ -512,9 +502,7 @@ test("R1 degrade: a GHOST actor in a folded call is dropped (no cast mint) + log
     foldedTurn([{ name: "update_party", args: { targetRef: "Zzyzx the Unknown", status: "cursed" } }]),
   );
 
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.phantom");
-  // @orb-waive no-test-fabrication({ phantomTargets?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((line?.[0] as { phantomTargets?: string[] })?.phantomTargets).toContain("Zzyzx the Unknown");
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.actors.some((a) => a.actorRef.kind === "npc")).toBe(false);

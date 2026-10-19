@@ -26,7 +26,6 @@ import { makeHarness, PNG_BYTES, principal, seedGenerationOwner } from "../_supp
  *  assertion position the waiver can anchor on (a multi-line `Parameters<…>` slice cannot be a marker). */
 type GenerationRequest = Parameters<typeof runGeneration>[1];
 
-// @orb-waive no-test-fabrication(GenerationRequest): a minimal runGeneration request double — this file pins the spend/persist tail only, which never reads credential/capability internals. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const REQ = {
   connection: makeResolved({ task: "generateImage", providerId: "openrouter" }),
   model: "img-model",

@@ -3,7 +3,6 @@
 // nothing.
 // @subject packages/server/src/domain/connection/verbs/preview-embed-space-change.ts
 
-// @orb-waive-file no-test-fabrication({ readonly input?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ProviderId } from "@orb/contracts/inference";
 import { characterEmbeddings, characters, embedGenerations, userCredentials } from "@orb/db";
 import { DomainNoCredentialError } from "@orb/kit/errors";

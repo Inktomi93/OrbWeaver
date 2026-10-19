@@ -94,7 +94,6 @@ test("the palette search matches a plugin command by name (cmdk scores it like a
 
 test("picking a plugin command RUNS the guest-handler dispatch and surfaces its outcome", async ({ mount, page }) => {
   let invoked: {
-    // @orb-waive brand-in-name-position(pluginId): routeTrpc exposes the procedure's pre-parse JSON input, so this recorder keeps the untrusted wire string verbatim; branding it would claim validation the fixture transport has not performed. Ends if routeTrpc returns the parsed AppRouter input.
     readonly pluginId: string;
     readonly name: string;
   } | null = null;

@@ -280,7 +280,6 @@ describe("toShapeCanon — the null-persona-stamp guard (a row never borrows a s
   let nextSeq = 0;
   const userRow = (authorUserId: UserId, personaId: PersonaId | null, content: string): MessageView => {
     nextSeq += 1;
-    // @orb-waive no-test-fabrication(unknown): slim MessageView double — toShapeCanon reads only role/kind/content/seq/personaId/authorUserId/excludedFromPrompt/id, all real here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return {
       id: castId<MessageId>(`message_null_stamp_${nextSeq}`),
       seq: nextSeq,
@@ -298,7 +297,6 @@ describe("toShapeCanon — the null-persona-stamp guard (a row never borrows a s
 
   /** A ctx just rich enough for `toShapeCanon`'s macro render — the host owns the active persona. */
   const ctxFor = (activePersonaUserId: UserId | null): AssembleContext =>
-    // @orb-waive no-test-fabrication(unknown): slim AssembleContext double — this call path reads only character/characters/characterIds/recentMessages/promptConfig/activePersonaUserId. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     ({
       character: { name: "Aria", description: "" },
       characters: [],

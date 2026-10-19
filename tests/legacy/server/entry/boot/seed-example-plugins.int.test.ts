@@ -15,7 +15,6 @@
 // path through the attached-book read and lore write without making CI depend on a public network or paid provider. The
 // bridge's attachment gate, per-plugin entry cap and `neutralizeMacros` remain pinned by its domain suite.
 
-// @orb-waive-file no-test-fabrication({ commitment: string; dealt: number }): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability } from "@orb/contracts/plugin";
 import type { ChatId, Handle, MessageId } from "@orb/kit/ids";
@@ -82,7 +81,6 @@ test("research familiar: the real bundle installs consent-first, and its message
   // standing consent ask. The row can do nothing at all until a human answers it.
   const bundle = await packShowcaseBundle("research-familiar");
   expect(bundle).not.toBeNull();
-  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
   expect(installed.status).toBe("disabled");
   expect(installed.grantedCapabilities).toEqual([]);
@@ -150,7 +148,6 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
 
   const bundle = await packShowcaseBundle("oracle-deck");
   expect(bundle).not.toBeNull();
-  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
   const grant: readonly PluginCapability[] = ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"];
   await h.service.setGrant({ caller, pluginId: installed.id, grant: [...grant], acknowledgedNetHosts: [] });
@@ -201,7 +198,6 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   // A tool call carries no chat scope of its own here (the deck never asks for one), exactly as a direct-drive
   // invocation would. The handler's STRING return is what the model reads, verbatim — a JSON DOCUMENT here,
   // because the same fields the model reads are the fields its card binds (`{ $state: "result.<field>" }`).
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const first = JSON.parse(await invoke(draw, JSON.stringify({ count: 2 }), null)) as {
     drawn: string;
     cards: string[];
@@ -272,9 +268,7 @@ test("oracle deck: two CONCURRENT draws claim DISJOINT cards — the shared sess
   const draw = requireHandler(captured.tools, 0, "tool");
 
   const [a, b] = await Promise.all([invoke(draw, JSON.stringify({ count: 2 }), null), invoke(draw, JSON.stringify({ count: 2 }), null)]);
-  // @orb-waive no-test-fabrication({ cards: string[]; dealt: number }): baselined when the gate widened to value casts; burn-down item 906.
   const first = JSON.parse(a) as { cards: string[]; dealt: number };
-  // @orb-waive no-test-fabrication({ cards: string[]; dealt: number }): baselined when the gate widened to value casts; burn-down item 906.
   const second = JSON.parse(b) as { cards: string[]; dealt: number };
 
   // No card is dealt twice — the property the commitment/reveal ceremony is worthless without.

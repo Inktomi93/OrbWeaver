@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 
 import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import type { CodeEditorDiagnostic } from "@orb/ui/code-editor";

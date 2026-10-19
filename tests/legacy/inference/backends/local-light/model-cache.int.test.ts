@@ -253,7 +253,6 @@ function stubLib(behaviour: { noLogits?: boolean; hub?: Hub } = {}): StubLib {
       },
     },
   };
-  // @orb-waive no-test-fabrication(unknown): the injected library implements the env, tensor, processor and model members these cache paths read. Ends when the library seam is narrowed to those members.
   return { lib: lib as unknown as Lib, calls, loads, textPasses, processorTruncation, imagePasses };
 }
 

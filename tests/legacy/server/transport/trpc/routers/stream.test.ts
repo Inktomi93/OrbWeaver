@@ -15,8 +15,6 @@
 //     room reachable by two transports — nor a placeholder that refuses because its procedure still exists.
 
 import { setTimeout as sleep } from "node:timers/promises";
-// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
 import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { STREAM_CHANNELS } from "@orb/contracts/stream";
 import { DomainNotFoundError, DomainUnavailableError } from "@orb/kit/errors";
@@ -248,7 +246,6 @@ describe("the staged fold leaves no dual transport", () => {
           automation: { resolveStreamAuthority: () => Promise.resolve("member") },
           // The workloads room's gate is the throw-or-not verdict of `get`; no field of the row is ever read
           // (sources/workloads.test.ts).
-          // @orb-waive no-test-fabrication(unknown): an id-only WorkloadRowAnyKind double; the room reads no other field. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
           workloads: { get: ({ id }) => Promise.resolve({ id } as unknown as WorkloadRowAnyKind) },
         },
       }),

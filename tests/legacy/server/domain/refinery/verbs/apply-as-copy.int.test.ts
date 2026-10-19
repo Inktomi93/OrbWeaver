@@ -4,7 +4,6 @@
 // copy; a diverged field drops without `confirmDiverged` and lands with it.
 // @subject packages/server/src/domain/refinery/verbs/apply-as-copy.ts
 
-// @orb-waive-file no-test-fabrication(NonNullable<typeof copyId>): baselined when the gate widened to value casts; burn-down item 906.
 import { characterSnapshots, characters } from "@orb/db";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

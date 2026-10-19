@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 
 // Socket lifecycle metadata precedes every room frame, including sockets with no rooms attached.
 import type { StreamFrame } from "@orb/contracts/stream";

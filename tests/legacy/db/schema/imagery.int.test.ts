@@ -3,7 +3,6 @@
 // assetId CASCADE (deleting the depicted asset erases its provenance row); chatId SET NULL (the generation
 // outlives a deleted chat); subjectCharacterId SET NULL (the depicted character can be deleted independently).
 
-// @orb-waive-file no-test-fabrication("free"): baselined when the gate widened to value casts; burn-down item 906.
 import { PROMPT_TEMPLATE_MODES } from "@orb/contracts/imagery";
 import type { Db } from "@orb/db";
 import { assets, characters, chats, imageryGenerations } from "@orb/db";

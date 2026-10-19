@@ -5,9 +5,6 @@
 // (locked — the budget/consent belts were retired by @orb/inference §14 F11/F13).
 
 import { setTimeout as sleep } from "node:timers/promises";
-// @orb-waive-file no-test-fabrication({ connection: { capability: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ terminalToolCalls: unknown }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ turnId?: string } | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { AssembleContext, ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
 import type { GenerationCapability } from "@orb/contracts/inference";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
@@ -615,7 +612,6 @@ describe("createTurnEngine — R3 stats real-wire (the REAL applyStatsDelta land
     const ctx = makeChatContext(db, {
       runChatTurn: OK_TURN,
       applyStatsDelta: (batch, opDb, delta) => {
-        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         applyStatsDelta(batch as BatchStmt[], opDb, delta);
       },
     });
@@ -1566,7 +1562,6 @@ describe("createTurnEngine — I-7 trace-ring landing proofs", () => {
     const { promise: cleared, resolve: clearDone } = Promise.withResolvers<void>();
     // The abort path reaches only `onTurnAborted` (the `fireOrderRpg`/`gatherSpyRpg` precedent in
     // tests/legacy/server/domain/chat/verbs/turn.int.test.ts).
-    // @orb-waive no-test-fabrication(unknown): instrumentation double — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       onTurnAborted: async () => {
         await Promise.resolve();
@@ -1642,8 +1637,6 @@ function warnMessages(spy: WarnSpy): string[] {
 describe("createTurnEngine — #1461: a failing post-turn hook is LOGGED, never swallowed", () => {
   test("a REJECTING rpg turn-abort clear warns with the chat + turn ids", async () => {
     const chatId = await seedChat(db, "rpg-abort-hook-warn");
-    // @orb-waive no-test-fabrication(unknown): instrumentation double — the abort path reaches only `onTurnAborted` (the I-7 Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    // abort-trace pin above establishes that).
     const rpg = {
       onTurnAborted: () => Promise.reject(new Error("staging clear failed")),
     } as unknown as NonNullable<ChatContext["rpg"]>;
@@ -1667,7 +1660,6 @@ describe("createTurnEngine — #1461: a failing post-turn hook is LOGGED, never 
   test("…PLANTED CONTROL: a RESOLVING rpg turn-abort clear logs nothing", async () => {
     const chatId = await seedChat(db, "rpg-abort-hook-quiet");
     const { promise: cleared, resolve: clearDone } = Promise.withResolvers<void>();
-    // @orb-waive no-test-fabrication(unknown): instrumentation double — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       onTurnAborted: async () => {
         await Promise.resolve();
@@ -1869,7 +1861,6 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
     const warnSpy = vi.spyOn(getLog(), "warn").mockImplementation(() => undefined);
     try {
       await expect(h.engine.runTurn(prepOf(chatId))).rejects.toMatchObject({ code: "empty_generation" });
-      // @orb-waive no-test-fabrication({ event?: string } | undefined): baselined when the gate widened to value casts; burn-down item 906.
       const call = warnSpy.mock.calls.find(([entry]) => (entry as { event?: string } | undefined)?.event === "chat.generation.empty");
       expect(call).toBeDefined();
       const [fields] = call ?? [];
@@ -1921,7 +1912,6 @@ describe("createTurnEngine — VER-1b: a prose-less generation is a FAILURE, nev
         prepOf(chatId, { connection, terminalTools: [{ name: "update_scene", description: "the scene", parameters: { type: "object" as const } }] }),
       );
       expect(outcome.messages[0]?.content).toBe("The hall settles.");
-      // @orb-waive no-test-fabrication({ event?: string } | undefined): baselined when the gate widened to value casts; burn-down item 906.
       const events = warnSpy.mock.calls.map(([entry]) => (entry as { event?: string } | undefined)?.event);
       expect(events).toContain("chat.generation.recovering");
       // The turn did NOT fail, so the refusal warn must be absent — a recovered turn logging `empty` would
@@ -2165,7 +2155,6 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
   test("the state writes SURVIVE — pass 1's tool calls reach the rpg flush, alongside pass 2's prose", async () => {
     const chatId = await seedChat(db, "recover-carries-calls");
     const seen: unknown[] = [];
-    // @orb-waive no-test-fabrication(unknown): a completed turn reaches only the two turn hooks (the `fireOrderRpg` precedent above); the assertion is on what `onTurnCompleted` is HANDED Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       // Rest-typed: the hook takes five positional arguments and only the LAST is under test here.
       onTurnCompleted: (...hookArgs: readonly unknown[]): Promise<void> => {
@@ -2190,7 +2179,6 @@ describe("createTurnEngine — a prose-less completion with tool calls is RECOVE
   test("the rpg state round is handed the window the turn sent, not the server's floor", async () => {
     const chatId = await seedChat(db, "rpg-turn-window");
     const seen: unknown[] = [];
-    // @orb-waive no-test-fabrication(unknown): a completed turn reaches only the two turn hooks (the `fireOrderRpg` precedent above); the assertion is on what `onTurnCompleted` is HANDED Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       onTurnCompleted: (...hookArgs: readonly unknown[]): Promise<void> => {
         seen.push((hookArgs[4] as { connection: { capability: unknown } }).connection.capability);
@@ -2476,7 +2464,6 @@ test("actual SDK terminal aggregates traverse the compose bridge and continuatio
   const h = harness(db, {
     runChatTurn: bridge,
     applyStatsDelta: (batch, opDb, delta): void => {
-      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
     },
   });
@@ -2545,7 +2532,6 @@ test("an actual nonzero failed SDK terminal result retains its paid facts before
   const h = harness(db, {
     runChatTurn: bridge,
     applyStatsDelta: (batch, opDb, delta): void => {
-      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
     },
   });
@@ -2622,7 +2608,6 @@ test.for(["cohort", "voice"] as const)(
     const h = harness(db, {
       runChatTurn: bridge,
       applyStatsDelta: (batch, opDb, delta): void => {
-        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         applyStatsDelta(batch as BatchStmt[], opDb, delta);
       },
     });

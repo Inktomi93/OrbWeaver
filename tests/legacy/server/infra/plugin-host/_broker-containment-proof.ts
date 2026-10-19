@@ -89,7 +89,6 @@ const broker: ChildProcess = spawn(
     stdio: ["ignore", "inherit", "inherit", "ipc"],
   },
 );
-// @orb-waive no-test-fabrication([ProbeReport]): the probe child's IPC report is typed by the probe file this proof launches, not by a parse.
 const [report] = (await once(broker, "message")) as [ProbeReport];
 broker.kill("SIGKILL");
 rmSync(directory, { recursive: true, force: true });

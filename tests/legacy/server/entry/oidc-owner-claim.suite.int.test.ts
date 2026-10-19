@@ -8,7 +8,6 @@ import { users } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
 import { createSessionsRolePolicy, createSessionsService } from "@orb/server/domain/sessions";
 import { env } from "@orb/server/foundation/env";

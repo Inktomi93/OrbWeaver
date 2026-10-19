@@ -3,7 +3,6 @@
 // default. Search reads only a generation whose cards, memory and documents scopes all landed, so boot has to
 // schedule those sweeps itself; nothing else would. The embed path is the offline scripted cache.
 
-// @orb-waive-file no-test-fabrication(SearchReply): baselined when the gate widened to value casts; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

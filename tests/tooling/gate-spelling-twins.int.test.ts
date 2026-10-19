@@ -87,14 +87,14 @@
 // The remedy for a red is never a ledger row: it is `tooling/src/floor/code-facts/reference-fact.ts#staticMemberAccess`
 // or `tooling/src/verify/lib/symbol-reference.ts` (`moduleMemberReference`), which resolve
 // a reference however it is spelled.
-import { readFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Node } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
 import type { GatePolicy, GatePolicyProof } from "../../tooling/src/verify/contract/policy.ts";
 import { defineGate } from "../../tooling/src/verify/contract/policy.ts";
-import type { SpellingBlindSet } from "../../tooling/src/verify/contract/spelling-twin-blindness.ts";
+import type { SpellingBlindSet, SpellingTwinCensus } from "../../tooling/src/verify/contract/spelling-twin-blindness.ts";
 import { loadGateCorpus } from "../../tooling/src/verify/lib/loader.ts";
 import { verifyPolicyProofs } from "../../tooling/src/verify/ops/policy-conformance.ts";
 import { spellingTwinCensus } from "../../tooling/src/verify/ops/spelling-twin-blindness.ts";
@@ -106,10 +106,37 @@ const LEDGER_REL = "tests/tooling/gate-spelling-twins.baseline.json";
 // The quiet full-corpus census takes about 277 seconds; retain its measured-runtime headroom rather than timing out before a verdict.
 const TWIN_BUDGET = scaledBudget(700_000, 4);
 
-/** The one anti-vacuum floor: a census over an empty corpus produces an empty blind set and would satisfy
- *  the `toEqual` below trivially. Stated as an EXAMINED count, never as a named gate (perishable — that is
- *  exactly what rotted) and never as a count ceiling (a countdown wearing a gate's clothes). */
-const MINIMUM_EXAMINED = 200;
+const GATES_DIR = join(ROOT, "tooling", "src", "verify", "gates");
+const PROBE_GATE_FILE_RE = /^__(?:g|dc)_/u;
+
+/** The anti-vacuum floor: a census over an empty corpus produces an empty blind set and would satisfy the
+ *  `toEqual` below trivially. A fixed count rots with every gate deletion, so the subject is derived from the
+ *  gate modules on disk (read by `readdirSync`, not by the loader under guard). The census may skip only the
+ *  declared limit, resource-mode-only gates, which are a minority; when fewer than this share of the modules
+ *  is examined, the proof loading is the finding. */
+const MINIMUM_EXAMINED_SHARE = 0.5;
+
+function gateModuleCount(): number {
+  return readdirSync(GATES_DIR).filter((name) => name.endsWith(".ts") && !name.endsWith(".d.ts") && !PROBE_GATE_FILE_RE.test(name)).length;
+}
+
+/** `undefined` when the census subject is the whole gate corpus; otherwise the reason it is not. */
+function censusSubjectFailure(modules: number, loaded: number, census: Pick<SpellingTwinCensus, "examined" | "skipped">): string | undefined {
+  if (modules === 0) {
+    return "no gate modules found on disk — the gates directory, not the tree, is the finding";
+  }
+  if (loaded !== modules) {
+    return `the loader returned ${loaded} gates for ${modules} gate modules on disk`;
+  }
+  if (census.examined + census.skipped.length !== loaded) {
+    return `the census visited ${census.examined + census.skipped.length} of ${loaded} loaded gates`;
+  }
+  const floor = Math.ceil(modules * MINIMUM_EXAMINED_SHARE);
+  if (census.examined < floor) {
+    return `the twin census examined ${census.examined} of ${modules} gates (floor ${floor}) — the loader, not the tree, is the finding`;
+  }
+  return undefined;
+}
 
 /** The census's scratch parser is the CALLER'S, and it is constructed here rather than in the op because
  *  `tooling-project-home` makes one ts-morph loader the law under `tooling/src/**` — a second workspace walk
@@ -127,7 +154,7 @@ test("no gate is blind to a respelling of its own mustFlag fixture beyond the co
   const census = spellingTwinCensus(corpus, scratchParser());
 
   // The bite-proof is vacuous over an empty corpus, so the subject is asserted before the verdict is read.
-  expect(census.examined, "the twin census examined almost nothing — the loader, not the tree, is the finding").toBeGreaterThan(MINIMUM_EXAMINED);
+  expect(censusSubjectFailure(gateModuleCount(), corpus.gates.length, census)).toBeUndefined();
   // …and a SKIP must never read as a shrink: every declared limit is named with its reason, so a row that
   // vanished because its gate stopped being reachable is distinguishable from one that was fixed.
   expect(census.skipped.filter(({ reason }) => reason.trim() === "")).toEqual([]);
@@ -135,6 +162,26 @@ test("no gate is blind to a respelling of its own mustFlag fixture beyond the co
   // A blind gate absent from the ledger = a NEW hole (fix it with lib/symbol-reference.ts, never a row).
   // A ledger row whose gate is no longer blind = a stale promise (delete it). `toEqual` reds on both.
   expect(census.blind, `${REGEN}\n${JSON.stringify({ blind: census.blind }, null, 2)}`).toEqual(ledger.blind);
+});
+
+test("THE PLANTED CONTROL, SUBJECT floor: a broken loader or a collapsed census fails it, a whole corpus does not", () => {
+  const modules = 146;
+  const whole = { examined: 125, skipped: Array.from({ length: 21 }, (_, index) => ({ id: `resource-only-${index}`, reason: "resource-mode" })) };
+
+  expect(censusSubjectFailure(modules, modules, whole)).toBeUndefined();
+  // An empty loader: no gates loaded for modules that exist, and an empty census.
+  expect(censusSubjectFailure(modules, 0, { examined: 0, skipped: [] })).toContain("loader returned 0 gates");
+  // A loader that finds nothing on disk must not read as a vacuous pass.
+  expect(censusSubjectFailure(0, 0, { examined: 0, skipped: [] })).toContain("no gate modules found");
+  // Every gate skipped: proofs failed to load, not a minority of resource-mode gates.
+  expect(
+    censusSubjectFailure(modules, modules, {
+      examined: 10,
+      skipped: whole.skipped.concat(Array.from({ length: 115 }, (_, index) => ({ id: `lost-${index}`, reason: "x" }))),
+    }),
+  ).toContain("floor 73");
+  // A census that dropped gates from its walk.
+  expect(censusSubjectFailure(modules, modules, { examined: 100, skipped: whole.skipped })).toContain("visited 121 of 146");
 });
 
 const CONTROL_MUST_FLAG = "export const a = (db: Record<string, unknown>) => db.forbidden;\n";

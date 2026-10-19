@@ -3,7 +3,6 @@
 // build EMITS the uniform envelope, parse ACCEPTS the envelope-less files that already exist on disk, and a
 // foreign/newer file is still refused by name.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { PortableParse } from "@orb/contracts/portability";
 import type { PortableRegexScript } from "@orb/contracts/regex";
 import { SubstituteFindRegex } from "@orb/kit/regex";

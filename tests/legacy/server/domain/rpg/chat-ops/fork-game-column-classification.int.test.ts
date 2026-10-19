@@ -138,7 +138,6 @@ test("no COPIED column is silently dropped — every populated row-plane column 
 
   const srcGame = await findGameByChat(db, chatId);
   const forkGame = await findGameByChat(db, forkChatId);
-  // @orb-waive no-test-fabrication(RpgGameId): baselined when the gate widened to value casts; burn-down item 906.
   const fg = forkGame?.id as RpgGameId;
   // rpg_games — `gmUserId` is deliberately nulled (lite is seatless) and `gmPresetId`/`config` have their own
   // gates, so the COPIED set is what is left.

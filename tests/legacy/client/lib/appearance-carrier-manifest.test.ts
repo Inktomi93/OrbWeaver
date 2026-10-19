@@ -1,7 +1,6 @@
 // The non-rendered half of #935: exact schema/owner equality is enforced by the structural gate; these
 // assertions keep the executable manifest's populations and pair generator honest for focused CT/Snap use.
 
-// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import { appearanceSettingsSchema } from "@orb/contracts/settings";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";

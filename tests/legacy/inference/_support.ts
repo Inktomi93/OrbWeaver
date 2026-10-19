@@ -46,7 +46,6 @@ export const FROZEN_NOW = 1_700_000_000_000;
 /** The brand's ONLY producer is the credentials domain's resolve factory; a test mints one through the same
  *  cast the chat scenario support uses for `ResolvedCredential` (the seam is the point of the brand). */
 function fakeSecret(kind: ResolvedSecretKind, secret: string | null, credentialId: UserCredentialId | null = null): ResolvedSecret {
-  // @orb-waive no-test-fabrication(unknown): the `ResolvedSecret` brand's only producer is the credentials domain's resolve factory; a runtime test mints one through the same cast the chat scenario support uses for `ResolvedCredential`. Ends when the credentials domain exports a test factory for the brand.
   return { kind, secret, credentialId } as unknown as ResolvedSecret;
 }
 

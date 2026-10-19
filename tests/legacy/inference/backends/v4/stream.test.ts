@@ -195,9 +195,7 @@ test("a stream that ends WITHOUT a finish part fails closed — never an empty s
   const err = await drainStream(streamOf([part({ type: "text-delta", id: "t1", delta: "partial" })]), { label: "the-label" }).catch((e: unknown) => e);
   expect(err).toBeInstanceOf(ProviderError);
   expect(err).toMatchObject({ kind: "server", retryable: true });
-  // @orb-waive no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
   expect((err as ProviderError).message).toContain("the-label");
-  // @orb-waive no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
   expect((err as ProviderError).message).toContain("truncated");
 });
 

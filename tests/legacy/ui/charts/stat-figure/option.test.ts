@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication({ data: number[] }[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ lineStyle: { color: string }; areaStyle: { color: string } }[]): baselined when the gate widened to value casts; burn-down item 906.
 
 // Unit: <StatFigure>'s pure `buildSparklineOption` builder. A mounted ECharts instance does not
 // survive the Playwright component-test RPC boundary

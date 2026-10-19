@@ -159,7 +159,6 @@ test("deleting a character CASCADEs its snapshots and persona junctions", async 
   await db.insert(characterSnapshots).values({
     id: castId<CharacterSnapshotId>("character_snapshot_cascade"),
     characterId,
-    // @orb-waive no-test-fabrication(unknown): the cascade-delete assertion below only checks the snapshot row disappears; content is opaque JSON here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     content: { name: "snap" } as unknown as CharacterCard,
   });
 

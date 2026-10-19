@@ -121,7 +121,6 @@ describe("shape — the delivered-row trace", () => {
 // multi-speaker narrator block.
 
 const KIND_CTX: AssembleContext =
-  // @orb-waive no-test-fabrication(unknown): slim AssembleContext double — this path reads only character/characters/characterIds/recentMessages/promptConfig. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   {
     character: { name: "Aria", description: "" },
     characters: [{ name: "Group", description: "" }],
@@ -140,7 +139,6 @@ let kindSeq = 0;
 /** A canon row that DECLARES its purpose — the only axis these tests vary. */
 function kindRow(over: Partial<MessageView> & { readonly kind: MessageView["kind"] }): MessageView {
   kindSeq += 1;
-  // @orb-waive no-test-fabrication(unknown): slim MessageView double — toShapeCanon reads role/kind/content/seq/ids/excludedFromPrompt only. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     id: castId<MessageId>(`message_kind_${kindSeq}`),
     seq: kindSeq,

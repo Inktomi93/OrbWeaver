@@ -22,7 +22,6 @@ function names(): HistoryMacroNames {
 }
 
 function row(overrides: Partial<MessageView>): MessageView {
-  // @orb-waive no-test-fabrication(MessageView): a minimal MessageView double — projectRpgTranscript/sliceCanonWindow read only the fields below; the remaining MessageView columns are irrelevant to this pure projection. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     id: castId<MessageId>("message_x"),
     variantId: castId<MessageVariantId>("variant_x"),

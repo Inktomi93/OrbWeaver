@@ -71,22 +71,18 @@ test("dispatches the epub zip-container mime → format 'epub' with the chapter 
 test("a corrupt docx (not a zip) wraps as ExtractionFailedError(format:'docx')", async () => {
   const error = await extract(enc.encode("PK not really a zip"), DOCX_MIME).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ExtractionFailedError);
-  // @orb-waive no-test-fabrication(ExtractionFailedError): baselined when the gate widened to value casts; burn-down item 906.
   expect((error as ExtractionFailedError).format).toBe("docx");
 });
 
 test("invalid UTF-8 text/plain is wrapped as ExtractionFailedError(format:'text') with a cause", async () => {
   const error = await extract(new Uint8Array([0x68, 0xff]), "text/plain").catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ExtractionFailedError);
-  // @orb-waive no-test-fabrication(ExtractionFailedError): baselined when the gate widened to value casts; burn-down item 906.
   expect((error as ExtractionFailedError).format).toBe("text");
-  // @orb-waive no-test-fabrication(ExtractionFailedError): baselined when the gate widened to value casts; burn-down item 906.
   expect((error as ExtractionFailedError).cause).toBeDefined();
 });
 
 test("corrupt pdf bytes are wrapped as ExtractionFailedError(format:'pdf')", async () => {
   const error = await extract(enc.encode("%PDF-1.4 broken"), "application/pdf").catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ExtractionFailedError);
-  // @orb-waive no-test-fabrication(ExtractionFailedError): baselined when the gate widened to value casts; burn-down item 906.
   expect((error as ExtractionFailedError).format).toBe("pdf");
 });

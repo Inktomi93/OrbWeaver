@@ -6,8 +6,6 @@
 // vocabularies rather than asserted (#1488). `fetch` is stubbed at the global boundary
 // (the sanctioned "fake at the edges" seam, the `upload-asset` precedent), never a hand-mock of the helper.
 
-// @orb-waive-file no-test-fabrication(File): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import { uploadDocument } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -53,7 +51,6 @@ test("POSTs a file FormData body with the CSRF header, and parses the returned d
   expect(capturedRequest?.init.method).toBe("POST");
   const headers = capturedRequest?.init.headers as Record<string, string>;
   expect(headers[CSRF_HEADER]).toBe("1");
-  // @orb-waive no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
   const form = capturedRequest?.init.body as FormData;
   expect((form.get("file") as File).name).toBe("notes.md");
   // No explicit name ⇒ the field is ABSENT, so the server falls back to the uploaded filename.
@@ -63,7 +60,6 @@ test("POSTs a file FormData body with the CSRF header, and parses the returned d
 test("an explicit name rides the body; an empty one does not (the server's filename fallback stays reachable)", async () => {
   const bodies: FormData[] = [];
   vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
-    // @orb-waive no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
     bodies.push(init.body as FormData);
     return Promise.resolve(new Response(JSON.stringify({ document: documentView(), outcome: "created", ingest: "queued" }), { status: 200 }));
   });
@@ -127,7 +123,6 @@ test("throws on a non-OK response", async () => {
 test("explicit ingestion consent rides the multipart body and a saved-but-not-indexed response is preserved", async () => {
   const bodies: FormData[] = [];
   vi.stubGlobal("fetch", (_url: string, init: RequestInit) => {
-    // @orb-waive no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
     bodies.push(init.body as FormData);
     return Promise.resolve(Response.json({ document: documentView(), outcome: "created", ingest: "not-queued" }));
   });

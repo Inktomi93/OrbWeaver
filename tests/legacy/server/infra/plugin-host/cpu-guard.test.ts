@@ -3,7 +3,6 @@
 //
 // Every arm drives a REAL QuickJS context — the interrupt is a runtime behavior, and a fake would pin nothing.
 
-// @orb-waive-file no-test-fabrication({ message?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import { getPluginQuickJS } from "@orb/server/infra/plugin-host";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { QuickJSContext } from "quickjs-emscripten-core";

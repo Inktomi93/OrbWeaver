@@ -72,7 +72,6 @@ async function readToolCallName(db: Db, variantId: MessageVariantId): Promise<st
     .select({ blob: sql<string | null>`cast(${messageVariants.toolCalls} as text)` })
     .from(messageVariants)
     .where(eq(messageVariants.id, variantId));
-  // @orb-waive no-test-fabrication({ name: string }[]): baselined when the gate widened to value casts; burn-down item 906.
   return ((JSON.parse(rows.at(0)?.blob ?? "[]") as { name: string }[])[0] ?? { name: "" }).name;
 }
 
@@ -81,7 +80,6 @@ async function readArmName(db: Db): Promise<string> {
     .select({ blob: sql<string | null>`cast(${automationRules.actions} as text)` })
     .from(automationRules)
     .where(eq(automationRules.id, RULE_ID));
-  // @orb-waive no-test-fabrication({ name: string }[]): baselined when the gate widened to value casts; burn-down item 906.
   return ((JSON.parse(rows.at(0)?.blob ?? "[]") as { name: string }[])[0] ?? { name: "" }).name;
 }
 
