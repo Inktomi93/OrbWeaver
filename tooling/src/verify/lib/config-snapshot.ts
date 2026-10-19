@@ -102,7 +102,7 @@ function parseDepcruiseSnapshot(snapshot: Record<string, unknown>, config: strin
 
 function parseSnapshot(text: string, runner: ConfigSnapshotRunner, config: string): ConfigSnapshot | undefined {
   let value: unknown;
-  // @orb-waive caught-failure-ownership(catch): readConfigSnapshot turns undefined into an explicit unreadable result that the liveness gate reports. Ends if malformed JSON can produce an ok snapshot.
+  // @orb-waive caught-failure-ownership(catch): undefined makes readConfigSnapshot return { kind: "unreadable", detail } (config-snapshot.ts:159), which loadNativeConfig returns as status "unresolved" with that reason (resource-native-config.ts:25). Ends if malformed JSON can produce an ok snapshot.
   try {
     value = JSON.parse(text);
   } catch {
@@ -136,7 +136,7 @@ export function readConfigSnapshot(
   const overlay = options.overlay ?? {};
   let transaction: ReturnType<typeof materializeConfigSnapshotTransaction> | undefined;
   let child: ReturnType<typeof runNicedSync>;
-  // @orb-waive caught-failure-ownership(error): native-config parse error: surfaced as a structured tool-error diagnostic in the config-snapshot report; the broken config is excluded from the snapshot
+  // @orb-waive caught-failure-ownership(error): the catch returns { kind: "unreadable", detail } carrying the message (config-snapshot.ts:150), which loadNativeConfig returns as status "unresolved" with that reason (resource-native-config.ts:25). Ends if an unreadable read can produce an ok snapshot.
   try {
     transaction = Object.keys(overlay).length === 0 ? undefined : materializeConfigSnapshotTransaction({ root, overlay });
     const args = [SNAPSHOT_ENTRY, runner, config];

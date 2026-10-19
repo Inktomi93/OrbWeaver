@@ -81,7 +81,7 @@ export const drizzleSchemaFact = defineFact({
             if (!Node.isVariableDeclaration(node) || discoveryError !== undefined) {
               return;
             }
-            // @orb-waive caught-failure-ownership(error): FK resolution error: surfaced as a structured tool-error in the schema-fact report; the broken FK is excluded from the fact census
+            // @orb-waive caught-failure-ownership(error): the catch keeps the first error in discoveryError; finish (schema-fact.ts:97) turns it into unresolvedDiscovery, a status "unresolved" schema fact carrying the reason (schema-query.ts:199) that consumers refuse on (schema-query.ts:172). Ends if discoveryError stops reaching the unresolved fact.
             try {
               const call = schemaTableCall(node, sourceFile);
               if (call !== null) {

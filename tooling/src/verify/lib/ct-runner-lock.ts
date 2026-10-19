@@ -83,7 +83,7 @@ function holderAlive(pid: number, alive: (pid: number) => boolean): boolean {
 }
 
 function defaultAlive(pid: number): boolean {
-  // @orb-waive caught-failure-ownership(catch): `kill(pid, 0)` ASKS A QUESTION and throws to answer "no" — the throw IS the ESRCH answer, not a lost failure, and the caller acts on the boolean by stealing the lock and saying so out loud. Ends if this ever needs to distinguish EPERM (a live foreign pid) from ESRCH, which would make the throw carry two answers.
+  // @orb-waive caught-failure-ownership(catch): kill(pid, 0) throws to answer "no"; holderAlive (ct-runner-lock.ts:180) turns the boolean into a busy refusal that scoped-test.ts:419 prints and exits tool-error on, or into a steal that scoped-test.ts:423 prints. Ends if EPERM must be told apart from ESRCH.
   try {
     process.kill(pid, 0);
     return true;
@@ -172,7 +172,7 @@ export function acquireCtRunnerLock(root: string, deps: CtRunnerLockDeps = {}): 
   let stolenFrom: number | null = null;
   // `wx` is the whole mechanism: an EXCLUSIVE create is atomic, so two runners racing this line cannot both
   // win. A pre-read-then-write would have a window exactly the size of the defect.
-  // @orb-waive caught-failure-ownership(catch): the EEXIST throw IS "the lock is held" — this catch is the arm that reads the holder and either REFUSES loudly (`kind: "busy"`; the caller prints the refusal and exits 2) or steals a dead holder's lock with a printed note. Every path out of it is owned and visible. Ends if this stops re-deciding and starts swallowing.
+  // @orb-waive caught-failure-ownership(catch): the EEXIST throw means the lock is held; this arm returns { kind: "busy", refusal } that scoped-test.ts:419 prints and exits tool-error on, or steals a dead holder's lock and scoped-test.ts:423 prints it; a failed unlink or second write throws out of it. Ends if this arm stops deciding and starts swallowing.
   try {
     writeFileSync(lockPath, body, { flag: "wx" });
   } catch {

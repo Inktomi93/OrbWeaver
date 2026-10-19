@@ -60,7 +60,7 @@ function parsePins(value: unknown): LeaderRecord["pins"] | null {
  *  a tampered pid. The caller reports `corrupt` and signals nothing on its strength. */
 export function parseLeaderRecord(text: string): LeaderRecord | null {
   let value: unknown;
-  // @orb-waive caught-failure-ownership(catch): malformed record JSON is a corrupt record, which `leaderVerdict` reports and which never authorizes a signal. Ends if null can authorize a signal.
+  // @orb-waive caught-failure-ownership(catch): null is data: readLeaderRecord (leader-record.ts:127) maps it to { kind: "corrupt" }, which `stack status` prints as a malformed record (dev-status.ts:32) and recordAuthorizesSignal refuses to signal on. Ends if a caller treats null as a record.
   try {
     value = JSON.parse(text);
   } catch {

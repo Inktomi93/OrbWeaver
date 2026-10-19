@@ -139,7 +139,7 @@ export function guard(run: PolicyRun, phase: Exclude<PolicyPhase, "population">,
   if (run.owner.status !== "success") {
     return;
   }
-  // @orb-waive caught-failure-ownership(error): gate evaluation guard: markIncomplete converts error to a structured PolicyToolError with phase and message; the gate run reports tool-error status
+  // @orb-waive caught-failure-ownership(error): markIncomplete marks the run owner incomplete and pushes a PolicyToolError (policy-pass-types.ts:135), returned as result.toolErrors (policy-pass.ts:129) and printed by show-policy.ts:76. Ends if markIncomplete stops recording the error.
   try {
     charge(run.timing, phase, operation);
   } catch (error) {
@@ -159,7 +159,7 @@ export function guardFact(run: FactRun, phase: Exclude<GateFactPhase, "populatio
   if (run.status !== "success") {
     return;
   }
-  // @orb-waive caught-failure-ownership(error): fact evaluation guard: markFactIncomplete converts error to a structured FactToolError with phase and message; the fact run reports tool-error status
+  // @orb-waive caught-failure-ownership(error): markFactIncomplete marks the fact failed and pushes a GateFactToolError into control.errors (policy-pass-types.ts:154), returned as result.factErrors (policy-pass.ts:128) and printed by show-policy.ts:73. Ends if markFactIncomplete stops recording the error.
   try {
     chargeFact(run.timing, phase, operation);
   } catch (error) {

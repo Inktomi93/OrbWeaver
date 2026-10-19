@@ -119,7 +119,7 @@ function workspaceAuthoredPath(root: string, path: string): string {
  *  including every error raised after Git has identified it as a repository. Only the exact "no repository"
  *  state may derive the authored TypeScript inventory from the workspace the structure pass will execute. */
 export function readPolicyWholeRepositoryInventory(root: string, workspacePaths: () => readonly string[]): PolicyRepositoryInventory {
-  // @orb-waive caught-failure-ownership(error): A confirmed standalone non-Git root deliberately falls through to the explicit workspace-sourced inventory receipt below; repository probe failures and every failure in a real worktree still propagate. Ends if this arm can swallow a real Git error or the fallback stops recording its distinct workspace authority.
+  // @orb-waive caught-failure-ownership(error): every error from the Git inventory is rethrown at policy-repo-inventory.ts:127 unless isStandaloneNonGitRoot confirms a root with no repository (it throws on any other probe failure); that root takes the workspace inventory whose receipt says source: "workspace" (policy-repo-inventory.ts:141). Ends if this arm can swallow a real Git error or the receipt stops naming its source.
   try {
     return readPolicyRepositoryInventory(root);
   } catch (error) {

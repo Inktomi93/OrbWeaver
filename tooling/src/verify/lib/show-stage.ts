@@ -54,7 +54,7 @@ interface ResolvedReport {
 }
 
 function readVerifyReport(path: string): VerifyReport | null {
-  // @orb-waive caught-failure-ownership(catch): an absent or unparseable artifact at this path is the NEGATIVE answer the two callers each own with a DIFFERENT operator-visible refusal — the pointer door raises "the evidence is broken, not merely absent" (exit 2) and the `--run` door raises "that slot holds no readable verify.json" (exit 3). Returning the failure here would collapse those two into one text. Ends if both callers ever want the same refusal.
+  // @orb-waive caught-failure-ownership(catch): null is data each caller refuses on with its own operator text: resolveNamedRun throws a UsageError (show-stage.ts:77) and resolveReport returns a red line with EXIT.toolError (show-stage.ts:120). Ends if a caller reads null as an empty report.
   try {
     return JSON.parse(readFileSync(path, "utf-8")) as VerifyReport;
   } catch {
@@ -160,7 +160,7 @@ function transcript(root: string, s: StageResult, limit: number, ink: ShowInk): 
     return { lines: [text], exit: ran ? s.exitCode : EXIT.toolError };
   }
   let raw: string;
-  // @orb-waive caught-failure-ownership(catch): the failure is SURFACED, not swallowed — the catch returns an operator-visible red line naming the unreadable log and exits 2 (broken evidence), which is the whole point of this reader refusing rather than printing an empty view. Ends if the returned lines stop carrying the toolError exit.
+  // @orb-waive caught-failure-ownership(catch): the catch returns a red line naming the unreadable log with exit EXIT.toolError (show-stage.ts:167); show.ts:273 returns that exit and the view's lines are printed. Ends if the returned exit stops being tool-error.
   try {
     raw = readFileSync(join(root, s.logFile), "utf-8");
   } catch {

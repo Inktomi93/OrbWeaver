@@ -62,7 +62,7 @@ export function nativeProgramRoots(root: string, program: PolicyProgramMembershi
     return;
   }
   let parsed: unknown;
-  // @orb-waive caught-failure-ownership(catch): nativeRootSets propagates this failed observation and runTestsTypeMembership returns tool-error exit 2. Ends if malformed native output can produce a membership verdict.
+  // @orb-waive caught-failure-ownership(catch): the catch writes the malformed-JSON line to stderr and returns undefined; nativeRootSets returns undefined (tests-type-membership.ts:39) and the caller returns EXIT.toolError (tests-type-membership.ts:298), as does the direct caller (tests-type-membership.ts:376). Ends if malformed native output can produce a membership verdict.
   try {
     parsed = JSON.parse(result.stdout) as unknown;
   } catch {
