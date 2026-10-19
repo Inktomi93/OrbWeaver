@@ -24,6 +24,8 @@ export function typeObservationDemandSchema<Anchor>(span: z.ZodType<Anchor>): z.
           callableHomes: z.array(z.strictObject({ name: z.string(), suffix: z.string() })).optional(),
           predicateContext: z.strictObject({ calls: z.array(span), references: z.array(span) }).optional(),
           properties: z.array(z.string()).optional(),
+          callLiteralMembers: z.array(z.string()).optional(),
+          presenceMembers: z.array(z.string()).optional(),
           receiverMethods: z.array(z.string()).optional(),
           selectedPropertyGraph: z
             .strictObject({

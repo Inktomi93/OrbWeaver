@@ -65,6 +65,10 @@ export interface TypeObservationQuestion<Anchor = Node> {
   readonly callableHomes?: readonly { readonly name: string; readonly suffix: string }[] | undefined;
   readonly predicateContext?: { readonly calls: readonly Anchor[]; readonly references: readonly Anchor[] } | undefined;
   readonly properties?: readonly string[] | undefined;
+  /** Closure questions only: members whose literal values are read on each closure call's own Type. */
+  readonly callLiteralMembers?: readonly string[] | undefined;
+  /** Closure questions only: members whose presence is read on each closure value node's receivers. */
+  readonly presenceMembers?: readonly string[] | undefined;
   /** Exact zero-argument property-call receiver questions inside the admitted declaration closure. */
   readonly receiverMethods?: readonly string[] | undefined;
   readonly valueFacets?: readonly (typeof TYPE_OBSERVATION_VALUE_FACETS)[number][] | undefined;

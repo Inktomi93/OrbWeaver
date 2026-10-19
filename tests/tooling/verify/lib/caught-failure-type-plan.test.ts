@@ -1,0 +1,137 @@
+// @subject tooling/src/verify/lib/caught-failure-native.ts
+import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import type { Node, SourceFile } from "ts-morph";
+import { Project, SyntaxKind, ts } from "ts-morph";
+import type { NativeInvocationEvidence } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
+import { captureTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations.ts";
+import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";
+import type { NativeTypeSelector } from "../../../../tooling/src/floor/code-facts/type-projection-contract.ts";
+import { nodeTypeSelector } from "../../../../tooling/src/floor/code-facts/type-projection-contract.ts";
+import type { CaughtFailureReadServices } from "../../../../tooling/src/verify/contract/caught-failure.ts";
+import { caughtFailureReviewSites } from "../../../../tooling/src/verify/lib/caught-failure.ts";
+import { nativeFailureRead } from "../../../../tooling/src/verify/lib/caught-failure-native.ts";
+import { FAILURE_OUTCOME_DISCRIMINANTS, FAILURE_OUTCOME_OK_MEMBER, PROMISE_LIKE_MEMBER } from "../../../../tooling/src/verify/lib/caught-failure-read.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+
+const OUTCOME_MEMBERS: readonly string[] = [FAILURE_OUTCOME_OK_MEMBER, ...FAILURE_OUTCOME_DISCRIMINANTS];
+
+// Owned and unowned catches and rejection handlers whose verdicts hang on the planned member reads.
+const SITES = `
+declare function work(): void;
+declare function refuse(): { kind: "refused"; reason: string };
+declare function settle(): { ok: true; value: number };
+declare function deny(): { status: "denied" } | { status: "refused" };
+declare function record(...values: readonly unknown[]): void;
+declare const fake: { catch(handler: () => void): void };
+export function refused() { try { work(); } catch { return refuse(); } }
+export function settled() { try { work(); } catch { return settle(); } }
+export function denied() { try { work(); } catch { return deny(); } }
+export function absorbed(p: Promise<void> | undefined) { void p?.catch(() => undefined); }
+export function lookalike() { fake.catch(() => undefined); }
+`;
+
+// `count` union-typed values read inside one catch: no new calls, only member-shaped non-call nodes.
+function fillers(count: number): string {
+  const names = Array.from({ length: count }, (_, index) => `filler${String(index)}`);
+  const declarations = names.map((name) => `declare const ${name}: { ok: boolean; status: "ready" | "failed"; step: { kind: "a" | "b" } } | undefined;`);
+  const reads = names.flatMap((name) => [name, `${name}?.status`, `${name}?.step.kind`]).join(", ");
+  return `${declarations.join("\n")}\nexport function filled() { try { work(); } catch { record(${reads}); } }`;
+}
+
+interface PlannedRead {
+  readonly source: SourceFile;
+  readonly selectors: readonly NativeTypeSelector[];
+  readonly reads: CaughtFailureReadServices;
+}
+
+function plannedRead(count: number): PlannedRead {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { strict: true, target: ts.ScriptTarget.ES2022 } });
+  const source = project.createSourceFile("/packages/server/src/probe.ts", `${SITES}\n${fillers(count)}`);
+  const facts = isolatedTypeFacts(project);
+  const owner = "caught-failure-type-plan";
+  const evidence: NativeInvocationEvidence[] = [];
+  const native = nativeFailureRead(
+    {
+      files: [source],
+      nativeTypes: {
+        request: (query) => facts.request(owner, query),
+        invocationEvidence: (nodes, plan) => {
+          const answer = facts.invocationEvidence(owner, nodes, plan);
+          evidence.push(...answer.values());
+          return answer;
+        },
+        references: (nodes, importer) => facts.references(owner, nodes, importer),
+      },
+    },
+    () => [...source.getDescendantsOfKind(SyntaxKind.CatchClause), ...source.getDescendantsOfKind(SyntaxKind.CallExpression)],
+  );
+  native.prepare();
+  facts.seal(new Set([owner]));
+  const reads = native.at(source);
+  const selectors = evidence.flatMap((value) => value.typeObservations?.selections?.plan.selectors ?? []);
+  return { source, selectors, reads };
+}
+
+function memberName(selector: NativeTypeSelector): string | undefined {
+  const step = selector.steps.find((value) => value.kind === "property");
+  return step?.kind === "property" ? step.name : undefined;
+}
+
+function baseNode(selector: NativeTypeSelector): Node {
+  if (selector.base.kind === "schema-column") {
+    throw new Error("caught-failure plan selected a schema column");
+  }
+  return selector.base.node;
+}
+
+test("outcome member questions grow with the calls a catch returns, not with every member-shaped value node", () => {
+  const few = plannedRead(2).selectors.filter((selector) => OUTCOME_MEMBERS.includes(memberName(selector) ?? ""));
+  const many = plannedRead(40).selectors.filter((selector) => OUTCOME_MEMBERS.includes(memberName(selector) ?? ""));
+  expect(many.length).toBe(few.length);
+  // The reader reads an outcome member only on a call's own Type, then that member's union parts.
+  for (const selector of many) {
+    expect(baseNode(selector).getKind()).toBe(SyntaxKind.CallExpression);
+    expect(selector.steps[0]?.kind).toBe("property");
+    expect(selector.steps.slice(1).every((step) => step.kind === "union-part")).toBe(true);
+  }
+  // The promise member is read on a receiver's Type or one of its union parts, never below the member.
+  const presence = plannedRead(40).selectors.filter((selector) => memberName(selector) === PROMISE_LIKE_MEMBER);
+  expect(presence.length).toBeGreaterThan(0);
+  for (const selector of presence) {
+    expect(selector.steps.at(-1)).toMatchObject({ kind: "property", name: PROMISE_LIKE_MEMBER });
+    expect(selector.steps.slice(0, -1).every((step) => step.kind === "union-part")).toBe(true);
+  }
+});
+
+test("every member read the verdicts need is still planned, and an unplanned one refuses", () => {
+  const { source, reads } = plannedRead(2);
+  const verdicts = (value?: CaughtFailureReadServices): readonly string[] =>
+    caughtFailureReviewSites(source, value).map((site) => `${site.arm}@${site.node.getFirstAncestorByKind(SyntaxKind.FunctionDeclaration)?.getName() ?? ""}`);
+  expect(verdicts(reads)).toEqual(verdicts());
+  // The typed refusals own their catch; the success outcome, the discarded rejection and the filler catch do not.
+  expect(verdicts(reads).map((verdict) => verdict.split("@")[1])).toEqual(["settled", "absorbed", "filled"]);
+  const filler = source.getVariableDeclarationOrThrow("filler0");
+  const reference = source
+    .getFunctionOrThrow("filled")
+    .getDescendantsOfKind(SyntaxKind.Identifier)
+    .find((node) => node.getText() === filler.getName());
+  if (reference === undefined) {
+    throw new Error("filler read is missing");
+  }
+  expect(() => reads.types.select({ ...nodeTypeSelector(reference), steps: [{ kind: "property", name: FAILURE_OUTCOME_OK_MEMBER, at: reference }] })).toThrow(
+    "native Type selector was not captured",
+  );
+});
+
+test("closure member nominations on a non-closure question refuse instead of planning nothing", () => {
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { strict: true } });
+  const source = project.createSourceFile("/members.ts", "declare const held: Promise<void>;");
+  const node = source.getVariableDeclarationOrThrow("held");
+  const demand = {
+    profile: TYPE_OBSERVATION_PROFILE,
+    sources: [source],
+    nodes: [],
+    questions: [{ kind: "type-details" as const, nodes: [node], presenceMembers: [PROMISE_LIKE_MEMBER] }],
+  };
+  expect(() => captureTypeObservations(demand, { anchor: source, admit: () => undefined })).toThrow("native closure member nomination is foreign");
+});

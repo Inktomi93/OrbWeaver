@@ -7,8 +7,10 @@ import type { NativeTypeObservations, TypeObservationReader } from "../../floor/
 import { TYPE_OBSERVATION_PROFILE } from "../../floor/code-facts/type-observations-contract.ts";
 import { readTypeObservations } from "../../floor/code-facts/type-observations-read.ts";
 import type { CaughtFailureReadServices, NativeFailureContext, NativeFailureRead } from "../contract/caught-failure.ts";
+import { FAILURE_OUTCOME_DISCRIMINANTS, FAILURE_OUTCOME_OK_MEMBER, PROMISE_LIKE_MEMBER } from "./caught-failure-read.ts";
 
-const PROPERTIES = ["then", "ok", "kind", "status", "step", "verdict"];
+// Exactly the member reads the caught-failure reader repeats; every other member read refuses at replay.
+const MEMBERS = { callLiteralMembers: [FAILURE_OUTCOME_OK_MEMBER, ...FAILURE_OUTCOME_DISCRIMINANTS], presenceMembers: [PROMISE_LIKE_MEMBER] };
 
 function heldBindings(nodes: readonly MorphNode[]): readonly MorphNode[] {
   const bindings = new Set<MorphNode>();
@@ -65,8 +67,8 @@ export function nativeFailureRead(
             sources: context.files,
             nodes: [],
             questions: [
-              { kind: "symbol-closure", nodes: [...roots, ...functions], properties: PROPERTIES },
-              { kind: "reference-closure", nodes: bindings, properties: PROPERTIES },
+              { kind: "symbol-closure", nodes: [...roots, ...functions], ...MEMBERS },
+              { kind: "reference-closure", nodes: bindings, ...MEMBERS },
               { kind: "function-exports", nodes: functions },
             ],
           },

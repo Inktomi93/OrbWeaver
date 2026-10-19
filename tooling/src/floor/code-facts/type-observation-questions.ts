@@ -1,6 +1,7 @@
 // Explicit raw questions retain their nominated locations and one importing capture.
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { observeClosureMembers } from "./member-type-reads.ts";
 import { referenceResolutionServices } from "./reference-fact.ts";
 import { rootIdentifier } from "./reference-fact-alias.ts";
 import { observeShapeConstituents } from "./shape-constituents.ts";
@@ -308,6 +309,7 @@ function observeClosureNode(
   const bodies = symbolBodies(node, readers);
   valueProfile(question, node, profile);
   questions["type-details"]({ ...question, kind: "type-details", nodes: [node] }, readers);
+  observeClosureMembers(node, question, readers);
   return bodies;
 }
 function walkSymbolClosure(roots: readonly MorphNode[], observe: (node: MorphNode) => readonly MorphNode[]): void {

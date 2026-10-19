@@ -4,11 +4,11 @@
 // verdict lives here — this reader only names WHICH invocation is a rejection handler and what it touches.
 import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
-import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
+import { hasMember, memberReceivers } from "../../floor/code-facts/member-type-reads.ts";
 import type { CaughtFailureReadServices } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { ambientIdentifier, hasInterveningWrite, importedName, literalMember, REJECTION_HANDLER_INDEX } from "./caught-failure-core.ts";
-import { rawFailureDeclarations } from "./caught-failure-read.ts";
+import { PROMISE_LIKE_MEMBER, rawFailureDeclarations } from "./caught-failure-read.ts";
 
 function isZodSchemaExpression(node: Node, seen: ReadonlySet<Node> = new Set(), reads?: CaughtFailureReadServices): boolean {
   const value = unwrapExpression(node);
@@ -44,19 +44,14 @@ export function promiseLikeValue(receiver: Node, reads?: CaughtFailureReadServic
     const type = receiver.getType();
     const constituents = type.isUnion() ? type.getUnionTypes() : [type];
     const nonNullish = constituents.filter((part) => !["null", "undefined"].includes(part.getText()));
-    return nonNullish.length > 0 && nonNullish.every((part) => ["any", "unknown"].includes(part.getText()) || part.getProperty("then") !== undefined);
+    return (
+      nonNullish.length > 0 && nonNullish.every((part) => ["any", "unknown"].includes(part.getText()) || part.getProperty(PROMISE_LIKE_MEMBER) !== undefined)
+    );
   }
-  const selector = nodeTypeSelector(receiver);
-  const unions = reads.types.unions(selector);
-  const constituents = unions.length === 0 ? [selector] : unions;
-  const nonNullish = constituents.filter((part) => !["null", "undefined"].includes(reads.types.defaultDisplay(part)));
+  const nonNullish = memberReceivers(reads.types, receiver).filter((part) => !["null", "undefined"].includes(reads.types.defaultDisplay(part)));
   return (
     nonNullish.length > 0 &&
-    nonNullish.every(
-      (part) =>
-        ["any", "unknown"].includes(reads.types.defaultDisplay(part)) ||
-        reads.types.select({ ...part, steps: [...part.steps, { kind: "property", name: "then", at: receiver }] }) !== null,
-    )
+    nonNullish.every((part) => ["any", "unknown"].includes(reads.types.defaultDisplay(part)) || hasMember(reads.types, part, PROMISE_LIKE_MEMBER, receiver))
   );
 }
 

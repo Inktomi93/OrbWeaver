@@ -239,6 +239,13 @@ function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key:
   if (questions.some((q) => q.properties !== undefined && new Set(q.properties).size !== q.properties.length)) {
     throw new Error("native raw property nomination is ambiguous");
   }
+  for (const members of questions.flatMap((q) =>
+    q.kind === "symbol-closure" || q.kind === "reference-closure" ? [] : [q.callLiteralMembers, q.presenceMembers],
+  )) {
+    if (members !== undefined) {
+      throw new Error("native closure member nomination is foreign");
+    }
+  }
   uniqueRawKeys(questions.map((q) => q.kind));
   for (const q of questions) {
     uniqueRawKeys(q.nodes.map(key));
