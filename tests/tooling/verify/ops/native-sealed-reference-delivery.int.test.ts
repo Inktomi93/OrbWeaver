@@ -8,7 +8,6 @@ import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts
 import { gate as discovery } from "../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
 import { gate as empty } from "../../../../tooling/src/verify/gates/empty-state-has-action.ts";
 import { gate as membership } from "../../../../tooling/src/verify/gates/membership-enforcer.ts";
-import { gate as users } from "../../../../tooling/src/verify/gates/no-direct-users-read.ts";
 import { gate as scrubber } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { gate as identity } from "../../../../tooling/src/verify/gates/turn-identity.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -27,7 +26,7 @@ beforeEach(async () => {
   };
 });
 
-const POLICIES = [scrubber, users, membership, identity, discovery, empty];
+const POLICIES = [scrubber, membership, identity, discovery, empty];
 const SERVER = "packages/server/src/domain/chat/verbs/subject.ts";
 const ENGINE = "packages/server/src/domain/chat/engine/subject.ts";
 const DISCOVERY = "packages/server/src/domain/discovery/subject.ts";
@@ -144,7 +143,6 @@ test(
       expect(result.policies.map(({ id, findings }) => ({ id, findings: findings.map(({ file, token }) => ({ file, token })) }))).toEqual(
         [
           { id: scrubber.id, findings: [{ file: SERVER, token: "createHiddenSpanStreamScrubber" }] },
-          { id: users.id, findings: [{ file: SERVER, token: "users" }] },
           { id: membership.id, findings: [{ file: SERVER, token: "fetchOwned" }] },
           { id: identity.id, findings: [{ file: ENGINE, token: "Principal" }] },
           { id: discovery.id, findings: [{ file: DISCOVERY, token: "ownerStats" }] },
@@ -270,14 +268,6 @@ test(
         why: "native sealed reference fixture",
         endsWhen: "this fixture retires",
       },
-      {
-        id: "users-native",
-        policyId: users.id,
-        subject: SERVER,
-        operation: "users-table-reference",
-        why: "native sealed reference fixture",
-        endsWhen: "this fixture retires",
-      },
     ];
     const run = (reviewedGrants: typeof grants): ReturnType<typeof runPolicyPass> =>
       runPolicyPass({
@@ -285,7 +275,7 @@ test(
         project: context.project,
         ...nativeTypeFactOptions(context),
         knownPolicies: POLICIES,
-        policies: [scrubber, users],
+        policies: [scrubber],
         reviewedGrants,
         failOnWarnings: false,
       });
@@ -313,15 +303,14 @@ test(
         subject: SERVER,
         operation: "hidden-span-scrubber-construction",
       },
-      { id: "users-native", policyId: users.id, file: SERVER, line: 2, column: 9, token: "users", subject: SERVER, operation: "users-table-reference" },
     ]);
     expect(result.authority.effectiveFindings).toEqual([]);
     expect(result.authority.authorityAlarms).toEqual([]);
     const wrong = run(grants.map((grant) => ({ ...grant, operation: "foreign-operation" })));
     expect(wrong.toolErrors).toEqual([]);
     expect(wrong.authority.grantedFindings).toEqual([]);
-    expect(wrong.authority.effectiveFindings).toHaveLength(2);
-    expect(wrong.authority.authorityAlarms.map(({ kind }) => kind)).toEqual(["stale-reviewed-grant", "stale-reviewed-grant"]);
+    expect(wrong.authority.effectiveFindings).toHaveLength(1);
+    expect(wrong.authority.authorityAlarms.map(({ kind }) => kind)).toEqual(["stale-reviewed-grant"]);
   },
   scaledBudget(60_000),
 );

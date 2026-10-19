@@ -8,7 +8,6 @@ import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts
 import { gate as assets } from "../../../../tooling/src/verify/gates/assets-single-writer.ts";
 import { gate as schemaSibling } from "../../../../tooling/src/verify/gates/fk-columns-indexed.ts";
 import { gate as ownership } from "../../../../tooling/src/verify/gates/own-tables-only.ts";
-import { gate as vectors } from "../../../../tooling/src/verify/gates/vector-scope-derived.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -25,13 +24,12 @@ afterEach(() => {
   vi.restoreAllMocks();
 });
 
-const POLICIES = [assets, ownership, vectors];
+const POLICIES = [assets, ownership];
 const CORPUS = [...POLICIES, schemaSibling];
 const STORE = "packages/server/src/domain/hub/persistence/store.ts";
 const RAW = "packages/server/src/domain/hub/persistence/raw.ts";
 const BOUND = "packages/server/src/domain/hub/persistence/bound.ts";
 const PREFIX = "packages/server/src/domain/hub/persistence/prefix.ts";
-const VECTOR = "packages/server/src/domain/search/persistence/write.ts";
 const ASSET_SCHEMA = "packages/db/src/schema/assets.ts";
 const VECTOR_SCHEMA = "packages/db/src/schema/embeddings.ts";
 
@@ -57,7 +55,6 @@ function fixture(root: string, repoRoot: string, browser = false): void {
     [PREFIX]:
       "import type {Handle} from '#handle';\nimport {assets} from '@orb/db';\ndeclare const db:Handle;\nexport const insert=db.insert.bind(db,assets);\n",
     [BOUND]: "import {insert} from './prefix.ts';\ninsert();\n",
-    [VECTOR]: "import {chatDigests} from '#vectors';\ndeclare const db:{insert(table:object):void};\ndb.insert(chatDigests);\n",
   };
   for (const [path, source] of Object.entries(sources)) {
     write(path, source);
@@ -92,7 +89,6 @@ function fixture(root: string, repoRoot: string, browser = false): void {
       imports: {
         "#handle": { browser: "./foreign.ts", default: "./native-handle.ts" },
         "#store": { browser: "./foreign.ts", default: "./packages/server/src/domain/assets/persistence/queries.ts" },
-        "#vectors": { browser: "./foreign.ts", default: "./packages/db/src/schema/embeddings.ts" },
       },
     }),
   );
@@ -144,7 +140,7 @@ test.for([false, true])(
       for (const { id } of POLICIES) {
         exits.push(await nativeVerifyFixture(scratch, "structure", [`--check=${id}`], { forbidSyntax: true, syntaxReads: nativeSyntaxReads }));
       }
-      expect.soft(exits).toEqual(browser ? [1, 0, 0] : [1, 1, 1]);
+      expect.soft(exits).toEqual(browser ? [1, 0] : [1, 1]);
       expect
         .soft(await nativeVerifyFixture(scratch, "scoped", ["--scope", "packages/server/src/domain"], { forbidSyntax: true, syntaxReads: nativeSyntaxReads }))
         .toBe(browser ? 0 : 1);
@@ -179,7 +175,6 @@ test.for([false, true])(
                 { file: RAW, token: "schema" },
               ],
         },
-        { id: vectors.id, findings: browser ? [] : [{ file: VECTOR, token: "insert" }] },
       ]);
     } finally {
       useContext.mockRestore();
@@ -272,32 +267,4 @@ test.for([
       expect(result.authority.effectiveFindings).toHaveLength(selected === grant ? 0 : 1);
     }
   },
-);
-
-test(
-  "computed vector anchors preserve ordinary waiver identity without claiming a Drizzle method",
-  ({ scratch, repoRoot }) => {
-    fixture(scratch, repoRoot);
-    writeFileSync(
-      join(scratch, VECTOR),
-      "import {chatDigests} from '#vectors';\ndeclare const insertReceiver:{insert(table:object):void};\nconst KEY='insert';\n// @orb-waive vector-scope-derived(KEY): authored key control; ends with this fixture.\ninsertReceiver[((KEY))](chatDigests);\n",
-    );
-    const context = projectCtx(scratch);
-    using _poison = poisonSyntax(context.project);
-    const result = runPolicyPass({
-      root: scratch,
-      project: context.project,
-      ...nativeTypeFactOptions(context),
-      knownPolicies: POLICIES,
-      policies: [vectors],
-      reviewedGrants: [],
-      failOnWarnings: false,
-    });
-    expect(result.toolErrors).toEqual([]);
-    expect(result.policies[0]?.findings).toMatchObject([{ file: VECTOR, line: 5, column: 18, token: "KEY" }]);
-    expect(result.authority.waivedFindings).toHaveLength(1);
-    expect(result.authority.effectiveFindings).toEqual([]);
-    expect(result.authority.authorityAlarms).toEqual([]);
-  },
-  scaledBudget(60_000),
 );

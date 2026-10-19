@@ -722,6 +722,100 @@ const INFRA_AUTH_RESTRICTIONS = [
   },
 ];
 
+// Table names are matched from any source, so an unreadable or relabelled door is refused rather than admitted.
+// A whole-db namespace, star or dynamic door is refused outright, because its members cannot be told apart here.
+// The re-export rows have no homes: a home that re-exported a table would launder it through a namespace import.
+const DB_MODULE_SOURCE = String.raw`/^@orb\/db(\/|$)|\/db\/src(\/|$)/`;
+const SERVER_SRC = rootSources("@server");
+const tableImportDoor = (names) => `ImportSpecifier:matches([imported.name=${names}], [imported.value=${names}])`;
+const tableExportDoor = (names) => `ExportSpecifier:matches([local.name=${names}], [local.value=${names}])`;
+const DB_STAR_EXPORT = `ExportAllDeclaration[source.value=${DB_MODULE_SOURCE}]`;
+const DB_WHOLE_MODULE_DOORS = `:matches(ImportDeclaration[source.value=${DB_MODULE_SOURCE}] > ImportNamespaceSpecifier, ExportAllDeclaration[source.value=${DB_MODULE_SOURCE}], ImportExpression[source.value=${DB_MODULE_SOURCE}])`;
+// The vector substrate's primary tables (D20, Knowledge-Cluster inv 1-2).
+const VECTOR_TABLES = alternation(["characterEmbeddings", "imageEmbeddings", "chatDigests", "chatSegments", "chatDigestSpeakers", "documentChunks"]);
+const VECTOR_WRITE_METHODS = alternation(["insert", "update", "delete"]);
+const USERS_MESSAGE =
+  "The users table is read and written only by domain/sessions and domain/admin (Spine-Identity-and-Auth §1, invariant 10). Take userId from the resolved Principal instead.";
+const VECTOR_MESSAGE =
+  "A vector table is named only by its import roles: embeddings (owner), search/persistence (retrieval), chat/memory/persistence (bookkeeping), discovery/persistence (analytics) and the debug probes (D20). Go through the search engine with a producer scope.";
+const TABLE_IMPORT_RESTRICTIONS = [
+  {
+    id: "no-direct-users-read",
+    scope: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}"],
+    homes: [
+      {
+        path: "packages/server/src/domain/sessions/**",
+        why: "the resolution tier: it upserts and reads the identity row that becomes the one Principal (Spine-Identity-and-Auth §1)",
+      },
+      {
+        path: "packages/server/src/domain/admin/**",
+        why: "user management: it owns a target user's identity row, which the caller's Principal does not describe (Spine-Identity-and-Auth §1)",
+      },
+    ],
+    selectors: [tableImportDoor("'users'"), tableExportDoor("'users'"), DB_WHOLE_MODULE_DOORS].map((selector) => ({ selector, message: USERS_MESSAGE })),
+  },
+  {
+    id: "no-direct-users-read-reexport",
+    scope: SERVER_SRC,
+    homes: [],
+    selectors: [tableExportDoor("'users'"), DB_STAR_EXPORT].map((selector) => ({ selector, message: USERS_MESSAGE })),
+  },
+  {
+    id: "vector-scope-derived",
+    scope: SERVER_SRC,
+    homes: [
+      { path: "packages/server/src/domain/embeddings/**", why: "the vector substrate's owner: it stores and clears every vector row" },
+      { path: "packages/server/src/domain/search/persistence/**", why: "the one top-k retrieval engine, which derives owner scope from the producer" },
+      {
+        path: "packages/server/src/domain/chat/memory/persistence/**",
+        why: "digest bookkeeping: which segments are indexed; vector reads go through searchDigests",
+      },
+      { path: "packages/server/src/domain/discovery/persistence/**", why: "library analytics over loaded vectors with in-memory cosine" },
+      { path: "packages/server/src/foundation/observability/debug/**", why: "the debug probes that count substrate rows" },
+    ],
+    selectors: [tableImportDoor(VECTOR_TABLES), tableExportDoor(VECTOR_TABLES), DB_WHOLE_MODULE_DOORS].map((selector) => ({
+      selector,
+      message: VECTOR_MESSAGE,
+    })),
+  },
+  {
+    id: "vector-scope-derived-reexport",
+    scope: SERVER_SRC,
+    homes: [],
+    selectors: [tableExportDoor(VECTOR_TABLES), DB_STAR_EXPORT].map((selector) => ({ selector, message: VECTOR_MESSAGE })),
+  },
+  {
+    id: "vector-scope-derived-write",
+    scope: SERVER_SRC,
+    homes: [
+      { path: "packages/server/src/domain/embeddings/persistence/**", why: "the one vector writer: embeddings.store and its clear and restamp arms (D20)" },
+    ],
+    selectors: [
+      `CallExpression:matches([callee.property.name=${VECTOR_WRITE_METHODS}], [callee.property.value=${VECTOR_WRITE_METHODS}], [callee.computed=true]:not([callee.property.type='Literal'])):matches([arguments.0.name=${VECTOR_TABLES}], [arguments.0.property.name=${VECTOR_TABLES}], [arguments.0.property.value=${VECTOR_TABLES}], [arguments.0.expression.name=${VECTOR_TABLES}])`,
+      // Rebinding keeps the canonical name at every write position, which is what the write selector reads.
+      `ImportSpecifier:matches([imported.name=${VECTOR_TABLES}], [imported.value=${VECTOR_TABLES}]):not([local.name=${VECTOR_TABLES}])`,
+      `VariableDeclarator:matches([init.name=${VECTOR_TABLES}], [init.expression.name=${VECTOR_TABLES}])`,
+      `AssignmentExpression:matches([right.name=${VECTOR_TABLES}], [right.expression.name=${VECTOR_TABLES}])`,
+      // An import home's own namespace door would hide the table name from the write position.
+      DB_WHOLE_MODULE_DOORS,
+    ].map((selector) => ({
+      selector,
+      message:
+        "Only domain/embeddings/persistence inserts, updates or deletes a vector table, under its canonical name (D20). Route the write through embeddings.store.",
+    })),
+  },
+  {
+    id: "vector-scope-derived-cosine",
+    scope: SERVER_SRC,
+    homes: [{ path: "packages/server/src/domain/search/persistence/**", why: "top-k retrieval is search's alone (Knowledge-Cluster inv 2)" }],
+    selectors: [":matches(Literal[value=type(string)][value=/vector_distance_cos/], TemplateElement[value.raw=/vector_distance_cos/])"].map((selector) => ({
+      selector,
+      message:
+        "vector_distance_cos is spelled only in domain/search/persistence; discovery uses in-memory cosine and memory delegates to the injected searchDigests op (D20).",
+    })),
+  },
+];
+
 const CLASS_LITERAL_START = String.raw`(?:^["']|\s)`;
 const CLASS_LITERAL_END = String.raw`(?=\s|["']$)`;
 const CLASS_SPAN_START = String.raw`(?:^|\s)`;
@@ -1419,6 +1513,7 @@ const RESTRICTIONS = [
   ...CLASS_TOKEN_RESTRICTIONS,
   ...DETERMINISM_RESTRICTIONS,
   ...INFRA_AUTH_RESTRICTIONS,
+  ...TABLE_IMPORT_RESTRICTIONS,
   ...CLASS_RESTRICTIONS,
   ...ROLE_DATA_RESTRICTIONS,
   ...TURN_IDENTITY_RESTRICTIONS,
@@ -4775,6 +4870,7 @@ const ORDINARY_CONFIG = [
     Object.hasOwn(block.rules, "@typescript-eslint/no-unsafe-type-assertion") ||
     [
       ...INFRA_AUTH_RESTRICTIONS,
+      ...TABLE_IMPORT_RESTRICTIONS,
       ...CLASS_RESTRICTIONS,
       ...ROLE_DATA_RESTRICTIONS,
       ...TURN_IDENTITY_RESTRICTIONS,

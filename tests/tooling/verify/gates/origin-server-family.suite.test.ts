@@ -19,7 +19,6 @@ import { gate as noHardcodedSideGenSampling } from "../../../../tooling/src/veri
 import { gate as persistenceNoInMemoryState } from "../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
 import { gate as testMockDoctrine } from "../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 import { gate as turnIdentity } from "../../../../tooling/src/verify/gates/turn-identity.ts";
-import { gate as vectorScopeDerived } from "../../../../tooling/src/verify/gates/vector-scope-derived.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
@@ -41,7 +40,6 @@ test(
         persistenceNoInMemoryState,
         testMockDoctrine,
         turnIdentity,
-        vectorScopeDerived,
       ]),
     ).toEqual([]);
   },

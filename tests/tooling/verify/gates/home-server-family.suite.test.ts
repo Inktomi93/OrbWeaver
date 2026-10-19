@@ -21,7 +21,6 @@ import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { trpcServerProof } from "../../../../tooling/src/verify/gates/_proof/server-vendors.ts";
 import { gate as contentPartSeam } from "../../../../tooling/src/verify/gates/content-part-seam.ts";
-import { gate as noDirectUsersRead } from "../../../../tooling/src/verify/gates/no-direct-users-read.ts";
 import { gate as ownerRoleSplit } from "../../../../tooling/src/verify/gates/owner-role-split.ts";
 import { gate as scrubberHome } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { gate as singleStreamTransport } from "../../../../tooling/src/verify/gates/single-stream-transport.ts";
@@ -34,15 +33,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 const FAMILY_TIMEOUT_MS = scaledBudget(300_000);
 const ROOT = "/home-server-family";
 
-const FAMILY: readonly GatePolicy[] = [
-  contentPartSeam,
-  noDirectUsersRead,
-  ownerRoleSplit,
-  scrubberHome,
-  singleStreamTransport,
-  soleEnvReader,
-  twoClassRoleAuthority,
-];
+const FAMILY: readonly GatePolicy[] = [contentPartSeam, ownerRoleSplit, scrubberHome, singleStreamTransport, soleEnvReader, twoClassRoleAuthority];
 
 test(
   "every sanctioned-home policy judges declaration homes and vocabularies rather than written names",
@@ -100,15 +91,6 @@ const GRANT_CASES: readonly GrantCase[] = [
     files: { "packages/contracts/src/chat/bus.ts": CONTENT_PART, "packages/server/src/domain/chat/verbs/reach.ts": CONSUMER },
     subject: "packages/server/src/domain/chat/verbs/reach.ts",
     operation: "chat-content-part-reference",
-  },
-  {
-    policy: noDirectUsersRead,
-    files: {
-      "packages/db/src/schema/users.ts": 'export const users = { name: "users" };\n',
-      "packages/server/src/domain/billing/x.ts": 'import { users } from "../../../../db/src/schema/users.ts";\nexport const u = users;\n',
-    },
-    subject: "packages/server/src/domain/billing/x.ts",
-    operation: "users-table-reference",
   },
   {
     policy: ownerRoleSplit,

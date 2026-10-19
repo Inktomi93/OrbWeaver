@@ -17,7 +17,7 @@ export type { StoreParams } from "@orb/contracts/assets";
 // `tests/legacy/contracts/assets/`).
 //
 // Every verb carries the resolved `principal` (spine §7.1) — ownership is scoped off `principal.userId`,
-// the single source of truth for "whose blobs" (NEVER a `users` read — the `no-direct-users-read` gate).
+// the single source of truth for "whose blobs" (NEVER a `users` read — the `orb/no-direct-users-read` lint rule).
 
 /** Common to every assets verb: the acting principal whose `userId` scopes ownership. */
 interface AssetsActorParams {

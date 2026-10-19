@@ -114,9 +114,9 @@ Code comments cite the numbered invariants below as "invariant N":
     The one such statement is the `oidc` pending-join confirm (`domain/sessions/verbs/pending-signup.ts`).
     A mode with its own upsert would carry its own, weaker, takeover
     posture. Enforcers: `infra/auth` is db-free and may not import a domain, so a mode resolver
-    structurally cannot write; `no-direct-users-read` reds any domain outside sessions/admin touching
-    `users`. Entry is the tier where a second upsert could still be hand-written; the two callers above
-    are the census, and a third is a review defect. The rules live at the verb and its header comment,
+    structurally cannot write; the `orb/no-direct-users-read` lint rule (`eslint.config.js`) reds any domain
+    or entry module outside sessions/admin that names `users`. Entry is the tier where a second upsert
+    could still be hand-written; the two callers above are the census, and a third is a review defect. The rules live at the verb and its header comment,
     never restated here.
 
 ## 2. Permission = global-role × resource-role × capability

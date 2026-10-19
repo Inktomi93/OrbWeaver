@@ -28,7 +28,6 @@ const APPLICATION = Object.freeze({
   "macro-resolution-home": 4,
   "membership-enforcer": 6,
   "no-await-db-in-loop": 13,
-  "no-direct-users-read": 7,
   "no-hardcoded-model-prose": 17,
   "no-inline-package-interface": 206,
   "no-inline-types": 5,
