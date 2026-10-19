@@ -19,6 +19,7 @@ function programClosure(root: string, program: PolicyProgramMembership): readonl
   const res = runNicedSync(process.execPath, [ts7, "--noEmit", "--listFilesOnly", "-p", config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,
+    supervised: true,
   });
   if (res.status !== 0) {
     process.stderr.write(`tests-type-membership: \`ts7 --listFilesOnly -p ${config}\` failed (status ${String(res.status)})\n${res.stderr}`);

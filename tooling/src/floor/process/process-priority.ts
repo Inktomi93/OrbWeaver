@@ -40,11 +40,10 @@ export const LAUNCHER_SCRATCH_ENV = "ORB_LAUNCHER_SCRATCH";
 
 /** The environment for a supervised launcher: `env` (or the ambient one), this caller's pid and its scratch. */
 export function supervisedEnv(env: NodeJS.ProcessEnv | undefined, scratch?: string): NodeJS.ProcessEnv {
-  return {
-    ...(env ?? inheritedProcessEnv()),
-    [LAUNCHER_PARENT_ENV]: String(process.pid),
-    ...(scratch === undefined ? {} : { [LAUNCHER_SCRATCH_ENV]: scratch }),
-  };
+  const supervised: NodeJS.ProcessEnv = { ...(env ?? inheritedProcessEnv()), [LAUNCHER_PARENT_ENV]: String(process.pid) };
+  // An inherited key names a directory this caller never handed over; the launcher would delete it.
+  delete supervised[LAUNCHER_SCRATCH_ENV];
+  return scratch === undefined ? supervised : { ...supervised, [LAUNCHER_SCRATCH_ENV]: scratch };
 }
 
 /** The command a SYNC door spawns to run `cmd args…` at {@link TOOLING_PRIORITY}: a sync spawn returns no pid

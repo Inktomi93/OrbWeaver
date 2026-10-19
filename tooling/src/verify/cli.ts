@@ -26,12 +26,14 @@
 //   eslint                   → cli.ts eslint  (whole-tree native compiler-owner process isolation)
 //   lint:eslint (scoped)     → cli.ts eslint-scoped <paths…>  (the same isolation over a verify selection)
 //
-// STOPPING: this CLI installs no SIGTERM handler, by design. A heavy child (inventory worker, ESLint worker,
-// compiler) runs under a supervised `niced-exec.ts` launcher (`supervised: true` on runNicedSync or
-// spawnNiced) that guards this process's pid, then TERM-then-KILL escalates its child and joins it once
-// this process is gone. A handler here could not help a sync spawn: the JS callback waits until spawnSync
-// returns, and catching TERM would only stop this process from dying, so the launcher would never notice.
-// The launcher also covers SIGKILL, which no handler can. Stage children keep their own group-kill teardown.
+// STOPPING: this CLI installs no SIGTERM handler, by design. Every tool child it starts (compilers, linters,
+// test runners, builds, workers) runs under a supervised `niced-exec.ts` launcher (`supervised` on
+// runNicedSync or spawnNiced). The launcher guards this process's pid, and once this process is gone it
+// TERM-then-KILL escalates its child and joins it. A handler here could not help a sync spawn: the JS
+// callback waits until spawnSync returns, and catching TERM would only stop this process from dying, so the
+// launcher would never notice. The launcher also covers SIGKILL, which no handler can. Exempt by design:
+// verify stage children, which keep their own group-kill teardown, and short probes (git, process-table
+// reads, version and config listings), which finish on their own and would pay a node start per call.
 import "../floor/compiler/semantic-inventory-runtime.ts";
 import process from "node:process";
 import type { VerifyVerb } from "./index.ts";

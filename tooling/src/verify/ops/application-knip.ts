@@ -225,7 +225,9 @@ export function runApplicationKnip(root: string, population: ApplicationSubjects
       throw new Error("application Knip has no native package subjects");
     }
     const run = (args: readonly string[]): number =>
-      asViolations(runNicedSync(join(root, "node_modules/.bin/knip"), ["--config", CONFIG, ...args], { cwd: view.root, stdio: "inherit" }).status);
+      asViolations(
+        runNicedSync(join(root, "node_modules/.bin/knip"), ["--config", CONFIG, ...args], { cwd: view.root, stdio: "inherit", supervised: true }).status,
+      );
     const packages = run(workspaces.flatMap((workspace) => ["--workspace", workspace]));
     const composition = run([
       "--workspace",

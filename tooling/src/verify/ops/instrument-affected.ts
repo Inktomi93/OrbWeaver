@@ -352,6 +352,7 @@ function runSpecs(root: string, specs: readonly string[], livenessScope: Instrum
         [INSTRUMENT_AFFECTED_POLICIES_ENV]: livenessScope.kind === "policies" ? encodeInstrumentAffectedPolicyIds(livenessScope.policyIds) : undefined,
       }),
       stdio: "inherit",
+      supervised: true,
     },
   );
   return res.status ?? EXIT.toolError;

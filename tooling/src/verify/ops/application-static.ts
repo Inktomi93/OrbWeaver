@@ -25,7 +25,7 @@ export async function runApplicationStatic(root: string, args: readonly string[]
     return await runScopedEslint(root, files);
   }
   const run = (name: string, argv: readonly string[]): number => {
-    const result = runNicedSync(join(root, "node_modules/.bin", name), argv, { cwd: root, stdio: "inherit" });
+    const result = runNicedSync(join(root, "node_modules/.bin", name), argv, { cwd: root, stdio: "inherit", supervised: true });
     return asViolations(result.status);
   };
   if (checker === "biome") {
@@ -44,7 +44,11 @@ export async function runApplicationStatic(root: string, args: readonly string[]
       throw new Error("application duplication population has no implementation files");
     }
     return ownScheme(
-      runNicedSync(process.execPath, ["scripts/cpd.ts", "-c", "jscpd.json", ...implementation, "--fail-on-empty"], { cwd: root, stdio: "inherit" }).status,
+      runNicedSync(process.execPath, ["scripts/cpd.ts", "-c", "jscpd.json", ...implementation, "--fail-on-empty"], {
+        cwd: root,
+        stdio: "inherit",
+        supervised: true,
+      }).status,
     );
   }
   return runApplicationKnip(root, population);

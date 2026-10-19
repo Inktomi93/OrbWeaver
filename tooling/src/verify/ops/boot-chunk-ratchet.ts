@@ -371,7 +371,11 @@ function reportAppStylesheet(verdict: AppStylesheetVerdict): number {
  *  emitted APP STYLESHEET against its sentinels and every chunk against the DEV-only instruments. The worst
  *  of the three verdicts is the exit code; the build's sourcemaps are removed whatever happens. */
 export async function runBootChunkRatchet(root: string): Promise<number> {
-  const build = await spawnNiced("pnpm", ["--filter", "@orb/client", "build", ...HIDDEN_SOURCEMAP_ARGS], { cwd: root, timeoutMs: BUILD_TIMEOUT_MS });
+  const build = await spawnNiced("pnpm", ["--filter", "@orb/client", "build", ...HIDDEN_SOURCEMAP_ARGS], {
+    cwd: root,
+    timeoutMs: BUILD_TIMEOUT_MS,
+    supervised: true,
+  });
   try {
     if (build.code !== 0) {
       // A failed/killed build is a BROKEN CHECKER, never a size verdict (exit-contract §3.3).

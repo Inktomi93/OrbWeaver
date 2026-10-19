@@ -13,6 +13,13 @@ import { escalateStop } from "./stop-escalation.ts";
 
 const PARENT_POLL_MS = 500;
 const IGNORED_SIGNALS = ["SIGINT", "SIGQUIT", "SIGHUP"] as const;
+// The POSIX exec-failure codes `nice`, `env` and the shell use: no such command, and found but not runnable.
+const COMMAND_NOT_FOUND_EXIT = 127;
+const COMMAND_NOT_EXECUTABLE_EXIT = 126;
+
+function spawnFailureExit(error: Error): number {
+  return "code" in error && error.code === "ENOENT" ? COMMAND_NOT_FOUND_EXIT : COMMAND_NOT_EXECUTABLE_EXIT;
+}
 
 lowerToolingPriority();
 
@@ -111,7 +118,8 @@ function run(argv: readonly string[]): void {
       removeOrphanedScratch();
       if (exit.error !== undefined) {
         process.stderr.write(`niced-exec: spawn failed: ${cmd}: ${exit.error.message}\n`);
-        process.exitCode = EXIT.toolError;
+        // A supervised door stands where `nice` stood, so it reports a failed exec the way `nice` does.
+        process.exitCode = parent === undefined ? EXIT.toolError : spawnFailureExit(exit.error);
         return;
       }
       process.exitCode = childExitCode(exit);

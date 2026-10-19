@@ -144,6 +144,7 @@ export function readConfigSnapshot(
       cwd: transaction === undefined ? root : transaction.root,
       maxBuffer: SNAPSHOT_MAX_BUFFER,
       timeout: SNAPSHOT_TIMEOUT_MS,
+      supervised: true,
     });
   } catch (error) {
     return { kind: "unreadable", detail: error instanceof Error ? error.message : String(error) };

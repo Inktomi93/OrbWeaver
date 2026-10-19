@@ -103,6 +103,7 @@ export function collectNode(root: string, rest: readonly string[]): ScopedTestCo
       cwd: root,
       env: testProcessEnv(),
       maxBuffer: LIST_MAX_BUFFER,
+      supervised: true,
     });
     if (res.status !== 0) {
       return { error: `\`vitest list --filesOnly\` failed (status ${String(res.status)})\n${res.stderr}` };
@@ -189,6 +190,7 @@ function collectCtListing(root: string, rest: readonly string[]): ReturnType<typ
       cwd: root,
       env: testProcessEnv({ [CT_RUN_SLOT_ENV]: dir, [CT_RUN_RACING_ENV]: "" }),
       maxBuffer: LIST_MAX_BUFFER,
+      supervised: true,
     });
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -225,6 +227,7 @@ function spawnCt(root: string, rest: readonly string[], lease: { readonly cacheD
       [CT_CACHE_DIR_ENV]: lease.cacheDir,
     }),
     stdio: "inherit",
+    supervised: true,
   });
   return ct.status ?? EXIT.toolError;
 }
@@ -292,7 +295,7 @@ function spawnNode(root: string, rest: readonly string[], mode: "run" | "related
       "--reporter=default",
       "--reporter=json",
     ],
-    { cwd: root, env: testProcessEnv(), stdio: "inherit" },
+    { cwd: root, env: testProcessEnv(), stdio: "inherit", supervised: true },
   );
   return node.status ?? EXIT.toolError;
 }

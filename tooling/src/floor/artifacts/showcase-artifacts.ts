@@ -7,6 +7,7 @@ function run(command: "build" | "check", inherit: boolean): boolean {
   const result = runNicedSync(process.execPath, [join(REPO_ROOT, "tooling", "src", "plugin-author-showcase", "cli.ts"), command], {
     cwd: REPO_ROOT,
     ...(inherit ? { stdio: "inherit" as const } : {}),
+    supervised: true,
   });
   return result.status === 0;
 }

@@ -197,7 +197,7 @@ export function runRatchetGateCli(root: string): number {
   }
   process.stdout.write("\n");
 
-  const result = runNicedSync(VITEST_BIN, ["run", ...included, "--maxWorkers=4"], { cwd: root, stdio: "inherit" });
+  const result = runNicedSync(VITEST_BIN, ["run", ...included, "--maxWorkers=4"], { cwd: root, stdio: "inherit", supervised: true });
   const elapsedMs = performance.now() - startedAt;
   process.stdout.write(`\ntest:ratchets — ${(elapsedMs / MS_PER_SECOND).toFixed(2)}s wall\n`);
 

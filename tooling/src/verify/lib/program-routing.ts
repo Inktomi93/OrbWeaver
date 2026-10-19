@@ -110,6 +110,7 @@ function readProgramClosure(root: string, program: CompilerProgram): ReadonlySet
   const result = runNicedSync("pnpm", ["exec", "node", wrapper, "--noEmit", "--pretty", "false", "--listFilesOnly", "-p", program.config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,
+    supervised: true,
   });
   if (result.status !== 0) {
     const detail = [result.stderr.trim(), result.stdout.trim()].filter((part) => part !== "").join("\n");

@@ -115,6 +115,7 @@ export function vitestFiles(root: string, config?: string): VitestFilesResult {
     {
       cwd: root,
       maxBuffer: LIST_FILES_MAX_BUFFER,
+      supervised: true,
     },
   );
   if (res.status !== 0) {
@@ -151,6 +152,7 @@ export function playwrightFiles(root: string, config: string, extraEnv?: Readonl
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,
     env: inheritedProcessEnv(extraEnv),
+    supervised: true,
   });
   const listing = classifyCtListing(root, { status: res.status, stdout: res.stdout, stderr: res.stderr });
   if ("error" in listing) {

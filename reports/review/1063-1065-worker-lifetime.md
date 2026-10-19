@@ -71,6 +71,64 @@ Related:
   average 20 and passed alone at 23 s once load dropped.
 - `pnpm typecheck --config tooling/tsconfig.json`: PASS. Biome: clean.
 
+## 1064 corrections (verifier round)
+
+I swept every `spawnNiced` and `runNicedSync` call: ast-grep `ts` found 6 and 44, `tsx` found 0.
+
+Supervised, inside the verify CLI:
+- `ops/boot-chunk-ratchet.ts:374` client build (async);
+- `ops/dev-instrument-absence.ts:64` depcruise (async);
+- `ops/typecheck.ts:317,344`;
+- `ops/eslint-profile.ts:257`;
+- `ops/application-knip.ts:228`;
+- `ops/application-static.ts:28,47`;
+- `ops/scoped-test.ts:102,188,218,286`;
+- `ops/ratchet-gate.ts:200`;
+- `ops/tests-execution-membership.ts:112,150`;
+- `ops/instrument-affected.ts:332`;
+- `lib/tests-type-native.ts:19`;
+- `lib/application-programs.ts:24`;
+- `lib/program-routing.ts:110`;
+- `lib/config-snapshot.ts:143`;
+- `floor/artifacts/showcase-artifacts.ts:7`;
+- `floor/compiler/semantic-inventory-worker-run.ts:31`.
+
+Not supervised on purpose, inside the verify CLI. Each is a short probe that finishes on its own, and each
+supervised call costs a node start:
+- `floor/git/git.ts:28` git, called many times per run;
+- `floor/host/platform.ts:86` process-table and socket reads;
+- `lib/policy-repo-inventory.ts:219` `pnpm list`;
+- `lib/application-build-roots.ts:26` vite config read;
+- `lib/biome-verdict.ts:51` one-file control check;
+- `lib/ci-qualification.ts:103` `gh api`;
+- `lib/tests-type-native.ts:55` `--showConfig`;
+- `floor/compiler/semantic-inventory-runtime-replay.ts:33` resolution replay, run several times per check;
+- `floor/http/http-probe.ts:44` bounded HTTP probe;
+- `floor/instrument/ffmpeg.ts:11` `-version`.
+
+Outside the verify CLI (other front doors): `ast/ops/antipatterns.ts:185`, `doc/ops/tree.ts:237`,
+`mutation-probe/ops/probe.ts:38`, `stack/ops/*`, `snap/ops/*`. Snap and stack own daemons and
+stage-lifetime children by design.
+
+Exit status through the launcher: a code or a signal death is mirrored, as before. A command that cannot
+start now exits the way `nice` does (127, or 126), so the supervised and plain sync doors agree. New case
+in `niced-exec.int.test.ts`; red before (`expected 2 to be 127`). No call site reads `errorCode`
+(rg over the swept files).
+
+`supervisedEnv` now deletes any inherited `ORB_LAUNCHER_SCRATCH` and sets the key only from the caller's
+own `scratch`. New lifetime case: an ambient key, a caller killed during launcher boot, and the victim
+directory must survive. It was red before (`expected false to be true`).
+
+`stop-fixture.ts`:
+- The watcher yields 1 ms per poll (`Atomics.wait`) and stops after a bounded number of polls.
+- The fixture waits for the freeze through `settle`, so its cleanup always runs.
+- Cleanup kills the caller's own process group.
+
+Green: 9 files and 55 tests pass. They are the lifetime test (4), eslint-stop, typecheck-stop, niced-exec.int (8),
+process-priority.int, proc, proc.int, proc-signals and worker-run.int. That run went through the newly
+supervised `scoped-test.ts`. `pnpm typecheck --config tooling/tsconfig.json`: PASS. Biome on the 19 changed
+files: clean.
+
 ## 1065: scratch left by a killed caller
 
 The supervised launcher owns the cleanup. `runNicedSync`'s `supervised` option now also takes
