@@ -962,7 +962,7 @@ function closeAgentFor(context: EgressContext, agent: Agent | undefined): void {
 // (cancels the in-flight download when the initiating turn/workload aborts). Returns null on any
 // block/non-2xx/cap/timeout/network failure; the caller drops that one image.
 async function fetchImageBytesFor(context: EgressContext, url: string, maxBytes?: number, signal?: AbortSignal): Promise<Uint8Array | null> {
-  // @orb-waive caught-failure-ownership(catch): an attacker-influenceable provider image URL where every failure (SSRF egress-block, non-2xx, byte-cap, network) collapses to null and the caller drops the image; the SSRF block is already securityEvent'd at the connector before this catch, so returning null never opens egress or loses the event. Ends if a block reaches here un-logged.
+  // @orb-waive caught-failure-ownership(catch): fetchImageBytes returns null as data: generate-core's materialize drops that image, and when no image decodes it throws GenerationFailedError ("zero decodable images") to the caller; an SSRF block is securityEvent'd at the connector before this catch. Ends if materialize stops treating null as a dropped image or the zero-decodable throw is removed.
   try {
     const res = await safeFetchFor(context, url, {
       allowedHosts: ANY_HOST,

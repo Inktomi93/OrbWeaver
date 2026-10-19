@@ -511,13 +511,8 @@ export class Sandbox implements Disposable {
       if (remainingMs <= 0) {
         return;
       }
-      const pending = [...this.state.pending].map((deferred) =>
-        // @orb-waive caught-failure-ownership(deferred.settled): the guest promise already received this host rejection; this barrier waits only for quiescence so either settlement advances activation. Ends if the guest projection stops owning the rejection.
-        deferred.settled.then(
-          () => undefined,
-          () => undefined,
-        ),
-      );
+      // `settled` only ever resolves (quickjs-emscripten's executor takes `resolve` alone), so there is no rejection to absorb.
+      const pending = [...this.state.pending].map((deferred) => deferred.settled);
       const timeout = Promise.withResolvers<void>();
       let timer: ReturnType<typeof setTimeout> | undefined;
       try {

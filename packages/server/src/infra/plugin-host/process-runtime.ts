@@ -483,7 +483,7 @@ class BrokerClient {
       this.pending.set(id, { resolve, reject, timer });
       try {
         sender.send({ kind: "frame", generation, frame: serialized });
-        // @orb-waive caught-failure-ownership(error): the command promise is rejected with the write failure and the unusable channel is terminated. Ends if either caller delivery or connection teardown is removed.
+        // @orb-waive caught-failure-ownership(error): the write failure rejects the command promise (reject(error)) and stopConnection terminates the unusable channel. Ends if either the reject or the stopConnection call is removed.
       } catch (error) {
         this.pending.delete(id);
         timer();
@@ -493,7 +493,7 @@ class BrokerClient {
       }
       if (this.killOnCommand === operation) {
         this.killOnCommand = undefined;
-        // @orb-waive caught-failure-ownership(this.terminateManagedForTest): forced broker death reaches the disconnect owner, which invalidates this.bindings and rejects pending work. Ends if that error path stops reaching onDisconnect.
+        // @orb-waive caught-failure-ownership(this.terminateManagedForTest): test-only kill hook: a failed forced termination reaches onDisconnect, which rejects pending commands (pending.reject(error)) and crashes bindings. Ends if the handler stops calling onDisconnect.
         this.terminateManagedForTest().catch((error: unknown) => this.onDisconnect(error instanceof Error ? error : unavailableError()));
       }
     });
@@ -678,7 +678,7 @@ class BrokerClient {
         throw new Error("plugin broker: malformed broker response");
       }
       this.handle(message);
-      // @orb-waive caught-failure-ownership(error): malformed broker bytes terminate the managed channel, rejecting commands and invalidating their authorities.
+      // @orb-waive caught-failure-ownership(error): malformed broker bytes call stopConnection, whose onDisconnect(error) call rejects pending commands and crashes bindings. Ends if stopConnection stops calling onDisconnect.
     } catch (error) {
       this.stopConnection(error instanceof Error ? error : unavailableError());
     }
@@ -710,7 +710,7 @@ class BrokerClient {
     }
     // A bridge delivery that fails outside its RPC result path invalidates the broker connection and all
     // live command authorities. The channel's disconnect owner rejects pending work and crashes residents.
-    // @orb-waive caught-failure-ownership(this.handleBridge): channel teardown routes a detached bridge failure to the disconnect owner. Ends if teardown no longer rejects pending work and crashes residents.
+    // @orb-waive caught-failure-ownership(this.handleBridge): a detached bridge failure calls stopConnection, whose onDisconnect rejects pending work (pending.reject(error)) and crashes resident bindings. Ends if the handler stops calling stopConnection or onDisconnect stops rejecting pending work.
     void this.handleBridge(message).catch((error: unknown) => {
       this.stopConnection(error instanceof Error ? error : unavailableError());
     });
@@ -767,7 +767,7 @@ class BrokerClient {
   private async handleBridge(message: Extract<BrokerParentMessage, { readonly kind: "bridge" }>): Promise<void> {
     if (this.killOnBridge === message.operation) {
       this.killOnBridge = undefined;
-      // @orb-waive caught-failure-ownership(this.terminateManagedForTest): forced broker death reaches the disconnect owner, which invalidates this.bindings and rejects pending work. Ends if that error path stops reaching onDisconnect.
+      // @orb-waive caught-failure-ownership(this.terminateManagedForTest): test-only kill hook: a failed forced termination reaches onDisconnect, which crashes every dispatched binding (binding.onCrash(error)) and rejects pending work. Ends if the handler stops calling onDisconnect.
       this.terminateManagedForTest().catch((error: unknown) => this.onDisconnect(error instanceof Error ? error : unavailableError()));
       return;
     }
@@ -801,7 +801,7 @@ class BrokerClient {
       }
       try {
         authorizeBridgeCall(authority, message.operation, message.args);
-        // @orb-waive caught-failure-ownership(error): authorization refusal is serialized back to the worker as this bridge call's explicit failure result. Ends if sendBridgeResult stops carrying the caught error.
+        // @orb-waive caught-failure-ownership(error): an authorization refusal goes to sendBridgeResult, which serializes rpcError(error) into the bridge-result frame the worker receives. Ends if sendBridgeResult stops carrying the caught error.
       } catch (error) {
         this.sendBridgeResult(message.id, false, undefined, error);
         return;
@@ -809,7 +809,7 @@ class BrokerClient {
       const liveness = createLiveness();
       const completion = Promise.withResolvers<void>();
       this.bridgeCalls.set(message.id, { binding, liveness, settled: completion.promise });
-      // @orb-waive caught-failure-ownership(dispatchBridgeCall): the failed host operation is sent as the matching bridge error and its liveness record is removed. Ends if either action is removed.
+      // @orb-waive caught-failure-ownership(dispatchBridgeCall): the failed host operation is sent to the worker through sendBridgeResult(..., error) and its bridgeCalls record is removed. Ends if either action is removed.
       dispatchBridgeCall(binding, message.operation, message.args, liveness).then(
         (value) => {
           this.bridgeCalls.delete(message.id);
@@ -831,7 +831,7 @@ class BrokerClient {
         invokeArgs: binding.invokeArgs,
       });
       this.sendBridgeResult(message.id, true, value);
-      // @orb-waive caught-failure-ownership(error): synchronous authorization or dispatch refusal is serialized back to the worker as this bridge call's explicit failure result. Ends if sendBridgeResult stops carrying the caught error.
+      // @orb-waive caught-failure-ownership(error): a synchronous authorization or dispatch refusal goes to sendBridgeResult(..., error), which serializes rpcError(error) for the worker. Ends if sendBridgeResult stops carrying the caught error.
     } catch (error) {
       this.sendBridgeResult(message.id, false, undefined, error);
     }
@@ -846,9 +846,9 @@ class BrokerClient {
     try {
       const frame = serializeMessage({ kind: "bridge-result", id, ok, value, ...(error === undefined ? {} : { error: rpcError(error) }) });
       sender.send({ kind: "frame", generation, frame });
-      // @orb-waive caught-failure-ownership(serializationError): oversized host results become a minimal RPC error; failed fallback delivery terminates the channel.
+      // @orb-waive caught-failure-ownership(serializationError): an oversized or unserializable host result is replaced by a bridge-result frame carrying rpcError(serializationError); the failure of that fallback is owned by the inner channelError catch. Ends if the fallback frame stops carrying the error.
     } catch (serializationError) {
-      // @orb-waive caught-failure-ownership(channelError): a failed error response terminates the channel and rejects pending work. Ends if stopConnection stops rejecting pending work.
+      // @orb-waive caught-failure-ownership(channelError): a failed error response calls stopConnection, whose onDisconnect rejects pending work. Ends if stopConnection stops calling onDisconnect.
       try {
         sender.send({ kind: "frame", generation, frame: serializeMessage({ kind: "bridge-result", id, ok: false, error: rpcError(serializationError) }) });
       } catch (channelError) {
