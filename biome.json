@@ -2141,7 +2141,7 @@
       }
     },
     {
-      "includes": ["tooling/src/verify/gates/domain-inference-dispatch.ts", "tooling/src/verify/gates/owner-scoped-reads.ts"],
+      "includes": ["tooling/src/verify/gates/owner-scoped-reads.ts"],
       "linter": {
         "rules": {
           "style": {

@@ -10,7 +10,6 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { gate as boundedListLimit } from "../../../../tooling/src/verify/gates/bounded-list-limit.ts";
 import { gate as byteCheckCast } from "../../../../tooling/src/verify/gates/byte-check-cast.ts";
-import { gate as discoveryNoStatsRollups } from "../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
 import { gate as membershipEnforcer } from "../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as noAwaitDbInLoop } from "../../../../tooling/src/verify/gates/no-await-db-in-loop.ts";
 import { gate as noDirectReportsWrite } from "../../../../tooling/src/verify/gates/no-direct-reports-write.ts";
@@ -29,7 +28,6 @@ test(
       verifyPolicyProofs([
         boundedListLimit,
         byteCheckCast,
-        discoveryNoStatsRollups,
         membershipEnforcer,
         noAwaitDbInLoop,
         noDirectReportsWrite,

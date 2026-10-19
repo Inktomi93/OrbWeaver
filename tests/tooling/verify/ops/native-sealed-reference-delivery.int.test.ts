@@ -5,7 +5,6 @@ import type { Project } from "ts-morph";
 import { Node } from "ts-morph";
 import { beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as discovery } from "../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
 import { gate as membership } from "../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as scrubber } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -24,9 +23,8 @@ beforeEach(async () => {
   };
 });
 
-const POLICIES = [scrubber, membership, discovery];
+const POLICIES = [scrubber, membership];
 const SERVER = "packages/server/src/domain/chat/verbs/subject.ts";
-const DISCOVERY = "packages/server/src/domain/discovery/subject.ts";
 const CLIENT = "packages/client/src/features/subject.tsx";
 
 function fixture(root: string, repoRoot: string): void {
@@ -38,12 +36,11 @@ function fixture(root: string, repoRoot: string): void {
   symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
   const sources = {
     "packages/kit/src/content/index.ts": "export function createHiddenSpanStreamScrubber():object{return {};}",
-    "packages/db/src/schema/tables.ts": "export const users={};export const ownerStats={};",
+    "packages/db/src/schema/tables.ts": "export const users={};",
     "packages/db/src/query/index.ts": "export function fetchOwned():object{return {};}",
     "foreign.ts": "export function createHiddenSpanStreamScrubber():object{return {};}",
     [SERVER]:
       "import {createHiddenSpanStreamScrubber} from '#scrubber';\nimport {users} from '#tables';\nimport {fetchOwned} from '#owned';\nexport const value=[createHiddenSpanStreamScrubber(),users,fetchOwned];\n",
-    [DISCOVERY]: "import * as schema from '#tables';\nexport const value=schema.ownerStats;\n",
     [CLIENT]: "import * as content from '#scrubber';\ncontent.createHiddenSpanStreamScrubber();\n",
   };
   for (const [path, text] of Object.entries(sources)) {
@@ -132,7 +129,6 @@ test(
         [
           { id: scrubber.id, findings: [{ file: SERVER, token: "createHiddenSpanStreamScrubber" }] },
           { id: membership.id, findings: [{ file: SERVER, token: "fetchOwned" }] },
-          { id: discovery.id, findings: [{ file: DISCOVERY, token: "ownerStats" }] },
         ].toSorted((left, right) => left.id.localeCompare(right.id)),
       );
     } finally {
@@ -165,24 +161,9 @@ const local={fetchOwned(){}};
 local.fetchOwned();
 `,
     );
-    writeFileSync(
-      join(scratch, DISCOVERY),
-      `import * as schema from '#tables';
-const KEY='ownerStats';
-const ownerStatsReceiver=schema;
-// @orb-waive discovery-no-stats-rollups(KEY): intentional rollup fixture; ends with this test.
-ownerStatsReceiver[(KEY)];
-schema[("ownerStats")];
-let STABLE='ownerStats';
-schema[(STABLE satisfies string)!];
-let WRITE='ownerStats';WRITE='other';schema[WRITE];
-const LEFT=RIGHT;const RIGHT=LEFT;schema[LEFT];
-const local={ownerStats:1};local.ownerStats;
-`,
-    );
     const context = projectCtx(scratch);
     using _poison = poisonSyntax(context.project);
-    const selected = [membership, discovery];
+    const selected = [membership];
     const result = runPolicyPass({
       root: scratch,
       project: context.project,
@@ -200,18 +181,12 @@ const local={ownerStats:1};local.ownerStats;
       { line: 8, column: 6, token: "OWNER" },
       { line: 9, column: 7, token: "ownerId" },
     ]);
-    expect(positions(discovery.id)).toEqual([
-      { line: 5, column: 21, token: "KEY" },
-      { line: 6, column: 10, token: "ownerStats" },
-      { line: 8, column: 9, token: "STABLE" },
-    ]);
     expect(result.authority.waivedFindings.map(({ finding }) => [finding.policyId, finding.token])).toEqual([
       [membership.id, "FETCH"],
       [membership.id, "OWNER"],
-      [discovery.id, "KEY"],
     ]);
     expect(result.authority.authorityAlarms).toEqual([]);
-    expect(result.authority.effectiveFindings).toHaveLength(3);
+    expect(result.authority.effectiveFindings).toHaveLength(1);
   },
   scaledBudget(60_000),
 );

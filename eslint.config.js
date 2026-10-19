@@ -119,7 +119,9 @@ import { CONFIG_GROUP_IDS } from "./packages/client/src/state/config-group-ids.t
 import { MODAL_SLOT_IDS } from "./packages/client/src/state/modal-slot-ids.ts";
 import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
 import { BUS_SUBUNIONS, BUSES } from "./packages/contracts/src/bus-registry/index.ts";
+import { connectionApiSchema } from "./packages/contracts/src/inference/connection.ts";
 import { STRUCTURED_VEHICLES, WIRE_SCHEMA_KEYWORD_VOCABULARY } from "./packages/contracts/src/inference/wire-subset.ts";
+import { wireSchema } from "./packages/contracts/src/inference/wires.ts";
 import { TABLE_SCOPING } from "./packages/db/src/tenancy/index.ts";
 import { deriveCanonicalBrandTypeNames, ID_BRAND_HOME, nativeCanonicalIdBrand, requireEntityIdTypeNames } from "./tooling/src/floor/code-facts/id-brand.ts";
 import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TOOLING_PREFIX } from "./tooling/src/floor/code-facts/module-specifier.ts";
@@ -748,6 +750,7 @@ const tableImportDoor = (names) => `ImportSpecifier:matches([imported.name=${nam
 const tableExportDoor = (names) => `ExportSpecifier:matches([local.name=${names}], [local.value=${names}])`;
 const DB_STAR_EXPORT = `ExportAllDeclaration[source.value=${DB_MODULE_SOURCE}]`;
 const DB_WHOLE_MODULE_DOORS = `:matches(ImportDeclaration[source.value=${DB_MODULE_SOURCE}] > ImportNamespaceSpecifier, ExportAllDeclaration[source.value=${DB_MODULE_SOURCE}], ImportExpression[source.value=${DB_MODULE_SOURCE}])`;
+const STATS_ROLLUP_TABLES = alternation(["ownerStats", "characterStats", "dailyStats", "modelStats"]);
 // The vector substrate's primary tables (D20, Knowledge-Cluster inv 1-2).
 const VECTOR_TABLES = alternation(["characterEmbeddings", "imageEmbeddings", "chatDigests", "chatSegments", "chatDigestSpeakers", "documentChunks"]);
 const VECTOR_WRITE_METHODS = alternation(["insert", "update", "delete"]);
@@ -756,6 +759,17 @@ const USERS_MESSAGE =
 const VECTOR_MESSAGE =
   "A vector table is named only by its import roles: embeddings (owner), search/persistence (retrieval), chat/memory/persistence (bookkeeping), discovery/persistence (analytics) and the debug probes (D20). Go through the search engine with a producer scope.";
 const TABLE_IMPORT_RESTRICTIONS = [
+  {
+    // Knowledge-Cluster.md §7 #7: discovery is semantics; usage economics arrive only as injected stats ops.
+    id: "discovery-no-stats-rollups",
+    scope: ["packages/server/src/domain/discovery/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [tableImportDoor(STATS_ROLLUP_TABLES), tableExportDoor(STATS_ROLLUP_TABLES), DB_WHOLE_MODULE_DOORS].map((selector) => ({
+      selector,
+      message:
+        "The stats rollup tables (ownerStats, characterStats, dailyStats, modelStats) are stats' alone; discovery computes no usage rollup (Knowledge-Cluster.md §7 #7). Consume the injected stats economics op instead.",
+    })),
+  },
   {
     id: "no-direct-users-read",
     scope: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}"],
@@ -2942,6 +2956,37 @@ const VERIFY_HARD_RESTRICTIONS = [
 ];
 
 // HARD server structure bans, enabled only by `hardConfig` like the verify bans above.
+// A domain consumes the runtime's operation capability; it never branches on an inference wire or API value. The
+// vocabularies are the contracts' own schemas, so a new wire or API widens the ban without an edit here.
+const inferenceAxisValue = (value) => typeof value === "string" && (wireSchema.safeParse(value).success || connectionApiSchema.safeParse(value).success);
+function staticStringOf(node) {
+  if (node.type === "Literal") {
+    return node.value;
+  }
+  return node.type === "TemplateLiteral" && node.expressions.length === 0 ? node.quasis[0].value.cooked : undefined;
+}
+const INFERENCE_DISPATCH_MESSAGE =
+  "A domain dispatches on an inference wire or API value; ask the runtime for the operation capability through its public door and keep the domain's own policy local.";
+const domainInferenceDispatchRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = (node) => context.report({ node, message: INFERENCE_DISPATCH_MESSAGE });
+    return {
+      "BinaryExpression[operator=/^[!=]==?$/]"(node) {
+        for (const operand of [node.left, node.right]) {
+          if (inferenceAxisValue(staticStringOf(operand))) {
+            report(operand);
+          }
+        }
+      },
+      "SwitchCase[test!=null]"(node) {
+        if (inferenceAxisValue(staticStringOf(node.test))) {
+          report(node.test);
+        }
+      },
+    };
+  },
+};
 const SERDE_CARD_MAPPERS = alternation(["cardContentHash", "cardFromJson", "buildCardV3"]);
 const SERDE_CARD_HOME = "packages/server/src/primitives/serde/card/index.ts";
 const SERDE_CARD_MESSAGE = `A second declaration of a serde-core card mapper; each of cardContentHash, cardFromJson and buildCardV3 is declared once, in ${SERDE_CARD_HOME}. Import it from #primitives/serde/card.`;
@@ -2968,6 +3013,7 @@ const SERVER_HARD_RESTRICTIONS = [
       `ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[id.type='Identifier'][id.name=${SERDE_CARD_MAPPERS}]`,
     ].map((selector) => ({ selector, message: SERDE_CARD_MESSAGE })),
   },
+  { id: "domain-inference-dispatch", scope: ["packages/server/src/domain/**/*.{ts,tsx}"], homes: [], rule: domainInferenceDispatchRule },
 ];
 
 // D34: the db never re-spells a union. The runtime half (tests/db/schema/enum-tuples.suite.test.ts) judges the values.
@@ -3232,6 +3278,7 @@ const RESTRICTIONS = [
   { id: "evaluate-no-scope-capture", scope: rootSources("@tooling"), homes: [] },
   { id: "assumes-single-replica", scope: rootSources("@server", "@inference"), notUnder: ["packages/server/src/**/persistence/**"], homes: [] },
   { id: "detached-work-traced", scope: rootSources("@server", "@inference"), homes: [] },
+  { id: "receded-ink-integrity", scope: rootSources("@client", "@ui"), homes: [] },
   // infra translates a resolved posture onto a provider body; specs spell the posture they expect.
   {
     id: "no-hardcoded-side-gen-sampling",
@@ -6920,6 +6967,40 @@ const sideGenSamplingRule = {
   },
 };
 
+// The imported RECEDED_INK constant is used unprefixed: a Tailwind variant before it (`hover:`, `md:`, `[&:hover]:`)
+// says nothing about the rest state the recession ruling governs (packages/ui/src/lib/receded-ink.ts). A same-named
+// local constant is a different contract. A later overriding ink is not judged: ink and size share the `text-` spelling.
+const RECEDED_INK_NAME = "RECEDED_INK";
+const VARIANT_PREFIX_END = /\S:$/u;
+function importedRecededInk(context, expression) {
+  if (expression.type === "Identifier") {
+    return expression.name === RECEDED_INK_NAME && lexicalVariable(context, expression)?.defs[0]?.node.type === "ImportSpecifier";
+  }
+  return (
+    staticMemberName(expression) === RECEDED_INK_NAME &&
+    expression.object.type === "Identifier" &&
+    lexicalVariable(context, expression.object)?.defs[0]?.node.type === "ImportNamespaceSpecifier"
+  );
+}
+const recededInkRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      "TemplateLiteral[expressions.length>0]"(template) {
+        template.expressions.forEach((expression, index) => {
+          if (importedRecededInk(context, expression) && VARIANT_PREFIX_END.test(template.quasis[index].value.raw)) {
+            context.report({
+              node: expression,
+              message:
+                "RECEDED_INK behind a Tailwind variant states nothing about the control's rest state, the only state the recession ruling governs. Carry it unprefixed on the composite's own control, or author the colour directly when the control recedes only in a variant state (packages/ui/src/lib/receded-ink.ts).",
+            });
+          }
+        });
+      },
+    };
+  },
+};
+
 // `x.name`, `x["name"]` or a substitution-free template key: the member name, else undefined.
 function staticMemberName(member) {
   if (member.type !== "MemberExpression") {
@@ -7474,7 +7555,7 @@ const restrictionPlugin = {
     "tooling-ops-direct-invocation": toolingEntryRule(true),
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(VERIFY_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
-    ...Object.fromEntries(SERVER_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
+    ...Object.fromEntries(SERVER_HARD_RESTRICTIONS.map((entry) => [entry.id, entry.rule ?? restrictionRule(entry)])),
     ...Object.fromEntries(CONTEXT_SINGLE_WRITERS.map(({ id, rule }) => [id, rule])),
     ...Object.fromEntries(IDENTITY_WRITER_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(UI_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
@@ -7552,6 +7633,7 @@ const restrictionPlugin = {
     "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
     "assumes-single-replica": assumesSingleReplicaRule,
     "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
+    "receded-ink-integrity": recededInkRule,
     "detached-work-traced": detachedWorkRule,
     "commented-code": commentedCodeRule,
     "ct-story-single-import": ctStorySingleImportRule,

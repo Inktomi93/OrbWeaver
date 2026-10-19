@@ -10,7 +10,6 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as chatViewerPlaneCanonReads } from "../../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts";
-import { gate as discoveryNoStatsRollups } from "../../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
 import { gate as membershipEnforcer } from "../../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as membershipWriteFan } from "../../../../../tooling/src/verify/gates/membership-write-fan.ts";
 import { gate as ownTablesOnly } from "../../../../../tooling/src/verify/gates/own-tables-only.ts";
@@ -39,13 +38,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "loadCanonHistory",
-  },
-  {
-    policy: discoveryNoStatsRollups,
-    overlays: [
-      add(`${SERVER}/domain/discovery/persistence/liveness-rollup.ts`, 'import { ownerStats } from "@orb/db";\nexport const livenessRollup = ownerStats;\n'),
-    ],
-    messageIncludes: "stats rollup tables",
   },
   {
     policy: membershipEnforcer,

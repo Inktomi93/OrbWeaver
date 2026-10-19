@@ -17,7 +17,6 @@ import { gate as cssFamilyOwnership } from "../../../../../tooling/src/verify/ga
 import { gate as cssSelectorHasAWriter } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer.ts";
 import { gate as densityTier } from "../../../../../tooling/src/verify/gates/density-tier.ts";
 import { gate as integerLineBoxes } from "../../../../../tooling/src/verify/gates/integer-line-boxes.ts";
-import { gate as recededInkIntegrity } from "../../../../../tooling/src/verify/gates/receded-ink-integrity.ts";
 import { gate as restTransformGrid } from "../../../../../tooling/src/verify/gates/rest-transform-grid.ts";
 import { gate as seedThemeInkContrast } from "../../../../../tooling/src/verify/gates/seed-theme-ink-contrast.ts";
 import { gate as spacingTierHomeHealth } from "../../../../../tooling/src/verify/gates/spacing-tier-home-health.ts";
@@ -73,16 +72,6 @@ export const FRONTEND_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: integerLineBoxes,
     overlays: [featureClass("unpaired-leading", "text-label")],
     messageIncludes: "A line box off the integer-px grid",
-  },
-  {
-    policy: recededInkIntegrity,
-    overlays: [
-      add(
-        `${FEATURE}/liveness-receded.tsx`,
-        'import { RECEDED_INK } from "@orb/ui/lib";\nexport const T = <button className={`hover:${RECEDED_INK}`} type="button" />;\n',
-      ),
-    ],
-    messageIncludes: "RECEDED_INK",
   },
   {
     policy: restTransformGrid,

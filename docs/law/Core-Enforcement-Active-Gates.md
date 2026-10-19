@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(125 registered gates)
+(122 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -98,9 +98,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `ct-poll-schedule-and-paint-health` | ct-poll-schedule-and-paint | hard/error | @legacy-tests\* | the founding CT for the… |
 | `density-tier` | — | reviewed-grant/error | @client,@ui | density-tier violation… |
 | `diagnostic-legibility` | policy-soundness | ordinary/error | @tooling\* | a gate/policy diagnostic carries no… |
-| `discovery-no-stats-rollups` | — | ordinary/error | @server\* | the stats rollup tables (ownerStats /… |
 | `domain-freshness-plane` | drizzle-schema | hard/error | @server,@db\* | a MUTATING domain must declare its… |
-| `domain-inference-dispatch` | — | hard/error | @server\* | a domain dispatches on an inference… |
 | `duplicate-action-doors` | — | reviewed-grant/error | @client\* | one tRPC mutation is invoked from… |
 | `form-factory-for-multifield` | editor-form-factory | ordinary/error | @client\* | a feature component hand-rolls ≥3… |
 | `integer-line-boxes` | static-class-expression | ordinary/error | @client,@ui | A line box off the integer-px grid… |
@@ -147,7 +145,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `query-boundary-reservation-health` | query-boundary-reservation | hard/error | @client | the QueryBoundary reservation seam is… |
 | `query-freshness-coverage` | — | reviewed-grant/error | @client | a client-consumed tRPC query key… |
 | `real-corpus-liveness-manifest` | — | hard/error | @tooling,@tests\* | Every final policy owes a real-corpus… |
-| `receded-ink-integrity` | — | ordinary/error | @client,@ui | RECEDED_INK is carried behind a… |
 | `render-error-via-battery` | — | reviewed-grant/error | @client | a hand-rolled renderError prop on… |
 | `rest-transform-grid` | static-class-expression | hard/error | @client,@ui | A REST-state transform that cannot… |
 | `route-trpc-no-broad-spread` | — | hard/error | @tests\* | a routeTrpc fixture object spreads a… |
