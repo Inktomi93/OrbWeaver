@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(138 registered gates)
+(134 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -103,7 +103,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `domain-freshness-plane` | drizzle-schema | hard/error | @server,@db\* | a MUTATING domain must declare its… |
 | `domain-inference-dispatch` | — | hard/error | @server\* | a domain dispatches on an inference… |
 | `duplicate-action-doors` | — | reviewed-grant/error | @client\* | one tRPC mutation is invoked from… |
-| `entry-synthetic-role-is-user` | — | hard/error | @server,@inference\* | a hardcoded role: "user" inside a… |
 | `form-factory-for-multifield` | editor-form-factory | ordinary/error | @client\* | a feature component hand-rolls ≥3… |
 | `integer-line-boxes` | static-class-expression | ordinary/error | @client,@ui | A line box off the integer-px grid… |
 | `json-column-read-parsed` | open-json-column-key-parity | ordinary/error | @server\* | typed JSON column read by cast — the… |
@@ -131,7 +130,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-raw-history-writes` | — | hard/error | @client | client code captures a browser… |
 | `no-vanity-alias` | — | ordinary/error | @product,@tests | vanity rename — one symbol, one name;… |
 | `nullable-column-inequality` | drizzle-schema | ordinary/error | @packages,@tests | an inequality predicate (ne /… |
-| `one-principal-mint-population` | — | ordinary/error | @server,@inference | a new Principal construction site in… |
 | `open-json-column-key-parity` | — | reviewed-grant/error | @db,@server\* | an OPEN JSON column (mode:"json" +… |
 | `over-art-plate-arm` | — | ordinary/error | none | over-art plate law (UI-Theming-and-Con… |
 | `own-tables-only` | drizzle-schema | hard/error | @server\* | a domain touches its OWN tables… |
@@ -190,7 +188,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `tooling-project-home` | — | reviewed-grant/error | @tooling | a second ts-morph loader — the shared… |
 | `trpc-input-declarations` | — | hard/error | @server\* | a tRPC procedure reads input without… |
 | `trpc-output-declarations` | — | hard/error | @server\* | A mounted AppRouter query/mutation… |
-| `turn-identity` | — | ordinary/error | @server\* | the chat engine is Principal-BLIND… |
 | `two-class-role-authority` | role-vocabulary | reviewed-grant/error | @server\* | inline participant-role comparison in… |
 | `types-in-contract` | — | hard/error | @server\* | contract/service.ts must declare the… |
 | `typography-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
