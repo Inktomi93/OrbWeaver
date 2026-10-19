@@ -54,7 +54,7 @@ function fileHasCompletedAssertions(file: z.infer<typeof suiteReportSchema>["tes
 
 /** Read only the completed evidence produced during this invocation for its exact mirror selection. */
 export function readSuiteEvidence({ root, specs, path, startedAt, finishedAt }: SuiteReportRequest): SuiteEvidence {
-  // @orb-waive caught-failure-ownership(catch): unreadable or invalid JSON is explicit incomplete evidence and cannot establish either verdict. Ends if incomplete evidence can be scored.
+  // @orb-waive caught-failure-ownership(catch): the catch returns ABSENT_EVIDENCE (`complete: false`); classifySuiteExit at outcome.ts:103 maps `evidence?.complete !== true` to the `unmeasured` verdict, so unreadable or invalid JSON can never score killed or survived. Ends if classifySuiteExit scores an incomplete report.
   try {
     const decoded = suiteReportSchema.safeParse(JSON.parse(readFileSync(path, "utf8")));
     if (!decoded.success) {

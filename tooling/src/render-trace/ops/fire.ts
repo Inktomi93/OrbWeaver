@@ -91,7 +91,7 @@ function parseRequest(arg: string): FireRequest {
 async function waitForReady(baseUrl: string, deadlineMs: number): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < deadlineMs) {
-    // @orb-waive caught-failure-ownership(catch): a connection-refused/fetch failure during boot polling is expected while the server isn't listening yet — the loop retries until deadlineMs, then throws its own timeout error below. Ends if this stops eventually throwing on deadline.
+    // @orb-waive caught-failure-ownership(catch): a refused or failed fetch while the server boots is retried; when deadlineMs passes the loop ends in the explicit throw at fire.ts:106, which fails the op. Ends if the loop stops throwing on the deadline.
     try {
       // Orb's liveness route is /healthz (entry/http/healthz.ts) — NOT neo's /api/healthz.
       const res = await fetch(`${baseUrl}/healthz`);

@@ -148,7 +148,7 @@ async function tryTurn(
   log: (msg: string) => void,
   label: string,
 ): Promise<Awaited<ReturnType<Services["chat"]["send"]>> | null> {
-  // @orb-waive caught-failure-ownership(err): the JSDoc above states the intent directly — a best-effort seeded turn where the greeting transcript is already committed, so an offline-model failure is logged with the honest limitation and the demo db stays valid. Ends if the failure stops being logged.
+  // @orb-waive caught-failure-ownership(err): the skipped live turn is reported through the injected `log` at demo.ts:157, which runDemoSeed binds to `print` (stdout, demo.ts:377); the greeting transcript is already committed. Ends if the failed turn stops being logged.
   try {
     const result = await run();
     log(`${label}: seeded a scripted assistant turn`);
@@ -383,7 +383,7 @@ export async function runDemoSeed(argv: readonly string[]): Promise<ExitCode> {
     return EXIT.violations;
   }
 
-  // @orb-waive caught-failure-ownership(error): the message is warned to the operator and the function returns EXIT.toolError — propagated through both channels, not dropped. Ends if either the warn or the return code is removed.
+  // @orb-waive caught-failure-ownership(error): the missing-avatar message goes to the operator through `warn` (stderr) at demo.ts:390 and runDemoSeed returns EXIT.toolError, which seed/cli.ts:24 returns as the process exit. Ends if either the warn or the returned code is removed.
   try {
     await validateRequiredDemoAssets();
   } catch (error) {

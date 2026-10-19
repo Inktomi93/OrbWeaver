@@ -97,7 +97,7 @@ export function generateMirror(root: string, requestedTarget: string): MirrorSum
     }
     const source = join(root, relative);
     const destination = join(target, relative);
-    // @orb-waive caught-failure-ownership(error): pushed into the errors[] array returned to the caller as part of the mirror result, not dropped. Ends if the errors array stops being surfaced in the return value.
+    // @orb-waive caught-failure-ownership(error): the per-file failure is pushed into `errors`, returned in MirrorSummary; run.ts:61 assertReviewEvidence throws on a non-empty `errors` (lib/evidence.ts:18 gap, :49 throw) before any evidence file is written. Ends if reviewEvidenceGaps stops counting mirror.errors.
     try {
       if (lstatSync(source).isSymbolicLink()) {
         droppedFiles += 1;
