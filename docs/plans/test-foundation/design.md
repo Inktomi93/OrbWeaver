@@ -142,7 +142,7 @@ Today `pnpm ast` reads code through `tooling/src/ast/lib/` and the gates read it
 | Codemods | codemod readers in `tooling/src/codemod/lib/` | 957 |
 | Liveness | `pnpm ast` dead, orphans, testonly and chains; `tests/tooling/doc/ledger-paths.suite.repo.int.test.ts`, testid-liveness | not yet itemized |
 | tRPC wiring | `pnpm ast` unwired, clientgap and viewgap; floor `trpc-doors` | not yet itemized |
-| Ambient calls: clock, random, timers, environment | no-raw-clock, no-raw-random, test-determinism, platform-spellings, sole-env-reader | not yet itemized |
+| Ambient calls: clock, random, timers, environment | no-raw-clock, no-raw-random, test-determinism, platform-spellings, `orb/sole-env-reader` | not yet itemized |
 | Casts | Native assertion rules; shared brand and assignability facts retain semantic judgments | 1041; 973 widens the id gates |
 
 Gate families fold onto the shared readers:

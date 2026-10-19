@@ -1,4 +1,4 @@
-// Reviewed grants for JSON writes, configuration wiring, identity, macros and egress.
+// Reviewed grants for JSON writes, configuration wiring, identity, macros and manual memoization.
 // Split from reviewed-grants.ts — see that file for the central home comment.
 //
 // TWO `knob-wire-coverage` ROWS RETIRED 2026-09-20 (lane cb-gate-reach, the @orb/inference §12 extraction
@@ -130,13 +130,5 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
     operation: "manual-react-memo",
     why: "React Compiler's installed bundle marks @tanstack/react-virtual known-incompatible, so this useVirtualizer component is skipped and its manual memo remains its only memoization.",
     endsWhen: "the installed compiler delists @tanstack/react-virtual; tests/client/react-compiler-contract.test.ts reports that transition.",
-  },
-  {
-    id: "no-raw-egress:egress-hop",
-    policyId: "no-raw-egress",
-    subject: "packages/server/src/infra/network/egress.ts",
-    operation: "raw-fetch",
-    why: "`safeFetch`'s own home: `fetchHop` IS the guarded request every other server call is routed through. The guard cannot be built without the one raw fetch it wraps, and the scheme pin, host allowlist, resolve→validate→pin and deadline all run around this exact line.",
-    endsWhen: "the guard stops issuing the request itself (a lower transport primitive takes over), at which point this row is consumed zero times and reds.",
   },
 ];

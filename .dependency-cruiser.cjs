@@ -922,7 +922,7 @@ module.exports = {
     // ruling: "there is no vllm module left to isolate" — the five role surfaces are gone, vLLM is a
     // provider ROW on the openai-compat wire, and the owner's fleet left the repo (ADR 0007).
     // Following it there would have widened a provider-execution seal into the instrument tree by side
-    // effect, which is the mistake the `no-raw-egress` engine-plane rows already refused to make.
+    // effect, which is the mistake the `orb/no-raw-egress` scope already refuses to make.
     {
       name: "providers-public-surface-only",
       comment:

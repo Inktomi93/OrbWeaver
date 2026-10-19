@@ -40,11 +40,12 @@ import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { SchemaTableIndex } from "../contract/tenancy.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { isDrizzleWriteStatement, predicatesOwnId, predicatesTableColumn, tableTargetOf, whereArgOf } from "../lib/tenancy-read.ts";
+import { declaredTablesOf, isDrizzleWriteStatement, predicatesTableColumn, readsTableColumn, tableTargetOf, whereArgOf } from "../lib/tenancy-read.ts";
 import { ownerScopedTableIdents, schemaTableIndex } from "../lib/tenancy-scope.ts";
 import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
 
 const OWNER_COL = "ownerId";
+const ID_COL = "id";
 /** The drizzle write verbs. A `Set`, not a `switch`: the two arms are judged identically — what differs is
  *  only which statement the reader anchors on, and both anchor the same way. */
 const WRITE_VERBS: ReadonlySet<string> = new Set([DRIZZLE_UPDATE_VERB, DRIZZLE_DELETE_VERB]);
@@ -126,16 +127,16 @@ function judgeWrite(node: CallExpression, ownerTableIdents: ReadonlySet<string>,
     // declared limit (a mustPass row carries it), NOT a silent exemption of a readable one.
     return isDrizzleWriteStatement(node) ? { argNode: arg, message: `${UNRESOLVABLE_MESSAGE} — Spine-Identity-and-Auth.md` } : undefined;
   }
-  const ident = target.ident;
+  const tables = declaredTablesOf(arg, allTableIdents);
+  const [sole] = tables.size === 1 ? tables : [];
   const where = whereArgOf(node);
   // NO WHERE AT ALL is the widest form of the hole, not an exemption: on a read it is a list, on a write it
   // is every owner's rows. BY-ID is the read half's shape — whatever id the caller supplies gets written.
   // Any OTHER predicate (a partition column, a status guard on its own) is a different, unenforced question.
-  if (where !== undefined && predicatesTableColumn(where, ident, OWNER_COL)) {
+  if (where !== undefined && sole !== undefined && predicatesTableColumn(where, sole, OWNER_COL, allTableIdents)) {
     return; // arm 1 — the owner is IN THE WHERE (with or without a by-id predicate beside it)
   }
-  const whereText = where?.getText() ?? "";
-  if (where !== undefined && !predicatesOwnId(whereText, ident)) {
+  if (where !== undefined && !readsTableColumn(where, tables, ID_COL, allTableIdents)) {
     return;
   }
   return { argNode: arg, message: MESSAGE };
@@ -204,7 +205,7 @@ export const gate = defineGate({
           'import * as schema from "@orb/db";\nexport async function renameCard(db: Db, id: string, name: string) {\n  return db.update(schema.characters).set({ name }).where(eq(schema.characters.id, id));\n}\n',
       },
       expect: { count: 1, messageIncludes: "cross-tenant WRITE hole" },
-      why: 'THE NAMESPACE SPELLING of the founding shape (#2199). `import * as schema from "@orb/db"` binds no table identifier and produces no ImportSpecifier, so the shared `tableTargetOf` — which required an Identifier node — classified `schema.characters` as NOT A TABLE ARGUMENT and the write was never judged: 0 findings on the unmodified module, on the widest cross-tenant hole this gate owns. The acquitting side moved with it (`predicatesTableColumn` now compares the receiver by text), or a correctly scoped namespace-spelled write would have been falsely accused instead',
+      why: 'THE NAMESPACE SPELLING of the founding shape (#2199). `import * as schema from "@orb/db"` binds no table identifier and produces no ImportSpecifier, so the shared `tableTargetOf` — which required an Identifier node — classified `schema.characters` as NOT A TABLE ARGUMENT and the write was never judged: 0 findings on the unmodified module, on the widest cross-tenant hole this gate owns. The acquitting side moved with it (`predicatesTableColumn` resolves the declared table of the receiver), or a correctly scoped namespace-spelled write would have been falsely accused instead',
     },
     {
       mode: "types",
@@ -316,6 +317,83 @@ export const gate = defineGate({
       expect: { count: 1, token: "characters" },
       why: "unrelated ownerId text is not a target-table owner predicate; a tautology over the caller value cannot scope the write",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { characters } from "@orb/db";\nconst table = characters;\nexport async function renameCard(db: Db, id: string, name: string) {\n  return db.update(table).set({ name }).where(eq(characters.id, id));\n}\n',
+      },
+      expect: { count: 1, token: "table", messageIncludes: "cross-tenant WRITE hole" },
+      why: "A by-id predicate spelled on the canonical binding while the write target is an alias is still the target's own id: the by-id reader resolves the receiver's declared table, never the target's spelling",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { eq } from "drizzle-orm";\nimport { characters } from "@orb/db";\nexport async function renameCard(db: Db, id: string, name: string) {\n  const byId = eq(characters.id, id);\n  return db.update(characters).set({ name }).where(byId);\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "cross-tenant WRITE hole" },
+      why: "A by-id predicate bound to a local before the WHERE is the same write: the floor predicate fact follows the binding to the term it names",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { characters } from "@orb/db";\nexport async function renameCard(db: Db, id: string, name: string) {\n  return db.update(characters).set({ name }).where(eq(characters["id"], id));\n}\n',
+      },
+      expect: { count: 1, messageIncludes: "cross-tenant WRITE hole" },
+      why: "A bracket key names the same id column as the dotted spelling",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { sql } from "drizzle-orm";\nimport { characters } from "@orb/db";\nexport async function renameCard(db: Db, id: string, name: string) {\n  return db.update(sql`CHARACTERS`).set({ name }).where(eq(characters.id, id));\n}\n',
+      },
+      expect: { count: 1, messageIncludes: UNRESOLVABLE },
+      why: "SQLite resolves identifiers case-insensitively, so a raw SQL row source spelling a schema table in another case names that table and is unresolvable, not a table-free constant",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { alias } from "drizzle-orm/sqlite-core";\nimport { and, eq, exists } from "drizzle-orm";\nimport { characters } from "@orb/db";\nconst mine = alias(characters, "mine");\nexport async function renameCard(db: Db, id: string, callerId: string, name: string) {\n  return db.update(characters).set({ name }).where(and(eq(characters.id, id), exists(db.select().from(mine).where(eq(mine.ownerId, callerId)))));\n}\n',
+      },
+      expect: { count: 1, token: "characters", messageIncludes: "cross-tenant WRITE hole" },
+      why: "An owner term on an aliased copy of the table inside an EXISTS subquery scopes the subquery, not the written row: a caller who owns any character could rename every character by id",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { alias } from "drizzle-orm/sqlite-core";\nimport { and, eq, exists } from "drizzle-orm";\nimport { characters } from "@orb/db";\nexport async function renameCard(db: Db, id: string, callerId: string, name: string) {\n  return db.update(characters).set({ name }).where(and(eq(characters.id, id), exists(db.select().from(characters).where(eq(characters.ownerId, callerId)))));\n}\n',
+      },
+      expect: { count: 1, token: "characters", messageIncludes: "cross-tenant WRITE hole" },
+      why: "An owner read inside a nested select binds to that select's own row source, even when it names the written table, so it is never the target's owner term",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { alias } from "drizzle-orm/sqlite-core";\nimport { and, eq, exists } from "drizzle-orm";\nimport { characters } from "@orb/db";\nconst mine = alias(characters, "mine");\nexport async function renameCard(db: Db, id: string, callerId: string, name: string) {\n  return db.update(characters).set({ name }).where(and(eq(characters.id, id), eq(mine.ownerId, callerId)));\n}\n',
+      },
+      expect: { count: 1, token: "characters", messageIncludes: "cross-tenant WRITE hole" },
+      why: "A drizzle alias is its own SQL row source, so an owner column read through it is not the written table's owner term",
+    },
   ],
   mustPass: [
     {
@@ -336,7 +414,7 @@ export const gate = defineGate({
         "packages/server/src/domain/character/persistence/card.ts":
           'import * as schema from "@orb/db";\nexport async function renameOwned(db: Db, id: string, ownerId: string, name: string) {\n  return db.update(schema.characters).set({ name }).where(and(eq(schema.characters.id, id), eq(schema.characters.ownerId, ownerId)));\n}\n',
       },
-      why: "THE ACQUITTAL'S OWN ROW (#2214), and the DIRECTION is the point: this write is CORRECTLY SCOPED and namespace-spelled, so the gate must stay SILENT on it. `predicatesTableColumn` reads the owner predicate's receiver BY TEXT (`schema.characters`) rather than requiring an Identifier, and that half has no other proof: cut it and no mustFlag row moves, while this row reds — the namespace-spelled owner predicate reads as ABSENT and a properly-scoped write is accused of the cross-tenant hole. The accusing half of the same fix (the namespace mustFlag row above) can only ever make the gate louder; this is the row that stops it becoming loud about innocent code (§4.1: every narrowing owes a row that dies under its own cut)",
+      why: "THE ACQUITTAL'S OWN ROW (#2214), and the DIRECTION is the point: this write is CORRECTLY SCOPED and namespace-spelled, so the gate must stay SILENT on it. `predicatesTableColumn` resolves the owner predicate's receiver (`schema.characters`) to its declared table rather than requiring an Identifier, and that half has no other proof: cut it and no mustFlag row moves, while this row reds — the namespace-spelled owner predicate reads as ABSENT and a properly-scoped write is accused of the cross-tenant hole. The accusing half of the same fix (the namespace mustFlag row above) can only ever make the gate louder; this is the row that stops it becoming loud about innocent code (§4.1: every narrowing owes a row that dies under its own cut)",
     },
     {
       mode: "types",
@@ -447,6 +525,16 @@ export const gate = defineGate({
           "// @orb-waive owner-scoped-writes(table): the caller resolved the row owned and passes the table only to share one UPDATE body. Ends the day this helper takes an id it did not load.\nexport async function renameAny(db: Db, table: AnyTable, id: string, name: string) {\n  return db.update(table).set({ name }).where(eq(table.id, id));\n}\n",
       },
       why: "ONE vocabulary per gate: the unresolvable arm answers the same question the by-id arm does ('who authorized this write'), so it takes the SAME central waiver position rather than minting a fourth",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/character.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/character/persistence/card.ts":
+          'import { characters } from "@orb/db";\nconst table = characters;\nexport async function renameOwned(db: Db, id: string, ownerId: string, name: string) {\n  return db.update(table).set({ name }).where(and(eq(table.id, id), eq(characters.ownerId, ownerId)));\n}\n',
+      },
+      why: "An owner predicate spelled on the canonical binding scopes a write through its alias: both name the one declared table, so the receiver's spelling is not evidence",
     },
   ],
 });
