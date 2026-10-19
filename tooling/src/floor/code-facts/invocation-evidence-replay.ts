@@ -35,6 +35,7 @@ export function replayInvocationEvidence(
   wire: InventoryInvocationEvidence,
   replayNode: (span: InventorySpan) => MorphNode,
   children: Pick<NativeInvocationEvidence, "declarations" | "computedName" | "globals">,
+  assertLive: () => void,
 ): NativeInvocationEvidence {
   const { node: replay, observations: readObservations } = ordinaryReplayOwner(wire, replayNode, children.globals);
   const restore = <T, V>(fact: InventoryInvocationReference<T>, value: (input: T) => V): ReferenceFact<V> => replayReferenceFact(fact, value, replay);
@@ -106,7 +107,7 @@ export function replayInvocationEvidence(
   const observations = readObservations();
   return {
     ...(observations === undefined ? {} : { observations }),
-    ...replayTypeAttachment(wire, replayNode),
+    ...replayTypeAttachment(wire, replayNode, assertLive),
     invocation,
     modules,
     callableBindings,
@@ -244,6 +245,7 @@ function ordinaryReplayOwner(
 function typeReplayOwner(
   payload: NonNullable<InventoryInvocationEvidence["typeObservations"]>,
   replayNode: (span: InventorySpan) => MorphNode,
+  assertLive: () => void,
 ): NonNullable<NativeInvocationEvidence["typeObservations"]> {
   const epochs = new Map<SourceFile, SourceFile["compilerNode"]>();
   const replay = (span: InventorySpan): MorphNode => {
@@ -252,16 +254,28 @@ function typeReplayOwner(
     return node;
   };
   const restored = replayTypeObservations(payload, replay);
+  // Admission memo, owned by this one replay of one reader's evidence, so it never spans two leases.
+  // The key is the wrapper plus its immutable TypeScript node: an edit or forget replaces or detaches the
+  // compiler node, so a hit means the same parse that already passed the anchor and span replay. A hit
+  // still requires the live lease and every captured source epoch, which are checked on every call first.
+  // An entry is written only after the full check passes, so a refused node or anchor is never memoized.
+  const verified = new WeakMap<MorphNode, MorphNode["compilerNode"]>();
   return {
     ...restored,
     assertNode: (node): void => {
-      replayNode(payload.anchor);
+      assertLive();
       for (const [source, epoch] of epochs) {
         if (source.wasForgotten() || source.compilerNode !== epoch) {
           throw new SemanticInventoryError("native type observation closed source epoch is stale");
         }
       }
+      const identity = node.compilerNode;
+      if (verified.get(node) === identity) {
+        return;
+      }
+      replayNode(payload.anchor);
       restored.assertNode(node);
+      verified.set(node, identity);
     },
   };
 }
@@ -269,8 +283,9 @@ function typeReplayOwner(
 function replayTypeAttachment(
   wire: InventoryInvocationEvidence,
   replay: (span: InventorySpan) => MorphNode,
+  assertLive: () => void,
 ): Pick<NativeInvocationEvidence, "typeObservations"> {
-  return wire.typeObservations === undefined ? {} : { typeObservations: typeReplayOwner(wire.typeObservations, replay) };
+  return wire.typeObservations === undefined ? {} : { typeObservations: typeReplayOwner(wire.typeObservations, replay, assertLive) };
 }
 
 function optionalReferenceFacets(

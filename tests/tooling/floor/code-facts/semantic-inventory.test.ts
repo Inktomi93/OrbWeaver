@@ -529,44 +529,65 @@ test("invocation query validation refuses corrupt unread rows after another ordi
   }
 });
 
-test("invocation graph decoding compares sibling keys linearly and still refuses a duplicate key", { timeout: scaledBudget(60_000) }, ({ scratch }) => {
-  const width = 32;
+const NARROW_DECODES_PER_SAMPLE = 20;
+
+// Append one extra array member of `width` null atoms to a stored fact graph's root object. The fact schema
+// strips the unknown root key, so the decoded fact is unchanged while the decoder still walks every sibling.
+function appendWideSiblings(db: ReturnType<typeof openInventoryDatabase>, id: string, owner: number, width: number): void {
+  const last = db.prepare("SELECT MAX(ordinal) AS last FROM inventory_invocation_atom WHERE partition=? AND owner=?").get(id, owner)?.["last"];
+  if (typeof last !== "number") {
+    throw new Error("wide sibling control has no stored atom graph");
+  }
+  const insert = db.prepare("INSERT INTO inventory_invocation_atom(partition,owner,ordinal,parent,key,kind,text,number,size) VALUES(?,?,?,?,?,?,NULL,NULL,?)");
+  db.exec("BEGIN");
+  insert.run(id, owner, last + 1, 0, JSON.stringify("wide"), "array", width);
+  for (let index = 0; index < width; index++) {
+    insert.run(id, owner, last + 2 + index, last + 1, JSON.stringify(String(index)), "null", 0);
+  }
+  db.prepare("UPDATE inventory_invocation_atom SET size=size+1 WHERE partition=? AND owner=? AND ordinal=0").run(id, owner);
+  db.prepare("UPDATE inventory_invocation_evidence SET atomCount=atomCount+? WHERE partition=? AND ordinal=?").run(width + 1, id, owner);
+  db.exec("COMMIT");
+}
+
+test("invocation graph decoding work grows linearly with sibling count and still refuses a duplicate key", { timeout: scaledBudget(120_000) }, ({
+  scratch,
+}) => {
+  const narrow = 2000;
+  const wide = narrow * 16;
   initialize(scratch);
-  // Each profile needs its own span, so both sources must be wider than the sibling count.
-  write(scratch, "a.ts", `export const a=1;\n//${"a".repeat(width)}\n`);
-  write(scratch, "b.ts", `export const b=2;\n//${"b".repeat(width)}\n`);
-  const data = invocationMetadataPartitions(scratch).map((captured) => ({
-    ...captured,
-    invocationEvidence: captured.invocationEvidence.map((captureFact) => ({
-      ...captureFact,
-      profiles: Array.from({ length: width }, (_, start) => ({ node: { ...captureFact.query.node, start, end: start + 1 }, undefined: true })),
-    })),
-  }));
+  const data = invocationMetadataPartitions(scratch);
   using writer = openInventoryDatabase(join(scratch, "invocation.sqlite"));
   const generation = publishInventoryGeneration(writer, data);
   const id = readInventoryGeneration(writer, generation).find((entry) => entry.program === data[0]?.program)?.id;
-  const fact = data[0]?.invocationEvidence[0];
-  if (id === undefined || fact === undefined) {
+  const [small, large] = data[0]?.invocationEvidence ?? [];
+  if (id === undefined || small === undefined || large === undefined) {
     throw new Error("wide invocation graph control missing");
   }
-  // A sibling-key scan runs Array#some over the decoded [key, value] entries; count its predicate calls.
-  let siblingComparisons = 0;
-  const some = Array.prototype.some;
-  const scan = vi.spyOn(Array.prototype, "some").mockImplementation(function (this: unknown[], predicate, thisArg) {
-    const counted = Array.isArray(this[0]) && this[0].length === 2 && typeof this[0][0] === "string";
-    return some.call(this, (value, index, array) => {
-      siblingComparisons += counted ? 1 : 0;
-      return predicate.call(thisArg, value, index, array);
-    });
-  });
-  try {
-    expect([...readInventoryInvocationEvidence(writer, id, fact.query)]).toEqual([fact]);
-  } finally {
-    scan.mockRestore();
-  }
-  expect(siblingComparisons).toBeLessThan(width);
-  writer.prepare("UPDATE inventory_invocation_atom SET key='\"callee\"' WHERE partition=? AND owner=0 AND parent=0 AND key='\"invocation\"'").run(id);
-  expect(() => [...readInventoryInvocationEvidence(writer, id, fact.query)]).toThrow("container identity is ambiguous");
+  appendWideSiblings(writer, id, 0, narrow);
+  appendWideSiblings(writer, id, 1, wide);
+  // Process CPU per decode, best of three samples: input size against work done, independent of how siblings
+  // are compared. The narrow sample repeats its decode so it is long enough (hundreds of ms) to resist load noise.
+  const work = (query: InventoryInvocationQuery, expected: object, decodes: number): number => {
+    const samples: number[] = [];
+    for (let run = 0; run < 3; run++) {
+      const started = process.cpuUsage();
+      for (let decode = 0; decode < decodes; decode++) {
+        expect([...readInventoryInvocationEvidence(writer, id, query)]).toEqual([expected]);
+      }
+      const spent = process.cpuUsage(started);
+      samples.push((spent.user + spent.system) / decodes);
+    }
+    return Math.min(...samples);
+  };
+  work(small.query, small, 1);
+  const smallWork = work(small.query, small, NARROW_DECODES_PER_SAMPLE);
+  const ratio = work(large.query, large, 1) / smallWork;
+  // At 16x the siblings, linear decoding stays well under 45x the work; comparing each key with every earlier one does not.
+  expect(ratio).toBeLessThan(45);
+  writer
+    .prepare("UPDATE inventory_invocation_atom SET key=? WHERE partition=? AND owner=0 AND parent=0 AND key=?")
+    .run(JSON.stringify("callee"), id, JSON.stringify("wide"));
+  expect(() => [...readInventoryInvocationEvidence(writer, id, small.query)]).toThrow("container identity is ambiguous");
 });
 
 test("owned replay refuses a declaration available only in another native partition", ({ scratch }) => {

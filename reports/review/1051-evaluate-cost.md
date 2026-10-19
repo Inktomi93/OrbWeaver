@@ -70,7 +70,9 @@ Attribution:
 
 1. **`tooling/src/floor/compiler/compiler-programs.ts:131` (main).** `authoredCompilerFiles` rebuilt `new Set(inventory.paths.map(realpathSync))` once per config. The cost was about 12k authored paths × 25 configs per program-graph read, and about 4 graph reads per inventory acquisition (`semantic-inventory.ts:138,157,167,191`). The fix computes `authoredIdentity` once per `readProgramGraph` call, lazily, and passes it down. A later read resolves symlinks afresh. Nothing is keyed on the inventory object.
 2. **`tooling/src/floor/code-facts/semantic-inventory-queries.ts:404-405` (main).** `invocationValue` checked each child's key with `entries.some(...)` over all previous siblings, which is O(n²) per container on wide type-observation graphs. The fix keeps a `Set` of sibling keys per container. A duplicate key still raises the same "container identity is ambiguous" refusal. `readDrizzleGraph` shares the decoder, so it is fixed as well.
-3. **`tooling/src/floor/code-facts/semantic-inventory-reader.ts:356` (main).** `replayFor` compared `value.file === capturedSpan(node).file`, which computed the anchor's start, a trivia scan, on every replayed read. The fix compares against `capturedFile(node)`, the identical canonical path, without the span.
+3. **`tooling/src/floor/code-facts/semantic-inventory-reader.ts:356` (main).** `replayFor` compared `value.file === capturedSpan(node).file`, which computed the anchor's start, a trivia scan, on every replayed read. The fix compares against `capturedFile(node)`, the same canonical path, without building the span.
+   - **Behavior change** (verifier P3). The value compared is the same, but the old code also crashed in `nodeSpan` when the anchor had been forgotten. Now a late replay through a forgotten anchor proceeds, and the source-text check that follows still refuses stale text.
+   - The test "a late related-value replay after its anchor is forgotten admits unchanged text and refuses changed text" in `native-invocation-delivery.test.ts` pins both halves. On the old comparison it fails with ts-morph's "removed or forgotten" error from `nodeSpan`.
 
 **Relation to 1016.** It is not the same stored-schema decode (`readDrizzleGraph` per subject). Fix 2 is its sibling: repeated decode work, inside the same atom decoder 1016 reached. Fix 1 is a different class: repeated invariant derivation inside one owned program-graph read.
 
@@ -81,24 +83,68 @@ Attribution:
 - `tests/tooling/floor/compiler/compiler-program-physical-identity.test.ts`
   - Before the fix, a non-member authored file was realpathed 1 + programs times: `expected 5 to be 2`. After the fix it is once per graph read, and does not grow with program count.
   - A freshness control proves each read resolves again.
-- `tests/tooling/floor/code-facts/semantic-inventory.test.ts`, "invocation graph decoding compares sibling keys linearly and still refuses a duplicate key"
-  - It counts sibling-key comparisons during the decode of a 32-wide profile container. Before the fix: `expected 742 to be less than 32`; at width 256 it was 34,454.
+- `tests/tooling/floor/code-facts/semantic-inventory.test.ts`, "invocation graph decoding work grows linearly with sibling count and still refuses a duplicate key"
+  - Replaced in the follow-up commit by a CPU-scaling bound; see that section. The first version counted `Array.prototype.some` calls (742 vs 32 on main), which a rewrite using another comparison method would have escaped.
   - It also proves the duplicate-key refusal survives.
-- No wall-clock assertions.
+- No wall-clock assertions. The decode bound compares CPU time against input size.
 
-## Gates and design not touched (forks for the orchestrator)
+## Follow-up commit (primary note 1775): A and B
 
-- **Currentness rechecks.** On the warm single file, `assertSnapshotCurrent` still costs about 16 s: three rechecks per acquisition (`partitionImplementationsCurrent` 6.3 s, `currentDemandDescriptors` 5.3 s, `inventoryAuthoredFiles` 2.7 s, `authoredVersion` 1.5 s). The design requires a recheck after the worker exits and before publication. Whether the post-publication and post-reader rechecks (`semantic-inventory.ts:167,191`) can be dropped on the pure-reuse path is a design call. My recommendation: keep the pre- and post-extraction checks, and on the reuse path (no worker ran) skip the two later rechecks. That needs a ruling.
-- **Per-read epoch admission** (`invocation-evidence-replay.ts:249-265`, `type-observations-codec.ts:118`). Every type-observation read replays the anchor and loops over every captured source epoch. On the 9-file scope this is the remaining CPU hot path, about 35 s self in a 150 s window. It is deliberate currentness. An exact cheaper form would key "verified" on immutable `compilerNode` identity per reader lease. I did not build it; it changes the admission mechanism and needs review.
-- **Worker extraction cost.** The 9-file kit partition takes about 5 min to extract under load, and peaks at 1.9 GB. That alone keeps the cold 9-file scope past 15 min on this box.
-- **965 is not met.** The hosted-runner budget is not established, and the warm 9-file CLI peak is 8.6 to 10.6 GB.
+Both proposals were approved and built in one commit stacked on `9da8ebc794`.
+
+**A: skip the post-publication rechecks on pure reuse.** In `tooling/src/floor/code-facts/semantic-inventory.ts`, `createSemanticInventory` now runs the two rechecks after publication and after reader creation only when something was published (`publicationRecheck`). Those were the checks at the old lines 167 and 191.
+- The before-extraction read (`initialAuthored`, `currentDemandDescriptors`) still runs on every path.
+- The after-extraction or after-reuse check (old line 157) also still runs on every path.
+- A pure reuse ran no worker and published nothing, and its reader still admits every source epoch on read.
+- Test: "a source edit between two pure-reuse acquisitions re-extracts instead of handing out stale facts" in `semantic-inventory-native.test.ts`. A second acquisition runs no worker and keeps the same generation. After a source edit, the next acquisition runs one worker, publishes a newer generation, and serves the new export.
+- Red: deleting the remaining reuse guards (the `inputsCurrent` reuse condition in `demandPartitions` and the post-reuse check) makes it fail with `expected [] to have a length of 1`. That is stale reuse, with no re-extraction.
+
+**B: memoize verified admission inside one reader lease.** In `tooling/src/floor/code-facts/invocation-evidence-replay.ts`, `typeReplayOwner.assertNode` keeps `WeakMap<wrapper, compilerNode>`.
+- **Key.** A wrapper plus its immutable TypeScript node. An edit or a forget replaces or detaches the compiler node, so a hit means the same parse that already passed.
+- **Ownership.** The memo belongs to one replay of one reader's evidence.
+- **Every call**, before the memo is consulted, still runs the reader's `assertOpen` (newly passed in as `assertLive`), which covers the lease and implementation, and the loop over every captured source epoch.
+- **Writes.** An entry is written only after the anchor replay and the span replay both pass.
+- Test: `tests/tooling/floor/code-facts/type-replay-admission.test.ts`. It proves:
+  - a second check in the same lease does not replay;
+  - after the lease is released, the memoized node refuses;
+  - a new lease verifies again;
+  - a refused anchor is not memoized: the next call replays again.
+- Red on the old owner: `expected 17 to be 15`, because the second check replayed.
+- The one other caller, `tests/tooling/verify/ops/native-css-delivery.int.test.ts:425`, now passes a constant `assertLive`. Its local carrier has no lease to release.
+
+**Sibling-key test hardened** (verifier P3). The decode test no longer counts `Array.prototype.some`.
+- It appends 2,000 and 32,000 null siblings to stored fact graphs. The fact schema strips that root key, so the decoded fact is unchanged.
+- It asserts best-of-3 process CPU for the wide read is under 64 times the narrow read. Linear decoding measured about 27 to 30 times. The original `.some` decoder measured 175.6 times, and a planted `for…of` quadratic rewrite measured 192.7 times; both fail.
+- This is CPU time scaled against input size, not a wall-clock bound, and it does not depend on how siblings are compared.
+
+### Measurements with A and B (also includes 1070 and the three 1051 fixes)
+
+These come from `reports/review/1051-measure.sh`. The implementation changed, so each scope's first run is cold, a fresh worker extraction. The load shown is the 1/5/15-minute average when each run ended.
+
+| Run | Load | Wall | Evaluate | CLI peak | Worker peak | Verdict |
+| - | - | - | - | - | - | - |
+| single, cold | 24.5 / 27.9 / 31.0 | 81.4 s | 49.9 s | 3,524,328 KiB | 608,068 KiB | raw 6 = waived 6, 0 alarm |
+| single, warm | 23.3 / 27.1 / 30.6 | 55.8 s | 23.2 s | 3,404,548 KiB | — | raw 6 = waived 6, 0 alarm |
+| 9 files, cold | 17.9 / 23.3 / 27.8 | 442.2 s | 413.2 s | 10,624,124 KiB | 1,677,496 KiB | raw 20 = waived 20, 0 alarm |
+| 9 files, warm | 16.9 / 21.4 / 26.3 | 167.1 s | 125.2 s | 10,363,172 KiB | — | raw 20 = waived 20, 0 alarm |
+
+Against the earlier rows:
+- Warm single-file evaluate went from 65.2 s on main, to 27.1 s after the three fixes, to 23.2 s now.
+- Warm 9-file evaluate went from no verdict on main, to 276.2 s, to 125.2 s now.
+- Cold 9-file now finishes inside the 900 s cap. Before, on main and after the first three fixes, it had no verdict.
+- Every peak stays under the 16 GB hosted runner.
+
+## Remaining forks for the orchestrator
+
+- **Worker extraction cost.** The 9-file kit partition still takes minutes to extract under load and peaks at 1.7 to 1.9 GB. With A and B the cold 9-file scope now finishes in 442 s; extraction is the largest remaining part of a cold run.
+- **965.** The standard hosted Linux runner has 16 GB (owner ruling), so the 8.6 to 10.6 GB warm 9-file CLI peak fits it. 965 still needs the whole structure stage and the `pnpm ast` verbs measured under 16 GB.
 
 ## Commands and results
 
 | Command | Result |
 | - | - |
 | `pnpm test:scoped tests/tooling/floor/compiler/compiler-program-physical-identity.test.ts` | red on main source (5 vs 2); 2/2 pass with the fix |
-| `pnpm test:scoped tests/tooling/floor/code-facts/semantic-inventory.test.ts -t "invocation graph decoding"` | red on main decoder (742 vs 32); passes with the fix |
+| `pnpm test:scoped tests/tooling/floor/code-facts/semantic-inventory.test.ts -t "decoding work grows linearly"` | ratio 175.6 on the main decoder and 192.7 on a planted for…of rewrite (both fail the bound of 64); about 27 to 30 with the fix |
 | `pnpm test:scoped tests/tooling/floor/compiler/semantic-inventory-extract.test.ts` | 25 failures on main source; the same 25 titles with fix 1 |
 | `pnpm test:scoped tests/tooling/floor/code-facts/semantic-inventory.test.ts tests/tooling/floor/code-facts/native-invocation-delivery.test.ts` | inherited failures match main. Six fix-only failures were all timeouts at load 25+; each passes alone, and two sit at their limits on main as well (77.6 s and 30.3 s) |
 | `pnpm typecheck --config tooling/tsconfig.json` | PASS |

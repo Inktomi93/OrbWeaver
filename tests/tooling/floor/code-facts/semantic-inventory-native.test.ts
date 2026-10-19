@@ -19,6 +19,7 @@ import { beginReferencePass, endReferencePass, isDocumentationLinkReference, res
 import type { SemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { SemanticInventoryError } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { latestInventoryGeneration, openInventoryDatabase, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
+import { readCompilerPrograms } from "@orb/tooling/floor/compiler/compiler-programs";
 import type { SourceCorpus } from "@orb/tooling/floor/compiler/ts-workspace";
 import { createSemanticWorkspace, nativeCompilerSourceFiles, semanticReferenceNodes, sourceBindingUsage } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
@@ -430,6 +431,23 @@ test("partitions retain native options, closure, failed resolution and importing
   for (const partition of partitions) {
     expect(pidAlive(fixtureValue(partition.workerPid))).toBe(false);
   }
+});
+
+test("a source edit between two pure-reuse acquisitions re-extracts instead of handing out stale facts", { timeout: scaledBudget(240_000) }, ({ scratch }) => {
+  initialize(scratch);
+  const options = { root: scratch, programs: readCompilerPrograms(scratch).filter((program) => program.id === "packages/kit/tsconfig.json") };
+  using first = nativeInventoryFixture(options);
+  const reuseWorkers: string[] = [];
+  using reused = nativeInventoryFixture(options, { workers: reuseWorkers });
+  expect(reuseWorkers).toEqual([]);
+  expect(reused.generation).toBe(first.generation);
+  const old = source(reused, "packages/kit/src/base.ts").getFullText();
+  write(scratch, "packages/kit/src/base.ts", old.replace("export const unused=4;", "export const replacement=4;"));
+  const editWorkers: string[] = [];
+  using edited = nativeInventoryFixture(options, { workers: editWorkers });
+  expect(editWorkers).toHaveLength(1);
+  expect(edited.generation).toBeGreaterThan(reused.generation);
+  expect([...ownExports(source(edited, "packages/kit/src/base.ts"))].map((entry) => entry.name)).toContain("replacement");
 });
 
 test("changes, additions, removals, package resolution and failed lookups invalidate without mixing pinned generations", { tags: ["slow"] }, ({ scratch }) => {

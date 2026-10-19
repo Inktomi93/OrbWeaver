@@ -354,7 +354,7 @@ function createInventoryReader(
       if (captured === undefined) {
         throw new SemanticInventoryError(`native ${label} source is unavailable`);
       }
-      // Only the file is compared: a full span would rescan the anchor's leading trivia on every replayed read.
+      // Compare only the file: a forgotten anchor is admitted here and its replay is judged by the text check below.
       const original = value.file === capturedFile(node) ? node.getSourceFile() : node.getProject().getSourceFile(value.file);
       if (original !== undefined && (original.wasForgotten() || original.getFullText() !== captured.getFullText())) {
         throw new SemanticInventoryError(`native ${label} replay source/epoch is stale`);
@@ -605,11 +605,16 @@ function createInventoryReader(
         }
         return value;
       };
-      return replayInvocationEvidence(wire, replay, {
-        globals,
-        declarations: (subject) => required(bindings, subject),
-        computedName: (subject) => required(computed, subject),
-      });
+      return replayInvocationEvidence(
+        wire,
+        replay,
+        {
+          globals,
+          declarations: (subject) => required(bindings, subject),
+          computedName: (subject) => required(computed, subject),
+        },
+        assertOpen,
+      );
     },
     globalOrigin: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "global-origins");
