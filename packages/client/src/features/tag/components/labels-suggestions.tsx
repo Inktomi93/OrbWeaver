@@ -125,7 +125,7 @@ function SuggestionGroupBlock({
             const button = event.currentTarget;
             const focused = document.activeElement === button;
             setApplyingAll(true);
-            // @orb-waive caught-failure-ownership(Promise.allSettled): allSettled never rejects; each failed attach already raises the mutation's own error toast, and the catch only releases the busy flag.
+            // @orb-waive caught-failure-ownership(Promise.allSettled): each failed attach is toasted by useAcceptSuggestion's `errorToast: "Couldn't accept the suggestion."` (packages/client/src/components/tag-mutations.ts), and allSettled itself never rejects; the catch only releases the busy flag. Ends if that errorToast is dropped.
             Promise.allSettled(
               group.rows.map((row) => accept.mutateAsync({ tagId: row.id, targetType: "character" as const, targetId: row.characterId, status: "accepted" })),
             )

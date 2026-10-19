@@ -107,14 +107,14 @@ export function useCreateLabel(active = true): { readonly run: () => void; reado
   };
   const createOnce = async (): Promise<void> => {
     const first = reserveNext();
-    // @orb-waive caught-failure-ownership(error): a non-conflict failure is toasted by `useCreateTag`'s errorToast through the MutationCache; a conflict is retried below. Ends if the create stops toasting its own failures.
+    // @orb-waive caught-failure-ownership(error): the early return is for a non-conflict failure, which `useCreateTag`'s function-valued errorToast toasts ("Couldn't create the tag.", packages/client/src/components/tag-mutations.ts); a conflict is retried below. Ends if that errorToast stops toasting non-conflicts.
     try {
       open(await create.mutateAsync({ input: { name: first } }));
     } catch (error) {
       if (!isTagNameConflict(error)) {
         return;
       }
-      // @orb-waive caught-failure-ownership(retryError): a second conflict is toasted here, any other failure by `useCreateTag`'s errorToast. Ends if the create stops toasting its own failures.
+      // @orb-waive caught-failure-ownership(retryError): a second conflict is toasted by the `notify.error(CREATE_TAG_CONFLICT_TOAST)` below; any other failure by `useCreateTag`'s errorToast (packages/client/src/components/tag-mutations.ts). Ends if that errorToast stops toasting non-conflicts.
       try {
         open(await create.mutateAsync({ input: { name: reserveNext() } }));
       } catch (retryError) {
@@ -130,7 +130,7 @@ export function useCreateLabel(active = true): { readonly run: () => void; reado
         return;
       }
       inFlight.current = true;
-      // @orb-waive caught-failure-ownership(createOnce): createOnce owns every failure above and never rejects; the catch only satisfies the floating-promise rule. Ends if createOnce starts rethrowing.
+      // @orb-waive caught-failure-ownership(createOnce): createOnce's own try/catch pair above owns each create failure (errorToast or the conflict notify), so this catch only satisfies the floating-promise rule. Ends if createOnce rethrows.
       createOnce()
         .finally(() => {
           inFlight.current = false;

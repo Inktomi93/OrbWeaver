@@ -56,8 +56,8 @@ export function RpgPopulateControl({ chatId, actor, canPopulate }: RpgPopulateCo
   // real fill announces itself by repainting the panel — so this arm is the only one with no signal of its
   // own. The host paid for a model call; say what it found.
   const onFill = async (): Promise<void> => {
-    // @orb-waive caught-failure-ownership(catch): the failed mutation's own errorToast already
-    // spoke — the toast is the surface. Ends if usePopulateFromCharacter drops its errorToast.
+    // @orb-waive caught-failure-ownership(catch): usePopulateFromCharacter (use-rpg-mutations.ts) carries
+    // `errorToast: "Couldn't fill this character from their card."`, which toasts the awaited mutation's failure. Ends if that errorToast is dropped.
     try {
       const verdict = await populate.mutateAsync({ chatId, actorRef: actor.actorRef });
       if (verdict.ok && !verdict.populated) {
@@ -81,10 +81,7 @@ export function RpgPopulateControl({ chatId, actor, canPopulate }: RpgPopulateCo
           disabled={populate.isPending || reason !== ""}
           {...(reason === "" ? {} : { title: reason })}
           onClick={(): void => {
-            // @orb-waive caught-failure-ownership(onFill): onFill already catches its own
-            // mutation rejection internally (errorToast-backed), so it never rejects — belt-and-suspenders.
-            // Ends if onFill stops catching internally.
-            onFill().catch(() => undefined); // onFill owns and surfaces mutation failure.
+            void onFill();
           }}
         >
           <Icon icon={Sparkles} size="xs" />
