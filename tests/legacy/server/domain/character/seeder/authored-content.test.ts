@@ -2,8 +2,8 @@
 // the pack's only while every authored field matches, an added greeting included; `groupOnly` absent equals false.
 
 import type { SeededCardContent } from "@orb/server/domain/character";
-import { matchesAuthoredContent } from "@orb/server/domain/character";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { matchesAuthoredContent } from "#server/domain/character/seeder/authored-content.ts";
 
 const AUTHORED = {
   name: "Charlotte",

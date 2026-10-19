@@ -1,6 +1,5 @@
 // domain/import — FRONT DOOR: the only legal external import; re-exports the public surface.
 
-export { cardContentHash } from "#primitives/serde/card";
 export type { ImportContext } from "./context.ts";
 export type { ImportContextWiring } from "./contract/build-context.ts";
 export type { BundleImportDeps, BundleImportFileOutcome, BundleImportReport, StagedBundleImportDeps } from "./contract/bundle.ts";
@@ -67,22 +66,10 @@ export { createImportWorkloadDrivers, createRefreshImportPlannerStats } from "./
 export { createImportService } from "./service.ts";
 export { buildImportContext } from "./substrate/build-context.ts";
 export { bundleImportMemoryChatIds, bundleImportNotes } from "./substrate/bundle-report.ts";
-export { findImportedCharacter, importFileHash, parseCardJson, parseCardPng, parsedCardImportHash, parsedCardTextHash } from "./substrate/card.ts";
-export { buildGroupChatInput } from "./substrate/chat-input.ts";
-export { parseStGroupFile } from "./substrate/group.ts";
+export { findImportedCharacter } from "./substrate/card.ts";
 export { incomingPersonasOf } from "./substrate/persona-review.ts";
-export {
-  parseStPresetFile,
-  parseStSettingsPreset,
-  ST_ACTIVE_PRESET_NAME,
-  ST_PRESET_DIR,
-  ST_PRESET_SETTINGS_KEY,
-  stPresetFromJson,
-  stPresetName,
-} from "./substrate/preset.ts";
 export { formatImportReport } from "./substrate/report.ts";
 export { DEFAULT_IMPORT_STAGING_DIR, stagedOwnerRoot } from "./substrate/staging.ts";
-export { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
 export { createEnqueueImportIndex } from "./verbs/enqueue-import-index.ts";
 export { createImportLibraryEmitter } from "./verbs/import-library-emitter.ts";
 export { createInstallerCharacterImport, serializeImportCard } from "./verbs/installer-character.ts";

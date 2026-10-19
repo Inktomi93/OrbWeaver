@@ -34,8 +34,9 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { can } from "#server/domain/admin/index.ts";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
-import { viewerReadsHidden } from "#server/domain/chat/index.ts";
+import { viewerReadsHidden } from "#server/domain/chat/substrate/member-visibility.ts";
 import type { HandSnapshotTarget, TurnSnapshotTarget } from "#server/domain/rpg/contract/params.ts";
+import { createRpgFlushBarrier } from "#server/domain/rpg/flush-barrier.ts";
 import type {
   RpgContext,
   RpgParticipantActor,
@@ -45,7 +46,7 @@ import type {
   RpgRunToolRound,
   RpgStateDelta,
 } from "#server/domain/rpg/index.ts";
-import { createRpgChatOps, createRpgFlushBarrier, createRpgService, createRpgStagingStore } from "#server/domain/rpg/index.ts";
+import { createRpgChatOps, createRpgService, createRpgStagingStore } from "#server/domain/rpg/index.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "#server/domain/rpg/tools/apply.ts";
 import { makeResolved } from "../../../inference/_support.ts";
 import { seedChat, seedMessage, seedUser } from "../chat/_support.ts";

@@ -10,6 +10,5 @@ export type {
   SeedCard,
   SeededCardContent,
 } from "../contract/seeder.ts";
-export { matchesAuthoredContent } from "./authored-content.ts";
 export { DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./cards.ts";
 export { createDefaultCharacterSeeder } from "./seed.ts";

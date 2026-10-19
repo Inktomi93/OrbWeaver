@@ -15,7 +15,6 @@ export type {
   CopyHandoffCards,
   HandoffCardCopy,
 } from "./contract/handoff-copy.ts";
-export { handoffProvenance } from "./contract/handoff-copy.ts";
 export type { ImportCharacterPort } from "./contract/import-ops.ts";
 export type {
   AttachImportedArtParams,
@@ -89,7 +88,7 @@ export {
 } from "./persistence/refinery-ops.ts";
 export { createLoadSeatCards } from "./persistence/seat-cards.ts";
 export type { DefaultCharacterSeeder, DefaultCharacterSeederDeps, SeededCardContent } from "./seeder/index.ts";
-export { createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, matchesAuthoredContent, WELCOME_ASSISTANT_HANDLE } from "./seeder/index.ts";
+export { createDefaultCharacterSeeder, DEFAULT_CHARACTER_CARDS, WELCOME_ASSISTANT_HANDLE } from "./seeder/index.ts";
 export { createCharacterService } from "./service.ts";
 export { cardTokenSize } from "./substrate/card-tokens.ts";
 export { buildCardEmbedText } from "./substrate/embed-text.ts";

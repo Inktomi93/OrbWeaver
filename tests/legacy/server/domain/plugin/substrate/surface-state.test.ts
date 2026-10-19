@@ -14,7 +14,8 @@ import type { ChatId, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-import { createPluginSurfaceStateStore, PLUGIN_SURFACE_STATE_MAX_KEYS } from "#server/domain/plugin/index.ts";
+import { createPluginSurfaceStateStore } from "#server/domain/plugin/index.ts";
+import { PLUGIN_SURFACE_STATE_MAX_KEYS } from "#server/domain/plugin/substrate/surface-state.ts";
 
 const PLUGIN_A = castId<PluginId>("plugin_a000000000000000000001");
 const PLUGIN_B = castId<PluginId>("plugin_b000000000000000000002");

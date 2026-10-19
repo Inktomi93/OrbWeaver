@@ -71,7 +71,8 @@ import { principal as makePrincipal } from "@orb/testkit/node/factories/principa
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import { createCopyHandoffCards, handoffProvenance } from "#server/domain/character/index.ts";
+import { handoffProvenance } from "#server/domain/character/contract/handoff-copy.ts";
+import { createCopyHandoffCards } from "#server/domain/character/index.ts";
 import { createParticipants } from "#server/domain/chat/verbs/participants.ts";
 import { createHandoffRestampStatements } from "#server/domain/embeddings/index.ts";
 import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#server/domain/regex/index.ts";

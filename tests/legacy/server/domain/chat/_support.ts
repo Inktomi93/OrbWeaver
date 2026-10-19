@@ -72,7 +72,7 @@ import type { TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
 import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import { createPersonaOwned } from "#server/domain/persona/index.ts";
-import { createSourceState } from "#server/domain/search/index.ts";
+import { createSourceState } from "#server/domain/search/verbs/source-state.ts";
 import {
   applyCharacterStatsDelta,
   createResolveRetainedChatAccountingScope,

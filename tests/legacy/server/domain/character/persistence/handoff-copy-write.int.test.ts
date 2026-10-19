@@ -15,8 +15,9 @@ import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
+import { handoffProvenance } from "#server/domain/character/contract/handoff-copy.ts";
 import type { CopyAssetToOwner } from "#server/domain/character/index.ts";
-import { createCopyHandoffCards, handoffProvenance } from "#server/domain/character/index.ts";
+import { createCopyHandoffCards } from "#server/domain/character/index.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 
 const AT = 1_700_000_000_000;

@@ -64,10 +64,9 @@ export type {
   UpdateRuleParams,
 } from "./contract/params.ts";
 export type { PluginSubscriberRegistry, PluginTriggerSubscriber } from "./contract/plugin-subscribers.ts";
-// S3 — the preset catalogue's domain half. The REGISTRY is exported for the transport/test surfaces that
-// need to name a preset's shape; the CEL sources it builds stay behind the mint verb.
+// S3 — the preset catalogue's domain half. Only the shapes are exported; the registry and the CEL sources it
+// builds stay behind the mint verb.
 export type { ErasedRulePresetDef, RulePresetDef, RulePresetKnobOverrides, RulePresetRuleDef } from "./contract/presets.ts";
-export { RULE_PRESETS } from "./contract/presets.ts";
 export type { StreamAuthority } from "./contract/results.ts";
 export type {
   AutomationAssemblyContext as AutomationContext,
@@ -95,7 +94,7 @@ export { createPluginSubscriberRegistry } from "./substrate/plugin-subscribers.t
 export { resolveChatRulePresetKnobs } from "./substrate/presets.ts";
 // S4 — the in-RAM pending-ask store (RULED F1). Created ONCE at the composition root and injected on the
 // context, exactly like the enabled-rule index beside it.
-export { AUTOMATION_SUGGESTION_TTL_MS, createPluginSuggestionRaiser, createSuggestionStore } from "./substrate/suggestions.ts";
+export { createPluginSuggestionRaiser, createSuggestionStore } from "./substrate/suggestions.ts";
 // S5 — the guidance-delivery teaching contribution (the D145 root slot's third occupant). Front-door ONLY:
 // `entry/compose` registers it onto `ChatContext.teaching`; the cruiser stanza forbids every other importer.
 export { createAutomationTeachingContributions } from "./teaching-contribution.ts";

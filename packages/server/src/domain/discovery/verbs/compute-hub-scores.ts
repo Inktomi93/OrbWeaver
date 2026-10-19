@@ -115,7 +115,7 @@ async function runHubPass<T extends HubRow>(
 }
 
 /** Card hub scores, grouped per embedding space (`model`). */
-export async function computeCharacterHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions): Promise<HubStats> {
+async function computeCharacterHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions): Promise<HubStats> {
   const owners = await hubOwners(db, opts, distinctCharacterHubOwners);
   return await fanOutHubPass(owners, (owner) => readCharacterHubVectors(db, owner), {
     table: "character_embeddings",
@@ -126,7 +126,7 @@ export async function computeCharacterHubScores(db: Db, deps: ComputeHubScoresDe
 }
 
 /** Digest hub scores, grouped per `(tier, model)`. */
-export async function computeDigestHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions): Promise<number> {
+async function computeDigestHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions): Promise<number> {
   const owners = await hubOwners(db, opts, distinctDigestHubOwners);
   const stats = await fanOutHubPass(owners, (owner) => readDigestHubVectors(db, owner), {
     table: "chat_digests",
@@ -138,7 +138,7 @@ export async function computeDigestHubScores(db: Db, deps: ComputeHubScoresDeps,
 }
 
 /** Segment hub scores, grouped per embedding space (`model`). */
-export async function computeSegmentHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions): Promise<number> {
+async function computeSegmentHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions): Promise<number> {
   const owners = await hubOwners(db, opts, distinctSegmentHubOwners);
   const stats = await fanOutHubPass(owners, (owner) => readSegmentHubVectors(db, owner), {
     table: "chat_segments",
@@ -150,7 +150,7 @@ export async function computeSegmentHubScores(db: Db, deps: ComputeHubScoresDeps
 }
 
 /** Image hub scores, grouped per embedding space (`model`); image↔image only. */
-export async function computeImageHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions): Promise<number> {
+async function computeImageHubScores(db: Db, deps: ComputeHubScoresDeps, opts: ComputeHubScoresOptions): Promise<number> {
   const owners = await hubOwners(db, opts, distinctImageHubOwners);
   const stats = await fanOutHubPass(owners, (owner) => readImageHubVectors(db, owner), {
     table: "image_embeddings",

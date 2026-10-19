@@ -51,7 +51,6 @@ export type {
 } from "@orb/contracts/plugin";
 export {
   distributedPluginViewSchema,
-  PLUGIN_FANOUT_SKIP_REASONS,
   pluginBundleAssetViewSchema,
   pluginCommandViewSchema,
   pluginDisplayTransformViewSchema,
@@ -176,7 +175,7 @@ export { buildConfirmedActRunner } from "./substrate/confirmed-act.ts";
 export { isVersionNewer, parseBundle } from "./substrate/manifest.ts";
 export { createNotifyFloor } from "./substrate/notify-floor.ts";
 export { createPluginEventBus, createPluginEventEmitter } from "./substrate/plugin-event-bus.ts";
-export { createPluginMacroRegistry, PLUGIN_MACRO_RESOLVE_DEADLINE_MS, PLUGIN_MACROS_MAX, pluginMacroName } from "./substrate/plugin-macros.ts";
+export { createPluginMacroRegistry, pluginMacroName } from "./substrate/plugin-macros.ts";
 export {
   createPluginRateFloor,
   PLUGIN_ASSET_EGRESS_PER_HOUR,
@@ -187,13 +186,12 @@ export {
 export { buildPluginPromptTransform, capFactContent } from "./substrate/registrar.ts";
 export { createShowcaseVersionReader } from "./substrate/showcase-version.ts";
 export { createSnippetGate } from "./substrate/snippet-gate.ts";
-export { buildPluginStorage, PLUGIN_KV_MAX_KEYS } from "./substrate/storage.ts";
-export { createPluginSurfaceStateStore, createSurfaceStatePublisher, PLUGIN_SURFACE_STATE_MAX_KEYS } from "./substrate/surface-state.ts";
-export { createUiHostCallGate, UI_HOST_CALLS_IN_FLIGHT_MAX } from "./substrate/ui-host-call-gate.ts";
-export { createPluginUiOutbox, resolveUiOutcome } from "./substrate/ui-outbox.ts";
+export { buildPluginStorage } from "./substrate/storage.ts";
+export { createPluginSurfaceStateStore, createSurfaceStatePublisher } from "./substrate/surface-state.ts";
+export { createUiHostCallGate } from "./substrate/ui-host-call-gate.ts";
+export { createPluginUiOutbox } from "./substrate/ui-outbox.ts";
 export { pluginToolWireNameRenames, pluginToolWireNameRenamesRefused } from "./substrate/wire-name-renames.ts";
 export { buildPluginQuietLlm } from "./verbs/quiet-llm.ts";
 export { createPluginRegistrarOps } from "./verbs/registrar-ops.ts";
 export { createPluginRuntimeOps, createPluginSuggestionExecutor } from "./verbs/runtime-ports.ts";
 export { createPluginSeedOps } from "./verbs/seed-ops.ts";
-export { PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS } from "./verbs/transform-for-display.ts";

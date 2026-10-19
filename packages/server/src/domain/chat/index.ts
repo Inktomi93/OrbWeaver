@@ -85,14 +85,7 @@ export type {
   MemoryRecallRecorder,
   ResolveBackfillMemoryConfig,
 } from "./contract/memory.ts";
-export {
-  getGroupConfig,
-  getRoomOverrides,
-  getToolRecurseLimit,
-  parseChatMetadata,
-  TOOL_RECURSE_LIMIT_DEFAULT,
-  toolRecurseLimitSchema,
-} from "./contract/metadata.ts";
+export { getGroupConfig, getRoomOverrides, TOOL_RECURSE_LIMIT_DEFAULT, toolRecurseLimitSchema } from "./contract/metadata.ts";
 export type { ReactToolHandler, ReactToolHandlerContext, ReactToolHandlerDeps } from "./contract/react-tool.ts";
 export type {
   ImpersonateStreamDelta,
@@ -121,10 +114,7 @@ export { createRunChatTurnBridge } from "./engine/provider-bridge.ts";
 // The room identity rule imagery's chat-scoped preview runs under (D298): the host funds and runs as.
 export { resolveTurnIdentity } from "./engine/turn-identity.ts";
 export { requireWiredAuthorOrHost as requireAuthorOrHost, requireWiredHost as requireHost, requireWiredParticipant as requireParticipant } from "./guard.ts";
-export { generateDigests } from "./memory/generate/digests.ts";
-export { generateSegments } from "./memory/generate/segments.ts";
 export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
-export { loadChatMeta } from "./memory/persistence/queries.ts";
 export { resolveTier0Range } from "./memory/recall/bridge.ts";
 export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
 // The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.
@@ -174,17 +164,12 @@ export { createResolveChatUserMacroDefs } from "./substrate/macro-readers.ts";
 // The §3.6 member-strip verdict — exported for the SAME reason `isBelowHistoryFloor` is: the LIVE SSE
 // fan-out (transport) must apply the identical per-subscriber strip the durable replay applies, off the
 // `viewerIsHost` flag `chatEventBounds` resolves; the verdict is chat's ONE implementation everywhere.
-export { scrubDeltaEventForMember, stripChatEventForMember, stripMessagesForViewer, viewerReadsHidden } from "./substrate/member-visibility.ts";
-// The ONE participant display-name terminal (R10 + owner ruling: no raw id ever renders). Exported for the
-// same reason the guards are: the regex compose seam (`entry/compose/regex.ts`) resolves the seated characters that name
-// a room in the reverse roster, and it must land on the SAME word chat's own roster read does for a seat
-// whose backing actor is gone — a second spelling would be a second vocabulary for one sentinel.
-export { REMOVED_CHARACTER_LABEL, REMOVED_MEMBER_LABEL } from "./substrate/participant-name.ts";
+export { scrubDeltaEventForMember, stripChatEventForMember } from "./substrate/member-visibility.ts";
 // The D50 PromptTransform registrar — created ONCE at compose; its `apply` is wired
 // as `ChatContext.promptTransforms`, its `register`/`unregister` onto automation's rule lifecycle + the plugin
 // host (a later chunk). Zero registrants ⇒ byte-identical no-op. (`PromptTransformRegistry` type is homed in
 // contract/context, re-exported above.)
-export { createPromptTransformRegistry, PROMPT_TRANSFORM_DEADLINE_MS } from "./substrate/prompt-transforms.ts";
+export { createPromptTransformRegistry } from "./substrate/prompt-transforms.ts";
 export { createChatPublication } from "./substrate/publication.ts";
 // The standalone (out-of-turn) variable write — the injected `applyVariableOps`
 // op automation wires at the composition root; principal-free, teaches chat nothing automation-shaped.
