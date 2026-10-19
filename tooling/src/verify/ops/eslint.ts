@@ -1,5 +1,5 @@
 // Native compiler-owner shards isolate HARD authority from ordinary exceptions and cache lifetimes.
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import { resolve } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
@@ -75,36 +75,48 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
     return population;
   };
   const completed = new Map<string, EslintCompletedProfiles>();
-  const supplemental = await recheckScopedNativeMetadata(root, paths, observe, completed);
-  if (supplemental === EXIT.toolError) {
+  const sources = paths.filter((path) => !isNativeInput(path) || (/\.[cm]?[jt]sx?$/u.test(path) && existsSync(resolve(root, path))));
+  // The named targets lint first and alone; dependency-wide findings follow under their own banner.
+  const named = sources.length === 0 ? EXIT.clean : await lintNamedSources(root, sources, observe, completed);
+  // A named tool error still runs the metadata families: their refusal names the missing compiler owner.
+  return Math.max(named, await recheckScopedNativeMetadata(root, paths, observe, completed));
+}
+
+function isNativeInput(path: string): boolean {
+  return (
+    BASE_UI_NATIVE_INPUT_PATHS.some((input) => input === path) ||
+    CONTEXT_NATIVE_INPUT_PATHS.some((input) => input === path) ||
+    CLIENT_MAP_NATIVE_INPUT_PATHS.some((input) => input === path) ||
+    CLIENT_LEXICAL_NATIVE_INPUT_PATHS.some((input) => input === path) ||
+    SOURCE_TYPE_SUPPRESSION_NATIVE_INPUT_PATHS.some((input) => input === path) ||
+    TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS.some((input) => input === path) ||
+    TYPED_NATIVE_POLICIES.some((entry) => entry.inputs.some((input) => input === path)) ||
+    compilerConfigRoster([path]).length > 0
+  );
+}
+
+async function lintNamedSources(
+  root: string,
+  sources: readonly string[],
+  observe: typeof admittedPopulation,
+  completed: Map<string, EslintCompletedProfiles>,
+): Promise<number> {
+  const admitted = await observe(root, [...sources]);
+  // A named source that no config admits has no verdict; a native input is judged by its own metadata family instead.
+  const unlinted = sources.filter(
+    (path) =>
+      !isNativeInput(path) && statSync(resolve(root, path), { throwIfNoEntry: false })?.isFile() === true && !admitted.some((entry) => entry.path === path),
+  );
+  if (unlinted.length > 0) {
+    process.stderr.write(`[eslint] eslint.config.js admits no rules for named file(s), so no verdict exists: ${unlinted.join(", ")}\n`);
     return EXIT.toolError;
   }
-  const sources = paths.filter(
-    (path) =>
-      !(
-        BASE_UI_NATIVE_INPUT_PATHS.some((input) => input === path) ||
-        CONTEXT_NATIVE_INPUT_PATHS.some((input) => input === path) ||
-        CLIENT_MAP_NATIVE_INPUT_PATHS.some((input) => input === path) ||
-        CLIENT_LEXICAL_NATIVE_INPUT_PATHS.some((input) => input === path) ||
-        SOURCE_TYPE_SUPPRESSION_NATIVE_INPUT_PATHS.some((input) => input === path) ||
-        TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS.some((input) => input === path) ||
-        TYPED_NATIVE_POLICIES.some((entry) => entry.inputs.some((input) => input === path)) ||
-        compilerConfigRoster([path]).length > 0
-      ) ||
-      (/\.[cm]?[jt]sx?$/u.test(path) && existsSync(resolve(root, path))),
-  );
-  if (sources.length === 0) {
-    return supplemental;
-  }
-  if (sources.every((path) => completed.has(path)) && (await hasCompletedProfiles(root, sources, completed))) {
-    return supplemental;
-  }
-  const admitted = await observe(root, sources);
   if (admitted.length === 0) {
     process.stderr.write("[eslint] eslint.config.js ignores every scoped source path; nothing ordinary to lint\n");
-    return supplemental;
+    return EXIT.clean;
   }
-  return Math.max(supplemental, await runProfiles(root, admitted, "scoped-"));
+  process.stderr.write(`[eslint] named targets: ${sources.join(", ")}\n`);
+  return runProfiles(root, admitted, "scoped-", completed);
 }
 
 function sourceTypeSuppressionMetadata(root: string, paths: readonly string[]): NativeMetadataFamily[] {
@@ -144,6 +156,9 @@ async function recheckScopedNativeMetadata(
     ...sourceTypeSuppressionMetadata(root, paths),
     ...(paths.some(affectsTestToolingImportsNativeLint) && !paths.includes(".") ? TEST_TOOLING_IMPORT_NATIVE_FAMILIES : []),
   ];
+  if (families.length > 0) {
+    process.stderr.write("[eslint] dependency-wide checks selected by the named targets; findings below are not limited to them\n");
+  }
   return recheckNativeFamilies(root, families, observe, completed);
 }
 
@@ -204,14 +219,14 @@ async function recheckTypedNativeFamilies(
       selected.add(entry.path);
     }
   }
-  return selected.size === 0
-    ? EXIT.clean
-    : runProfiles(
-        root,
-        admitted.filter(({ path }) => selected.has(path)),
-        "metadata-typed-",
-        completed,
-      );
+  const pending: EslintFileAdmission[] = [];
+  for (const entry of admitted.filter(({ path }) => selected.has(path))) {
+    // The named pass already linted this exact file under the same configuration, source and compiler owner.
+    if (!(completed.has(entry.path) && (await hasCompletedProfiles(root, [entry.path], completed)))) {
+      pending.push(entry);
+    }
+  }
+  return pending.length === 0 ? EXIT.clean : runProfiles(root, pending, "metadata-typed-", completed);
 }
 
 async function recheckNativeFamilies(
