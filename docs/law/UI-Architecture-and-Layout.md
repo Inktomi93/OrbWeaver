@@ -129,7 +129,7 @@ packages/client/
                         #   the decision table is client-architecture-state-and-gates.md §12 (the old blanket
                         #   "reads ONLY via trpc.*" is superseded — it is wrong for ephemeral state)
       app-shell/        #   the 4-region rail shell (§4.1); the ONLY viewport @media site (§4b ax2);
-                        #     the clamp-width overlay (§11.1); the chrome registry over CHROME_ZONES (gate chrome-registry-completeness)
+                        #     the clamp-width overlay (§11.1); the chrome registry over CHROME_ZONES (typed `ChromeEntry`)
                         # THE ROSTER IS THE TREE — `ls packages/client/src/features`. A list here rots.
                         #   A section id is not its owner's dir name — `corpus` →
                         #   `discovery/lib/corpus-section.tsx`, `chats` → `chat`
@@ -211,7 +211,7 @@ DESKTOP (wide):   [ RAIL | LIST | CONTENT | CONTEXT ]
             `section-registry.ts`): `rail.nav` = section entries derived from each `SectionDefinition.rail`,
             `rail.end` (`rail.zone: "rail.end"`) = the SETTINGS SECTION (`config`, label "Settings") + the persona Identity widget
             (`personaChrome`) — one flat DOM list, CSS-reflowed to the mobile bar (§C), never a hand
-            map (gate `no-parallel-section-map`; `chrome-registry-completeness`). Modal triggers derive
+            map (gate `no-parallel-section-map`; typed `ChromeEntry`). Modal triggers derive
             by placement (`ModalTriggerPlacement` in `modal-registry.ts`); every modal is `surface`,
             `topbar.trail` (⌘K) or `mobile-tab` (the You sheet); none is `rail.end`.
   LIST    — the active section's collection: header row (micro-caps title + create "+") → search →

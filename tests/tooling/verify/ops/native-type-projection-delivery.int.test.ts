@@ -19,7 +19,7 @@ import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.
 
 const COHORT = [routes, sections, inference] as const;
 const SECTION_SHADOW = "packages/client/src/native-section-shadow.ts";
-const COMPANIONS = new Map<GatePolicy, string>([[sections, "section-registry-completeness"]]);
+const COMPANIONS = new Map<GatePolicy, string>([[sections, "placeholder-copy-registry"]]);
 
 beforeEach(async () => {
   const inventoryFactory = await import("../../../../tooling/src/floor/code-facts/semantic-inventory.ts");

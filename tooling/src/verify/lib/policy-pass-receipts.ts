@@ -94,8 +94,7 @@ export function withholdFactDependents(runs: readonly PolicyRun[], errors: Polic
  *
  *  WHY THIS IS NOT A LOAD-TIME CONTRACT REQUIREMENT (the arm a reader will reach for next): a receipt is a
  *  RUNTIME call, and its `source` is free text with ZERO fact-id correspondence — a two-fact policy may file
- *  one, two or three receipts under names of its own choosing (`chrome-registry-completeness` declares two facts
- *  and receipts `CHROME_ZONES`/`ChromeEntry`). So "a receipt per DECLARED fact" is not derivable at validation
+ *  one, two or three receipts under names of its own choosing. So "a receipt per DECLARED fact" is not derivable at validation
  *  time OR at run time, and the arm demands at least ONE semantic receipt — the same cardinality
  *  `factReceiptFailures` demands of a provider. Closing that correspondence is a receipt-CONTRACT change, not a
  *  stronger predicate here.

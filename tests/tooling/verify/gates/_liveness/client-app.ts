@@ -11,11 +11,8 @@
 // `messageIncludes` where it has one and the policy's message otherwise.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as chromeRegistryCompleteness } from "../../../../../tooling/src/verify/gates/chrome-registry-completeness.ts";
-import { gate as configGroupCompleteness } from "../../../../../tooling/src/verify/gates/config-group-completeness.ts";
 import { gate as contextDefinitionShape } from "../../../../../tooling/src/verify/gates/context-definition-shape.ts";
 import { gate as contextDefinitionShapeHealth } from "../../../../../tooling/src/verify/gates/context-definition-shape-health.ts";
-import { gate as homeTileRegistryCompleteness } from "../../../../../tooling/src/verify/gates/home-tile-registry-completeness.ts";
 import { gate as modalBodyNotPlaceholder } from "../../../../../tooling/src/verify/gates/modal-body-not-placeholder.ts";
 import { gate as modalRegistryCompleteness } from "../../../../../tooling/src/verify/gates/modal-registry-completeness.ts";
 import { gate as noFakeDisabledId } from "../../../../../tooling/src/verify/gates/no-fake-disabled-id.ts";
@@ -29,7 +26,6 @@ import { gate as queryFreshnessCoverage } from "../../../../../tooling/src/verif
 import { gate as registryContextViaMint } from "../../../../../tooling/src/verify/gates/registry-context-via-mint.ts";
 import { gate as renderErrorViaBattery } from "../../../../../tooling/src/verify/gates/render-error-via-battery.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
-import { gate as sectionRegistryCompleteness } from "../../../../../tooling/src/verify/gates/section-registry-completeness.ts";
 import { gate as sessionChannelBoundary } from "../../../../../tooling/src/verify/gates/session-channel-boundary.ts";
 import { gate as staleDraftCommit } from "../../../../../tooling/src/verify/gates/stale-draft-commit.ts";
 import { gate as windowedInfiniteQuery } from "../../../../../tooling/src/verify/gates/windowed-infinite-query.ts";
@@ -50,28 +46,6 @@ function reservedBoundary(name: string): string {
 }
 
 export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: chromeRegistryCompleteness,
-    // A real `ChromeEntry` declared outside a `*-chrome` file — the co-location arm.
-    overlays: [
-      add(
-        `${CHAT_LIB}/liveness-not-a-chrome-file.ts`,
-        'import { Settings } from "@orb/ui/icons";\nimport type { ChromeEntry } from "#state";\nexport const livenessChrome: ChromeEntry = { id: "liveness-chrome", label: "Liveness", zone: "topbar.trail", behavior: { kind: "modal", modalId: "settings", icon: Settings } };\n',
-      ),
-    ],
-    messageIncludes: "Not co-located",
-  },
-  {
-    policy: configGroupCompleteness,
-    // A real `ConfigGroupDefinition` declared outside a `*-group` file.
-    overlays: [
-      add(
-        `${CHAT_LIB}/liveness-not-a-group-file.ts`,
-        'import type { ConfigGroupDefinition } from "#state";\nexport const livenessGroup: ConfigGroupDefinition = { id: "liveness-group" };\n',
-      ),
-    ],
-    messageIncludes: "Not co-located",
-  },
   {
     policy: contextDefinitionShapeHealth,
     // The real tree mints no `defineContextRegion` at all, so two claimants at once is the SECOND call site —
@@ -98,16 +72,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "O5 strict",
-  },
-  {
-    policy: homeTileRegistryCompleteness,
-    overlays: [
-      add(
-        `${CHAT_LIB}/liveness-not-a-tile-file.ts`,
-        'import type { HomeTileContribution } from "#state";\nexport const livenessTile: HomeTileContribution = { id: "liveness-tile", body: () => null };\n',
-      ),
-    ],
-    messageIncludes: "Not co-located",
   },
   {
     policy: modalBodyNotPlaceholder,
@@ -220,16 +184,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "ContributorRegistry parameters",
-  },
-  {
-    policy: sectionRegistryCompleteness,
-    overlays: [
-      add(
-        `${CHAT_LIB}/liveness-not-a-section-file.ts`,
-        'import type { SectionDefinition } from "#state";\nexport const livenessSection: SectionDefinition = { id: "liveness-stray", placeholder: { title: "Liveness stray", description: "A stray liveness probe." } };\n',
-      ),
-    ],
-    messageIncludes: "Not co-located",
   },
   {
     policy: sessionChannelBoundary,

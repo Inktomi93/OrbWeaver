@@ -170,7 +170,7 @@ test("missing and empty definition populations stay distinct, are DELIVERED, and
   // #1953's per-kind split fixed only the cross-kind half. The receipt is now the walked sources, the census
   // is DELIVERED, and the rename tripwire fires one phase later at the consumer's own
   // `members: <view>.definitions.length` receipt — the sanctioned blindness door every production registry
-  // consumer already files (`chrome-registry-completeness.ts` names it). Still nothing reported, still only
+  // consumer already files. Still nothing reported, still only
   // THIS kind's consumers withheld.
   const missing = runRegistry("chrome", { "packages/client/src/other.ts": "export const other = 1;" });
   expect(missing.result.facts).toMatchObject([

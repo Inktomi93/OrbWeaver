@@ -4,7 +4,7 @@
 // editor, the welcome, the context routing, and the one kinded selection.
 //
 // THE HOST STILL IMPORTS ZERO GROUP BODIES — every group arrives through the `config-groups` registry
-// assembled at the door (the `features/home` precedent one family across), and `config-group-completeness`
+// assembled at the door (the `features/home` precedent one family across), and `orb/config-host-no-feature-import`
 // reds a host file reaching into `#features/*` or escaping `features/config/`. What CHANGED at #2447 is the
 // feature's OWN inventory, not that rule: `features/settings` is GONE (owner ruling 2026-09-19 — "settings
 // migrated to config; settings should be gone"), so the two `sections`-skimmer group definitions it still

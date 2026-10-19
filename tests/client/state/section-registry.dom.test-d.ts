@@ -19,3 +19,9 @@ test("planned section content cannot carry a list, a header or a rendered contex
   };
   expectTypeOf([planned, live, plannedList, plannedHeader, plannedContext]).toEqualTypeOf<SectionDefinition[]>();
 });
+
+test("a section declares live content or a planned reason, never neither", () => {
+  // @ts-expect-error a section with no content and no planned reason is the refinery bug
+  const bare: SectionDefinition = { ...base, context: { kind: "none" } };
+  expectTypeOf(bare).toEqualTypeOf<SectionDefinition>();
+});

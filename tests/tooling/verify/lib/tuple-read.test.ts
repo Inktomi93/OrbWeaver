@@ -1,7 +1,7 @@
 // tuple-read.ts (#942) — the narrow tuple-spread resolver's TWO-SIDED contract, made permanent. The
 // escaping shape it was minted from is live: `CHROME_ZONES = [...RAIL_ZONES, "topbar.trail"]`, where a
 // direct-element reader saw ONE of four zones while `no-parallel-section-map` reported a healthy file scan
-// and `chrome-registry-completeness` rejected the legitimate `rail.brand` entry its copied list omitted.
+// and a copied zone list rejected the legitimate `rail.brand` entry it omitted.
 // The permissive direction is the dangerous one here, so every unsupported composition shape must REFUSE
 // loudly rather than yield a smaller set (tooling/src/verify/gates/GATE-AUTHORING.md §4.6 / §5).
 

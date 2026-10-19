@@ -443,7 +443,7 @@ skimmer over the contribution seam in `state/config-section-registry.ts`, assemb
 group-owned `subcategories` — persona, plugins, connections, automation and backup surfaces decompose
 into `ConfigSectionContribution`s, D120); the four collections are `collection` groups whose body is their
 `CollectionContribution`. `openConfigTo(group, sub?, setting?)` (`state/config-nav-store.ts`) is the one
-navigation verb. G4 is `config-group-completeness`.
+navigation verb. G4 is the native `orb/config-group-definition-home` rule.
 
 `CONFIG_GROUP_IDS`/`ConfigGroupId` live in `state/config-group-ids.ts`, its own two-reader vocabulary
 module (§5 rule 5); `ConfigGroupDefinition`, `SettingsViewerView` (the state-owned viewer projection `when`

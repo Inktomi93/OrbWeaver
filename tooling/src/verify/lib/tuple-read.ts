@@ -1,6 +1,6 @@
 // The NARROW tuple-spread resolver — ONE home for "which string members does the `<CONST> = [...] as const`
 // vocabulary tuple actually have", for the gates whose semantic denominator IS that tuple
-// (`no-parallel-section-map`'s four vocabularies, `chrome-registry-completeness`'s zone axis).
+// (`no-parallel-section-map`'s four vocabularies, the chrome zone axis).
 //
 // WHY IT EXISTS: a gate that reads only the DIRECT array elements silently loses every member that moved
 // behind a composition edge, and the file scan stays healthy while the denominator shrinks — the #942 case is
