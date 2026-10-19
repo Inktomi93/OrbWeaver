@@ -4,6 +4,7 @@
 // now, the shared pepper) — matching the sibling `stats/_support.ts` seeder-home convention.
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { SessionsRolePolicyConfig, SessionsService } from "@orb/server/domain/sessions";
 import { createSessionsRolePolicy, createSessionsService } from "@orb/server/domain/sessions";
 import { createLocalLightUserSeed } from "@orb/server/entry/boot";
@@ -23,9 +24,10 @@ export const PEPPER = "test-session-secret-at-least-32-chars-long";
  *  ends up holding `user_connections` ROWS, and a recorder would record a call and prove nothing about the
  *  rows. It is also what production hands in, so the harness cannot drift from the wiring it stands for. */
 export function makeService(db: Db, policyConfig: SessionsRolePolicyConfig = env, clock: Clock = createFrozenClock()): { svc: SessionsService; clock: Clock } {
-  const seedUserConnections = createLocalLightUserSeed({ db, now: clock.now, onEmbedSpaceBound: () => undefined });
+  const handle = databaseHandle(db);
+  const seedUserConnections = createLocalLightUserSeed({ db: handle, now: clock.now, onEmbedSpaceBound: () => undefined });
   return {
-    svc: createSessionsService({ db, now: clock.now, sessionSecret: PEPPER, seedUserConnections, rolePolicy: createSessionsRolePolicy(policyConfig) }),
+    svc: createSessionsService({ db: handle, now: clock.now, sessionSecret: PEPPER, seedUserConnections, rolePolicy: createSessionsRolePolicy(policyConfig) }),
     clock,
   };
 }

@@ -12,6 +12,7 @@ import type { ParticipantRole, Principal } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, chatParticipants } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId, CharacterId, ChatId, ChatParticipantId, DocumentId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
@@ -20,7 +21,7 @@ import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import { can } from "#server/domain/admin/index.ts";
-import type { DatabankContext, DatabankIngest, DatabankService } from "#server/domain/databank/contract/service.ts";
+import type { DatabankContext, DatabankIngest, DatabankService } from "#server/domain/databank/index.ts";
 import { createDatabankService } from "#server/domain/databank/index.ts";
 import { createDatabankIngest } from "#server/domain/databank/ingest/index.ts";
 import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
@@ -155,8 +156,9 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
     roomFans.push(event);
   };
 
+  const handle = databaseHandle(db);
   const ctx: DatabankContext = {
-    db,
+    db: handle,
     can,
     now: () => clock.now(),
     newDocumentId: () => castId<DocumentId>(ids.next("document")),
@@ -166,10 +168,10 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
     },
     // THE ROOM PLANE (#2471) — the REAL compose factories over the real db; only the publish is recorded.
     emitRoomDatabankChanged: createEmitRoomDatabankChanged(emitRoomEvent),
-    fanDatabankRoomsForDocument: createFanDatabankDocumentRooms(db, emitRoomEvent),
-    fanDatabankRoomsForCharacter: createFanDatabankCharacterRooms(db, emitRoomEvent),
-    fanDatabankRoomsForMember: createFanDatabankMemberRooms(db, emitRoomEvent),
-    captureRoomReachForDelete: createDeleteReachCapture(db, emitRoomEvent).databank,
+    fanDatabankRoomsForDocument: createFanDatabankDocumentRooms(handle, emitRoomEvent),
+    fanDatabankRoomsForCharacter: createFanDatabankCharacterRooms(handle, emitRoomEvent),
+    fanDatabankRoomsForMember: createFanDatabankMemberRooms(handle, emitRoomEvent),
+    captureRoomReachForDelete: createDeleteReachCapture(handle, emitRoomEvent).databank,
     assetsStore,
     loadAssetBytes: (assetId) => Promise.resolve(storedBytes.get(assetId)),
     embeddingsStore: embeddings.store,
@@ -185,7 +187,7 @@ export function makeDatabankHarness(db: Db, options: DatabankHarnessOptions = {}
     enqueueReindex,
     ensureChatHost: options.ensureChatHost ?? (() => Promise.resolve()),
     ensureChatMember: options.ensureChatMember ?? (() => Promise.resolve()),
-    resolveChatHost: (chatId) => loadPresentHostUserId(db, chatId),
+    resolveChatHost: (chatId) => loadPresentHostUserId(handle, chatId),
     searchDocuments: options.searchDocuments ?? (() => Promise.resolve([])),
     resolveVisibleRooms:
       options.resolveVisibleRooms ??

@@ -11,6 +11,8 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, characters } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId, CharacterHandle, CharacterId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -39,7 +41,7 @@ interface RepointSeedsCall {
 }
 
 export interface PersonaHarness {
-  readonly ctx: PersonaContext;
+  readonly ctx: DbAssemblyInput<PersonaContext>;
   readonly audits: AuditCall[];
   /** The recorded `emit` (DOMAIN-event) calls — the ROOM plane. Distinct from `userEvents`: a content write
    *  owes BOTH (the editor's devices via the user bus, every room the persona is live in via the bridge), so
@@ -54,15 +56,15 @@ export interface PersonaHarness {
 }
 
 /** Build the PersonaContext over a real db with deterministic + recording fakes. */
-export function makeHarness(db: Db, overrides: Partial<PersonaContext> = {}): PersonaHarness {
+export function makeHarness(db: Db, overrides: Partial<DbAssemblyInput<PersonaContext>> = {}): PersonaHarness {
   const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
   const userEvents: UserEventCall[] = [];
   const repointCalls: RepointSeedsCall[] = [];
   const domainEvents: DomainEvent[] = [];
-  const ctx: PersonaContext = {
-    db,
+  const ctx: DbAssemblyInput<PersonaContext> = {
+    db: databaseHandle(db),
     now: (): number => clock.now(),
     newPersonaId: (): PersonaId => castId<PersonaId>(ids.next("persona")),
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {

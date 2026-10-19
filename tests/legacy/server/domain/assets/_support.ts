@@ -19,6 +19,8 @@ import type { DomainEvent } from "@orb/contracts/events";
 import type { ParticipantRole, Principal, UserRole } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { characters, chatParticipants, chats, messageAssets, messages, personas } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type {
   AssetId,
   CharacterHandle,
@@ -43,7 +45,7 @@ import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
-import type { AssetsContext } from "#server/domain/assets/context.ts";
+import type { AssetsContext } from "#server/domain/assets/index.ts";
 import { createCas, createVariantCache } from "#server/infra/storage/index.ts";
 import { makeHarness as makeCharacterHarness } from "../character/_support.ts";
 
@@ -83,8 +85,9 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
   const emitted: DomainEvent[] = [];
   const imageTransform: Mock<AssetsContext["imageTransform"]> = vi.fn<AssetsContext["imageTransform"]>(() => Promise.resolve(FAKE_WEBP));
   const imageProbe: Mock<AssetsContext["imageProbe"]> = vi.fn<AssetsContext["imageProbe"]>(() => Promise.resolve({ format: "png", width: 1024, height: 1024 }));
+  const handle = databaseHandle(db);
   const ctx: AssetsContext = {
-    db,
+    db: handle,
     cas,
     variants,
     imageTransform,
@@ -101,12 +104,12 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
     // The cross-domain avatar-pointer write, wired as the REAL character-owned factory (mirrors
     // `entry/compose/assets-character.ts`) — so `backfillAvatars` exercises the actual owning-domain write,
     // not a stub that would pass while writing nothing.
-    linkCharacterAvatars: createLinkCharacterAvatars({ db, now: clock.now }),
+    linkCharacterAvatars: createLinkCharacterAvatars({ db: handle, now: clock.now }),
     // The gallery owner-only gate: the same character-owned read compose wires.
-    assertCharacterOwned: createCharacterOwned(db),
+    assertCharacterOwned: createCharacterOwned(handle),
     // The production queries themselves, so a change to a shipped predicate is what these suites test.
-    loadCoParticipantOwner: createLoadCoParticipantOwner({ db }),
-    loadChatAssetRefs: createLoadChatAssetRefs({ db }),
+    loadCoParticipantOwner: createLoadCoParticipantOwner({ db: handle }),
+    loadChatAssetRefs: createLoadChatAssetRefs({ db: handle }),
   };
   return {
     ctx,
@@ -124,7 +127,7 @@ export async function makeHarness(db: Db): Promise<AssetsHarness> {
 
 /** The harness ctx extended with compose's gallery id-and-handle ops over a real character service on `db`. */
 export function withGalleryCharacterOps(ctx: AssetsContext): AssetsContext {
-  return { ...ctx, ...createGalleryCharacterOps(ctx.db, createCharacterService(makeCharacterHarness(ctx.db).ctx)) };
+  return { ...ctx, ...createGalleryCharacterOps(ctx.db, createCharacterService(makeCharacterHarness(databaseForOwner(ctx.db)).ctx)) };
 }
 
 interface SeedUserOverrides {

@@ -8,6 +8,7 @@ import type { SummarizeOptions } from "@orb/contracts/role-clients";
 import type { BlockKey, MemoryQueryOptions, ScoredBlock } from "@orb/contracts/search";
 import type { Db } from "@orb/db";
 import { characters, chatDigestSpeakers, chatDigests, chatSegments, embedGenerations, embedGenerationTargets, userConnections } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
@@ -86,7 +87,7 @@ function dummyVector(dims: number): Float32Array {
 }
 
 async function seedGeneration(db: Db, chatId: ChatId, knownOwnerId?: UserId): Promise<MemorySpace> {
-  const ownerId = knownOwnerId ?? (await loadPresentHostUserId(db, chatId));
+  const ownerId = knownOwnerId ?? (await loadPresentHostUserId(databaseHandle(db), chatId));
   if (ownerId === null) {
     // D18: there is no `chats.ownerId` — the present human HOST participant is the authority, and that is
     // what the generation's owner is derived from. A fixture chat with no host must say whose generation it
@@ -315,7 +316,7 @@ export async function realMemoryWiring(
   const ctx = makeChatContext(db, {
     summarize: fakeSummarize().op,
     // The vector seam compose wires: the host's real space, the owner-coherence guard and the generation-scoped prune.
-    ...createMemoryEmbeddingOps({ embeddings, resolveChatHostUserId: (chatId) => loadPresentHostUserId(db, chatId) }),
+    ...createMemoryEmbeddingOps({ embeddings, resolveChatHostUserId: (chatId) => loadPresentHostUserId(databaseHandle(db), chatId) }),
     ...overrides,
   });
   return { ctx, embeddings, resolved };

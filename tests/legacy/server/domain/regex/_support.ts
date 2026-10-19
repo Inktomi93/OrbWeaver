@@ -14,6 +14,8 @@ import { regexScriptBehaviorSchema } from "@orb/contracts/regex";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { characters, chats, presets, regexScripts } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PresetId, RegexScriptId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -34,7 +36,7 @@ interface UserEventCall {
 }
 
 export interface RegexHarness {
-  readonly ctx: RegexContext;
+  readonly ctx: DbAssemblyInput<RegexContext>;
   readonly audits: AuditCall[];
   /** The recorded user-bus emits — assert `regexChanged` fires after a durable write, and NOT on a no-op. */
   readonly userEvents: UserEventCall[];
@@ -74,8 +76,8 @@ export function makeHarness(db: Db, overrides: HarnessOverrides = {}): RegexHarn
   const notStubbed = (): never => {
     throw new Error("RegexContext chat op not stubbed in this test");
   };
-  const ctx: RegexContext = {
-    db,
+  const ctx: DbAssemblyInput<RegexContext> = {
+    db: databaseHandle(db),
     now: (): number => clock.now(),
     newScriptId: (): RegexScriptId => castId<RegexScriptId>(ids.next("regex_script")),
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {

@@ -9,6 +9,8 @@ import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -23,7 +25,7 @@ interface AuditCall {
 }
 
 export interface PresetHarness {
-  readonly ctx: PresetContext;
+  readonly ctx: DbAssemblyInput<PresetContext>;
   readonly audits: AuditCall[];
 }
 
@@ -78,8 +80,8 @@ export function makeHarness(db: Db, options: HarnessOptions = {}): PresetHarness
   const clock = createFrozenClock(FROZEN_AT_MS);
   const ids = createSeededIds();
   const audits: AuditCall[] = [];
-  const ctx: PresetContext = {
-    db,
+  const ctx: DbAssemblyInput<PresetContext> = {
+    db: databaseHandle(db),
     now: (): number => clock.now(),
     newPresetId: (): PresetId => castId<PresetId>(ids.next("preset")),
     audit: (entry: AuditCall["entry"], at: number): Promise<void> => {

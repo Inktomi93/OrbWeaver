@@ -7,6 +7,7 @@ import type { ChatApi, ProviderId } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import type { RpgExtraction, RpgStateCaptureVehicle } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatRequest, ChatResult, ResolveOutcome } from "@orb/inference";
 import { generationOf } from "@orb/inference";
 import type { ChatId, ChatTurnId, Handle, MessageId, MessageVariantId, ModelId, UserId } from "@orb/kit/ids";
@@ -251,8 +252,9 @@ export function buildCannedRpgWithText(args: {
       req.tools.every((tool) => tool.name === "update_inventory" || tool.name === "no_changes");
     return Promise.resolve(replyOf(cannedText, inventoryAudit ? args.inventoryAuditToolCalls : cannedToolCalls));
   };
+  const handle = databaseHandle(db);
   return buildRpg({
-    db,
+    db: handle,
     now: () => FROZEN_AT_MS,
     ...(args.trace === undefined ? {} : { trace: args.trace }),
     rpgChatOps:
@@ -260,7 +262,7 @@ export function buildCannedRpgWithText(args: {
         ? app.chatRpgOps
         : { ...app.chatRpgOps, resolveChatPresetParams: (): Promise<UserIntent> => Promise.resolve({ maxContextTokens: args.presetMaxContext }) },
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
-    resolveViewerVisibility: createResolveViewerVisibility({ db }),
+    resolveViewerVisibility: createResolveViewerVisibility({ db: handle }),
     connection: {
       // The READ-side `trackersReadOnly` pill resolves the ROOM connection via `resolveChat` (the F1 seam — the
       // per-chat-routing verb, not the host's global `resolveRole` default). The state ROUNDS re-resolve NOTHING;

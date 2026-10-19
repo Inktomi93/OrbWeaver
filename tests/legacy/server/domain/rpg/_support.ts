@@ -12,6 +12,8 @@ import { RPG_PROFILE_FREEFORM, RPG_RECENT_BEATS_KEEP_DEFAULT } from "@orb/contra
 import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
 import { batchMany } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import type { WireTool } from "@orb/inference";
 import type {
   CharacterHandle,
@@ -435,7 +437,7 @@ export function makeRpgService(
     const { messageId, variantId } = await seedMessage(db, chatId, narratorSeq++, { role: "assistant", content });
     // This fake pins the injected-op contract only; the restore integration test uses chat's REAL narrator op
     // for rollback proof. Execute the companion so ordinary verb tests still observe the restored row.
-    await db.batch(batchMany([buildSnapshotStatement({ messageId, variantId })]));
+    await db.batch(batchMany([statementForOwner(buildSnapshotStatement({ messageId, variantId }))]));
     return { messageId, variantId };
   };
   const resolveParticipants: RpgResolveParticipants = () => Promise.resolve(fakes.participants);
@@ -485,7 +487,7 @@ export function makeRpgService(
   };
 
   const ctx: RpgContext = {
-    db,
+    db: databaseHandle(db),
     now: () => FROZEN_AT_MS,
     ids: {
       game: () => mintTypeId(ID_PREFIX.rpgGame),

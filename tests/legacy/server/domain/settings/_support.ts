@@ -8,6 +8,7 @@ import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { MaterializeBackgroundOp } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, ThemeId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -93,7 +94,7 @@ export function makeHarness(
   let entryCounter = 0;
   const published: (readonly string[])[] = [];
   const deps: SettingsServiceDeps = {
-    db,
+    db: databaseHandle(db),
     now: (): number => clock.now(),
     audit: (entry: AuditEntry, at: number): Promise<void> => {
       audits.push({ entry, at });
