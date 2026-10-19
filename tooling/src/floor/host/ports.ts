@@ -42,7 +42,7 @@ export interface PortPair {
   readonly vite: number;
 }
 
-/** What a reserved port is FOR. `provider` is the scripted BYO-provider stub (not an orbweaver server);
+/** What a reserved port is FOR. `provider` is a scripted stub a stack dials, the BYO provider or the OIDC issuer (not an orbweaver server);
  *  `engine` is a vLLM process, which has no vite side at all. The AXIS is the tuple; the union DERIVES
  *  from it, so a new role is added in exactly one place and every dispatch over it fails to compile until
  *  it is handled (Spine-TypeScript §"String-union dispatch discipline"). */
@@ -66,13 +66,18 @@ export const DEV_PORTS: PortPair = { server: 8788, vite: 5173 };
 /** The multi-user fixture stack (`pnpm fixture up`) — an OFFSET pair so it can run beside dev. */
 export const FIXTURE_PORTS: PortPair = { server: 8790, vite: 5175 };
 
-/** The three e2e auth-mode projects (`tests/e2e/support/modes.ts`). Each boots its own `pnpm stack up-fg`
- *  with an isolated DB, so all three pairs must be free simultaneously during `pnpm e2e`. */
-export const E2E_PORTS: Readonly<Record<"singleUser" | "forwardHeader" | "local", PortPair>> = {
+/** The e2e auth-mode projects (`tests/e2e/support/modes.ts`). Each boots its own `pnpm stack up-fg`
+ *  with an isolated DB, so every pair must be free simultaneously during `pnpm e2e`. */
+export const E2E_PORTS: Readonly<Record<"singleUser" | "forwardHeader" | "local" | "oidc", PortPair>> = {
   singleUser: { server: 8796, vite: 5181 },
   forwardHeader: { server: 8798, vite: 5182 },
   local: { server: 8799, vite: 5183 },
+  oidc: { server: 8795, vite: 5184 },
 };
+
+/** The oidc project's HTTPS mock issuer (`tests/e2e/support/oidc-issuer.ts`) — fixed because the stack's
+ *  `OIDC_ISSUER` names it at boot. Not an orbweaver server, so it has no vite side. */
+export const E2E_OIDC_ISSUER_PORT = 8794;
 
 /** The scripted fixture PROVIDER's loopback port (`tests/e2e/support/fixture-provider.ts`) — fixed so the
  *  local stack's egress allowlist can name it. Not an orbweaver server, so it has no vite side. */
@@ -116,6 +121,9 @@ export const RESERVED_PORTS: readonly ReservedPort[] = [
   { port: E2E_PORTS.forwardHeader.vite, owner: "e2e forward-header", role: "vite", why: "SSO trusted-proxy mode's client" },
   { port: E2E_PORTS.local.server, owner: "e2e local", role: "server", why: "cookie/BFF mode's isolated stack" },
   { port: E2E_PORTS.local.vite, owner: "e2e local", role: "vite", why: "cookie/BFF mode's client" },
+  { port: E2E_PORTS.oidc.server, owner: "e2e oidc", role: "server", why: "OIDC mode's isolated stack; it also serves the built client" },
+  { port: E2E_PORTS.oidc.vite, owner: "e2e oidc", role: "vite", why: "OIDC mode's dev client, booted by the stack but not the spec origin" },
+  { port: E2E_OIDC_ISSUER_PORT, owner: "e2e oidc issuer", role: "provider", why: "HTTPS mock issuer the oidc stack discovers at OIDC_ISSUER" },
   { port: CT_VITE_PORT, owner: "playwright-ct", role: "vite", why: "the CT runner's vite; no orbweaver server exists in a CT run" },
   { port: ENGINE_PORTS.embed, owner: "operator engines", role: "engine", why: "embedding engine — adopted by every stack, offset by none" },
   { port: ENGINE_PORTS.rerank, owner: "operator engines", role: "engine", why: "rerank engine — adopted by every stack, offset by none" },

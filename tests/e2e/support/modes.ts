@@ -29,12 +29,14 @@
 // superRefine) and `LOCAL_INITIAL_PASSWORD` ≥8 (the owner seed).
 
 import { tmpdir } from "node:os";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import process from "node:process";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
-import { DEV_PORTS, E2E_PORTS, ENGINE_PORTS } from "@orb/tooling/floor/host/ports";
+import { DEV_PORTS, E2E_OIDC_ISSUER_PORT, E2E_PORTS, ENGINE_PORTS } from "@orb/tooling/floor/host/ports";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
+import type { IssuerTls } from "./oidc-issuer.ts";
+import { ensureIssuerTls, issuerCertPath } from "./oidc-issuer.ts";
 import { devTargetAllowed } from "./target-guard.ts";
 
 /** One auth-mode project's boot + seed contract. `webServerEnv` is the exact env its `pnpm stack up-fg`
@@ -56,6 +58,9 @@ export interface ModeProject {
   readonly webServerEnv: Readonly<Record<string, string>>;
   /** Whether `global-setup.ts` runs the multi-user seed (localMultiUser + a member account) for this mode. */
   readonly seedMultiUser: boolean;
+  /** The built client the SERVER origin serves (`CLIENT_DIST_DIR`); the mode's webServer builds it before boot.
+   *  Set only where the spec origin is the server rather than vite. */
+  readonly servedClient?: string;
   /** How deep `global-setup.ts` warms THIS mode's vite dev server before the first spec runs (see
    *  `ClientWarmup`). The depth is an auth fact, not a preference: only a mode whose UI is reachable
    *  WITHOUT a login can be driven into the chat room by an un-authenticated warm pass. */
@@ -245,8 +250,8 @@ export const SINGLE_USER: ModeProject = {
   name: "single-user",
   baseUrl: `http://localhost:${SINGLE_VITE_PORT}`,
   backendUrl: `http://127.0.0.1:${SINGLE_BACKEND_PORT}`,
-  // Every spec EXCEPT the mode-specific ones (`*.local.spec.ts` / `*.forward.spec.ts`) — the existing 22.
-  testMatch: new RegExp(`(?<!\\.(?:local|forward))${E2E_TEST_END_PATTERN}`, "u"),
+  // Every spec EXCEPT the mode-specific ones (`*.local.spec.ts` / `*.forward.spec.ts` / `*.oidc.spec.ts`).
+  testMatch: new RegExp(`(?<!\\.(?:local|forward|oidc))${E2E_TEST_END_PATTERN}`, "u"),
   webServerEnv: {
     AUTH_MODE: "single-user",
     SESSION_SECRET: "orbweaver-dev-only-session-secret-insecure",
@@ -399,22 +404,82 @@ const FORWARD_HEADER: ModeProject = {
   clientWarmup: "shell",
 };
 
-// ── oidc — DEFERRED (owner decision). No mock IdP exists yet. Left as a documented ABSENCE, not a
-// half-built project: adding an unbacked `oidc` project would boot a stack no spec can authenticate against.
-// When built: mirror LOCAL/FORWARD_HEADER's shape with OIDC_ISSUER/CLIENT_ID/SECRET/REDIRECT_URIS pointed at
-// a REAL mock IdP process (discovery document + JWKS + a signed id_token), and an `actorViaOidc(claims)`
-// constructor in actors.ts.
+// ── oidc (the app is an OIDC client, cookie/BFF sessions) — ports 8795/5184, isolated DB/assets, and the HTTPS
+// mock issuer on 8794 (`support/oidc-issuer.ts`). The real `openid-client` discovery and code grant run unchanged:
+// the issuer is HTTPS because discovery refuses an insecure one, and the server child trusts its self-signed
+// certificate through `NODE_EXTRA_CA_CERTS` alone. An env-selectable token exchange would be an authentication
+// bypass wearing a test affordance, so none exists.
 //
-// #867 DID NOT DISCHARGE THIS, and the reason is a fence, not a caveat. Injecting the code→token exchange
-// (`OidcRoutesDeps.exchange`) made the whole OIDC callback drivable IN-PROCESS — that coverage now lives in
-// `tests/legacy/server/entry/http/auth-routes.test.ts` and `tests/legacy/server/entry/oidc-logout-roundtrip.suite.int.test.ts`
-// — but e2e boots the REAL server, whose composition root binds the REAL `openid-client` grant on purpose.
-// The only way a fake exchange could reach an e2e stack is an env-selectable substitute for the token
-// exchange, which is an authentication bypass wearing a test affordance. So this project stays deferred
-// until a mock IdP exists that the real grant can actually talk to.
+// THE SPEC ORIGIN IS THE SERVER, NOT VITE. The issuer sends the browser back to the callback the server derived
+// from the request Host; through the vite proxy (`changeOrigin`, no `xfwd`) that Host is the server's own, so the
+// callback would land on an origin that serves no client. The server therefore serves a built client
+// (`CLIENT_DIST_DIR`, built by the webServer before boot), and the browser, the callback and the redirect
+// allowlist all name one origin. Vite still boots with the stack; nothing reads it.
+const OIDC_BACKEND_PORT = String(E2E_PORTS.oidc.server);
+const OIDC_ORIGIN = `http://127.0.0.1:${OIDC_BACKEND_PORT}`;
+const OIDC_CALLBACK_ROUTE = "/api/auth/oidc/callback";
+// Absolute: the playwright config mints the certificate and the server child reads it, each from its own cwd.
+const OIDC_STATE_DIR = resolve(import.meta.dirname, "..", "..", "..", ".cache", "e2e", "oidc");
+const OIDC_CLIENT_DIR = join(OIDC_STATE_DIR, "client");
+const OIDC_ISSUER_DIR = join(OIDC_STATE_DIR, "issuer");
 
-/** Every mode project the config builds a project + webServer for (oidc excluded — deferred). */
-export const MODE_PROJECTS: readonly ModeProject[] = SELECTED_CORPUS_FIXTURE === undefined ? [SINGLE_USER, LOCAL, FORWARD_HEADER] : [SINGLE_USER, LOCAL];
+/** The issuer's loopback certificate and key. The config calls this before the oidc stack boots, so
+ *  `NODE_EXTRA_CA_CERTS` names a real file; importing this module mints nothing. */
+export function oidcIssuerTls(): IssuerTls {
+  return ensureIssuerTls(OIDC_ISSUER_DIR);
+}
+
+/** The registered client and the issuer it trusts. Dev-only literals, like SESSION_SECRET above. */
+export const OIDC_CLIENT = {
+  issuerUrl: `https://127.0.0.1:${String(E2E_OIDC_ISSUER_PORT)}`,
+  issuerPort: E2E_OIDC_ISSUER_PORT,
+  clientId: "orbweaver-e2e",
+  clientSecret: "orbweaver-e2e-oidc-client-secret-insecure",
+  providerName: "E2E IdP",
+} as const;
+
+/** The oidc project; the config mints its issuer certificate when this stack boots. */
+export const OIDC_MODE: ModeProject = {
+  name: "oidc",
+  baseUrl: OIDC_ORIGIN,
+  backendUrl: OIDC_ORIGIN,
+  testMatch: new RegExp(`\\.oidc${E2E_TEST_END_PATTERN}`, "u"),
+  servedClient: OIDC_CLIENT_DIR,
+  webServerEnv: {
+    AUTH_MODE: "oidc",
+    SESSION_SECRET,
+    CREDENTIALS_KEY,
+    OIDC_ISSUER: OIDC_CLIENT.issuerUrl,
+    OIDC_CLIENT_ID: OIDC_CLIENT.clientId,
+    OIDC_CLIENT_SECRET: OIDC_CLIENT.clientSecret,
+    OIDC_REDIRECT_URIS: `${OIDC_ORIGIN}${OIDC_CALLBACK_ROUTE}`,
+    OIDC_PROVIDER_NAME: OIDC_CLIENT.providerName,
+    // OIDC_SIGNUP stays at its default, off: a new identity is JIT-closed, the gate a signup invite turns into a
+    // pending join.
+    NODE_EXTRA_CA_CERTS: issuerCertPath(OIDC_ISSUER_DIR),
+    CLIENT_DIST_DIR: OIDC_CLIENT_DIR,
+    DEBUG_TOKEN: E2E_DEBUG_TOKEN,
+    E2E_HARNESS: "on",
+    PORT: OIDC_BACKEND_PORT,
+    VITE_PORT: String(E2E_PORTS.oidc.vite),
+    VITE_API_TARGET: OIDC_ORIGIN,
+    DATA_DIR: "./.cache/e2e/oidc",
+    DATABASE_URL: "file:./.cache/e2e/oidc/orb.db",
+    ASSETS_DIR: "./.cache/e2e/oidc/assets",
+    STACK_RUN_DIR: `./.cache/e2e/oidc/${STACK_RUN_SUBDIR}`,
+    OWNER_HANDLES: HARNESS_OWNER_HANDLE,
+    // Discovery, token and JWKS reach the loopback issuer through the configured-endpoint egress.
+    EGRESS_ALLOWLIST: "127.0.0.1",
+    PRIVATE_ENDPOINT_ALLOWLIST: LOOPBACK_ENDPOINT_ALLOWLIST,
+    ORB_ENV_NO_FILE: "1",
+  },
+  seedMultiUser: false,
+  clientWarmup: "shell",
+};
+
+/** Every mode project the config builds a project + webServer for. */
+export const MODE_PROJECTS: readonly ModeProject[] =
+  SELECTED_CORPUS_FIXTURE === undefined ? [SINGLE_USER, LOCAL, FORWARD_HEADER, OIDC_MODE] : [SINGLE_USER, LOCAL];
 
 /** Native browser projects share a mode stack; corpus cells derive their style from production. */
 export const CORPUS_PROJECT_CELLS = [SINGLE_USER, LOCAL].flatMap((mode) =>
