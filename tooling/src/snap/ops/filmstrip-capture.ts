@@ -227,7 +227,7 @@ export async function startFilmstripCapture(
     () => {
       buffer.limitDuration();
       // The original stop promise remains memoized for stop() to inspect and surface during cleanup.
-      // @orb-waive caught-failure-ownership(stopProtocol): the timeout callback has no awaiter; stopProtocol memoizes the original promise and stop() awaits it, then returns the rejection as typed cleanup evidence. Ends if stop() stops awaiting that memoized promise.
+      // @orb-waive caught-failure-ownership(stopProtocol): the timeout callback has no awaiter; stopProtocol memoizes the stop promise and stop() awaits it, folds a rejection into the cleanup errors and throws them via throwCleanupErrors; arms/filmstrip.ts finishCapture catches that into attempt.error and the arm reports state refused. Ends if stop() stops awaiting the memoized promise.
       stopProtocol().catch(() => undefined);
     },
     Math.max(0, limits.durationMs - (now() - startedAt)),

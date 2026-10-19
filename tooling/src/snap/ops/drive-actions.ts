@@ -224,7 +224,7 @@ interface DrivenStep {
 }
 
 async function driveStep(page: Page, step: Step, index: number): Promise<DrivenStep> {
-  // @orb-waive caught-failure-ownership(e): printed as STEP FAILED and returned as a count the caller sums into stepFailures, the verdict the run reads. Ends if stepFailures stops being read.
+  // @orb-waive caught-failure-ownership(e): the caught step failure is printed as STEP FAILED and returned as { failures: 1, failure }; dispatchOrdinaryAction adds it to stepFailures and driveFailures, and verdict.ts outcomeTotals sums stepFailures. Ends if stepFailures stops being summed there.
   try {
     const fileAction = await runStep(page, step);
     await settle(page, STEP_SETTLE_MS);
@@ -235,7 +235,7 @@ async function driveStep(page: Page, step: Step, index: number): Promise<DrivenS
     // step ONE retry after a settle, rather than reporting an environmental blip as an app failure.
     if (isContextChurn(msg)) {
       print(`${CHURN_LINE} — retrying: ${stepLabel(step)}`);
-      // @orb-waive caught-failure-ownership(retryErr): the retry's own failure is printed as STEP FAILED (after churn retry) and returned as the same counted failure the outer catch would have produced. Ends if that count stops being read.
+      // @orb-waive caught-failure-ownership(retryErr): the retry's own failure is printed as STEP FAILED (after churn retry) and returned as { failures: 1, failure }; dispatchOrdinaryAction adds it to stepFailures and driveFailures, and verdict.ts outcomeTotals sums stepFailures. Ends if stepFailures stops being summed there.
       try {
         await settle(page, STEP_SETTLE_MS);
         const fileAction = await runStep(page, step);
@@ -257,15 +257,15 @@ async function driveStep(page: Page, step: Step, index: number): Promise<DrivenS
 // One nav action + its settle. Returns the failure count (0 or 1); each failure prints + reddens exit.
 async function driveNav(page: Page, action: NavAction, index: number): Promise<DriveFailure | null> {
   // Every nav action needs the app hydrated AND the bridge installed — wait on both, gracefully bounded.
-  // @orb-waive caught-failure-ownership(waitFor): gracefully bounded per the comment above — a stuck/absent flag falls through, and any real problem still surfaces via the nav evaluate() below, caught by the try beneath. Ends if that fallthrough evaluate stops being what catches real failures.
+  // @orb-waive caught-failure-ownership(waitFor): an absent data-app-ready flag is not itself a nav failure; the nav script run below checks the __orb.nav bridge and returns { ok: false, reason } when it is missing, which driveNav prints as NAV FAILED and returns as a DriveFailure. Ends if the nav script stops refusing a missing bridge.
   await page
     .locator("html[data-app-ready]")
     .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
     .catch(() => undefined);
   let result: NavResultShape;
-  // @orb-waive caught-failure-ownership(e): printed as NAV FAILED and returned as a count the caller sums into navFailures, the verdict the run reads. Ends if navFailures stops being read.
+  // @orb-waive caught-failure-ownership(e): the caught nav failure is printed as NAV FAILED and returned as a DriveFailure; dispatchOrdinaryAction counts it into navFailures and verdict.ts outcomeTotals sums navFailures. Ends if navFailures stops being summed there.
   try {
-    // @orb-waive caught-failure-ownership(page.evaluate): a fire-and-forget readiness ping whose result is discarded — the very next line's evaluate() runs regardless and its failure IS caught by this try, reported as NAV FAILED. Ends if the next evaluate stops being what reports real failures.
+    // @orb-waive caught-failure-ownership(page.evaluate): the readiness ping's result is discarded; the nav evaluate on the next statement runs on the same page inside this try, and its failure is caught by the catch below and returned as a DriveFailure. Ends if the nav evaluate moves out of this try.
     await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
     // #1004 — ONE nav-result predicate for all four call sites (floor/browser/page-validate.ts); this file
     // used to declare its own copy of the shape and assert it.

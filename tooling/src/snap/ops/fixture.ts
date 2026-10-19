@@ -52,7 +52,7 @@ export function resolveFixtureTarget(override: FixtureTargetOverride = {}, env: 
   const serverUrl = stripSlash(override.serverUrl ?? env["SNAP_FIXTURE_SERVER_URL"] ?? FIXTURE_SERVER_URL_DEFAULT);
   const baseUrl = stripSlash(override.baseUrl ?? env["SNAP_FIXTURE_BASE_URL"] ?? FIXTURE_BASE_URL_DEFAULT);
   let serverPort = FIXTURE_PORTS.server;
-  // @orb-waive caught-failure-ownership(catch): documented fail-safe floor — keeps the default port, and the status probe below refuses loudly on the same bad URL with a readable reason (see the doc comment above). Ends if that downstream refusal is removed.
+  // @orb-waive caught-failure-ownership(catch): a URL that does not parse keeps the default port; fixtureStatus then probes the same URL, the probe child's fetch fails, httpOkSync is false and fixtureVerdict returns { up: false, reason } which contexts.ts prints through fixtureRefusalLine. Ends if fixtureVerdict stops refusing on an unanswered healthz.
   try {
     const parsed = new URL(serverUrl);
     serverPort = parsed.port === "" ? FIXTURE_PORTS.server : Number(parsed.port);

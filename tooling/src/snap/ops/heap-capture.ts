@@ -48,7 +48,7 @@ export async function captureRawHeap(page: Page, path: string): Promise<Captured
   // carrier containment and then by exact token, and this outer try's carrier holds every catch nested
   // inside it, so a second `error` in there would make the marker below over-broad and suppress nothing
   // (tooling/src/verify/lib/caught-failure.ts, "The anchor is the position").
-  // @orb-waive caught-failure-ownership(error): the primary capture failure is retained and combineCaptureFailures always rethrows it after cleanup, alone or inside the AggregateError with the cleanup failures. Ends if combineCaptureFailures stops throwing the retained primary.
+  // @orb-waive caught-failure-ownership(error): the primary capture failure is kept in primary and combineCaptureFailures throws it after cleanup, alone or inside the AggregateError with the cleanup failures. Ends if combineCaptureFailures stops throwing the retained primary.
   try {
     cdp = await page.context().newCDPSession(page);
     const version = await cdp.send("Browser.getVersion");
@@ -76,13 +76,13 @@ export async function captureRawHeap(page: Page, path: string): Promise<Captured
   } finally {
     if (cdp !== null) {
       cdp.off("HeapProfiler.addHeapSnapshotChunk", onChunk);
-      // @orb-waive caught-failure-ownership(disableError): disable failure is retained in cleanup and combined after stream settlement. Ends if cleanup stops reaching combineCaptureFailures.
+      // @orb-waive caught-failure-ownership(disableError): the disable failure is pushed to cleanup and combineCaptureFailures throws it after the stream settles. Ends if cleanup stops reaching combineCaptureFailures.
       try {
         await cdp.send("HeapProfiler.disable");
       } catch (disableError) {
         cleanup.push(disableError);
       }
-      // @orb-waive caught-failure-ownership(detachError): detach failure is retained in cleanup and combined after stream settlement; the arm never closes the owner context. Ends if cleanup stops reaching combineCaptureFailures.
+      // @orb-waive caught-failure-ownership(detachError): the detach failure is pushed to cleanup and combineCaptureFailures throws it after the stream settles; the arm never closes the owner context. Ends if cleanup stops reaching combineCaptureFailures.
       try {
         await cdp.detach();
       } catch (detachError) {
@@ -90,7 +90,7 @@ export async function captureRawHeap(page: Page, path: string): Promise<Captured
       }
     }
     stream.end();
-    // @orb-waive caught-failure-ownership(streamError): stream failure is retained in cleanup and combined with the CDP failures. Ends if cleanup stops reaching combineCaptureFailures.
+    // @orb-waive caught-failure-ownership(streamError): the stream failure is pushed to cleanup and combineCaptureFailures throws it together with the CDP failures. Ends if cleanup stops reaching combineCaptureFailures.
     try {
       await completed;
     } catch (streamError) {

@@ -123,7 +123,7 @@ export function configureStage(opts: Args): number | null {
     return control;
   }
   if (opts.isolated) {
-    // @orb-waive caught-failure-ownership(e): printed as STAGE ERROR and returned as exit code 2 (tool error: nothing was measured), which the CLI process exits with. Ends if that exit code stops being surfaced.
+    // @orb-waive caught-failure-ownership(e): the caught stage failure is recorded in the run's stage provenance as unavailable with the message, printed as STAGE ERROR, and returned as EXIT.toolError, which cli.ts and session-daemon.ts return as the exit code. Ends if configureStage's return stops being used as the exit.
     try {
       const stage = bindIsolatedStage(opts);
       registerSnapStageProvenance({
