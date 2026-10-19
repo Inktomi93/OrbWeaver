@@ -61,7 +61,7 @@ Claude uses `SendMessage` and `TaskStop` below. In Codex, inspect state with `li
 
 Run at most three lanes at once. Raise the cap only on an explicit owner ruling, written here.
 
-Owner ruling: at most six `sonnet-executor` lanes plus two Opus agents at once, or three Opus agents when no Sonnet lane runs. Every Opus agent counts toward the cap: executor, security-executor, verifier and side-eye alike. Never dispatch forge (owner).
+Owner ruling: at most six `sonnet-executor` lanes plus three Opus agents at once. Every Opus agent counts toward the cap: executor, security-executor, verifier and side-eye alike. Never dispatch forge (owner).
 
 Owner ruling for Codex: run at most five lanes beside the primary agent, within the runtime's available slots. This replaces the model-specific cap above for Codex. Schedule compiler and gate-heavy runs through the primary agent; extra lanes do not authorize concurrent heavy checks. Claude primary is optional additional capacity outside the Codex lane cap; dispatch to the existing peer at your discretion.
 

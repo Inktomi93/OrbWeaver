@@ -1,8 +1,9 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
+lane: wt/agent-a8eefd5226fb420e7
 ---
 
 # Server factory tier reference refusals cover the server program
