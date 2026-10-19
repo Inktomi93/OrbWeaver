@@ -38,11 +38,11 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
 import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
+import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
@@ -55,6 +55,7 @@ import type { EmbeddingsContext } from "#server/domain/embeddings/index.ts";
 import { analyzeAvatarImage } from "#server/domain/embeddings/indexer/caption.ts";
 import { createImageIndexer } from "#server/domain/embeddings/indexer/image.ts";
 import { contentHash } from "#server/domain/embeddings/substrate/hash.ts";
+import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-id.ts";
 import { makeResolvedSecret } from "../../../inference/_support.ts";
 
 /** The test embed space `(model, dim)`. Small dim keeps vectors cheap; the model strings are the space tag. */
@@ -297,7 +298,7 @@ export function makeStoreHarness(db: Db, sources: StoreHarnessSources = {}, imag
         () => Promise.resolve(makeResolvedSecret()),
         vectorConnectionOf,
       ),
-      (userId) => Promise.resolve(principal(userId)),
+      createHostPrincipalResolver(createLoadUserById({ db })),
     ),
     // The entity OWNER reads (the funder of every sweep) — the harness's seeded rows all belong to whoever the
     // test seeded; a null answer means "row gone", which the sweeps skip.

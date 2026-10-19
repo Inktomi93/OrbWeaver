@@ -54,9 +54,9 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { consolidationHash, createResolveViewerVisibility, loadPresentHostUserId, resolveTier0Range } from "@orb/server/domain/chat";
 import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
+import { createHostPrincipalResolver } from "@orb/server/entry/auth";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
@@ -66,6 +66,7 @@ import type { ResolveEmbeddingConnection } from "#server/domain/embeddings/index
 import { createEmbeddingsService, SpaceMismatchError } from "#server/domain/embeddings/index.ts";
 import type { SearchContext, SearchService } from "#server/domain/search/index.ts";
 import { createSearchService } from "#server/domain/search/index.ts";
+import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-id.ts";
 import { makeResolvedSecret } from "../../../inference/_support.ts";
 import { makeStoreHarness } from "../embeddings/_support.ts";
 
@@ -115,7 +116,7 @@ export async function seedGeneration(
   const embeddings = createEmbeddingsService({
     ...makeStoreHarness(db).ctx,
     db: databaseHandle(db),
-    resolveEmbeddingConnection: searchEmbeddingConnection(roleClients),
+    resolveEmbeddingConnection: searchEmbeddingConnection(db, roleClients),
   });
   if (refuses) {
     const existing = await generationOf(db, ownerId, task, model);
@@ -290,10 +291,10 @@ function makeSearchRoleClients(controls: FakeRoleClientControls = {}): RoleClien
 }
 
 /** Compose's embedding-connection resolve over a fake runtime that embeds through `roleClients`. */
-function searchEmbeddingConnection(roleClients: RoleClients): ResolveEmbeddingConnection {
+function searchEmbeddingConnection(db: Db, roleClients: RoleClients): ResolveEmbeddingConnection {
   return createResolveEmbeddingConnection(
     makeEmbeddingRuntime(roleClients, () => Promise.resolve(makeResolvedSecret()), ownConnection),
-    (userId) => Promise.resolve(principal(userId)),
+    createHostPrincipalResolver(createLoadUserById({ db })),
   );
 }
 
@@ -315,7 +316,7 @@ export function makeSearch(db: Db, controls?: FakeRoleClientControls, now: () =>
     db: databaseHandle(db),
     roleClientsFor: () => Promise.resolve(roleClients),
     // Compose's own resolve over the scripted encoders: the snapshot and the explicit-row rule are production's.
-    resolveEmbeddingConnection: searchEmbeddingConnection(roleClients),
+    resolveEmbeddingConnection: searchEmbeddingConnection(db, roleClients),
     now,
     resolveActiveDocumentIds: (scope) => resolveActiveDocumentIds(databaseHandle(db), scope),
     resolveActiveDocumentScope: (scope) => resolveActiveDocumentScope(databaseHandle(db), scope),
