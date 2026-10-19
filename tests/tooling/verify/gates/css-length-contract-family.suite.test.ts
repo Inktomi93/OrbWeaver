@@ -8,7 +8,7 @@ import { CLEAN_PRODUCT_CSS, SOURCE_ANCHOR } from "../../../../tooling/src/verify
 import { SHELL_STYLESHEET } from "../../../../tooling/src/verify/lib/css-length-policy.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const LENGTH_GRANTS = REVIEWED_GRANTS.filter(({ policyId }) => policyId === grants.id);
 const REPO_ROOT = new URL("../../../../", import.meta.url).pathname.replace(/\/$/u, "");
@@ -26,6 +26,7 @@ function run(root: string, reviewedGrants: readonly ReviewedGateGrant[]): Return
     policies: [ordinary, grants, health],
     root,
     project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     reviewedGrants,
     failOnWarnings: false,
   });

@@ -2,10 +2,10 @@
 import type { RealCorpusLivenessArm } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { assertArmVerdict, openRealCorpusLiveness } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
 import { loadGateCorpus, reviewedGrantsFor, runPolicyPass } from "@orb/tooling/verify";
 import { gate as users } from "../../../../tooling/src/verify/gates/no-direct-users-read.ts";
 import { gate as role } from "../../../../tooling/src/verify/gates/two-class-role-authority.ts";
+import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
 import { WAIVER_BUDGET } from "../../../../tooling/src/verify/lib/waiver-budget.ts";
 import { ALL_ARMS } from "./_liveness/runner.ts";
 
@@ -39,11 +39,13 @@ const ARMS: readonly RealCorpusLivenessArm[] = [
 test("the complete current identity populations are clean with their existing sanctioned-module grants", async ({ repoRoot }) => {
   const policies = [users, role];
   const corpus = await loadGateCorpus(repoRoot);
+  const context = projectCtx(repoRoot);
   const result = runPolicyPass({
     knownPolicies: corpus.gates,
     policies,
     root: repoRoot,
-    project: getWorkspace({ root: repoRoot }),
+    project: context.project,
+    ...nativeTypeFactOptions(context),
     reviewedGrants: reviewedGrantsFor(policies),
     waiverBudget: WAIVER_BUDGET,
     failOnWarnings: false,

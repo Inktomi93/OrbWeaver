@@ -7,6 +7,7 @@ import tseslint from "typescript-eslint";
 import { gate as splice } from "../../../../tooling/src/verify/gates/class-token-splice.ts";
 import { gate as dark } from "../../../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const SPLICE = "orb/class-token-splice";
 const DARK = "orb/no-tailwind-dark-variant";
@@ -84,7 +85,15 @@ test("native-owned direct cases and imported/composed semantic cases have disjoi
     const project = new Project({ useInMemoryFileSystem: true });
     project.createSourceFile(`${root}/packages/ui/src/producer.ts`, 'export const CARD = "dark:bg-card";');
     project.createSourceFile(`${root}/${path}`, source);
-    const result = runPolicyPass({ root, project, policies: [splice, dark], knownPolicies: [splice, dark], reviewedGrants: [], failOnWarnings: false });
+    const result = runPolicyPass({
+      root,
+      project,
+      nativeTypeFacts: () => isolatedTypeFacts(project),
+      policies: [splice, dark],
+      knownPolicies: [splice, dark],
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
     expect(result.toolErrors, source).toEqual([]);
     expect(result.authority.effectiveFindings, source).toHaveLength(customCount);
     expect(await configured(eslint, join(repoRoot, path), source), source).toHaveLength(nativeCount);
