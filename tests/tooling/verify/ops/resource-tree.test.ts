@@ -53,8 +53,6 @@ function unavailableReason<T>(load: ResourceLoad<T>): string {
 
 test("the authored-tree axis resolves every closed id to its exact gate-root path", () => {
   expect(AUTHORED_TREE_PATHS).toEqual({
-    "server-domain": "packages/server/src/domain",
-    "client-feature": "packages/client/src/features",
     "ui-primitive": "packages/ui/src/primitives",
     "tooling-slot": "tooling/src",
     "db-schema": "packages/db/src/schema",

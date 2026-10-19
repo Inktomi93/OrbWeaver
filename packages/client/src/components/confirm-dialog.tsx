@@ -2,8 +2,8 @@
 // sites hand-assembled this exact anatomy, each pasting the same `/* nested <Text> is invalid HTML */`
 // footgun comment (AlertDialogDescription IS a <p>; a nested <Text> is also a <p> — invalid nesting).
 // This composite kills the footgun STRUCTURALLY: plain string/fragment children only, never <Text>.
-// OWNER RULING: lives client-shared (NOT @orb/ui — ui stays parts-only); client-structure.ts's
-// OUTER_CONTAINER regex already exempts `<ConfirmDialog` for exactly this reason.
+// OWNER RULING: lives client-shared (NOT @orb/ui — ui stays parts-only); the feature layout test's
+// OUTER_CONTAINER regex (`tests/client/feature-layout.suite.test.ts`) already exempts `<ConfirmDialog` for exactly this reason.
 
 import {
   AlertDialog,

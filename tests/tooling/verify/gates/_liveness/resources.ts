@@ -19,13 +19,10 @@ import { gate as cssFamilyOwnershipHealth } from "../../../../../tooling/src/ver
 import { gate as cssSelectorHasAWriterHealth } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
 import { gate as dbStructureProducerHome } from "../../../../../tooling/src/verify/gates/db-structure-producer-home.ts";
 import { gate as depcruiseGrantLivenessHealth } from "../../../../../tooling/src/verify/gates/depcruise-grant-liveness-health.ts";
-import { gate as featureOwnsDefinition } from "../../../../../tooling/src/verify/gates/feature-owns-definition.ts";
-import { gate as featureStructure } from "../../../../../tooling/src/verify/gates/feature-structure.ts";
 import { gate as noFormStateInUseeffect } from "../../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
 import { gate as overArtPlateArm } from "../../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
 import { gate as runnerConfigPathLiveness } from "../../../../../tooling/src/verify/gates/runner-config-path-liveness.ts";
 import { gate as sanctionedCssHomes } from "../../../../../tooling/src/verify/gates/sanctioned-css-homes.ts";
-import { gate as serverLayout } from "../../../../../tooling/src/verify/gates/server-layout.ts";
 import { gate as suppressions } from "../../../../../tooling/src/verify/gates/suppressions.ts";
 import { gate as testLayout } from "../../../../../tooling/src/verify/gates/test-layout.ts";
 import { gate as toolingRunnerConfigLiterals } from "../../../../../tooling/src/verify/gates/tooling-runner-config-literals.ts";
@@ -94,18 +91,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "GROWTH",
   },
   {
-    policy: featureOwnsDefinition,
-    overlays: [source("packages/client/src/features/livenessorphan/lib/helper.ts", "export const livenessHelper = 1;\n")],
-    reportsAt: ["packages/client/src/features/livenessorphan"],
-    messageIncludes: "owns no registered definition",
-  },
-  {
-    policy: featureStructure,
-    overlays: [source("packages/server/src/domain/livenessbroken/index.ts", "export const livenessBroken = 1;\n")],
-    reportsAt: ["packages/server/src/domain/livenessbroken"],
-    messageIncludes: "missing template",
-  },
-  {
     policy: noFormStateInUseeffect,
     overlays: [
       {
@@ -142,11 +127,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: sanctionedCssHomes,
     overlays: [source("packages/client/src/features/chat/liveness.css", ".liveness { color: red; }\n")],
     messageIncludes: "outside the path-closed six-home",
-  },
-  {
-    policy: serverLayout,
-    overlays: [source("packages/server/src/liveness-stray.ts", "export const livenessStray = 1;\n")],
-    messageIncludes: "illegal top-level entry",
   },
   {
     policy: suppressions,

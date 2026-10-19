@@ -12,7 +12,7 @@
 // contribution rendering the tension score the needle preset publishes into this room's chat variables.
 //
 // It also owns the Automation CONFIG GROUP, moved here from `features/settings` with A4 for two reasons
-// that agree: the `feature-owns-definition` gate requires a feature dir to own a registered definition, and
+// that agree: the feature layout test requires a feature dir to own a registered definition, and
 // the group IS automation's surface (spec §3-S3 names it as the owner-global rules home when C5 lands).
 export {} from "./components/clock-meter.tsx";
 export {} from "./components/needle-meter.tsx";

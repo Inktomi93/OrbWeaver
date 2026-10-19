@@ -1,5 +1,5 @@
 // The Create-user dialog (Settings → Admin → Users). A COMPONENT so the Dialog root is legal
-// (client-structure rule 7). The form is the §13.4 factory (`useCreateUserForm` — ≥3 fields +
+// (the feature layout test's surface purity rule). The form is the §13.4 factory (`useCreateUserForm` — ≥3 fields +
 // validation), button-gated: Create runs `form.handleSubmit()` whose `save` fires the `createUser`
 // mutation and closes on success; a failure keeps the dialog open (the mutation's errorToast is the
 // failure surface, and the sticky mutation error renders inline). Base UI unmounts the popup content

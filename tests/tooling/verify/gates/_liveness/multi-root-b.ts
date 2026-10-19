@@ -27,7 +27,6 @@ import { gate as noManualTokenEstimate } from "../../../../../tooling/src/verify
 import { gate as nullableColumnInequality } from "../../../../../tooling/src/verify/gates/nullable-column-inequality.ts";
 import { gate as openJsonColumnKeyParity } from "../../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
 import { gate as packageDeepImport } from "../../../../../tooling/src/verify/gates/package-deep-import.ts";
-import { gate as packageLayout } from "../../../../../tooling/src/verify/gates/package-layout.ts";
 import { gate as playwrightCssTopology } from "../../../../../tooling/src/verify/gates/playwright-css-topology.ts";
 import { gate as policyRefusalCoverage } from "../../../../../tooling/src/verify/gates/policy-refusal-coverage.ts";
 import { gate as policyWaiverIdentity } from "../../../../../tooling/src/verify/gates/policy-waiver-identity.ts";
@@ -119,11 +118,6 @@ export const MULTI_ROOT_B_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "Subject: auditLogs.metadata",
-  },
-  {
-    policy: packageLayout,
-    overlays: planted("packages/inference/src/liveness-loose.ts", "export const livenessLoose = 1;\n"),
-    messageIncludes: "a loose `.ts` file",
   },
   {
     policy: playwrightCssTopology,

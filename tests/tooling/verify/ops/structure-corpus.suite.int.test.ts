@@ -29,7 +29,9 @@ const RUN_TIMEOUT_MS = scaledBudget(120_000);
  *  marks it as this suite's own fixture rather than a corpus member anyone could mistake for a real gate. */
 const ABSENT_POLICY = "probe-no-such-policy";
 const REVIEWED = "scrubber-home";
-const HARD_RESOURCE = "server-layout";
+/** A planted hard resource policy over the `docs` authored tree, which none of the planted roots below holds. */
+const HARD_RESOURCE = "planted-resource";
+const HARD_RESOURCE_TREE = "docs";
 /** THE NONBLOCKING-WARNING SUBJECT IS PLANTED, NOT BORROWED (#2497) — this file's own §"MATERIALIZE the
  *  premise" lesson, applied to SEVERITY. It used to shim the live `over-art-plate-arm` for its
  *  `severity: "warning"`; `8300c13bbc` raised that policy to `"error"` (its warning-debt flip condition was met
@@ -68,6 +70,37 @@ export const gate = defineGate({
   mustFlag: [{ mode: "source", files: { ${JSON.stringify(WARNING_SUBJECT)}: ${JSON.stringify(WARNING_SUBJECT_SOURCE)} }, why: "the marker" }],
   mustPass: [{ mode: "source", files: { "packages/client/src/features/probe/clean.ts": "export const clean = 1;\\n" }, why: "no marker" }],
 } as never);
+`;
+}
+
+/** A hard resource policy that reports one finding when its tree holds `docs/flag.md`; with no tree it never reaches `evaluate`. */
+function resourcePolicy(repoRoot: string): string {
+  const contract = pathToFileURL(join(repoRoot, "tooling/src/verify/contract/policy.ts")).href;
+  return `import { defineGate } from ${JSON.stringify(contract)};
+export const gate = defineGate({
+  id: ${JSON.stringify(HARD_RESOURCE)},
+  application: "resources",
+  family: ${JSON.stringify(HARD_RESOURCE)},
+  authority: "hard",
+  severity: "error",
+  population: { of: "none", why: "planted fixture over a ResourceHost tree" },
+  analysis: "resource",
+  execution: "entire-population",
+  facts: [],
+  resources: [{ kind: "authored-tree", id: ${JSON.stringify(HARD_RESOURCE_TREE)} }],
+  message: "planted resource finding",
+  fix: "remove docs/flag.md",
+  create: (ctx) => ({
+    evaluate: () => {
+      const tree = ctx.resources.authoredTree(${JSON.stringify(HARD_RESOURCE_TREE)});
+      if (tree.status === "ready" && tree.value.some((entry) => entry.path === "docs/flag.md")) {
+        ctx.report.file("docs/flag.md", { line: 1, column: 1, message: "planted resource finding" });
+      }
+    },
+  }),
+  mustFlag: [{ mode: "resource", files: { "docs/flag.md": "x\\n" }, expect: { count: 1 }, why: "the planted flag file" }],
+  mustPass: [{ mode: "resource", files: { "docs/ok.md": "x\\n" }, why: "a docs tree without the flag file" }],
+});
 `;
 }
 
@@ -392,12 +425,12 @@ test("a resource policy whose resource is missing is withheld with explicit fail
   repoRoot,
   runCli,
 }) => {
-  // No server tree in this root: server-layout's authored-tree resource cannot resolve, so its
+  // No docs tree in this root: the planted policy's authored-tree resource cannot resolve, so its
   // population phase throws — the ordinary sibling beside it still waives its finding.
   const root = await corpusTree(
     plantedTree,
     mixedTree(repoRoot, {
-      [`${GATES}/${HARD_RESOURCE}.ts`]: shim(repoRoot, HARD_RESOURCE),
+      [`${GATES}/${HARD_RESOURCE}.ts`]: resourcePolicy(repoRoot),
       [ORDINARY_SUBJECT]: `// @orb-waive ${ORDINARY}(${ORDINARY_MARKER}): planted — reconciled beside a failed owner\n${ORDINARY_LINE}`,
     }),
   );
@@ -412,7 +445,7 @@ test("a resource policy whose resource is missing is withheld with explicit fail
   expect(failed.ok).toBe(false);
   expect(report.run.final.withheld).toBe(1);
   expect(policyOf(report).toolErrors).toEqual([
-    { policyId: HARD_RESOURCE, phase: "population", message: expect.stringContaining("authored-tree:server is missing") },
+    { policyId: HARD_RESOURCE, phase: "population", message: expect.stringContaining(`authored-tree:${HARD_RESOURCE_TREE} is missing`) },
   ]);
   expect(policyOf(report).authority.withheldPolicyIds).toEqual([HARD_RESOURCE]);
   expect(policyOf(report).authority.toolErrors.map((e) => e.kind)).toEqual(["owner-incomplete"]);

@@ -7,7 +7,7 @@
 //
 // Delete is confirm-gated (UI-Primitives §13.8 R4 — destructive → AlertDialog; deleting an authored theme
 // incl. its custom CSS is unrecoverable, so a misclick under Export must not fire it). A COMPONENT, not
-// part of the section surface, so the destructive <AlertDialog> stays legal (client-structure rule 7).
+// part of the section surface, so the destructive <AlertDialog> stays legal (the feature layout test's surface purity rule).
 //
 // A11Y / TESTABILITY NOTE (#2252): the trigger's accessible name is `Theme actions: <name>`, NOT
 // `Actions for <name>`. The bare `Actions for Mocha` pattern collides with Playwright's default

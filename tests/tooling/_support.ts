@@ -5,7 +5,7 @@
 //   • `ctxFor` — an in-memory ts-morph project (for gates that walk `ctx.project`'s AST).
 //   • `withTree` — a REAL temp-dir fixture (for gates that line-count / stat the fs directly, ignoring
 //     `ctx.project`); auto-cleaned in `finally`.
-// A gate test that layers extra scaffold files into its tree (client-structure's domain-mirror seed) keeps
+// A gate test that layers extra scaffold files into its tree (a domain-mirror seed, say) keeps
 // its own wrapper — this home carries only the byte-identical shape.
 
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";

@@ -13,8 +13,6 @@ import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node
 
 import { gate as boundFieldViaHook } from "../../../../../tooling/src/verify/gates/bound-field-via-hook.ts";
 import { gate as busOnDataNoStoreWrite } from "../../../../../tooling/src/verify/gates/bus-on-data-no-store-write.ts";
-
-import { gate as clientStructure } from "../../../../../tooling/src/verify/gates/client-structure.ts";
 import { gate as emptyStateHasAction } from "../../../../../tooling/src/verify/gates/empty-state-has-action.ts";
 import { gate as formFactoryForMultifield } from "../../../../../tooling/src/verify/gates/form-factory-for-multifield.ts";
 import { gate as noEffectOnSharedSelection } from "../../../../../tooling/src/verify/gates/no-effect-on-shared-selection.ts";
@@ -60,13 +58,6 @@ export const CLIENT_UI_ARMS: readonly RealCorpusLivenessArm[] = [
       add("packages/client/src/data/bus/liveness-bus.ts", "export const livenessSub = {\n  onData: () => {\n    useX.setState({ a: 1 });\n  },\n};\n"),
     ],
     messageIncludes: "raw store write",
-  },
-
-  {
-    policy: clientStructure,
-    // The feature-slice layout is read as a resource tree: a stray module at a built feature's root.
-    overlays: [{ kind: "resource", path: `${CHAT}/liveness-stray.ts`, source: "export const stray = 1;\n" }],
-    messageIncludes: "stray file",
   },
   {
     policy: emptyStateHasAction,

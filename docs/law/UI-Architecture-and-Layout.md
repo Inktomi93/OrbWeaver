@@ -98,7 +98,7 @@ The law that survives any file-level churn:
 
 #### 2.1 `@orb/client` — the feature-slice tree
 
-The tree below is committed law: gate `client-structure` enforces the per-feature shape the moment a slice gets real code; `data/`, `forms/`, `state/` are populated per the §13.1 contracts. **orbweaver is NOT FSD** (no `entities/`/`shared/` layers) — flat feature-slice, plus `data/`+`forms/` elevated to top-level peers of `state/`.
+The tree below is committed law: `tests/client/feature-layout.suite.test.ts` enforces the per-feature shape once a slice has code; `data/`, `forms/`, `state/` follow the §13.1 contracts. **orbweaver is NOT FSD** (no `entities/`/`shared/` layers) — flat feature-slice, plus `data/`+`forms/` elevated to top-level peers of `state/`.
 
 ```
 packages/client/

@@ -1,7 +1,7 @@
 // domain/rpg/flush-barrier — the per-chat in-flight FLUSH BARRIER (the delivery-model amendment's
 // "one-beat-behind but GUARANTEED" semantics, made real). A STATEFUL feature-root collaborator (a per-chat
 // promise Map), NOT a pure `substrate/` helper — the `staging.ts` precedent (a feature-root singleton the
-// feature-structure allowlist pre-documents).
+// server layout test allowlist pre-documents).
 //
 // WHY it exists: the post-turn flush is FIRE-AND-FORGET (a background state write must NEVER turn a committed
 // reply into an abort — `engine.ts:fireRpgTurnCompleted`). The dedicated state round makes that flush a real

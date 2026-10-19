@@ -91,7 +91,7 @@ The UI enforcement families:
   `unsupported-syntax` at error), the `@tanstack/query` + `@tanstack/router` discipline, and
   better-tailwindcss compiled-class validation on ui.
 - **Structural (ts-morph, `tooling/src/verify/gates/`).** The UI structural family: `ui-primitive-structure`
-  (the §13.7 primitive/CT contract), `client-structure`/`feature-structure` (the §2.1 slice shape),
+  (the §13.7 primitive/CT contract), `tests/client/feature-layout.suite.test.ts` (the §2.1 slice shape),
   `state-files` (the §5 Zustand discipline), the two selector-stability gates
   (`zustand-selector-stability.ts` is the fast narrow-literal check; `zustand-selector-derived.ts` is the
   full-body/second-call-shape comprehensive check), `no-effect-on-shared-selection` (§5.1),

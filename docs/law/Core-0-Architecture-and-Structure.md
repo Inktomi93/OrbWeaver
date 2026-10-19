@@ -171,7 +171,7 @@ cross-feature op in its `contract`; the runtime op is wired at the composition r
 `workload-contributions.ts` (the ratified cross-domain 10th slot, D117) — plus a
 handful of individually-sanctioned domain singletons (chat's `bus.ts` / `active-turns.ts`, rpg's
 `bus.ts` / `staging.ts` / `flush-barrier.ts`, preset/settings' `constants.ts` + seed files) that fit no
-verb/substrate/subsystem. The allowlist lives in the `feature-structure` gate; anything else at the root
+verb/substrate/subsystem. The allowlist lives in `tests/server/layout.suite.test.ts`; anything else at the root
 is RED.
 
 ---
@@ -248,7 +248,8 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 | Rule | Gate |
 | - | - |
 | Tiers flow one way; packages can't import undeclared deps | packages (resolver) + dep-cruiser backstop |
-| Every feature is the identical 8-slot template | `feature-structure` |
+| Every feature is the identical 8-slot template; the server root is the six tiers plus `index.ts` | `tests/server/layout.suite.test.ts` |
+| A package `src/` root holds `index.ts` and directories only | `tests/kit/package-layout.suite.test.ts` |
 | One verb per file, named for the verb | `verb-naming` |
 | Exported feature types live only in `contract/`; `service.ts` interface always present | `types-in-contract` |
 | Tests live in the mirrored source directory, kind by suffix | `test-layout` |

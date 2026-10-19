@@ -1,5 +1,5 @@
 // discovery/ front door — the client feature for the DISCOVERY server domain, presented as the "Corpus"
-// rail section (the folder mirrors the domain per the client-structure gate; the user-facing surfaces are
+// rail section (the folder mirrors the domain per the feature layout test; the user-facing surfaces are
 // named Corpus*). The section is the D271 workbench: discovery owns Explore (search omnibox + catalog browse,
 // overview / dossier, the Whole corpus analysis tabs) and hosts the Insights and Labels modes the door hands
 // `makeCorpusSection`.

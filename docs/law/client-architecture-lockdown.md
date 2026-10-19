@@ -82,9 +82,9 @@ door glue), which is how `agent-handles/` legally assembles the other four behin
 dynamic import.
 
 **Bucket nesting is legal in every bucket, and it changes no rule.** A bucket may group its modules into
-sub-dirs. Grouping is presentation for the reader — it never alters a file's role — so `client-structure`'s
-per-file contracts recurse to any depth. What nesting may not do is re-declare the bucket axis: a group
-dir named after a bucket (`components/hooks/`, `surfaces/anchors/`) is RED — `client-structure` rule 8
+sub-dirs. Grouping is presentation for the reader — it never alters a file's role — so the per-file contracts in
+`tests/client/feature-layout.suite.test.ts` recurse to any depth. What nesting may not do is re-declare the bucket axis: a group
+dir named after a bucket (`components/hooks/`, `surfaces/anchors/`) is RED — the feature layout test's group-axis rule
 catches it, and rule 4 (known buckets only) keeps keying on the feature root regardless of nesting.
 
 **Tier-placement rule:** a domain-aware composite needed by ≥2 features belongs in `components/`, never
@@ -92,7 +92,7 @@ duplicated per-feature — `UI-Primitives-and-Reuse.md` §13.0's bar (3+ and cha
 when to hoist. `jscpd` (tsx
 scanned, 5% threshold) is the standing tripwire; the hoist itself is review R2.
 
-**What is a feature:** a feature dir earns its existence by owning at least one registered definition — a rail section, a Corpus mode, a modal, a settings pane, a chrome widget, or a config collection. `feature-owns-definition` (G23) is RED when a feature dir co-locates no `lib/*-{section,mode,modal,group,chrome}.{ts,tsx}`. No exemptions. A feature whose whole product surface is a member library contributed to the Configuration workspace — the collection case — satisfies this with its `*-group.tsx` (the `ConfigGroupDefinition`) and additionally owns a `*-collection.tsx`, never a settings pane.
+**What is a feature:** a feature dir earns its existence by owning at least one registered definition — a rail section, a Corpus mode, a modal, a settings pane, a chrome widget, or a config collection. `tests/client/feature-layout.suite.test.ts` (G23) is RED when a feature dir co-locates no `lib/*-{section,mode,modal,group,chrome}.{ts,tsx}`. No exemptions. A feature whose whole product surface is a member library contributed to the Configuration workspace — the collection case — satisfies this with its `*-group.tsx` (the `ConfigGroupDefinition`) and additionally owns a `*-collection.tsx`, never a settings pane.
 
 ## 4. The paint law — who may write CSS, and WHY
 
