@@ -1,6 +1,6 @@
-// D321: every verb an exported domain `*Service` interface exposes must execute in the server suite. The node
-// shards record V8 coverage (scripts/ci-shard.ts); this judge reads their reports and fails on a verb none ran.
-// Unjudged spellings (a verb read off a parameter, or computed by an expression such as `a ?? b`) are listed by name.
+// D321: every exported domain `*Service` verb must execute in the server suite; this judges the node shards' V8 reports.
+// Listed unjudged by name, never passed: a verb read off a parameter or computed by an expression, a wrapper taking
+// several functions of its own type or past the step bound, one function behind two verb names, a callable-and-data member.
 import { existsSync, readFileSync } from "node:fs";
 import process from "node:process";
 import { runTool, UsageError } from "@orb/tooling/floor/cli/run-tool";

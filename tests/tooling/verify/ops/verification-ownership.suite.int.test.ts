@@ -154,21 +154,15 @@ test("qualification cache cannot save skipped, failed, cancelled or no-verdict a
   expect(ci.jobs["qualification-partition"]?.steps.some((step) => step.uses?.startsWith("actions/cache/save@") === true)).toBe(false);
 });
 
-test("push CI and release qualification both judge domain verb coverage over every node shard they ran", ({ repoRoot }) => {
+// Release qualification requires a green push run on the release SHA (scripts/ci-qualification.ts `hasQualifiedMainPush`),
+// whose runtime roster is ci-ok's needs; that run's verb-coverage job judges strict and legacy shards together.
+test("domain verb coverage is judged once, by the push run release qualification requires, over every node shard", ({ repoRoot }) => {
   const ci = workflow(repoRoot);
   const report = `${VERB_COVERAGE_DIR.replace(/^reports\//u, "")}/coverage-final.json`;
   const judged = (run: string | undefined): readonly string[] => (run ?? "").split(/\s+/u).filter((part) => part.endsWith(report));
-  const qualification = ci.jobs["qualification"]?.steps ?? [];
-  const verbs = qualification.find((step) => step.id === "verbs");
-  expect(verbs?.if).toBe("needs.qualification-head.outputs.seen != 'true'");
-  expect(judged(verbs?.run)).toEqual(
-    applicationPartitionKeys("full")
-      .filter((key) => key.startsWith("node:"))
-      .map((key) => `reports/qualification-inputs/reports-qualification-${key.replaceAll(":", "-").replaceAll("/", "-")}/${report}`),
-  );
-  // The judge runs before the success marker, so a failed judge leaves the qualification uncached.
-  expect(qualification.findIndex((step) => step.id === "verbs")).toBeLessThan(qualification.findIndex((step) => step.id === "mark"));
   const push = ci.jobs["verb-coverage"];
+  expect(ci.jobs["ci-ok"]?.needs).toContain("verb-coverage");
+  expect(push?.if).toBe(ci.jobs["node"]?.if);
   expect(push?.needs).toEqual(["changes", "node", "node-legacy"]);
   const shards = (job: string): readonly number[] => {
     const matrix = ci.jobs[job]?.strategy?.matrix;
@@ -178,6 +172,10 @@ test("push CI and release qualification both judge domain verb coverage over eve
     ...shards("node").map((shard) => `reports/verb-coverage-inputs/reports-node-${String(shard)}/${report}`),
     ...shards("node-legacy").map((shard) => `reports/verb-coverage-inputs/reports-node-legacy-${String(shard)}/${report}`),
   ]);
+  // The partitions run the strict population only, so a second judge there would red on legacy-only verbs.
+  for (const job of ["qualification-partition", "qualification"]) {
+    expect(ci.jobs[job]?.steps.some((step) => step.run?.includes("ci-verb-coverage.ts") === true)).toBe(false);
+  }
 });
 
 test("nightly and independent weekly entry guards do not overlap or admit diagnostics", ({ repoRoot }) => {

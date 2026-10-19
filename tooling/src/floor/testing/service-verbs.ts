@@ -2,6 +2,7 @@
 // implements it. A spelling the shared readers cannot follow is an unjudged verb with its reason, never a pass.
 import type {
   BindingElement,
+  CallExpression,
   FunctionDeclaration,
   InterfaceDeclaration,
   ObjectLiteralElementLike,
@@ -11,11 +12,12 @@ import type {
   Type,
 } from "ts-morph";
 import { Node, SyntaxKind, VariableDeclarationKind } from "ts-morph";
+import { readAssignabilityChecker } from "../code-facts/assignability.ts";
 import { readCallReturns } from "../code-facts/call-returns.ts";
 import { unwrapExpression } from "../code-facts/expression-value.ts";
 import { readStaticString, resolveGlobalMemberOrigin, resolveStableExpression, staticMemberAccess } from "../code-facts/reference-fact.ts";
 
-const SERVICE_CONTRACT_RE = /^(?<root>.*\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/)contract\/service\.ts$/u;
+const SERVICE_CONTRACT_RE = /^(?<root>.*\/packages\/server\/src\/domain\/(?<domain>[^/]+)\/)contract\/[^/]+\.ts$/u;
 const SERVICE_SUFFIX = "Service";
 const BIND_MEMBER = "bind";
 const GLOBAL_SYMBOL = "Symbol";
@@ -50,12 +52,27 @@ const unjudged = (reason: string): { readonly kind: "unjudged"; readonly reason:
 const found = <T>(...value: T[]): Step<T> => ({ kind: "resolved", value });
 const at = (node: Node): string => `${node.getSourceFile().getBaseName()}:${String(node.getStartLineNumber())}`;
 
-function isVerbDeclaration(declaration: Node): boolean {
+type MemberShape = "verb" | "data" | "undecided";
+
+/** A member is a verb when its type is callable, through any alias; a type that mixes callable and data
+ *  parts, or reads as `any`, is undecided and reported rather than dropped. */
+function memberShape(declaration: Node): MemberShape {
   if (Node.isMethodSignature(declaration)) {
-    return true;
+    return "verb";
   }
-  const typeNode = Node.isPropertySignature(declaration) ? declaration.getTypeNode() : undefined;
-  return typeNode !== undefined && Node.isFunctionTypeNode(typeNode);
+  if (!Node.isPropertySignature(declaration)) {
+    return "undecided";
+  }
+  const type = declaration.getType().getNonNullableType();
+  if (type.isAny() || type.isUnknown()) {
+    return "undecided";
+  }
+  const parts = type.isUnion() ? type.getUnionTypes() : [type];
+  const callable = parts.filter((part) => part.getCallSignatures().length > 0).length;
+  if (callable === parts.length) {
+    return "verb";
+  }
+  return callable === 0 ? "data" : "undecided";
 }
 
 function isFunctionValue(node: Node): boolean {
@@ -166,7 +183,42 @@ function functionsOf(raw: Node, hops: number): Step<Node> {
   ) {
     return functionsOf(callee.getExpression(), hops + 1);
   }
+  if (Node.isCallExpression(node)) {
+    const wrapped = wrappedArgument(node);
+    if (wrapped !== undefined) {
+      return wrapped.kind === "unjudged" ? wrapped : functionsOf(wrapped.value, hops + 1);
+    }
+  }
   return then(valuesOf(node, hops), (value) => functionsOf(value, hops + 1));
+}
+
+/** A higher-order wrapper, `claim(createVerb(...))`, returns a function of the same type as the one it takes.
+ *  The verb's own body is the argument, never the wrapper's shared returned function. */
+function wrappedArgument(
+  call: CallExpression,
+): { readonly kind: "resolved"; readonly value: Node } | { readonly kind: "unjudged"; readonly reason: string } | undefined {
+  const returned = call.getType();
+  if (returned.getCallSignatures().length === 0) {
+    return undefined;
+  }
+  const functions = call.getArguments().filter((argument) => argument.getType().getNonNullableType().getCallSignatures().length > 0);
+  if (functions.length === 0) {
+    return undefined;
+  }
+  const checker = readAssignabilityChecker(call.getProject().getTypeChecker());
+  if (checker === undefined) {
+    return unjudged(`no native assignability check can tell whether ${call.getExpression().getText()} at ${at(call)} wraps its argument`);
+  }
+  const same = functions.filter(
+    (argument) =>
+      checker.isTypeAssignableTo(argument.getType().compilerType, returned.compilerType) &&
+      checker.isTypeAssignableTo(returned.compilerType, argument.getType().compilerType),
+  );
+  if (same.length > 1) {
+    return unjudged(`${call.getExpression().getText()} at ${at(call)} takes several functions of the type it returns`);
+  }
+  const wrapped = same[0];
+  return wrapped === undefined ? undefined : { kind: "resolved", value: wrapped };
 }
 
 /** `undefined` when this property cannot define `name`; otherwise the value it binds, or why it is unreadable. */
@@ -268,38 +320,45 @@ function serviceBuilder(factory: FunctionDeclaration, iface: InterfaceDeclaratio
   return carrier === undefined ? undefined : { factory, path: [carrier.getName()] };
 }
 
-/** Named verb members with their declarations; a symbol-keyed member (`[Symbol.asyncDispose]`) is not a verb. */
-function serviceVerbs(iface: InterfaceDeclaration, domain: string): readonly { readonly verb: ServiceVerb; readonly declaration: Node }[] {
+/** Named members that are or may be verbs; a symbol-keyed member (`[Symbol.asyncDispose]`) and a data member are not. */
+function serviceVerbs(
+  iface: InterfaceDeclaration,
+  domain: string,
+): readonly { readonly verb: ServiceVerb; readonly declaration: Node; readonly shape: MemberShape }[] {
   return iface
     .getType()
     .getProperties()
     .flatMap((property) => {
       const declaration = property.getDeclarations()[0];
-      if (
-        declaration === undefined ||
-        !isVerbDeclaration(declaration) ||
-        Node.isComputedPropertyName(declaration.getFirstChildByKind(SyntaxKind.ComputedPropertyName))
-      ) {
+      if (declaration === undefined || Node.isComputedPropertyName(declaration.getFirstChildByKind(SyntaxKind.ComputedPropertyName))) {
+        return [];
+      }
+      const shape = memberShape(declaration);
+      if (shape === "data") {
         return [];
       }
       const parent = declaration.getParent();
       const declaredIn = parent !== undefined && Node.isInterfaceDeclaration(parent) ? parent.getName() : iface.getName();
-      return [{ verb: { domain, service: iface.getName(), verb: property.getName(), declaredIn }, declaration }];
+      return [{ verb: { domain, service: iface.getName(), verb: property.getName(), declaredIn }, declaration, shape }];
     });
 }
 
 function judgeInterface(iface: InterfaceDeclaration, domain: string, factories: readonly FunctionDeclaration[], census: ServiceVerbCensusBuilder): void {
   const builders = factories.flatMap((factory) => serviceBuilder(factory, iface) ?? []);
-  for (const { verb, declaration } of serviceVerbs(iface, domain)) {
+  for (const { verb, declaration, shape } of serviceVerbs(iface, domain)) {
     // An interface that extends another judged service re-exposes its members; each declaration is judged once.
     if (census.seen.has(declaration)) {
       continue;
     }
     census.seen.add(declaration);
-    const step: Step<Node> =
-      builders.length === 0
-        ? unjudged(`no function in domain/${domain} declares a return type that is or carries ${iface.getName()}`)
-        : all(builders, (builder) => verbFunctions(builder, verb.verb));
+    let step: Step<Node>;
+    if (shape === "undecided") {
+      step = unjudged(`the member type is neither callable nor data at ${at(declaration)}`);
+    } else if (builders.length === 0) {
+      step = unjudged(`no function in domain/${domain} declares a return type that is or carries ${iface.getName()}`);
+    } else {
+      step = all(builders, (builder) => verbFunctions(builder, verb.verb));
+    }
     if (step.kind === "unjudged") {
       census.unjudged.push({ ...verb, reason: step.reason });
     } else {
@@ -332,5 +391,29 @@ export function readServiceVerbs(project: Project): ServiceVerbCensus {
       }
     }
   }
-  return { resolved: census.resolved, unjudged: census.unjudged };
+  return sharedSpansUnjudged(census);
+}
+
+/** D328: a function that implements two differently named verbs cannot prove either ran, so every verb resolved
+ *  to it is unjudged. The same verb name reached twice (one function aliased) keeps its verdict. */
+function sharedSpansUnjudged(census: ServiceVerbCensusBuilder): ServiceVerbCensus {
+  const owners = new Map<Node, Set<string>>();
+  for (const verb of census.resolved) {
+    for (const fn of verb.functions) {
+      owners.set(fn, (owners.get(fn) ?? new Set()).add(verb.verb));
+    }
+  }
+  const resolved: ResolvedServiceVerb[] = [];
+  const unjudgedVerbs = [...census.unjudged];
+  for (const verb of census.resolved) {
+    const shared = verb.functions.find((fn) => (owners.get(fn)?.size ?? 0) > 1);
+    if (shared === undefined) {
+      resolved.push(verb);
+    } else {
+      const others = [...(owners.get(shared) ?? [])].filter((name) => name !== verb.verb).toSorted();
+      const { functions: _functions, ...named } = verb;
+      unjudgedVerbs.push({ ...named, reason: `shares its function at ${at(shared)} with ${others.join(", ")}` });
+    }
+  }
+  return { resolved, unjudged: unjudgedVerbs };
 }

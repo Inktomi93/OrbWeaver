@@ -557,15 +557,6 @@ jobs:
         name: Aggregate partition verdicts
         if: needs.qualification-head.outputs.seen != 'true'
         run: pnpm verify --"$VERIFY_TIER" --aggregate=reports/qualification-inputs
-      # D321: the node partitions recorded V8 coverage while they ran; a release qualification judges it too.
-      - id: verbs
-        name: Domain verb coverage
-        if: needs.qualification-head.outputs.seen != 'true'
-        run: >-
-          pnpm exec node scripts/ci-verb-coverage.ts
-          reports/qualification-inputs/reports-qualification-node-1-3/verb-coverage/coverage-final.json
-          reports/qualification-inputs/reports-qualification-node-2-3/verb-coverage/coverage-final.json
-          reports/qualification-inputs/reports-qualification-node-3-3/verb-coverage/coverage-final.json
       - name: Require all uncached child job outcomes
         if: always() && needs.qualification-head.outputs.seen != 'true'
         env:

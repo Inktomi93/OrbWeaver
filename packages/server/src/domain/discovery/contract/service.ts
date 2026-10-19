@@ -148,7 +148,7 @@ export interface ComputeHubScoresDeps {
 }
 
 /** Sibling-subsystem reads the composed views (`home`/`themeDetail`/`characterDossier`) depend on, injected
- *  at the entry root. `themes`/`duplicate*` come from discovery's OWN verbs (self-composition); `similar` is
+ *  at the entry root. `themes`/`duplicate*` come from discovery's own read helpers, not its service; `similar` is
  *  the one CROSS-domain member — search's `similarCharacters`, narrowed to {@link DossierNeighbor} at the root. */
 export interface ViewsDeps {
   readonly resolveDigestSources: (ownerId: UserId, ids: readonly ChatDigestId[]) => Promise<readonly CorpusDigestSource[]>;
