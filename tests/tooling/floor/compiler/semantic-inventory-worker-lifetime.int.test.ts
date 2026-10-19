@@ -3,8 +3,8 @@
 // A stopped controller must not leave its native inventory worker running. The worker is frozen with
 // SIGSTOP once it appears: that holds it mid-extraction and makes it a worker that cannot honor TERM.
 import { spawn } from "node:child_process";
-import { cpSync, mkdirSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { cpSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
@@ -13,6 +13,7 @@ import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts
 import { listProcesses, processGroupId } from "../../../../tooling/src/floor/host/platform.ts";
 import { killPidGroup, spawnNicedTranscript } from "../../../../tooling/src/floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../../../tooling/src/floor/process/process-env.ts";
+import { LAUNCHER_SCRATCH_ENV } from "../../../../tooling/src/floor/process/process-priority.ts";
 import { settle, TERM_GRACE_BASE_MS } from "../../../../tooling/src/floor/process/stop-escalation.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { copyNativeInventoryImplementation } from "./native-inventory-tree.ts";
@@ -106,7 +107,17 @@ function groupMembers(group: number): readonly number[] {
     .filter((pid) => processGroupId(pid) === group);
 }
 
-test("SIGTERM to the controller ends and joins a worker that ignores TERM", { timeout }, async ({ scratch, repoRoot }) => {
+// The worker's last argument is the request file inside the controller's scratch directory.
+function requestScratchOf(started: readonly number[]): string {
+  const worker = listProcesses().find(({ pid, cmdline }) => started.includes(pid) && cmdline.includes(WORKER_ENTRY) && !cmdline.includes(LAUNCHER_ENTRY));
+  const request = worker?.cmdline.split(" ").at(-1);
+  if (request === undefined) {
+    throw new Error("the frozen worker names no request file");
+  }
+  return dirname(request);
+}
+
+test("SIGTERM to the controller ends and joins a worker that ignores TERM and removes its scratch", { timeout }, async ({ scratch, repoRoot }) => {
   const planted = plantController(scratch, repoRoot);
   const controller = spawn(process.execPath, ["--import", planted.bootstrap, planted.entry], {
     cwd: planted.cwd,
@@ -121,8 +132,10 @@ test("SIGTERM to the controller ends and joins a worker that ignores TERM", { ti
   let started: readonly number[] = [];
   try {
     started = await freezeWorker(pid);
+    const requestScratch = requestScratchOf(started);
     controller.kill("SIGTERM");
     expect(await survivorsAfter(started), "every process the stopped controller started").toEqual([]);
+    expect(existsSync(requestScratch), "the stopped controller's worker scratch directory").toBe(false);
   } finally {
     reap([pid, ...started]);
   }
@@ -153,11 +166,11 @@ test("the verify stage timeout ends a controller mid-extraction with no survivin
   }
 });
 
-// A caller that dies inside the launcher's boot leaves it already reparented when its module graph loads.
-test("a supervised child never outlives a caller that dies while the launcher boots", { timeout }, async ({ scratch, repoRoot }) => {
+/** Run a caller that a watcher thread kills the instant its supervised sync child is forked, inside the
+ *  launcher's boot; returns what is left of its process group after the escalation bound. */
+async function killDuringLauncherBoot(scratch: string, repoRoot: string, env: NodeJS.ProcessEnv): Promise<readonly number[]> {
   const caller = join(scratch, "caller.mjs");
   const proc = pathToFileURL(join(repoRoot, "tooling/src/floor/process/proc.ts")).href;
-  // The watcher thread kills the caller the instant its sync child is forked; the blocked main thread cannot.
   writeFileSync(
     caller,
     `import {Worker} from 'node:worker_threads';
@@ -166,7 +179,7 @@ const watcher=new Worker("const {readFileSync}=require('node:fs');const path='/p
 await new Promise((resolve)=>watcher.once('online',resolve));
 runNicedSync('sleep',['60'],{supervised:true});`,
   );
-  const parent = spawn(process.execPath, [caller], { cwd: repoRoot, stdio: "ignore", detached: true });
+  const parent = spawn(process.execPath, [caller], { cwd: repoRoot, env, stdio: "ignore", detached: true });
   const group = parent.pid;
   if (group === undefined) {
     throw new Error("the caller never started");
@@ -175,8 +188,22 @@ runNicedSync('sleep',['60'],{supervised:true});`,
     const exit = await new Promise<NodeJS.Signals | null>((resolve) => parent.once("exit", (_code, signal) => resolve(signal)));
     expect(exit, "the caller must die after forking its sync child").toBe("SIGKILL");
     await settle(() => groupMembers(group).length === 0, ESCALATION_BASE_MS);
-    expect(groupMembers(group), "every process the dead caller started").toEqual([]);
+    return groupMembers(group);
   } finally {
     killPidGroup(group, "SIGKILL");
   }
+}
+
+// A caller that dies inside the launcher's boot leaves it already reparented when its module graph loads.
+test("a supervised child never outlives a caller that dies while the launcher boots", { timeout }, async ({ scratch, repoRoot }) => {
+  expect(await killDuringLauncherBoot(scratch, repoRoot, inheritedProcessEnv()), "every process the dead caller started").toEqual([]);
+});
+
+// Only the scratch a caller names is ever removed; an inherited key names somebody else's directory.
+test("a dead caller's inherited launcher scratch key never deletes that directory", { timeout }, async ({ scratch, repoRoot }) => {
+  const victim = join(scratch, "victim");
+  mkdirSync(victim);
+  const env = inheritedProcessEnv({ [LAUNCHER_SCRATCH_ENV]: victim });
+  expect(await killDuringLauncherBoot(scratch, repoRoot, env), "every process the dead caller started").toEqual([]);
+  expect(existsSync(victim), "a directory the caller never handed over").toBe(true);
 });

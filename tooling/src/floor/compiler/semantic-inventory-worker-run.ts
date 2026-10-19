@@ -26,8 +26,9 @@ export function runInventoryPartitionWorker(request: InventoryBuildRequest, fact
     const worker = fileURLToPath(new URL("./semantic-inventory-worker.ts", import.meta.url));
     const bootstrap = fileURLToPath(new URL("./semantic-inventory-runtime.ts", import.meta.url));
     const runtimeArguments = inventoryRuntimeArguments();
-    // Supervised: this process blocks in the spawn, so only the launcher can stop the worker if we die.
-    const result = runNicedSync(process.execPath, [...runtimeArguments, "--import", bootstrap, worker, path], { cwd: request.root, supervised: true });
+    // Supervised: this process blocks in the spawn, so only the launcher can stop the worker and remove
+    // the scratch if we die.
+    const result = runNicedSync(process.execPath, [...runtimeArguments, "--import", bootstrap, worker, path], { cwd: request.root, supervised: { scratch } });
     if (result.status !== 0) {
       throw new Error(
         `native inventory worker ${request.descriptor.id} failed (status=${String(result.status)}, signal=${result.signal ?? "none"}, error=${result.errorCode ?? "none"}); ` +

@@ -24,6 +24,7 @@ function nativeApplicationClosure(root: string, program: ApplicationProgram): Re
   const result = runNicedSync(process.execPath, [TS7_WRAPPER, "--noEmit", "--listFilesOnly", "-p", program.config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,
+    supervised: true,
   });
   if (result.status !== 0) {
     throw new Error(`application native closure failed for ${program.owner.id}: ${result.stdout}\n${result.stderr}`);

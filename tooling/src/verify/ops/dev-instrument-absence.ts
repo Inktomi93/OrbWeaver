@@ -64,6 +64,7 @@ async function measureDevInstruments(root: string): Promise<DevInstrumentVerdict
   const cruise = await spawnNiced("pnpm", ["exec", "depcruise", CLIENT_ENTRY_REL, "--config", ".dependency-cruiser.cjs", "--output-type", "json"], {
     cwd: root,
     timeoutMs: GRAPH_TIMEOUT_MS,
+    supervised: true,
   });
   if (cruise.code !== 0) {
     throw new Error(`dev-instrument-absence: the dependency-cruiser walk of ${CLIENT_ENTRY_REL} exited ${String(cruise.code)}:\n${cruise.stderr.trimEnd()}`);

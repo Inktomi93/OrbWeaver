@@ -200,3 +200,13 @@ test("a pty Ctrl-C reaches the real child exactly once, never twice", () => {
   expect(count, "the pty's Ctrl-C must reach the real child exactly once").toBe(1);
   rmSync(home, { recursive: true, force: true });
 });
+
+// The supervised door stands where `nice` stood, so a command that cannot start must read the same to
+// every classifier: `nice`'s exec-failure status, never the launcher's own tool-error code.
+test("a supervised sync door reports a missing command exactly as the nice door does", ({ scratch }) => {
+  const missing = path.join(scratch, "absent-command");
+  const plain = runNicedSync(missing, []);
+  const supervised = runNicedSync(missing, [], { supervised: true });
+  expect(supervised.status, supervised.stderr).toBe(plain.status);
+  expect(supervised.signal).toBe(plain.signal);
+});
