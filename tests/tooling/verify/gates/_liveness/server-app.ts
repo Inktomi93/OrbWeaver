@@ -13,7 +13,6 @@ import { gate as chatViewerPlaneCanonReads } from "../../../../../tooling/src/ve
 import { gate as discoveryNoStatsRollups } from "../../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
 import { gate as membershipEnforcer } from "../../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as membershipWriteFan } from "../../../../../tooling/src/verify/gates/membership-write-fan.ts";
-import { gate as noHardcodedSideGenSampling } from "../../../../../tooling/src/verify/gates/no-hardcoded-side-gen-sampling.ts";
 import { gate as ownTablesOnly } from "../../../../../tooling/src/verify/gates/own-tables-only.ts";
 import { gate as ownerScopedReads } from "../../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
 import { gate as ownerScopedUpserts } from "../../../../../tooling/src/verify/gates/owner-scoped-upserts.ts";
@@ -62,11 +61,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "MEMBERSHIP-class write",
-  },
-  {
-    policy: noHardcodedSideGenSampling,
-    overlays: [add(`${CHAT_VERBS}/liveness-sampling.ts`, "export const livenessOpts = { temperature: 0.3, maxTokens: 24 };\n")],
-    messageIncludes: "hardcoded side-gen sampling",
   },
   {
     policy: ownTablesOnly,

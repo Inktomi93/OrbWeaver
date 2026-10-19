@@ -12,7 +12,6 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as contextDefinitionShape } from "../../../../../tooling/src/verify/gates/context-definition-shape.ts";
-import { gate as contextDefinitionShapeHealth } from "../../../../../tooling/src/verify/gates/context-definition-shape-health.ts";
 import { gate as noFormResetInAutosave } from "../../../../../tooling/src/verify/gates/no-form-reset-in-autosave.ts";
 
 import { gate as persistenceBoundary } from "../../../../../tooling/src/verify/gates/persistence-boundary.ts";
@@ -21,9 +20,7 @@ import { gate as queryBoundaryReservationHealth } from "../../../../../tooling/s
 import { gate as queryFreshnessCoverage } from "../../../../../tooling/src/verify/gates/query-freshness-coverage.ts";
 import { gate as renderErrorViaBattery } from "../../../../../tooling/src/verify/gates/render-error-via-battery.ts";
 import { gate as sectionFactoryContributionBundle } from "../../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
-import { gate as sessionChannelBoundary } from "../../../../../tooling/src/verify/gates/session-channel-boundary.ts";
 import { gate as staleDraftCommit } from "../../../../../tooling/src/verify/gates/stale-draft-commit.ts";
-import { gate as windowedInfiniteQuery } from "../../../../../tooling/src/verify/gates/windowed-infinite-query.ts";
 
 const CHAT_LIB = "packages/client/src/features/chat/lib";
 const CHAT_COMPONENTS = "packages/client/src/features/chat/components";
@@ -41,22 +38,6 @@ function reservedBoundary(name: string): string {
 }
 
 export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: contextDefinitionShapeHealth,
-    // The real tree mints no `defineContextRegion` at all, so two claimants at once is the SECOND call site —
-    // and with a count verdict both are reported.
-    overlays: [
-      add(
-        "packages/client/src/features/rpg/lib/liveness-a-hud-region.tsx",
-        'import { defineContextRegion } from "#lib";\nexport const a = defineContextRegion({ id: "a", claims: () => true, band: () => null });\n',
-      ),
-      add(
-        "packages/client/src/features/crew/lib/liveness-b-hud-region.tsx",
-        'import { defineContextRegion } from "#lib";\nexport const b = defineContextRegion({ id: "b", claims: () => true, band: () => null });\n',
-      ),
-    ],
-    messageIncludes: "SECOND `defineContextRegion(` call site",
-  },
   {
     policy: contextDefinitionShape,
     // A loose projection bypasses the canonical published context state.
@@ -132,11 +113,6 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "ContributorRegistry parameters",
   },
   {
-    policy: sessionChannelBoundary,
-    overlays: [add(`${CHAT_LIB}/liveness-sync.ts`, 'export const rogue = new BroadcastChannel("liveness:sync");\n')],
-    messageIncludes: "ONE typed home",
-  },
-  {
     policy: staleDraftCommit,
     overlays: [
       add(
@@ -145,15 +121,5 @@ export const CLIENT_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "once-seeded draft",
-  },
-  {
-    policy: windowedInfiniteQuery,
-    overlays: [
-      add(
-        `${CHAT_LIB}/liveness-windowed.ts`,
-        'import { useTRPC } from "#data";\nexport const useWindowed = () =>\n  useTRPC().chat.list.infiniteQueryOptions(\n    { limit: 30 },\n    { maxPages: 5, getNextPageParam: (p) => p.nextCursor, getPreviousPageParam: () => undefined },\n  );\n',
-      ),
-    ],
-    messageIncludes: "ARMS: no-rewind.",
   },
 ];

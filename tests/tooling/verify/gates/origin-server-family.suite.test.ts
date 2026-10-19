@@ -15,7 +15,6 @@ import { gate as membershipEnforcer } from "../../../../tooling/src/verify/gates
 import { gate as noAwaitDbInLoop } from "../../../../tooling/src/verify/gates/no-await-db-in-loop.ts";
 import { gate as noDirectReportsWrite } from "../../../../tooling/src/verify/gates/no-direct-reports-write.ts";
 import { gate as noHandwrittenWireJsonSchema } from "../../../../tooling/src/verify/gates/no-handwritten-wire-json-schema.ts";
-import { gate as noHardcodedSideGenSampling } from "../../../../tooling/src/verify/gates/no-hardcoded-side-gen-sampling.ts";
 import { gate as persistenceNoInMemoryState } from "../../../../tooling/src/verify/gates/persistence-no-in-memory-state.ts";
 import { gate as testMockDoctrine } from "../../../../tooling/src/verify/gates/test-mock-doctrine.ts";
 import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -35,7 +34,6 @@ test(
         noAwaitDbInLoop,
         noDirectReportsWrite,
         noHandwrittenWireJsonSchema,
-        noHardcodedSideGenSampling,
         persistenceNoInMemoryState,
         testMockDoctrine,
       ]),

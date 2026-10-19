@@ -8,11 +8,9 @@
 // repair is to fall back on the expression's TEXT. That text is the identifier's spelling, not the key it
 // evaluates to, so a binding that happens to be named after the subject field would be accused of authoring
 // it. Returning `null` keeps an unknowable key out of every consumer's subject; the falsifier for this arm
-// lives in `bounded-list-limit`'s mustPass rows, once for all four consumers (§5b.7, w9 D6, #2046).
+// lives in `bounded-list-limit`'s mustPass rows, once for every consumer (§5b.7, w9 D6, #2046).
 //
-// Extracted 2026-09-12 from four byte-identical private copies (`bounded-list-limit`,
-// `no-direct-reports-write`, `no-handwritten-wire-json-schema`, `no-hardcoded-side-gen-sampling`), whose
-// refusal arm was reached by zero rows in all four.
+// Consumers: `bounded-list-limit`, `no-direct-reports-write` and `no-handwritten-wire-json-schema`.
 
 import { readStaticString } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { Node as MorphNode } from "ts-morph";

@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(131 registered gates)
+(125 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -80,7 +80,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `class-token-splice` | — | ordinary/error | @client,@ui | a ${…} spliced INSIDE a class token —… |
 | `compose-wiring-only` | — | ordinary/error | @server\* | a function value an entry/compose… |
 | `context-definition-shape` | — | ordinary/error | @client | A context projection must explicitly… |
-| `context-definition-shape-health` | context-definition-shape | hard/error | @client | the CONTEXT pane's head band has more… |
 | `contract-structural-copy` | — | ordinary/error | @client,@server,@inference,@contracts | hand-written shape re-spells a… |
 | `css-family-direct-client-mechanism` | css-hook-provenance | reviewed-grant/error | @client,@ui | client globals skins a UI-only… |
 | `css-family-ownership` | css-hook-provenance | ordinary/error | @client,@ui | a declaration is inside a sanctioned… |
@@ -116,10 +115,8 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-effect-on-shared-selection` | react-origin | reviewed-grant/error | @client\* | an effect keyed on a shared-selection… |
 | `no-form-reset-in-autosave` | editor-form-factory | ordinary/error | @client | reset() survives on an autosave form… |
 | `no-form-reset-in-autosave-health` | editor-form-factory | hard/error | @client\* | the reset type-strip (Omit<…,… |
-| `no-form-state-in-useeffect` | — | ordinary/error | all | A computed form dependency resolves… |
 | `no-handwritten-wire-json-schema` | — | ordinary/error | @server,@contracts,@kit,@inference\* | a hand-authored JSON-Schema literal… |
 | `no-hardcoded-model-prose` | — | ordinary/error | @authored | DEAD catalog prose: authored,… |
-| `no-hardcoded-side-gen-sampling` | — | ordinary/error | @server\* | hardcoded side-gen sampling value — a… |
 | `no-inline-types` | — | ordinary/error | @client,@server,@inference,@tooling,@tests,@ui-authoring\* ∪ @ui\* | exported type/zod-schema outside a… |
 | `no-inline-union-redecl` | — | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data… |
@@ -158,7 +155,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `scrubber-home` | — | reviewed-grant/error | @product | the hidden-span stream scrubber is… |
 | `section-factory-contribution-bundle` | — | ordinary/error | @client | a section factory grew a positional… |
 | `seed-theme-ink-contrast` | — | reviewed-grant/error | @client,@ui | a colour token painted as TEXT does… |
-| `session-channel-boundary` | — | ordinary/error | @client | a BroadcastChannel constructed… |
 | `single-stream-transport` | — | reviewed-grant/error | @server\* | a tRPC .subscription( outside… |
 | `sole-env-reader` | — | reviewed-grant/error | @server,@inference | touches process.env outside… |
 | `spacing-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
@@ -194,8 +190,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `verb-naming` | — | hard/error | @server\* | a domain verb file does not export… |
 | `warning-code-coverage` | — | ordinary/error | @server,@contracts,@inference | a warning-code tuple member has NO… |
 | `warning-workitem-liveness` | policy-soundness | hard/error | @tooling\* | a warning policy's workItem must name… |
-| `windowed-infinite-query` | — | ordinary/error | @client | maxPages WINDOWS an infinite query's… |
-| `windowed-infinite-query-health` | windowed-infinite-query | hard/error | @client | DERIVED NOTHING — no… |
 | `zod-error-issues-home` | — | reviewed-grant/error | @product,@tests | a hand-flattened zod issues read on a… |
 | `zod-output-twin-parity` | — | hard/error | @product | a hand-authored ZodType twin… |
 

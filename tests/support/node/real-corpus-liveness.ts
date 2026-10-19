@@ -195,9 +195,9 @@ function inScope(result: PassResult, arm: RealCorpusLivenessArm): readonly strin
       )
       // A finding's own `message` is OPTIONAL, and a policy that passes none is not anonymous — the sink
       // presents the POLICY's `message` for it, which is the text a reader actually sees. Falling back to a
-      // "(no message)" placeholder instead made `windowed-infinite-query-health`'s arm unassertable: it
-      // reports `ctx.report.file(ANCHOR, { line: 1 })` with no message at all, so the control fired
-      // correctly and the arm failed on a string the product never emits.
+      // "(no message)" placeholder instead would make an arm unassertable when its policy reports
+      // `ctx.report.file(ANCHOR, { line: 1 })` with no message at all: the control fires correctly and the
+      // arm fails on a string the product never emits.
       .map((finding) => finding.message ?? arm.policy.message)
   );
 }
