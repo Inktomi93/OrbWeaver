@@ -22,8 +22,15 @@ Two rules are ordinary (RESTRICTIONS entries), two are HARD (explicit `hardConfi
 - Divergence: a function-expression method is its own rewrite scope (the gate grouped it under the outer scope).
 - Waivers/grants: none (HARD).
 
-## commented-code (HARD, `orb/commented-code`, all `.ts/.tsx` minus gates/** and tests/legacy/**) - done
+## commented-code (HARD, `orb/commented-code`, all `.ts/.tsx` plus the node helper `.mjs`, minus gates/** and tests/legacy/**) - done
 - parity: 1 mustFlag / 5 mustPass ported, 0 lost (self-scan fence = scope assertions).
+- Verifier P1 fixed: the hardConfig block no longer follows the typed HARD tooling-entry blocks, so its `projectService: false` no longer
+  wins the merge on the tooling `cli.ts` and `ops/**` files. The block now sits before them; `commented-code-native.test.ts` asserts
+  `projectService: true` plus the rule at error for `tooling/src/snap/cli.ts` and `tooling/src/verify/ops/eslint.ts`, and
+  `native-tool-entry.test.ts` ("complete HARD configuration preserves native tooling ownership") is green.
+- Verifier P3 fixed: the old `harnessGlobs` population included `tests/support/node/**/*.mjs`; the block now lists `${HELPER_WORLD_DIRS.node}/**/*.mjs`
+  and a test asserts it. Real door: `pnpm exec eslint -c eslint-hard.config.js` on a planted `.mjs` gives 1:1 `orb/commented-code`.
+  Live `.mjs` population is clean: eslint over `tests/support/node` with the hard config gave 0 errors.
 - Live census: 7343 files, 0 findings. Same regex, Line comments only, so template data and block comments stay out.
 - Waivers/grants: none (HARD).
 
@@ -35,6 +42,9 @@ Two rules are ordinary (RESTRICTIONS entries), two are HARD (explicit `hardConfi
   object identity and never leave the process, so the comment says there is no DB seam rather than naming one; flagged for the owner.
 - A same-file `export default class` is resolved like the gate's `getClass` (the class map unwraps ExportDefaultDeclaration);
   one ported row proves it.
+- Verifier P3 fixed: a non-readonly auto-accessor field (`accessor x = 0`, `AccessorProperty`) now counts like a property field, as the
+  gate's `getProperties()` did. Ported row added; real door gives 4:14 `orb/assumes-single-replica` on a planted file.
+  Live census: `accessor $A = $B` and `rg` over packages/server/src and packages/inference/src found 0 sites (2018 ts files scanned; tsx 0 files).
 - Divergences: the annotation is read from comments only (the gate matched any text); array mutation is resolved through
   scope references, so a shadowing local `ring.push` no longer counts.
 - The two shared ordinary-waiver controls in simple-visitors-1584.suite.test.ts are re-driven on `no-vanity-alias`.

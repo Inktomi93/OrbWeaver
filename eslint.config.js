@@ -5241,7 +5241,9 @@ function singleReplicaConstruction(init, classes) {
     const seededByLiteral = init.arguments.length === 1 && init.arguments[0].type === "ArrayExpression";
     return seededByLiteral ? "" : `a \`new ${name}()\``;
   }
-  const mutable = classes.get(name)?.body.body.some((member) => (member.type === "PropertyDefinition" || member.type === "AccessorProperty") && !member.readonly);
+  const mutable = classes
+    .get(name)
+    ?.body.body.some((member) => (member.type === "PropertyDefinition" || member.type === "AccessorProperty") && !member.readonly);
   return mutable === true ? `an instance of the locally-declared class \`${name}\` with a non-readonly field` : "";
 }
 

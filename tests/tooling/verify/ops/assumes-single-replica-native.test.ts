@@ -47,6 +47,11 @@ test.for([
   ["a module-scope array accumulator mutated by splice", "export const q: string[] = [];\nexport function drop(): void {\n  q.splice(0, 1);\n}\n", "q"],
   ["a module-scope instance of a local class with a non-readonly field", RECORDER, "recorder"],
   [
+    "a module-scope instance of a local class with a non-readonly auto-accessor field",
+    "class Recorder {\n  accessor count = 0;\n}\nexport const recorder = new Recorder();\n",
+    "recorder",
+  ],
+  [
     "a module-scope instance of a same-file default-exported class with a non-readonly field",
     "export default class Recorder {\n  count = 0;\n}\nexport const recorder = new Recorder();\n",
     "recorder",

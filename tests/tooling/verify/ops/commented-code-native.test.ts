@@ -67,6 +67,18 @@ test("the self-scan fence: gate modules and legacy tests are outside, every othe
   expect(await inScope("tests/legacy/client/anchor.test.ts")).toBe(false);
 });
 
+test("the native Node helper executables are inside the population", async () => {
+  expect(await inScope("tests/support/node/anchor.mjs")).toBe(true);
+});
+
+test("the rule does not strip the compiler context the tooling-entry rules need on the same files", async () => {
+  for (const path of ["tooling/src/snap/cli.ts", "tooling/src/verify/ops/eslint.ts"]) {
+    const config = await eslint.calculateConfigForFile(join(ROOT, path));
+    expect(config?.rules?.[RULE]?.[0], path).toBe(2);
+    expect(config?.languageOptions?.parserOptions?.projectService, path).toBe(true);
+  }
+});
+
 test("the HARD profile cannot be disabled by a subject comment", async () => {
   const [result] = await eslint.lintText(`/* eslint-disable ${RULE} -- Attempted bypass. */\n// const dead = compute();\nexport const x = 1;\n`, {
     filePath: join(ROOT, SUBJECT),
