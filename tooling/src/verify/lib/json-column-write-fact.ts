@@ -15,8 +15,16 @@ import type { JsonColumnOriginContext } from "../contract/json-column-origin.ts"
 import type { jsonColumnObservedReaders } from "./json-column-observed-readers.ts";
 import { jsonColumnObservationPlan, jsonColumnObservedCohort } from "./json-column-observed-readers.ts";
 import { createObservedJsonColumnOriginContext } from "./json-column-origin-context.ts";
-import type { JsonColumnWriter } from "./json-column-writers.ts";
-import { collectJsonWritersByColumnWith, collectWriters, DOMAIN_DIR, jsonWriterColumn, updatedTable, updatedTableWith } from "./json-column-writers.ts";
+import type { JsonColumnWriter, JsonWriteScan, JsonWriteUnknown } from "./json-column-writers.ts";
+import {
+  collectJsonWritersByColumnWith,
+  collectWriters,
+  DOMAIN_DIR,
+  jsonWriterColumn,
+  judgeOrUnknown,
+  updatedTable,
+  updatedTableWith,
+} from "./json-column-writers.ts";
 
 const CONTRACTS_DIR = "/packages/contracts/src/";
 
@@ -245,12 +253,12 @@ function collectJsonGuardTargets(
   calls: readonly CallExpression[],
   versionedColumns: ReadonlyMap<string, ReadonlySet<string>>,
   root: string,
-  contextFor: (call: CallExpression) => JsonColumnOriginContext,
+  scan: JsonWriteScan,
 ): JsonGuardTarget[] {
   const out: JsonGuardTarget[] = [];
   for (const call of calls) {
     if (call.getSourceFile().getFilePath().includes(DOMAIN_DIR)) {
-      const context = contextFor(call);
+      const context = scan.contextFor(call);
       const schema = context.schema;
       const target = versionedSetArg(call, versionedColumns, context);
       if (target !== undefined) {
@@ -258,7 +266,7 @@ function collectJsonGuardTargets(
         if (table === undefined) {
           throw new Error(`json-column-writes: versioned table disappeared: ${target.table}`);
         }
-        out.push(...guardTargetsOf(target.arg, { cols: target.cols, table }, root, context));
+        out.push(...(judgeOrUnknown(call, scan.unknowns, () => guardTargetsOf(target.arg, { cols: target.cols, table }, root, context)) ?? []));
       }
     }
   }
@@ -268,6 +276,8 @@ function collectJsonGuardTargets(
 export interface JsonColumnWriteAnalysis {
   readonly writers: ReadonlyMap<string, readonly JsonColumnWriter[]>;
   readonly guardTargets: readonly JsonGuardTarget[];
+  /** Writes judged unknown (D328), one entry per write; the gate reports each as an advisory unknown. */
+  readonly unknowns: readonly JsonWriteUnknown[];
 }
 
 export interface JsonColumnWriteFact {
@@ -366,9 +376,12 @@ export const jsonColumnWriteFact = defineFact({
               throw new Error(`${JSON_UNREADABLE_CONFIG_MESSAGE} Unreadable declaration: ${declarations.join(", ")}.`);
             }
             const columns = deriveJsonColumns(schema, versioned.types);
-            const writers = collectJsonWritersByColumnWith(judged, columns.all, contextFor);
-            const guardTargets = collectJsonGuardTargets(judged, columns.versioned, root, contextFor);
-            return Object.freeze({ writers, guardTargets });
+            const unknowns: JsonWriteUnknown[] = [];
+            const scan: JsonWriteScan = { contextFor, unknowns };
+            const writers = collectJsonWritersByColumnWith(judged, columns.all, scan);
+            const guardTargets = collectJsonGuardTargets(judged, columns.versioned, root, scan);
+            const unknownWrites = [...new Map(unknowns.map((unknown) => [unknown.node, unknown])).values()];
+            return Object.freeze({ writers, guardTargets, unknowns: unknownWrites });
           },
         });
       },

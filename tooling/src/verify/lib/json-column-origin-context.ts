@@ -83,6 +83,7 @@ export function createObservedJsonColumnOriginContext(
     active: new Set(),
     mergeActive: new Set(),
     normalizers: new Map(),
+    cohort: closure,
     typeSelections: delivered.typeSelections,
     readNormalizer: (call): import("../../floor/code-facts/reference-fact-contract.ts").ReferenceFact<DrizzleNormalization | undefined> => {
       delivered.graph.assertNode(call);

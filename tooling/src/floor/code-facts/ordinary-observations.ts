@@ -15,7 +15,7 @@ import type {
   OrdinaryObservationDemand,
   OrdinaryObservationOwner,
 } from "./ordinary-observations-contract.ts";
-import { rootValueCalls } from "./ordinary-root-closure.ts";
+import { carriedRoots } from "./ordinary-root-closure.ts";
 import { ordinaryTypeSelectionPlan } from "./ordinary-type-questions.ts";
 import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
@@ -332,8 +332,8 @@ export function captureOrdinaryObservations(demand: OrdinaryObservationDemand, o
   const fact = query?.schema();
   const schema = fact?.status === "ready" ? fact.value : undefined;
   const requested = ordinaryRoots(demand);
-  // The closure widens a partial root set by what its roots carry; terminal membership stays with the requested roots.
-  const roots = rootValueCalls(requested);
+  // A root set may be partial, so the closure covers what its roots carry; terminal membership stays with the requested roots.
+  const roots = carriedRoots(requested);
   const closureCalls = readCallClosure(roots);
   const first = roots[0] ?? demand.reads[0]?.node ?? anchor;
   const project = first.getProject();

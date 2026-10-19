@@ -64,7 +64,10 @@ function cohort(root: string, repoRoot: string): Cohort {
     packageMethods: [...JSON_COLUMN_READ_TERMINALS.packageMethods],
     projectMethods: [...JSON_COLUMN_READ_TERMINALS.projectMethods],
   };
-  const evidence = captureInvocationEvidence(consumer, jsonColumnObservationPlan(roots, []), { demand: { roots, reads: [], terminals }, schema: query });
+  const evidence = captureInvocationEvidence(consumer, jsonColumnObservationPlan(roots, []), {
+    demand: { roots, reads: [], terminals },
+    schema: query,
+  });
   const context = createObservedJsonColumnOriginContext(projected.value, jsonColumnObservedReaders(evidence, projected.value));
   const named = (prefix: string): CallExpression => {
     const call = calls.find((candidate) => candidate.getText().startsWith(prefix));
