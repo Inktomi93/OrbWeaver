@@ -39,9 +39,11 @@ interface Hidden {}
     ...file.getInterfaces().map((node) => judgeTypeHomeDeclaration(node, { path, claim: "interface" })),
   ];
   expect(judgments.map((judgment) => judgment.kind)).toEqual(["subject", "subject", "subject", "not-subject"]);
-  expect(
-    judgments.slice(0, 3).map((judgment) => (judgment.kind === "subject" ? judgment.shapes.map(({ name, plane }) => [name.getText(), plane]) : [])),
-  ).toEqual([[["Direct", "direct-export"]], [["Local", "local-export"]], [["Default", "direct-export"]]]);
+  expect(judgments.slice(0, 3).map((judgment) => (judgment.kind === "subject" ? judgment.names.map((name) => name.getText()) : []))).toEqual([
+    ["Direct"],
+    ["Local"],
+    ["Default"],
+  ]);
 });
 
 test("ownership evidence does not turn package categories or false paths into permission", () => {
@@ -154,23 +156,22 @@ export function ignoredReturn() { const value: Ignore<Erased> = { kind: "ignored
   }
 });
 
-test("the four adapters preserve exact accusations, authored positions and ordinary waiver consumption", () => {
+test("the custom adapters keep their accusations, authored positions and waiver consumption on judged paths, and the native-admitted server domain draws none", () => {
   const root = "/type-home-declarations";
   const project = new Project({ useInMemoryFileSystem: true });
   for (const [path, source] of [
     [
-      "packages/server/src/domain/chat/verbs/read.ts",
+      "packages/client/src/features/chat/lists.ts",
       `type Direct = string;
 export { Direct };
 type Local = number;
 export { Local as A, Local as B };
-interface Default { readonly value: string; }
-export { Default as default };
-// @orb-waive no-inline-domain-interface(Waived): this control retains its exact authored position.
-interface Waived { readonly value: string; }
-export { Waived };
+// @orb-waive no-inline-types(Waived): this control retains its exact authored position.
+export type Waived = string;
 `,
     ],
+    // The whole server domain is native-admitted, so the domain-interface arm judges no path and owes no finding.
+    ["packages/server/src/domain/chat/verbs/read.ts", "interface Default { readonly value: string; }\nexport { Default as default };\n"],
     ["packages/server/src/infra/read.ts", "export interface Infra { readonly value: string; }"],
     ["packages/inference/src/backends/read.ts", "export type Alias = string; export interface Backend { readonly value: string; }"],
     [
@@ -197,7 +198,6 @@ export type ComponentApi = { readonly children: string };
       ["no-inline-types", "Direct"],
       ["no-inline-types", "Local"],
       ["no-inline-types", "ComponentApi"],
-      ["no-inline-domain-interface", "Default"],
       ["no-inline-wire-interface", "HandView"],
       ["no-inline-wire-interface", "DataRow"],
     ].toSorted((left, right) => left.join(":").localeCompare(right.join(":"))),
@@ -246,17 +246,14 @@ export { Published as A, Published as B };
       config: program.descriptor.config,
       shapes: sourceFile.getVariableStatements().flatMap((node) => {
         const judgment = judgeTypeHomeDeclaration(node, { path, claim: "alias-or-schema" });
-        return judgment.kind === "subject" ? judgment.shapes.map(({ name, plane }) => [name.getText(), plane]) : [];
+        return judgment.kind === "subject" ? judgment.names.map((name) => name.getText()) : [];
       }),
     })),
   ).toEqual([
     { config: "packages/client/tsconfig.json", shapes: [] },
     {
       config: "packages/server/tsconfig.json",
-      shapes: [
-        ["Direct", "schema-origin"],
-        ["Published", "schema-origin"],
-      ],
+      shapes: ["Direct", "Published"],
     },
   ]);
   const unknown = new Project({ useInMemoryFileSystem: true }).createSourceFile(

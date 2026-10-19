@@ -1,5 +1,5 @@
 // A direct authored boundary associates declarations; structural resemblance never nominates an owner.
-import type { InterfaceDeclaration, Node as MorphNode, TypeAliasDeclaration } from "ts-morph";
+import type { CallExpression, InterfaceDeclaration, Node as MorphNode, NewExpression, TypeAliasDeclaration, TypeNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { inventoryDeclarationKey } from "./semantic-inventory-reader.ts";
 import type { ShapeAssociationRead, ShapeAssociationSite, ShapeAssociationUnknown } from "./shape-association-contract.ts";
@@ -12,44 +12,71 @@ import { nodeTypeSelector } from "./type-projection-contract.ts";
 
 type ShapeDeclaration = InterfaceDeclaration | TypeAliasDeclaration;
 
-/** Finite syntax only: explicit initializer/assignment, direct argument, or explicitly annotated own return. */
+/** Finite syntax only: annotated initializer (variable, class property, parameter default), assignment, direct argument, or annotated own return. */
 export function shapeAssociationSites(node: MorphNode): readonly ShapeAssociationSite[] {
-  if (Node.isVariableDeclaration(node)) {
-    const value = node.getInitializer();
-    const target = node.getTypeNode();
-    return value === undefined || target === undefined ? [] : [{ boundary: node, value, target }];
+  if (Node.isVariableDeclaration(node) || Node.isPropertyDeclaration(node) || Node.isParameterDeclaration(node)) {
+    return annotatedSite(node, node.getInitializer(), node.getTypeNode());
   }
   if (Node.isBinaryExpression(node) && node.getOperatorToken().isKind(SyntaxKind.EqualsToken)) {
     return [{ boundary: node, value: node.getRight(), target: node.getLeft(), assignment: true }];
   }
-  if (Node.isCallExpression(node)) {
-    return node.getArguments().flatMap((value, argument) => (Node.isExpression(value) ? [{ boundary: node, value, target: node, argument }] : []));
+  if (Node.isCallExpression(node) || Node.isNewExpression(node)) {
+    return argumentSites(node);
   }
   if (Node.isReturnStatement(node)) {
-    const value = node.getExpression();
-    const owner = node.getFirstAncestor(Node.isFunctionLikeDeclaration);
-    const target = owner?.getReturnTypeNode();
-    return value === undefined || target === undefined ? [] : [{ boundary: node, value, target }];
+    return annotatedSite(node, node.getExpression(), node.getFirstAncestor(Node.isFunctionLikeDeclaration)?.getReturnTypeNode());
   }
-  if (Node.isArrowFunction(node)) {
-    const value = node.getBody();
-    const target = node.getReturnTypeNode();
-    return !Node.isExpression(value) || target === undefined ? [] : [{ boundary: node, value, target }];
+  return Node.isArrowFunction(node) ? annotatedSite(node, node.getBody(), node.getReturnTypeNode()) : [];
+}
+
+function annotatedSite(boundary: MorphNode, value: MorphNode | undefined, target: MorphNode | undefined): readonly ShapeAssociationSite[] {
+  return Node.isExpression(value) && target !== undefined ? [{ boundary, value, target }] : [];
+}
+
+// A constructor's parameters are not observed by the call-parameter walk, so a `new` argument is a counted UNKNOWN.
+function argumentSites(node: CallExpression | NewExpression): readonly ShapeAssociationSite[] {
+  const constructed = Node.isNewExpression(node) ? { constructed: true } : {};
+  return node
+    .getArguments()
+    .flatMap((value, argument) => (Node.isExpression(value) ? [{ boundary: node, value, target: node, argument, ...constructed }] : []));
+}
+
+function referenceNodes(name: MorphNode, args: readonly TypeNode[]): readonly MorphNode[] {
+  return [
+    name,
+    ...args.flatMap((argument) => {
+      const inner = annotationName(argument);
+      return Node.isTypeReference(argument) && inner !== undefined ? referenceNodes(inner, argument.getTypeArguments()) : [];
+    }),
+  ];
+}
+
+/** The base references of an interface and of a reference alias, with their type arguments; registered up front because the read walks lineage by symbol. */
+export function baseReferences(node: MorphNode): readonly MorphNode[] {
+  if (Node.isInterfaceDeclaration(node)) {
+    return node.getExtends().flatMap((base) => referenceNodes(base.getExpression(), base.getTypeArguments()));
   }
-  return [];
+  const body = Node.isTypeAliasDeclaration(node) ? node.getTypeNode() : undefined;
+  const name = body === undefined ? undefined : annotationName(body);
+  return body !== undefined && Node.isTypeReference(body) && name !== undefined ? referenceNodes(name, body.getTypeArguments()) : [];
 }
 
 /** Existing raw questions capture only nominated slots in the importing world's native program. */
-export function shapeAssociationQuestions(sites: readonly ShapeAssociationSite[]): readonly TypeObservationQuestion[] {
+export function shapeAssociationQuestions(sites: readonly ShapeAssociationSite[], heritage: readonly MorphNode[] = []): readonly TypeObservationQuestion[] {
   const typed = [...new Set(sites.flatMap((site) => [site.value, ...(site.argument === undefined ? [site.target] : [])]))];
   // `shape-constituents` walks every nominated call's parameters, so each call is also a `call-parameters` row.
-  const calls = [...new Set([...sites.filter((site) => site.argument !== undefined).map((site) => site.target), ...typed.filter(Node.isCallExpression)])];
+  const calls = [
+    ...new Set([
+      ...sites.filter((site) => site.argument !== undefined && site.constructed !== true).map((site) => site.target),
+      ...typed.filter(Node.isCallExpression),
+    ]),
+  ];
   const annotations = sites.flatMap((site) => {
     const annotation = site.argument === undefined ? annotationName(site.target) : undefined;
     return annotation === undefined ? [] : [annotation];
   });
   return [
-    { kind: "node-types", nodes: [...new Set([...typed, ...annotations])] },
+    { kind: "node-types", nodes: [...new Set([...typed, ...annotations, ...heritage])] },
     { kind: "call-parameters", nodes: calls },
     { kind: "shape-constituents", nodes: [...new Set([...typed, ...calls])] },
   ];
@@ -135,8 +162,86 @@ function named(declarations: readonly ShapeDeclaration[]): ShapeIdentity {
   return { kind: "named", declarations: [...new Map(declarations.map((declaration) => [inventoryDeclarationKey(declaration), declaration])).values()] };
 }
 
+/** Where a declaration's shape comes from: written by hand, derived from something else, or not decidable by this walk. */
+type Lineage = "hand" | "derived" | "unknown";
+
+function combine(parts: readonly Lineage[]): Lineage {
+  if (parts.includes("unknown")) {
+    return "unknown";
+  }
+  return parts.length > 0 && parts.every((part) => part === "hand") ? "hand" : "derived";
+}
+
+// A library generic derives its shape from its arguments: a hand or an unclassifiable argument leaves it undecided.
+function argumentsLineage(args: readonly TypeNode[], read: IdentityRead): Lineage {
+  return args.every((argument) => !Node.isTypeReference(argument) || referenceLineage(argument, read) === "derived") ? "derived" : "unknown";
+}
+
+function nameLineage(name: MorphNode, args: readonly TypeNode[], read: IdentityRead): Lineage {
+  const declarations = declarationsOf(read.readers.symbol(name), read.readers);
+  if (declarations.length === 0) {
+    return "unknown";
+  }
+  if (declarations.every(isLibrary)) {
+    return argumentsLineage(args, read);
+  }
+  if (declarations.some(read.isProduction)) {
+    return "derived";
+  }
+  return combine(declarations.map((declaration) => declarationLineage(declaration, read)));
+}
+
+function referenceLineage(reference: TypeNode, read: IdentityRead): Lineage {
+  const name = annotationName(reference);
+  return name === undefined || !Node.isTypeReference(reference) ? "unknown" : nameLineage(name, reference.getTypeArguments(), read);
+}
+
+function declarationLineage(node: MorphNode, read: IdentityRead): Lineage {
+  if (Node.isInterfaceDeclaration(node)) {
+    return shapeLineage(node, read);
+  }
+  if (!Node.isTypeAliasDeclaration(node)) {
+    return "derived";
+  }
+  // Only hand-population aliases have registered references; any other alias derives.
+  if (!read.isHand(node)) {
+    return "derived";
+  }
+  const body = node.getTypeNode();
+  if (body === undefined) {
+    return "unknown";
+  }
+  if (Node.isTypeLiteral(body)) {
+    return shapeLineage(node, read);
+  }
+  if (isLiteralOnly(body)) {
+    return "derived";
+  }
+  return Node.isTypeReference(body) ? referenceLineage(body, read) : "unknown";
+}
+
+// A literal or a union of literals names no shape.
+function isLiteralOnly(node: TypeNode): boolean {
+  return Node.isLiteralTypeNode(node) || (Node.isUnionTypeNode(node) && node.getTypeNodes().every(isLiteralOnly));
+}
+
+// An interface with heritage is a hand copy only when every base is itself a hand shape; a production base derives it.
+function shapeLineage(node: ShapeDeclaration, read: IdentityRead): Lineage {
+  if (!read.isHand(node)) {
+    return "derived";
+  }
+  if (!Node.isInterfaceDeclaration(node) || node.getExtends().length === 0) {
+    return isHandWrittenShape(node) ? "hand" : "derived";
+  }
+  return combine(node.getExtends().map((base) => nameLineage(base.getExpression(), base.getTypeArguments(), read)));
+}
+
 function handsOf(identity: ShapeIdentity, read: IdentityRead): readonly ShapeDeclaration[] {
-  return identity.kind === "named" ? identity.declarations.filter((node) => read.isHand(node) && isHandWrittenShape(node)) : [];
+  return identity.kind === "named" ? identity.declarations.filter((node) => shapeLineage(node, read) === "hand") : [];
+}
+
+function hasUnclassifiedBase(identity: ShapeIdentity, read: IdentityRead): boolean {
+  return identity.kind === "named" && identity.declarations.some((node) => shapeLineage(node, read) === "unknown");
 }
 
 // A boundary part is decided when it is nothing, or a named shape no production declaration owns.
@@ -198,7 +303,10 @@ function symbolIdentity(constituent: ShapeConstituent, declarations: readonly Mo
   const shapes = declarations.flatMap((node) => ownShape(node) ?? []);
   if (shapes.length > 0) {
     const own = named(shapes);
-    return handsOf(own, read).length > 0 || read.side === "boundary" ? own : contained([own, argumentsOf(constituent, read)], read, false);
+    // A shape with an unclassified base stays named: it is neither a hand nor provably derived.
+    return handsOf(own, read).length > 0 || read.side === "boundary" || hasUnclassifiedBase(own, read)
+      ? own
+      : contained([own, argumentsOf(constituent, read)], read, false);
   }
   return declarationIdentity(declarations, read);
 }
@@ -305,21 +413,37 @@ export function readShapeAssociation(
   isProduction: (node: MorphNode) => boolean,
 ): ShapeAssociationRead {
   const value = constituentIdentity(readShapeConstituent(nodeTypeSelector(site.value), readers), { readers, isHand, isProduction, side: "value" });
-  const hands = handsOf(value, { readers, isHand, isProduction, side: "value" });
-  if (value.kind === "none" || (value.kind === "named" && hands.length === 0)) {
+  const valueRead: IdentityRead = { readers, isHand, isProduction, side: "value" };
+  const hands = handsOf(value, valueRead);
+  const unclassified = hands.length === 0 && hasUnclassifiedBase(value, valueRead);
+  if (value.kind === "none" || (value.kind === "named" && hands.length === 0 && !unclassified)) {
     return UNASSOCIATED;
   }
   if (value.kind === "carried" && value.union) {
     return unknown(SHAPE_ASSOCIATION_UNKNOWN.unionHand);
   }
+  if (site.constructed === true) {
+    return unknown(SHAPE_ASSOCIATION_UNKNOWN.constructedParameter);
+  }
   const read: IdentityRead = { readers, isHand, isProduction, side: "boundary" };
   const boundary = boundaryIdentity(site, read);
   const decided = typeof boundary === "object" && unowned(boundary, read);
-  if (value.kind !== "named") {
-    // A value whose shape is unseen can only matter at a boundary that a production declaration could own.
-    return decided ? UNASSOCIATED : unknown(value.kind === "erased" ? SHAPE_ASSOCIATION_UNKNOWN.erasedValue : SHAPE_ASSOCIATION_UNKNOWN.opaqueValue);
+  // A value whose shape is unseen can only matter at a boundary that a production declaration could own.
+  const unseen = unseenReason(value, unclassified);
+  if (decided) {
+    return UNASSOCIATED;
   }
-  return decided ? UNASSOCIATED : judgeHand(site, hands, boundary, isProduction);
+  return unseen === undefined ? judgeHand(site, hands, boundary, isProduction) : unknown(unseen);
+}
+
+function unseenReason(value: ShapeIdentity, unclassified: boolean): ShapeAssociationUnknown | undefined {
+  if (value.kind === "erased") {
+    return SHAPE_ASSOCIATION_UNKNOWN.erasedValue;
+  }
+  if (value.kind !== "named") {
+    return SHAPE_ASSOCIATION_UNKNOWN.opaqueValue;
+  }
+  return unclassified ? SHAPE_ASSOCIATION_UNKNOWN.unclassifiedBase : undefined;
 }
 
 const UNASSOCIATED: ShapeAssociationRead = { kind: "unassociated" };

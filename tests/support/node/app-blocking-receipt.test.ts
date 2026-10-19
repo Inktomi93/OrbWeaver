@@ -1,9 +1,10 @@
-import type { AppBlockingFrameTiming, AppBlockingReceipt } from "../iso/app-blocking-receipt.ts";
+import type { LongAnimationFrameTiming } from "@orb/kit/long-animation-frame";
+import type { AppBlockingReceipt } from "../iso/app-blocking-receipt.ts";
 import { matchAppBlockingFrame } from "../iso/app-blocking-receipt.ts";
 import { expect, test } from "./fixtures.ts";
 
-const rawFrame: AppBlockingFrameTiming = { startTime: 100.4, duration: 180.2, blockingDuration: 90.6, styleAndLayoutStart: 280.4 };
-const retained: AppBlockingFrameTiming = { startTime: 100, duration: 180, blockingDuration: 91, styleAndLayoutStart: 280 };
+const rawFrame: LongAnimationFrameTiming = { startTime: 100.4, duration: 180.2, blockingDuration: 90.6, styleAndLayoutStart: 280.4 };
+const retained: LongAnimationFrameTiming = { startTime: 100, duration: 180, blockingDuration: 91, styleAndLayoutStart: 280 };
 const receipt: AppBlockingReceipt = {
   checkpoint: 110,
   clicks: [{ startTime: 120, trusted: true }],

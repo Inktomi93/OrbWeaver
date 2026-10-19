@@ -33,9 +33,6 @@ export interface PackageTypeHomeClassification {
 export const TYPE_HOME_DECLARATION_CLAIMS = ["alias-or-schema", "interface", "wire-interface"] as const;
 export type TypeHomeDeclarationClaim = (typeof TYPE_HOME_DECLARATION_CLAIMS)[number];
 
-export const TYPE_HOME_DECLARATION_PLANES = ["direct-export", "local-export", "schema-origin"] as const;
-export type TypeHomeDeclarationPlane = (typeof TYPE_HOME_DECLARATION_PLANES)[number];
-
 /** Structural package contracts are proven here; other categories still need declaration-specific evidence. */
 export type DeclarationTypeHomeOwnership =
   | { readonly kind: "generated-owned"; readonly packageName: PackageName; readonly home: string; readonly producer: Node; readonly value: Node }
@@ -72,13 +69,8 @@ export interface TypeHomeDeclarationInput {
   readonly component?: Omit<ComponentTypeHomeInput, "declaration" | "path">;
 }
 
-export interface TypeHomeDeclarationShape {
-  readonly name: Node;
-  readonly plane: TypeHomeDeclarationPlane;
-}
-
 /** Not-subject is not an ownership verdict; unqualified ownership never cancels an admitted finding. */
 export type TypeHomeDeclarationJudgment =
   | { readonly kind: "not-subject" }
   | { readonly kind: "refused"; readonly reason: string }
-  | { readonly kind: "subject"; readonly shapes: readonly TypeHomeDeclarationShape[]; readonly ownership: DeclarationTypeHomeOwnership };
+  | { readonly kind: "subject"; readonly names: readonly Node[]; readonly ownership: DeclarationTypeHomeOwnership };
