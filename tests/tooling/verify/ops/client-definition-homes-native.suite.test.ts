@@ -1,4 +1,4 @@
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ESLint, Linter } from "eslint";
@@ -100,6 +100,26 @@ test("a section factory is a definition by its return type", LOAD, async ({ repo
     expect(await messages(eslint, join(repoRoot, "packages/client/src/features/x/lib/x-section.tsx"), source, rule), source).toEqual([]);
   }
 });
+
+// The selectors match these type NAMES. A renamed type would leave every rule judging nothing and the tree
+// green, so each name must still be declared and exported where the registry owns it.
+const TYPE_HOMES = [
+  ["ChromeEntry", "packages/client/src/state/chrome-registry.ts"],
+  ["HomeTileContribution", "packages/client/src/state/home-tile-contracts.ts"],
+  ["SectionDefinition", "packages/client/src/state/section-registry.ts"],
+  ["ConfigGroupDefinition", "packages/client/src/state/config-group-registry.ts"],
+  ["CollectionContribution", "packages/client/src/lib/collection-contracts.ts"],
+] as const;
+
+for (const [type, home] of TYPE_HOMES) {
+  test(`${type} is still the exported registry type the definition rules name`, ({ repoRoot }) => {
+    const source = readFileSync(join(repoRoot, home), "utf8");
+    expect(
+      new RegExp(String.raw`^export (?:type|interface) ${type}\b`, "m").test(source),
+      `${home} no longer exports ${type}: update DEFINITION_TYPES in eslint.config.js`,
+    ).toBe(true);
+  });
+}
 
 test("the config content host reads bodies off the registries instead of importing a feature", LOAD, async ({ repoRoot }) => {
   const eslint = new ESLint({ cwd: repoRoot });

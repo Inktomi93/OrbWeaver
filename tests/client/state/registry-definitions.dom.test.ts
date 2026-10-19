@@ -1,9 +1,10 @@
-import { globSync } from "node:fs";
+import { globSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import type { HomeTileContribution, SectionDefinition } from "@orb/client/state";
 import { assembleChrome, CONFIG_GROUP_IDS, isCollectionGroup, SECTION_IDS } from "@orb/client/state";
 import { chromeWidgets, createAuthedComposition, createClientRuntime, homeTiles } from "@orb/testkit/browser/ct-door.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import ts from "typescript";
 
 const FEATURES = fileURLToPath(new URL("../../../packages/client/src/features", import.meta.url));
 
@@ -99,3 +100,62 @@ test("assembling chrome refuses a repeated id and a zone outside CHROME_ZONES", 
   Reflect.set(stray, "zone", "sidebar.top");
   expect(() => assembleChrome({ sections: [], modals: [], widgets: [stray] })).toThrow('declares zone "sidebar.top"');
 });
+
+// A co-located definition the door never wires is invisible to every test above, so its duplicate id or empty
+// copy would rot unseen. Discover the declarations by annotation, then demand the door holds each one.
+const DEFINITION_KINDS = [
+  { type: "ChromeEntry", slot: "chrome", ids: undefined, registered: (): readonly unknown[] => composition.chrome.list() },
+  { type: "HomeTileContribution", slot: "tile", ids: undefined, registered: (): readonly unknown[] => homeTiles.list() },
+  { type: "SectionDefinition", slot: "section", ids: SECTION_IDS.length, registered: (): readonly unknown[] => composition.sections.list() },
+  {
+    type: "ConfigGroupDefinition",
+    slot: "group",
+    ids: CONFIG_GROUP_IDS.length,
+    registered: (): readonly unknown[] => CONFIG_GROUP_IDS.map((id) => composition.configGroups.get(id)),
+  },
+] as const;
+
+const isExported = (node: ts.Node): boolean => ts.canHaveModifiers(node) && (ts.getModifiers(node) ?? []).some((m) => m.kind === ts.SyntaxKind.ExportKeyword);
+
+/** Exported constants annotated `: type`, and exported functions or arrows returning `: type`. */
+function declaredAs(file: string, type: string): { readonly consts: readonly string[]; readonly factories: readonly string[] } {
+  const source = ts.createSourceFile(file, readFileSync(file, "utf8"), ts.ScriptTarget.Latest, true);
+  const isType = (node: ts.TypeNode | undefined): boolean => node !== undefined && ts.isTypeReferenceNode(node) && node.typeName.getText(source) === type;
+  const isFactory = (declaration: ts.VariableDeclaration): boolean =>
+    declaration.initializer !== undefined && ts.isArrowFunction(declaration.initializer) && isType(declaration.initializer.type);
+  const exportedStatements = source.statements.filter(isExported);
+  const declarations = exportedStatements.filter(ts.isVariableStatement).flatMap((statement) => [...statement.declarationList.declarations]);
+  return {
+    consts: declarations.filter((declaration) => isType(declaration.type)).map((declaration) => declaration.name.getText(source)),
+    factories: [
+      ...exportedStatements
+        .filter(ts.isFunctionDeclaration)
+        .filter((fn) => isType(fn.type))
+        .map((fn) => fn.name?.text ?? "default"),
+      ...declarations.filter(isFactory).map((declaration) => declaration.name.getText(source)),
+    ],
+  };
+}
+
+for (const { type, slot, registered, ids } of DEFINITION_KINDS) {
+  test(`every co-located ${type} is wired into the door`, async () => {
+    const files = [...globSync(`*/lib/*-${slot}.ts`, { cwd: FEATURES }), ...globSync(`*/lib/*-${slot}.tsx`, { cwd: FEATURES })];
+    const held = new Set<unknown>(registered());
+    let factories = 0;
+    let constants = 0;
+    for (const file of files) {
+      const path = `${FEATURES}/${file}`;
+      const declared = declaredAs(path, type);
+      factories += declared.factories.length;
+      constants += declared.consts.length;
+      const exported: Record<string, unknown> = await import(/* @vite-ignore */ path);
+      for (const name of declared.consts) {
+        expect(held.has(exported[name]), `${file} exports ${name}: ${type} but the door does not hold it`).toBe(true);
+      }
+    }
+    expect(constants + factories, `${type} definitions found`).toBeGreaterThan(0);
+    // A factory yields a fresh object per call, so identity cannot prove it; where the door holds exactly one
+    // definition per id, a surplus factory or constant is an unwired one.
+    expect(constants + factories, `${type} definitions vs ids`).toBe(ids ?? constants + factories);
+  });
+}

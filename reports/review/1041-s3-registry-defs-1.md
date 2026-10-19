@@ -47,7 +47,7 @@ mustPass rows (brand zone with `mobile`, topbar with `mobile`, full topbar widge
 ### config-group-completeness: done
 
 - Successors: native `orb/config-group-definition-home`, `orb/collection-definition-home`, `orb/registry-definition-literal`, `orb/config-host-no-feature-import`; type test `tests/client/state/config-group-registry.dom.test-d.ts` (rendered `create`, unwired `create`, `importFile` without `accept`); runtime `registry-definitions.dom.test.ts` (group sits under its own id, blank create/import copy, every `*-collection` file's export is registered by a group).
-- Parity: 9 mustFlag / 5 mustPass ported, 0 lost.
+- Parity: 9 mustFlag / 5 mustPass ported, 0 lost; the orphan-collection row is ported at file granularity (see its row).
 - Deleted: `tooling/src/verify/gates/config-group-completeness.ts`, its liveness arm, the "RENAMED config content host" family test and the `CONFIG_GROUP_PRELUDE` scaffolding.
 
 | mustFlag row | Successor |
@@ -58,7 +58,7 @@ mustPass rows (brand zone with `mobile`, topbar with `mobile`, full topbar widge
 | duplicate group id | registry `get(id).id === id` over `CONFIG_GROUP_IDS`, plus the door `Record` |
 | rendered `create` | type test line 10 |
 | `importFile` without `accept` | type test line 18 |
-| orphan collection body | runtime "every collection body file is registered by a group" |
+| orphan collection body | runtime "every collection body file is registered by a group", at file granularity: a file passes if ANY of its exports is registered, so a second unregistered collection in a file that also holds a registered one is not seen (census: 3 collection files, one collection each). Recorded as a weakened arm, not a full port |
 | decoy export (same word, other module) | same test: it compares exported value identity, not names |
 | host imports a feature | `orb/config-host-no-feature-import` |
 
@@ -89,6 +89,12 @@ Censuses used `ast-grep run -p` with both `-l ts` (766 files scanned) and `-l ts
 - Planned section and dormant tile arms: no live section is planned and no live tile is dormant today, so the runtime arms run vacuously on real data and bite when one lands. The judge tests prove the helper only. The `mustFlag` empty-reason and empty-teaser rows are held in the type test (missing field) and by this runtime test (empty string).
 - Waiver-identity mustPass rows (4 rows, one per gate): they tested the `@orb-waive` marker mechanics of the retired policy. Nothing remains to waive. Not a lost claim.
 - Factory returning a non-literal: the old section gate did not carry a mustFlag row for it, and the five live factories return literals. Not claimed.
+
+## Follow-up arms restored after the first verifier round
+
+- Rename tripwire: the native selectors match type names, so a renamed `ChromeEntry` made every rule judge nothing. `client-definition-homes-native.suite.test.ts` now asserts each of the five names is still an exported type or interface in its client home (`TYPE_HOMES`). Red-first: renaming `ChromeEntry` to `ChromeItem` in `chrome-registry.ts` fails `ChromeEntry is still the exported registry type...` (`no longer exports ChromeEntry: update DEFINITION_TYPES in eslint.config.js`); restored, green.
+- Unregistered co-located definitions: `registry-definitions.dom.test.ts` now discovers every exported constant annotated as `ChromeEntry`, `HomeTileContribution`, `SectionDefinition` or `ConfigGroupDefinition` (and exported section factories) in its `*-<slot>` home, and requires the door to hold each constant by identity. Section and group counts must equal their id unions (9 and the `CONFIG_GROUP_IDS` length), which catches a surplus factory. Collections were already covered by the orphan test. Red-first: four unregistered plants in `features/regex/lib` (a `{ ...regexGroup, id: "regex" }` group, a tile with `dormant: { reason: "", teaser: "" }`, a spread section, a spread chrome entry) failed 4 of 13; a single group plant still fails after the final refactor. Plants deleted.
+- Residual: a factory whose result the door holds is proven by count only, not identity; an alias-annotated definition is still outside the discovery (census: 0 live).
 
 ## Waivers and grants
 
