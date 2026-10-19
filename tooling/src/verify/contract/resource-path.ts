@@ -4,8 +4,7 @@
 // containment, and it is why an arbitrary selector is admissible here when it would be forbidden anywhere
 // else in the contract.
 //
-// WHY IT EXISTS (`gates/runner-config-path-liveness.ts:23-39`, a measured and orchestrator-approved
-// conversion REFUSAL that is this door's specification):
+// WHY IT EXISTS (a measured and orchestrator-approved conversion REFUSAL that is this door's specification):
 //   1. `trackedFiles()` returns repo paths and Git lists a SYMLINK as an ordinary path, so an in-repo
 //      symlink pointing outside the tree silently PASSES a liveness check built on tracked membership.
 //      `ResourceFileSnapshot`'s `symlink` variant (`resource.ts`) does not close this: it is internal and

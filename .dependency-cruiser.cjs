@@ -1105,7 +1105,7 @@ module.exports = {
     {
       name: "no-orphans",
       comment:
-        "A module without an import edge needs a runtime or tooling consumer. Knip is the full dead-code authority. The tooling-instrument-proof gate reads instruments.ts structurally. Showcase guest entries are consumed as source bytes by compilePluginDirectory: main.ts and ui.ts compile into guest artifacts, and frame.ts embeds into main.ts at its required frame-script marker.",
+        "A module without an import edge needs a runtime or tooling consumer. Knip is the full dead-code authority. The instrument-proof test and eslint.config.js read instruments.ts. Showcase guest entries are consumed as source bytes by compilePluginDirectory: main.ts and ui.ts compile into guest artifacts, and frame.ts embeds into main.ts at its required frame-script marker.",
       severity: "warn",
       from: {
         // Helper entry roots omit their test consumers; native runner/Knip discovery owns their liveness.

@@ -18,17 +18,14 @@ import { gate as commentedCode } from "../../../../../tooling/src/verify/gates/c
 import { gate as cssFamilyOwnershipHealth } from "../../../../../tooling/src/verify/gates/css-family-ownership-health.ts";
 import { gate as cssSelectorHasAWriterHealth } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
 import { gate as dbStructureProducerHome } from "../../../../../tooling/src/verify/gates/db-structure-producer-home.ts";
-import { gate as depcruiseGrantLivenessHealth } from "../../../../../tooling/src/verify/gates/depcruise-grant-liveness-health.ts";
 import { gate as noFormStateInUseeffect } from "../../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
 import { gate as overArtPlateArm } from "../../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
-import { gate as runnerConfigPathLiveness } from "../../../../../tooling/src/verify/gates/runner-config-path-liveness.ts";
 import { gate as sanctionedCssHomes } from "../../../../../tooling/src/verify/gates/sanctioned-css-homes.ts";
 import { gate as suppressions } from "../../../../../tooling/src/verify/gates/suppressions.ts";
 import { gate as testLayout } from "../../../../../tooling/src/verify/gates/test-layout.ts";
 import { gate as toolingRunnerConfigLiterals } from "../../../../../tooling/src/verify/gates/tooling-runner-config-literals.ts";
 
 const CLIENT_GLOBALS = "packages/client/src/styles/globals.css";
-const DEPCRUISE = ".dependency-cruiser.cjs";
 const PRODUCT_SHEETS = [
   "packages/ui/src/styles/theme.css",
   "packages/ui/src/styles/globals.css",
@@ -81,16 +78,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "no same-named producer domain",
   },
   {
-    policy: depcruiseGrantLivenessHealth,
-    overlays: [
-      append(
-        DEPCRUISE,
-        '\nmodule.exports.forbidden.push({ name: "liveness-backref", severity: "error", from: { path: "^packages/liveness/([^/]+)/$1/" }, to: {} });\n',
-      ),
-    ],
-    messageIncludes: "GROWTH",
-  },
-  {
     policy: noFormStateInUseeffect,
     overlays: [
       {
@@ -110,18 +97,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "light-dark()",
-  },
-  {
-    policy: runnerConfigPathLiveness,
-    overlays: [
-      replace(
-        "vitest.config.ts",
-        "include: runtimeGlobs(REPOSITORY_TEST_GLOBS),",
-        'include: runtimeGlobs([...REPOSITORY_TEST_GLOBS, "tests/tooling/liveness-gone.int.test.ts"]),',
-      ),
-    ],
-    // The dead path is the finding's TOKEN, not its message; the verdict is the dead-row message at the config.
-    messageIncludes: "names nothing on the tree",
   },
   {
     policy: sanctionedCssHomes,

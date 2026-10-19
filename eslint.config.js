@@ -129,6 +129,7 @@ import {
 import { nativeUncastReceiver } from "./tooling/src/floor/code-facts/type-member-origin-core.ts";
 import { isFactoryCallFromPackage, zodCandidateCall } from "./tooling/src/floor/code-facts/zod-origin.ts";
 import { moduleScopeCalls } from "./tooling/src/floor/compiler/module-entry.ts";
+import { INSTRUMENT_TOOLS } from "./tooling/src/floor/instrument/instruments.ts";
 import { BASE_UI_NATIVE_INPUT_PATHS } from "./tooling/src/verify/contract/baseui.ts";
 import {
   ENTRY_DRIVER_GLOBS,
@@ -816,6 +817,37 @@ const TABLE_IMPORT_RESTRICTIONS = [
       message:
         "vector_distance_cos is spelled only in domain/search/persistence; discovery uses in-memory cosine and memory delegates to the injected searchDigests op (D20).",
     })),
+  },
+];
+
+// A registered instrument reports a verdict about the app, where a blind zero reads as a pass, so its result enters
+// the shared printVerdict denominator door. Banning the NAME stops an alias, a barrel and a re-export alike; the
+// namespace and star forms are banned on the artifacts door itself because they carry no name to match.
+const ARTIFACTS_DOOR_SOURCE = "/artifacts(\\.ts)?$/";
+const PRINT_RESULT_NAME = "printResult";
+const INSTRUMENT_VERDICT_RESTRICTIONS = [
+  {
+    id: "instrument-verdict-door",
+    scope: INSTRUMENT_TOOLS.map((tool) => `tooling/src/${tool}/**/*.{ts,tsx}`),
+    homes: [],
+    selectors: [
+      {
+        selector: `ImportDeclaration > ImportSpecifier:matches([imported.name='${PRINT_RESULT_NAME}'], [imported.value='${PRINT_RESULT_NAME}'])`,
+        message: "A registered instrument enters the shared verdict door; route its RESULT through printVerdict with declared denominators, never printResult.",
+      },
+      {
+        selector: `ExportNamedDeclaration[source] > ExportSpecifier:matches([local.name='${PRINT_RESULT_NAME}'], [local.value='${PRINT_RESULT_NAME}'])`,
+        message: "A registered instrument cannot re-export printResult; route its RESULT through printVerdict with declared denominators.",
+      },
+      {
+        selector: `ImportDeclaration[source.value=${ARTIFACTS_DOOR_SOURCE}] > ImportNamespaceSpecifier`,
+        message: "A namespace import of the artifacts door reaches printResult; import print by name and route the RESULT through printVerdict.",
+      },
+      {
+        selector: `ExportAllDeclaration[source.value=${ARTIFACTS_DOOR_SOURCE}]`,
+        message: "A star re-export of the artifacts door reaches printResult; route the RESULT through printVerdict.",
+      },
+    ],
   },
 ];
 
@@ -1896,6 +1928,7 @@ const RESTRICTIONS = [
   ...DETERMINISM_RESTRICTIONS,
   ...INFRA_AUTH_RESTRICTIONS,
   ...TABLE_IMPORT_RESTRICTIONS,
+  ...INSTRUMENT_VERDICT_RESTRICTIONS,
   ...CLASS_RESTRICTIONS,
   ...ROLE_DATA_RESTRICTIONS,
   ...TURN_IDENTITY_RESTRICTIONS,

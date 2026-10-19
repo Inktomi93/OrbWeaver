@@ -20,7 +20,6 @@ import { gate as toolingBrowserDoor } from "../../../../../tooling/src/verify/ga
 import { gate as toolingChildProcessDoor } from "../../../../../tooling/src/verify/gates/tooling-child-process-door.ts";
 import { gate as toolingProcessExitHome } from "../../../../../tooling/src/verify/gates/tooling-process-exit-home.ts";
 import { gate as toolingProjectHome } from "../../../../../tooling/src/verify/gates/tooling-project-home.ts";
-import { gate as toolingSlotTemplate } from "../../../../../tooling/src/verify/gates/tooling-slot-template.ts";
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
@@ -110,11 +109,5 @@ export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: toolingProjectHome,
     overlays: [add("tooling/src/ast/ops/liveness-load.ts", 'import { Project } from "ts-morph";\nexport const p = new Project({});\n')],
     messageIncludes: "a second ts-morph loader",
-  },
-  {
-    policy: toolingSlotTemplate,
-    // A stray module at a tool ROOT, where only cli.ts and index.ts may live.
-    overlays: [{ kind: "resource", path: "tooling/src/snap/liveness-stray.ts", source: "export const stray = 1;\n" }],
-    messageIncludes: "liveness-stray.ts",
   },
 ];

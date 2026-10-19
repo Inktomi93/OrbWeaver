@@ -173,7 +173,7 @@ export const gate = defineGate({
         vitest:
           'export default { test: { include: ["tests/**/*.test.ts"], testTimeout: budget(5000) }, reporters: ["default"] };\ndeclare function budget(n: number): number;\n',
       }),
-      why: "DECLARED LIMIT: the SELECTOR rows (`include`, reporters) are `runner-config-path-liveness`'s subject through `static-config`; this policy reads only the two literal predicates, and a derived clock beside them is silent",
+      why: "DECLARED LIMIT: the SELECTOR rows (`include`, reporters) are the subject of `tests/tooling/runner-config-paths.int.test.ts`; this policy reads only the two literal predicates, and a derived clock beside them is silent",
     },
   ],
 });

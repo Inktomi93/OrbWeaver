@@ -852,7 +852,7 @@ export const gate = defineGate({
         TARGET("tooling/src/verify/contract/gate.ts", "ExemptionTable | Finding"),
       ),
       expect: { count: 2, messageIncludes: "Resolved home: tooling/src/verify/contract/gate.ts" },
-      why: "ARM A TWO declarations are TWO findings, each at its own specifier — the live `depcruise-grant-liveness` and `runner-config-path-liveness` shape (`ExemptionTable` and `Finding` on separate lines)",
+      why: "ARM A TWO declarations are TWO findings, each at its own specifier — the config-liveness shape (`ExemptionTable` and `Finding` on separate lines)",
     },
     {
       mode: "types",

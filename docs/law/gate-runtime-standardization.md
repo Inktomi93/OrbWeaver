@@ -229,19 +229,15 @@ fixture maintains an expected declaration count. Canonical validation is require
 token history: inability to derive is exit 2; a successful derivation whose committed file is missing or differs
 from the derived bytes is exit 1.
 
-One sanctioned non-derivable cardinality guard is `depcruise-grant-liveness-health.BACKREF_BUDGET`. It covers the
+One sanctioned non-derivable cardinality guard is the backreference budget in `tests/tooling/dependency-cruiser-backref-budget.int.test.ts`. It covers the
 `$1` backreference dependency-cruiser rules whose bound member set exists only at cruise time and cannot be
 derived by a static reader. This named exception guards silent growth of an unreviewable population; it is not a
 generic ratchet license. A new numeric exception requires an owner ruling naming it, and a reason a source-derived
 equality cannot hold the same property.
 
 The constant is the number's one home; a prose copy of a machine's answer rots the moment the answer changes (§7), so
-this paragraph names no count. The budget lives in `depcruise-grant-liveness-health`, not in the `reviewed-grant`
-policy `depcruise-grant-liveness`, because every finding in a reviewed-grant policy owes a `(subject, operation)` a
-central row could name, and this budget has none and must not acquire one: a grantable budget would be a central
-door to move the number without touching it, the precise failure this exception exists to prevent. Reporting it
-therefore requires `hard` authority, and one policy carries one authority, so the budget lives in the sibling health
-policy under the same family rather than in the reviewed-grant policy it counts against.
+this paragraph names no count. The test compares by equality, so growth and an uncommitted shrink both fail, and it
+takes no suppression.
 
 The second sanctioned cardinality guard is the waiver budget, by owner ruling (`docs/plans/test-mirror/design.md`, "Burn down the waivers"). Each final policy's budget in `tooling/src/verify/lib/waiver-budget.ts` has two parts, keyed by population: the application part counts waived plus granted findings inside the application subject population, and the implementation part counts the rest of the policy's declared population. A policy with no row in a part has a budget of zero there. The count is derivable, but the allowance is a decision that no source fact records, and the ruling is that excused findings only fall. `lib/waiver-ratchet.ts` raises a `waiver-budget` authority alarm when a judged count rises or falls. An application run judges every policy's application part, including a policy with no application subject. Every other run judges the application plus implementation parts for each owner that walked its whole declared population. A run that walked only part of a population, such as a requested-path subset, names the policy as not judged in its report and console; it never passes it. A rise means a new finding was excused: fix it instead. A fall means the budget must drop to the new count in the same change. Only the structure and scoped command runners pass the budget, so fixture and conformance passes judge no ratchet.
 

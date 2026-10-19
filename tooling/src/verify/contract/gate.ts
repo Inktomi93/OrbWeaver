@@ -2,9 +2,7 @@
 // the #2176 Phase F cutover retired its runtime (the `GateDescriptor` interface, `GateRunCtx`, `GateExample`,
 // `GateScanDeclaration`, `Scope`, `GateStatus` and `ScopeSafety` were deleted with `lib/pass.ts` on
 // 2026-09-14). Three shapes are left and none of them is a descriptor:
-//   `Finding`        — the coordinate shape `lib/grant-liveness.ts` still produces for its config-liveness
-//                      consumers (`biome-grant-liveness`, `depcruise-grant-liveness`, `tsconfig-entry-liveness`,
-//                      `runner-config-path-liveness`), which map it onto `ctx.report.*`;
+//   `Finding`        — the coordinate shape a gate maps onto `ctx.report.*`;
 //   `ExemptionRow` / `ExemptionTable` — the canonical exemption vocabulary.
 //
 // THE FILENAME IS LOAD-BEARING AND IS NOT A LEFTOVER. `gates/policy-legacy-imports.ts` keys ARM A on

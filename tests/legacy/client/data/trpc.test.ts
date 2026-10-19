@@ -1,7 +1,7 @@
 // @orb-waive-file no-test-fabrication({ data?: { code?: string } }): baselined when the gate widened to value casts; burn-down item 906.
 
 // The mirror for `packages/client/src/data/trpc.ts` (#2103). It exists because the gate exclusion it
-// replaces asserted the opposite: `test-presence-client`'s `CLIENT_EXCLUDE_FILES` row said the module's
+// replaces asserted the opposite: the retired presence gate's `CLIENT_EXCLUDE_FILES` row said the module's
 // two exports were "thin `@trpc/client` constructors with no bespoke logic of their own to unit-test in
 // isolation", and the file refutes that in four places — a `splitLink` condition routing subscriptions
 // away from the batch branch, a CSRF header attached to every non-subscription request (the server 403s a

@@ -153,7 +153,7 @@ callable's body reducing to ONE expression that is a delegating call, a DI-bundl
 parameters, or a factory returning one of those. A second statement, a branch (including a ternary), or a computed
 argument is behavior and stays demanded.
 
-`test-presence-client` holds the one named-file floor: the standing `worst-legal-art-contrast.suite.ct.tsx`
+`tests/tooling/standing-contrast-ct.test.ts` holds the one named-file floor: the standing `worst-legal-art-contrast.suite.ct.tsx`
 must exist, because deleting it restores a known blind class across every theme polarity at once.
 
 Missing, empty, or unreadable source/test corpora refuse evaluation rather than returning a clean zero. So does a

@@ -340,11 +340,11 @@ did not change when the fleet moved.
 
 | Rule | Enforcer |
 | - | - |
-| top-level entries are tool DIRS; each carries `cli.ts` + `index.ts`; tool roots admit only the five slots | `tooling-slot-template` |
+| top-level entries are tool DIRS; each carries `cli.ts` + `index.ts`; tool roots admit only the five slots | `tests/tooling/tool-slot-template.int.test.ts` |
 | a cross-tool import enters through the sibling's front door (`#<tool>`), never its `ops`/`lib`/`contract` | `tooling-front-door` (shape) + `tooling-internal-direction` + `tooling-cli-via-index` (resolved edges) |
 | no file >450 lines; no `cli.ts` >200 (`verify/gates/**` cap-exempt) | ESLint `max-lines` in `eslint.config.js` |
 | ONE home per plumbing capability: the ts-morph project, the browser launch, the artifact dir, `process.exit`, the `cli.ts` `runTool` entry, the `node:child_process` door, the un-niced spawn census | `tooling-project-home` · `tooling-browser-door` · `tooling-artifact-path-home` · `tooling-artifact-run-slot` · `tooling-process-exit-home` · `tooling-cli-entry` · `tooling-child-process-door` (the `tooling-shared-plumbing` split, `Core-Tooling-Law.md` §4.4) |
-| every instrument whose output is a VERDICT about the app owns a planted-defect proof AND a planted-absence proof | `tooling-instrument-proof` (keyed off `floor/instrument/instruments.ts`) |
+| every instrument whose output is a VERDICT about the app owns a planted-defect proof AND a planted-absence proof | `tests/tooling/instrument-proof.int.test.ts` (keyed off `floor/instrument/instruments.ts`) + the `orb/instrument-verdict-door` restriction |
 | `packages/** ⇏ tooling/**`; provider families stay sealed | `packages-no-tooling` · `tooling-no-provider-families` |
 | `packages/**` and `tooling/**` ⇏ the test kit; the kit enters tooling only through its public doors | `not-to-test` · `tooling-no-testkit` · `testkit-tooling-doors` |
 
