@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P1
+lane: wt/agent-ad3b78de62b3ec825
 ---
 
 # respell --near takes hours of single-core CPU over the whole tree
