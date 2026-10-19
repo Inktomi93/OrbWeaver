@@ -21,4 +21,4 @@ Each refusal class is either decided by the rule (lib and node_modules declarati
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Owner direction: first audit whether the rule should exist in this form. Ask whether package and tier boundaries plus a tightened type, a lint selector or a test can hold the claim; a custom type-aware analysis survives only if none can. Then apply D328 to what survives: an unknown outside the rule's stated claim is advisory, not blocking.
