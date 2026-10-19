@@ -1,4 +1,4 @@
-// The `action-doors` family test (#1584). The family is `duplicate-action-doors` (reviewed-grant) over the
+// The `duplicate-action-doors` family test (#1584). The family is that one reviewed-grant gate over the
 // `actionDoorFact` provider. Everything a PROOF ROW can express lives in its own `mustFlag`/`mustPass`/
 // `mustRefuse` rows and runs on the static bar through `structure:policy-conformance`. This file carries
 // ONLY what a row structurally cannot:

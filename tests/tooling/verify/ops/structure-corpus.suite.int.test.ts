@@ -73,7 +73,7 @@ export const gate = defineGate({
 `;
 }
 
-/** A hard resource policy that reports one finding when its tree holds `docs/flag.md`; with no tree it never reaches `evaluate`. */
+/** A hard resource policy that reports one finding when its tree holds the planted flag file; with no tree it never reaches `evaluate`. */
 function resourcePolicy(repoRoot: string): string {
   const contract = pathToFileURL(join(repoRoot, "tooling/src/verify/contract/policy.ts")).href;
   return `import { defineGate } from ${JSON.stringify(contract)};

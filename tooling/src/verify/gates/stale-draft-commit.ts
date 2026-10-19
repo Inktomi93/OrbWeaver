@@ -8,7 +8,7 @@ import { createDraftCommitHooks, DRAFT_COMMIT_FIX, DRAFT_COMMIT_MESSAGE } from "
 
 export const gate = defineGate({
   id: "stale-draft-commit",
-  family: "draft-commit",
+  family: "stale-draft-commit",
   authority: "ordinary",
   severity: "error",
   population: "@client",
