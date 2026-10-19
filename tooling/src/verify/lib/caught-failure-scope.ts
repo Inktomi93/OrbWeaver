@@ -16,6 +16,7 @@ import {
   literalMember,
   originatesFromFactory,
   propertyValueNode,
+  referencesBinding,
 } from "./caught-failure-core.ts";
 import { isExplicitOwnerCall, isFailureOutcome } from "./caught-failure-outcome.ts";
 import { rawFailureDeclarations } from "./caught-failure-read.ts";
@@ -31,6 +32,11 @@ function entityMutationFactoryOwns(call: CallExpression, reads?: CaughtFailureRe
       return false;
     }
     if (callee.isKind(SyntaxKind.Identifier) && hasInterveningWrite(callee, declaration, reads)) {
+      return false;
+    }
+    // The write guard reads only the importing file, so a hook declared in another module must be a `const`.
+    const foreign = declaration.getSourceFile() !== callee.getSourceFile();
+    if (foreign && declaration.getVariableStatement()?.getDeclarationKind() !== "const") {
       return false;
     }
     const initializer = declaration.getInitializerIfKind(SyntaxKind.CallExpression);
@@ -155,15 +161,39 @@ function assignmentOwns(expression: Node, errorBinding: Node | undefined, reads?
   );
 }
 
-function statementOwner(statement: Node, errorBinding: Node | undefined, returnedOutcomeOwns: boolean, reads?: CaughtFailureReadServices): OwnerVerdict {
-  if (hasNestedEscape(statement)) {
-    return "escape";
-  }
-  if (statement.isKind(SyntaxKind.ThrowStatement)) {
+/** Every way this statement leaves the block is a `return` of a failure outcome, so none of them swallows. */
+function escapesOnlyByRefusal(statement: Node, errorBinding: Node | undefined, reads?: CaughtFailureReadServices): boolean {
+  const kinds = new Set([SyntaxKind.ReturnStatement, SyntaxKind.BreakStatement, SyntaxKind.ContinueStatement]);
+  return statement
+    .getDescendants()
+    .filter((node) => kinds.has(node.getKind()) && !insideNestedFunction(node, statement))
+    .every((node) => {
+      const value = node.isKind(SyntaxKind.ReturnStatement) ? node.getExpression() : undefined;
+      return value !== undefined && isFailureOutcome(value, errorBinding, reads);
+    });
+}
+
+/** The verdict a statement's own control flow decides before its value is read, if any. */
+function controlFlowVerdict(
+  statement: Node,
+  errorBinding: Node | undefined,
+  returnedOutcomeOwns: boolean,
+  reads?: CaughtFailureReadServices,
+): OwnerVerdict | undefined {
+  if (guardedRethrow(statement, errorBinding, reads) || statement.isKind(SyntaxKind.ThrowStatement)) {
     return "owner";
   }
-  if (statement.isKind(SyntaxKind.BreakStatement) || statement.isKind(SyntaxKind.ContinueStatement)) {
-    return "escape";
+  if (hasNestedEscape(statement)) {
+    // A conditional refusal owns its own path; the fall-through still needs an owner of its own.
+    return returnedOutcomeOwns && escapesOnlyByRefusal(statement, errorBinding, reads) ? "none" : "escape";
+  }
+  return statement.isKind(SyntaxKind.BreakStatement) || statement.isKind(SyntaxKind.ContinueStatement) ? "escape" : undefined;
+}
+
+function statementOwner(statement: Node, errorBinding: Node | undefined, returnedOutcomeOwns: boolean, reads?: CaughtFailureReadServices): OwnerVerdict {
+  const decided = controlFlowVerdict(statement, errorBinding, returnedOutcomeOwns, reads);
+  if (decided !== undefined) {
+    return decided;
   }
   const returned = statement.isKind(SyntaxKind.ReturnStatement) ? statement.getExpression() : undefined;
   if (returnedOutcomeOwns && returned !== undefined && isFailureOutcome(returned, errorBinding, reads)) {
@@ -228,6 +258,65 @@ function throwChainsCause(thrown: Node, errorBinding: Node, reads?: CaughtFailur
   });
 }
 
+function propagatesBinding(thrown: Node | undefined, errorBinding: Node, reads?: CaughtFailureReadServices): boolean {
+  return thrown !== undefined && (directlyCarriesBinding(thrown, errorBinding, reads) || throwChainsCause(thrown, errorBinding, reads));
+}
+
+/** A branch that always ends by propagating the caught binding: its last statement throws it (or chains it
+ *  as `cause`), and nothing before that can leave the branch. */
+function branchRethrows(branch: Node | undefined, errorBinding: Node, reads?: CaughtFailureReadServices): boolean {
+  if (branch === undefined) {
+    return false;
+  }
+  const statements = branch.isKind(SyntaxKind.Block) ? branch.getStatements() : [branch];
+  const last = statements.at(-1);
+  const prefixLeaves = statements
+    .slice(0, -1)
+    .some(
+      (statement) =>
+        hasNestedEscape(statement) ||
+        [statement, ...statement.getDescendantsOfKind(SyntaxKind.ThrowStatement)].some(
+          (node) => node.isKind(SyntaxKind.ThrowStatement) && !insideNestedFunction(node, statement),
+        ),
+    );
+  return last?.isKind(SyntaxKind.ThrowStatement) === true && !prefixLeaves && propagatesBinding(last.getExpression(), errorBinding, reads);
+}
+
+/** Does the guard classify the caught failure? It must read the binding itself, or a `const` declared in
+ *  the same block whose initializer reads it. How narrow the guard is stays unjudged. */
+function guardReadsBinding(condition: Node, errorBinding: Node, block: Node, reads?: CaughtFailureReadServices): boolean {
+  if (referencesBinding(condition, errorBinding, reads)) {
+    return true;
+  }
+  const identifiers = condition.isKind(SyntaxKind.Identifier) ? [condition] : condition.getDescendantsOfKind(SyntaxKind.Identifier);
+  return identifiers.some((identifier) =>
+    rawFailureDeclarations(identifier, reads).some((declaration) => {
+      const initializer = declaration.isKind(SyntaxKind.VariableDeclaration) ? declaration.getInitializer() : undefined;
+      const local = declaration.getFirstAncestorByKind(SyntaxKind.VariableStatement)?.getParent() === block;
+      return (
+        local &&
+        declaration.asKind(SyntaxKind.VariableDeclaration)?.getVariableStatement()?.getDeclarationKind() === "const" &&
+        initializer !== undefined &&
+        referencesBinding(initializer, errorBinding, reads)
+      );
+    }),
+  );
+}
+
+/** THE GUARDED RETHROW, the mirror of the discriminated rethrow: `if (!isConflict(err)) { throw err; }`. A
+ *  guard that classifies the caught binding sends every other failure out unchanged, so only the classified
+ *  case reaches the statements that follow. A guard that ignores the binding is not a classification. */
+function guardedRethrow(statement: Node, errorBinding: Node | undefined, reads?: CaughtFailureReadServices): boolean {
+  const block = statement.getParent();
+  if (errorBinding === undefined || block === undefined || !statement.isKind(SyntaxKind.IfStatement)) {
+    return false;
+  }
+  if (!guardReadsBinding(statement.getExpression(), errorBinding, block, reads)) {
+    return false;
+  }
+  return branchRethrows(statement.getThenStatement(), errorBinding, reads) || branchRethrows(statement.getElseStatement(), errorBinding, reads);
+}
+
 function rethrowsCaughtBinding(block: Block, errorBinding: Node | undefined, reads?: CaughtFailureReadServices): boolean {
   if (errorBinding === undefined) {
     return false;
@@ -253,5 +342,6 @@ export function hasExplicitOwner(block: Block, errorBinding: Node | undefined, r
       return rethrowsCaughtBinding(block, errorBinding, reads);
     }
   }
-  return false;
+  // A conditional refusal is an early exit too; it keeps the rethrow credit an escape would have earned.
+  return block.getStatements().some(hasNestedEscape) && rethrowsCaughtBinding(block, errorBinding, reads);
 }

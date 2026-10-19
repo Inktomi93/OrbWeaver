@@ -28,9 +28,6 @@ const SUBSCRIPTION_ERROR_ID = "__error__";
 export async function* withSubscriptionErrors<TData>(
   source: AsyncIterable<TrackedEnvelope<TData>>,
 ): AsyncGenerator<TrackedEnvelope<TData> | TrackedEnvelope<SubscriptionErrorFrame>> {
-  // @orb-waive caught-failure-ownership(err): documented above — a modelled error becomes a
-  // typed terminal frame consumed by the client (and, when it is a provider fault, one log line); an
-  // unmodelled error is re-thrown. Ends if the re-throw for unmodelled errors is removed.
   try {
     yield* source;
   } catch (err) {

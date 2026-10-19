@@ -28,7 +28,6 @@ async function insertAtFreeLabel(db: Db, row: SlotRow, wanted: string): Promise<
 // Two adds can both read a label as free; the slot's unique index refuses the later insert, and one re-read of
 // the owner's labels names the next free one. A second collision is a conflict the caller retries.
 async function insertInFreeSlot(db: Db, row: SlotRow, wanted: string): Promise<string> {
-  // @orb-waive caught-failure-ownership(err): a unique collision is the expected loser of a concurrent add; the retry below re-reads the free labels, and a second collision surfaces as CredentialsConflictError with its cause. Ends if the slot index or the retry goes.
   try {
     return await insertAtFreeLabel(db, row, wanted);
   } catch (err) {

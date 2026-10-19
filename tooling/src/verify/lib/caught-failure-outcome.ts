@@ -137,13 +137,13 @@ function callIsFailureOutcome(value: CallExpression, errorBinding: Node | undefi
   if (type === null) {
     throw new Error("native caught-failure call Type is absent");
   }
-  if (isNativePromiseReject(value, errorBinding, reads) || cannotReturn(value, reads)) {
-    return true;
-  }
-  if (errorBinding === undefined || !referencesBinding(value, errorBinding, reads)) {
-    return false;
-  }
-  return typeIsFailureOutcome(value, reads) || governedFailureFactoryCall(value, reads);
+  // A typed refusal owns without the caught binding: its type or single-return factory body is the proof.
+  return (
+    isNativePromiseReject(value, errorBinding, reads) ||
+    cannotReturn(value, reads) ||
+    typeIsFailureOutcome(value, reads) ||
+    governedFailureFactoryCall(value, reads)
+  );
 }
 
 export function isFailureOutcome(node: Node, errorBinding: Node | undefined, reads?: CaughtFailureReadServices): boolean {

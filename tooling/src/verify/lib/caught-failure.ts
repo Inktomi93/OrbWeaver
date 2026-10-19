@@ -33,19 +33,26 @@
 // Rethrow · a DISCRIMINATED rethrow (a narrowly-guarded early return beside an escaping `throw <the caught
 // binding>`, or a typed wrapper chaining `{ cause: <the caught binding> }` — one documented case, every
 // other failure propagates; fenced on binding IDENTITY, so a substituted value with NO cause, a lossy
-// `String(err)` message, or a throw inside a nested function do NOT count) · a call that CANNOT
-// RETURN (`never`, or `Promise<never>`) — control leaves only by throwing, so it is propagation, and it
-// holds for a bindingless catch · `Promise.reject(err)` of the caught binding (the
+// `String(err)` message, or a throw inside a nested function do NOT count) · a GUARDED rethrow, its mirror
+// (`if (!isConflict(err)) { throw err; }`: the guard reads the caught binding, or a `const` derived from it in
+// the same block, and its branch ends by rethrowing that binding with nothing able to leave first) · a call
+// that CANNOT RETURN (`never`, or `Promise<never>`) — control leaves only by throwing, so it is propagation,
+// and it holds for a bindingless catch · `Promise.reject(err)` of the caught binding (the
 // NATIVE one; a local object named `Promise` does not launder) · a structured contextual log on the
 // governed pino/`getLog` logger · `securityEvent(<named event>)` at that same door (it owns without the
 // caught binding by design — a reject seam must not leak the raw crypto error, so the NAMED reason is the
 // trail) · the governed
 // `notify`/toast manager carrying the failure with non-success copy · a genuine React `useState` SETTER
 // slot (tuple element [1]) fed a failure-VALUED argument · TanStack query/form and `createEntityMutation`
-// with a failure-valued `errorToast` · `withRequestSpan` · a named handler that itself owns · an
-// error-as-data outcome that a real consumer reads. A success discriminator (`{ status: 'ok', error: err }`)
-// REFUSES ownership: carrying the error as incidental data beside a success verdict is the laundering shape.
-// Reassignment kills provenance — a governed initializer overwritten by `x = fake` owns nothing after.
+// with a failure-valued `errorToast`, including a hook imported from another module, which must resolve to a
+// `const` because the write guard reads only the importing file · a try block whose sole statement is one of
+// those framework operations owns its catch whatever the catch returns · `withRequestSpan` · a named handler
+// that itself owns · an error-as-data outcome that a real consumer reads, including a TYPED REFUSAL: a call whose
+// type admits only failure discriminants, or whose single-return factory body is a failure outcome, owns
+// without the caught binding, and a conditional `return <refusal>` is not an escape. A success discriminator
+// (`{ status: 'ok', error: err }`) REFUSES ownership: carrying the error as incidental data beside a success
+// verdict is the laundering shape. Reassignment kills provenance — a governed initializer overwritten by
+// `x = fake` owns nothing after.
 //
 // ── THE ANCHOR IS THE POSITION, AND THE POSITION IS AN EXACT SOURCE SLICE ────────────────────────────────
 // The final ordinary-waiver engine narrows candidates TWICE: carrier containment, then
@@ -74,8 +81,13 @@
 // ── DECLARED LIMITS ─────────────────────────────────────────────────────────────────────────────────────
 // A dynamically-keyed rejection link is unreadable, not assumed · zod's `.catch()` combinator is schema
 // construction, not a promise · a rethrow or owner routed through an opaque helper is invisible to a
-// syntactic reader. The POPULATION fence (which files carry a failure contract at all) is declared once at
-// the foot of this file, because two policies and the census generator must walk the same corpus.
+// syntactic reader, and so is a mutation owner behind a wrapper hook's returned function, an injected save or
+// a local wrapper · a function-valued `errorToast` may return null and is not expanded · the typed-refusal
+// read takes `ok` through `literalValue`, which is undefined for a boolean, so `ok: false` is proven only from
+// a literal or a single-return factory body
+// · a guarded rethrow's guard must read the binding, but how narrow it is stays unjudged. The POPULATION
+// fence (which files carry a failure contract at all) is declared once at the foot of this file, because two
+// policies and the census generator must walk the same corpus.
 //
 // Descendant reads here are bounded SUBTREE analysis of a delivered node plus same-file binding identity —
 // the shared-reader layer's own job (docs/law/gate-runtime-standardization.md §3: "binding identity, static-value
@@ -308,19 +320,17 @@ export function catchAnchor(clause: CatchClause): CaughtFailureAnchor | undefine
 
 /** One CATCH-shaped site. `default` wins over `empty`: a catch that returns a fallback is a behaviour CHANGE
  *  nobody was told about, which is the sharper finding. A try block whose single statement is a governed
- *  TanStack/tracing owner is not a site at all — the same way a framework-owned promise absorber is not one. */
+ *  TanStack/tracing owner is not a site at all, whatever its catch returns: the framework already surfaced
+ *  the failure, the same way a framework-owned promise absorber is not a site. */
 export function catchClauseSite(clause: CatchClause, reads?: CaughtFailureReadServices): CaughtFailureSite | undefined {
-  if (silentDefault(clause, reads)) {
-    return { arm: "default", node: clause, anchor: catchAnchor(clause) };
-  }
-  if (!unownedCatch(clause, reads)) {
-    return;
-  }
   const tryBlock = clause.getParentIfKind(SyntaxKind.TryStatement)?.getTryBlock();
   if (tryBlock !== undefined && hasFrameworkOwner(tryBlock, reads)) {
     return;
   }
-  return { arm: "empty", node: clause, anchor: catchAnchor(clause) };
+  if (silentDefault(clause, reads)) {
+    return { arm: "default", node: clause, anchor: catchAnchor(clause) };
+  }
+  return unownedCatch(clause, reads) ? { arm: "empty", node: clause, anchor: catchAnchor(clause) } : undefined;
 }
 
 export function caughtFailureSite(node: Node, reads: CaughtFailureReadServices): CaughtFailureSite | undefined {
