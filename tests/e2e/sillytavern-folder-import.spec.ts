@@ -16,7 +16,7 @@ import { slugifyHandle } from "@orb/kit/slug";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
-import { charactersRailButton } from "./support/chat-room.ts";
+import { waitForAppReady } from "./support/chat-room.ts";
 import { openConfigGroup as openGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { SELECTED_ST_FOLDER } from "./support/modes.ts";
@@ -101,7 +101,10 @@ async function servedPlan(page: Page, root: string): Promise<TreeImportPlan> {
 }
 
 async function expectRenderedInLibrary(page: Page, name: string): Promise<void> {
-  await charactersRailButton(page).click();
+  // The import ends inside Settings, and a reload restores Settings too. A phone shows its Settings screen without the
+  // section bar there, so the section deep link is the one door to Characters that exists on every viewport.
+  await page.goto("/characters");
+  await waitForAppReady(page);
   const back = page.getByRole("button", { name: "Back to Characters", exact: true });
   const search = page.getByRole("textbox", { name: "Search characters", exact: true });
   await expect(search.or(back).first()).toBeVisible();
