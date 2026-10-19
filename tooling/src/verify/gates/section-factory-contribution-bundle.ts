@@ -25,9 +25,8 @@
 // The canonical `SectionDefinition` is the shared fact's own type target, so a tree that holds no factory
 // at all takes the factory receipt to zero members and is withheld the same way.
 //
-// FAMILY: `registry-definitions` — a REAL shared-reader family, and the reader is
-// `lib/registry-fact.ts#registryDefinitionFacts` (module + function), the one provider every registry
-// policy takes its definition corpus from; this policy consumes its `section` kind.
+// FAMILY: itself, the sole remaining consumer of `lib/registry-fact.ts#registryDefinitionFacts`, the one
+// provider every registry policy takes its definition corpus from; this policy consumes its `section` kind.
 // POPULATION PORT: BYTE-IDENTICAL. Legacy `scanRoot: (p) => p.includes("packages/client/src/")` is
 // exactly `@client`.
 // Re-derived 2026-09-12 by applying the legacy predicate and this declaration to the SAME 7,537-path
@@ -110,7 +109,7 @@ function declaresCanonicalRegistry(type: NativeTypeProjection, canonical: MorphN
 
 export const gate = defineGate({
   id: "section-factory-contribution-bundle",
-  family: "registry-definitions",
+  family: "section-factory-contribution-bundle",
   authority: "ordinary",
   severity: "error",
   population: "@client",

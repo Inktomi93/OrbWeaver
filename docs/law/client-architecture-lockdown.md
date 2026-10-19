@@ -37,7 +37,7 @@ updated: 2026-10-17
 | a rail section whose content ISN'T BUILT yet | a full `SectionDefinition` with `content: { planned: "<reason>" }` — the planned/live union in `state/section-registry.ts` bars list, header and tab context in this case (§6a) | a rail entry with no registration; shipping half-wired | G1 + tsc |
 | a settings group | a `ConfigGroupDefinition` (a `sections` SKIMMER) owned by your feature + one `ConfigSectionContribution` per anchored section, both registered at the root (§8) | a surface inside `features/settings` + an if-ladder branch; a body that stamps an independently minted anchor | G4 + tsc |
 | a tab on the chat context panel from ANOTHER feature | a `ContextTabDef` contributor with a `when` predicate, registered in `main.tsx` (§6c) | importing `#features/chat`; editing the chat panel | G8 + `client-features-no-cross` |
-| a modal | a `ModalDefinition` owned by your feature (self-declares its `trigger`), registered at the root (§6d) | a body in a shell-owned modal-slot map + a route override; a parallel modal trigger map | `modal-registry-completeness` + G2 |
+| a modal | a `ModalDefinition` owned by your feature (self-declares its `trigger`), registered at the root (§6d) | a body in a shell-owned modal-slot map + a route override; a parallel modal trigger map | `orb/modal-definition-home` + G2 |
 | an entity list row | `@orb/ui/list-row` or `#components` `LibraryRow` | a hand-rolled interactive row | G6 |
 | a browse/list over a PAGINATED collection | `createCollectionSurface` | hand-wired `useInfiniteQuery` + list | G9 (seal) |
 | a small bounded list (one-shot fetch) | `useSuspenseQuery` + `LibrarySurfaceShell`/`LibraryListLayout` | `createCollectionSurface` ceremony; a bespoke shell | R1 |
@@ -300,7 +300,7 @@ them:
 6. **`tests/support/browser/ct-door.ts`** — forwards production composition; isolated variants derive from its registries without a second table.
 7. **Mobile fate** — `RailEntry.mobile` is required by the `state/section-registry.ts` contract. Rail chrome actions also require mobile curation; topbar actions may omit it and default to `"tab"`. The door preserves the rail-modal `"sheet"` default.
 8. **Chrome derivation** — `assembleChrome` reads `sections.list()`; an entry you had to hand-add is a G2 parallel map forming.
-9. **Placeholder copy** — `placeholder-copy-registry` requires a distinct (title, description) per section.
+9. **Placeholder copy** — the real-registry test requires a distinct (title, description) per section.
 10. **The rail prose** — `UI-Architecture-and-Layout.md` §4.1's section list.
 
 A membership change that moves a surface between the rail and Settings does this surgery twice: once here, once on the `CONFIG_GROUP_IDS` twin.
@@ -372,10 +372,10 @@ the feature-provided `railFoot`, which owns the account trigger itself. (b) `bod
 declared-planned case `(() => ReactElement) | { planned: string }`, mirroring `SectionDefinition`.
 Delivered via `ModalRegistryContext`, consumed blind by `ModalHost`.
 
-`modal-registry-completeness` mirrors G1: co-location, uniqueness, planned-case honesty, the
-singleton-placement case (one modal per `avatar`/`topbar-command`/`mobile-tab`), and the anti-god-map case.
-`modal-body-not-placeholder` reds a function-case `body` rendering a placeholder component instead of
-`{planned}`. G2's ModalSlotId case (§16) keeps a parallel modal map from re-forming.
+`orb/modal-definition-home` and `orb/modal-definition-literal` mirror G1's co-location;
+`tests/client/compose/authed-composition.dom.test.ts` holds uniqueness, planned-case honesty, the one `mobile-tab`
+placement and surface reachability; `orb/modal-route-registry-map` is the anti-god-map case.
+`orb/modal-body-not-placeholder` reds a modal home importing `SectionPlaceholder`. G2's ModalSlotId case (§16) keeps a parallel modal map from re-forming.
 
 ## 7. The composition root — `main.tsx` (the registration door) + thin routes
 

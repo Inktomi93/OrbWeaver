@@ -96,9 +96,11 @@ The UI enforcement families:
   (`zustand-selector-stability.ts` is the fast narrow-literal check; `zustand-selector-derived.ts` is the
   full-body/second-call-shape comprehensive check), `no-effect-on-shared-selection` (§5.1),
   `persistence-boundary` (§12.1), `no-interactive-role-in-features` (closes the layout-kit
-  interactive-role escape hatch), `orb/surface-a11y-focus`, the registry keystones (`modal-registry-completeness` and the native
+  interactive-role escape hatch), `orb/surface-a11y-focus`, the registry keystones (the native
   `orb/section-definition-home` and `orb/chrome-definition-home` rules — the rail derives modal affordances from the
-  registry, so the bijection is structural — plus `modal-body-not-placeholder`, `placeholder-copy-registry`), and the
+  registry, so the bijection is structural — plus the native `orb/modal-definition-home`,
+  `orb/modal-definition-literal`, `orb/modal-definition-spelling` and `orb/modal-body-not-placeholder` rules and the real-registry test
+  `tests/client/compose/authed-composition.dom.test.ts`), and the
   client-foundation checks (the `queryKey` selector of `no-restricted-syntax`, `no-inline-invalidate-outside-seam`,
   `orb/bus-on-data-no-store-write`, `no-form-reset-in-autosave`), plus the native persisted-store factory
   required-key types and `orb/no-raw-zustand-persist`.
@@ -261,8 +263,8 @@ reduced-motion floor and per-theme `color-scheme`.
   subscribe to token churn. *Gates: `zustand-selector-stability.ts` (narrow) + `zustand-selector-derived.ts`
   (full-body, both call shapes).*
 - **Registry-pairing keystone.** The rail/modal id-pairing is structural: the rail derives modal
-  affordances from the modal registry, so an unpaired id cannot exist. *Gate
-  `modal-registry-completeness`.*
+  affordances from the modal registry, so an unpaired id cannot exist. *Test
+  `tests/client/compose/authed-composition.dom.test.ts` over the real modal registry.*
 - **Typed test-id registry.** A `testId(...)` typed map makes a `data-testid` typo a type error. What it
   does NOT make a type error is a LIVE key whose producer was deleted: the id stays spellable, the
   selector matches nothing, and the assertion fails late or passes falsely. A row lives only as long as a

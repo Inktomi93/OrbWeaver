@@ -1653,6 +1653,12 @@ const CLIENT_STYLE_RESTRICTIONS = [
     ],
   },
 ];
+const MODAL_DEFINITION_HOME = `packages/client/src/features/*/lib/*${DEFINITION_SLOTS.modal}.{ts,tsx}`;
+// A type names the definition bare (`ModalDefinition`), through a namespace import (`S.ModalDefinition`), or as an
+// import type (`import("x").ModalDefinition`, whose name sits under `qualifier` rather than `typeName`).
+const typeReferenceNamed = (path, name) =>
+  `:matches([${path}.typeName.name='${name}'], [${path}.typeName.right.name='${name}'], [${path}.qualifier.name='${name}'], [${path}.qualifier.right.name='${name}'])`;
+const MODAL_DEFINITION_DECLARATOR = `VariableDeclarator${typeReferenceNamed("id.typeAnnotation.typeAnnotation", "ModalDefinition")}`;
 
 const CLIENT_REGISTRY_RESTRICTIONS = [
   ...["sections", "modals"].map((name) => ({
@@ -1666,6 +1672,65 @@ const CLIENT_REGISTRY_RESTRICTIONS = [
       },
     ],
   })),
+  {
+    id: "modal-definition-home",
+    scope: [CLIENT_SRC],
+    notUnder: [MODAL_DEFINITION_HOME],
+    homes: [],
+    selectors: [
+      {
+        selector: MODAL_DEFINITION_DECLARATOR,
+        message: "A ModalDefinition is declared in its feature's lib/<id>-modal.{ts,tsx} (client-architecture-lockdown.md §6d).",
+      },
+      {
+        selector: `:matches(FunctionDeclaration, FunctionExpression, ArrowFunctionExpression)${typeReferenceNamed("returnType.typeAnnotation", "ModalDefinition")}`,
+        message: "A function that returns a ModalDefinition belongs in its feature's lib/<id>-modal.{ts,tsx} (client-architecture-lockdown.md §6d).",
+      },
+    ],
+  },
+  {
+    id: "modal-definition-literal",
+    scope: [MODAL_DEFINITION_HOME],
+    homes: [],
+    selectors: [
+      {
+        selector: `${MODAL_DEFINITION_DECLARATOR}:not([init.type='ObjectExpression']):not([init.type='TSSatisfiesExpression'][init.expression.type='ObjectExpression'])`,
+        message: "A ModalDefinition is written as an inline object literal in its home, not imported, aliased or built (client-architecture-lockdown.md §6d).",
+      },
+    ],
+  },
+  {
+    id: "modal-definition-spelling",
+    scope: [CLIENT_SRC],
+    homes: [],
+    selectors: [
+      {
+        selector: `TSTypeAliasDeclaration${typeReferenceNamed("typeAnnotation", "ModalDefinition")}`,
+        message: "Annotate a modal with ModalDefinition itself; an alias hides the definition from the home rules (client-architecture-lockdown.md §6d).",
+      },
+      {
+        selector:
+          ":matches(ImportSpecifier[imported.name='ModalDefinition']:not([local.name='ModalDefinition']), ExportSpecifier[local.name='ModalDefinition']:not([exported.name='ModalDefinition']))",
+        message:
+          "Import and re-export ModalDefinition under its own name; a renamed binding hides the definition from the home rules (client-architecture-lockdown.md §6d).",
+      },
+    ],
+  },
+  {
+    // Only the shell's own components and surfaces render the placeholder; any other module a modal body can
+    // reach is therefore banned from it, which covers a body written as a reference to an imported component.
+    id: "modal-body-not-placeholder",
+    scope: [CLIENT_SRC],
+    notUnder: ["packages/client/src/features/app-shell/components/**", "packages/client/src/features/app-shell/surfaces/**"],
+    homes: [],
+    selectors: [
+      {
+        selector: `:matches(ImportSpecifier[imported.name='SectionPlaceholder'], ImportSpecifier[imported.value='SectionPlaceholder'], ExportSpecifier[local.name='SectionPlaceholder'], MemberExpression[property.name='SectionPlaceholder'], JSXMemberExpression[property.name='SectionPlaceholder'])`,
+        message:
+          'An unbuilt modal declares `body: { planned: "<reason>" }`; a modal body never renders SectionPlaceholder (client-architecture-lockdown.md §6d).',
+      },
+    ],
+  },
 ];
 
 // A bus event union is a root listed in `@orb/contracts/bus-registry` (it owns a belt there), a listed sub-union,
