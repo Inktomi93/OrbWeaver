@@ -1,8 +1,9 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
+lane: wt/agent-a33d1c29ea416c61f
 ---
 
 # Unite the id-brand gate moves from the type-tests and ids shards
