@@ -60,7 +60,7 @@ export interface PoolRecord extends HostSlotHolder {
 
 export function readHolder(path: string): PoolRecord | null {
   refusePlantedEntry(path);
-  // @orb-waive caught-failure-ownership(catch): an unreadable or torn slot or ticket file is debris and null is the verdict: takeAnySlot prints "an unreadable record" and steals the slot, isHead prints "an unreadable ticket" and prunes it, and liveHolders and hostSlotQueued count it as no live holder. Ends if a caller reads null as "someone holds this".
+  // @orb-waive caught-failure-ownership(catch): an unreadable or torn slot or ticket file is debris and null is the verdict: takeAnySlot prints "an unreadable record" and steals the slot, isHead prints "an unreadable ticket" and prunes it, the lease neither rewrites nor deletes it and prints that it left it, and liveHolders and hostSlotQueued count it as no live holder. Ends if a caller reads null as "someone holds this" or as "mine".
   try {
     const parsed: unknown = JSON.parse(readFileSync(path, "utf8"));
     if (typeof parsed !== "object" || parsed === null) {
@@ -109,7 +109,7 @@ export function holderState(liveness: Liveness, holder: PoolRecord): HolderState
 export const STATE_TEXT: Readonly<Record<Exclude<HolderState, "live">, string>> = { gone: "no such process", silent: "no heartbeat" };
 
 export function defaultAlive(pid: number): boolean {
-  // @orb-waive caught-failure-ownership(catch): kill(pid, 0) asks whether this process can signal the pid, and ESRCH (gone) and EPERM (foreign) both answer false: holderState reads false as "gone", and takeAnySlot and isHead print the steal or prune notice with "no such process". Ends if a caller must tell a live foreign pid from a dead one.
+  // @orb-waive caught-failure-ownership(catch): kill(pid, 0) asks whether this process can signal the pid, and ESRCH (gone) and EPERM (foreign) both answer false: holderState reads false as "gone", and takeAnySlot and isHead report the steal or prune through onNotice with "no such process" (every tooling caller wires it). Ends if a caller must tell a live foreign pid from a dead one.
   try {
     process.kill(pid, 0);
     return true;

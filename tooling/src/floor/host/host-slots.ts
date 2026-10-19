@@ -396,12 +396,20 @@ function isHead(waiter: Waiter, nowMs: number): boolean {
 function lease(waiter: Waiter, path: string, slot: number | null, waitedMs: number): HostSlotLease {
   let released = false;
   const { pid } = waiter;
-  const stillMine = (): boolean => {
+  // An unreadable record is never ours: this lease writes only through rename, so it cannot leave a torn
+  // file. Whoever did is unknown, and the file is neither rewritten nor deleted here.
+  const ownership = (): "mine" | "unreadable" | "other" => {
+    if (!existsSync(path)) {
+      return "other";
+    }
     const current = readHolder(path);
-    return existsSync(path) && (current === null || current.pid === pid);
+    if (current === null) {
+      return "unreadable";
+    }
+    return current.pid === pid ? "mine" : "other";
   };
   const stopBeat = waiter.beat(() => {
-    if (!released && stillMine()) {
+    if (!released && ownership() === "mine") {
       rewriteRecord(path, { pid, startedAt: waiter.startedAt, label: waiter.pool.label, beatMs: waiter.now().getTime() }, pid);
     }
   }, HOLDER_BEAT_MS);
@@ -414,8 +422,11 @@ function lease(waiter: Waiter, path: string, slot: number | null, waitedMs: numb
       }
       released = true;
       stopBeat?.();
-      if (stillMine()) {
+      const owner = ownership();
+      if (owner === "mine") {
         rmSync(path, { force: true });
+      } else if (owner === "unreadable") {
+        waiter.onNotice?.(`host slot file ${path} holds an unreadable record — leaving it in place; it is not provably this run's.`);
       }
     },
   };
