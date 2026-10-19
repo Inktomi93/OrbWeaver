@@ -14,8 +14,8 @@ Each row compares the codemod's HEAD reader with the floor reader it now calls. 
 | `insert` not declared by drizzle-orm (`store.insert(t).values(…)`) | cast (spelling) | no cast | floor: write-ness is the verb's declaration | red-first |
 | factory/wrapper receivers (`make(db).set`, `run(db.update(t))`) | no cast | cast when the factory returns or wraps the builder | floor | covered by `tests/tooling/floor/code-facts/drizzle-write-chain.test.ts` |
 | table argument wrapped in parens/`as`/`!` | text includes the wrapper, so no match | unwrapped by `unwrapTarget` | floor | floor reader tests |
-| file in no native world (legacy tests, D320; excluded config) | cast (syntax only) | no answer | no cast: a typed question with no typed world answers nothing | red-first |
-| worlds disagree | n/a (one syntax answer) | per-world | no cast | `agreedInEveryWorld` |
+| file in no native world (legacy tests, D320; excluded config) | cast (syntax only) | no answer | no cast, and a preview note per file and arm: `LEGACY_ANALYSIS_EXCLUSION_REASON` for `tests/legacy/**`, otherwise "no native compiler world owns this file"; the plan line adds "N skipped, see log" | red-first |
+| worlds disagree | n/a (one syntax answer) | per-world | no cast, and a preview note per site listing every world's answer (`config=table` or `<none>`) | red-first |
 | two `tableScopedIdProps` rows for one prop | only the first row was tested | n/a | every row for the prop is tested | option contract |
 
 ## Drizzle comparison operator (`castIdInComparisons`)
@@ -29,7 +29,7 @@ Each row compares the codemod's HEAD reader with the floor reader it now calls. 
 | local function named `eq` | cast (spelling) | no cast | floor | red-first |
 | namespace `d.eq(…)` | no cast (not an identifier) | cast | floor | floor reader |
 | relational `where: (t, { eq }) => eq(…)` | cast (spelling) | cast by operator parameter | floor | floor reader |
-| file in no native world | cast | no answer | no cast | red-first |
+| file in no native world | cast | no answer | no cast, with the same per-file preview note | red-first |
 | custom `ops` naming a non-drizzle helper | cast by spelling | no cast | floor; `ops` now names drizzle-orm exports (`contract/types.ts`) | no in-repo caller passes `ops` |
 
 ## String-variable arm (`includeStringVars`)
@@ -37,7 +37,8 @@ Each row compares the codemod's HEAD reader with the floor reader it now calls. 
 | Case | HEAD | Now | Kept |
 | - | - | - | - |
 | every world says plain `string` | cast | cast | same |
-| a world cannot locate the node | that world ignored | counts as disagreement, no cast | stricter; the overlay text is identical in every world, so this does not occur on authored files |
+| a world cannot locate the node | that world ignored | counts as disagreement, no cast, with a site note | stricter; the overlay text is identical in every world, so this does not occur on authored files |
+| file in no native world | no cast, silent | no answer | no cast, with a per-file note | same skip reporting as the other typed arms |
 
 ## Exact import spelling (`imports.ts`, `import-routing.ts`)
 

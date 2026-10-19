@@ -46,6 +46,12 @@ The 953 lane's known site (`insertTargetTable` needs the checker while `CodemodC
 | `lib/workspace-specifiers.ts` package-map resolution | Resolves against the before and after trees of a relocation; the after tree is not on disk, so native resolution cannot answer it. |
 | `lib/move-relations.ts:180` `MODULE_EXTENSION.exec` | Extension spelling of a specifier, not a code fact. |
 
+## Typed-arm skips and cost
+
+- `lib/cast-worlds.ts` owns the every-world question. A file no world owns records one skip per file and arm, with `LEGACY_ANALYSIS_EXCLUSION_REASON` under `tests/legacy/` and "no native compiler world owns this file" elsewhere. A site the worlds answer differently records a skip listing each `config=answer`. The plan line adds "N skipped, see log" and the preview log names each skip.
+- Cost, measured on this worktree with a scoped run (`runCodemod` over one strict test file, load average about 20): creating `ctx.semantic()` took 7.0 s; the first typed question (`sourceViews`, which `containingPrograms` in `floor/compiler/ts-workspace.ts` answers by materializing every eligible program) took 61.3 s for 20 eligible programs to find 1 owner, ending at 6.2 GiB RSS. `castIdInComparisons` pays this on its first column-matching call; `castIdInObjectLiterals` pays it only with `tableScopedIdProps` or `includeStringVars`. Fixture runs (one or two worlds) take under 1 s per case.
+- A cheaper owner lookup (`rootOwners`, descriptor roots only) would miss closure-only owners and so weaken disagreement detection; it is a floor cost question for the semantic-inventory reader costs lane, not changed here.
+
 ## Flags for the orchestrator
 
 - `tooling/src/verify/gates/package-deep-import.ts` keeps its own `PACKAGE_SOURCE` regex and a `nextSpelling` that repeats `planDeepImport`'s same/cross-module decision. Both could call `packageFileOf` and one shared spelling reader. Not changed: it is a hard gate outside this item's codemod read side.

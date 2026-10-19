@@ -5,6 +5,8 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { castIdInComparisons, castIdInObjectLiterals } from "../../../../tooling/src/codemod/index.ts";
+import { LEGACY_TEST_WORLD_PROGRAMS } from "../../../../tooling/src/floor/compiler/project-worlds.ts";
+import { LEGACY_ANALYSIS_EXCLUSION_REASON } from "../../../../tooling/src/floor/testing/test-population.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { withTree } from "../_kit-tree.ts";
 
@@ -100,12 +102,62 @@ test("a file outside every native world keeps its always-branded casts and gains
   const config = JSON.stringify({ compilerOptions: { module: "esnext", moduleResolution: "bundler", strict: true, noEmit: true }, exclude: ["tests/outside"] });
   const files = { ...DRIZZLE, "tsconfig.json": config, "tests/owned.test.ts": "export const owned = 1;\n", "tests/outside/seed.test.ts": seed };
   await withTree(files, async ({ run }) => {
-    await run((ctx) => {
+    const { output } = await run((ctx) => {
       ctx.plan(castIdInObjectLiterals(ctx, { ...CAST, alwaysProps: ["chatId"], tableScopedIdProps: [{ table: "chats", prop: "id" }] }));
       ctx.plan(castIdInComparisons(ctx, { ...CAST, columns: ["chats.id"] }));
       const text = ctx.project.getSourceFileOrThrow(join(ctx.repoRoot, "tests/outside/seed.test.ts")).getFullText();
       expect(text).toContain(`db.insert(chats).values({ id: "o1", chatId: ${wrapped('"o2"')} });`);
       expect(text).toContain('eq(chats.id, "o3");');
     });
+    expect(output).toContain("skipped tests/outside/seed.test.ts (table-scoped id): no native compiler world owns this file");
+    expect(output).toContain("skipped tests/outside/seed.test.ts (drizzle operator): no native compiler world owns this file");
+  });
+});
+
+const COMPILER_OPTIONS = { module: "esnext", moduleResolution: "bundler", strict: true, noEmit: true };
+const SKIP_BODY = 'import { eq } from "drizzle-orm";\ndb.insert(chats).values({ id: "s1" });\neq(chats.id, "s2");\n';
+
+test("a legacy file the typed arms cannot read is named in the preview with the D320 exclusion reason", async () => {
+  const files = {
+    ...DRIZZLE,
+    "tsconfig.json": JSON.stringify({ compilerOptions: COMPILER_OPTIONS, include: ["tests/owned.test.ts"] }),
+    [LEGACY_TEST_WORLD_PROGRAMS.node]: JSON.stringify({ compilerOptions: COMPILER_OPTIONS, include: ["tests/legacy/**/*.ts"] }),
+    "tests/owned.test.ts": "export const owned = 1;\n",
+    "tests/legacy/seed.test.ts": `${PRELUDE}${SKIP_BODY}`,
+  };
+  await withTree(files, async ({ run }) => {
+    const { output } = await run((ctx) => {
+      ctx.plan(castIdInObjectLiterals(ctx, { ...CAST, alwaysProps: [], tableScopedIdProps: [{ table: "chats", prop: "id" }] }));
+      ctx.plan(castIdInComparisons(ctx, { ...CAST, columns: ["chats.id"] }));
+    });
+    expect(output).toContain(`skipped tests/legacy/seed.test.ts (table-scoped id): ${LEGACY_ANALYSIS_EXCLUSION_REASON}`);
+    expect(output).toContain(`skipped tests/legacy/seed.test.ts (drizzle operator): ${LEGACY_ANALYSIS_EXCLUSION_REASON}`);
+    expect(output).toContain("cast {chats.id} literals → castId<ChatId> (0 site(s) across 0 file(s); 1 skipped, see log)");
+    expect(output).toContain("cast {chats.id} comparison literals → castId<ChatId> (0 site(s) across 0 file(s); 1 skipped, see log)");
+  });
+});
+
+test("a site the native worlds answer differently is named in the preview with every world's answer", async () => {
+  const stub =
+    "export declare class Builder { values(v: unknown): Builder; }\nexport declare class Db { insert(t: unknown): Builder; }\nexport declare function eq(l: unknown, r: unknown): unknown;\n";
+  const files = {
+    ...DRIZZLE,
+    "stub/drizzle.d.ts": stub,
+    "tsconfig.json": JSON.stringify({ compilerOptions: COMPILER_OPTIONS, include: ["tests/**/*.ts"] }),
+    "tsconfig.stub.json": JSON.stringify({
+      compilerOptions: { ...COMPILER_OPTIONS, paths: { "drizzle-orm": ["./stub/drizzle.d.ts"] } },
+      include: ["tests/**/*.ts"],
+    }),
+    "tests/seed.test.ts": `${PRELUDE}${SKIP_BODY}`,
+  };
+  await withTree(files, async ({ run }) => {
+    const { output } = await run((ctx) => {
+      ctx.plan(castIdInObjectLiterals(ctx, { ...CAST, alwaysProps: [], tableScopedIdProps: [{ table: "chats", prop: "id" }] }));
+      expect(ctx.project.getSourceFileOrThrow(join(ctx.repoRoot, "tests/seed.test.ts")).getFullText()).toBe(`${PRELUDE}${SKIP_BODY}`);
+    });
+    const note = output.split("\n").find((line) => line.includes("skipped tests/seed.test.ts:6 (table-scoped id): native compiler worlds disagree:"));
+    expect(note).toContain("tsconfig.json=chats");
+    expect(note).toContain("tsconfig.stub.json=<none>");
+    expect(output).toContain("(0 site(s) across 0 file(s); 1 skipped, see log)");
   });
 });
