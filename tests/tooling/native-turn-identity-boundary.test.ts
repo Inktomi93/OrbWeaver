@@ -8,6 +8,8 @@ const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/turn-identity-name";
 const ENGINE = "packages/server/src/domain/chat/engine/native-identity-probe.ts";
 const eslint = new ESLint({ cwd: ROOT });
+// The first config resolution loads the whole flat config; pay it at import, not inside the first row's timeout.
+await eslint.calculateConfigForFile(join(ROOT, ENGINE));
 
 test.for([
   { name: "binding and use", source: "export function read(principal: { userId: string }) { return principal.userId; }", count: 2 },

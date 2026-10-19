@@ -28,7 +28,6 @@ const APPLICATION = Object.freeze({
   "no-raw-egress": 1,
   "no-vanity-alias": 91,
   "nullable-column-inequality": 1,
-  "one-principal-mint-population": 2,
   "over-art-plate-arm": 1,
   "owner-scoped-reads": 56,
   "owner-scoped-writes": 29,

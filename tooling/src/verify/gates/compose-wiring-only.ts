@@ -24,6 +24,7 @@ const IDENTITY_CONTRACT = "packages/contracts/src/identity/index.ts";
 const PRINCIPAL_FIELDS = "packages/server/src/domain/sessions/contract/results.ts";
 const IDS_CONTRACT = "packages/kit/src/ids/index.ts";
 const ROLE_DATA = "packages/server/src/primitives/role-data/index.ts";
+const PRINCIPAL_MINT = "packages/server/src/entry/auth/principal-mint.ts";
 const RATE_POLICY = "packages/server/src/entry/rate-limit-gate.ts";
 const RATE_LIMITER = "packages/server/src/transport/rate-limit.ts";
 const RATE_PORT = "packages/server/src/transport/trpc/context.ts";
@@ -553,6 +554,19 @@ function literalString(node: MorphNode | undefined, value: string): boolean {
   return Node.isStringLiteral(node) && node.getLiteralText() === value;
 }
 
+/** The fields object a `mintPrincipal({ … })` call hands the one Principal constructor. */
+function mintedFields(node: MorphNode | undefined): MorphNode | undefined {
+  if (
+    !Node.isCallExpression(node) ||
+    node.getTypeArguments().length > 0 ||
+    node.getArguments().length !== 1 ||
+    !canonicalReference(node.getExpression(), PRINCIPAL_MINT, "mintPrincipal")
+  ) {
+    return;
+  }
+  return node.getArguments()[0];
+}
+
 /** D135's absent-row floor: the role-data primitive's own capture of the literal `"user"` code. */
 function capturedUserFloor(node: MorphNode | undefined): boolean {
   return (
@@ -628,7 +642,7 @@ function canonicalPrincipalProjection(fn: MorphNode): boolean {
   const body = fn.getBody();
   const statements = Node.isBlock(body) ? body.getStatements() : [];
   const [statement] = statements;
-  const value = Node.isReturnStatement(statement) ? statement.getExpression() : undefined;
+  const value = mintedFields(Node.isReturnStatement(statement) ? statement.getExpression() : undefined);
   if (statements.length !== 1 || !Node.isObjectLiteralExpression(value)) {
     return false;
   }
@@ -704,11 +718,13 @@ const PRINCIPAL_TYPE_FILES = {
     'import type { Handle, ExternalId } from "../../../../../kit/src/ids/index.ts";\nimport type { UserRoleState } from "../../../../../contracts/src/identity/index.ts";\nexport interface UserPrincipalFields { role: UserRoleState; handle: Handle; externalId: ExternalId | null; enabled: boolean; }\n',
   [ROLE_DATA]:
     'import type { UserRole, UserRoleState } from "../../../../contracts/src/identity/index.ts";\nexport declare function captureUserRole(code: UserRole): UserRoleState;\n',
+  [PRINCIPAL_MINT]:
+    'import type { Principal } from "../../../../contracts/src/identity/index.ts";\nexport declare function mintPrincipal(fields: Principal): Principal;\n',
 };
 const PRINCIPAL_IMPORTS =
-  'import type { Principal } from "../../../../contracts/src/identity/index.ts";\nimport type { UserId, Handle } from "../../../../kit/src/ids/index.ts";\nimport { castId } from "../../../../kit/src/ids/index.ts";\nimport { captureUserRole } from "../../primitives/role-data/index.ts";\nimport type { UserPrincipalFields } from "../../domain/sessions/contract/results.ts";\n';
+  'import type { Principal } from "../../../../contracts/src/identity/index.ts";\nimport type { UserId, Handle } from "../../../../kit/src/ids/index.ts";\nimport { castId } from "../../../../kit/src/ids/index.ts";\nimport { captureUserRole } from "../../primitives/role-data/index.ts";\nimport { mintPrincipal } from "./principal-mint.ts";\nimport type { UserPrincipalFields } from "../../domain/sessions/contract/results.ts";\n';
 const PRINCIPAL_MAPPER =
-  'function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): Principal {\n  return { userId, role: fields?.role ?? captureUserRole("user"), handle: fields?.handle ?? castId<Handle>(userId), externalId: fields?.externalId ?? null, via: "fallback" };\n}\n';
+  'function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): Principal {\n  return mintPrincipal({ userId, role: fields?.role ?? captureUserRole("user"), handle: fields?.handle ?? castId<Handle>(userId), externalId: fields?.externalId ?? null, via: "fallback" });\n}\n';
 const PRINCIPAL_BRIDGE = "export function bridge(userId: UserId, fields: UserPrincipalFields | null): Principal { return principalFromRow(userId, fields); }\n";
 const PRINCIPAL_COMPOSE = 'import { bridge } from "../auth/seam.ts";\nexport function build() { return { principal: bridge }; }\n';
 
@@ -975,7 +991,29 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...PRINCIPAL_TYPE_FILES,
-        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER.replace("  return {", '  if (!fields?.enabled) { throw new Error("disabled"); }\n  return {')}${PRINCIPAL_BRIDGE}`,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS.replace('"./principal-mint.ts"', '"./lookalike.ts"')}${PRINCIPAL_MAPPER}${PRINCIPAL_BRIDGE}`,
+        "packages/server/src/entry/auth/lookalike.ts":
+          'import type { Principal } from "../../../../contracts/src/identity/index.ts";\nexport declare function mintPrincipal(fields: object): Principal;\n',
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "principalFromRow", messageIncludes: "decides per call" },
+      why: "a same-named constructor outside principal-mint.ts is not the one Principal mint",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER.replace("return mintPrincipal({", "return {").replace(" });\n}", " };\n}")}${PRINCIPAL_BRIDGE}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
+      },
+      expect: { count: 1, token: "principalFromRow", messageIncludes: "decides per call" },
+      why: "a projection that bypasses the branded constructor is not the canonical mint, even with the canonical floor",
+    },
+    {
+      mode: "types",
+      files: {
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER.replace("  return mintPrincipal({", '  if (!fields?.enabled) { throw new Error("disabled"); }\n  return mintPrincipal({')}${PRINCIPAL_BRIDGE}`,
         [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
       },
       expect: { count: 1, token: "principalFromRow", messageIncludes: "decides per call" },
@@ -1232,7 +1270,7 @@ export const gate = defineGate({
       mode: "types",
       files: {
         ...PRINCIPAL_TYPE_FILES,
-        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER.replace("return { userId,", "return { userId: userId,")}${PRINCIPAL_BRIDGE}`,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER.replace("mintPrincipal({ userId,", "mintPrincipal({ userId: userId,")}${PRINCIPAL_BRIDGE}`,
         [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
       },
       why: "an explicit property forward denotes the same parameter as shorthand; source spelling cannot turn the row projection into admission",
