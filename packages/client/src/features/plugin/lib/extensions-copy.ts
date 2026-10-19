@@ -64,7 +64,7 @@ export const EXTENSIONS_REVIEW_PLUGINS_ACTION = "Review plugins";
 
 /**
  * The teaching EMPTIES (§4.5b) — one per reason, each naming its own next step, which is why every arm
- * carries an action (`empty-state-has-action`).
+ * carries an action (EmptyState requires one).
  *
  * THIS MAP IS THE AXIS ITSELF, not a lookup beside a separately-declared union: the reason type is
  * `keyof typeof EXTENSIONS_EMPTY_COPY`, derived at every consumer (`use-extensions-empty.ts`). One home, and

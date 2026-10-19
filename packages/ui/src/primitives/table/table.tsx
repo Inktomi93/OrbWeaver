@@ -327,7 +327,8 @@ export function Table<TData>({
             {pageEntries.length === 0 ? (
               <tr>
                 <td className={slots.emptyCell()} colSpan={columnCount}>
-                  {emptyState ?? <EmptyState title="No data" />}
+                  {/* action={null}: the default is a bare fact; a caller with a next step passes `emptyState`. */}
+                  {emptyState ?? <EmptyState action={null} title="No data" />}
                 </td>
               </tr>
             ) : (

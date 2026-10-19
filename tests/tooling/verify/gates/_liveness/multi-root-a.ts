@@ -24,7 +24,6 @@ import { gate as busProducerCoverage } from "../../../../../tooling/src/verify/g
 import { gate as caughtFailureCensusRow } from "../../../../../tooling/src/verify/gates/caught-failure-census-row.ts";
 import { gate as caughtFailureOwnership } from "../../../../../tooling/src/verify/gates/caught-failure-ownership.ts";
 import { gate as caughtFailureOwnershipHealth } from "../../../../../tooling/src/verify/gates/caught-failure-ownership-health.ts";
-import { gate as contractBannedShapes } from "../../../../../tooling/src/verify/gates/contract-banned-shapes.ts";
 import { gate as contractVerbPresence } from "../../../../../tooling/src/verify/gates/contract-verb-presence.ts";
 import { gate as cssLengthTokens } from "../../../../../tooling/src/verify/gates/css-length-tokens.ts";
 import { gate as cssLengthTokensGrants } from "../../../../../tooling/src/verify/gates/css-length-tokens-grants.ts";
@@ -142,12 +141,6 @@ export const MULTI_ROOT_A_ARMS: readonly RealCorpusLivenessArm[] = [
       add("packages/client/src/features/chat/lib/liveness-raw.ts", "export function livenessRaw(): void {\n  void save().catch(() => undefined);\n}\n"),
     ],
     messageIncludes: "UNPROVEN OWNERSHIP",
-  },
-  {
-    policy: contractBannedShapes,
-    // The ledger killed `Principal.kind` by name (D60).
-    overlays: [add(`${CONTRACTS}/liveness-principal.ts`, "export interface Principal {\n  userId: string;\n  kind: string;\n}\n")],
-    messageIncludes: "D60",
   },
   {
     policy: contractVerbPresence,

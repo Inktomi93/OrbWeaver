@@ -31,7 +31,7 @@ const TOP_TAGS_LIMIT = 40;
 
 /** The stored `caption_meta` property a drill name pivots on — the inverse of the ONE authored map. Resolved
  *  by scan rather than a module-scope lookup table: sixteen entries once per drill call is free, and a
- *  module-scope `Map` is per-process state the `assumes-single-replica` gate correctly refuses. */
+ *  module-scope `Map` is per-process state the `orb/assumes-single-replica` rule correctly refuses. */
 function metaKeyOf(facet: ImageFacetKey): ImageFacetMetaKey | undefined {
   const entries = Object.entries(IMAGE_FACET_DRILL_KEY) as [ImageFacetMetaKey, ImageFacetKey][];
   return entries.find(([, drill]) => drill === facet)?.[0];

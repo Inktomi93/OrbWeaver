@@ -1,4 +1,5 @@
 // The opaque token carries no serializable material; sealed identity stays in this owner's private map.
+// ASSUMES(single-replica): the map is keyed by object identity and a witness never leaves this process, so there is no DB seam.
 
 import type { CredentialExecutionWitness } from "@orb/contracts/credentials";
 import type { CapturedCredentialExecution } from "../contract/execution-witness.ts";

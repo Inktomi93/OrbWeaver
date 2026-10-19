@@ -7,7 +7,6 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as emptyStateHasAction } from "../../../../tooling/src/verify/gates/empty-state-has-action.ts";
 import { gate as noInlineDomainInterface } from "../../../../tooling/src/verify/gates/no-inline-domain-interface.ts";
 import { gate as noInlinePackageInterface } from "../../../../tooling/src/verify/gates/no-inline-package-interface.ts";
 import { gate as noInlineTypes } from "../../../../tooling/src/verify/gates/no-inline-types.ts";
@@ -22,7 +21,6 @@ import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/v
 import { scaledBudget } from "../../_load-budget.ts";
 
 const FAMILY: readonly GatePolicy[] = [
-  emptyStateHasAction,
   noInlineDomainInterface,
   noInlinePackageInterface,
   noInlineTypes,
@@ -158,19 +156,6 @@ test("a waiver naming the WRONG position suppresses nothing and reports a dead p
 
   expect(mismatched.authority.effectiveFindings).toHaveLength(1);
   expect(mismatched.authority.authorityAlarms).toMatchObject([{ kind: "ordinary-waiver", policyId: "no-inline-types" }]);
-});
-
-test("empty-state-has-action reports the AUTHORED tag as its position, so an aliased render is waivable", () => {
-  const waived = passOf(emptyStateHasAction, {
-    "packages/ui/src/primitives/empty-state/empty-state.tsx": "export declare function EmptyState(props: { title: string; action?: unknown }): unknown;\n",
-    "packages/client/src/features/demo/alias.tsx":
-      'import { EmptyState as Empty } from "../../../../ui/src/primitives/empty-state/empty-state.tsx";\n' +
-      "// @orb-waive empty-state-has-action(Empty): the proof's stand-in reason and its end condition.\n" +
-      'export const G = (): unknown => <Empty title="Nothing here" />;\n',
-  });
-
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
 });
 
 // ---------------------------------------------------------------------------------------------------

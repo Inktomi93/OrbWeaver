@@ -17,7 +17,6 @@ import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
-import { CONTRACT_BANNED_SHAPES } from "@orb/tooling/verify";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const CONFIG_REL = "biome.json";
@@ -137,12 +136,4 @@ test("the row itself: one pattern group covering the specifier and its subpaths,
   }
   expect((row.group ?? []).toSorted()).toEqual(EXPECTED_GROUP.toSorted());
   expect(row.message, "the ban must carry its D-cite and where to contest it").toMatch(/D12/u);
-});
-
-test("the ledger vocabulary stays non-empty and free of the retired import kind", () => {
-  // An emptied table is a silently unarmed policy, and an `import` row reappearing here would be the mirror of
-  // a native lint rule that deliberately owns it.
-  expect(CONTRACT_BANNED_SHAPES.length).toBeGreaterThan(0);
-  const kinds = new Set(CONTRACT_BANNED_SHAPES.map((shape) => shape.kind));
-  expect([...kinds].sort()).toEqual(["interface-field", "schema-field"]);
 });

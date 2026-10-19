@@ -52,7 +52,7 @@ The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is
 
 4. **Audit never breaks the primary channel (suppress → count → drop).** A db failure inside `logAudit` logs at `error`, increments the sticky counter, drops; every 25th drop (`ALERT_EVERY`) trips a `security:true` `audit_sustained_failure` warn. Window is process-lifetime.
 
-5. **The in-memory rings ASSUME single-replica.** Log ring (2000), request ring (500), trace ring (500), audit failure window — all module-scope, per-process. Carry `ASSUMES(single-replica)` (the `assumes-single-replica` gate); the rings are the seam to externalize if that's ever reversed.
+5. **The in-memory rings ASSUME single-replica.** Log ring (2000), request ring (500), trace ring (500), audit failure window — all module-scope, per-process. Carry `ASSUMES(single-replica)` (the `orb/assumes-single-replica` lint rule); the rings are the seam to externalize if that's ever reversed.
 
 6. **`logger.level` rebind on settings reload.** Pino captures `level` at construction; `reloadEffectiveConfig` (settings) sets `logger.level` on every admin write — the one sanctioned higher-tier→foundation-singleton mutation.
 
@@ -75,6 +75,6 @@ The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is
 3. **The `superRefine` boot-fatality holds.** *(test-time.)*
 4. **`logAudit` never throws to the caller; the 25th drop warns.** *(test-time.)*
 5. **RP content never logged; redact + attr truncation hold.** *(lint + test-time.)*
-6. **The rings carry `ASSUMES(single-replica)`.** *(`assumes-single-replica` gate.)*
+6. **The rings carry `ASSUMES(single-replica)`.** *(`orb/assumes-single-replica` lint rule.)*
 7. **The debug surface is OFF by default** — no `DEBUG_TOKEN` + no admin → 404; wrong token → 401; `isAdmin` throwing does NOT open the gate. *(test-time.)*
 8. **The floor-merge is NOT in foundation; the foundation↑ seams are structural ports, not imports.** *(resolve-time + review.)*

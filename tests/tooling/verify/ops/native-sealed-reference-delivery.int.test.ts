@@ -6,7 +6,6 @@ import { Node } from "ts-morph";
 import { beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { gate as discovery } from "../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
-import { gate as empty } from "../../../../tooling/src/verify/gates/empty-state-has-action.ts";
 import { gate as membership } from "../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as scrubber } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { gate as identity } from "../../../../tooling/src/verify/gates/turn-identity.ts";
@@ -26,7 +25,7 @@ beforeEach(async () => {
   };
 });
 
-const POLICIES = [scrubber, membership, identity, discovery, empty];
+const POLICIES = [scrubber, membership, identity, discovery];
 const SERVER = "packages/server/src/domain/chat/verbs/subject.ts";
 const ENGINE = "packages/server/src/domain/chat/engine/subject.ts";
 const DISCOVERY = "packages/server/src/domain/discovery/subject.ts";
@@ -44,21 +43,19 @@ function fixture(root: string, repoRoot: string): void {
     "packages/db/src/schema/tables.ts": "export const users={};export const ownerStats={};",
     "packages/db/src/query/index.ts": "export function fetchOwned():object{return {};}",
     "packages/contracts/src/identity/index.ts": "export interface Principal {readonly userId:string;}",
-    "packages/ui/src/primitives/empty-state/index.tsx": "export declare function EmptyState(props:object):object;",
-    "foreign.ts": "export function createHiddenSpanStreamScrubber():object{return {};}export function EmptyState():object{return {};}",
+    "foreign.ts": "export function createHiddenSpanStreamScrubber():object{return {};}",
     [SERVER]:
       "import {createHiddenSpanStreamScrubber} from '#scrubber';\nimport {users} from '#tables';\nimport {fetchOwned} from '#owned';\nexport const value=[createHiddenSpanStreamScrubber(),users,fetchOwned];\n",
     [ENGINE]: "import type {Principal as Caller} from '#identity';\nexport const value:Caller={userId:'u'};\n",
     [DISCOVERY]: "import * as schema from '#tables';\nexport const value=schema.ownerStats;\n",
-    [CLIENT]:
-      "import {EmptyState as Empty} from '#empty';\nimport * as content from '#scrubber';\nexport const value=<Empty/>;\ncontent.createHiddenSpanStreamScrubber();\n",
+    [CLIENT]: "import * as content from '#scrubber';\ncontent.createHiddenSpanStreamScrubber();\n",
   };
   for (const [path, text] of Object.entries(sources)) {
     write(path, text);
   }
   const compilerOptions = { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, skipLibCheck: true, jsx: "preserve", types: [] };
   write("tsconfig.json", JSON.stringify({ compilerOptions, files: Object.keys(sources) }));
-  for (const pkg of ["server", "client", "kit", "db", "contracts", "ui"]) {
+  for (const pkg of ["server", "client", "kit", "db", "contracts"]) {
     write(
       `packages/${pkg}/tsconfig.json`,
       JSON.stringify({
@@ -76,7 +73,6 @@ function fixture(root: string, repoRoot: string): void {
       type: "module",
       imports: {
         "#scrubber": { browser: "./foreign.ts", default: "./packages/kit/src/content/index.ts" },
-        "#empty": { browser: "./packages/ui/src/primitives/empty-state/index.tsx", default: "./foreign.ts" },
         "#tables": "./packages/db/src/schema/tables.ts",
         "#owned": "./packages/db/src/query/index.ts",
         "#identity": "./packages/contracts/src/identity/index.ts",
@@ -125,10 +121,7 @@ test(
     const getContext = vi.spyOn(contexts, "projectCtx").mockReturnValue(context);
     using _poison = poisonSyntax(context.project);
     try {
-      const exits = [
-        await nativeVerifyFixture(scratch, "structure", ["--check=scrubber-home"], { forbidSyntax: true }),
-        await nativeVerifyFixture(scratch, "structure", ["--check=empty-state-has-action", `--file=${CLIENT}`], { forbidSyntax: true }),
-      ];
+      const exits = [await nativeVerifyFixture(scratch, "structure", ["--check=scrubber-home"], { forbidSyntax: true })];
       const result = runPolicyPass({
         root: scratch,
         project: context.project,
@@ -138,7 +131,7 @@ test(
         reviewedGrants: [],
         failOnWarnings: false,
       });
-      expect.soft(exits).toEqual([1, 1]);
+      expect.soft(exits).toEqual([1]);
       expect(result.toolErrors).toEqual([]);
       expect(result.policies.map(({ id, findings }) => ({ id, findings: findings.map(({ file, token }) => ({ file, token })) }))).toEqual(
         [
@@ -146,7 +139,6 @@ test(
           { id: membership.id, findings: [{ file: SERVER, token: "fetchOwned" }] },
           { id: identity.id, findings: [{ file: ENGINE, token: "Principal" }] },
           { id: discovery.id, findings: [{ file: DISCOVERY, token: "ownerStats" }] },
-          { id: empty.id, findings: [{ file: CLIENT, token: "Empty" }] },
         ].toSorted((left, right) => left.id.localeCompare(right.id)),
       );
     } finally {
@@ -203,19 +195,9 @@ const LEFT=RIGHT;const RIGHT=LEFT;schema[LEFT];
 const local={ownerStats:1};local.ownerStats;
 `,
     );
-    writeFileSync(
-      join(scratch, CLIENT),
-      `import {EmptyState as Empty} from '#empty';
-const Alias=Empty;
-// @orb-waive empty-state-has-action(Alias): intentional dead-end fixture; ends with this test.
-export const value=<Alias/>;
-export const action=<Empty action/>;
-export const spread=<Empty {...{}}/>;
-`,
-    );
     const context = projectCtx(scratch);
     using _poison = poisonSyntax(context.project);
-    const selected = [membership, identity, discovery, empty];
+    const selected = [membership, identity, discovery];
     const result = runPolicyPass({
       root: scratch,
       project: context.project,
@@ -239,9 +221,7 @@ export const spread=<Empty {...{}}/>;
       { line: 6, column: 10, token: "ownerStats" },
       { line: 8, column: 9, token: "STABLE" },
     ]);
-    expect(positions(empty.id)).toEqual([{ line: 4, column: 21, token: "Alias" }]);
     expect(result.authority.waivedFindings.map(({ finding }) => [finding.policyId, finding.token])).toEqual([
-      [empty.id, "Alias"],
       [identity.id, "KEY"],
       [membership.id, "FETCH"],
       [membership.id, "OWNER"],

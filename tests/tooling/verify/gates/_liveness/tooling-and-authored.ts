@@ -9,7 +9,6 @@
 // roster every roster-reading policy in the shared pass sees.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as evaluateNoScopeCapture } from "../../../../../tooling/src/verify/gates/evaluate-no-scope-capture.ts";
 import { gate as noHardcodedModelProse } from "../../../../../tooling/src/verify/gates/no-hardcoded-model-prose.ts";
 import { gate as noRawId } from "../../../../../tooling/src/verify/gates/no-raw-id.ts";
 import { gate as playwrightLaneOutsideFastCheck } from "../../../../../tooling/src/verify/gates/playwright-lane-outside-fast-check.ts";
@@ -26,16 +25,6 @@ function add(path: string, source: string): RealCorpusOverlay {
 }
 
 export const TOOLING_AND_AUTHORED_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: evaluateNoScopeCapture,
-    overlays: [
-      add(
-        "tooling/src/snap/ops/liveness-evaluate.ts",
-        'const MARK = "data-mark";\nexport async function tag(loc: { evaluate: (fn: unknown) => Promise<void> }): Promise<void> {\n  await loc.evaluate((el: { setAttribute: (n: string, v: string) => void }) => el.setAttribute(MARK, "1"));\n}\n',
-      ),
-    ],
-    messageIncludes: "MODULE-SCOPE binding",
-  },
   {
     policy: noHardcodedModelProse,
     // The dead-catalog arm reads a fixed catalog path, so the real catalog is swapped for one dead const.

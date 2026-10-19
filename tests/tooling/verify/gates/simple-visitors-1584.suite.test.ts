@@ -1,7 +1,5 @@
 // The standing conformance + differential net for retained #1584 conversions (`p-simple-visitors-o` lane):
 //
-//   assumes-single-replica          — module-scope mutable per-process state classifier (unchanged shape;
-//                                      the array-mutator subtree walk inverted into a second visitor).
 //   no-vanity-alias                 — import/export alias identity, three arms in one policy (unchanged
 //                                      predicate; the whole-file identifier-frequency census inverted into
 //                                      an Identifier visitor).
@@ -21,7 +19,6 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as assumesSingleReplica } from "../../../../tooling/src/verify/gates/assumes-single-replica.ts";
 import { gate as noHardcodedModelProse } from "../../../../tooling/src/verify/gates/no-hardcoded-model-prose.ts";
 import { gate as noVanityAlias } from "../../../../tooling/src/verify/gates/no-vanity-alias.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -29,7 +26,7 @@ import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-co
 
 const ROOT = "/simple-visitors-1584";
 
-const FAMILY: readonly GatePolicy[] = [assumesSingleReplica, noVanityAlias, noHardcodedModelProse];
+const FAMILY: readonly GatePolicy[] = [noVanityAlias, noHardcodedModelProse];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true });
@@ -52,22 +49,22 @@ test("the retained #1584 conversions pass their production proof runtime", () =>
 // family: the ordinary arms report a real,
 // paren/newline/solidus-free authored token (a bare declared name, a route method name, an original
 // alias name, or the first STATIC word of a prose unit skipping `${…}` interpolation) — the same
-// mechanism, so one drive stands for all. Driven on `assumes-single-replica`.
+// mechanism, so one drive stands for all. Driven on `no-vanity-alias`.
 // ---------------------------------------------------------------------------------------------------
-test("a correctly-addressed ordinary waiver on assumes-single-replica suppresses the finding", () => {
-  const waived = passOf(assumesSingleReplica, {
+test("a correctly-addressed ordinary waiver on no-vanity-alias suppresses the finding", () => {
+  const waived = passOf(noVanityAlias, {
     "packages/server/src/domain/hub/x.ts":
-      "// @orb-waive assumes-single-replica(cache): temporary, tracked in #0000.\nexport const cache = new Map<string, number>();\n",
+      '// @orb-waive no-vanity-alias(Foo): temporary, tracked in #0000.\nimport { Foo as Bar } from "@orb/kit/x";\nexport const use = Bar();\n',
   });
   expect(waived.authority.effectiveFindings).toEqual([]);
   expect(waived.authority.waivedFindings).toHaveLength(1);
   expect(waived.authority.authorityAlarms).toEqual([]);
 });
 
-test("a waiver naming a DEAD (mismatched) position on assumes-single-replica alarms and suppresses nothing", () => {
-  const mismatched = passOf(assumesSingleReplica, {
+test("a waiver naming a DEAD (mismatched) position on no-vanity-alias alarms and suppresses nothing", () => {
+  const mismatched = passOf(noVanityAlias, {
     "packages/server/src/domain/hub/x.ts":
-      "// @orb-waive assumes-single-replica(nonexistent): names a position this finding does not report.\nexport const cache = new Map<string, number>();\n",
+      '// @orb-waive no-vanity-alias(nonexistent): names a position this finding does not report.\nimport { Foo as Bar } from "@orb/kit/x";\nexport const use = Bar();\n',
   });
   expect(mismatched.authority.effectiveFindings).toHaveLength(1);
   expect(mismatched.authority.authorityAlarms.some((alarm) => alarm.message.includes("dead position"))).toBe(true);

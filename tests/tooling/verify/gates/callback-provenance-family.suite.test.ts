@@ -6,14 +6,13 @@ import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.
 import { gate as auditClientTests } from "../../../../tooling/src/verify/gates/audit-client-tests.ts";
 import { gate as detachedWorkTraced } from "../../../../tooling/src/verify/gates/detached-work-traced.ts";
 import { gate as diagnosticLegibility } from "../../../../tooling/src/verify/gates/diagnostic-legibility.ts";
-import { gate as evaluateNoScopeCapture } from "../../../../tooling/src/verify/gates/evaluate-no-scope-capture.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/callback-provenance-family";
 
-const FAMILY: readonly GatePolicy[] = [diagnosticLegibility, evaluateNoScopeCapture, auditClientTests, detachedWorkTraced];
+const FAMILY: readonly GatePolicy[] = [diagnosticLegibility, auditClientTests, detachedWorkTraced];
 
 const TRACING = "packages/server/src/foundation/observability/tracing.ts";
 const HEALTHY_TRACING =
@@ -46,10 +45,9 @@ test("the callback and detached-work policies pass their production proof runtim
 });
 
 // ---------------------------------------------------------------------------------------------------
-// THE FIXTURE-SPECIFIER RESOLUTION CONTROL (§6.5). `evaluate-no-scope-capture`'s ARM-B row is a
-// CROSS-MODULE import, so a dangling specifier there would make it pass by fail-closure — the resolver
-// returns no symbol, the callback never resolves, and the row's single finding would have to come from
-// somewhere else entirely.
+// THE FIXTURE-SPECIFIER RESOLUTION CONTROL (§6.5). A proof row that imports across modules would pass by
+// fail-closure on a dangling specifier — the resolver returns no symbol and the row's finding would have to
+// come from somewhere else entirely.
 // ---------------------------------------------------------------------------------------------------
 function danglingSpecifiers(files: readonly SourceFile[]): readonly string[] {
   return files
@@ -88,32 +86,15 @@ test("every relative import in every declared proof resolves inside the proof's 
 // a helper hides them from the `useExpect` lint, and an arm that silently asserts nothing is exactly the
 // defect class this file exists to close.
 //
-// EVERY ONE OF THESE FOUR POLICIES SHIPPED `authority: "ordinary"` WITH NO WORKING DOOR (§3, "ordinary is
-// a claim about the door"). Three passed a SYNTHETIC token at `offset: 0` — `no-assertion`,
-// `async-no-await`, `cancel_2` — which `report.node` now validates against the node text and would THROW
-// on, and which `locateFinding` could never have bound because they are not authored text. The fourth
-// reported a FILE finding with a `column: 0` anchor `locateFinding` refuses outright. So these four arms
-// are not a formality: they are the first proof that any of these policies has a usable door at all.
+// THESE POLICIES SHIPPED `authority: "ordinary"` WITH NO WORKING DOOR (§3, "ordinary is a claim about the
+// door"): a synthetic token at `offset: 0` is not authored text, so `locateFinding` could never bind a waiver
+// to it. These arms are the first proof that each policy has a usable door at all.
 // ---------------------------------------------------------------------------------------------------
 const REASON = "the proof's stand-in reason; ends when this fixture stops flagging.";
 
 test("diagnostic-legibility: a waiver naming the PROPERTY NAME binds to its own finding", () => {
   const waived = passOf(diagnosticLegibility, {
     "tooling/src/verify/gates/waived.ts": `// @orb-waive diagnostic-legibility(message): ${REASON}\nexport const gate = { message: "a bare diagnostic with no home" };\n`,
-  });
-
-  expect(waived.toolErrors).toEqual([]);
-  expect(waived.authority.effectiveFindings).toEqual([]);
-  expect(waived.authority.waivedFindings).toHaveLength(1);
-  expect(waived.authority.authorityAlarms).toEqual([]);
-});
-
-test("evaluate-no-scope-capture: a waiver naming the CAPTURED IDENTIFIER binds to its own finding", () => {
-  const waived = passOf(evaluateNoScopeCapture, {
-    "tooling/src/snap/ops/waived.ts":
-      `const MARK = "data-mark";\nasync function tag(loc: { evaluate: (fn: unknown) => Promise<void> }): Promise<void> {\n` +
-      `  // @orb-waive evaluate-no-scope-capture(MARK): ${REASON}\n` +
-      `  await loc.evaluate((el: { setAttribute: (n: string, v: string) => void }) => el.setAttribute(MARK, "1"));\n}\n`,
   });
 
   expect(waived.toolErrors).toEqual([]);
@@ -149,26 +130,17 @@ test("detached-work-traced: a waiver naming the guarded WORK CHAIN binds to its 
 // AND THE ARMS DISCRIMINATE. For each ordinary policy, the SAME fixture with the marker's position
 // replaced by a name the carrier does not declare must leave the finding EFFECTIVE and raise an alarm
 // naming that policy. Without this, every arm above would be equally green against a policy that reported
-// an unspellable position and a waiver engine that silently matched nothing — which is precisely what all
-// four of these policies did before the conversion.
+// an unspellable position and a waiver engine that silently matched nothing — which is precisely what these
+// policies did before the conversion.
 // ---------------------------------------------------------------------------------------------------
 const DEAD = "names a position this carrier does not declare.";
 
-test("a waiver naming a DEAD position suppresses nothing and alarms, for all four ordinary policies", () => {
+test("a waiver naming a DEAD position suppresses nothing and alarms, for every ordinary policy", () => {
   const arms: readonly (readonly [GatePolicy, Readonly<Record<string, string>>])[] = [
     [
       diagnosticLegibility,
       {
         "tooling/src/verify/gates/dead.ts": `// @orb-waive diagnostic-legibility(fix): ${DEAD}\nexport const gate = { message: "a bare diagnostic with no home" };\n`,
-      },
-    ],
-    [
-      evaluateNoScopeCapture,
-      {
-        "tooling/src/snap/ops/dead.ts":
-          `const MARK = "data-mark";\nasync function tag(loc: { evaluate: (fn: unknown) => Promise<void> }): Promise<void> {\n` +
-          `  // @orb-waive evaluate-no-scope-capture(MARKX): ${DEAD}\n` +
-          `  await loc.evaluate((el: { setAttribute: (n: string, v: string) => void }) => el.setAttribute(MARK, "1"));\n}\n`,
       },
     ],
     [
@@ -201,49 +173,7 @@ test("a waiver naming a DEAD position suppresses nothing and alarms, for all fou
 // REFUSAL ENVELOPE CONTROLS (§6.3). These assertions pin policy identity, evaluation phase, and
 // diagnostic text through runPolicyPass. A declared mustRefuse row owns the refusal verdict; these
 // controls additionally inspect the production error shape.
-//
-// The first two MOVED here from `tests/tooling/gate-conformance.repo.int.test.ts`, which drove them
-// through the LEGACY dispatcher's `runPass`; that harness cannot run a `defineGate` policy at all. Same
-// three claims, now asserted against `phase: "evaluate"` — the final contract has no `finalize` hook.
 // ---------------------------------------------------------------------------------------------------
-test("evaluate-no-scope-capture: an UNRESOLVED runtime identifier in a browser callback refuses the run", () => {
-  const result = passOf(evaluateNoScopeCapture, {
-    "tooling/src/snap/ops/unresolved.ts":
-      "async function run(page: { evaluate: (fn: unknown) => Promise<void> }): Promise<void> { await page.evaluate(() => missingRuntime()); }\n",
-  });
-
-  expect(result.toolErrors).toEqual([
-    expect.objectContaining({ policyId: "evaluate-no-scope-capture", phase: "evaluate", message: expect.stringContaining("missingRuntime") }),
-  ]);
-});
-
-test("evaluate-no-scope-capture: the built-in `undefined` resolves without weakening arbitrary-identifier fail-loud", () => {
-  const builtIn = passOf(evaluateNoScopeCapture, {
-    "tooling/src/snap/ops/builtin.ts":
-      "async function run(page: { evaluate: (fn: unknown) => Promise<boolean> }): Promise<boolean> { return await page.evaluate(() => document.title !== undefined); }\n",
-  });
-  const unresolved = passOf(evaluateNoScopeCapture, {
-    "tooling/src/snap/ops/sentinel.ts":
-      "async function run(page: { evaluate: (fn: unknown) => Promise<boolean> }): Promise<boolean> { return await page.evaluate(() => document.title !== userSentinel); }\n",
-  });
-
-  expect(builtIn.toolErrors).toEqual([]);
-  expect(builtIn.policies[0]?.findings).toEqual([]);
-  expect(unresolved.toolErrors).toEqual([
-    expect.objectContaining({ policyId: "evaluate-no-scope-capture", phase: "evaluate", message: expect.stringContaining("userSentinel") }),
-  ]);
-});
-
-test("evaluate-no-scope-capture: a self-contained browser callback is a clean, RESOLVED control", () => {
-  const result = passOf(evaluateNoScopeCapture, {
-    "tooling/src/snap/ops/clean.ts":
-      "async function run(page: { evaluate: (fn: unknown) => Promise<number> }): Promise<number> { return await page.evaluate(() => document.title.length); }\n",
-  });
-
-  expect(result.toolErrors).toEqual([]);
-  expect(result.policies[0]?.findings).toEqual([]);
-});
-
 test("detached-work-traced: an ABSENT derivation source refuses rather than reporting blindness", () => {
   const result = passOf(detachedWorkTraced, { "packages/server/src/domain/chat/verbs/turn.ts": "export const fire = 1;\n" });
 
@@ -283,35 +213,6 @@ test("audit-client-tests: an IMPORTED assertion helper is not followed — the d
   expect(result.toolErrors).toEqual([]);
   expect(result.policies[0]?.findings).toHaveLength(1);
   expect(result.policies[0]?.findings[0]?.token).toBe("test");
-});
-
-test("evaluate-no-scope-capture: a recursive const arrow keeps its self-binding distinct from an outer capture", () => {
-  const result = passOf(evaluateNoScopeCapture, {
-    "tooling/src/snap/ops/recursive.ts":
-      "let LIMIT = 1; LIMIT = 2; const recur = (n: number): number => n > LIMIT ? recur(n - 1) : n; declare const page: { evaluate(fn: unknown): void }; page.evaluate(recur);",
-  });
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings.map((finding) => finding.token)).toEqual(["LIMIT"]);
-});
-
-test("evaluate-no-scope-capture: an imported value inside the body remains lexical unreadable evidence", () => {
-  const result = passOf(evaluateNoScopeCapture, {
-    "tooling/src/snap/ops/value.ts": "export const VALUE = 1;",
-    "tooling/src/snap/ops/use-value.ts": 'import { VALUE } from "./value.ts"; declare const page: { evaluate(fn: unknown): void }; page.evaluate(() => VALUE);',
-  });
-  expect(result.toolErrors).toEqual([
-    expect.objectContaining({ policyId: "evaluate-no-scope-capture", phase: "evaluate", message: expect.stringContaining("runtime identifiers=[VALUE]") }),
-  ]);
-  expect(result.authority.withheldPolicyIds).toEqual(["evaluate-no-scope-capture"]);
-});
-
-test("evaluate-no-scope-capture: an overloaded recursive function retains its checker self-binding", () => {
-  const result = passOf(evaluateNoScopeCapture, {
-    "tooling/src/snap/ops/overload.ts":
-      "const LIMIT = 1; function recur(n: number): number; function recur(n: number): number { return n > LIMIT ? recur(n - 1) : n; } declare const page: { evaluate(fn: unknown): void }; page.evaluate(recur);",
-  });
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings.map((finding) => finding.token)).toEqual(["LIMIT"]);
 });
 
 for (const root of ["{}", "{ root: false }"]) {

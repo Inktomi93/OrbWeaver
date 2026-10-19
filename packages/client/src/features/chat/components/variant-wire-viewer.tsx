@@ -169,8 +169,9 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
   if (prompt === null) {
     return (
       <Stack gap="section">
-        {/* @orb-waive empty-state-has-action(EmptyState): the RAWVIEW inspector's statement of FACT that a variant captured no prompt (an authored, imported or seeded row never ran one; raw provider bytes are not stored at all). There is no next step the host could take, and the dialog's own Close is the only affordance. Ends if captured-prompt backfill ever becomes possible for an existing row. */}
+        {/* action={null}: the RAWVIEW inspector's statement of FACT that a variant captured no prompt (an authored, imported or seeded row never ran one; raw provider bytes are not stored at all). There is no next step the host could take, and the dialog's own Close is the only affordance. Ends if captured-prompt backfill ever becomes possible for an existing row. */}
         <EmptyState
+          action={null}
           icon={<Icon icon={ScrollText} size="lg" />}
           title="No prompt was captured for this reply"
           description="Only generated replies record the prompt they sent — a message you typed, an imported turn, or a seeded greeting never ran one. Raw provider bytes aren't stored at all; they live only in the dev wire-capture ring (WIRE_CAPTURE)."
@@ -246,8 +247,9 @@ function WireDialogBody({
 }): ReactElement {
   if (isError && isNotFound(error)) {
     return (
-      // @orb-waive empty-state-has-action(EmptyState): the RAWVIEW inspector's NOT_FOUND gone-arm (the message was deleted, so no wire record is left to read) — the member-card-viewer precedent, same species, and the dialog's own Close is the only affordance. Ends if this dialog gains a browse-other-messages affordance the gone arm could point at.
+      // action={null}: the RAWVIEW inspector's NOT_FOUND gone-arm (the message was deleted, so no wire record is left to read) — the member-card-viewer precedent, same species, and the dialog's own Close is the only affordance. Ends if this dialog gains a browse-other-messages affordance the gone arm could point at.
       <EmptyState
+        action={null}
         icon={<Icon icon={ScrollText} size="lg" />}
         title="This reply is gone"
         description="The message was deleted, so there's no wire record left to read."

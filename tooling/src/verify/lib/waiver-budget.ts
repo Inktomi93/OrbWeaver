@@ -19,7 +19,6 @@ const APPLICATION = Object.freeze({
   "density-tier": 49,
   "detached-work-traced": 4,
   "duplicate-action-doors": 10,
-  "empty-state-has-action": 21,
   "integer-line-boxes": 4,
   "json-column-write-parity": 6,
   "knob-wire-coverage": 4,

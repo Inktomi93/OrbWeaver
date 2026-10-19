@@ -2820,7 +2820,7 @@ test("#220 at a FINE pointer the inline Edit/Fork pair is untouched", async ({ m
 //
 // EACH ARM IS ITS OWN TEST WITH ONE MOUNT AND ONE STORY REFERENCE, twice-forced: playwright-ct refuses a
 // second `mount()` in a test ("Attempting to mount a component into a container that already has a React
-// root"), and `ct-story-single-import` refuses a second reference to the same story in one JSX tree. The
+// root"), and `orb/ct-story-single-import` refuses a second reference to the same story in one JSX tree. The
 // "does not slide on toggle" claim is therefore proved as TWO symmetry facts rather than as an A/B diff:
 // symmetric with avatars ON and symmetric with them OFF is the same statement as "identical", and it is
 // the stronger one to pin because it also names where the column should be.

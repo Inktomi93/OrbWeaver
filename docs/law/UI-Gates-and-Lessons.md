@@ -108,7 +108,7 @@ The UI enforcement families:
 **The D62 design-gate set** (lands WITH the D62 feature
 lanes per §11.7): `orb/no-raw-interactive-intrinsics` (raw `<button>/<input>/<select>/<textarea>/<a>` banned
 in `features/**` regardless of className), `orb/no-arbitrary-tw-values` (raw bracket-value utility spellings
-restricted in client and ui sources), `empty-state-has-action` (§4.3 rule 1's mechanical half), CT state-coverage (every
+restricted in client and ui sources), the required `EmptyState` `action` prop (§4.3 rule 1's mechanical half), CT state-coverage (every
 interactive primitive's CT asserts focus-visible ring + disabled opacity). **Not yet gated — the
 CI-browser-lane prerequisite is MET (`ci.yml` installs Playwright chromium + runs `pnpm verify --full`);
 the goldens themselves are unbuilt:** the ARIA-tree goldens (`toMatchAriaSnapshot`

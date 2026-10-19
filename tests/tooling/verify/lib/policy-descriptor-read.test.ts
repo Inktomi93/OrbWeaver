@@ -199,7 +199,7 @@ test("staticSegments reads one-return text functions and refuses unreadable call
 test("a marker LINE names a policy; a mention mid-sentence, in a fix or in a regex does not", () => {
   expect(markerFormIdsOf("// @orb-waive no-inline-types(Foo): reason\nexport type Foo = string;\n")).toEqual(["no-inline-types"]);
   expect(markerFormIdsOf("  /* @orb-waive byte-check-cast(KV_MAX): reason */\n")).toEqual(["byte-check-cast"]);
-  expect(markerFormIdsOf("{/* @orb-waive empty-state-has-action(Empty): reason */}\n")).toEqual(["empty-state-has-action"]);
+  expect(markerFormIdsOf("{/* @orb-waive no-inline-types(Empty): reason */}\n")).toEqual(["no-inline-types"]);
   // The RESOURCE carriers' openers — the engine's `commentBody` reads a Markdown HTML comment and a SQL
   // line comment, so a resource fixture's marker-form line is spelled with them.
   expect(markerFormIdsOf("<!-- @orb-waive markdown-policy(domain/x.ts): reason -->\n- **D1** — `domain/x.ts`\n")).toEqual(["markdown-policy"]);

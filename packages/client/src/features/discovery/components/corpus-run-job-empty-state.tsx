@@ -53,5 +53,5 @@ export function CorpusRunJobEmptyState({ title, description, offerDoor = true, s
         {door}
       </Row>
     );
-  return <EmptyState icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} {...(action === null ? {} : { action })} />;
+  return <EmptyState icon={<Icon icon={Sparkles} size="lg" />} title={title} description={description} action={action} />;
 }

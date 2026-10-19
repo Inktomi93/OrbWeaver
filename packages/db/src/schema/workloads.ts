@@ -193,7 +193,7 @@ export const workloads = sqliteTable(
 // standing "run this workload every <cadence>" order. UNLIKE `workloads` (a never-deleted audit log), a
 // schedule is LIVE CONFIG — it is mutated (enable/disable, retune) and DELETED, and CASCADE-drops with its
 // owner (an orphaned schedule would keep enqueuing forever). The scheduler tick (single-replica; the
-// `assumes-single-replica` stance) finds `enabled` rows with `next_run_at <= now`, ENQUEUES a `workloads`
+// `orb/assumes-single-replica` stance) finds `enabled` rows with `next_run_at <= now`, ENQUEUES a `workloads`
 // row through the normal start/enqueue path (so the run still flows through dispatch + the single-active
 // lock + the DAG), then advances `next_run_at` (= `last_run_at + interval`) and stamps `last_run_at`. The
 // per-run ADMISSION KEY is NOT a column here — it is derived from `params` by the kind's contribution,

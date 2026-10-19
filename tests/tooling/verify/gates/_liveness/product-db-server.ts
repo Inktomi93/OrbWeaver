@@ -10,7 +10,6 @@
 // proves those arms alone.
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
-import { gate as assumesSingleReplica } from "../../../../../tooling/src/verify/gates/assumes-single-replica.ts";
 import { gate as byteCheckCast } from "../../../../../tooling/src/verify/gates/byte-check-cast.ts";
 import { gate as detachedWorkTraced } from "../../../../../tooling/src/verify/gates/detached-work-traced.ts";
 import { gate as entrySyntheticRoleIsUser } from "../../../../../tooling/src/verify/gates/entry-synthetic-role-is-user.ts";
@@ -23,7 +22,6 @@ import { gate as platformSpellings } from "../../../../../tooling/src/verify/gat
 import { gate as schemaBranding } from "../../../../../tooling/src/verify/gates/schema-branding.ts";
 import { gate as scrubberHome } from "../../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { gate as soleEnvReader } from "../../../../../tooling/src/verify/gates/sole-env-reader.ts";
-import { gate as typeidPrefixBoundary } from "../../../../../tooling/src/verify/gates/typeid-prefix-boundary.ts";
 import { gate as zodErrorIssuesHome } from "../../../../../tooling/src/verify/gates/zod-error-issues-home.ts";
 import { gate as zodOutputTwinParity } from "../../../../../tooling/src/verify/gates/zod-output-twin-parity.ts";
 
@@ -37,11 +35,6 @@ function add(path: string, source: string): RealCorpusOverlay {
 }
 
 export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
-  {
-    policy: assumesSingleReplica,
-    overlays: [add(`${DOMAIN}/liveness-replica.ts`, "export const livenessReplica = new Map<string, number>();\n")],
-    messageIncludes: "module-scope mutable per-process state",
-  },
   {
     policy: detachedWorkTraced,
     overlays: [
@@ -128,13 +121,6 @@ export const PRODUCT_DB_SERVER_ARMS: readonly RealCorpusLivenessArm[] = [
     policy: soleEnvReader,
     overlays: [add(`${DOMAIN}/liveness-env.ts`, "export const livenessEnv = process.env.LIVENESS_VAR;\n")],
     messageIncludes: "process-env-read:LIVENESS_VAR",
-  },
-  {
-    policy: typeidPrefixBoundary,
-    overlays: [
-      add(`${CONTRACTS}/liveness-boundary.ts`, 'import { brandedId, type ChatId } from "@orb/kit/ids";\nexport const livenessChatId = brandedId<ChatId>();\n'),
-    ],
-    messageIncludes: "brandedId",
   },
   {
     policy: zodErrorIssuesHome,

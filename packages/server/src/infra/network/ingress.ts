@@ -13,6 +13,7 @@ import { isInRanges, isPrivateOrLoopback } from "./ip-ranges.ts";
 
 const XFF_HEADER = "x-forwarded-for";
 const FORBIDDEN = 403;
+// ASSUMES(single-replica): keyed by the request's own Context object and read within that request, so there is no DB seam.
 const physicalPeers = new WeakMap<Context, ReturnType<PhysicalPeerRead>>();
 
 function readNativePeer(c: Context): ReturnType<PhysicalPeerRead> {

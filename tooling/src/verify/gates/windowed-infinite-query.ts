@@ -190,8 +190,7 @@ export const gate = defineGate({
   authority: "ordinary",
   severity: "error",
   population: "@client",
-  // `types`, NOT `syntax` (#2256, corrected 2026-09-13) — the same correction as its sibling
-  // `contract-banned-shapes`, for the same reason and the same reader. This policy imports
+  // `types`, NOT `syntax` (#2256, corrected 2026-09-13). This policy imports
   // `resolveStableExpression` from `floor/code-facts/reference-fact.ts`, whose `resolveStableExpressionInternal` ->
   // `importedTarget` path calls `lexicalReferenceSymbol(current)?.getAliasedSymbol()`; following a const
   // binding through an import door is a CHECKER answer, not a syntactic one. `analysis` is data the runtime

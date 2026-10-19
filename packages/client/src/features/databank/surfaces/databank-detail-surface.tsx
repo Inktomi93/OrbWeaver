@@ -132,8 +132,9 @@ function DatabankWelcome(): ReactElement | null {
   }
   if (census.data.total === 0) {
     return (
-      // @orb-waive empty-state-has-action(EmptyState): the Databank CONTENT landing for an EMPTY bank. It explains the Databank and points at the one Add door, which lives in the sibling list (the band's Add and the empty bank's own CTA); minting a second Add button here is the refused two-Add-doors arm. Ends if the library stops carrying a create door.
+      // action={null}: the Databank CONTENT landing for an EMPTY bank. It explains the Databank and points at the one Add door, which lives in the sibling list (the band's Add and the empty bank's own CTA); minting a second Add button here is the refused two-Add-doors arm. Ends if the library stops carrying a create door.
       <EmptyState
+        action={null}
         description={listMode === "collapsed" ? EMPTY_BANK_COLLAPSED : EMPTY_BANK_DESCRIPTION}
         icon={<Icon icon={FileText} size="lg" />}
         title="Your databank"
@@ -141,8 +142,9 @@ function DatabankWelcome(): ReactElement | null {
     );
   }
   return (
-    // @orb-waive empty-state-has-action(EmptyState): the Databank CONTENT pick-a-document nudge shown alongside the library list, which itself carries both create doors (the band's Add primary and the empty bank's own CTA). The next step lives in the sibling list — the preset-library-welcome precedent, same species. Ends if the library stops carrying a create door.
+    // action={null}: the Databank CONTENT pick-a-document nudge shown alongside the library list, which itself carries both create doors (the band's Add primary and the empty bank's own CTA). The next step lives in the sibling list — the preset-library-welcome precedent, same species. Ends if the library stops carrying a create door.
     <EmptyState
+      action={null}
       description={listMode === "collapsed" ? `${PICK_A_DOCUMENT}${LIST_OFF_SCREEN_HINT}` : PICK_A_DOCUMENT}
       icon={<Icon icon={FileText} size="lg" />}
       title="Your databank"
