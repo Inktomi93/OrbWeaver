@@ -13,6 +13,7 @@
 
 import type { StProfileHandledEntry, TreeLayoutDeclaration } from "@orb/contracts/import";
 import { admitTreeBatch, chatDirCardCandidates, isStSecretsFile, ST_SECRETS_FILE, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
+import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { slugifyHandle } from "@orb/kit/slug";
 import { relativePathOf } from "./import-tree.ts";
 
@@ -209,7 +210,7 @@ class Packer {
   }
 }
 
-/** A greedy split in path order; an over-cap file joins `skipped`. */
+/** A greedy split in the given order; an over-cap file joins `skipped`. */
 function packGeneric(planned: readonly PlannedFile[], caps: TreeImportCaps, skipped: SkippedTreeFile[]): Omit<TreeImportPlan, "layout"> {
   const packer = new Packer(caps, []);
   let files = 0;
@@ -226,10 +227,20 @@ function packGeneric(planned: readonly PlannedFile[], caps: TreeImportCaps, skip
   return { batches: packer.finish(), skipped, files, bytes };
 }
 
+/** Each native directory's position in the loader's dependency order; an entry outside every one sorts last. */
+const NATIVE_IMPORT_RANK: ReadonlyMap<string, number> = new Map(PORTABLE_IMPORT_ORDER.map((kind, rank) => [PORTABLE_DIRECTORIES[kind].slice(0, -1), rank]));
+
+function nativeImportRank(f: PlannedFile): number {
+  return NATIVE_IMPORT_RANK.get(f.segments[0] ?? "") ?? PORTABLE_IMPORT_ORDER.length;
+}
+
 /** A native tree (an unzipped orb backup): every file imports on its own. One upload is recognized as native
  *  by itself. Split uploads each declare the native layout, which the server admits only when every entry sits
- *  under a native directory, so an entry outside one is skipped here instead of refusing its whole upload. */
-function planGeneric(planned: readonly PlannedFile[], caps: TreeImportCaps): TreeImportPlan {
+ *  under a native directory, so an entry outside one is skipped here instead of refusing its whole upload.
+ *  The loader orders planes only within one upload and resolves links by name against what already landed,
+ *  so the files are packed in its dependency order: every upload then follows all of its dependencies. */
+function planGeneric(picked: readonly PlannedFile[], caps: TreeImportCaps): TreeImportPlan {
+  const planned = picked.toSorted((a, b) => nativeImportRank(a) - nativeImportRank(b));
   const whole = packGeneric(planned, caps, []);
   if (whole.batches.length <= 1) {
     return { ...whole, layout: null };
