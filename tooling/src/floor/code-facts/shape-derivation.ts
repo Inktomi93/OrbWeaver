@@ -1,5 +1,5 @@
 // Declaration provenance for shape comparisons; matching types never establish a shared origin.
-import type { Identifier, Node as MorphNode, Symbol as MorphSymbol, ts as MorphTs, Signature, Type } from "ts-morph";
+import type { EntityName, Identifier, Node as MorphNode, Symbol as MorphSymbol, ts as MorphTs, Signature, Type } from "ts-morph";
 import { Node } from "ts-morph";
 import nativeTs from "typescript";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
@@ -70,6 +70,21 @@ export function directDerivationTargetKeys(decl: MorphNode): Set<string> {
   return new Set([...bareAliasTargetKeys(decl), ...heritageTargetKeys(decl)]);
 }
 
+/** A `typeof` operand's identity: the root value's declarations plus the member path read from it. A member
+ *  symbol alone is shared by every value of one generic type (`typeof a.body` and `typeof b.body` resolve to
+ *  the same `body` declaration of `Route<B>`), so it never identifies the operand. */
+function typeQueryOperandKeys(operand: EntityName): readonly string[] {
+  const path: string[] = [];
+  let root: EntityName = operand;
+  while (Node.isQualifiedName(root)) {
+    path.unshift(root.getRight().getText());
+    root = root.getLeft();
+  }
+  const symbol = root.getSymbol();
+  const suffix = path.map((member) => `${INVENTORY_KEY_SEPARATOR}${member}`).join("");
+  return ((symbol?.getAliasedSymbol() ?? symbol)?.getDeclarations() ?? []).map((declaration) => `${inventoryDeclarationKey(declaration)}${suffix}`);
+}
+
 /** Shared `typeof value` provenance through a generic derive (`z.infer`, `ReturnType`, and equivalents). */
 export function typeQueryDerivationKeys(decl: MorphNode): Set<string> {
   const facts = shapeFactsOf(decl);
@@ -88,10 +103,13 @@ export function typeQueryDerivationKeys(decl: MorphNode): Set<string> {
   if (argument === undefined || typeNode.getTypeArguments().length !== 1 || !Node.isTypeQuery(argument)) {
     return keys;
   }
+  // An instantiation expression (`typeof f<A>`) selects a type the operand alone does not name.
+  if (argument.getTypeArguments().length > 0) {
+    return keys;
+  }
   const genericSymbol = typeNode.getTypeName().getSymbol();
   const genericKeys = ((genericSymbol?.getAliasedSymbol() ?? genericSymbol)?.getDeclarations() ?? []).map(inventoryDeclarationKey);
-  const operandSymbol = argument.getExprName().getSymbol();
-  const operandKeys = ((operandSymbol?.getAliasedSymbol() ?? operandSymbol)?.getDeclarations() ?? []).map(inventoryDeclarationKey);
+  const operandKeys = typeQueryOperandKeys(argument.getExprName());
   for (const genericKey of genericKeys) {
     for (const operandKey of operandKeys) {
       keys.add(`${genericKey}${INVENTORY_KEY_SEPARATOR}${operandKey}`);

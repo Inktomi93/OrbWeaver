@@ -12,7 +12,7 @@ Every shape-pair decision in the copy, placement and respell consumers now goes 
 | `compareShapeFields` | same | Shared names, the shared names that agree, and whether the two field sets are exact. The agreement runs once per shared name. |
 | `compareCopySource` | same | The same comparison in the copy report shape (`ShapeCopyComparison`). |
 | `shapesIdentical` | same | Identical field names and mutual declaration assignability in every owning native program. |
-| `shapeDerivesFrom` | `tooling/src/floor/code-facts/shape-derivation.ts` | A direct alias or heritage target, or one shared `typeof` provenance. |
+| `shapeDerivesFrom` | `tooling/src/floor/code-facts/shape-derivation.ts` | Whether one declaration of a compared pair derives from the other: a direct alias or heritage target, or one shared `typeof` provenance. Component type-graph edges (`component-type-home.ts` `componentTypeGraph`) answer a separate question and keep direct-only `directDerivationTargetKeys`. |
 | `ShapeFieldComparison` | `tooling/src/floor/code-facts/shape-copy-contract.ts` | The comparison result type. |
 
 The assignability primitive is unchanged: `fieldTypesAgree` and `declarationTypesAgree` in `assignability.ts`, with the stored native pair answers.
@@ -38,6 +38,18 @@ The assignability primitive is unchanged: `fieldTypesAgree` and `declarationType
 - Component lower data: a component type that shares `typeof` provenance with a lower declaration (`z.infer<typeof wireSchema>` on both sides) is now `derived`. Before, it was `unqualified` with no comparisons. The ownership verdict stays `component-owned`; only the lower-data evidence changes.
 - Respell exact and near tiers: no intended change. Two declarations with the same `typeof` provenance resolve to one type, so the near tier excluded them through its exact check already. The near tier now runs its name bound before the derivation check. Neither step calls the checker, so the checker-call counts in the near-tier tests are unchanged.
 - `contract-structural-copy`: no intended change. Candidates and agreement calls are the same.
+
+## Verifier correction: qualified `typeof` operands
+
+The verifier refuted the first commit on one P2. `typeQueryDerivationKeys` keyed a `typeof` operand on its resolved symbol. For `typeof aRoute.body` and `typeof bRoute.body`, both resolve to the one `body` declaration of `Route<B>`, so two different types shared one key. The exact tier already exempted such pairs wrongly. The shared `shapeDerivesFrom` spread the mistake to the near tier and to component lower data.
+
+The key now names the root value's declaration plus the member path. An instantiation-expression operand (`typeof f<A>`) produces no key. The stored native catalog reads the same function, so `INVENTORY_FORMAT` moves from 23 to 24. The database selects generations by format, so stored catalogs with the old keys are rebuilt rather than read.
+
+Changed findings from the fix:
+
+- Respell exact tier: two identical bodies read from different route values (`typeof aRoute.body` and `typeof bRoute.body`) are now reported. Before, they were exempted as shared provenance.
+- Respell near tier: the verifier's pair (memo against note, 66.67%) is reported again, as it was on base.
+- Component lower data: a component body read from a different route value is no longer `derived`.
 
 ## Kept apart, with reasons
 
