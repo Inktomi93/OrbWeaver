@@ -19,7 +19,7 @@ import { affectsTypedNativePolicy, TYPED_NATIVE_POLICIES } from "../../../../too
 const RULE = `orb/${TYPE_HOME_NATIVE_POLICY_ID}`;
 const ZOD_DECLARATION = [
   "node_modules/zod/index.d.ts",
-  "export declare function object(shape: object): object;\nexport declare function string(): object;\nexport declare const z: { object: typeof object; string: typeof string; enum: (values: readonly string[]) => object };\n",
+  "export declare function object(shape: object): object;\nexport declare function strictObject(shape: object): object;\nexport declare function looseObject(shape: object): object;\nexport declare function string(): object;\nexport declare const z: { object: typeof object; strictObject: typeof strictObject; looseObject: typeof looseObject; string: typeof string; enum: (values: readonly string[]) => object };\n",
 ] as const;
 const ZOD_OBJECT = "export declare function object(shape: object): object;";
 
@@ -107,6 +107,8 @@ test("proven zod shape schemas exported directly or by list are native placement
     ['import { z } from "zod"; export const Schema = z.object({});', 1],
     ['import { object as shape } from "zod"; export const First = shape({}), Second = shape({});', 2],
     ['import * as zod from "zod"; const Listed = zod.z["enum"](["a"]); export { Listed as Public };', 1],
+    ['import { z } from "zod"; export const Strict = z.strictObject({});', 1],
+    ['import { looseObject } from "zod"; const Loose = looseObject({}); export { Loose };', 1],
     ['import { z } from "zod"; export const Scalar = z.string();', 0],
     ['import { z } from "zod"; const Local = z.object({}); export const use = (): object => Local;', 0],
     ["const z = { object: (value: object): object => value }; export const Shadow = z.object({});", 0],

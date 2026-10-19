@@ -49,7 +49,7 @@ function plainDataShapeCore<N extends object, T, S, G, I extends object>(node: N
   return !holdsBehaviour(ops.type(node));
 }
 
-const ZOD_SHAPE_FACTORIES: ReadonlySet<string> = new Set(["object", "enum", "discriminatedUnion"]);
+const ZOD_SHAPE_FACTORIES: ReadonlySet<string> = new Set(["object", "strictObject", "looseObject", "enum", "discriminatedUnion"]);
 
 /** A call whose callee resolves through the `zod` door to a shape factory; unreadable callees are not shapes. */
 export function isZodShapeCall(initializer: MorphNode): boolean {

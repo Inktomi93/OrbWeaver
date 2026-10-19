@@ -4,7 +4,7 @@ import { expect, test } from "@playwright/experimental-ct-react";
 import type { Locator } from "@playwright/test";
 import type { z } from "zod";
 import { CaptureGlowProbe, WeaveBox } from "./web-weave.fixtures.tsx";
-import { captureFacts } from "./web-weave-glow-probe.ts";
+import { captureFacts } from "./web-weave-glow.fixtures.ts";
 
 const LIVE_BLURS = "data-weave-live-blurs";
 const BAKED_BLURS = "data-weave-baked-blurs";
