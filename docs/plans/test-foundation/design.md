@@ -140,9 +140,9 @@ Today `pnpm ast` reads code through `tooling/src/ast/lib/` and the gates read it
 | Symbol references and member reads | `ast/lib/resolve.ts`, `usage.ts`, the wiring member reader; floor `reference-fact`; `verify/lib` `symbol-reference`; the hand-written bracket readers | 955 |
 | Import doors and reach | `pnpm ast` importers, reaches and flow; `verify/lib` test-reach, test-import-door, tooling-import-door, policy-production-reach | 956 |
 | Codemods | codemod readers in `tooling/src/codemod/lib/` | 957 |
-| Liveness | `pnpm ast` dead, orphans, testonly and chains; `tests/tooling/doc/ledger-paths.suite.repo.int.test.ts`, testid-liveness | not yet itemized |
-| tRPC wiring | `pnpm ast` unwired, clientgap and viewgap; floor `trpc-doors` | not yet itemized |
-| Ambient calls: clock, random, timers, environment | no-raw-clock, no-raw-random, test-determinism, platform-spellings, `orb/sole-env-reader` | not yet itemized |
+| Liveness | `pnpm ast` dead, orphans, testonly and chains; `tests/tooling/doc/ledger-paths.suite.repo.int.test.ts`, testid-liveness | 1162 |
+| tRPC wiring | `pnpm ast` unwired, clientgap and viewgap; floor `trpc-doors` | 1163 |
+| Ambient calls: clock, random, timers, environment | no-raw-clock, no-raw-random, test-determinism, platform-spellings, `orb/sole-env-reader` | 1164 |
 | Casts | Native assertion rules; shared brand and assignability facts retain semantic judgments | 1041; 973 widens the id gates |
 
 Gate families fold onto the shared readers:
