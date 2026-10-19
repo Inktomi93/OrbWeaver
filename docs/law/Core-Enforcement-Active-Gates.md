@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(134 registered gates)
+(132 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -126,7 +126,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-manual-memo` | react-origin | reviewed-grant/error | @client,@ui,@tests | manual React memoization in… |
 | `no-manual-token-estimate` | — | ordinary/error | @client,@ui,@server,@kit,@inference\* | hand-rolled .length / 4 token… |
 | `no-opaque-test-fixture` | — | ordinary/error | @tests\* | a test fixture export is typed… |
-| `no-raw-egress` | — | reviewed-grant/error | @server,@inference | a raw fetch in server source — route… |
 | `no-raw-history-writes` | — | hard/error | @client | client code captures a browser… |
 | `no-vanity-alias` | — | ordinary/error | @product,@tests | vanity rename — one symbol, one name;… |
 | `nullable-column-inequality` | drizzle-schema | ordinary/error | @packages,@tests | an inequality predicate (ne /… |
@@ -162,7 +161,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `serde-core-seal-health` | — | hard/error | @server,@kit | a sanctioned serde home… |
 | `session-channel-boundary` | — | ordinary/error | @client | a BroadcastChannel constructed… |
 | `single-stream-transport` | — | reviewed-grant/error | @server\* | a tRPC .subscription( outside… |
-| `sole-env-reader` | — | reviewed-grant/error | @server,@inference | touches process.env outside… |
 | `spacing-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
 | `stale-draft-commit` | — | ordinary/error | @client | a once-seeded draft is being… |
 | `sub-floor-disclosure-health` | — | hard/error | @ui\* | a collapsible size member is no… |
