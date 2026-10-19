@@ -13,6 +13,7 @@ import { ModuleKind, ModuleResolutionKind, Project, ScriptKind } from "ts-morph"
 import type { PolicyPassResult } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/no-tailwind-dark-variant.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
+import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 const ROOT = "/repo";
 
@@ -37,7 +38,15 @@ test("a multi-file real run with a runtime prefix and an unresolved static cycle
       export const Y = <div className={A} />;
     `,
   });
-  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root: ROOT,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   expect(result.toolErrors).toEqual([]);
   const owner = result.policies.find((policy) => policy.id === gate.id);
   expect(owner?.owner.status).toBe("success");
@@ -55,7 +64,15 @@ test("an arbitrary-variant candidate is waivable at its leading paren-free slice
   const carrier = (marker: string): string => `${marker}export const X = <div className="[&:where(.x:hover)]:dark:bg-card" />;\n`;
   const passOf = (marker: string): PolicyPassResult => {
     const project = projectFor({ "packages/ui/src/arbitrary.tsx": carrier(marker) });
-    return runPolicyPass({ knownPolicies: [gate], policies: [gate], root: ROOT, project, reviewedGrants: [], failOnWarnings: false });
+    return runPolicyPass({
+      knownPolicies: [gate],
+      policies: [gate],
+      root: ROOT,
+      project,
+      nativeTypeFacts: () => isolatedTypeFacts(project),
+      reviewedGrants: [],
+      failOnWarnings: false,
+    });
   };
 
   // The CONTROL: unmarked, the fixture really carries the finding, and the reported position really is the

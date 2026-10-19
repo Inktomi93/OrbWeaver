@@ -7,7 +7,7 @@ import { gate as health } from "../../../../tooling/src/verify/gates/css-var-def
 import { CLEAN_PRODUCT_CSS, SOURCE_ANCHOR, VENDOR_SURFACE_FIXTURE } from "../../../../tooling/src/verify/lib/css-family-proof-fixtures.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { REVIEWED_GRANTS } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 
 test("the css-variable-resolution family keeps its declared proofs", () => {
   expect(verifyPolicyProofs([ordinary, grants, health])).toEqual([]);
@@ -29,6 +29,7 @@ function run(root: string, reviewedGrants: readonly ReviewedGateGrant[]): Return
     policies: [ordinary, grants, health],
     root,
     project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
     reviewedGrants,
     failOnWarnings: false,
   });

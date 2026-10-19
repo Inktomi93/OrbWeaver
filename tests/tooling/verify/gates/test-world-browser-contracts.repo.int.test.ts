@@ -12,13 +12,13 @@ import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
-import { getWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import type { RawGateFinding } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { PolicyToolError } from "../../../../tooling/src/verify/contract/policy-pass.ts";
 import { gate } from "../../../../tooling/src/verify/gates/test-world-browser-contracts.ts";
 import { isNodeTestContractRoot } from "../../../../tooling/src/verify/lib/browser-contract-reader.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
+import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { ctxFor } from "../../_support.ts";
 
@@ -29,7 +29,15 @@ interface Verdict {
 
 function virtualVerdict(files: Readonly<Record<string, string>>): Verdict {
   const { project, root } = ctxFor({ ...files });
-  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   const owner = result.policies.find((policy) => policy.id === gate.id);
   return { findings: owner?.findings ?? [], toolErrors: result.toolErrors };
 }
@@ -44,7 +52,15 @@ function nativeVerdict(source: string, suffix = ".test-d.ts", extraFiles: Readon
     project.createSourceFile(join(root, path), text);
   }
   project.createSourceFile(join(root, `tests/__browser-contract-proof__/subject${suffix}`), source);
-  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root,
+    project,
+    nativeTypeFacts: () => isolatedTypeFacts(project),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   const owner = result.policies.find((policy) => policy.id === gate.id);
   return { findings: owner?.findings ?? [], toolErrors: result.toolErrors };
 }
@@ -154,8 +170,16 @@ test("a relevant re-export cycle refuses instead of passing through an intermedi
 
 test("the current full Node-intent test census has no browser-contract findings or unresolved relevant origins", { timeout: scaledBudget(120_000) }, () => {
   const root = process.cwd();
-  const project = getWorkspace({ root });
-  const result = runPolicyPass({ knownPolicies: [gate], policies: [gate], root, project, reviewedGrants: [], failOnWarnings: false });
+  const context = projectCtx(root);
+  const result = runPolicyPass({
+    knownPolicies: [gate],
+    policies: [gate],
+    root,
+    project: context.project,
+    ...nativeTypeFactOptions(context),
+    reviewedGrants: [],
+    failOnWarnings: false,
+  });
   expect(result.toolErrors).toEqual([]);
   const owner = result.policies.find((policy) => policy.id === gate.id);
   // This proves the guard over the whole real corpus its shared world vocabulary selects, exercising the
