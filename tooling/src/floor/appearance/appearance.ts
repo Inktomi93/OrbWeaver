@@ -81,7 +81,7 @@ async function seedAppearanceBootHint(context: BrowserContext, patch: Appearance
   await context.addInitScript(
     ({ axes: requested, key, version }) => {
       let current: unknown;
-      // @orb-waive caught-failure-ownership(catch): a malformed optional device hint is replaced by the requested probe axes; the app re-validates the result through appearanceSettingsSchema. Ends if the hint becomes authoritative.
+      // @orb-waive caught-failure-ownership(catch): a malformed boot hint holds no readable state, so it reads as absent and the setItem below rewrites it with the requested axes. Ends if the hint is read for anything but this overwrite.
       try {
         current = JSON.parse(localStorage.getItem(key) ?? "null") as unknown;
       } catch {
@@ -134,7 +134,7 @@ export function mergeAppearancePatches(base: AppearancePatch | null, next: Appea
  */
 export function trpcProcedureIndex(rawUrl: string, procedure: string = SETTINGS_PROCEDURE): number | null {
   let pathname: string;
-  // @orb-waive caught-failure-ownership(catch): an unreadable optional appearance snapshot is represented as absent and the caller rebuilds from the live page. Ends if this snapshot becomes authoritative.
+  // @orb-waive caught-failure-ownership(catch): an unparseable URL carries no settings procedure, so null sends the request on through route.fallback in installSettingsShim to the real network. Ends if a caller reads null as anything but 'not a settings request'.
   try {
     pathname = new URL(rawUrl).pathname;
   } catch {
@@ -240,7 +240,7 @@ async function fulfilPatched(
  *  intercepted request went to, so a `--base`/stage port never has to be re-derived here. `listThemes` takes
  *  no input, so the batch URL carries an empty input map. */
 function themeListUrl(requestUrl: string): string | null {
-  // @orb-waive caught-failure-ownership(catch): an unreadable optional theme catalog entry is represented as absent and the caller reports the missing theme. Ends if absence stops reaching the operator.
+  // @orb-waive caught-failure-ownership(catch): a URL with no origin returns null, and themeResolver warns on stderr before it resolves no theme. Ends if the caller stops warning on null.
   try {
     return `${new URL(requestUrl).origin}${TRPC_PATH_PREFIX}${LIST_THEMES_PROCEDURE}?batch=1&input=${encodeURIComponent("{}")}`;
   } catch {
@@ -291,7 +291,7 @@ function themeResolver(request: ThemeRequest): (route: Route, context: BrowserCo
       return null;
     }
     let entries: readonly ThemeEntry[] | null = null;
-    // @orb-waive caught-failure-ownership(e): the list-themes command emits the read failure through warn before returning no catalog. Ends if the warning stops carrying the failure.
+    // @orb-waive caught-failure-ownership(e): the catch passes the read failure to warn (stderr) and resolves no catalog, so the run reports the unresolved theme instead of measuring another one. Ends if the catch stops calling warn with the failure.
     try {
       const response = await context.request.get(url);
       entries = response.ok() ? readThemeList((await response.json()) as unknown) : null;

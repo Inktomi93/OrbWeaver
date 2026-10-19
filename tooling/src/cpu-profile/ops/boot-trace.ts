@@ -132,7 +132,7 @@ async function stopAndRetainTrace(
 ): Promise<void> {
   const failures = [...earlierFailures];
   let complete = false;
-  // @orb-waive caught-failure-ownership(error): error-collection cleanup: pushed to failures[] and re-thrown as AggregateError at L148-152; partial-trace evidence is preserved
+  // @orb-waive caught-failure-ownership(error): the stop failure is pushed to failures and thrown by the tail of stopAndRetainTrace (the failure itself, or an AggregateError of all of them) after the partial trace is written. Ends if that tail stops throwing failures.
   try {
     await stopping;
     complete = true;
@@ -140,7 +140,7 @@ async function stopAndRetainTrace(
     failures.push(error);
   }
   // A failed stop leaves a partial trace, which is still evidence. Never analyze it as complete.
-  // @orb-waive caught-failure-ownership(error): error-collection cleanup: pushed to failures[] and re-thrown as AggregateError at L148-152; partial-trace evidence is preserved
+  // @orb-waive caught-failure-ownership(error): the trace-write or onRetained failure is pushed to failures and thrown by the tail of stopAndRetainTrace (the failure itself, or an AggregateError of all of them). Ends if that tail stops throwing failures.
   try {
     const eventCount = events.length;
     await writeFile(rawTracePath, JSON.stringify({ traceEvents: events }));
@@ -181,13 +181,13 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
     }
     observerCleaned = true;
     const failures: unknown[] = [];
-    // @orb-waive caught-failure-ownership(error): CDP cleanup error-collection: pushed to failures[] and re-thrown as AggregateError at L197-199; observer disposal is terminal
+    // @orb-waive caught-failure-ownership(error): the removeScriptToEvaluateOnNewDocument failure is pushed to failures and thrown in the AggregateError that ends cleanupObserver; its two callers fold it into startCleanupError or print it through warn. Ends if cleanupObserver stops throwing failures.
     try {
       await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: observerScript });
     } catch (error) {
       failures.push(error);
     }
-    // @orb-waive caught-failure-ownership(error): CDP cleanup error-collection: pushed to failures[] and re-thrown as AggregateError at L197-199; observer disposal is terminal
+    // @orb-waive caught-failure-ownership(error): the observer-disposal failure is pushed to failures and thrown in the AggregateError that ends cleanupObserver; its two callers fold it into startCleanupError or print it through warn. Ends if cleanupObserver stops throwing failures.
     try {
       const disposed = await cdp.send("Runtime.evaluate", {
         expression: `(() => { const state = globalThis[${JSON.stringify(BOOT_LCP_STATE)}]; state?.dispose(); return delete globalThis[${JSON.stringify(BOOT_LCP_STATE)}]; })()`,
@@ -222,13 +222,13 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
     });
   } catch (error) {
     const failures: unknown[] = [];
-    // @orb-waive caught-failure-ownership(cleanup): start-failure cleanup: pushed to failures[] and re-thrown via startCleanupError at L231; the start error is the primary owner
+    // @orb-waive caught-failure-ownership(cleanup): the observer-cleanup failure is pushed to failures and thrown beside the start error as startCleanupError once detach has also been tried. Ends if that throw stops carrying failures.
     try {
       await cleanupObserver();
     } catch (cleanup) {
       failures.push(cleanup);
     }
-    // @orb-waive caught-failure-ownership(cleanup): start-failure cleanup: pushed to failures[] and re-thrown via startCleanupError at L231; the start error is the primary owner
+    // @orb-waive caught-failure-ownership(cleanup): the detach failure is pushed to failures and thrown beside the start error as startCleanupError. Ends if that throw stops carrying failures.
     try {
       await detach();
     } catch (cleanup) {
@@ -241,9 +241,9 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
   }
   let active = true;
   const detachReported = async (): Promise<void> => {
-    // @orb-waive caught-failure-ownership(cleanupObserver): terminal cleanup after trace stop: warn() prints the exact failure text; the owning Snap session closes the browser next
+    // @orb-waive caught-failure-ownership(cleanupObserver): the rejection handler passes the failure to warn, which writes it to stderr as BOOT LCP CLEANUP. Ends if the handler stops passing the error to warn.
     await cleanupObserver().catch((error: unknown) => warn(`BOOT LCP CLEANUP     ${errorMessage(error)}`));
-    // @orb-waive caught-failure-ownership(detach): detach is terminal cleanup after trace stop/abort; warn prints the exact failure and the owning Snap session still closes the browser. Ends if this warning or the following session close disappears.
+    // @orb-waive caught-failure-ownership(detach): the rejection handler passes the failure to warn, which writes it to stderr as BOOT TRACE DETACH. Ends if the handler stops passing the error to warn.
     await detach().catch((error: unknown) => warn(`BOOT TRACE DETACH   ${errorMessage(error)}`));
   };
   const abort = async (): Promise<void> => {
@@ -251,7 +251,7 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
       active = false;
       // Cleanup cannot replace the navigation/analyzer failure already leaving this block, but it is
       // still operator-visible: a failed Tracing.end can leave Chromium recording until session close.
-      // @orb-waive caught-failure-ownership(stopTrace): warn receives the caught cleanup error and prints it as BOOT TRACE CLEANUP; the surrounding session close remains the terminal cleanup owner. Ends if this warning stops carrying the failure or session close stops following this block.
+      // @orb-waive caught-failure-ownership(stopTrace): the rejection handler passes the failure to warn, which writes it to stderr as BOOT TRACE CLEANUP; the navigation or analyzer failure already leaving abort stays the primary error. Ends if the handler stops passing the error to warn.
       await stopTrace(cdp, complete.promise).catch((error: unknown) => warn(`BOOT TRACE CLEANUP  ${errorMessage(error)}`));
     }
     await detachReported();
@@ -266,7 +266,7 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
       try {
         let presentation: BootLcpState | undefined;
         const failures: unknown[] = [];
-        // @orb-waive caught-failure-ownership(error): trace-start recovery: re-thrown at L233 after cleanup collects secondary failures; start error is the primary owner
+        // @orb-waive caught-failure-ownership(error): the presentation failure is pushed to failures and handed to stopAndRetainTrace as earlierFailures, whose tail throws it. Ends if earlierFailures stops being thrown.
         try {
           presentation = await awaitBootPresentation(page);
         } catch (error) {

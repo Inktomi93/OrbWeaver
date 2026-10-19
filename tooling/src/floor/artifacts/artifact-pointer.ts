@@ -104,7 +104,7 @@ function stampOf(runIdValue: string): string | null {
  *  published" into "manifest lost" for the retention question it answers — the filename is shared, the
  *  three-way answer is this reader's. */
 function publishedCountOf(dir: string): number | null {
-  // @orb-waive caught-failure-ownership(catch): an absent or unreadable `.published` manifest is the UNKNOWN answer to "how many aliases did this run publish?", and `null` is that answer — deliberately distinct from the `0` a run that finished and published nothing writes. Both are returned to the one caller, which acts on the difference. Ends if a caller starts needing to know WHY the manifest was unreadable.
+  // @orb-waive caught-failure-ownership(catch): null (no manifest, or one that will not parse) is the UNKNOWN publish count, distinct from the 0 of a run that published nothing; spokeForInstrument counts unknown as a publisher and 0 as not. Ends if a caller needs the reason a manifest was unreadable.
   try {
     const parsed = JSON.parse(readFileSync(join(dir, PUBLISHED_MANIFEST), "utf-8")) as readonly string[];
     return parsed.length;
@@ -116,7 +116,7 @@ function publishedCountOf(dir: string): number | null {
 /** A slot's last-modified instant, or null when the slot vanished under us (a concurrent publisher's prune —
  *  the same race ./artifacts.ts `slotMtime` answers with a value rather than a throw). */
 function dirInstant(dir: string): string | null {
-  // @orb-waive caught-failure-ownership(catch): a slot removed by a concurrent publisher's prune between the directory listing and this stat is the expected racing case (the same one ./artifacts.ts `slotMtime` answers with a value), and `null` is the answer its one caller acts on — the slot is dropped from the census, because a slot that is gone has no instant. Ends if a vanished slot must be distinguished from an unreadable one.
+  // @orb-waive caught-failure-ownership(catch): a slot gone between the listing and this stat has no instant; censusRow then returns null and slotCensus drops the row. Ends if a vanished slot must be told apart from an unreadable one.
   try {
     return new Date(statSync(dir).mtimeMs).toISOString();
   } catch {
@@ -169,7 +169,7 @@ export function slotCensus(root: string, instrument: string): readonly SlotCensu
 /** Is there an alias here at all, and is it a POINTER? `lstat`, never `stat`: a dangling symlink must read as
  *  a dangling POINTER, not as an absent file. */
 function aliasKind(path: string): "symlink" | "file" | "absent" {
-  // @orb-waive caught-failure-ownership(catch): this IS an existence predicate — the throw is the `absent` answer, one of the three values the caller switches on, and it becomes the operator-visible `absent` pointer state (which `check:show --stage` turns into a refusal naming the command to run). Ends if the caller starts needing WHY the alias is unreadable.
+  // @orb-waive caught-failure-ownership(catch): the throw is the absent answer; resolvePointer carries it as state absent, which resolveReport in show-stage.ts refuses with the command to run first. Ends if absent stops reaching that refusal.
   try {
     return lstatSync(path).isSymbolicLink() ? "symlink" : "file";
   } catch {
@@ -191,7 +191,7 @@ function pointerState(kind: "symlink" | "file" | "absent", resolved: SlotCensusR
 }
 
 function aliasInstant(path: string): string | null {
-  // @orb-waive caught-failure-ownership(catch): there is no alias to stat — the `state` field, computed from `aliasKind` above, has already told the reader that, so a publish instant of `null` is the consistent answer rather than a swallowed failure. Ends if `publishedAt` becomes readable independently of `state`.
+  // @orb-waive caught-failure-ownership(catch): null means there is no alias to stat; the check:show --pointers row prints it as never published. Ends if publishedAt stops being printed there.
   try {
     return new Date(lstatSync(path).mtimeMs).toISOString();
   } catch {
@@ -292,7 +292,7 @@ function instrumentOfAlias(root: string, alias: string): string | null {
 }
 
 function readdirSafe(dir: string): readonly string[] {
-  // @orb-waive caught-failure-ownership(catch): no `reports/runs/` directory means no instrument has ever run on this checkout — an empty instrument list is the truthful census, and the caller turns a resulting empty inventory into an explicit NOTHING TO MEASURE refusal rather than a clean zero. Ends if an unreadable runs directory must be refused here.
+  // @orb-waive caught-failure-ownership(catch): no runs directory gives an empty instrument list, so publishedPointers yields no rows and pointerView refuses with NOTHING TO MEASURE (exit 3). Ends if another caller of publishedPointers reads an empty list as clean.
   try {
     return readdirSync(dir, { withFileTypes: true })
       .filter((e) => e.isDirectory())
@@ -326,7 +326,7 @@ export function publishedPointers(root: string): readonly PointerResolution[] {
 }
 
 function readdirAll(dir: string): readonly string[] {
-  // @orb-waive caught-failure-ownership(catch): no `reports/` directory at all — the same honest zero as `readdirSafe`, and the same caller refuses on it (`pointerView` raises NOTHING TO MEASURE, exit 3), so the empty list is never rendered as "nothing is stale". Ends if this stops being the only caller.
+  // @orb-waive caught-failure-ownership(catch): no reports directory gives an empty list, so publishedPointers yields no rows and pointerView refuses with NOTHING TO MEASURE (exit 3). Ends if another caller of publishedPointers reads an empty list as clean.
   try {
     return readdirSync(dir).map((name) => basename(name));
   } catch {
