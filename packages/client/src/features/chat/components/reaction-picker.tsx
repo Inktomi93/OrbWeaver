@@ -30,7 +30,6 @@
 // picker doubles as the un-react path for a reaction whose pill has scrolled behind the "+N" tail. Same
 // toggle verb, same seat, same answer — there is no second write path to keep honest.
 
-import { PickerDialog } from "#components";
 import type { MessageReactionGroup, ReactionEmoji } from "@orb/contracts/chat";
 import { REACTION_EMOJIS } from "@orb/contracts/chat";
 import type { ChatId, ChatParticipantId, MessageVariantId } from "@orb/kit/ids";
@@ -40,6 +39,7 @@ import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { PickerDialog } from "#components";
 
 /** The picked segment target: a span index + that span's speaker (the CLAIM the server re-validates). */
 interface ReactionSegmentTarget {

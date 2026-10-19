@@ -4,7 +4,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createPluginLifecycleLanes } from "#server/domain/plugin/substrate/lifecycle-lanes.ts";
 
 test("serializes one plugin while allowing a different plugin to proceed", async () => {
-  const lanes = createPluginLifecycleLanes();
+  await using lanes = createPluginLifecycleLanes();
   const firstId = castId<PluginId>("plugin_lifecycle_first");
   const secondId = castId<PluginId>("plugin_lifecycle_second");
   const entered: string[] = [];

@@ -49,9 +49,10 @@ import { makeCapability } from "@orb/testkit/node/factories/resolved-connection.
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { CUSTOM_SYSTEM_TEMPLATE, utilityPresetResolver } from "@orb/testkit/node/utility-preset.ts";
 import { and, eq } from "drizzle-orm";
-import { beforeEach, describe } from "vitest";
+import { beforeEach, describe, onTestFinished } from "vitest";
 import { createActiveTurns } from "#server/domain/chat/active-turns.ts";
 import type { ChatContext } from "#server/domain/chat/context.ts";
+import type { OwnedActiveTurns } from "#server/domain/chat/contract/active-turns.ts";
 import type { SpeakerArbiter } from "#server/domain/chat/contract/arbitration.ts";
 import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import type { ChatBehaviorInputs } from "#server/domain/chat/contract/foreign.ts";
@@ -324,10 +325,9 @@ function harness(
     recallMemory,
     runCompaction: stubRunCompaction,
   });
-  const activeTurns = createActiveTurns();
-  const turnDeps: Parameters<typeof createTurn>[1] = {
+  const turnDeps: Parameters<typeof createTurn>[1] & { readonly activeTurns: OwnedActiveTurns } = {
     engine,
-    activeTurns,
+    activeTurns: createActiveTurns(),
     emit,
     // The REAL claim chokepoint (R0) — a turn claims its room in production, so the turn suite drives the
     // real one. Every chat these tests seed is born CLAIMED, so it is a no-op and nothing here shifts.
@@ -349,9 +349,11 @@ function harness(
       });
     },
   };
+  // The registry outlives this function (the test drives turns on it), so the test's end closes it, not a lexical `using`.
+  onTestFinished(() => turnDeps.activeTurns[Symbol.asyncDispose]());
   const turn = createTurn(ctx, turnDeps);
   const requestTurn = createRequestTurn(ctx, turnDeps);
-  return { ctx, events, changedChats, deltas, notifications, connectionFunders, turn, requestTurn, activeTurns };
+  return { ctx, events, changedChats, deltas, notifications, connectionFunders, turn, requestTurn, activeTurns: turnDeps.activeTurns };
 }
 
 let db: Db;
@@ -2521,7 +2523,7 @@ describe("abort — owner-only (rollback-theft defense)", () => {
     const member = await seedUser(db, castId<Handle>("member"));
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const h = harness(db, names);
-    h.activeTurns.register(chatId, host);
+    using _foreign = h.activeTurns.register(chatId, host);
 
     await expect(h.turn.abort({ principal: principal(member), chatId })).rejects.toMatchObject({
       code: "not_turn_owner",
@@ -2531,7 +2533,7 @@ describe("abort — owner-only (rollback-theft defense)", () => {
   test("a caller aborts their OWN in-flight turn (signalled)", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
-    const handle = h.activeTurns.register(chatId, host);
+    using handle = h.activeTurns.register(chatId, host);
 
     await h.turn.abort({ principal: principal(host), chatId });
 
@@ -2552,7 +2554,7 @@ describe("abort — owner-only (rollback-theft defense)", () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const cancels: { chatId: ChatId; userId: UserId }[] = [];
     const h = harness(db, names, { rpg: stateRoundCancellingRpg(cancels, 0) });
-    h.activeTurns.register(chatId, host);
+    using _mine = h.activeTurns.register(chatId, host);
 
     await h.turn.abort({ principal: principal(host), chatId });
 
@@ -2569,7 +2571,7 @@ describe("abort — owner-only (rollback-theft defense)", () => {
     const cancels: { chatId: ChatId; userId: UserId }[] = [];
     // A FOREIGN turn is generating (which alone would refuse the member), and the member's own round is running.
     const h = harness(db, names, { rpg: stateRoundCancellingRpg(cancels, 1) });
-    h.activeTurns.register(chatId, host);
+    using _foreign = h.activeTurns.register(chatId, host);
 
     await expect(h.turn.abort({ principal: principal(member), chatId })).resolves.toBeUndefined();
 

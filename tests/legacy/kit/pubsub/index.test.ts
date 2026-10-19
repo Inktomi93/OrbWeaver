@@ -3,16 +3,15 @@ import { createPubSub } from "@orb/kit/pubsub";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 /** A dispatcher that records which handler received which event, in call order. */
-function recordingBus(): { readonly bus: ReturnType<typeof createPubSub<string>>; readonly calls: [PubSubHandler<string>, string][] } {
-  const calls: [PubSubHandler<string>, string][] = [];
-  const bus = createPubSub<string>((handler, event) => {
+function recordTo(calls: [PubSubHandler<string>, string][]): (handler: PubSubHandler<string>, event: string) => void {
+  return (handler, event) => {
     calls.push([handler, event]);
-  });
-  return { bus, calls };
+  };
 }
 
 test("emit hands every current subscriber to the dispatcher exactly once, and never invokes a handler itself", () => {
-  const { bus, calls } = recordingBus();
+  const calls: [PubSubHandler<string>, string][] = [];
+  using bus = createPubSub<string>(recordTo(calls));
   const invoked: string[] = [];
   const first: PubSubHandler<string> = (event) => void invoked.push(`first:${event}`);
   const second: PubSubHandler<string> = (event) => void invoked.push(`second:${event}`);
@@ -29,7 +28,8 @@ test("emit hands every current subscriber to the dispatcher exactly once, and ne
 });
 
 test("a teardown removes only its own subscriber, and an emit with no subscribers dispatches nothing", () => {
-  const { bus, calls } = recordingBus();
+  const calls: [PubSubHandler<string>, string][] = [];
+  using bus = createPubSub<string>(recordTo(calls));
   const kept: PubSubHandler<string> = () => undefined;
   const removeDropped = bus.subscribe(() => undefined);
   bus.subscribe(kept);
@@ -39,7 +39,8 @@ test("a teardown removes only its own subscriber, and an emit with no subscriber
 
   expect(calls).toEqual([[kept, "b"]]);
 
-  const empty = recordingBus();
-  empty.bus.emit("c");
-  expect(empty.calls).toEqual([]);
+  const emptyCalls: [PubSubHandler<string>, string][] = [];
+  using empty = createPubSub<string>(recordTo(emptyCalls));
+  empty.emit("c");
+  expect(emptyCalls).toEqual([]);
 });

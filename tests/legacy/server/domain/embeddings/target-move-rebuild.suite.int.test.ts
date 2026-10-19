@@ -354,7 +354,11 @@ function sweepOps(d: Drive): ReturnType<typeof createVectorSweepOps> {
   return createVectorSweepOps({
     embeddings: d.svc,
     listCorpusOwners: () => distinctCorpusOwners(d.db),
-    vacuousMemoryReceipt: createVacuousMemoryReceipt({ isMemoryEnabled: () => Promise.resolve(true), emptyMemoryScope: () => Promise.resolve(null), embeddings: d.svc }),
+    vacuousMemoryReceipt: createVacuousMemoryReceipt({
+      isMemoryEnabled: () => Promise.resolve(true),
+      emptyMemoryScope: () => Promise.resolve(null),
+      embeddings: d.svc,
+    }),
   });
 }
 const NO_MEMORY = { segments: { scanned: 0, changed: 0 }, segmentsSkippedOverWindow: 0, digests: { scanned: 0, changed: 0 }, failed: 0 };

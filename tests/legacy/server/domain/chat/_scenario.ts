@@ -27,8 +27,9 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Tape } from "@orb/testkit/node/chat/tape.ts";
 import { scriptedRunner } from "@orb/testkit/node/chat/tape.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
+import { onTestFinished } from "vitest";
 import { createActiveTurns } from "#server/domain/chat/active-turns.ts";
-import type { ActiveTurns } from "#server/domain/chat/contract/active-turns.ts";
+import type { ActiveTurns, OwnedActiveTurns } from "#server/domain/chat/contract/active-turns.ts";
 import type { ChatContext } from "#server/domain/chat/contract/context.ts";
 import type { ChatBehaviorInputs, ResolveForeignInputsOp } from "#server/domain/chat/contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "#server/domain/chat/contract/foreign.ts";
@@ -273,10 +274,9 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     });
   const resolveForeignInputs = options.resolveForeignInputs ?? defaultForeign;
 
-  const activeTurns = createActiveTurns();
-  const turnDeps: Parameters<typeof createTurn>[1] = {
+  const turnDeps: Parameters<typeof createTurn>[1] & { readonly activeTurns: OwnedActiveTurns } = {
     engine,
-    activeTurns,
+    activeTurns: createActiveTurns(),
     emit,
     prng: seededPrng(),
     delay: () => Promise.resolve(),
@@ -286,6 +286,8 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     // as production does, so every suite riding the scenario covers the send/generate claim arms for free.
     claimChat: createClaimChat(ctx),
   };
+  // The registry outlives this function (the caller drives turns on it), so the test's end closes it, not a lexical `using`.
+  onTestFinished(() => turnDeps.activeTurns[Symbol.asyncDispose]());
   const turn = createTurn(ctx, turnDeps);
 
   return {
@@ -300,7 +302,7 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     requests,
     turn,
     requestTurn: createRequestTurn(ctx, turnDeps),
-    activeTurns,
+    activeTurns: turnDeps.activeTurns,
     principal: (userId = host) => principalOf(userId),
     send: (content, sendOptions = {}) =>
       turn.send({

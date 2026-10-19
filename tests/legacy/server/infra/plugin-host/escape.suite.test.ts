@@ -121,36 +121,28 @@ function evalString(ctx: QuickJSContext, code: string): string {
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
 describe("escape — realm walks reach only the guest global, never a host reference", () => {
   test("the constructor-chain Function escape resolves to the GUEST globalThis (not a host global)", async () => {
-    const ctx = await realmContext();
-    try {
-      // The classic sandbox-break: ({}).constructor.constructor === Function; call it to build a fn in the guest
-      // realm. Its globalThis IS the guest global — a sandboxed realm with `orb` and NO host/Node authority.
-      expect(evalString(ctx, "String(({}).constructor.constructor('return globalThis')() === globalThis)")).toBe("true");
-      // orb IS present on that global (the one intended entry); host/Node ambient authority is NOT reachable.
-      expect(evalString(ctx, "String(({}).constructor.constructor('return typeof globalThis.orb')())")).toBe("object");
-      const hostRefs = "['process','require','global','Buffer','module','__dirname','fetch','XMLHttpRequest']";
-      expect(evalString(ctx, `${hostRefs}.map((k) => (new Function('return typeof globalThis[' + JSON.stringify(k) + ']'))()).join(',')`)).toBe(
-        "undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined",
-      );
-    } finally {
-      ctx.dispose();
-    }
+    using ctx = await realmContext();
+    // The classic sandbox-break: ({}).constructor.constructor === Function; call it to build a fn in the guest
+    // realm. Its globalThis IS the guest global — a sandboxed realm with `orb` and NO host/Node authority.
+    expect(evalString(ctx, "String(({}).constructor.constructor('return globalThis')() === globalThis)")).toBe("true");
+    // orb IS present on that global (the one intended entry); host/Node ambient authority is NOT reachable.
+    expect(evalString(ctx, "String(({}).constructor.constructor('return typeof globalThis.orb')())")).toBe("object");
+    const hostRefs = "['process','require','global','Buffer','module','__dirname','fetch','XMLHttpRequest']";
+    expect(evalString(ctx, `${hostRefs}.map((k) => (new Function('return typeof globalThis[' + JSON.stringify(k) + ']'))()).join(',')`)).toBe(
+      "undefined,undefined,undefined,undefined,undefined,undefined,undefined,undefined",
+    );
   });
 
   test("eval + Function are reachable but operate ONLY on the guest realm", async () => {
-    const ctx = await realmContext();
-    try {
-      // eval/Function are NOT deleted (they carry no host authority in QuickJS — a fresh WASM realm). They evaluate
-      // guest code against the guest global; they cannot manufacture a host reference that does not already exist.
-      expect(evalString(ctx, "String(eval('1 + 2'))")).toBe("3");
-      expect(evalString(ctx, "String((new Function('return globalThis'))() === globalThis)")).toBe("true");
-      // Even an eval that tries to reach the host clock hits the throwing ambient Date stub, not a real one. The
-      // guest Date-constructor source is assembled by string concatenation so the determinism gate's line scan
-      // (which polices the TEST's own clock, not this guest payload) doesn't false-positive on it.
-      expect(evalString(ctx, "try { eval('new Date' + '()'); 'NO-THROW' } catch (e) { 'threw' }")).toBe("threw");
-    } finally {
-      ctx.dispose();
-    }
+    using ctx = await realmContext();
+    // eval/Function are NOT deleted (they carry no host authority in QuickJS — a fresh WASM realm). They evaluate
+    // guest code against the guest global; they cannot manufacture a host reference that does not already exist.
+    expect(evalString(ctx, "String(eval('1 + 2'))")).toBe("3");
+    expect(evalString(ctx, "String((new Function('return globalThis'))() === globalThis)")).toBe("true");
+    // Even an eval that tries to reach the host clock hits the throwing ambient Date stub, not a real one. The
+    // guest Date-constructor source is assembled by string concatenation so the determinism gate's line scan
+    // (which polices the TEST's own clock, not this guest payload) doesn't false-positive on it.
+    expect(evalString(ctx, "try { eval('new Date' + '()'); 'NO-THROW' } catch (e) { 'threw' }")).toBe("threw");
   });
 
   // WHAT THIS DIFF CAN AND CANNOT SEE — read before trusting it as an ambient-authority pin. It answers
@@ -190,27 +182,23 @@ describe("escape — realm walks reach only the guest global, never a host refer
 // ────────────────────────────────────────────────────────────────────────────────────────────────────────
 describe("escape — prototype pollution does not cross the membrane", () => {
   test("a guest __proto__ payload dumped host-side lands as an OWN key and never touches host Object.prototype", async () => {
-    const ctx = await realmContext();
-    try {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      const before = (Object.prototype as Record<string, unknown>)["__polluted__"];
-      const result = ctx.evalCode('JSON.parse(\'{"__proto__":{"__polluted__":true},"real":1}\')');
-      if (isFail(result)) {
-        result.error.dispose();
-        throw new Error("guest failed to build the payload");
-      }
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      const dumped = ctx.dump(result.value) as Record<string, unknown>;
-      result.value.dispose();
-      // The payload crosses as INERT DATA: `__proto__` is a plain own key (JSON.parse never walks the prototype),
-      // so nothing is assigned to the host's Object.prototype — a fresh host object stays clean.
-      expect(Object.keys(dumped).sort()).toEqual(["__proto__", "real"]);
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-      expect((Object.prototype as Record<string, unknown>)["__polluted__"]).toBe(before);
-      expect(Object.hasOwn({}, "__polluted__")).toBe(false);
-    } finally {
-      ctx.dispose();
+    using ctx = await realmContext();
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+    const before = (Object.prototype as Record<string, unknown>)["__polluted__"];
+    const result = ctx.evalCode('JSON.parse(\'{"__proto__":{"__polluted__":true},"real":1}\')');
+    if (isFail(result)) {
+      result.error.dispose();
+      throw new Error("guest failed to build the payload");
     }
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+    const dumped = ctx.dump(result.value) as Record<string, unknown>;
+    result.value.dispose();
+    // The payload crosses as INERT DATA: `__proto__` is a plain own key (JSON.parse never walks the prototype),
+    // so nothing is assigned to the host's Object.prototype — a fresh host object stays clean.
+    expect(Object.keys(dumped).sort()).toEqual(["__proto__", "real"]);
+    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
+    expect((Object.prototype as Record<string, unknown>)["__polluted__"]).toBe(before);
+    expect(Object.hasOwn({}, "__polluted__")).toBe(false);
   });
 });
 

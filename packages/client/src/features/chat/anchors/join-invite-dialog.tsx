@@ -11,7 +11,6 @@
 // (no oracle distinguishing which). Dismissing at any point just closes (the host's link stays usable
 // until spent/expired).
 
-import { FlowDialog } from "#components";
 import { Button } from "@orb/ui/button";
 import { DialogDescription, DialogFooter } from "@orb/ui/dialog";
 import { Stack } from "@orb/ui/layout";
@@ -20,6 +19,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
+import { FlowDialog } from "#components";
 import type { Trpc } from "#data";
 import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
 import { DEAD_INVITE_SENTENCE, inviteRoomSentence, testId } from "#lib";
