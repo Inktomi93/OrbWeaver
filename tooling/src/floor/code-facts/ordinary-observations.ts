@@ -14,6 +14,7 @@ import type {
   OrdinaryObservationDemand,
   OrdinaryObservationOwner,
 } from "./ordinary-observations-contract.ts";
+import { ORDINARY_ARRAY_REMAPS } from "./ordinary-observations-contract.ts";
 import { resolveLexicalValueDeclaration, resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess } from "./reference-fact.ts";
 import { lexicalReferenceSymbol } from "./reference-fact-alias.ts";
 import { resolveCallableDeclaration, resolveCallableOrigin } from "./reference-fact-call.ts";
@@ -443,16 +444,33 @@ function nodeTypeQuestions(node: MorphNode, questions: TypeQuestions): void {
     add({ base: { kind: "node", node: member.receiver }, steps: [...steps, { kind: "nonnullable" }, { kind: "array-element-or-self" }], displayAt: null });
   }
 }
-function columnCallQuestions(column: SchemaColumn, call: CallExpression, whole: number, questions: TypeQuestions): void {
+// The column-independent half of a call's column questions, read once per call rather than once per column.
+interface ColumnCallSite {
+  readonly call: CallExpression;
+  // A parser receiver whose `_output` a normalizer proof relates to the column shape.
+  readonly parser: MorphNode | undefined;
+  // A member call that may carry one column field through unchanged; a computed key may still name a remap.
+  readonly remap: boolean;
+}
+function columnCallSite(call: CallExpression): ColumnCallSite {
+  const callee = call.getExpression();
+  const member = staticMemberAccess(callee);
+  return {
+    call,
+    parser: member !== undefined && member.receiver.getType().getProperty("_output") !== undefined ? member.receiver : undefined,
+    remap: Node.isElementAccessExpression(callee) || (member !== undefined && ORDINARY_ARRAY_REMAPS.has(member.name)),
+  };
+}
+function columnCallQuestions(column: SchemaColumn, site: ColumnCallSite, whole: number, questions: TypeQuestions): void {
   const { add, relations } = questions;
   const override = column.typeOverride;
   if (override === null) {
     return;
   }
+  const { call, parser, remap } = site;
   const properties = override.type.getProperties();
-  const member = staticMemberAccess(call.getExpression());
-  if (member !== undefined && member.receiver.getType().getProperty("_output") !== undefined) {
-    const output = add({ base: { kind: "node", node: member.receiver }, steps: [{ kind: "property", name: "_output", at: member.receiver }], displayAt: null });
+  if (parser !== undefined) {
+    const output = add({ base: { kind: "node", node: parser }, steps: [{ kind: "property", name: "_output", at: parser }], displayAt: null });
     relations.push({ left: output, right: whole });
     for (const property of properties) {
       const field = add({
@@ -462,6 +480,10 @@ function columnCallQuestions(column: SchemaColumn, call: CallExpression, whole: 
       });
       relations.push({ left: output, right: field });
     }
+  }
+  // Field-at-call questions are read only at array remaps; planning them for every call overflows the selector Map.
+  if (!remap) {
+    return;
   }
   for (const property of properties) {
     const field = add({
@@ -475,6 +497,8 @@ function columnCallQuestions(column: SchemaColumn, call: CallExpression, whole: 
 }
 function schemaTypeQuestions(schema: SchemaModel | undefined, calls: readonly CallExpression[], questions: TypeQuestions): void {
   const { add } = questions;
+  const typed = schema?.tables.some((table) => table.columns.some((column) => column.typeOverride !== null)) === true;
+  const sites = typed ? calls.map(columnCallSite) : [];
   for (const table of schema?.tables ?? []) {
     for (const name of ["$inferSelect", "$inferInsert"]) {
       add({ base: { kind: "node", node: table.declaration }, steps: [{ kind: "property", name, at: table.declaration }], displayAt: null });
@@ -489,8 +513,8 @@ function schemaTypeQuestions(schema: SchemaModel | undefined, calls: readonly Ca
         steps: [{ kind: "nonnullable" }, { kind: "array-element-or-self" }],
         displayAt: null,
       });
-      for (const call of calls) {
-        columnCallQuestions(column, call, whole, questions);
+      for (const site of sites) {
+        columnCallQuestions(column, site, whole, questions);
       }
     }
   }

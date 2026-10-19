@@ -3,6 +3,7 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { traceJsonColumnValue } from "../../floor/code-facts/drizzle-value-origin.ts";
+import { ORDINARY_ARRAY_REMAPS } from "../../floor/code-facts/ordinary-observations-contract.ts";
 import type { NativePrimitiveFlags, NativeSelectedType } from "../../floor/code-facts/type-projection-contract.ts";
 import { selectedTypeRelation } from "../../floor/code-facts/type-projection-contract.ts";
 import type { JsonColumnMergeProof, JsonColumnOriginContext, JsonColumnTarget } from "../contract/json-column-origin.ts";
@@ -24,7 +25,6 @@ const PURE_OPERATORS = new Set([
   SyntaxKind.BarBarToken,
   SyntaxKind.QuestionQuestionToken,
 ]);
-const ARRAY_REMAPS = new Set(["filter", "map"]);
 const PURE_MEMBERS = new Set(["filter", "map", "includes", "has"]);
 const ARRAY_OWNERS = new Set(["Array", "ReadonlyArray"]);
 const SET_OWNERS = new Set(["Set", "ReadonlySet"]);
@@ -76,7 +76,10 @@ function pureCall(call: import("ts-morph").CallExpression, seen: ReadonlySet<obj
     return false;
   }
   const args = call.getArguments();
-  return args.length === 1 && (ARRAY_REMAPS.has(member.name) ? pureCallback(args[0] ?? call, seen, context) : pureExpression(args[0] ?? call, seen, context));
+  return (
+    args.length === 1 &&
+    (ORDINARY_ARRAY_REMAPS.has(member.name) ? pureCallback(args[0] ?? call, seen, context) : pureExpression(args[0] ?? call, seen, context))
+  );
 }
 
 function pureIdentifier(node: import("ts-morph").Identifier, seen: ReadonlySet<object>, context: JsonColumnOriginContext): boolean {
@@ -145,7 +148,12 @@ export function jsonColumnArrayFieldProof(
 ): JsonColumnMergeProof | undefined {
   const value = unwrapExpression(node);
   const member = Node.isCallExpression(value) ? context.schemaReaders.member(value.getExpression()) : undefined;
-  if (!Node.isCallExpression(value) || member === undefined || !ARRAY_REMAPS.has(member.name) || !installedMember(member.receiver, member.name, context)) {
+  if (
+    !Node.isCallExpression(value) ||
+    member === undefined ||
+    !ORDINARY_ARRAY_REMAPS.has(member.name) ||
+    !installedMember(member.receiver, member.name, context)
+  ) {
     return;
   }
   const prior = jsonColumnArrayFieldProof(member.receiver, target, field, context);
