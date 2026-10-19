@@ -75,7 +75,7 @@ function containmentInspectionError(path: string, error: unknown): CodemodError 
 }
 
 function pathEntryExists(path: string): boolean {
-  // @orb-waive caught-failure-ownership(error): ENOENT/ENOTDIR means this entry is absent and the caller continues to an existing ancestor; other failures throw. Ends if false is treated as a containment verdict.
+  // @orb-waive caught-failure-ownership(error): ENOENT/ENOTDIR return false, which physicalPath (the only caller) consumes by walking to the parent; every other code throws containmentInspectionError(path, error), a CodemodError carrying error.message. Ends if false becomes a containment verdict or that throw is removed.
   try {
     lstatSync(path);
     return true;

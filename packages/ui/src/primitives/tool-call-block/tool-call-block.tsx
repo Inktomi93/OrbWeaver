@@ -40,8 +40,9 @@ function stateOf(record: ToolCallBlockRecord): ToolCallState {
 
 /** Attempt `JSON.parse` + pretty-print; on failure return the raw string verbatim — NEVER blank. */
 function prettyOrRaw(raw: string): string {
-  // @orb-waive caught-failure-ownership(catch): documented above — on failure returns the raw
-  // string verbatim, NEVER blank, a clean display fallback. Ends if the verbatim fallback is removed.
+  // @orb-waive caught-failure-ownership(catch): the raw string is returned and ToolCallBlock renders it verbatim
+  // in the Arguments and Result `pre` blocks, so malformed JSON is shown, never blank. Ends if either `pre`
+  // stops rendering prettyOrRaw's return.
   try {
     return JSON.stringify(JSON.parse(raw), null, 2);
   } catch {

@@ -24,7 +24,7 @@ export function writeClipboardText(text: string, settle: (outcome: ClipboardOutc
     queueMicrotask(() => settle(outcome));
     return;
   }
-  // @orb-waive caught-failure-ownership(clipboard.writeText): the rejection IS the `refused` outcome, and every caller surfaces it (CopyButton's status and manual-copy field, copyWithNotice's toast). Ends if a caller needs the rejection's reason.
+  // @orb-waive caught-failure-ownership(clipboard.writeText): the rejection becomes settle("refused"). The two callers surface it: CopyButtonRoot stores it with setSettled (manual-copy field and status), and client copyWithNotice calls notify.error. Ends if a caller stops surfacing "refused" or needs the rejection's reason.
   clipboard.writeText(text).then(
     () => settle("copied"),
     () => settle("refused"),
