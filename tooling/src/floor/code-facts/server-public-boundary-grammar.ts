@@ -152,6 +152,10 @@ export function inferredOperands(node: ts.Expression): readonly ts.Node[] | unde
   return ts.isBinaryExpression(node) ? [node.left, node.right] : undefined;
 }
 
+export function constituents(type: ts.Type): readonly ts.Type[] {
+  return type.isUnion() ? type.types : [type];
+}
+
 /** The returned and yielded expressions of one function body, excluding nested functions and classes. */
 export function returnedExpressions(body: ts.Block): readonly ts.Expression[] {
   const returned: ts.Expression[] = [];

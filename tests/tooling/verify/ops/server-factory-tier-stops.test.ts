@@ -32,7 +32,19 @@ export function indexed(value:Indexed):void{}
 export function canonical():Canonical{throw new Error("fixture")}
 export function inferred(){return {slot:promised()}}
 export const ring=makeRing<Local>();
+function isLocal(x:unknown):x is Local{return true}
+function assertLocal(x:unknown):asserts x is Local{}
+export function guarded(x:unknown){if(isLocal(x)){return x}throw new Error("fixture")}
+export function asserted(x:unknown){assertLocal(x);return x}
+export function narrowed(x:unknown){return isLocal(x)?x:null}
+export function guardedMember(o:{readonly x:unknown}){if(isLocal(o.x)){return o.x}return undefined}
+export const guardedConst=((x:unknown)=>{assertLocal(x);return {x}})(null);
+export function present(x:Local|undefined){if(x){return x}throw new Error("fixture")}
+export function literal(x:string){return x==="a"?x:"b"}
 `,
+  "packages/server/src/domain/feature/bridge.gen.ts":
+    'import {promised} from "../../infra/adapter/factory.ts";\nexport function bridged():ReturnType<typeof promised>{return promised()}export function plain():number{return 1}',
+  "packages/server/src/infra/adapter/relay.gen.ts": 'import type {Lane} from "../../foundation/trace/lane.ts";\nexport function relayed(lane:Lane):void{}',
   "packages/server/src/infra/adapter/augment.ts":
     'import type {Local} from "./factory.ts";\ndeclare module "vendor-box" {interface VendorBox<T> {readonly owned?:Local}}',
   "packages/server/src/foundation/trace/lane.ts": 'export type Lane="a"|"b";export function trace(lane:Lane):void{}',
@@ -64,7 +76,16 @@ const CASES = [
   ["entry/verb", 'import {verb} from "../domain/feature/verb.ts";export const value=verb;', 0, ""],
   ["entry/heavy", 'import {heavy} from "../domain/feature/verb.ts";export const value=heavy;', 0, ""],
   ["entry/probe", 'import {probe} from "../primitives/probe.ts";export const value=probe;', 0, ""],
+  ["entry/present", 'import {present} from "../infra/adapter/factory.ts";export const value=present;', 1, "Local"],
+  ["entry/literal", 'import {literal} from "../infra/adapter/factory.ts";export const value=literal;', 0, ""],
+  // A generated file is outside the rule's population, so its own imports are walked from the importer.
+  ["entry/bridged", 'import {bridged} from "../domain/feature/bridge.gen.ts";export const value=bridged;', 1, "Local"],
+  ["entry/plain", 'import {plain} from "../domain/feature/bridge.gen.ts";export const value=plain;', 0, ""],
+  ["entry/relayed", 'import {relayed} from "../infra/adapter/relay.gen.ts";export const value=relayed;', 1, "Lane"],
 ] as const;
+
+// Control-flow narrowing gives a reference a type its declaration never names, so each read refuses.
+const NARROWED = ["guarded", "asserted", "narrowed", "guardedMember", "guardedConst"] as const;
 
 // The owners of each stop: the importing file in its own tier, or the ambient augmentation itself.
 const OWNERS = [
@@ -78,6 +99,9 @@ test("each tier-reference stop leaves its leak to the importer or augmentation t
   const files = new Map(Object.entries(SOURCES));
   for (const [name, source] of CASES) {
     files.set(`packages/server/src/${name}.ts`, source);
+  }
+  for (const name of NARROWED) {
+    files.set(`packages/server/src/entry/${name}.ts`, `import {${name}} from "../infra/adapter/factory.ts";export const value=${name};`);
   }
   for (const [path, text] of files) {
     mkdirSync(dirname(join(scratch, path)), { recursive: true });
@@ -106,6 +130,12 @@ test("each tier-reference stop leaves its leak to the importer or augmentation t
   expect(CASES.map(([name]) => ({ name, ...verdict(lint(`packages/server/src/${name}.ts`)) }))).toEqual(
     CASES.map(([name, , count, shape]) => ({ name, refusals: [], findings: Array.from({ length: count }, () => `Factory type ${shape}`) })),
   );
+  expect(
+    NARROWED.map((name) => {
+      const { refusals, findings } = verdict(lint(`packages/server/src/entry/${name}.ts`));
+      return { name, findings, narrowed: refusals.map((message) => message.includes("a narrowed reference at packages/server/src/infra/adapter/factory.ts:")) };
+    }),
+  ).toEqual(NARROWED.map((name) => ({ name, findings: [], narrowed: [true] })));
   for (const [path, line, shape, consumer] of OWNERS) {
     const messages = lint(path);
     expect(

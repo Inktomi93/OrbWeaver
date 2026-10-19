@@ -87,6 +87,7 @@ import {
   serverTypeTier,
   TYPE_HOME_NATIVE_POLICY_ID,
   UI_TOKEN_AUTHORING_CONTRACT_HOME,
+  unjudgedServerFile,
 } from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
 import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
@@ -5441,11 +5442,12 @@ const serverFactoryPublicBoundaryRule = {
         }
         return;
       }
-      // A domain or primitives target exposes a factory shape only through its own import, judged in that file.
+      // A domain or primitives target exposes a factory shape only through its own import, judged in that file,
+      // unless that file is one this rule does not lint.
       if (
         !declarations.some((declaration) => {
           const owner = relative(context.cwd, declaration.getSourceFile().fileName).replaceAll("\\", "/");
-          return serverFactoryTier(owner) && serverTypeTier(owner) !== serverTypeTier(consumer);
+          return (serverFactoryTier(owner) || unjudgedServerFile(owner)) && serverTypeTier(owner) !== serverTypeTier(consumer);
         })
       ) {
         return;

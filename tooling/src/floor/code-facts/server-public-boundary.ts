@@ -1,6 +1,6 @@
 // Placement follows compiler-checked public declarations, never instantiated structural type graphs.
-// A walk stays inside the tier that declares its root: every other server file judges its own imports, so a
-// declaration outside that tier (lib, node_modules, packages, another tier, an ambient augmentation) is a stop.
+// A walk stays inside its root's tier: every other linted server file judges its own imports, so a declaration
+// outside that tier (lib, node_modules, packages, another tier, an augmentation) stops it, except from an unlinted file.
 import { matchesGlob, relative } from "node:path";
 import ts from "typescript";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
@@ -9,6 +9,7 @@ import {
   aliasTarget,
   annotationChildren,
   closedExpression,
+  constituents,
   declarationHasMeaning,
   defaultNeedsBinding,
   formalContribution,
@@ -31,7 +32,7 @@ import {
   vocabularyChildren,
 } from "./server-public-boundary-grammar.ts";
 import { WIRE_SHAPE_SUFFIXES } from "./shape-declaration.ts";
-import { nativeFactoryTypeHomePopulation, packageTypeHome, serverTypeTier, TYPE_HOME_NATIVE_CONTRACT_GLOBS } from "./type-home.ts";
+import { nativeFactoryTypeHomePopulation, packageTypeHome, serverTypeTier, TYPE_HOME_NATIVE_CONTRACT_GLOBS, unjudgedServerFile } from "./type-home.ts";
 import { readParserTransparentAliasOrigin } from "./type-member-origin.ts";
 import type { NativeParserTypeContext } from "./type-member-origin-contract.ts";
 
@@ -96,7 +97,12 @@ function boundaryWalk(parser: NativeParserTypeContext, root: string, consumer: s
   const path = (declaration: ts.Node): string => relative(root, declaration.getSourceFile().fileName).replaceAll("\\", "/");
   const site = (node: ts.Node): string => `${path(node)}:${node.getSourceFile().getLineAndCharacterOfPosition(node.getStart()).line + 1}`;
   const contains = (candidate: ts.Node): boolean => program.getSourceFile(candidate.getSourceFile().fileName) === candidate.getSourceFile();
-  const foreign = (declaration: ts.Node): boolean => isAugmentationMember(declaration) || serverTypeTier(path(declaration)) !== tier;
+  // Inside an unjudged file every server declaration is walked, because no lint run judges that file's own imports.
+  let passThrough = false;
+  const foreign = (declaration: ts.Node): boolean => {
+    const owner = serverTypeTier(path(declaration));
+    return isAugmentationMember(declaration) || (passThrough ? owner === undefined : owner !== tier);
+  };
   const external = (declaration: ts.Node): boolean => {
     const source = declaration.getSourceFile();
     const owned = path(declaration);
@@ -291,7 +297,9 @@ function boundaryWalk(parser: NativeParserTypeContext, root: string, consumer: s
   };
   // `typeof x` reaches x's value declaration; reflected operands are all walked, which can only add findings.
   const visitReflected = (annotation: ts.Node, signature: boolean): boolean => {
-    if (ts.isTypeQueryNode(annotation)) {
+    if (ts.isTypeQueryNode(annotation) && ts.isIdentifier(annotation.exprName) && narrowed(annotation.exprName)) {
+      refusals.add(`a narrowed reference at ${site(annotation)} carries a flow type its declaration does not name`);
+    } else if (ts.isTypeQueryNode(annotation)) {
       visitSymbol(annotation.exprName, signature, "value");
     }
     const operands = ts.isTypeQueryNode(annotation) ? (annotation.typeArguments ?? []) : reflectedOperands(annotation);
@@ -323,7 +331,31 @@ function boundaryWalk(parser: NativeParserTypeContext, root: string, consumer: s
   };
   // An omitted annotation is inferred from syntax the walk can still read: the returned or initializing
   // expressions, whose callees, operands and arguments carry every declaration the inferred type can name.
+  // A type predicate, assertion function or conditional test can narrow a reference to a type its declaration never
+  // names. Dropping null, undefined or union members, or refining to a literal, adds no declaration; anything else refuses.
+  const narrowedTo = (reference: ts.Node, symbol: ts.Symbol | undefined): boolean => {
+    if (symbol === undefined) {
+      return false;
+    }
+    const declared = new Set(constituents(checker.getNonNullableType(checker.getTypeOfSymbol(aliasTarget(symbol, checker)))));
+    return constituents(checker.getNonNullableType(checker.getTypeAtLocation(reference))).some((part) => !declared.has(part) && part.getSymbol() !== undefined);
+  };
+  const narrowed = (expression: ts.Expression): boolean => {
+    let name: ts.Node | undefined;
+    if (ts.isIdentifier(expression)) {
+      name = expression;
+    } else if (ts.isPropertyAccessExpression(expression)) {
+      name = expression.name;
+    } else if (ts.isElementAccessExpression(expression)) {
+      name = expression.argumentExpression;
+    }
+    return name !== undefined && narrowedTo(expression, checker.getSymbolAtLocation(name));
+  };
   const visitInferred = (expression: ts.Expression): void => {
+    if (narrowed(expression)) {
+      refusals.add(`a narrowed reference at ${site(expression)} carries a flow type its declaration does not name`);
+      return;
+    }
     if (closedExpression(expression)) {
       return;
     }
@@ -342,21 +374,31 @@ function boundaryWalk(parser: NativeParserTypeContext, root: string, consumer: s
     } else if (isPublicSignature(operand)) {
       visitDeclaration(operand, true, "value", true);
     } else if (ts.isIdentifier(operand)) {
-      visitValueReference(operand);
+      visitInferredReference(operand);
     } else if (ts.isShorthandPropertyAssignment(operand)) {
-      for (const declaration of checker.getShorthandAssignmentValueSymbol(operand)?.declarations ?? []) {
-        visitDeclaration(declaration, true, "value");
-      }
+      visitShorthand(operand);
     } else if (ts.isExpression(operand)) {
       visitInferred(operand);
     } else {
       refusals.add(`an inferred ${ts.SyntaxKind[operand.kind]} at ${site(operand)} has no qualified public boundary`);
     }
   };
+  const visitShorthand = (property: ts.ShorthandPropertyAssignment): void => {
+    const value = checker.getShorthandAssignmentValueSymbol(property);
+    if (narrowedTo(property.name, value)) {
+      refusals.add(`a narrowed reference at ${site(property)} carries a flow type its declaration does not name`);
+      return;
+    }
+    for (const declaration of value?.declarations ?? []) {
+      visitDeclaration(declaration, true, "value");
+    }
+  };
   // A compiler intrinsic such as `undefined` binds a symbol with no declaration and names no authored type.
-  const visitValueReference = (identifier: ts.Identifier): void => {
+  const visitInferredReference = (identifier: ts.Identifier): void => {
     const symbol = checker.getSymbolAtLocation(identifier);
-    if (symbol === undefined) {
+    if (narrowed(identifier)) {
+      refusals.add(`a narrowed reference at ${site(identifier)} carries a flow type its declaration does not name`);
+    } else if (symbol === undefined) {
       refusals.add(`the inferred reference ${identifier.text} at ${site(identifier)} has no symbol`);
     } else if ((aliasTarget(symbol, checker).declarations ?? []).length > 0) {
       visitSymbol(identifier, true, "value");
@@ -499,7 +541,16 @@ function boundaryWalk(parser: NativeParserTypeContext, root: string, consumer: s
       return;
     }
     seen.add(declaration);
-    visitDeclarationBody(declaration, meaning);
+    visitOwnedBody(declaration, meaning);
+  };
+  const visitOwnedBody = (declaration: ts.Declaration, meaning: DeclarationMeaning): void => {
+    const previous = passThrough;
+    passThrough ||= unjudgedServerFile(path(declaration));
+    try {
+      visitDeclarationBody(declaration, meaning);
+    } finally {
+      passThrough = previous;
+    }
   };
   const visitRootDeclaration = (declaration: ts.Declaration, meaning: DeclarationMeaning): void => {
     tier = serverTypeTier(path(declaration));

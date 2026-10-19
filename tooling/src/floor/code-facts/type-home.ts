@@ -56,6 +56,11 @@ export const SERVER_EXACT_CONTRACT_HOMES = [
 const SERVER_FACTORY_TIERS = ["entry", "transport", "infra", "foundation"] as const;
 export const SERVER_FACTORY_TYPE_HOME_ROOTS = SERVER_FACTORY_TIERS.map((tier) => `packages/server/src/${tier}/`);
 
+/** A server file the tier-reference rule does not lint, so nothing judges its own imports. */
+export function unjudgedServerFile(path: string): boolean {
+  return serverTypeTier(path) !== undefined && TYPE_HOME_NATIVE_UNADMITTED_GLOBS.some((pattern) => matchesGlob(path, pattern));
+}
+
 /** Only these tiers declare factory shapes; a domain or primitives file can expose one only through its own judged import. */
 export function serverFactoryTier(path: string): boolean {
   const tier = serverTypeTier(path);
