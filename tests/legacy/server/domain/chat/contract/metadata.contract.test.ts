@@ -5,7 +5,6 @@
 // default-applying accessors. Plus a few
 // compile-time shape pins for representative param/result/view types.
 
-// @orb-waive-file no-test-fabrication(UserId): baselined when the gate widened to value casts; burn-down item 906.
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -182,7 +181,6 @@ describe("representative contract shapes", () => {
         externalId: null,
         via: "cookie",
       },
-      // @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
       chatId: "chat_1" as ChatId,
       content: "hello",
     } satisfies SendParams;
@@ -193,7 +191,6 @@ describe("representative contract shapes", () => {
     } satisfies TurnOutcome;
 
     const summary = {
-      // @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
       id: "chat_1" as ChatId,
       title: null,
       starred: false,
@@ -214,7 +211,6 @@ describe("representative contract shapes", () => {
     // Invite / membership-lifecycle param shapes (the chokepoint surface — Part III §2).
     const createInvite = {
       principal: sendParams.principal,
-      // @orb-waive no-test-fabrication(ChatId): baselined when the gate widened to value casts; burn-down item 906.
       chatId: "chat_1" as ChatId,
       input: {},
     } satisfies CreateInviteParams;

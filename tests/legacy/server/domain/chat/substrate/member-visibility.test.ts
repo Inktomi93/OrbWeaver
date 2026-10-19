@@ -3,7 +3,6 @@
 // (kit), the CONSEQUENCE asserted is "zero truth bytes in the serialized payload". The per-view projection
 // itself is pinned in tests/legacy/contracts/chat/member-projection.contract.test.ts.
 
-// @orb-waive-file no-test-fabrication(ChatBusReplayEvent): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import { projectViewForMember } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
@@ -59,7 +58,6 @@ function viewOf(content: string, reasoning: string | null = null): MessageView {
   // A deliberate minimal view — the stripper reads content, reasoning and tool positions, so other MessageView
   // fields are irrelevant to what these tests assert; a full factory would obscure that the strip is
   // projection fields stay explicit, and the `not.toContain` byte checks below are the real assertion.
-  // @orb-waive no-test-fabrication(unknown): content/reasoning-only strip probe (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { id: messageId, chatId, content, reasoning, toolCalls: [] } as unknown as MessageView;
 }
 
@@ -69,7 +67,6 @@ test("stripChatEventForMember strips the `view` payload of every view-carrying m
     // A deliberate per-type view-carrying event probe — the strip keys off `type` + `view`, and this loop
     // asserts the SAME strip across every view-carrying union member; the payload beyond these fields is not
     // what's under test (the byte checks below are the assertion).
-    // @orb-waive no-test-fabrication(ChatBusEvent): per-type view-carrying event strip probe (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const event = { type, chatId, messageId, view } as ChatBusEvent;
     const stripped = stripChatEventForMember(event);
     // A view-carrying event is never withheld by the body strip (only `reasoningStreamDone` on a deception game
@@ -156,7 +153,6 @@ test("scrubDeltaEventForMember: an UNMODELLED delta kind is WITHHELD — growing
   // total over `ChatDeltaEvent["kind"]` (a new arm fails `tsc`), and this is the RUNTIME half of the belt:
   // the durable replay feeds this function `chat_events.payload` rows that are drizzle-`$type`-CAST and
   // never parsed, so a row written by another build of this schema really can arrive as an unknown kind.
-  // @orb-waive no-test-fabrication(unknown): the point IS a kind the union does not admit — it is unbuildable in-type by construction. Ends when the durable replay parses its payload instead of casting it.
   const unmodelled = { type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "image", url: "https://cas.test/a" } } as unknown as Extract<
     ChatBusEvent,
     { type: "delta" }
@@ -279,7 +275,6 @@ test("stripMessagesForViewer: reasoningHostOnly withholds the reasoning channel 
 
 test("stripChatEventForMember: on a deception game a view-carrying event withholds reasoning; reasoningStreamDone is DROPPED (null)", () => {
   const view = viewOf(`prose ${LIE}`, REASONING_SPILL);
-  // @orb-waive no-test-fabrication(ChatBusEvent): a minimal view-carrying event probe — the strip keys off `type` + `view` only. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const committed = { type: "messageCommitted", chatId, messageId, view } as ChatBusEvent;
   const stripped = stripChatEventForMember(committed, true);
   // The strip nulls the view's reasoning AND removes the body lie; the whole serialized event carries no truth.
@@ -287,7 +282,6 @@ test("stripChatEventForMember: on a deception game a view-carrying event withhol
   expect(strippedReasoning).toBeNull();
   expect(JSON.stringify(stripped)).not.toContain("crypt");
   // reasoningStreamDone is a member-visible "the reasoning finished" signal — WITHHELD on a deception game.
-  // @orb-waive no-test-fabrication(ChatBusEvent): the `reasoningStreamDone` event is a closed literal (type + chatId) — no fields elided. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const done = { type: "reasoningStreamDone", chatId } as ChatBusEvent;
   expect(stripChatEventForMember(done, true)).toBeNull();
   // Non-deception: it passes through unchanged.
@@ -362,7 +356,6 @@ function deceptionTurnRows(): ChatBusReplayEvent[] {
     { seq: 3, event: { type: "delta", chatId, slotSeq: 3, delta: { chatId, kind: "text", text: `He nods. ${LIE}` } } },
     { seq: 4, event: { type: "delta", chatId, slotSeq: 3, delta: { chatId, kind: "text", text: ' "Nothing."' } } },
     { seq: 5, event: { type: "reasoningStreamDone", chatId } },
-    // @orb-waive no-test-fabrication(ChatBusEvent): the at-commit view probe reads content/reasoning only (viewOf above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     { seq: 6, event: { type: "messageCommitted", chatId, messageId, view: viewOf(`He nods. ${LIE} "Nothing."`, REASONING_SPILL) } as ChatBusEvent },
   ];
   return rows.map(({ seq, event }) => ({ seq, event: stamper.stamp(event) }));

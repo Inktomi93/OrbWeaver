@@ -45,7 +45,6 @@ describe("addExternalBackground", () => {
 
     const err = await h.svc.addExternalBackground({ principal: principal(u, "user"), url: "https://cdn.example/not-an-image.txt" }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainOperationError);
-    // @orb-waive no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as DomainOperationError).code).toBe("background_unavailable");
   });
 
@@ -57,7 +56,6 @@ describe("addExternalBackground", () => {
 
     const err = await h.svc.addExternalBackground({ principal: principal(u, "user"), url: "   " }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainOperationError);
-    // @orb-waive no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as DomainOperationError).code).toBe("background_url_empty");
   });
 });

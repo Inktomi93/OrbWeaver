@@ -112,7 +112,6 @@ const IMAGE_MODEL = "img-model";
 // Binary-exact costs, so the two writers' different summation orders cannot differ by a float ulp.
 const IMAGE_COST = 0.25;
 const COMPACTION_COST = 0.125;
-// @orb-waive no-test-fabrication(GenerationRequest): a minimal runGeneration request double — the spend tail reads only the connection's provider and id, never credential or capability internals. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const IMAGE_REQ = {
   connection: makeResolved({ task: "generateImage", providerId: "openrouter" }),
   model: IMAGE_MODEL,
@@ -662,11 +661,9 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
     // The compose-root wrappers: the chat op type erases the batch to `unknown`.
     const chatCtx = makeChatContext(db, {
       applyStatsDelta: (batch, opDb, delta) => {
-        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         applyStatsDelta(batch as BatchStmt[], opDb, delta);
       },
       bumpStatsCanonVersion: (batch, opDb, owner) => {
-        // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
         bumpStatsCanonVersion(batch as BatchStmt[], opDb, owner);
       },
     });

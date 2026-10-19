@@ -1,6 +1,5 @@
 // The flagship showcase plugins on their real release-built bytes: story clocks, the pocket arcade, the keepsake camera, the card atlas, the affinity tracker and the scripted ui.js round trip.
 
-// @orb-waive-file no-test-fabrication(readonly { id: string; assetId: AssetId }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { VariablePrecondition, VariableWriteResult } from "@orb/contracts/chat";
 import { historyFloor } from "@orb/contracts/chat";
 import type { PluginCapability } from "@orb/contracts/plugin";
@@ -383,7 +382,6 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
   // The DISCLOSURE holds ONLY the tag textFields — a select inside it would be the buried-switcher failure
   // the always-visible pin above exists to prevent. Structured read, not a substring: the filters array is
   // the searchBar's own field.
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const atlasSpec = surfaces[0]?.["spec"] as {
     stages: readonly { body: { children: readonly { kind: string; filters?: readonly { kind: string }[] }[] } }[];
   };
@@ -452,7 +450,6 @@ test("the seeded scripted example round-trips its ui.js through install → CAS 
   const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
 
   const scripted = await packShowcaseBundle("affinity-tracker");
-  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const installed = await h.service.install({ caller, bundle: scripted as Uint8Array, grant: [] });
   const source = await h.service.getUiBundle({ caller, pluginId: installed.id });
   expect(source, "affinity-tracker ships a ui.js and it must survive the round trip").not.toBeNull();
@@ -462,7 +459,6 @@ test("the seeded scripted example round-trips its ui.js through install → CAS 
 
   // A Tier-S example answers `null` — an absence, not a failure.
   const staticOnly = await packShowcaseBundle("oracle-deck");
-  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const staticRow = await h.service.install({ caller, bundle: staticOnly as Uint8Array, grant: [] });
   expect(await h.service.getUiBundle({ caller, pluginId: staticRow.id })).toBeNull();
 });

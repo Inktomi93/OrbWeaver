@@ -173,7 +173,6 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
       expect(winner).toMatchObject({ userId: ownerId, role: "owner" });
 
       // The refusal rides the security trail naming WHICH subject lost and which one holds the row.
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       const line = warn.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["event"] === "sso_owner_bind_lost_race");
       expect(line?.["security"]).toBe(true);
       expect(line?.["boundTo"]).toBe(bound);
@@ -253,7 +252,6 @@ describe("sessions.provisionIdentity — OIDC owner-flip reconciliation (#8, D17
     const stranger = identity({ externalId: castId<ExternalId>("authentik|stranger"), handle: castId<Handle>("owner"), groups: [] });
 
     function claimWarn(calls: readonly (readonly unknown[])[]): Record<string, unknown> | undefined {
-      // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
       return calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["event"] === "sso_owner_claim_unproven");
     }
 
@@ -332,7 +330,6 @@ describe("sessions.provisionIdentity — a member's IdP rename onto the owner se
     const row = (await db.select().from(users).where(eq(users.id, member.userId)))[0];
     expect(row?.handle).toBe("alice");
     expect(row?.role).toBe("user");
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const line = warn.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["event"] === "sso_rename_onto_reserved_handle");
     expect(line).toMatchObject({ security: true, userId: member.userId });
   });

@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication({ name?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { BulkImportChatInput, BulkImportChatsResult } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";

@@ -1,34 +1,21 @@
 {
   "blind": {
-    "assets-single-writer": ["bracket", "namespace"],
-    "baseui-portal-container-seam": ["namespace"],
     "bounded-list-limit": ["namespace"],
-    "caught-failure-ownership": ["bracket"],
     "chat-viewer-plane-canon-reads": ["namespace"],
     "ct-no-oneshot-live-read-assert": ["bracket", "namespace"],
-    "ct-poll-schedule-and-paint": ["bracket", "namespace"],
-    "detached-work-traced": ["bracket"],
+    "ct-poll-schedule-and-paint": ["bracket"],
     "domain-freshness-plane": ["bracket"],
     "duplicate-action-doors": ["bracket"],
-    "json-column-write-parity": ["bracket"],
-    "list-row-adoption": ["bracket"],
     "no-form-reset-in-autosave": ["bracket"],
     "no-handwritten-wire-json-schema": ["namespace"],
     "no-inline-union-redecl": ["bracket"],
     "no-manual-token-estimate": ["namespace"],
     "no-vanity-alias": ["namespace"],
-    "open-json-column-key-parity": ["bracket"],
-    "own-tables-only": ["bracket", "namespace"],
-    "owner-scoped-reads": ["bracket"],
     "owner-scoped-upserts": ["bracket"],
     "owner-scoped-writes": ["bracket"],
     "platform-spellings": ["bracket"],
-    "serde-core-seal": ["namespace"],
     "stale-draft-commit": ["bracket"],
-    "test-determinism": ["bracket"],
-    "test-fixture-imports": ["namespace"],
     "testid-liveness": ["bracket"],
-    "windowed-infinite-query": ["bracket"],
-    "zustand-selector-derived": ["bracket"]
+    "windowed-infinite-query": ["bracket"]
   }
 }

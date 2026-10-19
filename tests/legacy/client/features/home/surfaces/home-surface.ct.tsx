@@ -3,7 +3,6 @@
 // the `(order, id)` sort, `useVisible:false` ⇒ NO DOM, the dormant arm's zero-control doorway, the
 // zero-tile empty state, and the duplicate-id THROW at construction.
 
-// @orb-waive-file no-test-fabrication({ state?: { boxes?: Record<string, number> } }): baselined when the gate widened to value casts; burn-down item 906.
 import type { HomeTileContribution } from "@orb/client/state";
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
@@ -1953,7 +1952,6 @@ async function shiftsSince(page: Page, since: number): Promise<{ readonly score:
         let score = 0;
         const movers = new Set<string>();
         const observer = new PerformanceObserver((list) => {
-          // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
           const entries = (list.getEntries() as (PerformanceEntry & { value: number; hadRecentInput: boolean; sources?: LayoutShiftSourceLike[] })[]).filter(
             (entry) => entry.startTime >= t0 && !entry.hadRecentInput,
           );
@@ -2003,7 +2001,6 @@ async function startShiftRecorder(page: Page): Promise<void> {
           root.setAttribute("data-ct-shift-movers", "");
           // No `hadRecentInput` filter: the visit is started by a DOM click, which is not input.
           new PerformanceObserver((list) => {
-            // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
             const entries = list.getEntries() as (PerformanceEntry & { value: number; sources?: LayoutShiftSourceLike[] })[];
             score += entries.reduce((sum, entry) => sum + entry.value, 0);
             for (const node of entries.flatMap((entry) => entry.sources ?? []).map((source) => source.node)) {

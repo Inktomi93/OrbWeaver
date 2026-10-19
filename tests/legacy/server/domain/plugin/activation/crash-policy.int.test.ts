@@ -1,7 +1,6 @@
 // activation: crash-policy — the auto-disable posture (03 §4). Each crash bumps the counter + records the
 // detail; at the threshold (3) the plugin auto-disables (status errored) + is deactivated; a clean run resets.
 
-// @orb-waive-file no-test-fabrication({ kind?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

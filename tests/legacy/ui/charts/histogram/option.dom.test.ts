@@ -1,6 +1,3 @@
-// @orb-waive-file no-test-fabrication({ data: number[] }[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ data: string[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ itemStyle: { color: string }; barCategoryGap: string }[]): baselined when the gate widened to value casts; burn-down item 906.
 
 // Unit: <Histogram>'s pure `buildHistogramOption` builder. A mounted ECharts instance does not
 // survive the Playwright component-test RPC boundary
@@ -46,12 +43,10 @@ test("bars carry the resolved series color and sit flush (barCategoryGap: 0%)", 
 
 test("axis chrome carries the resolved line + muted-label colors, never a token literal", () => {
   const option = buildHistogramOption(BUCKETS, COLORS, identityCount);
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const xAxis = option.xAxis as {
     axisLine: { lineStyle: { color: string } };
     axisLabel: { color: string };
   };
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const yAxis = option.yAxis as {
     splitLine: { lineStyle: { color: string } };
     axisLabel: { color: string };
@@ -80,9 +75,7 @@ test("bucket counts become the series data, in the same order", () => {
 // axis next to "1.2M" in the stat rows was one surface with two vocabularies (side-eye ANALYTICS 2026-08-19).
 test("the count formatter drives the value axis AND the tooltip", () => {
   const option = buildHistogramOption(BUCKETS, COLORS, (count) => `${count / 1000}k`);
-  // @orb-waive no-test-fabrication({ axisLabel: { formatter:): baselined when the gate widened to value casts; burn-down item 906.
   const yAxis = option.yAxis as { axisLabel: { formatter: (value: number) => string } };
-  // @orb-waive no-test-fabrication({ valueFormatter:): baselined when the gate widened to value casts; burn-down item 906.
   const tooltip = option.tooltip as { valueFormatter: (value: unknown) => string };
   expect(yAxis.axisLabel.formatter(12_000)).toBe("12k");
   expect(tooltip.valueFormatter(12_000)).toBe("12k");

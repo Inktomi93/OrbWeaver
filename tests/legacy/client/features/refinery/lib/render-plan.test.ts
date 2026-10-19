@@ -4,7 +4,6 @@
 // guessed /10), the single structural hero elevation, hint-elevates-never-carries (a hintless schema
 // renders well; a malformed hint heals to structure), and the fixed-payload corpus planning clean.
 
-// @orb-waive-file no-test-fabrication(Extract<PlanField["widget"], { kind: "gauge" }>): baselined when the gate widened to value casts; burn-down item 906.
 import { REFINERY_STAGE_PAYLOADS, REFINERY_STAGES } from "@orb/contracts/refinery";
 import { projectJsonSchema, RENDER_HINT_KEY } from "@orb/kit/json-schema";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -140,7 +139,6 @@ test("array<object> plans the fixed ROW anatomy: short strings/enums head, the b
     },
     required: [],
   });
-  // @orb-waive no-test-fabrication(Extract<PlanField["widget"], { kind: "rows" }>): baselined when the gate widened to value casts; burn-down item 906.
   const widget = plan.fields.find((f) => f.key === "assay")?.widget as Extract<PlanField["widget"], { kind: "rows" }>;
   expect(widget.kind).toBe("rows");
   expect(widget.row.header.map((f) => f.key)).toEqual(["field"]);
@@ -162,7 +160,6 @@ test("the assay ROW's score member is the REQUIRED bounded number — an optiona
   // fieldScores items carry TWO both-bounded numbers: `greetingIndex` (optional, 0..99, an address) and
   // `score` (required, 1..10, the datum). First-gauge-wins would bar the address.
   const plan = buildRenderPlan(projectJsonSchema(REFINERY_STAGE_PAYLOADS.score), BUILTIN_STAGE_HINTS.score);
-  // @orb-waive no-test-fabrication(Extract<PlanField["widget"], { kind: "rows" }>): baselined when the gate widened to value casts; burn-down item 906.
   const widget = plan.fields.find((f) => f.key === "fieldScores")?.widget as Extract<PlanField["widget"], { kind: "rows" }>;
   expect(widget.kind).toBe("rows");
   expect(widget.row.score?.key).toBe("score");

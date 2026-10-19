@@ -6,7 +6,6 @@
 //   • the F6 WITHHOLD guard: the assistant@depth-0 prefill combo the wire rejects is withheld from the
 //     write (base placement re-emitted verbatim) so sibling title/description still persist under autosave.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { personaMetadataSchema } from "@orb/contracts/persona";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

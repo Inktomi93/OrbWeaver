@@ -18,7 +18,6 @@ import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { PresetStructureTabs } from "#client/features/preset/components/preset-structure-tabs.tsx";
-// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppFormInstance } from "#client/forms/editor/index.ts";
 import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 

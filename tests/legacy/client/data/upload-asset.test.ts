@@ -4,9 +4,6 @@
 // `fetch` is stubbed at the global boundary (the sanctioned "fake at the edges" seam — the `safeFetch`
 // precedent, `tests/legacy/server/infra/network/egress.test.ts`), never a hand-mock of `uploadAsset` itself.
 
-// @orb-waive-file no-test-fabrication(File): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import { UploadRefusedError } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";

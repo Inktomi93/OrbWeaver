@@ -12,7 +12,6 @@
 // provable without live DNS.
 // @subject packages/server/src/domain/plugin/verbs/preview-from-url.ts
 
-// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";

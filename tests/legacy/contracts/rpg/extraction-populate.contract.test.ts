@@ -1,6 +1,4 @@
 // @orb/contracts/rpg/extraction — populate-from-character: the born-state schema, salvage and teaching.
-// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ required?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
 
 import {
   composePopulateTeaching,

@@ -33,7 +33,6 @@ function build(): {
   readonly index: ReturnType<typeof createEmbeddingsWorkloadContributions>[0];
   readonly userEvents: UserEventCall[];
 } {
-  // @orb-waive no-test-fabrication(unknown): the contribution reads ONLY `.embedded`/`.skipped` off each pass result. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const embeddings = {
     embedCorpus: vi.fn(async () => ({ embedded: 3, skipped: 1 })),
     embedAssets: vi.fn(async () => ({ embedded: 2, skipped: 0 })),

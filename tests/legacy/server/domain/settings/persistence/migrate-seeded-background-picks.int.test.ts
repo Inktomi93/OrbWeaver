@@ -59,9 +59,6 @@ async function seedLegacyPick(db: Db, userId: UserId, slug: string): Promise<voi
   await db.insert(userSettings).values({
     userId,
     schemaVersion: DEFAULT_USER_SETTINGS.schemaVersion,
-    // @orb-waive no-test-fabrication(unknown): raw pre-retirement legacy shape — kind:"seeded" and
-    // backgroundSeededId are retired from UserSettings, so only a double cast can write them into the
-    // fixture; ends if the retired fields are ever re-admitted to the type.
     config: {
       ...DEFAULT_USER_SETTINGS,
       appearance: { ...DEFAULT_USER_SETTINGS.appearance, backgroundImageKind: "seeded", backgroundSeededId: slug },

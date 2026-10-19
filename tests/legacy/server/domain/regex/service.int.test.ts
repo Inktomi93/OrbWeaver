@@ -7,7 +7,6 @@
 // the portability registry, so this seam is where a caller's identity becomes an owner scope — and a wrap
 // that read the wrong field would be a cross-tenant read with every factory-level test still green.
 
-// @orb-waive-file no-test-fabrication(NonNullable<typeof file>): baselined when the gate widened to value casts; burn-down item 906.
 import { regexScripts } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

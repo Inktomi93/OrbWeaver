@@ -13,7 +13,6 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ReactElement } from "react";
 import { MessageHandlingSection } from "#client/features/preset/components/message-handling-section.tsx";
-// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppFormInstance } from "#client/forms/editor/index.ts";
 import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 

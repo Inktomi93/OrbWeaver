@@ -38,7 +38,6 @@ import type { ConnectionHarness, HarnessOptions } from "../connection/_support.t
 import { BYO_PROVIDER, makeHarness, seedOwner } from "../connection/_support.ts";
 import { makeStoreHarness, seedCharacter } from "./_support.ts";
 
-// @orb-waive-file no-test-fabrication({ readonly input?: unknown; readonly dimensions?: number }): baselined when the gate widened to value casts; burn-down item 906.
 
 const LOCAL_LIGHT = castId<ProviderId>("local-light");
 const ENCODER = "jinaai/jina-clip-v2";
@@ -145,7 +144,6 @@ async function searchState(d: Drive): Promise<unknown> {
       return { hits: hits.map((hit) => hit.characterId).toSorted() };
     });
   } catch (error) {
-    // @orb-waive no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
     return { refused: (error as { code?: string }).code ?? String(error) };
   }
 }
@@ -618,7 +616,6 @@ async function targetConnection(d: Drive): Promise<unknown> {
 async function outcomeOf(write: Promise<unknown>): Promise<string> {
   return await write.then(
     () => "accepted",
-    // @orb-waive no-test-fabrication({ code?: string }): baselined when the gate widened to value casts; burn-down item 906.
     (error: unknown) => `refused ${(error as { code?: string }).code ?? String(error)}`,
   );
 }

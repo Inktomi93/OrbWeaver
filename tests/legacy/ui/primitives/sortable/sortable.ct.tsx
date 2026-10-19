@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication({ duration?: number }): baselined when the gate widened to value casts; burn-down item 906.
 
 // CT: the sortable seal (@dnd-kit/react). The load-bearing assertions are the ones the work order
 // flagged as unverified-by-docs: keyboard reorder end-to-end (focus → Space → arrow → Space) and
@@ -240,9 +239,7 @@ test("reduced motion: a completed drag produces no perceptible (non-zero-duratio
   // In-page instrumentation below — `globalThis`/`Element.prototype` in the mounted browser context
   // carry no app type; each cast is the monkeypatch scaffolding itself, not a fabricated domain value.
   await page.evaluate(() => {
-    // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     (globalThis as unknown as { __durations: number[] }).__durations = [];
-    // @orb-waive no-test-fabrication(unknown): in-page Element.prototype scaffolding (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const proto = Element.prototype as unknown as {
       animate: (keyframes: unknown, options?: unknown) => Animation;
     };
@@ -251,7 +248,6 @@ test("reduced motion: a completed drag produces no perceptible (non-zero-duratio
     // `this` must be the actual animating element for the native call to succeed.
     proto.animate = function patchedAnimate(this: Element, keyframes: unknown, options?: unknown): Animation {
       const duration = typeof options === "object" && options !== null && "duration" in options ? Number((options as { duration?: number }).duration ?? 0) : 0;
-      // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       (globalThis as unknown as { __durations: number[] }).__durations.push(duration);
       return original.call(this, keyframes, options);
     };
@@ -276,7 +272,6 @@ test("reduced motion: a completed drag produces no perceptible (non-zero-duratio
   await expect(rows.nth(0)).toContainText("Item 1");
   await expect(page.getByTestId("reorder-count")).toHaveText("1");
 
-  // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see the mount-time instrumentation above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const durations = await page.evaluate(() => (globalThis as unknown as { __durations: number[] }).__durations);
   // Every WAAPI animation dnd-kit ran during this drag+drop — the sibling FLIP reposition AND
   // the drop-settle bounce — has ZERO duration under reduced motion: the FLIP reposition via

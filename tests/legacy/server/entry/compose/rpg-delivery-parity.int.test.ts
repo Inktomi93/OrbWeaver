@@ -2,13 +2,6 @@
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — the same malformed payload leaves identical state on all three delivery paths, the born-folded fallback, quest updates, the mounted terminal tools and the prompt-cache property.
 
-// @orb-waive-file no-test-fabrication({ dropped?: { plane: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ dropped?: { plane: string; index: number | null }[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ healedJournalTypes?: number[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ properties?: Record<string, unknown> }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ properties?: { key?: { enum?: string[] } } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ properties?: { trackerDeltas?: { items?: { properties?: { key?: { enum?: string[] } } } } } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ required?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
 import { RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -115,17 +108,13 @@ test("EXT-4a: the SAME malformed payload leaves IDENTICAL state on all three del
   });
   // Every path NAMED its loss (D109-7 totality): the structured arm itemizes plane+entry, the tool arms name
   // the tool — and the heal has its own line, so a silently-degrading model is visible on all three.
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const unparseable = warnSpy.mock.calls.filter((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable");
   expect(unparseable.length).toBe(3);
   expect((unparseable[0]?.[0] as { dropped?: { plane: string; index: number | null }[] })?.dropped).toEqual([
     { plane: "journal", index: 0, issues: expect.arrayContaining([expect.stringContaining("content")]) },
   ]);
-  // @orb-waive no-test-fabrication({ droppedTools?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((unparseable[1]?.[0] as { droppedTools?: string[] })?.droppedTools).toEqual(["add_journal_entry"]);
-  // @orb-waive no-test-fabrication({ droppedTools?: string[] }): baselined when the gate widened to value casts; burn-down item 906.
   expect((unparseable[2]?.[0] as { droppedTools?: string[] })?.droppedTools).toEqual(["add_journal_entry"]);
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const healed = warnSpy.mock.calls.filter((c) => (c[0] as { event?: string }).event === "rpg.extraction.healed");
   expect(healed).toHaveLength(3);
   expect((healed[0]?.[0] as { healedJournalTypes?: number[] })?.healedJournalTypes).toEqual([0]);
@@ -140,7 +129,6 @@ test("EXT-4a: a totally unparseable structured payload is still one WARN + an em
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Nothing lands." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable");
   expect((line?.[0] as { dropped?: { plane: string }[] })?.dropped).toEqual([{ plane: "root", index: null, issues: ["expected a JSON object"] }]);
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
@@ -166,7 +154,6 @@ test("BORN FOLDED: a FRESH game on an agent-sdk wire still lands state — via t
   const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
   expect(view.ambient?.location).toBe("the obsidian tower");
   // …and the extra call the fold exists to delete is VISIBLE in the trail, named.
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   const path = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.path");
   expect(path?.[0]).toMatchObject({ mode: "folded", path: "tool-round", fallbackReason: "no-terminal-channel" });
 });
@@ -229,7 +216,6 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
   expect(folded?.terminalTools?.map((t) => t.name)).toEqual([...RPG_TOOL_ROUND_TOOL_NAMES].filter((n) => n !== "set_tracker"));
   // …carrying the CACHE-STABLE ref projection (F4): the party plane is fully writable, but its scene-derived
   // enums are gone — this payload opens the character turn's cached prefix (the byte-stability pin is below).
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const party = folded?.terminalTools?.find((t) => t.name === "update_party")?.parameters as {
     properties?: { targetRef?: { enum?: string[]; type?: string }; hpDelta?: unknown; addCondition?: unknown };
   };
@@ -356,7 +342,6 @@ test("PROMPT-CACHE (probe F4): a gained actor + condition leave the FOLDED tools
   await roundCompose.service.updateConfig({ principal, chatId, extractionMode: "cheap" });
   const roundSlot = await seedMessage(db, chatId, 3, { role: "assistant", content: "She presses a hand to the wound." });
   await roundCompose.chatOps.onTurnCompleted(chatId, roundSlot.messageId, roundSlot.variantId, TURN, tc("chat-completions"));
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const roundParty = spy.wireTools[0]?.find((t) => t.name === "update_party")?.parameters as {
     properties?: { targetRef?: { enum?: string[] }; removeCondition?: { enum?: string[] } };
   };

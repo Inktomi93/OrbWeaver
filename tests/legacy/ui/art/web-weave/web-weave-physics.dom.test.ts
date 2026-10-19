@@ -8,8 +8,6 @@
 // Deterministic: every function takes `now` — no clock, no rAF, no browser.
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-// @orb-waive-file no-test-fabrication(NonNullable<typeof hit>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
 import { buildWeb } from "@orb/ui/web-weave";
 import { describe } from "vitest";
 import type { WeavePluck } from "#ui/art/web-weave/web-weave-physics.ts";

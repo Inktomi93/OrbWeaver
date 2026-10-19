@@ -53,7 +53,6 @@ interface PostedBody {
 test("captures the note + the window, and the status line names the written report", async ({ mount, page }) => {
   const posted: PostedBody[] = [];
   await page.route(ROUTE, async (route) => {
-    // @orb-waive no-test-fabrication(PostedBody): baselined when the gate widened to value casts; burn-down item 906.
     posted.push(JSON.parse(route.request().postData() ?? "{}") as PostedBody);
     await route.fulfill({
       status: 200,
@@ -96,7 +95,6 @@ test("captures the note + the window, and the status line names the written repo
 test("the bundle carries the honesty receipts — the unfilterable sources say WHY, and an absent bridge says so", async ({ mount, page }) => {
   const posted: PostedBody[] = [];
   await page.route(ROUTE, async (route) => {
-    // @orb-waive no-test-fabrication(PostedBody): baselined when the gate widened to value casts; burn-down item 906.
     posted.push(JSON.parse(route.request().postData() ?? "{}") as PostedBody);
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: "x", written: { json: "/repo/bug-reports/x.json" } }) });
   });
@@ -141,7 +139,6 @@ test("the bundle carries the honesty receipts — the unfilterable sources say W
 test("the capture reads the declared theme observables beside the ordinary appearance carriers", async ({ mount, page }) => {
   const posted: PostedBody[] = [];
   await page.route(ROUTE, async (route) => {
-    // @orb-waive no-test-fabrication(PostedBody): baselined when the gate widened to value casts; burn-down item 906.
     posted.push(JSON.parse(route.request().postData() ?? "{}") as PostedBody);
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: "t", written: { json: "/repo/bug-reports/t.json" } }) });
   });
@@ -172,7 +169,6 @@ test("the capture reads the declared theme observables beside the ordinary appea
 test("with a bridge present: the window FILTERS the timestamped censuses and the two unfilterable ones say WHY", async ({ mount, page }) => {
   const posted: PostedBody[] = [];
   await page.route(ROUTE, async (route) => {
-    // @orb-waive no-test-fabrication(PostedBody): baselined when the gate widened to value casts; burn-down item 906.
     posted.push(JSON.parse(route.request().postData() ?? "{}") as PostedBody);
     await route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ id: "y", written: { json: "/repo/bug-reports/y.json" } }) });
   });

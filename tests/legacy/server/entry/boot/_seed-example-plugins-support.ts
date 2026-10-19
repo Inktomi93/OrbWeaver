@@ -247,7 +247,6 @@ export async function installGrantEnable(args: {
   const { h, caller, slug, grant } = args;
   const bundle = await packShowcaseBundle(slug);
   expect(bundle, `${slug} has no packable source directory`).not.toBeNull();
-  // @orb-waive no-test-fabrication(Uint8Array): baselined when the gate widened to value casts; burn-down item 906.
   const installed = await h.service.install({ caller, bundle: bundle as Uint8Array, grant: [] });
   expect(installed.status).toBe("disabled");
   expect(installed.grantedCapabilities).toEqual([]);

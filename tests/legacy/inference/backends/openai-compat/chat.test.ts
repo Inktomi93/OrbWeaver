@@ -13,7 +13,6 @@
 // no `reasoning_effort` records `null` while the funnel still resolved the ask (the audit's recorded lie); a
 // row that spells it records the word the body carries. B6: the OpenAI-style rate-limit headers on the
 // response become `rateLimit`. B7: the endpoint's own response id is the row's `generationId`.
-// @orb-waive-file no-test-fabrication({ role?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ProviderId } from "@orb/contracts/inference";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -434,7 +433,6 @@ test.for([
 function assistantRowOf(recorded: RecordedRequest): Record<string, unknown> {
   const messages = recorded.body["messages"];
   const row = Array.isArray(messages) ? messages.find((m: unknown) => (m as { role?: string }).role === "assistant") : undefined;
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   return (row ?? {}) as Record<string, unknown>;
 }
 

@@ -4,7 +4,6 @@
 // NOT do — commit no canon (messages / message_variants), emit no bus events, spawn no ghost — plus the reduce
 // shape (final content wins; costUsd rides economics) and failure-honesty (a throwing stream propagates).
 
-// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";

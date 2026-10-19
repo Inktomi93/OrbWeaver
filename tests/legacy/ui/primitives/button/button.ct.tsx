@@ -96,7 +96,6 @@ test.describe("coarse pointer — the touch floor", () => {
     );
     const read = (testId: string): Promise<{ readonly width: string; readonly height: string; readonly padding: string }> =>
       page.getByTestId(testId).evaluate((child) => {
-        // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
         const el = child.parentElement as HTMLElement;
         const box = el.getBoundingClientRect();
         const s = getComputedStyle(el);
@@ -287,7 +286,6 @@ test("every converted call site paints the SAME box on the inline arm as it did 
     page
       .getByTestId(testId)
       .evaluate((child) => {
-        // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
         const el = child.parentElement as HTMLElement;
         const s = getComputedStyle(el);
         const box = el.getBoundingClientRect();
@@ -343,7 +341,6 @@ test("every glyph step is a SQUARE box equal to its own --spacing-glyph token, w
   const measured = await Promise.all(
     GLYPH_STEPS.map(async (step) =>
       page.getByTestId(`glyph-${step.size}`).evaluate((child, token) => {
-        // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
         const el = child.parentElement as HTMLElement;
         const probe = document.createElement("div");
         probe.style.width = `var(${token})`;
@@ -403,7 +400,6 @@ test("every converted glyph site paints the SAME box on the arm as it did on its
   );
   const read = (testId: string): Promise<Record<string, string>> =>
     page.getByTestId(testId).evaluate((child) => {
-      // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
       const el = child.parentElement as HTMLElement;
       const s = getComputedStyle(el);
       const box = el.getBoundingClientRect();
@@ -618,7 +614,6 @@ test("the CTA ring's sheen stop resolves through --color-sheen (re-binding repai
   const paint = (override?: string): Promise<string> =>
     button.evaluate((el, value) => {
       if (value !== undefined) {
-        // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
         (el as HTMLElement).style.setProperty("--color-sheen", value);
       }
       return getComputedStyle(el, "::after").backgroundImage;

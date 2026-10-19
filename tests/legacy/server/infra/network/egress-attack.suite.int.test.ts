@@ -24,8 +24,6 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Dispatcher } from "undici";
 import { getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import { afterAll, afterEach, beforeAll, describe, vi } from "vitest";
-// @orb-waive-file no-test-fabrication(EgressBlockedError): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import {
   __setEgressResolverForTest,
   ANY_HOST,

@@ -52,7 +52,6 @@ function connectionOf(): Resolved<"chat"> {
 
 /** A minimal live card for a roster member (name only — the shape the assembly reads). */
 const cardOf = (name: string): CharacterCard =>
-  // @orb-waive no-test-fabrication(unknown): minimal `CharacterCard` double (turn.int precedent) — assembly reads only name/description. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
 /** A deterministic PRNG (Park-Miller LCG) — D46 (never `Math.random`). */

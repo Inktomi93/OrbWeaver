@@ -10,7 +10,6 @@
 //   • cooperative abort: an aborted signal does no work.
 // @subject packages/server/src/domain/embeddings/verbs/embed-assets.ts
 
-// @orb-waive-file no-test-fabrication({ input: string | string[] }): baselined when the gate widened to value casts; burn-down item 906.
 
 import { CONNECTION_OP_CODES, providerIdSchema } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets, embedSpaceState, imageAnalyses, imageEmbeddings, imageIndexSkips } from "@orb/db";

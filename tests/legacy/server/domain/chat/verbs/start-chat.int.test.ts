@@ -139,7 +139,6 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
   test("a game-birth failure leaves no room/roster/greeting half behind", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
-    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps fault injector; startChat reaches only birth planning and its post-commit callback. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       planGameBirth: (chatId: ChatId) => ({
         gameId: castId<RpgGameId>("rpg_game_00000000000000000000000001"),
@@ -163,7 +162,6 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
     const aria = await seedCharacter(db, host, "aria");
     const planned: { chatId: ChatId; profile: unknown }[] = [];
     const committed: ChatId[] = [];
-    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — startChat reaches only the birth-plan pair on this path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       planGameBirth: (chatId: ChatId, params: { profile?: unknown }) => {
         planned.push({ chatId, profile: params.profile });
@@ -188,7 +186,6 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
     const started: string[] = [];
-    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — asserting the ABSENCE of either birth-plan call. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = {
       planGameBirth: (chatId: ChatId) => {
         started.push(chatId);

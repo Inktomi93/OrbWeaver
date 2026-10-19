@@ -7,7 +7,6 @@
 // and the batch but FORGETTING the bump. That reads as a working write and serves stale stats canon forever,
 // which is why the trio got one home at all.
 
-// @orb-waive-file no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { Db } from "@orb/db";
 import { chats, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";

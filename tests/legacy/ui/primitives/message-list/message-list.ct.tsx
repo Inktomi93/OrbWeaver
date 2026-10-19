@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 
 // CT: the MessageList seal — a bottom-anchored TanStack Virtual chat-thread list (ui-package-design
 // §6.1/§9, un-parked). Asserts virtualization + bottom-anchor + stick-to-bottom (+ the no-yank flip
@@ -331,9 +330,7 @@ test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-
   // In-page instrumentation below — `globalThis`/`Element.prototype` in the mounted browser context
   // carry no app type; each cast is the monkeypatch scaffolding itself, not a fabricated domain value.
   await page.evaluate(() => {
-    // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors = [];
-    // @orb-waive no-test-fabrication(unknown): in-page Element.prototype scaffolding (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const proto = Element.prototype as unknown as {
       scrollTo: (options?: ScrollToOptions) => void;
     };
@@ -343,7 +340,6 @@ test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-
     // silently break the real scroll virtual-core depends on for its own follow-up measurements).
     proto.scrollTo = function patchedScrollTo(this: Element, options?: ScrollToOptions): void {
       if (options !== undefined) {
-        // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors.push(options.behavior ?? null);
       }
       original.call(this, options);
@@ -354,14 +350,12 @@ test("the follow-on-append scroll is instant (not smooth) under prefers-reduced-
   await expect(component.getByText(`Message ${ITEM_COUNT - 1}`, { exact: true })).toBeVisible();
   // Only care about the APPEND-triggered follow call, not the initial mount's own scrollToEnd.
   await page.evaluate(() => {
-    // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see the mount-time instrumentation above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors = [];
   });
 
   await component.getByTestId("append").click();
   await expect(component.getByText(`Message ${ITEM_COUNT}`, { exact: true })).toBeVisible();
 
-  // @orb-waive no-test-fabrication(unknown): in-page globalThis scaffolding (see the mount-time instrumentation above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const behaviors = await page.evaluate(() => (globalThis as unknown as { __behaviors: (string | null)[] }).__behaviors);
   // @orb-waive ct-no-oneshot-live-read-assert(expect): the preceding mount/action completed and this assertion intentionally compares one atomic rendered snapshot.
   expect(behaviors.length).toBeGreaterThan(0);

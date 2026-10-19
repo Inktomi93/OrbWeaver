@@ -9,11 +9,6 @@
 // with no active observer (only the optional refetch needs one) — so this needs no mounted query,
 // no network: `createTrpcClient()` never fires a request until something actually queries.
 
-// @orb-waive-file no-test-fabrication(AutomationBusEvent["type"][]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(ChatBusEvent["type"][]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(UserBusEvent["type"][]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(string[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly queryKey?: readonly unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
 import { createTrpcClient, createTrpcProxy } from "@orb/client/data";
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
@@ -280,7 +275,6 @@ function eventOf(type: ChatBusEvent["type"]): ChatBusEvent {
   // rather than assert — the failure mode this note exists to stop a future editor from re-introducing.
   // Deliberate minimal-shape probe — only `type`/`chatId`/`entity` are read by the filter dispatch under
   // test; the other 20+ per-member fields are the `.test-d` contract's job, not this seam's.
-  // @orb-waive no-test-fabrication(unknown): minimal-shape probe (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { type, chatId: CHAT_ID, entity: "character" } as unknown as ChatBusEvent;
 }
 
@@ -584,7 +578,6 @@ const USER_EXPECTED: Record<UserBusEvent["type"], readonly UserTrackedKey[]> = {
 function userEventOf(type: UserBusEvent["type"]): UserBusEvent {
   // Deliberate minimal-shape probe — mirrors `eventOf` above; only `type`/`chatId` are read by the
   // filter dispatch under test.
-  // @orb-waive no-test-fabrication(unknown): minimal-shape probe (see above). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { type, chatId: CHAT_ID } as unknown as UserBusEvent;
 }
 

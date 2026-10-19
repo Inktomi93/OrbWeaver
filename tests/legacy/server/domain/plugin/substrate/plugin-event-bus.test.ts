@@ -19,9 +19,7 @@ import { createPluginEventBus } from "#server/domain/plugin/index.ts";
 
 const A = castId<UserId>("user_installer_a000000000000");
 const B = castId<UserId>("user_installer_b000000000000");
-// @orb-waive no-test-fabrication(PluginHandlerRef): baselined when the gate widened to value casts; burn-down item 906.
 const H1 = "plugin-handler-1" as PluginHandlerRef;
-// @orb-waive no-test-fabrication(PluginHandlerRef): baselined when the gate widened to value casts; burn-down item 906.
 const H2 = "plugin-handler-2" as PluginHandlerRef;
 
 /** A recording `invoke`: captures every delivery (handler, the JSON payload, the chat scope) synchronously — the

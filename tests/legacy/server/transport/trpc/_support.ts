@@ -4,7 +4,6 @@
 // rate-limit gate, and drive the real `appRouter` through `createCaller` — exercising the real middleware
 // ladder + router wiring without a db or HTTP. (No determinism seam needed: transport reads no clock.)
 
-// @orb-waive-file no-test-fabrication(Services): baselined when the gate widened to value casts; burn-down item 906.
 import type { CreateInviteResult, InvitePreview, RedeemInviteResult } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { Principal, UserRole } from "@orb/contracts/identity";

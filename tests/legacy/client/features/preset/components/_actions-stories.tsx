@@ -14,7 +14,6 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ActionsView } from "#client/features/preset/components/actions-view.tsx";
 import { mergeOnSubmit } from "#client/features/preset/lib/preset-editor-model.ts";
-// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppFormInstance, AutosaveSession } from "#client/forms/editor/index.ts";
 import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 

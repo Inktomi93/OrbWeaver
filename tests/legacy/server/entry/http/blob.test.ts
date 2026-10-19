@@ -57,7 +57,6 @@ function blobHandler(deps: BlobDeps): Handler {
       return app;
     },
   };
-  // @orb-waive no-test-fabrication(unknown): minimal route-capture mock; the real framework app type is far larger than what route REGISTRATION exercises here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerBlob(app as unknown as Parameters<typeof registerBlob>[0], deps);
   const handler = routes.get(ROUTE);
   if (handler === undefined) {

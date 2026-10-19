@@ -7,10 +7,6 @@
 // mock app + context: the belt CHAIN is captured per route, business tests drive the final handler directly,
 // and the guard is exercised on its own (its 401/403/next behavior is the CSRF pin).
 
-// @orb-waive-file no-test-fabrication({ imported: unknown[]; failed: unknown[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ ok: boolean; characterId: CharacterId }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ ok: boolean; error: string }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly outcome: string; readonly document: { readonly mime: string; readonly charCount: number } }): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { StoredAsset } from "@orb/contracts/assets";
 import { DOCUMENT_DESTINATION_FORM_FIELD } from "@orb/contracts/databank";
@@ -91,7 +87,6 @@ function uploadChains(deps: UploadDeps): Map<string, Handler[]> {
       return app;
     },
   };
-  // @orb-waive no-test-fabrication(unknown): minimal route-capture mock; the real framework app type is far larger than what route REGISTRATION exercises here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerUpload(app as unknown as Parameters<typeof registerUpload>[0], deps);
   return routes;
 }
@@ -133,7 +128,6 @@ function guardCtx(principal: Principal | null, headers?: Record<string, string>)
 async function runGuard(deps: UploadDeps, key: string, ctx: GuardCtx): Promise<{ readonly status: number | null; readonly nexted: boolean }> {
   let nexted = false;
   // Narrowing the real Hono `Handler` (chain[0]) to the minimal middleware call-shape to run it on a stub ctx.
-  // @orb-waive no-test-fabrication(unknown): not a fabricated domain value — GuardMw is a test-local function type. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const guard = chainFor(deps, key)[0] as unknown as GuardMw;
   const res = await guard(ctx, (): Promise<void> => {
     nexted = true;

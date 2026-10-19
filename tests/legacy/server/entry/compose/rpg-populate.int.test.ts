@@ -41,7 +41,6 @@ test("POPULATE (real round): the card's identity + gear land, and the live-play 
   // The round rode the `structured` dispatcher (a non-agent-sdk wire) with the POPULATE grammar: the sheet
   // plane is REQUIRED (the xgrammar lever) and the one target is the whole inventory ref enum.
   expect(spy.summarizeModels).toEqual(["fake-chat-model"]);
-  // @orb-waive no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
   const schema = spy.schemas[0] as {
     required?: string[];
     properties: { sheet: { required?: string[] }; inventory: { items: { properties: { targetRef: { enum?: string[] } } } } };
@@ -99,7 +98,6 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
         } else {
           spy.chatTurns.push({ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false });
         }
-        // @orb-waive no-test-fabrication(unknown): this arm must never fire on this test — a minimal double proves it by staying unused. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         return Promise.resolve({ reply: "{}", events: [] } as unknown as ChatResult);
       },
     },

@@ -16,7 +16,6 @@ import type { PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
-// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 import type { PluginFrameRequest } from "#client/data/use-plugin-frame.ts";
 import { mintPluginFrame, pluginFrameMintBody, revokePluginFrame } from "#client/data/use-plugin-frame.ts";
 

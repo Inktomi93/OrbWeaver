@@ -6,7 +6,6 @@
 // entry vs the live-only `seq: null` lane) ride through unchanged — the bus carries the cursor, it does
 // not invent one.
 
-// @orb-waive-file no-test-fabrication(ChatLiveEvent): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

@@ -61,7 +61,6 @@ const REWRITTEN_ALT = "And its rewritten alternate.";
 
 /** The card the verb re-reads to resolve an index. */
 function cardWith(greetings: readonly string[]): CharacterCard {
-  // @orb-waive no-test-fabrication(unknown): this path reads exactly one field (`greetings`) — a full CharacterCard literal would be twenty nulls of noise around it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { name: "Aria", greetings: greetings.map((text) => ({ text })) } as unknown as CharacterCard;
 }
 

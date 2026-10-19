@@ -18,7 +18,6 @@
 // ones built from a domain ctx (assets/gallery/tag/theme/user-settings/preset/world-info/databank) are
 // pinned at their layout + wiring, since their behaviour is the domain verb's and is tested there.
 
-// @orb-waive-file no-test-fabrication({ principal: { userId: UserId } }): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile, PortableKind } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
@@ -43,7 +42,6 @@ const PERSONA = castId<PersonaId>("per_1");
 const CARD_WITH_BOOK =
   '{"spec":"chara_card_v3","spec_version":"3.0","data":{"name":"Aria","description":"a bard","character_book":{"name":"Aria\'s World","entries":[{"keys":["k"],"content":"c","comment":"C","insertion_order":1}]}}}';
 
-// @orb-waive no-test-fabrication(unknown): never dereferenced — the ctx-built descriptors are pinned at layout only. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const NO_DB = {} as unknown as Db;
 
 /** The bundle's on-disk contract, in the array order the core receives. */
@@ -101,8 +99,6 @@ function injected(): Injected {
 }
 
 function registry(i: Injected): readonly PortableEntity[] {
-  // @orb-waive no-test-fabrication(unknown): the domain CONTEXTS are inert stand-ins — the descriptors built from them are pinned Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // at layout only; every descriptor this file DRIVES is built from the injected ops above.
   const deps = {
     db: NO_DB,
     now: () => 1000,

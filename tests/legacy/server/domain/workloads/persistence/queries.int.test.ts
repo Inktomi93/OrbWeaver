@@ -527,7 +527,6 @@ describe("findStaleInFlight (reaper input)", () => {
 
 describe("toView (poison tolerance)", () => {
   test("an unknown kind narrows to null", () => {
-    // @orb-waive no-test-fabrication(unknown): deliberate invalid-kind probe of the poison path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const raw = {
       id: castId<WorkloadId>("workload_x"),
       kind: "legacy-removed-kind",

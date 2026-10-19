@@ -13,9 +13,6 @@
 // the existing `refusal` event beside the `filter` finish; the Anthropic rate-limit headers become
 // `rateLimit`, and the `msg_…` id is the row's `generationId`.
 
-// @orb-waive-file no-test-fabrication(readonly Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ knob: string }[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ role?: string }): baselined when the gate widened to value casts; burn-down item 906.
 import type { GenerationCapability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { isPlainObject } from "@orb/kit/guards";
@@ -37,7 +34,6 @@ import { BUDGET, curatedConnection, deps, ProviderError, recordedTurn, runAnthro
 function assistantRowOf(recorded: RecordedRequest): Record<string, unknown> {
   const messages = recorded.body["messages"];
   const row = Array.isArray(messages) ? messages.find((m: unknown) => (m as { role?: string }).role === "assistant") : undefined;
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   return (row ?? {}) as Record<string, unknown>;
 }
 
@@ -117,7 +113,6 @@ test("A3/B2: an SDK-dropped sampler knob becomes a warning event and leaves the 
   expect(codes).toContain("sdk_unsupported_setting");
   const sampling = lines.find((line) => line.fields["event"] === "provider.sampling");
   expect(sampling).toBeDefined();
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   const applied = sampling?.fields["applied"] as Record<string, unknown>;
   const dropped = sampling?.fields["dropped"] as { knob: string }[];
   expect(applied["frequencyPenalty"]).toBeUndefined();

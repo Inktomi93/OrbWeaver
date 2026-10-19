@@ -4,8 +4,6 @@
 // becomes host while other humans are NOT auto-joined (D16 chokepoint — FLAG[fork-humans]), and `chatCreated`
 // fires. Reached through the BUNDLE `createFork(ctx, { emit, loadParticipantViews })`.
 
-// @orb-waive-file no-test-fabrication(keyof typeof messageVariants.$inferSelect): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ seq: number }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, ChatReasoningPart } from "@orb/contracts/chat";
 import type { ParticipantRole, Principal } from "@orb/contracts/identity";
@@ -73,7 +71,6 @@ function ownedCard(): (params: { readonly ownerId: UserId; readonly characterId:
       return null;
     }
     // The D64 resolver reads only null-vs-resolved; `characterParticipantView` reads only name/avatarAssetId.
-    // @orb-waive no-test-fabrication(unknown): minimal `CharacterCard` double (scenario.ts precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     return { name: row.name, avatarAssetId: null } as unknown as CharacterCard;
   };
 }
@@ -272,7 +269,6 @@ describe("forkChat — D27 deep copy", () => {
     const err = await fork.forkChat({ principal: principal(host), chatId }).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("background_unavailable");
     expect(await db.select().from(chats)).toHaveLength(1);
     expect(emitted).toEqual([]);
@@ -1034,7 +1030,6 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       // The blob as the engine writes it: the hidden truth rides `dynamic` (the wire projection is verbatim) and
       // the pre-join canon rides `static` (the assembled history the fit-pass kept). Only the blob's PRESENCE
       // in the copy is under test — the copy path reads no field of it.
-      // @orb-waive no-test-fabrication(unknown): an AssembledPrompt stand-in whose fields the copy path never reads. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       const snapshot = {
         static: "PRE-JOIN CANON: the vault code is 4417.",
         dynamic: `He smiles. ${lie} "Nothing," he says.`,
@@ -1067,7 +1062,6 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
       await seedParticipant(db, { chatId, key: "c", characterId: charA });
       const m = await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "He shrugs." });
-      // @orb-waive no-test-fabrication(unknown): only the blob's PRESENCE is under test; `trace` is never read by the copy path. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       const snapshot = {
         static: "s",
         dynamic: `d ${lie}`,
@@ -1120,7 +1114,6 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       const spill = "I'll say the study, but he is really in the crypt.";
       /** Deception-active source: the injected op says the reasoning channel is host-only for this chat. */
       function deceptionRpg(): NonNullable<ChatContext["rpg"]> {
-        // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — forkChat reaches only resolveReasoningHostOnly here (forkGame is never called: the source carries no game pointer). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         return { resolveReasoningHostOnly: () => Promise.resolve(true) } as unknown as NonNullable<ChatContext["rpg"]>;
       }
 
@@ -1210,7 +1203,6 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await db
         .update(messageVariants)
         .set({
-          // @orb-waive no-test-fabrication(unknown): an `AssembledPrompt` stand-in — the copy path reads no field of it, only its presence. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
           promptSnapshot: {
             static: "PRE-JOIN CANON",
             dynamic: "d",
@@ -1365,7 +1357,6 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
      *  the only OTHER op `forkChat` reaches. Cast — the verb touches just these two ops. */
     function captureRpg(over: { throwOnFork?: boolean } = {}): { calls: ForkGameArgs[]; rpg: NonNullable<ChatContext["rpg"]> } {
       const calls: ForkGameArgs[] = [];
-      // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — forkChat reaches only resolveReasoningHostOnly + forkGame. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       const rpg = {
         resolveReasoningHostOnly: () => Promise.resolve(false),
         forkGame: (args: ForkGameArgs) => {
@@ -1483,7 +1474,6 @@ describe("forkChat — the host-or-sole-human fork gate", () => {
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
     const err = await fork.forkChat({ principal: principal(member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
     // No fork chat row was created (the refusal is before any write).
     expect(await db.select({ id: chats.id }).from(chats).where(eq(chats.parentChatId, chatId))).toEqual([]);

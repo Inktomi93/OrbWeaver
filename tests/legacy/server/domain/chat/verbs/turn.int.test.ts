@@ -1,8 +1,3 @@
-// @orb-waive-file no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ history: readonly { content: readonly { type: string; text?: string }[] }[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ history: readonly { role: string; content: readonly { type: string; text?: string }[] }[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly names: readonly string[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ terminalToolCalls: readonly { name: string; arguments: string }[] | null }): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { ChatContentPart, ChatReasoningPart } from "@orb/contracts/chat";
 import { buildChatToolOps } from "#server/entry/compose/chat.ts";
@@ -94,7 +89,6 @@ import {
 
 // A minimal `getCard` stub double — only `name`/`description` are load-bearing to this mirror's
 // assertions (speaker-name/prompt resolution); the rest of the full card schema is never read here.
-// @orb-waive no-test-fabrication(unknown): see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const card = (name: string): CharacterCard => ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
 function principal(userId: UserId): Principal {
@@ -1607,7 +1601,6 @@ describe("send — custom stopping strings + auto-behaviors", () => {
     const h = harness(db, names, {
       chatBehavior: { ...behaviorOff, customStoppingStrings: ["<END>", "\nUser:"] },
       onChatRequest: (req) => {
-        // @orb-waive no-test-fabrication({ intent: { stop?: readonly string[] } }): baselined when the gate widened to value casts; burn-down item 906.
         seenStop = (req as { intent: { stop?: readonly string[] } }).intent.stop;
       },
     });
@@ -1623,7 +1616,6 @@ describe("send — custom stopping strings + auto-behaviors", () => {
     const h = harness(db, names, {
       chatBehavior: behaviorOff,
       onChatRequest: (req) => {
-        // @orb-waive no-test-fabrication({ intent: { stop?: readonly string[] } }): baselined when the gate widened to value casts; burn-down item 906.
         seenStop = (req as { intent: { stop?: readonly string[] } }).intent.stop;
       },
     });
@@ -1643,7 +1635,6 @@ describe("send — custom stopping strings + auto-behaviors", () => {
     const h = harness(db, names, {
       chatBehavior: { ...behaviorOff, customStoppingStrings: ["<END>"] },
       onChatRequest: (req) => {
-        // @orb-waive no-test-fabrication({ intent: { stop?: readonly string[] } }): baselined when the gate widened to value casts; burn-down item 906.
         seenStop = (req as { intent: { stop?: readonly string[] } }).intent.stop;
       },
     });
@@ -1659,7 +1650,6 @@ describe("send — custom stopping strings + auto-behaviors", () => {
     const h = harness(db, names, {
       chatBehavior: behaviorOff,
       onChatRequest: (req) => {
-        // @orb-waive no-test-fabrication({ intent: { stop?: readonly string[] } }): baselined when the gate widened to value casts; burn-down item 906.
         seenStop = (req as { intent: { stop?: readonly string[] } }).intent.stop;
       },
     });
@@ -2024,7 +2014,6 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
       onChatRequest: (r) => requests.push(r),
       now: () => Date.UTC(2026, 0, 15, 20, 0),
     });
-    // @orb-waive no-test-fabrication({ prompt?: { static?: string } }): baselined when the gate widened to value casts; burn-down item 906.
     const clocks = (): string[] => requests.map((r) => /CLOCK (\S+ \S+)/.exec((r as { prompt?: { static?: string } }).prompt?.static ?? "")?.[1] ?? "no clock");
     return { h, clocks };
   }
@@ -2583,7 +2572,6 @@ describe("abort — owner-only (rollback-theft defense)", () => {
  *  answers `cancelled` for how many of that caller's rounds it "signalled".
  *  FABRICATION-OK: the abort path reaches only this op (the `macroDeclaringRpg` precedent). */
 function stateRoundCancellingRpg(record: { chatId: ChatId; userId: UserId }[], cancelled: number): NonNullable<ChatContext["rpg"]> {
-  // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — `abort` touches nothing else. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),
@@ -3765,7 +3753,6 @@ const MOOD_LINE_RE = /Scene tone: (\w+)\./;
 
 /** Extract the drawn tone from a captured wire request's assembled static prompt ("Scene tone: <v>."). */
 function drawnToneFrom(request: unknown): string | undefined {
-  // @orb-waive no-test-fabrication({ prompt?: { static?: string } }): baselined when the gate widened to value casts; burn-down item 906.
   const staticPrompt = (request as { prompt?: { static?: string } }).prompt?.static ?? "";
   return MOOD_LINE_RE.exec(staticPrompt)?.[1];
 }
@@ -3927,7 +3914,6 @@ function gameMoodDef(): UserMacroSpec {
  *  turn everywhere BUT the macro-declaration op, which is exactly the seam under test).
  *  FABRICATION-OK: the turn path reaches only these ops. */
 function macroDeclaringRpg(defs: readonly UserMacroSpec[]): NonNullable<ChatContext["rpg"]> {
-  // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the turn path reaches only these ops (the `foldedRpg` precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve(defs),
@@ -4036,7 +4022,6 @@ const TOOLS_CONNECTION: Resolved<"chat"> = {
  *  was handed back. FABRICATION-OK: the turn path reaches only these ops. */
 function foldedRpg(): { flushes: (readonly { name: string; arguments: string }[] | null)[]; rpg: NonNullable<ChatContext["rpg"]> } {
   const flushes: (readonly { name: string; arguments: string }[] | null)[] = [];
-  // @orb-waive no-test-fabrication(unknown): the turn path reaches only these ops. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),
@@ -4100,7 +4085,6 @@ test("R1 end-to-end: a send mounts the gather's terminal tools on the wire and h
 
   // The gather's tools reached the request as the TERMINAL set (the wire's `auto`, which keeps the prose safe,
   // is `@orb/inference`'s projection of it — tests/legacy/inference/roles/chat-request.test.ts).
-  // @orb-waive no-test-fabrication(TurnRequest): baselined when the gate widened to value casts; burn-down item 906.
   const req = requests[0] as TurnRequest;
   expect(req.tools?.terminal?.map((t) => t.name)).toEqual(["update_scene"]);
   expect(req.tools?.offer).toBeUndefined();
@@ -4139,7 +4123,6 @@ test("R1 end-to-end: a game turn that mounts NO terminal tools hands the flush a
 
   await h.turn.send({ principal: makePrincipal(host), chatId, content: "I cross the river." });
 
-  // @orb-waive no-test-fabrication({ tools?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
   expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
   // NULL, not `[]` — the consumer must be able to tell "no fold happened" from "the fold found nothing".
   expect(flushes).toEqual([null]);
@@ -4180,7 +4163,6 @@ test("R2 end-to-end: a teaching contribution's declared tool name reaches the WI
 
   await h.turn.send({ principal: principal(host), chatId, content: "how long have we walked?" });
 
-  // @orb-waive no-test-fabrication(TurnRequest): baselined when the gate widened to value casts; burn-down item 906.
   const attached = requests[0] as TurnRequest;
   expect(attached.tools?.offer?.definitions.map((t) => t.name)).toEqual(["tick_clock"]);
 });
@@ -4197,7 +4179,6 @@ test("R2 end-to-end: the SAME declaration on a tools-INCAPABLE model is dropped 
 
   await h.turn.send({ principal: principal(host), chatId, content: "how long have we walked?" });
 
-  // @orb-waive no-test-fabrication({ tools?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
   expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
 });
 
@@ -4208,7 +4189,6 @@ test("R2 end-to-end: NO contribution declares a name — the request carries no 
 
   await h.turn.send({ principal: principal(host), chatId, content: "hello" });
 
-  // @orb-waive no-test-fabrication({ tools?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
   expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
 });
 
@@ -4235,7 +4215,6 @@ test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactiva
   const h = harness(db, names, { teaching, tools: toolOps, connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });
 
   await h.turn.send({ principal: principal(host), chatId, content: "how do we feel?" });
-  // @orb-waive no-test-fabrication(TurnRequest): baselined when the gate widened to value casts; burn-down item 906.
   expect((requests[0] as TurnRequest).tools?.offer?.definitions.map((t) => t.name)).toEqual(["plugin_mood_report"]);
 
   // The owner switches the plugin off between turns. `resolveTools` THROWS on an unknown name at attach, so a
@@ -4243,7 +4222,6 @@ test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactiva
   // stops naming it, and the turn ships tool-less exactly as it would for a host with no plugins at all.
   handle.unregister();
   await h.turn.send({ principal: principal(host), chatId, content: "and now?" });
-  // @orb-waive no-test-fabrication({ tools?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
   expect((requests[1] as { tools?: unknown }).tools).toBeUndefined();
 });
 
@@ -4278,7 +4256,6 @@ test("R2 end-to-end: a STRANGER holds the same plugin tool name, and the host's 
 
   // The wire `description` is the observable that says WHICH copy rode — the NAME is identical by construction,
   // so a resolve that picked "whoever registered first" would ship the stranger's tool into this room.
-  // @orb-waive no-test-fabrication(TurnRequest): baselined when the gate widened to value casts; burn-down item 906.
   const tools = (requests[0] as TurnRequest).tools?.offer?.definitions;
   expect(tools?.map((t) => t.name)).toEqual(["plugin_mood_report"]);
   expect(tools?.[0]?.description).toBe("the host's copy");
@@ -4338,7 +4315,6 @@ test("M2: a GAME turn's explicit cardKeepLastX:0 still stubs every stored card (
 
 /** A minimal `ctx.rpg` that stamps the shared timeline when the post-turn flush fires. */
 function fireOrderRpg(timeline: string[]): NonNullable<ChatContext["rpg"]> {
-  // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the turn path reaches only these ops (the `foldedRpg` precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),
@@ -4406,7 +4382,6 @@ test("the post-turn rpg round opens its OWN request trace (it outlives the reque
   // The round is fire-and-forget, so the test needs a handle on its completion: the stub resolves this once
   // its (deliberately async) work is done, which is also when the round's span ends and its bucket seals.
   const { promise: rounded, resolve: roundDone } = Promise.withResolvers<void>();
-  // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the turn path reaches only these ops (the `fireOrderRpg` precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),
@@ -4460,7 +4435,6 @@ test("the send-path rpg user-commit opens its OWN request trace (it outlives the
   await seedParticipant(db, { chatId, key: "c", characterId: charA });
 
   const { promise: committed, resolve: commitDone } = Promise.withResolvers<void>();
-  // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the turn path reaches only these ops (the `fireOrderRpg` precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),
@@ -4499,7 +4473,6 @@ test("the send-path rpg user-commit opens its OWN request trace (it outlives the
 /** A minimal `ctx.rpg` recording the `regenSlotMessageId` each gather args object was handed. */
 function gatherSpyRpg(): { slots: (MessageId | undefined)[]; rpg: NonNullable<ChatContext["rpg"]> } {
   const slots: (MessageId | undefined)[] = [];
-  // @orb-waive no-test-fabrication(unknown): the turn path reaches only these ops (the `foldedRpg` stub above's precedent). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const rpg = {
     resolvePresetOverride: () => Promise.resolve(null),
     resolveUserMacros: () => Promise.resolve([]),

@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication(RecordedRequest["body"]): baselined when the gate widened to value casts; burn-down item 906.
 
 import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";

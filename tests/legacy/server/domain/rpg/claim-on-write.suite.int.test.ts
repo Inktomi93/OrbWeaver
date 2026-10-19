@@ -60,7 +60,6 @@ const NOT_CLAIMING: Readonly<Record<string, { readonly reason: string; readonly 
 };
 
 const mutations = Object.entries(
-  // @orb-waive no-test-fabrication(unknown): the tRPC `_def.procedures` introspection seam (no public enumeration API in v11). Ends when tRPC exposes one.
   (rpgRouter as unknown as { _def: { procedures: Record<string, { _def: { type: string } }> } })._def.procedures,
 )
   .filter(([, proc]) => proc._def.type === "mutation")

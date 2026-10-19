@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication([): baselined when the gate widened to value casts; burn-down item 906.
 
 // The broker owns no listening endpoint; losing its inherited supervisor channel terminates it and its Workers.
 import type { ChildProcess } from "node:child_process";

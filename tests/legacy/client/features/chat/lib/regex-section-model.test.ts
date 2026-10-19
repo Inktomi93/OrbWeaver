@@ -30,12 +30,10 @@ import {
  *  schema gaining a field, `no-test-fabrication`). Only the branded id is cast, which is the one thing a
  *  literal cannot be. */
 /** One seated character's tier key — minted through the contract's own function, never spelled here. */
-// @orb-waive no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
 const CHARACTER_TIER = characterRegexTierKey("character_x" as CharacterId);
 
 function script(id: string, enabled = true): RegexScriptRow {
   return {
-    // @orb-waive no-test-fabrication(RegexScriptId): baselined when the gate widened to value casts; burn-down item 906.
     id: id as RegexScriptId,
     name: id,
     enabled,
@@ -72,7 +70,6 @@ describe("regexRowHomes", () => {
   test("a script two tiers hold draws ONCE, at the tier that claimed its rank", () => {
     const tiers = [tier("global", [{ id: "a", runsAt: 1 }]), tier("chat", [{ id: "a", runsAt: null }])];
     const homes = regexRowHomes(tiers);
-    // @orb-waive no-test-fabrication(RegexScriptId): baselined when the gate widened to value casts; burn-down item 906.
     expect(homes.get("a" as RegexScriptId)).toBe("global");
     expect(regexTierRows(tiers[0] as RegexTierGroupView, homes).map((row) => row.script.id)).toEqual(["a"]);
     expect(regexTierRows(tiers[1] as RegexTierGroupView, homes)).toEqual([]);
@@ -81,21 +78,18 @@ describe("regexRowHomes", () => {
   test("with the EARLIEST tier off, the row draws at the later tier that actually runs it (rank kept)", () => {
     const tiers = [tier("global", [{ id: "a", runsAt: null }], false), tier("chat", [{ id: "a", runsAt: 1 }])];
     const homes = regexRowHomes(tiers);
-    // @orb-waive no-test-fabrication(RegexScriptId): baselined when the gate widened to value casts; burn-down item 906.
     expect(homes.get("a" as RegexScriptId)).toBe("chat");
     expect(regexTierRows(tiers[1] as RegexTierGroupView, homes)[0]?.runsAt).toBe(1);
   });
 
   test("with NOTHING running (the master off), the row still draws — at its earliest listing tier", () => {
     const tiers = [tier("global", [{ id: "a", runsAt: null }]), tier("chat", [{ id: "a", runsAt: null }])];
-    // @orb-waive no-test-fabrication(RegexScriptId): baselined when the gate widened to value casts; burn-down item 906.
     expect(regexRowHomes(tiers).get("a" as RegexScriptId)).toBe("global");
   });
 });
 
 test("the +N chip names every OTHER tier of this room holding the row", () => {
   const tiers = [tier("global", [{ id: "a", runsAt: 1 }]), tier(CHARACTER_TIER, [{ id: "a", runsAt: null }]), tier("chat", [{ id: "a", runsAt: null }])];
-  // @orb-waive no-test-fabrication(RegexScriptId): baselined when the gate widened to value casts; burn-down item 906.
   expect(regexRowAlsoAt(tiers, "a" as RegexScriptId, "global")).toEqual([CHARACTER_TIER, "chat"]);
 });
 
@@ -115,7 +109,6 @@ describe("the two counts say different things", () => {
 });
 
 describe("tier labels", () => {
-  // @orb-waive no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
   const seats = new Map<CharacterId, string>([["character_x" as CharacterId, "Bo"]]);
   /** The two label sources joined as the section joins them (#1754): the WIRE names the preset tier, the
    *  ROSTER names a seat by the id that seat's own key carries. */

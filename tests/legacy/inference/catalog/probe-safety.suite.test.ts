@@ -4,7 +4,6 @@
 // a POST body to another origin, and that origin's answer would decide the shared detect cache.
 
 import type { ProviderId } from "@orb/contracts/inference";
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { createInferenceRuntime } from "@orb/inference";
 import { castId } from "@orb/kit/ids";
 import { principal } from "@orb/testkit/node/factories/principal.ts";

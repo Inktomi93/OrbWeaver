@@ -7,7 +7,6 @@
 // are pinned on the room source at `tests/legacy/server/transport/trpc/stream/sources/chat.test.ts`. The one
 // subscription left on this router is `impersonateStream` (permanently unfolded, spec §14 decision 2).
 
-// @orb-waive-file no-test-fabrication(ChatBusEvent): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent, ChatIdentity, ChatReactionsView, MessageView, StartChatResult } from "@orb/contracts/chat";
 import { CHAT_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
@@ -171,7 +170,6 @@ describe("chat.listChats — the page ceiling refuses an over-bound ask (#101)",
     const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
 
     // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — `direction` is what tRPC's infinite query actually sends.
-    // @orb-waive no-test-fabrication(any): deliberate legacy query option proves unknown keys are stripped before the verb; ends when the caller accepts unknown input directly.
     await caller(ctx).chat.listChats({ limit: 10, direction: "forward" } as any);
 
     expect(listChats).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: MEMBER }), limit: 10 });
@@ -183,7 +181,6 @@ describe("chat.listChats — the page ceiling refuses an over-bound ask (#101)",
     const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
 
     // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — the superjson envelope the #101 probe sent.
-    // @orb-waive no-test-fabrication(any): deliberate legacy superjson envelope proves the wire boundary strips it before the verb; ends when the caller accepts unknown input directly.
     await caller(ctx).chat.listChats({ json: { limit: 1000 } } as any);
 
     expect(listChats).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: MEMBER }) });
@@ -416,7 +413,6 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
         chatId: CHAT,
         content: "hi",
         // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — an unknown action is the exact 500 vector F6 closes.
-        // @orb-waive no-test-fabrication(any): deliberate unknown guided action proves the real wire schema returns BAD_REQUEST; ends when the caller accepts unknown input directly.
         guided: { action: "nope", input: "x" } as any,
       }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -433,7 +429,6 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
         chatId: CHAT,
         messageId: MESSAGE.id,
         // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — a non-string input is the `.trim()` 500 vector.
-        // @orb-waive no-test-fabrication(any): deliberate non-string guided input proves the real wire schema returns BAD_REQUEST; ends when the caller accepts unknown input directly.
         guided: { action: "swipe", input: { evil: true } } as any,
       }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -450,7 +445,6 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
         chatId: CHAT,
         messageId: MESSAGE.id,
         // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — a junk role must not reach the provider wire.
-        // @orb-waive no-test-fabrication(any): deliberate off-enum placement role proves refusal before the provider wire; ends when the caller accepts unknown input directly.
         guided: { action: "continue", input: "x", placement: { kind: "inject", role: "wizard" } } as any,
       }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -810,7 +804,6 @@ describe("chat.setRoomOverrides — the per-chat prompt overrides write (task #2
       caller(ctx).chat.setRoomOverrides({
         chatId: CHAT,
         // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema input to prove the strict boundary rejects it.
-        // @orb-waive no-test-fabrication(any): deliberate unknown override key proves the strict room-override boundary; ends when the caller accepts unknown input directly.
         overrides: { mainPrompt: "ok", rogue: "nope" } as any,
       }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -1044,7 +1037,6 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
       caller(ctx).chat.setChatInjection({
         chatId: CHAT,
         // biome-ignore lint/suspicious/noExplicitAny: deliberately off-enum to prove the wire schema rejects it.
-        // @orb-waive no-test-fabrication(any): deliberate off-enum injection position proves the real wire schema returns BAD_REQUEST; ends when the caller accepts unknown input directly.
         position: "somewhere" as any,
         depth: 0,
         role: "system",
@@ -1420,7 +1412,6 @@ describe("chat.startChat — CREATION-INTENT inputs only (R2)", () => {
       caller(ctx).chat.startChat({
         characterIds: [ID.characterAria],
         // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — "generate" is a creation-fused turn, retired by R2.
-        // @orb-waive no-test-fabrication(any): deliberate retired opening value proves the creation boundary refuses it before the verb; ends when the caller accepts unknown input directly.
         opening: "generate" as any,
       }),
     ).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -1535,7 +1526,6 @@ describe("the viewer's zone — each turn and rendered-preview procedure require
       call: (c, timeZone) => c.chat.getMemberCard({ chatId: CHAT, characterId: ID.characterAria, timeZone }),
     },
   ];
-  // @orb-waive no-test-fabrication(unknown): the refusal under test is a body the client types forbid, so the typed caller must be handed one. Ends when the caller accepts unknown input directly.
   const notAZone = 545 as unknown as string;
 
   /** Call `path` with `timeZone` behind a recording verb; resolves to the zones the verb received. */

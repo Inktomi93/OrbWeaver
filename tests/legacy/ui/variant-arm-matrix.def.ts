@@ -76,9 +76,6 @@
 // imported RELATIVELY from packages/ui/src (the @orb/ui exports map does not re-export variants; the
 // house precedent is tests/legacy/ui/stream/snap.test.ts:15). packages/ui/src stays READ-ONLY to this suite.
 
-// @orb-waive-file no-test-fabrication(TvIntrospection["defaultVariants"]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(TvIntrospection["variants"]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly variants?: unknown; readonly defaultVariants?: unknown }): baselined when the gate widened to value casts; burn-down item 906.
 import type { DesignAuditRuleId } from "@orb/tooling/ui-audit";
 import { badgeVariants } from "#ui/primitives/badge/variants.ts";
 import { buttonVariants } from "#ui/primitives/button/variants.ts";

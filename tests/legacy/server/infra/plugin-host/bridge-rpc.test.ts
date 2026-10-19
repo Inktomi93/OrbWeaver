@@ -88,7 +88,6 @@ test("a broker fetch is walled by the app's own netHosts; the frame carries no h
     assets: { storeFetched: () => Promise.reject(new Error("test: no asset is stored here")) },
   } satisfies PluginEgressBridge;
   const target = {
-    // @orb-waive no-test-fabrication(unknown): dispatch of the net ops reaches only `netEgress`; the domain bridge is never dereferenced, so any touch throws. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     bridge: {} as unknown as BridgeTarget["bridge"],
     netEgress: createPluginNetEgress(["api.allowed.test"], egressBridge),
   };

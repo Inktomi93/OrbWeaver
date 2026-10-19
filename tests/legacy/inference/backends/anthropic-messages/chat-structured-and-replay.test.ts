@@ -1,7 +1,5 @@
 // backends/anthropic-messages/chat — the structured plan on the direct wire, the thinking budget beside the visible cap, and completed historical tool replay.
 
-// @orb-waive-file no-test-fabrication({ readonly format: { readonly type: string; readonly schema: Record<string, unknown> } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly type: string; readonly budget_tokens: number }): baselined when the gate widened to value casts; burn-down item 906.
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { wireSchema } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
@@ -26,7 +24,6 @@ test("a response format rides output_config.format with the SDK pinned to it —
   expect(format.type).toBe("json_schema");
   // The anthropic-format scrub rode: the author's floor is clamped to the subset's 1 and relayed as the note. The
   // SDK's own `sanitizeJsonSchema` would strip that `minItems: 1` too; the planned schema is put back after it.
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   expect((format.schema["properties"] as Record<string, unknown>)["tags"]).toEqual({
     type: "array",
     items: { type: "string" },

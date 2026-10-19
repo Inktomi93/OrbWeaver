@@ -2,7 +2,6 @@
 // output shape (requestId stamped on the line), and securityEvent. The rings are module singletons shared
 // across tests, so each test pushes its OWN markers and asserts on those (most-recent-first).
 
-// @orb-waive-file no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
 import { ProviderError } from "@orb/inference";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -89,7 +88,6 @@ describe("getLog output shape", () => {
     runInRequest(requestId, () => {
       // pino child loggers expose bindings() — verify requestId is bound without depending on
       // the ring (which is silenced by LOG_LEVEL=silent in the test environment).
-      // @orb-waive no-test-fabrication(unknown): narrowing pino's Logger (a vendor type we don't own) to the one internal API used here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       expect((getLog() as unknown as { bindings: () => Record<string, unknown> }).bindings()["requestId"]).toBe(requestId);
     });
   });

@@ -5,7 +5,6 @@
 // middleware-resolved principal (authenticated/handle/role) and never resolves a second time. Hono isn't
 // test-resolvable, so the registrar runs over a captured mock app + context (the healthz.test.ts pattern).
 
-// @orb-waive-file no-test-fabrication({ image: number }): baselined when the gate widened to value casts; burn-down item 906.
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { AuthMode, Principal, RelayStatus } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
@@ -45,7 +44,6 @@ function handlers(deps: AuthMetaDeps): { config: Handler; me: Handler } {
       return app;
     },
   };
-  // @orb-waive no-test-fabrication(unknown): Hono isn't test-resolvable — the captured mock app is a deliberate partial (the healthz.test.ts pattern). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerAuthMeta(app as unknown as Parameters<typeof registerAuthMeta>[0], deps);
   const config = routes.get("GET /api/auth/config");
   const me = routes.get("GET /api/auth/me");

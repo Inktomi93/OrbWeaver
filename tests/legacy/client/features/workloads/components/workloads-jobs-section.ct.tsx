@@ -24,7 +24,6 @@ import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { PAID_RUN_ROUTES } from "@orb/testkit/node/utility-role.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
-// @orb-waive-file no-test-fabrication(number): baselined when the gate widened to value casts; burn-down item 906.
 import { WORKLOAD_KIND_LABELS } from "#client/features/workloads/lib/workloads-model.ts";
 // The bus's OWN transport mutations (#649). `stream.attach`/`detach` ride the BATCHED HTTP link, not the
 // SSE leg (`use-orb-socket.ts:7,139` — only `stream.connect` is the subscription), so `routeOrbSocket`

@@ -160,7 +160,6 @@ describe.each([...RULE_PRESET_IDS])("preset %s", (id) => {
   });
 
   test("law 1 + law 2: every predicate evaluates to a BOOLEAN on an EMPTY env (no unguarded read, no bare arithmetic)", () => {
-    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const verdicts = buildWithDefaults(id)
       .filter((rule) => rule.predicate !== null)
       .map((rule) => ({ predicate: rule.predicate, verdict: evaluate(rule.predicate as string, EMPTY_ENV) }));
@@ -168,7 +167,6 @@ describe.each([...RULE_PRESET_IDS])("preset %s", (id) => {
   });
 
   test("law 1 + law 2: every predicate evaluates to a BOOLEAN on a POPULATED env", () => {
-    // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
     const verdicts = buildWithDefaults(id)
       .filter((rule) => rule.predicate !== null)
       .map((rule) => ({ predicate: rule.predicate, verdict: evaluate(rule.predicate as string, POPULATED_ENV) }));
@@ -203,7 +201,6 @@ test("a text knob substitutes into the veil predicate as an ESCAPED CEL string l
   const [rule] = preset.rules(resolveRulePresetKnobs(preset.knobs, { veilWord: 'the "curtain"' }));
   // The embedded quotes are escaped — a raw interpolation would have built a broken/shifted predicate.
   expect(rule?.predicate).toBe('has(event.message) && event.message.content.contains("the \\"curtain\\"")');
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   expect(evaluate(rule?.predicate as string, POPULATED_ENV)).toBe(false);
 });
 
@@ -214,7 +211,6 @@ test("a textList knob substitutes into the callback predicate as a LOWERCASED di
   expect(r1?.predicate).toBe(
     'has(event.message) && (event.message.content.lowerAscii().contains("i promise") || event.message.content.lowerAscii().contains("on my honour"))',
   );
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   expect(evaluate(r1?.predicate as string, POPULATED_ENV)).toBe(true);
 });
 
@@ -223,7 +219,6 @@ test("a number knob substitutes into the callback's distance predicate", () => {
   const rules = preset.rules(resolveRulePresetKnobs(preset.knobs, { distance: 3 }));
   expect(rules[1]?.predicate).toContain("int(chat.messageCount) - int(vars.debtBeat) >= 3");
   // POPULATED: debt=3, debtBeat=1, messageCount=24 ⇒ 23 >= 3.
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   expect(evaluate(rules[1]?.predicate as string, POPULATED_ENV)).toBe(true);
 });
 
@@ -310,11 +305,9 @@ test("#1's idle predicate is law-1 guarded — an absent stamp OFFERS the recap 
   // 2h substituted as epoch-ms, and the `!has(...)` arm is what keeps a never-played room from THROWING
   // ("No such key") the first time it is opened.
   expect(rules[1]?.predicate).toBe("!has(vars.lastBeatMs) || int(now.epochMs) - int(vars.lastBeatMs) > 7200000");
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   expect(evaluate(rules[1]?.predicate as string, EMPTY_ENV)).toBe(true);
   // POPULATED has no lastBeatMs either, so pin the negative arm explicitly: a FRESH stamp refuses.
   const fresh: CelBindings = { ...POPULATED_ENV, vars: { ...POPULATED_VARS, lastBeatMs: "1699999999000" } };
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   expect(evaluate(rules[1]?.predicate as string, fresh)).toBe(false);
 });
 
@@ -346,9 +339,7 @@ test("#10 never fires on its own — its predicate is a constant false (the on-d
   const [rule] = buildWithDefaults("callAVote");
   expect(rule?.predicate).toBe("false");
   // Both envs, because "never" is the claim: no bus event of its trigger can reach the arms.
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   expect(evaluate(rule?.predicate as string, EMPTY_ENV)).toBe(false);
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   expect(evaluate(rule?.predicate as string, POPULATED_ENV)).toBe(false);
 });
 
@@ -379,14 +370,11 @@ test("#16's reaction rule reads the score with law 1's guard and law 2's coercio
   );
   // Law 1 in the shape that matters: before the first pass lands there IS no score, and the unguarded read
   // would THROW "No such key" on every beat until then.
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   expect(evaluate(rules[1]?.predicate as string, EMPTY_ENV)).toBe(false);
   // Past the threshold it fires; under it, it does not (messageCount 24 ⇒ 24 % 4 == 0 in both arms).
   const tense: CelBindings = { ...POPULATED_ENV, vars: { ...POPULATED_VARS, tension: "9" } };
   const calm: CelBindings = { ...POPULATED_ENV, vars: { ...POPULATED_VARS, tension: "2" } };
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   expect(evaluate(rules[1]?.predicate as string, tense)).toBe(true);
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   expect(evaluate(rules[1]?.predicate as string, calm)).toBe(false);
 });
 
@@ -423,11 +411,9 @@ test("#2's idle predicate is law-1 guarded — the FIRST-EVER post nudges instea
   const preset = presetOf("asyncTableNudge");
   const rules = preset.rules(resolveRulePresetKnobs(preset.knobs, { idleHours: 2, quietFromHour: 0, quietUntilHour: 0 }));
   expect(rules[0]?.predicate).toBe("!has(vars.nudgeBeatMs) || int(now.epochMs) - int(vars.nudgeBeatMs) > 7200000");
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   expect(evaluate(rules[0]?.predicate as string, EMPTY_ENV)).toBe(true);
   // …and a FRESH stamp refuses (the negative arm — the table is mid-conversation, nobody needs telling).
   const fresh: CelBindings = { ...POPULATED_ENV, vars: { ...POPULATED_VARS, nudgeBeatMs: "1699999999000" } };
-  // @orb-waive no-test-fabrication(string): baselined when the gate widened to value casts; burn-down item 906.
   expect(evaluate(rules[0]?.predicate as string, fresh)).toBe(false);
 });
 

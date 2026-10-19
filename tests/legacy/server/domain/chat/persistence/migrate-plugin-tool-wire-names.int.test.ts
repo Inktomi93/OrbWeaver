@@ -54,7 +54,6 @@ async function readNames(db: Db, variantId: MessageVariantId): Promise<readonly 
     .from(messageVariants)
     .where(eq(messageVariants.id, variantId));
   const raw = rows.at(0)?.blob ?? "[]";
-  // @orb-waive no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
   return (JSON.parse(raw) as unknown[]).map((entry) => toolCallRecordSchema.parse(entry).name);
 }
 
@@ -63,7 +62,6 @@ async function readRecords(db: Db, variantId: MessageVariantId): Promise<readonl
     .select({ blob: sql<string | null>`cast(${messageVariants.toolCalls} as text)` })
     .from(messageVariants)
     .where(eq(messageVariants.id, variantId));
-  // @orb-waive no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
   return (JSON.parse(rows.at(0)?.blob ?? "[]") as unknown[]).map((entry) => toolCallRecordSchema.parse(entry));
 }
 

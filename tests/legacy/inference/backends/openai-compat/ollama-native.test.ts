@@ -3,7 +3,6 @@
 // (`_ollama-native-recordings.ts`), through the real SDK and the real turn, so a translation slip shows as a
 // wrong reply, tool call, reasoning or usage.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { Capability, GenerationCapability } from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -51,7 +50,6 @@ function replay(recordings: readonly Recording[], recorded: RecordedRequest[]): 
   return (input, init): Promise<Response> => {
     const recording = recordings[Math.min(call, recordings.length - 1)];
     call += 1;
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     recorded.push({ url: String(input), body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown> });
     return Promise.resolve(
       new Response(recording?.body ?? "", { status: recording?.status ?? 500, headers: { "content-type": recording?.contentType ?? "text/plain" } }),
@@ -480,7 +478,6 @@ function streamedOf(recording: Recording): Response {
 /** An Ollama `/api/chat` answering every request with `recording` as one streamed line, recording what was posted. */
 function ollamaServer(posted: RecordedRequest[], recording: Recording = OLLAMA_NATIVE_RECORDINGS.format): typeof fetch {
   return (input, init): Promise<Response> => {
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     posted.push({ url: String(input), body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown> });
     return Promise.resolve(streamedOf(recording));
   };
@@ -693,7 +690,6 @@ test("a row that turns the native route off rides /v1 as before", async () => {
   });
   const sse = 'data: {"choices":[{"delta":{"content":"hi"},"finish_reason":"stop"}]}\n\ndata: [DONE]\n\n';
   const fetchImpl: typeof fetch = (input, init) => {
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     recorded.push({ url: String(input), body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown> });
     return Promise.resolve(new Response(sse, { status: 200, headers: { "content-type": "text/event-stream" } }));
   };

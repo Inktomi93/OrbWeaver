@@ -9,7 +9,6 @@
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
-// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 import { throwHttpError } from "#client/data/http-error.ts";
 
 // No trailing ` — ` separator on the empty-body path.

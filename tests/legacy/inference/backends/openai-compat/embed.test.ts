@@ -1,7 +1,6 @@
 // Pair-input evidence must not change ordinary text embedding requests on either hosted SDK dialect, and an
 // embedder keeps every input its server's stated window takes.
 
-// @orb-waive-file no-test-fabrication({ readonly input: readonly string[] }): baselined when the gate widened to value casts; burn-down item 906.
 import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import { providerIdSchema } from "@orb/contracts/inference";
 import { createInferenceRuntime } from "@orb/inference";

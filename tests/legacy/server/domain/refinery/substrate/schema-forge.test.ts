@@ -5,7 +5,6 @@
 
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-// @orb-waive-file no-test-fabrication(Extract<SchemaForgeResult, { kind: K }>): baselined when the gate widened to value casts; burn-down item 906.
 import type { SchemaForgeResult } from "#server/domain/refinery/index.ts";
 import { resolveForgeCall, runForgeTurn } from "#server/domain/refinery/substrate/schema-forge.ts";
 import { makeRefineryHarness, seedUser } from "../_support.ts";

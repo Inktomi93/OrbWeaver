@@ -1,5 +1,3 @@
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(object): baselined when the gate widened to value casts; burn-down item 906.
 
 import { z } from "zod";
 // contracts/refinery/schema-forge — the forge's WIRE GRAMMAR + its transpiler (task #36, the owner's
@@ -63,7 +61,6 @@ test("every leaf construct the grammar can emit transpiles into a document the s
 test("the well-known core is SPLICED, so the belt's core refusal is unreachable from a design", () => {
   // A design that mentions nothing about the core still yields a document carrying it, required.
   const { schema, dropped } = transpileForgeDesign(design([row({ path: "summary" })]), "score");
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const properties = schema["properties"] as Record<string, Record<string, unknown>>;
   expect(properties["overallScore"]).toEqual(REFINERY_FORGE_CORE_NODES.score.node);
   expect(schema["required"]).toContain("overallScore");
@@ -101,15 +98,12 @@ test("the spliced core is the ONLY hero — an author row claiming role:hero is 
   // Exactly one `role:"hero"` survives in the whole document, and it is the canonical core node.
   const heroCount = (JSON.stringify(schema).match(/"role":"hero"/g) ?? []).length;
   expect(heroCount).toBe(1);
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const properties = schema["properties"] as Record<string, Record<string, unknown>>;
   expect(properties["overallScore"]?.["x-orb-ui"]).toEqual({ role: "hero" });
   // The author's field SURVIVES (re-role, not drop) — its bounds and label stand; only the hero elevation is
   // stripped, so it renders as a plain bounded gauge instead of stealing the headline.
   expect(properties["vividness"]).toMatchObject({ type: "number", minimum: 1, maximum: 10 });
-  // @orb-waive no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
   expect((properties["vividness"]?.["x-orb-ui"] as Record<string, unknown> | undefined)?.["role"]).toBeUndefined();
-  // @orb-waive no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
   expect((properties["vividness"]?.["x-orb-ui"] as Record<string, unknown> | undefined)?.["label"]).toBe("Vividness");
 });
 
@@ -121,7 +115,6 @@ test("the belt's OTHER refusal classes are unreachable from the grammar — by r
     { path: "p", type: "object", description: "", required: true },
     { path: "p", type: "string", description: "", required: true, chart: "pie" },
   ]) {
-    // @orb-waive no-test-fabrication(unknown): these ARE the invalid inputs under test — the point is that `Row` cannot describe them. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     expect(forgeDesignEnvelopeSchema.safeParse(design([bad as unknown as Row])).success).toBe(false);
   }
 
@@ -130,7 +123,6 @@ test("the belt's OTHER refusal classes are unreachable from the grammar — by r
   // is structurally incapable of reaching the transpiled document. Both routes end in the same place, which
   // is the property that matters; asserting a refusal here would have been asserting the wrong mechanism.
   const smuggled = forgeDesignEnvelopeSchema.parse(
-    // @orb-waive no-test-fabrication(unknown): a model smuggling a JSON-Schema keyword into a row is exactly the input under test. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     design([{ path: "p", type: "string", description: "", required: true, pattern: "a+", $ref: "#/x" } as unknown as Row]),
   );
   const { schema } = transpileForgeDesign(smuggled, "score");
@@ -157,7 +149,6 @@ test("a path whose prefix is already a value is dropped — a leaf never becomes
 test("a duplicate path is dropped rather than overwriting the first row", () => {
   const { schema, dropped } = transpileForgeDesign(design([row({ path: "note", maxLength: 10 }), row({ path: "note", maxLength: 99 })]), "score");
   expect(dropped.map((d) => d.path)).toEqual(["note"]);
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   expect((schema["properties"] as Record<string, Record<string, unknown>>)["note"]?.["maxLength"]).toBe(10);
 });
 
@@ -175,7 +166,6 @@ test("tones survive only for members the enum actually declares", () => {
     ]),
     "score",
   );
-  // @orb-waive no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
   const mood = (schema["properties"] as Record<string, Record<string, unknown>>)["mood"] ?? {};
   expect(mood["x-orb-ui"]).toEqual({ tone: { calm: "good" } });
 });

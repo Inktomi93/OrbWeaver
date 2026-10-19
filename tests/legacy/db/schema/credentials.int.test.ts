@@ -98,7 +98,6 @@ test("revoked_reason is CHECK-bound to CRED_REVOKED_REASONS — an unlisted word
       .values({ ...base, id: castId<UserCredentialId>(`user_credential_r${idx}`), label: `r${idx}`, revokedAt: 1, revokedReason: reason });
   }
   await expect(
-    // @orb-waive no-test-fabrication(unknown): the CHECK probe MUST send a word outside the tuple — that is the test. Ends when the column's enum can express its own negative.
     db.insert(userCredentials).values({
       ...base,
       id: castId<UserCredentialId>("user_credential_bad"),

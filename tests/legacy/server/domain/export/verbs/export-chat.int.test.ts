@@ -186,7 +186,6 @@ describe("exportChat — the D26/D28 assembly", () => {
     expect(out?.filename).toBe("Aria-Noir_Night.jsonl");
     const lines = (out?.text ?? "").trim().split("\n");
     expect(lines).toHaveLength(3);
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const header = JSON.parse(lines[0] ?? "") as Record<string, unknown>;
     expect(header["character_name"]).toBe("Aria");
     expect(header["user_name"]).toBe("Alex");
@@ -196,13 +195,11 @@ describe("exportChat — the D26/D28 assembly", () => {
       // biome-ignore lint/style/useNamingConvention: the ST wire keys are snake_case by format.
       main_chat: "origin.jsonl",
     });
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const userLine = JSON.parse(lines[1] ?? "") as Record<string, unknown>;
     expect(userLine["name"]).toBe("Alex");
     expect(userLine["is_user"]).toBe(true);
     expect(userLine["mes"]).toBe("hi");
     expect(userLine["swipes"]).toBeUndefined();
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const assistantLine = JSON.parse(lines[2] ?? "") as Record<string, unknown>;
     // The SELECTED variant is the primary contribution (D26); the full set is the swipe array.
     expect(assistantLine["mes"]).toBe("take two");
@@ -284,13 +281,10 @@ describe("exportChat — the D26/D28 assembly", () => {
 
     const out = await createExportChat(ctx)({ principal: principal(host), chatId });
     const lines = (out?.text ?? "").trim().split("\n");
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const header = JSON.parse(lines[0] ?? "") as Record<string, unknown>;
     expect(header["character_name"]).toBe("Aria"); // header stays the ST primary
     // …but each message LINE carries its actual speaker — the multi-speaker fix.
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     expect((JSON.parse(lines[2] ?? "") as Record<string, unknown>)["name"]).toBe("Bran");
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     expect((JSON.parse(lines[3] ?? "") as Record<string, unknown>)["name"]).toBe("Cara");
     const txt = await createExportChat(ctx)({ principal: principal(host), chatId, format: "txt" });
     expect(txt?.text).toBe("User: hey all\n\nBran: Bran speaks\n\nCara: Cara speaks\n");
@@ -313,9 +307,7 @@ describe("exportChat — the declared KIND rides out with the row", () => {
 
     const out = await createExportChat(ctx)({ principal: principal(host), chatId });
     const lines = (out?.text ?? "").trim().split("\n");
-    // @orb-waive no-test-fabrication({ extra: Record<string, unknown> }): baselined when the gate widened to value casts; burn-down item 906.
     const userLine = JSON.parse(lines[1] ?? "") as { extra: Record<string, unknown> };
-    // @orb-waive no-test-fabrication({ extra: Record<string, unknown> }): baselined when the gate widened to value casts; burn-down item 906.
     const narratorLine = JSON.parse(lines[2] ?? "") as { extra: Record<string, unknown> };
     expect(narratorLine.extra["type"]).toBe("narrator");
     expect(userLine.extra["type"]).toBeUndefined();

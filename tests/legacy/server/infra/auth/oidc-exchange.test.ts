@@ -44,7 +44,6 @@ const CLAIMS = { sub: "sub-alice", preferred_username: "alice" };
 
 /** The `Configuration` the route resolved from discovery. Nothing in the adapter reads it — it is passed
  *  straight through to the grant — so identity is the whole assertion. */
-// @orb-waive no-test-fabrication(unknown): openid-client's Configuration has no test constructor and the adapter only forwards it. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const CONFIG = { marker: "discovered-config" } as unknown as Parameters<OidcCodeGrant>[0];
 
 type Checks = Parameters<OidcCodeGrant>[2];
@@ -57,15 +56,10 @@ interface Captured {
 /** A grant that resolves with the given token response. `id_token` is optional so the "IdP returned no ID
  *  token" degrade can be driven. */
 function fakeGrant(response: { readonly idToken?: string }, capture: (c: Captured) => void): OidcCodeGrant {
-  // @orb-waive no-test-fabrication(unknown): openid-client's TokenEndpointResponse carries the RP's access/refresh tokens, which the Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // adapter must never read — supplying them would weaken, not strengthen, this test.
   // biome-ignore lint/style/useNamingConvention: OIDC/OAuth2 wire field names (`preferred_username`, `id_token`) are snake_case by spec — the crafted claims + token-response objects must match that shape.
   const tokens = { claims: (): typeof CLAIMS => CLAIMS, ...(response.idToken === undefined ? {} : { id_token: response.idToken }) } as unknown as Awaited<
     ReturnType<OidcCodeGrant>
   >;
-  // @orb-waive no-test-fabrication(unknown): `authorizationCodeGrant` has ~7 overloads whose full shape this fake deliberately does Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-  // not implement — the adapter only ever calls the 3-argument form, and widening the fake to satisfy the
-  // rest would test the fake, not the mapping.
   return ((config: unknown, url: URL, checks: Checks): Promise<typeof tokens> => {
     capture({ config, url, checks });
     return Promise.resolve(tokens);
@@ -143,8 +137,6 @@ describe("createOidcExchange — a failing grant is NEVER swallowed", () => {
   // would mint a session for an exchange that never succeeded — the whole fail-closed posture, inverted.
   test("a rejecting grant rejects, and the error reaches the caller with its `error` code intact", async () => {
     const err = { error: "invalid_grant" };
-    // @orb-waive no-test-fabrication(unknown): a deliberately failing grant — it never returns, so there is no token response to Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    // build, and the overload shape is irrelevant to the rejection under test.
     const exchange = createOidcExchange((() => Promise.reject(err)) as unknown as OidcCodeGrant);
 
     // `.rejects` is the assertion: a resolved value of ANY shape here is the defect.

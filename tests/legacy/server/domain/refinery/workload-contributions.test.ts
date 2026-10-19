@@ -25,7 +25,6 @@ const sig = (): AbortSignal => new AbortController().signal;
 function fakeDeps(): RefineryWorkloadDeps {
   // The `summarize` role client is a wide provider surface this suite deliberately never reaches (no
   // targets ⇒ no prompt, no call); the REAL bundle drives the real chain in `verbs/score-sweep.int.test.ts`.
-  // @orb-waive no-test-fabrication(unknown): an unreached role-client stub — the suite asserts the ENUMERATION's arguments, not a turn. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const roleClientsFor = vi.fn() as unknown as RefineryWorkloadDeps["roleClientsFor"];
   return {
     roleClientsFor,
@@ -82,7 +81,6 @@ describe("refine-score-sweep", () => {
       listRefineryScoreTargets: vi.fn(async () => ({ targets: [], inScope: SCORED_LIBRARY_SIZE })),
     })[0];
     await contribution.run(ctx, {}, report, sig());
-    // @orb-waive no-test-fabrication({ message?: string }): baselined when the gate widened to value casts; burn-down item 906.
     const messages = report.mock.calls.map((call) => (call[0] as { message?: string }).message ?? "");
     expect(messages.at(-1)).toBe(
       "scored 0 of 8 characters — skipped 8 already scored or with no card text — re-run with “Re-score everything” to refresh them",
@@ -97,7 +95,6 @@ describe("refine-score-sweep", () => {
       listRefineryScoreTargets: vi.fn(async () => ({ targets: [], inScope: 3 })),
     })[0];
     await contribution.run(ctx, { rescoreAll: true }, report, sig());
-    // @orb-waive no-test-fabrication({ message?: string }): baselined when the gate widened to value casts; burn-down item 906.
     const messages = report.mock.calls.map((call) => (call[0] as { message?: string }).message ?? "");
     expect(messages.at(-1)).toBe("scored 0 of 3 characters — skipped 3 with no card text to score (add a description first)");
   });
@@ -110,7 +107,6 @@ describe("refine-score-sweep", () => {
       listRefineryScoreTargets: vi.fn(async () => ({ targets: [], inScope: 0 })),
     })[0];
     await contribution.run(ctx, {}, report, sig());
-    // @orb-waive no-test-fabrication({ message?: string }): baselined when the gate widened to value casts; burn-down item 906.
     const messages = report.mock.calls.map((call) => (call[0] as { message?: string }).message ?? "");
     expect(messages.at(-1)).toBe("scored 0 of 0 characters");
   });

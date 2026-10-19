@@ -59,7 +59,6 @@ test("a send whose draft froze a volatile macro stores the PRE-freeze draft + th
   await scn.send("I roll {{roll::1d1}} then pick {{pick::north}}");
 
   const userRow = (await scn.loadCanon()).find((m) => m.role === "user");
-  // @orb-waive no-test-fabrication(MessageVariantId): baselined when the gate widened to value casts; burn-down item 906.
   const stored = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));
   expect(stored.content).toBe("I roll 1 then pick north");
   // The composer draft exactly as authored — pre-freeze, pre-regex.
@@ -77,7 +76,6 @@ test("a send with NO volatile macro writes NULL raw + NULL record — the byte-i
   await scn.send("plain words, no macros here");
 
   const userRow = (await scn.loadCanon()).find((m) => m.role === "user");
-  // @orb-waive no-test-fabrication(MessageVariantId): baselined when the gate widened to value casts; burn-down item 906.
   const stored = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));
   expect(stored.content).toBe("plain words, no macros here");
   // NULL ⇔ raw is byte-identical to content. A copy here would double every message body in the DB.
@@ -91,7 +89,6 @@ test("an IDENTITY macro is not a freeze — it stays raw in canon and contribute
   await scn.send("hello {{char}}");
 
   const userRow = (await scn.loadCanon()).find((m) => m.role === "user");
-  // @orb-waive no-test-fabrication(MessageVariantId): baselined when the gate widened to value casts; burn-down item 906.
   const stored = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));
   // Identity macros resolve per-VIEW (renderHistoryMacros), so the freeze pass re-emits them verbatim.
   expect(stored.content).toBe("hello {{char}}");
@@ -105,7 +102,6 @@ test("the rpg data macros are volatile for CACHE purposes but never freeze — n
   await scn.send("scene: {{rpgSceneState}}");
 
   const userRow = (await scn.loadCanon()).find((m) => m.role === "user");
-  // @orb-waive no-test-fabrication(MessageVariantId): baselined when the gate widened to value casts; burn-down item 906.
   const stored = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));
   // The freeze registry deliberately does NOT register the rpg read-mirror macros (registry.ts), so the
   // token survives into canon and the record stays empty — the freeze axis is narrower than `volatile`.
@@ -159,7 +155,6 @@ test("EDITING the body back onto its own raw clears the provenance — never a n
   await scn.send("I roll {{roll::1d1}}");
 
   const userRow = (await scn.loadCanon()).find((m) => m.role === "user");
-  // @orb-waive no-test-fabrication(MessageVariantId): baselined when the gate widened to value casts; burn-down item 906.
   const beforeEdit = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));
   expect(beforeEdit.rawContent).toBe("I roll {{roll::1d1}}");
 
@@ -169,10 +164,8 @@ test("EDITING the body back onto its own raw clears the provenance — never a n
     resolveForeignInputs: foreignInputsStub,
   });
   // The exact convergence the finding drove: the host types the raw text back in.
-  // @orb-waive no-test-fabrication(MessageId): baselined when the gate widened to value casts; burn-down item 906.
   await edit.editMessage({ principal: scn.principal(), chatId: scn.chatId, messageId: userRow?.id ?? ("x" as MessageId), content: "I roll {{roll::1d1}}" });
 
-  // @orb-waive no-test-fabrication(MessageVariantId): baselined when the gate widened to value casts; burn-down item 906.
   const afterEdit = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));
   expect(afterEdit.content).toBe("I roll {{roll::1d1}}");
   expect(afterEdit.rawContent).toBeNull();
@@ -190,10 +183,8 @@ test("an edit to UNRELATED text also drops the record — a bake that is no long
     emit: () => Promise.resolve(),
     resolveForeignInputs: foreignInputsStub,
   });
-  // @orb-waive no-test-fabrication(MessageId): baselined when the gate widened to value casts; burn-down item 906.
   await edit.editMessage({ principal: scn.principal(), chatId: scn.chatId, messageId: userRow?.id ?? ("x" as MessageId), content: "actually I hold still" });
 
-  // @orb-waive no-test-fabrication(MessageVariantId): baselined when the gate widened to value casts; burn-down item 906.
   const after = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));
   expect(after.content).toBe("actually I hold still");
   expect(after.rawContent).toBeNull();
@@ -229,7 +220,6 @@ test("replaying the stored record over the stored raw reproduces the frozen cont
   await scn.send("the die says {{random::1::1000000}}");
 
   const userRow = (await scn.loadCanon()).find((m) => m.role === "user");
-  // @orb-waive no-test-fabrication(MessageVariantId): baselined when the gate widened to value casts; burn-down item 906.
   const stored = await readProvenance(scn.db, userRow?.selectedVariantId ?? ("x" as MessageVariantId));
   expect(stored.rawContent).toBe("the die says {{random::1::1000000}}");
 

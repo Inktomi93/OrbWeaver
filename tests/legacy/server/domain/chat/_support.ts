@@ -569,13 +569,11 @@ export function makeChatContext(db: Db, overrides: Partial<ChatContext> = {}): C
     // verbs push on every write path now; a test that asserts stats overrides with a recorder).
     applyStatsDelta: () => undefined,
     applyCharacterStatsDelta: (batch, opDb, delta) => {
-      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyCharacterStatsDelta(batch as BatchStmt[], opDb, delta);
     },
     resolveRetainedChatAccountingScope: createResolveRetainedChatAccountingScope(databaseHandle(db)),
     resolveRetainedChatRebase: createResolveRetainedChatRebase(databaseHandle(db)),
     settleRetainedChatRebase: (batch, opDb, scope) => {
-      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       settleRetainedChatRebase(batch as BatchStmt[], opDb, scope);
     },
     bumpStatsCanonVersion: () => undefined,

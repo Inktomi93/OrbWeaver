@@ -3,8 +3,6 @@
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — the structured state round keyed on capability: the forced tool round, the empty-round retry and the per-game vehicle knob.
 
-// @orb-waive-file no-test-fabrication({ message: { content: string } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ properties: { changes: { minItems: number; items: { anyOf: { properties: { tool: { enum: string[] } } }[] } } } }): baselined when the gate widened to value casts; burn-down item 906.
 import { createHash } from "node:crypto";
 import { resolveProseText } from "@orb/contracts/prose";
 import { RPG_STATE_ROUND_FAILED_SUMMARY, RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
@@ -107,7 +105,6 @@ test("0511: a structured reply outside the schema fails LOUDLY — a durable fai
   const [record] = await findTurnToolCallsByVariant(db, variantId);
   expect(record?.calls).toEqual([]);
   expect(record?.failure).toContain(RPG_STATE_ROUND_FAILED_SUMMARY);
-  // @orb-waive no-test-fabrication({ event?: string }): baselined when the gate widened to value casts; burn-down item 906.
   expect(warn.mock.calls.some(([line]) => (line as { event?: string }).event === "rpg.toolround.unparseable")).toBe(true);
   warn.mockRestore();
 });
@@ -128,7 +125,6 @@ test("0511: Claude (5.5 and 4.x), OpenAI and plain tool rows send the forced too
     cannedText: "{}",
     chatArm: (req) => {
       sent.push(req);
-      // @orb-waive no-test-fabrication(unknown): minimal ChatResult double — the round reads toolCalls and the economics fields only.
       return Promise.resolve({
         reply: "",
         // A real quiet beat, so the downgraded Claude 5.5 round does not take its empty-round retry here.

@@ -6,7 +6,6 @@
 // The expected key set is re-spelled here on purpose — importing the section's own `OWNS` tuple would make
 // the test agree with the code by construction and prove nothing.
 
-// @orb-waive-file no-test-fabrication(HTMLElement | null): baselined when the gate widened to value casts; burn-down item 906.
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";

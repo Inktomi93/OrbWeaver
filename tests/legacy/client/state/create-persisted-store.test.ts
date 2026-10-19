@@ -7,9 +7,6 @@
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { StateStorage } from "zustand/middleware";
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ context?: unknown } | null): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ state: object; version: number }): baselined when the gate widened to value casts; burn-down item 906.
 import type { PersistedStoreOptions } from "../../../../packages/client/src/state/legacy-test-factories/index.ts";
 import { createPersistedStore } from "../../../../packages/client/src/state/legacy-test-factories/index.ts";
 

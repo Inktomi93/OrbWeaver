@@ -6,7 +6,6 @@
 // reset — there is no `clearTurn` (removed as dead API; a terminal slot just lingers until the next
 // `beginTurn`, and a fresh id never collides with a prior test's lingering slot).
 
-// @orb-waive-file no-test-fabrication([TurnSlot["phase"], boolean][]): baselined when the gate widened to value casts; burn-down item 906.
 import type { TurnSlot } from "@orb/client/state";
 import { chatStream, isLiveTurnPhase, subscribeUserMessageCommitted } from "@orb/client/state";
 import type { ChatDeltaEvent, TurnIntent } from "@orb/contracts/chat";

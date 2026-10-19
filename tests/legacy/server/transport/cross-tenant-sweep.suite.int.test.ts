@@ -2300,7 +2300,6 @@ describe("cross-tenant IDOR sweep — the completeness guard (grows with the rou
     // tRPC v11 has no public procedure-enumeration API — reading `_def.procedures` (the flat
     // path→procedure record) is the sanctioned introspection seam for a router-completeness gate.
     const all = Object.keys(
-      // @orb-waive no-test-fabrication(unknown): the tRPC `_def.procedures` introspection seam (no public enumeration API in v11). Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       (appRouter as unknown as { _def: { procedures: Record<string, unknown> } })._def.procedures,
     ).sort();
     const covered = new Set([...PROBES.map((p) => p.path), ...Object.keys(EXEMPT)]);

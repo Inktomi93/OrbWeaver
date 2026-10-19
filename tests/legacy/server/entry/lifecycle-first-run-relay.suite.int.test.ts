@@ -2,7 +2,6 @@
 // LOCAL_INITIAL_PASSWORD offers the owner-password claim only to a loopback request with no relay tell and an
 // allowed `Host`. The route and flag unit tests inject their own gate, so only a booted lifecycle proves it.
 
-// @orb-waive-file no-test-fabrication({ localFirstRun: boolean }): baselined when the gate widened to value casts; burn-down item 906.
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";

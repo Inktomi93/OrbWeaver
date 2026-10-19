@@ -21,7 +21,6 @@
 //     reaped row's disappearance into a `roomFailed` on a tail that pre-fold simply went quiet.
 
 import { setTimeout as sleep } from "node:timers/promises";
-// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -65,7 +64,6 @@ function progressEvent(workloadId: WorkloadId, pct: number, at: number): Workloa
 /** The owner-scoped read the room gates on. The real verb returns the row or throws the leak-free NOT_FOUND;
  *  the room only cares WHICH of those happens — it never reads a field of the row, so a full row would
  *  assert nothing and would have to be maintained against a shape this test never exercises. */
-// @orb-waive no-test-fabrication(unknown): an id-only WorkloadRowAnyKind double; the gate's whole surface is throw-or-not. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
 const visible: WorkloadService["get"] = ({ id }) => Promise.resolve({ id } as unknown as WorkloadRowAnyKind);
 
 function ctxWith(get: WorkloadService["get"], userId: UserId = OWNER): Context {

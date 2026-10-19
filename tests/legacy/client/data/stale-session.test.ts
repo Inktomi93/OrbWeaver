@@ -7,8 +7,6 @@
 // it fresh; `fetch` is stubbed per case because the ladder's sensors are `/api/auth/me` + `/api/auth/config`
 // (the two PUBLIC endpoints — `sessions.me` 401s on exactly the state being recovered from).
 
-// @orb-waive-file no-test-fabrication(Ladder): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(ReturnType<typeof vi.fn>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AuthMode } from "@orb/contracts/identity";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

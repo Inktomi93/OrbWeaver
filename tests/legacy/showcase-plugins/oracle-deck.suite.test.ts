@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication({ cards: string[]; dealt: number; summary: string }): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { PluginToast, PluginToastLevel } from "@orb/contracts/plugin";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";

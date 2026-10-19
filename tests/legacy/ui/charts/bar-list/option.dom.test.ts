@@ -1,9 +1,3 @@
-// @orb-waive-file no-test-fabrication({): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ axisLabel: { color: string } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ axisLabel: { width: number; overflow: string; ellipsis: string } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ data: string[]; inverse: boolean }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ itemStyle: { color: string }; label: { color: string } }[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ max?: number }): baselined when the gate widened to value casts; burn-down item 906.
 
 // Unit: <BarList>'s pure `buildBarListOption` builder. A
 // mounted ECharts instance does not survive the Playwright component-test RPC boundary with its
@@ -72,7 +66,6 @@ test("valueFormatter drives both the tooltip and the bar-end label", () => {
   const series = option.series as {
     label: { formatter: (params: { value: number }) => string };
   }[];
-  // @orb-waive no-test-fabrication({ valueFormatter:): baselined when the gate widened to value casts; burn-down item 906.
   const tooltip = option.tooltip as { valueFormatter: (value: unknown) => string };
   expect(series[0]?.label.formatter({ value: 42 })).toBe("42 chunks");
   expect(tooltip.valueFormatter(42)).toBe("42 chunks");
@@ -86,9 +79,7 @@ test("the right gutter follows the WIDEST formatted value label, not a fixed con
   expect(wide).toBeGreaterThan(narrow);
   // …and the OPTION moves with the labels it will draw — same items, wider formatter, wider gutter. (Read
   // off the built option rather than re-calling the helper, which would only compare a function to itself.)
-  // @orb-waive no-test-fabrication({ right: number }): baselined when the gate widened to value casts; burn-down item 906.
   const tight = (buildBarListOption(ITEMS, () => "+1", COLORS, LAYOUT).grid as { right: number }).right;
-  // @orb-waive no-test-fabrication({ right: number }): baselined when the gate widened to value casts; burn-down item 906.
   const roomy = (buildBarListOption(ITEMS, () => "1,234,567 tokens", COLORS, LAYOUT).grid as { right: number }).right;
   expect(roomy).toBeGreaterThan(tight);
 });
@@ -124,8 +115,6 @@ test("a shared valueMax pins the axis; its absence leaves ECharts' per-chart aut
 test("intent selects the SEMANTIC series colour, never the accent", () => {
   const positive = buildBarListOption(ITEMS, identityFormatter, COLORS, { ...LAYOUT, intent: "positive" });
   const negative = buildBarListOption(ITEMS, identityFormatter, COLORS, { ...LAYOUT, intent: "negative" });
-  // @orb-waive no-test-fabrication({ itemStyle: { color: string } }[]): baselined when the gate widened to value casts; burn-down item 906.
   expect((positive.series as { itemStyle: { color: string } }[])[0]?.itemStyle.color).toBe(COLORS.seriesPositive);
-  // @orb-waive no-test-fabrication({ itemStyle: { color: string } }[]): baselined when the gate widened to value casts; burn-down item 906.
   expect((negative.series as { itemStyle: { color: string } }[])[0]?.itemStyle.color).toBe(COLORS.seriesNegative);
 });

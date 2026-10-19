@@ -2,8 +2,6 @@
 // for 127.0.0.1, verified by the client against that certificate, forwarding to a recording http upstream: the app
 // must see this hop's facts about the socket, never the visitor's own forwarding headers.
 
-// @orb-waive-file no-test-fabrication(AddressInfo): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(TLSSocket): baselined when the gate widened to value casts; burn-down item 906.
 import type { KeyObject } from "node:crypto";
 import { generateKeyPairSync, X509Certificate } from "node:crypto";
 import type { IncomingHttpHeaders, Server } from "node:http";

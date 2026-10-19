@@ -5,8 +5,6 @@
 // shows exactly when a password on this page crosses a network in clear.
 // Assertions ride roles, focus, geometry and the card's data attributes; no copy is asserted.
 
-// @orb-waive-file no-test-fabrication(Partial<EffectiveAppSettings>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ state?: { handle?: { id?: string } } } | null): baselined when the gate widened to value casts; burn-down item 906.
 import type { AuthMode, IpCertificateSetting, IpCertificateStatus, ShareStatus } from "@orb/contracts/identity";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeChatListPage, makeChatSummaryView } from "@orb/testkit/node/factories/chat-view.ts";

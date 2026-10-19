@@ -6,7 +6,6 @@
 // the fetched-cover register, deliberately not RESTRICT); plugin_kv composite PK + key/value length
 // CHECKs + pluginId CASCADE.
 
-// @orb-waive-file no-test-fabrication("enabled"): baselined when the gate widened to value casts; burn-down item 906.
 import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_ORIGINS, PLUGIN_STATUSES, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";

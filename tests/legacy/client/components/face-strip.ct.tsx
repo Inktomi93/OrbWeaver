@@ -8,7 +8,6 @@
 //   · an empty set renders NOTHING (a shortcut to nowhere is chrome, not an empty state);
 //   · the face's own box meets the per-pointer touch floor even though `size="media"` is content-sized.
 
-// @orb-waive-file no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
 import { FaceStrip } from "@orb/client/components";
 import { resolveSpacingPxIn } from "@orb/testkit/browser/touch-floor.ts";
 import { SNAPPED_LENGTH_BASE_PX } from "@orb/ui/tokens";

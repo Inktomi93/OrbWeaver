@@ -6,9 +6,6 @@
 // `degraded:true` the turn verb turns into a warning (D41).
 // Plus CANCELLATION: the turn's AbortSignal reaches the call, and an abort is `aborted:true`, never a degrade.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Record<string, unknown> | undefined): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(string[] | undefined): baselined when the gate widened to value casts; burn-down item 906.
 import type { SpeakerRef } from "@orb/contracts/chat";
 import { TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";

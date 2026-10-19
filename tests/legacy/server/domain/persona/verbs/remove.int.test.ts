@@ -3,7 +3,6 @@
 // real delete audits; the caller's LAST persona is refused (`last_persona` — the always-one belt).
 // @subject packages/server/src/domain/persona/verbs/remove.ts
 
-// @orb-waive-file no-test-fabrication(LastPersonaError): baselined when the gate widened to value casts; burn-down item 906.
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { characterPersonas, personas } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";

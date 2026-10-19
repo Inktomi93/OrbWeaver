@@ -10,10 +10,8 @@ import { describe } from "vitest";
 describe("deepMergeRequestBody — prototype-pollution defense (Layer 2)", () => {
   test("a top-level __proto__ on the patch does not pollute Object.prototype", () => {
     const base = { model: "m" };
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const patch = JSON.parse('{"__proto__": {"polluted": true}}') as Record<string, unknown>;
     const merged = deepMergeRequestBody(base, patch);
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     expect((Object.prototype as Record<string, unknown>)["polluted"]).toBeUndefined();
     expect(merged["polluted"]).toBeUndefined();
     expect(merged).toEqual({ model: "m" });
@@ -21,10 +19,8 @@ describe("deepMergeRequestBody — prototype-pollution defense (Layer 2)", () =>
 
   test("a nested __proto__ (several levels deep) does not pollute Object.prototype", () => {
     const base = { a: { b: { c: 1 } } };
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const patch = JSON.parse('{"a":{"b":{"__proto__":{"polluted":true}}}}') as Record<string, unknown>;
     const merged = deepMergeRequestBody(base, patch);
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     expect((Object.prototype as Record<string, unknown>)["polluted"]).toBeUndefined();
     expect(merged).toEqual({ a: { b: { c: 1 } } });
   });
@@ -39,7 +35,6 @@ describe("deepMergeRequestBody — prototype-pollution defense (Layer 2)", () =>
 
   test("a forbidden key survives neither side even when the OTHER side is clean", () => {
     // Forbidden on base only.
-    // @orb-waive no-test-fabrication(Record<string, unknown>): `__proto__` in an object-literal position sets the prototype, not a data key — the cast smuggles it in as a plain property for THIS probe. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     expect(deepMergeRequestBody({ __proto__: { x: 1 } } as Record<string, unknown>, { a: 1 })).toEqual({ a: 1 });
     // Forbidden on patch only.
     expect(deepMergeRequestBody({ a: 1 }, { constructor: { x: 1 } })).toEqual({ a: 1 });
@@ -75,14 +70,12 @@ describe("deepMergeRequestBody — prototype-pollution defense (Layer 2)", () =>
   });
 
   test("a poison key nested inside a subtree present on ONLY ONE side is still stripped (regression: a whole-value copy must recurse too, not just merged nodes)", () => {
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const patchOnly = JSON.parse('{"nested":{"constructor":{"polluted":true},"ok":1}}') as Record<string, unknown>;
     expect(deepMergeRequestBody({ model: "m" }, patchOnly)).toEqual({
       model: "m",
       nested: { ok: 1 },
     });
 
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const baseOnly = JSON.parse('{"nested":{"__proto__":{"polluted":true},"ok":1}}') as Record<string, unknown>;
     expect(deepMergeRequestBody(baseOnly, { model: "m" })).toEqual({
       nested: { ok: 1 },

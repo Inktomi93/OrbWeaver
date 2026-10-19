@@ -90,7 +90,6 @@ function retryClient(failAt: (typeof SEED_WRITE_STEPS)[number]): {
   let failed = false;
   let starts = 0;
   const apply = (
-    // @orb-waive brand-in-name-position(chatId): the fake records the pre-parse JSON input from the structural tRPC client, so this remains untrusted wire text; branding it would claim a parse the fake does not perform. Ends if the test client exposes parsed AppRouter inputs.
     chatId: string,
     step: string,
     result?: unknown,

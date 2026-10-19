@@ -47,7 +47,6 @@
 //     evidence the next assertion consumes, using the same 10s evidence-delivery budget as every other
 //     observer arm in this file.
 
-// @orb-waive-file no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
 import { once } from "node:events";
 import { createServer } from "node:http";
 import { setTimeout as delay } from "node:timers/promises";
@@ -426,7 +425,6 @@ async function resetMotion(page: Page): Promise<void> {
         requestAnimationFrame(() => {
           // A LoAF is keyed by its frame start. Let preparation paint, then set the threshold in the
           // second presented frame so its pre-click work remains below the checkpoint.
-          // @orb-waive no-test-fabrication(typeof globalThis & { __motionReset:): baselined when the gate widened to value casts; burn-down item 906.
           (globalThis as typeof globalThis & { __motionReset: () => void }).__motionReset();
           resolve();
         });
@@ -459,12 +457,10 @@ function captureClsLines(page: Page): string[] {
 /** Reads the snapshot the STORY published (see its effect) — never a re-import, which would resolve a
  *  second module instance whose totals are always zero. */
 function readMotion(page: Page): Promise<MotionRead> {
-  // @orb-waive no-test-fabrication(unknown): the probe slot the story writes; declared and read in this spec alone. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return page.evaluate(() => (globalThis as unknown as { __motionRead: () => MotionRead }).__motionRead());
 }
 
 function readOpening(page: Page): Promise<SelectOpeningProbe> {
-  // @orb-waive no-test-fabrication(typeof globalThis & { __motionOpeningRead:): baselined when the gate widened to value casts; burn-down item 906.
   return page.evaluate(() => (globalThis as typeof globalThis & { __motionOpeningRead: () => SelectOpeningProbe }).__motionOpeningRead());
 }
 
@@ -473,13 +469,11 @@ function entranceTaskMotion(page: Page): Promise<MotionRead> {
 }
 
 function resetAppBlockingReceipt(page: Page): Promise<void> {
-  // @orb-waive no-test-fabrication(typeof globalThis & { __resetAppBlockingReceipt:): baselined when the gate widened to value casts; burn-down item 906.
   return page.evaluate(() => (globalThis as typeof globalThis & { __resetAppBlockingReceipt: () => void }).__resetAppBlockingReceipt());
 }
 
 function readAppBlockingInput(page: Page): Promise<AppBlockingReceipt> {
   return page.evaluate(() =>
-    // @orb-waive no-test-fabrication(typeof globalThis & { __readAppBlockingReceiptForTest:): baselined when the gate widened to value casts; burn-down item 906.
     (globalThis as typeof globalThis & { __readAppBlockingReceiptForTest: () => AppBlockingReceipt }).__readAppBlockingReceiptForTest(),
   );
 }

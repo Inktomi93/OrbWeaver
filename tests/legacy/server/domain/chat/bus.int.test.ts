@@ -3,7 +3,6 @@
 // truth) AND pushes to the in-process ring, the per-chat `seq` is monotonic, and the ring read honors the
 // `afterSeq` cursor.
 
-// @orb-waive-file no-test-fabrication(PromiseLike<unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatEvents, chatHandoffResumptions, chats } from "@orb/db";
@@ -108,7 +107,6 @@ function faultyAppendDb(real: Db, mode: "before-commit" | "after-commit"): Db {
         return value;
       }
       return (...args: unknown[]): unknown => {
-        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
         const builder = (value as (...a: unknown[]) => object).apply(target, args);
         inserts += 1;
         return inserts === 1 ? failingBuilder(builder, mode) : builder;
@@ -137,7 +135,6 @@ function failingBuilder(node: object, mode: "before-commit" | "after-commit"): o
         return value;
       }
       return (...args: unknown[]): unknown => {
-        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
         const next = (value as (...a: unknown[]) => unknown).apply(target, args);
         return typeof next === "object" && next !== null ? failingBuilder(next, mode) : next;
       };
@@ -159,7 +156,6 @@ function afterCommitBatchDb(real: Db): Db {
       }
       return async (...args: unknown[]): Promise<unknown> => {
         batches += 1;
-        // @orb-waive no-test-fabrication(as): baselined when the gate widened to value casts; burn-down item 906.
         const ran = (value as (...a: unknown[]) => Promise<unknown>).apply(target, args);
         if (batches !== 1) {
           return await ran;

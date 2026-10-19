@@ -1,6 +1,5 @@
 // backends/openai-compat/chat — the cached prefix across a group round and the connection's prompt-cache settings on the OpenRouter → Anthropic and Gemini routes.
 
-// @orb-waive-file no-test-fabrication(unknown[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { PromptCacheSettings } from "@orb/contracts/inference";
 import { SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
@@ -18,7 +17,6 @@ function cachedParts(messages: readonly Record<string, unknown>[]): { readonly e
     const content = message["content"];
     const parts: Record<string, unknown>[] = typeof content === "string" ? [{ type: "text", text: content }] : [];
     if (Array.isArray(content)) {
-      // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
       parts.push(...(content as Record<string, unknown>[]));
     }
     for (const { cache_control: marker, ...part } of parts) {
@@ -64,7 +62,6 @@ function roundCall(model: string, assistantPrefill: boolean): (history: OpenAiCo
     secret: fakeApiKeySecret("sk-or-not-a-real-key"),
   });
   return async (history) =>
-    // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
     (await sentBody(orRequest({ connection, tools: undefined, cacheBreakpointDepth: 1, history })))["messages"] as Record<string, unknown>[];
 }
 
@@ -129,10 +126,8 @@ test("OR non-Anthropic model: the round's rows pass through 1:1 with no history 
 
 /** Every content-part marker in message order: `[messageIndex, marker]`. */
 function orMarkers(body: Record<string, unknown>): readonly (readonly [number, unknown])[] {
-  // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
   const messages = Array.isArray(body["messages"]) ? (body["messages"] as Record<string, unknown>[]) : [];
   return messages.flatMap((message, index) =>
-    // @orb-waive no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
     (Array.isArray(message["content"]) ? (message["content"] as Record<string, unknown>[]) : []).flatMap((part) =>
       part["cache_control"] === undefined ? [] : [[index, part["cache_control"]] as const],
     ),

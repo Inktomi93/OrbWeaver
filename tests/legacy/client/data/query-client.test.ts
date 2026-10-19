@@ -7,7 +7,6 @@
 // toast wiring silently stops firing) breaks every read/write in the app; this is the "load-bearing
 // invariant" test class (Spine-Testing §6), not a tautology over a constructor call.
 
-// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 import { createAppQueryClient } from "@orb/client/data";
 import type { Notify, NotifyInput } from "@orb/client/lib";
 import { bindNotify } from "@orb/client/lib";

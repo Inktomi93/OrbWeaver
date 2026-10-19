@@ -31,8 +31,6 @@ const row = (role: "user" | "assistant", content: string, id?: string): ShapedRo
 
 /** A canon double carrying only what the conversion reads off it: the id and the role (the assistant set the
  *  user-attachment rule needs). */
-// @orb-waive no-test-fabrication(unknown): slim canon double — `buildWireHistory` reads `id` and `role` off a canon row and nothing Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-// else (see its `assistantMessageIds` fold); a full MessageView factory would hide that narrowness.
 const canonRow = (id: string, role: "user" | "assistant"): MessageView => ({ id: castId<MessageId>(id), role }) as unknown as MessageView;
 
 const NO_CANON: readonly MessageView[] = [];

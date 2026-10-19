@@ -32,7 +32,6 @@ describe("stageDirectory", () => {
       expect(paths).toEqual(["characters/Aria.png", "personas/me.json"]);
       const aria = staged.entries.find((e) => e.path === "characters/Aria.png");
       expect(aria).toBeDefined();
-      // @orb-waive no-test-fabrication({ read:): baselined when the gate widened to value casts; burn-down item 906.
       expect(Array.from(await (aria as { read: () => Promise<Uint8Array> }).read())).toEqual([1, 2, 3]);
     } finally {
       await staged.dispose();

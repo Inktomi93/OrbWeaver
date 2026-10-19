@@ -16,7 +16,6 @@ import type { ReactElement } from "react";
 import { ActionsView } from "#client/features/preset/components/actions-view.tsx";
 import { PresetStructureTabs } from "#client/features/preset/components/preset-structure-tabs.tsx";
 import { UserMacrosTab } from "#client/features/preset/components/user-macros-tab.tsx";
-// @orb-waive-file no-test-fabrication(AppFormInstance<PromptConfig>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AppFormInstance, AutosaveSession } from "#client/forms/editor/index.ts";
 import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 

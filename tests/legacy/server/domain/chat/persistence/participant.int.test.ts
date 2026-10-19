@@ -82,15 +82,12 @@ describe("classifyParticipant — the non-throwing twin", () => {
   // a `never` binding, so the classification was TRUTHY and `parseParticipant`'s `actor === null` rejection
   // never fired — a corrupt seat read as an actor carrying neither a userId nor a characterId.
   test("an UNRECOGNIZED kind classifies null and parseParticipant rejects it", () => {
-    // @orb-waive no-test-fabrication(ParticipantKind): baselined when the gate widened to value casts; burn-down item 906.
     const rogue = { kind: "wraith" as ParticipantKind, userId: null, characterId: null };
     expect(classifyParticipant(rogue)).toBeNull();
     expect(() => parseParticipant(rogue)).toThrow();
     // …and the shape-carrying variants are equally refused: an unrecognized kind is never an actor, however
     // well-formed the id columns look.
-    // @orb-waive no-test-fabrication(ParticipantKind): baselined when the gate widened to value casts; burn-down item 906.
     expect(classifyParticipant({ kind: "wraith" as ParticipantKind, userId: castId<UserId>("user_a"), characterId: null })).toBeNull();
-    // @orb-waive no-test-fabrication(ParticipantKind): baselined when the gate widened to value casts; burn-down item 906.
     expect(classifyParticipant({ kind: "wraith" as ParticipantKind, userId: null, characterId: castId<CharacterId>("character_a") })).toBeNull();
   });
 

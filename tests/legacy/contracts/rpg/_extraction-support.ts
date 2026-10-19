@@ -30,7 +30,6 @@ export function carrier(name: string, kind: "party" | "npcs", over: Partial<RpgT
 export function refEnum(schema: Record<string, unknown>, path: readonly string[]): unknown {
   let node: unknown = schema;
   for (const key of path) {
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     node = node !== null && typeof node === "object" ? (node as Record<string, unknown>)[key] : undefined;
   }
   return node;

@@ -5,8 +5,6 @@
 // (Moved here from tests/legacy/server/domain/settings/substrate/ with its subject in #1026 — two domains now
 // reach it, so a domain home would have been a sideways value import.)
 
-// @orb-waive-file no-test-fabrication(DomainOperationError): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Error): baselined when the gate widened to value casts; burn-down item 906.
 import type { VersionedParseOutcome } from "@orb/contracts/versioned-config";
 import { DomainOperationError } from "@orb/kit/errors";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

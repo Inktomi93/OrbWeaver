@@ -1,7 +1,3 @@
-// @orb-waive-file no-test-fabrication(keyof typeof DEFAULT_CAPTION_INSTRUCTIONS): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(keyof typeof DEFAULT_FORMAT_STRINGS): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(keyof typeof DEFAULT_GUIDED_ACTIONS): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(keyof typeof DEFAULT_PROMPT_TEMPLATES): baselined when the gate widened to value casts; burn-down item 906.
 
 // PROSE-1 §10 contract suite for `@orb/contracts/prose` — the resolution machinery, the versioned-defaults
 // mechanism, and the default-identity discipline that makes every migration stage a no-op until a host types
@@ -201,14 +197,12 @@ const S1_FROZEN_DEFAULTS: Readonly<Partial<Record<ProseSlotId, string>>> = {
 };
 
 test("S1 app-tier slots resolve, unset, to the exact bytes their pre-PROSE-1 constants shipped", () => {
-  // @orb-waive no-test-fabrication([ProseSlotId, string][]): baselined when the gate widened to value casts; burn-down item 906.
   for (const [id, frozen] of Object.entries(S1_FROZEN_DEFAULTS) as [ProseSlotId, string][]) {
     expect(resolveProseText(id, {}), id).toBe(frozen);
   }
 });
 
 test("every S1 app-tier slot's stored override wins over its shipped default", () => {
-  // @orb-waive no-test-fabrication(ProseSlotId[]): baselined when the gate widened to value casts; burn-down item 906.
   for (const id of Object.keys(S1_FROZEN_DEFAULTS) as ProseSlotId[]) {
     const overrides: ProseOverrides = { [id]: { text: `host copy for ${id}`, baseVersion: PROSE_SLOTS[id].version } };
     expect(resolveProse(id, overrides), id).toStrictEqual({ text: `host copy for ${id}`, source: "override", stale: false });
@@ -216,7 +210,6 @@ test("every S1 app-tier slot's stored override wins over its shipped default", (
 });
 
 test("the S1 cohort ships under the app-tier posture: home=user, macros=none (a `{{…}}` in an override is literal)", () => {
-  // @orb-waive no-test-fabrication(ProseSlotId[]): baselined when the gate widened to value casts; burn-down item 906.
   for (const id of Object.keys(S1_FROZEN_DEFAULTS) as ProseSlotId[]) {
     expect(PROSE_SLOTS[id].home, id).toBe("user");
     // §6.1: a summarizer/arbiter/digest prompt runs over a transcript, not a character context — there is no
@@ -300,7 +293,6 @@ Respond with ONLY a JSON object of this exact shape (no prose, no markdown, no <
 };
 
 test("discovery's three system prompts resolve, unset, to the exact bytes they had as file-local constants", () => {
-  // @orb-waive no-test-fabrication([ProseSlotId, string][]): baselined when the gate widened to value casts; burn-down item 906.
   for (const [id, frozen] of Object.entries(DISCOVERY_FROZEN_DEFAULTS) as [ProseSlotId, string][]) {
     expect(resolveProseText(id, {}), id).toBe(frozen);
   }
@@ -342,7 +334,6 @@ For example, a three-line sign is enough:
 };
 
 test("S3 rpg reminder slots resolve, unset, to the exact bytes their pre-PROSE-1 constants shipped", () => {
-  // @orb-waive no-test-fabrication([ProseSlotId, string][]): baselined when the gate widened to value casts; burn-down item 906.
   for (const [id, frozen] of Object.entries(RPG_FROZEN_DEFAULTS) as [ProseSlotId, string][]) {
     expect(resolveProseText(id, {}), id).toBe(frozen);
   }
@@ -362,7 +353,6 @@ test("the whole rpg cohort is PRESET-homed; the teaches are names-only, the head
     "rpg.card.example",
     "rpg.reminder.cyoaTeach",
   ]);
-  // @orb-waive no-test-fabrication(ProseSlotId[]): baselined when the gate widened to value casts; burn-down item 906.
   for (const id of Object.keys(RPG_FROZEN_DEFAULTS) as ProseSlotId[]) {
     expect(PROSE_SLOTS[id].home, id).toBe("preset");
     expect(PROSE_SLOTS[id].macros, id).toBe(namesOnly.has(id) ? "names-only" : "none");
@@ -382,7 +372,6 @@ test("the `game` prose HOME is retired — no slot claims it and the vocabulary 
 });
 
 test("every rpg cohort slot's stored override wins over its shipped default", () => {
-  // @orb-waive no-test-fabrication(ProseSlotId[]): baselined when the gate widened to value casts; burn-down item 906.
   for (const id of Object.keys(RPG_FROZEN_DEFAULTS) as ProseSlotId[]) {
     const overrides: ProseOverrides = { [id]: { text: `host copy for ${id}`, baseVersion: PROSE_SLOTS[id].version } };
     expect(resolveProse(id, overrides), id).toStrictEqual({ text: `host copy for ${id}`, source: "override", stale: false });
@@ -390,7 +379,6 @@ test("every rpg cohort slot's stored override wins over its shipped default", ()
 });
 
 test("every S1b slot's stored override wins, and the whole cohort ships an editable home / macros=none", () => {
-  // @orb-waive no-test-fabrication(ProseSlotId[]): baselined when the gate widened to value casts; burn-down item 906.
   const ids = [...S1B_FROZEN_RENDERS.map((r) => r.id), ...(Object.keys(DISCOVERY_FROZEN_DEFAULTS) as ProseSlotId[])];
   for (const id of ids) {
     const overrides: ProseOverrides = { [id]: { text: `host copy for ${id}`, baseVersion: PROSE_SLOTS[id].version } };

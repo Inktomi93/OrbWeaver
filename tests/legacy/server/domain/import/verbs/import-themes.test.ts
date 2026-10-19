@@ -8,9 +8,6 @@
 // refusal take the other N-1 with it.
 // @subject packages/server/src/domain/import/verbs/import-themes.ts
 
-// @orb-waive-file no-test-fabrication({ schemaKind?: string; themes?: { name?: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ themes?: { css?: string | null }[] }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ themes?: { name?: string }[] }): baselined when the gate widened to value casts; burn-down item 906.
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

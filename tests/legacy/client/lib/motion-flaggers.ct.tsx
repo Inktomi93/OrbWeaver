@@ -19,8 +19,6 @@
 //    again, or a driven multi-step probe reads every step after the first as clean.
 
 import { blockMainThread } from "@orb/testkit/node/block-main-thread.ts";
-// @orb-waive-file no-test-fabrication(readonly {): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ tag: string }[]): baselined when the gate widened to value casts; burn-down item 906.
 import { expect, test } from "@playwright/experimental-ct-react";
 import type { Page } from "@playwright/test";
 import { droppedFramePct } from "../../../../tooling/src/motion-audit/index.ts";
@@ -291,7 +289,6 @@ interface AnimFlagProbe {
 }
 function readAnimFlags(page: Page): Promise<readonly AnimFlagProbe[]> {
   return page.evaluate(() => {
-    // @orb-waive no-test-fabrication({ __motionFlagsRead?:): baselined when the gate widened to value casts; burn-down item 906.
     const read = (globalThis as { __motionFlagsRead?: () => readonly unknown[] }).__motionFlagsRead;
     const rows = read === undefined ? [] : (JSON.parse(JSON.stringify(read())) as { tag: string }[]);
     return rows.filter((row) => row.tag === "anim");

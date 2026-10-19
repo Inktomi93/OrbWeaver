@@ -21,7 +21,6 @@
 // empty vector read is ambiguous between "no vectors" and "asked as the wrong principal", so each
 // assertion below is preceded by a row-count read that proves vectors EXIST for this owner.
 
-// @orb-waive-file no-test-fabrication({ readonly input?: unknown; readonly dimensions?: number }): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";

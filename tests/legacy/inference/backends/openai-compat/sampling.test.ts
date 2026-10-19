@@ -106,7 +106,6 @@ function chatRequest(providerId: string, params: UserIntent): OpenAiCompatChatRe
 function ollamaServer(recorded: RecordedRequest[]): typeof fetch {
   const recording = OLLAMA_NATIVE_RECORDINGS.text;
   return (input, init): Promise<Response> => {
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     recorded.push({ url: String(input), body: JSON.parse(typeof init?.body === "string" ? init.body : "{}") as Record<string, unknown> });
     return Promise.resolve(new Response(recording.body, { status: recording.status, headers: { "content-type": recording.contentType } }));
   };
@@ -302,7 +301,6 @@ test("Ollama (native /api/chat): every knob its options take rides in `options` 
 
 test("Ollama (native /api/chat): an unset knob is not sent, so the Modelfile's own value applies", async () => {
   const { body } = await turnBody("ollama", {});
-  // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
   expect(Object.keys((body["options"] ?? {}) as Record<string, unknown>)).toEqual(["num_ctx"]);
 });
 

@@ -6,8 +6,6 @@
 // FIELD-WISE patch (an absent key is NOT overwritten), and the embed-space trigger's exact condition.
 // @subject packages/server/src/domain/connection/verbs/connections.ts
 
-// @orb-waive-file no-test-fabrication({ dimensions?: number }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly dimensions?: number }): baselined when the gate widened to value casts; burn-down item 906.
 
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDefInput, ProviderId } from "@orb/contracts/inference";

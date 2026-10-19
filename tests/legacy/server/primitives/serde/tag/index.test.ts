@@ -3,8 +3,6 @@
 // schemaKind → null, non-JSON → null, a malformed row dropped not fatal, axis coercion), and the
 // build -> parse -> build ROUND-TRIP identity (the structural drift guard against the two halves diverging).
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Record<string, unknown>[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { PortableParse } from "@orb/contracts/portability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";

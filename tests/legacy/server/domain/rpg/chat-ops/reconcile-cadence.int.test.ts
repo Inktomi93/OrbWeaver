@@ -14,7 +14,6 @@ import { writeHandSnapshot } from "#server/domain/rpg/persistence/snapshots.ts";
 import { emptyState, handTarget, liteConfig, seedChat, seedGame, seedMessage, target } from "../_support.ts";
 
 function gameWith(gameId: RpgGameId, reconcileEveryBeats: number): RpgGameRow {
-  // @orb-waive no-test-fabrication(unknown): a minimal RpgGameRow double — isReconcileBeat reads only id and config.reconcileEveryBeats. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return { id: gameId, config: { ...liteConfig(), reconcileEveryBeats } } as unknown as RpgGameRow;
 }
 

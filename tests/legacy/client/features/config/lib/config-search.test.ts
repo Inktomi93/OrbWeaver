@@ -5,7 +5,6 @@
 // `@` filter semantics — including `@modified` over a planted changed key and the `@advanced` flip.
 // DOM-free pure logic → a browser-free unit test (Spine-Testing.md §7); deep-imports the lib module.
 
-// @orb-waive-file no-test-fabrication(ConfigGroupDefinition): baselined when the gate widened to value casts; burn-down item 906.
 import type { ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, ConfigModifiedMap, ConfigSubcategory } from "@orb/client/state";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Settings } from "@orb/ui/icons";

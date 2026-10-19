@@ -10,7 +10,6 @@
 // the reconnect story §5.3) is downstream of it.
 
 import { setTimeout as sleep } from "node:timers/promises";
-// @orb-waive-file no-test-fabrication(StreamFrame): baselined when the gate widened to value casts; burn-down item 906.
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { SessionId, SocketId, UserId } from "@orb/kit/ids";

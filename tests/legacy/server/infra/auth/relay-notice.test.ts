@@ -1,7 +1,6 @@
 // infra/auth/relay-notice — the `owner_fallback_relayed` line is one per TCP peer per hour. A same-host tunnel
 // sends every visitor from one loopback peer, so an unthrottled line repeats on every request.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { logger } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";

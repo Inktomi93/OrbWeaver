@@ -4,7 +4,6 @@
 // Runs as a child process because `vite` resolves only from `@orb/client` (the vite-workspace-source-watch
 // precedent). Production builds carry no preamble; this is the dev-only half the depcruise rule cannot run.
 
-// @orb-waive-file no-test-fabrication({ readonly walked: number; readonly refreshed: readonly string[] }): baselined when the gate widened to value casts; burn-down item 906.
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";

@@ -353,7 +353,6 @@ describe("sessions.provisionIdentity — the groups claim is on the log line (#1
     ({ svc } = makeService(db, policyConfig, clock));
     const spy = vi.spyOn(logger, "info");
     await svc.provisionIdentity(identity({ groups: ["Orb Admins", "eng"] }), PROVEN);
-    // @orb-waive no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
     const line = spy.mock.calls.map(([bindings]) => bindings as Record<string, unknown>).find((b) => b["handle"] === "alice");
     expect(line?.["groups"]).toEqual(["Orb Admins", "eng"]);
     expect(line?.["groupCount"]).toBe(2);
@@ -365,7 +364,6 @@ describe("sessions.provisionIdentity — the groups claim is on the log line (#1
     ({ svc } = makeService(db, policyConfig, clock));
     const spy = vi.spyOn(logger, "warn");
     expect((await svc.provisionIdentity(identity({ groups: ["outsiders"] }), PROVEN)).outcome).toBe("denied");
-    // @orb-waive no-test-fabrication([Record<string, unknown>, ...unknown[]]): baselined when the gate widened to value casts; burn-down item 906.
     const [bindings] = spy.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
     expect(bindings["groups"]).toEqual(["outsiders"]);
     expect(bindings["handle"]).toBe("alice");

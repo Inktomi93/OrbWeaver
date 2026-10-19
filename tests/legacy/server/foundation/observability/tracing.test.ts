@@ -3,7 +3,6 @@
 // TC39 private-field brand check). Also asserts an instrumented `execute` opens a `db.execute` child span
 // that lands in the request's trace.
 
-// @orb-waive-file no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
 import {
   getTraceByRequestId,
   initTracing,

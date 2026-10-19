@@ -5,7 +5,6 @@
 // nothing (`no-connection` is the ordinary answer), and a local-light box plans its slots smallest-weights-first
 // with the model the resolver actually chose.
 
-// @orb-waive-file no-test-fabrication(RoutableTask): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { Capability, RerankOnnx, RoutableTask } from "@orb/contracts/inference";
 import { RERANK_FLOOR } from "@orb/contracts/inference";

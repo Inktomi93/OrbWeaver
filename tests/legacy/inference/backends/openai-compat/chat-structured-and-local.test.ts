@@ -1,8 +1,5 @@
 // backends/openai-compat/chat — the llama.cpp tool refusal and the structured plan on the chat path.
 
-// @orb-waive-file no-test-fabrication(Record<string, Record<string, unknown>>): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly json_schema: { readonly schema: Record<string, unknown>; readonly strict: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication({ readonly json_schema: { readonly schema: unknown } }): baselined when the gate widened to value casts; burn-down item 906.
 import type { ProviderId } from "@orb/contracts/inference";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -36,7 +33,6 @@ test("a llama.cpp 'tools param requires --jinja flag' 400 reaches the caller as 
     (err: unknown) => err,
   );
   expect(failure).toBeInstanceOf(ProviderError);
-  // @orb-waive no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
   const error = failure as ProviderError;
   expect(error.kind).toBe("invalid");
   expect(error.retryable).toBe(false);
@@ -48,7 +44,6 @@ test("a llama.cpp 'tools param requires --jinja flag' 400 reaches the caller as 
     () => null,
     (err: unknown) => err,
   );
-  // @orb-waive no-test-fabrication(ProviderError): baselined when the gate widened to value casts; burn-down item 906.
   expect((bare as ProviderError).message).not.toContain("tool calls are off");
 });
 

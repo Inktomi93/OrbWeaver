@@ -55,9 +55,6 @@ async function setLegacyCardBackground(db: Db, characterId: CharacterId, slug: s
   await db
     .update(characters)
     .set({
-      // @orb-waive no-test-fabrication(never): raw pre-retirement legacy shape — `ThemeBackground` no
-      // longer types kind:"seeded" at all, so this fixture can only reach the column as `never`; ends if
-      // the retired shape is ever re-admitted to the type.
       // @orb-waive no-loose-id-cast({ kind: "seeded", seededId: slug, externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" }): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
       backgroundOverride: { kind: "seeded", seededId: slug, externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" } as never,
     })

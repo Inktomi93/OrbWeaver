@@ -342,9 +342,7 @@ test("the latest Git preview owns consent after both batched previews settle", a
   await page.getByRole("textbox", { name: "Repository URL" }).fill(GIT_URL);
 
   await page.evaluate(() => {
-    // @orb-waive no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
     (document.querySelector('button[aria-label="Fetch plugin bundle URL"]') as HTMLButtonElement).click();
-    // @orb-waive no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
     (document.querySelector('button[aria-label="Fetch Git repository"]') as HTMLButtonElement).click();
   });
   await Promise.all([urlPreview.requested, gitPreview.requested]);
@@ -389,9 +387,7 @@ test("a stale preview settlement keeps every door locked until the latest previe
   await page.getByRole("textbox", { name: "Repository URL" }).fill(GIT_URL);
 
   await page.evaluate(() => {
-    // @orb-waive no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
     (document.querySelector('button[aria-label="Fetch plugin bundle URL"]') as HTMLButtonElement).click();
-    // @orb-waive no-test-fabrication(HTMLButtonElement): baselined when the gate widened to value casts; burn-down item 906.
     (document.querySelector('button[aria-label="Fetch Git repository"]') as HTMLButtonElement).click();
   });
   await Promise.all([urlPreview.requested, gitPreview.requested]);
@@ -902,9 +898,7 @@ test("a same-task repeat admits one enable write, owns only its plugin row, and 
   const first = page.getByRole("switch", { name: "Turn Weather Teller on" });
   const sibling = page.getByRole("switch", { name: "Turn Rain Teller on" });
   await first.evaluate((element) => {
-    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).click();
-    // @orb-waive no-test-fabrication(HTMLElement): baselined when the gate widened to value casts; burn-down item 906.
     (element as HTMLElement).click();
   });
   await held.requested;

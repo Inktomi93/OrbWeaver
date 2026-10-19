@@ -171,7 +171,6 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
 
     const err = await edit.editMessage({ principal: principal(member), chatId, messageId, content: "x" }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_author");
 
     const view = await edit.editMessage({
@@ -190,7 +189,6 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
       characterId: charA,
     });
     const ctx = makeChatContext(db, {
-      // @orb-waive no-test-fabrication(unknown): minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/regexScripts. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       getCard: () => Promise.resolve({ name: "Aria", avatarAssetId: null, regexScripts: [] } as unknown as CharacterCard),
     });
     const edit = createEdit(ctx, { emit, resolveForeignInputs, claimChat: noClaim });
@@ -208,7 +206,6 @@ describe("editMessage — mutate the selected variant (D26, no doubling)", () =>
 describe("editMessage — runOnEdit regex re-apply (D53 host-tier)", () => {
   /** A minimal live card (the assemble RESOLVE + the purify name read; regexScripts ride the character tier). */
   const card = (name: string, regexScripts: RegexScriptRow[] = []): CharacterCard =>
-    // @orb-waive no-test-fabrication(unknown): minimal CharacterCard double (turn.int precedent, scenario.ts) — reads only name/description/regexScripts. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     ({ name, description: "", avatarAssetId: null, regexScripts }) as unknown as CharacterCard;
 
   /** A ChatContext whose regex resolver returns the per-test `globalScripts` as the GLOBAL slice. */
@@ -915,7 +912,6 @@ describe("deleteMessages — bulk, author-or-host, FK cascade", () => {
 
     const err = await edit.deleteMessages({ principal: principal(member), chatId, messageIds: [a.messageId] }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_author");
   });
 
@@ -1055,10 +1051,8 @@ function recordingStatsCtx(database: Db, sink: StatsDelta[]): ReturnType<typeof 
   return makeChatContext(database, {
     applyStatsDelta: (batch, deltaDb, delta) => {
       sink.push(delta as StatsDelta);
-      // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
       applyStatsDelta(batch as BatchStmt[], deltaDb, delta);
     },
-    // @orb-waive no-test-fabrication(BatchStmt[]): baselined when the gate widened to value casts; burn-down item 906.
     bumpStatsCanonVersion: (batch, deltaDb, ownerId) => bumpStatsCanonVersion(batch as BatchStmt[], deltaDb, ownerId),
   });
 }
@@ -1431,7 +1425,6 @@ describe("moveMessage — host-only re-sequence", () => {
     const m1 = await seedMessage(db, chatId, 1, { role: "user", authorUserId: member });
     const edit = createEdit(makeChatContext(db), { emit, resolveForeignInputs, claimChat: noClaim });
     const err = await edit.moveMessage({ principal: principal(member), chatId, messageId: m1.messageId, toSeq: 2 }).catch((e: unknown) => e);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 });
@@ -1554,7 +1547,6 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
       })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_author");
     // no write landed
     const [row] = await db.select().from(messages).where(eq(messages.id, messageId));
@@ -1576,7 +1568,6 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
       })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_persona_owner");
     const [row] = await db.select().from(messages).where(eq(messages.id, messageId));
     expect(row?.personaId).toBeNull();
@@ -1597,7 +1588,6 @@ describe("reattributePersona — author-or-host per row; re-stamp USER slots' pe
       })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_user_message");
     const [row] = await db.select().from(messages).where(eq(messages.id, asst.messageId));
     expect(row?.personaId).toBeNull();
@@ -1856,7 +1846,6 @@ describe("edit verbs — the §3.6 caller-role RETURN belt", () => {
 
   /** A deception-active chat ctx: the injected rpg op says the reasoning channel is host-only here. */
   function deceptionCtx(): ReturnType<typeof makeChatContext> {
-    // @orb-waive no-test-fabrication(unknown): minimal ChatRpgOps stub — the edit return belt reaches only `resolveReasoningHostOnly`. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     const rpg = { resolveReasoningHostOnly: () => Promise.resolve(true) } as unknown as NonNullable<ReturnType<typeof makeChatContext>["rpg"]>;
     return makeChatContext(db, { rpg });
   }
@@ -1986,7 +1975,6 @@ describe("applyProseRewrite — C3's variant-pinned, hash-guarded rewrite door",
       .catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("rewrite_superseded");
     const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId));
     expect(variants).toHaveLength(2); // nothing appended
@@ -2006,7 +1994,6 @@ describe("applyProseRewrite — C3's variant-pinned, hash-guarded rewrite door",
       .catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("rewrite_stale");
     const variants = await db.select().from(messageVariants).where(eq(messageVariants.messageId, messageId));
     expect(variants).toHaveLength(1);
@@ -2020,7 +2007,6 @@ describe("applyProseRewrite — C3's variant-pinned, hash-guarded rewrite door",
       .applyProseRewrite({ principal: principal(member), chatId, messageId, variantId, expectedContentHash: hash, content: "fixed" })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
-    // @orb-waive no-test-fabrication(ChatOperationError): baselined when the gate widened to value casts; burn-down item 906.
     expect((err as ChatOperationError).code).toBe("not_host");
   });
 

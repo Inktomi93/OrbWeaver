@@ -3,7 +3,6 @@
 // failure is unreachable, and no upstream prose may carry configured credential literals to the result.
 
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
 import { inspectOpenAiCompatEndpoint, probeOpenAiCompat } from "#inference/backends/openai-compat/diagnostics.ts";
 import type { OpenAiCompatChatRequest } from "#inference/contract/chat.ts";

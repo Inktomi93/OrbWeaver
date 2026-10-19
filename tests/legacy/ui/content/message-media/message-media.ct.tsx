@@ -1,4 +1,3 @@
-// @orb-waive-file no-test-fabrication(HTMLImageElement): baselined when the gate widened to value casts; burn-down item 906.
 
 import { MessageMedia } from "@orb/ui/message-media";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -49,9 +48,7 @@ test("external video has controls and NEVER autoplay (non-overridable)", async (
   // (which only care what the element was created with, not whether the source ever loads).
   await page.route(EXTERNAL, () => undefined);
   const cmp = await mount(<MessageMedia src={{ kind: "external", url: EXTERNAL }} media="video" alt="v" allowExternal={true} />);
-  // @orb-waive no-test-fabrication(HTMLVideoElement): baselined when the gate widened to value casts; burn-down item 906.
   await expect.poll(() => cmp.evaluate((el) => (el as HTMLVideoElement).controls)).toBe(true);
-  // @orb-waive no-test-fabrication(HTMLVideoElement): baselined when the gate widened to value casts; burn-down item 906.
   await expect.poll(() => cmp.evaluate((el) => (el as HTMLVideoElement).autoplay)).toBe(false);
 });
 

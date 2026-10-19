@@ -11,7 +11,6 @@
 // non-member gets a leak-free NOT_FOUND terminal FRAME"). What was missing was a test of the wrapper ITSELF,
 // independent of whichever procedure happens to use it; that is what this is.
 
-// @orb-waive-file no-test-fabrication([string, Record<string, unknown>]): baselined when the gate widened to value casts; burn-down item 906.
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { withSubscriptionErrors } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -39,7 +38,6 @@ function* yieldThen(events: readonly string[], throwing: unknown): Generator<unk
 function wrap(source: Generator<unknown>): AsyncIterable<unknown> {
   // The wrapper re-yields a source envelope UNTOUCHED (it only MINTS one, for the terminal frame), so the
   // tuple shape is the whole contract here.
-  // @orb-waive no-test-fabrication(unknown): the wrapper preserves the opaque source envelope, so there is no field contract to fabricate. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return withSubscriptionErrors(source as unknown as Parameters<typeof withSubscriptionErrors>[0]);
 }
 

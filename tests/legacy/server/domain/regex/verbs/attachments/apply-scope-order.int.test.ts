@@ -8,7 +8,6 @@
 // is RegexNotFoundError, never a silent cross-tenant reorder (#708).
 // @subject packages/server/src/domain/regex/verbs/attachments/apply-scope-order.ts
 
-// @orb-waive-file no-test-fabrication(typeof a): baselined when the gate widened to value casts; burn-down item 906.
 import { globalRegexScripts } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";

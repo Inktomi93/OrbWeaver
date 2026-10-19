@@ -15,7 +15,6 @@
 // the ring, which is what makes the "errors excludes the info line" arm a real assertion rather than a
 // tautology over an empty ring.
 
-// @orb-waive-file no-test-fabrication({ errors?: Record<string, unknown>[]; logs?: Record<string, unknown>[] }): baselined when the gate widened to value casts; burn-down item 906.
 import process from "node:process";
 import { getLog } from "@orb/server/foundation/observability";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";

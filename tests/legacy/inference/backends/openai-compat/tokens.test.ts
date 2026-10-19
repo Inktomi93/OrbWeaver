@@ -1,7 +1,6 @@
 // backends/openai-compat/tokens — word-keyed logit bias on the bytes: each server's tokenize endpoint and body, the
 // per-(server, model, word) cache a turn reads (never one lookup per turn), its persistence and its forgetting.
 
-// @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
 import type { Capability } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";

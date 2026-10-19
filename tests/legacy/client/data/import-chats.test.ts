@@ -5,9 +5,6 @@
 // stubbed at the global boundary (the `import-characters.test.ts` precedent — "fake at the edges"), never
 // a hand-mock of `importChats` itself.
 
-// @orb-waive-file no-test-fabrication(File[]): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(FormData): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(Record<string, string>): baselined when the gate widened to value casts; burn-down item 906.
 // Deep import the PURE module (NOT the "@orb/client/data" barrel): a barrel import drags browser TSX into
 // the dom-less root typecheck:graph program (a dom-lib landmine by construction — the 2026-06-28 incident).
 import { CSRF_HEADER } from "@orb/contracts/identity";

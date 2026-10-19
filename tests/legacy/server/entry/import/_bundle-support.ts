@@ -37,7 +37,6 @@ export function libraryHandler(deps: ExportDeps): Handler {
       return mockApp;
     },
   };
-  // @orb-waive no-test-fabrication(unknown): narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerExport(mockApp as unknown as Parameters<typeof registerExport>[0], deps);
   const handler = routes.get("/api/export/library");
   if (handler === undefined) {
@@ -53,7 +52,6 @@ export function bundleHandler(deps: ImportBundleDeps): Handler {
       return mockApp;
     },
   };
-  // @orb-waive no-test-fabrication(unknown): narrowing a captured mock app to Hono's registrar param — a test seam, not a domain value. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   registerImportBundle(mockApp as unknown as Parameters<typeof registerImportBundle>[0], deps);
   const handler = routes.get("/api/import/bundle");
   if (handler === undefined) {

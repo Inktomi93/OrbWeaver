@@ -5,7 +5,6 @@
 // stripped 2026-07-24 — enterprise spend enforcement; loop safety rides the per-chat fire-rate cap + the chat
 // member turn budget + the cascade guard.)
 
-// @orb-waive-file no-test-fabrication(Extract<AutomationActionInput, { type: "generate_image" }>): baselined when the gate widened to value casts; burn-down item 906.
 import type { AutomationAction, AutomationActionInput, AutomationBusEvent, AutomationCelEnv, TriggerFact } from "@orb/contracts/automation";
 import { AUTOMATION_VARIABLE_VALUE_MAX, automationActionSchema } from "@orb/contracts/automation";
 import type { NotificationEvent } from "@orb/contracts/notifications";
@@ -899,7 +898,6 @@ test("the dispatcher handles EVERY action type (no unhandled-arm throw — the s
     automationActionSchema.options.map(async (option) => {
       const type = (option as { shape: { type: { value: string } } }).shape.type.value;
       try {
-        // @orb-waive no-test-fabrication(unknown): a deliberately field-less action — the probe only tests the discriminant ROUTES to a case (not `default: never`); the arm may refuse/crash on the missing fields. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
         await dispatch({ type } as unknown as AutomationAction, frame);
         return false;
       } catch (err) {

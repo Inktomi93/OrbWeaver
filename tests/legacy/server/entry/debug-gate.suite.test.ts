@@ -256,10 +256,8 @@ function gateApp(opts: GateAppOptions): GateApp {
   });
   // the real app (Hono's env generic is invariant, so the registrars take the same instance type-only
   // widened). Reproducing the production wiring is this suite's whole premise.
-  // @orb-waive no-test-fabrication(unknown): not a fabricated VALUE — this is the exact `plain` widening `entry/app.ts` performs. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const widenedApp = app as unknown as Hono;
   // The real readers share the same unusable DB so registered routes cannot counterfeit an auth refusal with an empty page.
-  // @orb-waive no-test-fabrication(unknown): a deliberately unusable db is the assertion — see above. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const db = {} as unknown as Db;
   registerDebugRoutes(widenedApp, {
     db: databaseHandle(db),

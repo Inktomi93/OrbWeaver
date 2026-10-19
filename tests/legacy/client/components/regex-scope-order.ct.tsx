@@ -122,7 +122,6 @@ test("the ordered slice ranks its rows, and the unattached slice does not", asyn
             // whatever leads the row — the rank where there is one, the name where there is not.
             const rowFor = (label: string): string => {
               const row = document.querySelector(`[aria-label="Attach ${label}"]`)?.parentElement;
-              // @orb-waive no-test-fabrication(HTMLElement | null): baselined when the gate widened to value casts; burn-down item 906.
               return (row as HTMLElement | null)?.innerText.split("\n")[0]?.trim() ?? "";
             };
             return { first: rowFor("strip ooc"), second: rowFor("rename hero"), loose: rowFor("not attached one") };
@@ -139,7 +138,6 @@ test("the ordered slice ranks its rows, and the unattached slice does not", asyn
             // whatever leads the row — the rank where there is one, the name where there is not.
             const rowFor = (label: string): string => {
               const row = document.querySelector(`[aria-label="Attach ${label}"]`)?.parentElement;
-              // @orb-waive no-test-fabrication(HTMLElement | null): baselined when the gate widened to value casts; burn-down item 906.
               return (row as HTMLElement | null)?.innerText.split("\n")[0]?.trim() ?? "";
             };
             return { first: rowFor("strip ooc"), second: rowFor("rename hero"), loose: rowFor("not attached one") };
@@ -156,7 +154,6 @@ test("the ordered slice ranks its rows, and the unattached slice does not", asyn
             // whatever leads the row — the rank where there is one, the name where there is not.
             const rowFor = (label: string): string => {
               const row = document.querySelector(`[aria-label="Attach ${label}"]`)?.parentElement;
-              // @orb-waive no-test-fabrication(HTMLElement | null): baselined when the gate widened to value casts; burn-down item 906.
               return (row as HTMLElement | null)?.innerText.split("\n")[0]?.trim() ?? "";
             };
             return { first: rowFor("strip ooc"), second: rowFor("rename hero"), loose: rowFor("not attached one") };

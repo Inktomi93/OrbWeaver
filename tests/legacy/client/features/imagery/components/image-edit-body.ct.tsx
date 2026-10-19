@@ -78,7 +78,6 @@ for (const vp of VIEWPORTS) {
     // The claim in full: the reserved box IS the true box. Release the bytes, barrier on the DECODED
     // image, and the geometry must not have moved — that identity is what "no reflow" means.
     await release();
-    // @orb-waive no-test-fabrication(HTMLImageElement): baselined when the gate widened to value casts; burn-down item 906.
     await expect.poll(() => source.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(PORTRAIT_W);
     expect(await layoutBox(source)).toEqual(reserved);
   });
@@ -126,7 +125,6 @@ test("#654: the edit→detail hand-off carries the edited asset's stored dims in
   expect(reserved.h).toBeGreaterThan(MIN_RESERVED_PX);
 
   await release();
-  // @orb-waive no-test-fabrication(HTMLImageElement): baselined when the gate widened to value casts; burn-down item 906.
   await expect.poll(() => edited.evaluate((el) => (el as HTMLImageElement).naturalWidth)).toBe(PORTRAIT_W);
   expect(await layoutBox(edited)).toEqual(reserved);
 });

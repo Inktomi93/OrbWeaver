@@ -6,7 +6,6 @@
 // charset guard (a malicious X-Request-Id → a fresh safe id; a valid one propagates unchanged) and the
 // /api/_debug skip (no trace root, no request-ring record — introspection traffic doesn't evict real traces).
 
-// @orb-waive-file no-test-fabrication([Record<string, unknown>, string]): baselined when the gate widened to value casts; burn-down item 906.
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getTraceByRequestId, initTracing, logger, observability, observabilityErrorHandler, recentRequests } from "@orb/server/foundation/observability";
@@ -59,7 +58,6 @@ async function run(opts: { path: string; method?: string; incomingId?: string; p
     nextCalled = true;
     return Promise.resolve();
   };
-  // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal test-local call-shape. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   const mw = observability as unknown as MiddlewareFn;
   await mw(ctx, next);
   return { stampedId: ctx.res.headers.get("x-request-id"), nextCalled };
@@ -215,7 +213,6 @@ type ErrorHandlerCtx = Parameters<typeof observabilityErrorHandler>[1];
 
 /** The minimal error-path double narrowed to the handler's Hono `Context`; the handler reads only what the double carries. */
 function honoCtx(ctx: ReturnType<typeof makeErrorCtx>): ErrorHandlerCtx {
-  // @orb-waive no-test-fabrication(unknown): Hono is not a test-reachable dep, so the double is the only Context here. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   return ctx as unknown as ErrorHandlerCtx;
 }
 
@@ -274,7 +271,6 @@ describe("observabilityErrorHandler (the thrown-request path)", () => {
     initTracing();
     const incomingId = "observed-then-thrown-1";
     const ctx = makeErrorCtx({ path: "/api/chats", incomingId });
-    // @orb-waive no-test-fabrication(unknown): narrowing the real Hono middleware to the minimal test-local call-shape. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     await (observability as unknown as MiddlewareFn)(ctx, (): Promise<void> => Promise.resolve());
 
     await observabilityErrorHandler(new Error("handler-blew-up"), honoCtx(ctx));

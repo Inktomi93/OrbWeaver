@@ -1,7 +1,6 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import "@orb/testkit/node/composed-real.ts";
-// @orb-waive-file no-test-fabrication({ name: string; description: string; parameters: Record<string, unknown> }[]): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatApi, ProviderId } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
@@ -207,7 +206,6 @@ export function buildCannedRpgWithText(args: {
   // (the round's §10.1a economics line) are read; the rest of the ~18-field ChatResult is inert, so a full
   // construction would be noise.
   const replyOf = (reply: string, toolCalls?: readonly { readonly name: string; readonly arguments: string }[]): ChatResult =>
-    // @orb-waive no-test-fabrication(unknown): minimal ChatResult double — only the fields the arms actually read; the others never run. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
     ({
       reply,
       ...(toolCalls === undefined ? {} : { toolCalls }),

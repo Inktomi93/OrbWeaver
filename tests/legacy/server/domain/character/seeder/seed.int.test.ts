@@ -6,8 +6,6 @@
 // finished on the retry (#1444); each card's native tags attach; and each card's lore lands as its primary
 // world book, without a resumed seed ever replacing a primary book the user put in the seat.
 
-// @orb-waive-file no-test-fabrication(CharacterId): baselined when the gate widened to value casts; burn-down item 906.
-// @orb-waive-file no-test-fabrication(UserId): baselined when the gate widened to value casts; burn-down item 906.
 import type { Principal } from "@orb/contracts/identity";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import { canonicalBackgroundSource } from "@orb/contracts/theme";
