@@ -109,7 +109,7 @@ installSafeErrorRing();
 
 function reportClientError(error: Error, ownerStack: string | null): void {
   const url = `${globalThis.location.pathname}${globalThis.location.search}`;
-  // @orb-waive caught-failure-ownership(trpcClient.clientError.mutate): a failed error report must never itself throw — there is nowhere left to report that to. Ends if reportClientError gets its own independent error surface.
+  // @orb-waive caught-failure-ownership(trpcClient.clientError.mutate): a failed report is not silent — the client's loggerLink (data/trpc.ts) logs every failed settlement in prod as a console.error line, which installSafeErrorRing records. Ends if the loggerLink stops logging error settlements.
   trpcClient.clientError.mutate(buildClientErrorPayload(error, ownerStack, url)).catch(() => {
     // A failed error report must never itself throw — there is nowhere left to report that to.
   });
