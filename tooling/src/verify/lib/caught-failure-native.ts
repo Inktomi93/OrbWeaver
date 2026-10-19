@@ -10,9 +10,9 @@ import { readTypeObservations } from "../../floor/code-facts/type-observations-r
 import type { CaughtFailureReadServices, NativeFailureContext, NativeFailureRead } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import type { CaughtFailureSite } from "./caught-failure.ts";
-import { caughtFailureSite } from "./caught-failure.ts";
+import { candidateSiteAnchor, caughtFailureSite } from "./caught-failure.ts";
 import { REJECTION_INVOCATION_MEMBERS } from "./caught-failure-core.ts";
-import { caughtFailureScope } from "./caught-failure-identity.ts";
+import { caughtFailureOrdinalScope } from "./caught-failure-identity.ts";
 import { CAUGHT_FAILURE_CLOSURE_HOPS, FAILURE_OUTCOME_DISCRIMINANTS, FAILURE_OUTCOME_OK_MEMBER, PROMISE_LIKE_MEMBER } from "./caught-failure-read.ts";
 
 // Exactly the member reads the caught-failure reader repeats; every other member read refuses at replay.
@@ -20,7 +20,7 @@ const MEMBERS = {
   callLiteralMembers: [FAILURE_OUTCOME_OK_MEMBER, ...FAILURE_OUTCOME_DISCRIMINANTS],
   presenceMembers: [PROMISE_LIKE_MEMBER],
   closureHops: CAUGHT_FAILURE_CLOSURE_HOPS,
-  closureArgumentBodiesOnly: true,
+  closureHandlerBodiesOnly: true,
 };
 
 interface NominatedRoots {
@@ -165,13 +165,19 @@ export function nativeFailureRead(
   };
 }
 
-/** The census joins' view of delivered nominees: resolved sites by path, and the id scopes an unresolved site leaves unknown. */
-export interface BoundedFailureSites {
-  readonly sitesByPath: ReadonlyMap<string, readonly CaughtFailureSite[]>;
-  readonly uncertainScopes: readonly string[];
+/** One nominee whose verdict lies past the closure bound, and the id prefix whose ordinals it leaves unknown. */
+interface UnresolvedOrdinals {
+  readonly node: MorphNode;
+  readonly scope: string;
 }
 
-/** Classifies each nominee; an unresolved one is reported as an analysis unknown and withholds its scope from the join. */
+/** The census joins' view of delivered nominees: resolved sites by path, and each unresolved nominee's ordinal scope. */
+export interface BoundedFailureSites {
+  readonly sitesByPath: ReadonlyMap<string, readonly CaughtFailureSite[]>;
+  readonly unresolved: readonly UnresolvedOrdinals[];
+}
+
+/** Classifies each nominee; an unresolved one is reported as an analysis unknown and keeps its ordinal scope. */
 export function boundedFailureSites(
   nominees: readonly MorphNode[],
   native: NativeFailureRead,
@@ -179,17 +185,52 @@ export function boundedFailureSites(
   unknown: (node: MorphNode, reason: string) => void,
 ): BoundedFailureSites {
   const sitesByPath = new Map<string, CaughtFailureSite[]>();
-  const uncertainScopes: string[] = [];
+  const unresolved: UnresolvedOrdinals[] = [];
   for (const node of nominees) {
     const path = relativePath(node.getSourceFile());
     const reads = native.at(node.getSourceFile());
     const verdict = withinClosureBound(() => caughtFailureSite(node, reads));
     if (verdict.kind === "unresolved") {
       unknown(node, verdict.reason);
-      uncertainScopes.push(caughtFailureScope(path, node));
+      // Only the site's own (declaration, token) series can shift; an unreadable token leaves the whole declaration.
+      const anchor = withinClosureBound(() => candidateSiteAnchor(node, reads));
+      const token = anchor.kind === "resolved" ? anchor.value?.token : undefined;
+      if (anchor.kind === "unresolved" || token !== undefined) {
+        unresolved.push({ node, scope: caughtFailureOrdinalScope(path, node, token) });
+      }
     } else if (verdict.value !== undefined) {
       sitesByPath.set(path, [...(sitesByPath.get(path) ?? []), verdict.value]);
     }
   }
-  return { sitesByPath, uncertainScopes };
+  return { sitesByPath, unresolved };
+}
+
+/**
+ * The ids a census join may judge. An id in an unresolved site's ordinal scope may name a different site
+ * than its row does, so it is withheld, and every withheld id is reported on the site that withholds it.
+ */
+export function judgeableSiteIds(
+  bounded: BoundedFailureSites,
+  ids: readonly string[],
+  unknown: (node: MorphNode, reason: string) => void,
+): ReadonlySet<string> {
+  const withheld = new Map<UnresolvedOrdinals, string[]>();
+  const judgeable = new Set<string>();
+  for (const id of ids) {
+    const owner = bounded.unresolved.find(({ scope }) => id.startsWith(scope));
+    if (owner === undefined) {
+      judgeable.add(id);
+    } else {
+      withheld.set(owner, [...(withheld.get(owner) ?? []), id]);
+    }
+  }
+  const total = [...withheld.values()].reduce((count, group) => count + group.length, 0);
+  for (const [{ node, scope }, group] of withheld) {
+    const named = group.map((id) => `\`${id}\``).join(", ");
+    unknown(
+      node,
+      `the census join withholds ${String(group.length)} of ${String(total)} withheld id(s), in \`${scope}\`, whose ordinals this unresolved site may shift: ${named}`,
+    );
+  }
+  return judgeable;
 }

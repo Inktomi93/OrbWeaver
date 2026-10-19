@@ -859,6 +859,24 @@ export const gate = defineGate({
       expect: { count: 1, token: "err" },
       why: "THE DECLARED LIMIT 'a rethrow or owner routed through an OPAQUE HELPER is invisible to a syntactic reader', in its honest direction — the limit is a KNOWN FALSE POSITIVE, so its proof is a mustFlag, not a mustPass. `rethrowLater` really does rethrow, but its body is a multi-statement block the single-expression factory reader cannot prove, so the catch still reds and the site owes a marker. The enforcement-catalogue row claimed a mustPass for this limit and there was none (§4.1)",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/alias-handler.ts":
+          "declare const logger: { error: (message: string, error: unknown) => void };\nfunction onErr(error: unknown): void {\n  const message = String(error);\n  logger.error(message, error);\n}\nconst handler = onErr;\nexport function run(p: Promise<void>): void {\n  void p.catch(handler);\n}\n",
+      },
+      expect: { count: 1, token: "p" },
+      why: "D328 INSIDE THE BOUND: a multi-statement handler reached through a bare alias (`const handler = onErr`) sits in a handler position, so its body is walked and an ungoverned local logger is still a finding, never an unknown or a tool error",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/near-factory.ts":
+          'declare function work(): void;\nfunction settle(): unknown { return { status: "ok" }; }\nexport function near(): unknown {\n  try { work(); } catch { return settle(); }\n}\n',
+      },
+      expect: { count: 1, token: "catch" },
+      why: "D328 INSIDE THE BOUND: a catch whose fallback is a success outcome one factory hop away still blocks",
+    },
   ],
   mustPass: [
     {
@@ -1161,6 +1179,30 @@ export const gate = defineGate({
           "import { notify } from '#lib';\nfunction reportSaveFailure(err: unknown): void { notify.error(err); }\nexport function named(): void {\n  void save().catch(reportSaveFailure);\n}\n",
       },
       why: "a named rejection handler is a machine-visible owner boundary",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/alias-report.ts":
+          "declare function note(message: string): void;\nfunction onErr(error: unknown): void {\n  const message = String(error);\n  globalThis.reportError(error);\n  note(message);\n}\nconst handler = onErr;\nexport function run(p: Promise<void>): void {\n  void p.catch(handler);\n}\n",
+      },
+      why: "D328 INSIDE THE BOUND: the same aliased multi-statement handler hands the failure to `reportError`, and the walked body owns it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/far-never.ts":
+          "declare function work(): void;\ndeclare function halt(): never;\nfunction hop3(): unknown { return halt(); }\nfunction hop2(): unknown { return hop3(); }\nfunction hop1(): unknown { return hop2(); }\nexport function past(): unknown {\n  try { work(); } catch { return hop1(); }\n}\n",
+      },
+      why: "D328 PAST THE BOUND: the `never` that owns this catch is three factory hops away, so the verdict is an advisory unknown — no finding, and never reported as owned (tests/tooling/verify/gates/caught-failure-bound.test.ts asserts the unknown)",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/global-alias.ts": "declare const pending: Promise<void>;\nconst recover = pending.catch.bind(pending);\n",
+        "packages/client/src/features/probe/global-use.ts": "export function run(): void {\n  void recover(() => undefined);\n}\n",
+      },
+      why: "D328 PAST THE BOUND: a bound rejection alias declared in another (global script) file is reached by no root, so its call is an advisory unknown, never a tool error and never clean (tests/tooling/verify/gates/caught-failure-bound.test.ts asserts the unknown)",
     },
   ],
 });

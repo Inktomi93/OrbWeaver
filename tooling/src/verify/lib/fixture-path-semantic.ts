@@ -21,11 +21,21 @@ function assertCurrent(node: Node, read: FixturePathNativeRead | undefined): voi
       throw new Error("native fixture provenance type owner is unavailable");
     }
     read.evidence.typeObservations.assertNode(node);
-    const declaration = read.types.closureFrontier(node);
+    const declaration = read.types.closureFrontier?.(node);
     if (declaration !== undefined) {
       throw new ClosureBoundError(node, declaration);
     }
   }
+}
+
+// Value facets are captured only on walked nodes, but a captured stable value can point at a node no walk
+// reached; a facet missing there is past the bound, and one missing on a walked node is still a defect.
+function boundedFact<T>(facts: ReadonlyMap<Node, T>, node: Node, read: FixturePathNativeRead): T {
+  const past = facts.has(node) ? undefined : read.types.closurePast?.(node);
+  if (past !== undefined) {
+    throw new ClosureBoundError(node, past);
+  }
+  return requiredInvocationFact(facts, node);
 }
 
 export function fixtureDeclaration(node: Identifier, read?: FixturePathNativeRead): ReturnType<typeof referenceResolutionServices.declarationOf> {
@@ -51,17 +61,17 @@ export function fixtureSymbol(node: Identifier, read?: FixturePathNativeRead): o
 
 export function fixtureStable(node: Node, read?: FixturePathNativeRead): ReturnType<typeof resolveStableExpression> {
   assertCurrent(node, read);
-  return read === undefined ? resolveStableExpression(node) : requiredInvocationFact(read.evidence.stableValues, node);
+  return read === undefined ? resolveStableExpression(node) : boundedFact(read.evidence.stableValues, node, read);
 }
 
 export function fixtureModule(node: Node, read?: FixturePathNativeRead): ReturnType<typeof resolveModuleMemberOrigin> {
   assertCurrent(node, read);
-  return read === undefined ? resolveModuleMemberOrigin(node) : requiredInvocationFact(read.evidence.modules, node);
+  return read === undefined ? resolveModuleMemberOrigin(node) : boundedFact(read.evidence.modules, node, read);
 }
 
 export function fixtureGlobal(node: Node, read?: FixturePathNativeRead): ReturnType<typeof resolveGlobalMemberOrigin> {
   assertCurrent(node, read);
-  return read === undefined ? resolveGlobalMemberOrigin(node) : requiredInvocationFact(read.evidence.globals, node);
+  return read === undefined ? resolveGlobalMemberOrigin(node) : boundedFact(read.evidence.globals, node, read);
 }
 
 export function fixtureMember(node: Node, read?: FixturePathNativeRead): ReturnType<typeof readMemberReference> {

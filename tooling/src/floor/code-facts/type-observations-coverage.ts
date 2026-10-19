@@ -1,6 +1,7 @@
 // Coverage checks prove the fixed raw-question profile, never Zod ownership or output parity.
 import { SyntaxKind } from "ts-morph";
 import { MAX_RECEIVER_HOPS } from "./type-member-origin-core.ts";
+import { assertQuestionNominations } from "./type-observation-nominations.ts";
 import type { NativeObservedNode, TypeObservationQuestion, TypeObservationValues } from "./type-observations-contract.ts";
 import { hasCompleteTypePropertyDemand } from "./type-observations-contract.ts";
 import { assertScalarTypeSelectionCoverage } from "./type-projection-contract.ts";
@@ -201,38 +202,9 @@ function assertTypeArgumentIdentity<Anchor>(
     throw new Error("native Type argument identity is foreign");
   }
 }
-function assertClosureNominations<Anchor>(questions: readonly import("./type-observations-contract.ts").TypeObservationQuestion<Anchor>[]): void {
-  for (const q of questions) {
-    const closure = q.kind === "symbol-closure" || q.kind === "reference-closure";
-    if (!closure && [q.callLiteralMembers, q.presenceMembers, q.closureHops, q.closureArgumentBodiesOnly].some((value) => value !== undefined)) {
-      throw new Error("native closure member nomination is foreign");
-    }
-    if (closure && q.closureHops === undefined) {
-      throw new Error("native symbol closure is unbounded");
-    }
-  }
-}
 function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key: (node: Anchor) => string): void {
   const questions = facts.demand.questions ?? [];
-  if (
-    questions.some((q) =>
-      q.kind === "value-profiles"
-        ? q.valueFacets === undefined
-        : q.kind !== "ct-contributions" &&
-          q.kind !== "ct-mounting" &&
-          q.kind !== "browser-contracts" &&
-          q.kind !== "definition-closure" &&
-          q.kind !== "declaration-closure" &&
-          q.kind !== "const-initializers" &&
-          q.kind !== "drizzle-predicate-inputs" &&
-          q.kind !== "selected-property-graph" &&
-          q.kind !== "callable-body-values" &&
-          q.kind !== "symbol-closure" &&
-          q.valueFacets !== undefined,
-    )
-  ) {
-    throw new Error("native value facets have no closed nomination");
-  }
+  assertQuestionNominations(questions);
   for (const q of questions) {
     if (q.valueFacets !== undefined) {
       uniqueRawKeys(q.valueFacets);
@@ -250,7 +222,6 @@ function assertRawNominations<Anchor>(facts: TypeObservationValues<Anchor>, key:
   if (questions.some((q) => q.properties !== undefined && new Set(q.properties).size !== q.properties.length)) {
     throw new Error("native raw property nomination is ambiguous");
   }
-  assertClosureNominations(questions);
   uniqueRawKeys(questions.map((q) => q.kind));
   for (const q of questions) {
     uniqueRawKeys(q.nodes.map(key));

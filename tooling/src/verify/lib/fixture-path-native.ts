@@ -1,6 +1,6 @@
 // Closed fixture grammar questions retain the actual importing owner, including imported const terminals.
-// Finite blocking claim (D328): a path origin decided within `FIXTURE_PATH_CLOSURE_HOPS` declaration hops of the
-// fixture's calls; one that needs a fact past the bound is an advisory unknown, never a clean pass.
+// Finite blocking claim (D328): a path origin decided from the fixture's calls plus every reached declaration's whole
+// body within `FIXTURE_PATH_CLOSURE_HOPS` hops; one that needs a fact past the bound is an advisory unknown, never clean.
 import type { CallExpression, Identifier, Node, SourceFile } from "ts-morph";
 import { Node as MorphNode } from "ts-morph";
 import type { InventoryInvocationPlan, InventorySpan, NativeInvocationEvidence } from "../../floor/code-facts/semantic-inventory-contract.ts";

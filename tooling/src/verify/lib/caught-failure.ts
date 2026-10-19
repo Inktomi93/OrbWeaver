@@ -22,11 +22,13 @@
 // site identity is the sixth sibling, -identity.ts.
 //
 // ── THE FINITE BLOCKING CLAIM (D328) ────────────────────────────────────────────────────────────────────
-// A verdict blocks only when the reader decides it from the site's own subtree plus at most
-// `CAUGHT_FAILURE_CLOSURE_HOPS` declaration hops: a named handler, factory or hook body, a logger, notice,
-// zod or factory-origin initializer, a const string, a bound alias. A verdict that needs a Type answer past
-// that bound is an explicit advisory unknown (`report.analysis`): never owned, never a finding. The census
-// generator refuses rather than record or drop such a site.
+// A verdict blocks only when the reader decides it from the site's enclosing statement plus at most
+// `CAUGHT_FAILURE_CLOSURE_HOPS` declaration hops. A hop walks a multi-statement function body only from a
+// handler position (a call argument, or the bare initializer of an alias such as `const h = onErr`); any
+// other multi-statement body, and a callee's call-initialized declaration in another file (a bound alias no
+// root reaches), is past the bound. A verdict that needs a Type answer past the bound is an explicit
+// advisory unknown (`report.analysis`): never owned, never a finding. The census joins withhold only the ids
+// in that site's own (declaration, token) ordinal series and report each one; the census generator refuses.
 //
 // ── THE ARMS ────────────────────────────────────────────────────────────────────────────────────────────
 //   promise   a `.catch(h)` / `.then(_, h)` — in ANY spelling: dot or bracket key (literal,
@@ -225,8 +227,23 @@ export function promiseAbsorberSite(call: CallExpression, reads?: CaughtFailureR
   return {
     arm: "promise",
     node: call,
-    anchor: firstAnchor(call, [...workAnchorCandidates(call, invocation, reads), ...calleeAnchorCandidates(call)]),
+    anchor: promiseAnchor(call, invocation, reads),
   };
+}
+
+function promiseAnchor(call: CallExpression, invocation: PromiseRejectionInvocation, reads?: CaughtFailureReadServices): CaughtFailureAnchor | undefined {
+  return firstAnchor(call, [...workAnchorCandidates(call, invocation, reads), ...calleeAnchorCandidates(call)]);
+}
+
+/** The anchor a delivered node WOULD carry if it were a site, read without judging ownership — so an
+ *  unresolved verdict still names the one ordinal series it leaves unknown. Undefined: no anchor, no series. */
+export function candidateSiteAnchor(node: Node, reads: CaughtFailureReadServices): CaughtFailureAnchor | undefined {
+  if (node.isKind(SyntaxKind.CatchClause)) {
+    return catchAnchor(node);
+  }
+  const call = node.asKindOrThrow(SyntaxKind.CallExpression);
+  const invocation = promiseRejectionInvocation(call, reads);
+  return invocation === undefined ? undefined : promiseAnchor(call, invocation, reads);
 }
 
 /** The call that produced the promise, walking inward past `then`/`catch`/`finally` — the node a framework

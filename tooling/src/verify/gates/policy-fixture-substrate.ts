@@ -206,6 +206,12 @@ const PLANT = (body: string, fs = 'import { writeFileSync } from "node:fs";\n'):
   "tests/tooling/verify/gates/probe.test.ts": `${fs}import { join, resolve } from "node:path";\nimport { test } from "../../../support/node/tool-fixtures.ts";\n${body}`,
 });
 
+// A support module whose exported `ROOT` reaches its origin through `chain`, written to from the probe test.
+const FAR_ROOT = (chain: string): Readonly<Record<string, string>> => ({
+  ...PLANT('import { ROOT } from "../../../support/node/far-root.ts";\nwriteFileSync(join(ROOT, "x.ts"), "x");\n'),
+  "tests/support/node/far-root.ts": chain,
+});
+
 export const gate = defineGate({
   id: "policy-fixture-substrate",
   application: "implementation",
@@ -387,6 +393,12 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "missing" },
       why: "a governed verb with NO inspectable destination: the destination cannot be established at all, so the call is reported rather than acquitted (#944)",
     },
+    {
+      mode: "types",
+      files: FAR_ROOT("const a = process.cwd();\nexport const ROOT = a;\n"),
+      expect: { count: 1, messageIncludes: "CHECKOUT" },
+      why: "D328 INSIDE THE BOUND: a checkout root two declaration hops away in a support module is still a finding",
+    },
   ],
   mustPass: [
     {
@@ -473,6 +485,16 @@ export const gate = defineGate({
         'import { readFileSync } from "node:fs";\n',
       ),
       why: "READS ARE UNTOUCHED, at the most provocative spelling available: a `process.cwd()`-rooted path handed to `readFileSync`. The differential harness's `git show` comparisons depend on it, and a policy that convicted this would be unusable",
+    },
+    {
+      mode: "types",
+      files: FAR_ROOT("const a = process.cwd();\nconst b = a;\nexport const ROOT = b;\n"),
+      why: "D328 PAST THE BOUND: the checkout root sits on the frontier declaration, three hops away, so the write is an advisory unknown, never clean (tests/tooling/verify/gates/caught-failure-bound.test.ts asserts the unknown)",
+    },
+    {
+      mode: "types",
+      files: FAR_ROOT("const a = process.cwd();\nconst b = a;\nconst c = b;\nexport const ROOT = c;\n"),
+      why: "D328 PAST THE BOUND: a captured stable value that points at a node no walk reached is an advisory unknown, not a missing-facet tool error (tests/tooling/verify/gates/caught-failure-bound.test.ts asserts the unknown)",
     },
   ],
 });

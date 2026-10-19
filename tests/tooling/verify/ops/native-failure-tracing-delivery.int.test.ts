@@ -164,6 +164,23 @@ test(
 );
 
 test(
+  "the census generator refuses a site past the closure bound rather than recording or dropping it",
+  ({ scratch, repoRoot }) => {
+    fixture(scratch, repoRoot);
+    writeFileSync(
+      join(scratch, DETACHED),
+      [
+        "declare function work(): void;declare function halt(): never;",
+        "function hop3(): unknown {return halt();}function hop2(): unknown {return hop3();}function hop1(): unknown {return hop2();}",
+        "export function launch(): unknown {try {work();} catch {return hop1();}}",
+      ].join("\n"),
+    );
+    expect(() => deriveCaughtFailureSites(scratch)).toThrow(`${DETACHED} has a site past the bounded native closure`);
+  },
+  scaledBudget(120_000),
+);
+
+test(
   "the complete failure and tracing proof population retains every verdict and refusal",
   () => {
     expect(verifyPolicyProofs(POLICIES)).toEqual([]);

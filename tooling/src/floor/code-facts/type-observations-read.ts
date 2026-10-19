@@ -1,15 +1,20 @@
 // Delivered selectors answer only one closed capture; scalar identity never grants another world's meaning.
 import type { Node, SourceFile } from "ts-morph";
+import { closureFrontier } from "./bounded-closure.ts";
 import { observeAuthoredTypeSlots } from "./type-observation-profile.ts";
-import { constInitializerNominations } from "./type-observation-questions.ts";
 import type { NativeTypeObservations, ObservedReference, TypeObservationCaptureOwner, TypeObservationReader } from "./type-observations-contract.ts";
-import { ClosureBoundError } from "./type-observations-contract.ts";
 import {
   assertCompletePropertyCoverage,
   assertPredicateInputCoverage,
   assertRawParameterCoverage,
   assertTypeArgumentCoverage,
 } from "./type-observations-coverage.ts";
+import {
+  assertCallableBodyUsage,
+  assertConstInitializerRelationships,
+  assertDetailCoverage,
+  assertGraphQuestionUsage,
+} from "./type-observations-replay-usage.ts";
 import type { NativeTypeSelector } from "./type-projection-contract.ts";
 import { selectedTypeRelation, typeSelectorIndex } from "./type-projection-contract.ts";
 
@@ -25,17 +30,7 @@ export function readTypeObservations(
   const typeKeys = new Map<number, object>();
   const symbolKeys = facts.symbols.map(() => ({}));
   const nodes = new Map(facts.nodes.map((entry) => [entry.node, entry]));
-  // Filled when the replay below re-walks each bounded closure; a question about an unwalked node past it is unresolved.
-  const frontier = new Set<Node>();
-  const closureFrontier = (node: Node): Node | undefined =>
-    frontier.size === 0 || nodes.has(node) ? undefined : [node, ...node.getAncestors()].find((ancestor) => frontier.has(ancestor));
-  const queried = (node: Node): void => {
-    facts.assertNode(node);
-    const declaration = closureFrontier(node);
-    if (declaration !== undefined) {
-      throw new ClosureBoundError(node, declaration);
-    }
-  };
+  const { reach, at: closureAt, past: closurePast, query: queried } = closureFrontier((node) => nodes.has(node), facts.assertNode);
   const exports = new Map(facts.exports.map((entry) => [entry.source, entry]));
   const returns = new Map(facts.callReturns.map((entry) => [entry.node, entry]));
   const signatures = new Map(facts.signatures.map((entry) => [entry.call, entry]));
@@ -101,7 +96,8 @@ export function readTypeObservations(
     return value;
   };
   const reader: TypeObservationReader = {
-    closureFrontier,
+    closureFrontier: closureAt,
+    closurePast,
     callableBody: (node) => {
       queried(node);
       const row = facts.callableBodies?.find((entry) => entry.node === node);
@@ -384,13 +380,9 @@ export function readTypeObservations(
       return value;
     },
   };
+  const captureOwner = { references, module, node: targetNode, ...reach };
   if (facts.definitions === undefined) {
-    observeAuthoredTypeSlots(facts.demand, reader, undefined, {
-      references,
-      module,
-      node: targetNode,
-      closureBound: (declaration) => frontier.add(declaration),
-    });
+    observeAuthoredTypeSlots(facts.demand, reader, undefined, captureOwner);
   } else {
     const usedDefinitions = new Set<Node>();
     const displays = new Set<number>();
@@ -466,7 +458,7 @@ export function readTypeObservations(
         }
         values.set(node, requested);
       },
-      { references, module, node: targetNode, closureBound: (declaration) => frontier.add(declaration) },
+      captureOwner,
     );
     assertDetailCoverage(facts, displays, literals, argumentsUsed);
     assertConstInitializerRelationships(facts, reader);
@@ -506,67 +498,4 @@ export function readTypeObservations(
     (node) => node.getKind(),
   );
   return reader;
-}
-
-function assertCallableBodyUsage(facts: NativeTypeObservations, used: ReadonlySet<Node>): void {
-  if ((facts.callableBodies ?? []).some((row) => !used.has(row.node))) {
-    throw new Error("native callable body question is foreign");
-  }
-}
-
-function assertDetailCoverage(
-  facts: NativeTypeObservations,
-  displays: ReadonlySet<number>,
-  literals: ReadonlySet<number>,
-  argumentsUsed: ReadonlySet<number>,
-): void {
-  if (
-    facts.types.some(
-      (row, index) =>
-        row !== null &&
-        ((row.defaultDisplay !== undefined) !== displays.has(index) ||
-          (row.literalValue !== undefined) !== literals.has(index) ||
-          (row.typeArguments !== undefined) !== argumentsUsed.has(index) ||
-          (row.typeArgumentCount !== undefined) !== argumentsUsed.has(index)),
-    )
-  ) {
-    throw new Error("native Type detail coverage is missing or foreign");
-  }
-}
-
-function assertConstInitializerRelationships(facts: NativeTypeObservations, reader: TypeObservationReader): void {
-  const initializerPaths = constInitializerNominations(
-    (facts.demand.questions ?? []).filter((question) => question.kind === "const-initializers").flatMap((question) => question.nodes),
-    reader,
-  );
-  const capturedPaths = facts.constInitializers ?? [];
-  if (
-    initializerPaths.length !== capturedPaths.length ||
-    initializerPaths.some((path, index) => {
-      const captured = capturedPaths[index];
-      return (
-        captured === undefined ||
-        captured.node !== path.node ||
-        captured.values.length !== path.values.length ||
-        path.values.some((value, at) => captured.values[at] !== value)
-      );
-    })
-  ) {
-    throw new Error("native const initializer relationships are missing or foreign");
-  }
-}
-
-function assertGraphQuestionUsage(
-  facts: NativeTypeObservations,
-  intersections: ReadonlySet<number>,
-  constraints: ReadonlySet<number>,
-  declarations: ReadonlySet<string>,
-): void {
-  if (
-    (facts.intersections ?? []).some((row) => !intersections.has(row.selector)) ||
-    (facts.constraints ?? []).some((row) => !constraints.has(row.selector)) ||
-    (facts.signatureDeclarations ?? []).some((row) => !declarations.has(JSON.stringify([row.selector, row.kind])))
-  ) {
-    throw new Error("native Type graph question coverage is foreign");
-  }
 }

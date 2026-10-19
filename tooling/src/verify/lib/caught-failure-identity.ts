@@ -63,10 +63,11 @@ function enclosingDeclaration(node: Node): string {
   return names.length === 0 ? MODULE : names.join(".");
 }
 
-/** The id prefix every site keyed in `node`'s named container shares; an unresolved site there makes its
- *  siblings' ordinals unknown, so neither join judges an id under it. */
-export function caughtFailureScope(path: string, node: Node): string {
-  return `${path}::${enclosingDeclaration(node)}::`;
+/** The id prefix whose ordinals an unresolved site at `node` makes unknown: its own (declaration, token)
+ *  ordinal series, or the whole declaration when even its token is unresolved. */
+export function caughtFailureOrdinalScope(path: string, node: Node, token: string | undefined): string {
+  const declaration = `${path}::${enclosingDeclaration(node)}::`;
+  return token === undefined ? declaration : `${declaration}${token}::`;
 }
 
 /** One site with its identity, or with `siteId: undefined` when the classifier derived no anchor — such a

@@ -123,5 +123,72 @@ Every run was a single program under `heavy.lock`, with `setsid` and a 30-minute
    - Stop asking `type-details` (display, literal value, type arguments) at every walked node. Those questions are what make the checker instantiate the types (heap profile).
 2. **fixture-path-native.** It needs `symbol-closure` over the fixture's calls with `module`, `global` and `stable` value profiles. It reads `evidence.declarations`, `stableValues`, `modules`, `globals` and `types.symbol` (`fixture-path-semantic.ts`). It now carries `FIXTURE_PATH_CLOSURE_HOPS = 2`, and its conformance stays 16/12/0. A hop-kind restriction must be opt-in per question, so fixture-path keeps its own walk.
 3. **At the bound.** The verdict is an explicit unknown through `report.analysis`. It is never owned and never a finding. The census generator refuses (implemented).
-4. **Census of unresolved live sites.** Not measured. The client derivation never completed, and the census generator would refuse rather than drop a site. This is owed after item 1.
+4. **Census of unresolved live sites.** The final client derivation completed with 137 sites. The census generator throws on any unresolved site, so a completed client run has 0 unresolved client sites. The db and server census is in "Verifier refutation and fixes" below.
 5. **D328 fit.** The finite claim is in each header. Unsupported analysis returns an explicit unknown. The heap is unchanged (16 GB) and no population is cut: every nominated site is still judged or reported unknown.
+
+## Verifier refutation and fixes (lane cb-1098b)
+
+An Opus verifier refuted the two commits above. Each finding below was fixed red-first. "Red" means the refuted commit, `ed935d3aef` here (cherry-pick of `1f9650553e`), run in a scratch worktree. The red-row harness took the new `D328` rows and ran them against the old gate logic.
+
+### P1: a hidden population cut in the census joins
+
+- Defect: `boundedFailureSites` withheld a whole declaration scope (`path::decl::`) when any one site in it was unresolved. Census-row and health then skipped every id under that prefix. Fully known findings dropped silently.
+- Fix (`caught-failure-native.ts`, `caught-failure-identity.ts`, `caught-failure.ts`):
+  - An unresolved site withholds only its own ordinal series, `path::decl::token::`. Ordinals count per (declaration, token), so no other series can shift.
+  - `candidateSiteAnchor` reads the token without judging ownership. If the token itself is past the bound, the whole declaration is withheld, and the report says so.
+  - `judgeableSiteIds` reports every withheld id as an advisory unknown on the site that withholds it. The reason names the ids and the withheld count.
+  - A health row that names a live site is never withheld.
+- Red on `ed935d3aef`: the verifier's `absorb.ts` repro failed on both gates, "expected at least one effective finding but got 0". The new census-row `mustFlag` and health `mustFlag` rows fail the same way.
+- Green: both rows pass. `caught-failure-bound.test.ts` asserts the withheld-id unknowns: "withholds 1 of 1 withheld id(s)", naming `absorb::catch::1` and `absorb::catch::2`.
+
+### P2.1: the header claim did not match the code
+
+- Defect: `argumentBodyHops` dropped a multi-statement body reached through an alias (`const handler = onErr`) without putting it on the frontier. A Type question inside that body threw the plain "native symbol/node observation was not captured", and the gate failed `owner-incomplete`.
+- Fix (`bounded-closure.ts`):
+  - A handler position is a call argument or the bare-identifier initializer of an alias. A hop walks a multi-statement body only from a handler position.
+  - Every other multi-statement body is declined. A declined body that no other path walks goes to the frontier, so a question inside it is `ClosureBoundError`, an explicit unknown.
+  - The question flag is now `closureHandlerBodiesOnly`.
+  - The headers of `caught-failure.ts` and `fixture-path-native.ts` state exactly this.
+- Red on `ed935d3aef`: G1 (`globalThis.reportError`) and G3 (`logger.error`) both gave the plain capture error.
+- Green: G3 is one finding (`mustFlag` "D328 INSIDE THE BOUND ... alias"). G1 is owned (`mustPass`). Both match the pre-1098 parent.
+
+Two more regressions against main surfaced during this work. Both are fixed the same way:
+
+- **A bound rejection alias declared in another file** (verifier fixture F7: a global script `const recover = pending.catch.bind(pending)`). Main reports a finding. `ed935d3aef` threw the plain capture error, because only same-file call-initialized names are roots.
+  - Fix: the `node-symbols` question puts a callee's call-initialized declaration in another file on the frontier (`foreignCallInitializers`).
+  - Now: an explicit unknown. `mustPass` "D328 PAST THE BOUND ... global script"; the bound test asserts the unknown. This site moved from a concrete finding to unresolved by design, and the header claims it.
+- **fixture-path past the bound through a captured stable value** (a support-module `ROOT` four const hops from `process.cwd()`). The capture-time stable value points at a node no walk reached. Its global facet was never captured, so `ed935d3aef` threw "native invocation facet is unavailable".
+  - Fix: the replay records every walked node (`closureWalked`, `ClosureFrontier.past`). A facet missing on an unwalked node is `ClosureBoundError` (`fixture-path-semantic.ts#boundedFact`). A facet missing on a walked node still throws the plain error.
+  - Now: an explicit unknown. `mustPass` "D328 PAST THE BOUND ... captured stable value".
+
+### P2.2: gate-level rows for the bound
+
+Rows added, in both directions:
+
+| Gate | mustFlag (inside the bound is still a finding) | mustPass (past the bound is an explicit unknown) |
+| - | - | - |
+| caught-failure-ownership | aliased multi-statement handler with a local logger (G3); one-hop success-outcome catch | aliased handler with `reportError` (G1, owned); `never` three hops away; cross-file global bind alias |
+| caught-failure-census-row | sibling `p.catch` beside an unresolved catch still owes its row | empty catch beside an unresolved catch: id withheld |
+| caught-failure-ownership-health | gone `::q::1` row beside an unresolved catch is still a finding | unmatched `::catch::2` row beside an unresolved catch: withheld |
+| policy-fixture-substrate | checkout root two hops away in a support module | root on the frontier (three hops); root reached only through a captured stable value (four hops) |
+
+- A `mustPass` row cannot see an analysis unknown. `tests/tooling/verify/gates/caught-failure-bound.test.ts` runs every "D328 PAST THE BOUND" row through `runPolicyPass`. It asserts no finding, no tool error, and an unknown whose reason says "past the closure bound".
+- The census generator's refusal is a new test in `native-failure-tracing-delivery.int.test.ts`: "the census generator refuses a site past the closure bound". It is not a gate, so its home is the int test.
+- Red on `ed935d3aef` (`cb-1098b-redrows.mjs`): 6 of the 13 new rows fail. They are the G1, G3 and F7 rows (plain capture error), both P1 `mustFlag` rows (0 findings), and fixture-path four-hop (missing facet). The other 7 hold on both trees. They pin directions that were already right and must stay right.
+
+### P3: the four oversized type-observation files
+
+They now end below their `main` line counts. Code moved into cohesive new modules:
+
+| File | main | now |
+| - | - | - |
+| type-observation-questions.ts | 853 | 844 |
+| type-observations-coverage.ts | 989 | 972 |
+| type-observations-read.ts | 554 | 501 |
+| type-observations.ts | 873 | 873 |
+
+- `bounded-closure.ts`: the frontier and walked set (`closureFrontier`), `symbolBodies`, the walk, and handler hops.
+- `type-observation-nominations.ts`: which raw-question kinds may carry facets and closure nominations.
+- `type-observations-replay-usage.ts`: the replay's unasked-row checks, moved verbatim.
+- The live capture reader no longer stubs `closureFrontier`; the field is optional.
+- Splitting these files further toward the 450-line cap is still owed.

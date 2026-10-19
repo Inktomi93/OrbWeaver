@@ -1,7 +1,7 @@
 // Explicit raw questions retain their nominated locations and one importing capture.
 import type { Node as MorphNode } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
-import { argumentBodyHops, sourceWriteIdentifiers, walkBoundedClosure } from "./bounded-closure.ts";
+import { Node } from "ts-morph";
+import { foreignCallInitializers, sourceWriteIdentifiers, symbolBodies, walkBoundedClosure } from "./bounded-closure.ts";
 import { observeClosureMembers } from "./member-type-reads.ts";
 import { referenceResolutionServices } from "./reference-fact.ts";
 import { rootIdentifier } from "./reference-fact-alias.ts";
@@ -273,22 +273,6 @@ function valueSlot(readers: TypeObservationReader, node: MorphNode, names: reado
     nodeSlots(readers, declaration, names);
   }
 }
-function executableDeclaration(declaration: MorphNode): readonly MorphNode[] {
-  if (Node.isVariableDeclaration(declaration)) {
-    return declaration.getInitializer() === undefined ? [] : [declaration];
-  }
-  if (Node.isBindingElement(declaration)) {
-    const owner = declaration.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
-    return owner === undefined ? [] : [owner];
-  }
-  return Node.isFunctionDeclaration(declaration) && declaration.getBody() !== undefined ? [declaration] : [];
-}
-function symbolBodies(node: MorphNode, readers: TypeObservationReader): readonly MorphNode[] {
-  const symbol = readers.symbol(node);
-  return symbol === null
-    ? []
-    : [symbol, readers.symbolData(symbol).canonical].flatMap((target) => readers.symbolData(target).declarations.flatMap(executableDeclaration));
-}
 function observeClosureNode(
   node: MorphNode,
   question: TypeObservationQuestion,
@@ -305,7 +289,7 @@ function observeClosureNode(
   valueProfile(question, node, profile);
   questions["type-details"]({ ...question, kind: "type-details", nodes: [node] }, readers);
   observeClosureMembers(node, question, readers);
-  return question.closureArgumentBodiesOnly === true ? argumentBodyHops(node, bodies) : bodies;
+  return bodies;
 }
 function walkSymbolClosure(roots: readonly MorphNode[], observe: (node: MorphNode) => readonly MorphNode[]): void {
   const seen = new Set<MorphNode>();
@@ -330,17 +314,9 @@ function symbolClosure(
   question: TypeObservationQuestion,
   readers: TypeObservationReader,
   profile?: TypeObservationCaptureOwner["profile"],
-  owner?: Pick<TypeObservationCaptureOwner, "closureBound">,
+  owner?: Pick<TypeObservationCaptureOwner, "closureBound" | "closureWalked">,
 ): void {
-  if (question.closureHops === undefined) {
-    throw new Error("native symbol closure is unbounded");
-  }
-  walkBoundedClosure(
-    question.nodes,
-    question.closureHops,
-    (node) => observeClosureNode(node, question, readers, profile),
-    (declaration) => owner?.closureBound?.(declaration),
-  );
+  walkBoundedClosure(question, (node) => observeClosureNode(node, question, readers, profile), owner);
 }
 function graphPath(selector: NativeTypeSelector, path: readonly string[], at: MorphNode): NativeTypeSelector {
   return { ...selector, steps: [...selector.steps, ...path.map((name) => ({ kind: "property" as const, name, at }))] };
@@ -696,7 +672,7 @@ function ctContributions(
   question: TypeObservationQuestion,
   readers: TypeObservationReader,
   profile?: TypeObservationCaptureOwner["profile"],
-  owner?: Pick<TypeObservationCaptureOwner, "references" | "module" | "node" | "closureBound">,
+  owner?: Pick<TypeObservationCaptureOwner, "references" | "module" | "node" | "closureBound" | "closureWalked">,
 ): void {
   if (owner === undefined) {
     throw new Error("native contribution context is unavailable");
@@ -721,7 +697,7 @@ const questions: Record<
     question: TypeObservationQuestion,
     readers: TypeObservationReader,
     profile?: TypeObservationCaptureOwner["profile"],
-    owner?: Pick<TypeObservationCaptureOwner, "references" | "module" | "node" | "closureBound">,
+    owner?: Pick<TypeObservationCaptureOwner, "references" | "module" | "node" | "closureBound" | "closureWalked">,
   ) => void
 > = {
   "const-initializers": constInitializers,
@@ -817,9 +793,9 @@ const questions: Record<
   "type-properties": properties,
   "type-constituents": observeTypeConstituents,
   "shape-constituents": observeShapeConstituents,
-  "node-symbols": (question, readers): void => {
-    for (const node of question.nodes) {
-      readers.symbol(node);
+  "node-symbols": (question, readers, _profile, owner): void => {
+    for (const declaration of question.nodes.flatMap((node) => foreignCallInitializers(node, readers))) {
+      owner?.closureBound?.(declaration);
     }
   },
   "definition-nodes": (question, readers): void => {
@@ -860,7 +836,7 @@ export function observeRawQuestions(
   demand: TypeObservationDemand,
   readers: TypeObservationReader,
   profile?: TypeObservationCaptureOwner["profile"],
-  owner?: Pick<TypeObservationCaptureOwner, "references" | "module" | "node" | "closureBound">,
+  owner?: Pick<TypeObservationCaptureOwner, "references" | "module" | "node" | "closureBound" | "closureWalked">,
 ): void {
   for (const question of demand.questions ?? []) {
     questions[question.kind](question, readers, profile, owner);

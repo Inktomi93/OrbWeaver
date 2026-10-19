@@ -30,7 +30,7 @@ import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import type { CaughtFailureSite } from "../lib/caught-failure.ts";
 import { CAUGHT_FAILURE_POPULATION } from "../lib/caught-failure.ts";
 import { censusSiteIds, keyCaughtFailureSites } from "../lib/caught-failure-identity.ts";
-import { boundedFailureSites, nativeFailureRead } from "../lib/caught-failure-native.ts";
+import { boundedFailureSites, judgeableSiteIds, nativeFailureRead } from "../lib/caught-failure-native.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const POPULATION_PATH = JSON_RESOURCE_PATHS["caught-failure-population"];
@@ -65,15 +65,15 @@ function liveSites(ctx: GatePolicyContext, sitesByPath: ReadonlyMap<string, read
   return live;
 }
 
-/** The committed-side join on `siteId`: every committed id must name a live site. */
-function join(ctx: GatePolicyContext, committedIds: readonly string[], live: ReadonlyMap<string, CaughtFailureSite>): void {
+/** The committed-side join on `siteId`: every judgeable committed id must name a live site. */
+function join(ctx: GatePolicyContext, committedIds: readonly string[], live: ReadonlyMap<string, CaughtFailureSite>, judgeable: ReadonlySet<string>): void {
   if (live.size === 0 && committedIds.length === 0) {
     ctx.report.file(POPULATION_PATH, { line: 1, message: DERIVED_NOTHING });
     return;
   }
   const committed = new Set(committedIds);
   for (const siteId of committed) {
-    if (!live.has(siteId)) {
+    if (!live.has(siteId) && judgeable.has(siteId)) {
       ctx.report.file(POPULATION_PATH, { line: 1, message: GONE(siteId) });
     }
   }
@@ -84,6 +84,11 @@ const SITE_PATH = "packages/server/src/domain/probe/absorb.ts";
 const SITE_ID = `${SITE_PATH}::absorb::catch::1`;
 const SITE = "export function absorb(): void {\n  try { risky(); } catch {}\n}\n";
 const ANCHOR = { "packages/server/src/domain/probe/clean.ts": "export const CLEAN = 1;\n" };
+// A catch owned only by a `never` three factory hops away: its verdict is past the closure bound (D328).
+const PAST =
+  "declare function work(): void;\ndeclare function halt(): never;\nfunction hop3(): unknown { return halt(); }\nfunction hop2(): unknown { return hop3(); }\nfunction hop1(): unknown { return hop2(); }\n";
+const PAST_SITE = (sibling: string): string =>
+  `${PAST}export function absorb(p: Promise<void>): unknown {\n  try { work(); } catch { return hop1(); }\n  ${sibling}\n  return 1;\n}\n`;
 const census = (...siteIds: readonly string[]): Readonly<Record<string, string>> => ({
   [POPULATION_PATH]: `${JSON.stringify({ rows: siteIds.map((siteId) => ({ siteId, verdict: "unproven", reason: null })) }, null, 2)}\n`,
 });
@@ -118,16 +123,19 @@ export const gate = defineGate({
       ],
       prepare: native.prepare,
       evaluate: () => {
-        const { sitesByPath, uncertainScopes } = boundedFailureSites(nominees, native, ctx.relativePath, (node, reason) =>
-          ctx.report.analysis(node, { kind: "unknown", reason }),
-        );
+        const unknown = (node: Node, reason: string): void => ctx.report.analysis(node, { kind: "unknown", reason });
+        const bounded = boundedFailureSites(nominees, native, ctx.relativePath, unknown);
         const read = censusSiteIds(readyResourceValue(ctx.resources.json("caught-failure-population")).value);
         if (read.ok) {
-          join(
-            ctx,
-            read.siteIds.filter((siteId) => ctx.includesSubject(siteId.split("::")[0] ?? "") && !uncertainScopes.some((scope) => siteId.startsWith(scope))),
-            liveSites(ctx, sitesByPath),
+          const live = liveSites(ctx, bounded.sitesByPath);
+          const inScope = read.siteIds.filter((siteId) => ctx.includesSubject(siteId.split("::")[0] ?? ""));
+          // Only an unmatched row can be withheld: a row that names a live site agrees whatever its scope.
+          const judgeable = judgeableSiteIds(
+            bounded,
+            inScope.filter((siteId) => !live.has(siteId)),
+            unknown,
           );
+          join(ctx, inScope, live, judgeable);
         } else {
           ctx.report.file(POPULATION_PATH, { line: 1, message: NOT_A_POPULATION(read.reason) });
         }
@@ -153,6 +161,12 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: "the join agreed about nothing" },
       why: "BLINDNESS: an empty census over a corpus where the classifier found nothing would agree forever. The in-population anchor is what makes this a finding rather than a population refusal",
     },
+    {
+      mode: "resource",
+      files: { ...census(`${SITE_PATH}::absorb::p::1`, `${SITE_PATH}::absorb::q::1`), [SITE_PATH]: PAST_SITE("void p.catch(() => undefined);"), ...ANCHOR },
+      expect: { count: 1, messageIncludes: `census row \`${SITE_PATH}::absorb::q::1\` names a site that is no longer on the tree` },
+      why: "D328, NO HIDDEN CUT: an unresolved catch shifts only its own `::catch::` ordinals, so a gone row under another token in the same function is still a finding",
+    },
   ],
   mustPass: [
     {
@@ -173,6 +187,14 @@ export const gate = defineGate({
         "packages/server/src/domain/probe/owned.ts": "export function owned(): void {\n  try { risky(); } catch (err) { throw err; }\n}\n",
       },
       why: "an OWNED catch is not a site, so it owes no row: the join counts exactly what the classifier counts, and a rethrowing catch beside a recorded site leaves the census agreeing",
+    },
+    {
+      mode: "resource",
+      files: {
+        ...census(`${SITE_PATH}::absorb::catch::1`, `${SITE_PATH}::absorb::catch::2`),
+        [SITE_PATH]: PAST_SITE("try { work(); } catch {}"),
+      },
+      why: "D328 PAST THE BOUND: with one catch unresolved, the unmatched `::catch::2` row may name it, so the row is withheld and reported as an advisory unknown rather than judged gone (tests/tooling/verify/gates/caught-failure-bound.test.ts asserts the unknown)",
     },
   ],
   mustRefuse: [

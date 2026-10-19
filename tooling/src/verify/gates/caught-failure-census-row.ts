@@ -9,7 +9,7 @@ import { defineGate } from "../contract/policy.ts";
 import { JSON_RESOURCE_PATHS } from "../contract/resource-json.ts";
 import { CAUGHT_FAILURE_POPULATION } from "../lib/caught-failure.ts";
 import { censusSiteIds, keyCaughtFailureSites } from "../lib/caught-failure-identity.ts";
-import { boundedFailureSites, nativeFailureRead } from "../lib/caught-failure-native.ts";
+import { boundedFailureSites, judgeableSiteIds, nativeFailureRead } from "../lib/caught-failure-native.ts";
 import { readyResourceValue } from "../lib/resource-declaration.ts";
 
 const POPULATION_PATH = JSON_RESOURCE_PATHS["caught-failure-population"];
@@ -24,6 +24,11 @@ const missingRow = (siteId: string): string =>
 const SITE_PATH = "packages/server/src/domain/probe/absorb.ts";
 const SITE_ID = `${SITE_PATH}::absorb::catch::1`;
 const SITE = "export function absorb(): void {\n  try { risky(); } catch {}\n}\n";
+// A catch owned only by a `never` three factory hops away: its verdict is past the closure bound (D328).
+const PAST =
+  "declare function work(): void;\ndeclare function halt(): never;\nfunction hop3(): unknown { return halt(); }\nfunction hop2(): unknown { return hop3(); }\nfunction hop1(): unknown { return hop2(); }\n";
+const PAST_SITE = (sibling: string): string =>
+  `${PAST}export function absorb(p: Promise<void>): unknown {\n  try { work(); } catch { return hop1(); }\n  ${sibling}\n  return 1;\n}\n`;
 const census = (...siteIds: readonly string[]): Readonly<Record<string, string>> => ({
   [POPULATION_PATH]: `${JSON.stringify({ rows: siteIds.map((siteId) => ({ siteId, verdict: "unproven", reason: null })) }, null, 2)}\n`,
 });
@@ -56,21 +61,24 @@ export const gate = defineGate({
       ],
       prepare: native.prepare,
       evaluate: () => {
-        const { sitesByPath, uncertainScopes } = boundedFailureSites(nominees, native, ctx.relativePath, (node, reason) =>
-          ctx.report.analysis(node, { kind: "unknown", reason }),
-        );
+        const unknown = (node: Node, reason: string): void => ctx.report.analysis(node, { kind: "unknown", reason });
+        const bounded = boundedFailureSites(nominees, native, ctx.relativePath, unknown);
         const read = censusSiteIds(readyResourceValue(ctx.resources.json("caught-failure-population")).value);
         // A census that is not a census is `caught-failure-ownership-health`'s finding; this arm cannot join against it.
         if (!read.ok) {
           return;
         }
         const committed = new Set(read.siteIds);
-        for (const [path, sites] of sitesByPath) {
-          for (const { site, siteId } of keyCaughtFailureSites(path, sites)) {
-            // A site with no derivable anchor has no id; the health policy reports it.
-            if (siteId !== undefined && !committed.has(siteId) && !uncertainScopes.some((scope) => siteId.startsWith(scope))) {
-              ctx.report.node(site.node, { message: missingRow(siteId) });
-            }
+        // A site with no derivable anchor has no id; the health policy reports it.
+        const live = [...bounded.sitesByPath].flatMap(([path, sites]) => keyCaughtFailureSites(path, sites).filter(({ siteId }) => siteId !== undefined));
+        const judgeable = judgeableSiteIds(
+          bounded,
+          live.flatMap(({ siteId }) => (siteId === undefined || committed.has(siteId) ? [] : [siteId])),
+          unknown,
+        );
+        for (const { site, siteId } of live) {
+          if (siteId !== undefined && judgeable.has(siteId)) {
+            ctx.report.node(site.node, { message: missingRow(siteId) });
           }
         }
       },
@@ -98,6 +106,12 @@ export const gate = defineGate({
       expect: { count: 1, messageIncludes: `\`${SITE_PATH}::absorb::catch::2\` has no census row` },
       why: "MULTIPLICITY is part of the identity: a second bindingless catch in the same function is `::absorb::catch::2`, not a duplicate of the recorded `::absorb::catch::1`",
     },
+    {
+      mode: "resource",
+      files: { ...census(), [SITE_PATH]: PAST_SITE("void p.catch(() => undefined);") },
+      expect: { count: 1, messageIncludes: `\`${SITE_PATH}::absorb::p::1\` has no census row` },
+      why: "D328, NO HIDDEN CUT: an unresolved catch shifts only its own `::catch::` ordinals, so a fully known sibling absorber in the same function still owes its row",
+    },
   ],
   mustPass: [
     {
@@ -112,6 +126,11 @@ export const gate = defineGate({
         [SITE_PATH]: "export function owned(): void {\n  try { risky(); } catch (err) { throw err; }\n}\n",
       },
       why: "an OWNED catch is not a site, so it owes no row: the arm counts exactly what the classifier counts",
+    },
+    {
+      mode: "resource",
+      files: { ...census(), [SITE_PATH]: PAST_SITE("try { work(); } catch {}") },
+      why: "D328 PAST THE BOUND: the empty catch beside an unresolved one may be `::catch::1` or `::catch::2`, so its id is withheld and reported as an advisory unknown rather than judged (tests/tooling/verify/gates/caught-failure-bound.test.ts asserts the unknown)",
     },
   ],
   mustRefuse: [

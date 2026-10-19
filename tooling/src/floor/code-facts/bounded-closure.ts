@@ -1,6 +1,7 @@
 // A symbol closure walked breadth-first by declaration hops; whatever lies past the last hop is reported, never walked.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import type { TypeObservationCaptureOwner, TypeObservationQuestion, TypeObservationReader } from "./type-observations-contract.ts";
 import { ClosureBoundError } from "./type-observations-contract.ts";
 
 /** A verdict that needed no answer past a closure bound, or the explicit unknown that replaces it (D328). */
@@ -23,6 +24,70 @@ export function withinClosureBound<Value>(read: () => Value): BoundedRead<Value>
   }
 }
 
+/** A replay's bounded-closure frontier and walked nodes, filled as the replay re-walks each closure. */
+export interface ClosureFrontier {
+  readonly reach: Required<Pick<TypeObservationCaptureOwner, "closureBound" | "closureWalked">>;
+  /** The frontier declaration that contains an uncaptured `node`. */
+  readonly at: (node: MorphNode) => MorphNode | undefined;
+  /** The statement around `node` when a closure was walked and never reached it. */
+  readonly past: (node: MorphNode) => MorphNode | undefined;
+  /** Admits a question about `node`; one about an uncaptured node past the frontier throws {@link ClosureBoundError}. */
+  readonly query: (node: MorphNode) => void;
+}
+
+export function closureFrontier(captured: (node: MorphNode) => boolean, admit: (node: MorphNode) => void): ClosureFrontier {
+  const frontier = new Set<MorphNode>();
+  const walked = new Set<MorphNode>();
+  const at = (node: MorphNode): MorphNode | undefined =>
+    frontier.size === 0 || captured(node) ? undefined : [node, ...node.getAncestors()].find((ancestor) => frontier.has(ancestor));
+  return {
+    reach: {
+      closureBound: (declaration): void => {
+        frontier.add(declaration);
+      },
+      closureWalked: (node): void => {
+        walked.add(node);
+      },
+    },
+    at,
+    past: (node) => (walked.size === 0 || walked.has(node) ? undefined : (at(node) ?? node.getFirstAncestor(Node.isStatement) ?? node)),
+    query: (node): void => {
+      admit(node);
+      const declaration = at(node);
+      if (declaration !== undefined) {
+        throw new ClosureBoundError(node, declaration);
+      }
+    },
+  };
+}
+
+function executableDeclaration(declaration: MorphNode): readonly MorphNode[] {
+  if (Node.isVariableDeclaration(declaration)) {
+    return declaration.getInitializer() === undefined ? [] : [declaration];
+  }
+  if (Node.isBindingElement(declaration)) {
+    const owner = declaration.getFirstAncestorByKind(SyntaxKind.VariableDeclaration);
+    return owner === undefined ? [] : [owner];
+  }
+  return Node.isFunctionDeclaration(declaration) && declaration.getBody() !== undefined ? [declaration] : [];
+}
+
+/** The declarations one hop from `node`: its symbol's and canonical symbol's initialized or bodied declarations. */
+export function symbolBodies(node: MorphNode, readers: TypeObservationReader): readonly MorphNode[] {
+  const symbol = readers.symbol(node);
+  return symbol === null
+    ? []
+    : [symbol, readers.symbolData(symbol).canonical].flatMap((target) => readers.symbolData(target).declarations.flatMap(executableDeclaration));
+}
+
+/** A callee's call-initialized declarations in another file: a possible bound alias that no root walks, so it is past the bound. */
+export function foreignCallInitializers(callee: MorphNode, readers: TypeObservationReader): readonly MorphNode[] {
+  return symbolBodies(callee, readers).filter(
+    (declaration) =>
+      Node.isVariableDeclaration(declaration) && Node.isCallExpression(declaration.getInitializer()) && declaration.getSourceFile() !== callee.getSourceFile(),
+  );
+}
+
 function multiStatementBody(declaration: MorphNode): boolean {
   const initializer = Node.isVariableDeclaration(declaration) ? declaration.getInitializer() : undefined;
   const fn = Node.isFunctionDeclaration(declaration) ? declaration : initializer;
@@ -30,15 +95,27 @@ function multiStatementBody(declaration: MorphNode): boolean {
   return body !== undefined && Node.isBlock(body) && body.getStatements().length > 1;
 }
 
-/**
- * The declarations a hop from `node` may walk when the question asks for argument-only bodies: a reader reads a
- * whole multi-statement body only for a function handed over as a call argument, and otherwise only a
- * single-expression or single-statement body.
- */
-export function argumentBodyHops(node: MorphNode, declarations: readonly MorphNode[]): readonly MorphNode[] {
+// A handler position: a call argument, or the bare-identifier initializer of an alias (`const h = onErr`)
+// that a call argument may name in turn.
+function handlerPosition(node: MorphNode): boolean {
   const parent = node.getParent();
-  const argument = parent !== undefined && Node.isCallExpression(parent) && parent.getArguments().includes(node);
-  return argument ? declarations : declarations.filter((declaration) => !multiStatementBody(declaration));
+  if (parent !== undefined && Node.isCallExpression(parent)) {
+    return parent.getArguments().includes(node);
+  }
+  return Node.isIdentifier(node) && parent !== undefined && Node.isVariableDeclaration(parent) && parent.getInitializer() === node;
+}
+
+// A handler-bodies-only question walks a whole multi-statement body only from a handler position, and
+// otherwise only a single-expression or single-statement body; every other body goes to `beyond`, never silent.
+function handlerBodyHops(node: MorphNode, declarations: readonly MorphNode[], beyond: (declaration: MorphNode) => void): readonly MorphNode[] {
+  if (handlerPosition(node)) {
+    return declarations;
+  }
+  const walked = declarations.filter((declaration) => !multiStatementBody(declaration));
+  for (const declaration of declarations.filter((candidate) => !walked.includes(candidate))) {
+    beyond(declaration);
+  }
+  return walked;
 }
 
 /** Every identifier a source writes, so a closure that reaches the source can answer its write guards. */
@@ -61,21 +138,31 @@ function walkSubtree(root: MorphNode, seen: Set<MorphNode>, observe: (node: Morp
 }
 
 /**
- * Walks every root's subtree, then the declarations `observe` returns, up to `hops` declaration hops.
+ * Walks every root's subtree, then the declarations `observe` returns, up to the question's `closureHops`.
  *
- * @remarks Each hop level finishes before the next starts, so a declaration is walked at its shortest distance
- * and `bounded` receives exactly the unwalked declarations one hop past the bound.
+ * @remarks Each hop level finishes before the next starts, so a declaration is walked at its shortest distance.
+ * `closureBound` receives exactly the unwalked declarations one hop past the bound, plus every body a
+ * handler-bodies-only question declined to walk that no other path walked; `closureWalked` every walked node.
  */
 export function walkBoundedClosure(
-  roots: readonly MorphNode[],
-  hops: number,
+  question: Pick<TypeObservationQuestion, "nodes" | "closureHops" | "closureHandlerBodiesOnly">,
   observe: (node: MorphNode) => readonly MorphNode[],
-  bounded: (declaration: MorphNode) => void,
+  reach: Pick<TypeObservationCaptureOwner, "closureBound" | "closureWalked"> | undefined,
 ): void {
+  const hops = question.closureHops;
+  if (hops === undefined) {
+    throw new Error("native symbol closure is unbounded");
+  }
   const seen = new Set<MorphNode>();
   const sources = new Set<SourceFile>();
-  let level: MorphNode[] = [...roots];
-  for (let depth = 0; level.length > 0; depth += 1) {
+  const declined = new Set<MorphNode>();
+  const decline = (declaration: MorphNode): void => {
+    declined.add(declaration);
+  };
+  const hop = (node: MorphNode): readonly MorphNode[] =>
+    question.closureHandlerBodiesOnly === true ? handlerBodyHops(node, observe(node), decline) : observe(node);
+  let level: MorphNode[] = [...question.nodes];
+  for (let depth = 0; level.length > 0 && depth <= hops; depth += 1) {
     const next: MorphNode[] = [];
     // A source's write targets join the level that first reaches the source, so write guards read them.
     for (const root of level) {
@@ -84,14 +171,19 @@ export function walkBoundedClosure(
         sources.add(source);
         level.push(...sourceWriteIdentifiers(source));
       }
-      next.push(...walkSubtree(root, seen, observe));
-    }
-    if (depth === hops) {
-      for (const declaration of next.filter((value) => !seen.has(value))) {
-        bounded(declaration);
-      }
-      return;
+      next.push(...walkSubtree(root, seen, hop));
     }
     level = next;
+    if (depth === hops) {
+      for (const declaration of next) {
+        declined.add(declaration);
+      }
+    }
+  }
+  for (const declaration of [...declined].filter((value) => !seen.has(value))) {
+    reach?.closureBound?.(declaration);
+  }
+  for (const node of seen) {
+    reach?.closureWalked?.(node);
   }
 }
