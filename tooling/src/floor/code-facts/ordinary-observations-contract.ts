@@ -9,6 +9,8 @@ import type { NativeTypeProjection, NativeTypeSelections } from "./type-projecti
 
 /** Array members whose call result a JSON column field may flow through unchanged; the planner asks column-field questions only at these calls. */
 export const ORDINARY_ARRAY_REMAPS: ReadonlySet<string> = new Set(["filter", "map"]);
+/** The parser member a JSON column normalizer proof reads; the planner asks `_output` questions only at these calls. */
+export const ORDINARY_NORMALIZER_MEMBER = "parse";
 
 export interface OrdinaryObservationDemand<Anchor = Node> {
   readonly roots: readonly Anchor[];

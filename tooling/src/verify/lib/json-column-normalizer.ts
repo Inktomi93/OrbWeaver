@@ -4,6 +4,7 @@
 import type { Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readFunctionBodyNodes } from "../../floor/code-facts/function-context.ts";
+import { ORDINARY_NORMALIZER_MEMBER } from "../../floor/code-facts/ordinary-observations-contract.ts";
 import type { ReferenceFact, UnresolvedReferenceFact } from "../../floor/code-facts/reference-fact-contract.ts";
 import { resolved, unresolved } from "../../floor/code-facts/type-member-origin-core.ts";
 import { propertyValue } from "../../floor/code-facts/value-carrier.ts";
@@ -324,7 +325,7 @@ export function readJsonColumnNormalizer(
   readers: JsonColumnSchemaReaders = nativeJsonColumnSchemaReaders,
 ): ReferenceFact<JsonNormalizerProof | undefined> {
   const member = readers.member(call.getExpression());
-  if (member?.name !== "parse" || !zodMethod(call.getExpression(), member.name, readers)) {
+  if (member?.name !== ORDINARY_NORMALIZER_MEMBER || !zodMethod(call.getExpression(), member.name, readers)) {
     return resolved(undefined, call, []);
   }
   const proof = schemaProof(member.receiver, new Set(), readers);
