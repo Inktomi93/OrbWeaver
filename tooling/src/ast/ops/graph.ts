@@ -2,6 +2,7 @@
 import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { staticModuleEdges } from "../../floor/code-facts/module-target.ts";
 import type { RenameBindingKind } from "../../floor/code-facts/rename-bindings.ts";
 import { renameBindingOf } from "../../floor/code-facts/rename-bindings.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
@@ -11,7 +12,7 @@ import { scanCorpus } from "../lib/ledger.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 
-/** RESOLVED intra-package file graph: edges via getModuleSpecifierSourceFile (relative, #alias,
+/** RESOLVED intra-package file graph: edges are the floor's native static targets (relative, #alias,
  *  `@orb` subpath all resolve) — needs the types:true arm. */
 function resolvedGraph(project: SourceCorpus, prefix: string): Map<string, string[]> {
   const graph = new Map<string, string[]>();
@@ -21,10 +22,10 @@ function resolvedGraph(project: SourceCorpus, prefix: string): Map<string, strin
       continue;
     }
     const edges: string[] = [];
-    for (const d of [...sf.getImportDeclarations(), ...sf.getExportDeclarations()]) {
-      const target = d.getModuleSpecifierSourceFile()?.getFilePath();
-      if (target?.includes(prefix) === true) {
-        edges.push(target);
+    for (const { target } of staticModuleEdges(sf)) {
+      const path = target?.getFilePath();
+      if (path?.includes(prefix) === true) {
+        edges.push(path);
       }
     }
     graph.set(from, edges);

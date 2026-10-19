@@ -1,4 +1,4 @@
-import type { Node as MorphNode } from "ts-morph";
+import type { ExportDeclaration, ImportDeclaration, Node as MorphNode, SourceFile } from "ts-morph";
 import type { TestFamily } from "../testing/test-kinds.ts";
 
 /** One `@subject` declaration, kept whether or not its path names a real module so a stale header can red. */
@@ -38,6 +38,12 @@ export interface PackageFileReach {
 /** Where a relative specifier climbs to when it leaves its legal tree. */
 export type RelativeClimb = ({ readonly kind: "package" } & PackageFileReach) | { readonly kind: "testkit"; readonly door: string };
 
+/** One static import or re-export declaration and the native module it resolves to, if any. */
+export interface StaticModuleEdge {
+  readonly declaration: ImportDeclaration | ExportDeclaration;
+  readonly target: SourceFile | undefined;
+}
+
 export const MODULE_IMPORT_KINDS = ["import", "dynamic-import"] as const;
 
 export interface ModuleImportHit {
@@ -53,6 +59,10 @@ export interface ModuleImporters {
 
 export const MODULE_IMPORTER_QUERIES = ["native-target-or-substring", "exact-import-spelling"] as const;
 export type ModuleImporterQuery = (typeof MODULE_IMPORTER_QUERIES)[number];
+
+/** Which omitted suffixes a relative specifier probe admits: the source-only policy, or the importer lookup's wider set. */
+export const RELATIVE_MODULE_ADMISSIONS = ["relative-source", "native-importer"] as const;
+export type RelativeModuleAdmission = (typeof RELATIVE_MODULE_ADMISSIONS)[number];
 
 /** Additional authored syntax a caller admits beyond static/type/dynamic imports and direct mock/require calls. */
 export interface ModulePositionAdmission {
