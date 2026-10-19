@@ -93,18 +93,17 @@ test("canonical type origins survive type aliases, re-exports, namespace qualifi
 });
 
 test("imported object provenance resolves, while writes and builders refuse AS DATA the consumer judges", () => {
-  const { facts, result } = runRegistry("modal", {
-    "packages/client/src/types.ts": "export interface ModalDefinition { readonly id: string }",
+  const { facts, result } = runRegistry("section", {
+    "packages/client/src/types.ts": "export interface SectionDefinition { readonly id: string }",
     "packages/client/src/value.ts": 'export const value = { id: "imported" };',
-    "packages/client/src/value-barrel.ts": 'export { value as modalValue } from "./value";',
+    "packages/client/src/value-barrel.ts": 'export { value as sectionValue } from "./value";',
     "packages/client/src/defs.ts": `
-      import type { ModalDefinition } from "./types";
-      import { modalValue } from "./value-barrel";
-      export const imported: ModalDefinition = modalValue;
+      import type { SectionDefinition } from "./types";
+      import { sectionValue } from "./value-barrel";
+      export const imported: SectionDefinition = sectionValue;
       const changed = { id: "before" }; changed.id = "after";
-      export const written: ModalDefinition = changed;
-      export const dynamic: ModalDefinition = buildModal();
-      export function notAModalDefinitionFactory(): ModalDefinition { return { id: "not-sanctioned" }; }
+      export const written: SectionDefinition = changed;
+      export const dynamic: SectionDefinition = buildSection();
     `,
   });
 
@@ -122,14 +121,14 @@ test("imported object provenance resolves, while writes and builders refuse AS D
 });
 
 test("a field the value reader cannot read never revokes the definition's own provenance", () => {
-  const { facts, result } = runRegistry("modal", {
-    "packages/client/src/types.ts": "export interface ModalDefinition { readonly id: string }",
+  const { facts, result } = runRegistry("section", {
+    "packages/client/src/types.ts": "export interface SectionDefinition { readonly id: string }",
     "packages/client/src/icons.ts": "export declare const Icon: unique symbol;",
     "packages/client/src/defs.ts": `
-      import type { ModalDefinition } from "./types";
+      import type { SectionDefinition } from "./types";
       import { Icon } from "./icons";
-      export const iconed: ModalDefinition = { id: "iconed", icon: Icon };
-      export const hooked: ModalDefinition = { id: "hooked", body: () => null };
+      export const iconed: SectionDefinition = { id: "iconed", icon: Icon };
+      export const hooked: SectionDefinition = { id: "hooked", body: () => null };
     `,
   });
 
@@ -142,7 +141,7 @@ test("a field the value reader cannot read never revokes the definition's own pr
   ]);
 });
 
-test("only section definitions admit factories, and multiple returns refuse as ambiguous", () => {
+test("section factories with multiple returns refuse as ambiguous", () => {
   const { facts, result } = runRegistry("section", {
     "packages/client/src/types.ts": "export type SectionDefinition = { readonly id: string };",
     "packages/client/src/defs.ts": `
@@ -172,65 +171,64 @@ test("missing and empty definition populations stay distinct, are DELIVERED, and
   // `members: <view>.definitions.length` receipt — the sanctioned blindness door every production registry
   // consumer already files. Still nothing reported, still only
   // THIS kind's consumers withheld.
-  const missing = runRegistry("chrome", { "packages/client/src/other.ts": "export const other = 1;" });
+  const missing = runRegistry("section", { "packages/client/src/other.ts": "export const other = 1;" });
   expect(missing.result.facts).toMatchObject([
-    { id: "registry-definitions-chrome", status: "success", receipts: [{ kind: "population", source: "ChromeEntry-sources", members: 1 }] },
+    { id: "registry-definitions-section", status: "success", receipts: [{ kind: "population", source: "SectionDefinition-sources", members: 1 }] },
   ]);
   expect(missing.facts.target).toMatchObject({ kind: "unresolved", reason: "missing" });
   expect(missing.facts).toMatchObject({ members: 0, unresolved: 1 });
   expect(missing.result.toolErrors).toMatchObject([
-    { policyId: "registry-chrome", phase: "receipt", message: expect.stringContaining('population "ChromeEntry" left 1 unresolved') },
+    { policyId: "registry-section", phase: "receipt", message: expect.stringContaining('population "SectionDefinition" left 1 unresolved') },
   ]);
   expect(missing.result.policies[0]?.owner.status).toBe("incomplete");
-  expect(missing.result.authority.withheldPolicyIds).toEqual(["registry-chrome"]);
+  expect(missing.result.authority.withheldPolicyIds).toEqual(["registry-section"]);
   expect(missing.result.authority.effectiveFindings).toEqual([]);
 
-  const empty = runRegistry("chrome", {
-    "packages/client/src/types.ts": "export interface ChromeEntry { readonly id: string }",
+  const empty = runRegistry("section", {
+    "packages/client/src/types.ts": "export interface SectionDefinition { readonly id: string }",
   });
-  expect(empty.result.facts).toMatchObject([{ id: "registry-definitions-chrome", status: "success" }]);
+  expect(empty.result.facts).toMatchObject([{ id: "registry-definitions-section", status: "success" }]);
   expect(empty.facts.target.kind).toBe("resolved");
   expect(empty.facts).toMatchObject({ members: 0, unresolved: 0 });
   expect(empty.result.toolErrors).toMatchObject([
-    { policyId: "registry-chrome", phase: "receipt", message: expect.stringContaining('population "ChromeEntry" resolved zero members') },
+    { policyId: "registry-section", phase: "receipt", message: expect.stringContaining('population "SectionDefinition" resolved zero members') },
   ]);
   expect(empty.result.toolErrors[0]?.message).not.toContain("left 1 unresolved");
-  expect(empty.result.authority.withheldPolicyIds).toEqual(["registry-chrome"]);
+  expect(empty.result.authority.withheldPolicyIds).toEqual(["registry-section"]);
 });
 
 test("a provider that could not LOOK still refuses at its own POPULATION phase, and withholds only its kind", () => {
   // THE PLANTED CONTROL for the row above: moving the census out of the receipt must not disarm blindness.
   // It does not — it moves the refusal one phase EARLIER for the one case that is genuinely unmeasurable.
-  // A corpus admitting zero `@client` paths gives the modal provider nothing to walk, so it refuses at
-  // POPULATION while the section provider — fed the same empty population — refuses identically and
-  // independently; per-provider failure, never a family-wide blackout (#1953 preserved).
+  // A corpus admitting zero `@client` paths gives the section provider nothing to walk, so it refuses at
+  // POPULATION rather than reporting an empty census.
   let captured: RegistryDefinitionKindFacts | undefined;
   // The POLICY's population is wider than the FACT's on purpose: a corpus holding only a server file gives
   // the policy something to run over and the `@client` provider nothing to walk, which is the one shape that
   // isolates a provider-population refusal from a policy-population refusal.
-  const modal: GatePolicy = defineGate({
-    id: "registry-modal-wide-probe",
+  const wide: GatePolicy = defineGate({
+    id: "registry-section-wide-probe",
     family: "registry-definition",
     authority: "hard",
     severity: "error",
     population: { in: ["@client", "@server"], ext: ["ts", "tsx"] },
     analysis: "types",
     execution: "entire-population",
-    facts: [registryDefinitionFacts.modal],
+    facts: [registryDefinitionFacts.section],
     resources: [],
     message: "registry definition population control",
     create: (ctx) => ({
       evaluate: () => {
-        captured = ctx.fact(registryDefinitionFacts.modal);
-        ctx.receipt({ kind: "population", source: "registry-modal-wide-probe", members: 1 });
+        captured = ctx.fact(registryDefinitionFacts.section);
+        ctx.receipt({ kind: "population", source: "registry-section-wide-probe", members: 1 });
       },
     }),
     mustFlag: [{ mode: "types", files: { "packages/client/src/flag.ts": "export const flag = 1;" }, why: "descriptor proof control" }],
     mustPass: [{ mode: "types", files: { "packages/client/src/pass.ts": "export const pass = 1;" }, why: "descriptor proof control" }],
   });
   const result = runPolicyPass({
-    knownPolicies: [modal],
-    policies: [modal],
+    knownPolicies: [wide],
+    policies: [wide],
     root: ROOT,
     project: projectOf({ "packages/server/src/x.ts": "export const outsideTheClientPopulation = 1;" }),
     reviewedGrants: [],
@@ -238,10 +236,10 @@ test("a provider that could not LOOK still refuses at its own POPULATION phase, 
   });
 
   expect(captured).toBeUndefined();
-  expect(result.factErrors.map(({ factId, phase }) => `${factId}/${phase}`)).toEqual(["registry-definitions-modal/population"]);
-  expect(result.facts.map(({ id, status }) => `${id}/${status}`)).toEqual(["registry-definitions-modal/incomplete"]);
-  expect(result.toolErrors[0]?.message).toContain("declared fact failed: registry-definitions-modal");
-  expect(result.authority.withheldPolicyIds).toEqual(["registry-modal-wide-probe"]);
+  expect(result.factErrors.map(({ factId, phase }) => `${factId}/${phase}`)).toEqual(["registry-definitions-section/population"]);
+  expect(result.facts.map(({ id, status }) => `${id}/${status}`)).toEqual(["registry-definitions-section/incomplete"]);
+  expect(result.toolErrors[0]?.message).toContain("declared fact failed: registry-definitions-section");
+  expect(result.authority.withheldPolicyIds).toEqual(["registry-section-wide-probe"]);
 });
 
 test("JSX tags normalize opening/self-closing forms through canonical module origin", () => {

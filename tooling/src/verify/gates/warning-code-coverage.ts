@@ -18,10 +18,9 @@
 // The legacy per-channel DEFERRED tables are DELETED. Both were empty, and their stale/orphan arms were
 // unprovable while they stayed empty; a real deferral is a warning work item or an exact reviewed grant.
 //
-// FAMILY: SINGLETON under its own id. `tupleVocabularyFact` is a shared PRIMITIVE, not a family key — three
-// unrelated families read it (`registry-definitions` via chrome, `role-vocabulary` via the two role
-// policies, and this one) — and no sibling policy judges whether a warning code is EMITTED, which is this
-// policy's subject.
+// FAMILY: SINGLETON under its own id. `tupleVocabularyFact` is a shared PRIMITIVE, not a family key — two
+// unrelated families read it (`role-vocabulary` via the two role policies, and this one) — and no sibling
+// policy judges whether a warning code is EMITTED, which is this policy's subject.
 // POPULATION PORT: the legacy descriptor was `scopeSafety: "whole-project"` and walked `ctx.project`
 // entirely (6a8996e48f), narrowing to the channels inside its own reader. The final population is
 // `in: ["@server", "@contracts"]` — an INTENTIONAL narrowing, and lossless: both tuple homes live there
