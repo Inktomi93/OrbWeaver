@@ -98,7 +98,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
       return cached;
     }
     let load: ResourceLoad<readonly Dirent[]>;
-    // @orb-waive caught-failure-ownership(error): resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set
+    // @orb-waive caught-failure-ownership(error): a failed directory listing is stored as a non-ready ResourceLoad; walk rethrows its reason (throw new Error(listing.reason)) and directoryMember returns it to the loaders. Ends if walk stops propagating listing.reason.
     try {
       if (path !== "") {
         assertDiskPath(path);
@@ -156,7 +156,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
       return cached;
     }
     let load: ResourceLoad<Buffer>;
-    // @orb-waive caught-failure-ownership(error): resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set
+    // @orb-waive caught-failure-ownership(error): a failed byte read is stored as a non-ready ResourceLoad; fileEntry and snapshotFile rethrow its reason and read() returns it to the loaders. Ends if those stop propagating a non-ready load.
     try {
       if (hidden(path)) {
         load = unavailable("missing", path, `resource deleted by overlay: ${path}`);
@@ -180,7 +180,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
     if (content.status !== "ready") {
       load = content;
     } else {
-      // @orb-waive caught-failure-ownership(error): resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set
+      // @orb-waive caught-failure-ownership(error): a failed UTF-8 decode is stored as a non-ready ResourceLoad that read() returns; loadCssFiles passes its status and reason on and bindPolicyResources receipts it as unresolved. Ends if the loaders stop passing a non-ready read on.
       try {
         const value = new TextDecoder("utf-8", { fatal: true, ignoreBOM: true }).decode(content.value);
         load = value.length === 0 ? unavailable("empty", path, `resource file is empty: ${path}`) : { ...content, value };
@@ -285,7 +285,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
       return cached;
     }
     let load: ResourceLoad<readonly ResourceTreeEntry[]>;
-    // @orb-waive caught-failure-ownership(error): resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set
+    // @orb-waive caught-failure-ownership(error): a failed tree load is stored as an unresolved ResourceLoad; host.authoredTree is bound through accept in resource-policy.ts, which receipts a non-ready fact as unresolved. Ends if accept stops receipting non-ready facts.
     try {
       load = loadTree(path);
     } catch (error) {
@@ -320,7 +320,7 @@ export function createResourceReader(options: ResourceReaderOptions): ResourceRe
     });
   };
   const snapshot = (paths: readonly string[]): ResourceLoad<readonly ResourceFileSnapshot[]> => {
-    // @orb-waive caught-failure-ownership(error): resource file read: error surfaces as a structured tool-error in the reader report; the unreadable file is excluded from the authored set
+    // @orb-waive caught-failure-ownership(error): a failed snapshot returns an unresolved ResourceLoad; materializeConfigSnapshotTransaction throws it with its reason. Ends if that throw is removed.
     try {
       const files = [...new Set(paths)].toSorted(comparePath).map(snapshotFile);
       return freezeLoad({ status: "ready", value: Object.freeze(files), paths: files.map((entry) => entry.path), members: files.length });

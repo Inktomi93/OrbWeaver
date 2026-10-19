@@ -98,7 +98,7 @@ export function createResourceHost(options: ResourceHostOptions): ResourceInvoca
       }
       const started = performance.now();
       let loaded: ResourceLoad<T>;
-      // @orb-waive caught-failure-ownership(error): resource-host resolution: error surfaces as a structured tool-error in the resource-host report; the broken host is excluded from the resource set
+      // @orb-waive caught-failure-ownership(error): a throwing loader becomes an unresolved fact carrying its message; bindPolicyResources receipts a non-ready fact as unresolved and receiptFailures refuses the policy run. Ends if either stops counting a non-ready fact.
       try {
         loaded = load();
       } catch (error) {

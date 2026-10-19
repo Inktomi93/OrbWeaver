@@ -156,7 +156,7 @@ function runPass({ policy, root, project, resourceOptions, nativeTypeFacts }: Pa
 
 function* runPasses(target: PassTarget, grantSets: GrantSets): Generator<ExampleRun, void> {
   for (const reviewedGrants of grantSets) {
-    // @orb-waive caught-failure-ownership(error): proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status
+    // @orb-waive caught-failure-ownership(error): the catch yields { thrown }; proofFailure reports a thrown first pass as a passThrew failure and grantIdentityFailure reports a thrown grant pass, both returned by verifyPolicyProofs. Ends if either stops reading run.thrown.
     try {
       yield { result: runPass(target, reviewedGrants), root: target.root };
     } catch (error) {
@@ -179,7 +179,7 @@ interface ExampleInput {
 function* runVirtualExample({ policy, proof, shared, sequence, grantSets = NO_GRANTS }: ExampleInput): Generator<ExampleRun, void> {
   removeSources(shared);
   const root = `${VIRTUAL_ROOT}-${sequence}`;
-  // @orb-waive caught-failure-ownership(error): proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status
+  // @orb-waive caught-failure-ownership(error): the catch yields { thrown }; proofFailure turns it into a passThrew failure that verifyPolicyProofs returns. Ends if proofFailure stops reading run.thrown.
   try {
     for (const [path, content] of Object.entries(proof.files).toSorted(([left], [right]) => left.localeCompare(right))) {
       shared.createSourceFile(`${root}/${path}`, content);
@@ -246,7 +246,7 @@ function* runTypeExample({ policy, proof, sequence, grantSets = NO_GRANTS }: Exa
 
 function* runResourceExample({ policy, proof, grantSets = NO_GRANTS }: Omit<ExampleInput, "shared" | "sequence">): Generator<ExampleRun, void> {
   const root = mkdtempSync(join(tmpdir(), POLICY_CONFORMANCE_TEMP_PREFIX));
-  // @orb-waive caught-failure-ownership(error): proof-row evaluation: error surfaces as a structured PolicyToolError in the conformance report; the run exits with tool-error status
+  // @orb-waive caught-failure-ownership(error): the catch yields { thrown } for a failed fixture setup; proofFailure turns it into a passThrew failure that verifyPolicyProofs returns. Ends if proofFailure stops reading run.thrown.
   try {
     const project = new Project({ skipAddingFilesFromTsConfig: true });
     for (const [path, content] of Object.entries(proof.files).toSorted(([left], [right]) => left.localeCompare(right))) {

@@ -57,7 +57,7 @@ export function loadCandidateIndexDelta(root: string, demandedPaths: readonly st
   }
 
   let changed: readonly string[];
-  // @orb-waive caught-failure-ownership(error): resource-index resolution: error surfaces as a structured tool-error in the resource-index report; the broken index is excluded
+  // @orb-waive caught-failure-ownership(error): a path-normalization throw returns an unresolved ResourceLoad via failure(); bindPolicyResources receipts a non-ready fact as unresolved and receiptFailures refuses the policy run. Ends if either stops counting a non-ready fact.
   try {
     changed = normalizePathSet(diff.stdout === "" ? [] : diff.stdout.slice(0, -1).split("\0"), "candidate index changed path").filter((path) =>
       demanded.has(path),

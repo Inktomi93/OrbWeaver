@@ -150,7 +150,7 @@ async function reportDevDbForecast(root: string): Promise<void> {
   const { databaseUrl: url } = resolveDataLayout({ ["DATA_DIR"]: process.env["DATA_DIR"], ["DATABASE_URL"]: process.env["DATABASE_URL"] });
   const { forecastDevDbReset } = await import("@orb/db");
   let forecast: Awaited<ReturnType<typeof forecastDevDbReset>>;
-  // @orb-waive caught-failure-ownership(err): printed via noticeLine — this is a Never-throws/never-gates forecast function per the doc comment above, and the notice itself says "could not read", never claiming safety. Ends if this forecast starts gating the run's exit code.
+  // @orb-waive caught-failure-ownership(err): the catch prints the error message through noticeLine; the forecast is advisory by design and never gates the exit code. Ends if the forecast starts gating the run or the noticeLine call is removed.
   try {
     forecast = await forecastDevDbReset(url, join(root, DEV_DB_MIGRATIONS));
   } catch (err) {
@@ -180,7 +180,7 @@ async function reportDevDbForecast(root: string): Promise<void> {
 export async function runDbBaselineParity(root: string): Promise<number> {
   await reportDevDbForecast(root);
   let result: SchemaBaselineComparison;
-  // @orb-waive caught-failure-ownership(err): printed as TOOL ERROR and routed through EXIT.toolError, per the exit-contract §3.3 comment below. Ends if that exit code stops being surfaced.
+  // @orb-waive caught-failure-ownership(err): the catch prints db-baseline-parity TOOL ERROR and returns EXIT.toolError, and tooling/src/verify/cli.ts returns runDbBaselineParity's value as the process exit. Ends if the return stops being EXIT.toolError or cli.ts stops returning it.
   try {
     result = await compareSchemaBaseline(root);
   } catch (err) {

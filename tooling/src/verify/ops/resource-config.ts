@@ -85,7 +85,7 @@ export function loadPackageMetadata(reader: ResourceReader, id: PackageResourceI
     return loaded;
   }
   let parsed: unknown;
-  // @orb-waive caught-failure-ownership(error): native config resolution: error surfaces as a structured tool-error diagnostic; the broken config is excluded from the resource set
+  // @orb-waive caught-failure-ownership(error): malformed package JSON returns an unresolved ResourceLoad; bindPolicyResources receipts a non-ready fact as unresolved and receiptFailures refuses the policy run. Ends if either stops counting a non-ready fact.
   try {
     parsed = JSON.parse(loaded.value);
   } catch (error) {
@@ -116,7 +116,7 @@ export function loadStaticConfig(reader: ResourceReader, id: StaticConfigResourc
     return loaded;
   }
   let source: SourceFile;
-  // @orb-waive caught-failure-ownership(error): native config resolution: error surfaces as a structured tool-error diagnostic; the broken config is excluded from the resource set
+  // @orb-waive caught-failure-ownership(error): a throwing static config parser returns an unresolved ResourceLoad; bindPolicyResources receipts a non-ready fact as unresolved and receiptFailures refuses the policy run. Ends if either stops counting a non-ready fact.
   try {
     source = parseSource(path, loaded.value);
   } catch (error) {

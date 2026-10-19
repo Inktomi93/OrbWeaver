@@ -207,7 +207,7 @@ function readBootRefs(html: string): {
 export function measureBootChunk(root: string, ceilingBytes: number = BOOT_CHUNK_CEILING_BYTES): BootChunkVerdict {
   const assetsDir = join(root, ASSETS_REL);
   let candidates: string[];
-  // @orb-waive caught-failure-ownership(catch): documented on the next line — an unreadable/absent dir is the same UNMEASURABLE class as zero matches, and `entry === undefined` below routes it to the `unmeasurable()` verdict, never a pass. Ends if that unmeasurable() routing is removed.
+  // @orb-waive caught-failure-ownership(catch): an unreadable dist leaves candidates empty, so the entry === undefined check returns unmeasurable(...), which judgeBootChunk sends to reportUnmeasurable (EXIT.toolError). Ends if that unmeasurable routing is removed.
   try {
     candidates = readdirSync(assetsDir)
       .filter((name) => ENTRY_CHUNK_RE.test(name))
@@ -224,7 +224,7 @@ export function measureBootChunk(root: string, ceilingBytes: number = BOOT_CHUNK
   }
 
   let html: string;
-  // @orb-waive caught-failure-ownership(catch): captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.
+  // @orb-waive caught-failure-ownership(catch): an unreadable index.html returns unmeasurable(...) from this catch; judgeBootChunk sends a null-bytes verdict to reportUnmeasurable (EXIT.toolError). Ends if that routing is removed.
   try {
     html = readFileSync(join(root, INDEX_HTML_REL), "utf8");
   } catch {
@@ -252,7 +252,7 @@ export function measureBootChunk(root: string, ceilingBytes: number = BOOT_CHUNK
   const bootFiles: BootChunkFile[] = [];
   for (const name of names) {
     let bytes: number;
-    // @orb-waive caught-failure-ownership(catch): captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.
+    // @orb-waive caught-failure-ownership(catch): a boot chunk missing from dist returns unmeasurable(...) from this catch; judgeBootChunk sends it to reportUnmeasurable (EXIT.toolError). Ends if that routing is removed.
     try {
       bytes = statSync(join(assetsDir, name)).size;
     } catch {
@@ -276,7 +276,7 @@ export function measureBootChunk(root: string, ceilingBytes: number = BOOT_CHUNK
 export function measureAppStylesheet(root: string): AppStylesheetVerdict {
   const unmeasurable = (why: string): AppStylesheetVerdict => ({ stylesheets: [], missing: [], unmeasurable: why });
   let html: string;
-  // @orb-waive caught-failure-ownership(catch): captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.
+  // @orb-waive caught-failure-ownership(catch): an unreadable index.html returns unmeasurable(...) from this catch; reportAppStylesheet prints app-stylesheet TOOL ERROR and returns EXIT.toolError. Ends if that routing is removed.
   try {
     html = readFileSync(join(root, INDEX_HTML_REL), "utf8");
   } catch {
@@ -300,7 +300,7 @@ export function measureAppStylesheet(root: string): AppStylesheetVerdict {
 
   let text = "";
   for (const name of stylesheets) {
-    // @orb-waive caught-failure-ownership(catch): captured and routed to the `unmeasurable()` verdict on the next line, never a pass. Ends if that unmeasurable() routing is removed.
+    // @orb-waive caught-failure-ownership(catch): a linked stylesheet missing from dist returns unmeasurable(...) from this catch; reportAppStylesheet prints app-stylesheet TOOL ERROR and returns EXIT.toolError. Ends if that routing is removed.
     try {
       text += readFileSync(join(root, ASSETS_REL, name), "utf8");
     } catch {
