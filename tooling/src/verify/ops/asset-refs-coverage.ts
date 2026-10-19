@@ -190,7 +190,7 @@ async function loadCoverage(): Promise<AssetRefsCoverage> {
  *  RESOLVED modules, which node loads through the workspace exports maps rather than a path walk. */
 export async function runAssetRefsCoverage(_root: string): Promise<number> {
   let coverage: AssetRefsCoverage;
-  // @orb-waive caught-failure-ownership(err): printed as TOOL ERROR and routed through EXIT.toolError per the exit-contract — a schema/registry import or reader failure is a BROKEN CHECKER, never a verdict. Ends if that exit code stops being surfaced.
+  // @orb-waive caught-failure-ownership(err): the catch prints TOOL ERROR and returns EXIT.toolError, and tooling/src/verify/cli.ts returns runAssetRefsCoverage's value as the process exit. Ends if the return stops being EXIT.toolError or cli.ts stops returning it.
   try {
     coverage = await loadCoverage();
   } catch (err) {

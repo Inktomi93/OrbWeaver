@@ -206,7 +206,7 @@ async function runProgram(
 ): Promise<TypecheckProgramResult> {
   const projected = projection?.owner.id === program.id ? projection : undefined;
   let child: SpawnNicedResult | undefined;
-  // @orb-waive caught-failure-ownership(error): failedProgram retains native output and marks this canonical owner tool-error; runTypecheck prints it and returns exit 2. Ends if a freshness failure can produce a current verdict.
+  // @orb-waive caught-failure-ownership(error): failedProgram keeps the native output and marks this program tool-error; runTypecheck prints it and returns EXIT.toolError. Ends if a freshness failure can produce a current verdict.
   try {
     if (projected !== undefined) {
       assertClientProjectionCurrent(projected);
@@ -250,7 +250,7 @@ async function runPrograms({
   const results: TypecheckProgramResult[] = [];
   let projection: ClientRouterProjection | undefined;
   let runnable = programs;
-  // @orb-waive caught-failure-ownership(error): the failed client preparation is a tool-error row, while every other selected native owner still runs. Ends if preparation errors are discarded or relabeled clean.
+  // @orb-waive caught-failure-ownership(error): a failed client preparation becomes a tool-error row through failedProgram while the other programs still run; runTypecheck returns EXIT.toolError for any tool-error row. Ends if preparation errors are discarded or relabeled clean.
   try {
     projection = await prepareClientProjection(root, canonical, programs, views);
   } catch (error) {
@@ -272,7 +272,7 @@ async function runPrograms({
     };
     await Promise.all(Array.from({ length: Math.min(concurrency, runnable.length) }, worker));
     if (projection !== undefined) {
-      // @orb-waive caught-failure-ownership(error): preserve the child's complete result but mark its owner tool-error if the original context becomes stale before batch acceptance. Ends if the failure no longer affects runTypecheck's exit 2.
+      // @orb-waive caught-failure-ownership(error): a stale client context replaces the owner's result with a failedProgram tool-error row that keeps the child's output; runTypecheck prints it and returns EXIT.toolError. Ends if the row stops being a tool-error.
       try {
         assertClientProjectionCurrent(projection);
       } catch (error) {

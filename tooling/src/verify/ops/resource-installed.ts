@@ -157,7 +157,7 @@ export function loadInstalledPackage(
     // two different instructions, and a lane in a worktree that skipped bootstrap hits the first every time.
     return { status: "missing", paths: [], members: 0, reason: `installed package ${request.id} is not resolvable: ${message(error)}` };
   }
-  // @orb-waive caught-failure-ownership(error): installed-resource resolution: error surfaces as a structured tool-error; the broken resource is excluded from the installed set
+  // @orb-waive caught-failure-ownership(error): a failed installed-package read returns an unresolved ResourceLoad via refused(); bindPolicyResources receipts a non-ready fact as unresolved and receiptFailures refuses the policy run. Ends if either stops counting a non-ready fact.
   try {
     if (request.mode === "metadata") {
       return { status: "ready", value: metadataFacts(root, request.id, manifest), paths: [], members: 1 };
