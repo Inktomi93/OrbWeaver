@@ -28,7 +28,6 @@ export type {
   RpgGetMembership,
   RpgIdMints,
   RpgParticipantActor,
-  RpgPopulateDelta,
   RpgPostNarratorMessage,
   RpgPromoteToCharacter,
   RpgResolveParticipants,

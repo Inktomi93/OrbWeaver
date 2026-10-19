@@ -6,11 +6,7 @@
 export type { EmbeddingAccountingAssemblyContext as EmbeddingAccountingContext } from "./contract/accounting.ts";
 export { EmbedFailedError, SpaceMismatchError } from "./contract/errors.ts";
 export type { EmbedMoveRefusal, GenerationReceipt } from "./contract/generation.ts";
-export type {
-  EmbeddingsHandoffRestampAssemblyContext as EmbeddingsHandoffRestampContext,
-  HandoffRestampPair,
-  HandoffRestampStatements,
-} from "./contract/handoff-restamp.ts";
+export type { HandoffRestampPair, HandoffRestampStatements } from "./contract/handoff-restamp.ts";
 // Consumed by `discovery` + `search` + tests, not just this domain.
 export type { VectorTable } from "./contract/params.ts";
 export { VECTOR_TABLES } from "./contract/params.ts";

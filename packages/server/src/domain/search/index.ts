@@ -24,8 +24,6 @@ export type {
   CharacterCardHit,
   CorpusHit,
   DigestSearchHit,
-  DiscoverCharacter,
-  DiscoverSegment,
   DocumentChunkHit,
   FieldSearchHit,
   ImageSearchHit,
@@ -35,7 +33,7 @@ export type {
   SimilarArtHit,
   UnifiedSearchResult,
 } from "./contract/results.ts";
-export type { ResolveActiveDocumentIdsOp, SearchAssemblyContext as SearchContext, SearchService } from "./contract/service.ts";
+export type { ResolveActiveDocumentIdsOp, SearchService } from "./contract/service.ts";
 
 export { createSearchService } from "./service.ts";
 export {} from "./substrate/field-index.ts";

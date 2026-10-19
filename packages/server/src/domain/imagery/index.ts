@@ -4,7 +4,7 @@
 
 export { GenerationFailedError, ImageEditUnsupportedError, ImageryNotConfiguredError, PromptExtractionFailedError } from "./contract/errors.ts";
 export type { CaptionImageDeps, ImageProviderDeps, ImageProviderOps, ImageryInstructionDeps, ImageryInstructionOps } from "./contract/generation-ops.ts";
-export type { EditImageParams, EditImageSource, ExtractPromptParams, GeneratePictureParams, ReadProvenanceParams, ReusePolicy } from "./contract/params.ts";
+export type { EditImageParams, EditImageSource, ExtractPromptParams, GeneratePictureParams, ReadProvenanceParams } from "./contract/params.ts";
 export type { ImageryPortabilityAssemblyContext as ImageryPortabilityContext, ImageryPortabilityService } from "./contract/portability.ts";
 export type {
   ExtractedPrompt,

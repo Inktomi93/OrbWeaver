@@ -15,8 +15,9 @@ import type { Db } from "#db/client/index.ts";
 import { users } from "#db/schema/index.ts";
 import type { Handle, UserCredentialId, UserId } from "#kit/ids/index.ts";
 import { castId } from "#kit/ids/index.ts";
+import type { CredentialAssemblyContext as CredentialContext } from "#server/domain/credentials/contract/service.ts";
 import type { CredentialView } from "#server/domain/credentials/contract/views.ts";
-import type { CredentialContext, CredentialsService } from "#server/domain/credentials/index.ts";
+import type { CredentialsService } from "#server/domain/credentials/index.ts";
 import { createCredentialsService } from "#server/domain/credentials/index.ts";
 import { createSecretBox } from "#server/infra/crypto/secrets.ts";
 

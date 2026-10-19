@@ -43,8 +43,6 @@ import type { IanaTimeZone } from "@orb/kit/time";
 import type { AnalysisConfirmAct } from "./analysis.ts";
 import type { CreateRuleParams } from "./params.ts";
 
-export type { TurnOriginRead } from "@orb/contracts/automation";
-
 export type { ExecutePluginSuggestion } from "@orb/contracts/plugin";
 
 // domain/automation/contract/ops — the injected cross-feature op TYPES (domain-no-cross-feature; wired at

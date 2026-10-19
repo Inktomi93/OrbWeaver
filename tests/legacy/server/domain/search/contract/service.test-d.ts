@@ -6,7 +6,7 @@
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { expectTypeOf, test } from "vitest";
 import type { SearchContext } from "#server/domain/search/context.ts";
-import type { SearchContext as SearchAssemblyContext } from "#server/domain/search/index.ts";
+import type { SearchAssemblyContext } from "#server/domain/search/contract/service.ts";
 
 declare const ctx: SearchContext;
 

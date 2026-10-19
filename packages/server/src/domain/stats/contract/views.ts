@@ -4,7 +4,6 @@ export type {
   ExtraStats,
   LatencyStats,
   LeaderboardPage,
-  LeaderboardRow,
   ModelStatRow,
   MomentumBucket,
   OwnerStatsView,

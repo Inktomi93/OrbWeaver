@@ -424,11 +424,12 @@ function consumersOf(closure: readonly Node2[], rowFile: string): Record<Consume
   return out;
 }
 
-// ── 5. string readers: tooling, scripts, root configs and the barrel header ─────────────────────────────
+// ── 5. code readers: tooling, scripts, root configs and the barrel header ──────────────────────────────
+// Only code counts: a JSON data file (a gate population's reason prose) and comment text name a symbol without reading it.
 const readerFiles = tracked.filter(
   (f) =>
     (f.startsWith("tooling/") || f.startsWith("scripts/") || !f.includes("/")) &&
-    /\.(?:ts|tsx|js|mjs|cjs|mts|json)$/u.test(f) &&
+    /\.(?:ts|tsx|js|mjs|cjs|mts)$/u.test(f) &&
     !f.includes("devtools-frontend") &&
     f !== "knip-production.baseline.json" &&
     f !== relative(root, process.argv[1] ?? ""),
@@ -438,10 +439,11 @@ const lineAt = (text: string, offset: number): number => text.slice(0, offset).s
 function readersOf(wanted: ReadonlySet<string>): Map<string, Hit[]> {
   const found = new Map<string, Hit[]>();
   for (const file of readerFiles) {
-    const text = textOf(file);
-    if (text.length > TEXT_CAP_BYTES) {
+    const raw = textOf(file);
+    if (raw.length > TEXT_CAP_BYTES) {
       continue;
     }
+    const text = raw.replace(COMMENTS_RE, (c) => c.replaceAll(/[^\n]/gu, " "));
     for (const m of text.matchAll(TOKEN_RE)) {
       const list = found.get(m[0]) ?? [];
       if (wanted.has(m[0]) && !list.some((h) => h.file === file)) {

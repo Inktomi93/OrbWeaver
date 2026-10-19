@@ -48,7 +48,6 @@ export type {
   PreflightResult,
   RefinerySessionView,
   SchemaForgeResult,
-  StagePreflight,
 } from "./contract/results.ts";
 export { applyAsCopyResultSchema, applyFieldsResultSchema, refinerySessionViewSchema } from "./contract/results.ts";
 export type { RefineryAssemblyContext as RefineryContext, RefineryService, RefineryWorkloadDeps, ScoreSweep } from "./contract/service.ts";

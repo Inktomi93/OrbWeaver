@@ -4,7 +4,7 @@
 
 export type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "./contract/default-seed.ts";
 export { AssetNotFoundError, LastPersonaError, PersonaNotFoundError } from "./contract/errors.ts";
-export type { BulkImportPersonas, PersonaImportAssemblyContext as PersonaImportContext } from "./contract/import.ts";
+export type { BulkImportPersonas } from "./contract/import.ts";
 export type { JoinerPersonaStatementOp, ResolvePersonasForParticipants, UserPublicsDeps } from "./contract/ops.ts";
 export type { CreatePersonaInput, UpdatePersonaInput } from "./contract/params.ts";
 export type { PersonaAssemblyContext as PersonaContext, PersonaService } from "./contract/service.ts";

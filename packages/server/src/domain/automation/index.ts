@@ -41,7 +41,6 @@ export type {
   ResolveAuthorPrincipal,
   StashedArm,
   SuggestionStore,
-  TurnOriginRead,
 } from "./contract/ops.ts";
 export type {
   ConfirmSuggestionParams,
@@ -63,18 +62,12 @@ export type {
   TestRuleParams,
   UpdateRuleParams,
 } from "./contract/params.ts";
-export type { PluginSubscriberRegistry, PluginTriggerSubscriber } from "./contract/plugin-subscribers.ts";
+export type { PluginSubscriberRegistry } from "./contract/plugin-subscribers.ts";
 // S3 — the preset catalogue's domain half. Only the shapes are exported; the registry and the CEL sources it
 // builds stay behind the mint verb.
 export type { ErasedRulePresetDef, RulePresetDef, RulePresetKnobOverrides, RulePresetRuleDef } from "./contract/presets.ts";
 export type { StreamAuthority } from "./contract/results.ts";
-export type {
-  AutomationAssemblyContext as AutomationContext,
-  AutomationAssemblyDeps as AutomationServiceDeps,
-  AutomationService,
-  AutomationWatcherEnv,
-  AutomationWatcherHandle,
-} from "./contract/service.ts";
+export type { AutomationAssemblyDeps as AutomationServiceDeps, AutomationService, AutomationWatcherEnv, AutomationWatcherHandle } from "./contract/service.ts";
 export type { GlobalVariableView } from "./contract/views.ts";
 export { createArmExecutors } from "./engine/arm-executors.ts";
 export { createPromptTransformIndex } from "./engine/prompt-transforms.ts";
