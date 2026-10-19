@@ -9,7 +9,7 @@ priority: P3
 
 ## What
 
-max-lines still fires on tooling/src/floor/code-facts/\*, floor/compiler/{semantic-inventory-extract,invocation-evidence-extract,ts-workspace}, verify/lib/project-context.ts and verify/ops/policy-conformance.ts. These files change many times a week under the shared-reader lanes (953 to 957, 1098), so a split now collides with every sibling.
+max-lines still fires on tooling/src/floor/code-facts/\*, floor/compiler/{semantic-inventory-extract,invocation-evidence-extract,ts-workspace}, verify/lib/project-context.ts, floor/code-facts/drizzle-sql.ts (already over on main) and verify/ops/policy-conformance.ts. These files change many times a week under the shared-reader lanes (953 to 957, 1098), so a split now collides with every sibling.
 
 ## Why
 

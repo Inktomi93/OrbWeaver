@@ -9,7 +9,7 @@ priority: P2
 
 ## What
 
-tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts fails 'the family reads the REAL gate corpus' on main 27ec80e986: policy-fixture-substrate refuses at visit with 'native type fact context is unavailable'. Every other case in the suite passes. The same refusal fails tests/tooling/verify/gates/trpc-output-declarations.repo.int.test.ts (trpc-output-declarations) and tests/tooling/verify/gates/identity-enforcement.repo.int.test.ts (two-class-role-authority, whose tuple-vocabularies fact also reports that native inventory requires pre-import implementation observation).
+tests/tooling/verify/gates/policy-soundness-family.suite.repo.int.test.ts fails 'the family reads the REAL gate corpus' on main 27ec80e986: policy-fixture-substrate refuses at visit with 'native type fact context is unavailable'. Every other case in the suite passes. The 953 lane saw it also fail most of the drizzle-helper-origins, drizzle-settled-reads, drizzle-sql, drizzle-statement and drizzle-native-provenance suites on main. The same refusal fails tests/tooling/verify/gates/trpc-output-declarations.repo.int.test.ts (trpc-output-declarations) and tests/tooling/verify/gates/identity-enforcement.repo.int.test.ts (two-class-role-authority, whose tuple-vocabularies fact also reports that native inventory requires pre-import implementation observation).
 
 ## Why
 
