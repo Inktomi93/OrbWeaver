@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: blocked
+status: open
 updated: 2026-10-19
 priority: P3
 area: tooling
-blocked: on 1118
 plan: test-foundation
 ---
 
