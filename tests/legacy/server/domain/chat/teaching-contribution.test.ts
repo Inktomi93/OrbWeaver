@@ -8,6 +8,7 @@ import { CHAT_REACT_TOOL_NAME } from "@orb/contracts/chat";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId, mintTypeId } from "@orb/kit/ids";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
@@ -53,7 +54,7 @@ function tctxOf(rpgGather: ChatRpgGatherResult | null, over: Partial<TeachingCon
 
 /** One shipped contributor by id — resolved off the shipped registry, never re-declared here. */
 function contributor(id: string): TeachingContribution {
-  const found = createChatTeachingContributions({ db: UNIT_DB }).find((c) => c.id === id);
+  const found = createChatTeachingContributions({ db: databaseHandle(UNIT_DB) }).find((c) => c.id === id);
   if (found === undefined) {
     throw new Error(`${id} is not registered`);
   }
@@ -71,7 +72,7 @@ function gatherOf(over: Partial<ChatRpgGatherResult> = {}): ChatRpgGatherResult 
 
 describe("createChatTeachingContributions — chat's own contributions", () => {
   test("chat contributes the gather projection FIRST, then choices / attribution / react-attach in order", () => {
-    const contributions = createChatTeachingContributions({ db: UNIT_DB });
+    const contributions = createChatTeachingContributions({ db: databaseHandle(UNIT_DB) });
 
     expect(contributions.map((c) => [c.id, c.order])).toEqual([
       ["chat.rpg-gather", 0],
@@ -82,27 +83,27 @@ describe("createChatTeachingContributions — chat's own contributions", () => {
   });
 
   test("a NON-GAME chat contributes nothing — the byte-identical arm every plain chat takes", async () => {
-    const out = await createChatTeachingContributions({ db: UNIT_DB })[0]?.collect(tctxOf(null));
+    const out = await createChatTeachingContributions({ db: databaseHandle(UNIT_DB) })[0]?.collect(tctxOf(null));
 
     expect(out).toEqual({ injections: [], toolNames: [] });
   });
 
   test("a game turn's injections ride through VERBATIM, stamped `game-state` (the stamp's one home)", async () => {
-    const out = await createChatTeachingContributions({ db: UNIT_DB })[0]?.collect(tctxOf(gatherOf()));
+    const out = await createChatTeachingContributions({ db: databaseHandle(UNIT_DB) })[0]?.collect(tctxOf(gatherOf()));
 
     expect(out?.injections).toEqual([{ ...STATE_BLOCK, origin: "game-state" }]);
   });
 
   test("multiple gather injections keep their ORDER (the reminder + a reconcile note are one ordered pair)", async () => {
     const second: ChatInjection = { ...STATE_BLOCK, content: "[Reconcile] restate the panel" };
-    const out = await createChatTeachingContributions({ db: UNIT_DB })[0]?.collect(tctxOf(gatherOf({ injections: [STATE_BLOCK, second] })));
+    const out = await createChatTeachingContributions({ db: databaseHandle(UNIT_DB) })[0]?.collect(tctxOf(gatherOf({ injections: [STATE_BLOCK, second] })));
 
     expect(out?.injections.map((i) => i.content)).toEqual([STATE_BLOCK.content, second.content]);
   });
 
   test("the gather's own `tools` become the contribution's toolNames — not a hard-coded empty set", async () => {
-    const empty = await createChatTeachingContributions({ db: UNIT_DB })[0]?.collect(tctxOf(gatherOf()));
-    const withTools = await createChatTeachingContributions({ db: UNIT_DB })[0]?.collect(tctxOf(gatherOf({ tools: ["skill_check"] })));
+    const empty = await createChatTeachingContributions({ db: databaseHandle(UNIT_DB) })[0]?.collect(tctxOf(gatherOf()));
+    const withTools = await createChatTeachingContributions({ db: databaseHandle(UNIT_DB) })[0]?.collect(tctxOf(gatherOf({ tools: ["skill_check"] })));
 
     // As built, every rpg mode pins `tools: []` (the fold rides `terminalTools`, which is NOT a registry
     // attach) — so today's turn attaches nothing. The projection still carries what the gather declares, so a

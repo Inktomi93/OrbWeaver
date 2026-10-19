@@ -7,6 +7,7 @@
 // process-local user bus (`subscribeUserEvents`), so a leak would surface as a cross-channel yield.
 
 import type { UserBusEvent } from "@orb/contracts/user-bus";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEmitChatChanged } from "@orb/server/domain/chat";
@@ -35,7 +36,7 @@ describe("emit-chat-changed — member fan + non-member isolation", () => {
     await seedParticipant(db, { chatId, key: "b", userId: memberB, role: "member" });
     // nonMemberC is NOT seated in this chat.
 
-    const emit = createEmitChatChanged({ db }, publishChatChanged);
+    const emit = createEmitChatChanged({ db: databaseHandle(db) }, publishChatChanged);
     const abortA = new AbortController();
     const abortB = new AbortController();
     const abortC = new AbortController();
@@ -75,7 +76,7 @@ describe("emit-chat-changed — member fan + non-member isolation", () => {
       leftSeq: 5,
     });
 
-    const emit = createEmitChatChanged({ db }, publishChatChanged);
+    const emit = createEmitChatChanged({ db: databaseHandle(db) }, publishChatChanged);
     const abortA = new AbortController();
     const abortLeft = new AbortController();
     const streamA = subscribeUserEvents(memberA, abortA.signal);

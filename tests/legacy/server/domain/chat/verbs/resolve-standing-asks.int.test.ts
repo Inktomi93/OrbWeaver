@@ -13,6 +13,7 @@
 import type { InviteStatus } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chatInvites, chats } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatInviteId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createResolveStandingAsks } from "@orb/server/domain/chat";
@@ -43,7 +44,7 @@ async function seedInvite(invitedUserId: UserId | null, status: InviteStatus): P
 
 describe("invites — the ask is the STATUS, not the row's existence", () => {
   test("a pending invite addressed to the reader is standing; every settled status is not", async () => {
-    const resolve = createResolveStandingAsks(db);
+    const resolve = createResolveStandingAsks(databaseHandle(db));
     const pending = await seedInvite(reader, "pending");
     const accepted = await seedInvite(reader, "accepted");
     const declined = await seedInvite(reader, "declined");
@@ -58,7 +59,7 @@ describe("invites — the ask is the STATUS, not the row's existence", () => {
   test("another user's pending invite — and an untargeted share link — are NOT the reader's ask", async () => {
     // The scope half. A share-link invite (`invited_user_id IS NULL`) addresses nobody, so nobody's inbox
     // is waiting on it; a foreign-targeted one is somebody else's decision and must not be confirmable here.
-    const resolve = createResolveStandingAsks(db);
+    const resolve = createResolveStandingAsks(databaseHandle(db));
     const foreign = await seedInvite(other, "pending");
     const shareLink = await seedInvite(null, "pending");
 
@@ -71,7 +72,7 @@ describe("invites — the ask is the STATUS, not the row's existence", () => {
     // One indistinguishable answer for settled / gone / never-yours: what keeps the read from being an
     // existence oracle. (Also the live shape of a notification whose invite row was hard-deleted with its
     // chat — the inbox row survives the cascade, the ask does not.)
-    const resolve = createResolveStandingAsks(db);
+    const resolve = createResolveStandingAsks(databaseHandle(db));
     const standing = await resolve({ recipientUserId: reader, inviteIds: [mintTypeId(ID_PREFIX.chatInvite)], nominatedChatIds: [] });
     expect(standing.inviteIds).toEqual([]);
   });
@@ -79,7 +80,7 @@ describe("invites — the ask is the STATUS, not the row's existence", () => {
 
 describe("handoff nominations — the ask is the pointer, and it moves", () => {
   test("a chat nominating the reader is standing; one nominating somebody else is not", async () => {
-    const resolve = createResolveStandingAsks(db);
+    const resolve = createResolveStandingAsks(databaseHandle(db));
     const mine = await seedChat(db, { pendingHostUserId: reader });
     const theirs = await seedChat(db, { pendingHostUserId: other });
 
@@ -91,7 +92,7 @@ describe("handoff nominations — the ask is the pointer, and it moves", () => {
   test("accepting or withdrawing a nomination clears the column, and with it the ask", async () => {
     // `acceptHostHandoff` nulls `pending_host_user_id` in the same statement that swaps the role, and a
     // host cancelling nulls it too — so this is both settle paths at once, on a row that never moved.
-    const resolve = createResolveStandingAsks(db);
+    const resolve = createResolveStandingAsks(databaseHandle(db));
     const chat = await seedChat(db, { pendingHostUserId: reader });
     expect((await resolve({ recipientUserId: reader, inviteIds: [], nominatedChatIds: [chat.id] })).nominatedChatIds).toEqual([chat.id]);
 
@@ -101,7 +102,7 @@ describe("handoff nominations — the ask is the pointer, and it moves", () => {
   });
 
   test("a RE-NOMINATE at a third person takes the ask away from the first", async () => {
-    const resolve = createResolveStandingAsks(db);
+    const resolve = createResolveStandingAsks(databaseHandle(db));
     const chat = await seedChat(db, { pendingHostUserId: reader });
     await db.update(chats).set({ pendingHostUserId: other }).where(eq(chats.id, chat.id));
 
@@ -113,7 +114,7 @@ describe("handoff nominations — the ask is the pointer, and it moves", () => {
 test("an empty ask costs no query and answers empty", async () => {
   // The common inbox page names nothing (notices + the consent singleton), and `inArray` on an empty list
   // is a SQL error — so the short-circuit is a correctness requirement, not an optimisation.
-  const resolve = createResolveStandingAsks(db);
+  const resolve = createResolveStandingAsks(databaseHandle(db));
   const standing = await resolve({ recipientUserId: castId<UserId>("user_nobody"), inviteIds: [], nominatedChatIds: [] });
   expect(standing).toEqual({ inviteIds: [], nominatedChatIds: [] });
 });

@@ -9,6 +9,7 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import { JOINER_PERSONA_DESCRIPTION_MAX } from "@orb/contracts/persona";
 import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, rateLimitBuckets, userSettings, users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, ChatInviteId, ChatParticipantId, Handle, PersonaId, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { RevokedSessionsSummary, SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
@@ -88,7 +89,7 @@ async function appWith(over: Partial<AuthRoutesDeps> = {}): Promise<Hono> {
     // inert and the eviction pins live in the unit suite (auth-routes.test.ts), which can observe it.
     sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
     now: (): number => NOW,
-    db,
+    db: databaseHandle(db),
     resolveLoginLimit: (): number => 10,
     discreetLogin: (): boolean => false,
     authenticate: ownerAuth(castId<UserId>("usr_owner")),
@@ -699,7 +700,7 @@ describe("local signup route (D259)", () => {
       sessions: sessionsStub(over.sessions),
       sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
       now: (): number => NOW,
-      db,
+      db: databaseHandle(db),
       resolveLoginLimit: (): number => over.limit ?? 10,
       discreetLogin: (): boolean => over.discreet ?? false,
       signup: {
@@ -827,7 +828,7 @@ describe("local signup route (D259)", () => {
     await seedUser(db, { handle: castId<Handle>("someone-else") });
     const sessionsSvc = createSessionsService({
       rolePolicy: createSessionsRolePolicy(policyConfig),
-      db,
+      db: databaseHandle(db),
       now: () => NOW,
       sessionSecret: "s".repeat(32),
       seedUserConnections: () => Promise.resolve(),
@@ -843,8 +844,8 @@ describe("local signup route (D259)", () => {
       },
       {
         signupUserStatement: sessionsSvc.signupUserStatement,
-        signupPersonaStatement: createJoinerPersonaStatement({ db, newPersonaId: () => castId<PersonaId>("persona_signup_route") }),
-        signupPersonaPointersStatement: createJoinerSettingsStatement({ db }),
+        signupPersonaStatement: createJoinerPersonaStatement({ db: databaseHandle(db), newPersonaId: () => castId<PersonaId>("persona_signup_route") }),
+        signupPersonaPointersStatement: createJoinerSettingsStatement({ db: databaseHandle(db) }),
         minterMayMintSignup: createSignupMinterCheck(sessionsSvc, createHostPrincipalResolver(sessionsSvc)),
         auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
         // The local route never previews; any reach fails loudly.
@@ -980,7 +981,7 @@ describe("local signup route (D259)", () => {
       sessions: sessionsStub(),
       sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
       now: (): number => NOW,
-      db: await freshDb(),
+      db: databaseHandle(await freshDb()),
       resolveLoginLimit: (): number => 10,
       discreetLogin: (): boolean => false,
     });

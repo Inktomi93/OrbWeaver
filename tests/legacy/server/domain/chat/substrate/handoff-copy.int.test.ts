@@ -50,6 +50,7 @@ import {
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type {
   CharacterHandle,
   CharacterId,
@@ -160,20 +161,20 @@ function copyContext(
     },
     emitNotification: recordingEmit(notes),
     copyHandoffCards: createCopyHandoffCards({
-      db,
+      db: databaseHandle(db),
       bumpStatsCanonVersion,
       applyStatsDelta,
       now: () => 1,
       newCharacterId: mint.newCharacterId,
       copyAsset: () => Promise.resolve(null),
     }),
-    copyHandoffBooks: createCopyHandoffBooks({ db, now: () => 1, newBookId: mint.newBookId, newEntryId: mint.newEntryId }),
-    copyHandoffRegexScripts: createCopyHandoffRegexScripts({ db, now: () => 1, newScriptId: mint.newScriptId }),
+    copyHandoffBooks: createCopyHandoffBooks({ db: databaseHandle(db), now: () => 1, newBookId: mint.newBookId, newEntryId: mint.newEntryId }),
+    copyHandoffRegexScripts: createCopyHandoffRegexScripts({ db: databaseHandle(db), now: () => 1, newScriptId: mint.newScriptId }),
     // The disclosure twins are REAL too (#1762) — the whole claim of the nomination pins is that the counted
     // plan and the executed copy are one resolution, which a stubbed count could not prove.
-    countHandoffBooks: createCountHandoffBooks(db),
-    countHandoffRegexScripts: createCountHandoffRegexScripts(db),
-    restampHandoffDigests: createHandoffRestampStatements({ db }),
+    countHandoffBooks: createCountHandoffBooks(databaseHandle(db)),
+    countHandoffRegexScripts: createCountHandoffRegexScripts(databaseHandle(db)),
+    restampHandoffDigests: createHandoffRestampStatements({ db: databaseHandle(db) }),
     ...overrides,
   });
 }
@@ -426,10 +427,10 @@ describe("the crash arm — mints land first, and a retry converges", () => {
     const { host, member, chatId, aria } = await seedTransferRoom();
     const retained = await seedMessage(db, chatId, 1, { characterId: aria, content: "Retained paid reply." });
     await db.update(messageVariants).set({ costUsd: 0.25, tokensIn: 10, tokensOut: 20 }).where(eq(messageVariants.id, retained.variantId));
-    await reconcileStats(db, { ownerId: host, now: () => 1 });
+    await reconcileStats(databaseHandle(db), { ownerId: host, now: () => 1 });
     const ctx = copyContext();
     const roster = createParticipants(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit });
-    await reconcileStats(db, { ownerId: member, now: () => 1 });
+    await reconcileStats(databaseHandle(db), { ownerId: member, now: () => 1 });
     await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await db.run(
       sql.raw(
@@ -444,7 +445,7 @@ describe("the crash arm — mints land first, and a retry converges", () => {
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host)))[0]?.costUsd).toBe(0.25);
     expect((await db.select().from(messages).where(eq(messages.id, retained.messageId)))[0]?.characterId).toBe(aria);
     expect((await db.select().from(chatParticipants).where(eq(chatParticipants.userId, host)))[0]?.role).toBe("host");
-    await reconcileStats(db, { ownerId: member, now: () => 1 });
+    await reconcileStats(databaseHandle(db), { ownerId: member, now: () => 1 });
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, member)))[0]).toEqual(live);
     await db.run(sql.raw("drop trigger refuse_fixture_room_swap"));
     await roster.acceptHostHandoff({ principal: principal(member), chatId });
@@ -456,7 +457,7 @@ describe("the crash arm — mints land first, and a retry converges", () => {
       tokensOut: 20,
     });
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, host)))[0]?.costUsd).toBe(0);
-    await reconcileStats(db, { ownerId: member, now: () => 1 });
+    await reconcileStats(databaseHandle(db), { ownerId: member, now: () => 1 });
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, member)))[0]).toMatchObject({
       characters: 1,
       costUsd: 0.25,
@@ -825,7 +826,7 @@ test.for([false, true])("copied retained room has whole-row live/rebuild parity 
       .where(eq(messageVariants.id, variantId));
   }
   for (const ownerId of [host, member]) {
-    await reconcileStats(db, { ownerId, now: () => 30 });
+    await reconcileStats(databaseHandle(db), { ownerId, now: () => 30 });
   }
   const ctx = copyContext({ now: () => 30 });
   const roster = createParticipants(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit });
@@ -845,7 +846,7 @@ test.for([false, true])("copied retained room has whole-row live/rebuild parity 
   const liveCharacters = (await db.select().from(characterStats).orderBy(characterStats.characterId)).map(({ id, computedAt, ...row }) => row);
   expect(liveCharacters.find((row) => row.characterId === aria)).toMatchObject({ costUsd: 0.5, tokensIn: 10, tokensOut: 20, chats: 1 });
   for (const ownerId of [host, member]) {
-    await reconcileStats(db, { ownerId, now: () => 30 });
+    await reconcileStats(databaseHandle(db), { ownerId, now: () => 30 });
   }
   expect(await db.select().from(ownerStats).orderBy(ownerStats.ownerId)).toEqual(liveOwners);
   expect((await db.select().from(dailyStats).orderBy(dailyStats.ownerId, dailyStats.bucketStart)).map(({ id, ...row }) => row)).toEqual(
@@ -864,7 +865,7 @@ test.for(["variant", "cohort", "voice-owner"] as const)("copied handoff refuses 
   const foreign = await seedUser(db, castId<Handle>("snapshot_foreign"));
   const foreignVoice = await seedCharacter(db, foreign, "snapshot_foreign_voice");
   for (const ownerId of [host, member]) {
-    await reconcileStats(db, { ownerId, now: () => 1 });
+    await reconcileStats(databaseHandle(db), { ownerId, now: () => 1 });
   }
   const ctx = copyContext({ now: () => 1 });
   const resolve = ctx.resolveRetainedChatRebase;
@@ -902,7 +903,7 @@ test("copy prunes only the unsupported original voice row and keeps the copied r
   const { host, member, chatId, aria } = await seedTransferRoom();
   await seedMessage(db, chatId, 1, { characterId: aria, content: "An unpriced retained reply." });
   for (const ownerId of [host, member]) {
-    await reconcileStats(db, { ownerId, now: () => 1 });
+    await reconcileStats(databaseHandle(db), { ownerId, now: () => 1 });
   }
   const roster = createParticipants(copyContext({ now: () => 1 }), { claimChat: (): Promise<void> => Promise.resolve(), emit });
   await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
@@ -911,7 +912,7 @@ test("copy prunes only the unsupported original voice row and keeps the copied r
   const live = (await db.select().from(characterStats)).map(({ id, computedAt, ...row }) => row);
   expect(live).toMatchObject([{ characterId: "character_copy_1", chats: 1, assistantTurns: 1, costUsd: 0, costSamples: 0 }]);
   for (const ownerId of [host, member]) {
-    await reconcileStats(db, { ownerId, now: () => 1 });
+    await reconcileStats(databaseHandle(db), { ownerId, now: () => 1 });
   }
   expect((await db.select().from(characterStats)).map(({ id, computedAt, ...row }) => row)).toEqual(live);
 });

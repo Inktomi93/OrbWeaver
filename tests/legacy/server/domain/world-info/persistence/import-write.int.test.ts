@@ -7,6 +7,7 @@
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, worldBooks, worldEntries } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -68,7 +69,7 @@ describe("createBulkImportLorebook", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportLorebook(importCtx(db));
+    const op = createBulkImportLorebook({ ...importCtx(db), db: databaseHandle(db) });
 
     const result = await op({ ownerId: owner.id, characterId: character.id, book: book() });
 
@@ -97,7 +98,7 @@ describe("createBulkImportLorebook", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportLorebook(importCtx(db));
+    const op = createBulkImportLorebook({ ...importCtx(db), db: databaseHandle(db) });
 
     await op({
       ownerId: owner.id,
@@ -126,7 +127,7 @@ describe("createBulkImportLorebook", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportLorebook(importCtx(db));
+    const op = createBulkImportLorebook({ ...importCtx(db), db: databaseHandle(db) });
 
     const first = await op({ ownerId: owner.id, characterId: character.id, book: book() });
     const second = await op({
@@ -178,7 +179,7 @@ describe("createBulkImportLorebook", () => {
     const owner = await seedUser(db, {});
     const aria = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const bram = await seedCharacter(db, { ownerId: owner.id, handle: castId("bram"), name: "Bram" });
-    const op = createBulkImportLorebook(importCtx(db));
+    const op = createBulkImportLorebook({ ...importCtx(db), db: databaseHandle(db) });
     await op({ ownerId: owner.id, characterId: aria.id, book: book() });
     const bramFirst = await op({ ownerId: owner.id, characterId: bram.id, book: eldoria() });
 
@@ -195,7 +196,7 @@ describe("createBulkImportLorebook", () => {
   test("a non-owned / missing character throws DomainNotFoundError (the ownership precondition)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createBulkImportLorebook(importCtx(db));
+    const op = createBulkImportLorebook({ ...importCtx(db), db: databaseHandle(db) });
     await expect(op({ ownerId: owner.id, characterId: castId("character_missing"), book: book() })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 });
@@ -206,7 +207,7 @@ describe("createImportStandaloneLorebook", () => {
   test("entries that share a title, or carry an empty one, ALL land (titles are not keys)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createImportStandaloneLorebook(importCtx(db));
+    const op = createImportStandaloneLorebook({ ...importCtx(db), db: databaseHandle(db) });
     const originalEntry = book().entries.at(0);
     if (originalEntry === undefined) {
       throw new Error("book fixture must contain an entry");
@@ -230,7 +231,7 @@ describe("createImportStandaloneLorebook", () => {
   test("a book that landed under a numbered name is found again by CONTENT: a third import reuses it, never mints the next number", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createImportStandaloneLorebook(importCtx(db));
+    const op = createImportStandaloneLorebook({ ...importCtx(db), db: databaseHandle(db) });
     const originalEntry = book().entries.at(0);
     if (originalEntry === undefined) {
       throw new Error("book fixture must contain an entry");
@@ -259,7 +260,7 @@ describe("createImportStandaloneLorebook", () => {
     await db.insert(worldBooks).values({ id: older, ownerId: owner.id, name: "Aria's World", description: null, createdAt: NOW });
     await db.insert(worldBooks).values({ id: newer, ownerId: owner.id, name: "Aria's World (2)", description: null, createdAt: NOW });
 
-    const result = await createImportStandaloneLorebook(importCtx(db))({ ownerId: owner.id, book: book() });
+    const result = await createImportStandaloneLorebook({ ...importCtx(db), db: databaseHandle(db) })({ ownerId: owner.id, book: book() });
 
     expect(result).toEqual({
       worldBookId: "world_book_00000000000000000000000001",
@@ -277,7 +278,7 @@ describe("createImportStandaloneLorebook", () => {
   test("a same-named EQUAL book reuses the owned row (created:false, nothing written)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createImportStandaloneLorebook(importCtx(db));
+    const op = createImportStandaloneLorebook({ ...importCtx(db), db: databaseHandle(db) });
     const first = await op({ ownerId: owner.id, book: book() });
     const second = await op({ ownerId: owner.id, book: book() });
 
@@ -298,7 +299,7 @@ describe("createBulkImportLorebook — central dedup", () => {
     const owner = await seedUser(db, {});
     const aria = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const ariaVariant = await seedCharacter(db, { ownerId: owner.id, handle: castId("aria-2"), name: "Aria (variant)" });
-    const op = createBulkImportLorebook(importCtx(db));
+    const op = createBulkImportLorebook({ ...importCtx(db), db: databaseHandle(db) });
 
     const first = await op({ ownerId: owner.id, characterId: aria.id, book: book() });
     const second = await op({ ownerId: owner.id, characterId: ariaVariant.id, book: book() });
@@ -321,7 +322,7 @@ describe("createBulkImportLorebook — central dedup", () => {
     const owner = await seedUser(db, {});
     const aria = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const ariaVariant = await seedCharacter(db, { ownerId: owner.id, handle: castId("aria-2"), name: "Aria (variant)" });
-    const op = createBulkImportLorebook(importCtx(db));
+    const op = createBulkImportLorebook({ ...importCtx(db), db: databaseHandle(db) });
 
     const first = await op({ ownerId: owner.id, characterId: aria.id, book: book() });
     await op({ ownerId: owner.id, characterId: ariaVariant.id, book: book() });
@@ -340,7 +341,7 @@ describe("createBulkImportLorebook — central dedup", () => {
     const owner = await seedUser(db, {});
     const aria = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const other = await seedCharacter(db, { ownerId: owner.id, handle: castId("other"), name: "Other" });
-    const op = createBulkImportLorebook(importCtx(db));
+    const op = createBulkImportLorebook({ ...importCtx(db), db: databaseHandle(db) });
 
     const first = await op({ ownerId: owner.id, characterId: aria.id, book: book() });
     const second = await op({
@@ -373,7 +374,7 @@ describe("createBulkImportLorebook — central dedup", () => {
     const stranger = await seedUser(db, { handle: castId("stranger"), email: "s@x.test" });
     const strangerChar = await seedCharacter(db, { ownerId: stranger.id, name: "Stranger's Aria" });
     const mine = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportLorebook(importCtx(db));
+    const op = createBulkImportLorebook({ ...importCtx(db), db: databaseHandle(db) });
 
     const strangers = await op({ ownerId: stranger.id, characterId: strangerChar.id, book: book() });
     const ours = await op({ ownerId: owner.id, characterId: mine.id, book: book() });
@@ -393,8 +394,8 @@ describe("createAttachOwnedBooksByName", () => {
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const ctx = importCtx(db);
-    await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: eldoria() });
-    const op = createAttachOwnedBooksByName(ctx);
+    await createImportStandaloneLorebook({ ...ctx, db: databaseHandle(ctx.db) })({ ownerId: owner.id, book: eldoria() });
+    const op = createAttachOwnedBooksByName({ ...ctx, db: databaseHandle(ctx.db) });
 
     const result = await op({ ownerId: owner.id, characterId: character.id, names: ["Eldoria", "Never Downloaded"], role: "primary", landed: NONE_LANDED });
 
@@ -412,10 +413,10 @@ describe("createAttachOwnedBooksByName", () => {
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const ctx = importCtx(db);
     // The embedded `character_book` import runs FIRST in the profile-import ordering and takes primary.
-    await createBulkImportLorebook(ctx)({ ownerId: owner.id, characterId: character.id, book: book({ name: "Embedded" }) });
-    await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: eldoria() });
+    await createBulkImportLorebook({ ...ctx, db: databaseHandle(ctx.db) })({ ownerId: owner.id, characterId: character.id, book: book({ name: "Embedded" }) });
+    await createImportStandaloneLorebook({ ...ctx, db: databaseHandle(ctx.db) })({ ownerId: owner.id, book: eldoria() });
 
-    const result = await createAttachOwnedBooksByName(ctx)({
+    const result = await createAttachOwnedBooksByName({ ...ctx, db: databaseHandle(ctx.db) })({
       ownerId: owner.id,
       characterId: character.id,
       names: ["Eldoria"],
@@ -436,9 +437,9 @@ describe("createAttachOwnedBooksByName", () => {
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const ctx = importCtx(db);
     // The STRANGER owns a book with exactly the name the charLore binding asks for — it must not link.
-    await createImportStandaloneLorebook(ctx)({ ownerId: stranger.id, book: book({ name: "Foreign Lore" }) });
-    await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: book({ name: "Extra Lore" }) });
-    const op = createAttachOwnedBooksByName(ctx);
+    await createImportStandaloneLorebook({ ...ctx, db: databaseHandle(ctx.db) })({ ownerId: stranger.id, book: book({ name: "Foreign Lore" }) });
+    await createImportStandaloneLorebook({ ...ctx, db: databaseHandle(ctx.db) })({ ownerId: owner.id, book: book({ name: "Extra Lore" }) });
+    const op = createAttachOwnedBooksByName({ ...ctx, db: databaseHandle(ctx.db) });
 
     const result = await op({ ownerId: owner.id, characterId: character.id, names: ["Extra Lore", "Foreign Lore"], role: "auxiliary", landed: NONE_LANDED });
     expect(result.linked).toBe(1);
@@ -456,12 +457,15 @@ describe("createAttachOwnedBooksByName", () => {
     const stranger = await seedUser(db, { handle: castId("stranger"), email: "s@x.test" });
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const ctx = importCtx(db);
-    await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: eldoria() });
-    const twin = await createImportStandaloneLorebook(ctx)({ ownerId: owner.id, book: book({ name: "Eldoria" }) });
-    const foreign = await createImportStandaloneLorebook(ctx)({ ownerId: stranger.id, book: book({ name: "Foreign Lore" }) });
+    await createImportStandaloneLorebook({ ...ctx, db: databaseHandle(ctx.db) })({ ownerId: owner.id, book: eldoria() });
+    const twin = await createImportStandaloneLorebook({ ...ctx, db: databaseHandle(ctx.db) })({ ownerId: owner.id, book: book({ name: "Eldoria" }) });
+    const foreign = await createImportStandaloneLorebook({ ...ctx, db: databaseHandle(ctx.db) })({
+      ownerId: stranger.id,
+      book: book({ name: "Foreign Lore" }),
+    });
     expect(twin.name).toBe("Eldoria (2)");
 
-    const result = await createAttachOwnedBooksByName(ctx)({
+    const result = await createAttachOwnedBooksByName({ ...ctx, db: databaseHandle(ctx.db) })({
       ownerId: owner.id,
       characterId: character.id,
       names: ["Eldoria", "Foreign Lore"],
@@ -482,7 +486,7 @@ describe("createBulkImportLorebook — entry titles are free", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const aria = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportLorebook(importCtx(db));
+    const op = createBulkImportLorebook({ ...importCtx(db), db: databaseHandle(db) });
     const originalEntry = book().entries.at(0);
     if (originalEntry === undefined) {
       throw new Error("book fixture must contain an entry");

@@ -5,6 +5,7 @@
 
 import { setTimeout as sleep } from "node:timers/promises";
 import { automationFires, automationRules } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AutomationRuleId, MessageId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -76,7 +77,7 @@ describe("dispatchRuleNow", () => {
     const ruleId = await seedEnabledRule(fixture, [{ type: "set_variable", scope: "chat", key: "k", op: "set", value: "v" }]);
     await corruptActions(fixture, ruleId);
     const failing = { fail: false };
-    const enabled = createEnabledRuleIndex(readFailingDb(fixture.db, failing));
+    const enabled = createEnabledRuleIndex(databaseHandle(readFailingDb(fixture.db, failing)));
     await enabled.reload();
     const ctx = { ...fixture.ctx, enabled };
     const rule = await selectRuleRow(fixture.db, ruleId);
@@ -102,7 +103,7 @@ describe("dispatchRuleNow", () => {
     if (rule === undefined) {
       return;
     }
-    const outcome = await dispatchRuleNow(fixture.ctx, rule, fixture.chatId, fixture.host);
+    const outcome = await dispatchRuleNow({ ...fixture.ctx, db: fixture.db }, rule, fixture.chatId, fixture.host);
     expect(outcome).toBeNull();
   });
 
@@ -118,7 +119,7 @@ describe("dispatchRuleNow", () => {
     // The shared harness's default `runArm` is NOT_WIRED (arm_error) — this pins the MEDIATOR's own claims
     // (it reached dispatch, not null, and the fire row is stamped at depth 0), not arm success (the
     // verb-level suite `run-rule-now.int.test.ts` pins the wired-arm "fired" outcome).
-    const outcome = await dispatchRuleNow(fixture.ctx, rule, fixture.chatId, fixture.host);
+    const outcome = await dispatchRuleNow({ ...fixture.ctx, db: fixture.db }, rule, fixture.chatId, fixture.host);
     expect(outcome).not.toBeNull();
 
     const fires = await listFiresForRule(fixture.db, ruleId);
@@ -171,7 +172,7 @@ describe("#1565 Run now and the bus door queue on ONE lane", () => {
         return { ok: true };
       },
     };
-    const svc = createAutomationService(ctx);
+    const svc = createAutomationService({ ...ctx, db: databaseHandle(ctx.db) });
     const ruleId = await seedEnabledRule(base, [{ type: "set_variable", scope: "chat", key: "beats", op: "inc" }]);
     await ctx.enabled.reload();
     const rule = await ruleRowFor(base, ruleId);
@@ -213,7 +214,7 @@ describe("#1565 Run now and the bus door queue on ONE lane", () => {
         return Promise.resolve({ ok: true });
       },
     };
-    svc = createAutomationService(ctx);
+    svc = createAutomationService({ ...ctx, db: databaseHandle(ctx.db) });
     const ruleId = await seedEnabledRule(base, [{ type: "set_variable", scope: "chat", key: "beats", op: "inc" }]);
     await ctx.enabled.reload();
     const rule = await ruleRowFor(base, ruleId);

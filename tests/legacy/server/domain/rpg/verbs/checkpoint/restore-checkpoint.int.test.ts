@@ -4,6 +4,7 @@
 
 import type { Db } from "@orb/db";
 import { messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, MessageId, MessageVariantId, RpgCheckpointId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PostNarratorMessage } from "@orb/server/domain/chat";
@@ -124,7 +125,7 @@ async function realNarratorPost(
     ...(ids.messageId === undefined ? {} : { newMessageId: ids.messageId }),
     ...(ids.variantId === undefined ? {} : { newMessageVariantId: ids.variantId }),
   });
-  return createPostNarratorMessage(ctx, { emit: () => Promise.resolve(), claimChat: noClaim });
+  return createPostNarratorMessage({ ...ctx, db: databaseHandle(ctx.db) }, { emit: () => Promise.resolve(), claimChat: noClaim });
 }
 
 function sequence<T>(first: T, second: T): () => T {

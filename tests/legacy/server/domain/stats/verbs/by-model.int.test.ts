@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/stats/verbs/by-model.ts
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
@@ -29,7 +30,7 @@ describe("stats.byModel", () => {
       genTimeMs: 1000,
       genSamples: 1,
     });
-    const rows = await createStatsService(db, () => STATS_NOW).byModel(owner);
+    const rows = await createStatsService(databaseHandle(db), () => STATS_NOW).byModel(owner);
     expect(rows.find((row) => row.model === "embed-only")).toMatchObject({
       tokensIn: 34,
       tokensOut: null,
@@ -42,7 +43,7 @@ describe("stats.byModel", () => {
   test("returns per-(model, provider) rows", async () => {
     const owner = await seedUser(db);
     await seedModelStats(db, owner, { model: "gpt", provider: "openrouter", generations: 5 });
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
     const rows = await svc.byModel(owner);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.model).toBe("gpt");

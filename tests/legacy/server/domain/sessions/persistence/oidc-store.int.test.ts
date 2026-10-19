@@ -1,4 +1,5 @@
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -20,7 +21,7 @@ beforeEach(async () => {
 
 describe("oidc-store", () => {
   test("mints and consumes an OIDC transaction atomically", async () => {
-    const store = createOidcStore(db, fixedClock(FROZEN_AT_MS));
+    const store = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS));
 
     const tx: OidcTransaction = {
       state: "state_123",
@@ -41,14 +42,14 @@ describe("oidc-store", () => {
   });
 
   test("consume yields null for unknown state", async () => {
-    const store = createOidcStore(db, fixedClock(FROZEN_AT_MS));
+    const store = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS));
     const consumed = await store.consume("nope");
     expect(consumed).toBeNull();
   });
 
   test("consume REJECTS an expired transaction (past the 10-min TTL) — returns null, not the row", async () => {
     // Minted at T0 → expiresAt = T0 + 10min. The callback arrives one ms after expiry.
-    const minted = createOidcStore(db, fixedClock(FROZEN_AT_MS));
+    const minted = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS));
     await minted.mint({
       state: "state_expired",
       codeVerifier: "verifier_stale",
@@ -58,17 +59,17 @@ describe("oidc-store", () => {
       inviteTokenHash: null,
     });
 
-    const late = createOidcStore(db, fixedClock(FROZEN_AT_MS + OIDC_TRANSACTION_TTL_MS + 1));
+    const late = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS + OIDC_TRANSACTION_TTL_MS + 1));
     expect(await late.consume("state_expired")).toBeNull();
 
     // And the stale row was SWEPT — a second consume (even inside its original window) can never re-drive it,
     // and no stale PKCE codeVerifier/nonce lingers at rest. Prove the delete happened.
-    const stillThere = await createOidcStore(db, fixedClock(FROZEN_AT_MS)).consume("state_expired");
+    const stillThere = await createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS)).consume("state_expired");
     expect(stillThere).toBeNull();
   });
 
   test("consume ACCEPTS a transaction still inside its TTL window", async () => {
-    const store = createOidcStore(db, fixedClock(FROZEN_AT_MS));
+    const store = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS));
     const tx: OidcTransaction = {
       state: "state_live",
       codeVerifier: "verifier_live",
@@ -80,12 +81,12 @@ describe("oidc-store", () => {
     await store.mint(tx);
 
     // One ms before expiry → still valid.
-    const nearExpiry = createOidcStore(db, fixedClock(FROZEN_AT_MS + OIDC_TRANSACTION_TTL_MS - 1));
+    const nearExpiry = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS + OIDC_TRANSACTION_TTL_MS - 1));
     expect(await nearExpiry.consume("state_live")).toEqual(tx);
   });
 
   test("consume sweeps OTHER abandoned expired rows opportunistically (defense-in-depth alongside the scheduled GC)", async () => {
-    const minted = createOidcStore(db, fixedClock(FROZEN_AT_MS));
+    const minted = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS));
     await minted.mint({
       state: "state_abandoned",
       codeVerifier: "verifier_abandoned",
@@ -97,14 +98,14 @@ describe("oidc-store", () => {
 
     // A later, unrelated consume runs past the abandoned row's TTL — it sweeps the abandoned row as a side
     // effect, so a subsequent consume of the abandoned state finds nothing.
-    const later = createOidcStore(db, fixedClock(FROZEN_AT_MS + OIDC_TRANSACTION_TTL_MS + 1));
+    const later = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS + OIDC_TRANSACTION_TTL_MS + 1));
     expect(await later.consume("some_other_state")).toBeNull();
-    expect(await createOidcStore(db, fixedClock(FROZEN_AT_MS)).consume("state_abandoned")).toBeNull();
+    expect(await createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS)).consume("state_abandoned")).toBeNull();
   });
 
   test("deleteExpired reaps ONLY expired/abandoned rows and leaves live ones — the scheduled GC path", async () => {
     // Two abandoned rows minted at T0 (never consumed) → both expire at T0 + 10min.
-    const minted = createOidcStore(db, fixedClock(FROZEN_AT_MS));
+    const minted = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS));
     await minted.mint({
       state: "state_abandoned_a",
       codeVerifier: "verifier_a",
@@ -123,7 +124,7 @@ describe("oidc-store", () => {
     });
     // A LIVE row minted just before the sweep instant — expires well after it.
     const sweepAt = FROZEN_AT_MS + OIDC_TRANSACTION_TTL_MS + 1;
-    const liveStore = createOidcStore(db, fixedClock(sweepAt));
+    const liveStore = createOidcStore(databaseHandle(db), fixedClock(sweepAt));
     await liveStore.mint({
       state: "state_live",
       codeVerifier: "verifier_live",
@@ -138,14 +139,14 @@ describe("oidc-store", () => {
     expect(reaped).toBe(2);
 
     // The abandoned rows are gone (no stale codeVerifier/nonce at rest); the live PKCE flow still consumes.
-    expect(await createOidcStore(db, fixedClock(FROZEN_AT_MS)).consume("state_abandoned_a")).toBeNull();
-    expect(await createOidcStore(db, fixedClock(FROZEN_AT_MS)).consume("state_abandoned_b")).toBeNull();
+    expect(await createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS)).consume("state_abandoned_a")).toBeNull();
+    expect(await createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS)).consume("state_abandoned_b")).toBeNull();
     const live = await liveStore.consume("state_live");
     expect(live?.state).toBe("state_live");
   });
 
   test("deleteExpired NEVER deletes a row at the exact expiry boundary+1 (live tx is safe)", async () => {
-    const minted = createOidcStore(db, fixedClock(FROZEN_AT_MS));
+    const minted = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS));
     await minted.mint({
       state: "state_boundary",
       codeVerifier: "verifier_boundary",
@@ -156,13 +157,13 @@ describe("oidc-store", () => {
     });
 
     // One ms BEFORE expiry: the row is still live (`expiresAt > before`) — the sweep must not touch it.
-    const store = createOidcStore(db, fixedClock(FROZEN_AT_MS));
+    const store = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS));
     expect(await store.deleteExpired(FROZEN_AT_MS + OIDC_TRANSACTION_TTL_MS - 1)).toBe(0);
     expect((await store.consume("state_boundary"))?.state).toBe("state_boundary");
   });
 
   test("deleteExpired reaps a row AT its exact expiry instant (expiresAt <= before)", async () => {
-    const minted = createOidcStore(db, fixedClock(FROZEN_AT_MS));
+    const minted = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS));
     await minted.mint({
       state: "state_at_expiry",
       codeVerifier: "verifier_at_expiry",
@@ -173,7 +174,7 @@ describe("oidc-store", () => {
     });
 
     // expiresAt === T0 + TTL; sweeping AT that instant reaps it (mirrors consume's `lte` expiry gate).
-    const store = createOidcStore(db, fixedClock(FROZEN_AT_MS));
+    const store = createOidcStore(databaseHandle(db), fixedClock(FROZEN_AT_MS));
     expect(await store.deleteExpired(FROZEN_AT_MS + OIDC_TRANSACTION_TTL_MS)).toBe(1);
     expect(await store.consume("state_at_expiry")).toBeNull();
   });

@@ -1,6 +1,7 @@
 // op: resolveRoomDisplayPolicy — D121-E: a room broadcasts its HOST's display scripts only when the host opted in,
 // and a hostless room broadcasts nobody's. The roster read runs only while the option is on.
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createResolveRoomDisplayPolicy } from "@orb/server/domain/chat";
@@ -19,7 +20,7 @@ describe("resolveRoomDisplayPolicy", () => {
     await seedParticipant(db, { chatId: on, key: "on", userId: host, role: "host" });
     await seedParticipant(db, { chatId: off, key: "off", userId: host, role: "host" });
     await seedParticipant(db, { chatId: orphan, key: "orphan", userId: host, role: "host", leftSeq: 7 });
-    const resolve = createResolveRoomDisplayPolicy({ db });
+    const resolve = createResolveRoomDisplayPolicy({ db: databaseHandle(db) });
 
     expect(await resolve(on)).toEqual({ enabled: true, hostUserId: host });
     expect(await resolve(off)).toEqual({ enabled: false, hostUserId: null });

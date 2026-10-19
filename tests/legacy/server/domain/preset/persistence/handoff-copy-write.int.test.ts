@@ -5,6 +5,7 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { presets } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
@@ -27,7 +28,7 @@ async function seedPreset(db: Db, id: string, ownerId: UserId | null, name = id)
 function copier(db: Db): ReturnType<typeof createCopyPresetToUser> {
   let n = 0;
   return createCopyPresetToUser({
-    db,
+    db: databaseHandle(db),
     now: () => AT,
     newPresetId: (): PresetId => {
       n += 1;

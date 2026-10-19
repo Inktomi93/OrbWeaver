@@ -23,6 +23,7 @@
 // them. It is a defence-in-depth receipt, not a dead assertion.
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import type { AutomationActionInput } from "@orb/contracts/automation";
 import type { InvocationChat } from "@orb/contracts/plugin";
@@ -82,7 +83,7 @@ function installTool(app: ServicesResult, db: Db, installer: UserId, definition:
       calls.push({ argsJson, chat });
       return Promise.resolve(`${spec.marker}:${argsJson}`);
     },
-    resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db, can })(principal(installer), chatId),
+    resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db: databaseHandle(db), can })(principal(installer), chatId),
   });
   return { calls, handle };
 }

@@ -13,6 +13,7 @@
 
 import type { Can } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -76,7 +77,10 @@ function tctxFor(runAsUserId: UserId): TeachingContext {
 /** The registry a composition root assembles: chat's own contribution (the rpg-gather projection) PLUS
  *  tool-use's — the shape `entry/compose/services.ts` builds, so the fold order is the real one. */
 function registryOver(service: Service): ReturnType<typeof createChatTeachingContributions> {
-  return [...createChatTeachingContributions({ db: UNIT_DB }), ...createToolUseTeachingContributions({ listDrivableToolNames: service.listDrivableToolNames })];
+  return [
+    ...createChatTeachingContributions({ db: databaseHandle(UNIT_DB) }),
+    ...createToolUseTeachingContributions({ listDrivableToolNames: service.listDrivableToolNames }),
+  ];
 }
 
 describe("the per-turn plugin-tool attach matrix", () => {
@@ -133,7 +137,7 @@ describe("the per-turn plugin-tool attach matrix", () => {
   test("the contribution folds AFTER chat's own (order), so a game's state block still leads", () => {
     const service = serviceOf();
     service.registerPluginTool(pluginSpec("plugin_alice_one", ALICE));
-    const [chatOwn] = createChatTeachingContributions({ db: UNIT_DB });
+    const [chatOwn] = createChatTeachingContributions({ db: databaseHandle(UNIT_DB) });
     const [toolUseOwn] = createToolUseTeachingContributions({ listDrivableToolNames: service.listDrivableToolNames });
 
     expect(chatOwn?.order).toBe(0);

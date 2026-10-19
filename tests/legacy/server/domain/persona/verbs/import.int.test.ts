@@ -7,6 +7,7 @@
 // @subject packages/server/src/domain/persona/verbs/import.ts
 
 import { personas } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -190,7 +191,7 @@ describe("import", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const single = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: " Alice ", description: "a" }) }));
-    const bulk = createBulkImportPersonas({ db, now: h.ctx.now, newPersonaId: h.ctx.newPersonaId });
+    const bulk = createBulkImportPersonas({ db: databaseHandle(db), now: h.ctx.now, newPersonaId: h.ctx.newPersonaId });
     const result = await bulk({
       ownerId: owner,
       personas: [{ name: "ALICE", description: "a", avatarAssetId: null, metadata: null, isDefault: false }],

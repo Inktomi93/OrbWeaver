@@ -26,7 +26,7 @@ test("rewrite is fixed-or-manual by construction — it never resolves custom, e
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "sr-rewrite");
   const session = await h.svc.startSession({ principal: principal(owner), characterId });
-  const resolution = await resolveStageResolution(h.ctx, { ownerId: owner, stage: "rewrite", session });
+  const resolution = await resolveStageResolution({ ...h.ctx, db }, { ownerId: owner, stage: "rewrite", session });
   expect(resolution).toEqual({ kind: "fixed" });
 });
 
@@ -36,8 +36,8 @@ test("a session with no custom stageConfig for score/analyze resolves fixed", as
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "sr-fixed");
   const session = await h.svc.startSession({ principal: principal(owner), characterId });
-  expect(await resolveStageResolution(h.ctx, { ownerId: owner, stage: "score", session })).toEqual({ kind: "fixed" });
-  expect(await resolveStageResolution(h.ctx, { ownerId: owner, stage: "analyze", session })).toEqual({ kind: "fixed" });
+  expect(await resolveStageResolution({ ...h.ctx, db }, { ownerId: owner, stage: "score", session })).toEqual({ kind: "fixed" });
+  expect(await resolveStageResolution({ ...h.ctx, db }, { ownerId: owner, stage: "analyze", session })).toEqual({ kind: "fixed" });
 });
 
 test("a valid custom schema resolves `custom`, WIRE-CLOSED (additionalProperties:false) — never the raw open row", async () => {
@@ -54,7 +54,7 @@ test("a valid custom schema resolves `custom`, WIRE-CLOSED (additionalProperties
     patch: { stageConfig: { ...session.stageConfig, score: { kind: "custom", schemaId: row.id } } },
   });
 
-  const resolution = asKind(await resolveStageResolution(h.ctx, { ownerId: owner, stage: "score", session: patched }), "custom");
+  const resolution = asKind(await resolveStageResolution({ ...h.ctx, db }, { ownerId: owner, stage: "score", session: patched }), "custom");
   expect(resolution.runConfig).toEqual({ kind: "custom", schemaId: row.id, schemaVersion: 1, schema: validScoreSchema() });
   expect(resolution.responseFormat.name).toBe(row.name);
   expect((resolution.responseFormat.schema as Record<string, unknown>)["additionalProperties"]).toBe(false);
@@ -75,5 +75,5 @@ test("a session pointing at a DELETED/foreign schema throws leak-free NOT_FOUND"
   });
   await h.svc.deleteSchema({ principal: p, schemaId: row.id });
 
-  await expect(resolveStageResolution(h.ctx, { ownerId: owner, stage: "score", session: patched })).rejects.toThrow(DomainNotFoundError);
+  await expect(resolveStageResolution({ ...h.ctx, db }, { ownerId: owner, stage: "score", session: patched })).rejects.toThrow(DomainNotFoundError);
 });

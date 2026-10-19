@@ -7,6 +7,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, characters, ownerStats } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId, CharacterHandle, CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
@@ -72,7 +73,7 @@ async function seedAsset(db: Db, ownerId: UserId, key: string): Promise<AssetId>
 function copier(db: Db, copyAsset: CopyAssetToOwner = () => Promise.resolve(null), idNamespace = ""): ReturnType<typeof createCopyHandoffCards> {
   let n = 0;
   return createCopyHandoffCards({
-    db,
+    db: databaseHandle(db),
     bumpStatsCanonVersion,
     applyStatsDelta,
     now: () => AT,

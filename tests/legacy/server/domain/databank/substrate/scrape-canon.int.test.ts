@@ -18,15 +18,18 @@ test("a rejecting enqueue still lands the document row; ingest is reported not-q
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.enqueueIngest.mockRejectedValueOnce(new Error("workload queue down"));
 
-  const result = await finalizeScrape(h.ctx, {
-    principal: principalFor(owner),
-    bytes: new TextEncoder().encode("hello world"),
-    origin: "web",
-    mime: "text/html",
-    name: { literal: "Test Doc" },
-    sourceUrl: "https://example.com/x",
-    auditAction: "databank.scrapeWeb",
-  });
+  const result = await finalizeScrape(
+    { ...h.ctx, db },
+    {
+      principal: principalFor(owner),
+      bytes: new TextEncoder().encode("hello world"),
+      origin: "web",
+      mime: "text/html",
+      name: { literal: "Test Doc" },
+      sourceUrl: "https://example.com/x",
+      auditAction: "databank.scrapeWeb",
+    },
+  );
 
   expect(result.outcome).toBe("created");
   expect(result.ingest).toBe("not-queued");
@@ -45,15 +48,18 @@ test("zero-char extraction carries the empty-extraction warning", async () => {
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner2") });
 
-  const result = await finalizeScrape(h.ctx, {
-    principal: principalFor(owner),
-    bytes: new TextEncoder().encode("<html></html>"),
-    origin: "web",
-    mime: "text/html",
-    name: { literal: "Empty Doc" },
-    sourceUrl: "https://example.com/empty",
-    auditAction: "databank.scrapeWeb",
-  });
+  const result = await finalizeScrape(
+    { ...h.ctx, db },
+    {
+      principal: principalFor(owner),
+      bytes: new TextEncoder().encode("<html></html>"),
+      origin: "web",
+      mime: "text/html",
+      name: { literal: "Empty Doc" },
+      sourceUrl: "https://example.com/empty",
+      auditAction: "databank.scrapeWeb",
+    },
+  );
 
   expect(result.warning).toBe("empty-extraction");
 });

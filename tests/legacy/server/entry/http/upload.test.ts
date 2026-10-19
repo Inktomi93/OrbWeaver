@@ -18,6 +18,7 @@ import { DOC_UPLOAD_ACCEPT, docUploadMime } from "@orb/contracts/extraction";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { characterDocuments, chatDocuments, closeDb, createDb, documents, runMigrations } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId, Handle, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
@@ -497,7 +498,7 @@ async function realDatabankDeps(): Promise<{ readonly deps: UploadDeps; readonly
   onTestFinished(assets.cleanup);
   const h = makeDatabankHarness(db, {
     extractor: { op: createExtractText(), version: EXTRACTOR_VERSION },
-    ensureChatHost: (actor, id) => requireHost({ db, can }, actor, id).then((): void => undefined),
+    ensureChatHost: (actor, id) => requireHost({ db: databaseHandle(db), can }, actor, id).then((): void => undefined),
   });
   const databank = createDatabankService({ ...h.ctx, assetsStore: createAssetsService(assets.ctx).store });
   return { deps: { ...okDeps, databank }, principal: principalFor(ownerId), db };

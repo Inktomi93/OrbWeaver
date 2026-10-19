@@ -9,6 +9,7 @@
 import type { BulkImportLorebookInput } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
 import { characterBooks, worldBooks, worldEntries } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -70,7 +71,7 @@ describe("createImport", () => {
   test("a fresh upload lands an UNATTACHED book + its entries (created:true)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const verb = createImport({ importStandalone: createImportStandaloneLorebook(importCtx(db)) });
+    const verb = createImport({ importStandalone: createImportStandaloneLorebook({ ...importCtx(db), db: databaseHandle(db) }) });
 
     const outcome = await verb({ ownerId: owner.id, bytes: bytes(book()) });
     expect(outcome).toEqual({ ok: true, created: true, name: "Harbor Lore", renamedFrom: null });
@@ -88,7 +89,7 @@ describe("createImport", () => {
   test("an EQUAL re-import reuses the row (created:false) and writes nothing", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const verb = createImport({ importStandalone: createImportStandaloneLorebook(importCtx(db)) });
+    const verb = createImport({ importStandalone: createImportStandaloneLorebook({ ...importCtx(db), db: databaseHandle(db) }) });
 
     await verb({ ownerId: owner.id, bytes: bytes(book()) });
     const second = await verb({ ownerId: owner.id, bytes: bytes(book()) });
@@ -101,7 +102,7 @@ describe("createImport", () => {
   test("a same-named DIFFERENT book lands BESIDE the original under a numbered name; the original keeps its entries", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const verb = createImport({ importStandalone: createImportStandaloneLorebook(importCtx(db)) });
+    const verb = createImport({ importStandalone: createImportStandaloneLorebook({ ...importCtx(db), db: databaseHandle(db) }) });
 
     await verb({ ownerId: owner.id, bytes: bytes(book()) });
     const second = await verb({
@@ -135,7 +136,7 @@ describe("createImport", () => {
   test("a raw SillyTavern world file lands under its filename stem with ST's spellings and order mapped", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const verb = createImport({ importStandalone: createImportStandaloneLorebook(importCtx(db)) });
+    const verb = createImport({ importStandalone: createImportStandaloneLorebook({ ...importCtx(db), db: databaseHandle(db) }) });
 
     const outcome = await verb({ ownerId: owner.id, bytes: ENC.encode(ST_WORLD_TEXT), filename: "worlds/Harbor Town.json" });
     expect(outcome).toEqual({ ok: true, created: true, name: "Harbor Town", renamedFrom: null });
@@ -156,7 +157,7 @@ describe("createImport", () => {
   test("an ST world file whose entries carry EMPTY or REPEATED comments lands every entry (a title is not a key)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const verb = createImport({ importStandalone: createImportStandaloneLorebook(importCtx(db)) });
+    const verb = createImport({ importStandalone: createImportStandaloneLorebook({ ...importCtx(db), db: databaseHandle(db) }) });
     // Two entries with no comment (the title falls back to the first key), two sharing one comment.
     const text =
       '{"entries":{"0":{"uid":0,"key":["anchor"],"comment":"","content":"one","order":1},"1":{"uid":1,"key":["bell"],"comment":"","content":"two","order":2},"2":{"uid":2,"key":["c"],"comment":"Same","content":"three","order":3},"3":{"uid":3,"key":["d"],"comment":"Same","content":"four","order":4}}}';
@@ -173,7 +174,7 @@ describe("createImport", () => {
     const db = await freshDb();
     const a = await seedUser(db, {});
     const b = await seedUser(db, {});
-    const verb = createImport({ importStandalone: createImportStandaloneLorebook(importCtx(db)) });
+    const verb = createImport({ importStandalone: createImportStandaloneLorebook({ ...importCtx(db), db: databaseHandle(db) }) });
 
     await verb({ ownerId: a.id, bytes: bytes(book()) });
     const second = await verb({ ownerId: b.id, bytes: bytes(book()) });
@@ -184,7 +185,7 @@ describe("createImport", () => {
   test("a malformed or non-world upload returns { ok:false } and writes nothing (never throws)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const verb = createImport({ importStandalone: createImportStandaloneLorebook(importCtx(db)) });
+    const verb = createImport({ importStandalone: createImportStandaloneLorebook({ ...importCtx(db), db: databaseHandle(db) }) });
 
     const notJson = await verb({ ownerId: owner.id, bytes: ENC.encode("{not json") });
     expect(notJson.ok).toBe(false);

@@ -3,6 +3,7 @@
 
 import type { Db } from "@orb/db";
 import { userSeedLedger } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { UserId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedUser } from "@orb/testkit/node/factories/index.ts";
@@ -22,15 +23,15 @@ beforeEach(async () => {
 });
 
 test("a recorded key reads back for its account only", async () => {
-  await recordSeededItemKeys(db, owner, ["character:niko", "roster:pair"], 1000);
-  expect([...(await listSeededItemKeys(db, owner))].toSorted()).toEqual(["character:niko", "roster:pair"]);
-  expect(await listSeededItemKeys(db, friend)).toEqual([]);
+  await recordSeededItemKeys(databaseHandle(db), owner, ["character:niko", "roster:pair"], 1000);
+  expect([...(await listSeededItemKeys(databaseHandle(db), owner))].toSorted()).toEqual(["character:niko", "roster:pair"]);
+  expect(await listSeededItemKeys(databaseHandle(db), friend)).toEqual([]);
 });
 
 test("recording a key twice keeps one row and its first time; an empty record writes nothing", async () => {
-  await recordSeededItemKeys(db, owner, ["character:niko"], 1000);
-  await recordSeededItemKeys(db, owner, ["character:niko"], 2000);
-  await recordSeededItemKeys(db, owner, [], 3000);
+  await recordSeededItemKeys(databaseHandle(db), owner, ["character:niko"], 1000);
+  await recordSeededItemKeys(databaseHandle(db), owner, ["character:niko"], 2000);
+  await recordSeededItemKeys(databaseHandle(db), owner, [], 3000);
   const rows = await db.select().from(userSeedLedger).where(eq(userSeedLedger.userId, owner));
   expect(rows).toEqual([{ userId: owner, itemKey: "character:niko", seededAt: 1000 }]);
 });

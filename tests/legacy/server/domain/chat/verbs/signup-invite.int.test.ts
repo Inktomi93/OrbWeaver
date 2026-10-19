@@ -4,6 +4,7 @@
 
 import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, personas, userSettings, users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
@@ -59,15 +60,18 @@ beforeEach(async () => {
 function ops(capability: SignupInviteCapability = LOCAL, failPointers = false): ReturnType<typeof createSignupInvite> {
   const sessions = createSessionsService({
     rolePolicy: createSessionsRolePolicy(env),
-    db,
+    db: databaseHandle(db),
     now: () => FROZEN_AT_MS,
     sessionSecret: "s".repeat(32),
     seedUserConnections: () => Promise.resolve(),
   });
   return createSignupInvite(makeChatContext(db, { signupInvites: capability }), {
     signupUserStatement: sessions.signupUserStatement,
-    signupPersonaStatement: createJoinerPersonaStatement({ db, newPersonaId: () => castId<PersonaId>(`persona_joiner_${personasMinted++}`) }),
-    signupPersonaPointersStatement: failPointers ? failingPointers : createJoinerSettingsStatement({ db }),
+    signupPersonaStatement: createJoinerPersonaStatement({
+      db: databaseHandle(db),
+      newPersonaId: () => castId<PersonaId>(`persona_joiner_${personasMinted++}`),
+    }),
+    signupPersonaPointersStatement: failPointers ? failingPointers : createJoinerSettingsStatement({ db: databaseHandle(db) }),
     minterMayMintSignup: createSignupMinterCheck(sessions, createHostPrincipalResolver(sessions)),
     auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
     assemblePreview: createInvitePreview({ db }, { loadParticipantViews: makeLoadParticipantViews(db) }),

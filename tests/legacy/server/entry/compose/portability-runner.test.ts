@@ -29,6 +29,7 @@ import type { PortableFile } from "@orb/contracts/portability";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { WorkloadRef } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainConflictError, DomainOperationError } from "@orb/kit/errors";
 import type { CharacterId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -165,7 +166,7 @@ describe("buildPortabilityRunner — quiet mode wraps the bulk runs without swal
     await writeFile(join(stagedRoot, "characters", "Aria.json"), cardJson);
     const characterId = castId<CharacterId>("chr_aria");
     const { importWorkloads } = build({
-      db,
+      db: databaseHandle(db),
       importStagingDir: stagedRoot,
       // @orb-waive no-test-fabrication(unknown): only the four ops `buildOwnerImport` reads off `deps.character` matter here — the Ends when this deliberate test boundary can be expressed without a fabricated typed value.
       // rest of the real `CharacterService` surface is never touched by a staged card import.

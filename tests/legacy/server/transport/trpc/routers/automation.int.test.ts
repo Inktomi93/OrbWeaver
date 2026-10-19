@@ -2,6 +2,7 @@
 
 // Strict authoring routes over the real composed graph. The response-loss case drops the HTTP response
 // only after the actual tRPC handler has committed and built it; retry must recover, not mint again.
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { once } from "node:events";
 import { createServer } from "node:http";
@@ -126,7 +127,7 @@ test("lost mounted HTTP response after real commit recovers one unchanged birth 
   const handlerFailure = Promise.withResolvers<never>();
   const mounted = createApp({
     now: () => clock.now(),
-    db,
+    db: databaseHandle(db),
     seam: {
       resolvePrincipal: () =>
         Promise.resolve({ principal: { ...principal(OWNER_USER_ID), role: "owner", via: "header" }, sessionId: null, csrfHeaderPresent: false }),

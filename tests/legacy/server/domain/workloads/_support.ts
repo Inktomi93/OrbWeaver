@@ -19,7 +19,7 @@ import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { vi } from "vitest";
 import { isAdmin, isOwner, requireOwner } from "#server/domain/admin/guard.ts";
 import type { WorkloadContribution, WorkloadContributions } from "#server/domain/workloads/contract/contribution.ts";
-import type { WorkloadRunnerDeps, WorkloadService } from "#server/domain/workloads/contract/service.ts";
+import type { WorkloadRunnerAssemblyDeps, WorkloadService } from "#server/domain/workloads/contract/service.ts";
 import type { WorkloadRunnableRow } from "#server/domain/workloads/contract/workload-row.ts";
 import { loadWorkload } from "#server/domain/workloads/persistence/queries.ts";
 import { createWorkloadService } from "#server/domain/workloads/service.ts";
@@ -172,9 +172,9 @@ export function principal(id: string, role: UserRole = "user"): Principal {
 
 /** The base runner deps the engine builds a per-dispatch context from. Timers DISABLED (`*Ms: 0`) so the
  *  engine runs synchronously with no wall-clock poll (the deterministic test seam). */
-export function makeRunnerDeps(db: Db, contributions: WorkloadContributions, overrides: Partial<WorkloadRunnerDeps> = {}): WorkloadRunnerDeps {
+export function makeRunnerDeps(db: Db, contributions: WorkloadContributions, overrides: Partial<WorkloadRunnerAssemblyDeps> = {}): WorkloadRunnerAssemblyDeps {
   return {
-    db,
+    db: databaseHandle(db),
     contributions,
     audit: () => Promise.resolve(),
     now: () => T0,

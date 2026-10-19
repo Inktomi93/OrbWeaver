@@ -12,6 +12,7 @@
 // @subject packages/server/src/domain/automation/verbs/run-rule-now.ts
 
 import { chatParticipants } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AutomationRuleId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -52,7 +53,7 @@ async function runNowFixture(): Promise<{ fixture: Awaited<ReturnType<typeof rul
       newSuggestionId: base.ctx.newSuggestionId,
     }),
   };
-  return { fixture: { ...base, ctx, svc: createAutomationService(ctx) }, turns };
+  return { fixture: { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) }, turns };
 }
 
 /** Mint + enable a `trigger_turn` rule whose PREDICATE is the given source (`null` = always). */

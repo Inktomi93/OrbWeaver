@@ -6,6 +6,7 @@
 import { pluginManifestSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { assets } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -46,7 +47,7 @@ test("set → get → list → delete round-trips through the composed op", asyn
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const plugin = await seedPlugin(db, owner, "plugin_a", "alpha");
-  const storage = buildPluginStorage(db, now);
+  const storage = buildPluginStorage(databaseHandle(db), now);
 
   expect(await storage.get(plugin, owner, "k")).toBeNull();
   await storage.set(plugin, owner, "cfg:a", "1");
@@ -73,7 +74,7 @@ test("compareAndSet REFUSES a write whose basis moved, and hands back the value 
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const plugin = await seedPlugin(db, owner, "plugin_a", "alpha");
-  const storage = buildPluginStorage(db, now);
+  const storage = buildPluginStorage(databaseHandle(db), now);
 
   await storage.set(plugin, owner, "count", "1");
   // A reads…
@@ -97,7 +98,7 @@ test("compareAndSet's CREATE arm: `expected: null` mints the key once, and the s
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const plugin = await seedPlugin(db, owner, "plugin_a", "alpha");
-  const storage = buildPluginStorage(db, now);
+  const storage = buildPluginStorage(databaseHandle(db), now);
 
   expect(await storage.compareAndSet(plugin, owner, { key: "seq", expected: null, next: "1" })).toEqual({ applied: true, current: "1" });
   // "The key must not exist" is a real precondition, not an upsert: the second create-claim loses.
@@ -110,7 +111,7 @@ test("compareAndSet is OWNER- and PLUGIN-scoped — a foreign key is neither rea
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const alpha = await seedPlugin(db, owner, "plugin_a", "alpha");
   const beta = await seedPlugin(db, owner, "plugin_b", "beta");
-  const storage = buildPluginStorage(db, now);
+  const storage = buildPluginStorage(databaseHandle(db), now);
 
   await storage.set(alpha, owner, "shared", "alpha-value");
   // Beta cannot move alpha's row by naming the same key and the same value: the guard filter makes the row
@@ -133,7 +134,7 @@ test("compareAndSet's CREATE arm honours the 256-key cap; an EXISTING-key claim 
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const plugin = await seedPlugin(db, owner, "plugin_a", "alpha");
-  const storage = buildPluginStorage(db, now);
+  const storage = buildPluginStorage(databaseHandle(db), now);
 
   for (let i = 0; i < PLUGIN_KV_MAX_KEYS; i += 1) {
     await storage.set(plugin, owner, `k${i}`, "v");
@@ -149,7 +150,7 @@ test("the 256-key cap: a NEW key past the ceiling is refused; an EXISTING-key ov
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const plugin = await seedPlugin(db, owner, "plugin_a", "alpha");
-  const storage = buildPluginStorage(db, now);
+  const storage = buildPluginStorage(databaseHandle(db), now);
 
   // Fill to the ceiling.
   for (let i = 0; i < PLUGIN_KV_MAX_KEYS; i++) {
@@ -172,7 +173,7 @@ test("two concurrent NEW-key writes at the ceiling cannot both land — the coun
   const db = await freshDb();
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const plugin = await seedPlugin(db, owner, "plugin_a", "alpha");
-  const storage = buildPluginStorage(db, now);
+  const storage = buildPluginStorage(databaseHandle(db), now);
 
   // One slot left.
   for (let i = 0; i < PLUGIN_KV_MAX_KEYS - 1; i += 1) {
@@ -194,7 +195,7 @@ test("cross-plugin isolation through the op: plugin A's key is invisible to plug
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const a = await seedPlugin(db, owner, "plugin_a", "alpha");
   const b = await seedPlugin(db, owner, "plugin_b", "beta");
-  const storage = buildPluginStorage(db, now);
+  const storage = buildPluginStorage(databaseHandle(db), now);
 
   await storage.set(a, owner, "secret", "a-only");
   expect(await storage.get(b, owner, "secret")).toBeNull();

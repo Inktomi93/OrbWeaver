@@ -4,6 +4,7 @@
 
 import type { Db } from "@orb/db";
 import { chatDigests, chatSegments } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
@@ -29,7 +30,7 @@ async function room(): Promise<Room> {
   const chatId = await seedChat(db, "chat_room", host);
   const ops = createMemoryEmbeddingOps({
     embeddings: createEmbeddingsService(makeStoreHarness(db).ctx),
-    resolveChatHostUserId: (id) => loadPresentHostUserId(db, id),
+    resolveChatHostUserId: (id) => loadPresentHostUserId(databaseHandle(db), id),
   });
   return { db, host, former, chatId, ops };
 }

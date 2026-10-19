@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/stats/verbs/character.ts
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
@@ -21,7 +22,7 @@ describe("stats.character", () => {
     const owner = await seedUser(db);
     const ch = await seedCharacter(db, owner, { name: "Aria" });
     await seedCharacterStats(db, ch, { assistantTurns: 4 });
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
     const c = await svc.character(owner, ch);
     expect(c?.name).toBe("Aria");
     expect(c?.assistantTurns).toBe(4);

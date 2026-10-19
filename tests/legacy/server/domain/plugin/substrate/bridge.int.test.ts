@@ -6,6 +6,7 @@
 import type { PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { chatParticipants } from "@orb/db/schema";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -59,9 +60,9 @@ function roomOps(): RoomOps {
     ...base,
     chat: {
       ...base.chat,
-      resolveViewerVisibility: createResolveViewerVisibility({ db }),
+      resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
       requireHost: async (chatId, userId) => {
-        await requireHost({ db, can }, principalFor(userId), chatId);
+        await requireHost({ db: databaseHandle(db), can }, principalFor(userId), chatId);
       },
       getVariables: async () => {
         reads += 1;
@@ -174,7 +175,7 @@ test("a room-variable read for a chat the installer is not in is the empty fold,
     ...base,
     chat: {
       ...base.chat,
-      resolveViewerVisibility: createResolveViewerVisibility({ db }),
+      resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
       getVariables: () => {
         reached = true;
         return Promise.resolve({ secret: "room state" });

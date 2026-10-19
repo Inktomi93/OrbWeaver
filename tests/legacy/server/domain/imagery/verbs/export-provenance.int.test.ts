@@ -6,6 +6,7 @@ import { responseCacheSchema } from "@orb/contracts/inference";
 import type { PortableFile } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import { assets, imageryGenerations, imageryImportCalls, ownerStats, userConnections } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -20,7 +21,7 @@ import { buildImageryCall, parseImageryCall } from "#server/primitives/serde/ima
 
 function service(db: Db): ReturnType<typeof createImageryPortability> {
   return createImageryPortability({
-    db,
+    db: databaseHandle(db),
     newCallId: () => mintTypeId(ID_PREFIX.imageryCall),
     newGenerationId: () => mintTypeId(ID_PREFIX.imageryGeneration),
     bumpStatsCanonVersion,
@@ -92,7 +93,7 @@ test("native same-box import is a cost/cardinality fixedpoint; modified executio
   }
   expect(await db.select().from(imageryGenerations)).toEqual(before);
   expect((await db.select().from(imageryImportCalls))[0]?.id).toBe(call.execution.sourceCallId);
-  await reconcileStats(db, { ownerId: owner.id, now: () => 1_750_000_001_000 });
+  await reconcileStats(databaseHandle(db), { ownerId: owner.id, now: () => 1_750_000_001_000 });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id)))[0]?.costUsd).toBe(0.125);
   const modified = { ...call, execution: { ...call.execution, prompt: "An actually different history" } };
   expect(await api.importFile(owner.id, { filename: "changed.json", bytes: buildImageryCall(modified) })).toMatchObject({ ok: true, created: true });
@@ -103,7 +104,7 @@ test("native same-box import is a cost/cardinality fixedpoint; modified executio
   }
   expect(additiveExports).toHaveLength(2);
   expect(new Set(additiveExports.map((output) => output.filename)).size).toBe(2);
-  await reconcileStats(db, { ownerId: owner.id, now: () => 1_750_000_001_000 });
+  await reconcileStats(databaseHandle(db), { ownerId: owner.id, now: () => 1_750_000_001_000 });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id)))[0]?.costUsd).toBe(0.25);
 });
 
@@ -123,7 +124,7 @@ test("legacy null-call rows export separately and rebuild known spend once per s
     expect(await api.importFile(owner.id, file)).toMatchObject({ ok: true, created: false });
   }
   expect(await db.select().from(imageryGenerations)).toHaveLength(2);
-  await reconcileStats(db, { ownerId: owner.id, now: () => 1_750_000_001_000 });
+  await reconcileStats(databaseHandle(db), { ownerId: owner.id, now: () => 1_750_000_001_000 });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id)))[0]?.costUsd).toBe(0.25);
 });
 
@@ -169,7 +170,7 @@ test("native retained subset and later NULL-attribution output share one immutab
         row.createdAt === call.execution.createdAt,
     ),
   ).toBe(true);
-  await reconcileStats(db, { ownerId: owner.id, now: () => 1_750_000_001_000 });
+  await reconcileStats(databaseHandle(db), { ownerId: owner.id, now: () => 1_750_000_001_000 });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id)))[0]?.costUsd).toBe(0.125);
 });
 
@@ -208,12 +209,12 @@ test("a full native backup directly restores a missing output without duplicatin
   ]);
   expect(new Set(restored.map((row) => row.callId))).toEqual(new Set([call.execution.sourceCallId]));
   expect((await db.select().from(imageryImportCalls))[0]?.id).toBe(call.execution.sourceCallId);
-  await reconcileStats(db, { ownerId: owner.id, now: () => 1_750_000_001_000 });
+  await reconcileStats(databaseHandle(db), { ownerId: owner.id, now: () => 1_750_000_001_000 });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id)))[0]?.costUsd).toBe(0.125);
 
   expect(await api.importFile(owner.id, fullBackup)).toMatchObject({ ok: true, created: false });
   expect(await db.select().from(imageryGenerations).orderBy(imageryGenerations.id)).toEqual(restored);
-  await reconcileStats(db, { ownerId: owner.id, now: () => 1_750_000_001_000 });
+  await reconcileStats(databaseHandle(db), { ownerId: owner.id, now: () => 1_750_000_001_000 });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id)))[0]?.costUsd).toBe(0.125);
 });
 
@@ -255,7 +256,7 @@ test("stored response-cache facts survive owned export and native restore while 
   expect(new Set(restored.map((row) => row.callId))).toEqual(new Set([call.execution.sourceCallId]));
   expect(await api.importFile(owner.id, full)).toMatchObject({ ok: true, created: false });
   expect(await db.select().from(imageryGenerations).orderBy(imageryGenerations.id)).toEqual(restored);
-  await reconcileStats(db, { ownerId: owner.id, now: () => 1_750_000_001_000 });
+  await reconcileStats(databaseHandle(db), { ownerId: owner.id, now: () => 1_750_000_001_000 });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id)))[0]?.costUsd).toBe(0.125);
 
   const changed = {
@@ -271,6 +272,6 @@ test("stored response-cache facts survive owned export and native restore while 
   expect(new Set(additive.map((row) => row.callId)).size).toBe(2);
   expect(additive.filter((row) => row.responseCache?.status === "hit")).toHaveLength(2);
   expect(additive.filter((row) => row.responseCache?.status === "miss")).toHaveLength(2);
-  await reconcileStats(db, { ownerId: owner.id, now: () => 1_750_000_001_000 });
+  await reconcileStats(databaseHandle(db), { ownerId: owner.id, now: () => 1_750_000_001_000 });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id)))[0]?.costUsd).toBe(0.25);
 });

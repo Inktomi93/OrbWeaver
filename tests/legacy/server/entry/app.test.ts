@@ -11,6 +11,7 @@ import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
 import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { ProviderError } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { Handle, SocketId, UserId } from "@orb/kit/ids";
@@ -119,7 +120,7 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
   return {
     now: (): number => FROZEN_AT_MS,
     // @orb-waive no-test-fabrication(unknown): `db` is never touched on this app-assembly slice — routes are covered by slice tests. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
-    db: {} as unknown as Db,
+    db: databaseHandle({} as unknown as Db),
     oidcProviderName: "your identity provider",
     seam: fakeSeam(null),
     services,

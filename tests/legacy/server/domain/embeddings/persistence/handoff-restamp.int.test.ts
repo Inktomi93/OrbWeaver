@@ -10,6 +10,7 @@
 import type { Db } from "@orb/db";
 import { characters, chatDigestSpeakers, chatDigests, embedGenerations, userConnections } from "@orb/db";
 import { batchMany } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
@@ -85,7 +86,7 @@ test("both digest columns move onto the copy — and ONLY inside the transferred
   const mine = await seedDigest(db, "mine", transferred, source);
   const theirs = await seedDigest(db, "theirs", otherRoom, source);
 
-  const stmts = await createHandoffRestampStatements({ db })({
+  const stmts = await createHandoffRestampStatements({ db: databaseHandle(db) })({
     chatId: transferred,
     pairs: [{ sourceCharacterId: source, characterId: copy }],
   });
@@ -107,5 +108,5 @@ test("an empty pair list produces no statements (an offer-less handoff writes no
   const db = await freshDb();
   const chatId = (await seedChat(db)).id;
 
-  expect(await createHandoffRestampStatements({ db })({ chatId, pairs: [] })).toEqual([]);
+  expect(await createHandoffRestampStatements({ db: databaseHandle(db) })({ chatId, pairs: [] })).toEqual([]);
 });

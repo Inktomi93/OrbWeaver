@@ -17,6 +17,7 @@ import type { AppSettings } from "@orb/contracts/settings";
 import { parseAppSettings } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { rateLimitBuckets } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -36,7 +37,7 @@ const AUTHED_CAP = env.RATE_LIMIT_AUTHED;
 // The production gate resolves its caps from the effective-config; with no admin override that is the env
 // floor (`layer({}).rateLimits`), so these failsafe assertions still key on the env caps above.
 function gate(db: Db): ReturnType<typeof createRateLimitGate> {
-  return createRateLimitGate({ db, now: () => T0, resolveRateLimits: () => layer({}).rateLimits });
+  return createRateLimitGate({ db: databaseHandle(db), now: () => T0, resolveRateLimits: () => layer({}).rateLimits });
 }
 
 function anon(clientIp: string | null): RateLimitDecision {
@@ -184,7 +185,7 @@ describe("rate-limit gate — LIVE admin override (the gate reads the RESOLVED c
     // (reloadEffectiveConfig swaps the cached blob); the gate reads it fresh per consume.
     const state: { override: AppSettings } = { override: {} };
     const enforce = createRateLimitGate({
-      db,
+      db: databaseHandle(db),
       now: () => T0,
       resolveRateLimits: () => layer(state.override).rateLimits,
     }).enforce;

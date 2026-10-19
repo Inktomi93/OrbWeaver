@@ -5,6 +5,7 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { PluginCapability } from "@orb/contracts/plugin";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle, PluginId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createResolveStandingAsks } from "@orb/server/domain/chat";
@@ -191,7 +192,11 @@ test("every seeded example packs to a bundle the real install verb accepts", asy
  *  (2026-09-05, `git show HEAD:` sources): `items` was EMPTY. */
 test("the seeder leaves the owner ONE durable ask that counts every waiting plugin", async () => {
   const db = await freshDb();
-  const notifications = createNotificationsService({ db, now: (): number => FROZEN_AT_MS, resolveStandingAsks: createResolveStandingAsks(db) });
+  const notifications = createNotificationsService({
+    db: databaseHandle(db),
+    now: (): number => FROZEN_AT_MS,
+    resolveStandingAsks: createResolveStandingAsks(databaseHandle(db)),
+  });
   const inert = makeInertOps();
   const ops: PluginHostOps = {
     ...inert,

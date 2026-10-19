@@ -2,6 +2,7 @@
 // character. Ambiguity (two connections), a group founding, and another user's connection all answer null, so the
 // room falls through to the default seed instead of guessing.
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -23,7 +24,7 @@ describe("resolveConnectedPersona", () => {
     await svc.connectToCharacter({ principal: principal(owner), characterId: solo, personaId: first.id });
     await svc.connectToCharacter({ principal: principal(owner), characterId: twice, personaId: first.id });
     await svc.connectToCharacter({ principal: principal(owner), characterId: twice, personaId: second.id });
-    const resolve = createResolveConnectedPersona({ db });
+    const resolve = createResolveConnectedPersona({ db: databaseHandle(db) });
 
     expect(await resolve(owner, [solo])).toBe(first.id);
     expect(await resolve(owner, [twice])).toBeNull();

@@ -34,12 +34,14 @@ describe("authored-input belts", () => {
     const foreign = (await seedCharacter(db, { ownerId: other })).id;
 
     await expect(
-      ensureMembersOwned(h.ctx, owner, [
+      ensureMembersOwned({ ...h.ctx, db }, owner, [
         { characterId: mine, position: 0, talkativeness: null, disabled: false },
         { characterId: foreign, position: 1, talkativeness: null, disabled: false },
       ]),
     ).rejects.toBeInstanceOf(RosterPresetCharacterNotFoundError);
-    await expect(ensureMembersOwned(h.ctx, owner, [{ characterId: mine, position: 0, talkativeness: null, disabled: false }])).resolves.toBeUndefined();
+    await expect(
+      ensureMembersOwned({ ...h.ctx, db }, owner, [{ characterId: mine, position: 0, talkativeness: null, disabled: false }]),
+    ).resolves.toBeUndefined();
   });
 
   test("ensureAnchorOwned: null passes; a foreign persona throws", async () => {
@@ -49,7 +51,7 @@ describe("authored-input belts", () => {
     const other = (await seedUser(db)).id;
     const foreign = (await seedPersona(db, { ownerId: other })).id;
 
-    await expect(ensureAnchorOwned(h.ctx, owner, null)).resolves.toBeUndefined();
-    await expect(ensureAnchorOwned(h.ctx, owner, foreign)).rejects.toBeInstanceOf(RosterPresetPersonaNotFoundError);
+    await expect(ensureAnchorOwned({ ...h.ctx, db }, owner, null)).resolves.toBeUndefined();
+    await expect(ensureAnchorOwned({ ...h.ctx, db }, owner, foreign)).rejects.toBeInstanceOf(RosterPresetPersonaNotFoundError);
   });
 });

@@ -7,6 +7,7 @@
 import type { StandaloneVariableDelta } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { chats, messages, messageVariants } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, MessageId, MessageVariantId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -46,13 +47,13 @@ async function seedMessageWithDelta(chatId: ChatId, seq: number, delta: readonly
 
 test("an empty op list writes nothing (both derived columns stay null)", async () => {
   const chatId = await seedChat(db, "empty-ops");
-  await applyStandaloneVariableOps(makeChatContext(db), chatId, []);
+  await applyStandaloneVariableOps({ ...makeChatContext(db), db: databaseHandle(db) }, chatId, []);
   expect(await readChat(chatId)).toEqual({ runtime: null, standalone: null });
 });
 
 test("a standalone write appends a seq-stamped batch AND refolds the runtime cache in one op", async () => {
   const chatId = await seedChat(db, "standalone-write");
-  await applyStandaloneVariableOps(makeChatContext(db), chatId, [{ op: "set", key: "mood", value: "happy" }]);
+  await applyStandaloneVariableOps({ ...makeChatContext(db), db: databaseHandle(db) }, chatId, [{ op: "set", key: "mood", value: "happy" }]);
   const { runtime, standalone } = await readChat(chatId);
   expect(runtime).toEqual({ mood: "happy" });
   // maxSeq of a message-less chat is 0 → the batch is seq-stamped 0.
@@ -62,8 +63,8 @@ test("a standalone write appends a seq-stamped batch AND refolds the runtime cac
 test("successive standalone writes accumulate as batches and fold in order (set then inc)", async () => {
   const chatId = await seedChat(db, "standalone-accumulate");
   const ctx = makeChatContext(db);
-  await applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "count", value: "1" }]);
-  await applyStandaloneVariableOps(ctx, chatId, [{ op: "inc", key: "count" }]);
+  await applyStandaloneVariableOps({ ...ctx, db: databaseHandle(ctx.db) }, chatId, [{ op: "set", key: "count", value: "1" }]);
+  await applyStandaloneVariableOps({ ...ctx, db: databaseHandle(ctx.db) }, chatId, [{ op: "inc", key: "count" }]);
   const { runtime, standalone } = await readChat(chatId);
   expect(runtime).toEqual({ count: "2" });
   expect(standalone).toEqual([
@@ -77,7 +78,7 @@ test("a standalone delta folds together with the existing message-variant deltas
   // A committed turn set y=fromTurn (seq 1); the standalone then sets z + overrides y (stamped at maxSeq 1,
   // folded AFTER the message delta — the automation acted after the turn).
   await seedMessageWithDelta(chatId, 1, [{ op: "set", key: "y", value: "fromTurn" }]);
-  await applyStandaloneVariableOps(makeChatContext(db), chatId, [
+  await applyStandaloneVariableOps({ ...makeChatContext(db), db: databaseHandle(db) }, chatId, [
     { op: "set", key: "y", value: "fromStandalone" },
     { op: "set", key: "z", value: "9" },
   ]);
@@ -105,7 +106,7 @@ test("a standalone delta folds together with the existing message-variant deltas
 test("an UNCONDITIONAL write stays last-writer-wins BY DESIGN — two ticks from one snapshot land one segment", async () => {
   const chatId = await seedChat(db, "unconditional-tick");
   const ctx = makeChatContext(db);
-  await applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "1/6" }]);
+  await applyStandaloneVariableOps({ ...ctx, db: databaseHandle(ctx.db) }, chatId, [{ op: "set", key: "clock:the_ritual", value: "1/6" }]);
 
   // BOTH writers read the same settled fold and each computes cur+1 from it (one read = exactly what two
   // concurrent readers observe). Both batches LAND — nothing is dropped, which is the log CAS's whole promise —
@@ -113,8 +114,8 @@ test("an UNCONDITIONAL write stays last-writer-wins BY DESIGN — two ticks from
   // test exists so the next reader does not mistake it for the guarantee a read-modify-write needs.
   expect((await readChat(chatId)).runtime).toEqual({ "clock:the_ritual": "1/6" });
   const settled = await Promise.all([
-    applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "2/6" }]),
-    applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "2/6" }]),
+    applyStandaloneVariableOps({ ...ctx, db: databaseHandle(ctx.db) }, chatId, [{ op: "set", key: "clock:the_ritual", value: "2/6" }]),
+    applyStandaloneVariableOps({ ...ctx, db: databaseHandle(ctx.db) }, chatId, [{ op: "set", key: "clock:the_ritual", value: "2/6" }]),
   ]);
   expect(settled).toEqual([{ outcome: "applied" }, { outcome: "applied" }]);
   expect((await readChat(chatId)).runtime).toEqual({ "clock:the_ritual": "2/6" });
@@ -123,18 +124,18 @@ test("an UNCONDITIONAL write stays last-writer-wins BY DESIGN — two ticks from
 test("a STALE precondition refuses as data, writes NOTHING, and hands back the live value — the retry lands the tick", async () => {
   const chatId = await seedChat(db, "cas-tick");
   const ctx = makeChatContext(db);
-  await applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "1/6" }]);
+  await applyStandaloneVariableOps({ ...ctx, db: databaseHandle(ctx.db) }, chatId, [{ op: "set", key: "clock:the_ritual", value: "1/6" }]);
 
   // Both ticks derive from the SAME snapshot ("1/6"), and both say so. Serialized here so the loser is
   // decidable; the interleaved arm is the same predicate judged inside the CAS retry loop.
   const first = await applyStandaloneVariableOps(
-    ctx,
+    { ...ctx, db: databaseHandle(ctx.db) },
     chatId,
     [{ op: "set", key: "clock:the_ritual", value: "2/6" }],
     [{ key: "clock:the_ritual", expected: "1/6" }],
   );
   const second = await applyStandaloneVariableOps(
-    ctx,
+    { ...ctx, db: databaseHandle(ctx.db) },
     chatId,
     [{ op: "set", key: "clock:the_ritual", value: "2/6" }],
     [{ key: "clock:the_ritual", expected: "1/6" }],
@@ -148,7 +149,7 @@ test("a STALE precondition refuses as data, writes NOTHING, and hands back the l
 
   // The RETRY, derived from what the refusal handed back — no second read, which would be its own window.
   const retry = await applyStandaloneVariableOps(
-    ctx,
+    { ...ctx, db: databaseHandle(ctx.db) },
     chatId,
     [{ op: "set", key: "clock:the_ritual", value: "3/6" }],
     [{ key: "clock:the_ritual", expected: "2/6" }],
@@ -164,7 +165,7 @@ test("`expected: null` is the belief that the key is UNSET — it holds on an ab
 
   // The create-if-absent arm: nobody has started this clock, so the belief holds and the mint lands.
   const minted = await applyStandaloneVariableOps(
-    ctx,
+    { ...ctx, db: databaseHandle(ctx.db) },
     chatId,
     [{ op: "set", key: "clock:the_omen", value: "0/4" }],
     [{ key: "clock:the_omen", expected: null }],
@@ -173,7 +174,7 @@ test("`expected: null` is the belief that the key is UNSET — it holds on an ab
 
   // A second starter loses: the key now reads "0/4", and the refusal says so rather than clobbering it back.
   const raced = await applyStandaloneVariableOps(
-    ctx,
+    { ...ctx, db: databaseHandle(ctx.db) },
     chatId,
     [{ op: "set", key: "clock:the_omen", value: "0/6" }],
     [{ key: "clock:the_omen", expected: null }],
@@ -186,15 +187,15 @@ test("a precondition is judged against the WINNER's state inside the retry loop,
   const held = await freshHeldDb();
   const chatId = await seedChat(held.db, "cas-through-retry");
   const ctx = makeChatContext(held.db);
-  await applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "1/6" }]);
+  await applyStandaloneVariableOps({ ...ctx, db: databaseHandle(ctx.db) }, chatId, [{ op: "set", key: "clock:the_ritual", value: "1/6" }]);
 
   // Park BOTH writers at the CAS read so each derives from the pre-race chain, exactly like the log-CAS pin
   // below. One wins the log CAS and applies; the loser RE-READS — and its belief must be re-judged against the
   // winner's "2/6", not silently carried through on the stale snapshot it originally read.
   const gate = held.hold(CAS_READ, 2);
   const expectOneSix = [{ key: "clock:the_ritual", expected: "1/6" }];
-  const a = applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "2/6" }], expectOneSix);
-  const b = applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "clock:the_ritual", value: "2/6" }], expectOneSix);
+  const a = applyStandaloneVariableOps({ ...ctx, db: databaseHandle(ctx.db) }, chatId, [{ op: "set", key: "clock:the_ritual", value: "2/6" }], expectOneSix);
+  const b = applyStandaloneVariableOps({ ...ctx, db: databaseHandle(ctx.db) }, chatId, [{ op: "set", key: "clock:the_ritual", value: "2/6" }], expectOneSix);
   await gate.reached;
   // POSITIVE CONTROL for the hold: both writers really are parked before their read, so neither has written.
   expect((await readColumns(held.db, chatId)).runtime).toEqual({ "clock:the_ritual": "1/6" });
@@ -232,8 +233,8 @@ test("two concurrent standalone writes both land (neither op is lost to the othe
   // one read that returns both the predicate's bytes and the array to rebuild, and drizzle renders every
   // OTHER projection of this column with a single term (measured, not assumed — `CAS_READ` below).
   const gate = held.hold(CAS_READ, 2);
-  const first = applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "alpha", value: "1" }]);
-  const second = applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "beta", value: "2" }]);
+  const first = applyStandaloneVariableOps({ ...ctx, db: databaseHandle(ctx.db) }, chatId, [{ op: "set", key: "alpha", value: "1" }]);
+  const second = applyStandaloneVariableOps({ ...ctx, db: databaseHandle(ctx.db) }, chatId, [{ op: "set", key: "beta", value: "2" }]);
   await gate.reached;
   // POSITIVE CONTROL for the hold itself: `reached` resolved, so two statements matched — and neither writer
   // has written yet, which is what makes this a RACE pin rather than two sequential writes that would pass
@@ -264,7 +265,7 @@ test("the CAS snapshot is ONE read of the guarded column (two reads are the race
   const chatId = await seedChat(counted, "standalone-one-read");
   queries.reset();
 
-  await applyStandaloneVariableOps(makeChatContext(counted), chatId, [{ op: "set", key: "alpha", value: "1" }]);
+  await applyStandaloneVariableOps({ ...makeChatContext(counted), db: databaseHandle(counted) }, chatId, [{ op: "set", key: "alpha", value: "1" }]);
 
   const reads = standaloneColumnReads(queries.statements());
   expect(reads).toHaveLength(1);
@@ -284,7 +285,7 @@ test("a sibling committing mid-read is folded in, not overwritten", async () => 
 
   // Park the writer at its CAS read of the standalone chain (arrivals 1 — only this writer is running).
   const gate = held.hold(CAS_READ, 1);
-  const parked = applyStandaloneVariableOps(ctx, chatId, [{ op: "set", key: "beta", value: "2" }]);
+  const parked = applyStandaloneVariableOps({ ...ctx, db: databaseHandle(ctx.db) }, chatId, [{ op: "set", key: "beta", value: "2" }]);
   await gate.reached;
   // POSITIVE CONTROL: the writer really is parked BEFORE its read, so what follows is genuinely "a sibling
   // committed mid-read" and not a sequential write the code would survive either way.

@@ -11,6 +11,7 @@ import type { ChatBusEvent } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import { automationRules, chatParticipants } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AutomationRuleId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
@@ -757,13 +758,16 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     const asset = await seedAsset(db, host, "gen-art");
     const posts: ChatBusEvent[] = [];
     const chatCtx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
-    const postNarratorMessage = createPostNarratorMessage(chatCtx, {
-      claimChat: (): Promise<void> => Promise.resolve(),
-      emit: (event) => {
-        posts.push(event);
-        return Promise.resolve();
+    const postNarratorMessage = createPostNarratorMessage(
+      { ...chatCtx, db: databaseHandle(chatCtx.db) },
+      {
+        claimChat: (): Promise<void> => Promise.resolve(),
+        emit: (event) => {
+          posts.push(event);
+          return Promise.resolve();
+        },
       },
-    });
+    );
     // The chat reads are the production ones over the REAL db: the fact resolver reads the turn origin back off
     // the posted slot, and since #1417 a `messageCommitted` whose slot cannot be read is SKIPPED, so the re-fire
     // path under test needs the real message projection too.
@@ -1130,7 +1134,7 @@ test("#1564 — an index-refresh failure after a dispatch auto-disable LATCHES S
   const host = await seedUser(db, "user_host");
   const chatId = await seedHostChat(db, host);
   const failing = { fail: false };
-  const enabled = createEnabledRuleIndex(readFailingDb(db, failing));
+  const enabled = createEnabledRuleIndex(databaseHandle(readFailingDb(db, failing)));
   const ctx = makeAutomationHarness(db, { enabled });
   const svc = createAutomationService(ctx);
   const rule = await svc.createRule({

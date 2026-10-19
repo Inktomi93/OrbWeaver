@@ -5,6 +5,7 @@
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 // @orb-waive-file no-test-fabrication(Record<string, unknown>): baselined when the gate widened to value casts; burn-down item 906.
@@ -79,7 +80,7 @@ async function flow(): Promise<Flow> {
   const now = (): number => FROZEN_AT_MS;
   const sessions = createSessionsService({
     rolePolicy: createSessionsRolePolicy(policyConfig),
-    db,
+    db: databaseHandle(db),
     now,
     sessionSecret: PEPPER,
     seedUserConnections: () => Promise.resolve(),
@@ -98,7 +99,7 @@ async function flow(): Promise<Flow> {
     groupsSeparator: ";",
     allowJitProvision: true,
     requireApproval: false,
-    store: createOidcStore(db, now),
+    store: createOidcStore(databaseHandle(db), now),
     ownerClaim,
   };
   const app = new Hono();
@@ -106,7 +107,7 @@ async function flow(): Promise<Flow> {
     sessions,
     sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
     now,
-    db,
+    db: databaseHandle(db),
     resolveLoginLimit: (): number => 100,
     discreetLogin: (): boolean => false,
     oidc,

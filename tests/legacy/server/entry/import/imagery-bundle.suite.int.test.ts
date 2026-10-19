@@ -1,4 +1,5 @@
 // Actual HTTP export/upload, composed registry, real import workload, owned CAS and stats rebuild.
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -109,7 +110,7 @@ test("a complete library bundle restores uncurated image calls and rebuilds spen
   const restored = await createServices({
     serverRestart: UNSUPERVISED_RESTART,
     share: NO_SHARE_RELAY,
-    db: restoredDb,
+    db: databaseHandle(restoredDb),
     now: () => clock.now(),
     ownerId: targetUser.id,
     secretBoxKey: null,
@@ -131,7 +132,7 @@ test("a complete library bundle restores uncurated image calls and rebuilds spen
     const started = z.object({ workloadId: typeIdSchema(ID_PREFIX.workload) }).parse(await uploaded.json());
     const row = await loadRunnableWorkload(restoredDb, restored.workloadContributions, started.workloadId);
     await runWorkload(makeRunnerDeps(restoredDb, restored.workloadContributions), row, new AbortController().signal);
-    const done = await loadWorkload(restoredDb, restored.workloadContributions, started.workloadId);
+    const done = await loadWorkload(databaseHandle(restoredDb), restored.workloadContributions, started.workloadId);
     expect(done?.status).toBe("succeeded");
     expect(done?.result).toMatchObject({ failed: 0 });
   };

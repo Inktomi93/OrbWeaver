@@ -5,6 +5,7 @@
 import type { Db } from "@orb/db";
 import { auditLogs, sessions, users } from "@orb/db";
 import { batchMany } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -214,10 +215,10 @@ describe("sessions.revokeByToken — the OIDC end-session hint (#141)", () => {
     const stale = await svc.create({ userId: USER_ID, oidcIdToken: ID_TOKEN });
     const rotated = createSessionsService({
       rolePolicy: svc.rolePolicy,
-      db,
+      db: databaseHandle(db),
       now: (): number => FROZEN_AT_MS,
       sessionSecret: `${PEPPER}-rotated`,
-      seedUserConnections: createLocalLightUserSeed({ db, now: (): number => FROZEN_AT_MS, onEmbedSpaceBound: () => undefined }),
+      seedUserConnections: createLocalLightUserSeed({ db: databaseHandle(db), now: (): number => FROZEN_AT_MS, onEmbedSpaceBound: () => undefined }),
     });
     // Mint the cookie under the ROTATED service so its token hash resolves, then plant the OLD service's
     // sealed blob on that row — exactly the state a rotation leaves behind.

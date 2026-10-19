@@ -17,6 +17,7 @@
 // gets asked.
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { tmpdir } from "node:os";
 import type { Principal } from "@orb/contracts/identity";
@@ -240,7 +241,7 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
     const { services } = await createServices({
       serverRestart: UNSUPERVISED_RESTART,
       share: NO_SHARE_RELAY,
-      db,
+      db: databaseHandle(db),
       now: clock.now,
       ownerId: castId<UserId>("user_greet_owner"),
       secretBoxKey: null,

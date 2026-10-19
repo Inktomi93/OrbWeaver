@@ -18,7 +18,7 @@ describe("mintLiteGame", () => {
     const h = makeRpgService(db);
     const chatId = await seedChat(db, "birth");
 
-    const gameId = await mintLiteGame(h.ctx, { chatId });
+    const gameId = await mintLiteGame({ ...h.ctx, db }, { chatId });
 
     const [row] = await db.select().from(rpgGames).where(eq(rpgGames.id, gameId));
     expect(row).toMatchObject({ chatId, mode: "lite", status: "active", sessionNumber: 1, gmUserId: null, gmPresetId: null });
@@ -32,7 +32,7 @@ describe("mintLiteGame", () => {
     const h = makeRpgService(db);
     const chatId = await seedChat(db, "birth2");
 
-    const gameId = await mintLiteGame(h.ctx, { chatId, ruleset: "d20" });
+    const gameId = await mintLiteGame({ ...h.ctx, db }, { chatId, ruleset: "d20" });
 
     const [row] = await db.select().from(rpgGames).where(eq(rpgGames.id, gameId));
     expect(row?.config.ruleset).toBe("d20");

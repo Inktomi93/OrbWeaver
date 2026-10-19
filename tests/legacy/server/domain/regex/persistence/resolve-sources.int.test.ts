@@ -8,6 +8,7 @@
 // `inArray` without the regroup would silently hand back table order, which no assertion on membership
 // alone would ever catch.
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -36,7 +37,7 @@ describe("resolveRegexSources", () => {
     await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: c });
     await svc.attachToChat({ principal: principal(owner), chatId, scriptId: r });
 
-    const sources = await createResolveRegexSources({ db })({ ownerId: owner, presetId, characterIds: [characterId], chatId });
+    const sources = await createResolveRegexSources({ db: databaseHandle(db) })({ ownerId: owner, presetId, characterIds: [characterId], chatId });
 
     expect(sources.hostGlobal.map((s) => s.name)).toEqual(["global"]);
     expect(sources.preset.map((s) => s.name)).toEqual(["preset"]);
@@ -60,7 +61,7 @@ describe("resolveRegexSources", () => {
     await svc.attachToCharacter({ principal: principal(owner), characterId: aria, scriptId: forAria });
     await svc.attachToCharacter({ principal: principal(owner), characterId: brin, scriptId: forBrin });
 
-    const resolve = createResolveRegexSources({ db });
+    const resolve = createResolveRegexSources({ db: databaseHandle(db) });
     // … then ask in BOTH roster orders. The answer must follow the ARGUMENT, not the insert order.
     const ariaFirst = await resolve({ ownerId: owner, presetId: null, characterIds: [aria, brin], chatId });
     const brinFirst = await resolve({ ownerId: owner, presetId: null, characterIds: [brin, aria], chatId });
@@ -77,7 +78,7 @@ describe("resolveRegexSources", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const chatId = await seedChat(db);
 
-    const sources = await createResolveRegexSources({ db })({ ownerId: owner, presetId: null, characterIds: [], chatId });
+    const sources = await createResolveRegexSources({ db: databaseHandle(db) })({ ownerId: owner, presetId: null, characterIds: [], chatId });
     expect(sources).toEqual({ hostGlobal: [], preset: [], character: [], chat: [] });
   });
 
@@ -93,7 +94,7 @@ describe("resolveRegexSources", () => {
 
     // The op takes an ownerId, never a principal — D19: the turn passes the frozen host, and a member has
     // no parameter on this surface at all.
-    const sources = await createResolveRegexSources({ db })({ ownerId: owner, presetId: null, characterIds: [], chatId });
+    const sources = await createResolveRegexSources({ db: databaseHandle(db) })({ ownerId: owner, presetId: null, characterIds: [], chatId });
     expect(sources.hostGlobal).toEqual([]);
   });
 
@@ -109,7 +110,7 @@ describe("resolveRegexSources", () => {
 
     // Resolved under the MEMBER as owner: global/preset/cast come back empty (not theirs), but the room's
     // set still resolves — it is room-public prompt content, membership is the caller's gate upstream.
-    const sources = await createResolveRegexSources({ db })({ ownerId: member, presetId: null, characterIds: [], chatId });
+    const sources = await createResolveRegexSources({ db: databaseHandle(db) })({ ownerId: member, presetId: null, characterIds: [], chatId });
     expect(sources.hostGlobal).toEqual([]);
     expect(sources.chat.map((s) => s.name)).toEqual(["room quirk"]);
   });

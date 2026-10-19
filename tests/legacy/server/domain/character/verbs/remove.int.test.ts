@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/character/verbs/remove.ts
 
 import { characters, statsCanonVersions } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CharacterNotFoundError, createCharacterService } from "@orb/server/domain/character";
@@ -79,7 +80,7 @@ describe("remove", () => {
         return typeof value === "function" ? value.bind(target) : value;
       },
     });
-    const svc = createCharacterService({ ...h.ctx, db: brokenWrites });
+    const svc = createCharacterService({ ...h.ctx, db: databaseHandle(brokenWrites) });
 
     await expect(svc.remove({ principal: principal(owner), characterId: created })).rejects.toThrow("the write leg is down");
 

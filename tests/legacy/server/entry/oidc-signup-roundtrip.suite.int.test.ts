@@ -7,6 +7,7 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, oidcPendingSignups, oidcTransactions, personas, users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, ChatInviteId, ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { SessionsRolePolicyConfig } from "@orb/server/domain/sessions";
@@ -94,7 +95,7 @@ async function flow(
   const announced: ChatId[] = [];
   const sessions = createSessionsService({
     rolePolicy: createSessionsRolePolicy(policyConfig),
-    db,
+    db: databaseHandle(db),
     now,
     sessionSecret: PEPPER,
     seedUserConnections: () => Promise.resolve(),
@@ -103,8 +104,8 @@ async function flow(
     { db, now, hashToken: hashInvite, newParticipantId: () => mintTypeId(ID_PREFIX.chatParticipant), signupInvites: { mode: "oidc", mintable: true } },
     {
       signupUserStatement: sessions.signupUserStatement,
-      signupPersonaStatement: createJoinerPersonaStatement({ db, newPersonaId: () => mintTypeId(ID_PREFIX.persona) }),
-      signupPersonaPointersStatement: createJoinerSettingsStatement({ db }),
+      signupPersonaStatement: createJoinerPersonaStatement({ db: databaseHandle(db), newPersonaId: () => mintTypeId(ID_PREFIX.persona) }),
+      signupPersonaPointersStatement: createJoinerSettingsStatement({ db: databaseHandle(db) }),
       minterMayMintSignup: createSignupMinterCheck(sessions, createHostPrincipalResolver(sessions)),
       auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
       assemblePreview: (chatId) => Promise.resolve({ chatId, roomName: "The room", hostHandle: castId<Handle>("host"), memberCount: 1, modeLabel: "turns" }),
@@ -128,7 +129,7 @@ async function flow(
     allowJitProvision: false,
     requireApproval: opts.requireApproval ?? false,
     ownerClaim: createOwnerClaimCode(),
-    store: createOidcStore(db, now),
+    store: createOidcStore(databaseHandle(db), now),
     signup: {
       invites,
       pending: sessions,
@@ -144,7 +145,7 @@ async function flow(
     sessions,
     sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
     now,
-    db,
+    db: databaseHandle(db),
     resolveLoginLimit: (): number => 100,
     discreetLogin: (): boolean => opts.discreetLogin ?? false,
     oidc,
@@ -381,7 +382,7 @@ describe("the pending preview and confirm", () => {
   test("a forced login with a planted invite and no confirm leaves no account after the reaper runs", async () => {
     const f = await flow();
     await pendingJoin(f);
-    await createOidcStore(f.db, () => f.clock.now).deleteExpired(FROZEN_AT_MS + PENDING_TTL_MS);
+    await createOidcStore(databaseHandle(f.db), () => f.clock.now).deleteExpired(FROZEN_AT_MS + PENDING_TTL_MS);
     expect(await f.db.select().from(oidcPendingSignups)).toHaveLength(0);
     expect(await usersBySubject(f, "friend")).toHaveLength(0);
   });

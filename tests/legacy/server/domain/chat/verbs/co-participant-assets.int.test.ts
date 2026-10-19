@@ -3,6 +3,7 @@
 // @subject packages/server/src/domain/chat/persistence/co-participant-assets.ts
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId, CharacterHandle, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
@@ -110,12 +111,12 @@ async function seedCase(c: Case, seat: CallerSeat): Promise<Seeded> {
 
 async function ownerFor(c: Case, seat: CallerSeat): Promise<{ readonly owner: UserId; readonly resolved: UserId | undefined }> {
   const s = await seedCase(c, seat);
-  return { owner: s.owner, resolved: await createLoadCoParticipantOwner({ db: s.db })(s.caller, s.hash) };
+  return { owner: s.owner, resolved: await createLoadCoParticipantOwner({ db: databaseHandle(s.db) })(s.caller, s.hash) };
 }
 
 async function chatRefsFor(seat: CallerSeat): Promise<{ readonly assetId: AssetId; readonly refs: readonly AssetId[] }> {
   const s = await seedCase(ATTACHMENT, seat);
-  const refs = await createLoadChatAssetRefs({ db: s.db })(s.caller, s.chat, [s.assetId]);
+  const refs = await createLoadChatAssetRefs({ db: databaseHandle(s.db) })(s.caller, s.chat, [s.assetId]);
   return { assetId: s.assetId, refs: refs.map((ref) => ref.assetId) };
 }
 
@@ -189,7 +190,7 @@ describe("the owner side of every arm", () => {
   test("an attachment whose owner LEFT the room resolves no owner and no chat ref for a seated caller", async () => {
     expect((await ownerFor(ATTACHMENT_OWNER_LEFT, SEATED)).resolved).toBeUndefined();
     const s = await seedCase(ATTACHMENT_OWNER_LEFT, SEATED);
-    expect(await createLoadChatAssetRefs({ db: s.db })(s.caller, s.chat, [s.assetId])).toEqual([]);
+    expect(await createLoadChatAssetRefs({ db: databaseHandle(s.db) })(s.caller, s.chat, [s.assetId])).toEqual([]);
   });
 
   test("a persona only a CHARACTER seat holds active lends its avatar to nobody", async () => {
@@ -216,6 +217,6 @@ describe("the owner side of every arm", () => {
     await seedParticipant(db, chat, "human", { id: "cp_persona_owner", userId: personaOwner, role: "host", activePersonaId: persona });
     await seedParticipant(db, chat, "human", { id: "cp_caller", userId: caller });
 
-    expect(await createLoadCoParticipantOwner({ db })(caller, characterArt.hash)).toBe(characterOwner);
+    expect(await createLoadCoParticipantOwner({ db: databaseHandle(db) })(caller, characterArt.hash)).toBe(characterOwner);
   });
 });

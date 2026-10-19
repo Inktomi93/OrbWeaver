@@ -10,6 +10,7 @@ import type { EmbedResult } from "@orb/contracts/providers";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { Db } from "@orb/db";
 import { characterEmbeddings, userCredentials } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { ProviderError } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { CharacterId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
@@ -119,7 +120,7 @@ async function drive(intercept?: HarnessOptions["intercept"], admission?: Harnes
     // Compose's own resolve over the real runtime: a named row resolves and embeds through that row.
     resolveEmbeddingConnection: createResolveEmbeddingConnection(h.runtime, createHostPrincipalResolver(createLoadUserById({ db }))),
   };
-  return { db, h, principal, userId, builtIn, svc: createEmbeddingsService(ctx), ctx, key, credentialId, moved, promoted };
+  return { db, h, principal, userId, builtIn, svc: createEmbeddingsService({ ...ctx, db: databaseHandle(ctx.db) }), ctx, key, credentialId, moved, promoted };
 }
 
 /** The owner's sweep as the queued rebuild runs it: every card, then the two scopes this fixture holds nothing in. */
@@ -271,7 +272,7 @@ async function runIndexWithMoveIn(d: Drive, hook: (ctx: EmbeddingsContext, move:
     await repointNarrow(d);
     await svc.syncTargetGenerations(d.userId);
   };
-  const svc = createEmbeddingsService(hook(d.ctx, move));
+  const svc = createEmbeddingsService({ ...hook(d.ctx, move), db: databaseHandle(d.ctx.db) });
   const [index] = createEmbeddingsWorkloadContributions({
     embeddings: svc,
     emitUserEvent: () => undefined,

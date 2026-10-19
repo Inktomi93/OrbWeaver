@@ -18,6 +18,7 @@ import type { ProviderId } from "@orb/contracts/inference";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { Db } from "@orb/db";
 import { chatParticipants, chats } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, ChatParticipantId, Handle, MessageId, SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { publishChatEvent } from "@orb/server/transport/trpc";
@@ -121,7 +122,7 @@ describe("the chat room — durable delta replay over a real reads-slice (the #1
     // Write the HEAD of a turn through the REAL domain bus (durable-first: chat_events INSERT commits
     // before the ring push) — turnStarted + two text deltas, exactly the shape that races the attach.
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     await bus.emit({
       type: "turnStarted",
       chatId,
@@ -179,7 +180,7 @@ describe("the chat room — durable delta replay over a real reads-slice (the #1
     await seedParticipant(db, { chatId, key: "room2_h", userId: host, role: "host" });
 
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     await bus.emit({
       type: "delta",
       chatId,
@@ -262,7 +263,7 @@ describe("the chat room — the D16 join-history clamp on the LIVE half (real pa
   test("a from-join member does NOT receive a live edit of a PRE-join row; the HOST on the same event does", async () => {
     const { host, joiner, chatId, preId, postId } = await seedClampedRoom("clamped");
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     const preView = await loadMessageView(db, preId);
     const postView = await loadMessageView(db, postId);
     if (preView === undefined || postView === undefined) {
@@ -301,7 +302,7 @@ describe("the chat room — the D16 join-history clamp on the LIVE half (real pa
   test("a `full` member receives that same pre-join-view event live — the policy's other arm, on the live path too", async () => {
     const { joiner, chatId, preId } = await seedClampedRoom("unclamped", "full");
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     const preView = await loadMessageView(db, preId);
     if (preView === undefined) {
       throw new Error("the seeded slot must resolve to a MessageView");
@@ -328,7 +329,7 @@ describe("the chat room — the D16 join-history clamp on the LIVE half (real pa
     // that the two halves return the identical verdict — visibility must not depend on being connected.
     const { joiner, chatId } = await seedClampedRoom("streaming");
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     const read = createRead(ctx, readDeps());
 
     const memberIt = await attach(read, joiner, chatId);
@@ -380,7 +381,7 @@ describe("the chat room — a hidden span open across a MEMBER's reconnect never
     await seedParticipant(db, { chatId, key: "reopen_m", userId: member, role: "member" });
 
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     const read = createRead(ctx, readDeps());
 
     // Turn head: ordinary prose the member is entitled to (durable seq 1).
@@ -454,7 +455,7 @@ describe("the chat room — the LIVE-ONLY lane (durable-append-free fan)", () =>
     await seedParticipant(db, { chatId, key: "liveonly_h", userId: host, role: "host" });
 
     const ctx = makeChatContext(db);
-    const bus = createChatBus({ db, now: ctx.now, newEventId: ctx.newEventId });
+    const bus = createChatBus({ db: databaseHandle(db), now: ctx.now, newEventId: ctx.newEventId });
     // One durable row FIRST, so the room's cursor is a real non-zero number the assertions can tell apart
     // from both 0 and the next durable seq.
     const seeded = await emitLogged(bus, { type: "chatUpdated", chatId });

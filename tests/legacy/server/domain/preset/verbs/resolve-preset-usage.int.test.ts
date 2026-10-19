@@ -11,6 +11,7 @@
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { rpgGames } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createResolveVisibleRooms } from "@orb/server/domain/chat";
@@ -34,8 +35,8 @@ const NOW = 1_700_000_000_000;
 function usageResolver(db: Db, loadUserSettings: SettingsService["loadUserSettings"]): ResolvePresetUsageOp {
   return createResolvePresetUsage({
     loadUserSettings,
-    listGmPresetChatIds: (presetId) => listGmPresetChatIds(db, presetId),
-    resolveVisibleRooms: createResolveVisibleRooms({ db }, (userIds) => selectHandlesByIds(db, userIds)),
+    listGmPresetChatIds: (presetId) => listGmPresetChatIds(databaseHandle(db), presetId),
+    resolveVisibleRooms: createResolveVisibleRooms({ db: databaseHandle(db) }, (userIds) => selectHandlesByIds(databaseHandle(db), userIds)),
   });
 }
 const PRESET = castId<PresetId>("preset_gmvoice");

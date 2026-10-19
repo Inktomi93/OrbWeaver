@@ -42,7 +42,7 @@ test("projects participants ∪ sheets — a participant actor with no sheet row
   if (game === undefined) {
     return;
   }
-  const view = await buildTrackerView(h.ctx, game, false);
+  const view = await buildTrackerView({ ...h.ctx, db }, game, false);
   expect(view.actors).toHaveLength(1);
   expect(view.actors[0]?.name).toBe("Kael");
   expect(view.actors[0]?.sheet).toEqual({ className: "", attributes: {}, flavor: "", level: null, trackerGrants: [], trackerRevokes: [] });
@@ -56,8 +56,8 @@ test("trackersReadOnly is passed through (the caller resolves it, the projection
   if (game === undefined) {
     throw new Error("game not found");
   }
-  expect((await buildTrackerView(h.ctx, game, true)).trackersReadOnly).toBe(true);
-  expect((await buildTrackerView(h.ctx, game, false)).trackersReadOnly).toBe(false);
+  expect((await buildTrackerView({ ...h.ctx, db }, game, true)).trackersReadOnly).toBe(true);
+  expect((await buildTrackerView({ ...h.ctx, db }, game, false)).trackersReadOnly).toBe(false);
 });
 
 /** Write a committed snapshot with `beats` recentEvents on a fresh selected variant + cap the config's
@@ -259,7 +259,7 @@ test("a scene-npc is an ORDINARY actor row in the view — identity, presence, v
   if (game === undefined) {
     throw new Error("game not found");
   }
-  const view = await buildTrackerView(ctx, game, false);
+  const view = await buildTrackerView({ ...ctx, db }, game, false);
   // ONE list, one shape: the npc is an `RpgActorView` beside the participants, not a bolted-on projection.
   const mari = view.actors.find((a) => a.name === "Mari");
   expect(mari?.presence).toBe(true);
@@ -289,7 +289,7 @@ test("P5: the plot plane rides the tracker view from the resolved snapshot (null
     throw new Error("game not found");
   }
   // Turnless game — the synthesized default carries no plot (the act rail renders nothing).
-  expect((await buildTrackerView(ctx, game, false)).plot).toBeNull();
+  expect((await buildTrackerView({ ...ctx, db }, game, false)).plot).toBeNull();
   // A staged snapshot carrying a plot surfaces it on the view (the act rail's datum).
   const { variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   const plot = { act: 1, title: "The Bone Key", acts: [{ title: "Arrival", summary: "" }] };
@@ -298,5 +298,5 @@ test("P5: the plot plane rides the tracker view from the resolved snapshot (null
   if (game === undefined) {
     throw new Error("game not found");
   }
-  expect((await buildTrackerView(ctx, game, false)).plot).toEqual(plot);
+  expect((await buildTrackerView({ ...ctx, db }, game, false)).plot).toEqual(plot);
 });

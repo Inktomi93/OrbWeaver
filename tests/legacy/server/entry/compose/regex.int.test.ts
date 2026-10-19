@@ -20,6 +20,7 @@
 //     handle, the CALLER's own seat suppressed (with the floor that keeps a solo room named).
 
 import { chatParticipants, chatRegexScripts, chats, personas } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -33,7 +34,12 @@ import { behavior, principal, seedScript, seedUser } from "../../domain/regex/_s
 const NOW = 1_700_000_000_000;
 
 function build(db: Awaited<ReturnType<typeof freshDb>>): ReturnType<typeof buildRegex> {
-  return buildRegex({ db, now: (): number => NOW, audit: (): Promise<void> => Promise.resolve(), emitChatEventLive: (): void => undefined });
+  return buildRegex({
+    db: databaseHandle(db),
+    now: (): number => NOW,
+    audit: (): Promise<void> => Promise.resolve(),
+    emitChatEventLive: (): void => undefined,
+  });
 }
 
 describe("compose/regex — resolveVisibleRooms (the reverse roster's room filter)", () => {

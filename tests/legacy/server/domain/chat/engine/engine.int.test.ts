@@ -26,6 +26,7 @@ import {
   ownerStats,
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatEvent, ChatResult } from "@orb/inference";
 import { generationOf, resolveChat } from "@orb/inference";
 import type { CharacterId, ChatId, Handle, MessageId, MessageVariantId, ModelId, UserId, WorldEntryId } from "@orb/kit/ids";
@@ -2479,7 +2480,7 @@ test("actual SDK terminal aggregates traverse the compose bridge and continuatio
       applyStatsDelta(batch as BatchStmt[], opDb, delta);
     },
   });
-  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT_MS });
+  await reconcileStats(databaseHandle(db), { ownerId: owner, now: () => FROZEN_AT_MS });
   const first = await h.engine.runTurn(prepOf(chatId, { connection, speakerCharacterId: characterId }));
   expect(first.aborted).toBe(false);
   const firstMessage = first.messages[0];
@@ -2506,7 +2507,7 @@ test("actual SDK terminal aggregates traverse the compose bridge and continuatio
   expect(await db.select().from(chatGenerationObservations)).toEqual([]);
   const live = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0];
   expect(live).toMatchObject({ assistantTurns: 1, costUsd: 0.125, costSamples: 1, notionalCostSamples: 1, tokensIn: 15, tokensOut: 20 });
-  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT_MS });
+  await reconcileStats(databaseHandle(db), { ownerId: owner, now: () => FROZEN_AT_MS });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0]).toMatchObject({
     assistantTurns: 1,
     costUsd: 0.125,
@@ -2567,7 +2568,7 @@ test("an actual nonzero failed SDK terminal result retains its paid facts before
       terminalReason: "api_error",
     },
   ]);
-  await reconcileStats(db, { ownerId: owner, now: () => FROZEN_AT_MS });
+  await reconcileStats(databaseHandle(db), { ownerId: owner, now: () => FROZEN_AT_MS });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner)))[0]).toMatchObject({
     assistantTurns: 0,
     costUsd: 0.25,

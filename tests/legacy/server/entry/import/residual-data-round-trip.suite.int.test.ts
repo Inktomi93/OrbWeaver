@@ -9,6 +9,7 @@
 
 import { characterCardV3Schema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { readCardChunk } from "@orb/kit/png-card-chunk";
@@ -90,7 +91,7 @@ describe("residualData survives the DB-mediated import→export round-trip", () 
     expect(detail.greetings).toContainEqual({ text: "*waves to the group*", groupOnly: true });
 
     // Export reads the SAME row through the real export verb and re-emits the residuals at the data root.
-    const exportSvc = createExportService(makeExportHarness(db).ctx);
+    const exportSvc = createExportService({ ...makeExportHarness(db).ctx, db: databaseHandle(db) });
     const exported = await exportSvc.exportCharacter({ principal, characterId });
     if (exported === null) {
       throw new Error("expected an exported card");

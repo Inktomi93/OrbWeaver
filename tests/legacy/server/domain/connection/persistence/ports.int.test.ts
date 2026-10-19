@@ -1,4 +1,5 @@
 import { CATALOG_SETTINGS_PREFIX } from "@orb/contracts/settings";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { createSettingsKvPort } from "@orb/server/domain/settings";
 // persistence: the four runtime PORTS. This file is the seam test — it asserts that what the domain's own
 // verbs WRITE is exactly what the runtime's read side SEES, over one real db. A port wired to the wrong
@@ -21,7 +22,11 @@ test("`connections.get` is BY ID and owner-agnostic; `listForOwner` is scoped", 
   const h = await makeHarness(db);
   const owner = await seedOwner(db);
   const other = await seedOwner(db, "user_b");
-  const ports = createConnectionPorts({ db, now: () => FROZEN_AT_MS, catalogSettings: createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => FROZEN_AT_MS) });
+  const ports = createConnectionPorts({
+    db: databaseHandle(db),
+    now: () => FROZEN_AT_MS,
+    catalogSettings: createSettingsKvPort(databaseHandle(db), CATALOG_SETTINGS_PREFIX, () => FROZEN_AT_MS),
+  });
   const mine = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "m" });
 
   const byId = await ports.connections.get(mine.id);
@@ -34,7 +39,11 @@ test("`bindings.lookup` reads what the domain's setBinding WROTE, per actor and 
   const db = await freshDb();
   const h = await makeHarness(db);
   const owner = await seedOwner(db);
-  const ports = createConnectionPorts({ db, now: () => FROZEN_AT_MS, catalogSettings: createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => FROZEN_AT_MS) });
+  const ports = createConnectionPorts({
+    db: databaseHandle(db),
+    now: () => FROZEN_AT_MS,
+    catalogSettings: createSettingsKvPort(databaseHandle(db), CATALOG_SETTINGS_PREFIX, () => FROZEN_AT_MS),
+  });
   const row = await h.svc.create({ principal: owner.principal, providerId: BYO_PROVIDER, credentialId: null, baseUrl: BYO_BASE_URL, model: "m" });
   await h.svc.setBinding({ principal: owner.principal, task: "chat", connectionId: row.id });
 
@@ -47,7 +56,11 @@ test("`bindings.lookup` reads what the domain's setBinding WROTE, per actor and 
 test("`providerStore` round-trips a row and its removal, stamping the injected clock", async () => {
   const db = await freshDb();
   const admin: UserId = (await seedOwner(db, "user_admin")).userId;
-  const ports = createConnectionPorts({ db, now: () => FROZEN_AT_MS, catalogSettings: createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => FROZEN_AT_MS) });
+  const ports = createConnectionPorts({
+    db: databaseHandle(db),
+    now: () => FROZEN_AT_MS,
+    catalogSettings: createSettingsKvPort(databaseHandle(db), CATALOG_SETTINGS_PREFIX, () => FROZEN_AT_MS),
+  });
   const id = castId<ProviderId>("acme-endpoint");
   const row: ProviderDef = {
     id,
@@ -68,7 +81,11 @@ test("`providerStore` round-trips a row and its removal, stamping the injected c
 
 test("`snapshotStore` is the KV the mirrors warm through", async () => {
   const db = await freshDb();
-  const ports = createConnectionPorts({ db, now: () => FROZEN_AT_MS, catalogSettings: createSettingsKvPort(db, CATALOG_SETTINGS_PREFIX, () => FROZEN_AT_MS) });
+  const ports = createConnectionPorts({
+    db: databaseHandle(db),
+    now: () => FROZEN_AT_MS,
+    catalogSettings: createSettingsKvPort(databaseHandle(db), CATALOG_SETTINGS_PREFIX, () => FROZEN_AT_MS),
+  });
   expect(await ports.snapshotStore.read("catalog:openrouter")).toBeNull();
   await ports.snapshotStore.write("catalog:openrouter", "[]");
   expect(await ports.snapshotStore.read("catalog:openrouter")).toBe("[]");

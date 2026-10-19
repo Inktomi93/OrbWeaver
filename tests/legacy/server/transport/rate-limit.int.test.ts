@@ -6,6 +6,7 @@
 
 // @orb-waive-file no-test-fabrication(DomainRateLimitError): baselined when the gate widened to value casts; burn-down item 906.
 import { rateLimitBuckets } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -18,7 +19,7 @@ const WINDOW_MS = 60_000;
 describe("rate-limit: createRateLimiter", () => {
   test("the atomic increment caps at `points` and rejects the over-budget call", async () => {
     const db = await freshDb();
-    const limiter = createRateLimiter(db, {
+    const limiter = createRateLimiter(databaseHandle(db), {
       scope: "general",
       points: 2,
       windowMs: WINDOW_MS,
@@ -32,7 +33,7 @@ describe("rate-limit: createRateLimiter", () => {
 
   test("the rejection carries msBeforeNext (until window reset) + remainingPoints 0", async () => {
     const db = await freshDb();
-    const limiter = createRateLimiter(db, {
+    const limiter = createRateLimiter(databaseHandle(db), {
       scope: "general",
       points: 1,
       windowMs: WINDOW_MS,
@@ -51,7 +52,7 @@ describe("rate-limit: createRateLimiter", () => {
   test("the window resets — a new fixed window mints a fresh bucket", async () => {
     const db = await freshDb();
     let clock = T0;
-    const limiter = createRateLimiter(db, {
+    const limiter = createRateLimiter(databaseHandle(db), {
       scope: "general",
       points: 1,
       windowMs: WINDOW_MS,
@@ -66,7 +67,7 @@ describe("rate-limit: createRateLimiter", () => {
 
   test("distinct ids have independent buckets (one IP's flood doesn't throttle another)", async () => {
     const db = await freshDb();
-    const limiter = createRateLimiter(db, {
+    const limiter = createRateLimiter(databaseHandle(db), {
       scope: "public-ip",
       points: 1,
       windowMs: WINDOW_MS,
@@ -80,7 +81,7 @@ describe("rate-limit: createRateLimiter", () => {
 
   test("repeated consumes in one window are ONE bucket row whose count is the consume count", async () => {
     const db = await freshDb();
-    const limiter = createRateLimiter(db, { scope: "authed", points: 10, windowMs: WINDOW_MS, now: () => T0 });
+    const limiter = createRateLimiter(databaseHandle(db), { scope: "authed", points: 10, windowMs: WINDOW_MS, now: () => T0 });
 
     await limiter.consume("user-b");
     await limiter.consume("user-b");
@@ -94,8 +95,8 @@ describe("rate-limit: createRateLimiter", () => {
   test("a consume sweeps its own scope's expired buckets and leaves other scopes and live buckets", async () => {
     const db = await freshDb();
     let clock = T0;
-    const authed = createRateLimiter(db, { scope: "authed", points: 10, windowMs: WINDOW_MS, now: () => clock });
-    const publicIp = createRateLimiter(db, { scope: "public-ip", points: 10, windowMs: WINDOW_MS, now: () => clock });
+    const authed = createRateLimiter(databaseHandle(db), { scope: "authed", points: 10, windowMs: WINDOW_MS, now: () => clock });
+    const publicIp = createRateLimiter(databaseHandle(db), { scope: "public-ip", points: 10, windowMs: WINDOW_MS, now: () => clock });
     await authed.consume("u1");
     await authed.consume("u2");
     await publicIp.consume("9.9.9.9");

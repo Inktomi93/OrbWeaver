@@ -5,6 +5,7 @@
 
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -19,7 +20,7 @@ let characterId: CharacterId;
 const sig = (): AbortSignal => new AbortController().signal;
 
 function contribution(database: Db): ReturnType<typeof createStatsWorkloadContributions>[0] {
-  const [only] = createStatsWorkloadContributions({ db: database, now: () => T0 });
+  const [only] = createStatsWorkloadContributions({ db: databaseHandle(database), now: () => T0 });
   return only;
 }
 

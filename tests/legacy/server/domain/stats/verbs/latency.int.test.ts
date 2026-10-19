@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/stats/verbs/latency.ts
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
@@ -28,7 +29,7 @@ describe("stats.latency", () => {
       characterId: ch,
       variants: [{ content: "a", ttftMs: 100, genStartedAt: T0, genFinishedAt: T0 + 200 }],
     });
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
     const l = await svc.latency(owner, { kind: "owner" });
     expect(l.avgTtftMs).toBe(100);
     expect(l.avgGenMs).toBe(200);

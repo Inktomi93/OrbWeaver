@@ -594,7 +594,7 @@ test.each(["empty-sweep", "indexer", "analysis-counter"] as const)(
     const operations = {
       "empty-sweep": () => embeddings.embedAssets({ ownerId: owner.userId, force: false, signal: signal() }),
       indexer: () => embeddings.indexAsset(assetId),
-      "analysis-counter": () => createImageAnalysisCounter(ctx, { analysisCallsModel: async () => false })({ ownerId: owner.userId, force: false }),
+      "analysis-counter": () => createImageAnalysisCounter({ ...ctx, db }, { analysisCallsModel: async () => false })({ ownerId: owner.userId, force: false }),
     };
     const work = (async (): Promise<Awaited<ReturnType<(typeof operations)[typeof reader]>>> => await operations[reader]())().catch((error: unknown) => error);
     try {

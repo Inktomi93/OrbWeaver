@@ -14,6 +14,7 @@
 
 import type { AutomationTrigger, TriggerFact } from "@orb/contracts/automation";
 import { worldBooks } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -65,7 +66,7 @@ function depthOps(db: Awaited<ReturnType<typeof freshDb>>, depth: number): Autom
     chat: {
       getMessageFact: () => Promise.resolve(null),
       getTurnOrigin: () => Promise.resolve({ initiator: "automation" as const, automationDepth: depth }),
-      resolveViewerVisibility: createResolveViewerVisibility({ db }),
+      resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
       readVariables: () => Promise.resolve({}),
       readChoicePicks: () => Promise.resolve({}),
       resolveChatProse: () => Promise.resolve({}),

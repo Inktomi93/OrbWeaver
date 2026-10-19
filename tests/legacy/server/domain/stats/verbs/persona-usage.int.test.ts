@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/stats/verbs/persona-usage.ts
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
@@ -29,7 +30,7 @@ describe("stats.personaUsage", () => {
       characterId: ch,
       variants: [{ content: "hi", tokensOut: 3 }],
     });
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
     const rows = await svc.personaUsage(owner);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.chatCount).toBe(1);

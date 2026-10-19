@@ -4,6 +4,7 @@
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { regexScripts } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDeleteReachCapture } from "@orb/server/entry/compose";
@@ -34,7 +35,7 @@ describe("removeScript", () => {
   test("deleting a ROOM-attached script fans roomEntityChanged to that room, once", async () => {
     const db = await freshDb();
     const captured: LiveOnlyChatBusEvent[] = [];
-    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
     const h = makeHarness(db, { requireChatHost: allowChat, requireChatMember: allowChat, captureRoomReachForDelete: capture.regex });
     const svc = createRegexService(h.ctx);
     const host = await seedUser(db, { handle: castId<Handle>("host") });
@@ -55,7 +56,7 @@ describe("removeScript", () => {
   test("a script attached to NO room deletes with zero room fans", async () => {
     const db = await freshDb();
     const captured: LiveOnlyChatBusEvent[] = [];
-    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
     const h = makeHarness(db, { captureRoomReachForDelete: capture.regex });
     const svc = createRegexService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -69,7 +70,7 @@ describe("removeScript", () => {
   test("a foreign (NotFound) delete fans NO room event — the capture sits past the ownership guard", async () => {
     const db = await freshDb();
     const captured: LiveOnlyChatBusEvent[] = [];
-    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
     const h = makeHarness(db, { requireChatHost: allowChat, captureRoomReachForDelete: capture.regex });
     const svc = createRegexService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

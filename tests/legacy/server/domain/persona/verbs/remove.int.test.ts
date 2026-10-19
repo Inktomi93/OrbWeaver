@@ -6,6 +6,7 @@
 // @orb-waive-file no-test-fabrication(LastPersonaError): baselined when the gate widened to value casts; burn-down item 906.
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { characterPersonas, personas } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDeleteReachCapture } from "@orb/server/entry/compose";
@@ -138,7 +139,7 @@ describe("remove", () => {
   test("a SEATED persona delete fans roomEntityChanged to the room it was live in", async () => {
     const db = await freshDb();
     const captured: LiveOnlyChatBusEvent[] = [];
-    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
     const h = makeHarness(db, { captureRoomReachForDelete: capture.persona });
     const svc = createPersonaService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -159,7 +160,7 @@ describe("remove", () => {
   test("a refused (NotFound) delete of a SEATED foreign persona fans NO room event — the thunk is past the guard", async () => {
     const db = await freshDb();
     const captured: LiveOnlyChatBusEvent[] = [];
-    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
     const h = makeHarness(db, { captureRoomReachForDelete: capture.persona });
     const svc = createPersonaService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

@@ -1,3 +1,4 @@
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import assert from "node:assert/strict";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
@@ -118,7 +119,7 @@ test("real Smart composition retains its own paid SDK facts separately from the 
   expect(variants[0]?.metadata?.usageLegs).toHaveLength(1);
   const live = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0];
   expect(live).toMatchObject({ costUsd: 0.25, costSamples: 2, userTurns: 1, assistantTurns: 1, tokensIn: 20, tokensOut: 10 });
-  await reconcileStats(db, { ownerId, now: clock.now });
+  await reconcileStats(databaseHandle(db), { ownerId, now: clock.now });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)))[0]).toMatchObject({
     costUsd: live?.costUsd,
     costSamples: 2,

@@ -38,6 +38,7 @@
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { sessions as sessionsTable, users } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -118,17 +119,17 @@ beforeEach(async () => {
     .values({ id: USER_ID, handle: castId<Handle>("alice"), handleKey: handleKey(castId<Handle>("alice")), externalId: castId<ExternalId>("sub-alice") });
   sessions = createSessionsService({
     rolePolicy: createSessionsRolePolicy(env),
-    db,
+    db: databaseHandle(db),
     now: (): number => FROZEN_AT_MS,
     sessionSecret: PEPPER,
-    seedUserConnections: createLocalLightUserSeed({ db, now: (): number => FROZEN_AT_MS, onEmbedSpaceBound: () => undefined }),
+    seedUserConnections: createLocalLightUserSeed({ db: databaseHandle(db), now: (): number => FROZEN_AT_MS, onEmbedSpaceBound: () => undefined }),
   });
   app = new Hono();
   const deps: AuthRoutesDeps = {
     sessions,
     sockets: { evictSession: (): number => 0, evictUser: (): number => 0 },
     now: (): number => FROZEN_AT_MS,
-    db,
+    db: databaseHandle(db),
     resolveLoginLimit: (): number => 10,
     discreetLogin: (): boolean => false,
     oidc: {

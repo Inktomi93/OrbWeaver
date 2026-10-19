@@ -29,6 +29,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { messages } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -269,7 +270,7 @@ describe("canon freeze — swapping the Chat persona (#3) or the Anchor (#4) NEV
     });
 
     // The live swap: this chat's Chat persona flips Alex → Steve.
-    await setParticipantActivePersona(db, emit, { chatId, targetUserId: host, personaId: steve });
+    await setParticipantActivePersona(databaseHandle(db), emit, { chatId, targetUserId: host, personaId: steve });
 
     const [row] = await db.select().from(messages).where(eq(messages.id, messageId));
     expect(row?.personaId).toBe(alex); // untouched — canon is frozen

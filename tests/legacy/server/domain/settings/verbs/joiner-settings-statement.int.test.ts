@@ -4,6 +4,7 @@
 import type { Db } from "@orb/db";
 import { userSettings, users } from "@orb/db";
 import { batchMany } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -27,7 +28,7 @@ beforeEach(async () => {
 describe("verbs/joiner-settings-statement — createJoinerSettingsStatement", () => {
   test("the op writes the settings row of the owner it is handed, aimed at the persona it is handed, beside another account", async () => {
     const personaId = castId<PersonaId>("persona_joiner_op");
-    const statement = createJoinerSettingsStatement({ db })({ ownerId: owner, personaId, at: AT });
+    const statement = createJoinerSettingsStatement({ db: databaseHandle(db) })({ ownerId: owner, personaId, at: AT });
     await db.batch(batchMany([db.update(users).set({ updatedAt: AT }).where(eq(users.id, owner)), statement]));
 
     const rows = await db.select({ userId: userSettings.userId, config: userSettings.config }).from(userSettings);

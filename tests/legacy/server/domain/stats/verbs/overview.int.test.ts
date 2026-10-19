@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/stats/verbs/overview.ts
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
@@ -19,7 +20,7 @@ beforeEach(async () => {
 describe("stats.overview", () => {
   test("delegates to the owner rollup; null when none", async () => {
     const owner = await seedUser(db);
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
     expect(await svc.overview(owner)).toBeNull();
     await seedOwnerStats(db, owner, { assistantTurns: 7 });
     expect((await svc.overview(owner))?.assistantTurns).toBe(7);

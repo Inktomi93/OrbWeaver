@@ -20,6 +20,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, messageAssets } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { GeneratedImage } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -282,7 +283,10 @@ describe("§6.7 inline reply images — the round trip", () => {
 
     const sink: TurnRequest[] = [];
     const h = harness(db, { runChatTurn: pictureTurn(sink, "A quiet beat.", []) });
-    const postNarrator = createPostNarratorMessage(h.ctx, { emit: () => Promise.resolve(), claimChat: () => Promise.resolve() });
+    const postNarrator = createPostNarratorMessage(
+      { ...h.ctx, db: databaseHandle(h.ctx.db) },
+      { emit: () => Promise.resolve(), claimChat: () => Promise.resolve() },
+    );
     await postNarrator(chatId, "", [illustrationAssetId], undefined);
 
     await h.engine.runTurn(prepOf(chatId));

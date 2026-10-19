@@ -1,4 +1,5 @@
 import { chatParticipants, chatSegments } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
@@ -33,7 +34,7 @@ test("source generation authority follows the present human host through handoff
     messageStartId: null,
     messageEndId: null,
   };
-  const read = createSourceState({ db });
+  const read = createSourceState({ db: databaseHandle(db) });
   expect((await read(source)).generationFingerprint).not.toBeNull();
   await db.update(chatParticipants).set({ leftSeq: 30 }).where(eq(chatParticipants.id, seat));
   await seedParticipant(db, { chatId, key: "successor", userId: successor.id, role: "host" });

@@ -10,6 +10,7 @@
 // BINDING, so a test that calls the helper directly would have passed while the seam stayed broken.
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -33,7 +34,7 @@ function unreachable(): never {
 
 function opsFor(database: Db): AutomationOps {
   return createAutomationOps({
-    db: database,
+    db: databaseHandle(database),
     resolveViewerVisibility: unreachable,
     applyVariableOps: unreachable,
     upsertEntries: unreachable,

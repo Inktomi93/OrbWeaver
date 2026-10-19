@@ -4,6 +4,7 @@
 import type { Db } from "@orb/db";
 import { chats, messageVariants, statsCanonVersions } from "@orb/db";
 import { isConstraintViolation } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -36,7 +37,7 @@ describe("imported token-usage persistence", () => {
     const second = await seedMessage(db, imported, 2, { role: "user", content: "second" });
     await seedMessage(db, foreign, 1, { content: "foreign" });
     await seedMessage(db, native, 1, { content: "native" });
-    const list = createListImportedTokenUsageCandidates(db);
+    const list = createListImportedTokenUsageCandidates(databaseHandle(db));
 
     const page1 = await list({ hostUserId: owner, afterVariantId: null, limit: 1 });
     const page2 = await list({ hostUserId: owner, afterVariantId: page1[0]?.variantId ?? null, limit: 10 });
@@ -73,7 +74,7 @@ describe("imported token-usage persistence", () => {
     expect(isConstraintViolation(collision)?.kind).toBe("unique");
     const only = await seedMessage(db, chatId, 1, { role: "assistant", content: "one row, one owner" });
 
-    const candidates = await createListImportedTokenUsageCandidates(db)({ hostUserId: null, afterVariantId: null, limit: 10 });
+    const candidates = await createListImportedTokenUsageCandidates(databaseHandle(db))({ hostUserId: null, afterVariantId: null, limit: 10 });
 
     expect(candidates.map((row) => ({ variantId: row.variantId, ownerId: row.ownerId }))).toEqual([{ variantId: only.variantId, ownerId: current }]);
   });
@@ -93,7 +94,7 @@ describe("imported token-usage persistence", () => {
       .set({ metadata: { ["token_count"]: 4 } })
       .where(eq(messageVariants.id, exact.variantId));
     await db.update(messageVariants).set({ tokensOut: 17 }).where(eq(messageVariants.id, legacy.variantId));
-    const list = createListImportedTokenUsageCandidates(db);
+    const list = createListImportedTokenUsageCandidates(databaseHandle(db));
     const candidates = await list({ hostUserId: owner, afterVariantId: null, limit: 10 });
     const byId = new Map(candidates.map((candidate) => [candidate.variantId, candidate]));
     const exactCandidate = byId.get(exact.variantId);
@@ -110,7 +111,7 @@ describe("imported token-usage persistence", () => {
     ) {
       throw new Error("seeded candidate missing");
     }
-    const compareAndSet = createCompareAndSetImportedTokenUsage(db, bumpStatsCanonVersion);
+    const compareAndSet = createCompareAndSetImportedTokenUsage(databaseHandle(db), bumpStatsCanonVersion);
 
     expect(await compareAndSet({ candidate: exactCandidate, resolution: { tokensIn: null, tokensOut: 4, tokenProvenance: "measured" } })).toBe(true);
     expect(await compareAndSet({ candidate: exactCandidate, resolution: { tokensIn: null, tokensOut: 4, tokenProvenance: "measured" } })).toBe(false);

@@ -9,6 +9,7 @@
 // A `{ownerId}` scope stays the whole personal bank (junctions only scope chat retrieval, not a personal search).
 
 import { characterDocuments, characters, chatDocuments, chatParticipants, chats, documents, globalDocuments } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { requireHost } from "@orb/server/domain/chat";
@@ -32,7 +33,9 @@ for (const door of ["upload", "paste", "link"] as const) {
         await seedChatHost(db, chatId, owner);
       }
       await seedRosterCharacter(db, characterChat, characterId);
-      const h = makeDatabankHarness(db, { ensureChatHost: (principal, chatId) => requireHost({ db, can }, principal, chatId).then((): void => undefined) });
+      const h = makeDatabankHarness(db, {
+        ensureChatHost: (principal, chatId) => requireHost({ db: databaseHandle(db), can }, principal, chatId).then((): void => undefined),
+      });
       h.fetchUrl.mockResolvedValue(new TextEncoder().encode("Destination notes"));
       const destinations = { global: { kind: "global" }, character: { kind: "character", characterId }, chat: { kind: "chat", chatId: selectedChat } } as const;
       const common = { principal: principalFor(owner), destination: destinations[scope] };
@@ -44,9 +47,9 @@ for (const door of ["upload", "paste", "link"] as const) {
       const result = await ingesters[door]();
       const expected = { global: [selectedChat, characterChat, otherChat], character: [characterChat], chat: [selectedChat] }[scope];
       for (const chatId of [selectedChat, characterChat, otherChat]) {
-        expect(await resolveActiveDocumentIds(db, { chatId })).toEqual(expected.includes(chatId) ? [result.document.id] : []);
+        expect(await resolveActiveDocumentIds(databaseHandle(db), { chatId })).toEqual(expected.includes(chatId) ? [result.document.id] : []);
       }
-      expect(await resolveActiveDocumentIds(db, { ownerId: owner })).toEqual([result.document.id]);
+      expect(await resolveActiveDocumentIds(databaseHandle(db), { ownerId: owner })).toEqual([result.document.id]);
       const duplicate = await ingesters[door]();
       expect(duplicate).toMatchObject({ document: { id: result.document.id }, outcome: "duplicate", ingest: "skipped" });
       expect(await db.select().from(documents)).toHaveLength(1);
@@ -62,7 +65,7 @@ for (const door of ["upload", "paste", "link"] as const) {
         const global = { ...common, destination: destinations.global, name: "Notes", text: "Destination notes" };
         await h.service.createFromText(global);
       }
-      expect(await resolveActiveDocumentIds(db, { chatId: otherChat })).toEqual(scope === "global" ? [] : [result.document.id]);
+      expect(await resolveActiveDocumentIds(databaseHandle(db), { chatId: otherChat })).toEqual(scope === "global" ? [] : [result.document.id]);
       expect(await db.select().from(documents)).toHaveLength(1);
       expect((await db.select().from(globalDocuments)).map((row) => row.documentId)).toEqual(scope === "global" ? [] : [result.document.id]);
     });
@@ -76,7 +79,9 @@ test("foreign ingestion targets refuse before canon or scope rows are written", 
   const characterId = await seedCharacter(db, stranger, { id: "character_foreign", name: "Foreign" });
   const chatId = await seedChat(db, "foreign");
   await seedChatHost(db, chatId, stranger);
-  const h = makeDatabankHarness(db, { ensureChatHost: (principal, id) => requireHost({ db, can }, principal, id).then((): void => undefined) });
+  const h = makeDatabankHarness(db, {
+    ensureChatHost: (principal, id) => requireHost({ db: databaseHandle(db), can }, principal, id).then((): void => undefined),
+  });
   for (const destination of [
     { kind: "character", characterId },
     { kind: "chat", chatId },
@@ -125,7 +130,7 @@ test("a host demotion before the ingestion batch refuses both canon and room con
   const owner = await seedUser(db, { handle: castId<Handle>("original") });
   const chatId = await seedChat(db, "role-change");
   await seedChatHost(db, chatId, owner);
-  const h = makeDatabankHarness(db, { ensureChatHost: (actor, id) => requireHost({ db, can }, actor, id).then((): void => undefined) });
+  const h = makeDatabankHarness(db, { ensureChatHost: (actor, id) => requireHost({ db: databaseHandle(db), can }, actor, id).then((): void => undefined) });
   const gate = held.hold(/insert into "documents"/u);
   const pending = h.service.createFromText({ principal: principalFor(owner), name: "Scoped", text: "Canon", destination: { kind: "chat", chatId } });
   const refused = expect(pending).rejects.toThrow();
@@ -198,28 +203,28 @@ test("D85 gate-8: the membership union credits every ATTACHED member doc; privat
   await h.service.attachGlobal({ principal: principalFor(member), documentId: memberGlobal.document.id });
 
   // (a) + (b): the union credits the member's ATTACHED global doc; NO private doc from either member leaks.
-  const union = await resolveActiveDocumentIds(db, { chatId });
+  const union = await resolveActiveDocumentIds(databaseHandle(db), { chatId });
   expect(union.toSorted()).toEqual([hostGlobal.document.id, hostChat.document.id, memberGlobal.document.id].sort());
   expect(union).not.toContain(hostPrivate.document.id);
   expect(union).not.toContain(memberPrivate.document.id);
 
   // (c): the host excludes the member's global doc → it drops from RETRIEVAL (widening default-on, override subtracts).
   await hideDocuments(db, chatId, [memberGlobal.document.id]);
-  const afterHide = await resolveActiveDocumentIds(db, { chatId });
+  const afterHide = await resolveActiveDocumentIds(databaseHandle(db), { chatId });
   expect(afterHide).not.toContain(memberGlobal.document.id);
   expect(afterHide.toSorted()).toEqual([hostGlobal.document.id, hostChat.document.id].sort());
 
   // (d): the member LEAVES → their global doc stops crediting the room (kind='human' + leftSeq-null filter bites).
   await hideDocuments(db, chatId, []); // clear the override so (d) isolates the leftSeq effect
   await markMemberLeft(db, chatId, member, 7);
-  const afterLeave = await resolveActiveDocumentIds(db, { chatId });
+  const afterLeave = await resolveActiveDocumentIds(databaseHandle(db), { chatId });
   expect(afterLeave).not.toContain(memberGlobal.document.id);
   expect(afterLeave.toSorted()).toEqual([hostGlobal.document.id, hostChat.document.id].sort());
 
   // Personal search scope = the whole bank (every owned doc, attachment-independent) — unchanged by D85.
-  const hostBank = await resolveActiveDocumentIds(db, { ownerId: host });
+  const hostBank = await resolveActiveDocumentIds(databaseHandle(db), { ownerId: host });
   expect(hostBank.toSorted()).toEqual([hostGlobal.document.id, hostChat.document.id, hostPrivate.document.id].sort());
-  const memberBank = await resolveActiveDocumentIds(db, { ownerId: member });
+  const memberBank = await resolveActiveDocumentIds(databaseHandle(db), { ownerId: member });
   expect(memberBank.toSorted()).toEqual([memberGlobal.document.id, memberPrivate.document.id].sort());
 });
 
@@ -237,14 +242,14 @@ test("a corrupt databankVisibility blob heals to default-visible (fault-isolated
   // @orb-waive no-loose-id-cast({ databankVisibility: { hidden: "not-an-array" } } as unknown): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
   const corruptShape = { databankVisibility: { hidden: "not-an-array" } } as unknown as never;
   await db.update(chats).set({ metadata: corruptShape }).where(eq(chats.id, chatId));
-  expect(await resolveActiveDocumentIds(db, { chatId })).toEqual([hg.document.id]);
+  expect(await resolveActiveDocumentIds(databaseHandle(db), { chatId })).toEqual([hg.document.id]);
 
   // A totally non-object metadata blob heals the same way.
   // @orb-waive no-test-fabrication(unknown): a non-object metadata column value is exactly the corruption the read must survive. Ends when this deliberate test boundary can be expressed without a fabricated typed value.
   // @orb-waive no-loose-id-cast(42 as unknown): forged input — the test's subject is the runtime refusal or heal of a value the static type forbids, and no typed door authors it; ends when a named forged-input seam exists.
   const corruptScalar = 42 as unknown as never;
   await db.update(chats).set({ metadata: corruptScalar }).where(eq(chats.id, chatId));
-  expect(await resolveActiveDocumentIds(db, { chatId })).toEqual([hg.document.id]);
+  expect(await resolveActiveDocumentIds(databaseHandle(db), { chatId })).toEqual([hg.document.id]);
 });
 
 test("chat scope unions the docs of PRESENT roster characters; a departed character's docs drop out", async () => {
@@ -264,7 +269,7 @@ test("chat scope unions the docs of PRESENT roster characters; a departed charac
   await h.service.attachToCharacter({ principal: principalFor(host), documentId: cp.document.id, characterId: present });
   await h.service.attachToCharacter({ principal: principalFor(host), documentId: cd.document.id, characterId: departed });
 
-  const chatScope = await resolveActiveDocumentIds(db, { chatId });
+  const chatScope = await resolveActiveDocumentIds(databaseHandle(db), { chatId });
   expect(chatScope).toContain(cp.document.id);
   expect(chatScope).not.toContain(cd.document.id);
 });
@@ -278,5 +283,5 @@ test("a memberless chat resolves to no global docs, but chat-attached docs still
   await h.service.attachToChat({ principal: principalFor(owner), documentId: doc.document.id, chatId });
 
   // No present human members ⇒ no global arm; the chat-attached doc still resolves (chat union arm).
-  expect(await resolveActiveDocumentIds(db, { chatId })).toEqual([doc.document.id]);
+  expect(await resolveActiveDocumentIds(databaseHandle(db), { chatId })).toEqual([doc.document.id]);
 });

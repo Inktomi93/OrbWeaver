@@ -1,5 +1,6 @@
 // Production client/native subscription link/adapter over real loopback HTTP and the real appRouter.
 // Generation is injected; these are transport lifetime/replay proofs, not provider/domain execution proofs.
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { once } from "node:events";
 import type { ServerResponse } from "node:http";
@@ -60,7 +61,7 @@ for (const { mode, ...expected } of CASES) {
     };
     const mounted = createApp({
       now: clock.now,
-      db,
+      db: databaseHandle(db),
       seam: {
         resolvePrincipal: () => Promise.resolve({ principal: principal("user", { userId: OWNER_USER_ID }), sessionId: null, csrfHeaderPresent: false }),
         debugGateAdmits: () => false,

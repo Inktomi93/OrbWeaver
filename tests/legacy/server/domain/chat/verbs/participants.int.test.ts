@@ -31,6 +31,7 @@ import {
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatEventId, ChatId, ChatParticipantId, DocumentId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -1295,7 +1296,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     let eventNumber = 0;
     const bus = createChatBus({
-      db,
+      db: databaseHandle(db),
       now: () => FROZEN_AT_MS,
       newEventId: () => {
         eventNumber += 1;
@@ -1363,7 +1364,7 @@ describe("acceptHostHandoff — the nominee self-action (step 2)", () => {
     } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
     let eventNumber = 0;
     const bus = createChatBus({
-      db,
+      db: databaseHandle(db),
       now: () => FROZEN_AT_MS,
       newEventId: () => {
         eventNumber += 1;
@@ -1778,7 +1779,7 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const personaId = await seedPersona(db, host, "a");
 
-    await setParticipantActivePersona(db, emit, { chatId, targetUserId: host, personaId });
+    await setParticipantActivePersona(databaseHandle(db), emit, { chatId, targetUserId: host, personaId });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, host));
     expect(row?.activePersonaId).toBe(personaId);
@@ -1798,7 +1799,7 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
       activePersonaId: first,
     });
 
-    await setParticipantActivePersona(db, emit, { chatId, targetUserId: host, personaId: second });
+    await setParticipantActivePersona(databaseHandle(db), emit, { chatId, targetUserId: host, personaId: second });
 
     expect(emitted).toEqual([{ type: "personaSwitched", chatId, from: first, to: second }]);
   });
@@ -1815,7 +1816,7 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
       activePersonaId: personaId,
     });
 
-    await setParticipantActivePersona(db, emit, { chatId, targetUserId: host, personaId: null });
+    await setParticipantActivePersona(databaseHandle(db), emit, { chatId, targetUserId: host, personaId: null });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, host));
     expect(row?.activePersonaId).toBeNull();
@@ -1829,7 +1830,7 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const personaId = await seedPersona(db, host, "a");
 
-    const err = await setParticipantActivePersona(db, emit, {
+    const err = await setParticipantActivePersona(databaseHandle(db), emit, {
       chatId,
       targetUserId: stranger,
       personaId,
@@ -1849,7 +1850,7 @@ describe("setParticipantActivePersona — the chat-domain write persona.setActiv
     await seedParticipant(db, { chatId, key: "f", userId: former, role: "member", leftSeq: 3 });
     const personaId = await seedPersona(db, former, "a");
 
-    const err = await setParticipantActivePersona(db, emit, {
+    const err = await setParticipantActivePersona(databaseHandle(db), emit, {
       chatId,
       targetUserId: former,
       personaId,

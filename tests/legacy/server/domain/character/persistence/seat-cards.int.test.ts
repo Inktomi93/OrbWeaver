@@ -1,3 +1,4 @@
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { createLoadSeatCards } from "@orb/server/domain/character";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
@@ -8,7 +9,7 @@ test("light decorations preserve carried policy and reject foreign card ids with
   const other = (await seedUser(db)).id;
   const owned = await seedCharacter(db, { ownerId: owner, name: "Owned", description: "Large prose".repeat(5000), trustHtml: true, interactiveHtml: false });
   const foreign = await seedCharacter(db, { ownerId: other, name: "Foreign" });
-  const rows = await createLoadSeatCards(db)(owner, [owned.id, foreign.id]);
+  const rows = await createLoadSeatCards(databaseHandle(db))(owner, [owned.id, foreign.id]);
   expect(rows).toEqual([
     {
       id: owned.id,

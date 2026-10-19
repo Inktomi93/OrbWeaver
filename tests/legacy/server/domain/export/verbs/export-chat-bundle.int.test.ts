@@ -30,6 +30,7 @@ import {
   userConnections,
 } from "@orb/db";
 import { batchMany, batchStmt } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type {
   ChatId,
   ChatParticipantId,
@@ -69,7 +70,7 @@ beforeEach(async () => {
 /** The verb over a harness ctx whose rpg read is the REAL one (a fake would prove nothing about the index). */
 function verb(): ReturnType<typeof createExportChatBundle> {
   const { ctx } = makeHarness(db);
-  return createExportChatBundle({ ...ctx, exportRpgGame: createExportRpgGame({ db }) });
+  return createExportChatBundle({ ...ctx, exportRpgGame: createExportRpgGame({ db: databaseHandle(db) }) });
 }
 
 function must(result: { readonly bytes: Uint8Array } | null): PortableChat {

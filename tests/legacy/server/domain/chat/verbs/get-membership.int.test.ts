@@ -3,6 +3,7 @@
 // leak-free `null` (the not-a-participant 404 rpg surfaces), and a LEFT member (leftSeq set) reads null.
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -26,7 +27,7 @@ describe("getMembership", () => {
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "member", userId: member, role: "member" });
 
-    const getMembership = createGetMembership(makeChatContext(db));
+    const getMembership = createGetMembership({ ...makeChatContext(db), db: databaseHandle(db) });
     expect(await getMembership(chatId, host)).toEqual({ role: "host" });
     expect(await getMembership(chatId, member)).toEqual({ role: "member" });
     expect(await getMembership(chatId, outsider)).toBeNull();
@@ -39,7 +40,7 @@ describe("getMembership", () => {
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "gone", userId: gone, role: "member", leftSeq: 5 });
 
-    const getMembership = createGetMembership(makeChatContext(db));
+    const getMembership = createGetMembership({ ...makeChatContext(db), db: databaseHandle(db) });
     expect(await getMembership(chatId, gone)).toBeNull();
   });
 });

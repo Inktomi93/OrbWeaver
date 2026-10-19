@@ -9,6 +9,7 @@
 
 import type { LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import { characterRegexScripts, globalRegexScripts, regexScripts } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createDeleteReachCapture } from "@orb/server/entry/compose";
@@ -66,7 +67,7 @@ describe("bulkRemoveScripts", () => {
   test("deleting two room-attached scripts fans each reached room exactly once", async () => {
     const db = await freshDb();
     const captured: LiveOnlyChatBusEvent[] = [];
-    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
     const h = makeHarness(db, { requireChatHost: allowChat, requireChatMember: allowChat, captureRoomReachForDelete: capture.regex });
     const svc = createRegexService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
@@ -96,7 +97,7 @@ describe("bulkRemoveScripts", () => {
   test("a FOREIGN id in the list never fans the stranger's room", async () => {
     const db = await freshDb();
     const captured: LiveOnlyChatBusEvent[] = [];
-    const capture = createDeleteReachCapture(db, (event) => captured.push(event));
+    const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
     const h = makeHarness(db, { requireChatHost: allowChat, captureRoomReachForDelete: capture.regex });
     const svc = createRegexService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });

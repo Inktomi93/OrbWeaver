@@ -16,6 +16,7 @@ import {
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatResult } from "@orb/inference";
 import { GenerationObservationPersistenceError } from "@orb/inference";
 import type { CharacterId, ChatTurnId, HandleKey, UserId } from "@orb/kit/ids";
@@ -128,7 +129,7 @@ test.for(["cohort-replacement", "voice-owner", "target-edit", "database-failure"
       events: [],
       rateLimit: null,
     };
-    await reconcileStats(db, { now: ctx.now });
+    await reconcileStats(databaseHandle(db), { now: ctx.now });
     const gate = held.hold(/insert into "chats"/i);
     const completing = session.onObservedResult(result, connection).catch((error: unknown) => error);
     let before: (typeof ownerStats.$inferSelect)[] = [];
@@ -145,7 +146,7 @@ test.for(["cohort-replacement", "voice-owner", "target-edit", "database-failure"
           sql`CREATE TRIGGER fixture_attach_failure BEFORE UPDATE ON message_variants BEGIN SELECT RAISE(ABORT, 'fixture attach write failed'); END`,
         );
       }
-      await reconcileStats(db, { now: ctx.now });
+      await reconcileStats(databaseHandle(db), { now: ctx.now });
       before = await db.select().from(ownerStats).orderBy(ownerStats.ownerId);
     } finally {
       gate.release();
@@ -158,7 +159,7 @@ test.for(["cohort-replacement", "voice-owner", "target-edit", "database-failure"
     expect(await db.select().from(chatGenerationObservations)).toMatchObject([
       { chatId: room.id, sourceMessageId: source.id, sourceVariantId: source.variantId, funderUserId: funder.id, costUsd: 0.125, tokensIn: 12, tokensOut: 17 },
     ]);
-    await reconcileStats(db, { now: ctx.now });
+    await reconcileStats(databaseHandle(db), { now: ctx.now });
     expect(await db.select().from(ownerStats).orderBy(ownerStats.ownerId)).toEqual(before);
   },
 );
@@ -568,7 +569,7 @@ test("a retained refused completion rebuilds actual funding usage without invent
     modelCalls: 1,
     observedAt: OBSERVED_AT,
   });
-  await reconcileStats(db, { now: () => OBSERVED_AT + 86_400_000 });
+  await reconcileStats(databaseHandle(db), { now: () => OBSERVED_AT + 86_400_000 });
   expect(await db.select().from(ownerStats).where(eq(ownerStats.ownerId, funder.id))).toMatchObject([
     { tokensIn: 70, tokensOut: 2048, costUsd: 0.125, costSamples: 1, assistantTurns: 0, assistantWords: 0, genSamples: 0 },
   ]);
@@ -577,7 +578,7 @@ test("a retained refused completion rebuilds actual funding usage without invent
   ]);
   await db.delete(chats).where(eq(chats.id, room.id));
   expect(await db.select().from(chatGenerationObservations)).toEqual([]);
-  await reconcileStats(db, { now: () => OBSERVED_AT + 86_400_000 });
+  await reconcileStats(databaseHandle(db), { now: () => OBSERVED_AT + 86_400_000 });
   expect(await db.select().from(ownerStats).where(eq(ownerStats.ownerId, funder.id))).toMatchObject([{ tokensIn: 0, tokensOut: 0, costUsd: 0 }]);
 });
 

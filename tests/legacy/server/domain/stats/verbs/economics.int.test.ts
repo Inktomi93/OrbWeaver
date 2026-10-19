@@ -4,6 +4,7 @@
 // @subject packages/server/src/domain/stats/verbs/economics.ts
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
@@ -32,7 +33,7 @@ describe("stats.characterEconomics / characterModelEconomics", () => {
       variants: [{ model: "gpt", provider: "openrouter", tokensOut: 42, costUsd: 0.5 }],
     });
 
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
 
     const perCharacter = await svc.characterEconomics(owner);
     expect(perCharacter).toHaveLength(1);

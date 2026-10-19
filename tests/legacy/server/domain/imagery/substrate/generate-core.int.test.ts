@@ -1,3 +1,4 @@
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
 // substrate/runGeneration + sumCost — the spend-and-persist tail both generatePicture and editImage run
 // (their round-trip through the real store/provenance path is pinned by the verb-level int tests). This
@@ -114,7 +115,7 @@ describe("runGeneration", () => {
         };
       },
     });
-    const outcome = await runGeneration(ctx, { ...REQ, connection, model: connection.model }, { ...PROV, owner: principal(owner) });
+    const outcome = await runGeneration({ ...ctx, db }, { ...REQ, connection, model: connection.model }, { ...PROV, owner: principal(owner) });
     expect(paths).toEqual(["/api/v1/images"]);
     expect(outcome.costUsd).toBe(0.125);
     const rows = await db.select().from(imageryGenerations);
@@ -136,7 +137,7 @@ describe("runGeneration", () => {
     expect(live).toHaveLength(1);
     expect(live[0]).toMatchObject({ costUsd: 0.125, costSamples: 1 });
     expect(await db.select().from(modelStats)).toMatchObject([{ generations: 2, costUsd: 0.125, costSamples: 1 }]);
-    await reconcileStats(db, { ownerId: owner, now: ctx.now });
+    await reconcileStats(databaseHandle(db), { ownerId: owner, now: ctx.now });
     expect(await db.select().from(ownerStats)).toEqual(live);
     closeDb(db);
   });
@@ -149,7 +150,7 @@ describe("runGeneration", () => {
         Promise.resolve({ images: [{ base64, mediaType: "image/png", url: undefined }], model: "   ", usage: makeGenerationUsage(null), warnings: [] }),
     });
 
-    await expect(runGeneration(ctx, REQ, { ...PROV, owner: principal(owner) })).rejects.toThrow();
+    await expect(runGeneration({ ...ctx, db }, REQ, { ...PROV, owner: principal(owner) })).rejects.toThrow();
     expect(await db.select().from(imageryGenerations)).toEqual([]);
   });
 
@@ -167,7 +168,7 @@ describe("runGeneration", () => {
       fetchImage: () => Promise.resolve(null),
     });
 
-    await expect(runGeneration(ctx, REQ, { ...PROV, owner: principal(owner) })).rejects.toThrow(GenerationFailedError);
+    await expect(runGeneration({ ...ctx, db }, REQ, { ...PROV, owner: principal(owner) })).rejects.toThrow(GenerationFailedError);
   });
 
   test("a fanned-out (n>1) generation shares ONE createdAt and ONE call id across every provenance row", async () => {
@@ -187,7 +188,7 @@ describe("runGeneration", () => {
         }),
     });
 
-    const outcome = await runGeneration(ctx, REQ, { ...PROV, owner: principal(owner) });
+    const outcome = await runGeneration({ ...ctx, db }, REQ, { ...PROV, owner: principal(owner) });
 
     expect(outcome.images).toHaveLength(2);
     const rows = await db

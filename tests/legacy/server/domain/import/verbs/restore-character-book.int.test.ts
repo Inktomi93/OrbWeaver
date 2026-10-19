@@ -11,6 +11,7 @@
 import type { CreateCharacterInput } from "@orb/contracts/character";
 import type { Db } from "@orb/db";
 import { characterBooks, worldBooks, worldEntries } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { seedCharacter, seedUser } from "@orb/testkit/node/factories/index.ts";
@@ -61,12 +62,12 @@ async function importCtx(db: Db): Promise<ImportContext> {
     attachImportedArt: (): Promise<never> => Promise.reject(new Error("no art in this suite (bare-JSON cards)")),
     attachCardTag: (): Promise<boolean> => Promise.resolve(true),
     importLorebook: createBulkImportLorebook({
-      db,
+      db: databaseHandle(db),
       now: (): number => NOW,
       newBookId: (): WorldBookId => castId<WorldBookId>(`world_book_${counter()}`),
       newEntryId: (): WorldEntryId => castId<WorldEntryId>(`world_entry_${counter()}`),
     }),
-    hasPrimaryBook: createHasPrimaryBook({ db }),
+    hasPrimaryBook: createHasPrimaryBook({ db: databaseHandle(db) }),
   };
 }
 

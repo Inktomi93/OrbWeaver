@@ -1,6 +1,7 @@
 // entry/import: a full-library bundle round-trip with two rpg-anchored turns, each remapping to its own restored (message, variant).
 
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -228,7 +229,7 @@ describe("P-8: the full-library bundle remaps rpg-anchored turns per turn, never
       const fresh = await createServices({
         serverRestart: UNSUPERVISED_RESTART,
         share: NO_SHARE_RELAY,
-        db: freshDatabase,
+        db: databaseHandle(freshDatabase),
         now: (): number => clock.now(),
         ownerId: targetId,
         secretBoxKey: null,
@@ -246,7 +247,7 @@ describe("P-8: the full-library bundle remaps rpg-anchored turns per turn, never
       const { workloadId } = (await res.json()) as { workloadId: WorkloadId };
       const row = await loadRunnableWorkload(freshDatabase, fresh.workloadContributions, workloadId);
       await runWorkload(makeRunnerDeps(freshDatabase, fresh.workloadContributions), row, new AbortController().signal);
-      const done = await loadWorkload(freshDatabase, fresh.workloadContributions, workloadId);
+      const done = await loadWorkload(databaseHandle(freshDatabase), fresh.workloadContributions, workloadId);
       expect(done?.status).toBe("succeeded");
       // @orb-waive no-test-fabrication({ imported: number; skipped: number; failed: number }): baselined when the gate widened to value casts; burn-down item 906.
       const report = done?.result as { imported: number; skipped: number; failed: number };

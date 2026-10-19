@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/stats/verbs/timeseries.ts
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import { statsBucketStart } from "@orb/kit/stats-tally";
 import { CALENDAR_BUCKET_MS } from "@orb/kit/time";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -25,7 +26,7 @@ describe("stats.timeseries", () => {
     const late = early + CALENDAR_BUCKET_MS;
     await seedDailyStats(db, owner, early, { userTurns: 1 });
     await seedDailyStats(db, owner, late, { userTurns: 2 });
-    const svc = createStatsService(db, () => STATS_NOW);
+    const svc = createStatsService(databaseHandle(db), () => STATS_NOW);
     const points = await svc.timeseries(owner, { from: late });
     expect(points.map((p) => [p.bucketStart, p.userTurns])).toEqual([[late, 2]]);
   });

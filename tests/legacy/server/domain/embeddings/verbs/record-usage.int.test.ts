@@ -4,6 +4,7 @@
 import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import { EMBEDDING_FLOOR } from "@orb/contracts/inference";
 import { embeddingCalls, modelStats, ownerStats, userConnections } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { EmbeddingCallId, EmbeddingInvocationId, UserConnectionId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
@@ -48,7 +49,7 @@ test.for([
       .insert(userConnections)
       .values({ id: connection.connectionId, ownerId: owner.id, providerId: connection.providerId, model: connection.model, label: "Embedding" });
     const begin = createRecordUsage({
-      db,
+      db: databaseHandle(db),
       now: () => NOW,
       newCallId: () => castId<EmbeddingCallId>(ids.next(ID_PREFIX.embeddingCall)),
       newInvocationId: () => castId<EmbeddingInvocationId>(ids.next(ID_PREFIX.embeddingInvocation)),
@@ -113,7 +114,7 @@ test.for([
     });
     const live = await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id));
     expect(live[0]).toMatchObject({ costUsd: reportedPrice ?? 0, costSamples: 1, tokensIn: 0, tokensInMeasuredSamples: 1, assistantTurns: 0, genSamples: 0 });
-    await reconcileStats(db, { now: () => NOW });
+    await reconcileStats(databaseHandle(db), { now: () => NOW });
     expect(await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id))).toEqual(live);
   },
 );
@@ -133,7 +134,7 @@ test("physical batches retain rates, partial failure and owner scope independent
   });
   await db.insert(userConnections).values({ id: connectionId, ownerId: owner.id, providerId: resolved.providerId, model, label: "accounting control" });
   const begin = createRecordUsage({
-    db,
+    db: databaseHandle(db),
     now: () => NOW,
     newCallId: () => castId<EmbeddingCallId>(ids.next(ID_PREFIX.embeddingCall)),
     newInvocationId: () => castId<EmbeddingInvocationId>(ids.next(ID_PREFIX.embeddingInvocation)),
@@ -163,7 +164,7 @@ test("physical batches retain rates, partial failure and owner scope independent
   ]);
   await db.delete(userConnections).where(eq(userConnections.id, connectionId));
   expect((await db.select().from(embeddingCalls)).every((row) => row.connectionId === null)).toBe(true);
-  await reconcileStats(db, { now: () => NOW });
+  await reconcileStats(databaseHandle(db), { now: () => NOW });
   expect(await db.select().from(ownerStats).where(eq(ownerStats.ownerId, owner.id))).toMatchObject([
     { tokensIn: 34, tokensInMeasuredSamples: 2, costUsd: COST, costSamples: 2, assistantTurns: 0, genSamples: 0 },
   ]);
@@ -176,7 +177,7 @@ test("deleted attribution and unmetered local execution retain unknowns, not bil
   const owner = await seedUser(db);
   const resolved = makeResolved({ task: "embed", providerId: "local-light", ownerId: owner.id });
   const begin = createRecordUsage({
-    db,
+    db: databaseHandle(db),
     now: () => NOW,
     newCallId: () => castId<EmbeddingCallId>(ids.next(ID_PREFIX.embeddingCall)),
     newInvocationId: () => castId<EmbeddingInvocationId>(ids.next(ID_PREFIX.embeddingInvocation)),

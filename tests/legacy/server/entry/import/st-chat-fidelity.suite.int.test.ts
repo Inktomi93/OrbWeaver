@@ -8,6 +8,7 @@
 
 import type { Db } from "@orb/db";
 import { chatInjections, chatParticipants, chats, messages, messageVariants, ownerStats } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type {
   AssetId,
   CharacterId,
@@ -153,7 +154,7 @@ function stImportContext(db: Db, ownerId: UserId, personas: Map<string, PersonaI
     profile: {
       now: (): number => NOW,
       personaByUserName: personas,
-      bulkImportChats: createBulkImportChats(importCtx(db)),
+      bulkImportChats: createBulkImportChats({ ...importCtx(db), db: databaseHandle(db) }),
       bulkImportPersonas: inert,
       enqueueImportIndex: (): Promise<void> => Promise.resolve(),
       reconcileStats: (): Promise<void> => Promise.resolve(),

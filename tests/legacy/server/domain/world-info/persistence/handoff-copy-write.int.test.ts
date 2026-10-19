@@ -10,6 +10,7 @@ import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -40,7 +41,7 @@ async function seedBook(db: Db, ownerId: UserId, key: string, entries: readonly 
 function copier(db: Db): ReturnType<typeof createCopyHandoffBooks> {
   let n = 0;
   return createCopyHandoffBooks({
-    db,
+    db: databaseHandle(db),
     now: () => AT,
     newBookId: (): WorldBookId => {
       n += 1;

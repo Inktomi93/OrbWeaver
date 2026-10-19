@@ -29,12 +29,15 @@ describe("commitAuditedWrite", () => {
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     await seedLiveSession(db, target);
 
-    const rows = await commitAuditedWrite(h.ctx, {
-      write: db.update(users).set({ role: "admin", updatedAt: FROZEN_AT_MS }).where(eq(users.id, target)).returning({ id: users.id }),
-      entry,
-      at: FROZEN_AT_MS,
-      tails: [h.ctx.sessions.revokeAllForUserStatement(target, FROZEN_AT_MS)],
-    });
+    const rows = await commitAuditedWrite(
+      { ...h.ctx, db },
+      {
+        write: db.update(users).set({ role: "admin", updatedAt: FROZEN_AT_MS }).where(eq(users.id, target)).returning({ id: users.id }),
+        entry,
+        at: FROZEN_AT_MS,
+        tails: [h.ctx.sessions.revokeAllForUserStatement(target, FROZEN_AT_MS)],
+      },
+    );
 
     expect(rows).toEqual([{ id: target }]);
     expect((await db.select().from(users).where(eq(users.id, target)))[0]?.role).toBe("admin");
@@ -54,12 +57,15 @@ describe("commitAuditedWrite", () => {
       .where(eq(users.id, target));
 
     await expect(
-      commitAuditedWrite(h.ctx, {
-        write: db.update(users).set({ role: "admin", updatedAt: FROZEN_AT_MS }).where(eq(users.id, target)).returning({ id: users.id }),
-        entry,
-        at: FROZEN_AT_MS,
-        tails: [brokenTail],
-      }),
+      commitAuditedWrite(
+        { ...h.ctx, db },
+        {
+          write: db.update(users).set({ role: "admin", updatedAt: FROZEN_AT_MS }).where(eq(users.id, target)).returning({ id: users.id }),
+          entry,
+          at: FROZEN_AT_MS,
+          tails: [brokenTail],
+        },
+      ),
     ).rejects.toThrow();
 
     expect((await db.select().from(users).where(eq(users.id, target)))[0]?.role).toBe("user");
@@ -73,11 +79,14 @@ describe("commitAuditedWrite", () => {
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
 
     await expect(
-      commitAuditedWrite(withBrokenAudit(h.ctx, db), {
-        write: db.update(users).set({ role: "admin", updatedAt: FROZEN_AT_MS }).where(eq(users.id, target)).returning({ id: users.id }),
-        entry,
-        at: FROZEN_AT_MS,
-      }),
+      commitAuditedWrite(
+        { ...withBrokenAudit(h.ctx, db), db },
+        {
+          write: db.update(users).set({ role: "admin", updatedAt: FROZEN_AT_MS }).where(eq(users.id, target)).returning({ id: users.id }),
+          entry,
+          at: FROZEN_AT_MS,
+        },
+      ),
     ).rejects.toThrow();
 
     expect((await db.select().from(users).where(eq(users.id, target)))[0]?.role).toBe("user");
@@ -90,15 +99,18 @@ describe("commitAuditedWrite", () => {
     const owner = await seedUser(db, { id: "user_own", role: "owner", handle: castId<Handle>("own") });
 
     // The owner-immutability race arm: `WHERE id = ? AND role <> 'owner'` matches nothing.
-    const rows = await commitAuditedWrite(h.ctx, {
-      write: db
-        .update(users)
-        .set({ role: "user", updatedAt: FROZEN_AT_MS })
-        .where(and(eq(users.id, owner), ne(users.role, "owner")))
-        .returning({ id: users.id }),
-      entry,
-      at: FROZEN_AT_MS,
-    });
+    const rows = await commitAuditedWrite(
+      { ...h.ctx, db },
+      {
+        write: db
+          .update(users)
+          .set({ role: "user", updatedAt: FROZEN_AT_MS })
+          .where(and(eq(users.id, owner), ne(users.role, "owner")))
+          .returning({ id: users.id }),
+        entry,
+        at: FROZEN_AT_MS,
+      },
+    );
 
     expect(rows).toEqual([]);
     expect((await db.select().from(users).where(eq(users.id, owner)))[0]?.role).toBe("owner");
@@ -111,12 +123,15 @@ describe("commitAuditedWrite", () => {
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
 
     // No live sessions: the kick tail matches 0 rows, exactly as it does for a signed-out target.
-    const rows = await commitAuditedWrite(h.ctx, {
-      write: db.update(users).set({ role: "admin", updatedAt: FROZEN_AT_MS }).where(eq(users.id, target)).returning({ id: users.id }),
-      entry,
-      at: FROZEN_AT_MS,
-      tails: [h.ctx.sessions.revokeAllForUserStatement(target, FROZEN_AT_MS)],
-    });
+    const rows = await commitAuditedWrite(
+      { ...h.ctx, db },
+      {
+        write: db.update(users).set({ role: "admin", updatedAt: FROZEN_AT_MS }).where(eq(users.id, target)).returning({ id: users.id }),
+        entry,
+        at: FROZEN_AT_MS,
+        tails: [h.ctx.sessions.revokeAllForUserStatement(target, FROZEN_AT_MS)],
+      },
+    );
 
     expect(rows).toEqual([{ id: target }]);
     expect(await auditActions(db)).toEqual(["admin.probe"]);

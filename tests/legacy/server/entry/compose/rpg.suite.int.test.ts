@@ -1,3 +1,4 @@
+import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import assert from "node:assert/strict";
 import type { Principal } from "@orb/contracts/identity";
@@ -51,10 +52,10 @@ function failingRound(args: {
   readonly run?: ProviderExecutor["runChatTurn"];
 }): ReturnType<typeof buildRpg> {
   return buildRpg({
-    db: args.db,
+    db: databaseHandle(args.db),
     now: () => FROZEN_AT_MS,
     rpgChatOps: args.app.chatRpgOps,
-    resolveViewerVisibility: createResolveViewerVisibility({ db: args.db }),
+    resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(args.db) }),
     connection: { resolve: () => Promise.resolve({ resolved: connectionFor(args.api, args.hostId), warnings: [] }) },
     executor: {
       runChatTurn: (request) => {
@@ -159,7 +160,7 @@ test("resync completed usage reaches the actual chat-owned sink without inventin
     },
   });
   await rpg.service.createGame({ principal: principalOf(hostId), chatId, mode: "lite" });
-  await reconcileStats(db, { ownerId: hostId, now: () => FROZEN_AT_MS });
+  await reconcileStats(databaseHandle(db), { ownerId: hostId, now: () => FROZEN_AT_MS });
   await expect(rpg.service.resyncFromStory({ principal: principalOf(hostId), chatId })).resolves.toEqual({ ok: true, rebuilt: false });
   expect(calls).toBe(1);
   const facts = await db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.chatId, chatId));
@@ -178,7 +179,7 @@ test("resync completed usage reaches the actual chat-owned sink without inventin
   });
   const live = await db.select().from(ownerStats).where(eq(ownerStats.ownerId, hostId));
   expect(live[0]).toMatchObject({ ownerId: hostId, costUsd: 0.125, costSamples: 1, notionalCostSamples: 0, tokensIn: 12, tokensOut: 17, assistantTurns: 1 });
-  await reconcileStats(db, { ownerId: hostId, now: () => FROZEN_AT_MS });
+  await reconcileStats(databaseHandle(db), { ownerId: hostId, now: () => FROZEN_AT_MS });
   expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, hostId)))[0]).toMatchObject({
     ownerId: hostId,
     costUsd: 0.125,
@@ -277,9 +278,9 @@ test.for([
     });
     await rpg.service.createGame({ principal: principalOf(hostId), chatId, mode: "lite" });
     await rpg.service.updateConfig({ principal: principalOf(hostId), chatId, extractionMode: "cheap" });
-    await reconcileStats(db, { ownerId: hostId, now: () => FROZEN_AT_MS });
+    await reconcileStats(databaseHandle(db), { ownerId: hostId, now: () => FROZEN_AT_MS });
     if (multiOwner) {
-      await reconcileStats(db, { ownerId: incomingId, now: () => FROZEN_AT_MS });
+      await reconcileStats(databaseHandle(db), { ownerId: incomingId, now: () => FROZEN_AT_MS });
     }
     const completion = rpg.chatOps.onTurnCompleted(chatId, messageId, variantId, mintTypeId(ID_PREFIX.chatTurn), {
       kind: "send",
@@ -321,7 +322,7 @@ test.for([
     expect(voiceId).not.toBeNull();
     const expected = { ownerId: economicOwnerId, costUsd: 0.375, costSamples: 2, notionalCostSamples: 1, tokensIn: 22, tokensOut: 37, assistantTurns: 1 };
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, economicOwnerId)))[0]).toMatchObject(expected);
-    await reconcileStats(db, { ownerId: hostId, now: () => FROZEN_AT_MS });
+    await reconcileStats(databaseHandle(db), { ownerId: hostId, now: () => FROZEN_AT_MS });
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, economicOwnerId)))[0]).toMatchObject(expected);
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, incomingId)))[0]?.costUsd ?? 0).toBe(incomingHasCanon ? 0.375 : 0);
     expect(
@@ -338,7 +339,7 @@ test.for([
       tokensOut: 37,
       assistantTurns: 1,
     });
-    await reconcileStats(db, { ownerId: incomingId, now: () => FROZEN_AT_MS });
+    await reconcileStats(databaseHandle(db), { ownerId: incomingId, now: () => FROZEN_AT_MS });
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, incomingId)))[0]?.costUsd).toBe(incomingHasCanon ? 0.375 : 0);
     expect(
       (

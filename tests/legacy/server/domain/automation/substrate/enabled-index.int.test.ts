@@ -2,6 +2,7 @@
 // `reload()`, `reload()` re-derives BOTH the per-chat enabled Set and the domain-rules flag from live db
 // state, and a chat with no enabled rule is absent from the set.
 
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AutomationRuleId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -40,14 +41,14 @@ async function seedEnabledChatRule(fixture: Awaited<ReturnType<typeof ruleFixtur
 describe("createEnabledRuleIndex", () => {
   test("before reload(), a freshly-built index has no enabled chats and no domain flag", async () => {
     const fixture = await ruleFixture();
-    const index = createEnabledRuleIndex(fixture.db);
+    const index = createEnabledRuleIndex(databaseHandle(fixture.db));
     expect(index.has(fixture.chatId)).toBe(false);
     expect(index.hasDomainRules()).toBe(false);
   });
 
   test("reload() populates the enabled-chat Set from live db state", async () => {
     const fixture = await ruleFixture();
-    const index = createEnabledRuleIndex(fixture.db);
+    const index = createEnabledRuleIndex(databaseHandle(fixture.db));
     expect(index.has(fixture.chatId)).toBe(false);
     await seedEnabledChatRule(fixture);
     await index.reload();
@@ -56,14 +57,14 @@ describe("createEnabledRuleIndex", () => {
 
   test("a chat with no enabled rule stays absent from the set", async () => {
     const fixture = await ruleFixture();
-    const index = createEnabledRuleIndex(fixture.db);
+    const index = createEnabledRuleIndex(databaseHandle(fixture.db));
     await index.reload();
     expect(index.has(fixture.chatId)).toBe(false);
   });
 
   test("hasDomainRules() reflects whether ANY enabled domain-bus rule exists, independent of the per-chat Set", async () => {
     const fixture = await ruleFixture();
-    const index = createEnabledRuleIndex(fixture.db);
+    const index = createEnabledRuleIndex(databaseHandle(fixture.db));
     await index.reload();
     expect(index.hasDomainRules()).toBe(false);
     const id = mintTypeId("automation_rule");

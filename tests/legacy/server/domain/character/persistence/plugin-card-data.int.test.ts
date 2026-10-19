@@ -4,6 +4,7 @@
 // METADATA-NOT-CONTENT (the merge never bumps `contentHash`). Internal files imported by RELATIVE path.
 
 import { characters } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -46,8 +47,8 @@ describe("persistence/plugin-card-data", () => {
     await insertCharacter(db, makeRow(owner, id, castId<CharacterHandle>("a")), bumpStatsCanonVersion);
 
     const target = { characterId: id, ownerId: owner, slug: SLUG_A };
-    expect(await writePluginCardData(db, target, { hp: 10, note: "ok" })).toBe(true);
-    expect(await readPluginCardData(db, target)).toEqual({ found: true, data: { hp: 10, note: "ok" } });
+    expect(await writePluginCardData(databaseHandle(db), target, { hp: 10, note: "ok" })).toBe(true);
+    expect(await readPluginCardData(databaseHandle(db), target)).toEqual({ found: true, data: { hp: 10, note: "ok" } });
 
     // The value lands under the RESERVED `plugin_<slug>` key inside the residual extensions bag — the exact home
     // D148's portability + inertness walls guarantee (import→store→export→re-import unchanged; the serde tier's
@@ -63,13 +64,15 @@ describe("persistence/plugin-card-data", () => {
     await insertCharacter(db, makeRow(owner, id, castId<CharacterHandle>("a"), { "plugin_scraper-alpha": { secret: "owner's" } }), bumpStatsCanonVersion);
 
     // OTHER does not own the character: the write affects 0 rows (→ the caller raises the leak-free NOT_FOUND)…
-    expect(await writePluginCardData(db, { characterId: id, ownerId: other, slug: SLUG_A }, { hax: true })).toBe(false);
+    expect(await writePluginCardData(databaseHandle(db), { characterId: id, ownerId: other, slug: SLUG_A }, { hax: true })).toBe(false);
     // …and left the owner's real value byte-identical (no cross-owner overwrite).
     expect(await extensionsOf(db, id)).toEqual({ "plugin_scraper-alpha": { secret: "owner's" } });
     // …and the read as OTHER is `found:false` — indistinguishable from an absent character (no existence oracle).
-    expect(await readPluginCardData(db, { characterId: id, ownerId: other, slug: SLUG_A })).toEqual({ found: false });
+    expect(await readPluginCardData(databaseHandle(db), { characterId: id, ownerId: other, slug: SLUG_A })).toEqual({ found: false });
     // A genuinely absent id is ALSO `found:false` — the same leak-free collapse.
-    expect(await readPluginCardData(db, { characterId: castId<CharacterId>("character_absent"), ownerId: owner, slug: SLUG_A })).toEqual({ found: false });
+    expect(await readPluginCardData(databaseHandle(db), { characterId: castId<CharacterId>("character_absent"), ownerId: owner, slug: SLUG_A })).toEqual({
+      found: false,
+    });
   });
 
   test("SLUG-ISOLATION — plugin A's write touches ONLY plugin_A; plugin B's field stays byte-identical", async () => {
@@ -84,7 +87,7 @@ describe("persistence/plugin-card-data", () => {
     );
 
     // A writes its own key — a whole-blob replace of plugin_A only.
-    expect(await writePluginCardData(db, { characterId: id, ownerId: owner, slug: SLUG_A }, { a: 999, extra: "x" })).toBe(true);
+    expect(await writePluginCardData(databaseHandle(db), { characterId: id, ownerId: owner, slug: SLUG_A }, { a: 999, extra: "x" })).toBe(true);
 
     const ext = await extensionsOf(db, id);
     // plugin_B is BYTE-IDENTICAL (A can neither read nor overwrite it — it can never spell B's slug), and the
@@ -92,8 +95,11 @@ describe("persistence/plugin-card-data", () => {
     expect(ext).toEqual({ "plugin_scraper-alpha": { a: 999, extra: "x" }, "plugin_scraper-beta": { b: 2 }, vendorKeep: { depth: 3 } });
 
     // A's read returns ONLY A's blob; B's read returns ONLY B's — neither plugin sees the other's field.
-    expect(await readPluginCardData(db, { characterId: id, ownerId: owner, slug: SLUG_A })).toEqual({ found: true, data: { a: 999, extra: "x" } });
-    expect(await readPluginCardData(db, { characterId: id, ownerId: owner, slug: SLUG_B })).toEqual({ found: true, data: { b: 2 } });
+    expect(await readPluginCardData(databaseHandle(db), { characterId: id, ownerId: owner, slug: SLUG_A })).toEqual({
+      found: true,
+      data: { a: 999, extra: "x" },
+    });
+    expect(await readPluginCardData(databaseHandle(db), { characterId: id, ownerId: owner, slug: SLUG_B })).toEqual({ found: true, data: { b: 2 } });
   });
 
   test("METADATA-NOT-CONTENT — a card-state write does NOT bump contentHash (no re-embed; D148 clause d)", async () => {
@@ -102,7 +108,7 @@ describe("persistence/plugin-card-data", () => {
     const id = castId<CharacterId>("character_1");
     await insertCharacter(db, makeRow(owner, id, castId<CharacterHandle>("a")), bumpStatsCanonVersion);
 
-    await writePluginCardData(db, { characterId: id, ownerId: owner, slug: SLUG_A }, { anything: "here" });
+    await writePluginCardData(databaseHandle(db), { characterId: id, ownerId: owner, slug: SLUG_A }, { anything: "here" });
 
     const rows = await db.select({ contentHash: characters.contentHash }).from(characters).where(eq(characters.id, id));
     // The write is metadata, not card content: `contentHash` is UNCHANGED, so the indexer's content-hash oracle
@@ -118,10 +124,10 @@ describe("persistence/plugin-card-data", () => {
     // read before any write is `found:true, data:null`.
     await insertCharacter(db, makeRow(owner, id, castId<CharacterHandle>("a")), bumpStatsCanonVersion);
 
-    expect(await readPluginCardData(db, { characterId: id, ownerId: owner, slug: SLUG_A })).toEqual({ found: true, data: null });
+    expect(await readPluginCardData(databaseHandle(db), { characterId: id, ownerId: owner, slug: SLUG_A })).toEqual({ found: true, data: null });
     // …and a first write coalesces NULL → {} and lands the key.
-    expect(await writePluginCardData(db, { characterId: id, ownerId: owner, slug: SLUG_A }, { first: true })).toBe(true);
-    expect(await readPluginCardData(db, { characterId: id, ownerId: owner, slug: SLUG_A })).toEqual({ found: true, data: { first: true } });
+    expect(await writePluginCardData(databaseHandle(db), { characterId: id, ownerId: owner, slug: SLUG_A }, { first: true })).toBe(true);
+    expect(await readPluginCardData(databaseHandle(db), { characterId: id, ownerId: owner, slug: SLUG_A })).toEqual({ found: true, data: { first: true } });
   });
 
   test("a NON-object stored under plugin_<slug> (only reachable via a hostile import) reads back as null, never off-contract", async () => {
@@ -131,6 +137,6 @@ describe("persistence/plugin-card-data", () => {
     // A plugin's own setCardData always stores an object; a hostile IMPORTED card could set the key to a scalar.
     // The read reports it as null rather than handing the plugin a non-Record where the contract promises one.
     await insertCharacter(db, makeRow(owner, id, castId<CharacterHandle>("a"), { "plugin_scraper-alpha": "not-an-object" }), bumpStatsCanonVersion);
-    expect(await readPluginCardData(db, { characterId: id, ownerId: owner, slug: SLUG_A })).toEqual({ found: true, data: null });
+    expect(await readPluginCardData(databaseHandle(db), { characterId: id, ownerId: owner, slug: SLUG_A })).toEqual({ found: true, data: null });
   });
 });

@@ -9,6 +9,7 @@
 // resolve to the one leak-free `null`.
 
 import type { Db } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -35,7 +36,7 @@ describe("resolveViewerVisibility — membership and the D16 floor are ONE answe
     // No explicit policy ⇒ the COLUMN default (`full`) — the ordinary invitee, even with a late joinSeq.
     await seedParticipant(db, { chatId, key: "open", userId: openMember, role: "member", joinSeq: 9 });
 
-    const resolveViewerVisibility = createResolveViewerVisibility({ db });
+    const resolveViewerVisibility = createResolveViewerVisibility({ db: databaseHandle(db) });
 
     expect(await resolveViewerVisibility(chatId, clamped)).toEqual({ role: "member", historyFloorSeq: 7, readsHidden: false });
     expect(await resolveViewerVisibility(chatId, openMember)).toEqual({ role: "member", historyFloorSeq: NO_HISTORY_FLOOR, readsHidden: false });
@@ -52,7 +53,7 @@ describe("resolveViewerVisibility — membership and the D16 floor are ONE answe
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "promoted", userId: promoted, role: "host", joinSeq: 15, joinHistoryVisibility: "from-join" });
 
-    const resolveViewerVisibility = createResolveViewerVisibility({ db });
+    const resolveViewerVisibility = createResolveViewerVisibility({ db: databaseHandle(db) });
 
     expect(await resolveViewerVisibility(chatId, promoted)).toEqual({ role: "host", historyFloorSeq: NO_HISTORY_FLOOR, readsHidden: true });
   });
@@ -64,7 +65,7 @@ describe("resolveViewerVisibility — membership and the D16 floor are ONE answe
     await seedParticipant(db, { chatId, key: "clamped", userId: clamped, role: "member", joinSeq: 12, joinHistoryVisibility: "from-join" });
     await seedParticipant(db, { chatId, key: "other", userId: other, role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" });
 
-    const resolveViewerVisibility = createResolveViewerVisibility({ db });
+    const resolveViewerVisibility = createResolveViewerVisibility({ db: databaseHandle(db) });
 
     expect(await resolveViewerVisibility(chatId, clamped)).toEqual({ role: "member", historyFloorSeq: 12, readsHidden: false });
     expect(await resolveViewerVisibility(chatId, other)).toEqual({ role: "member", historyFloorSeq: 3, readsHidden: false });
@@ -78,7 +79,7 @@ describe("resolveViewerVisibility — membership and the D16 floor are ONE answe
     await seedParticipant(db, { chatId, key: "host", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "gone", userId: gone, role: "member", joinSeq: 4, leftSeq: 11 });
 
-    const resolveViewerVisibility = createResolveViewerVisibility({ db });
+    const resolveViewerVisibility = createResolveViewerVisibility({ db: databaseHandle(db) });
 
     expect(await resolveViewerVisibility(chatId, outsider)).toBeNull();
     expect(await resolveViewerVisibility(chatId, gone)).toBeNull();
