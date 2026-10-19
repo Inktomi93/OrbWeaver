@@ -40,10 +40,8 @@ import { foldRoundCalls, requestStructuredCalls, STRUCTURED_ROUND_VEHICLE, struc
 // The three sentences a resync REFUSAL can carry (`ResyncResult.reason` → the host's toast). Written as host
 // prose, not log vocabulary: the person reading them clicked a button and is owed what to do next. Each pairs
 // with the `rpg.resync.*` warn the same branch already emitted — the log is for us, the reason is for them.
-// @orb-waive no-hardcoded-model-prose(this): host toasts (`ResyncResult.reason` → the UI), never a model prompt — the §Scope test #prose-slot states
 const RESYNC_UNRESOLVABLE_REASON = "this room's connection didn't resolve, so the rebuild never ran — check the chat's model/connection.";
 
-// @orb-waive no-hardcoded-model-prose(this): same host-toast class as the row above — never a model prompt
 const RESYNC_READONLY_REASON = "this room's model can't write game state, so there's nothing to rebuild with — switch to a connection that can.";
 
 const RPG_RESYNC_MAX_TOKENS = 16_384;
@@ -203,7 +201,6 @@ async function fitResyncPrompt(
   if (fixedTokens >= windowTokens) {
     return {
       ok: false,
-      // @orb-waive no-hardcoded-model-prose(The): fitResyncPrompt returns this operator refusal to buildRunResyncExtraction before provider dispatch; it never enters a model request. Ends if this reason becomes model-facing.
       reason: `The room's context window (${windowTokens} tokens) cannot fit the game instructions, tracked state and reply reserve. Increase Max context before resyncing; nothing was rebuilt.`,
     };
   }
@@ -215,7 +212,6 @@ async function fitResyncPrompt(
     if (transcript.length === 0) {
       return {
         ok: false,
-        // @orb-waive no-hardcoded-model-prose(The): the exhausted canon fit refuses resync before dispatch and returns this reason to the operator only. Ends if this reason becomes model-facing.
         reason: `The latest story message cannot fit the room's context window (${windowTokens} tokens) alongside game state and reply reserve. Increase Max context before resyncing; nothing was rebuilt.`,
       };
     }

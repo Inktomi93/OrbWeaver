@@ -110,8 +110,9 @@ import { CHROME_ZONES } from "./packages/client/src/state/chrome-registry.ts";
 import { CONFIG_GROUP_IDS } from "./packages/client/src/state/config-group-ids.ts";
 import { MODAL_SLOT_IDS } from "./packages/client/src/state/modal-slot-ids.ts";
 import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
-import { ID_BRAND_HOME, nativeCanonicalIdBrand, requireEntityIdTypeNames } from "./tooling/src/floor/code-facts/id-brand.ts";
+import { STRUCTURED_VEHICLES, WIRE_SCHEMA_KEYWORD_VOCABULARY } from "./packages/contracts/src/inference/wire-subset.ts";
 import { TABLE_SCOPING } from "./packages/db/src/tenancy/index.ts";
+import { ID_BRAND_HOME, nativeCanonicalIdBrand, requireEntityIdTypeNames } from "./tooling/src/floor/code-facts/id-brand.ts";
 import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TOOLING_PREFIX } from "./tooling/src/floor/code-facts/module-specifier.ts";
 import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
 import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
@@ -136,6 +137,7 @@ import {
   QUERY_FREE_BOOT_GLOBS,
 } from "./tooling/src/verify/contract/compose-query-capability.ts";
 import { MANUAL_MEMO_CUSTOM_HOMES, MANUAL_MEMO_EXPORTS } from "./tooling/src/verify/contract/manual-memo.ts";
+import { MODEL_PROSE_SEAM_FILES, MODEL_PROSE_SEAM_PREFIXES } from "./tooling/src/verify/contract/model-prose-seam.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
 import { DEFINITION_SLOTS } from "./tooling/src/verify/contract/registry-definition-home.ts";
 import { JSON_RESOURCE_PATHS } from "./tooling/src/verify/contract/resource-json.ts";
@@ -1496,6 +1498,302 @@ const PROTOTYPE_MUTATION_SELECTORS = [
   },
 ];
 
+// One-home bans: each names the module that owns a capability, and the rest of the product stays out of it.
+const INFERENCE_MODULE = String.raw`[source.value=/(^|\x2f|#)inference(\x2f|$)/]`;
+const PLANNER_INTERNALS = alternation(["scrubWireSchema", "scrubViolations", "countWireSchemas", "acceptsNamedToolChoice", "acceptsRequiredToolChoice"]);
+const STRUCTURED_VEHICLE_VALUES = alternation(STRUCTURED_VEHICLES);
+const TOOL_CHOICE_KEY = "toolChoice";
+const STRUCTURED_PLAN_MESSAGE =
+  "How a schema, a vehicle or a tool choice goes out is the structured planner's alone (packages/inference/src/structured/plan.ts); state the need through planStructuredFor, carriesStructured or forcesToolRound.";
+const MACRO_RESOLVER_NAMES = alternation(["resolveRowMacros", "processMacros", "createMacroContext", "evaluateMacros", "renderMessageForDisplay"]);
+const MACRO_RESOLUTION_MESSAGE =
+  "Macro resolution must stay read-only: saving a resolved field destroys its template. Editable surfaces display and persist the raw template text; a read-only display home is declared on this row.";
+const CONTENT_PART_NAME = "ChatContentPart";
+const CONTENT_PART_MESSAGE =
+  "ChatContentPart is named outside the D51 seam: it is produced once at the request seam's conversion (domain/chat/substrate/wire-history.ts) and consumed by the sealed runner tier; everything upstream stays `content: string`.";
+const WIRE_VOCABULARY_MESSAGE =
+  "A JSON-Schema wire keyword table is spelled outside the one scrub engine and its inverse lift reader (D93); call scrubWireSchema with the mode this wire speaks, and add a new subset as a mode in packages/contracts/src/inference/wire-subset.ts.";
+const MODEL_PROSE_MESSAGE =
+  "Model-facing prose is hardcoded at a prompt-assembly seam. Every string whose bytes reach a model is a PROSE-1 slot (a shipped default in a contracts prose catalog, resolved with resolveProse), not a constant (D132).";
+const MODEL_PROSE_MIN_WORDS = 12;
+const MODEL_PROSE_LOWER_RUN = /[a-z]{3,}/u;
+const MODEL_PROSE_OPERATOR_CALLEE = /^(?:logger|log|console)\b|getLog\(\)/u;
+// The two vocabularies below come off the wire-subset engine; carrying their digest in the block settings makes a
+// vocabulary change invalidate ESLint's result cache for every file these bans judge.
+const SERVER_ONE_HOME_SETTINGS = {
+  "orb/server-one-home-vocabulary": createHash("sha256")
+    .update(JSON.stringify([STRUCTURED_VEHICLES, WIRE_SCHEMA_KEYWORD_VOCABULARY]))
+    .digest("hex"),
+};
+
+const SERVER_ONE_HOME_RESTRICTIONS = [
+  {
+    id: "structured-plan-one-home",
+    scope: rootSources("@server", "@client", "@contracts", "@kit"),
+    notUnder: [TEST_FILES, "packages/contracts/src/inference/**"],
+    homes: [],
+    selectors: [
+      {
+        selector: `:matches(ImportDeclaration, ExportNamedDeclaration)${INFERENCE_MODULE} > :matches(ImportSpecifier:matches([imported.name=${PLANNER_INTERNALS}], [imported.value=${PLANNER_INTERNALS}]), ExportSpecifier:matches([local.name=${PLANNER_INTERNALS}], [local.value=${PLANNER_INTERNALS}]))`,
+        message: STRUCTURED_PLAN_MESSAGE,
+      },
+      {
+        selector: `MemberExpression:matches([computed=false][property.name=${PLANNER_INTERNALS}], [computed=true][property.value=${PLANNER_INTERNALS}])`,
+        message: STRUCTURED_PLAN_MESSAGE,
+      },
+      {
+        selector: `:matches(Literal[value=${STRUCTURED_VEHICLE_VALUES}], TemplateLiteral[expressions.length=0][quasis.0.value.cooked=${STRUCTURED_VEHICLE_VALUES}])`,
+        message: STRUCTURED_PLAN_MESSAGE,
+      },
+    ],
+  },
+  {
+    id: "wire-schema-vocab-one-home",
+    scope: rootSources("@server", "@kit", "@inference"),
+    notUnder: [TEST_FILES],
+    homes: [
+      {
+        path: "packages/kit/src/json-schema/lift.ts",
+        why: "the inverse reader paired with the canonical wire-subset scrub engine (D93); it must recognise the same keyword vocabulary the engine strips",
+      },
+    ],
+  },
+  {
+    id: "macro-resolution-home",
+    scope: rootSources("@client", "@ui"),
+    homes: [
+      {
+        path: "packages/client/src/features/chat/components/ghost-message-row.tsx",
+        why: "renders the streaming ghost's read-only content and reasoning through the display pipeline used after commit",
+      },
+      {
+        path: "packages/client/src/features/chat/components/message-content.tsx",
+        why: "renders the transcript's read-only Markdown; its edit path swaps to the raw-text textarea before resolution",
+      },
+      {
+        path: "packages/client/src/lib/message-render.ts",
+        why: "the canonical client display pipeline: it resolves the kit row atom into Markdown output, never into a writable field",
+      },
+      {
+        path: "packages/client/src/features/chat/components/message-row-parts.tsx",
+        why: "resolves settled reasoning and content for the transcript row; its editing branch returns the raw-text textarea first",
+      },
+    ],
+    selectors: [
+      {
+        selector: `ImportSpecifier:matches([imported.name=${MACRO_RESOLVER_NAMES}], [imported.value=${MACRO_RESOLVER_NAMES}])`,
+        message: MACRO_RESOLUTION_MESSAGE,
+      },
+      { selector: `CallExpression[callee.type='Identifier'][callee.name=${MACRO_RESOLVER_NAMES}]`, message: MACRO_RESOLUTION_MESSAGE },
+    ],
+  },
+  {
+    id: "content-part-seam",
+    scope: POPULATION_SETS["@product"].flatMap((ref) => rootSources(ref)),
+    homes: [
+      {
+        path: "packages/server/src/domain/chat/contract/results.ts",
+        why: "the domain-side request DTO the seam populates: `content: ChatContentPart[]` handed to the runner",
+      },
+      {
+        path: "packages/server/src/domain/chat/substrate/wire-history.ts",
+        why: "the one producer: the CONVERT step that turns shaped history into content parts (D51)",
+      },
+      {
+        path: "packages/inference/src/contract/chat.ts",
+        why: "the sealed runner tier's request contract, and the shapes derived from it with Extract",
+      },
+      {
+        path: "packages/inference/src/backends/wire/history.ts",
+        why: "the shared history converter every openai-shaped backend calls: it maps content parts onto its wire",
+      },
+      {
+        path: "packages/inference/src/backends/v4/prompt.ts",
+        why: "the V4 prompt converter reads the parts to lift outbound media before the vendor converter drops what its spec type merely permits",
+      },
+    ],
+    selectors: [
+      { selector: `ImportSpecifier:matches([imported.name='${CONTENT_PART_NAME}'], [imported.value='${CONTENT_PART_NAME}'])`, message: CONTENT_PART_MESSAGE },
+      { selector: `TSQualifiedName[right.name='${CONTENT_PART_NAME}']`, message: CONTENT_PART_MESSAGE },
+      { selector: `TSImportType[qualifier.name='${CONTENT_PART_NAME}']`, message: CONTENT_PART_MESSAGE },
+    ],
+  },
+  {
+    id: "no-hardcoded-model-prose",
+    scope: [...MODEL_PROSE_SEAM_PREFIXES.map((prefix) => `${prefix}**/*.{ts,tsx}`), ...MODEL_PROSE_SEAM_FILES],
+    homes: [],
+  },
+];
+
+// A file that spells two distinct JSON-Schema keywords is a second keyword table, wherever the strings sit.
+const wireSchemaVocabularyRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const vocabulary = new Set(WIRE_SCHEMA_KEYWORD_VOCABULARY);
+    const spelled = new Map();
+    const note = (node, value) => {
+      if (vocabulary.has(value) && !spelled.has(value)) {
+        spelled.set(value, node);
+      }
+    };
+    return {
+      Literal: (node) => {
+        if (typeof node.value === "string") {
+          note(node, node.value);
+        }
+      },
+      TemplateLiteral: (node) => {
+        if (node.expressions.length === 0) {
+          note(node, node.quasis[0].value.cooked);
+        }
+      },
+      "Program:exit": () => {
+        if (spelled.size >= 2) {
+          const anchor = [...spelled.values()].toSorted((left, right) => left.range[0] - right.range[0])[0];
+          context.report({ node: anchor, message: WIRE_VOCABULARY_MESSAGE });
+        }
+      },
+    };
+  },
+};
+
+/** The string a literal or a substitution-free template spells. */
+function staticLiteralText(node) {
+  if (node.type === "Literal") {
+    return typeof node.value === "string" ? node.value : undefined;
+  }
+  return node.type === "TemplateLiteral" && node.expressions.length === 0 ? node.quasis[0].value.cooked : undefined;
+}
+
+/** The string a same-file `const` is bound to, when its initializer is a string literal. */
+function constantText(name, scope) {
+  for (let current = scope; current !== null; current = current.upper) {
+    const definition = current.set.get(name)?.defs[0];
+    if (current.set.has(name)) {
+      // A `for (const key of …)` binding has no initializer.
+      let init = definition?.type === "Variable" && definition.parent.kind === "const" ? (definition.node.init ?? undefined) : undefined;
+      while (init?.type === "TSAsExpression" || init?.type === "TSSatisfiesExpression") {
+        init = init.expression;
+      }
+      return init === undefined ? undefined : staticLiteralText(init);
+    }
+  }
+}
+
+/** The string a member or property key spells statically: a plain name, a literal, or a const-bound computed key. */
+function staticKeyText(key, computed, scopeOf) {
+  if (key.type !== "Identifier") {
+    return staticLiteralText(key);
+  }
+  return computed ? constantText(key.name, scopeOf()) : key.name;
+}
+
+// A tool choice is decided by the structured plan; any write of one outside it is a second decider.
+const structuredPlanRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const entry = SERVER_ONE_HOME_RESTRICTIONS.find(({ id }) => id === "structured-plan-one-home");
+    const writes = (key, computed, node) => {
+      if (staticKeyText(key, computed, () => context.sourceCode.getScope(node)) === TOOL_CHOICE_KEY) {
+        context.report({ node: key, message: STRUCTURED_PLAN_MESSAGE });
+      }
+    };
+    return {
+      ...restrictionRule(entry).create(context),
+      Property: (node) => {
+        if (node.parent.type === "ObjectExpression") {
+          writes(node.key, node.computed, node);
+        }
+      },
+      AssignmentExpression: (node) => {
+        if (node.operator === "=" && node.left.type === "MemberExpression") {
+          writes(node.left.property, node.left.computed, node);
+        }
+      },
+    };
+  },
+};
+
+function modelProseText(node) {
+  switch (node.type) {
+    case "Literal":
+      return typeof node.value === "string" ? node.value : "";
+    case "TemplateLiteral":
+      return node.quasis.map((quasi) => quasi.value.cooked ?? quasi.value.raw).join(" ");
+    case "BinaryExpression":
+      return `${modelProseText(node.left)} ${modelProseText(node.right)}`;
+    case "ArrayExpression":
+      return node.elements.map((element) => (element === null ? "" : modelProseText(element))).join(" ");
+    case "CallExpression":
+      return node.callee.type === "MemberExpression" && node.callee.object.type === "ArrayExpression" ? modelProseText(node.callee.object) : "";
+    default:
+      return "";
+  }
+}
+
+/** Climb from a literal to the outermost same-unit aggregation (`+` chain or `[…].join(…)`), so a chunk-split dodge is one unit. */
+function modelProseUnit(literal) {
+  let top = literal;
+  for (;;) {
+    const parent = top.parent;
+    if (parent?.type === "BinaryExpression" && parent.operator === "+") {
+      top = parent;
+    } else if (
+      parent?.type === "ArrayExpression" &&
+      parent.parent?.type === "MemberExpression" &&
+      !parent.parent.computed &&
+      parent.parent.property.name === "join" &&
+      parent.parent.parent?.type === "CallExpression"
+    ) {
+      top = parent.parent.parent;
+    } else {
+      return top;
+    }
+  }
+}
+
+// A refusal, a log line or a thrown error faces an operator, never a model.
+function isOperatorFacing(node, sourceCode) {
+  for (let current = node; current !== undefined && current !== null; current = current.parent) {
+    if (current.type === "ThrowStatement") {
+      return true;
+    }
+    if (current.type === "NewExpression" && sourceCode.getText(current.callee).endsWith("Error")) {
+      return true;
+    }
+    if (current.type === "CallExpression" && MODEL_PROSE_OPERATOR_CALLEE.test(sourceCode.getText(current.callee))) {
+      return true;
+    }
+  }
+  return false;
+}
+
+const modelProseRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const judged = new Set();
+    const check = (node) => {
+      const top = modelProseUnit(node);
+      if (judged.has(top)) {
+        return;
+      }
+      judged.add(top);
+      const text = modelProseText(top);
+      if ((text.match(/\S+/gu) ?? []).length >= MODEL_PROSE_MIN_WORDS && MODEL_PROSE_LOWER_RUN.test(text) && !isOperatorFacing(top, context.sourceCode)) {
+        context.report({ node: top, message: MODEL_PROSE_MESSAGE });
+      }
+    };
+    return {
+      Literal: (node) => {
+        if (typeof node.value === "string") {
+          check(node);
+        }
+      },
+      TemplateLiteral: check,
+    };
+  },
+};
+
 const RESTRICTIONS = [
   {
     id: "no-test-fabrication",
@@ -1535,6 +1833,7 @@ const RESTRICTIONS = [
   ...CLIENT_MAP_RESTRICTIONS,
   ...CLIENT_LEXICAL_RESTRICTIONS,
   ...MEMBERSHIP_WRITE_FAN_RESTRICTIONS,
+  ...SERVER_ONE_HOME_RESTRICTIONS,
   {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
@@ -4273,6 +4572,9 @@ const restrictionPlugin = {
     "baseui-state-data-attributes": baseUiStateRule,
     "context-definition-shape": contextDefinitionRule,
     "no-mutating-register-api": registerApiRule,
+    "structured-plan-one-home": structuredPlanRule,
+    "wire-schema-vocab-one-home": wireSchemaVocabularyRule,
+    "no-hardcoded-model-prose": modelProseRule,
     [CLIENT_MAP_NATIVE_RULE.slice("orb/".length)]: parallelMapRule,
     "testid-typed-only": typedTestIdRule,
     "scroll-container-positioned": scrollContainerRule,
@@ -4319,6 +4621,7 @@ const RESTRICTION_BLOCKS = [...RESTRICTIONS, ...DECLARATION_NATIVE_RESTRICTIONS]
     ...(CLIENT_LEXICAL_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_LEXICAL_NATIVE_SETTINGS } : {}),
     ...(id === INJECTED_OP_RULE ? { settings: INJECTED_OP_SETTINGS } : {}),
     ...(MEMBERSHIP_WRITE_FAN_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: { "orb/membership-tables": MEMBERSHIP_TABLE_EXPORTS } } : {}),
+    ...(SERVER_ONE_HOME_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: SERVER_ONE_HOME_SETTINGS } : {}),
     rules: { [`orb/${id}`]: "error" },
   };
 });

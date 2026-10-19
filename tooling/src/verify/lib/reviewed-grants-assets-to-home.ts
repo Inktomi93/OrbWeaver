@@ -100,53 +100,6 @@ export const REVIEWED_GRANTS_ASSETS_TO_HOME: readonly ReviewedGateGrant[] = [
     endsWhen:
       "turn slots are written by the stream store itself rather than applied from bus events, or the applier moves — either way this row stops being consumed.",
   },
-
-  {
-    id: "content-part-seam:chat-contract-results",
-    policyId: "content-part-seam",
-    subject: "packages/server/src/domain/chat/contract/results.ts",
-    operation: "chat-content-part-reference",
-    why: "the domain-side request DTO the seam populates (`content: ChatContentPart[]` handed to the runner) — the shape the engine fills and infra reads.",
-    endsWhen:
-      "the wire seam stops taking content PARTS (D51 is retired) or this module stops naming the type; either way the row is consumed zero times and reds.",
-  },
-
-  {
-    id: "content-part-seam:chat-wire-history",
-    policyId: "content-part-seam",
-    subject: "packages/server/src/domain/chat/substrate/wire-history.ts",
-    operation: "chat-content-part-reference",
-    why: "THE one producer (D51). The CONVERT step moved here at #1540 so the read verb's previews price the same converted rows the turn's fitter prices; a pure read cannot import the turn-execution module.",
-    endsWhen:
-      "the wire seam stops taking content PARTS (D51 is retired) or this module stops naming the type; either way the row is consumed zero times and reds.",
-  },
-  {
-    id: "content-part-seam:inference-contract-chat",
-    policyId: "content-part-seam",
-    subject: "packages/inference/src/contract/chat.ts",
-    operation: "chat-content-part-reference",
-    why: "the sealed runner tier's own request contract — the shape every backend is handed — plus the two shapes DERIVED from it here (`AgentSeedBlock`, `ReasoningContentPart` are `Extract<ChatContentPart, ...>`, never re-spellings). Re-pointed 2026-09-20 from `packages/server/src/infra/providers/contract/chat.ts`, the same module one package down after the `@orb/inference` extraction (§12 audit).",
-    endsWhen:
-      "the wire seam stops taking content PARTS (D51 is retired) or this module stops naming the type; either way the row is consumed zero times and reds.",
-  },
-  {
-    id: "content-part-seam:inference-backend-kit-history",
-    policyId: "content-part-seam",
-    subject: "packages/inference/src/backends/wire/history.ts",
-    operation: "chat-content-part-reference",
-    why: "the shared history converter every openai-shaped backend calls — it maps content parts onto its wire, which is the reason parts exist at all. Re-pointed 2026-09-20 from `packages/server/src/infra/providers/backends/wire/history.ts` (same module, new package).",
-    endsWhen:
-      "the wire seam stops taking content PARTS (D51 is retired) or this module stops naming the type; either way the row is consumed zero times and reds.",
-  },
-  {
-    id: "content-part-seam:inference-v4-prompt",
-    policyId: "content-part-seam",
-    subject: "packages/inference/src/backends/v4/prompt.ts",
-    operation: "chat-content-part-reference",
-    why: "a NEW consumer, not a re-point: the Vercel-AI-SDK V4 prompt converter reads the parts to lift OUTBOUND MEDIA before the vendor converter's switch drops what its spec type merely permits (§15c item 1 — the converter arms are `text | reasoning | tool-call` with no default). It is the same sealed-runner-tier permission as its siblings, and it replaces FOUR rows the extraction retired (`runner-custom-byo-chat`, `runner-openrouter-responses`, `runner-openrouter-shared`, `runner-vllm-chat`) whose backends were collapsed into `openai-compat` or deleted with the vLLM fleet.",
-    endsWhen:
-      "the wire seam stops taking content PARTS (D51 is retired) or this module stops naming the type; either way the row is consumed zero times and reds.",
-  },
   // THE THREE BOUNDED DIRECT-SKIN RECIPES (#2181, #1584). They replace `EXPECTED_DIRECT_CLIENT_UI_MECHANISMS`
   // — three hand-spelled COUNTS in `lib/css-family-census.ts` that §12.5 bans and that the §5b audit measured
   // reached by ZERO proof rows (cut f07) and unmoved by a changed number (cut f08). The exemption is real and

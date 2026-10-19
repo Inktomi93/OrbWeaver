@@ -10,7 +10,6 @@ import { gate as contractVerbPresence } from "../../../../tooling/src/verify/gat
 import { gate as dbStructureProducerHome } from "../../../../tooling/src/verify/gates/db-structure-producer-home.ts";
 import { gate as jsonColumnWriteParity } from "../../../../tooling/src/verify/gates/json-column-write-parity.ts";
 import { gate as openJsonColumnKeyParity } from "../../../../tooling/src/verify/gates/open-json-column-key-parity.ts";
-import { gate as wireSchemaVocabOneHome } from "../../../../tooling/src/verify/gates/wire-schema-vocab-one-home.ts";
 import { coordinateGateAuthority } from "../../../../tooling/src/verify/lib/gate-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { authorityOwnerResult } from "../../../../tooling/src/verify/lib/policy-pass-receipts.ts";
@@ -28,14 +27,7 @@ beforeEach(async () => {
   };
 });
 
-const POLICIES: readonly GatePolicy[] = [
-  assetsSingleWriter,
-  contractVerbPresence,
-  dbStructureProducerHome,
-  jsonColumnWriteParity,
-  openJsonColumnKeyParity,
-  wireSchemaVocabOneHome,
-];
+const POLICIES: readonly GatePolicy[] = [assetsSingleWriter, contractVerbPresence, dbStructureProducerHome, jsonColumnWriteParity, openJsonColumnKeyParity];
 const EXPECTED_GRANT_IDS = [
   "assets-single-writer:persistence-asset-refs",
   "assets-single-writer:persistence-queries",
@@ -56,7 +48,6 @@ const EXPECTED_GRANT_IDS = [
   "json-column-write-parity:presets-config",
   "json-column-write-parity:settings-replace",
   "json-column-write-parity:user-settings-config",
-  "wire-schema-vocab-one-home:inverse-lift",
 ] as const;
 const GRANT_COUNT = EXPECTED_GRANT_IDS.length;
 const BUDGET_MS = scaledBudget(300_000);

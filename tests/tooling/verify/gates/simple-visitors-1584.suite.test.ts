@@ -5,9 +5,9 @@
 //   no-vanity-alias                 — import/export alias identity, three arms in one policy (unchanged
 //                                      predicate; the whole-file identifier-frequency census inverted into
 //                                      an Identifier visitor).
-//   no-hardcoded-model-prose        — WIDENED population (`@authored`, not the legacy seam+catalog set) so
-//                                      ARM B's import-liveness sweep can see a CLIENT importer; the private
-//                                      `PROSE-OK` marker retires into the central `@orb-waive` grammar.
+//   no-hardcoded-model-prose        — dead catalog prose only; the seam arm is the native
+//                                      `orb/no-hardcoded-model-prose` rule. Population is `@authored` so the
+//                                      import-liveness sweep can see a CLIENT importer.
 //
 // `verifyPolicyProofs` runs each final policy's own proofs through the production runtime; the frozen-legacy
 // differential replays every ORIGINAL mustFlag/mustPass example from the pre-conversion source ((pruned from public history),

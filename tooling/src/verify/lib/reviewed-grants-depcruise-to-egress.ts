@@ -108,42 +108,6 @@ export const REVIEWED_GRANTS_DEPCRUISE_TO_EGRESS: readonly ReviewedGateGrant[] =
       "ipCertificate leaves appSettingsSchema, an admin surface names the key in a write field, or arm B2 learns to read a dedicated write verb — central liveness then reports this row stale.",
   },
   {
-    id: "macro-resolution-home:ghost-message-row",
-    policyId: "macro-resolution-home",
-    subject: "packages/client/src/features/chat/components/ghost-message-row.tsx",
-    operation: "macro-resolution",
-    why: "The streaming ghost renders read-only in-flight content and reasoning through the same display pipeline used after commit.",
-    endsWhen:
-      "This exact home stops importing or calling a macro resolver, moves, or begins feeding a writable field; remove or re-review the grant and preserve token-roundtrip coverage.",
-  },
-  {
-    id: "macro-resolution-home:message-content",
-    policyId: "macro-resolution-home",
-    subject: "packages/client/src/features/chat/components/message-content.tsx",
-    operation: "macro-resolution",
-    why: "The transcript renders read-only Markdown; its edit path swaps to the raw-text textarea before resolution.",
-    endsWhen:
-      "This exact home stops importing or calling a macro resolver, moves, or begins feeding a writable field; remove or re-review the grant and preserve token-roundtrip coverage.",
-  },
-  {
-    id: "macro-resolution-home:message-render",
-    policyId: "macro-resolution-home",
-    subject: "packages/client/src/lib/message-render.ts",
-    operation: "macro-resolution",
-    why: "The canonical client display pipeline resolves the kit row atom into Markdown output, never a writable field.",
-    endsWhen:
-      "This exact home stops importing or calling a macro resolver, moves, or begins feeding a writable field; remove or re-review the grant and preserve token-roundtrip coverage.",
-  },
-  {
-    id: "macro-resolution-home:message-row-parts",
-    policyId: "macro-resolution-home",
-    subject: "packages/client/src/features/chat/components/message-row-parts.tsx",
-    operation: "macro-resolution",
-    why: "The transcript row resolves settled reasoning and content; its editing branch returns MessageEditTextarea with the raw MessageView first.",
-    endsWhen:
-      "This exact home stops importing or calling a macro resolver, moves, or begins feeding a writable field; remove or re-review the grant and preserve token-roundtrip coverage.",
-  },
-  {
     id: "no-manual-memo:fuzzy-search",
     policyId: "no-manual-memo",
     subject: MANUAL_MEMO_CUSTOM_HOMES.fuzzySearch,

@@ -69,7 +69,6 @@ async function resolveOrCreatePromotionCard(
   if (free === null) {
     return {
       ok: false,
-      // @orb-waive no-hardcoded-model-prose(your): a host-visible promotion refusal returned to the UI, never bytes sent to a model.
       reason: `your character library already carries "${input.handle}" and every variant this promotion tried — rename the character first`,
     };
   }
@@ -108,7 +107,6 @@ export function buildPromoteToCharacter(assembly: RpgRoundsAssemblyDeps): RpgCon
     if (sameNameCollision) {
       return {
         ok: false,
-        // @orb-waive no-hardcoded-model-prose(is): a host-visible roster refusal returned to the UI, never bytes sent to a model.
         reason: `"${name}" is already on this chat's roster — rename this character first, or the story could only ever address one of them`,
       };
     }

@@ -16,7 +16,6 @@
     "external-id-single-writer": ["bracket"],
     "json-column-write-parity": ["bracket"],
     "list-row-adoption": ["bracket"],
-    "macro-resolution-home": ["namespace"],
     "no-form-reset-in-autosave": ["bracket"],
     "no-handwritten-wire-json-schema": ["namespace"],
     "no-inline-union-redecl": ["bracket"],

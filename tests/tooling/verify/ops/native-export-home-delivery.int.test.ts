@@ -6,7 +6,6 @@ import type { Project } from "ts-morph";
 import { Node, SourceFile } from "ts-morph";
 import { afterEach, beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as content } from "../../../../tooling/src/verify/gates/content-part-seam.ts";
 import { gate as scrubberReferences } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { nativeTypeFactOptions, projectCtx } from "../../../../tooling/src/verify/lib/project-context.ts";
@@ -17,10 +16,8 @@ import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.
 
 const NODE_SOURCE = "packages/server/src/domain/chat/verbs/native-export.ts";
 const BROWSER_SOURCE = "packages/client/src/features/chat/native-export.tsx";
-const CONTENT_HOME = "packages/contracts/src/chat/bus.ts";
 const SCRUBBER_HOME = "packages/kit/src/content/index.ts";
-const POLICIES = [content];
-const LOADED_POLICIES = [...POLICIES, scrubberReferences];
+const POLICIES = [scrubberReferences];
 
 function fixture(root: string, repoRoot: string): void {
   const write = (path: string, text: string): void => {
@@ -30,19 +27,18 @@ function fixture(root: string, repoRoot: string): void {
   write(".gitignore", "node_modules\n.cache\nreports\n");
   symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
   const compilerOptions = { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, skipLibCheck: true, types: [] };
-  write("tsconfig.json", JSON.stringify({ compilerOptions, files: [NODE_SOURCE, CONTENT_HOME, SCRUBBER_HOME, "foreign.ts"] }));
+  write("tsconfig.json", JSON.stringify({ compilerOptions, files: [NODE_SOURCE, SCRUBBER_HOME, "foreign.ts"] }));
   write("tsconfig.tests-dom.json", JSON.stringify({ compilerOptions: { ...compilerOptions, customConditions: ["browser"] }, files: [BROWSER_SOURCE] }));
   write(
     "package.json",
-    JSON.stringify({ name: "native-export-home-fixture", type: "module", imports: { "#part": { browser: "./foreign.ts", default: `./${CONTENT_HOME}` } } }),
+    JSON.stringify({ name: "native-export-home-fixture", type: "module", imports: { "#scrub": { browser: "./foreign.ts", default: `./${SCRUBBER_HOME}` } } }),
   );
-  write(CONTENT_HOME, "export type ChatContentPart={readonly type:string};\n");
   write(SCRUBBER_HOME, "export function createHiddenSpanStreamScrubber():null{return null;}\n");
-  write("foreign.ts", "export type ChatContentPart={readonly foreign:true};\n");
-  write(NODE_SOURCE, "import type {ChatContentPart as Part} from '#part';\nexport type Result=Part;\n");
-  write(BROWSER_SOURCE, "import type * as parts from '#part';\nexport type Result=parts.ChatContentPart;\n");
-  write("tooling/tsconfig.json", JSON.stringify({ compilerOptions, files: LOADED_POLICIES.map(({ id }) => `src/verify/gates/${id}.ts`) }));
-  for (const { id } of LOADED_POLICIES) {
+  write("foreign.ts", "export function createHiddenSpanStreamScrubber():null{return null;}\n");
+  write(NODE_SOURCE, "import {createHiddenSpanStreamScrubber as Make} from '#scrub';\nexport const built=Make();\n");
+  write(BROWSER_SOURCE, "import * as scrub from '#scrub';\nexport const built=scrub.createHiddenSpanStreamScrubber();\n");
+  write("tooling/tsconfig.json", JSON.stringify({ compilerOptions, files: POLICIES.map(({ id }) => `src/verify/gates/${id}.ts`) }));
+  for (const { id } of POLICIES) {
     write(
       `tooling/src/verify/gates/${id}.ts`,
       `export {gate} from ${JSON.stringify(new URL(`../../../../tooling/src/verify/gates/${id}.ts`, import.meta.url).href)};`,
@@ -97,8 +93,8 @@ test(
     const syntaxReads: number[] = [];
     const workers: string[] = [];
     const observation = { forbidSyntax: true, syntaxReads, workers };
-    const structure = await nativeVerifyFixture(scratch, "structure", [`--check=${content.id}`], observation);
-    const scoped = await nativeVerifyFixture(scratch, "scoped", ["--scope", `${NODE_SOURCE},${BROWSER_SOURCE},${CONTENT_HOME},${SCRUBBER_HOME}`], observation);
+    const structure = await nativeVerifyFixture(scratch, "structure", [`--check=${scrubberReferences.id}`], observation);
+    const scoped = await nativeVerifyFixture(scratch, "scoped", ["--scope", `${NODE_SOURCE},${BROWSER_SOURCE},${SCRUBBER_HOME}`], observation);
     expect({ structure, scoped }).toEqual({ structure: 1, scoped: 1 });
     expect(syntaxReads).toEqual([0, 0]);
     expect(workers.length).toBeGreaterThan(0);
@@ -106,19 +102,16 @@ test(
       root: scratch,
       project: context.project,
       ...nativeTypeFactOptions(context),
-      knownPolicies: LOADED_POLICIES,
+      knownPolicies: POLICIES,
       policies: POLICIES,
-      requestedPaths: [NODE_SOURCE, BROWSER_SOURCE, CONTENT_HOME, SCRUBBER_HOME],
+      requestedPaths: [NODE_SOURCE, BROWSER_SOURCE, SCRUBBER_HOME],
       reviewedGrants: [],
       failOnWarnings: false,
     });
     expect(result.toolErrors).toEqual([]);
     expect(
       result.policies.map(({ id, findings }) => ({ id, findings: findings.map(({ file, line, column, token }) => ({ file, line, column, token })) })),
-    ).toEqual([{ id: content.id, findings: [{ file: NODE_SOURCE, line: 1, column: 14, token: "ChatContentPart" }] }]);
-    expect(result.policies.map(({ receipts }) => receipts)).toMatchObject([
-      [{ kind: "population", source: "ChatContentPart declaration home", members: 1, unresolved: 0 }],
-    ]);
+    ).toEqual([{ id: scrubberReferences.id, findings: [{ file: NODE_SOURCE, line: 1, column: 9, token: "createHiddenSpanStreamScrubber" }] }]);
   },
   scaledBudget(60_000),
 );

@@ -66,10 +66,8 @@ function populateUserPrompt(corpus: RpgCardCorpus, targetRef: string, prose: Pro
 // `RESYNC_*_REASON` trio in the born-state vocabulary. Written as host prose, not log vocabulary: the person
 // reading them clicked a button and is owed what to do next. Each pairs with the `rpg.populate.*` warn the same
 // branch already emitted — the log is for us, the reason is for them.
-// @orb-waive no-hardcoded-model-prose(this): host toasts (`PopulateResult.reason` → the UI), never a model prompt — the §Scope test #prose-slot states
 const POPULATE_UNRESOLVABLE_REASON = "this room's connection didn't resolve, so the card was never read — check the chat's model/connection.";
 
-// @orb-waive no-hardcoded-model-prose(this): same host-toast class as the row above — never a model prompt
 const POPULATE_READONLY_REASON = "this room's model can't write structured state, so there's nothing to fill with — switch to a connection that can.";
 
 const POPULATE_FAILED_REASON = "the model call failed, so nothing was filled:";
