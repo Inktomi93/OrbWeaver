@@ -9,6 +9,15 @@ test("macro reads preserve native variable coercion across literal, predicate an
   expect(processMacros("{{addvar::list::,c}}{{getvar::list}}", options)).toBe("a,b,c");
 });
 
+test("global variable keys address only the author's own entries, never inherited object members", () => {
+  const globalVars: Record<string, string> = { mood: "calm" };
+  const options = { char: "C", user: "U", persona: "P", scenario: "S", env: {}, globalVars, globalVarWrites: [] };
+  expect(processMacros("[{{getglobalvar::constructor}}][{{getglobalvar::toString}}][{{getglobalvar::mood}}]", options)).toBe("[][][calm]");
+  expect(processMacros("{{setglobalvar::__proto__::seen}}[{{getglobalvar::__proto__}}]", options)).toBe("[seen]");
+  expect(Object.getPrototypeOf(globalVars)).toBe(Object.prototype);
+  expect(processMacros("{{setglobalvar::constructor::kept}}[{{getglobalvar::constructor}}]", options)).toBe("[kept]");
+});
+
 test("throwing variable coercion retains the macro failure policy", () => {
   const cause = new Error("variable conversion failed");
   const warnings: unknown[] = [];
