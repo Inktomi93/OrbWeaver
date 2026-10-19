@@ -25,7 +25,7 @@ import {
 } from "@orb/db";
 import { ASSET_SCHEME } from "@orb/kit/content";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { AssetId, ChatId, MessageVariantId, UserId } from "@orb/kit/ids";
+import type { AssetId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, asc, eq, exists, gt, inArray, isNotNull, like, not, notInArray, or, sql } from "drizzle-orm";
@@ -111,40 +111,75 @@ const INLINE_REF_LIKE = `%${ASSET_SCHEME}%`;
 /** Keyset page size for the body scan, so a large corpus never loads every image-bearing body at once. */
 const INLINE_BODY_PAGE = 500;
 
+const JSON_OBJECT_TYPE = "object";
+const JSON_ROOT = "$";
+const APPEARANCE_PATH = "$.appearance";
+const PROFILE_PATH = "$.profile";
+
 interface CarriedSourceRow {
+  readonly valid: number | null;
+  readonly rootType: string | null;
+  readonly sourceType: string | null;
   readonly kind: string | null;
   readonly kindType: string | null;
   readonly id: string | null;
   readonly idType: string | null;
 }
 
-function unmeasurable(path: string, shape: string): DomainOperationError {
-  return new DomainOperationError(ASSET_REFS_UNMEASURABLE, `${path} holds ${shape} — refusing to treat it as unreferenced`);
+/** `row` is the source row's table and primary key, the owner's handle for repairing it; never a stored value. */
+function unmeasurable(row: string, path: string, shape: string): DomainOperationError {
+  return new DomainOperationError(ASSET_REFS_UNMEASURABLE, `${row} ${path} holds ${shape} — refusing to treat it as unreferenced`);
 }
 
+// The atomic delete reads paths raw: a malformed row raises inside the DELETE, so that purge fails closed.
 function jsonValue(column: AnySQLiteColumn, path: string): SQL<string | null> {
   return sql<string | null>`json_extract(${column}, ${path})`;
 }
 
-function jsonType(column: AnySQLiteColumn, path: string): SQL<string | null> {
-  return sql<string | null>`json_type(${column}, ${path})`;
+// The snapshot reads through `json_valid`, so one corrupt row reaches `assertParses` with its key instead of
+// failing the whole SELECT without naming the row.
+function readableValue(column: AnySQLiteColumn, path: string): SQL<string | null> {
+  return sql<string | null>`CASE WHEN json_valid(${column}) THEN json_extract(${column}, ${path}) END`;
+}
+
+function readableType(column: AnySQLiteColumn, path: string): SQL<string | null> {
+  return sql<string | null>`CASE WHEN json_valid(${column}) THEN json_type(${column}, ${path}) END`;
+}
+
+function jsonValid(column: AnySQLiteColumn): SQL<number | null> {
+  return sql<number | null>`json_valid(${column})`;
+}
+
+/** Text that is not JSON hides every reference it holds. A NULL column is absent, not corrupt. */
+function assertParses(valid: number | null, row: string, column: string): void {
+  if (valid === 0) {
+    throw unmeasurable(row, column, "text that is not JSON");
+  }
+}
+
+/** Every container on the way to a reference must be an object, absent or a JSON null. A double-encoded string
+ *  or any other value hides what it holds from the path reads beneath it. */
+function assertContainer(type: string | null, row: string, path: string): void {
+  if (type !== null && type !== JSON_NULL_TYPE && type !== JSON_OBJECT_TYPE) {
+    throw unmeasurable(row, path, `a JSON ${type} where an object belongs`);
+  }
 }
 
 /** The stored string at a reference path; null when the path is absent or a JSON null. Any other JSON type
  *  may name an asset in a shape this reader does not parse, so it refuses. */
-function storedString(value: string | null, type: string | null, path: string): string | null {
+function storedString(value: string | null, type: string | null, row: string, path: string): string | null {
   if (type === null || type === JSON_NULL_TYPE) {
     return null;
   }
   if (type !== JSON_TEXT_TYPE) {
-    throw unmeasurable(path, `a JSON ${type}`);
+    throw unmeasurable(row, path, `a JSON ${type}`);
   }
   return value;
 }
 
 /** Over-inclusion is safe (an extra live id never reaps a blob), so any non-empty stored string counts. */
-function storedAssetId(value: string | null, type: string | null, path: string): AssetId | null {
-  const text = storedString(value, type, path);
+function storedAssetId(value: string | null, type: string | null, row: string, path: string): AssetId | null {
+  const text = storedString(value, type, row, path);
   return text === null || text.length === 0 ? null : castId<AssetId>(text);
 }
 
@@ -152,21 +187,21 @@ function storedAssetId(value: string | null, type: string | null, path: string):
  *  library. Corrupt settings are preserved for repair, never normalized, so a library that is not an array,
  *  an entry that is not an object, or an `assetId` that is not a string fails this read instead of silently
  *  dropping its ids from the live set. An object entry with no `assetId` names nothing. */
-function libraryAssetIds(libraryJson: string | null, type: string | null): AssetId[] {
+function libraryAssetIds(libraryJson: string | null, type: string | null, row: string): AssetId[] {
   if (type === null || type === JSON_NULL_TYPE) {
     return [];
   }
   if (type !== JSON_ARRAY_TYPE || libraryJson === null) {
-    throw unmeasurable(APPEARANCE_LIBRARY_PATH, `a JSON ${type}`);
+    throw unmeasurable(row, APPEARANCE_LIBRARY_PATH, `a JSON ${type}`);
   }
   const parsed: unknown = JSON.parse(libraryJson);
   if (!Array.isArray(parsed)) {
-    throw unmeasurable(APPEARANCE_LIBRARY_PATH, "a value that is not an array");
+    throw unmeasurable(row, APPEARANCE_LIBRARY_PATH, "a value that is not an array");
   }
   const entries: readonly unknown[] = parsed;
   const ids: AssetId[] = [];
   for (const entry of entries) {
-    const id = libraryEntryAssetId(entry);
+    const id = libraryEntryAssetId(entry, row);
     if (id !== null) {
       ids.push(id);
     }
@@ -174,15 +209,15 @@ function libraryAssetIds(libraryJson: string | null, type: string | null): Asset
   return ids;
 }
 
-function libraryEntryAssetId(entry: unknown): AssetId | null {
+function libraryEntryAssetId(entry: unknown, row: string): AssetId | null {
   if (typeof entry !== "object" || entry === null || Array.isArray(entry)) {
-    throw unmeasurable(APPEARANCE_LIBRARY_PATH, "an entry that is not an object");
+    throw unmeasurable(row, APPEARANCE_LIBRARY_PATH, "an entry that is not an object");
   }
   if (!("assetId" in entry) || entry.assetId === null) {
     return null;
   }
   if (typeof entry.assetId !== "string") {
-    throw unmeasurable(APPEARANCE_LIBRARY_PATH, "an entry whose assetId is not a string");
+    throw unmeasurable(row, APPEARANCE_LIBRARY_PATH, "an entry whose assetId is not a string");
   }
   return entry.assetId.length > 0 ? castId<AssetId>(entry.assetId) : null;
 }
@@ -191,21 +226,32 @@ function libraryEntryAssetId(entry: unknown): AssetId | null {
 async function selectSettingsReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
   // @orb-waive persistence-no-in-memory-state(Set): query-local accumulator for GC live-set. Ends if it outlives the call.
   const live = new Set<AssetId>();
+  const config = userSettings.config;
   const rows = await db
     .select({
-      pick: jsonValue(userSettings.config, APPEARANCE_PICK_PATH),
-      pickType: jsonType(userSettings.config, APPEARANCE_PICK_PATH),
-      library: jsonValue(userSettings.config, APPEARANCE_LIBRARY_PATH),
-      libraryType: jsonType(userSettings.config, APPEARANCE_LIBRARY_PATH),
-      avatar: jsonValue(userSettings.config, PROFILE_AVATAR_PATH),
-      avatarType: jsonType(userSettings.config, PROFILE_AVATAR_PATH),
+      userId: userSettings.userId,
+      valid: jsonValid(config),
+      rootType: readableType(config, JSON_ROOT),
+      appearanceType: readableType(config, APPEARANCE_PATH),
+      profileType: readableType(config, PROFILE_PATH),
+      pick: readableValue(config, APPEARANCE_PICK_PATH),
+      pickType: readableType(config, APPEARANCE_PICK_PATH),
+      library: readableValue(config, APPEARANCE_LIBRARY_PATH),
+      libraryType: readableType(config, APPEARANCE_LIBRARY_PATH),
+      avatar: readableValue(config, PROFILE_AVATAR_PATH),
+      avatarType: readableType(config, PROFILE_AVATAR_PATH),
     })
     .from(userSettings);
   for (const row of rows) {
+    const label = `user_settings ${row.userId} config`;
+    assertParses(row.valid, label, JSON_ROOT);
+    assertContainer(row.rootType, label, JSON_ROOT);
+    assertContainer(row.appearanceType, label, APPEARANCE_PATH);
+    assertContainer(row.profileType, label, PROFILE_PATH);
     const pinned = [
-      storedAssetId(row.pick, row.pickType, APPEARANCE_PICK_PATH),
-      storedAssetId(row.avatar, row.avatarType, PROFILE_AVATAR_PATH),
-      ...libraryAssetIds(row.library, row.libraryType),
+      storedAssetId(row.pick, row.pickType, label, APPEARANCE_PICK_PATH),
+      storedAssetId(row.avatar, row.avatarType, label, PROFILE_AVATAR_PATH),
+      ...libraryAssetIds(row.library, row.libraryType, label),
     ];
     for (const id of pinned) {
       if (id !== null) {
@@ -216,27 +262,34 @@ async function selectSettingsReferencedAssetIds(db: Db): Promise<Set<AssetId>> {
   return live;
 }
 
-function carriedSource(column: AnySQLiteColumn, at: string): Readonly<Record<keyof CarriedSourceRow, SQL<string | null>>> {
+function carriedSource(column: AnySQLiteColumn, at: string): { readonly [K in keyof CarriedSourceRow]: SQL<CarriedSourceRow[K]> } {
   return {
-    kind: jsonValue(column, `${at}.kind`),
-    kindType: jsonType(column, `${at}.kind`),
-    id: jsonValue(column, `${at}.assetId`),
-    idType: jsonType(column, `${at}.assetId`),
+    valid: jsonValid(column),
+    rootType: readableType(column, JSON_ROOT),
+    sourceType: readableType(column, at),
+    kind: readableValue(column, `${at}.kind`),
+    kindType: readableType(column, `${at}.kind`),
+    id: readableValue(column, `${at}.assetId`),
+    idType: readableType(column, `${at}.assetId`),
   };
 }
 
 /** A carried source names its asset only as `kind:"asset"`. A known non-asset kind carrying a stray `assetId`
  *  (hand-crafted or pre-canonicalization) must not pin a foreign asset — the read-side twin of
- *  `canonicalBackgroundSource`. A kind this file does not know refuses the sweep. */
-function carriedAssetId(row: CarriedSourceRow, location: string): AssetId | null {
-  const kind = storedString(row.kind, row.kindType, `${location}.kind`);
+ *  `canonicalBackgroundSource`. A kind this file does not know, or a source that is not an object, refuses
+ *  the sweep. */
+function carriedAssetId(row: CarriedSourceRow, label: string, at: string): AssetId | null {
+  assertParses(row.valid, label, JSON_ROOT);
+  assertContainer(row.rootType, label, JSON_ROOT);
+  assertContainer(row.sourceType, label, at);
+  const kind = storedString(row.kind, row.kindType, label, `${at}.kind`);
   if (kind === null || NON_ASSET_SOURCE_KINDS.includes(kind)) {
     return null;
   }
   if (kind !== ASSET_SOURCE_KIND) {
-    throw unmeasurable(`${location}.kind`, "a background source kind this collector does not know");
+    throw unmeasurable(label, `${at}.kind`, "a background source kind this collector does not know");
   }
-  return storedAssetId(row.id, row.idType, `${location}.assetId`);
+  return storedAssetId(row.id, row.idType, label, `${at}.assetId`);
 }
 
 /** The carried backgrounds: `characters.background_override` (card) and `chats.metadata.background` (room).
@@ -245,13 +298,13 @@ async function selectCarriedBackgroundReferencedAssetIds(db: Db): Promise<Set<As
   // @orb-waive persistence-no-in-memory-state(Set): query-local accumulator for GC live-set. Ends if it outlives the call.
   const live = new Set<AssetId>();
   const cardRows = await db
-    .selectDistinct(carriedSource(characters.backgroundOverride, CARD_BACKGROUND_AT))
+    .select({ key: characters.id, ...carriedSource(characters.backgroundOverride, CARD_BACKGROUND_AT) })
     .from(characters)
     .where(isNotNull(characters.backgroundOverride));
-  const chatRows = await db.selectDistinct(carriedSource(chats.metadata, CHAT_BACKGROUND_AT)).from(chats);
+  const chatRows = await db.select({ key: chats.id, ...carriedSource(chats.metadata, CHAT_BACKGROUND_AT) }).from(chats);
   const carried = [
-    ...cardRows.map((row) => carriedAssetId(row, "characters.background_override")),
-    ...chatRows.map((row) => carriedAssetId(row, `chats.metadata ${CHAT_BACKGROUND_AT}`)),
+    ...cardRows.map((row) => carriedAssetId(row, `characters ${row.key} background_override`, CARD_BACKGROUND_AT)),
+    ...chatRows.map((row) => carriedAssetId(row, `chats ${row.key} metadata`, CHAT_BACKGROUND_AT)),
   ];
   for (const id of carried) {
     if (id !== null) {
@@ -313,30 +366,27 @@ async function narrowToOwner(db: Db, candidates: ReadonlySet<AssetId>, ownerId: 
   return owned;
 }
 
-/** File the `asset:<id>` refs of one variant's bodies under every human seated in its room. */
-function collectInlineCandidates(bodies: readonly (string | null)[], humans: readonly UserId[], into: Map<UserId, Set<AssetId>>): void {
+/** File the `asset:<id>` refs of one variant's bodies under the row's author. */
+function collectInlineCandidates(bodies: readonly (string | null)[], author: UserId, into: Map<UserId, Set<AssetId>>): void {
+  // @orb-waive persistence-no-in-memory-state(Set): query-local per-author candidate bucket for the reference live-set. Ends if it outlives the call.
+  const bucket = into.get(author) ?? new Set<AssetId>();
   for (const body of bodies) {
-    if (body === null) {
-      continue;
-    }
-    for (const id of extractInlineAssetIds(body)) {
-      for (const userId of humans) {
-        // @orb-waive persistence-no-in-memory-state(Set): query-local per-user candidate bucket for the reference live-set. Ends if it outlives the call.
-        const bucket = into.get(userId) ?? new Set<AssetId>();
+    if (body !== null) {
+      for (const id of extractInlineAssetIds(body)) {
         bucket.add(id);
-        into.set(userId, bucket);
       }
     }
   }
+  into.set(author, bucket);
 }
 
-/** `asset:<id>` refs in message bodies, kept only where the asset's owner sits in that room. That is the one
- *  place an owner renders their own picture by id with no `message_assets` link — a forked room, a duplicated
- *  message, an author's edit. A ref to someone else's asset retains nothing, so quoting an id cannot pin a
- *  foreign blob. `ownerId === null` is the whole-corpus sweep; an owner reads only the rooms they sit in. */
+/** `asset:<id>` refs in message bodies, kept only on a row the asset's owner AUTHORED in a room they sit in. That
+ *  is the one place an owner renders their own picture by id with no `message_assets` link — a forked room, a
+ *  duplicated message, an author's edit. Anyone else's quote retains nothing: a stranger cannot pin a foreign
+ *  blob, and a co-member's quote cannot keep an attachment its owner deleted. `ownerId === null` is the
+ *  whole-corpus sweep; an owner reads only the rows they authored. */
 async function selectInlineBodyReferencedAssetIds(db: Db, ownerId: UserId | null): Promise<Set<AssetId>> {
-  const humansByChat = await loadSeatedHumans(db, ownerId);
-  // @orb-waive persistence-no-in-memory-state(Map): query-local per-user candidate index for the reference live-set. Ends if it outlives the call.
+  // @orb-waive persistence-no-in-memory-state(Map): query-local per-author candidate index for the reference live-set. Ends if it outlives the call.
   const candidates = new Map<UserId, Set<AssetId>>();
   let after: MessageVariantId | undefined;
   for (;;) {
@@ -344,7 +394,7 @@ async function selectInlineBodyReferencedAssetIds(db: Db, ownerId: UserId | null
     const page = await db
       .select({
         id: messageVariants.id,
-        chatId: messages.chatId,
+        author: chatParticipants.userId,
         content: messageVariants.content,
         rawContent: messageVariants.rawContent,
         preContinueContent: messageVariants.preContinueContent,
@@ -352,12 +402,21 @@ async function selectInlineBodyReferencedAssetIds(db: Db, ownerId: UserId | null
       })
       .from(messageVariants)
       .innerJoin(messages, eq(messages.id, messageVariants.messageId))
-      .where(and(after === undefined ? undefined : gt(messageVariants.id, after), or(...INLINE_BODY_COLUMNS.map((column) => like(column, INLINE_REF_LIKE)))))
+      // The author's own seat in the row's room: one row per variant (`chat_participants_chat_user_unique`).
+      .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, messages.chatId), eq(chatParticipants.userId, messages.authorUserId)))
+      .where(
+        and(
+          ownerId === null ? undefined : eq(messages.authorUserId, ownerId),
+          after === undefined ? undefined : gt(messageVariants.id, after),
+          or(...INLINE_BODY_COLUMNS.map((column) => like(column, INLINE_REF_LIKE))),
+        ),
+      )
       .orderBy(asc(messageVariants.id))
       .limit(INLINE_BODY_PAGE);
     for (const row of page) {
-      const humans = humansByChat.get(row.chatId) ?? [];
-      collectInlineCandidates([row.content, row.rawContent, row.preContinueContent, row.lastContinuationContent], humans, candidates);
+      if (row.author !== null) {
+        collectInlineCandidates([row.content, row.rawContent, row.preContinueContent, row.lastContinuationContent], row.author, candidates);
+      }
     }
     const last = page.at(-1);
     if (last === undefined || page.length < INLINE_BODY_PAGE) {
@@ -366,22 +425,6 @@ async function selectInlineBodyReferencedAssetIds(db: Db, ownerId: UserId | null
     after = last.id;
   }
   return await ownedCandidates(db, candidates);
-}
-
-/** Every room's seated humans; `ownerId` narrows to the rooms that one user sits in. */
-async function loadSeatedHumans(db: Db, ownerId: UserId | null): Promise<Map<ChatId, UserId[]>> {
-  const seats = await db
-    .select({ chatId: chatParticipants.chatId, userId: chatParticipants.userId })
-    .from(chatParticipants)
-    .where(ownerId === null ? isNotNull(chatParticipants.userId) : eq(chatParticipants.userId, ownerId));
-  // @orb-waive persistence-no-in-memory-state(Map): query-local room→seated-humans index for the reference live-set. Ends if it outlives the call.
-  const humansByChat = new Map<ChatId, UserId[]>();
-  for (const seat of seats) {
-    if (seat.userId !== null) {
-      humansByChat.set(seat.chatId, [...(humansByChat.get(seat.chatId) ?? []), seat.userId]);
-    }
-  }
-  return humansByChat;
 }
 
 /** Keep each user's candidate ids only where that user owns the asset. */
@@ -499,7 +542,7 @@ export async function deleteAssetRowIfUnreferenced(db: Db, ownerId: UserId, asse
       .from(messageVariants)
       .innerJoin(messages, eq(messages.id, messageVariants.messageId))
       .innerJoin(chatParticipants, and(eq(chatParticipants.chatId, messages.chatId), eq(chatParticipants.userId, ownerId)))
-      .where(or(...INLINE_BODY_COLUMNS.map((column) => sql`instr(${column}, ${needle}) > 0`))),
+      .where(and(eq(messages.authorUserId, ownerId), or(...INLINE_BODY_COLUMNS.map((column) => sql`instr(${column}, ${needle}) > 0`)))),
   );
   const anyReference = or(...fkReferences, settingsReference, cardReference, chatReference, bodyReference) ?? sql`0`;
   const deleted = await db

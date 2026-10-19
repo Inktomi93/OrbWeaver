@@ -25,6 +25,7 @@ import { CORPUS_EMBEDDING_VECTOR, CORPUS_PROVIDER_ENDPOINT, createCorpusProvider
 import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import { makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
+import { seedChatInvite, seedInvitedChatParticipant } from "@orb/testkit/node/factories/chat.ts";
 import { makePluginBundle, seedDistributedPlugin, seedInstalledPlugin } from "@orb/testkit/node/factories/plugin.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
@@ -35,6 +36,8 @@ import { onTestFinished } from "vitest";
 const PNG = "image/png";
 const MS_PER_SECOND = 1000;
 const ASSET_ROW_DELETE = /^delete from "assets"/i;
+/** The purge's `(owner, hash)` index re-check: the statement that sits between the row delete and the unlink. */
+const ASSET_HASH_LOOKUP = /^select "id" from "assets" where .*"assets"\."hash" = \?/i;
 const WORKLOAD_DEADLINE_MS = 30_000;
 const GC_IMAGE_MODEL = "gc-image-v1";
 const GC_PLUGIN_IMAGE_PATH = `${PLUGIN_UI_ASSETS_DIR}cover.png`;
@@ -103,8 +106,11 @@ async function storedRow(box: GcBox, assetId: AssetId): Promise<StoredRef> {
   return { assetId, hash: row.hash };
 }
 
-async function store(box: GcBox, kind: "attachment" | "avatar" | "background" | "gallery" | "generated"): Promise<StoredRef> {
-  const bytes = makeAssetBytes(box.root.idSource.typeId(ID_PREFIX.asset));
+async function store(
+  box: GcBox,
+  kind: "attachment" | "avatar" | "background" | "gallery" | "generated",
+  bytes: Uint8Array = makeAssetBytes(box.root.idSource.typeId(ID_PREFIX.asset)),
+): Promise<StoredRef> {
   const stored = await box.root.services.assets.store({ principal: box.principal, bytes, kind, mime: PNG });
   return { assetId: stored.assetId, hash: stored.hash };
 }
@@ -412,6 +418,10 @@ test("a reference written after the sweep's snapshot still wins the destructive 
     },
     // Positive control: the held delete really is the destructive edge, and with nothing written it frees the blob.
     nothing: (): Promise<void> => Promise.resolve(),
+    // Last on purpose: once stored, this kind refuses every later snapshot. Written after this one, it must keep the asset.
+    "room background of an unknown kind": async (ref: StoredRef): Promise<void> => {
+      await plantRoomBackground(box, room, { kind: "library", assetId: ref.assetId });
+    },
   } as const;
   const outcome: Record<string, boolean> = {};
   for (const [source, write] of Object.entries(late)) {
@@ -426,74 +436,137 @@ test("a reference written after the sweep's snapshot still wins the destructive 
     outcome[source] = await survives(box, target);
   }
 
-  expect(outcome).toEqual({ "message body": true, "profile avatar": true, nothing: false });
+  expect(outcome).toEqual({ "message body": true, "profile avatar": true, nothing: false, "room background of an unknown kind": true });
+});
+
+test("a co-member's quote keeps nothing once the owner's own attachment message is gone", async () => {
+  const box = await openBox();
+  const member = await box.root.principalFor((await box.root.actor()).id);
+  await seedCorpusConnections(box.root, member);
+  const room = await openRoom(box, "gc-shared-room");
+  const invite = await seedChatInvite(box.root.db, box.root.services.chat.createInvite, {
+    principal: box.principal,
+    chatId: room,
+    input: { invitedHandle: member.handle },
+  });
+  await seedInvitedChatParticipant(box.root.db, box.root.services.chat.acceptInvite, { principal: member, inviteId: invite.id });
+  const attached = await store(box, "attachment");
+  const posted = await attach(box, room, attached);
+  await say(box, room, { content: `Quoting the host. ${inlineImage(attached)}`, as: member });
+  await box.root.services.chat.deleteMessages({ principal: box.principal, chatId: room, messageIds: [posted] });
+  await ageOnly(box, attached);
+
+  const run = await runScheduledGc(box);
+
+  expect(run.status).toBe("succeeded");
+  expect(await survives(box, attached)).toBe(false);
+});
+
+test("a same-bytes upload indexed between the row delete and the unlink keeps its bytes", async () => {
+  const { db, hold } = await freshHeldDb();
+  const box = await openBox(db);
+  const bytes = makeAssetBytes(box.root.idSource.typeId(ID_PREFIX.asset));
+  const target = await store(box, "attachment", bytes);
+  await ageOnly(box, target);
+  const recheck = hold(ASSET_HASH_LOOKUP);
+  const sweeping = runScheduledGc(box);
+  const reachedRecheck = await Promise.race([recheck.reached.then(() => true), sweeping.then(() => false)]);
+  if (!reachedRecheck) {
+    recheck.disarm();
+  }
+  expect(reachedRecheck).toBe(true);
+  const again = await store(box, "attachment", bytes);
+  recheck.release();
+  expect((await sweeping).status).toBe("succeeded");
+
+  expect(again.assetId).not.toBe(target.assetId);
+  expect(await survives(box, again)).toBe(true);
 });
 
 /** Stored shapes no current writer produces — a newer build's row, a hand edit, or corruption — written
- *  straight into the JSON column, because the refusal path is exactly what a production writer cannot reach. */
+ *  straight into the JSON column, because the refusal path is exactly what a production writer cannot reach.
+ *  Each plant answers the primary key of the row it broke: the refusal must name it for the owner to repair. */
 const UNREADABLE_REFERENCES = {
-  "a room background of a source kind this build does not know": async (box: GcBox, ref: StoredRef): Promise<void> => {
+  "a room background of a source kind this build does not know": async (box: GcBox, ref: StoredRef): Promise<string> => {
     const room = await openRoom(box, "gc-unknown-room-kind");
-    const background = JSON.stringify({ kind: "library", assetId: ref.assetId });
-    await box.root.db
-      .update(chats)
-      .set({ metadata: sql`json_set(coalesce(${chats.metadata}, '{}'), '$.background', json(${background}))` })
-      .where(eq(chats.id, room));
+    await plantRoomBackground(box, room, { kind: "library", assetId: ref.assetId });
+    return room;
   },
-  "a card background of a source kind this build does not know": async (box: GcBox, ref: StoredRef): Promise<void> => {
-    const card = await box.root.services.character.create({
-      principal: box.principal,
-      input: createCharacterSchema.parse({ handle: "gc-unknown-card-kind", name: "Unknown", description: "" }),
-    });
-    const background = JSON.stringify({ kind: "library", assetId: ref.assetId });
-    await box.root.db
-      .update(characters)
-      .set({ backgroundOverride: sql`json(${background})` })
-      .where(eq(characters.id, card.id));
+  "a room background that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> => {
+    const room = await openRoom(box, "gc-encoded-room-background");
+    await plantRoomBackground(box, room, JSON.stringify({ kind: "asset", assetId: ref.assetId }));
+    return room;
   },
-  "a background-library entry whose assetId is not a string": async (box: GcBox, ref: StoredRef): Promise<void> => {
-    await rewriteSettings(box, "$.appearance.backgroundLibrary", JSON.stringify([{ entryId: "gc-entry", assetId: { id: ref.assetId } }]));
-  },
-  "a background-library entry that is not an object": async (box: GcBox, ref: StoredRef): Promise<void> => {
-    await rewriteSettings(box, "$.appearance.backgroundLibrary", JSON.stringify([ref.assetId]));
-  },
-  "a background pick that is not a string": async (box: GcBox, ref: StoredRef): Promise<void> => {
-    await rewriteSettings(box, "$.appearance.backgroundAssetId", JSON.stringify({ id: ref.assetId }));
-  },
-  "a profile avatar that is not a string": async (box: GcBox, ref: StoredRef): Promise<void> => {
-    await rewriteSettings(box, "$.profile.avatarAssetId", JSON.stringify([ref.assetId]));
-  },
-  "a settings blob that is not JSON at all": async (box: GcBox, ref: StoredRef): Promise<void> => {
+  "a card background of a source kind this build does not know": async (box: GcBox, ref: StoredRef): Promise<string> =>
+    await plantCardBackground(box, "gc-unknown-card-kind", { kind: "library", assetId: ref.assetId }),
+  "a card background override that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> =>
+    await plantCardBackground(box, "gc-encoded-card-background", JSON.stringify({ kind: "asset", assetId: ref.assetId })),
+  "a background-library entry whose assetId is not a string": async (box: GcBox, ref: StoredRef): Promise<string> =>
+    await rewriteSettings(box, "$.appearance.backgroundLibrary", [{ entryId: "gc-entry", assetId: { id: ref.assetId } }]),
+  "a background-library entry that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> =>
+    await rewriteSettings(box, "$.appearance.backgroundLibrary", [ref.assetId]),
+  "a background pick that is not a string": async (box: GcBox, ref: StoredRef): Promise<string> =>
+    await rewriteSettings(box, "$.appearance.backgroundAssetId", { id: ref.assetId }),
+  "an appearance section that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> =>
+    await rewriteSettings(box, "$.appearance", JSON.stringify({ backgroundAssetId: ref.assetId })),
+  "a profile avatar that is not a string": async (box: GcBox, ref: StoredRef): Promise<string> =>
+    await rewriteSettings(box, "$.profile.avatarAssetId", [ref.assetId]),
+  "a profile section that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> =>
+    await rewriteSettings(box, "$.profile", JSON.stringify({ avatarAssetId: ref.assetId })),
+  "a settings blob that is not JSON at all": async (box: GcBox, ref: StoredRef): Promise<string> => {
     await settingsRow(box);
     await box.root.db
       .update(userSettings)
       .set({ config: sql`${`{"profile":{"avatarAssetId":"${ref.assetId}"`}` })
       .where(eq(userSettings.userId, box.root.ownerId));
+    return box.root.ownerId;
   },
 } as const;
+
+/** Write `value` at the room's `background` key as stored JSON (a string value stores a JSON string). */
+async function plantRoomBackground(box: GcBox, room: ChatId, value: unknown): Promise<void> {
+  await box.root.db
+    .update(chats)
+    .set({ metadata: sql`json_set(coalesce(${chats.metadata}, '{}'), '$.background', json(${JSON.stringify(value)}))` })
+    .where(eq(chats.id, room));
+}
+
+async function plantCardBackground(box: GcBox, handle: string, value: unknown): Promise<string> {
+  const card = await box.root.services.character.create({
+    principal: box.principal,
+    input: createCharacterSchema.parse({ handle, name: "Unreadable", description: "" }),
+  });
+  await box.root.db
+    .update(characters)
+    .set({ backgroundOverride: sql`json(${JSON.stringify(value)})` })
+    .where(eq(characters.id, card.id));
+  return card.id;
+}
 
 /** The owner's settings row, written once through the real section verb so a raw rewrite has a row to edit. */
 async function settingsRow(box: GcBox): Promise<void> {
   await box.root.services.settings.updateUserSettingsSection({ principal: box.principal, input: { section: "profile", patch: { flankCollapsed: true } } });
 }
 
-async function rewriteSettings(box: GcBox, path: string, json: string): Promise<void> {
+async function rewriteSettings(box: GcBox, path: string, value: unknown): Promise<string> {
   await settingsRow(box);
   await box.root.db
     .update(userSettings)
-    .set({ config: sql`json_set(${userSettings.config}, ${path}, json(${json}))` })
+    .set({ config: sql`json_set(${userSettings.config}, ${path}, json(${JSON.stringify(value)}))` })
     .where(eq(userSettings.userId, box.root.ownerId));
+  return box.root.ownerId;
 }
 
-test.each(Object.entries(UNREADABLE_REFERENCES))("%s refuses the whole sweep and deletes nothing", async (_shape, plant) => {
+test.each(Object.entries(UNREADABLE_REFERENCES))("%s refuses the whole sweep, names the row and deletes nothing", async (_shape, plant) => {
   const box = await openBox();
   const named = await store(box, "background");
   const orphan = await store(box, "attachment");
-  await plant(box, named);
+  const brokenRow = await plant(box, named);
   await ageOnly(box, named, orphan);
 
   const run = await runScheduledGc(box);
 
   expect(run.status).toBe("failed");
+  expect(run.error).toContain(brokenRow);
   expect(await survival(box, { named, orphan })).toEqual({ named: true, orphan: true });
 });

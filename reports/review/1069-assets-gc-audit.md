@@ -8,13 +8,13 @@ Base: `c6eb3ba161`. Subject: the boot-seeded weekly `assets-gc` workload
 ## How the GC decides
 
 - The sweep reads ONE live set before it walks the CAS: `selectAllReferencedAssetIds`
-  (`asset-refs.ts:426`), called from `collect-garbage.ts:78`.
+  (`asset-refs.ts:468`), called from `collect-garbage.ts:78`.
 - For each blob: kept if its `assets` row id is in the live set (`collect-garbage.ts:49-52`),
   kept if its mtime is inside the 1 h grace (`collect-garbage.ts:24`, `:53-56`), else purged.
-- The purge (`substrate/purge-asset.ts:20-47`) deletes the row through
-  `deleteAssetRowIfUnreferenced` (`asset-refs.ts:465`), whose liveness predicate sits in the same
-  DELETE statement, then removes the blob. A blob with no row re-resolves `(owner, hash)` first
-  (`purge-asset.ts:33-43`).
+- The purge (`substrate/purge-asset.ts:20-43`) deletes the row through
+  `deleteAssetRowIfUnreferenced` (`asset-refs.ts:507`), whose liveness predicate sits in the same
+  DELETE statement, then re-resolves `(owner, hash)` on both arms and removes the blob only when no
+  row indexes it (`purge-asset.ts:29-42`).
 - `reapIfOrphan` (no grace, character remove and plugin install/upgrade/uninstall) uses the same
   live set and the same atomic delete (`verbs/reap-if-orphan.ts:62`, `:72`).
 
@@ -37,12 +37,12 @@ Counts: `references(() => assets.id` in `packages/db/src/schema` = 13 by `rg -c`
 | `admin_distributed_plugins.bundle_asset_id` | `schema/plugin.ts:165` | yes | yes | `asset-refs.ts:61` | yes, `plugin.installForAllUsers` then the publisher's own uninstall |
 | `plugin_assets.asset_id` (bundle image and `net.fetchAsset`) | `schema/plugin.ts:241` | yes | yes | `asset-refs.ts:68` | yes, both arms |
 | `image_embeddings` / `image_index_skips` / `image_analyses` `.asset_id` | `schema/embeddings.ts:243,282,541` | derived (non-retaining) | derived | `asset-refs.ts:80` | no: regenerable by design |
-| `user_settings` `$.appearance.backgroundAssetId` | settings section patch | yes | yes | `asset-refs.ts:191`, atomic `:465` | yes |
-| `user_settings` `$.appearance.backgroundLibrary[].assetId` | settings section patch, ST import | yes | yes | `asset-refs.ts:155-189` | yes |
-| `user_settings` `$.profile.avatarAssetId` | settings `profile` section patch; read live by `domain/persona/verbs/resolve-user-publics.ts:26` | **no** | yes | `asset-refs.ts:191`, atomic `:465` | yes (red, then green) |
-| `characters.background_override` `$.assetId` (`kind:"asset"`) | `character.update` | yes | yes | `asset-refs.ts:231-264` | yes |
-| `chats.metadata` `$.background.assetId` (`kind:"asset"`) | `chat.setChatBackground` | yes | yes | `asset-refs.ts:231-264` | yes |
-| `asset:<id>` in `message_variants.content`, `raw_content`, `pre_continue_content`, `last_continuation_content` | turn, edit, duplicate, fork, import, engine | **no** (only through the `message_assets` link) | yes, for the asset's owner seated in that room | `asset-refs.ts:317-400`, atomic `:465` | yes: fork, duplicate, author edit (red, then green) |
+| `user_settings` `$.appearance.backgroundAssetId` | settings section patch | yes | yes | `asset-refs.ts:226`, atomic `:507` | yes |
+| `user_settings` `$.appearance.backgroundLibrary[].assetId` | settings section patch, ST import | yes | yes | `asset-refs.ts:190-224` | yes |
+| `user_settings` `$.profile.avatarAssetId` | settings `profile` section patch; read live by `domain/persona/verbs/resolve-user-publics.ts:26` | **no** | yes | `asset-refs.ts:226`, atomic `:507` | yes (red, then green) |
+| `characters.background_override` `$.assetId` (`kind:"asset"`) | `character.update` | yes | yes | `asset-refs.ts:265-315` | yes |
+| `chats.metadata` `$.background.assetId` (`kind:"asset"`) | `chat.setChatBackground` | yes | yes | `asset-refs.ts:265-315` | yes |
+| `asset:<id>` in `message_variants.content`, `raw_content`, `pre_continue_content`, `last_continuation_content` | turn, edit, duplicate, fork, import, engine | **no** (only through the `message_assets` link) | yes, on a row the asset's owner authored in a room they sit in | `asset-refs.ts:370-440`, atomic `:507` | yes: fork, duplicate, author edit (red, then green) |
 | `message_variants.metadata` `contentSignatures.images[].assetId` | engine replay provenance | no | no | — | no: the same ids sit in `content` |
 | `themes.css` `url(/api/blob/<hash>)` | user-authored CSS only | no | no | — | no: no product writer emits a blob URL; hand-typed text |
 | `characters.import_hash`, `documents.import_hash`, `chats.import_hash`, `imagery_generations.import_hash` | importers | n/a | n/a | — | not CAS references: identity and dedup hashes (`primitives/serde/card/index.ts:405`) |
@@ -65,11 +65,13 @@ the composition root (`tests/server/domain/assets/verbs/collect-garbage.int.test
 1. **Message-body refs with no `message_assets` link** — HIGH, data loss. `forkChat` copies the
    canon body (`domain/chat/verbs/fork.ts`, `buildCanonCopy`) but writes no `message_assets` row;
    `duplicateMessage` copies the selected body the same way; an author's edit can add an
-   `asset:<id>` span. Scenario: attach an image in room A, fork A, delete A. The fork still shows
-   the image, its only reference is the body text, and the next weekly sweep deletes the blob. Same
-   for a duplicated message whose original is deleted. Fix: the collector reads `asset:<id>` refs
-   from the four body columns, retaining an asset only where its OWNER sits in that room, in the
-   snapshot and in the atomic delete.
+   `asset:<id>` span. Scenario: attach an image in room A, fork A, delete A. The fork carries no
+   `message_assets` link, so it does not render the image; the loss is on the model path, where
+   `resolve-media-ref.ts:46` still resolves the body ref and sends the picture to the model. The
+   body text is the only reference, and the next weekly sweep deletes the blob. Same for a
+   duplicated message whose original is deleted. Fix: the collector reads `asset:<id>` refs from the
+   four body columns, retaining an asset only on a row its OWNER authored in a room they sit in, in
+   the snapshot and in the atomic delete.
 2. **`profile.avatarAssetId`** — LOW (no UI writer today; reachable through the settings section
    API and read live as a member's room avatar). Fix: added to the settings source, snapshot and
    atomic.
@@ -80,13 +82,36 @@ the composition root (`tests/server/domain/assets/verbs/collect-garbage.int.test
    except the known non-asset kinds (`none`, `external`, retired `seeded`), so a kind written after
    the snapshot keeps the asset.
 
+Leg 2, after the independent security review of `6c640765dd`. Each fix was red on that commit first:
+
+4. **A co-member's quote kept the owner's deleted attachment (F1).** Body refs were filed under every
+   seated human, so after host A deleted their attachment message, member X's quote of the same id
+   kept the blob while A held a seat, and it kept riding to the model. A body ref now retains only on
+   a row the asset's owner authored: the snapshot joins the author's own seat
+   (`messages.author_user_id` = `chat_participants.user_id`) and the atomic delete adds
+   `messages.author_user_id = owner`. Fork, duplicate and author edit keep the owner's own authorship,
+   so they still retain.
+5. **Containers were not checked (F3).** A non-object `$.appearance`, `$.profile`, room `$.background`
+   or whole `background_override` (for example a double-encoded string) made every path beneath it
+   read as absent. Every container on the way to a reference must now be an object, absent or a JSON
+   null, and the config root and both carried roots are checked the same way.
+6. **The refusal named no row (F4).** Every refusal now leads with the source row's table and primary
+   key (`user_settings <userId> config`, `characters <id> background_override`,
+   `chats <id> metadata`) and never a stored value. The snapshot reads JSON through `json_valid`, so a
+   row whose text is not JSON is refused by name instead of failing the whole SELECT. The atomic
+   delete still reads raw, so a row corrupted after the snapshot fails that purge closed.
+7. **Unlink race in the purge (F5, predates 1069).** Between the row delete and `cas.remove`, a
+   same-owner upload of the same bytes could dedup onto the still-present file, insert a fresh row
+   and then lose its bytes. `purgeAsset` now re-resolves `(owner, hash)` after the row delete on both
+   arms and skips the unlink when a row exists (`substrate/purge-asset.ts`).
+
 ## Fail-closed proof
 
-`test.each` over seven stored shapes no current writer produces (planted straight into the JSON
-column, since the refusal path is what a writer cannot reach): each run ends `failed`, and both the
-named asset and an unrelated aged orphan survive, so the refusal deletes nothing. Each failure was
-confirmed to carry the collector's own refusal message. The malformed-JSON settings row was already
-fail-closed before the change (SQLite raises on `json_extract`); it is the control.
+`test.each` over eleven stored shapes no current writer produces (planted straight into the JSON
+column, since the refusal path is what a writer cannot reach): each run ends `failed`, the error names
+the broken row's primary key, and both the named asset and an unrelated aged orphan survive, so the
+refusal deletes nothing. The malformed-JSON settings row was already fail-closed before the change, but
+it named no row.
 
 ## Races and the grace window
 
@@ -96,14 +121,16 @@ fail-closed before the change (SQLite raises on `json_extract`); it is the contr
 | Body ref written after the snapshot, while the asset-row DELETE is held | kept | new suite, held-db race test (red before) |
 | Profile avatar written after the snapshot | kept | same test (red before) |
 | Nothing written during the hold | deleted (positive control) | same test |
+| Room background of an unknown kind written during the hold | kept; red when the atomic kind guard is reverted to `kind = 'asset'` | same test |
+| Same-bytes upload indexed between the row delete and the unlink | its bytes survive | held re-check test (red before: the purge never re-checked) |
 | FK and settings ref written while held | kept | legacy `collect-garbage.int.test.ts` (harness currently broken, see below) |
 
 Residual races, not fixed:
 
-- **R1, LOW.** A blob with no row (only after a crash between put and insert) is re-resolved and
-  then unlinked (`purge-asset.ts:33-44`). A re-upload of byte-identical content that indexes a row
-  between that query and `cas.remove` leaves a row with no blob. No transaction spans the unlink;
-  the window is milliseconds and needs a crash orphan first. Documented in the file header.
+- **R1, LOW.** Both purge arms now re-resolve `(owner, hash)` just before `cas.remove`. A same-bytes
+  upload whose put dedups before the unlink but whose insert lands after that re-check still loses
+  its bytes. No transaction spans the unlink; the window is milliseconds and the grace window covers
+  the dedup bump. Documented in the file header.
 - **R2, MEDIUM, import lane.** `import-bundle` restores blobs first and links them later. The
   single-active lock is per kind (`domain/workloads/persistence/constraints.ts`), so a weekly GC can
   run during an import. An import longer than the 1 h grace loses blobs whose referencing rows have
@@ -116,13 +143,19 @@ Residual races, not fixed:
 ## Security self-review
 
 - Authority: unchanged. The sweep is the trusted system pass (D20); no principal reaches it.
-- Cross-owner pinning: a body ref retains only the asset owned by a human seated in that room. A
-  stranger quoting another owner's asset id pins nothing. Proven by breaking it twice in a scratch
-  run: dropping the snapshot's owner narrowing, then dropping the atomic predicate's owner join;
-  each made the cross-owner test red, and both were restored.
+- Cross-owner pinning: a body ref retains only on a row the asset's owner authored in a room they
+  sit in. A stranger's quote and a co-member's quote pin nothing. Proven by scratch breaks, each red
+  and then restored: dropping the snapshot's owner narrowing and the atomic owner join (leg 1, the
+  stranger test), and dropping the atomic `author_user_id = owner` predicate (leg 2, the co-member
+  test).
 - No read grant changes: retention never grants rendering. The render paths keep their own gates.
-- The JSON settings and carried-background sources keep their existing cross-user posture.
-- Error text names a JSON path and a JSON type only, never stored values.
+- The JSON settings and carried-background sources keep their existing cross-user posture (owner
+  ruling: accepted).
+- Fail-closed is accepted (owner ruling); the row key in each refusal is its repair path. Error text
+  names a table, a primary key, a JSON path and a JSON type, never stored values.
+- `owner-scoped-reads` over its full population: 0 effective findings (raw 27 = waived 27). The new
+  body-scan reads are UNKNOWN advisories, not findings, so they carry no waiver: a waiver there would
+  bind to nothing.
 
 ## Follow-ups for the board
 
