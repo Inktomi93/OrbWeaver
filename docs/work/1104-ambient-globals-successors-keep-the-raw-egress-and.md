@@ -1,8 +1,9 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
+lane: wt/agent-a6adcf445a5debd8e
 ---
 
 # Ambient globals successors keep the raw egress and env reader cases

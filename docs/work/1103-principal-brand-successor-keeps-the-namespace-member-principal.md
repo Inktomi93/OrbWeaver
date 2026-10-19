@@ -1,8 +1,9 @@
 ---
 kind: tooling
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
+lane: wt/agent-a6adcf445a5debd8e
 ---
 
 # Principal brand successor keeps the namespace-member Principal reference

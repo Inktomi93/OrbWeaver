@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
+lane: wt/agent-a6adcf445a5debd8e
 ---
 
 # compose-wiring-only flags the canonical Principal mint in entry/auth/seam.ts

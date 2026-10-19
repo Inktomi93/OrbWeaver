@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P2
+lane: wt/agent-a3b5c442dd4270699
 ---
 
 # The suppressions waiver budget is over on main

@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P1
+lane: wt/agent-ab34ba7b0261ff67a
 ---
 
 # schema-data-grants real-corpus run runs out of heap at 16 GB
