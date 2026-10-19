@@ -122,6 +122,21 @@ const CASES: readonly (readonly [name: string, rule: string, path: string, sourc
     'let fetch = (url: string): string => url;\nfetch = (url: string): string => `${url}/`;\nexport const a = fetch("https://x");\n',
     0,
   ],
+  ["egress: const-bound key on the global", EGRESS, VERB, 'const KEY = "fetch";\nexport const a = globalThis[KEY]("https://x");\n', 1],
+  [
+    "egress: reassigned key on the global fails closed",
+    EGRESS,
+    VERB,
+    'let key = "other";\nkey = "fetch";\nexport const a = globalThis[key]("https://x");\n',
+    1,
+  ],
+  [
+    "egress pass: const key naming another member, and a dynamic key on a local object",
+    EGRESS,
+    VERB,
+    'const OTHER = "queueMicrotask";\nexport const tick = (): void => globalThis[OTHER](() => undefined);\nexport const pick = (ports: Record<string, () => void>, name: string): void => ports[name]?.();\n',
+    0,
+  ],
   // A `declare` emits no code, so the declared name is still the global at run time.
   ["egress: declare var shadow of fetch", EGRESS, VERB, 'declare var fetch: (url: string) => Promise<unknown>;\nexport const a = fetch("https://x");\n', 1],
   ["egress: declare const shadow of fetch", EGRESS, VERB, 'declare const fetch: (url: string) => Promise<unknown>;\nexport const a = fetch("https://x");\n', 1],
@@ -527,6 +542,10 @@ const CASES: readonly (readonly [name: string, rule: string, path: string, sourc
   ["env pass: other process member", ENV, HUB, 'import process from "node:process";\nexport const pid = process.pid;\n', 0],
   ["env: project default export fails closed", ENV, HUB, 'import cfg from "./cfg.ts";\nexport const x = cfg.env.SOME_VAR;\n', 1],
   ["env: global declared in another file fails closed", ENV, HUB, "export const x = procezz.env.SOME_VAR;\n", 1],
+  ["env: const env key off an imported door", ENV, AUTHZ, `${DOOR_IMPORT}\nconst KEY = "env";\nexport const x = processDoor[KEY]["OIDC_ADMIN_GROUPS"];\n`, 1],
+  ["env: const env key off a global declared elsewhere", ENV, HUB, 'const KEY = "env";\nexport const x = procDoor[KEY].SOME_VAR;\n', 1],
+  ["env pass: const key naming another process member", ENV, HUB, 'const KEY = "pid";\nexport const pid = process[KEY];\n', 0],
+  ["env: reassigned key on the process fails closed", ENV, HUB, 'let key = "pid";\nkey = "env";\nexport const x = process[key];\n', 1],
   [
     "env: declare var shadow of process",
     ENV,

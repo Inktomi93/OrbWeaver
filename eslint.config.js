@@ -1865,7 +1865,7 @@ const injectedOpCallerParamRule = {
 // a.env.X = 1`), which throws in its temporal dead zone before the read; a per-key grain inside the sole
 // reader, which is one whole-file home; the process passed through a conditional, a logical, a call argument
 // or a parameter default; and an `env` key taken off an imported value or a declared global through a
-// run-time or const key (`door[k]`).
+// run-time or reassigned key (`door[k]`). A key bound once by a `const` to a string literal is read as that name.
 const AMBIENT_ROOTS = new Set(["globalThis", "global", "self", "window"]);
 const VALUE_WRAPPERS = new Set(["TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression", "TSTypeAssertion"]);
 const RAW_FETCH = "fetch";
@@ -1920,6 +1920,25 @@ function writtenKeyName(key, computed) {
     return key.type === "Identifier" ? key.name : undefined;
   }
   return key.type === "TemplateLiteral" && key.expressions.length === 0 ? key.quasis[0].value.cooked : undefined;
+}
+
+/**
+ * A member's key name, also through a computed key bound once by a `const` to a string literal (`const K = "env";
+ * x[K]`). Any other computed key, including a `let` or a reassigned binding, stays unknown and fails closed.
+ */
+function memberKeyName(sourceCode, member) {
+  const written = writtenKeyName(member.property, member.computed);
+  if (written !== undefined || !member.computed || member.property.type !== "Identifier") {
+    return written;
+  }
+  const variable = referencedVariable(sourceCode, member.property);
+  const [definition] = variable?.defs ?? [];
+  const init = definition?.type === "Variable" && definition.parent.kind === "const" ? definition.node.init : null;
+  if (variable?.defs.length !== 1 || init === null || init === undefined) {
+    return;
+  }
+  const value = unwrapValue(init);
+  return value.type === "Literal" && typeof value.value === "string" ? value.value : writtenKeyName(value, true);
 }
 
 /** Whether a destructure can take `name` off its source: by key, by a run-time key, or through a rest element. */
@@ -2139,7 +2158,7 @@ function judgeDoorUses(sourceCode, start, judge) {
     seen.add(node);
     const flow = flowOf(sourceCode, valueCarrier(node));
     if (flow.member !== undefined) {
-      judge.member(flow.member, writtenKeyName(flow.member.property, flow.member.computed));
+      judge.member(flow.member, memberKeyName(sourceCode, flow.member));
     }
     if (flow.pattern !== undefined) {
       judge.pattern(flow.pattern);
@@ -2455,10 +2474,10 @@ const soleEnvReaderRule = {
           report(pattern);
         }
       },
-      [`MemberExpression[property.name='${ENV_MEMBER}'], MemberExpression[property.value='${ENV_MEMBER}'], MemberExpression[property.type='TemplateLiteral']`](
+      [`MemberExpression[property.name='${ENV_MEMBER}'], MemberExpression[property.value='${ENV_MEMBER}'], MemberExpression[property.type='TemplateLiteral'], MemberExpression[computed=true][property.type='Identifier']`](
         node,
       ) {
-        if (writtenKeyName(node.property, node.computed) === ENV_MEMBER && unknowableValue(sourceCode, node.object)) {
+        if (memberKeyName(sourceCode, node) === ENV_MEMBER && unknowableValue(sourceCode, node.object)) {
           report(node);
         }
       },
