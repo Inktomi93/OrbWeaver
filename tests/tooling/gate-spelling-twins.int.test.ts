@@ -103,8 +103,10 @@ import { scaledBudget } from "./_load-budget.ts";
 const ROOT = join(import.meta.dirname, "..", "..");
 const LEDGER_REL = "tests/tooling/gate-spelling-twins.baseline.json";
 
-// The quiet full-corpus census takes about 277 seconds; retain its measured-runtime headroom rather than timing out before a verdict.
-const TWIN_BUDGET = scaledBudget(700_000, 4);
+// The census is synchronous and CPU-bound, so the load factor read at module load cannot see load that arrives
+// mid-run. Measured: about 277 s on a quiet box; 1286 s, 1328 s and 1993 s at load ~35 on 24 cores. The base is
+// the slowest of those loaded runs (2_000_000 ms), not a multiple of the quiet one; `scaledBudget` stretches it more.
+const TWIN_BUDGET = scaledBudget(2_000_000, 4);
 
 const GATES_DIR = join(ROOT, "tooling", "src", "verify", "gates");
 const PROBE_GATE_FILE_RE = /^__(?:g|dc)_/u;
