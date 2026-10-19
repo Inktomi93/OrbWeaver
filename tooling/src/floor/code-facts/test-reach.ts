@@ -357,9 +357,7 @@ class Walker {
       return inventoryStaticTarget(imported);
     }
     const base = specifierPath(this.input.relativePath(file), specifier);
-    return base === undefined
-      ? undefined
-      : RELATIVE_MODULE_SUFFIXES["relative-source"].map((suffix) => this.fileByPath.get(`${base}${suffix}`)).find((hit) => hit !== undefined);
+    return base === undefined ? undefined : RELATIVE_MODULE_SUFFIXES.map((suffix) => this.fileByPath.get(`${base}${suffix}`)).find((hit) => hit !== undefined);
   }
 }
 

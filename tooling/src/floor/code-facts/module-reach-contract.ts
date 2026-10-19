@@ -60,10 +60,6 @@ export interface ModuleImporters {
 export const MODULE_IMPORTER_QUERIES = ["native-target-or-substring", "exact-import-spelling"] as const;
 export type ModuleImporterQuery = (typeof MODULE_IMPORTER_QUERIES)[number];
 
-/** Which omitted suffixes a relative specifier probe admits: the source-only policy, or the importer lookup's wider set. */
-export const RELATIVE_MODULE_ADMISSIONS = ["relative-source", "native-importer"] as const;
-export type RelativeModuleAdmission = (typeof RELATIVE_MODULE_ADMISSIONS)[number];
-
 /** Additional authored syntax a caller admits beyond static/type/dynamic imports and direct mock/require calls. */
 export interface ModulePositionAdmission {
   readonly additionalCallees?: ReadonlySet<string>;
