@@ -196,6 +196,7 @@ function createInventoryReader(
   const identityCatalogs = new Map<StoredInventoryPartition, InventorySchemaIdentityCatalog>();
   const fullCatalogs = new Map<StoredInventoryPartition, InventorySchemaProjectedCatalog>();
   const columnCatalogs = new Map<StoredInventoryPartition, readonly SchemaColumnIdentity[]>();
+  const shapes = new Map<string, ReturnType<SemanticInventory["shape"]>>();
   const { texts, aliases, authored } = readerSourceMetadata(db, partitions);
   const canonicalPaths = new Map<string, string>();
   const roots = new Set(partitions.flatMap((partition) => partition.roots));
@@ -726,7 +727,16 @@ function createInventoryReader(
         throw new SemanticInventoryError("native shape source has no unambiguous catalog owner");
       }
       inventory.assertShapeSource(node.getSourceFile());
-      return readInventoryShape(db, partition.id, capturedSpan(node));
+      const span = capturedSpan(node);
+      const key = `${partition.id}${INVENTORY_KEY_SEPARATOR}${spanKey(span)}`;
+      // A partition's rows are immutable under the lease; pair planning asks for the same two shapes per field query.
+      const cached = shapes.get(key);
+      if (cached !== undefined) {
+        return cached;
+      }
+      const shape = readInventoryShape(db, partition.id, span);
+      shapes.set(key, shape);
+      return shape;
     },
     shapePair: (query) => {
       assertOpen();
@@ -738,7 +748,7 @@ function createInventoryReader(
       }
       const key = shapePairKey(query);
       return indexes
-        .filter((partition) => partition.available.includes(query.left.file) && partition.available.includes(query.right.file))
+        .filter((partition) => hasAvailableSource(partition, query.left.file) && hasAvailableSource(partition, query.right.file))
         .map((partition) => {
           const matches = [...readInventoryPairs(db, partition.id, key)];
           const match = matches[0];
@@ -895,6 +905,7 @@ function createInventoryReader(
       capturedTexts.clear();
       materializedSources.clear();
       projections.clear();
+      shapes.clear();
       shapeOwners.clear();
       aliases.clear();
       canonicalPaths.clear();

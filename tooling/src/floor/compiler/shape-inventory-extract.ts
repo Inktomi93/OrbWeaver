@@ -27,9 +27,16 @@ export function extractShape(node: MorphNode, span: (node: MorphNode) => Invento
 /** Query exactly one native interpretation; no Program or Type escapes the worker. */
 export function extractShapePairs(program: ts.Program, queries: readonly InventoryShapeQuery[]): InventoryPartition["pairs"] {
   const sources = nativeCompilerSourceFiles(program);
+  const byPath = new Map<string, (typeof sources)[number]>();
+  for (const source of sources) {
+    // First source wins, as a scan would; pair demand grows with field pairs, so a per-query scan is quadratic.
+    if (!byPath.has(source.getFilePath())) {
+      byPath.set(source.getFilePath(), source);
+    }
+  }
   const checker = readAssignabilityChecker({ compilerObject: program.getTypeChecker() });
   const nodeOf = (span: InventorySpan): MorphNode | undefined => {
-    const source = sources.find((file) => file.getFilePath() === span.file);
+    const source = byPath.get(span.file);
     const leaf = source?.getDescendantAtPos(span.start);
     return [source, leaf, ...(leaf?.getAncestors() ?? [])].find(
       (node) => node?.getStart() === span.start && node.getEnd() === span.end && node.getKind() === span.kind,
