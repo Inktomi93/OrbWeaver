@@ -2,7 +2,7 @@
 kind: tooling
 status: open
 updated: 2026-10-19
-priority: P2
+priority: P1
 area: tooling
 plan: test-foundation
 ---
