@@ -22,4 +22,4 @@ Native lint over the server reports no server-factory-tier-reference or brand-in
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The 1101 lint lane found a live case: `PersonaSeedStamps` in packages/server/src/entry/index.ts line 21.
