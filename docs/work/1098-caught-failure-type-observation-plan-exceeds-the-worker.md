@@ -3,7 +3,7 @@ kind: bug
 status: doing
 updated: 2026-10-19
 priority: P1
-lane: wt/agent-a0ff5faba6dfe2b53
+lane: wt/agent-ad08a5ee972bd1e4d
 ---
 
 # Caught-failure type-observation plan exceeds the worker heap on the client program
