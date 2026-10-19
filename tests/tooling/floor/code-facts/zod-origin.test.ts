@@ -410,7 +410,7 @@ for (const control of PARSED_FIELD_CONTROLS) {
   });
 }
 
-test("parser inherited effects retain the active parse continuation on a supplied-key reentry", ({ scratch, repoRoot }) => {
+test("a supplied-key reentry keeps the active parse continuation and resolves the enum domain", ({ scratch, repoRoot }) => {
   symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
   const project = new Project({
     skipAddingFilesFromTsConfig: true,
@@ -431,7 +431,8 @@ test("parser inherited effects retain the active parse continuation on a supplie
       terminals: new Set(),
       bindings: new Map(),
     });
-    expect(result.kind).toBe("unresolved");
+    expect(result.kind, result.kind === "unresolved" ? result.detail : "resolved").toBe("resolved");
+    expect(result.kind === "resolved" ? result.value.map((value) => value.value.getText()) : undefined).toEqual(['"local"']);
   } finally {
     endReferencePass();
   }
