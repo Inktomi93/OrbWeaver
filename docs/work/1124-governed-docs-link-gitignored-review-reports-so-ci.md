@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-19
 priority: P1
+lane: wt/agent-acb14f15173490df8
 ---
 
 # Governed docs link gitignored review reports, so CI fails the doc checks
