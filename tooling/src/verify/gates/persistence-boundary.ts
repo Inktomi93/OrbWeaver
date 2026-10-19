@@ -216,7 +216,7 @@ export const gate = defineGate({
       mode: "types",
       files: { "packages/client/src/features/x/quasi.ts": "export const read = (): string | null => globalThis[`localStorage`].getItem('k');\n" },
       expect: { count: 1, messageIncludes: "outside the persistence doors" },
-      why: "THE BACKTICK COMPUTED SPELLING: an element access whose argument is a `NoSubstitutionTemplateLiteral` rather than a `StringLiteral`. `storageCandidateName` reads both literal kinds; before this row only the quoted half was exercised, so dropping the template arm was a clean cut. Drop `Node.isNoSubstitutionTemplateLiteral(argument)` and this row is the one that dies",
+      why: "THE BACKTICK COMPUTED SPELLING: an element access whose argument is a `NoSubstitutionTemplateLiteral` rather than a `StringLiteral`. `storageCandidateName` reads both literal kinds through `literalMemberAccess(node, true)`; without this row only the quoted half is exercised. Drop the `true` template flag and this row is the one that dies",
     },
     {
       mode: "types",

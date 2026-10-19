@@ -8,7 +8,7 @@
 // are translated into final `(subject, operation)` identities through ONE declared map. Equality per
 // scenario is the catch-parity proof; the two declared EXCEPTIONS are the two retired arms, each named.
 //
-// The declared rows themselves (15 catches, 8 passes, 13 refusals) run on the static
+// The declared rows themselves run on the static
 // `structure:policy-conformance` stage; the first test here only asserts they are readable, so a row that
 // stops conforming is caught in this file too rather than only in the whole-corpus stage.
 

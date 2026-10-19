@@ -251,7 +251,7 @@ function qualifiedBucket(registryName: string, index: Map<string, Set<string>>):
  *  name in `registryNames`. */
 function creditMemberReads(sf: SourceFile, registryNames: ReadonlySet<string>, index: Map<string, Set<string>>): void {
   for (const access of [...sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression), ...sf.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)]) {
-    const read = literalMemberAccess(access);
+    const read = literalMemberAccess(access, true);
     if (read !== undefined && registryNames.has(read.receiver.getText())) {
       qualifiedBucket(read.receiver.getText(), index).add(read.name);
     }

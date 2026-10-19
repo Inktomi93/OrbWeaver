@@ -5,6 +5,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { collectModuleImporters } from "../../floor/code-facts/module-importers.ts";
 import { declarationsNamed } from "../../floor/code-facts/reference-declarations.ts";
 import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { unwrapTarget } from "../../floor/code-facts/reference-fact-alias.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { semanticReferenceNodes } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
@@ -35,13 +36,14 @@ export function cmdRefs(project: SourceCorpus, name: string, flags: Flags): void
   emit(hits, flags, `refs ${name} (${decls.length} declaration(s))`);
 }
 
-/** The call a reference is the callee of, directly or as the name of a member callee in any spelling. */
+/** The call a reference is the callee of, directly or as the name of a member callee in any spelling, through
+ *  transparent paren, `as`, `satisfies` and `!` wrappers. */
 function callerHit(reference: Node): Hit | undefined {
   const parent = reference.getParent();
   const member = parent === undefined ? undefined : literalMemberAccess(parent, true);
   const callee = member?.nameNode === reference ? member.access : reference;
-  const call = callee.getParent();
-  if (call === undefined || !Node.isCallExpression(call) || call.getExpression() !== callee) {
+  const call = callee.getFirstAncestorByKind(SyntaxKind.CallExpression);
+  if (call === undefined || unwrapTarget(call.getExpression()) !== callee) {
     return;
   }
   return hitOf(call, callee === reference ? "call" : "method-call");

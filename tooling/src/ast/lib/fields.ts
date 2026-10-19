@@ -222,7 +222,7 @@ function producedNamesOf(sf: SourceFile, out: Set<string>): void {
       continue;
     }
     // `out["creation_date"] = fields.creationDate` — the card serde's emit shape — produces like the dotted form.
-    const target = literalMemberAccess(bin.getLeft());
+    const target = literalMemberAccess(bin.getLeft(), true);
     if (target !== undefined) {
       out.add(target.name);
     }
@@ -264,7 +264,7 @@ function consumedNamesOf(sf: SourceFile, out: Map<string, FieldReadSites>): void
     out.set(name, bucket);
   };
   for (const access of [...sf.getDescendantsOfKind(SyntaxKind.PropertyAccessExpression), ...sf.getDescendantsOfKind(SyntaxKind.ElementAccessExpression)]) {
-    const read = literalMemberAccess(access);
+    const read = literalMemberAccess(access, true);
     if (read !== undefined) {
       credit(read.name, access.getStart());
     }

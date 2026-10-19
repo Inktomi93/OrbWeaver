@@ -46,6 +46,7 @@
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { unwrapTarget } from "../../floor/code-facts/reference-fact-alias.ts";
 import { defineGate } from "../contract/policy.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
 
@@ -67,13 +68,14 @@ const RING_PROOF = "@agent-ring-proof";
 const MESSAGE = "the dev introspection bridge lost its one-door or exhaustive-registry lock (#894); packages/client/src/lib/agent-bridge.ts";
 const FIX = "install __orb only in agent-bridge.ts; retain the exhaustive capability/ring satisfies registries and both mounted CT proof markers";
 
-/** `globalThis.__orb = …` / `window["__orb"] = …` — the install door, in either member spelling. */
+/** `globalThis.__orb = …` / `window["__orb"] = …` — the install door, in any literal member spelling and
+ *  through a transparent wrapper on the global receiver. */
 function isOrbAssignment(node: MorphNode): boolean {
   if (!Node.isBinaryExpression(node) || node.getOperatorToken().getKind() !== SyntaxKind.EqualsToken) {
     return false;
   }
-  const member = literalMemberAccess(node.getLeft());
-  return member?.name === "__orb" && ["globalThis", "window"].includes(member.receiver.getText());
+  const member = literalMemberAccess(node.getLeft(), true);
+  return member?.name === "__orb" && ["globalThis", "window"].includes(unwrapTarget(member.receiver).getText());
 }
 
 function hasRegistry(sf: SourceFile, name: string, typeText: string): boolean {
@@ -275,6 +277,28 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: "window", messageIncludes: "outside the sanctioned bridge door" },
       why: "a second production installer recreates the parallel-bridge drift this lock exists to prevent — and the ELEMENT-ACCESS spelling, which a property-access-only reader misses",
+    },
+    {
+      mode: "source",
+      files: {
+        ...VALID_BOUNDARY_FIXTURES,
+        [BRIDGE]: VALID_BRIDGE,
+        "packages/client/src/lib/rogue.ts": "globalThis[`__orb`] = {};\n",
+        [CT]: VALID_CT_FIXTURE,
+      },
+      expect: { count: 1, token: "globalThis", messageIncludes: "outside the sanctioned bridge door" },
+      why: "the no-substitution template key is the same install door as the quoted key; a string-literal-only reader lets it through",
+    },
+    {
+      mode: "source",
+      files: {
+        ...VALID_BOUNDARY_FIXTURES,
+        [BRIDGE]: VALID_BRIDGE,
+        "packages/client/src/lib/rogue.ts": "(globalThis as unknown as Record<string, unknown>).__orb = {};\n",
+        [CT]: VALID_CT_FIXTURE,
+      },
+      expect: { count: 1, messageIncludes: "outside the sanctioned bridge door" },
+      why: "an asserted global receiver is still the global; reading the receiver's raw text lets the cast through",
     },
     {
       mode: "source",

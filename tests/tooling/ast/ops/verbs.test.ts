@@ -371,14 +371,35 @@ const service = new Service();
 service.sendTurn();
 service["sendTurn"]();
 service?.["sendTurn"]();
+service[\`sendTurn\`]();
 const held = service["sendTurn"];
 `,
     });
     const run = runVerb(project, { verb: "callers", arg: "sendTurn", corpus: CORPUS_TYPED });
-    expect(run.epilogue).toMatchObject({ matches: "3" });
+    expect(run.epilogue).toMatchObject({ matches: "4" });
     expect(run.stdout).toContain('service["sendTurn"]()');
     expect(run.stdout).toContain('service?.["sendTurn"]()');
+    expect(run.stdout).toContain("service[`sendTurn`]()");
     expect(run.stdout).not.toContain("const held");
+  });
+
+  test("callers sees through parenthesized, asserted and non-null callees", () => {
+    const project = projectOf({
+      "packages/server/src/service.ts": `
+export function send(): void {}
+export class Service { sendTurn(): void {} }
+const service = new Service();
+(send)();
+(service.sendTurn as () => void)();
+service.sendTurn!();
+(service["sendTurn"] satisfies () => void)();
+const held = (service.sendTurn as () => void);
+`,
+    });
+    const methods = runVerb(project, { verb: "callers", arg: "sendTurn", corpus: CORPUS_TYPED });
+    expect(methods.epilogue).toMatchObject({ matches: "3" });
+    expect(methods.stdout).not.toContain("const held");
+    expect(runVerb(project, { verb: "callers", arg: "send", corpus: CORPUS_TYPED }).epilogue).toMatchObject({ matches: "1" });
   });
 
   test("importers canonicalizes a subject to resolved target identity", () => {

@@ -231,7 +231,7 @@ function receiverRootAndPath(receiver: MorphNode): { root: MorphNode; path: read
   let current = receiver;
   while (Node.isPropertyAccessExpression(current) || Node.isElementAccessExpression(current)) {
     const index = Node.isElementAccessExpression(current) ? current.getArgumentExpression() : undefined;
-    const segment = literalMemberAccess(current)?.name ?? (Node.isNumericLiteral(index) ? index.getText() : undefined);
+    const segment = literalMemberAccess(current, true)?.name ?? (Node.isNumericLiteral(index) ? index.getText() : undefined);
     if (segment === undefined) {
       return;
     }

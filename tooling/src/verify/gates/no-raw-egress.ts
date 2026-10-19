@@ -207,7 +207,7 @@ export const gate = defineGate({
         "packages/server/src/domain/hub/verbs/template.ts": 'export const load = async (): Promise<unknown> => await globalThis[`fetch`]("https://x");\n',
       },
       expect: { count: 1 },
-      why: 'THE TEMPLATE-LITERAL HALF of the computed spelling, which the `"fetch"` row beside it cannot reach: `fetchCandidate` accepts a StringLiteral OR a NoSubstitutionTemplateLiteral argument, and only this fixture exercises the second disjunct. DIRECTION: dropping `Node.isNoSubstitutionTemplateLiteral(argument)` makes the policy flag LESS — a backtick respelling walks past a D61 egress ban — so the row that dies is a `mustFlag`',
+      why: 'THE TEMPLATE-LITERAL HALF of the computed spelling, which the `"fetch"` row beside it cannot reach: `fetchCandidate` reads the key through `literalMemberAccess(node, true)`, which admits a StringLiteral OR a NoSubstitutionTemplateLiteral, and only this fixture exercises the second. DIRECTION: dropping the `true` template flag makes the policy flag LESS — a backtick respelling walks past a D61 egress ban — so the row that dies is a `mustFlag`',
     },
     {
       mode: "types",

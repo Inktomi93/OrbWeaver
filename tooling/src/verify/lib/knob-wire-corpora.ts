@@ -123,10 +123,10 @@ function sectionLiteralOf(node: Node): string | undefined {
 }
 
 /** The READ-SHAPED names one node contributes: a PropertyAccess name, a BindingElement's binding and
- *  property names, a string ElementAccess literal, or a bare string literal. */
+ *  property names, a string or template ElementAccess key, or a bare string literal. */
 function readShapedNames(node: Node): readonly string[] {
   if (MorphNode.isPropertyAccessExpression(node) || MorphNode.isElementAccessExpression(node)) {
-    const member = literalMemberAccess(node);
+    const member = literalMemberAccess(node, true);
     return member === undefined ? [] : [member.name];
   }
   if (MorphNode.isBindingElement(node)) {

@@ -64,7 +64,7 @@ test("shared namespace mutation keys a bracket member path like its dotted spell
     "packages/shared/src/state.ts": "export const registry = { nested: {} };\n",
     "packages/client/src/one.ts": 'import { registry } from "../../shared/src/state.ts";\nregistry.nested.alpha = 1;\n',
     "packages/client/src/two.ts": 'import { registry } from "../../shared/src/state.ts";\nregistry["nested"].beta = 1;\n',
-    "packages/client/src/three.ts": 'import { registry } from "../../shared/src/state.ts";\nregistry.nested["gamma"] = 1;\n',
+    "packages/client/src/three.ts": 'import { registry } from "../../shared/src/state.ts";\nregistry[`nested`]["gamma"] = 1;\n',
   });
 
   expect(collectRegistryCandidates(project).filter(({ kind }) => kind === "registry-candidate:shared-namespace-mutation")).toHaveLength(1);

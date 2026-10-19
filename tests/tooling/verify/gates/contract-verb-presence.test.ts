@@ -38,6 +38,18 @@ test("a service method invocation is coverage", () => {
   expect(findings("const service = createHubService(ctx);\nservice.coveredVerb();\n")).toEqual([]);
 });
 
+test("a quoted bracket service invocation is coverage like the dotted call", () => {
+  expect(findings('const service = createHubService(ctx);\nservice["coveredVerb"]();\n')).toEqual([]);
+});
+
+test("a template bracket service invocation is coverage like the quoted call", () => {
+  expect(findings("const service = createHubService(ctx);\nservice[`coveredVerb`]();\n")).toEqual([]);
+});
+
+test("a parenthesized or asserted service callee is coverage like the bare call", () => {
+  expect(findings("const service = createHubService(ctx);\n(service.coveredVerb as () => void)();\n")).toEqual([]);
+});
+
 test("a same-named method on an unrelated receiver is not service coverage", () => {
   expect(findings("logger.coveredVerb();\n")).toHaveLength(1);
 });

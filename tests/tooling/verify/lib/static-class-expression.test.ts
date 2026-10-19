@@ -351,9 +351,14 @@ test("reads a lucide namespace factory member through its authored key, never an
       const createLucideIcon = "Icon";
       export const C = Lucide[createLucideIcon]("C", [["path", { className: "orb:identifier-key" }]]);
       export const T = Lucide[\`createLucideIcon\`]("T", [["path", { className: "orb:template-key" }]]);
+      export const E = Lucide["create\\u004CucideIcon"]("E", [["path", { className: "orb:escaped-key" }]]);
     `,
   });
-  expect(walkStaticClassExpressions(p.getSourceFiles()).candidates.map((candidate) => candidate.value)).toEqual(["orb:template-key"]);
+  expect(
+    walkStaticClassExpressions(p.getSourceFiles())
+      .candidates.map((candidate) => candidate.value)
+      .sort(),
+  ).toEqual(["orb:escaped-key", "orb:template-key"]);
 });
 
 test("keeps counterfeit factories and uncertain lucide IconNode mutations opaque", () => {
