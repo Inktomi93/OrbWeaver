@@ -488,9 +488,7 @@ function lowerData(input: ComponentTypeHomeInput): ComponentLowerDataEvidence {
   }
   const sources: ShapeCopySource[] = input.lowerDeclarations.flatMap((decl) => {
     const properties = readShapeFields(decl, "copy");
-    return properties === undefined
-      ? []
-      : [{ name: decl.getName(), file: decl.getSourceFile().getFilePath(), decl, fields: new Set(properties.map((property) => property.name)) }];
+    return properties === undefined ? [] : [{ name: decl.getName(), file: decl.getSourceFile().getFilePath(), decl, fields: new Set(properties) }];
   });
   const agree = createShapeFieldAgreement(
     () => declaration.getProject().getTypeChecker(),

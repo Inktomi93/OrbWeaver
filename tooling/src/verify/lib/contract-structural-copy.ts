@@ -36,7 +36,7 @@ export function createFieldAgreement(
 /** The data field names of one exported contract type, or undefined when it is not a plain object shape. */
 export function contractFields(decl: InterfaceDeclaration | TypeAliasDeclaration): ReadonlySet<string> | undefined {
   const properties = readShapeFields(decl, "copy");
-  const fields = properties === undefined ? undefined : new Set(properties.map((property) => property.name));
+  const fields = properties === undefined ? undefined : new Set(properties);
   return fields !== undefined && fields.size >= MIN_COPY_FIELDS ? fields : undefined;
 }
 

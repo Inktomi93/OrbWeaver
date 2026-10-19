@@ -6,7 +6,6 @@ import { readAssignabilityChecker } from "../../floor/code-facts/assignability.t
 import { shapesIdentical } from "../../floor/code-facts/shape-copy.ts";
 import { shapeDerivesFrom } from "../../floor/code-facts/shape-derivation.ts";
 import { readShapeFields } from "../../floor/code-facts/shape-facts.ts";
-import type { ShapeField as FieldPair } from "../../floor/code-facts/shape-fields.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Hit } from "../contract/types.ts";
 import { hitOf } from "./emit.ts";
@@ -17,14 +16,13 @@ import { ownExports } from "./scope.ts";
 /** How many properties a shape needs before an exact structural match means anything. */
 export const RESPELL_PROPERTY_FLOOR = 3;
 
-export type { ShapeField as FieldPair } from "../../floor/code-facts/shape-fields.ts";
-
 export interface ShapeEntry {
   readonly name: string;
   readonly decl: Node;
   readonly signature: string;
   readonly names: ReadonlySet<string>;
-  readonly fields: readonly FieldPair[];
+  /** Field names in discovery order. */
+  readonly fields: readonly string[];
 }
 
 /** The tool error for a TypeScript build without the assignability primitive. */
@@ -74,16 +72,9 @@ export function shapesUnder(project: SourceCorpus, prefix: string): ShapeEntry[]
     }
     for (const { name, decl } of ownExports(sf)) {
       const discovered = readShapeFields(decl, "respell");
-      const fields =
-        discovered !== undefined && discovered.length >= RESPELL_PROPERTY_FLOOR
-          ? discovered.map((property) => ({ name: property.name, type: property.type }))
-          : undefined;
-      if (fields !== undefined) {
-        const signature = fields
-          .map((field) => field.name)
-          .sort((left, right) => left.localeCompare(right))
-          .join("|");
-        out.push({ name, decl, signature, names: new Set(fields.map((field) => field.name)), fields });
+      if (discovered !== undefined && discovered.length >= RESPELL_PROPERTY_FLOOR) {
+        const signature = [...discovered].sort((left, right) => left.localeCompare(right)).join("|");
+        out.push({ name, decl, signature, names: new Set(discovered), fields: discovered });
       }
     }
   }

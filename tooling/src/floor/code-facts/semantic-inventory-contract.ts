@@ -603,8 +603,8 @@ export const shapePairSchema = z
   );
 export const shapeCatalogSchema = z.object({
   node: spanSchema,
-  copy: z.array(z.object({ name: z.string(), type: z.string() })).nullable(),
-  respell: z.array(z.object({ name: z.string(), type: z.string() })).nullable(),
+  copy: z.array(z.string()).nullable(),
+  respell: z.array(z.string()).nullable(),
   direct: z.array(z.string()),
   queries: z.array(z.string()),
 });

@@ -1184,7 +1184,7 @@ describe("ast respell --near lens (Jaccard field-diff tier)", () => {
     expect(candidate.diff.sharedCount).toBe(3);
     expect(candidate.diff.totalFields).toBe(5);
     expect(candidate.diff.pct).toBeCloseTo(60, 5);
-    expect(candidate.diff.renamed).toEqual([{ from: "label", to: "name", type: "string" }]);
+    expect(candidate.diff.renamed).toEqual([{ from: "label", to: "name" }]);
     expect(candidate.diff.domainOnly).toEqual([]);
     expect(candidate.diff.contractsOnly).toEqual([]);
 
@@ -1219,7 +1219,7 @@ export interface DomainShape { id: TypeIdOf<"CharacterId">; name: string; role: 
     expect(diff?.sharedCount).toBe(4);
     expect(diff?.totalFields).toBe(6);
     expect(diff?.pct).toBeCloseTo(66.666, 2);
-    expect(diff?.renamed).toEqual([{ from: "memo", to: "note", type: "string" }]);
+    expect(diff?.renamed).toEqual([{ from: "memo", to: "note" }]);
   });
 
   test("a pair the EXACT tier already resolves is excluded from the near tier at ANY threshold", () => {

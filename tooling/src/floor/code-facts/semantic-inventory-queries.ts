@@ -1055,9 +1055,9 @@ export function readInventoryShape(db: DatabaseSync, id: string, node: Inventory
     !boolean.parse(row[mode === "copy" ? "copyObject" : "respellObject"])
       ? null
       : db
-          .prepare("SELECT name,type FROM inventory_shape_field WHERE partition=? AND owner=? AND mode=? ORDER BY ordinal")
+          .prepare("SELECT name FROM inventory_shape_field WHERE partition=? AND owner=? AND mode=? ORDER BY ordinal")
           .all(id, owner, mode)
-          .map((field) => ({ name: inventoryStringSchema.parse(field["name"]), type: inventoryStringSchema.parse(field["type"]) }));
+          .map((field) => inventoryStringSchema.parse(field["name"]));
   const origins = (kind: "direct" | "queries"): string[] =>
     db
       .prepare("SELECT value FROM inventory_shape_origin WHERE partition=? AND owner=? AND kind=? ORDER BY ordinal")

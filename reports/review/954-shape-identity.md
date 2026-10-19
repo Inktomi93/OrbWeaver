@@ -103,6 +103,32 @@ Marks: (a) correct as kept. (b) the stronger version is adopted. (c) different o
 
 - (b) Near diagnostics: a 100% near pair that differs only by an index signature prints a diff naming no difference. A board item: "respell --near names declaration-level differences". Done when the diff names an index signature or other non-field difference.
 
+## Item 1154: shape fields store names only
+
+Every stored and native shape field carried its fully printed type text. No consumer read it:
+
+- Copy and component compare field names, and agreement goes through assignability.
+- Respell's only reader copied it into `NearFieldDiff.renamed[].type`. The printed diff (`nearFieldDiffText`) and the JSON evidence never emit that value; only tests asserted it.
+
+Evidence: codegraph over `ShapeField`, `readShapeFields` and `NearFieldDiff`; `rg` for `.type` reads on shape fields and for `renamed` across `tooling/src` (1,487 files scanned); `rg` for `ShapeField`, `FieldPair` and the printing call across `tooling`, `tests` and `docs` (7,232 files scanned, 0 left after the change).
+
+The field is removed everywhere it lived:
+
+| Place | Change |
+| - | - |
+| Contract | `ShapeField` deleted; `readShapeFields` returns field names. |
+| Schema | `shapeCatalogSchema` `copy` and `respell` are string arrays. |
+| Capture | `extractShape` no longer prints types. |
+| Stored catalog | `inventory_shape_field` drops `type`. `STORAGE_SCHEMA_VERSION` moves to 16; a schema 1 to 15 store drops and recreates the field table, because its rows are a cache the current format rebuilds. |
+| Respell | `ShapeEntry.fields` is the ordered name list; `renamed` rows are `{ from, to }`. |
+
+Scoped measurement: the catalog worker's own `extractShape` over every shape node of the contracts program only (196 authored sources), in one process under the heavy lock.
+
+| Run | Shapes | Fields | Printed type text | Extraction | Peak RSS | Box load |
+| - | - | - | - | - | - | - |
+| Before | 5,371 | 143,330 | 1,285,576,401 bytes | 145.8 s | 4,209 MiB | 18 |
+| After | 5,371 | 143,330 | 0 bytes | 9.6 s | 1,490 MiB | 25 |
+
 ## Kept apart, with reasons
 
 | Reader | Why it stays separate |

@@ -9,7 +9,7 @@ import { collectingShapeQueries } from "../../floor/code-facts/shape-inventory-s
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { NearFieldDiff, NearPairCandidate } from "../contract/types.ts";
 import { exitToolError } from "./ledger.ts";
-import type { FieldPair, ShapeEntry } from "./respell-shapes.ts";
+import type { ShapeEntry } from "./respell-shapes.ts";
 import { exactTierResolves, PRIMITIVE_ABSENT, shapesUnder } from "./respell-shapes.ts";
 
 export const RESPELL_NEAR_PROPERTY_FLOOR = 4;
@@ -67,25 +67,24 @@ function nearFieldDiffOf(
   const { fields: domainFields, decl: domainDecl } = domainShape;
   const { fields: contractsFields, decl: contractsDecl } = contractsShape;
   const { pct, sharedCount, totalFields, sharedNames } = admission;
-  const contractsRemainder = contractsFields.filter((field) => !sharedNames.has(field.name));
-  const renamed: { from: string; to: string; type: string }[] = [];
+  const contractsRemainder = contractsFields.filter((field) => !sharedNames.has(field));
+  const renamed: { from: string; to: string }[] = [];
   const domainOnly: string[] = [];
-  for (const domainField of domainFields.filter((field) => !sharedNames.has(field.name))) {
-    const matchAt = contractsRemainder.findIndex(
+  for (const domainField of domainFields.filter((field) => !sharedNames.has(field))) {
+    const match = contractsRemainder.find(
       (contractsField) =>
-        contractsField.name !== domainField.name &&
-        !renamed.some((rename) => rename.to === contractsField.name) &&
-        semanticallyEqualFieldType(checker, { decl: domainDecl, name: domainField.name }, { decl: contractsDecl, name: contractsField.name }),
+        contractsField !== domainField &&
+        !renamed.some((rename) => rename.to === contractsField) &&
+        semanticallyEqualFieldType(checker, { decl: domainDecl, name: domainField }, { decl: contractsDecl, name: contractsField }),
     );
-    if (matchAt === -1) {
-      domainOnly.push(domainField.name);
+    if (match === undefined) {
+      domainOnly.push(domainField);
       continue;
     }
-    const match = contractsRemainder[matchAt] as FieldPair;
-    renamed.push({ from: domainField.name, to: match.name, type: domainField.type });
+    renamed.push({ from: domainField, to: match });
   }
   const renamedTo = new Set(renamed.map((rename) => rename.to));
-  const contractsOnly = contractsRemainder.filter((field) => !renamedTo.has(field.name)).map((field) => field.name);
+  const contractsOnly = contractsRemainder.filter((field) => !renamedTo.has(field));
   return { pct, sharedCount, totalFields, renamed, domainOnly, contractsOnly };
 }
 
