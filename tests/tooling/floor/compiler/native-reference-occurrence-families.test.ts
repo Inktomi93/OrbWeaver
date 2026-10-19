@@ -177,6 +177,39 @@ test("shared member names select their symbol groups and named files without cha
   }
 });
 
+test("a duplicate member beside a shorthand keeps the native shorthand fallback on a grouped lookup", () => {
+  // The binder merges `x` and `x: 2` into one member, so only the shorthand value symbol selects that entry.
+  const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { noLib: true, types: [], strict: false } });
+  const source = project.createSourceFile(
+    "/duplicate.ts",
+    "interface P { x: number } export function f(p: P) { const x = p.x; const o = { x, x: 2 }; return o.x; }",
+  );
+  const nodes = source.getDescendantsOfKind(SyntaxKind.Identifier);
+  const queries = nodes.map((node) => ({ fileName: source.getFilePath(), position: node.getStart() }));
+  const local = source.getFunctionOrThrow("f").getVariableDeclarationOrThrow("x").getNameNode();
+  const service = project.getLanguageService().compilerObject;
+  const expected = queries.map((query) => service.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? []);
+  const pass = service.createReadonlyReferencePass();
+  try {
+    const answers = pass.findReferencesFromOccurrences(queries);
+    for (const [index, query] of queries.entries()) {
+      const answer = answers[index];
+      const actual =
+        answer === undefined || answer.kind === "native"
+          ? (pass.findReferences(query.fileName, query.position, { includeDefinitionDisplay: false }) ?? [])
+          : answer.references;
+      expect(actual, `${String(query.position)} ${nodes[index]?.getText()}`).toEqual(expected[index]);
+    }
+    const localIndex = nodes.findIndex((node) => node.compilerNode === local.compilerNode);
+    // The shorthand name repeats: once as a candidate match and once through the native shorthand fallback.
+    expect(expected[localIndex]?.flatMap((group) => group.references)).toHaveLength(3);
+    expect(pass.getOccurrenceStatistics().relationGroups).toBeGreaterThan(0);
+  } finally {
+    pass.dispose();
+    service.dispose();
+  }
+});
+
 test("native contextual member worlds retain their own conditional dependency groups", () => {
   const results = ["browser", "node"].map((world) => {
     const project = new Project({
