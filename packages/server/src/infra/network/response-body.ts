@@ -65,19 +65,17 @@ export function createOwnedResponseBody(response: Response, signal: AbortSignal)
 
   const cancel = (reason?: unknown): Promise<void> => {
     // Tee cancellation can wait for the other branch, so every cancellation must start before any join.
+    const started: Promise<void>[] = [];
     for (const branch of branches) {
-      void branch.cancel(reason).then(
-        () => undefined,
-        () => undefined,
-      );
+      started.push(branch.cancel(reason));
     }
+    // Each failure is already recorded in `failures` and reaches `completion`; settling here only observes the promises.
+    void Promise.allSettled(started);
     return completion.promise;
   };
   const abort = (): void => {
-    void cancel(signal.reason).then(
-      () => undefined,
-      () => undefined,
-    );
+    // The returned `completion.promise` is the caller-visible join; abort observes it without joining.
+    void Promise.allSettled([cancel(signal.reason)]);
   };
 
   const ownBranch = (producer: Response): Response => {
