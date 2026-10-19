@@ -6816,18 +6816,59 @@ function chainRootName(context, expression) {
   return current.type === "Identifier" ? current : undefined;
 }
 
+// Is the value of `node` used: awaited, returned, passed on, or bound to a name that is read later? A `void` or a bare
+// statement throws the outcome away, so it keeps nothing.
+function resultConsumed(context, node) {
+  let current = node;
+  while (current.parent?.type === "ChainExpression" || current.parent?.type === "TSAsExpression" || current.parent?.type === "TSNonNullExpression") {
+    current = current.parent;
+  }
+  const parent = current.parent;
+  if (parent.type === "AwaitExpression" || parent.type === "ReturnStatement" || (parent.type === "ArrowFunctionExpression" && parent.body === current)) {
+    return true;
+  }
+  if (parent.type === "CallExpression") {
+    return parent.arguments.includes(current);
+  }
+  if (parent.type === "VariableDeclarator" && parent.init === current && parent.id.type === "Identifier") {
+    return lexicalVariable(context, parent.id)?.references.some((reference) => reference.isRead()) === true;
+  }
+  return parent.type === "AssignmentExpression" && parent.right === current;
+}
+
+// The node a whole-collection read flows into: `...c` inside an array, or `c.values()`; otherwise the read itself.
+function wholeReadCarrier(identifier) {
+  const parent = identifier.parent;
+  if (parent.type === "SpreadElement" && parent.parent.type === "ArrayExpression") {
+    return parent.parent;
+  }
+  if (parent.type === "MemberExpression" && parent.object === identifier && parent.parent.type === "CallExpression" && parent.parent.callee === parent) {
+    return parent.parent;
+  }
+  return identifier;
+}
+
 function readsWhole(context, collection) {
   const variable = lexicalVariable(context, collection);
   return (
     variable?.references.some(({ identifier }) => {
       const parent = identifier.parent;
-      if (parent.type === "SpreadElement" || (parent.type === "ForOfStatement" && parent.right === identifier)) {
-        return true;
+      const member = parent.type === "MemberExpression" && parent.object === identifier ? staticMemberName(parent) : undefined;
+      const wholeRead =
+        parent.type === "SpreadElement" ||
+        (parent.type === "ForOfStatement" && parent.right === identifier) ||
+        (member !== undefined && COLLECTION_READ_MEMBERS.has(member)) ||
+        (parent.type === "CallExpression" && parent.arguments.includes(identifier) && COMBINATOR_MEMBERS.has(staticMemberName(parent.callee)));
+      if (!wholeRead) {
+        return false;
       }
-      if (parent.type === "MemberExpression" && parent.object === identifier) {
-        return COLLECTION_READ_MEMBERS.has(staticMemberName(parent));
+      // A combinator read keeps the collection only while the combined promise is itself consumed.
+      const carrier = wholeReadCarrier(identifier);
+      const combinator = carrier.parent;
+      if (combinator?.type === "CallExpression" && combinator.arguments.includes(carrier) && COMBINATOR_MEMBERS.has(staticMemberName(combinator.callee))) {
+        return resultConsumed(context, combinator);
       }
-      return parent.type === "CallExpression" && parent.arguments.includes(identifier) && COMBINATOR_MEMBERS.has(staticMemberName(parent.callee));
+      return true;
     }) === true
   );
 }

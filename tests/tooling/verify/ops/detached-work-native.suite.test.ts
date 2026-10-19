@@ -120,6 +120,21 @@ rows([
     1,
   ],
   [
+    "a kept collection whose only read is a voided allSettled is still invisible",
+    "export function make(): void {\n  const kept = new Set<Promise<number>>();\n  const stop = (w: W): void => {\n    const stopped = w.terminate();\n    kept.add(stopped);\n    void stopped.catch(() => undefined);\n  };\n  const dispose = (): void => {\n    void Promise.allSettled([...kept]);\n  };\n  void stop;\n  void dispose;\n}\n",
+    1,
+  ],
+  [
+    "a pushed array handed to a voided allSettled is still invisible",
+    "export function make(): void {\n  const started: Promise<void>[] = [];\n  const start = (w: W): void => {\n    const work = w.run();\n    started.push(work);\n    void work.catch(() => undefined);\n  };\n  const settle = (): void => {\n    void Promise.allSettled(started);\n  };\n  void start;\n  void settle;\n}\n",
+    1,
+  ],
+  [
+    "a map joined by a bare-statement Promise.all over values is still invisible",
+    "export function make(): void {\n  const jobs = new Map<string, Promise<void>>();\n  const start = (w: W, key: string): void => {\n    const job = w.run();\n    jobs.set(key, job);\n    void job.catch(() => undefined);\n  };\n  const settle = (): void => {\n    Promise.all(jobs.values());\n  };\n  void start;\n  void settle;\n}\n",
+    1,
+  ],
+  [
     "a bound promise that is never kept is still invisible",
     "export function stop(w: W): void {\n  const stopped = w.terminate();\n  void stopped.catch(() => undefined);\n}\n",
     1,
