@@ -12,10 +12,9 @@
 // non-nominee accept is refused with not_turn_owner.
 
 import type { CharacterCard } from "@orb/contracts/character";
-import type { ChatMetadata, DurableChatBusEvent, GroupConfig, MessageView, RoomOverrides } from "@orb/contracts/chat";
+import type { ChatMetadata, DurableChatBusEvent, GroupConfig, MessageView } from "@orb/contracts/chat";
 import {
   DEFAULT_GROUP_CONFIG,
-  DEFAULT_ROOM_OVERRIDES,
   groupConfigSchema,
   handoffOfferSchema,
   isAiDriven,
@@ -47,7 +46,6 @@ import type {
   AcceptHostHandoffParams,
   AddCharacterToChatParams,
   GetGroupConfigForChatParams,
-  GetRoomOverridesForChatParams,
   KickParticipantParams,
   NominateHostHandoffParams,
   RemoveCharacterFromChatParams,
@@ -130,7 +128,6 @@ type ParticipantVerbs = Pick<
   | "setMemberPersonaLore"
   | "setToolRecurseLimit"
   | "getGroupConfigForChat"
-  | "getRoomOverridesForChat"
   | "kick"
   | "setMemberHistoryVisibility"
   | "selfLeave"
@@ -190,7 +187,6 @@ export function createParticipants(ctx: ChatContext, deps: ParticipantDeps): Par
     setMemberPersonaLore: createSetMemberPersonaLore(ctx, emit, claimChat),
     setToolRecurseLimit: createSetToolRecurseLimit(ctx, emit, claimChat),
     getGroupConfigForChat: createGetGroupConfigForChat(ctx),
-    getRoomOverridesForChat: createGetRoomOverridesForChat(ctx),
     addCharacterToChat: createAddCharacterToChat(ctx, emit, claimChat),
     removeCharacterFromChat: createRemoveCharacterFromChat(ctx, emit, claimChat),
     setSeatKnobs: createSetSeatKnobs(ctx, emit, claimChat),
@@ -634,14 +630,6 @@ function createGetGroupConfigForChat(ctx: ChatContext): ChatService["getGroupCon
   return async ({ principal, chatId }: GetGroupConfigForChatParams): Promise<GroupConfig> => {
     const { chat } = await requireParticipant(ctx, principal, chatId);
     return chat.metadata.group ?? DEFAULT_GROUP_CONFIG;
-  };
-}
-
-/** `getRoomOverridesForChat` — member. The effective RoomOverrides (parsed sub-blob or the empty default). */
-function createGetRoomOverridesForChat(ctx: ChatContext): ChatService["getRoomOverridesForChat"] {
-  return async ({ principal, chatId }: GetRoomOverridesForChatParams): Promise<RoomOverrides> => {
-    const { chat } = await requireParticipant(ctx, principal, chatId);
-    return chat.metadata.roomOverrides ?? DEFAULT_ROOM_OVERRIDES;
   };
 }
 

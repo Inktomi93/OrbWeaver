@@ -365,8 +365,7 @@ async function main(): Promise<void> {
     console.log("[Golden] Navigating to ST...");
     // biome-ignore lint/nursery/noPlaywrightNetworkidle: Needed for initial ST load
     await page.goto(`http://127.0.0.1:${ST_PORT}`, { waitUntil: "networkidle", timeout: 30_000 });
-    // biome-ignore lint/nursery/noPlaywrightWaitForSelector: ST relies on dynamic DOM
-    await page.waitForSelector("#chat", { timeout: 15_000 });
+    await page.locator("#chat").first().waitFor({ timeout: 15_000 });
 
     // Let extensions finish activating
     await new Promise((r) => setTimeout(r, 1500));
@@ -404,10 +403,13 @@ async function main(): Promise<void> {
     }
 
     // Wait for at least one message to appear (chat loaded)
-    // biome-ignore lint/nursery/noPlaywrightWaitForSelector: ST relies on dynamic DOM
-    await page.waitForSelector(".mes", { timeout: 10_000 }).catch(() => {
-      console.warn("[Golden] No .mes elements visible — chat may be empty, proceeding");
-    });
+    await page
+      .locator(".mes")
+      .first()
+      .waitFor({ timeout: 10_000 })
+      .catch(() => {
+        console.warn("[Golden] No .mes elements visible — chat may be empty, proceeding");
+      });
     await new Promise((r) => setTimeout(r, 800));
 
     // ── 6.5. Connect to API ──────────────────────────────────────────────
@@ -442,8 +444,7 @@ async function main(): Promise<void> {
       });
 
       // 2. Wait for the past chats list to appear
-      // biome-ignore lint/nursery/noPlaywrightWaitForSelector: ST relies on dynamic DOM
-      await page.waitForSelector(".select_chat_block", { state: "visible", timeout: 10_000 });
+      await page.locator(".select_chat_block").first().waitFor({ state: "visible", timeout: 10_000 });
 
       // 3. Find and click the chat item matching our fixture
       await page.evaluate((chatName) => {

@@ -23,10 +23,12 @@ readable. Subject docs: D174.
 | `or15` | can an OpenRouter connection serve Claude over OpenRouter's Messages endpoint through the anthropic-messages backend: auth header, `provider` routing, `models` fallback, generation cost, `x-*` headers, streaming, and the backend's between_tools, adaptive and tool turns? (`OR15_MODEL` overrides the id) | ~$0.01 OR |
 
 ```sh
-node scripts/probes/openrouter/run.ts                 # the batch (skips probes with a completed run)
-PROBES=f4,or5 node scripts/probes/openrouter/run.ts   # a subset
-FORCE=1 PROBES=f4 node scripts/probes/openrouter/run.ts   # re-measure
+ORB_ENV_NO_FILE=1 node scripts/probes/openrouter/run.ts                 # the batch (skips probes with a completed run)
+ORB_ENV_NO_FILE=1 PROBES=f4,or5 node scripts/probes/openrouter/run.ts   # a subset
+ORB_ENV_NO_FILE=1 FORCE=1 PROBES=f4 node scripts/probes/openrouter/run.ts   # re-measure
 ```
+
+`ORB_ENV_NO_FILE=1` must come from the launch environment: or12 and or13 compose the server graph, and a `.env` line does not count.
 
 **⚠️ Live spend** (~$0.32 for the full batch). Keys are read from `process.env` first, then the repo
 `.env` found by walking up from this directory (this harness runs from git worktrees, which carry no

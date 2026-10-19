@@ -44,6 +44,7 @@ import { authConfigFromEnv, hasCsrfHeader, readRequestCookie, resolve, selectSig
 import { captureUserRole } from "#primitives/role-data";
 import type { LiveBuses } from "#transport/trpc";
 import { publishUserEvent } from "#transport/trpc";
+import { mintPrincipal } from "./principal-mint.ts";
 
 /** The boot-time deps the seam binds once. `config` is the test/override seam — production parses
  *  `authConfigFromEnv()` once at construction. `verifyForwardJwt`/`oidcStore` are the ports the SSO paths
@@ -147,13 +148,13 @@ async function resolveCookiePrincipal(sessions: SessionsService, headers: Header
     return null;
   }
   return {
-    principal: {
+    principal: mintPrincipal({
       userId: validated.userId,
       role: validated.role,
       handle: validated.handle,
       externalId: validated.externalId,
       via: "cookie",
-    },
+    }),
     sessionId: validated.sessionId,
   };
 }
@@ -230,13 +231,13 @@ async function resolveHeaderOrFallbackPrincipal(
   if (provisioned.identityChanged) {
     emitUserEvent(provisioned.userId, { type: "identityChanged" });
   }
-  return {
+  return mintPrincipal({
     userId: provisioned.userId,
     role: provisioned.role,
     handle: res.identity.handle,
     externalId: res.identity.externalId,
     via: res.via,
-  };
+  });
 }
 
 /**
@@ -248,15 +249,14 @@ async function resolveHeaderOrFallbackPrincipal(
  * an invented grant. Role-sensitive ops need this read because a fabricated `role:"user"` would
  * fail-closed-DENY the owner's own privileged turn.
  */
-// @orb-waive one-principal-mint-population(Principal): the canonical row-to-Principal mapper; ends never (this is the ONE home for the fallback/bridge mint)
 function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): Principal {
-  return {
+  return mintPrincipal({
     userId,
     role: fields?.role ?? captureUserRole("user"),
     handle: fields?.handle ?? castId<Handle>(userId),
     externalId: fields?.externalId ?? null,
     via: "fallback",
-  };
+  });
 }
 
 /**

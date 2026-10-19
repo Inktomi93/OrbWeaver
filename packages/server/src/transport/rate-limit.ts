@@ -21,6 +21,7 @@ import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainRateLimitError } from "@orb/kit/errors";
 import { and, like, lt, sql } from "drizzle-orm";
+import { getLog } from "#foundation/observability";
 
 export interface RateLimitConfig {
   /** Short tag distinguishing this limiter's rows in the shared table — e.g. "login-ip", "public-ip". */
@@ -67,12 +68,15 @@ async function consumeWindow(
   const count = rows[0]?.count ?? 1;
 
   // The just-inserted current row's expires_at is windowStart + windowMs > now, so it always survives.
-  // @orb-waive detached-work-traced(where): a best-effort expiry GC that runs on EVERY rate-limited request — giving it its own detached root would push one extra trace bucket per request through a 500-entry ring and evict the real traces. A failed sweep is self-healing (the next request re-runs it) and cannot affect the verdict above. Ends if the sweep ever moves off the per-request path (a scheduled job would get its own root).
-  // @orb-waive caught-failure-ownership(where): a best-effort expiry GC that runs on EVERY rate-limited request — giving it its own detached root would push one extra trace bucket per request through a 500-entry ring and evict the real traces. A failed sweep is self-healing (the next request re-runs it) and cannot affect the verdict above. Ends if the sweep ever moves off the per-request path (a scheduled job would get its own root).
+  // Best-effort and detached: a failed sweep cannot change the verdict above and the next request re-runs it, so
+  // the failure goes to the operator log and is dropped. It gets no detached root of its own: that would push one
+  // extra trace bucket per request through the 500-entry ring and evict the real traces.
   void db
     .delete(rateLimitBuckets)
     .where(and(like(rateLimitBuckets.key, `${prefix}%`), lt(rateLimitBuckets.expiresAt, args.now)))
-    .catch(() => undefined);
+    .catch((error: unknown) => {
+      getLog().warn({ err: error, scope: args.scope }, "rate-limit: expiry sweep failed");
+    });
 
   if (count > args.points) {
     throw new DomainRateLimitError(`rate limit exceeded (${args.scope})`, {

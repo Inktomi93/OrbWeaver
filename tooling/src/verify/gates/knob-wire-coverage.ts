@@ -15,8 +15,7 @@
 // warning debt)". DOORWAY-vs-DEFERRED is a DISPOSITION axis, not a predicate axis: the five DEFERRED rows
 // scattered across arms A(2)/B(2)/B2(1) and the one DOORWAY row sat in F-write, so a split on that line
 // would put the same member set and the same predicate in two policies and DOUBLE-REPORT every unwired
-// knob. `contract-verb-presence` is the landed precedent for the identical shape — one reviewed-grant
-// policy, its DEFERRED rows migrated to central grants (`lib/reviewed-grants.ts`).
+// knob. So it is one reviewed-grant policy, its DEFERRED rows migrated to central grants (`lib/reviewed-grants.ts`).
 //
 // WHY `reviewed-grant` AND NOT `ordinary`: a reviewed identity is `(policyId, subject, operation)`
 // authored on the finding, independent of source position. Arm F's write and read belts report the SAME
@@ -346,6 +345,15 @@ export const gate = defineGate({
           "declare const view: { wiredBaseKey?: boolean; wiredExtendKey?: boolean };\nexport const a = view.wiredBaseKey;\nexport const b = view.wiredExtendKey;\n",
       },
       why: "arms B2/C composed green: an imported base through `.extend` plus a `{ ...base.shape }` re-spread resolves to exactly its two keys, and a spread that only RE-declares the base's key is a contribution (the tally counts declared members, not new ones) — never a zero-contribution refusal",
+    },
+    {
+      mode: "types",
+      files: {
+        [SETTINGS]:
+          'import { z } from "zod";\nexport const USER_SETTINGS_SECTIONS = [] as const;\nexport const appSettingsSchema = z.object({ wiredTemplateKey: z.boolean() });\n',
+        "packages/client/src/features/config/lib/x.ts": "declare const view: { wiredTemplateKey?: boolean };\nexport const a = view[`wiredTemplateKey`];\n",
+      },
+      why: "arm C: a no-substitution template key reads the leaf exactly like its quoted twin",
     },
     {
       // Arm B: a client section-patch writes the member → passes.

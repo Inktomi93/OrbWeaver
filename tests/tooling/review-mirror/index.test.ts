@@ -1,3 +1,4 @@
+import { readFileSync } from "node:fs";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewMirrorEvidence } from "../../../tooling/src/review-mirror/index.ts";
@@ -61,12 +62,11 @@ test("TS stripping PRESERVES a suppression/directive marker instead of erasing g
 });
 
 test("TS stripping removes comments without corrupting regex, template or line positions", () => {
-  // biome-ignore lint/suspicious/noTemplateCurlyInString: this literal is the parser fixture's template source.
-  const source = "const pattern = /https?:\\/\\//u; // prose\nconst value = `// ${pattern.source}`;\n/* block\ncomment */\nexport { value };\n";
+  const source = readFileSync(new URL("./template-literal-source.txt", import.meta.url), "utf8");
+  const templateRead = source.split("\n")[1]?.replace("const value = ", "").replace(/;$/u, "") ?? "";
   const stripped = stripComments("sample.ts", source);
   expect(stripped).toContain("/https?:\\/\\//u");
-  // biome-ignore lint/suspicious/noTemplateCurlyInString: expected source bytes, not a test interpolation.
-  expect(stripped).toContain("`// ${pattern.source}`");
+  expect(stripped).toContain(templateRead);
   expect(stripped).not.toContain("prose");
   expect(stripped).not.toContain("comment");
   expect(stripped.split("\n")).toHaveLength(source.split("\n").length);

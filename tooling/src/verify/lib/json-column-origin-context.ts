@@ -4,7 +4,7 @@ import { readCallClosure } from "../../floor/code-facts/call-returns.ts";
 import type { DrizzleNormalization, DrizzleNormalizationMatch, DrizzleNormalizerSnapshot } from "../../floor/code-facts/drizzle-origin-contract.ts";
 import { drizzleValueReaders } from "../../floor/code-facts/drizzle-value-origin.ts";
 import type { SchemaProjectedColumn, SchemaProjectedModel } from "../../floor/code-facts/schema-projection-contract.ts";
-import { resolved } from "../../floor/code-facts/type-member-origin-core.ts";
+import { resolved, unresolved } from "../../floor/code-facts/type-member-origin-core.ts";
 import { captureTypeSelections } from "../../floor/code-facts/type-projection.ts";
 import { selectedTypeRelation } from "../../floor/code-facts/type-projection-contract.ts";
 import type { JsonColumnOriginContext } from "../contract/json-column-origin.ts";
@@ -83,11 +83,16 @@ export function createObservedJsonColumnOriginContext(
     active: new Set(),
     mergeActive: new Set(),
     normalizers: new Map(),
+    cohort: closure,
     typeSelections: delivered.typeSelections,
     readNormalizer: (call): import("../../floor/code-facts/reference-fact-contract.ts").ReferenceFact<DrizzleNormalization | undefined> => {
       delivered.graph.assertNode(call);
       if (!closure.has(call)) {
-        throw new Error("json-column-writes: normalizer facts are missing or belong to another native snapshot");
+        return unresolved(
+          "missing",
+          call,
+          `json-column-writes: the call at ${call.getSourceFile().getBaseName()}:${String(call.getStartLineNumber())} (${call.getExpression().getText()}) is outside the requested ordinary cohort (D328)`,
+        );
       }
       const proof = readJsonColumnNormalizer(call, delivered.schemaReaders);
       return proof.kind === "unresolved"

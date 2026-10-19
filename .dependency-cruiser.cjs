@@ -878,9 +878,17 @@ module.exports = {
       to: { path: "^packages/server/src/transport/trpc/role-output\\.ts$" },
     },
     {
+      name: "principal-mint-owners",
+      comment:
+        "D1/D40: only the request seam and the frozen-host bridge construct a Principal. The contracts brand makes every other construction a type error, and barrels or re-exports are importers too, so they cannot widen this set.",
+      severity: "error",
+      from: { pathNot: "^packages/server/src/entry/(auth/seam|compose/chat)\\.ts$" },
+      to: { path: "^packages/server/src/entry/auth/principal-mint\\.ts$" },
+    },
+    {
       name: "chat-engine-authority-context",
       comment:
-        "The turn engine receives frozen facts and bound execution ports, never chat request authority or guards, including through barrels and type-only edges. D19; turn-identity remains active for the wider semantic claim.",
+        "The turn engine receives frozen facts and bound execution ports, never chat request authority or guards, including through barrels and type-only edges. D19; `orb/turn-identity-principal` keeps the Principal type itself out of the engine.",
       severity: "error",
       from: { path: "^packages/server/src/domain/chat/engine/" },
       to: { path: "^packages/server/src/domain/chat/(context|contract/context|guard)\\.ts$", reachable: true },
@@ -914,7 +922,7 @@ module.exports = {
     // ruling: "there is no vllm module left to isolate" — the five role surfaces are gone, vLLM is a
     // provider ROW on the openai-compat wire, and the owner's fleet left the repo (ADR 0007).
     // Following it there would have widened a provider-execution seal into the instrument tree by side
-    // effect, which is the mistake the `no-raw-egress` engine-plane rows already refused to make.
+    // effect, which is the mistake the `orb/no-raw-egress` scope already refuses to make.
     {
       name: "providers-public-surface-only",
       comment:

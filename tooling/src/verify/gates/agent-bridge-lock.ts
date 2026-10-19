@@ -45,6 +45,8 @@
 // both.
 import type { Node as MorphNode, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { readMemberAccess } from "../../floor/code-facts/reference-fact.ts";
+import { unwrapTarget } from "../../floor/code-facts/reference-fact-alias.ts";
 import { defineGate } from "../contract/policy.ts";
 import { subjectAnchor } from "../lib/absent-subject-anchor.ts";
 
@@ -66,20 +68,28 @@ const RING_PROOF = "@agent-ring-proof";
 const MESSAGE = "the dev introspection bridge lost its one-door or exhaustive-registry lock (#894); packages/client/src/lib/agent-bridge.ts";
 const FIX = "install __orb only in agent-bridge.ts; retain the exhaustive capability/ring satisfies registries and both mounted CT proof markers";
 
-/** `globalThis.__orb = …` / `window["__orb"] = …` — the install door, in either member spelling. */
-function isOrbAssignment(node: MorphNode): boolean {
+const INSTALL_RECEIVERS: readonly string[] = ["globalThis", "window"];
+const ORB_MEMBER = "__orb";
+
+/** `globalThis.__orb = …` / `window[KEY] = …` — the install door, in any member spelling whose key resolves (a
+ *  literal, a template or a const binding), through a transparent wrapper on the global receiver. A global
+ *  write whose key resolves to no one name is `unreadable`: it could be the door, so it is refused. */
+function orbAssignment(node: MorphNode): "door" | "unreadable" | undefined {
   if (!Node.isBinaryExpression(node) || node.getOperatorToken().getKind() !== SyntaxKind.EqualsToken) {
-    return false;
+    return;
   }
-  const left = node.getLeft();
-  if (Node.isPropertyAccessExpression(left)) {
-    return left.getName() === "__orb" && ["globalThis", "window"].includes(left.getExpression().getText());
+  const target = node.getLeft();
+  if (!(Node.isPropertyAccessExpression(target) || Node.isElementAccessExpression(target))) {
+    return;
   }
-  if (!(Node.isElementAccessExpression(left) && ["globalThis", "window"].includes(left.getExpression().getText()))) {
-    return false;
+  if (!INSTALL_RECEIVERS.includes(unwrapTarget(target.getExpression()).getText())) {
+    return;
   }
-  const argument = left.getArgumentExpression();
-  return argument !== undefined && Node.isStringLiteral(argument) && argument.getLiteralText() === "__orb";
+  const member = readMemberAccess(target);
+  if (member.kind === "resolved") {
+    return member.value.name === ORB_MEMBER ? "door" : undefined;
+  }
+  return Node.isElementAccessExpression(target) ? "unreadable" : undefined;
 }
 
 function hasRegistry(sf: SourceFile, name: string, typeText: string): boolean {
@@ -155,6 +165,7 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const assignments: { readonly path: string; readonly node: MorphNode }[] = [];
+    const unreadableWrites: { readonly path: string; readonly node: MorphNode }[] = [];
     const proofs = new Set<string>();
     let readyDynamicImport = false;
     let bridgeSharesReady = false;
@@ -192,6 +203,9 @@ export const gate = defineGate({
       for (const hit of assignments.filter((candidate) => candidate.path !== BRIDGE)) {
         ctx.report.node(hit.node, { message: `${MESSAGE} production __orb assignment outside the sanctioned bridge door: ${hit.path}`, fix: FIX });
       }
+      for (const hit of unreadableWrites) {
+        ctx.report.node(hit.node, { message: `${MESSAGE} a global write whose key cannot be read could be the install door: ${hit.path}`, fix: FIX });
+      }
       if (!capabilityRegistry) {
         report(BRIDGE, `ORB_DEBUG_CAPABILITIES must satisfy ${CAPABILITY_TYPE}`);
       }
@@ -208,8 +222,14 @@ export const gate = defineGate({
             const path = ctx.relativePath(sourceFile);
             // The CT is admitted so its proof markers can be read; it is NOT production, so an `__orb`
             // assignment in a mounted test is not a second install door.
-            if (path.startsWith(CLIENT_SOURCE) && isOrbAssignment(node)) {
+            if (!path.startsWith(CLIENT_SOURCE)) {
+              return;
+            }
+            const write = orbAssignment(node);
+            if (write === "door") {
               assignments.push({ path, node });
+            } else if (write === "unreadable") {
+              unreadableWrites.push({ path, node });
             }
           },
         },
@@ -276,11 +296,55 @@ export const gate = defineGate({
       files: {
         ...VALID_BOUNDARY_FIXTURES,
         [BRIDGE]: VALID_BRIDGE,
+        "packages/client/src/lib/rogue.ts": 'const KEY = "__orb";\nglobalThis[KEY] = {};\n',
+        [CT]: VALID_CT_FIXTURE,
+      },
+      expect: { count: 1, token: "globalThis", messageIncludes: "outside the sanctioned bridge door" },
+      why: "a key a const binding spells is the same install door as the quoted key; a literal-only key reader lets it through",
+    },
+    {
+      mode: "source",
+      files: {
+        ...VALID_BOUNDARY_FIXTURES,
+        [BRIDGE]: VALID_BRIDGE,
+        "packages/client/src/lib/rogue.ts": 'let key = "orb";\nkey = "__orb";\nwindow[key] = {};\n',
+        [CT]: VALID_CT_FIXTURE,
+      },
+      expect: { count: 1, token: "window", messageIncludes: "key cannot be read" },
+      why: "a reassigned key resolves to no one name, so a global write through it is refused rather than passed",
+    },
+    {
+      mode: "source",
+      files: {
+        ...VALID_BOUNDARY_FIXTURES,
+        [BRIDGE]: VALID_BRIDGE,
         "packages/client/src/lib/rogue.ts": 'window["__orb"] = globalThis.__orb;\n',
         [CT]: VALID_CT_FIXTURE,
       },
       expect: { count: 1, token: "window", messageIncludes: "outside the sanctioned bridge door" },
       why: "a second production installer recreates the parallel-bridge drift this lock exists to prevent — and the ELEMENT-ACCESS spelling, which a property-access-only reader misses",
+    },
+    {
+      mode: "source",
+      files: {
+        ...VALID_BOUNDARY_FIXTURES,
+        [BRIDGE]: VALID_BRIDGE,
+        "packages/client/src/lib/rogue.ts": "globalThis[`__orb`] = {};\n",
+        [CT]: VALID_CT_FIXTURE,
+      },
+      expect: { count: 1, token: "globalThis", messageIncludes: "outside the sanctioned bridge door" },
+      why: "the no-substitution template key is the same install door as the quoted key; a string-literal-only reader lets it through",
+    },
+    {
+      mode: "source",
+      files: {
+        ...VALID_BOUNDARY_FIXTURES,
+        [BRIDGE]: VALID_BRIDGE,
+        "packages/client/src/lib/rogue.ts": "(globalThis as unknown as Record<string, unknown>).__orb = {};\n",
+        [CT]: VALID_CT_FIXTURE,
+      },
+      expect: { count: 1, messageIncludes: "outside the sanctioned bridge door" },
+      why: "an asserted global receiver is still the global; reading the receiver's raw text lets the cast through",
     },
     {
       mode: "source",
@@ -422,10 +486,10 @@ export const gate = defineGate({
         ...VALID_BOUNDARY_FIXTURES,
         [BRIDGE]: VALID_BRIDGE,
         "packages/client/src/lib/lookalike.ts":
-          'const holder: Record<string, unknown> = {};\nholder.__orb = 1;\nholder["__orb"] = 2;\nglobalThis.other = 3;\nwindow["orb"] = 4;\n',
+          'const holder: Record<string, unknown> = {};\nholder.__orb = 1;\nholder["__orb"] = 2;\nglobalThis.other = 3;\nwindow["orb"] = 4;\nconst OTHER = "other";\nglobalThis[OTHER] = 5;\nlet slot = "a";\nslot = "__orb";\nholder[slot] = 6;\n',
         [CT]: VALID_CT_FIXTURE,
       },
-      why: "THE INSTALL-DOOR IDENTITY FENCE, pinned: a local object whose KEY is spelled `__orb`, and a global assignment to some other member, are not the install door. Widening `isOrbAssignment` to any `__orb` write — or to any global assignment — flags three sites here and REDS this row",
+      why: "THE INSTALL-DOOR IDENTITY FENCE, pinned: a local object whose KEY is spelled `__orb`, and a global assignment to some other member, are not the install door. Widening `orbAssignment` to any `__orb` write, to any global assignment, or to a reassigned key on a local object flags sites here and REDS this row",
     },
     {
       mode: "source",

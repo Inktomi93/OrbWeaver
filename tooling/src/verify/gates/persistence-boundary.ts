@@ -26,6 +26,9 @@
 // project object with a `localStorage` property would have matched had it been spelled bare. The subject
 // is the ambient global, resolved through the shared readers; a member read off any other receiver is NOT
 // A SUBJECT (an injected storage port is the testable shape), which is a different answer from "unproven".
+// A computed key a binding supplies is read natively and judged by its name; one that resolves to no one name
+// off the ambient global is refused as unreadable. DECLARED LIMIT: a keyed read is nominated only off a
+// spelled `globalThis`/`self`/`window` receiver, so `const g = globalThis; g[STORE]` is not judged.
 //
 // THE FAIL-CLOSED THIRD ANSWER, AND WHAT ACTUALLY REACHES IT (measured 2026-09-12; the previous paragraph
 // here claimed a BARE `localStorage` lands on the unreadable finding because the analysis program is
@@ -60,8 +63,9 @@
 //     for a NON-member node, where `memberPath` is empty by construction, so no fixture can make the test
 //     decide anything. It stays because it is the shared reader's contract, and no row claims to prove it
 //     (§4.1's fourth outcome: record the gap, never fake a pin).
-import type { Node as MorphNode } from "ts-morph";
+import type { ElementAccessExpression, Node as MorphNode } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
+import { computedNameNeedsBindings, literalMemberAccess, referenceResolutionServices } from "../../floor/code-facts/reference-fact.ts";
 import type { GlobalOriginServices } from "../contract/origin-verdict.ts";
 import { defineGate } from "../contract/policy.ts";
 import { nativeOriginPass } from "../lib/native-origin.ts";
@@ -80,7 +84,7 @@ const MESSAGE =
   "`createPersistedStore` / `createEntityDraftStore`, which force version/partialize/migrate. A boot or " +
   "dev-tooling home that must touch the api directly takes an exact reviewed grant naming the store.";
 const UNREADABLE =
-  "this reference is spelled like a raw browser store but the shared readers cannot place its binding, so whether it is the storage api CANNOT be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
+  "this reference may be a raw browser store, but the shared readers cannot place its binding or read its computed key, so whether it is the storage api cannot be established. Reported rather than passed: the spelling alone is not the identity. Give the binding a readable import origin and the key a const literal; the three-answer rule is tooling/src/verify/lib/origin-verdict.ts (#944).";
 const FIX =
   "mint the state through createPersistedStore/createEntityDraftStore, or home the preference in the synced user_settings blob; a boot/dev-tooling home takes an exact reviewed grant.";
 
@@ -89,15 +93,8 @@ function storageCandidateName(node: MorphNode): string | undefined {
   if (Node.isIdentifier(node)) {
     return STORAGE_NAMES.find((name) => name === node.getText());
   }
-  if (Node.isPropertyAccessExpression(node)) {
-    return STORAGE_NAMES.find((name) => name === node.getName());
-  }
-  if (!Node.isElementAccessExpression(node)) {
-    return;
-  }
-  const argument = node.getArgumentExpression();
-  const literal = argument !== undefined && (Node.isStringLiteral(argument) || Node.isNoSubstitutionTemplateLiteral(argument)) ? argument.getLiteralText() : "";
-  return STORAGE_NAMES.find((name) => name === literal);
+  const member = literalMemberAccess(node, true);
+  return STORAGE_NAMES.find((name) => name === member?.name);
 }
 
 /** A `typeof globals.localStorage` capability probe, or a TYPE QUERY naming the api's type, is not a use. */
@@ -114,6 +111,51 @@ function isExpressionReference(node: MorphNode): boolean {
 }
 
 type StorageVerdict = "raw" | "other" | "unreadable";
+
+/** A computed member off a spelled global receiver whose key a binding supplies (`globalThis[STORE]`): its name is
+ *  known only after the native read. The receiver is matched by spelling so the native read stays on these few. */
+function keyedCandidate(node: MorphNode): node is ElementAccessExpression {
+  if (!Node.isElementAccessExpression(node)) {
+    return false;
+  }
+  const key = node.getArgumentExpression();
+  const receiver = referenceResolutionServices.unwrapExpression(node.getExpression());
+  return key !== undefined && computedNameNeedsBindings(key) && Node.isIdentifier(receiver) && GLOBAL_RECEIVERS.has(receiver.getText());
+}
+
+/** Judge a keyed candidate by the store its key resolves to; an unresolvable key off the ambient global fails closed. */
+function classifyKeyed(node: ElementAccessExpression, services: GlobalOriginServices): { readonly verdict: StorageVerdict; readonly name: string } {
+  const key = node.getArgumentExpressionOrThrow();
+  const resolvedName = services.readComputedName(key);
+  if (resolvedName.kind === "resolved") {
+    const store = STORAGE_NAMES.find((name) => name === resolvedName.value);
+    return store === undefined ? { verdict: "other", name: resolvedName.value } : { verdict: classify(node, store, services), name: store };
+  }
+  const receiver = services.globalOrigin(referenceResolutionServices.unwrapExpression(node.getExpression()));
+  const global = receiver.kind === "resolved" && receiver.value.memberPath.length === 0 && GLOBAL_RECEIVERS.has(receiver.value.globalName);
+  return { verdict: global ? "unreadable" : "other", name: key.getText() };
+}
+
+/** A named candidate is judged by its spelled store; an unnamed one only exists as a keyed candidate. */
+function judge(
+  node: MorphNode,
+  name: string | undefined,
+  services: GlobalOriginServices,
+): { readonly verdict: StorageVerdict; readonly name: string } | undefined {
+  if (name !== undefined) {
+    return { verdict: classify(node, name, services), name };
+  }
+  return keyedCandidate(node) ? classifyKeyed(node, services) : undefined;
+}
+
+/** Where a finding points: the spelled store, or for a keyed read the key that names it. */
+function findingAnchor(node: MorphNode, name: string): { readonly token: string; readonly offset: number } {
+  if (keyedCandidate(node)) {
+    const key = node.getArgumentExpressionOrThrow();
+    return { token: key.getText(), offset: key.getStart() - node.getStart() };
+  }
+  return { token: name, offset: Math.max(node.getText().lastIndexOf(name), 0) };
+}
 
 function classify(node: MorphNode, name: string, services: GlobalOriginServices): StorageVerdict {
   if (readsAmbientGlobalPath(node, GLOBAL_RECEIVERS, [name], services)) {
@@ -147,7 +189,8 @@ export const gate = defineGate({
   fix: FIX,
   create: (ctx) => {
     const candidates: ReviewedGrantCandidate[] = [];
-    const reads = new Map<MorphNode, string>();
+    // A keyed candidate's store name is unknown until the native key read, so it enters unnamed.
+    const reads = new Map<MorphNode, string | undefined>();
     const origins = nativeOriginPass(ctx, []);
     return {
       visitors: [
@@ -155,7 +198,7 @@ export const gate = defineGate({
           kinds: [SyntaxKind.Identifier, SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression],
           visit: (node): void => {
             const name = storageCandidateName(node);
-            if (name === undefined || isCapabilityProbe(node) || !isExpressionReference(node)) {
+            if ((name === undefined && !keyedCandidate(node)) || isCapabilityProbe(node) || !isExpressionReference(node)) {
               return;
             }
             reads.set(node, name);
@@ -165,18 +208,18 @@ export const gate = defineGate({
       ],
       prepare: origins.prepare,
       evaluate: (): void => {
-        for (const [node, name] of reads) {
-          const verdict = classify(node, name, origins.at(node));
-          if (verdict === "other") {
+        for (const [node, candidateName] of reads) {
+          const judged = judge(node, candidateName, origins.at(node));
+          if (judged === undefined || judged.verdict === "other") {
             continue;
           }
+          const { verdict, name } = judged;
           candidates.push({
             node,
             subject: ctx.relativePath(node.getSourceFile()),
             operation: `raw-storage:${name}`,
             unreadable: verdict === "unreadable",
-            token: name,
-            offset: Math.max(node.getText().lastIndexOf(name), 0),
+            ...findingAnchor(node, name),
           });
         }
         reportReviewedGrantCandidates(ctx.report, candidates, { message: MESSAGE, fix: FIX, unreadableMessage: UNREADABLE });
@@ -206,6 +249,24 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/client/src/features/x/const-key.ts":
+          'const STORE = "localStorage";\nexport const read = (): string | null => globalThis[STORE].getItem("k");\n',
+      },
+      expect: { count: 1, messageIncludes: "outside the persistence doors" },
+      why: "A CONST-BOUND KEY spells the same store as the quoted key; the key reader resolves the binding, so the precise verdict answers",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/written-key.ts":
+          'let store = "name";\nstore = "localStorage";\nexport const read = (): unknown => (globalThis as unknown as Record<string, { getItem: (key: string) => unknown }>)[store]?.getItem("k");\n',
+      },
+      expect: { count: 1, messageIncludes: "cannot be established" },
+      why: "A REASSIGNED KEY on the ambient global names no one store, so the read is refused as unreadable rather than passed as some other member",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/client/src/features/x/cast.ts":
           "const globals = globalThis as { indexedDB?: { open: (name: string) => unknown } };\nexport const open = (): unknown => globals.indexedDB?.open('db');\n",
       },
@@ -222,7 +283,7 @@ export const gate = defineGate({
       mode: "types",
       files: { "packages/client/src/features/x/quasi.ts": "export const read = (): string | null => globalThis[`localStorage`].getItem('k');\n" },
       expect: { count: 1, messageIncludes: "outside the persistence doors" },
-      why: "THE BACKTICK COMPUTED SPELLING: an element access whose argument is a `NoSubstitutionTemplateLiteral` rather than a `StringLiteral`. `storageCandidateName` reads both literal kinds; before this row only the quoted half was exercised, so dropping the template arm was a clean cut. Drop `Node.isNoSubstitutionTemplateLiteral(argument)` and this row is the one that dies",
+      why: "THE BACKTICK COMPUTED SPELLING: an element access whose argument is a `NoSubstitutionTemplateLiteral` rather than a `StringLiteral`. `storageCandidateName` reads both literal kinds through `literalMemberAccess(node, true)`; without this row only the quoted half is exercised. Drop the `true` template flag and this row is the one that dies",
     },
     {
       mode: "types",
@@ -266,6 +327,14 @@ export const gate = defineGate({
           "export const read = (localStorage: { getItem: (key: string) => string | null }): string | null => localStorage.getItem('k');\n",
       },
       why: "A PARAMETER named `localStorage` shadows the global — an injected store is the testable shape, not a fork of the api",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/x/keys.ts":
+          'const OTHER = "location";\nexport const here = (): unknown => globalThis[OTHER];\nexport const pick = (stores: Record<string, unknown>, name: string): unknown => stores[name];\n',
+      },
+      why: "A CONST KEY naming another member, and a dynamic key on a local object, are not a store: only an ambient-global read whose key is unreadable fails closed",
     },
     {
       mode: "types",

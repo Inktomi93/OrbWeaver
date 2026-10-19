@@ -1,8 +1,8 @@
 // Native browser contracts and mounting must not borrow semantics from the ordinary syntax carrier.
-import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
-import { dirname, join } from "node:path";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { pathToFileURL } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, plantFile, plantLink, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { Project } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { beforeEach, vi } from "vitest";
@@ -43,8 +43,7 @@ const POLICIES = [contracts, mounting];
 
 function fixture(root: string, repoRoot: string, additionalFiles: Readonly<Record<string, string>> = {}): void {
   const write = (path: string, text: string): void => {
-    mkdirSync(dirname(join(root, path)), { recursive: true });
-    writeFileSync(join(root, path), text);
+    plantFile(root, path, text);
   };
   const mountingProof = mounting.mustPass.find(
     (proof) => proof.why === "native mount aliases and a genuine door imported under another name keep canonical identity",
@@ -81,7 +80,7 @@ export type ForeignEvent = Foreign.SyntheticEvent<PlainApplicationType>;
   for (const [path, text] of Object.entries(files)) {
     write(path, text);
   }
-  symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
+  plantLink(root, "node_modules", join(repoRoot, "node_modules"), "dir");
   write(".gitignore", "node_modules\n.cache\nreports\n");
   write("package.json", JSON.stringify({ name: "native-browser-mount-fixture", type: "module" }));
   const compilerOptions = {

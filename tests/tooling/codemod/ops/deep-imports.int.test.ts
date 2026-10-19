@@ -80,6 +80,35 @@ test("a conflicting origin and a missing target export remain refusals instead o
   expect(result.writes.has("packages/p/src/b/index.ts")).toBe(false);
 });
 
+test("every module position the package-deep-import gate reads is re-spelled or refused, not only declarations", async ({ plantedTree }) => {
+  const root = await gitTree(plantedTree, {
+    ...FILES,
+    "packages/p/src/a/x/lazy.ts":
+      'export const load = () => import("../../a/q.ts");\n' +
+      'export type Q = import("../../a/q.ts").Q;\n' +
+      'export const required = require("../../b/z.ts");\n' +
+      "export const data = `../../a/q.ts`;\n",
+    "packages/p/src/a/q.ts": 'export const q = "q";\nexport type Q = string;\n',
+  });
+
+  const result = planDeepImports(root);
+
+  expect(result.writes.get("packages/p/src/a/x/lazy.ts")).toBe(
+    'export const load = () => import("#src/a/q.ts");\n' +
+      'export type Q = import("#src/a/q.ts").Q;\n' +
+      'export const required = require("../../b/z.ts");\n' +
+      "export const data = `../../a/q.ts`;\n",
+  );
+  expect(result.notes).toEqual([
+    {
+      file: "packages/p/src/a/x/lazy.ts",
+      line: 3,
+      text: "../../b/z.ts",
+      reason: "a call or import() type crosses into b; it names no binding to route through the front door",
+    },
+  ]);
+});
+
 test("narrow graph closure follows static re-export cycles but does not admit dynamic-only consumers", async ({ plantedTree }) => {
   const root = await gitTree(plantedTree, {
     ...FILES,

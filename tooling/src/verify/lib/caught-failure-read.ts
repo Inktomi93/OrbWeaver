@@ -5,6 +5,14 @@ import type { ObservedLiteralValue } from "../../floor/code-facts/type-observati
 import { nodeTypeSelector } from "../../floor/code-facts/type-projection-contract.ts";
 import type { CaughtFailureReadServices } from "../contract/caught-failure.ts";
 
+/** Members whose literal values type a call as a failure outcome; the native plan asks exactly these. */
+export const FAILURE_OUTCOME_OK_MEMBER = "ok";
+export const FAILURE_OUTCOME_DISCRIMINANTS = ["kind", "status", "step", "verdict"] as const;
+/** Declaration hops the native closure walks past each nominated site; a read beyond them is unresolved (D328). */
+export const CAUGHT_FAILURE_CLOSURE_HOPS = 2;
+/** The member whose presence makes a rejection receiver promise-like. */
+export const PROMISE_LIKE_MEMBER = "then";
+
 export function rawFailureDeclarations(node: Node, reads: CaughtFailureReadServices | undefined, aliased = false): readonly Node[] {
   if (reads === undefined) {
     const symbol = node.getSymbol();

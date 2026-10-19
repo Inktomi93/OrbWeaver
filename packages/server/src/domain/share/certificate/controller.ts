@@ -44,6 +44,11 @@ export function createCertificateController(deps: CertificateControllerDeps): Ow
   let disposed = false;
   let disposal: Promise<void> | undefined;
 
+  // A call, so the checker does not keep a `setting = null` narrowing across an awaited halt in which a concurrent enable replaces it.
+  function currentSetting(): IpCertificateSetting | null {
+    return setting;
+  }
+
   function track<T extends IpCertificateStatus | void>(run: () => Promise<T>): Promise<T> {
     if (disposed) {
       return Promise.reject(new Error("The certificate controller is disposed"));
@@ -335,8 +340,7 @@ export function createCertificateController(deps: CertificateControllerDeps): Ow
         setting = null;
         status = { state: "off" };
         const gen = await halt();
-        // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition -- a concurrent enable may replace shared setting during awaited halt; TypeScript retains the earlier null narrowing across that await.
-        if (gen !== generation && setting !== null) {
+        if (gen !== generation && currentSetting() !== null) {
           return;
         }
         await deps.store.removeCertificate();

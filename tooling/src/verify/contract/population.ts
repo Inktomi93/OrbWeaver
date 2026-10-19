@@ -55,7 +55,7 @@ export const POPULATION_ROOTS = {
    *  already judged before the move, so it is classified `authored: true` below — leaving it outside
    *  `@authored` would silently NARROW every policy declaring it over live runtime code, the opposite of the
    *  measured-widening question the content packages pose. The `@server`-scoped gates that must ALSO see it
-   *  (the `no-raw-egress` ratchet first) are re-pointed in the extraction step (§12), not here. */
+   *  are re-pointed in the extraction step (§12), not here. */
   "@inference": ["packages/inference/src/"],
   "@tooling": ["tooling/src/"],
   "@tests": ["tests/"],

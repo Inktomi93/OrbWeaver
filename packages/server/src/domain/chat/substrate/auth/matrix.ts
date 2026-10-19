@@ -159,7 +159,6 @@ export const CHAT_VERB_AUTHORITY = {
   setToolRecurseLimit: "host", // the host sets the per-chat tool-call recursion cap (room-wide turn behavior is the host's authority, the setRoomOverrides twin)
 
   getGroupConfigForChat: "member", // read the effective room config (it affects the member)
-  getRoomOverridesForChat: "member",
 
   setSeatKnobs: "host", // the ONE participantId-keyed AI-seat knob write (D80 — the retired per-kind forking's replacement)
   createInvite: "host",

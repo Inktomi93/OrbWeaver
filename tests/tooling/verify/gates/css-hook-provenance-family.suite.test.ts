@@ -1,7 +1,7 @@
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { expect, plantFile, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { Project } from "ts-morph";
 import type { ReviewedGateGrant } from "../../../../tooling/src/verify/contract/gate-authority.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
@@ -231,9 +231,7 @@ const NON_AUTHORED_SEGMENT_RE = /(?:^|\/)(?:node_modules|\.git|dist|\.cache)(?:\
 function passResource(policy: GatePolicy, root: string, files: Readonly<Record<string, string>>): PolicyPassResult {
   const project = new Project({ skipAddingFilesFromTsConfig: true });
   for (const [path, content] of Object.entries(files)) {
-    const absolute = join(root, path);
-    mkdirSync(dirname(absolute), { recursive: true });
-    writeFileSync(absolute, content);
+    const absolute = plantFile(root, path, content);
     if (path.endsWith(".ts") || path.endsWith(".tsx")) {
       project.addSourceFileAtPath(absolute);
     }

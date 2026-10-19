@@ -307,15 +307,25 @@ export interface ResolvedIdentity {
   email: string | null;
 }
 
+// SECURITY: the private member makes Principal nominal. A literal, a spread of another Principal or a
+// `satisfies` check cannot produce one, so the only constructor is the cast in
+// `packages/server/src/entry/auth/principal-mint.ts`, whose importers dependency-cruiser limits (D1, D40).
+// The brand cannot refuse an assertion, an Object.assign intersection or an `any`-typed value. The ESLint
+// `orb/principal-*` rules refuse the first two, and every rename of this name, in server and inference code.
+// No rule refuses an `any` value bound or passed as a Principal (Spine-Identity-and-Auth.md §3).
+declare class PrincipalMint {
+  private readonly principalMint: true;
+}
+
 /** The post-seam, immutable, db-resolved caller, constructed ONCE and carried downstream unchanged. No
  *  `isOwner` field — owner⊇admin lives only inside the `can()` seam. `via: "fallback"` is the SAFE
  *  "this IS the owner" marker — never infer it from `externalId === null` (a forward-header is also null). */
-export interface Principal {
-  userId: UserId;
-  role: UserRoleState;
-  handle: Handle;
-  externalId: ExternalId | null;
-  via: "cookie" | "header" | "fallback";
+export interface Principal extends PrincipalMint {
+  readonly userId: UserId;
+  readonly role: UserRoleState;
+  readonly handle: Handle;
+  readonly externalId: ExternalId | null;
+  readonly via: "cookie" | "header" | "fallback";
 }
 
 /** The canonical viewer identity (`sessions.me`), projected from the request Principal at the transport seam.

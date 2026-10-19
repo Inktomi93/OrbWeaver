@@ -127,6 +127,8 @@ interface CorpusProviderScript {
   readonly modelIds: readonly string[];
   readonly embedding: readonly number[] | ((input: string) => readonly number[]);
   readonly chatText: string | ((requestBody: string) => string);
+  /** Stream the scripted chat text as these separate deltas; their concatenation is `chatText`. */
+  readonly chatChunks?: readonly string[];
   readonly structuredReplies: ReadonlyMap<string, string>;
   readonly images: Uint8Array[];
   readonly usage?: TerminalFrameOptions["usage"];
@@ -247,9 +249,14 @@ function chatReply(script: CorpusProviderScript, fields: ProviderRequest, reques
       type: "function",
       function: { name: call.name, arguments: call.argumentsJson },
     }));
-    const delta = calls.length === 0 ? `{"content":${JSON.stringify(text)}}` : `{"content":${JSON.stringify(text)},"tool_calls":${JSON.stringify(tools)}}`;
+    const scriptedChunks = completion === undefined && fields.response_format?.json_schema === undefined ? script.chatChunks : undefined;
+    const deltas =
+      calls.length === 0
+        ? (scriptedChunks ?? [text]).map((chunk) => `{"content":${JSON.stringify(chunk)}}`)
+        : [`{"content":${JSON.stringify(text)},"tool_calls":${JSON.stringify(tools)}}`];
+    const frames = deltas.map((delta) => `data: {"choices":[{"delta":${delta}}]}\n\n`).join("");
     return new Response(
-      `data: {"choices":[{"delta":${delta}}]}\n\n${terminalSseLine({ finishReason: calls.length === 0 ? "stop" : "tool_calls", ...(usage === undefined ? {} : { usage }) })}\n\ndata: [DONE]\n\n`,
+      `${frames}${terminalSseLine({ finishReason: calls.length === 0 ? "stop" : "tool_calls", ...(usage === undefined ? {} : { usage }) })}\n\ndata: [DONE]\n\n`,
       {
         headers: { "content-type": "text/event-stream" },
       },

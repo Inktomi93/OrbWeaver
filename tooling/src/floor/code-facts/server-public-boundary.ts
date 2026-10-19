@@ -1,4 +1,6 @@
 // Placement follows compiler-checked public declarations, never instantiated structural type graphs.
+// A walk stays inside its root's tier: every other linted server file judges its own imports, so a declaration
+// outside that tier (lib, node_modules, packages, another tier, an augmentation) stops it, except from an unlinted file.
 import { matchesGlob, relative } from "node:path";
 import ts from "typescript";
 import type { ReferenceFact } from "./reference-fact-contract.ts";
@@ -6,19 +8,23 @@ import type { DeclarationMeaning, GenericFormal } from "./server-public-boundary
 import {
   aliasTarget,
   annotationChildren,
-  authoredAnnotationRefusal,
-  completeSignature,
+  closedExpression,
+  constituents,
   declarationHasMeaning,
   defaultNeedsBinding,
   formalContribution,
   genericDeclaration,
   genericFormals,
+  inferredOperands,
   isPublicSignature,
   namedDeclaration,
   primitiveLiteral,
+  primitiveType,
   publicAnnotationDeclaration,
   publicClassMember,
   publicParameterProperty,
+  reflectedOperands,
+  returnedExpressions,
   shapeDeclaration,
   terminalDeclaration,
   typeApplication,
@@ -27,22 +33,22 @@ import {
   vocabularyChildren,
 } from "./server-public-boundary-grammar.ts";
 import { WIRE_SHAPE_SUFFIXES } from "./shape-declaration.ts";
-import { nativeFactoryTypeHomePopulation, packageTypeHome, serverTypeTier, TYPE_HOME_NATIVE_CONTRACT_GLOBS } from "./type-home.ts";
+import { nativeFactoryTypeHomePopulation, packageTypeHome, serverTypeTier, TYPE_HOME_NATIVE_CONTRACT_GLOBS, unjudgedServerFile } from "./type-home.ts";
 import { readParserTransparentAliasOrigin } from "./type-member-origin.ts";
 import type { NativeParserTypeContext } from "./type-member-origin-contract.ts";
 
+// Erasable syntax admits no authored namespace, so any module declaration around a server node is an ambient augmentation.
 function isAugmentationMember(node: ts.Node): boolean {
-  let parent = node.parent;
-  while (!ts.isSourceFile(parent)) {
+  for (let parent: ts.Node | undefined = node.parent; parent !== undefined; parent = parent.parent) {
     if (ts.isModuleDeclaration(parent)) {
       return true;
     }
-    parent = parent.parent;
   }
   return false;
 }
 
-function signatureOwns(declaration: ts.Declaration, checker: ts.TypeChecker): boolean {
+// A generic declared outside the shape's tier is never walked, so each of its actuals counts as a direct use.
+function signatureOwns(declaration: ts.Declaration, checker: ts.TypeChecker, foreign: (node: ts.Node) => boolean): boolean {
   let owned = false;
   const reference = (node: ts.Node): void => {
     if (!ts.isTypeReferenceNode(node)) {
@@ -54,8 +60,9 @@ function signatureOwns(declaration: ts.Declaration, checker: ts.TypeChecker): bo
     if (declarations.includes(declaration)) {
       owned = true;
     }
+    const local = declarations.filter((candidate) => !foreign(candidate));
     for (const [index, argument] of (node.typeArguments ?? []).entries()) {
-      if (genericFormals(declarations, index).some(({ owner, parameter }) => formalContribution(parameter, owner, checker) === "direct")) {
+      if (local.length === 0 || genericFormals(local, index).some(({ owner, parameter }) => formalContribution(parameter, owner, checker) === "direct")) {
         reference(argument);
       }
     }
@@ -72,21 +79,31 @@ function signatureOwns(declaration: ts.Declaration, checker: ts.TypeChecker): bo
   return owned;
 }
 
-/** All reached edges retain the actual parser realm; partial confirmed findings survive a qualification refusal. */
-export function readServerPublicBoundary(
-  node: ts.Node,
-  parser: NativeParserTypeContext,
-  root: string,
-  consumer: string,
-): ReferenceFact<readonly ts.Declaration[], ts.Node> {
+interface BoundaryWalk {
+  readonly start: (tier: string | undefined) => void;
+  readonly visitRoot: (node: ts.Node) => void;
+  readonly visitAugmentation: (augmentation: ts.ModuleDeclaration) => void;
+  readonly refuse: (detail: string) => void;
+  readonly fact: (origin: ts.Node) => ReferenceFact<readonly ts.Declaration[], ts.Node>;
+}
+
+function boundaryWalk(parser: NativeParserTypeContext, root: string, consumer: string): BoundaryWalk {
   const { program, checker } = parser;
   const findings = new Set<ts.Declaration>();
   const visited = { type: new Set<ts.Declaration>(), value: new Set<ts.Declaration>() };
   const opaqueVisited = { type: new Set<ts.Declaration>(), value: new Set<ts.Declaration>() };
   let opaque = false;
+  let tier: string | undefined;
   const refusals = new Set<string>();
   const path = (declaration: ts.Node): string => relative(root, declaration.getSourceFile().fileName).replaceAll("\\", "/");
+  const site = (node: ts.Node): string => `${path(node)}:${node.getSourceFile().getLineAndCharacterOfPosition(node.getStart()).line + 1}`;
   const contains = (candidate: ts.Node): boolean => program.getSourceFile(candidate.getSourceFile().fileName) === candidate.getSourceFile();
+  // Inside an unjudged file every server declaration is walked, because no lint run judges that file's own imports.
+  let passThrough = false;
+  const foreign = (declaration: ts.Node): boolean => {
+    const owner = serverTypeTier(path(declaration));
+    return isAugmentationMember(declaration) || (passThrough ? owner === undefined : owner !== tier);
+  };
   const external = (declaration: ts.Node): boolean => {
     const source = declaration.getSourceFile();
     const owned = path(declaration);
@@ -162,12 +179,28 @@ export function readServerPublicBoundary(
   const visitSymbol = (at: ts.Node, signature: boolean, meaning: DeclarationMeaning = "type"): void => {
     const declarations = symbolDeclarations(at, meaning);
     if (declarations.length === 0) {
-      refusals.add(
-        `the native public reference ${at.getText()} at ${path(at)}:${at.getSourceFile().getLineAndCharacterOfPosition(at.getStart()).line + 1} has no declaration`,
-      );
+      refusals.add(`the native public reference ${at.getText()} at ${site(at)} has no declaration`);
     }
     for (const declaration of declarations) {
       visitDeclaration(declaration, signature, meaning);
+    }
+  };
+  // A generic declared outside the tier keeps its formals out of reach; every authored actual counts as exposed.
+  const visitApplication = (
+    reference: ts.TypeReferenceNode | ts.ExpressionWithTypeArguments | ts.ImportTypeNode,
+    declarations: readonly ts.Declaration[],
+    signature: boolean,
+  ): void => {
+    const local = declarations.filter((declaration) => !foreign(declaration));
+    if (local.length > 0) {
+      visitArguments(reference, local, signature);
+    } else {
+      for (const argument of reference.typeArguments ?? []) {
+        visitAnnotation(argument, signature);
+      }
+    }
+    for (const declaration of declarations) {
+      visitDeclaration(declaration, signature);
     }
   };
   const visitReference = (reference: ts.TypeReferenceNode | ts.ExpressionWithTypeArguments, signature: boolean): void => {
@@ -178,10 +211,7 @@ export function readServerPublicBoundary(
       return;
     }
     // Actual arguments precede declaration dedup: Box<A> and Box<B> are different ownership edges.
-    visitArguments(reference, declarations, signature);
-    for (const declaration of declarations) {
-      visitDeclaration(declaration, signature);
-    }
+    visitApplication(reference, declarations, signature);
   };
   const visitOpaqueActual = (argument: ts.TypeNode): void => {
     const previous = opaque;
@@ -247,10 +277,7 @@ export function readServerPublicBoundary(
     if (declarations.length === 0) {
       refusals.add("the native import-type reference has no declaration");
     }
-    visitArguments(annotation, declarations, signature);
-    for (const declaration of declarations) {
-      visitDeclaration(declaration, signature);
-    }
+    visitApplication(annotation, declarations, signature);
   };
   const visitComputedName = (annotation: ts.Node): void => {
     if (!opaque) {
@@ -269,11 +296,22 @@ export function readServerPublicBoundary(
       refusals.add("a computed public member name has no qualified native value declaration edge");
     }
   };
+  // `typeof x` reaches x's value declaration; reflected operands are all walked, which can only add findings.
+  const visitReflected = (annotation: ts.Node, signature: boolean): boolean => {
+    if (ts.isTypeQueryNode(annotation) && ts.isIdentifier(annotation.exprName) && narrowed(annotation.exprName)) {
+      refusals.add(`a narrowed reference at ${site(annotation)} carries a flow type its declaration does not name`);
+    } else if (ts.isTypeQueryNode(annotation)) {
+      visitSymbol(annotation.exprName, signature, "value");
+    }
+    const operands = ts.isTypeQueryNode(annotation) ? (annotation.typeArguments ?? []) : reflectedOperands(annotation);
+    for (const operand of operands ?? []) {
+      visitAnnotation(operand, signature);
+    }
+    return operands !== undefined;
+  };
   const visitAnnotation = (annotation: ts.Node, signature: boolean): void => {
     visitComputedName(annotation);
-    const refusal = external(annotation) ? undefined : authoredAnnotationRefusal(annotation);
-    if (refusal !== undefined) {
-      refusals.add(refusal);
+    if (visitReflected(annotation, signature)) {
       return;
     }
     if (typeApplication(annotation)) {
@@ -284,10 +322,6 @@ export function readServerPublicBoundary(
       visitImportType(annotation, signature);
       return;
     }
-    if (ts.isTypeQueryNode(annotation) && external(annotation)) {
-      visitSymbol(annotation.exprName, signature, "value");
-      return;
-    }
     if (publicAnnotationDeclaration(annotation)) {
       visitDeclaration(annotation, signature, "type", true);
       return;
@@ -296,24 +330,148 @@ export function readServerPublicBoundary(
       visitAnnotation(child, signature);
     }
   };
-  const visitCallable = (declaration: ts.SignatureDeclaration): void => {
-    if (!(completeSignature(declaration) || external(declaration))) {
-      refusals.add("an authored callable public boundary is missing an explicit parameter or result annotation");
+  // An omitted annotation is inferred from syntax the walk can still read: the returned or initializing
+  // expressions, whose callees, operands and arguments carry every declaration the inferred type can name.
+  // A type predicate, assertion function or conditional test can narrow a reference to a type its declaration never
+  // names. Dropping null, undefined or union members, or refining to a literal, adds no declaration; anything else refuses.
+  const narrowedTo = (reference: ts.Node, symbol: ts.Symbol | undefined): boolean => {
+    if (symbol === undefined) {
+      return false;
     }
+    const declared = new Set(constituents(checker.getNonNullableType(checker.getTypeOfSymbol(aliasTarget(symbol, checker)))));
+    return constituents(checker.getNonNullableType(checker.getTypeAtLocation(reference))).some((part) => !(declared.has(part) || primitiveType(part)));
+  };
+  const narrowed = (expression: ts.Expression): boolean => {
+    let name: ts.Node | undefined;
+    if (ts.isIdentifier(expression)) {
+      name = expression;
+    } else if (ts.isPropertyAccessExpression(expression)) {
+      name = expression.name;
+    } else if (ts.isElementAccessExpression(expression)) {
+      name = expression.argumentExpression;
+    }
+    return name !== undefined && narrowedTo(expression, checker.getSymbolAtLocation(name));
+  };
+  const visitInferred = (expression: ts.Expression): void => {
+    if (narrowed(expression)) {
+      refusals.add(`a narrowed reference at ${site(expression)} carries a flow type its declaration does not name`);
+      return;
+    }
+    if (closedExpression(expression)) {
+      return;
+    }
+    const operands = inferredOperands(expression);
+    if (operands === undefined) {
+      refusals.add(`an inferred ${ts.SyntaxKind[expression.kind]} at ${site(expression)} has no qualified public boundary`);
+      return;
+    }
+    for (const operand of operands) {
+      visitOperand(operand);
+    }
+  };
+  const visitOperand = (operand: ts.Node): void => {
+    if (ts.isTypeNode(operand)) {
+      visitAnnotation(operand, true);
+    } else if (isPublicSignature(operand)) {
+      visitDeclaration(operand, true, "value", true);
+    } else if (ts.isIdentifier(operand)) {
+      visitInferredReference(operand);
+    } else if (ts.isShorthandPropertyAssignment(operand)) {
+      visitShorthand(operand);
+    } else if (ts.isExpression(operand)) {
+      visitInferred(operand);
+    } else {
+      refusals.add(`an inferred ${ts.SyntaxKind[operand.kind]} at ${site(operand)} has no qualified public boundary`);
+    }
+  };
+  const visitShorthand = (property: ts.ShorthandPropertyAssignment): void => {
+    const value = checker.getShorthandAssignmentValueSymbol(property);
+    if (narrowedTo(property.name, value)) {
+      refusals.add(`a narrowed reference at ${site(property)} carries a flow type its declaration does not name`);
+      return;
+    }
+    for (const declaration of value?.declarations ?? []) {
+      visitDeclaration(declaration, true, "value");
+    }
+  };
+  // A compiler intrinsic such as `undefined` binds a symbol with no declaration and names no authored type.
+  const visitInferredReference = (identifier: ts.Identifier): void => {
+    const symbol = checker.getSymbolAtLocation(identifier);
+    if (narrowed(identifier)) {
+      refusals.add(`a narrowed reference at ${site(identifier)} carries a flow type its declaration does not name`);
+    } else if (symbol === undefined) {
+      refusals.add(`the inferred reference ${identifier.text} at ${site(identifier)} has no symbol`);
+    } else if ((aliasTarget(symbol, checker).declarations ?? []).length > 0) {
+      visitSymbol(identifier, true, "value");
+    }
+  };
+  const visitReturns = (declaration: ts.SignatureDeclaration): void => {
+    const body = "body" in declaration ? declaration.body : undefined;
+    if (body === undefined) {
+      refusals.add(`an authored callable public boundary at ${site(declaration)} has neither a result annotation nor a body`);
+    } else if (ts.isBlock(body)) {
+      for (const returned of returnedExpressions(body)) {
+        visitInferred(returned);
+      }
+    } else if (ts.isExpression(body)) {
+      visitInferred(body);
+    }
+  };
+  // A parameter without an annotation or a default is contextually typed by its callee, which the walk visits.
+  const visitParameter = (parameter: ts.ParameterDeclaration): void => {
+    if (parameter.type !== undefined) {
+      visitAnnotation(parameter.type, true);
+    } else if (parameter.initializer !== undefined) {
+      visitInferred(parameter.initializer);
+    }
+  };
+  const visitCallable = (declaration: ts.SignatureDeclaration): void => {
     for (const annotation of children(declaration)) {
       visitAnnotation(annotation, true);
     }
+    for (const parameter of declaration.parameters) {
+      if (parameter.type === undefined && parameter.initializer !== undefined) {
+        visitInferred(parameter.initializer);
+      }
+    }
+    if (declaration.type === undefined && !ts.isConstructorDeclaration(declaration) && !ts.isSetAccessorDeclaration(declaration)) {
+      visitReturns(declaration);
+    }
   };
-  const visitValue = (declaration: ts.VariableDeclaration | ts.PropertyDeclaration | ts.PropertySignature, signature: boolean): void => {
+  const visitValue = (declaration: ts.VariableDeclaration | ts.PropertyDeclaration | ts.PropertySignature): void => {
     if (declaration.type !== undefined) {
       visitAnnotation(declaration.type, true);
       return;
     }
     const value = ts.isPropertySignature(declaration) ? undefined : declaration.initializer;
-    if (ts.isVariableDeclaration(declaration) && value !== undefined && ts.isIdentifier(value)) {
-      visitSymbol(value, signature, "value");
-    } else if (!(external(declaration) || primitiveLiteral(value))) {
-      refusals.add("an authored value or member public boundary is missing an explicit annotation");
+    if (value === undefined) {
+      refusals.add(`an authored value or member public boundary at ${site(declaration)} is missing an explicit annotation`);
+    } else {
+      visitInferred(value);
+    }
+  };
+  // A destructured binding takes its type from the declaration or parameter that holds the whole pattern.
+  const visitBinding = (binding: ts.BindingElement): void => {
+    if (binding.initializer !== undefined) {
+      visitInferred(binding.initializer);
+    }
+    let holder: ts.Node = binding.parent;
+    while (ts.isBindingElement(holder) || ts.isObjectBindingPattern(holder) || ts.isArrayBindingPattern(holder)) {
+      holder = holder.parent;
+    }
+    if (ts.isVariableDeclaration(holder) || ts.isParameter(holder)) {
+      visitDeclaration(holder, true, "value", true);
+    } else {
+      refusals.add(`a destructured binding at ${site(binding)} has no qualified holder`);
+    }
+  };
+  // A namespace import used as a value exposes every export of its module.
+  const visitModule = (source: ts.SourceFile): void => {
+    const module = checker.getSymbolAtLocation(source);
+    for (const exported of module === undefined ? [] : checker.getExportsOfModule(module)) {
+      for (const declaration of aliasTarget(exported, checker).declarations ?? []) {
+        visitDeclaration(declaration, true, declarationHasMeaning(declaration, "value") ? "value" : "type");
+      }
     }
   };
   const visitComposite = (declaration: ts.InterfaceDeclaration | ts.TypeAliasDeclaration | ts.ClassDeclaration, meaning: DeclarationMeaning): void => {
@@ -327,17 +485,31 @@ export function readServerPublicBoundary(
       visitAnnotation(annotation, true);
     }
   };
-  const visitDeclarationBody = (declaration: ts.Declaration, signature: boolean, meaning: DeclarationMeaning): void => {
+  // Declarations that hold a value's type: a variable or member, a parameter, a destructuring holder or a namespace module.
+  const visitValueHolder = (declaration: ts.Declaration): boolean => {
+    if (valueDeclaration(declaration)) {
+      visitValue(declaration);
+    } else if (ts.isParameter(declaration)) {
+      visitParameter(declaration);
+    } else if (ts.isBindingElement(declaration)) {
+      visitBinding(declaration);
+    } else if (ts.isSourceFile(declaration)) {
+      visitModule(declaration);
+    } else {
+      return false;
+    }
+    return true;
+  };
+  const visitDeclarationBody = (declaration: ts.Declaration, meaning: DeclarationMeaning): void => {
     if (isPublicSignature(declaration)) {
       visitCallable(declaration);
       return;
     }
-    if (valueDeclaration(declaration)) {
-      visitValue(declaration, signature);
-      return;
-    }
     if (genericDeclaration(declaration)) {
       visitComposite(declaration, meaning);
+      return;
+    }
+    if (visitValueHolder(declaration)) {
       return;
     }
     if (opaque && ts.isTypeParameterDeclaration(declaration)) {
@@ -351,14 +523,15 @@ export function readServerPublicBoundary(
     }
   };
   const visitDeclaration = (declaration: ts.Declaration, signature: boolean, meaning: DeclarationMeaning = "type", inherited = false): void => {
+    if (!inherited && foreign(declaration)) {
+      return;
+    }
     if (!contains(declaration)) {
       refusals.add("a public declaration belongs to a foreign or stale native source");
       return;
     }
     if (opaque && !inherited && !closedVocabularyOwner(declaration, meaning)) {
-      refusals.add(
-        `an indirect generic actual reaches an unsanctioned or unknown authored declaration at ${path(declaration)}:${declaration.getSourceFile().getLineAndCharacterOfPosition(declaration.getStart()).line + 1}`,
-      );
+      refusals.add(`an indirect generic actual reaches an unsanctioned or unknown authored declaration at ${site(declaration)}`);
       return;
     }
     if (signature && !opaque) {
@@ -369,19 +542,31 @@ export function readServerPublicBoundary(
       return;
     }
     seen.add(declaration);
-    visitDeclarationBody(declaration, signature, meaning);
+    visitOwnedBody(declaration, meaning);
+  };
+  const visitOwnedBody = (declaration: ts.Declaration, meaning: DeclarationMeaning): void => {
+    const previous = passThrough;
+    passThrough ||= unjudgedServerFile(path(declaration));
+    try {
+      visitDeclarationBody(declaration, meaning);
+    } finally {
+      passThrough = previous;
+    }
   };
   const visitRootDeclaration = (declaration: ts.Declaration, meaning: DeclarationMeaning): void => {
+    tier = serverTypeTier(path(declaration));
     const localShape = shapeDeclaration(declaration) && nativeFactoryTypeHomePopulation(path(declaration));
-    const owned = localShape && signatureOwns(declaration, checker);
+    const owned = localShape && signatureOwns(declaration, checker, foreign);
     if (localShape && !owned) {
       refusals.add("the directly imported local shape has no qualified explicit factory signature owner");
     }
     visitDeclaration(declaration, meaning === "type" && (!localShape || owned), meaning);
   };
-  const visitRoot = (): void => {
+  const visitRoot = (node: ts.Node): void => {
     const valueRoots = symbolDeclarations(node, "value");
-    const meaning = !typeOnlyReference(node) && valueRoots.length > 0 ? "value" : "type";
+    // A type-only import of a value exists for `typeof`, so its value declaration is the boundary.
+    const typeRoots = typeOnlyReference(node) ? symbolDeclarations(node, "type") : [];
+    const meaning = valueRoots.length > 0 && typeRoots.length === 0 ? "value" : "type";
     const roots = symbolDeclarations(node, meaning);
     if (roots.length === 0) {
       refusals.add("the native public reference has no declaration");
@@ -390,13 +575,78 @@ export function readServerPublicBoundary(
       visitRootDeclaration(declaration, meaning);
     }
   };
-  if (checker !== program.getTypeChecker() || parser.source !== node.getSourceFile() || !contains(node)) {
-    refusals.add("the parser public boundary belongs to a foreign or stale source/checker epoch");
+  const visitAugmentationMember = (child: ts.Node): void => {
+    if (ts.isModuleBlock(child) || ts.isModuleDeclaration(child)) {
+      ts.forEachChild(child, visitAugmentationMember);
+    } else if (genericDeclaration(child)) {
+      visitComposite(child, "type");
+    } else if (publicAnnotationDeclaration(child)) {
+      visitDeclaration(child, true, "type", true);
+    } else if (ts.isVariableStatement(child)) {
+      for (const declaration of child.declarationList.declarations) {
+        visitDeclaration(declaration, true, "type", true);
+      }
+    }
+  };
+  const start = (startTier: string | undefined): void => {
+    tier = startTier;
+  };
+  const visitAugmentation = (augmentation: ts.ModuleDeclaration): void => {
+    ts.forEachChild(augmentation, visitAugmentationMember);
+  };
+  const refuse = (detail: string): void => {
+    refusals.add(detail);
+  };
+  const fact = (origin: ts.Node): ReferenceFact<readonly ts.Declaration[], ts.Node> => {
+    const confirmedDeclarations = [...findings];
+    return refusals.size === 0
+      ? { kind: "resolved", value: confirmedDeclarations, trace: { origin, declarations: confirmedDeclarations } }
+      : { kind: "unresolved", reason: "unsupported", node: origin, detail: [...refusals].join("; "), trace: { origin, declarations: confirmedDeclarations } };
+  };
+  return { start, visitRoot, visitAugmentation, refuse, fact };
+}
+
+function staleEpoch(parser: NativeParserTypeContext, node: ts.Node): boolean {
+  return (
+    parser.checker !== parser.program.getTypeChecker() ||
+    parser.source !== node.getSourceFile() ||
+    parser.program.getSourceFile(node.getSourceFile().fileName) !== node.getSourceFile()
+  );
+}
+
+const STALE_EPOCH = "the parser public boundary belongs to a foreign or stale source/checker epoch";
+
+/** All reached edges retain the actual parser realm; partial confirmed findings survive a qualification refusal. */
+export function readServerPublicBoundary(
+  node: ts.Node,
+  parser: NativeParserTypeContext,
+  root: string,
+  consumer: string,
+): ReferenceFact<readonly ts.Declaration[], ts.Node> {
+  const walk = boundaryWalk(parser, root, consumer);
+  if (staleEpoch(parser, node)) {
+    walk.refuse(STALE_EPOCH);
   } else {
-    visitRoot();
+    walk.visitRoot(node);
   }
-  const confirmedDeclarations = [...findings];
-  return refusals.size === 0
-    ? { kind: "resolved", value: confirmedDeclarations, trace: { origin: node, declarations: confirmedDeclarations } }
-    : { kind: "unresolved", reason: "unsupported", node, detail: [...refusals].join("; "), trace: { origin: node, declarations: confirmedDeclarations } };
+  return walk.fact(node);
+}
+
+/**
+ * An ambient augmentation publishes its members to every tier, so a factory shape its own tier lets it name is
+ * exposed here, at the augmentation, rather than at any importer.
+ */
+export function readServerAugmentationBoundary(
+  augmentation: ts.ModuleDeclaration,
+  parser: NativeParserTypeContext,
+  root: string,
+): ReferenceFact<readonly ts.Declaration[], ts.Node> {
+  const walk = boundaryWalk(parser, root, "");
+  if (staleEpoch(parser, augmentation)) {
+    walk.refuse(STALE_EPOCH);
+  } else {
+    walk.start(serverTypeTier(relative(root, augmentation.getSourceFile().fileName).replaceAll("\\", "/")));
+    walk.visitAugmentation(augmentation);
+  }
+  return walk.fact(augmentation);
 }

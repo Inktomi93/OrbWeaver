@@ -83,9 +83,11 @@ import { fileURLToPath } from "node:url";
 import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
 import {
   SERVER_FACTORY_TIER_REFERENCE_POLICY_ID,
+  serverFactoryTier,
   serverTypeTier,
   TYPE_HOME_NATIVE_POLICY_ID,
   UI_TOKEN_AUTHORING_CONTRACT_HOME,
+  unjudgedServerFile,
 } from "@orb/tooling/floor/code-facts/type-home";
 import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
 import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
@@ -124,7 +126,7 @@ import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TO
 import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
 import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
 import { serverFactoryTypeHome } from "./tooling/src/floor/code-facts/server-factory-type-home.ts";
-import { readServerPublicBoundary } from "./tooling/src/floor/code-facts/server-public-boundary.ts";
+import { readServerAugmentationBoundary, readServerPublicBoundary } from "./tooling/src/floor/code-facts/server-public-boundary.ts";
 import { isZodShapeCall } from "./tooling/src/floor/code-facts/shape-declaration.ts";
 import { readStaticAuthoredScalar } from "./tooling/src/floor/code-facts/static-authored-value.ts";
 import {
@@ -144,6 +146,8 @@ import {
   ENTRY_WIRING_GLOBS,
   QUERY_FREE_BOOT_GLOBS,
 } from "./tooling/src/verify/contract/compose-query-capability.ts";
+import { ROOT_SPAN_OPENERS } from "./tooling/src/verify/contract/detached-work.ts";
+import { FS_SPECIFIERS, FS_WRITE_VERBS } from "./tooling/src/verify/contract/fs-write-verbs.ts";
 import { MANUAL_MEMO_CUSTOM_HOMES, MANUAL_MEMO_EXPORTS } from "./tooling/src/verify/contract/manual-memo.ts";
 import { MODEL_PROSE_SEAM_FILES, MODEL_PROSE_SEAM_PREFIXES } from "./tooling/src/verify/contract/model-prose-seam.ts";
 import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
@@ -1341,6 +1345,351 @@ const TURN_IDENTITY_RESTRICTIONS = [
       },
     ],
   },
+  {
+    // Matching the imported name from any source also covers barrels, re-exports and an unresolvable door.
+    id: "turn-identity-principal",
+    scope: ["packages/server/src/domain/chat/engine/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [
+      {
+        selector:
+          // A heritage clause names a namespace member as a MemberExpression, which TSQualifiedName does not match.
+          ":matches(ImportSpecifier[imported.name='Principal'], ImportSpecifier[imported.value='Principal'], ExportSpecifier[local.name='Principal'], ExportSpecifier[local.value='Principal'], TSQualifiedName[right.name='Principal'], TSImportType[qualifier.name='Principal'], :matches(TSInterfaceHeritage, TSClassImplements) > MemberExpression[property.name='Principal'])",
+        message: "D19: the chat engine is Principal-blind; resolve the runAsUserId/triggeredBy triple at the verb layer and pass it down.",
+      },
+      {
+        // `Parameters<typeof send>[0]` over a verb, or a verb module's renamed re-export, reaches the Principal unnamed.
+        selector: ":matches(ImportDeclaration, ExportNamedDeclaration, ExportAllDeclaration)[source.value=/(^|\\/)verbs(\\/|$)/]",
+        message: "D19: the chat engine reads nothing from the verb layer, where the caller's Principal lives; the verb passes the resolved triple down.",
+      },
+    ],
+  },
+];
+
+// ── PRINCIPAL CONSTRUCTION (D1/D40)───────────────────────────────────────────────────────────────────────
+// SECURITY: the contracts brand makes a literal, a spread or a `satisfies` check a type error. tsc still accepts an
+// `any` value, an Object.assign intersection and any value asserted past the brand, so these rules refuse those
+// spellings in server and inference code. HARD (`hardConfig` only): no inline directive or bulk suppression excuses
+// one. Each rule exempts registered functions, never a whole file, so a new mint site is a reviewed edit here.
+const PRINCIPAL_SCOPE = rootSources("@server", "@inference");
+const PRINCIPAL_MINT_HOME = "packages/server/src/entry/auth/principal-mint.ts";
+const AUTH_SEAM = "packages/server/src/entry/auth/seam.ts";
+const HOST_BRIDGE = "packages/server/src/entry/compose/chat.ts";
+const PRINCIPAL_MINT_NAME = "mintPrincipal";
+const PRINCIPAL_CONSTRUCTOR = { path: PRINCIPAL_MINT_HOME, name: PRINCIPAL_MINT_NAME };
+const ROW_MAPPER = { path: AUTH_SEAM, name: "principalFromRow" };
+const HOST_FLOOR = { path: HOST_BRIDGE, name: "hostPrincipal" };
+/** Functions that may return a bare Principal: the constructor, the row mapper (D135) and the host floor (invariant 1). */
+const PRINCIPAL_RETURN_SITES = [PRINCIPAL_CONSTRUCTOR, ROW_MAPPER, HOST_FLOOR];
+/** Functions that may call the constructor: the three request paths of the seam, the row mapper and the host floor. */
+const PRINCIPAL_MINT_CALLERS = [
+  PRINCIPAL_CONSTRUCTOR,
+  { path: AUTH_SEAM, name: "resolveCookiePrincipal" },
+  { path: AUTH_SEAM, name: "resolveHeaderOrFallbackPrincipal" },
+  ROW_MAPPER,
+  HOST_FLOOR,
+];
+const PRINCIPAL_TYPE_REFERENCE = "TSTypeReference:matches([typeName.name='Principal'], [typeName.right.name='Principal'])";
+const PRINCIPAL_FUNCTIONS = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
+const PRINCIPAL_CASTS = new Set(["TSAsExpression", "TSTypeAssertion"]);
+const PRINCIPAL_WRAPPERS = new Set([...PRINCIPAL_CASTS, "TSSatisfiesExpression", "TSNonNullExpression"]);
+// The children an expression's value or leading `{` can come from. The walk has no depth bound, so stacking
+// assertions, parentheses or a member read cannot carry a literal past it.
+const PRINCIPAL_VALUE_SOURCES = {
+  TSAsExpression: ["expression"],
+  TSSatisfiesExpression: ["expression"],
+  TSTypeAssertion: ["expression"],
+  TSNonNullExpression: ["expression"],
+  TSInstantiationExpression: ["expression"],
+  ChainExpression: ["expression"],
+  AwaitExpression: ["argument"],
+  AssignmentExpression: ["right"],
+  ConditionalExpression: ["test", "consequent", "alternate"],
+  LogicalExpression: ["left", "right"],
+  BinaryExpression: ["left"],
+  MemberExpression: ["object"],
+  CallExpression: ["callee"],
+  TaggedTemplateExpression: ["tag"],
+};
+const PRINCIPAL_LITERAL_MESSAGE =
+  "D1/D40: an object literal in a Principal position is a hand-built identity; tsc accepts it only when the literal is any-typed or asserted past the brand. Receive the caller's Principal or resolve one through the entry mint.";
+
+const isPrincipalType = (type) =>
+  type?.type === "TSTypeReference" &&
+  ((type.typeName.type === "Identifier" && type.typeName.name === "Principal") ||
+    (type.typeName.type === "TSQualifiedName" && type.typeName.right.name === "Principal"));
+
+/** The declared name of a function: its own id, or the binding, property or method key that holds it. */
+function principalFunctionName(fn) {
+  if (fn.id?.type === "Identifier") {
+    return fn.id.name;
+  }
+  const { parent } = fn;
+  if (parent.type === "VariableDeclarator") {
+    return parent.id.type === "Identifier" ? parent.id.name : null;
+  }
+  const keyed = ["Property", "MethodDefinition", "PropertyDefinition"].includes(parent.type);
+  return keyed && parent.key.type === "Identifier" ? parent.key.name : null;
+}
+
+/** Whether the function nearest `node` (or `node` itself) is one of `sites` in this file. A nested callback is not. */
+function inPrincipalSite(context, node, sites) {
+  const path = relative(context.cwd, context.filename).replaceAll("\\", "/");
+  const fn = PRINCIPAL_FUNCTIONS.has(node.type) ? node : context.sourceCode.getAncestors(node).findLast((ancestor) => PRINCIPAL_FUNCTIONS.has(ancestor.type));
+  const name = fn === undefined ? null : principalFunctionName(fn);
+  return sites.some((site) => site.path === path && site.name === name);
+}
+
+/** Every object literal the value of `expression` can be built from, at any depth. */
+function principalLiterals(expression) {
+  if (expression === null || expression === undefined) {
+    return [];
+  }
+  if (expression.type === "ObjectExpression") {
+    return [expression];
+  }
+  if (expression.type === "SequenceExpression") {
+    return [...principalLiterals(expression.expressions[0]), ...principalLiterals(expression.expressions.at(-1))];
+  }
+  return (PRINCIPAL_VALUE_SOURCES[expression.type] ?? []).flatMap((key) => principalLiterals(expression[key]));
+}
+
+const principalAssertionRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      // Any Principal inside the asserted type counts: `as Principal[]`, `as Principal | null` and `satisfies` launder alike.
+      [`:matches(TSAsExpression, TSTypeAssertion, TSSatisfiesExpression) > .typeAnnotation:matches(${PRINCIPAL_TYPE_REFERENCE}, :has(${PRINCIPAL_TYPE_REFERENCE}))`](
+        node,
+      ) {
+        if (!inPrincipalSite(context, node, [PRINCIPAL_CONSTRUCTOR])) {
+          context.report({
+            node,
+            message: "D1/D40: an asserted Principal skips the entry mint. Receive the caller's Principal or resolve one with createHostPrincipalResolver.",
+          });
+        }
+      },
+    };
+  },
+};
+
+// tsc accepts an `any` value (JSON.parse, an untyped row) in a Principal return position, so each return site is registered.
+const principalReturnSiteRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      ":matches(FunctionDeclaration, FunctionExpression, ArrowFunctionExpression, TSDeclareFunction)"(fn) {
+        const type = fn.returnType?.typeAnnotation;
+        if (isPrincipalType(type) && !(PRINCIPAL_FUNCTIONS.has(fn.type) && inPrincipalSite(context, fn, PRINCIPAL_RETURN_SITES))) {
+          context.report({
+            node: type,
+            message:
+              "D1/D40: a function returning a bare Principal is a mint site. Receive the caller's Principal or resolve one with createHostPrincipalResolver.",
+          });
+        }
+      },
+    };
+  },
+};
+
+const principalMintSiteRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = (node) => {
+      if (!inPrincipalSite(context, node, PRINCIPAL_MINT_CALLERS)) {
+        context.report({
+          node,
+          message: `D1/D40: only the registered entry mint sites (PRINCIPAL_MINT_CALLERS in eslint.config.js) name ${PRINCIPAL_MINT_NAME}. Receive the caller's Principal or resolve one with createHostPrincipalResolver.`,
+        });
+      }
+    };
+    return {
+      [`Identifier[name='${PRINCIPAL_MINT_NAME}']`](node) {
+        // A plain import is the edge dependency-cruiser's principal-mint-owners judges; an alias hides later calls.
+        const plainImport =
+          node.parent.type === "ImportSpecifier" && node.parent.imported.name === PRINCIPAL_MINT_NAME && node.parent.local.name === PRINCIPAL_MINT_NAME;
+        if (!plainImport) {
+          report(node);
+        }
+      },
+      // A computed member or a string import name spells the constructor without an identifier.
+      [`:matches(MemberExpression[computed=true] > Literal.property, ImportSpecifier > Literal.imported, ExportSpecifier > Literal.local)[value='${PRINCIPAL_MINT_NAME}']`]:
+        report,
+      [`MemberExpression[computed=true] > TemplateLiteral.property[expressions.length=0][quasis.0.value.cooked='${PRINCIPAL_MINT_NAME}']`]: report,
+    };
+  },
+};
+
+const principalLiteralRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const judge = (type, value) => {
+      if (isPrincipalType(type)) {
+        for (const node of principalLiterals(value)) {
+          context.report({ node, message: PRINCIPAL_LITERAL_MESSAGE });
+        }
+      }
+    };
+    const enclosingReturnType = (node) =>
+      context.sourceCode.getAncestors(node).findLast((ancestor) => PRINCIPAL_FUNCTIONS.has(ancestor.type))?.returnType?.typeAnnotation;
+    return {
+      "VariableDeclarator[init]"(node) {
+        judge(node.id.typeAnnotation?.typeAnnotation, node.init);
+      },
+      "AssignmentPattern[right]"(node) {
+        judge(node.left.typeAnnotation?.typeAnnotation, node.right);
+      },
+      // An `accessor` field is its own node type; abstract fields cannot carry an initializer (TS1267).
+      ":matches(PropertyDefinition, AccessorProperty, TSAbstractPropertyDefinition, TSAbstractAccessorProperty)"(node) {
+        judge(node.typeAnnotation?.typeAnnotation, node.value);
+      },
+      "ReturnStatement[argument]"(node) {
+        judge(enclosingReturnType(node), node.argument);
+      },
+      "ArrowFunctionExpression[expression=true]"(node) {
+        judge(node.returnType?.typeAnnotation, node.body);
+      },
+      "CallExpression:matches([callee.property.name='assign'], [callee.property.value='assign'])[callee.object.name='Object']"(node) {
+        context.report({
+          node,
+          message:
+            "D1/D40: Object.assign returns an intersection, so it can graft a new userId or role onto a minted Principal past the brand. Use an object spread, which the brand type-checks.",
+        });
+      },
+    };
+  },
+};
+
+// At a call such as `actAs({ ...caller, userId } as never)` no Principal annotation exists for principal-literal to read.
+const principalBrandLaunderRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      ":matches(TSAsExpression, TSTypeAssertion) > TSNeverKeyword.typeAnnotation"(node) {
+        context.report({
+          node,
+          message:
+            "D1/D40: `never` is assignable to every type, so this assertion would let a hand-built value pass for a Principal past the entry mint. Narrow the value to its real type instead.",
+        });
+      },
+      ":matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion, TSNonNullExpression) > ObjectExpression.expression"(node) {
+        let casts = 0;
+        for (let child = node; PRINCIPAL_WRAPPERS.has(child.parent.type) && child.parent.expression === child; child = child.parent) {
+          casts += PRINCIPAL_CASTS.has(child.parent.type) ? 1 : 0;
+        }
+        if (casts >= 2) {
+          context.report({
+            node,
+            message:
+              "D1/D40: an object literal asserted through a second assertion can pass for any type, the Principal brand included. Build the value with its real type, or receive the caller's Principal.",
+          });
+        }
+      },
+    };
+  },
+};
+
+const PRINCIPAL_NAME = "Principal";
+const PRINCIPAL_ALIAS_MESSAGE =
+  "D1/D40: every Principal rule keys on the name `Principal`, so a renamed spelling would walk past all of them. Name the type `Principal` where it is used.";
+const isPrincipalName = (node) => (node?.type === "Identifier" && node.name === PRINCIPAL_NAME) || (node?.type === "Literal" && node.value === PRINCIPAL_NAME);
+const isPrincipalExpression = (node) => isPrincipalName(node) || (node?.type === "MemberExpression" && isPrincipalName(node.property));
+
+/** Whether `type` is a Principal, or lists, unions, wraps or indexes one. A function or object type only uses it. */
+function namesPrincipal(type) {
+  switch (type?.type) {
+    case "TSTypeReference":
+      return isPrincipalType(type) || (type.typeArguments?.params ?? []).some(namesPrincipal);
+    case "TSUnionType":
+    case "TSIntersectionType":
+      return type.types.some(namesPrincipal);
+    case "TSTupleType":
+      return type.elementTypes.some(namesPrincipal);
+    case "TSArrayType":
+    case "TSNamedTupleMember":
+    case "TSOptionalType":
+    case "TSRestType":
+      return namesPrincipal(type.elementType ?? type.typeAnnotation);
+    case "TSTypeOperator":
+      return namesPrincipal(type.typeAnnotation);
+    case "TSIndexedAccessType":
+      return namesPrincipal(type.objectType);
+    default:
+      return false;
+  }
+}
+
+/** Whether `identifier` binds, in its own file, a variable or parameter annotated as a Principal. */
+function principalTypedBinding(context, identifier) {
+  for (let scope = context.sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
+    const variable = scope.set.get(identifier.name);
+    if (variable !== undefined) {
+      return variable.defs.some((def) => namesPrincipal(def.name.typeAnnotation?.typeAnnotation));
+    }
+  }
+  return false;
+}
+
+const principalAliasRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = (node) => context.report({ node, message: PRINCIPAL_ALIAS_MESSAGE });
+    return {
+      "ImportSpecifier[imported]"(node) {
+        if (isPrincipalName(node.imported) && node.local.name !== PRINCIPAL_NAME) {
+          report(node);
+        }
+      },
+      "ExportSpecifier[local]"(node) {
+        if (isPrincipalName(node.local) && !isPrincipalName(node.exported)) {
+          report(node);
+        }
+      },
+      "TSTypeAliasDeclaration[typeAnnotation]"(node) {
+        if (namesPrincipal(node.typeAnnotation)) {
+          report(node.id);
+        }
+      },
+      ":matches(TSInterfaceHeritage, TSClassImplements)"(node) {
+        if (isPrincipalExpression(node.expression)) {
+          report(node);
+        }
+      },
+      "TSTypeParameter[constraint]"(node) {
+        if (namesPrincipal(node.constraint)) {
+          report(node);
+        }
+      },
+      // `typeof caller` in any type position, an assertion included, is a Principal spelled through its binding.
+      "TSTypeQuery > Identifier.exprName"(node) {
+        if (principalTypedBinding(context, node)) {
+          report(node.parent);
+        }
+      },
+    };
+  },
+};
+
+const PRINCIPAL_RULES = [
+  { id: "principal-alias", rule: principalAliasRule },
+  { id: "principal-assertion", rule: principalAssertionRule },
+  { id: "principal-return-site", rule: principalReturnSiteRule },
+  { id: "principal-mint-site", rule: principalMintSiteRule },
+  { id: "principal-literal", rule: principalLiteralRule },
+  { id: "principal-brand-launder", rule: principalBrandLaunderRule },
+  {
+    id: "principal-synthetic-role",
+    notUnder: ["packages/server/src/entry/**"],
+    rule: restrictionRule({
+      selectors: [
+        {
+          selector:
+            "ObjectExpression:has(> Property:matches([key.name='externalId'], [key.value='externalId'])):has(> Property:matches([key.name='via'], [key.value='via'])) > Property:matches([key.name='role'], [key.value='role'])[value.value='user']",
+          message: 'D1: a Principal-shaped literal with a hardcoded role: "user" belongs only in the entry layer; receive the Principal from the caller.',
+        },
+      ],
+    }),
+  },
 ];
 
 // D22 member-card clamp, D16/D18 chat member fan, and the injected-op scope boundary (Spine-Identity-and-Auth §2b).
@@ -1501,6 +1850,716 @@ const injectedOpCallerParamRule = {
     };
   },
 };
+
+// Ambient doors with one owner each: network egress (D61 B5a), the process environment (Tier-2-Foundation.md
+// invariant 1) and the stateful hidden-span scrubber (D118). The egress and env rules follow bindings, not
+// spellings: a shadowing local passes, while an alias, a destructure or a TypeScript cast of the global is
+// still the global. They judge one file at a time, so exporting or re-exporting a door is itself a finding.
+//
+// SECURITY: a value imported from another module may be the process or its bag under any name, and a rule
+// that reads one file cannot see what that module exports, so the env rule fails closed on an `env` key
+// read anywhere on an imported value. A TypeScript `declare` emits no code, so a declared `fetch`, `process`
+// or global root is still the global, and an `env` read off any other declared name fails closed.
+//
+// NOT CLAIMED by the env rule: a written alias cycle with no `process` origin (`const a = b; const b = a;
+// a.env.X = 1`), which throws in its temporal dead zone before the read; a per-key grain inside the sole
+// reader, which is one whole-file home; the process passed through a conditional, a logical, a call argument
+// or a parameter default; and an `env` key taken off an imported value or a declared global through a
+// computed key no `const` binds to a string literal (`door[k]` with `k` a parameter, a `let`, a pattern binding or
+// a call). A key a `const` chain binds to a string literal is read as that name.
+const AMBIENT_ROOTS = new Set(["globalThis", "global", "self", "window"]);
+const VALUE_WRAPPERS = new Set(["TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression", "TSTypeAssertion"]);
+const RAW_FETCH = "fetch";
+const RAW_EGRESS_PACKAGES = /^(?:undici|node-fetch|cross-fetch)$/u;
+const NODE_HTTP_CLIENT_DOORS = new Map([
+  ["http", new Set(["request", "get"])],
+  ["https", new Set(["request", "get"])],
+  ["http2", new Set(["connect"])],
+]);
+const PROCESS_MODULE = /^(?:node:)?process$/u;
+const PROCESS_GLOBAL = "process";
+const ENV_MEMBER = "env";
+const MODULE_DEFAULT = "default";
+const SCRUBBER_FACTORY = "createHiddenSpanStreamScrubber";
+const RAW_EGRESS_MESSAGE =
+  "D61 B5a: server and inference egress goes through infra/network (`safeFetch` or the configured-endpoint capability); a raw fetch or HTTP client skips the scheme pin, host allowlist, resolve-validate-pin and deadline.";
+const SOLE_ENV_MESSAGE = "Tier-2-Foundation.md invariant 1: foundation/env is the only process.env reader; import the frozen `env` and dot-access a typed key.";
+
+/**
+ * The outermost expression that still denotes `node`'s value; a cast, a non-null assertion, an `await` (of
+ * a promise for it, or of the value itself) or a sequence that ends with it does not change it.
+ */
+function valueCarrier(node) {
+  let carrier = node;
+  for (;;) {
+    const { parent } = carrier;
+    const wraps =
+      (VALUE_WRAPPERS.has(parent?.type) && parent.expression === carrier) ||
+      (parent?.type === "AwaitExpression" && parent.argument === carrier) ||
+      (parent?.type === "SequenceExpression" && parent.expressions.at(-1) === carrier);
+    if (!wraps) {
+      return carrier;
+    }
+    carrier = parent;
+  }
+}
+
+/** A module specifier written as a string or a substitution-free template, or `undefined` when computed. */
+function staticSource(source) {
+  if (source.type === "Literal" && typeof source.value === "string") {
+    return source.value;
+  }
+  return source.type === "TemplateLiteral" && source.expressions.length === 0 ? source.quasis[0].value.cooked : undefined;
+}
+
+/** A static key's name, or `undefined` when the key is computed at run time. */
+function writtenKeyName(key, computed) {
+  if (key.type === "Literal") {
+    return String(key.value);
+  }
+  if (!computed) {
+    return key.type === "Identifier" ? key.name : undefined;
+  }
+  return key.type === "TemplateLiteral" && key.expressions.length === 0 ? key.quasis[0].value.cooked : undefined;
+}
+
+/**
+ * A member's key name, also through a computed key a `const` binds to a string literal, directly or through other
+ * such `const` bindings (`const K = "env"; x[K]`). Any other computed key stays unknown: a `let`, a reassigned or
+ * pattern binding, a parameter or a call.
+ */
+function memberKeyName(sourceCode, member) {
+  const written = writtenKeyName(member.property, member.computed);
+  return written !== undefined || !member.computed ? written : constKeyName(sourceCode, member.property, new Set());
+}
+
+function constKeyName(sourceCode, key, seen) {
+  if (key.type !== "Identifier" || seen.has(key)) {
+    return;
+  }
+  const variable = referencedVariable(sourceCode, key);
+  const [definition] = variable?.defs ?? [];
+  // A pattern default (`const { K = "x" } = v`) takes the source's value first, so only `const K = …` names K.
+  const direct = variable?.defs.length === 1 && definition?.type === "Variable" && definition.parent.kind === "const" && definition.node.id === definition.name;
+  const value = direct && definition.node.init !== null ? unwrapValue(definition.node.init) : undefined;
+  if (value === undefined) {
+    return;
+  }
+  if (value.type === "Literal") {
+    return typeof value.value === "string" ? value.value : undefined;
+  }
+  return value.type === "Identifier" ? constKeyName(sourceCode, value, new Set(seen).add(key)) : writtenKeyName(value, true);
+}
+
+/** Whether a destructure can take `name` off its source: by key, by a run-time key, or through a rest element. */
+function patternTakes(pattern, name) {
+  return (
+    pattern.type === "ObjectPattern" &&
+    pattern.properties.some((property) => {
+      if (property.type === "RestElement") {
+        return true;
+      }
+      const key = writtenKeyName(property.key, property.computed);
+      return key === undefined || key === name;
+    })
+  );
+}
+
+function isTypeofOperand(node) {
+  return node.parent?.type === "UnaryExpression" && node.parent.operator === "typeof";
+}
+
+function inTypeQuery(node) {
+  let parent = node.parent;
+  while (parent?.type === "TSQualifiedName") {
+    parent = parent.parent;
+  }
+  return parent?.type === "TSTypeQuery";
+}
+
+/**
+ * Whether every declaration of a binding is a TypeScript `declare`. A `declare` emits no code, so at run time
+ * the name still resolves to the global of that name: the declaration describes a global, it never shadows one.
+ */
+function declaredOnly(variable) {
+  return variable.defs.length > 0 && variable.defs.every(({ node, parent }) => node.declare === true || parent?.declare === true);
+}
+
+/** A binding the rules judge as a global: none in this file, a TypeScript lib or configured global, or one declared only with `declare`. */
+function isGlobalBinding(variable) {
+  return variable === null || variable.defs.length === 0 || declaredOnly(variable);
+}
+
+/** Value references to the named globals: unresolved, bound only by a TypeScript lib or configured global, or bound only by a `declare`. */
+function ambientReferences(sourceCode, names) {
+  const { globalScope, scopes } = sourceCode.scopeManager;
+  const references = globalScope.through.filter(({ identifier }) => names.has(identifier.name));
+  for (const variable of scopes.flatMap((scope) => scope.variables)) {
+    if (names.has(variable.name) && isGlobalBinding(variable)) {
+      references.push(...variable.references.filter(({ isValueReference }) => isValueReference !== false));
+    }
+  }
+  return references.map(({ identifier }) => identifier).filter((identifier) => !inTypeQuery(identifier));
+}
+
+/** The later reads of a binding declared from a value, so an alias of a door is judged as the door. */
+function aliasReads(sourceCode, declarator) {
+  return sourceCode
+    .getDeclaredVariables(declarator)
+    .flatMap(({ references }) => references.filter(({ identifier }) => identifier !== declarator.id).map(({ identifier }) => identifier));
+}
+
+/** The variable an identifier reference resolves to, or `null` for an undeclared name. */
+function referencedVariable(sourceCode, identifier) {
+  for (let scope = sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
+    const reference = scope.references.find((candidate) => candidate.identifier === identifier);
+    if (reference !== undefined) {
+      return reference.resolved;
+    }
+  }
+  return null;
+}
+
+/** The other reads of the binding an assignment writes, so a reassigned alias of a door is judged as the door. */
+function assignedReads(sourceCode, target) {
+  const variable = referencedVariable(sourceCode, target);
+  return (variable?.references ?? []).filter(({ identifier }) => identifier !== target).map(({ identifier }) => identifier);
+}
+
+const DESTRUCTURES = new Set(["ObjectPattern", "ArrayPattern"]);
+/** Assignments whose result can be the assigned value itself. */
+const ALIAS_ASSIGNMENTS = new Set(["=", "||=", "&&=", "??="]);
+/** Expressions that always produce a new value, so a binding written only with them never holds a door. */
+const FRESH_VALUES = new Set([
+  "ArrayExpression",
+  "ArrowFunctionExpression",
+  "BinaryExpression",
+  "ClassExpression",
+  "FunctionExpression",
+  "Literal",
+  "NewExpression",
+  "ObjectExpression",
+  "TemplateLiteral",
+  "UnaryExpression",
+  "UpdateExpression",
+]);
+
+/** Expressions whose value is picked or computed at run time, so no binding names what they hold. */
+const OPAQUE_VALUES = new Set([
+  "AwaitExpression",
+  "CallExpression",
+  "ConditionalExpression",
+  "LogicalExpression",
+  "NewExpression",
+  "SequenceExpression",
+  "TaggedTemplateExpression",
+  "YieldExpression",
+]);
+
+function unwrapValue(node) {
+  let value = node;
+  while (VALUE_WRAPPERS.has(value.type) || value.type === "ChainExpression") {
+    value = value.expression;
+  }
+  return value;
+}
+
+/** Whether a destructure names `name` with a static key. */
+function patternNames(pattern, name) {
+  return (
+    pattern.type === "ObjectPattern" &&
+    pattern.properties.some((property) => property.type === "Property" && writtenKeyName(property.key, property.computed) === name)
+  );
+}
+
+/** Whether a destructure of a global root takes a nested root, such as `globalThis.globalThis`, which is the root again. */
+function takesAmbientRoot(pattern) {
+  return [...AMBIENT_ROOTS].some((root) => patternNames(pattern, root));
+}
+
+/**
+ * Whether a reassigned binding may hold a value the rules cannot follow: a destructuring or loop write, or a
+ * write whose value is not freshly built. Its identity is then unknowable, so a door-shaped read of it fails
+ * closed. A write of a door itself is followed precisely by `judgeDoorUses`.
+ */
+function unknowablyReassigned(variable) {
+  const writes = variable?.references.filter((reference) => reference.isWrite()) ?? [];
+  if (writes.every((reference) => reference.init === true)) {
+    return false;
+  }
+  return writes.some(({ identifier, writeExpr }) => {
+    const { parent } = identifier;
+    const direct =
+      (parent.type === "VariableDeclarator" && parent.id === identifier) ||
+      (parent.type === "AssignmentExpression" && parent.left === identifier && ALIAS_ASSIGNMENTS.has(parent.operator));
+    return !direct || writeExpr === undefined || writeExpr === null || !FRESH_VALUES.has(unwrapValue(writeExpr).type);
+  });
+}
+
+/**
+ * Whether an expression may hold a door the rules cannot see: a run-time result (a helper may return the
+ * door), a run-time-keyed element, a binding reassigned with such a value, or a global declared outside this
+ * file. A literal dynamic import names its module, and a static member path is judged at its root.
+ */
+function unknowableValue(sourceCode, expression) {
+  const value = unwrapValue(expression);
+  if (value.type === "Identifier") {
+    const variable = referencedVariable(sourceCode, value);
+    // The process and the global roots are followed precisely by the door judges.
+    const ambient = isGlobalBinding(variable) && value.name !== PROCESS_GLOBAL && !AMBIENT_ROOTS.has(value.name);
+    return ambient || unknowablyReassigned(variable);
+  }
+  if (value.type === "MemberExpression") {
+    // An element index picks one of many values; only a named property is a static path.
+    const { property } = value;
+    const named =
+      (property.type === "Literal" && typeof property.value === "string") || (property.type === "TemplateLiteral" && property.expressions.length === 0);
+    return (value.computed && !named) || unknowableValue(sourceCode, value.object);
+  }
+  const namedModule = value.type === "AwaitExpression" && value.argument.type === "ImportExpression" && staticSource(value.argument.source) !== undefined;
+  return OPAQUE_VALUES.has(value.type) && !namedModule;
+}
+
+/**
+ * Where a value flows: a member read of it, a destructure of it, the reads of a binding declared or assigned
+ * from it, or an escape: an export, whose importers a per-file rule cannot see, or a copy into an array
+ * element, an object property or an object spread, whose later reads no binding names.
+ */
+function flowOf(sourceCode, carrier) {
+  const { parent } = carrier;
+  if (parent.type === "MemberExpression" && parent.object === carrier) {
+    return { member: parent };
+  }
+  if (
+    parent.type === "ExportSpecifier" ||
+    parent.type === "ExportDefaultDeclaration" ||
+    parent.type === "ArrayExpression" ||
+    (parent.type === "Property" && parent.value === carrier && parent.parent.type === "ObjectExpression") ||
+    (parent.type === "SpreadElement" && parent.parent.type === "ObjectExpression")
+  ) {
+    return { escape: parent };
+  }
+  if (parent.type === "AssignmentExpression" && parent.right === carrier) {
+    if (DESTRUCTURES.has(parent.left.type)) {
+      return { pattern: parent.left };
+    }
+    return { aliases: parent.left.type === "Identifier" && ALIAS_ASSIGNMENTS.has(parent.operator) ? assignedReads(sourceCode, parent.left) : [] };
+  }
+  return parent.type === "VariableDeclarator" && parent.init === carrier ? declaratorFlow(sourceCode, parent) : {};
+}
+
+function declaratorFlow(sourceCode, declarator) {
+  if (DESTRUCTURES.has(declarator.id.type)) {
+    return { pattern: declarator.id };
+  }
+  if (declarator.parent.parent?.type === "ExportNamedDeclaration") {
+    return { escape: declarator };
+  }
+  return { aliases: declarator.id.type === "Identifier" ? aliasReads(sourceCode, declarator) : [] };
+}
+
+/** Judge every use of a value, following bindings declared or assigned from it. */
+function judgeDoorUses(sourceCode, start, judge) {
+  const seen = new Set();
+  const visit = (node) => {
+    if (seen.has(node)) {
+      return;
+    }
+    seen.add(node);
+    const flow = flowOf(sourceCode, valueCarrier(node));
+    if (flow.member !== undefined) {
+      judge.member(flow.member, memberKeyName(sourceCode, flow.member));
+    }
+    if (flow.pattern !== undefined) {
+      judge.pattern(flow.pattern);
+    }
+    if (flow.escape !== undefined) {
+      judge.escape(flow.escape);
+    }
+    for (const alias of flow.aliases ?? []) {
+      visit(alias);
+    }
+  };
+  visit(start);
+}
+
+/** A report callback that reports each node once, however many arms reach it. */
+function reportOnce(context, message) {
+  const reported = new Set();
+  return (node) => {
+    if (!reported.has(node)) {
+      reported.add(node);
+      context.report({ node, message });
+    }
+  };
+}
+
+function moduleExportName(node) {
+  return node.type === "Identifier" ? node.name : String(node.value);
+}
+
+/** The client doors a node HTTP module exposes, or `undefined` for any other module. */
+function httpClientDoors(source) {
+  return NODE_HTTP_CLIENT_DOORS.get(source.replace(/^node:/u, ""));
+}
+
+function namesFetch(specifier) {
+  return specifier.local.name === RAW_FETCH || (specifier.type === "ImportSpecifier" && moduleExportName(specifier.imported) === RAW_FETCH);
+}
+
+/** The parts of a value import that open a raw egress door: an egress package, or a binding named fetch. */
+function egressImportDoors(node) {
+  const values = node.specifiers.filter((specifier) => specifier.importKind !== "type");
+  if (RAW_EGRESS_PACKAGES.test(String(node.source.value))) {
+    return node.specifiers.length === 0 || values.length > 0 ? [node] : [];
+  }
+  return values.filter(namesFetch);
+}
+
+/**
+ * The bindings a value import of the process module opens: `env` itself, the process object, or the module
+ * namespace, which carries both as its `env` and `default` members.
+ */
+function processImportBindings(node) {
+  const values = node.specifiers.filter((specifier) => specifier.importKind !== "type");
+  const exportOf = (specifier) => (specifier.type === "ImportSpecifier" ? moduleExportName(specifier.imported) : MODULE_DEFAULT);
+  return {
+    env: values.filter((specifier) => exportOf(specifier) === ENV_MEMBER),
+    process: values.filter((specifier) => specifier.type !== "ImportNamespaceSpecifier" && exportOf(specifier) === MODULE_DEFAULT),
+    namespace: values.filter((specifier) => specifier.type === "ImportNamespaceSpecifier"),
+  };
+}
+
+/** Whether a value re-export forwards one of `doors` (or the module default) from its source module. */
+function reExportsDoor(node, doors) {
+  if (node.exportKind === "type") {
+    return false;
+  }
+  if (node.type === "ExportAllDeclaration") {
+    return true;
+  }
+  return node.specifiers.some(
+    ({ exportKind, local }) => exportKind !== "type" && (doors.has(moduleExportName(local)) || moduleExportName(local) === MODULE_DEFAULT),
+  );
+}
+
+const rawEgressRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const { sourceCode } = context;
+    const report = reportOnce(context, RAW_EGRESS_MESSAGE);
+    const fromGlobal = {
+      member: (member, name) => {
+        if (AMBIENT_ROOTS.has(name)) {
+          judgeDoorUses(sourceCode, member, fromGlobal);
+        } else if (name === undefined || (name === RAW_FETCH && !isTypeofOperand(member))) {
+          report(member);
+        }
+      },
+      pattern: (pattern) => {
+        if (patternTakes(pattern, RAW_FETCH) || takesAmbientRoot(pattern)) {
+          report(pattern);
+        }
+      },
+      escape: report,
+    };
+    return {
+      "ImportDeclaration[importKind!='type']"(node) {
+        for (const door of egressImportDoors(node)) {
+          report(door);
+        }
+      },
+      "ExportNamedDeclaration[source], ExportAllDeclaration"(node) {
+        const forwardsPackage = RAW_EGRESS_PACKAGES.test(String(node.source.value));
+        const forwardsFetch = node.type === "ExportNamedDeclaration" && node.specifiers.some(({ local }) => moduleExportName(local) === RAW_FETCH);
+        if (node.exportKind !== "type" && (forwardsPackage || forwardsFetch)) {
+          report(node);
+        }
+      },
+      "ImportExpression[source]"(node) {
+        if (RAW_EGRESS_PACKAGES.test(staticSource(node.source) ?? "")) {
+          report(node);
+        }
+      },
+      "Program:exit"() {
+        for (const reference of ambientReferences(sourceCode, new Set([RAW_FETCH]))) {
+          if (!isTypeofOperand(reference)) {
+            report(reference);
+          }
+        }
+        for (const root of ambientReferences(sourceCode, AMBIENT_ROOTS)) {
+          judgeDoorUses(sourceCode, root, fromGlobal);
+        }
+        for (const read of reassignedFetchReads(sourceCode)) {
+          report(read);
+        }
+      },
+    };
+  },
+};
+
+/** Reads of a local named `fetch` reassigned with a value the rule cannot follow; it may hold the global. */
+function reassignedFetchReads(sourceCode) {
+  return sourceCode.scopeManager.scopes
+    .flatMap(({ variables }) => variables)
+    .filter((variable) => variable.name === RAW_FETCH && unknowablyReassigned(variable))
+    .flatMap(({ references }) => references.filter((reference) => reference.isRead() && !isTypeofOperand(reference.identifier)))
+    .map(({ identifier }) => identifier);
+}
+
+// A separate rule from no-raw-egress so the D275 TLS listener's home exempts only its loopback client door.
+const rawHttpClientRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = reportOnce(context, RAW_EGRESS_MESSAGE);
+    return {
+      "ImportDeclaration[importKind!='type']"(node) {
+        const doors = httpClientDoors(String(node.source.value));
+        const values = node.specifiers.filter((specifier) => specifier.importKind !== "type");
+        for (const door of doors === undefined
+          ? []
+          : values.filter((specifier) => specifier.type !== "ImportSpecifier" || doors.has(moduleExportName(specifier.imported)))) {
+          report(door);
+        }
+      },
+      "ExportNamedDeclaration[source], ExportAllDeclaration"(node) {
+        const doors = httpClientDoors(String(node.source.value));
+        if (doors !== undefined && reExportsDoor(node, doors)) {
+          report(node);
+        }
+      },
+      "ImportExpression[source]"(node) {
+        if (httpClientDoors(staticSource(node.source) ?? "") !== undefined) {
+          report(node);
+        }
+      },
+    };
+  },
+};
+
+/** The nodes a destructure target binds through; a member-expression target binds nothing. */
+const DESTRUCTURE_CHILDREN = {
+  AssignmentPattern: (node) => [node.left],
+  RestElement: (node) => [node.argument],
+  ArrayPattern: (node) => node.elements.filter((element) => element !== null),
+  ObjectPattern: (node) => node.properties,
+  Property: (node) => [node.value],
+};
+
+/** The `env`-keyed properties a destructure takes and the identifiers it binds from everything else, at any depth. */
+function destructureParts(target, parts = { envKeys: [], bound: [] }) {
+  if (target.type === "Identifier") {
+    parts.bound.push(target);
+  } else if (target.type === "Property" && writtenKeyName(target.key, target.computed) === ENV_MEMBER) {
+    parts.envKeys.push(target);
+  } else {
+    for (const child of DESTRUCTURE_CHILDREN[target.type]?.(target) ?? []) {
+      destructureParts(child, parts);
+    }
+  }
+  return parts;
+}
+
+/** The env rule's judge for an imported value: an `env` key read anywhere on it, at any depth, fails closed. */
+function importedValueJudge(sourceCode, report) {
+  const judge = {
+    member: (member, name) => {
+      if (name === ENV_MEMBER) {
+        report(member);
+      } else {
+        judgeDoorUses(sourceCode, member, judge);
+      }
+    },
+    pattern: (pattern) => {
+      const parts = destructureParts(pattern);
+      for (const property of parts.envKeys) {
+        report(property);
+      }
+      for (const target of parts.bound) {
+        for (const { identifier } of referencedVariable(sourceCode, target)?.references ?? []) {
+          if (identifier !== target) {
+            judgeDoorUses(sourceCode, identifier, judge);
+          }
+        }
+      }
+    },
+    // Exporting it onward is judged where it is read.
+    escape: () => undefined,
+  };
+  return judge;
+}
+
+const PROCESS_EXPORT_DOORS = new Set([ENV_MEMBER]);
+
+const soleEnvReaderRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const { sourceCode } = context;
+    const report = reportOnce(context, SOLE_ENV_MESSAGE);
+    const fromImported = importedValueJudge(sourceCode, report);
+    const fromProcess = {
+      member: (member, name) => {
+        if (name === undefined || name === ENV_MEMBER) {
+          report(member);
+        }
+      },
+      pattern: (pattern) => {
+        if (patternTakes(pattern, ENV_MEMBER)) {
+          report(pattern);
+        }
+      },
+      escape: report,
+    };
+    // `import * as proc from "node:process"`: `proc.env` is the bag and `proc.default` is the process.
+    const fromNamespace = {
+      member: (member, name) => {
+        if (name === MODULE_DEFAULT) {
+          judgeDoorUses(sourceCode, member, fromProcess);
+        } else {
+          fromProcess.member(member, name);
+        }
+      },
+      pattern: (pattern) => {
+        if (patternTakes(pattern, ENV_MEMBER) || patternNames(pattern, MODULE_DEFAULT)) {
+          report(pattern);
+        }
+      },
+      escape: report,
+    };
+    // `globalThis.process` is the same object as the bare global; any other member may be a global another
+    // module assigned, so it is judged like an imported value.
+    const fromGlobal = {
+      member: (member, name) => {
+        if (name === PROCESS_GLOBAL) {
+          judgeDoorUses(sourceCode, member, fromProcess);
+        } else if (AMBIENT_ROOTS.has(name)) {
+          judgeDoorUses(sourceCode, member, fromGlobal);
+        } else {
+          fromImported.member(member, name);
+        }
+      },
+      pattern: (pattern) => {
+        if (patternTakes(pattern, PROCESS_GLOBAL) || takesAmbientRoot(pattern)) {
+          report(pattern);
+        }
+      },
+      escape: report,
+    };
+    return {
+      "ImportDeclaration[importKind!='type']"(node) {
+        if (!PROCESS_MODULE.test(node.source.value)) {
+          const values = node.specifiers.filter((specifier) => specifier.importKind !== "type");
+          for (const read of values.flatMap((specifier) => aliasReads(sourceCode, specifier))) {
+            judgeDoorUses(sourceCode, read, fromImported);
+          }
+          return;
+        }
+        const bindings = processImportBindings(node);
+        for (const specifier of bindings.env) {
+          report(specifier);
+        }
+        for (const read of bindings.process.flatMap((specifier) => aliasReads(sourceCode, specifier))) {
+          judgeDoorUses(sourceCode, read, fromProcess);
+        }
+        for (const read of bindings.namespace.flatMap((specifier) => aliasReads(sourceCode, specifier))) {
+          judgeDoorUses(sourceCode, read, fromNamespace);
+        }
+      },
+      "ExportNamedDeclaration[source], ExportAllDeclaration"(node) {
+        if (PROCESS_MODULE.test(node.source.value) && reExportsDoor(node, PROCESS_EXPORT_DOORS)) {
+          report(node);
+        }
+      },
+      "ImportExpression[source]"(node) {
+        if (PROCESS_MODULE.test(staticSource(node.source) ?? "")) {
+          report(node);
+        } else {
+          judgeDoorUses(sourceCode, node, fromImported);
+        }
+      },
+      // Fail closed on an `env` key taken off a value whose identity the rule cannot follow.
+      "VariableDeclarator[id.type='ObjectPattern'][init], AssignmentExpression[left.type='ObjectPattern']"(node) {
+        const [pattern, source] = node.type === "VariableDeclarator" ? [node.id, node.init] : [node.left, node.right];
+        if (patternNames(pattern, ENV_MEMBER) && unknowableValue(sourceCode, source)) {
+          report(pattern);
+        }
+      },
+      [`MemberExpression[property.name='${ENV_MEMBER}'], MemberExpression[property.value='${ENV_MEMBER}'], MemberExpression[property.type='TemplateLiteral'], MemberExpression[computed=true][property.type='Identifier']`](
+        node,
+      ) {
+        if (memberKeyName(sourceCode, node) === ENV_MEMBER && unknowableValue(sourceCode, node.object)) {
+          report(node);
+        }
+      },
+      "Program:exit"() {
+        for (const reference of ambientReferences(sourceCode, new Set([PROCESS_GLOBAL]))) {
+          judgeDoorUses(sourceCode, reference, fromProcess);
+        }
+        for (const root of ambientReferences(sourceCode, AMBIENT_ROOTS)) {
+          judgeDoorUses(sourceCode, root, fromGlobal);
+        }
+      },
+    };
+  },
+};
+
+const AMBIENT_GLOBAL_RESTRICTIONS = [
+  {
+    id: "no-raw-egress",
+    scope: rootSources("@server", "@inference"),
+    homes: [
+      {
+        path: "packages/server/src/infra/network/egress.ts",
+        why: "the guard itself: `safeFetch`, the configured-endpoint capability and their pinned undici agents wrap the one physical request every other egress routes through",
+      },
+    ],
+  },
+  {
+    id: "no-raw-http-client",
+    scope: rootSources("@server", "@inference"),
+    homes: [
+      {
+        path: "packages/server/src/infra/network/tls-terminator.ts",
+        why: "the D275 TLS listener forwards each request to the app's own loopback listener; it never dials a caller-chosen host",
+      },
+    ],
+  },
+  {
+    id: "sole-env-reader",
+    scope: rootSources("@server", "@inference"),
+    homes: [
+      { path: "packages/server/src/foundation/env/index.ts", why: "the sole reader parses and freezes `env`, so it cannot import the object it produces" },
+    ],
+  },
+  {
+    id: "scrubber-home",
+    scope: POPULATION_SETS["@product"].flatMap((ref) => rootSources(ref)),
+    homes: [
+      {
+        path: "packages/server/src/domain/chat/substrate/member-visibility.ts",
+        why: "the producer stamp owns the one warm per-slot scrubber; the same module's token-log replay projection builds one per replayed generation",
+      },
+    ],
+    selectors: [
+      {
+        selector: `:matches(${[
+          `ImportSpecifier[imported.name='${SCRUBBER_FACTORY}']`,
+          `ImportSpecifier[imported.value='${SCRUBBER_FACTORY}']`,
+          `ExportSpecifier[local.name='${SCRUBBER_FACTORY}']`,
+          `ExportSpecifier[local.value='${SCRUBBER_FACTORY}']`,
+          `MemberExpression[computed=false][property.name='${SCRUBBER_FACTORY}']`,
+          `MemberExpression[computed=true][property.value='${SCRUBBER_FACTORY}']`,
+          `MemberExpression[computed=true][property.type='TemplateLiteral'][property.quasis.0.value.cooked='${SCRUBBER_FACTORY}']`,
+          `ObjectPattern > Property[key.name='${SCRUBBER_FACTORY}']`,
+          `ObjectPattern > Property[key.value='${SCRUBBER_FACTORY}']`,
+        ].join(", ")})`,
+        message:
+          "D118: only the producer stamp (domain/chat/substrate/member-visibility.ts) constructs the hidden-span stream scrubber; read the stamped `memberText`, because a reader's cold scrubber forwards a hidden span's tail.",
+      },
+    ],
+  },
+];
+
 const CONTEXT_NATIVE_SETTINGS = {
   "orb/context-vocabulary": {
     mintHome: { source: REGISTRY_CONTRACTS_RE.source, flags: REGISTRY_CONTRACTS_RE.flags },
@@ -2632,7 +3691,35 @@ const bindingMember = (name) => ({
 // starts at a symbol read is a resolution.
 const symbolRead = (prefix) =>
   `[${prefix}type='CallExpression'][${prefix}callee.type='MemberExpression']:matches(${memberNamed("getSymbol", `${prefix}callee.`)}, ${memberNamed("getSymbolOrThrow", `${prefix}callee.`)})`;
+// A gate family test writes only through the scratch writers in tests/support/node/tool-fixtures.ts. A raw fs write
+// verb is the way a probe lands in the checkout and blinds the gate it was probing, so the ban names every door.
+// A specifier is a string literal or a substitution-free template literal at `path`.
+const fsDoor = (path) =>
+  FS_SPECIFIERS.flatMap((specifier) => [
+    `[${path}.value=${JSON.stringify(specifier)}]`,
+    `[${path}.type='TemplateLiteral'][${path}.expressions.length=0][${path}.quasis.0.value.cooked=${JSON.stringify(specifier)}]`,
+  ]).join(", ");
+const FS_DOOR = fsDoor("source");
+const FS_REQUIRE_DOOR = fsDoor("arguments.0");
+const FS_WRITE_VERB_PATTERN = `/^(?:${FS_WRITE_VERBS.join("|")})$/`;
+const RAW_FS_WRITE_MESSAGE =
+  "A gate family test writes only through the scratch writers (plantFile, plantDir, plantLink, removePlanted, or the `scratch` and `plantedTree` fixtures in tests/support/node/tool-fixtures.ts); a raw fs write verb can land a probe in the checkout and blind the gate under test. Read with readFileSync, existsSync or readdirSync.";
 const VERIFY_HARD_RESTRICTIONS = [
+  {
+    id: "no-raw-fs-write-in-gate-tests",
+    scope: ["tests/tooling/verify/gates/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [
+      `ImportDeclaration:matches(${FS_DOOR}) > ImportSpecifier[imported.name=${FS_WRITE_VERB_PATTERN}]`,
+      `ImportDeclaration:matches(${FS_DOOR}) > :matches(ImportNamespaceSpecifier, ImportDefaultSpecifier)`,
+      `ExportNamedDeclaration:matches(${FS_DOOR}) > ExportSpecifier[local.name=${FS_WRITE_VERB_PATTERN}]`,
+      `ExportAllDeclaration:matches(${FS_DOOR})`,
+      `ImportExpression:matches(${FS_DOOR})`,
+      `CallExpression[callee.name='require']:matches(${FS_REQUIRE_DOOR})`,
+      `CallExpression[callee.type='MemberExpression'][callee.object.name='process'][callee.property.name='getBuiltinModule']:matches(${FS_REQUIRE_DOOR})`,
+      `TSImportEqualsDeclaration > TSExternalModuleReference:matches(${fsDoor("expression")})`,
+    ].map((selector) => ({ selector, message: RAW_FS_WRITE_MESSAGE })),
+  },
   {
     id: "policy-binding-resolution",
     scope: GATE_MODULES,
@@ -2893,6 +3980,7 @@ const RESTRICTIONS = [
   ...ROLE_DATA_RESTRICTIONS,
   ...TURN_IDENTITY_RESTRICTIONS,
   ...SERVER_SCOPE_RESTRICTIONS,
+  ...AMBIENT_GLOBAL_RESTRICTIONS,
   ...CLIENT_REGISTRY_RESTRICTIONS,
   ...BUS_REGISTRY_RESTRICTIONS,
   ...CLIENT_DEFINITION_HOME_RESTRICTIONS,
@@ -2910,6 +3998,7 @@ const RESTRICTIONS = [
   // Only tooling drives browser pages, so app code may close over module scope.
   { id: "evaluate-no-scope-capture", scope: rootSources("@tooling"), homes: [] },
   { id: "assumes-single-replica", scope: rootSources("@server", "@inference"), notUnder: ["packages/server/src/**/persistence/**"], homes: [] },
+  { id: "detached-work-traced", scope: rootSources("@server", "@inference"), homes: [] },
   ...CLIENT_SEAL_RESTRICTIONS,
   ...CLIENT_STYLE_RESTRICTIONS,
   {
@@ -5182,10 +6271,12 @@ const serverFactoryPublicBoundaryRule = {
         }
         return;
       }
+      // A domain or primitives target exposes a factory shape only through its own import, judged in that file.
+      // A file this rule does not lint judges nothing itself, so it is walked from every importer, same tier included.
       if (
         !declarations.some((declaration) => {
           const owner = relative(context.cwd, declaration.getSourceFile().fileName).replaceAll("\\", "/");
-          return serverTypeTier(owner) !== undefined && serverTypeTier(owner) !== serverTypeTier(consumer);
+          return unjudgedServerFile(owner) || (serverFactoryTier(owner) && serverTypeTier(owner) !== serverTypeTier(consumer));
         })
       ) {
         return;
@@ -5255,12 +6346,43 @@ const serverFactoryPublicBoundaryRule = {
         inspect(raw.qualifier, node, new Set(), true);
       }
     };
+    const augmentation = (node) => {
+      const raw = native.esTreeNodeToTSNodeMap.get(node);
+      if (!(serverFactoryTier(consumer) && ts.isSourceFile(raw.parent))) {
+        return;
+      }
+      const boundary = readServerAugmentationBoundary(
+        raw,
+        { kind: "parser", program: native.program, checker: native.checker, source: raw.getSourceFile() },
+        context.cwd,
+      );
+      const seen = new Set();
+      for (const declaration of boundary.trace.declarations) {
+        if (seen.has(declaration)) {
+          continue;
+        }
+        seen.add(declaration);
+        context.report({
+          node,
+          messageId: "crossTierFactoryType",
+          data: {
+            name: declaration.name?.text ?? "default",
+            owner: relative(context.cwd, declaration.getSourceFile().fileName),
+            consumer: `every tier through the ambient augmentation in ${consumer}`,
+          },
+        });
+      }
+      if (boundary.kind === "unresolved") {
+        context.report({ node, messageId: "unreadableFactoryExposure", data: { detail: boundary.detail } });
+      }
+    };
     return {
       ImportDeclaration: importDeclaration,
       ExportNamedDeclaration: exportNamedDeclaration,
       ExportAllDeclaration: exportAllDeclaration,
       ImportExpression: importExpression,
       TSImportType: importType,
+      TSModuleDeclaration: augmentation,
     };
   },
 };
@@ -6656,6 +7778,314 @@ const wireJsonRule = {
   },
 };
 
+// Fire-and-forget work whose failure is invisible. The request root has sealed by the time detached work runs, so an
+// absorbed rejection reaches no log, trace or caller (A1); and a catch inside an opener callback that does not rethrow
+// seals the detached root `ok` on every failure (A2). Openers are the declared ROOT_SPAN_OPENERS tuple.
+// Declared narrowings: the rule is syntactic. A line-scoped `eslint-disable-next-line` waives EVERY statement on that
+// line, not one dispatch. A promise-link key known only from a literal TYPE (a parameter typed 'catch') is not read;
+// a literal, a `+` concatenation or a binding written once is. A promise kept by a callee (the callee records the
+// failure itself) is not seen; only one bound to a name and handed to a collection whose elements later reach an await
+// or a return is kept. A value handed to an unrelated call (`ignore(Promise.allSettled(kept))`) counts as handed on:
+// the callee's handling is not read.
+const ROOT_SPAN_OPENER_NAMES = new Set(ROOT_SPAN_OPENERS);
+const PROMISE_LINKS = new Set(["then", "catch", "finally"]);
+// Which argument of a promise link is its rejection handler.
+const REJECTION_HANDLER_ARGUMENT = new Map([
+  ["catch", 0],
+  ["then", 1],
+]);
+const DISCARD_BODIES = new Set(["undefined", "null", "void 0"]);
+const DETACHED_MESSAGES = {
+  untraced:
+    "Fire-and-forget work with a discarded rejection is invisible: the request root has sealed, so the failure reaches no log, trace or caller. " +
+    "Await it so the caller owns completion, or start it with `superviseDetached(<ownRequestId>, <spanName>, <attrs>, () => work())`. " +
+    "Work that has nothing to trace and no caller to inform takes `// eslint-disable-next-line orb/detached-work-traced -- <why it is invisible on purpose and what would end the exemption>`.",
+  swallowed:
+    "A catch inside a detached root span that does not rethrow seals the span `ok` on every failure. Warn or emit, then rethrow so the span marks ERROR; the supervisor owns the terminal rejection.",
+  blinded:
+    "A discarding `.catch` nested inside a detached root callback blinds the span: it can mark ERROR only if the rejection reaches it. Attach the absorber to the opener call, outside the callback.",
+};
+
+function unwrapTransparent(node) {
+  let current = node;
+  while (
+    current.type === "ChainExpression" ||
+    current.type === "TSNonNullExpression" ||
+    current.type === "TSAsExpression" ||
+    current.type === "TSSatisfiesExpression" ||
+    current.type === "TSTypeAssertion"
+  ) {
+    current = current.expression;
+  }
+  return current;
+}
+
+// The ORDERED runtime string of a statically knowable key: a literal, a `+` concatenation, or a binding written once.
+function staticDetachedKey(context, node, hops = 4) {
+  const value = unwrapTransparent(node);
+  if (value.type === "Literal") {
+    return typeof value.value === "string" ? value.value : undefined;
+  }
+  if (value.type === "TemplateLiteral") {
+    return value.expressions.length === 0 ? value.quasis[0].value.cooked : undefined;
+  }
+  if (value.type === "BinaryExpression" && value.operator === "+") {
+    const left = staticDetachedKey(context, value.left, hops);
+    const right = staticDetachedKey(context, value.right, hops);
+    return left === undefined || right === undefined ? undefined : left + right;
+  }
+  const initializer = value.type === "Identifier" && hops > 0 ? singleInitializer(context, value) : undefined;
+  return initializer === undefined ? undefined : staticDetachedKey(context, initializer, hops - 1);
+}
+
+// `p.catch` and `p["catch"]` are the same read.
+function literalMember(context, node) {
+  const member = unwrapTransparent(node);
+  if (member.type !== "MemberExpression") {
+    return;
+  }
+  const name = member.computed ? staticDetachedKey(context, member.property) : member.property.name;
+  return name === undefined ? undefined : { name, receiver: unwrapTransparent(member.object) };
+}
+
+function isOpenerCall(context, node) {
+  if (node.type !== "CallExpression") {
+    return false;
+  }
+  const callee = unwrapTransparent(node.callee);
+  return ROOT_SPAN_OPENER_NAMES.has(callee.type === "Identifier" ? callee.name : literalMember(context, callee)?.name);
+}
+
+function isDiscardingHandler(context, node) {
+  const handler = node === undefined ? undefined : unwrapTransparent(node);
+  if (handler?.type !== "ArrowFunctionExpression" && handler?.type !== "FunctionExpression") {
+    return false;
+  }
+  return handler.body.type === "BlockStatement"
+    ? handler.body.body.length === 0
+    : DISCARD_BODIES.has(context.sourceCode.getText(unwrapTransparent(handler.body)));
+}
+
+// The call that is itself a `.catch(<discard>)` / `.then(_, <discard>)` link.
+function discardsRejection(context, call) {
+  const link = literalMember(context, call.callee);
+  const index = link === undefined ? undefined : REJECTION_HANDLER_ARGUMENT.get(link.name);
+  return index !== undefined && isDiscardingHandler(context, call.arguments[index]);
+}
+
+// Walk inward through promise links to the first discarding one; a non-link callee ends the chain.
+function hasAbsorbingLink(context, expression) {
+  let current = unwrapTransparent(expression);
+  while (current.type === "CallExpression") {
+    if (discardsRejection(context, current)) {
+      return true;
+    }
+    const link = literalMember(context, current.callee);
+    if (link === undefined || !PROMISE_LINKS.has(link.name)) {
+      return false;
+    }
+    current = link.receiver;
+  }
+  return false;
+}
+
+// A promise bound to a name and handed to a collection (`set.add(p)`, `list.push(p)`, `map.set(k, p)`) that is later
+// read as a whole (spread, iterated, passed to `Promise.all`-style combinators, `.values()`) is kept: its failure is read
+// at the join, so the discarding link on the statement is not the only owner. Retention inside a callee is not read.
+const COLLECTING_MEMBERS = new Set(["add", "push", "set", "unshift"]);
+const COLLECTION_READ_MEMBERS = new Set(["values", "entries", "forEach"]);
+const COMBINATOR_MEMBERS = new Set(["all", "allSettled", "race", "any", "from"]);
+
+// The name a promise chain starts from: `p` in `p.catch(h)`, or undefined when the chain starts at a call.
+function chainRootName(context, expression) {
+  let current = unwrapTransparent(expression);
+  while (current.type === "CallExpression") {
+    const link = literalMember(context, current.callee);
+    if (link === undefined || !PROMISE_LINKS.has(link.name)) {
+      return;
+    }
+    current = link.receiver;
+  }
+  return current.type === "Identifier" ? current : undefined;
+}
+
+// Does the value of `node` reach an await, a return, or a call that takes it on? A `void`, a bare statement, a binding
+// nothing consumes, and a chain that ends in one of those keep nothing. Passing a value to an unrelated call counts as
+// handing it on (a declared narrowing): the callee's own handling is not read.
+const PROMISE_CHAIN_MEMBERS = new Set(["then", "catch", "finally"]);
+const FLOW_DEPTH = 4;
+const TRANSPARENT_PARENTS = new Set(["ChainExpression", "TSAsExpression", "TSNonNullExpression", "TSSatisfiesExpression"]);
+
+// A binding is consumed when one of its reads is itself consumed.
+function bindingConsumed(context, id, depth) {
+  const variable = lexicalVariable(context, id);
+  return variable?.references.some((reference) => reference.isRead() && flowConsumed(context, reference.identifier, depth)) === true;
+}
+
+// Does a `for...of` over the carrier consume its elements: `for await`, or an element binding whose reads are consumed?
+function loopConsumes(context, loop, depth) {
+  const declarator = loop.left.type === "VariableDeclaration" ? loop.left.declarations[0] : undefined;
+  return loop.await || declarator?.id.type !== "Identifier" || bindingConsumed(context, declarator.id, depth);
+}
+
+// A `forEach` callback consumes its elements when its first parameter is consumed; a callback it cannot see is handed on.
+function callbackConsumes(context, callback, depth) {
+  if (callback?.type !== "ArrowFunctionExpression" && callback?.type !== "FunctionExpression") {
+    return callback !== undefined;
+  }
+  const [first] = callback.params;
+  return first !== undefined && (first.type !== "Identifier" || bindingConsumed(context, first, depth));
+}
+
+// A value used as a call argument: where does the call's result go?
+function callFlowConsumed(context, parent, current, depth) {
+  if (parent.callee === current) {
+    return false;
+  }
+  return COMBINATOR_MEMBERS.has(staticMemberName(parent.callee)) ? flowConsumed(context, parent, depth) : true;
+}
+
+function memberFlowConsumed(context, parent, current, depth) {
+  const call = parent.object === current && parent.parent.type === "CallExpression" && parent.parent.callee === parent ? parent.parent : undefined;
+  const member = staticMemberName(parent);
+  if (call === undefined) {
+    return false;
+  }
+  if (member === "forEach") {
+    return callbackConsumes(context, call.arguments[0], depth - 1);
+  }
+  return (COLLECTION_READ_MEMBERS.has(member) || PROMISE_CHAIN_MEMBERS.has(member)) && flowConsumed(context, call, depth);
+}
+
+// A value bound by a declaration or assignment is consumed when a read of the bound name is.
+function boundFlowConsumed(context, parent, current, depth) {
+  const target = parent.type === "VariableDeclarator" ? parent.id : parent.left;
+  const source = parent.type === "VariableDeclarator" ? parent.init : parent.right;
+  return source === current && target.type === "Identifier" && bindingConsumed(context, target, depth - 1);
+}
+
+function flowConsumed(context, node, depth = FLOW_DEPTH) {
+  let current = node;
+  while (TRANSPARENT_PARENTS.has(current.parent?.type)) {
+    current = current.parent;
+  }
+  const parent = current.parent;
+  if (depth === 0 || parent === undefined || parent === null) {
+    return false;
+  }
+  switch (parent.type) {
+    case "AwaitExpression":
+    case "ReturnStatement":
+      return true;
+    case "ArrowFunctionExpression":
+      return parent.body === current;
+    case "ArrayExpression":
+    case "ConditionalExpression":
+    case "LogicalExpression":
+      return flowConsumed(context, parent, depth);
+    case "SpreadElement":
+      return parent.parent.type === "ArrayExpression" ? flowConsumed(context, parent.parent, depth) : true;
+    case "ForOfStatement":
+      return parent.right === current && loopConsumes(context, parent, depth - 1);
+    case "VariableDeclarator":
+    case "AssignmentExpression":
+      return boundFlowConsumed(context, parent, current, depth);
+    case "CallExpression":
+      return callFlowConsumed(context, parent, current, depth);
+    case "MemberExpression":
+      return memberFlowConsumed(context, parent, current, depth);
+    default:
+      return false;
+  }
+}
+
+// A collection is read whole, and the elements reach a consumer, when any read of it flows on.
+function readsWhole(context, collection) {
+  const variable = lexicalVariable(context, collection);
+  return variable?.references.some(({ identifier }) => identifier !== collection && flowConsumed(context, identifier)) === true;
+}
+
+function isRetainedPromise(context, name) {
+  const variable = lexicalVariable(context, name);
+  return (
+    variable?.references.some(({ identifier }) => {
+      const call = identifier.parent;
+      const collecting = call.type === "CallExpression" && call.arguments.includes(identifier) ? call.callee : undefined;
+      return (
+        collecting?.type === "MemberExpression" &&
+        collecting.object.type === "Identifier" &&
+        COLLECTING_MEMBERS.has(staticMemberName(collecting)) &&
+        readsWhole(context, collecting.object)
+      );
+    }) === true
+  );
+}
+
+// A throw escapes only the nearest catch clause that holds it, unless a function or a guarded try block intervenes.
+function escapedCatchClause(thrown) {
+  for (let node = thrown.parent; node !== null && node !== undefined; node = node.parent) {
+    if (node.type === "CatchClause") {
+      return node;
+    }
+    const guardedTry = node.type === "BlockStatement" && node.parent?.type === "TryStatement" && node.parent.block === node && node.parent.handler !== null;
+    if (FUNCTION_NODES.has(node.type) || guardedTry) {
+      return;
+    }
+  }
+}
+
+const detachedWorkRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const insideOpener = (node) => context.sourceCode.getAncestors(node).some((ancestor) => isOpenerCall(context, ancestor));
+    const statements = [];
+    const openers = [];
+    const clauses = [];
+    const rethrowing = new Set();
+    return {
+      ExpressionStatement: (statement) => {
+        const raw = unwrapTransparent(statement.expression);
+        const expression = raw.type === "UnaryExpression" && raw.operator === "void" ? raw.argument : raw;
+        const root = chainRootName(context, expression);
+        const retained = root !== undefined && isRetainedPromise(context, root);
+        if (hasAbsorbingLink(context, expression) && !retained && !insideOpener(statement)) {
+          statements.push(statement);
+        }
+      },
+      CallExpression: (call) => {
+        if (isOpenerCall(context, call)) {
+          openers.push(call);
+        } else if (discardsRejection(context, call) && insideOpener(call)) {
+          context.report({ node: call, message: DETACHED_MESSAGES.blinded });
+        }
+      },
+      CatchClause: (clause) => {
+        if (insideOpener(clause)) {
+          clauses.push(clause);
+        }
+      },
+      ThrowStatement: (thrown) => {
+        const clause = escapedCatchClause(thrown);
+        if (clause !== undefined) {
+          rethrowing.add(clause);
+        }
+      },
+      "Program:exit": () => {
+        // "Traced" is any opener call anywhere in the statement: proving the opener wraps the work needs types.
+        for (const statement of statements) {
+          if (!openers.some(({ range }) => range[0] >= statement.range[0] && range[1] <= statement.range[1])) {
+            context.report({ node: statement, message: DETACHED_MESSAGES.untraced });
+          }
+        }
+        // Reported at the owning `try`, so a waiver sits above the statement a reader sees.
+        for (const clause of clauses.filter((candidate) => !rethrowing.has(candidate))) {
+          context.report({ node: clause.parent, message: DETACHED_MESSAGES.swallowed });
+        }
+      },
+    };
+  },
+};
+
 const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES.filter(({ ruleId, hard }) => !hard && ruleId.startsWith("orb/"));
 
 // D46: `ctx.dump` walks a guest value on the HOST stack, so a deep value overflows it and corrupts the shared
@@ -6700,6 +8130,10 @@ const restrictionPlugin = {
     ...Object.fromEntries(IDENTITY_WRITER_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(UI_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     [UI_CT_COLOR_RESTRICTION.id]: uiCtColorRule,
+    ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule])),
+    "no-raw-egress": rawEgressRule,
+    "no-raw-http-client": rawHttpClientRule,
+    "sole-env-reader": soleEnvReaderRule,
     [TYPE_HOME_NATIVE_POLICY_ID]: typeHomeDeclarationRule,
     [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryPublicBoundaryRule,
     "no-inline-invalidate-outside-seam": nativePackageCallRule(["invalidateQueries"], true),
@@ -6771,6 +8205,7 @@ const restrictionPlugin = {
     [TOOLING_ROOT_CONFIG_IMPORT_RULE.slice("orb/".length)]: toolingRootConfigImportRule,
     "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
     "assumes-single-replica": assumesSingleReplicaRule,
+    "detached-work-traced": detachedWorkRule,
     "commented-code": commentedCodeRule,
     "ct-story-single-import": ctStorySingleImportRule,
   },
@@ -7535,6 +8970,7 @@ const ORDINARY_CONFIG = [
       ...ROLE_DATA_RESTRICTIONS,
       ...TURN_IDENTITY_RESTRICTIONS,
       ...SERVER_SCOPE_RESTRICTIONS,
+      ...AMBIENT_GLOBAL_RESTRICTIONS,
       ...DETERMINISM_RESTRICTIONS,
       ...CLASS_TOKEN_RESTRICTIONS,
       ...Z_INDEX_RESTRICTIONS,
@@ -7709,9 +9145,16 @@ export const hardConfig = [
     settings: typedNativeSettings(entry),
     rules: { [entry.ruleId]: "error" },
   })),
+  ...PRINCIPAL_RULES.map(({ id, notUnder }) => ({
+    files: PRINCIPAL_SCOPE,
+    ...(notUnder === undefined ? {} : { ignores: notUnder }),
+    plugins: { orb: restrictionPlugin },
+    rules: { [`orb/${id}`]: "error" },
+  })),
   ...VERIFY_HARD_RESTRICTIONS.map(({ id, scope, notUnder }) => ({
     files: scope,
-    ignores: notUnder,
+    // A flat-config `ignores` array must not be empty or absent-as-undefined.
+    ...(notUnder === undefined ? {} : { ignores: notUnder }),
     plugins: { orb: restrictionPlugin },
     rules: { [`orb/${id}`]: "error" },
   })),

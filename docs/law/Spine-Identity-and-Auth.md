@@ -250,6 +250,23 @@ The sanctioned `Principal`/credential construction and cookie sites; everything 
   un-credentialed `via:"fallback"` principal is not a debug-route curiosity: under `single-user` it is
   what reaches every owner- and admin-gated tRPC surface (admin-gated meaning owner ∪ admin,
   `ROLES_FOR_GLOBAL_ACTION.admin`). `ownerFallbackAllowed` is what defends that boundary.
+- `entry/auth/principal-mint.ts` — `mintPrincipal`, the one constructor of the branded `Principal`. A
+  literal, a spread or a `satisfies` check fails `tsc`. dependency-cruiser `principal-mint-owners` limits its
+  importers to `seam.ts` and `compose/chat.ts`. The HARD `orb/principal-*` rules in `eslint.config.js` name the
+  functions that may call it or return a bare `Principal`, and refuse the assertion and literal spellings `tsc`
+  accepts. Those rules key on the name `Principal`, so `orb/principal-alias` refuses every rename of it:
+
+  - an import or export alias;
+  - a type alias, heritage clause or type-parameter bound that names it;
+  - `typeof` of a binding annotated `Principal`.
+
+  In the chat engine, `orb/turn-identity-principal` also refuses any import from the verb layer. No rule
+  refuses these spellings, so review owns them:
+
+  - an `any`-typed value, such as `JSON.parse` output or an untyped row, bound or passed where a `Principal` is expected;
+  - `typeof` of a binding whose `Principal` type is inferred or imported;
+  - an assertion to a named object, function or interface type that contains a `Principal`;
+  - in the engine, a type derived from a `Principal`-taking signature that a module outside the verb layer exports.
 - `entry/http/auth-routes.ts` — the session cookie write side, under the request transport's name
   (`infra/auth/transport.ts`); mints session tokens via `domain/sessions` and never re-implements resolution.
   Its cookie sites are login, first-run, the local signup-through-invite route, and the `oidc` callback
