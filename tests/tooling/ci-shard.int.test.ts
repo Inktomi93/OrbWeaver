@@ -7,8 +7,10 @@ import { testProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { LONG_TEST_TIMEOUT_BASE_MS } from "@orb/tooling/floor/testing/test-tags";
 import { VERB_COVERAGE_DIR, VERB_COVERAGE_SCOPE } from "@orb/tooling/floor/testing/verb-coverage";
 import { z } from "zod";
+import { BROWSER_PROJECTS } from "../e2e/support/modes.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
+const E2E_PROJECT_NAMES = BROWSER_PROJECTS.map(({ name }) => name).toSorted();
 const FILE_PLAN = z.object({
   files: z.array(z.string()),
   shards: z.array(z.array(z.string())),
@@ -48,7 +50,7 @@ for (const [runner, count] of [
 test("full non-live E2E mode partitions close the native case population without booting a stack", { timeout: scaledBudget(LONG_TEST_TIMEOUT_BASE_MS) }, ({
   repoRoot,
 }) => {
-  const result = runNicedSync(process.execPath, [join(repoRoot, "scripts/ci-shard.ts"), "e2e", "1/3", "--list"], {
+  const result = runNicedSync(process.execPath, [join(repoRoot, "scripts/ci-shard.ts"), "e2e", `1/${E2E_PROJECT_NAMES.length}`, "--list"], {
     cwd: repoRoot,
     env: testProcessEnv(),
     maxBuffer: 67_108_864,
@@ -62,7 +64,7 @@ test("full non-live E2E mode partitions close the native case population without
       selectedCases: z.array(z.object({ id: z.string(), project: z.string() })),
     })
     .parse(JSON.parse(readFileSync(join(repoRoot, "reports/ci-shard.json"), "utf8")));
-  expect(plan.projects).toEqual(["forward-header", "local", "single-user"]);
+  expect(plan.projects).toEqual(E2E_PROJECT_NAMES);
   expect(plan.cases.length).toBeGreaterThan(0);
   expect([...new Set(plan.cases.map((row) => row.project))].sort()).toEqual(plan.projects);
   expect(plan.selectedCases.map((row) => row.id)).toEqual(plan.cases.filter((row) => row.project === plan.selected).map((row) => row.id));
@@ -73,7 +75,7 @@ test("full non-live E2E mode partitions close the native case population without
 for (const [runner, count, childExit, expectedExit] of [
   ["node", 3, 1, 1],
   ["ct", 5, 2, 2],
-  ["e2e", 3, 137, 2],
+  ["e2e", E2E_PROJECT_NAMES.length, 137, 2],
 ] as const) {
   test(`${runner} execution forwards the natively collected shard to its real runner door and classifies failure and no-verdict exits`, {
     timeout: scaledBudget(LONG_TEST_TIMEOUT_BASE_MS),
@@ -81,11 +83,11 @@ for (const [runner, count, childExit, expectedExit] of [
     const output = join(scratch, "execution.json");
     await fakeBin(
       "pnpm",
-      "import fs from 'node:fs';fs.writeFileSync(process.env.FIXTURE_SHARD_CALLS,JSON.stringify({argv:process.argv.slice(2),live:process.env.E2E_LIVE,dev:process.env.E2E_ALLOW_DEV_TARGET}));process.exitCode=Number(process.env.FIXTURE_SHARD_EXIT);",
+      `import fs from 'node:fs';fs.writeFileSync(${JSON.stringify(output)},JSON.stringify({argv:process.argv.slice(2),live:process.env.E2E_LIVE,dev:process.env.E2E_ALLOW_DEV_TARGET}));process.exitCode=${childExit};`,
     );
     const result = runNicedSync(process.execPath, [join(repoRoot, "scripts/ci-shard.ts"), runner, `1/${count}`], {
       cwd: repoRoot,
-      env: testProcessEnv({ ["FIXTURE_SHARD_CALLS"]: output, ["FIXTURE_SHARD_EXIT"]: String(childExit) }),
+      env: testProcessEnv(),
       maxBuffer: 67_108_864,
     });
     expect(result.status, result.stdout + result.stderr).toBe(expectedExit);
