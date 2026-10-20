@@ -100,7 +100,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
   test("every entity + every asset-bearing reference travels; a re-import writes zero dupes", async ({ db, app, clock, importStagingDir }) => {
     // ── SEED one-of-everything for the owner on the SOURCE box ──────────────────────────────────────────
     await seedUser(db, { id: OWNER_ID, handle: castId<Handle>("p8-source-owner") });
-    const owner = principalOf(OWNER_ID);
+    const owner = await principalOf(db, OWNER_ID);
 
     // Blobs (avatar + a gallery image + a chat-inline image), all CAS-coherent via the real store.
     const avatar = await app.services.assets.store({
@@ -348,7 +348,7 @@ describe("P-8: the full-library bundle round-trips into a fresh box, self-contai
     const variantDir = await mkdtemp(join(tmpdir(), "orb-p8-var-"));
     const targetId = castId<UserId>("user_p8_target_owner");
     await seedUser(freshDatabase, { id: targetId, handle: castId<Handle>("p8-target-owner") });
-    const target = principalOf(targetId);
+    const target = await principalOf(db, targetId);
     try {
       const fresh = await createServices({
         serverRestart: UNSUPERVISED_RESTART,

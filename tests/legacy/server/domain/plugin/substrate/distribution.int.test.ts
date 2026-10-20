@@ -17,7 +17,7 @@ describe("alreadyHolds", () => {
     const db = await freshDb();
     const h = makePluginHarness(db);
     const recipient = await seedUser(db, { handle: castId<Handle>("recipient") });
-    const principal = ownerPrincipalFor(recipient);
+    const principal = await ownerPrincipalFor(db, recipient);
 
     expect(await alreadyHolds(h.ctx, principal, "house-style")).toBe(false);
 
@@ -32,7 +32,7 @@ describe("installDistributedCopy", () => {
     const db = await freshDb();
     const h = makePluginHarness(db);
     const recipient = await seedUser(db, { handle: castId<Handle>("recipient") });
-    const principal = ownerPrincipalFor(recipient);
+    const principal = await ownerPrincipalFor(db, recipient);
 
     await installDistributedCopy(h.service, principal, makeBundle({ id: "house-style", capabilities: ["chat.transform"] }));
 
@@ -49,6 +49,6 @@ describe("installDistributedCopy", () => {
     const h = makePluginHarness(db);
     const recipient = await seedUser(db, { handle: castId<Handle>("recipient") });
 
-    await expect(installDistributedCopy(h.service, ownerPrincipalFor(recipient), new Uint8Array([1, 2, 3]))).rejects.toThrow();
+    await expect(installDistributedCopy(h.service, await ownerPrincipalFor(db, recipient), new Uint8Array([1, 2, 3]))).rejects.toThrow();
   });
 });

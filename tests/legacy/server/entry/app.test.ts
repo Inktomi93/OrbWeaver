@@ -1,32 +1,33 @@
 // entry/app — the Hono builder. Pins the HTTP-edge wiring over `app.fetch` + fake deps: healthz reflects
 // the injected shutdown/key getters; the auth seam resolves the ONE principal per request (the blob route
 // then 401s an anonymous caller); the seam is consulted exactly once per request (no double-resolve). The
-// tRPC mount + the multipart routes are exercised by their own slice tests; here we prove the assembly.
+// tRPC mount + the multipart routes are exercised by their own slice tests; here we prove the assembly. The mount
+// over a real cookie session (CSRF, batch limits, the POST subscription) is tests/e2e/csrf-gates.local.spec.ts.
 
-import { createTrpcClient } from "@orb/client/data";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile } from "@orb/contracts/portability";
-import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { ProviderError } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
-import type { Handle, SocketId, UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { getTraceByRequestId, initTracing } from "@orb/server/foundation/observability";
 import { classifyDomainError, createSocketRegistry } from "@orb/server/transport/trpc";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { describe, vi } from "vitest";
-import type { SearchSuggestion, SuggestParams } from "#server/domain/search/index.ts";
+import { describe } from "vitest";
 import { layer } from "#server/domain/settings/effective-config/layer.ts";
 import type { AppDeps } from "#server/entry/app.ts";
 import { createApp, rateLimitResponseMeta } from "#server/entry/app.ts";
 import type { AuthSeam, AuthSeamResolution } from "#server/entry/auth/index.ts";
 import { recentRequests } from "#server/foundation/observability/logger.ts";
 import { versionIdentity } from "#server/foundation/version/index.ts";
+import { principal as makePrincipal } from "../../db/schema/_support.ts";
+import { testLiveBuses } from "../transport/trpc/_support.ts";
 
 /** Build the classifier-mapped `TRPCError` (cause-carrying) that `rateLimitResponseMeta` receives at the
  *  mount — mirrors the real path (`error-mapping.ts` wraps the DomainError as `.cause`). */
@@ -67,7 +68,6 @@ function hit(app: ReturnType<typeof createApp>, req: Request): Promise<Response>
 
 const OK = 200;
 const UNAUTHORIZED = 401;
-const FORBIDDEN = 403;
 const UNSUPPORTED_MEDIA_TYPE = 415;
 const MISDIRECTED = 421;
 const NOT_FOUND = 404;
@@ -75,16 +75,9 @@ const SERVICE_UNAVAILABLE = 503;
 const INTERNAL_ERROR = 500;
 const TOO_MANY_REQUESTS = 429;
 
-const OWNER: Principal = {
-  userId: castId<UserId>("usr_owner"),
-  role: "owner",
-  handle: castId<Handle>("owner"),
-  externalId: null,
-  via: "fallback",
-};
-
-/** The same owner reached over a browser session cookie — the arm the pre-existing tRPC CSRF gate keys on. */
-const COOKIE_OWNER: Principal = { ...OWNER, via: "cookie" };
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+const OWNER: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("usr_owner"), { role: "owner", handle: castId<Handle>("owner") });
 
 /** The CSRF-belt probe: `authedProcedure.mutation` with NO input schema, so a cross-site POST needs no body. */
 const PRUNE_URL = "http://localhost/api/trpc/tag.pruneUnusedTags";
@@ -119,6 +112,7 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     now: (): number => FROZEN_AT_MS,
     db: databaseHandle({} as unknown as Db),
     oidcProviderName: "your identity provider",
+    liveBuses: testLiveBuses(),
     seam: fakeSeam(null),
     services,
     rateLimit: { enforce: (): Promise<void> => Promise.resolve() },
@@ -160,119 +154,6 @@ describe("createApp", () => {
       expect(res.headers.get("server-timing")).toMatch(/total;dur=\d+(?:\.\d+)?;desc="Response preparation"/);
       expect(res.headers.get("timing-allow-origin")).toBeNull();
     }
-  });
-
-  test("the production client splits against the real mount and preserves each query's input, result and principal", async () => {
-    const queries = Array.from({ length: TRPC_BATCH_MAX_ITEMS + 1 }, (_, index) =>
-      index === 0 ? "界".repeat(TRPC_BATCH_MAX_URL_LENGTH) : `batch-query-${index}`,
-    );
-    const seen: SuggestParams[] = [];
-    const batchSizes: number[] = [];
-    const app = createApp(
-      deps({
-        seam: fakeSeam(COOKIE_OWNER),
-        services: testServices({
-          search: {
-            suggest: (input: SuggestParams): Promise<SearchSuggestion[]> => {
-              seen.push(input);
-              return Promise.resolve([{ suggestion: input.query, score: 1 }]);
-            },
-          },
-        }),
-      }),
-    );
-    vi.stubGlobal("fetch", (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
-      const request = new Request(input, init);
-      batchSizes.push(new URL(request.url).pathname.split("/").at(-1)?.split(",").length ?? 0);
-      return hit(app, request);
-    });
-    try {
-      const client = createTrpcClient("http://localhost/api/trpc");
-      const results = await Promise.all(queries.map((query) => client.search.suggest.query({ query, limit: 1 })));
-      expect(batchSizes).toEqual([TRPC_BATCH_MAX_ITEMS, 1]);
-      expect(results).toEqual(queries.map((query) => [{ suggestion: query, score: 1 }]));
-      expect(seen).toEqual(queries.map((query) => ({ ownerId: COOKIE_OWNER.userId, query, limit: 1 })));
-    } finally {
-      vi.unstubAllGlobals();
-    }
-  });
-
-  test.each(["GET", "POST"])("%s batches admit exactly the limit and reject overflow before procedure work", async (method) => {
-    const calls: string[] = [];
-    let enforced = 0;
-    const tag = {
-      listTags: (): Promise<readonly never[]> => {
-        calls.push("listTags");
-        return Promise.resolve([]);
-      },
-      pruneUnusedTags: (): Promise<{ removed: number }> => {
-        calls.push("pruneUnusedTags");
-        return Promise.resolve({ removed: 0 });
-      },
-    };
-    const app = createApp(
-      deps({
-        seam: fakeSeam(COOKIE_OWNER),
-        services: testServices({ tag }),
-        rateLimit: {
-          enforce: (): Promise<void> => {
-            enforced += 1;
-            return Promise.resolve();
-          },
-        },
-      }),
-    );
-    const path = method === "GET" ? "tag.listTags" : "tag.pruneUnusedTags";
-    const request = (count: number): Request =>
-      new Request(`http://localhost/api/trpc/${Array.from({ length: count }, () => path).join(",")}?batch=1`, {
-        method,
-        ...(method === "POST" ? { headers: { "content-type": "application/json", [CSRF_HEADER]: "1" }, body: "{}" } : {}),
-      });
-    const admitted = await hit(app, request(TRPC_BATCH_MAX_ITEMS));
-    expect(admitted.status).toBe(OK);
-    expect(await admitted.json()).toEqual(Array.from({ length: TRPC_BATCH_MAX_ITEMS }, () => ({ result: { data: method === "GET" ? [] : { removed: 0 } } })));
-    expect(calls).toEqual(Array.from({ length: TRPC_BATCH_MAX_ITEMS }, () => (method === "GET" ? "listTags" : "pruneUnusedTags")));
-    expect(enforced).toBe(TRPC_BATCH_MAX_ITEMS);
-
-    calls.length = 0;
-    enforced = 0;
-    const refused = await hit(app, request(TRPC_BATCH_MAX_ITEMS + 1));
-    expect(calls).toEqual([]);
-    expect(enforced).toBe(0);
-    expect(refused.status).toBe(400);
-    const body = await refused.text();
-    expect(body).toContain("BAD_REQUEST");
-    expect(body).toContain("Batch call exceeds maximum size");
-    expect(body).not.toContain("stack");
-  });
-
-  test("a valid long query is admitted over JSON POST without losing its input or principal", async () => {
-    const query = "界".repeat(TRPC_BATCH_MAX_URL_LENGTH);
-    const seen: SuggestParams[] = [];
-    const app = createApp(
-      deps({
-        seam: fakeSeam(COOKIE_OWNER),
-        services: testServices({
-          search: {
-            suggest: (input: SuggestParams): Promise<SearchSuggestion[]> => {
-              seen.push(input);
-              return Promise.resolve([]);
-            },
-          },
-        }),
-      }),
-    );
-    const res = await hit(
-      app,
-      new Request("http://localhost/api/trpc/search.suggest?batch=1", {
-        method: "POST",
-        headers: { "content-type": "application/json", [CSRF_HEADER]: "1" },
-        body: JSON.stringify({ 0: { query, limit: 1 } }),
-      }),
-    );
-    expect(res.status).toBe(OK);
-    expect(await res.json()).toEqual([{ result: { data: [] } }]);
-    expect(seen).toEqual([{ ownerId: COOKIE_OWNER.userId, query, limit: 1 }]);
   });
 
   test.each([
@@ -823,29 +704,6 @@ describe("createApp: the tRPC mount refuses a non-JSON mutation (CSRF content-ty
     expect(calls).toEqual(["pruneUnusedTags"]);
   });
 
-  // The pre-existing gate keeps keying where it always keyed: a cookie-authenticated mutation without the
-  // custom header is 403, header present is 200. The belt is additive, not a replacement.
-  test("CONTROL: the cookie-arm CSRF gate still fires (JSON mutation, no x-orb-csrf → 403)", async () => {
-    const { app, calls } = spyApp(COOKIE_OWNER);
-    const res = await hit(app, new Request(PRUNE_URL, { method: "POST", headers: { "content-type": "application/json" }, body: "null" }));
-    expect(res.status).toBe(FORBIDDEN);
-    expect(calls).toEqual([]);
-  });
-
-  test("CONTROL: the cookie arm WITH x-orb-csrf still runs (the real client's batched write path)", async () => {
-    const { app, calls } = spyApp(COOKIE_OWNER);
-    const res = await hit(
-      app,
-      new Request(`${PRUNE_URL}?batch=1`, {
-        method: "POST",
-        headers: { "content-type": "application/json", [CSRF_HEADER]: "1" },
-        body: JSON.stringify({ 0: null }),
-      }),
-    );
-    expect(res.status).toBe(OK);
-    expect(calls).toEqual(["pruneUnusedTags"]);
-  });
-
   // GET carries no content-type at all and tRPC's method map allows GET for queries/subscriptions ONLY —
   // so scoping the belt to POST is complete for mutations and inert for reads.
   test("CONTROL: a GET query is untouched by the belt (no content-type on the request)", async () => {
@@ -1030,56 +888,5 @@ describe("app: a NON-Error throw is a policied 500, not a bare adapter answer (#
     expect(records).toHaveLength(1);
     expect(records[0]?.status).toBe(INTERNAL_ERROR);
     expect(getTraceByRequestId(requestId)?.status).toBe("error");
-  });
-});
-
-// Easy-sharing leg T: a relay that buffers every GET body (a Cloudflare quick tunnel) freezes a GET
-// EventSource, so the mount grants `allowMethodOverride` and the client opens subscriptions over POST. The
-// grant must widen subscriptions only as far as a JSON POST: the content-type belt above still owns every
-// other POST content type, and tRPC's override map keeps a mutation POST-only.
-describe("createApp: a subscription opens over a JSON POST (easy-sharing leg T)", () => {
-  const connectUrl = "http://localhost/api/trpc/stream.connect";
-
-  test("POST stream.connect with the input in a JSON body runs the subscription resolver", async () => {
-    // tRPC answers a refused subscription with a 200 SSE body that opens with `connected` and carries the
-    // METHOD_NOT_SUPPORTED as a later frame, so neither the status nor the first event discriminates. The
-    // resolver's own side effect does: it registers presence only once the procedure is admitted.
-    const connected: UserId[] = [];
-    const app = createApp(
-      deps({
-        seam: fakeSeam(COOKIE_OWNER),
-        presence: {
-          connect: (userId): void => {
-            connected.push(userId);
-          },
-          read: (userId) => ({ userId, online: true, lastSeenAt: null }),
-        },
-      }),
-    );
-    const res = await hit(
-      app,
-      new Request(connectUrl, {
-        method: "POST",
-        headers: { "content-type": "application/json", accept: "text/event-stream", [CSRF_HEADER]: "1" },
-        body: JSON.stringify({ socketId: castId<SocketId>("socket_leg_t_post") }),
-      }),
-    );
-    await res.body?.cancel();
-    expect(res.status).toBe(OK);
-    expect(res.headers.get("content-type")).toContain("text/event-stream");
-    expect(connected).toEqual([COOKIE_OWNER.userId]);
-  });
-
-  test("CONTROL: a form-encoded POST to the subscription is still the belt's 415", async () => {
-    const app = createApp(deps({ seam: fakeSeam(COOKIE_OWNER) }));
-    const res = await hit(
-      app,
-      new Request(connectUrl, {
-        method: "POST",
-        headers: { "content-type": "application/x-www-form-urlencoded" },
-        body: "socketId=socket_leg_t_form",
-      }),
-    );
-    expect(res.status).toBe(UNSUPPORTED_MEDIA_TYPE);
   });
 });

@@ -18,11 +18,11 @@ describe("listEmbeddableCharacterIds", () => {
     const alice = await seedUser(db, { handle: castId<Handle>("alice") });
     const bob = await seedUser(db, { handle: castId<Handle>("bob") });
     const aliceCard = await svc.create({
-      principal: principal(alice),
+      principal: await principal(db, alice),
       input: { handle: castId<CharacterHandle>("aria"), name: "Aria", description: "a curious traveler" },
     });
     const bobCard = await svc.create({
-      principal: principal(bob),
+      principal: await principal(db, bob),
       input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a grumpy blacksmith" },
     });
     await seedRawCharacter(db, {
@@ -51,11 +51,11 @@ describe("listEmbeddableCharacterIds", () => {
     const alice = await seedUser(db, { handle: castId<Handle>("alice") });
     const bob = await seedUser(db, { handle: castId<Handle>("bob") });
     const aliceCard = await svc.create({
-      principal: principal(alice),
+      principal: await principal(db, alice),
       input: { handle: castId<CharacterHandle>("aria"), name: "Aria", description: "a curious traveler" },
     });
     await svc.create({
-      principal: principal(bob),
+      principal: await principal(db, bob),
       input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a grumpy blacksmith" },
     });
 

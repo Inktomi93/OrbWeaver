@@ -56,7 +56,7 @@ test("valid activation is discoverable across restart; disable and uninstall cle
     },
   });
   const owner = await seedUser(db, { handle: castId<Handle>("provider-owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const installed = await plugin.service.install({ caller, bundle: makeBundle({ id: "provider-plugin", providers: [PROVIDER] }), grant: [] });
   const provider = async (harness: typeof connection): Promise<unknown> =>
     (await harness.svc.providersAvailable({ principal: caller })).find((row) => row.provider.id === PROVIDER.id);
@@ -91,26 +91,26 @@ test("identical definitions share one row; a changed definition is refused only 
   const secondOwner = await seedUser(db, { handle: castId<Handle>("provider-second") });
   // Read as a named owner: a plugin row is offered only to the owners of its enabled contributing installs.
   const provider = async (viewer: UserId): Promise<unknown> =>
-    (await connection.svc.providersAvailable({ principal: ownerPrincipalFor(viewer) })).find((row) => row.provider.id === PROVIDER.id);
+    (await connection.svc.providersAvailable({ principal: await ownerPrincipalFor(db, viewer) })).find((row) => row.provider.id === PROVIDER.id);
   const first = await plugin.service.install({
-    caller: ownerPrincipalFor(firstOwner),
+    caller: await ownerPrincipalFor(db, firstOwner),
     bundle: makeBundle({ id: "provider-plugin", providers: [PROVIDER] }),
     grant: [],
   });
   const second = await plugin.service.install({
-    caller: ownerPrincipalFor(secondOwner),
+    caller: await ownerPrincipalFor(db, secondOwner),
     bundle: makeBundle({ id: "provider-plugin", providers: [PROVIDER] }),
     grant: [],
   });
-  await plugin.service.setEnabled({ caller: ownerPrincipalFor(firstOwner), pluginId: first.id, enabled: true });
-  await plugin.service.setEnabled({ caller: ownerPrincipalFor(secondOwner), pluginId: second.id, enabled: true });
+  await plugin.service.setEnabled({ caller: await ownerPrincipalFor(db, firstOwner), pluginId: first.id, enabled: true });
+  await plugin.service.setEnabled({ caller: await ownerPrincipalFor(db, secondOwner), pluginId: second.id, enabled: true });
   expect(await linkedClaims(db)).toBe(2);
   expect(await db.select({ n: count() }).from(providerRows)).toEqual([{ n: 1 }]);
 
   // The first owner's own claim is permanent: their upgrade may not re-point the id at a new definition.
   await expect(
     plugin.service.upgrade({
-      caller: ownerPrincipalFor(firstOwner),
+      caller: await ownerPrincipalFor(db, firstOwner),
       pluginId: first.id,
       bundle: makeBundle({ id: "provider-plugin", version: "2.0.0", providers: [{ ...PROVIDER, label: "Changed Acme" }] }),
     }),
@@ -119,7 +119,7 @@ test("identical definitions share one row; a changed definition is refused only 
   expect(await provider(firstOwner)).toBeUndefined();
   expect(await linkedClaims(db)).toBe(1);
 
-  await plugin.service.setEnabled({ caller: ownerPrincipalFor(secondOwner), pluginId: second.id, enabled: false });
+  await plugin.service.setEnabled({ caller: await ownerPrincipalFor(db, secondOwner), pluginId: second.id, enabled: false });
   expect(await provider(secondOwner)).toBeUndefined();
 });
 
@@ -160,8 +160,8 @@ describe("a squatted plugin provider id blocks and shadows nobody else", () => {
       },
     });
     const enable = async (who: UserId, host: string): Promise<PluginId> => {
-      const installed = await plugin.service.install({ caller: principalFor(who), bundle: vendorBundle(host), grant: ["net.fetch"] });
-      await plugin.service.setEnabled({ caller: principalFor(who), pluginId: installed.id, enabled: true });
+      const installed = await plugin.service.install({ caller: await principalFor(db, who), bundle: vendorBundle(host), grant: ["net.fetch"] });
+      await plugin.service.setEnabled({ caller: await principalFor(db, who), pluginId: installed.id, enabled: true });
       return installed.id;
     };
     const squatter = await seedUser(db, { handle: castId<Handle>("provider-squatter") });
@@ -197,7 +197,7 @@ test("an invalid provider row is rejected by the bundle trust edge before persis
   const plugin = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("provider-invalid") });
   const invalid = makeBundle({ rawProviders: [{ ...PROVIDER, wire: "guest-backend" }] });
-  await expect(plugin.service.install({ caller: ownerPrincipalFor(owner), bundle: invalid, grant: [] })).rejects.toThrow(/providers/u);
+  await expect(plugin.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: invalid, grant: [] })).rejects.toThrow(/providers/u);
   expect(await db.select({ n: count() }).from(providerRows)).toEqual([{ n: 0 }]);
   expect(await db.select({ n: count() }).from(pluginProviderClaims)).toEqual([{ n: 0 }]);
 });
@@ -212,7 +212,7 @@ test("restart reconciliation removes a crash-window contribution from an errored
     },
   });
   const owner = await seedUser(db, { handle: castId<Handle>("provider-crash-window") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const installed = await plugin.service.install({ caller, bundle: makeBundle({ id: "provider-plugin", providers: [PROVIDER] }), grant: [] });
   await plugin.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -254,7 +254,7 @@ test("uninstall waits for an in-flight enable and removes its guest and provider
     },
   });
   const owner = await seedUser(db, { handle: castId<Handle>("provider-lifecycle-lane") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const installed = await plugin.service.install({ caller, bundle: makeBundle({ id: "provider-plugin", providers: [PROVIDER] }), grant: [] });
 
   const enabling = plugin.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
@@ -305,11 +305,11 @@ test("an owner's retained connection never follows its provider id to another de
 
   // The victim uses the relay through their OWN enabled install: a plugin provider serves only its installers.
   const original = await plugin.service.install({
-    caller: ownerPrincipalFor(victim),
+    caller: await ownerPrincipalFor(db, victim),
     bundle: bundle("https://legit.example/v1"),
     grant: ["net.fetch"],
   });
-  await plugin.service.setEnabled({ caller: ownerPrincipalFor(victim), pluginId: original.id, enabled: true });
+  await plugin.service.setEnabled({ caller: await ownerPrincipalFor(db, victim), pluginId: original.id, enabled: true });
 
   const credentialId = castId<UserCredentialId>("user_credential_provider_victim");
   await db.insert(userCredentials).values({
@@ -322,26 +322,34 @@ test("an owner's retained connection never follows its provider id to another de
     label: "victim key",
   });
   const victimConnection = await connection.svc.create({
-    principal: ownerPrincipalFor(victim),
+    principal: await ownerPrincipalFor(db, victim),
     providerId,
     credentialId,
     baseUrl: null,
     model: "victim-model",
   });
   expect(connection.runtime.providers.registry.get(providerId, victim)?.baseUrl).toBe("https://legit.example/v1");
-  await plugin.service.uninstall({ caller: ownerPrincipalFor(victim), pluginId: original.id });
+  await plugin.service.uninstall({ caller: await ownerPrincipalFor(db, victim), pluginId: original.id });
   expect(connection.runtime.providers.registry.get(providerId, victim)).toBeUndefined();
 
   // Another user's definition of the same id is theirs alone: it enables, and the victim never sees it.
-  const elsewhere = await plugin.service.install({ caller: ownerPrincipalFor(other), bundle: bundle("https://attacker.example/v1"), grant: ["net.fetch"] });
-  await plugin.service.setEnabled({ caller: ownerPrincipalFor(other), pluginId: elsewhere.id, enabled: true });
+  const elsewhere = await plugin.service.install({
+    caller: await ownerPrincipalFor(db, other),
+    bundle: bundle("https://attacker.example/v1"),
+    grant: ["net.fetch"],
+  });
+  await plugin.service.setEnabled({ caller: await ownerPrincipalFor(db, other), pluginId: elsewhere.id, enabled: true });
   expect(connection.runtime.providers.registry.get(providerId, other)?.baseUrl).toBe("https://attacker.example/v1");
   expect(connection.runtime.providers.registry.get(providerId, victim)).toBeUndefined();
-  await expect(connection.runtime.capabilities.for({ connectionId: victimConnection.id, principal: ownerPrincipalFor(victim) })).rejects.toThrow();
+  await expect(connection.runtime.capabilities.for({ connectionId: victimConnection.id, principal: await ownerPrincipalFor(db, victim) })).rejects.toThrow();
 
   // The victim's own later install of a different definition is refused: their claim still names the original.
-  const rerouted = await plugin.service.install({ caller: ownerPrincipalFor(victim), bundle: bundle("https://attacker.example/v1"), grant: ["net.fetch"] });
-  await expect(plugin.service.setEnabled({ caller: ownerPrincipalFor(victim), pluginId: rerouted.id, enabled: true })).rejects.toBeInstanceOf(
+  const rerouted = await plugin.service.install({
+    caller: await ownerPrincipalFor(db, victim),
+    bundle: bundle("https://attacker.example/v1"),
+    grant: ["net.fetch"],
+  });
+  await expect(plugin.service.setEnabled({ caller: await ownerPrincipalFor(db, victim), pluginId: rerouted.id, enabled: true })).rejects.toBeInstanceOf(
     PluginCrashedError,
   );
   expect(connection.runtime.providers.registry.get(providerId, victim)).toBeUndefined();
@@ -350,9 +358,13 @@ test("an owner's retained connection never follows its provider id to another de
   expect((await db.select().from(userCredentials)).find((row) => row.id === credentialId)?.provider).toBe(providerId);
 
   // Reinstalling the definition the victim claimed serves it again, unchanged.
-  await plugin.service.uninstall({ caller: ownerPrincipalFor(victim), pluginId: rerouted.id });
-  const restored = await plugin.service.install({ caller: ownerPrincipalFor(victim), bundle: bundle("https://legit.example/v1"), grant: ["net.fetch"] });
-  await plugin.service.setEnabled({ caller: ownerPrincipalFor(victim), pluginId: restored.id, enabled: true });
+  await plugin.service.uninstall({ caller: await ownerPrincipalFor(db, victim), pluginId: rerouted.id });
+  const restored = await plugin.service.install({
+    caller: await ownerPrincipalFor(db, victim),
+    bundle: bundle("https://legit.example/v1"),
+    grant: ["net.fetch"],
+  });
+  await plugin.service.setEnabled({ caller: await ownerPrincipalFor(db, victim), pluginId: restored.id, enabled: true });
   expect(connection.runtime.providers.registry.get(providerId, victim)?.baseUrl).toBe("https://legit.example/v1");
 });
 
@@ -408,8 +420,8 @@ async function relayWorld(): Promise<{
       deactivate: (pluginId) => connection.svc.dropPluginProviders({ pluginId }),
     },
   });
-  const installer = principalFor(await seedUser(db, { handle: castId<Handle>("relay-installer") }));
-  const stranger = principalFor(await seedUser(db, { handle: castId<Handle>("relay-stranger") }));
+  const installer = await principalFor(db, await seedUser(db, { handle: castId<Handle>("relay-installer") }));
+  const stranger = await principalFor(db, await seedUser(db, { handle: castId<Handle>("relay-stranger") }));
   const installed = await plugin.service.install({ caller: installer, bundle: RELAY_BUNDLE, grant: ["net.fetch"] });
   await plugin.service.setEnabled({ caller: installer, pluginId: installed.id, enabled: true });
   return { db, connection, installer, stranger, relayRequests: () => connection.requests.filter((request) => request.url.includes(RELAY_HOST)) };
@@ -520,9 +532,9 @@ describe("a plugin provider is scoped to the owners of its enabled installs", ()
   test("an admin-distributed provider plugin serves each recipient once THEY enable their own copy", async () => {
     const db = await freshDb();
     const connection = await makeHarness(db, { routes: RELAY_ROUTES, intercept: relayStream });
-    const admin = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("relay-admin") }));
-    const ann = principalFor(await seedUser(db, { handle: castId<Handle>("relay-ann") }));
-    const bo = principalFor(await seedUser(db, { handle: castId<Handle>("relay-bo") }));
+    const admin = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("relay-admin") }));
+    const ann = await principalFor(db, await seedUser(db, { handle: castId<Handle>("relay-ann") }));
+    const bo = await principalFor(db, await seedUser(db, { handle: castId<Handle>("relay-bo") }));
     const plugin = makePluginHarness(db, {
       listRecipients: () => Promise.resolve([ann, bo]),
       providers: {

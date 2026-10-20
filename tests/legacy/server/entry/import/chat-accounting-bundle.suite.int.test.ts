@@ -11,7 +11,6 @@ import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/serve
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -23,6 +22,7 @@ import { loadWorkload, runWorkload } from "#server/domain/workloads/index.ts";
 import type { PrincipalEnv } from "#server/entry/http/index.ts";
 import { registerExport, registerImportBundle } from "#server/entry/http/index.ts";
 import { parseChatBundleFile } from "#server/primitives/serde/chat-bundle/index.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 test("two-box native workload preserves retained legs and pending positional facts, remints private parents and settles once", async ({
@@ -33,7 +33,7 @@ test("two-box native workload preserves retained legs and pending positional fac
 }) => {
   const source = await seedUser(db);
   const originalFunder = await seedUser(db);
-  const owner = principal(source.id, { handle: source.handle, via: "header" });
+  const owner = await principal({ db }, source.id);
   const character = await seedCharacter(db, { ownerId: source.id, id: mintTypeId(ID_PREFIX.character), name: "Hero", handle: castId("hero") });
   const chatId = mintTypeId(ID_PREFIX.chat);
   const messageId = mintTypeId(ID_PREFIX.message);
@@ -129,7 +129,7 @@ test("two-box native workload preserves retained legs and pending positional fac
   const archive = new Uint8Array(await archiveResponse.arrayBuffer());
   const restoredDb = await freshDb();
   const targetUser = await seedUser(restoredDb);
-  const target = principal(targetUser.id, { handle: targetUser.handle, via: "header" });
+  const target = await principal({ db: restoredDb }, targetUser.id);
   const casDir = await mkdtemp(join(tmpdir(), "orb-chat-accounting-cas-"));
   const variantDir = await mkdtemp(join(tmpdir(), "orb-chat-accounting-var-"));
   onTestFinished(async () => {

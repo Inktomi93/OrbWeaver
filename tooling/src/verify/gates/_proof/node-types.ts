@@ -1,5 +1,5 @@
 // The TRUSTED AMBIENT DECLARATIONS the server-plane policies resolve their global-branch identity against:
-// node's own `process` (`tooling-argv-front-door`'s argv readers, `sole-env-reader`'s env readers), plus the
+// node's own `process` (`tooling-argv-front-door`'s argv readers), plus the
 // different-name and different-ORIGIN-KIND lookalikes that pin each policy's global-branch comparison.
 //
 // WHY THIS FILE EXISTS (#2030, design §4.8b). `@types/node` is what declares `process` on the real tree; the
@@ -38,9 +38,6 @@
 // ever need that branch from a proof row; the simpler script-global spelling takes the branch the live tree
 // never uses, which is #2037 repeating.
 export const NODE_TYPES_HOME = "node_modules/@types/node/index.d.ts";
-/** A SECOND trusted ambient global carrying an `env` bag under a different NAME — the same-shape/different-name
- *  twin that pins a policy's `globalName` comparison on the env door. */
-export const NODE_LOOKALIKE_HOME = "node_modules/@types/node-lookalike/index.d.ts";
 const ARGV_LOOKALIKE_HOME = "node_modules/@types/argv-lookalike/index.d.ts";
 
 const PROCESS_SURFACE = [
@@ -68,17 +65,10 @@ const PROCESS_SURFACE = [
   "",
 ].join("\n");
 
-const ENV_LOOKALIKE_SURFACE = ["declare var procezz: {", "  env: { [key: string]: string | undefined };", "  argv: string[];", "};", ""].join("\n");
-
 /** `@types/node`'s ambient `process` global, planted with the package's own structure: a `global`
  *  augmentation inside the `node:process` module declaration, which also serves the module doors. */
 export function nodeTypesProof(): Readonly<Record<string, string>> {
   return { [NODE_TYPES_HOME]: PROCESS_SURFACE };
-}
-
-/** A DIFFERENT trusted ambient global with the same `env` shape under a different name. */
-export function nodeLookalikeProof(): Readonly<Record<string, string>> {
-  return { [NODE_LOOKALIKE_HOME]: ENV_LOOKALIKE_SURFACE };
 }
 
 /** A DIFFERENT trusted global carrying an `argv` member. Nothing but the resolved global NAME separates

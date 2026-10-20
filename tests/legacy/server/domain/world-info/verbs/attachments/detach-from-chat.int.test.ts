@@ -19,12 +19,12 @@ describe("detachFromChat", () => {
     const svc = createWorldInfoService(harness.ctx);
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     const chatId = await seedChat(db);
-    const book = await svc.createBook({ principal: principal(host), input: { name: "B" } });
-    await svc.attachToChat({ principal: principal(host), chatId, bookId: book.id });
+    const book = await svc.createBook({ principal: await principal(db, host), input: { name: "B" } });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, bookId: book.id });
     harness.userEvents.length = 0; // drop createBook + attach emits — assert only the detach's.
 
-    const first = await svc.detachFromChat({ principal: principal(host), chatId, bookId: book.id });
-    const again = await svc.detachFromChat({ principal: principal(host), chatId, bookId: book.id });
+    const first = await svc.detachFromChat({ principal: await principal(db, host), chatId, bookId: book.id });
+    const again = await svc.detachFromChat({ principal: await principal(db, host), chatId, bookId: book.id });
 
     expect(first).toEqual({ detached: true });
     expect(again).toEqual({ detached: false });
@@ -47,10 +47,10 @@ describe("detachFromChat", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const chatId = await seedChat(db);
     // Attached under the OTHER user's authority (e.g. the pre-handoff host).
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "T" } });
-    await svc.attachToChat({ principal: principal(other), chatId, bookId: theirs.id });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "T" } });
+    await svc.attachToChat({ principal: await principal(db, other), chatId, bookId: theirs.id });
 
-    const out = await svc.detachFromChat({ principal: principal(host), chatId, bookId: theirs.id });
+    const out = await svc.detachFromChat({ principal: await principal(db, host), chatId, bookId: theirs.id });
     expect(out).toEqual({ detached: true });
     expect(await db.select().from(chatBooks)).toHaveLength(0);
   });
@@ -69,10 +69,10 @@ describe("detachFromChat", () => {
     const svc = createWorldInfoService(harness.ctx);
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     const chatId = await seedChat(db);
-    const book = await svc.createBook({ principal: principal(host), input: { name: "B" } });
-    await svc.attachToChat({ principal: principal(host), chatId, bookId: book.id });
+    const book = await svc.createBook({ principal: await principal(db, host), input: { name: "B" } });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, bookId: book.id });
     harness.wiEvents.length = 0;
-    await expect(svc.detachFromChat({ principal: principal(host), chatId, bookId: book.id })).rejects.toBe(refusal);
+    await expect(svc.detachFromChat({ principal: await principal(db, host), chatId, bookId: book.id })).rejects.toBe(refusal);
     expect(await db.select().from(chatBooks)).toHaveLength(1);
     expect(harness.wiEvents).toEqual([]);
   });

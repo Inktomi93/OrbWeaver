@@ -17,10 +17,10 @@ describe("get", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
-    const got = await svc.get({ principal: principal(owner), characterId: created.id });
+    const got = await svc.get({ principal: await principal(db, owner), characterId: created.id });
     expect(got.id).toBe(created.id);
     expect(got.name).toBe("Nyx");
   });
@@ -31,17 +31,19 @@ describe("get", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("secret"), name: "Secret", description: "d" },
     });
-    await expect(svc.get({ principal: principal(other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.get({ principal: await principal(db, other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });
 
   test("a missing id throws CharacterNotFoundError", async () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await expect(svc.get({ principal: principal(owner), characterId: castId<CharacterId>("character_ghost") })).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.get({ principal: await principal(db, owner), characterId: castId<CharacterId>("character_ghost") })).rejects.toBeInstanceOf(
+      CharacterNotFoundError,
+    );
   });
 });
 
@@ -51,7 +53,7 @@ describe("get — canonical tags (the editor chips)", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     expect(created.tags).toEqual([]); // a fresh card carries no junction rows yet
@@ -66,7 +68,7 @@ describe("get — canonical tags (the editor chips)", () => {
       { characterId: created.id, tagId: staged, status: "pending" },
     ]);
 
-    const got = await svc.get({ principal: principal(owner), characterId: created.id });
+    const got = await svc.get({ principal: await principal(db, owner), characterId: created.id });
     expect(got.tags.map((t) => t.name)).toEqual(["fantasy"]);
   });
 });

@@ -20,7 +20,7 @@ describe("createBook", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const book = await svc.createBook({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Lore", description: "the world" },
     });
 
@@ -36,7 +36,7 @@ describe("createBook", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Bare" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Bare" } });
 
     expect(book.description).toBeNull();
   });

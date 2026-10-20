@@ -23,6 +23,7 @@ import {
 import type { BatchStmt } from "@orb/db/query";
 import { chunkRows, rowsPerInsert } from "@orb/db/query";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { batchForOwner, databaseForOwner } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type {
   AssetId,
@@ -47,7 +48,7 @@ import { asc, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { selectOwnedAssetRefs } from "#server/domain/assets/persistence/queries.ts";
 import { ChatOperationError } from "#server/domain/chat/contract/errors.ts";
-import type { ChatImportContext } from "#server/domain/chat/contract/import.ts";
+import type { ChatImportAssemblyContext, ChatImportContext } from "#server/domain/chat/contract/import.ts";
 import { createBulkImportChats } from "#server/domain/chat/persistence/import-write.ts";
 import { reconcileStats } from "#server/domain/stats/index.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
@@ -67,6 +68,16 @@ interface MintSpy {
   readonly calls: { readonly chatId: ChatId }[];
   /** The synthetic row the stub minted (one per chat), keyed by chatId — find-or-mint, like the real verb. */
   readonly byChat: Map<string, CharacterId>;
+}
+
+/** The assembly door `createBulkImportChats` takes: the same context behind the db and batch wiring handles the
+ *  composition root hands over. */
+function asAssembly(ctx: ChatImportContext): ChatImportAssemblyContext {
+  return {
+    ...ctx,
+    db: databaseHandle(ctx.db),
+    bumpStatsCanonVersion: (batch, opDb, ownerId) => ctx.bumpStatsCanonVersion(batchForOwner(batch), databaseForOwner(opDb), ownerId),
+  };
 }
 
 /** A deterministic counter-minted `ChatImportContext` (no ambient clock/ids under tests/). */
@@ -188,7 +199,7 @@ describe("createBulkImportChats", () => {
       filterExistingAssetIds: async (ownerId: UserId, assetIds: readonly AssetId[]): Promise<readonly AssetId[]> =>
         (await selectOwnedAssetRefs(db, ownerId, assetIds)).map((row) => row.assetId),
     };
-    const result = await createBulkImportChats({ ...ctx, db: databaseHandle(ctx.db) })({
+    const result = await createBulkImportChats(asAssembly(ctx))({
       ownerId: owner.id,
       characterId: primary.id,
       chats: [{ ...base, messages: [{ ...source, variants: [{ ...variant, content }] }] }],
@@ -219,7 +230,7 @@ describe("createBulkImportChats", () => {
         ...(seq === OVER_BIND_CAPACITY - 1 ? { selectedIdx: 1, variants: [variant, { ...variant, idx: 1, content: "Tail alternative." }] } : {}),
       })),
     };
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
     const args = { ownerId: owner.id, characterId: primary.id, chats: [input] };
     const first = await op(args);
     const identity = first.identities[0];
@@ -266,7 +277,7 @@ describe("createBulkImportChats", () => {
       messages: [...Array.from({ length: OVER_BIND_CAPACITY }, () => ({ ...source, characterId: primary.id })), { ...source, characterId: foreign.id }],
     };
     await expect(
-      createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) })({
+      createBulkImportChats(asAssembly(importCtx(db, owner.id)))({
         ownerId: owner.id,
         characterId: primary.id,
         chats: [chatInput("EarlierValid.jsonl"), input],
@@ -297,7 +308,7 @@ describe("createBulkImportChats", () => {
       await db.insert(characters).values(chunk);
     }
     const characterIds = rows.map((row) => row.id);
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
     await expect(
       op({
         ownerId: owner.id,
@@ -316,7 +327,7 @@ describe("createBulkImportChats", () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const character = await seedCharacter(db, { ownerId: owner.id });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
     const input = chatInput("LegacyEmpty.jsonl", { messages: [] });
     const tail = chatInput("TailLegacy.jsonl");
     const first = await op({ ownerId: owner.id, characterId: character.id, chats: [input, tail] });
@@ -365,7 +376,7 @@ describe("createBulkImportChats", () => {
         },
       ],
     });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
     const args = { ownerId: owner.id, characterId: character.id, chats: [input] };
     const result = await op(args);
     const identity = result.identities[0];
@@ -425,7 +436,7 @@ describe("createBulkImportChats", () => {
       ...base,
       messages: [{ ...source, variants: [{ ...variant, tokensIn: usage.tokensIn, tokensOut: usage.tokensOut, tokenProvenance: "measured" as const, usage }] }],
     };
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
     const args = { ownerId: owner.id, characterId: character.id, chats: [input] };
     const first = await op(args);
     const row = (await db.select().from(messageVariants))[0];
@@ -456,7 +467,7 @@ describe("createBulkImportChats", () => {
       },
     });
 
-    const err = await createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) })({
+    const err = await createBulkImportChats(asAssembly(importCtx(db, owner.id)))({
       ownerId: owner.id,
       characterId: character.id,
       chats: [file],
@@ -497,8 +508,8 @@ describe("createBulkImportChats", () => {
     };
 
     const outcomes = await Promise.all([
-      createBulkImportChats({ ...heldContext, db: databaseHandle(heldContext.db) })({ ownerId: owner.id, characterId: character.id, chats: [file] }),
-      createBulkImportChats({ ...heldContext, db: databaseHandle(heldContext.db) })({ ownerId: owner.id, characterId: character.id, chats: [file] }),
+      createBulkImportChats(asAssembly(heldContext))({ ownerId: owner.id, characterId: character.id, chats: [file] }),
+      createBulkImportChats(asAssembly(heldContext))({ ownerId: owner.id, characterId: character.id, chats: [file] }),
     ]);
 
     expect(arrivals).toBe(2);
@@ -518,7 +529,7 @@ describe("createBulkImportChats", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
 
     const result = await op({
       ownerId: owner.id,
@@ -576,7 +587,7 @@ describe("createBulkImportChats", () => {
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
 
-    await createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) })({
+    await createBulkImportChats(asAssembly(importCtx(db, owner.id)))({
       ownerId: owner.id,
       characterId: character.id,
       chats: [chatInput("Aria.jsonl")],
@@ -591,7 +602,7 @@ describe("createBulkImportChats", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
     const file = chatInput("Aria.jsonl");
 
     const first = await op({ ownerId: owner.id, characterId: character.id, chats: [file] });
@@ -608,7 +619,7 @@ describe("createBulkImportChats", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
     const legacy = chatInput("Aria.jsonl");
 
     await op({ ownerId: owner.id, characterId: character.id, chats: [legacy] });
@@ -651,7 +662,7 @@ describe("createBulkImportChats", () => {
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const persona = await seedPersona(db, { ownerId: owner.id, name: "Alex" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
 
     // The FIRST import is the corpus's history: the mapper could not resolve a persona, so all three planes
     // landed null.
@@ -682,7 +693,7 @@ describe("createBulkImportChats", () => {
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const chosen = await seedPersona(db, { ownerId: owner.id, name: "Chosen" });
     const imported = await seedPersona(db, { ownerId: owner.id, name: "Imported" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
 
     // The room landed already attributed (or the owner picked its persona afterwards).
     await op({ ownerId: owner.id, characterId: character.id, chats: [chatInput("Aria.jsonl", { anchorPersonaId: chosen.id })] });
@@ -697,7 +708,7 @@ describe("createBulkImportChats", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
 
     await op({ ownerId: owner.id, characterId: character.id, chats: [chatInput("Aria.jsonl")] });
     const again = await op({ ownerId: owner.id, characterId: character.id, chats: [chatInput("Aria.jsonl")] });
@@ -710,7 +721,7 @@ describe("createBulkImportChats", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
 
     const parentName = "Aria.jsonl";
     await op({
@@ -729,7 +740,7 @@ describe("createBulkImportChats", () => {
   test("a non-owned / missing character throws DomainNotFoundError (the ownership precondition)", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
     await expect(
       op({
         ownerId: owner.id,
@@ -747,7 +758,7 @@ describe("createBulkImportChats", () => {
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const spy: MintSpy = { calls: [], byChat: new Map() };
-    const op = createBulkImportChats({ ...importCtx(db, owner.id, spy), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id, spy)));
 
     await op({ ownerId: owner.id, characterId: character.id, chats: [chatInput("Aria.jsonl")] });
 
@@ -767,7 +778,7 @@ describe("createBulkImportChats", () => {
     const owner = await seedUser(db, {});
     const primary = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const second = await seedCharacter(db, { ownerId: owner.id, name: "Bex" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
 
     const base = chatInput("Group.jsonl");
     await op({
@@ -800,7 +811,7 @@ describe("createBulkImportChats", () => {
     const owner = await seedUser(db, {});
     const primary = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const muted = await seedCharacter(db, { ownerId: owner.id, name: "Bex" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
 
     const base = chatInput("Muted.jsonl");
     await op({
@@ -824,7 +835,7 @@ describe("createBulkImportChats", () => {
     const owner = await seedUser(db, {});
     const primary = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const unseated = await seedCharacter(db, { ownerId: owner.id, name: "Bex" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
 
     const base = chatInput("PrimaryMute.jsonl");
     await op({ ownerId: owner.id, characterId: primary.id, chats: [{ ...base, seatKnobs: [{ characterId: primary.id, disabled: true }] }] });
@@ -847,7 +858,7 @@ describe("createBulkImportChats", () => {
     const owner = await seedUser(db, {});
     const primary = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const unseated = await seedCharacter(db, { ownerId: owner.id, name: "Bex" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
 
     const base = chatInput("Ghost.jsonl");
     await expect(
@@ -866,7 +877,7 @@ describe("createBulkImportChats", () => {
     const stranger = await seedUser(db, {});
     const primary = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const foreign = await seedCharacter(db, { ownerId: stranger.id, name: "Not Yours" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
 
     const base = chatInput("Foreign.jsonl");
     await expect(op({ ownerId: owner.id, characterId: primary.id, chats: [{ ...base, characterIds: [foreign.id] }] })).rejects.toBeInstanceOf(
@@ -889,7 +900,7 @@ describe("createBulkImportChats", () => {
     const db = await freshDb();
     const owner = await seedUser(db, {});
     const character = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
-    const op = createBulkImportChats({ ...importCtx(db, owner.id), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id)));
 
     await op({
       ownerId: owner.id,
@@ -914,7 +925,7 @@ describe("createBulkImportChats", () => {
     const owner = await seedUser(db, {});
     const primary = await seedCharacter(db, { ownerId: owner.id, name: "Aria" });
     const spy: MintSpy = { calls: [], byChat: new Map() };
-    const op = createBulkImportChats({ ...importCtx(db, owner.id, spy), db: databaseHandle(db) });
+    const op = createBulkImportChats(asAssembly(importCtx(db, owner.id, spy)));
 
     const base = chatInput("Narrator.jsonl");
     // The slot DECLARES its purpose (D129) — one field carries both "what this row is" and, from it, the

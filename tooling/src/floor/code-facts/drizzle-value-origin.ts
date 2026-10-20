@@ -31,6 +31,9 @@ export function drizzleValueReaders(context: DrizzleValueContext): DrizzleOrigin
   return context.readers ?? NATIVE_READERS;
 }
 
+/** D328: a normalizer the write reads lies outside the captured cohort. The consumer judges that write unknown, never the pass. */
+export class OrdinaryCohortBoundError extends Error {}
+
 const CALLER: JsonColumnOrigin = { kind: "caller" };
 const MISSING: JsonColumnOrigin = { kind: "missing" };
 const ARRAY_ITEM = "[item]";
@@ -78,6 +81,11 @@ function producerCall(call: import("ts-morph").CallExpression, context: DrizzleV
 }
 
 export function readDrizzleNormalization(call: import("ts-morph").CallExpression, context: DrizzleValueContext): DrizzleNormalization | undefined {
+  if (context.cohort !== undefined && !context.cohort.has(call)) {
+    throw new OrdinaryCohortBoundError(
+      `json-column-writes: the normalizer call at ${call.getSourceFile().getBaseName()}:${String(call.getStartLineNumber())} (${call.getExpression().getText()}) is outside the requested ordinary cohort (D328)`,
+    );
+  }
   if (context.readNormalizer !== undefined) {
     const fact = context.readNormalizer(call);
     if (fact.kind === "unresolved") {

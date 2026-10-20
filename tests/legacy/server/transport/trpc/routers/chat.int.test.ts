@@ -84,12 +84,12 @@ describe("chat.getChatLineage — the fork ancestry through the real router, gat
     await seedParticipant(db, { chatId: fork, key: "fork_g", userId: forkGuest, role: "member" });
 
     const getChatLineage = lineageRead();
-    const as = (userId: UserId): ReturnType<typeof caller> =>
-      caller(makeContext({ auth: principal("user", { userId }), services: { chat: { getChatLineage } } }));
+    const as = async (userId: UserId): Promise<ReturnType<typeof caller>> =>
+      caller(makeContext({ auth: await principal(db, "user", { userId }), services: { chat: { getChatLineage } } }));
 
-    expect((await as(host).chat.getChatLineage({ chatId: fork })).chain.map((c) => c.id)).toEqual([parent, fork]);
-    expect((await as(forkGuest).chat.getChatLineage({ chatId: fork })).chain.map((c) => c.id)).toEqual([fork]);
-    await expect(as(stranger).chat.getChatLineage({ chatId: fork })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    expect((await (await as(host)).chat.getChatLineage({ chatId: fork })).chain.map((c) => c.id)).toEqual([parent, fork]);
+    expect((await (await as(forkGuest)).chat.getChatLineage({ chatId: fork })).chain.map((c) => c.id)).toEqual([fork]);
+    await expect((await as(stranger)).chat.getChatLineage({ chatId: fork })).rejects.toMatchObject({ code: "NOT_FOUND" });
   });
 });
 
@@ -106,7 +106,7 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
       emit: () => Promise.resolve(),
     });
     const hostCtx = makeContext({
-      auth: principal("user", { userId: host }),
+      auth: await principal(db, "user", { userId: host }),
       services: { chat: { addCharacterToChat: roster.addCharacterToChat, removeCharacterFromChat: roster.removeCharacterFromChat } },
     });
 
@@ -139,11 +139,11 @@ describe("chat.removeCharacterFromChat — the symmetric drop, driven through th
       emit: () => Promise.resolve(),
     });
     const hostCtx = makeContext({
-      auth: principal("user", { userId: host }),
+      auth: await principal(db, "user", { userId: host }),
       services: { chat: { addCharacterToChat: roster.addCharacterToChat, removeCharacterFromChat: roster.removeCharacterFromChat } },
     });
     const memberCtx = makeContext({
-      auth: principal("user", { userId: member }),
+      auth: await principal(db, "user", { userId: member }),
       services: { chat: { removeCharacterFromChat: roster.removeCharacterFromChat } },
     });
 
@@ -198,20 +198,20 @@ describe("chat turns render the time macros in the viewer's zone — wire → ve
     return await scenario.chat(script, { typeIds: true, promptConfig: clockConfig, ...options, ctx: { now: () => NOW, ...options.ctx } });
   }
 
-  function hostCaller(chat: ChatScenario): ReturnType<typeof caller> {
-    return caller(makeContext({ auth: principal("user", { userId: chat.host }), services: { chat: chat.turn } }));
+  async function hostCaller(database: Db, chat: ChatScenario): Promise<ReturnType<typeof caller>> {
+    return caller(makeContext({ auth: await principal(database, "user", { userId: chat.host }), services: { chat: chat.turn } }));
   }
 
   test("send renders the viewer's zone; an unknown zone renders UTC, never the server's own zone", async () => {
     const chat = await room(tape().reply("one").reply("two"));
-    await hostCaller(chat).chat.send({ chatId: chat.chatId, content: "hi", timeZone: KATHMANDU });
-    await hostCaller(chat).chat.send({ chatId: chat.chatId, content: "again", timeZone: "Etc/Unknown" });
+    await (await hostCaller(db, chat)).chat.send({ chatId: chat.chatId, content: "hi", timeZone: KATHMANDU });
+    await (await hostCaller(db, chat)).chat.send({ chatId: chat.chatId, content: "again", timeZone: "Etc/Unknown" });
     expect(clocksOf(chat.requests)).toEqual([KATHMANDU_CLOCK, UTC_CLOCK]);
   });
 
   test("the wire refuses a send whose zone is not a string, or that carries none; no turn runs", async () => {
     const chat = await room(tape());
-    const send = hostCaller(chat).chat.send;
+    const send = (await hostCaller(db, chat)).chat.send;
     // @ts-expect-error -- the refusal under test: a number is not a zone name.
     await expect(send({ chatId: chat.chatId, content: "hi", timeZone: 545 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     // @ts-expect-error -- the refusal under test: every client turn states its viewer's zone.
@@ -221,7 +221,7 @@ describe("chat turns render the time macros in the viewer's zone — wire → ve
 
   test("swipe, continue, generate, force and impersonate each render the zone their own request carries", async () => {
     const chat = await room(tape().reply("opening").reply("swiped").reply("continued").reply("generated").reply("forced").reply("drafted"));
-    const host = hostCaller(chat).chat;
+    const host = (await hostCaller(db, chat)).chat;
     const { chatId } = chat;
     const sent = await host.send({ chatId, content: "hi", timeZone: "UTC" });
     const reply = sent.messages.find((m) => m.role === "assistant");
@@ -247,7 +247,7 @@ describe("chat turns render the time macros in the viewer's zone — wire → ve
         chatBehavior: { ...DEFAULT_CHAT_BEHAVIOR, autoContinue: true, autoContinueRounds: 1 },
       },
     );
-    await hostCaller(autoContinue).chat.send({ chatId: autoContinue.chatId, content: "hi", timeZone: KATHMANDU });
+    await (await hostCaller(db, autoContinue)).chat.send({ chatId: autoContinue.chatId, content: "hi", timeZone: KATHMANDU });
     expect(clocksOf(autoContinue.requests)).toEqual([KATHMANDU_CLOCK, KATHMANDU_CLOCK]);
 
     const chain = await room(tape().reply("from aria").reply("from bryn").reply("chained"), {
@@ -256,7 +256,7 @@ describe("chat turns render the time macros in the viewer's zone — wire → ve
       autoMode: true,
       autoModeMaxTurns: 1,
     });
-    await hostCaller(chain).chat.send({ chatId: chain.chatId, content: "hi all", timeZone: KATHMANDU });
+    await (await hostCaller(db, chain)).chat.send({ chatId: chain.chatId, content: "hi all", timeZone: KATHMANDU });
     expect(clocksOf(chain.requests)).toEqual([KATHMANDU_CLOCK, KATHMANDU_CLOCK, KATHMANDU_CLOCK]);
   });
 

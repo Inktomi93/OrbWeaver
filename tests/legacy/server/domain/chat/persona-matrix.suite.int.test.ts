@@ -300,7 +300,7 @@ async function runStep(room: Room, step: Step): Promise<string | null> {
   const { scn } = room;
   switch (step.kind) {
     case "send": {
-      const principal = scn.principal(step.who === "alice" ? room.alice : room.bob);
+      const principal = await scn.principal(step.who === "alice" ? room.alice : room.bob);
       await scn.turn.send({
         principal,
         chatId: scn.chatId,
@@ -314,7 +314,10 @@ async function runStep(room: Room, step: Step): Promise<string | null> {
       await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: room.alice, automationDepth: 1, timeZone: UTC_TIME_ZONE });
       return "auto turn";
     case "impersonate":
-      for await (const _delta of scn.turn.impersonateStream({ principal: scn.principal(step.who === "alice" ? room.alice : room.bob), chatId: scn.chatId })) {
+      for await (const _delta of scn.turn.impersonateStream({
+        principal: await scn.principal(step.who === "alice" ? room.alice : room.bob),
+        chatId: scn.chatId,
+      })) {
         // Drained for the captured request.
       }
       return `${step.who} impersonates`;

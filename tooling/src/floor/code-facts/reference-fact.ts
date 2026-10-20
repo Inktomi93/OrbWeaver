@@ -243,6 +243,61 @@ function freshEffectTarget(node: MorphNode | undefined): boolean {
   return Node.isObjectLiteralExpression(value) || Node.isArrayLiteralExpression(value) || Node.isFunctionExpression(value) || Node.isArrowFunction(value);
 }
 
+const PROTO_KEY = "__proto__";
+
+/** `__proto__: null` in a literal sets the prototype; a computed `["__proto__"]` key is an ordinary own property. */
+function nullPrototypeProperty(property: MorphNode): boolean {
+  if (!Node.isPropertyAssignment(property)) {
+    return false;
+  }
+  const name = property.getNameNode();
+  const spelledProto = (Node.isIdentifier(name) && name.getText() === PROTO_KEY) || (Node.isStringLiteral(name) && name.getLiteralText() === PROTO_KEY);
+  return spelledProto && property.getInitializer()?.getKind() === SyntaxKind.NullKeyword;
+}
+
+/** A fresh `{ __proto__: null, … }` literal: it has no inherited `__proto__` setter for a written key to run. */
+function nullPrototypeTarget(node: MorphNode | undefined): boolean {
+  const stable = node === undefined ? undefined : resolveStableExpression(node);
+  return stable?.kind === "resolved" && Node.isObjectLiteralExpression(stable.value) && stable.value.getProperties().some(nullPrototypeProperty);
+}
+
+function everyConstituent(type: import("ts-morph").Type, accepts: (part: import("ts-morph").Type) => boolean): boolean {
+  return type.isUnion() ? type.getUnionTypes().every(accepts) : accepts(type);
+}
+
+/** A key the checker types as a number can never spell `__proto__`. */
+function numberTypedKey(key: MorphNode | undefined): boolean {
+  return key !== undefined && everyConstituent(key.getType(), (part) => part.isNumber() || part.isNumberLiteral());
+}
+
+/** The inherited `__proto__` setter ignores a primitive, so a primitive-typed write cannot re-parent its target. */
+function primitiveTypedValue(value: MorphNode | undefined): boolean {
+  return (
+    value !== undefined &&
+    everyConstituent(
+      value.getType(),
+      (part) =>
+        part.isString() ||
+        part.isNumber() ||
+        part.isBoolean() ||
+        part.isBigInt() ||
+        part.isLiteral() ||
+        part.isBooleanLiteral() ||
+        part.isNull() ||
+        part.isUndefined(),
+    )
+  );
+}
+
+/**
+ * A keyed write into a fresh target is not a prototype exposure only when a `__proto__` key could not re-parent the
+ * target: it has a null prototype, the key is a number, or the written value is a primitive. Tool-call keys are
+ * model-chosen, and `JSON.parse` keeps `__proto__` as an own key that a copy then hands to the inherited setter.
+ */
+function reparentSafeWrite(target: MorphNode | undefined, key: MorphNode | undefined, value: MorphNode | undefined): boolean {
+  return freshEffectTarget(target) && (nullPrototypeTarget(target) || numberTypedKey(key) || primitiveTypedValue(value));
+}
+
 function intrinsicAliasExposure(input: MorphNode): MorphNode | undefined {
   const declaration = input.getParent();
   if (
@@ -288,7 +343,12 @@ function inheritedReadEffect(input: MorphNode): MorphNode | undefined {
     return;
   }
   const parent = input.getParent();
-  if (Node.isElementAccessExpression(input) && parent !== undefined && isDirectWriteTarget(parent, input) && freshEffectTarget(input.getExpression())) {
+  if (
+    Node.isElementAccessExpression(input) &&
+    parent !== undefined &&
+    isDirectWriteTarget(parent, input) &&
+    reparentSafeWrite(input.getExpression(), input.getArgumentExpression(), parent)
+  ) {
     return;
   }
   const call = input.getParent();
@@ -299,7 +359,11 @@ function inheritedReadEffect(input: MorphNode): MorphNode | undefined {
   if (origin === undefined) {
     return nonIntrinsicEffect(input);
   }
-  const member = origin.memberPath[0];
+  return intrinsicCallEffect(origin.memberPath[0], input, call);
+}
+
+/** The exposure an `Object.*` or `Reflect.*` call makes, given the member it calls. */
+function intrinsicCallEffect(member: string | undefined, input: MorphNode, call: import("ts-morph").CallExpression): MorphNode | undefined {
   switch (member) {
     case "keys":
     case "values":
@@ -319,13 +383,19 @@ function inheritedReadEffect(input: MorphNode): MorphNode | undefined {
       return;
     case "getPrototypeOf":
       return observedWithoutTransfer(call) ? undefined : input;
-    case "assign":
+    // An own-key define or delete never runs the inherited setter; assign and set do, and setPrototypeOf re-parents.
     case "defineProperty":
     case "defineProperties":
-    case "setPrototypeOf":
-    case "set":
     case "deleteProperty":
       return freshEffectTarget(call.getArguments()[0]) ? undefined : call;
+    case "assign":
+      return nullPrototypeTarget(call.getArguments()[0]) ? undefined : call;
+    case "set": {
+      const [target, key, value] = call.getArguments();
+      return reparentSafeWrite(target, key, value) ? undefined : call;
+    }
+    case "setPrototypeOf":
+      return call;
     case undefined:
     default:
       return input;

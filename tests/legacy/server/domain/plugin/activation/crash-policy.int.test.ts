@@ -34,7 +34,7 @@ test("crashes below the threshold record the detail but keep the plugin runnable
   };
   const h = makePluginHarness(db, { ops });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "mood" }), grant: [] });
 
   const deactivated: string[] = [];
   const policy = createCrashPolicy(
@@ -91,7 +91,7 @@ test("two crashes racing across the threshold notify the owner ONCE (the crossin
   };
   const h = makePluginHarness(db, { ops });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "mood" }), grant: [] });
   const policy = createCrashPolicy(h.ctx, () => Promise.resolve(), createPluginLifecycleLanes());
 
   // Park the counter one short of the threshold…
@@ -119,7 +119,7 @@ test("a clean run resets the crash counter", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "mood" }), grant: [] });
   const policy = createCrashPolicy(h.ctx, () => Promise.resolve(), createPluginLifecycleLanes());
 
   await policy.recordCrash({ pluginId: installed.id, recipientUserId: owner, error: "flake" });
@@ -144,7 +144,7 @@ test("owner re-enable starts a fresh crash streak and the next disable notifies 
     },
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   const policy = createCrashPolicy(h.ctx, (id) => h.service.setEnabled({ caller, pluginId: id, enabled: false }), createPluginLifecycleLanes());
 

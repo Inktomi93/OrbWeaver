@@ -6,7 +6,7 @@
 
 import type { DeclaredCapability, GenerationCapability } from "@orb/contracts/inference";
 import { createInferenceRuntime, ProviderError } from "@orb/inference";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
 import { runOpenAiCompatRerank } from "#inference/backends/openai-compat/rerank.ts";
@@ -15,6 +15,7 @@ import type { Resolved } from "#inference/contract/resolved.ts";
 import { generationOf } from "#inference/contract/resolved.ts";
 import { resolveChat } from "#inference/funnel/resolve-chat.ts";
 import { planStructuredFor } from "#inference/structured/plan.ts";
+import { principal } from "../../db/schema/_support.ts";
 import { fakeConnection, fakeDeps, fakeResolved, memoryStores, memoryTokenLexicon, newUserId } from "../_support.ts";
 import type { RecordedRequest } from "../backends/_hosted-support.ts";
 import { generationCapability, openAiTextStream, scriptedSseFetch } from "../backends/_hosted-support.ts";
@@ -30,12 +31,13 @@ async function resolvedFor(args: {
   readonly fetch: typeof fetch;
   readonly declared?: DeclaredCapability | null;
 }): Promise<Awaited<ReturnType<Awaited<ReturnType<typeof createInferenceRuntime>>["resolve"]>>["resolved"]> {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: args.providerId, model: args.model, baseUrl: BASE_URL, declared: args.declared ?? null });
   stores.connections.rows.set(row.id, row);
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: args.fetch }));
-  return (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved;
+  return (await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id })).resolved;
 }
 
 const WEATHER_TOOL = { name: "get_weather", description: "Weather for a city.", parameters: { type: "object", properties: {} } };
@@ -312,6 +314,7 @@ function isRerank(resolved: Resolved): resolved is Resolved<"rerank"> {
 }
 
 test("llama.cpp: a reranker its server identifies is served with no path override, on a root or a /v1 base URL", async () => {
+  const db = await freshDb();
   const model = "/models/nomic-embed-text-v1.5.Q8_0.gguf";
   for (const baseUrl of ["http://127.0.0.1:1", "http://127.0.0.1:1/v1/"]) {
     const server = llamaCppReranker();
@@ -321,7 +324,7 @@ test("llama.cpp: a reranker its server identifies is served with no path overrid
     stores.connections.rows.set(row.id, row);
     const deps = fakeDeps({ stores, fetch: server.fetch });
     const runtime = await createInferenceRuntime(deps);
-    const { resolved } = await runtime.resolve({ task: "rerank", principal: principal(ownerId), connectionId: row.id });
+    const { resolved } = await runtime.resolve({ task: "rerank", principal: await principal({ db }, ownerId), connectionId: row.id });
     expect(resolved.capability.kind, baseUrl).toBe("rerank");
     expect(resolved.requirement, baseUrl).toEqual({ ok: true });
     if (!isRerank(resolved)) {

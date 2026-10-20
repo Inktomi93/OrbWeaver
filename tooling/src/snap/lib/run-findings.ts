@@ -11,7 +11,7 @@ import { diagnosticFindingDrafts } from "./run-finding-console-annotation.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --report <index>");
 
-export interface SnapFindingInput {
+interface SnapFindingInput {
   readonly indexPath: string;
   readonly verdict: SnapRunIndex["verdict"];
   readonly artifacts: SnapRunIndex["artifacts"];

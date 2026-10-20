@@ -125,7 +125,7 @@ import { deriveCanonicalBrandTypeNames, ID_BRAND_HOME, nativeCanonicalIdBrand, r
 import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TOOLING_PREFIX } from "./tooling/src/floor/code-facts/module-specifier.ts";
 import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
 import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
-import { serverFactoryTypeHome } from "./tooling/src/floor/code-facts/server-factory-type-home.ts";
+import { signatureTypeHome } from "./tooling/src/floor/code-facts/server-factory-type-home.ts";
 import { readServerAugmentationBoundary, readServerPublicBoundary } from "./tooling/src/floor/code-facts/server-public-boundary.ts";
 import { isZodShapeCall } from "./tooling/src/floor/code-facts/shape-declaration.ts";
 import { readStaticAuthoredScalar } from "./tooling/src/floor/code-facts/static-authored-value.ts";
@@ -1357,6 +1357,11 @@ const TURN_IDENTITY_RESTRICTIONS = [
           ":matches(ImportSpecifier[imported.name='Principal'], ImportSpecifier[imported.value='Principal'], ExportSpecifier[local.name='Principal'], ExportSpecifier[local.value='Principal'], TSQualifiedName[right.name='Principal'], TSImportType[qualifier.name='Principal'], :matches(TSInterfaceHeritage, TSClassImplements) > MemberExpression[property.name='Principal'])",
         message: "D19: the chat engine is Principal-blind; resolve the runAsUserId/triggeredBy triple at the verb layer and pass it down.",
       },
+      {
+        // `Parameters<typeof send>[0]` over a verb, or a verb module's renamed re-export, reaches the Principal unnamed.
+        selector: ":matches(ImportDeclaration, ExportNamedDeclaration, ExportAllDeclaration)[source.value=/(^|\\/)verbs(\\/|$)/]",
+        message: "D19: the chat engine reads nothing from the verb layer, where the caller's Principal lives; the verb passes the resolved triple down.",
+      },
     ],
   },
 ];
@@ -1584,7 +1589,89 @@ const principalBrandLaunderRule = {
   },
 };
 
+const PRINCIPAL_NAME = "Principal";
+const PRINCIPAL_ALIAS_MESSAGE =
+  "D1/D40: every Principal rule keys on the name `Principal`, so a renamed spelling would walk past all of them. Name the type `Principal` where it is used.";
+const isPrincipalName = (node) => (node?.type === "Identifier" && node.name === PRINCIPAL_NAME) || (node?.type === "Literal" && node.value === PRINCIPAL_NAME);
+const isPrincipalExpression = (node) => isPrincipalName(node) || (node?.type === "MemberExpression" && isPrincipalName(node.property));
+
+/** Whether `type` is a Principal, or lists, unions, wraps or indexes one. A function or object type only uses it. */
+function namesPrincipal(type) {
+  switch (type?.type) {
+    case "TSTypeReference":
+      return isPrincipalType(type) || (type.typeArguments?.params ?? []).some(namesPrincipal);
+    case "TSUnionType":
+    case "TSIntersectionType":
+      return type.types.some(namesPrincipal);
+    case "TSTupleType":
+      return type.elementTypes.some(namesPrincipal);
+    case "TSArrayType":
+    case "TSNamedTupleMember":
+    case "TSOptionalType":
+    case "TSRestType":
+      return namesPrincipal(type.elementType ?? type.typeAnnotation);
+    case "TSTypeOperator":
+      return namesPrincipal(type.typeAnnotation);
+    case "TSIndexedAccessType":
+      return namesPrincipal(type.objectType);
+    default:
+      return false;
+  }
+}
+
+/** Whether `identifier` binds, in its own file, a variable or parameter annotated as a Principal. */
+function principalTypedBinding(context, identifier) {
+  for (let scope = context.sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
+    const variable = scope.set.get(identifier.name);
+    if (variable !== undefined) {
+      return variable.defs.some((def) => namesPrincipal(def.name.typeAnnotation?.typeAnnotation));
+    }
+  }
+  return false;
+}
+
+const principalAliasRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = (node) => context.report({ node, message: PRINCIPAL_ALIAS_MESSAGE });
+    return {
+      "ImportSpecifier[imported]"(node) {
+        if (isPrincipalName(node.imported) && node.local.name !== PRINCIPAL_NAME) {
+          report(node);
+        }
+      },
+      "ExportSpecifier[local]"(node) {
+        if (isPrincipalName(node.local) && !isPrincipalName(node.exported)) {
+          report(node);
+        }
+      },
+      "TSTypeAliasDeclaration[typeAnnotation]"(node) {
+        if (namesPrincipal(node.typeAnnotation)) {
+          report(node.id);
+        }
+      },
+      ":matches(TSInterfaceHeritage, TSClassImplements)"(node) {
+        if (isPrincipalExpression(node.expression)) {
+          report(node);
+        }
+      },
+      "TSTypeParameter[constraint]"(node) {
+        if (namesPrincipal(node.constraint)) {
+          report(node);
+        }
+      },
+      // `typeof caller` in any type position, an assertion included, is a Principal spelled through its binding.
+      "TSTypeQuery > Identifier.exprName"(node) {
+        if (principalTypedBinding(context, node)) {
+          report(node.parent);
+        }
+      },
+    };
+  },
+};
+
 const PRINCIPAL_RULES = [
+  { id: "principal-alias", rule: principalAliasRule },
   { id: "principal-assertion", rule: principalAssertionRule },
   { id: "principal-return-site", rule: principalReturnSiteRule },
   { id: "principal-mint-site", rule: principalMintSiteRule },
@@ -1763,6 +1850,790 @@ const injectedOpCallerParamRule = {
     };
   },
 };
+
+// Ambient doors with one owner each: network egress (D61 B5a), the process environment (Tier-2-Foundation.md
+// invariant 1) and the stateful hidden-span scrubber (D118). The egress and env rules follow bindings, not
+// spellings: a shadowing local passes, while an alias, a destructure or a TypeScript cast of the global is
+// still the global. They judge one file at a time, so exporting or re-exporting a door is itself a finding.
+//
+// SECURITY: a value imported from another module may be the process or its bag under any name, and a rule
+// that reads one file cannot see what that module exports, so the env rule fails closed on an `env` key
+// read anywhere on an imported value. A TypeScript `declare` emits no code, so a declared `fetch`, `process`
+// or global root is still the global, and an `env` read off any other declared name fails closed.
+//
+// NOT CLAIMED by the env rule: a written alias cycle with no `process` origin (`const a = b; const b = a;
+// a.env.X = 1`), which throws in its temporal dead zone before the read; a per-key grain inside the sole
+// reader, which is one whole-file home; and an `env` key taken off an imported value or a declared global
+// through a computed key no `const` binds to a string literal (`door[k]` with `k` a parameter, a `let`, a
+// pattern binding or a call). A key a `const` chain binds to a string literal is read as that name. Failing
+// closed on the unreadable key needs the receiver's type: without it every keyed lookup into an imported
+// registry (`RPG_RULESET_PROFILE[ruleset]`) is the same syntax as a laundered door, and the live tree has
+// dozens of them.
+const AMBIENT_ROOTS = new Set(["globalThis", "global", "self", "window"]);
+const VALUE_WRAPPERS = new Set(["TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression", "TSTypeAssertion"]);
+const RAW_FETCH = "fetch";
+const RAW_EGRESS_PACKAGES = /^(?:undici|node-fetch|cross-fetch)$/u;
+const NODE_HTTP_CLIENT_DOORS = new Map([
+  ["http", new Set(["request", "get"])],
+  ["https", new Set(["request", "get"])],
+  ["http2", new Set(["connect"])],
+]);
+const PROCESS_MODULE = /^(?:node:)?process$/u;
+const PROCESS_GLOBAL = "process";
+const ENV_MEMBER = "env";
+const MODULE_DEFAULT = "default";
+const REFLECT_GLOBAL = "Reflect";
+const REFLECT_GET = "get";
+const SCRUBBER_FACTORY = "createHiddenSpanStreamScrubber";
+const RAW_EGRESS_MESSAGE =
+  "D61 B5a: server and inference egress goes through infra/network (`safeFetch` or the configured-endpoint capability); a raw fetch or HTTP client skips the scheme pin, host allowlist, resolve-validate-pin and deadline.";
+const SOLE_ENV_MESSAGE = "Tier-2-Foundation.md invariant 1: foundation/env is the only process.env reader; import the frozen `env` and dot-access a typed key.";
+
+/**
+ * The outermost expression that may still denote `node`'s value; a cast, a non-null assertion, an `await` (of
+ * a promise for it, or of the value itself), an optional chain, a sequence that ends with it, a branch of a
+ * conditional and either operand of a logical do not change it.
+ */
+function valueCarrier(node) {
+  let carrier = node;
+  for (;;) {
+    const { parent } = carrier;
+    const wraps =
+      (VALUE_WRAPPERS.has(parent?.type) && parent.expression === carrier) ||
+      (parent?.type === "ChainExpression" && parent.expression === carrier) ||
+      (parent?.type === "AwaitExpression" && parent.argument === carrier) ||
+      (parent?.type === "SequenceExpression" && parent.expressions.at(-1) === carrier) ||
+      (parent?.type === "ConditionalExpression" && parent.test !== carrier) ||
+      parent?.type === "LogicalExpression";
+    if (!wraps) {
+      return carrier;
+    }
+    carrier = parent;
+  }
+}
+
+/** A module specifier written as a string or a substitution-free template, or `undefined` when computed. */
+function staticSource(source) {
+  if (source.type === "Literal" && typeof source.value === "string") {
+    return source.value;
+  }
+  return source.type === "TemplateLiteral" && source.expressions.length === 0 ? source.quasis[0].value.cooked : undefined;
+}
+
+/** A static key's name, or `undefined` when the key is computed at run time. */
+function writtenKeyName(key, computed) {
+  if (key.type === "Literal") {
+    return String(key.value);
+  }
+  if (!computed) {
+    return key.type === "Identifier" ? key.name : undefined;
+  }
+  return key.type === "TemplateLiteral" && key.expressions.length === 0 ? key.quasis[0].value.cooked : undefined;
+}
+
+/**
+ * A member's key name, also through a computed key a `const` binds to a string literal, directly or through other
+ * such `const` bindings (`const K = "env"; x[K]`). Any other computed key stays unknown: a `let`, a reassigned or
+ * pattern binding, a parameter or a call.
+ */
+function memberKeyName(sourceCode, member) {
+  const written = writtenKeyName(member.property, member.computed);
+  return written !== undefined || !member.computed ? written : constKeyName(sourceCode, member.property, new Set());
+}
+
+function constKeyName(sourceCode, key, seen) {
+  if (key.type !== "Identifier" || seen.has(key)) {
+    return;
+  }
+  const variable = referencedVariable(sourceCode, key);
+  const [definition] = variable?.defs ?? [];
+  // A pattern default (`const { K = "x" } = v`) takes the source's value first, so only `const K = …` names K.
+  const direct = variable?.defs.length === 1 && definition?.type === "Variable" && definition.parent.kind === "const" && definition.node.id === definition.name;
+  const value = direct && definition.node.init !== null ? unwrapValue(definition.node.init) : undefined;
+  if (value === undefined) {
+    return;
+  }
+  if (value.type === "Literal") {
+    return typeof value.value === "string" ? value.value : undefined;
+  }
+  return value.type === "Identifier" ? constKeyName(sourceCode, value, new Set(seen).add(key)) : writtenKeyName(value, true);
+}
+
+/** Whether a destructure can take `name` off its source: by key, by a run-time key, or through a rest element. */
+function patternTakes(pattern, name) {
+  return (
+    pattern.type === "ObjectPattern" &&
+    pattern.properties.some((property) => {
+      if (property.type === "RestElement") {
+        return true;
+      }
+      const key = writtenKeyName(property.key, property.computed);
+      return key === undefined || key === name;
+    })
+  );
+}
+
+function isTypeofOperand(node) {
+  return node.parent?.type === "UnaryExpression" && node.parent.operator === "typeof";
+}
+
+function inTypeQuery(node) {
+  let parent = node.parent;
+  while (parent?.type === "TSQualifiedName") {
+    parent = parent.parent;
+  }
+  return parent?.type === "TSTypeQuery";
+}
+
+/**
+ * Whether every declaration of a binding is a TypeScript `declare`. A `declare` emits no code, so at run time
+ * the name still resolves to the global of that name: the declaration describes a global, it never shadows one.
+ */
+function declaredOnly(variable) {
+  return variable.defs.length > 0 && variable.defs.every(({ node, parent }) => node.declare === true || parent?.declare === true);
+}
+
+/** A binding the rules judge as a global: none in this file, a TypeScript lib or configured global, or one declared only with `declare`. */
+function isGlobalBinding(variable) {
+  return variable === null || variable.defs.length === 0 || declaredOnly(variable);
+}
+
+/** Value references to the named globals: unresolved, bound only by a TypeScript lib or configured global, or bound only by a `declare`. */
+function ambientReferences(sourceCode, names) {
+  const { globalScope, scopes } = sourceCode.scopeManager;
+  const references = globalScope.through.filter(({ identifier }) => names.has(identifier.name));
+  for (const variable of scopes.flatMap((scope) => scope.variables)) {
+    if (names.has(variable.name) && isGlobalBinding(variable)) {
+      references.push(...variable.references.filter(({ isValueReference }) => isValueReference !== false));
+    }
+  }
+  return references.map(({ identifier }) => identifier).filter((identifier) => !inTypeQuery(identifier));
+}
+
+/** The later reads of a binding declared from a value, so an alias of a door is judged as the door. */
+function aliasReads(sourceCode, declarator) {
+  return sourceCode
+    .getDeclaredVariables(declarator)
+    .flatMap(({ references }) =>
+      references.filter((reference) => reference.identifier !== declarator.id && reference.isRead()).map(({ identifier }) => identifier),
+    );
+}
+
+/** The reads of the binding a pattern identifier declares, such as a parameter or a destructured name with a default. */
+function boundReads(sourceCode, identifier) {
+  for (let scope = sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
+    const variable = scope.set.get(identifier.name);
+    if (variable?.identifiers.includes(identifier)) {
+      return variable.references.filter((reference) => reference.identifier !== identifier && reference.isRead()).map(({ identifier: read }) => read);
+    }
+  }
+  return [];
+}
+
+/** The variable an identifier reference resolves to, or `null` for an undeclared name. */
+function referencedVariable(sourceCode, identifier) {
+  for (let scope = sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
+    const reference = scope.references.find((candidate) => candidate.identifier === identifier);
+    if (reference !== undefined) {
+      return reference.resolved;
+    }
+  }
+  return null;
+}
+
+/** The other reads of the binding an assignment writes, so a reassigned alias of a door is judged as the door. */
+function assignedReads(sourceCode, target) {
+  const variable = referencedVariable(sourceCode, target);
+  return (variable?.references ?? []).filter((reference) => reference.identifier !== target && reference.isRead()).map(({ identifier }) => identifier);
+}
+
+const DESTRUCTURES = new Set(["ObjectPattern", "ArrayPattern"]);
+/** Assignments whose result can be the assigned value itself. */
+const ALIAS_ASSIGNMENTS = new Set(["=", "||=", "&&=", "??="]);
+/** Expressions that always produce a new value, so a binding written only with them never holds a door. */
+const FRESH_VALUES = new Set([
+  "ArrayExpression",
+  "ArrowFunctionExpression",
+  "BinaryExpression",
+  "ClassExpression",
+  "FunctionExpression",
+  "Literal",
+  "NewExpression",
+  "ObjectExpression",
+  "TemplateLiteral",
+  "UnaryExpression",
+  "UpdateExpression",
+]);
+
+/** Expressions whose value is picked or computed at run time, so no binding names what they hold. */
+const OPAQUE_VALUES = new Set([
+  "AwaitExpression",
+  "CallExpression",
+  "ConditionalExpression",
+  "LogicalExpression",
+  "NewExpression",
+  "SequenceExpression",
+  "TaggedTemplateExpression",
+  "YieldExpression",
+]);
+
+function unwrapValue(node) {
+  let value = node;
+  while (VALUE_WRAPPERS.has(value.type) || value.type === "ChainExpression") {
+    value = value.expression;
+  }
+  return value;
+}
+
+/** Whether a destructure names `name` with a static key. */
+function patternNames(pattern, name) {
+  return (
+    pattern.type === "ObjectPattern" &&
+    pattern.properties.some((property) => property.type === "Property" && writtenKeyName(property.key, property.computed) === name)
+  );
+}
+
+/** Whether a destructure of a global root takes a nested root, such as `globalThis.globalThis`, which is the root again. */
+function takesAmbientRoot(pattern) {
+  return [...AMBIENT_ROOTS].some((root) => patternNames(pattern, root));
+}
+
+/**
+ * Whether a reassigned binding may hold a value the rules cannot follow: a destructuring or loop write, or a
+ * write whose value is not freshly built. Its identity is then unknowable, so a door-shaped read of it fails
+ * closed. A write of a door itself is followed precisely by `judgeDoorUses`.
+ */
+function unknowablyReassigned(variable) {
+  const writes = variable?.references.filter((reference) => reference.isWrite()) ?? [];
+  if (writes.every((reference) => reference.init === true)) {
+    return false;
+  }
+  return writes.some(({ identifier, writeExpr }) => {
+    const { parent } = identifier;
+    const direct =
+      (parent.type === "VariableDeclarator" && parent.id === identifier) ||
+      (parent.type === "AssignmentExpression" && parent.left === identifier && ALIAS_ASSIGNMENTS.has(parent.operator));
+    return !direct || writeExpr === undefined || writeExpr === null || !FRESH_VALUES.has(unwrapValue(writeExpr).type);
+  });
+}
+
+/**
+ * Whether an expression may hold a door the rules cannot see: a run-time result (a helper may return the
+ * door), a run-time-keyed element, a binding reassigned with such a value, or a global declared outside this
+ * file. A literal dynamic import names its module, and a static member path is judged at its root.
+ */
+function unknowableValue(sourceCode, expression) {
+  const value = unwrapValue(expression);
+  if (value.type === "Identifier") {
+    const variable = referencedVariable(sourceCode, value);
+    // The process and the global roots are followed precisely by the door judges.
+    const ambient = isGlobalBinding(variable) && value.name !== PROCESS_GLOBAL && !AMBIENT_ROOTS.has(value.name);
+    return ambient || unknowablyReassigned(variable);
+  }
+  if (value.type === "MemberExpression") {
+    // An element index picks one of many values; only a named property is a static path.
+    const { property } = value;
+    const named =
+      (property.type === "Literal" && typeof property.value === "string") || (property.type === "TemplateLiteral" && property.expressions.length === 0);
+    return (value.computed && !named) || unknowableValue(sourceCode, value.object);
+  }
+  const namedModule = value.type === "AwaitExpression" && value.argument.type === "ImportExpression" && staticSource(value.argument.source) !== undefined;
+  return OPAQUE_VALUES.has(value.type) && !namedModule;
+}
+
+/** Whether `node` is `Reflect.get(target, key)` on the global `Reflect` with `target` as its target: it reads `target[key]`. */
+function isReflectGet(sourceCode, node, target) {
+  const callee = node.type === "CallExpression" && node.arguments[0] === target ? node.callee : undefined;
+  return (
+    callee?.type === "MemberExpression" &&
+    callee.object.type === "Identifier" &&
+    callee.object.name === REFLECT_GLOBAL &&
+    isGlobalBinding(referencedVariable(sourceCode, callee.object)) &&
+    memberKeyName(sourceCode, callee) === REFLECT_GET
+  );
+}
+
+function reflectKeyName(sourceCode, call) {
+  const [, key] = call.arguments;
+  return key === undefined ? undefined : (writtenKeyName(key, true) ?? constKeyName(sourceCode, key, new Set()));
+}
+
+/** Parents that use a value without handing it on: a comparison, arithmetic, a test or a discarded statement. */
+const CONSUMING_PARENTS = new Set([
+  "BinaryExpression",
+  "DoWhileStatement",
+  "ExpressionStatement",
+  "ForStatement",
+  "IfStatement",
+  "SwitchCase",
+  "SwitchStatement",
+  "UnaryExpression",
+  "UpdateExpression",
+  "WhileStatement",
+]);
+
+function consumesValue(carrier) {
+  const { parent } = carrier;
+  return (
+    CONSUMING_PARENTS.has(parent.type) ||
+    (parent.type === "ConditionalExpression" && parent.test === carrier) ||
+    (parent.type === "SequenceExpression" && parent.expressions.at(-1) !== carrier) ||
+    (parent.type === "TemplateLiteral" && parent.parent.type !== "TaggedTemplateExpression")
+  );
+}
+
+/**
+ * Where a value flows: a member read of it, a destructure of it, or the reads of a binding declared, assigned
+ * or defaulted from it. SECURITY: every other position that does not consume the value is an escape, because
+ * it hands the value on where no binding in this file names it: an export, a call or tagged-template argument,
+ * a return, a copy into an array, an object or a member, a class field. Listing the escapes instead would let
+ * each unlisted position launder the door.
+ */
+function flowOf(sourceCode, carrier) {
+  const { parent } = carrier;
+  if (parent.type === "MemberExpression") {
+    return parent.object === carrier ? { member: parent, name: memberKeyName(sourceCode, parent) } : {};
+  }
+  if (isReflectGet(sourceCode, parent, carrier)) {
+    return { member: parent, name: reflectKeyName(sourceCode, parent) };
+  }
+  if (parent.type === "AssignmentExpression") {
+    return parent.left === carrier ? {} : assignmentFlow(sourceCode, parent);
+  }
+  if (parent.type === "VariableDeclarator") {
+    return declaratorFlow(sourceCode, parent);
+  }
+  if (parent.type === "AssignmentPattern" && parent.right === carrier) {
+    return targetFlow(sourceCode, parent, parent.left, boundReads);
+  }
+  return inTypeQuery(carrier) || consumesValue(carrier) ? {} : { escape: parent };
+}
+
+/** The flow into an assignment's target: a destructure, the reads of an identifier, or an escape into a member. An
+ * arithmetic or string compound assignment stores a fresh value. */
+function assignmentFlow(sourceCode, assignment) {
+  return ALIAS_ASSIGNMENTS.has(assignment.operator) ? targetFlow(sourceCode, assignment, assignment.left, assignedReads) : {};
+}
+
+function targetFlow(sourceCode, parent, target, readsOf) {
+  if (DESTRUCTURES.has(target.type)) {
+    return { pattern: target };
+  }
+  return target.type === "Identifier" ? { aliases: readsOf(sourceCode, target) } : { escape: parent };
+}
+
+function declaratorFlow(sourceCode, declarator) {
+  if (DESTRUCTURES.has(declarator.id.type)) {
+    return { pattern: declarator.id };
+  }
+  if (declarator.parent.parent?.type === "ExportNamedDeclaration") {
+    return { escape: declarator };
+  }
+  return { aliases: declarator.id.type === "Identifier" ? aliasReads(sourceCode, declarator) : [] };
+}
+
+/** Judge every use of a value, following bindings declared or assigned from it. */
+function judgeDoorUses(sourceCode, start, judge) {
+  const seen = new Set();
+  const visit = (node) => {
+    if (seen.has(node)) {
+      return;
+    }
+    seen.add(node);
+    const flow = flowOf(sourceCode, valueCarrier(node));
+    if (flow.member !== undefined) {
+      judge.member(flow.member, flow.name);
+    }
+    if (flow.pattern !== undefined) {
+      judge.pattern(flow.pattern);
+    }
+    if (flow.escape !== undefined) {
+      judge.escape(flow.escape);
+    }
+    for (const alias of flow.aliases ?? []) {
+      visit(alias);
+    }
+  };
+  visit(start);
+}
+
+/** A report callback that reports each node once, however many arms reach it. */
+function reportOnce(context, message) {
+  const reported = new Set();
+  return (node) => {
+    if (!reported.has(node)) {
+      reported.add(node);
+      context.report({ node, message });
+    }
+  };
+}
+
+function moduleExportName(node) {
+  return node.type === "Identifier" ? node.name : String(node.value);
+}
+
+/** The client doors a node HTTP module exposes, or `undefined` for any other module. */
+function httpClientDoors(source) {
+  return NODE_HTTP_CLIENT_DOORS.get(source.replace(/^node:/u, ""));
+}
+
+function namesFetch(specifier) {
+  return specifier.local.name === RAW_FETCH || (specifier.type === "ImportSpecifier" && moduleExportName(specifier.imported) === RAW_FETCH);
+}
+
+/** The parts of a value import that open a raw egress door: an egress package, or a binding named fetch. */
+function egressImportDoors(node) {
+  const values = node.specifiers.filter((specifier) => specifier.importKind !== "type");
+  if (RAW_EGRESS_PACKAGES.test(String(node.source.value))) {
+    return node.specifiers.length === 0 || values.length > 0 ? [node] : [];
+  }
+  return values.filter(namesFetch);
+}
+
+/**
+ * The bindings a value import of the process module opens: `env` itself, the process object, or the module
+ * namespace, which carries both as its `env` and `default` members.
+ */
+function processImportBindings(node) {
+  const values = node.specifiers.filter((specifier) => specifier.importKind !== "type");
+  const exportOf = (specifier) => (specifier.type === "ImportSpecifier" ? moduleExportName(specifier.imported) : MODULE_DEFAULT);
+  return {
+    env: values.filter((specifier) => exportOf(specifier) === ENV_MEMBER),
+    process: values.filter((specifier) => specifier.type !== "ImportNamespaceSpecifier" && exportOf(specifier) === MODULE_DEFAULT),
+    namespace: values.filter((specifier) => specifier.type === "ImportNamespaceSpecifier"),
+  };
+}
+
+/** Whether a value re-export forwards one of `doors` (or the module default) from its source module. */
+function reExportsDoor(node, doors) {
+  if (node.exportKind === "type") {
+    return false;
+  }
+  if (node.type === "ExportAllDeclaration") {
+    return true;
+  }
+  return node.specifiers.some(
+    ({ exportKind, local }) => exportKind !== "type" && (doors.has(moduleExportName(local)) || moduleExportName(local) === MODULE_DEFAULT),
+  );
+}
+
+const rawEgressRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const { sourceCode } = context;
+    const report = reportOnce(context, RAW_EGRESS_MESSAGE);
+    const fromGlobal = {
+      member: (member, name) => {
+        if (AMBIENT_ROOTS.has(name)) {
+          judgeDoorUses(sourceCode, member, fromGlobal);
+        } else if (name === undefined || (name === RAW_FETCH && !isTypeofOperand(member))) {
+          report(member);
+        }
+      },
+      pattern: (pattern) => {
+        if (patternTakes(pattern, RAW_FETCH) || takesAmbientRoot(pattern)) {
+          report(pattern);
+        }
+      },
+      escape: report,
+    };
+    return {
+      "ImportDeclaration[importKind!='type']"(node) {
+        for (const door of egressImportDoors(node)) {
+          report(door);
+        }
+      },
+      "ExportNamedDeclaration[source], ExportAllDeclaration"(node) {
+        const forwardsPackage = RAW_EGRESS_PACKAGES.test(String(node.source.value));
+        const forwardsFetch = node.type === "ExportNamedDeclaration" && node.specifiers.some(({ local }) => moduleExportName(local) === RAW_FETCH);
+        if (node.exportKind !== "type" && (forwardsPackage || forwardsFetch)) {
+          report(node);
+        }
+      },
+      "ImportExpression[source]"(node) {
+        if (RAW_EGRESS_PACKAGES.test(staticSource(node.source) ?? "")) {
+          report(node);
+        }
+      },
+      "Program:exit"() {
+        for (const reference of ambientReferences(sourceCode, new Set([RAW_FETCH]))) {
+          if (!isTypeofOperand(reference)) {
+            report(reference);
+          }
+        }
+        for (const root of ambientReferences(sourceCode, AMBIENT_ROOTS)) {
+          judgeDoorUses(sourceCode, root, fromGlobal);
+        }
+        for (const read of reassignedFetchReads(sourceCode)) {
+          report(read);
+        }
+      },
+    };
+  },
+};
+
+/** Reads of a local named `fetch` reassigned with a value the rule cannot follow; it may hold the global. */
+function reassignedFetchReads(sourceCode) {
+  return sourceCode.scopeManager.scopes
+    .flatMap(({ variables }) => variables)
+    .filter((variable) => variable.name === RAW_FETCH && unknowablyReassigned(variable))
+    .flatMap(({ references }) => references.filter((reference) => reference.isRead() && !isTypeofOperand(reference.identifier)))
+    .map(({ identifier }) => identifier);
+}
+
+// A separate rule from no-raw-egress so the D275 TLS listener's home exempts only its loopback client door.
+const rawHttpClientRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = reportOnce(context, RAW_EGRESS_MESSAGE);
+    return {
+      "ImportDeclaration[importKind!='type']"(node) {
+        const doors = httpClientDoors(String(node.source.value));
+        const values = node.specifiers.filter((specifier) => specifier.importKind !== "type");
+        for (const door of doors === undefined
+          ? []
+          : values.filter((specifier) => specifier.type !== "ImportSpecifier" || doors.has(moduleExportName(specifier.imported)))) {
+          report(door);
+        }
+      },
+      "ExportNamedDeclaration[source], ExportAllDeclaration"(node) {
+        const doors = httpClientDoors(String(node.source.value));
+        if (doors !== undefined && reExportsDoor(node, doors)) {
+          report(node);
+        }
+      },
+      "ImportExpression[source]"(node) {
+        if (httpClientDoors(staticSource(node.source) ?? "") !== undefined) {
+          report(node);
+        }
+      },
+    };
+  },
+};
+
+/** The nodes a destructure target binds through; a member-expression target binds nothing. */
+const DESTRUCTURE_CHILDREN = {
+  AssignmentPattern: (node) => [node.left],
+  RestElement: (node) => [node.argument],
+  ArrayPattern: (node) => node.elements.filter((element) => element !== null),
+  ObjectPattern: (node) => node.properties,
+  Property: (node) => [node.value],
+};
+
+/** The `env`-keyed properties a destructure takes and the identifiers it binds from everything else, at any depth. */
+function destructureParts(target, parts = { envKeys: [], bound: [] }) {
+  if (target.type === "Identifier") {
+    parts.bound.push(target);
+  } else if (target.type === "Property" && writtenKeyName(target.key, target.computed) === ENV_MEMBER) {
+    parts.envKeys.push(target);
+  } else {
+    for (const child of DESTRUCTURE_CHILDREN[target.type]?.(target) ?? []) {
+      destructureParts(child, parts);
+    }
+  }
+  return parts;
+}
+
+/** The env rule's judge for an imported value: an `env` key read anywhere on it, at any depth, fails closed. */
+function importedValueJudge(sourceCode, report) {
+  const judge = {
+    member: (member, name) => {
+      if (name === ENV_MEMBER) {
+        report(member);
+      } else {
+        judgeDoorUses(sourceCode, member, judge);
+      }
+    },
+    pattern: (pattern) => {
+      const parts = destructureParts(pattern);
+      for (const property of parts.envKeys) {
+        report(property);
+      }
+      for (const target of parts.bound) {
+        for (const { identifier } of referencedVariable(sourceCode, target)?.references ?? []) {
+          if (identifier !== target) {
+            judgeDoorUses(sourceCode, identifier, judge);
+          }
+        }
+      }
+    },
+    // Exporting it onward is judged where it is read.
+    escape: () => undefined,
+  };
+  return judge;
+}
+
+const PROCESS_EXPORT_DOORS = new Set([ENV_MEMBER]);
+
+const soleEnvReaderRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const { sourceCode } = context;
+    const report = reportOnce(context, SOLE_ENV_MESSAGE);
+    const fromImported = importedValueJudge(sourceCode, report);
+    const fromProcess = {
+      member: (member, name) => {
+        if (name === undefined || name === ENV_MEMBER) {
+          report(member);
+        }
+      },
+      pattern: (pattern) => {
+        if (patternTakes(pattern, ENV_MEMBER)) {
+          report(pattern);
+        }
+      },
+      escape: report,
+    };
+    // `import * as proc from "node:process"`: `proc.env` is the bag and `proc.default` is the process.
+    const fromNamespace = {
+      member: (member, name) => {
+        if (name === MODULE_DEFAULT) {
+          judgeDoorUses(sourceCode, member, fromProcess);
+        } else {
+          fromProcess.member(member, name);
+        }
+      },
+      pattern: (pattern) => {
+        if (patternTakes(pattern, ENV_MEMBER) || patternNames(pattern, MODULE_DEFAULT)) {
+          report(pattern);
+        }
+      },
+      escape: report,
+    };
+    // `globalThis.process` is the same object as the bare global; any other member may be a global another
+    // module assigned, so it is judged like an imported value.
+    const fromGlobal = {
+      member: (member, name) => {
+        if (name === PROCESS_GLOBAL) {
+          judgeDoorUses(sourceCode, member, fromProcess);
+        } else if (AMBIENT_ROOTS.has(name)) {
+          judgeDoorUses(sourceCode, member, fromGlobal);
+        } else {
+          fromImported.member(member, name);
+        }
+      },
+      pattern: (pattern) => {
+        if (patternTakes(pattern, PROCESS_GLOBAL) || takesAmbientRoot(pattern)) {
+          report(pattern);
+        }
+      },
+      escape: report,
+    };
+    return {
+      "ImportDeclaration[importKind!='type']"(node) {
+        if (!PROCESS_MODULE.test(node.source.value)) {
+          const values = node.specifiers.filter((specifier) => specifier.importKind !== "type");
+          for (const read of values.flatMap((specifier) => aliasReads(sourceCode, specifier))) {
+            judgeDoorUses(sourceCode, read, fromImported);
+          }
+          return;
+        }
+        const bindings = processImportBindings(node);
+        for (const specifier of bindings.env) {
+          report(specifier);
+        }
+        for (const read of bindings.process.flatMap((specifier) => aliasReads(sourceCode, specifier))) {
+          judgeDoorUses(sourceCode, read, fromProcess);
+        }
+        for (const read of bindings.namespace.flatMap((specifier) => aliasReads(sourceCode, specifier))) {
+          judgeDoorUses(sourceCode, read, fromNamespace);
+        }
+      },
+      "ExportNamedDeclaration[source], ExportAllDeclaration"(node) {
+        if (PROCESS_MODULE.test(node.source.value) && reExportsDoor(node, PROCESS_EXPORT_DOORS)) {
+          report(node);
+        }
+      },
+      "ImportExpression[source]"(node) {
+        if (PROCESS_MODULE.test(staticSource(node.source) ?? "")) {
+          report(node);
+        } else {
+          judgeDoorUses(sourceCode, node, fromImported);
+        }
+      },
+      // Fail closed on an `env` key taken off a value whose identity the rule cannot follow.
+      "VariableDeclarator[id.type='ObjectPattern'][init], AssignmentExpression[left.type='ObjectPattern']"(node) {
+        const [pattern, source] = node.type === "VariableDeclarator" ? [node.id, node.init] : [node.left, node.right];
+        if (patternNames(pattern, ENV_MEMBER) && unknowableValue(sourceCode, source)) {
+          report(pattern);
+        }
+      },
+      [`MemberExpression[property.name='${ENV_MEMBER}'], MemberExpression[property.value='${ENV_MEMBER}'], MemberExpression[property.type='TemplateLiteral'], MemberExpression[computed=true][property.type='Identifier']`](
+        node,
+      ) {
+        if (memberKeyName(sourceCode, node) === ENV_MEMBER && unknowableValue(sourceCode, node.object)) {
+          report(node);
+        }
+      },
+      "Program:exit"() {
+        for (const reference of ambientReferences(sourceCode, new Set([PROCESS_GLOBAL]))) {
+          judgeDoorUses(sourceCode, reference, fromProcess);
+        }
+        for (const root of ambientReferences(sourceCode, AMBIENT_ROOTS)) {
+          judgeDoorUses(sourceCode, root, fromGlobal);
+        }
+      },
+    };
+  },
+};
+
+const AMBIENT_GLOBAL_RESTRICTIONS = [
+  {
+    id: "no-raw-egress",
+    scope: rootSources("@server", "@inference"),
+    homes: [
+      {
+        path: "packages/server/src/infra/network/egress.ts",
+        why: "the guard itself: `safeFetch`, the configured-endpoint capability and their pinned undici agents wrap the one physical request every other egress routes through",
+      },
+    ],
+  },
+  {
+    id: "no-raw-http-client",
+    scope: rootSources("@server", "@inference"),
+    homes: [
+      {
+        path: "packages/server/src/infra/network/tls-terminator.ts",
+        why: "the D275 TLS listener forwards each request to the app's own loopback listener; it never dials a caller-chosen host",
+      },
+    ],
+  },
+  {
+    id: "sole-env-reader",
+    scope: rootSources("@server", "@inference"),
+    homes: [
+      { path: "packages/server/src/foundation/env/index.ts", why: "the sole reader parses and freezes `env`, so it cannot import the object it produces" },
+    ],
+  },
+  {
+    id: "scrubber-home",
+    scope: POPULATION_SETS["@product"].flatMap((ref) => rootSources(ref)),
+    homes: [
+      {
+        path: "packages/server/src/domain/chat/substrate/member-visibility.ts",
+        why: "the producer stamp owns the one warm per-slot scrubber; the same module's token-log replay projection builds one per replayed generation",
+      },
+    ],
+    selectors: [
+      {
+        selector: `:matches(${[
+          `ImportSpecifier[imported.name='${SCRUBBER_FACTORY}']`,
+          `ImportSpecifier[imported.value='${SCRUBBER_FACTORY}']`,
+          `ExportSpecifier[local.name='${SCRUBBER_FACTORY}']`,
+          `ExportSpecifier[local.value='${SCRUBBER_FACTORY}']`,
+          `MemberExpression[computed=false][property.name='${SCRUBBER_FACTORY}']`,
+          `MemberExpression[computed=true][property.value='${SCRUBBER_FACTORY}']`,
+          `MemberExpression[computed=true][property.type='TemplateLiteral'][property.quasis.0.value.cooked='${SCRUBBER_FACTORY}']`,
+          `ObjectPattern > Property[key.name='${SCRUBBER_FACTORY}']`,
+          `ObjectPattern > Property[key.value='${SCRUBBER_FACTORY}']`,
+        ].join(", ")})`,
+        message:
+          "D118: only the producer stamp (domain/chat/substrate/member-visibility.ts) constructs the hidden-span stream scrubber; read the stamped `memberText`, because a reader's cold scrubber forwards a hidden span's tail.",
+      },
+    ],
+  },
+];
+
 const CONTEXT_NATIVE_SETTINGS = {
   "orb/context-vocabulary": {
     mintHome: { source: REGISTRY_CONTRACTS_RE.source, flags: REGISTRY_CONTRACTS_RE.flags },
@@ -3183,6 +4054,7 @@ const RESTRICTIONS = [
   ...ROLE_DATA_RESTRICTIONS,
   ...TURN_IDENTITY_RESTRICTIONS,
   ...SERVER_SCOPE_RESTRICTIONS,
+  ...AMBIENT_GLOBAL_RESTRICTIONS,
   ...CLIENT_REGISTRY_RESTRICTIONS,
   ...BUS_REGISTRY_RESTRICTIONS,
   ...CLIENT_DEFINITION_HOME_RESTRICTIONS,
@@ -5362,8 +6234,8 @@ const typeHomeDeclarationRule = {
     schema: [],
     messages: {
       misplacedType:
-        "An exported type belongs in its canonical domain, wire, package or foundation contract home unless its local factory signature owns it (D324; Spine-TypeScript §7.4).",
-      misplacedSchema: "An exported zod shape schema belongs in its canonical domain, wire, package or foundation contract home (Spine-TypeScript §7.4).",
+        "An exported type belongs in its canonical domain, wire, package, foundation, tool or test home unless a local function signature owns it (D324, D331; Spine-TypeScript §7.4).",
+      misplacedSchema: "An exported zod shape schema belongs in its canonical domain, wire, package, foundation, tool or test home (Spine-TypeScript §7.4).",
     },
   },
   create(context) {
@@ -5376,7 +6248,7 @@ const typeHomeDeclarationRule = {
       if (!(shape && nativeDeclarationExported(declaration, native.checker))) {
         return;
       }
-      if (serverFactoryTypeHome(declaration, path, { kind: "parser", checker: native.checker, program: native.program, source: declaration.getSourceFile() })) {
+      if (signatureTypeHome(declaration, path, { kind: "parser", checker: native.checker, program: native.program, source: declaration.getSourceFile() })) {
         return;
       }
       context.report({ node: native.tsNodeToESTreeNodeMap.get(declaration.name), messageId: "misplacedType" });
@@ -7333,6 +8205,9 @@ const restrictionPlugin = {
     ...Object.fromEntries(UI_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     [UI_CT_COLOR_RESTRICTION.id]: uiCtColorRule,
     ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule])),
+    "no-raw-egress": rawEgressRule,
+    "no-raw-http-client": rawHttpClientRule,
+    "sole-env-reader": soleEnvReaderRule,
     [TYPE_HOME_NATIVE_POLICY_ID]: typeHomeDeclarationRule,
     [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryPublicBoundaryRule,
     "no-inline-invalidate-outside-seam": nativePackageCallRule(["invalidateQueries"], true),
@@ -8169,6 +9044,7 @@ const ORDINARY_CONFIG = [
       ...ROLE_DATA_RESTRICTIONS,
       ...TURN_IDENTITY_RESTRICTIONS,
       ...SERVER_SCOPE_RESTRICTIONS,
+      ...AMBIENT_GLOBAL_RESTRICTIONS,
       ...DETERMINISM_RESTRICTIONS,
       ...CLASS_TOKEN_RESTRICTIONS,
       ...Z_INDEX_RESTRICTIONS,

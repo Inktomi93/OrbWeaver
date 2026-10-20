@@ -8,8 +8,9 @@ import { acceptsAssistantPrefill, turnsLevelFor } from "@orb/contracts/inference
 import { createInferenceRuntime } from "@orb/inference";
 import type { UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { principal } from "../../db/schema/_support.ts";
 import { fakeApiKeySecret, fakeConnection, fakeDeps, memoryStores, newUserId } from "../_support.ts";
 import { transcriptFetch } from "../catalog/_local-servers-fetch.ts";
 
@@ -21,6 +22,7 @@ async function generationFor(args: {
   readonly baseUrl?: string;
   readonly fetch?: typeof fetch;
 }): Promise<GenerationCapability> {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const credentialId = args.baseUrl === undefined ? fakeConnection({ ownerId, providerId: "x", model: "x" }).id : null;
@@ -34,7 +36,7 @@ async function generationFor(args: {
   stores.connections.rows.set(row.id, row);
   const secrets = new Map(credentialId === null ? [] : [[credentialId, fakeApiKeySecret("sk-test")]]);
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: args.fetch ?? NOT_FOUND, secrets }));
-  const { capability } = (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved;
+  const { capability } = (await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id })).resolved;
   if (capability.kind !== "generation") {
     throw new Error(`expected generation, got ${capability.kind}`);
   }

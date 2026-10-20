@@ -27,7 +27,7 @@ describe("bulkSetScriptsEnabled", () => {
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
 
-    const result = await svc.bulkSetScriptsEnabled({ principal: principal(owner), scriptIds: [a, b], enabled: false });
+    const result = await svc.bulkSetScriptsEnabled({ principal: await principal(db, owner), scriptIds: [a, b], enabled: false });
 
     expect(result).toEqual({ affected: 2 });
     expect((await db.select().from(regexScripts)).map((r) => r.enabled)).toEqual([false, false]);
@@ -54,7 +54,7 @@ describe("bulkSetScriptsEnabled", () => {
     const [bornTheirs] = await db.select().from(regexScripts).where(eq(regexScripts.id, theirs));
 
     h.advance(ONE_HOUR_MS);
-    await svc.bulkSetScriptsEnabled({ principal: principal(owner), scriptIds: [mine, theirs], enabled: false });
+    await svc.bulkSetScriptsEnabled({ principal: await principal(db, owner), scriptIds: [mine, theirs], enabled: false });
 
     const [afterMine] = await db.select().from(regexScripts).where(eq(regexScripts.id, mine));
     const [afterTheirs] = await db.select().from(regexScripts).where(eq(regexScripts.id, theirs));
@@ -73,7 +73,7 @@ describe("bulkSetScriptsEnabled", () => {
     const mine = await seedScript(db, { ownerId: owner, id: "regex_script_mine", name: "mine" });
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
 
-    const result = await svc.bulkSetScriptsEnabled({ principal: principal(owner), scriptIds: [mine, theirs], enabled: false });
+    const result = await svc.bulkSetScriptsEnabled({ principal: await principal(db, owner), scriptIds: [mine, theirs], enabled: false });
 
     // The count is the honest answer, and it is the SAME number a caller would get for an id that never
     // existed — so the verb cannot be used to test whether a stranger owns a given script.
@@ -88,9 +88,9 @@ describe("bulkSetScriptsEnabled", () => {
     const svc = createRegexService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const empty = await svc.bulkSetScriptsEnabled({ principal: principal(owner), scriptIds: [], enabled: false });
+    const empty = await svc.bulkSetScriptsEnabled({ principal: await principal(db, owner), scriptIds: [], enabled: false });
     const ghost = await svc.bulkSetScriptsEnabled({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       scriptIds: [castId<RegexScriptId>("regex_script_nothere")],
       enabled: false,
     });
@@ -108,7 +108,7 @@ describe("bulkSetScriptsEnabled", () => {
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const before = (await db.select().from(regexScripts).where(eq(regexScripts.id, a)))[0]?.behavior;
 
-    await svc.bulkSetScriptsEnabled({ principal: principal(owner), scriptIds: [a], enabled: false });
+    await svc.bulkSetScriptsEnabled({ principal: await principal(db, owner), scriptIds: [a], enabled: false });
 
     expect((await db.select().from(regexScripts).where(eq(regexScripts.id, a)))[0]?.behavior).toEqual(before);
   });
@@ -127,7 +127,7 @@ describe("bulkSetScriptsEnabled", () => {
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
 
-    await svc.bulkSetScriptsEnabled({ principal: principal(owner), scriptIds: [a, b, theirs], enabled: false });
+    await svc.bulkSetScriptsEnabled({ principal: await principal(db, owner), scriptIds: [a, b, theirs], enabled: false });
 
     expect(h.roomFans.map((f) => f.kind)).toEqual(["script", "script"]);
     expect([...h.roomFans].map((f) => f.id).toSorted((x, y) => x.localeCompare(y))).toEqual([a, b].toSorted((x, y) => x.localeCompare(y)));

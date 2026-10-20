@@ -31,49 +31,53 @@ async function seedGameWithParticipants(): Promise<{ chatId: ChatId; h: ReturnTy
   const h = makeRpgService(db);
   h.fakes.membership.set("user_host", "host");
   h.fakes.membership.set("user_member", "member");
-  await h.service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite" });
+  await h.service.createGame({ principal: await principal(db, castId<Handle>("host")), chatId, mode: "lite" });
   return { chatId, h };
 }
 
 describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-free NOT-FOUND", () => {
   test("updateConfig", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    await expect(h.service.updateConfig({ principal: principal(castId<Handle>("member")), chatId, patch: { steeringNote: "x" } })).rejects.toThrow(
+    await expect(h.service.updateConfig({ principal: await principal(db, castId<Handle>("member")), chatId, patch: { steeringNote: "x" } })).rejects.toThrow(
       DomainForbiddenError,
     );
-    await expect(h.service.updateConfig({ principal: principal(castId<Handle>("ghost")), chatId, patch: { steeringNote: "x" } })).rejects.toThrow(
+    await expect(h.service.updateConfig({ principal: await principal(db, castId<Handle>("ghost")), chatId, patch: { steeringNote: "x" } })).rejects.toThrow(
       DomainNotFoundError,
     );
   });
 
   test("upsertQuest", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    await expect(h.service.upsertQuest({ principal: principal(castId<Handle>("member")), chatId, name: "Q" })).rejects.toThrow(DomainForbiddenError);
-    await expect(h.service.upsertQuest({ principal: principal(castId<Handle>("ghost")), chatId, name: "Q" })).rejects.toThrow(DomainNotFoundError);
+    await expect(h.service.upsertQuest({ principal: await principal(db, castId<Handle>("member")), chatId, name: "Q" })).rejects.toThrow(DomainForbiddenError);
+    await expect(h.service.upsertQuest({ principal: await principal(db, castId<Handle>("ghost")), chatId, name: "Q" })).rejects.toThrow(DomainNotFoundError);
   });
 
   test("addJournalEntry", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    await expect(h.service.addJournalEntry({ principal: principal(castId<Handle>("member")), chatId, type: "note", title: "t", content: "c" })).rejects.toThrow(
-      DomainForbiddenError,
-    );
-    await expect(h.service.addJournalEntry({ principal: principal(castId<Handle>("ghost")), chatId, type: "note", title: "t", content: "c" })).rejects.toThrow(
-      DomainNotFoundError,
-    );
+    await expect(
+      h.service.addJournalEntry({ principal: await principal(db, castId<Handle>("member")), chatId, type: "note", title: "t", content: "c" }),
+    ).rejects.toThrow(DomainForbiddenError);
+    await expect(
+      h.service.addJournalEntry({ principal: await principal(db, castId<Handle>("ghost")), chatId, type: "note", title: "t", content: "c" }),
+    ).rejects.toThrow(DomainNotFoundError);
   });
 
   test("createCheckpoint", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    await expect(h.service.createCheckpoint({ principal: principal(castId<Handle>("member")), chatId, label: "L" })).rejects.toThrow(DomainForbiddenError);
-    await expect(h.service.createCheckpoint({ principal: principal(castId<Handle>("ghost")), chatId, label: "L" })).rejects.toThrow(DomainNotFoundError);
+    await expect(h.service.createCheckpoint({ principal: await principal(db, castId<Handle>("member")), chatId, label: "L" })).rejects.toThrow(
+      DomainForbiddenError,
+    );
+    await expect(h.service.createCheckpoint({ principal: await principal(db, castId<Handle>("ghost")), chatId, label: "L" })).rejects.toThrow(
+      DomainNotFoundError,
+    );
   });
 
   test("editSnapshot", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    await expect(h.service.editSnapshot({ principal: principal(castId<Handle>("member")), chatId, patch: { location: "x" } })).rejects.toThrow(
+    await expect(h.service.editSnapshot({ principal: await principal(db, castId<Handle>("member")), chatId, patch: { location: "x" } })).rejects.toThrow(
       DomainForbiddenError,
     );
-    await expect(h.service.editSnapshot({ principal: principal(castId<Handle>("ghost")), chatId, patch: { location: "x" } })).rejects.toThrow(
+    await expect(h.service.editSnapshot({ principal: await principal(db, castId<Handle>("ghost")), chatId, patch: { location: "x" } })).rejects.toThrow(
       DomainNotFoundError,
     );
   });
@@ -84,18 +88,22 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
   test("patchActor", async () => {
     const { chatId, h } = await seedGameWithParticipants();
     const ops = [{ op: "setStatus", status: "x" }] as const;
-    await expect(h.service.patchActor({ principal: principal(castId<Handle>("member")), chatId, targetRef: CAST_REF, ops: [...ops] })).rejects.toThrow(
-      DomainForbiddenError,
-    );
-    await expect(h.service.patchActor({ principal: principal(castId<Handle>("ghost")), chatId, targetRef: CAST_REF, ops: [...ops] })).rejects.toThrow(
+    await expect(
+      h.service.patchActor({ principal: await principal(db, castId<Handle>("member")), chatId, targetRef: CAST_REF, ops: [...ops] }),
+    ).rejects.toThrow(DomainForbiddenError);
+    await expect(h.service.patchActor({ principal: await principal(db, castId<Handle>("ghost")), chatId, targetRef: CAST_REF, ops: [...ops] })).rejects.toThrow(
       DomainNotFoundError,
     );
   });
 
   test("dismissActor", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    await expect(h.service.dismissActor({ principal: principal(castId<Handle>("member")), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainForbiddenError);
-    await expect(h.service.dismissActor({ principal: principal(castId<Handle>("ghost")), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainNotFoundError);
+    await expect(h.service.dismissActor({ principal: await principal(db, castId<Handle>("member")), chatId, targetRef: CAST_REF })).rejects.toThrow(
+      DomainForbiddenError,
+    );
+    await expect(h.service.dismissActor({ principal: await principal(db, castId<Handle>("ghost")), chatId, targetRef: CAST_REF })).rejects.toThrow(
+      DomainNotFoundError,
+    );
   });
 
   // R4 — the promotion doorway. It is the ONE rpg verb whose write reaches OUTSIDE the game (a durable
@@ -103,8 +111,12 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
   // library rows into the host's account. Both refusals land BEFORE any mint.
   test("promoteActor", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    await expect(h.service.promoteActor({ principal: principal(castId<Handle>("member")), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainForbiddenError);
-    await expect(h.service.promoteActor({ principal: principal(castId<Handle>("ghost")), chatId, targetRef: CAST_REF })).rejects.toThrow(DomainNotFoundError);
+    await expect(h.service.promoteActor({ principal: await principal(db, castId<Handle>("member")), chatId, targetRef: CAST_REF })).rejects.toThrow(
+      DomainForbiddenError,
+    );
+    await expect(h.service.promoteActor({ principal: await principal(db, castId<Handle>("ghost")), chatId, targetRef: CAST_REF })).rejects.toThrow(
+      DomainNotFoundError,
+    );
     expect(h.fakes.promoteMints).toHaveLength(0);
   });
 
@@ -115,7 +127,7 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
   // silent flattening of six refusals into one generic "host authority required".
   test("each host-gated verb keeps its OWN refusal sentence (the chokepoint collapse is behavior-free)", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    const member = principal(castId<Handle>("member"));
+    const member = await principal(db, castId<Handle>("member"));
     const expectMessage = async (promise: Promise<unknown>, message: string): Promise<void> => {
       await expect(promise).rejects.toThrow(new DomainForbiddenError(message));
     };
@@ -142,26 +154,26 @@ describe("host-gated shared-plane verbs — member FORBIDDEN, non-member leak-fr
 describe("member-gated reads — a member is ALLOWED, a non-member leak-free NOT-FOUND", () => {
   test("getGame / getTrackerView / listJournal allow a member, refuse a non-member identically", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    await expect(h.service.getGame({ principal: principal(castId<Handle>("member")), chatId })).resolves.toBeDefined();
-    await expect(h.service.getGame({ principal: principal(castId<Handle>("ghost")), chatId })).rejects.toThrow(DomainNotFoundError);
-    await expect(h.service.getTrackerView({ principal: principal(castId<Handle>("member")), chatId })).resolves.toBeDefined();
-    await expect(h.service.getTrackerView({ principal: principal(castId<Handle>("ghost")), chatId })).rejects.toThrow(DomainNotFoundError);
-    await expect(h.service.listJournal({ principal: principal(castId<Handle>("member")), chatId })).resolves.toBeDefined();
-    await expect(h.service.listJournal({ principal: principal(castId<Handle>("ghost")), chatId })).rejects.toThrow(DomainNotFoundError);
+    await expect(h.service.getGame({ principal: await principal(db, castId<Handle>("member")), chatId })).resolves.toBeDefined();
+    await expect(h.service.getGame({ principal: await principal(db, castId<Handle>("ghost")), chatId })).rejects.toThrow(DomainNotFoundError);
+    await expect(h.service.getTrackerView({ principal: await principal(db, castId<Handle>("member")), chatId })).resolves.toBeDefined();
+    await expect(h.service.getTrackerView({ principal: await principal(db, castId<Handle>("ghost")), chatId })).rejects.toThrow(DomainNotFoundError);
+    await expect(h.service.listJournal({ principal: await principal(db, castId<Handle>("member")), chatId })).resolves.toBeDefined();
+    await expect(h.service.listJournal({ principal: await principal(db, castId<Handle>("ghost")), chatId })).rejects.toThrow(DomainNotFoundError);
   });
 
   test("getConfigView is HOST-gated — a member is FORBIDDEN, a non-member NOT-FOUND", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    await expect(h.service.getConfigView({ principal: principal(castId<Handle>("host")), chatId })).resolves.toBeDefined();
-    await expect(h.service.getConfigView({ principal: principal(castId<Handle>("member")), chatId })).rejects.toThrow(DomainForbiddenError);
-    await expect(h.service.getConfigView({ principal: principal(castId<Handle>("ghost")), chatId })).rejects.toThrow(DomainNotFoundError);
+    await expect(h.service.getConfigView({ principal: await principal(db, castId<Handle>("host")), chatId })).resolves.toBeDefined();
+    await expect(h.service.getConfigView({ principal: await principal(db, castId<Handle>("member")), chatId })).rejects.toThrow(DomainForbiddenError);
+    await expect(h.service.getConfigView({ principal: await principal(db, castId<Handle>("ghost")), chatId })).rejects.toThrow(DomainNotFoundError);
   });
 });
 
 describe("patchSheet — a member may write their OWN user row, never a foreign one", () => {
   test("member writes own user sheet; a foreign user ref is FORBIDDEN; a non-member NOT-FOUND", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    const member = principal(castId<Handle>("member"));
+    const member = await principal(db, castId<Handle>("member"));
     // Own row — allowed.
     await expect(
       h.service.patchSheet({ principal: member, chatId, actorRef: { kind: "user", userId: member.userId }, patch: { className: "Rogue" } }),
@@ -171,16 +183,16 @@ describe("patchSheet — a member may write their OWN user row, never a foreign 
       h.service.patchSheet({
         principal: member,
         chatId,
-        actorRef: { kind: "user", userId: principal(castId<Handle>("host")).userId },
+        actorRef: { kind: "user", userId: (await principal(db, castId<Handle>("host"))).userId },
         patch: { className: "x" },
       }),
     ).rejects.toThrow(DomainForbiddenError);
     // A non-member — leak-free not-found.
     await expect(
       h.service.patchSheet({
-        principal: principal(castId<Handle>("ghost")),
+        principal: await principal(db, castId<Handle>("ghost")),
         chatId,
-        actorRef: { kind: "user", userId: principal(castId<Handle>("ghost")).userId },
+        actorRef: { kind: "user", userId: (await principal(db, castId<Handle>("ghost"))).userId },
         patch: { className: "x" },
       }),
     ).rejects.toThrow(DomainNotFoundError);
@@ -191,7 +203,7 @@ describe("patchSheet — a member may write their OWN user row, never a foreign 
   // its own sentence (behavior + no-write proven in `verbs/patch-sheet.int.test.ts`).
   test("the tracker EXCEPTIONS carry a per-FIELD host floor with its own refusal sentence", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    const member = principal(castId<Handle>("member"));
+    const member = await principal(db, castId<Handle>("member"));
     await expect(
       h.service.patchSheet({ principal: member, chatId, actorRef: { kind: "user", userId: member.userId }, patch: { trackerGrants: ["bound_will"] } }),
     ).rejects.toThrow(new DomainForbiddenError("host authority required to grant or revoke a tracker exception"));
@@ -201,7 +213,7 @@ describe("patchSheet — a member may write their OWN user row, never a foreign 
     // The host holds the plane on the member's own row.
     await expect(
       h.service.patchSheet({
-        principal: principal(castId<Handle>("host")),
+        principal: await principal(db, castId<Handle>("host")),
         chatId,
         actorRef: { kind: "user", userId: member.userId },
         patch: { trackerGrants: ["bound_will"], trackerRevokes: [] },
@@ -231,11 +243,11 @@ describe("cross-tenant IDOR — a host may NOT reach another game's by-id rows (
     // (getMembership's fake keys on userId; the game each verb resolves comes from its chatId param.)
     h.fakes.membership.set("user_hostA", "host");
     h.fakes.membership.set("user_hostB", "host");
-    await h.service.createGame({ principal: principal(castId<Handle>("hostA")), chatId: chatA, mode: "lite" });
-    await h.service.createGame({ principal: principal(castId<Handle>("hostB")), chatId: chatB, mode: "lite" });
+    await h.service.createGame({ principal: await principal(db, castId<Handle>("hostA")), chatId: chatA, mode: "lite" });
+    await h.service.createGame({ principal: await principal(db, castId<Handle>("hostB")), chatId: chatB, mode: "lite" });
     // Game B's own host creates a journal entry in B.
     const entryB = await h.service.addJournalEntry({
-      principal: principal(castId<Handle>("hostB")),
+      principal: await principal(db, castId<Handle>("hostB")),
       chatId: chatB,
       type: "note",
       title: "B-title",
@@ -251,7 +263,7 @@ describe("cross-tenant IDOR — a host may NOT reach another game's by-id rows (
       throw new Error("no game B");
     }
     await expect(
-      h.service.editJournalEntry({ principal: principal(castId<Handle>("hostA")), chatId: chatA, entryId: entryB, patch: { content: "hijacked" } }),
+      h.service.editJournalEntry({ principal: await principal(db, castId<Handle>("hostA")), chatId: chatA, entryId: entryB, patch: { content: "hijacked" } }),
     ).rejects.toThrow(DomainNotFoundError);
     // B's entry is UNTOUCHED (content unchanged).
     expect((await listActiveJournal(db, gameB.id, { limit: 50, historyFloorSeq: UNCLAMPED })).find((e) => e.id === entryB)?.content).toBe("B-content");
@@ -263,7 +275,7 @@ describe("cross-tenant IDOR — a host may NOT reach another game's by-id rows (
     if (!gameB) {
       throw new Error("no game B");
     }
-    await expect(h.service.deleteJournalEntry({ principal: principal(castId<Handle>("hostA")), chatId: chatA, entryId: entryB })).rejects.toThrow(
+    await expect(h.service.deleteJournalEntry({ principal: await principal(db, castId<Handle>("hostA")), chatId: chatA, entryId: entryB })).rejects.toThrow(
       DomainNotFoundError,
     );
     // B's entry still exists.
@@ -274,9 +286,11 @@ describe("cross-tenant IDOR — a host may NOT reach another game's by-id rows (
 describe("member-gated rollDice + listCheckpoints", () => {
   test("a member may roll + list; a non-member is leak-free refused", async () => {
     const { chatId, h } = await seedGameWithParticipants();
-    await expect(h.service.rollDice({ principal: principal(castId<Handle>("member")), chatId, notation: "1d20" })).resolves.toBeDefined();
-    await expect(h.service.listCheckpoints({ principal: principal(castId<Handle>("member")), chatId })).resolves.toBeDefined();
-    await expect(h.service.rollDice({ principal: principal(castId<Handle>("ghost")), chatId, notation: "1d20" })).rejects.toThrow(DomainNotFoundError);
-    await expect(h.service.listCheckpoints({ principal: principal(castId<Handle>("ghost")), chatId })).rejects.toThrow(DomainNotFoundError);
+    await expect(h.service.rollDice({ principal: await principal(db, castId<Handle>("member")), chatId, notation: "1d20" })).resolves.toBeDefined();
+    await expect(h.service.listCheckpoints({ principal: await principal(db, castId<Handle>("member")), chatId })).resolves.toBeDefined();
+    await expect(h.service.rollDice({ principal: await principal(db, castId<Handle>("ghost")), chatId, notation: "1d20" })).rejects.toThrow(
+      DomainNotFoundError,
+    );
+    await expect(h.service.listCheckpoints({ principal: await principal(db, castId<Handle>("ghost")), chatId })).rejects.toThrow(DomainNotFoundError);
   });
 });

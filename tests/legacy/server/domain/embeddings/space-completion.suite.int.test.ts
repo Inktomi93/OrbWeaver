@@ -27,6 +27,8 @@ import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
 import type { WorkloadRunContext } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { chatDigests, chatSegments, embedGenerations, embedSpaceState } from "@orb/db";
+import { databaseHandle } from "@orb/db/wiring-driver";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createVacuousMemoryReceipt, createVectorSweepOps } from "@orb/server/domain/embeddings";
@@ -45,15 +47,21 @@ import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import { upsertCharacterEmbedding, upsertChatDigest, upsertChatSegment } from "#server/domain/embeddings/persistence/queries.ts";
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { readGeneration } from "#server/domain/search/persistence/active-space.ts";
+import { everyOwnerAuthority } from "../workloads/_support.ts";
 import type { StoreHarness } from "./_support.ts";
 import { EMBED_DIM, EMBED_MODEL, fakeVector, makeStoreHarness, seedCharacter, seedChat, seedDocument, seedUser } from "./_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 const CARD_TEXT = "a seeded card, embedded through the per-owner catch-up";
 const STALE_MODEL = "old-embed-model-v0";
 const NO_OP_REINDEX = { documents: 0, chunksUpserted: 0, chunksNoop: 0, chunksPruned: 0, reExtracted: 0, failed: [] } as const;
 
 function runContext(ownerId: UserId | null, actor: UserId): WorkloadRunContext {
-  return { userId: actor, ownerId, now: () => FROZEN_AT_MS };
+  return ownerId === null
+    ? { ...EVERY_OWNER.run, userId: actor, funderUserId: actor, now: () => FROZEN_AT_MS }
+    : { userId: actor, ownerId, funderUserId: actor, now: () => FROZEN_AT_MS };
 }
 
 function liveSignal(): AbortSignal {
@@ -62,7 +70,7 @@ function liveSignal(): AbortSignal {
 
 /** The owner's pinned `embed` target — the generation every scope below must record against. */
 async function targetOf(harness: StoreHarness, ownerId: UserId): Promise<PinnedGeneration> {
-  const generation = await resolveTargetGeneration(harness.ctx, ownerId, "embed");
+  const generation = await resolveTargetGeneration({ ...harness.ctx, db: databaseForOwner(harness.ctx.db) }, ownerId, "embed");
   if (generation === null) {
     throw new Error("the fixture owner must resolve an embed generation");
   }
@@ -74,7 +82,7 @@ async function targetOf(harness: StoreHarness, ownerId: UserId): Promise<PinnedG
 function sweepOps(f: Pick<Fixture, "db" | "svc">): ReturnType<typeof createVectorSweepOps> {
   return createVectorSweepOps({
     embeddings: f.svc,
-    listCorpusOwners: () => distinctCorpusOwners(f.db),
+    listCorpusOwners: (run) => distinctCorpusOwners(databaseHandle(f.db), run),
     vacuousMemoryReceipt: createVacuousMemoryReceipt({
       isMemoryEnabled: () => Promise.resolve(true),
       emptyMemoryScope: () => Promise.resolve(null),

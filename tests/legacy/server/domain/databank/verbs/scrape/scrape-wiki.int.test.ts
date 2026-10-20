@@ -40,7 +40,7 @@ test("scrapes an article: derives the API endpoint from the host, stamps 'wiki' 
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf(EXTRACT_JSON));
 
-  const result = await h.service.scrapeWiki({ principal: principalFor(owner), url: ARTICLE_URL });
+  const result = await h.service.scrapeWiki({ principal: await principalFor(db, owner), url: ARTICLE_URL });
 
   expect(result.outcome).toBe("created");
   expect(result.ingest).toBe("queued");
@@ -63,7 +63,7 @@ test("derives the endpoint from a NON-Wikipedia MediaWiki host (Fandom rides the
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf(EXTRACT_JSON));
 
-  await h.service.scrapeWiki({ principal: principalFor(owner), url: "https://elderscrolls.fandom.com/wiki/Skyrim" });
+  await h.service.scrapeWiki({ principal: await principalFor(db, owner), url: "https://elderscrolls.fandom.com/wiki/Skyrim" });
   expect(h.fetchUrl).toHaveBeenCalledWith(
     "https://elderscrolls.fandom.com/w/api.php?action=query&prop=extracts&explaintext=1&format=json&redirects=1&titles=Skyrim",
   );
@@ -75,7 +75,7 @@ test("a missing article (no extract) collapses to ScrapeFailedError — no row, 
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf(MISSING_JSON));
 
-  await expect(h.service.scrapeWiki({ principal: principalFor(owner), url: ARTICLE_URL })).rejects.toBeInstanceOf(ScrapeFailedError);
+  await expect(h.service.scrapeWiki({ principal: await principalFor(db, owner), url: ARTICLE_URL })).rejects.toBeInstanceOf(ScrapeFailedError);
   expect(h.assetsStore).not.toHaveBeenCalled();
   expect(h.enqueueIngest).not.toHaveBeenCalled();
   const rows = await db.select().from(documents).where(eq(documents.ownerId, owner));
@@ -88,7 +88,7 @@ test("malformed JSON collapses to ScrapeFailedError", async () => {
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf("<html>not json — a captcha wall</html>"));
 
-  await expect(h.service.scrapeWiki({ principal: principalFor(owner), url: ARTICLE_URL })).rejects.toBeInstanceOf(ScrapeFailedError);
+  await expect(h.service.scrapeWiki({ principal: await principalFor(db, owner), url: ARTICLE_URL })).rejects.toBeInstanceOf(ScrapeFailedError);
   expect(h.enqueueIngest).not.toHaveBeenCalled();
 });
 
@@ -98,7 +98,7 @@ test("a fetch refusal collapses to a leak-free ScrapeFailedError, not retry-loop
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockRejectedValueOnce(new Error("SSRF_BLOCKED: 169.254.169.254"));
 
-  const error = await h.service.scrapeWiki({ principal: principalFor(owner), url: ARTICLE_URL }).catch((e: unknown) => e);
+  const error = await h.service.scrapeWiki({ principal: await principalFor(db, owner), url: ARTICLE_URL }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ScrapeFailedError);
   expect((error as ScrapeFailedError).message).not.toContain("169.254.169.254");
   expect(h.fetchUrl).toHaveBeenCalledTimes(1);

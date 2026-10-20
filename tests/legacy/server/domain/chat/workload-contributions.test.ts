@@ -14,12 +14,16 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { ChatWorkloadDeps } from "#server/domain/chat/contract/workloads.ts";
 import { createChatWorkloadContributions } from "#server/domain/chat/workload-contributions.ts";
+import { everyOwnerAuthority } from "../workloads/_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 const OWNER_ID = castId<UserId>("user_owner");
 const GENERATION_ID = castId<EmbedGenerationId>("embed_generation_workload");
 const T0 = 1_700_000_000_000;
-const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, now: () => T0 };
-const bulkCtx: WorkloadRunContext = { ...ctx, ownerId: null };
+const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, funderUserId: OWNER_ID, now: () => T0 };
+const bulkCtx: WorkloadRunContext = { ...ctx, ...EVERY_OWNER.runScope };
 const sig = (): AbortSignal => new AbortController().signal;
 const FAILED_CHATS_RE = /7 chat/;
 const IMPORT_WINDOW = { from: 1_700_000_000_000, to: 1_700_000_005_000 };
@@ -53,7 +57,7 @@ const ESTIMATED_CALLS = 12;
 describe("memory-backfill: the model-call estimate", () => {
   test("asks the memory estimate for the run's own scope and funder, never the sweep", async () => {
     const { deps, contributions } = build();
-    await expect(contributions[0].modelCalls?.({ ownerId: null, funderUserId: OWNER_ID, params: {} })).resolves.toBe(ESTIMATED_CALLS);
+    await expect(contributions[0].modelCalls?.({ ...EVERY_OWNER.estimate, funderUserId: OWNER_ID, params: {} })).resolves.toBe(ESTIMATED_CALLS);
     expect(deps.estimateMemoryBackfill).toHaveBeenCalledWith({ ownerId: null, funderUserId: OWNER_ID, importWindow: null });
     expect(deps.backfillMemory).not.toHaveBeenCalled();
   });
@@ -153,7 +157,10 @@ describe("memory-backfill", () => {
       onProgress: expect.any(Function),
     });
     expect(deps.purgeMemoryVectors).toHaveBeenCalledTimes(1);
-    expect(deps.purgeMemoryVectors).toHaveBeenCalledWith([{ ownerId: OWNER_ID, model: "embed-space", generationId: GENERATION_ID, generationEpoch: 1 }], null);
+    expect(deps.purgeMemoryVectors).toHaveBeenCalledWith(
+      [{ ownerId: OWNER_ID, model: "embed-space", generationId: GENERATION_ID, generationEpoch: 1 }],
+      bulkCtx,
+    );
   });
 
   // #2517 — THE RULING SURVIVES, ITS INPUT CHANGED. This pin used to read "a SINGULAR per-owner run does NOT
@@ -166,7 +173,7 @@ describe("memory-backfill", () => {
     await contributions[0].run(ctx, {}, vi.fn(), sig());
     expect(deps.purgeMemoryVectors).toHaveBeenCalledExactlyOnceWith(
       [{ ownerId: OWNER_ID, model: "embed-space", generationId: GENERATION_ID, generationEpoch: 1 }],
-      OWNER_ID,
+      ctx,
     );
   });
 
@@ -255,7 +262,7 @@ describe("group-character-backfill", () => {
   test("sweeps group rooms with the enumeration scope and projects the mint counts", async () => {
     const { deps, contributions } = build();
     const result = await contributions[1].run(ctx, {}, vi.fn(), sig());
-    expect(deps.backfillGroupCharacters).toHaveBeenCalledWith({ funderUserId: OWNER_ID, ownerId: OWNER_ID, signal: expect.any(AbortSignal) });
+    expect(deps.backfillGroupCharacters).toHaveBeenCalledWith({ ownerId: OWNER_ID, signal: expect.any(AbortSignal) });
     expect(result).toEqual({ scanned: 5, changed: 1 });
   });
 });

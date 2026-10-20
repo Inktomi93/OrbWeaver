@@ -41,10 +41,10 @@ describe("listScriptUsage", () => {
     const chatId = await seedChat(db, "room");
 
     const svc = createRegexService(makeHarness(db, { requireChatHost: allowChat }).ctx);
-    await svc.attachToPreset({ principal: principal(owner), presetId: presetZ, scriptId });
-    await svc.attachToPreset({ principal: principal(owner), presetId: presetA, scriptId });
-    await svc.attachToCharacter({ principal: principal(owner), characterId: character, scriptId });
-    await svc.attachToChat({ principal: principal(owner), chatId, scriptId });
+    await svc.attachToPreset({ principal: await principal(db, owner), presetId: presetZ, scriptId });
+    await svc.attachToPreset({ principal: await principal(db, owner), presetId: presetA, scriptId });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId: character, scriptId });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId, scriptId });
 
     const roomsSeen: ChatId[][] = [];
     const usage = await createRegexService(
@@ -54,7 +54,7 @@ describe("listScriptUsage", () => {
           return Promise.resolve([{ id: chatId, title: "The Long Dark", participantNames: ["Aveline"], at: ROOM_AT }]);
         },
       }).ctx,
-    ).listScriptUsage({ principal: principal(owner), scriptId });
+    ).listScriptUsage({ principal: await principal(db, owner), scriptId });
 
     expect(usage.presets).toEqual([
       { id: presetA, name: "Preset a" },
@@ -76,7 +76,7 @@ describe("listScriptUsage", () => {
 
     // The harness's `resolveVisibleRooms` default THROWS ("not stubbed"), so this passing at all is the
     // proof that a script attached to no room costs zero cross-domain calls.
-    const usage = await createRegexService(makeHarness(db).ctx).listScriptUsage({ principal: principal(owner), scriptId });
+    const usage = await createRegexService(makeHarness(db).ctx).listScriptUsage({ principal: await principal(db, owner), scriptId });
 
     expect(usage).toEqual({ presets: [], characters: [], rooms: [] });
   });
@@ -98,7 +98,7 @@ describe("listScriptUsage", () => {
     ]);
     await db.insert(characterRegexScripts).values({ characterId: theirCharacter, regexScriptId: scriptId, position: 0 });
 
-    const usage = await createRegexService(makeHarness(db).ctx).listScriptUsage({ principal: principal(owner), scriptId });
+    const usage = await createRegexService(makeHarness(db).ctx).listScriptUsage({ principal: await principal(db, owner), scriptId });
 
     expect(usage.presets).toEqual([{ id: mine, name: "Preset mine" }]);
     expect(usage.characters).toEqual([]);
@@ -110,7 +110,7 @@ describe("listScriptUsage", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
 
-    await expect(createRegexService(makeHarness(db).ctx).listScriptUsage({ principal: principal(stranger), scriptId })).rejects.toBeInstanceOf(
+    await expect(createRegexService(makeHarness(db).ctx).listScriptUsage({ principal: await principal(db, stranger), scriptId })).rejects.toBeInstanceOf(
       RegexNotFoundError,
     );
   });
@@ -131,7 +131,7 @@ describe("listScriptUsage", () => {
       makeHarness(db, {
         resolveVisibleRooms: () => Promise.resolve([{ id: stillIn, title: "Still here", participantNames: [], at: ROOM_AT }]),
       }).ctx,
-    ).listScriptUsage({ principal: principal(owner), scriptId });
+    ).listScriptUsage({ principal: await principal(db, owner), scriptId });
 
     expect(usage.rooms).toEqual([{ id: stillIn, title: "Still here", participantNames: [], at: ROOM_AT }]);
   });

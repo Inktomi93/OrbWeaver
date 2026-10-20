@@ -22,14 +22,14 @@ describe("remove", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d", avatarAssetId: avatar },
     });
     h.events.length = 0;
 
-    await svc.remove({ principal: principal(owner), characterId: created.id });
+    await svc.remove({ principal: await principal(db, owner), characterId: created.id });
 
-    await expect(svc.get({ principal: principal(owner), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.get({ principal: await principal(db, owner), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
     expect(h.reaps).toEqual([[avatar]]);
     expect(h.events).toEqual([]);
     expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, owner)))[0]?.version).toBe(2);
@@ -42,7 +42,7 @@ describe("remove", () => {
     const created = await seedRawCharacter(db, { ownerId: owner, handle: castId<CharacterHandle>("nyx") });
     const svc = createCharacterService({ ...h.ctx, audit: () => Promise.reject(new Error("audit sink down")) });
 
-    await expect(svc.remove({ principal: principal(owner), characterId: created })).rejects.toThrow("audit sink down");
+    await expect(svc.remove({ principal: await principal(db, owner), characterId: created })).rejects.toThrow("audit sink down");
 
     expect(h.userEvents).toEqual([{ userId: owner, event: { type: "charactersChanged", characterId: created } }]);
     expect(await db.select().from(characters).where(eq(characters.id, created))).toEqual([]);
@@ -54,10 +54,10 @@ describe("remove", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
-    await svc.remove({ principal: principal(owner), characterId: created.id });
+    await svc.remove({ principal: await principal(db, owner), characterId: created.id });
     expect(h.reaps).toEqual([]);
   });
 
@@ -82,7 +82,7 @@ describe("remove", () => {
     });
     const svc = createCharacterService({ ...h.ctx, db: databaseHandle(brokenWrites) });
 
-    await expect(svc.remove({ principal: principal(owner), characterId: created })).rejects.toThrow("the write leg is down");
+    await expect(svc.remove({ principal: await principal(db, owner), characterId: created })).rejects.toThrow("the write leg is down");
 
     expect(await db.select().from(characters).where(eq(characters.id, created))).toHaveLength(1);
     expect(h.reaps).toEqual([]);
@@ -96,9 +96,9 @@ describe("remove", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
-    await expect(svc.remove({ principal: principal(other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.remove({ principal: await principal(db, other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });
 });

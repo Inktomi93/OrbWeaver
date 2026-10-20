@@ -95,7 +95,7 @@ const FORGED_BUNDLE_MTIME_MS = 331_257_600_000;
 test("a fresh user's first pass lands every built showcase without a server restart, disabled and UNGRANTED", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const latch: SeedLatch = { seeded: false, versions: {} };
 
   const seeder = createExamplePluginSeeder(seederDeps(h, latch));
@@ -128,7 +128,7 @@ test("a fresh user's first pass lands every built showcase without a server rest
 test("a MISSING bundle does not latch — the incomplete pass retries and completes once the bundle appears", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const latch: SeedLatch = { seeded: false, versions: {} };
   // A MUTABLE HOLDER, not a bare `let`: biome narrows a `let x = true` initializer and then calls the guard
   // below "always truthy", while a property read is opaque to that narrowing. Same value, no suppression.
@@ -159,7 +159,7 @@ test("a MISSING bundle does not latch — the incomplete pass retries and comple
 test("every seeded example packs to a bundle the real install verb accepts", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const ids: PluginId[] = [];
   for (const slug of SHOWCASE_PLUGIN_SLUGS) {
     const bundle = await packShowcaseBundle(slug);
@@ -210,7 +210,7 @@ test("the seeder leaves the owner ONE durable ask that counts every waiting plug
     },
   };
   const h = makePluginHarness(db, { port: realHost(), ops });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const latch: SeedLatch = { seeded: false, versions: {} };
 
   const seeder = createExamplePluginSeeder(seederDeps(h, latch));
@@ -275,7 +275,7 @@ function rowFor(rows: readonly ListedPlugin[], slug: string): ListedPlugin | und
 test("#803 a NEWER bundle reaches a PRISTINE seeded install — same row, upgraded in place", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const latch: SeedLatch = { seeded: false, versions: {} };
 
   await seedOnce(h, latch, caller);
@@ -309,7 +309,7 @@ test("#803 a NEWER bundle reaches a PRISTINE seeded install — same row, upgrad
 test("#803 a DIVERGED install is left alone — the user has taken the plugin over", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const latch: SeedLatch = { seeded: false, versions: {} };
 
   await seedOnce(h, latch, caller);
@@ -336,7 +336,7 @@ test("#803 a DIVERGED install is left alone — the user has taken the plugin ov
 test("#803 a DELETED seeded plugin stays deleted, even when a newer bundle ships", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const latch: SeedLatch = { seeded: false, versions: {} };
 
   await seedOnce(h, latch, caller);
@@ -359,7 +359,7 @@ test("#803 a DELETED seeded plugin stays deleted, even when a newer bundle ships
 test("#803 a settled boot at EQUAL versions writes nothing at all", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const latch: SeedLatch = { seeded: false, versions: {} };
 
   await seedOnce(h, latch, caller);
@@ -397,7 +397,7 @@ test("an enabled older install upgrades to the release-built bundle and the new 
       version: async (slug): Promise<string | null> => (await readShowcaseManifest(slug))?.version ?? null,
     },
   });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const shipped = (await readShowcaseManifest("oracle-deck"))?.version;
   // The whole declared set: an upgrade re-activates an enabled row only when no declared capability is unanswered.
   const grant: PluginCapability[] = ["storage.kv", "tools.register", "ui.surface", "chat.transform", "plugin_events"];

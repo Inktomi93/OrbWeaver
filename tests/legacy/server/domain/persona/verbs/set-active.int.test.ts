@@ -36,11 +36,11 @@ describe("setActivePersona", () => {
 
     const ownerId = await seedUser(db);
     const created = await svc.create({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       input: { name: "x", description: "d" },
     });
     const personaId = created.id;
-    const p = principal(ownerId);
+    const p = await principal(db, ownerId);
 
     await svc.setActivePersona({
       principal: p,
@@ -61,11 +61,11 @@ describe("setActivePersona", () => {
     const ownerId = await seedUser(db, { handle: castId<Handle>("owner") });
     const otherUserId = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
-      principal: principal(otherUserId),
+      principal: await principal(db, otherUserId),
       input: { name: "other", description: "d" },
     });
     const personaId = created.id;
-    const p = principal(ownerId);
+    const p = await principal(db, ownerId);
 
     await expect(
       svc.setActivePersona({
@@ -89,7 +89,7 @@ describe("setActivePersona", () => {
     const svc = createPersonaService(harness.ctx);
 
     const ownerId = await seedUser(db);
-    const p = principal(ownerId);
+    const p = await principal(db, ownerId);
 
     await svc.setActivePersona({
       principal: p,
@@ -119,12 +119,12 @@ describe("setActivePersona", () => {
 
     const ownerId = await seedUser(db);
     const created = await svc.create({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       input: { name: "self", description: "d" },
     });
 
     await svc.setActivePersona({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       chatId: castId<ChatId>("c1"),
       personaId: created.id,
     });
@@ -148,10 +148,10 @@ describe("setActivePersona", () => {
     const svc = createPersonaService(harness.ctx);
     const hostId = await seedUser(db, { handle: castId<Handle>("host") });
     const memberId = await seedUser(db, { handle: castId<Handle>("member") });
-    const hostPersona = await svc.create({ principal: principal(hostId), input: { name: "host-persona", description: "d" } });
+    const hostPersona = await svc.create({ principal: await principal(db, hostId), input: { name: "host-persona", description: "d" } });
 
     await expect(
-      svc.setActivePersona({ principal: principal(hostId), chatId: castId<ChatId>("c1"), targetUserId: memberId, personaId: hostPersona.id }),
+      svc.setActivePersona({ principal: await principal(db, hostId), chatId: castId<ChatId>("c1"), targetUserId: memberId, personaId: hostPersona.id }),
     ).rejects.toThrow(PersonaNotFoundError);
     expect(written).toBe(false);
   });
@@ -171,12 +171,12 @@ describe("setActivePersona", () => {
     const hostId = await seedUser(db, { handle: castId<Handle>("host") });
     const targetId = await seedUser(db, { handle: castId<Handle>("target") });
     const created = await svc.create({
-      principal: principal(targetId),
+      principal: await principal(db, targetId),
       input: { name: "target-persona", description: "d" },
     });
 
     await svc.setActivePersona({
-      principal: principal(hostId),
+      principal: await principal(db, hostId),
       chatId: castId<ChatId>("c1"),
       targetUserId: targetId,
       personaId: created.id,
@@ -197,7 +197,7 @@ describe("setActivePersona", () => {
 
     await expect(
       svc.setActivePersona({
-        principal: principal(callerId),
+        principal: await principal(db, callerId),
         chatId: castId<ChatId>("c1"),
         targetUserId: targetId,
         personaId: null,
@@ -226,7 +226,7 @@ describe("setActivePersona", () => {
 
     const ownerId = await seedUser(db);
     const created = await svc.create({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       input: { name: "x", description: "d" },
     });
     // The owner must be a PRESENT host participant for the real guard to pass + the real write to hit a row.
@@ -234,7 +234,7 @@ describe("setActivePersona", () => {
     await seedParticipant(db, { chatId, key: "host", userId: ownerId, role: "host" });
 
     await svc.setActivePersona({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       chatId,
       targetUserId: ownerId,
       personaId: created.id,
@@ -261,7 +261,7 @@ describe("setActivePersona", () => {
 
     const ownerId = await seedUser(db);
     const created = await svc.create({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       input: { name: "x", description: "d" },
     });
     // A chat the caller is NOT a participant of (only some other user is seated).
@@ -271,7 +271,7 @@ describe("setActivePersona", () => {
 
     await expect(
       svc.setActivePersona({
-        principal: principal(ownerId),
+        principal: await principal(db, ownerId),
         chatId,
         targetUserId: ownerId,
         personaId: created.id,

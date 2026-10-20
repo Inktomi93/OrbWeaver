@@ -8,6 +8,7 @@
 // contract: reachable anonymously, validates input, always answers { ok: true } on success.
 
 import { logger, logRing } from "@orb/server/foundation/observability";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { caller, makeContext, principal } from "./_support.ts";
@@ -55,7 +56,8 @@ describe("clientError (the client error boundary's report verb)", () => {
   });
 
   test("an authenticated caller can also report (auth is optional, not exclusive)", async () => {
-    const ctx = makeContext({ auth: principal("user") });
+    const db = await freshDb();
+    const ctx = makeContext({ auth: await principal(db, "user") });
     const result = await caller(ctx).clientError({
       message: "boom",
       url: "https://example.test/",
@@ -73,18 +75,20 @@ describe("bugReportDiagnostics (the production bug reporter's server read)", () 
   const errorLine = JSON.stringify({ level: "error", time: "2026-09-02T08:00:00.000Z", msg: "chat bus: append failed", code: "SQLITE_BUSY" });
 
   test("the owner gets the error census", async () => {
+    const db = await freshDb();
     logRing.clear();
     logRing.push(errorLine);
-    const read = await caller(makeContext({ auth: principal("owner") })).bugReportDiagnostics();
+    const read = await caller(makeContext({ auth: await principal(db, "owner") })).bugReportDiagnostics();
     expect(read.serverErrors.kind).toBe("included");
     expect(JSON.stringify(read.serverErrors)).toContain("SQLITE_BUSY");
   });
 
   test("an admin and a user get runtime facts only — never the principal-blind census", async () => {
+    const db = await freshDb();
     logRing.clear();
     logRing.push(errorLine);
     for (const role of ["admin", "user"] as const) {
-      const read = await caller(makeContext({ auth: principal(role) })).bugReportDiagnostics();
+      const read = await caller(makeContext({ auth: await principal(db, role) })).bugReportDiagnostics();
       expect(read.serverErrors, role).toEqual({ kind: "owner-only" });
       expect(read.runtime.node, role).toMatch(/^v\d/u);
     }

@@ -13,7 +13,7 @@ import type { Db } from "@orb/db";
 import { presets, rpgGames } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import { statementForOwner } from "@orb/db/wiring-owner";
+import { databaseForOwner, statementForOwner } from "@orb/db/wiring-owner";
 import type { WireTool } from "@orb/inference";
 import type {
   CharacterHandle,
@@ -31,6 +31,7 @@ import type {
 } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { can } from "#server/domain/admin/index.ts";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
@@ -48,8 +49,12 @@ import type {
 } from "#server/domain/rpg/index.ts";
 import { createRpgChatOps, createRpgService, createRpgStagingStore } from "#server/domain/rpg/index.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "#server/domain/rpg/tools/apply.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { makeResolved } from "../../../inference/_support.ts";
-import { seedChat, seedMessage, seedUser } from "../chat/_support.ts";
+import { seatRoles, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
+
+// Seat roles are captured row data: one in-memory room supplies the host and member roles these checks read.
+const SEAT_ROLES = await seatRoles(await freshDb());
 
 export { expect, test } from "@orb/testkit/node/fixtures.ts";
 export { addVariant, seedCharacter, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
@@ -212,9 +217,9 @@ export function turnConnection(over: Partial<RpgTurnContext> = {}): RpgTurnConte
  *  the pin is about the LINEAGE projection rather than D16. The floor own arms live at the verb. */
 export const UNCLAMPED = 0;
 
-/** A test Principal for a user key (the id mirrors `seedUser`'s `user_<handle>`). */
-export function principal(handle: Handle): Principal {
-  return { userId: castId<UserId>(`user_${handle}`), role: "user", handle: castId<Handle>(handle), externalId: null, via: "cookie" };
+/** The Principal for a user key (the id mirrors `seedUser`'s `user_<handle>`); the handle is written onto its row. */
+export async function principal(db: Db, handle: Handle): Promise<Principal> {
+  return await makePrincipal({ db }, castId<UserId>(`user_${handle}`), { handle });
 }
 
 /** The fakes the harness lets a test program. `membership` maps a userId → role (absent = not a member,
@@ -507,7 +512,7 @@ export function makeRpgService(
     can,
     getMembership: (_chatId, userId) => {
       const role = fakes.membership.get(userId);
-      return Promise.resolve(role === undefined ? null : { role });
+      return Promise.resolve(role === undefined ? null : { role: SEAT_ROLES[role] });
     },
     // #1528 - chat resolveViewerVisibility over the programmable roster: `null` for a non-member (the leak-free
     // sentinel), `readsHidden` from chat's own `viewerReadsHidden`, and the D16 floor off the programmable map
@@ -518,7 +523,7 @@ export function makeRpgService(
         return Promise.resolve(null);
       }
       const floor = fakes.historyFloor.get(userId) ?? UNCLAMPED;
-      return Promise.resolve({ role, historyFloorSeq: historyFloor(floor), readsHidden: viewerReadsHidden({ role }) });
+      return Promise.resolve({ role: SEAT_ROLES[role], historyFloorSeq: historyFloor(floor), readsHidden: viewerReadsHidden({ role: SEAT_ROLES[role] }) });
     },
     setPointer: (chatId, pointer) => {
       // A `null` pointer is the §3.3 DETACH heal (the widened op drops the sub-blob); everything else is a write.
@@ -686,7 +691,7 @@ export async function seedLiteGame(
   const chatId = await seedChat(db, key, { id: mintTypeId(ID_PREFIX.chat) });
   const h = makeRpgService(db, over);
   h.fakes.membership.set("user_host", "host");
-  const { gameId } = await h.service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite" });
+  const { gameId } = await h.service.createGame({ principal: await principal(db, castId<Handle>("host")), chatId, mode: "lite" });
   return { chatId, gameId, h };
 }
 
@@ -694,7 +699,7 @@ export async function seedLiteGame(
  *  is the default experience, D112), so any test that drives the DEDICATED post-commit round (cheap's
  *  tool round) must ask for that vehicle explicitly rather than inherit it. */
 export async function pinExtractionMode(h: RpgHarness, chatId: ChatId, extractionMode: RpgExtractionMode): Promise<void> {
-  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode });
+  await h.service.updateConfig({ principal: await principal(databaseForOwner(h.ctx.db), castId<Handle>("host")), chatId, extractionMode });
 }
 
 /** A `character` participant actor entry for the tracker projection. */

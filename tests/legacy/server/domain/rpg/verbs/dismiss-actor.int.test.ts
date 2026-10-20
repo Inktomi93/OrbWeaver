@@ -22,7 +22,6 @@ beforeEach(async () => {
 });
 
 const MIRA = { kind: "npc", npcKey: "mira" } as const;
-const HOST = principal(castId<Handle>("host"));
 
 async function seedGame(): Promise<{
   chatId: ChatId;
@@ -33,7 +32,7 @@ async function seedGame(): Promise<{
   const chatId = await seedChat(db, "a");
   const h = makeRpgService(db);
   h.fakes.membership.set("user_host", "host");
-  await h.service.createGame({ principal: HOST, chatId, mode: "lite" });
+  await h.service.createGame({ principal: await principal(db, castId<Handle>("host")), chatId, mode: "lite" });
   const game = await findGameByChat(db, chatId);
   if (!game) {
     throw new Error("no game");
@@ -45,12 +44,12 @@ test("drops the state row AND the presence row AND every lock at/below the actor
   const { chatId, game, service } = await seedGame();
   // Mira is on stage and carries hand-pinned state; thorn is a bystander who must survive untouched.
   await service.editSnapshot({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     patch: { presentCharacters: ["npc:mira"] },
   });
   await service.patchActor({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     targetRef: MIRA,
     ops: [
@@ -58,11 +57,16 @@ test("drops the state row AND the presence row AND every lock at/below the actor
       { op: "setTracker", key: "trust", value: { value: 4 } },
     ],
   });
-  await service.patchActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "thorn" }, ops: [{ op: "setStatus", status: "waiting" }] });
+  await service.patchActor({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    targetRef: { kind: "npc", npcKey: "thorn" },
+    ops: [{ op: "setStatus", status: "waiting" }],
+  });
   const before = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   expect(before?.fieldLocks?.["actorState.npc:mira.volatile.status"]).toBe(true);
 
-  expect(await service.dismissActor({ principal: HOST, chatId, targetRef: MIRA })).toStrictEqual({ ok: true });
+  expect(await service.dismissActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: MIRA })).toStrictEqual({ ok: true });
 
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   expect((after?.actorState ?? []).map((a) => (a.actorRef.kind === "npc" ? a.actorRef.npcKey : ""))).toEqual(["thorn"]);
@@ -75,9 +79,14 @@ test("drops the state row AND the presence row AND every lock at/below the actor
 
 test("a dismissed actor STAYS gone through a later hand write on another actor (the additive plane can't resurrect her)", async () => {
   const { chatId, game, service } = await seedGame();
-  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "setStatus", status: "wary" }] });
-  await service.dismissActor({ principal: HOST, chatId, targetRef: MIRA });
-  await service.patchActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "thorn" }, ops: [{ op: "setStatus", status: "waiting" }] });
+  await service.patchActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: MIRA, ops: [{ op: "setStatus", status: "wary" }] });
+  await service.dismissActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: MIRA });
+  await service.patchActor({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    targetRef: { kind: "npc", npcKey: "thorn" },
+    ops: [{ op: "setStatus", status: "waiting" }],
+  });
 
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   expect((after?.actorState ?? []).map((a) => (a.actorRef.kind === "npc" ? a.actorRef.npcKey : ""))).toEqual(["thorn"]);
@@ -86,23 +95,28 @@ test("a dismissed actor STAYS gone through a later hand write on another actor (
 test("dismissing a PRESENCE-ONLY npc (no state row yet) still clears her from the scene", async () => {
   const { chatId, game, service } = await seedGame();
   await service.editSnapshot({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     patch: { presentCharacters: ["npc:mira"] },
   });
 
-  expect(await service.dismissActor({ principal: HOST, chatId, targetRef: MIRA })).toStrictEqual({ ok: true });
+  expect(await service.dismissActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: MIRA })).toStrictEqual({ ok: true });
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   expect(after?.presentCharacters ?? []).toEqual([]);
 });
 
 test("dismissing an actor the game does not carry is ERRORS-AS-DATA — no write, no slot, no bus event", async () => {
   const { chatId, game, service, fakes } = await seedGame();
-  await service.patchActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "thorn" }, ops: [{ op: "setStatus", status: "waiting" }] });
+  await service.patchActor({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    targetRef: { kind: "npc", npcKey: "thorn" },
+    ops: [{ op: "setStatus", status: "waiting" }],
+  });
   const slotsBefore = fakes.narratorPosts.length;
   const eventsBefore = fakes.busEvents.length;
 
-  const refused = await service.dismissActor({ principal: HOST, chatId, targetRef: MIRA });
+  const refused = await service.dismissActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: MIRA });
   expect(refused.ok).toBe(false);
   expect(refused.ok === false && refused.reason).toContain("npc:mira");
 

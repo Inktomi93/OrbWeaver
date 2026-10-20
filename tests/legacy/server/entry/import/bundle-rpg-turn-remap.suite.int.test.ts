@@ -57,7 +57,7 @@ describe("P-8: the full-library bundle remaps rpg-anchored turns per turn, never
   test("two rpg-anchored turns each remap to their OWN restored (message, variant) — never cross-linked", async ({ db, app, clock, importStagingDir }) => {
     const sourceOwnerId = castId<UserId>("user_r6_2turn_source_owner");
     await seedUser(db, { id: sourceOwnerId, handle: castId<Handle>("r6-2turn-source-owner") });
-    const owner = principalOf(sourceOwnerId);
+    const owner = await principalOf(db, sourceOwnerId);
 
     // NB: the character's HANDLE does not travel through the card format (a card carries only the NAME) — the
     // import verb re-derives it via `slugifyHandle(name)` (`substrate/card.ts`). The name is chosen so its
@@ -224,7 +224,7 @@ describe("P-8: the full-library bundle remaps rpg-anchored turns per turn, never
     const variantDir = await mkdtemp(join(tmpdir(), "orb-r6-2turn-var-"));
     const targetId = castId<UserId>("user_r6_2turn_target_owner");
     await seedUser(freshDatabase, { id: targetId, handle: castId<Handle>("r6-2turn-target-owner") });
-    const target = principalOf(targetId);
+    const target = await principalOf(db, targetId);
     try {
       const fresh = await createServices({
         serverRestart: UNSUPERVISED_RESTART,

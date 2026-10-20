@@ -41,12 +41,16 @@ import { insertCanonMessageStatements } from "#server/domain/chat/persistence/ca
 import { canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "#server/domain/chat/substrate/stats-delta.ts";
 import { createCompaction } from "#server/domain/chat/verbs/compaction.ts";
 import { runGeneration } from "#server/domain/imagery/substrate/generate-core.ts";
+import { createStatsBatchWiring } from "#server/domain/stats/index.ts";
 import { reconcileOwnersMissingTimeline, reconcileStats } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { makeResolved } from "../../../../inference/_support.ts";
 import { makeChatContext, testConnection } from "../../chat/_support.ts";
-import { makeHarness, PNG_BYTES, principal } from "../../imagery/_support.ts";
+import { imageryVerbContext, makeHarness, PNG_BYTES, principal } from "../../imagery/_support.ts";
 import { DAY, seedCharacter, seedChat, seedMessage, seedPersona, seedUser, T0 } from "../_support.ts";
+
+// The stats seam as the composition root wires it: the production writers behind the batch and database handles.
+const STATS_WIRING = createStatsBatchWiring();
 
 /** The request shape `runGeneration` takes (the imagery spend tail's own parameter). */
 type GenerationRequest = Parameters<typeof runGeneration>[1];
@@ -656,7 +660,7 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
   // test too, and fans out to two pictures so the rebuild must count one priced generation of two images.
   test("Recompute keeps image and compaction spend: the rebuild re-derives what the live writers recorded", async () => {
     await applyLiveCanonWithImageConnection();
-    await runGeneration(imageryAt(T0 + DAY, 2), IMAGE_REQ, { ...IMAGE_PROV, owner: principal(ownerId) });
+    await runGeneration(imageryAt(T0 + DAY, 2), IMAGE_REQ, { ...IMAGE_PROV, owner: await principal(db, ownerId) });
 
     // The compose-root wrappers: the chat op type erases the batch to `unknown`.
     const chatCtx = makeChatContext(db, {
@@ -701,8 +705,8 @@ describe("stats drift gate — live deltas vs a canon rebuild agree column-for-c
   test("two same-millisecond, same-cost generations stay two priced calls through Recompute", async () => {
     await applyLiveCanonWithImageConnection();
     const imagery = imageryAt(T0 + DAY, 1);
-    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, owner: principal(ownerId) });
-    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, owner: principal(ownerId) });
+    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, owner: await principal(db, ownerId) });
+    await runGeneration(imagery, IMAGE_REQ, { ...IMAGE_PROV, owner: await principal(db, ownerId) });
 
     const live = await snapshotRollups(db, ownerId);
     await reconcileStats(db, { ownerId, now: createFrozenClock(T0 + 5 * DAY).now });
@@ -733,7 +737,7 @@ async function applyLiveCanonWithImageConnection(): Promise<void> {
  *  returns `pictures` images for `IMAGE_COST`. */
 function imageryAt(at: number, pictures: number): Parameters<typeof runGeneration>[0] {
   const pixel = Buffer.from(PNG_BYTES).toString("base64");
-  return makeHarness(db, {
+  const { ctx } = makeHarness(db, {
     now: () => at,
     generateImage: () =>
       Promise.resolve({
@@ -742,6 +746,7 @@ function imageryAt(at: number, pictures: number): Parameters<typeof runGeneratio
         usage: makeGenerationUsage(IMAGE_COST),
         warnings: [],
       }),
-    applyStatsDelta,
-  }).ctx;
+    applyStatsDelta: STATS_WIRING.applyStatsDelta,
+  });
+  return imageryVerbContext(ctx);
 }

@@ -9,8 +9,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { createDeactivate } from "#server/domain/plugin/activation/deactivate.ts";
-import type { PluginRegistry } from "#server/domain/plugin/contract/service.ts";
-import type { PluginContext } from "#server/domain/plugin/index.ts";
+import type { PluginContext, PluginRegistry } from "#server/domain/plugin/contract/service.ts";
 
 const PLUGIN_ID = castId<PluginId>("plugin_x");
 

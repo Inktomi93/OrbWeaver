@@ -2,16 +2,18 @@
 // the canonical `ConnectionRef` property schema: malformed and wrong-prefix strings stop at tRPC before a
 // domain verb can read, dial or write. `setBinding(null)` remains the deliberate clear-binding arm.
 
-import type { ConnectionBinding, ModelListing, ProviderId } from "@orb/contracts/inference";
+import type { ConnectionBinding, ConnectionView, ModelListing, ProviderId } from "@orb/contracts/inference";
 import { modelCatalogEntrySchema } from "@orb/contracts/inference";
 import type { VerifyAuthResult } from "@orb/contracts/providers";
+import type { Db } from "@orb/db";
 import type { ModelId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Context } from "@orb/server/transport/trpc";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
-import type { ConnectionService, ConnectionView } from "#server/domain/connection/index.ts";
+import type { ConnectionService } from "#server/domain/connection/index.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
 const OWNER = castId<UserId>("user_owner");
@@ -47,8 +49,8 @@ function connectionSpies(): {
   };
 }
 
-function ctxWith(connection: Partial<ConnectionService>): Context {
-  return makeContext({ auth: principal("user", { userId: OWNER }), services: { connection } });
+async function ctxWith(db: Db, connection: Partial<ConnectionService>): Promise<Context> {
+  return makeContext({ auth: await principal(db, "user", { userId: OWNER }), services: { connection } });
 }
 
 type AppCaller = ReturnType<typeof caller>;
@@ -80,8 +82,9 @@ describe("connection.* — canonical connection id boundary", () => {
     ["wrong-prefix TypeID", castId<UserConnectionId>(mintTypeId(ID_PREFIX.chat))],
     ["malformed connection id", castId<UserConnectionId>("user_connection_not-a-typeid")],
   ])("every connection-id procedure rejects a %s before its service verb", async (_case, connectionId) => {
+    const db = await freshDb();
     const connection = connectionSpies();
-    const api = caller(ctxWith(connection));
+    const api = caller(await ctxWith(db, connection));
 
     const outcomes = await Promise.allSettled(CONNECTION_ID_CALLS.map(({ call }) => call(api, connectionId)));
     const reached = CONNECTION_ID_CALLS.filter(({ name }) => connection[name].mock.calls.length > 0).map(({ name }) => name);
@@ -93,9 +96,10 @@ describe("connection.* — canonical connection id boundary", () => {
   });
 
   test("a valid user-connection TypeID reaches the requested verb", async () => {
+    const db = await freshDb();
     const remove = vi.fn<ConnectionService["remove"]>(async () => undefined);
 
-    await caller(ctxWith({ remove })).connection.remove({ connectionId: VALID_CONNECTION_ID });
+    await caller(await ctxWith(db, { remove })).connection.remove({ connectionId: VALID_CONNECTION_ID });
 
     expect(remove).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: OWNER }),
@@ -104,6 +108,7 @@ describe("connection.* — canonical connection id boundary", () => {
   });
 
   test("setBinding preserves null as the clear-binding arm", async () => {
+    const db = await freshDb();
     const cleared: ConnectionBinding = {
       id: mintTypeId(ID_PREFIX.connectionBinding),
       actorKind: "user",
@@ -115,7 +120,7 @@ describe("connection.* — canonical connection id boundary", () => {
     };
     const setBinding = vi.fn<ConnectionService["setBinding"]>(async () => cleared);
 
-    await caller(ctxWith({ setBinding })).connection.setBinding({ task: "chat", connectionId: null });
+    await caller(await ctxWith(db, { setBinding })).connection.setBinding({ task: "chat", connectionId: null });
 
     expect(setBinding).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: OWNER }),
@@ -136,14 +141,16 @@ describe("connection.verifyAuth — output boundary", () => {
   };
 
   test("returns a valid auth diagnostic", async () => {
+    const db = await freshDb();
     const verifyAuth = vi.fn<ConnectionService["verifyAuth"]>(async () => validResult);
 
-    await expect(caller(ctxWith({ verifyAuth })).connection.verifyAuth({ connectionId: VALID_CONNECTION_ID })).resolves.toEqual(validResult);
+    await expect(caller(await ctxWith(db, { verifyAuth })).connection.verifyAuth({ connectionId: VALID_CONNECTION_ID })).resolves.toEqual(validResult);
   });
 
   test("rejects a malformed auth diagnostic", async () => {
+    const db = await freshDb();
     const verifyAuth = vi.fn<ConnectionService["verifyAuth"]>(async () => validResult);
-    const ctx = ctxWith({ verifyAuth });
+    const ctx = await ctxWith(db, { verifyAuth });
     Object.defineProperty(ctx.services.connection, "verifyAuth", {
       value: () => Promise.resolve({ ...validResult, source: "unexpected-auth-source" }),
     });
@@ -152,8 +159,9 @@ describe("connection.verifyAuth — output boundary", () => {
   });
 
   test("strips an unexpected secret-like field from the auth diagnostic", async () => {
+    const db = await freshDb();
     const verifyAuth = vi.fn<ConnectionService["verifyAuth"]>(async () => validResult);
-    const ctx = ctxWith({ verifyAuth });
+    const ctx = await ctxWith(db, { verifyAuth });
     Object.defineProperty(ctx.services.connection, "verifyAuth", {
       value: () => Promise.resolve({ ...validResult, apiKey: "must-not-cross-the-wire" }),
     });
@@ -185,24 +193,29 @@ describe("connection.draftCatalogModels — the pre-row model list", () => {
   };
 
   test("hands the verb the caller's principal and the draft, and returns the listing", async () => {
+    const db = await freshDb();
     const draftCatalogModels = vi.fn<ConnectionService["draftCatalogModels"]>(async () => listed);
 
-    await expect(caller(ctxWith({ draftCatalogModels })).connection.draftCatalogModels({ providerId: "anthropic", credentialId })).resolves.toEqual(listed);
+    await expect(caller(await ctxWith(db, { draftCatalogModels })).connection.draftCatalogModels({ providerId: "anthropic", credentialId })).resolves.toEqual(
+      listed,
+    );
     expect(draftCatalogModels).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), providerId: "anthropic", credentialId });
   });
 
   test("a failed dial crosses the wire as listed:false with its reason, not as an empty list", async () => {
+    const db = await freshDb();
     const failed: ModelListing = { listed: false, reason: "anthropic models: HTTP 500" };
     const draftCatalogModels = vi.fn<ConnectionService["draftCatalogModels"]>(async () => failed);
 
-    await expect(caller(ctxWith({ draftCatalogModels })).connection.draftCatalogModels({ providerId: "anthropic" })).resolves.toEqual(failed);
+    await expect(caller(await ctxWith(db, { draftCatalogModels })).connection.draftCatalogModels({ providerId: "anthropic" })).resolves.toEqual(failed);
   });
 
   test("a wrong-prefix credential id stops at the wire, before the verb", async () => {
+    const db = await freshDb();
     const draftCatalogModels = vi.fn<ConnectionService["draftCatalogModels"]>();
 
     await expect(
-      caller(ctxWith({ draftCatalogModels })).connection.draftCatalogModels({
+      caller(await ctxWith(db, { draftCatalogModels })).connection.draftCatalogModels({
         providerId: "anthropic",
         credentialId: castId<UserCredentialId>(mintTypeId(ID_PREFIX.chat)),
       }),
@@ -211,9 +224,14 @@ describe("connection.draftCatalogModels — the pre-row model list", () => {
   });
 
   test("a raw draft key and an endpoint's own server reach the verb as sent", async () => {
+    const db = await freshDb();
     const draftCatalogModels = vi.fn<ConnectionService["draftCatalogModels"]>(async () => listed);
 
-    await caller(ctxWith({ draftCatalogModels })).connection.draftCatalogModels({ providerId: "vllm", baseUrl: "http://127.0.0.1:8000/v1", key: "sk-typed" });
+    await caller(await ctxWith(db, { draftCatalogModels })).connection.draftCatalogModels({
+      providerId: "vllm",
+      baseUrl: "http://127.0.0.1:8000/v1",
+      key: "sk-typed",
+    });
     expect(draftCatalogModels).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: OWNER }),
       providerId: "vllm",
@@ -223,7 +241,8 @@ describe("connection.draftCatalogModels — the pre-row model list", () => {
   });
 
   test("a listing without its reason fails output validation instead of reaching the client as an empty list", async () => {
-    const ctx = ctxWith({ draftCatalogModels: vi.fn<ConnectionService["draftCatalogModels"]>() });
+    const db = await freshDb();
+    const ctx = await ctxWith(db, { draftCatalogModels: vi.fn<ConnectionService["draftCatalogModels"]>() });
     Object.defineProperty(ctx.services.connection, "draftCatalogModels", { value: () => Promise.resolve({ listed: false, models: [] }) });
 
     await expect(caller(ctx).connection.draftCatalogModels({ providerId: "anthropic" })).rejects.toThrow("Output validation failed");
@@ -233,7 +252,8 @@ describe("connection.draftCatalogModels — the pre-row model list", () => {
 // The saved-row read answers the SAME listing shape as the draft read: one schema is the output of both.
 describe("connection.catalogModels — output boundary", () => {
   test("a listing without its reason fails output validation instead of reaching the client as an empty list", async () => {
-    const ctx = ctxWith({ catalogModels: vi.fn<ConnectionService["catalogModels"]>() });
+    const db = await freshDb();
+    const ctx = await ctxWith(db, { catalogModels: vi.fn<ConnectionService["catalogModels"]>() });
     Object.defineProperty(ctx.services.connection, "catalogModels", { value: () => Promise.resolve({ listed: false, models: [] }) });
 
     await expect(caller(ctx).connection.catalogModels({ connectionId: VALID_CONNECTION_ID })).rejects.toThrow("Output validation failed");
@@ -265,23 +285,26 @@ describe("connection rows — the strict output boundary", () => {
   };
 
   test("control: a well-formed row passes through unchanged on list and get", async () => {
+    const db = await freshDb();
     const list = vi.fn<ConnectionService["list"]>(async () => [View]);
     const get = vi.fn<ConnectionService["get"]>(async () => View);
-    const api = caller(ctxWith({ list, get })).connection;
+    const api = caller(await ctxWith(db, { list, get })).connection;
 
     await expect(api.list()).resolves.toEqual([View]);
     await expect(api.get({ connectionId: VALID_CONNECTION_ID })).resolves.toEqual(View);
   });
 
   test("list refuses a row carrying a resolved secret", async () => {
+    const db = await freshDb();
     const list = vi.fn<ConnectionService["list"]>(async () => [{ ...View, apiKey: "sk-planted-secret" }]);
 
-    await expect(caller(ctxWith({ list })).connection.list()).rejects.toThrow("Output validation failed");
+    await expect(caller(await ctxWith(db, { list })).connection.list()).rejects.toThrow("Output validation failed");
   });
 
   test("probe refuses a health verdict carrying an extra field", async () => {
+    const db = await freshDb();
     const probe = vi.fn<ConnectionService["probe"]>(async () => ({ status: "ok", checkedAt: 1, key: "sk-planted-secret" }));
 
-    await expect(caller(ctxWith({ probe })).connection.probe({ connectionId: VALID_CONNECTION_ID })).rejects.toThrow("Output validation failed");
+    await expect(caller(await ctxWith(db, { probe })).connection.probe({ connectionId: VALID_CONNECTION_ID })).rejects.toThrow("Output validation failed");
   });
 });

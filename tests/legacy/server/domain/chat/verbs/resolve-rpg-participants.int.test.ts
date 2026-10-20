@@ -7,14 +7,13 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import { characterCardSchema } from "@orb/contracts/character";
 import type { Db } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { createResolveRpgParticipants } from "#server/domain/chat/verbs/resolve-rpg-participants.ts";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { chatAssembly, makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 
@@ -80,7 +79,7 @@ describe("createResolveRpgParticipants", () => {
       resolveAssetHash: () => Promise.resolve(null),
     });
 
-    const participants = await createResolveRpgParticipants({ ...ctx, db: databaseHandle(ctx.db) })(chatId);
+    const participants = await createResolveRpgParticipants(chatAssembly(ctx))(chatId);
 
     // The character resolves under the HOST's ownership (never the seat's own — a character has no user owner).
     expect(cardCalls).toEqual([{ ownerId: host, characterId: charId }]);
@@ -106,7 +105,7 @@ describe("createResolveRpgParticipants", () => {
       resolveAssetHash: (assetId) => Promise.resolve(assetId === avatar ? "hash_x" : null),
     });
 
-    const participants = await createResolveRpgParticipants({ ...ctx, db: databaseHandle(ctx.db) })(chatId);
+    const participants = await createResolveRpgParticipants(chatAssembly(ctx))(chatId);
     expect(participants).toEqual([
       { actorRef: { kind: "user", userId: host }, name: "The Host" },
       { actorRef: { kind: "user", userId: withHandle }, name: "handled_one", avatar: "hash_x" },
@@ -127,7 +126,7 @@ describe("createResolveRpgParticipants", () => {
       resolveAssetHash: () => Promise.resolve(null),
     });
 
-    const participants = await createResolveRpgParticipants({ ...ctx, db: databaseHandle(ctx.db) })(chatId);
+    const participants = await createResolveRpgParticipants(chatAssembly(ctx))(chatId);
     // Only the human host survives — the ghost character is dropped.
     expect(participants).toEqual([{ actorRef: { kind: "user", userId: host }, name: "Host" }]);
   });
@@ -149,7 +148,7 @@ describe("createResolveRpgParticipants", () => {
       resolveAssetHash: () => Promise.resolve(null),
     });
 
-    const participants = await createResolveRpgParticipants({ ...ctx, db: databaseHandle(ctx.db) })(chatA);
+    const participants = await createResolveRpgParticipants(chatAssembly(ctx))(chatA);
     // Only chat A's PRESENT host — the left member and chat B's stranger are both absent.
     expect(participants).toEqual([{ actorRef: { kind: "user", userId: host }, name: host }]);
   });

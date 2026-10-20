@@ -8,11 +8,12 @@
 // (`CAUGHT_FAILURE_POPULATION`).
 //
 // ── THE SPLIT (#1584 tooling-size) ──────────────────────────────────────────────────────────────────────
-// The classifier grew past the 450-line cap and now lives in five siblings by responsibility: -core.ts (AST
+// The classifier grew past the 450-line cap and now lives in siblings by responsibility: -core.ts (AST
 // primitives — literal reads, binding identity, import/write provenance), -outcome.ts (is a value itself
-// failure-shaped, and the explicit governed-sink recognizers), -scope.ts (framework provenance and the
+// failure-shaped), -sinks.ts (the explicit governed-sink recognizers), -scope.ts (framework provenance and the
 // statement-level `hasExplicitOwner` block walk), -handler.ts (catch/promise-handler verdicts), -promise.ts
-// (recognizing a rejection-handler invocation in every spelling). This file keeps only the ARMS
+// (recognizing a rejection-handler invocation in every spelling), -retained.ts (a rejection the function still
+// returns to its caller). This file keeps only the ARMS
 // (`catchClauseSite`/`promiseAbsorberSite`) and the anchor/site assembly its consumers import.
 //
 // ── THE FINITE BLOCKING CLAIM (D328) ────────────────────────────────────────────────────────────────────
@@ -22,7 +23,7 @@
 // an element an `apply`-style call spreads, or the bare initializer of an alias such as `const h = onErr`. Any
 // other multi-statement body, and a callee's call-initialized declaration in another file (a bound alias no
 // root reaches), is past the bound. Inside the bound, Type answers exist only at reader positions
-// (`readerTypedPosition`): calls, and values in call arguments, returns, arrow bodies, conditionals, initializers,
+// (`readerTypedPosition`): calls, and values in call arguments, returns, yields, arrow bodies, conditionals, initializers,
 // member and element receivers, element keys and `+` operands; a Type question anywhere else is past the bound
 // too. Symbols are answered at every walked node. A verdict that needs a Type answer past the bound is an explicit
 // advisory unknown (`report.analysis`) on that site alone: never owned, never a finding, and no other site's
@@ -54,7 +55,15 @@
 // with a failure-valued `errorToast`, including a hook imported from another module, which must resolve to a
 // `const` because the write guard reads only the importing file · a try block whose sole statement is one of
 // those framework operations owns its catch whatever the catch returns · `withRequestSpan` · a named handler
-// that itself owns · an error-as-data outcome that a real consumer reads, including a TYPED REFUSAL: a call whose
+// that itself owns, read through an import alias (a handler imported as a `let` owns nothing) · a FORWARD: the
+// binding handed to a one-statement, non-async, non-generator helper whose body owns that parameter, one hop
+// only · a zod issue added directly in a synchronous `superRefine`/`transform` callback on its context
+// parameter, which fails the parse · a RETAINED failure: a `const` collection the binding is pushed into in the
+// function declaring it, which a later top-level statement throws on every nonempty count as an `AggregateError` · a
+// RETAINED rejection: a discarding handler on a top-level `const` promise the function returns, through
+// handler-free links, as its last statement, or a rejection forwarded into a native `Promise.withResolvers()`
+// deferred whose promise is returned that way · an error-as-data outcome that a real consumer reads (a
+// `return`, or a generator's plain `yield`), including a TYPED REFUSAL: a call whose
 // type admits only failure literals in every discriminant member, or whose single-return factory body is a
 // failure outcome without its parameter, owns without the caught binding (a body failure-valued only through
 // its parameter owns only when the call passes the binding), and a conditional `return <refusal>` is not an
@@ -89,7 +98,7 @@
 //
 // ── DECLARED LIMITS ─────────────────────────────────────────────────────────────────────────────────────
 // A dynamically-keyed rejection link is unreadable, not assumed · zod's `.catch()` combinator is schema
-// construction, not a promise · a rethrow or owner routed through an opaque helper is invisible to a
+// construction, not a promise · a rethrow or owner routed through a multi-statement helper is invisible to a
 // syntactic reader, and so is a mutation owner behind a wrapper hook's returned function, an injected save or
 // a local wrapper · a function-valued `errorToast` may return null and is not expanded · the typed-refusal
 // read takes `ok` through `literalValue`, which is undefined for a boolean, so `ok: false` is proven only from
@@ -115,6 +124,7 @@ import {
 } from "./caught-failure-handler.ts";
 import type { PromiseRejectionInvocation } from "./caught-failure-promise.ts";
 import { isDiscardedExpression, promiseLikeValue, promiseRejectionInvocation } from "./caught-failure-promise.ts";
+import { rejectionRetainedByReturn } from "./caught-failure-retained.ts";
 import { frameworkOwns, hasFrameworkOwner } from "./caught-failure-scope.ts";
 import { isWaivablePosition } from "./waivable-coordinate.ts";
 
@@ -207,7 +217,8 @@ export function promiseAbsorberSite(call: CallExpression, reads?: CaughtFailureR
     !promiseLikeValue(receiver, reads) ||
     handlerPropagatesRejection(handler, reads) ||
     !isDiscardingHandler(handler, reads) ||
-    (!isDiscardedExpression(call, reads) && handlerReturnsOwnedFailure(handler, reads) && recoveredFailureIsConsumed(call, reads))
+    (!isDiscardedExpression(call, reads) && handlerReturnsOwnedFailure(handler, reads) && recoveredFailureIsConsumed(call, reads)) ||
+    (invocation.direct && rejectionRetainedByReturn(call, receiver, reads))
   ) {
     return;
   }

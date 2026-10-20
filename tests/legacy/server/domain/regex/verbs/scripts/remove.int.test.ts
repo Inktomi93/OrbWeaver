@@ -23,7 +23,7 @@ describe("removeScript", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "doomed" });
 
-    expect(await svc.removeScript({ principal: principal(owner), scriptId })).toEqual({ deleted: true });
+    expect(await svc.removeScript({ principal: await principal(db, owner), scriptId })).toEqual({ deleted: true });
     expect(await db.select().from(regexScripts).where(eq(regexScripts.id, scriptId))).toHaveLength(0);
     expect(h.userEvents).toEqual([{ userId: owner, event: { type: "regexChanged", scriptId } }]);
   });
@@ -42,13 +42,13 @@ describe("removeScript", () => {
     const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
     const scriptId = await seedScript(db, { ownerId: host, name: "room quirk" });
-    await svc.attachToChat({ principal: principal(host), chatId, scriptId });
-    expect((await svc.listForChat({ principal: principal(member), chatId })).map((r) => r.name)).toEqual(["room quirk"]);
+    await svc.attachToChat({ principal: await principal(db, host), chatId, scriptId });
+    expect((await svc.listForChat({ principal: await principal(db, member), chatId })).map((r) => r.name)).toEqual(["room quirk"]);
 
-    await svc.removeScript({ principal: principal(host), scriptId });
+    await svc.removeScript({ principal: await principal(db, host), scriptId });
 
     // The member's room-public rack really moved — the fan below is what tells their device to re-read it.
-    expect(await svc.listForChat({ principal: principal(member), chatId })).toEqual([]);
+    expect(await svc.listForChat({ principal: await principal(db, member), chatId })).toEqual([]);
     expect(captured.filter((e) => e.type === "roomEntityChanged" && e.entity === "regex").map((e) => e.chatId)).toEqual([chatId]);
     expect(captured).toHaveLength(1);
   });
@@ -62,7 +62,7 @@ describe("removeScript", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "library only" });
 
-    await svc.removeScript({ principal: principal(owner), scriptId });
+    await svc.removeScript({ principal: await principal(db, owner), scriptId });
 
     expect(captured).toEqual([]);
   });
@@ -77,9 +77,9 @@ describe("removeScript", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const chatId = await seedChat(db);
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
-    await svc.attachToChat({ principal: principal(owner), chatId, scriptId });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId, scriptId });
 
-    await expect(svc.removeScript({ principal: principal(stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.removeScript({ principal: await principal(db, stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
 
     expect(captured).toEqual([]);
   });
@@ -92,7 +92,7 @@ describe("removeScript", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
 
-    await expect(svc.removeScript({ principal: principal(stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.removeScript({ principal: await principal(db, stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
     expect(await db.select().from(regexScripts).where(eq(regexScripts.id, scriptId))).toHaveLength(1);
   });
 });

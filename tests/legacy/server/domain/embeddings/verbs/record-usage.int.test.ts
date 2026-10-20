@@ -13,8 +13,11 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { runOpenAiCompatEmbed } from "#inference/backends/openai-compat/embed.ts";
 import { createRecordUsage } from "#server/domain/embeddings/index.ts";
-import { applyStatsDelta, reconcileStats } from "#server/domain/stats/index.ts";
+import { createStatsBatchWiring, reconcileStats } from "#server/domain/stats/index.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved, makeResolved } from "../../../../inference/_support.ts";
+
+// The stats seam as the composition root wires it: the production writers behind the batch and database handles.
+const STATS_WIRING = createStatsBatchWiring();
 
 const NOW = 1_700_000_000_000;
 const COST = 0.000_034;
@@ -53,7 +56,7 @@ test.for([
       now: () => NOW,
       newCallId: () => castId<EmbeddingCallId>(ids.next(ID_PREFIX.embeddingCall)),
       newInvocationId: () => castId<EmbeddingInvocationId>(ids.next(ID_PREFIX.embeddingInvocation)),
-      applyStatsDelta,
+      applyStatsDelta: STATS_WIRING.applyStatsDelta,
     });
     const accounting = begin({
       ownerId: owner.id,
@@ -138,7 +141,7 @@ test("physical batches retain rates, partial failure and owner scope independent
     now: () => NOW,
     newCallId: () => castId<EmbeddingCallId>(ids.next(ID_PREFIX.embeddingCall)),
     newInvocationId: () => castId<EmbeddingInvocationId>(ids.next(ID_PREFIX.embeddingInvocation)),
-    applyStatsDelta,
+    applyStatsDelta: STATS_WIRING.applyStatsDelta,
   });
   const accounting = begin({ ownerId: owner.id, connectionId, providerId: resolved.providerId, model, wire: resolved.wire, task: "embed" });
   await accounting.recordBatch(BATCH);
@@ -181,7 +184,7 @@ test("deleted attribution and unmetered local execution retain unknowns, not bil
     now: () => NOW,
     newCallId: () => castId<EmbeddingCallId>(ids.next(ID_PREFIX.embeddingCall)),
     newInvocationId: () => castId<EmbeddingInvocationId>(ids.next(ID_PREFIX.embeddingInvocation)),
-    applyStatsDelta,
+    applyStatsDelta: STATS_WIRING.applyStatsDelta,
   });
   const accounting = begin({
     ownerId: owner.id,

@@ -2,8 +2,9 @@
 
 import { createInferenceRuntime } from "@orb/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import { openRouterCatalogFetch } from "../../_openrouter-catalog.ts";
 import { fakeApiKeySecret, fakeConnection, fakeDeps, fakeResolved, memoryStores, newUserId } from "../../_support.ts";
 import type { RecordedRequest } from "../_hosted-support.ts";
@@ -138,6 +139,7 @@ test("a 400 that is NOT a mandatory-reasoning refusal is NOT replayed, and reach
 // id — never the raw alias spelling.
 
 async function runtimeTurnBody(model: string): Promise<Record<string, unknown>> {
+  const db = await freshDb();
   const recorded: RecordedRequest[] = [];
   const catalog = openRouterCatalogFetch();
   const chat = scriptedSseFetch([openAiTextStream("ok")], recorded);
@@ -150,7 +152,7 @@ async function runtimeTurnBody(model: string): Promise<Record<string, unknown>> 
   stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "chat", connectionId: row.id });
   const secrets = new Map([[credentialId, fakeApiKeySecret("sk-or-not-a-real-key")]]);
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: fetchImpl, secrets }));
-  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId) });
+  const { resolved } = await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId) });
   await runtime.executor.runChatTurn({
     api: "chat-completions",
     connection: { ...resolved, task: "chat" },

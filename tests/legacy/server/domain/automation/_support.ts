@@ -10,12 +10,13 @@ import type { Db } from "@orb/db";
 import { automationFires } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AutomationRuleId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createSerialLanes } from "@orb/kit/serial-lanes";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { createResolveUserEnabled } from "@orb/server/domain/sessions";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { can } from "#server/domain/admin/index.ts";
 import type {
@@ -41,7 +42,11 @@ import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-i
 import { createHostPrincipalResolver } from "#server/entry/auth/index.ts";
 import type { AutomationActionOpsDeps } from "#server/entry/compose/automation-watcher.ts";
 import { createAutomationOps } from "#server/entry/compose/automation-watcher.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { seedChat, seedParticipant } from "../chat/_support.ts";
+
+// One lane set per suite, the way the automation service owns one for its dispatcher and arms.
+const SERIAL_LANES = createSerialLanes();
 
 /** PARSE an AUTHORED arm into the stored/dispatched shape — exactly what `createRule` does before anything
  *  runs, so a test that hands an arm straight to the dispatcher exercises the same value production does.
@@ -190,6 +195,7 @@ export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}):
   return {
     db: handle,
     now: () => FIXED_NOW_MS,
+    serialLanes: SERIAL_LANES,
     prng: () => FIXED_PRNG,
     newRuleId: () => mintTypeId(ID_PREFIX.automationRule),
     newFireId: () => mintTypeId(ID_PREFIX.automationFire),
@@ -226,9 +232,15 @@ export function makeAutomationHarness(db: Db, overrides: HarnessOverrides = {}):
   };
 }
 
-/** A cookie-resolved Principal for a user id. */
-export function principal(userId: UserId): Principal {
-  return makePrincipal(userId);
+/** The owner-form context a substrate entry takes, recovered from the harness's assembly handle exactly as the
+ *  automation service recovers it. */
+export function automationContext(input: DbAssemblyInput<AutomationContext>): AutomationContext {
+  return { ...input, db: databaseForOwner(input.db) };
+}
+
+/** Resolve a caller's Principal through the production row resolver; the stored row decides the role. */
+export async function principal(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId);
 }
 
 /** Seed a user row and return its id (the global_variables / rule owner FK target). */

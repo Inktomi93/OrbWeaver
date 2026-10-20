@@ -21,16 +21,16 @@ describe("upsertEntries", () => {
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Keeper" } });
 
     const result = await svc.upsertEntries({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       entries: [{ title: "Greenhouse promise", keys: ["greenhouse", "promise"], content: "She swore to return by spring.", span: SPAN }],
     });
 
     expect(result).toEqual({ inserted: 1, updated: 0, skippedHandEdited: 0 });
-    const [entry] = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    const [entry] = await svc.listEntries({ principal: await principal(db, owner), bookId: book.id });
     expect(entry?.keys).toEqual(["greenhouse", "promise"]);
     expect(entry?.metadata?.provenance?.span).toEqual(SPAN);
     expect(entry?.metadata?.provenance?.contentHash).toEqual(expect.any(String));
@@ -40,15 +40,15 @@ describe("upsertEntries", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
-    const write = (content: string): Promise<UpsertEntriesResult> =>
-      svc.upsertEntries({ principal: principal(owner), bookId: book.id, entries: [{ title: "Fact", keys: ["k"], content, span: SPAN }] });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Keeper" } });
+    const write = async (content: string): Promise<UpsertEntriesResult> =>
+      svc.upsertEntries({ principal: await principal(db, owner), bookId: book.id, entries: [{ title: "Fact", keys: ["k"], content, span: SPAN }] });
 
     await write("v1");
     const second = await write("v2");
 
     expect(second).toEqual({ inserted: 0, updated: 1, skippedHandEdited: 0 });
-    const entries = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    const entries = await svc.listEntries({ principal: await principal(db, owner), bookId: book.id });
     expect(entries).toHaveLength(1);
     expect(entries[0]?.content).toBe("v2");
   });
@@ -57,24 +57,28 @@ describe("upsertEntries", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
-    await svc.upsertEntries({ principal: principal(owner), bookId: book.id, entries: [{ title: "Fact", keys: ["k"], content: "machine text", span: SPAN }] });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Keeper" } });
+    await svc.upsertEntries({
+      principal: await principal(db, owner),
+      bookId: book.id,
+      entries: [{ title: "Fact", keys: ["k"], content: "machine text", span: SPAN }],
+    });
 
     // The host curates it by hand (its content now diverges from the stored provenance.contentHash).
-    const [entry] = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    const [entry] = await svc.listEntries({ principal: await principal(db, owner), bookId: book.id });
     if (entry === undefined) {
       throw new Error("entry missing");
     }
-    await svc.updateEntry({ principal: principal(owner), entryId: entry.id, input: { content: "the HOST's careful wording" } });
+    await svc.updateEntry({ principal: await principal(db, owner), entryId: entry.id, input: { content: "the HOST's careful wording" } });
 
     const result = await svc.upsertEntries({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       entries: [{ title: "Fact", keys: ["new"], content: "machine rewrite", span: { fromSeq: 40, toSeq: 80 } }],
     });
 
     expect(result).toEqual({ inserted: 0, updated: 0, skippedHandEdited: 1 });
-    const after = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    const after = await svc.listEntries({ principal: await principal(db, owner), bookId: book.id });
     expect(after[0]?.content).toBe("the HOST's careful wording");
     expect(after[0]?.keys).toEqual(["k"]);
     expect(after[0]?.metadata?.provenance).toEqual(entry.metadata?.provenance);
@@ -89,10 +93,10 @@ describe("upsertEntries", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Keeper" } });
 
     const result = await svc.upsertEntries({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       entries: [
         { title: "Fact", keys: ["k"], content: "first", span: SPAN },
@@ -101,7 +105,7 @@ describe("upsertEntries", () => {
     });
 
     expect(result).toEqual({ inserted: 1, updated: 1, skippedHandEdited: 0 });
-    const entries = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    const entries = await svc.listEntries({ principal: await principal(db, owner), bookId: book.id });
     expect(entries).toHaveLength(1);
     expect(entries[0]?.content).toBe("second");
     expect(entries[0]?.keys).toEqual(["k2"]);
@@ -114,11 +118,11 @@ describe("upsertEntries", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
-    await svc.upsertEntries({ principal: principal(owner), bookId: book.id, entries: [{ title: "Fact", keys: ["k"], content: "v1", span: SPAN }] });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Keeper" } });
+    await svc.upsertEntries({ principal: await principal(db, owner), bookId: book.id, entries: [{ title: "Fact", keys: ["k"], content: "v1", span: SPAN }] });
 
     const result = await svc.upsertEntries({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       entries: [
         { title: "Fact", keys: ["k"], content: "v2", span: SPAN },
@@ -127,7 +131,7 @@ describe("upsertEntries", () => {
     });
 
     expect(result).toEqual({ inserted: 0, updated: 2, skippedHandEdited: 0 });
-    const entries = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    const entries = await svc.listEntries({ principal: await principal(db, owner), bookId: book.id });
     expect(entries).toHaveLength(1);
     expect(entries[0]?.content).toBe("v3");
   });
@@ -139,16 +143,20 @@ describe("upsertEntries", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
-    await svc.upsertEntries({ principal: principal(owner), bookId: book.id, entries: [{ title: "Fact", keys: ["k"], content: "machine", span: SPAN }] });
-    const [seeded] = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Keeper" } });
+    await svc.upsertEntries({
+      principal: await principal(db, owner),
+      bookId: book.id,
+      entries: [{ title: "Fact", keys: ["k"], content: "machine", span: SPAN }],
+    });
+    const [seeded] = await svc.listEntries({ principal: await principal(db, owner), bookId: book.id });
     if (seeded === undefined) {
       throw new Error("entry missing");
     }
-    await svc.updateEntry({ principal: principal(owner), entryId: seeded.id, input: { content: "the HOST's wording" } });
+    await svc.updateEntry({ principal: await principal(db, owner), entryId: seeded.id, input: { content: "the HOST's wording" } });
 
     const result = await svc.upsertEntries({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       entries: [
         { title: "Fact", keys: ["k"], content: "rewrite a", span: SPAN },
@@ -157,7 +165,7 @@ describe("upsertEntries", () => {
     });
 
     expect(result).toEqual({ inserted: 0, updated: 0, skippedHandEdited: 2 });
-    const after = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    const after = await svc.listEntries({ principal: await principal(db, owner), bookId: book.id });
     expect(after).toHaveLength(1);
     expect(after[0]?.content).toBe("the HOST's wording");
   });
@@ -167,10 +175,10 @@ describe("upsertEntries", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "Theirs" } });
 
     await expect(
-      svc.upsertEntries({ principal: principal(owner), bookId: theirs.id, entries: [{ title: "X", keys: ["x"], content: "c" }] }),
+      svc.upsertEntries({ principal: await principal(db, owner), bookId: theirs.id, entries: [{ title: "X", keys: ["x"], content: "c" }] }),
     ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

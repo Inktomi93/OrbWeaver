@@ -21,7 +21,7 @@ describe("create", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const detail = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "a quiet oracle" },
     });
 
@@ -47,7 +47,7 @@ describe("create", () => {
 
     const importHash = "a".repeat(64);
     const detail = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("aria"), name: "Aria", description: "imported" },
       provenance: { importedFrom: "Aria.png", importHash },
     });
@@ -56,7 +56,7 @@ describe("create", () => {
     expect(detail.importHash).toBe(importHash);
 
     // Persisted, not just echoed: re-read through `get` confirms the columns landed.
-    const reread = await svc.get({ principal: principal(owner), characterId: detail.id });
+    const reread = await svc.get({ principal: await principal(db, owner), characterId: detail.id });
     expect(reread.importedFrom).toBe("Aria.png");
     expect(reread.importHash).toBe(importHash);
   });
@@ -68,7 +68,7 @@ describe("create", () => {
 
     const importHash = "b".repeat(64);
     const detail = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nameless"), name: "Nameless", description: "bare json card" },
       provenance: { importedFrom: null, importHash },
     });
@@ -82,12 +82,12 @@ describe("create", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("dup"), name: "A", description: "x" },
     });
 
     const conflict = svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("dup"), name: "B", description: "y" },
     });
     await expect(conflict).rejects.toBeInstanceOf(CharacterOperationError);
@@ -100,11 +100,11 @@ describe("create", () => {
     const a = await seedUser(db, { handle: castId<Handle>("a") });
     const b = await seedUser(db, { handle: castId<Handle>("b") });
     await svc.create({
-      principal: principal(a),
+      principal: await principal(db, a),
       input: { handle: castId<CharacterHandle>("shared"), name: "A", description: "x" },
     });
     const bDetail = await svc.create({
-      principal: principal(b),
+      principal: await principal(db, b),
       input: { handle: castId<CharacterHandle>("shared"), name: "B", description: "y" },
     });
     expect(bDetail.handle).toBe("shared");
@@ -117,7 +117,7 @@ describe("create", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const squat = svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("__group__chat_1"), name: "Squat", description: "x" },
     });
     await expect(squat).rejects.toBeInstanceOf(CharacterOperationError);
@@ -135,7 +135,7 @@ describe("create", () => {
 
     await expect(
       svc.create({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         input: { handle: castId<CharacterHandle>("thief"), name: "Thief", description: "x", avatarAssetId: foreign },
       }),
     ).rejects.toBeInstanceOf(AssetNotFoundError);
@@ -150,9 +150,9 @@ describe("create", () => {
     // meant a rejected audit left the indexer embedding a card the caller was told had failed to create.
     const svc = createCharacterService({ ...h.ctx, audit: (): Promise<void> => Promise.reject(new Error("the audit sink is down")) });
 
-    await expect(svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } })).rejects.toThrow(
-      "the audit sink is down",
-    );
+    await expect(
+      svc.create({ principal: await principal(db, owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } }),
+    ).rejects.toThrow("the audit sink is down");
 
     expect(h.events).toEqual([]);
     expect(h.userEvents).toEqual([]);

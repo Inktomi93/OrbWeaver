@@ -28,7 +28,7 @@ describe("updateScript", () => {
       behavior: behavior({ findRegex: "keep-me", replaceString: "old", trimStrings: ["x"] }),
     });
 
-    const patched = await svc.updateScript({ principal: principal(owner), scriptId, input: { name: "after", replaceString: "new" } });
+    const patched = await svc.updateScript({ principal: await principal(db, owner), scriptId, input: { name: "after", replaceString: "new" } });
 
     expect(patched.name).toBe("after");
     expect(patched.replaceString).toBe("new");
@@ -50,7 +50,7 @@ describe("updateScript", () => {
     const [born] = await db.select().from(regexScripts).where(eq(regexScripts.id, scriptId));
 
     h.advance(ONE_HOUR_MS);
-    const patched = await svc.updateScript({ principal: principal(owner), scriptId, input: { name: "after" } });
+    const patched = await svc.updateScript({ principal: await principal(db, owner), scriptId, input: { name: "after" } });
 
     const [stored] = await db.select().from(regexScripts).where(eq(regexScripts.id, scriptId));
     expect(stored?.updatedAt).toBe((born?.updatedAt ?? 0) + ONE_HOUR_MS);
@@ -66,7 +66,9 @@ describe("updateScript", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
 
-    await expect(svc.updateScript({ principal: principal(stranger), scriptId, input: { name: "hijacked" } })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.updateScript({ principal: await principal(db, stranger), scriptId, input: { name: "hijacked" } })).rejects.toBeInstanceOf(
+      RegexNotFoundError,
+    );
     const [stored] = await db.select().from(regexScripts).where(eq(regexScripts.id, scriptId));
     expect(stored?.name).toBe("mine");
     expect(h.audits).toEqual([]);

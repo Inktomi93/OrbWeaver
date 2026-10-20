@@ -20,7 +20,7 @@ describe("backfillTitles", () => {
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
 
     const withKeys = castId<WorldEntryId>("world_entry_keys");
     const noKeys = castId<WorldEntryId>("world_entry_nokeys");
@@ -36,7 +36,7 @@ describe("backfillTitles", () => {
       { id: noKeys, worldBookId: book.id, title: "", content: "c", keys: null, createdAt: 1 },
     ]);
 
-    const res = await svc.backfillTitles({ principal: principal(owner), bookId: book.id });
+    const res = await svc.backfillTitles({ principal: await principal(db, owner), bookId: book.id });
     expect(res.filled).toBe(1);
 
     const filled = await db.select().from(worldEntries).where(eq(worldEntries.id, withKeys));
@@ -51,14 +51,14 @@ describe("backfillTitles", () => {
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "Has Title", content: "c" },
     });
 
-    const res = await svc.backfillTitles({ principal: principal(owner), bookId: book.id });
+    const res = await svc.backfillTitles({ principal: await principal(db, owner), bookId: book.id });
     expect(res.filled).toBe(0);
     expect(h.audits.filter((a) => a.entry.action === "worldInfo.backfillTitles")).toHaveLength(0);
   });

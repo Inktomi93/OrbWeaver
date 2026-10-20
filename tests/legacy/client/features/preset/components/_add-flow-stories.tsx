@@ -13,12 +13,18 @@ import { useState } from "react";
 import { ParamsDeck } from "#client/features/preset/components/params-deck.tsx";
 import { UserMacrosTab } from "#client/features/preset/components/user-macros-tab.tsx";
 import { VariablesTab } from "#client/features/preset/components/variables-tab.tsx";
+import type { PresetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
+import { admitPresetValues, canonicalPresetValues, presetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
 import type { AppFormInstance } from "#client/forms/editor/index.ts";
 import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_addflowstoryy");
 
-const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
+const StoryForm = createAutosaveEntityForm<PresetEditorValues>({
+  defaultValues: presetEditorValues(DEFAULT_PROMPT_CONFIG),
+  canonicalValues: canonicalPresetValues,
+  admitValues: admitPresetValues,
+});
 
 /** Mirror the last-saved array length + save count so the CT can prove the store driver persisted (CT-4). */
 function usePersistenceSpy(read: (config: PromptConfig) => number): {
@@ -44,11 +50,11 @@ function usePersistenceSpy(read: (config: PromptConfig) => number): {
 export function VariablesTabStory(): ReactElement {
   const { save, saves, savedLen } = usePersistenceSpy((c) => c.variables.length);
   return (
-    <StoryForm entityId={STORY_PRESET} serverValues={{ ...DEFAULT_PROMPT_CONFIG, variables: [] }} save={save}>
+    <StoryForm entityId={STORY_PRESET} serverValues={presetEditorValues({ ...DEFAULT_PROMPT_CONFIG, variables: [] })} save={save}>
       {(session): ReactElement => (
         <>
           <output>{`saves=${saves} savedLen=${savedLen}`}</output>
-          <VariablesTab form={session.form as AppFormInstance<PromptConfig>} />
+          <VariablesTab form={session.form as AppFormInstance<PresetEditorValues>} />
         </>
       )}
     </StoryForm>
@@ -63,13 +69,13 @@ export function VariablesTabStory(): ReactElement {
 export function CompactionTabDefaultsStory(): ReactElement {
   const serverValues: PromptConfig = { ...DEFAULT_PROMPT_CONFIG, params: { ...DEFAULT_PROMPT_CONFIG.params, compaction: undefined } };
   return (
-    <StoryForm entityId={STORY_PRESET} serverValues={serverValues} save={(): Promise<void> => Promise.resolve()}>
+    <StoryForm entityId={STORY_PRESET} serverValues={presetEditorValues(serverValues)} save={(): Promise<void> => Promise.resolve()}>
       {(session): ReactElement => (
         <ParamsDeck
           capability={undefined}
           capabilityError={null}
           effective={undefined}
-          form={session.form as AppFormInstance<PromptConfig>}
+          form={session.form as AppFormInstance<PresetEditorValues>}
           samplerSpelling={undefined}
         />
       )}
@@ -84,13 +90,13 @@ export function CompactionTabSetStory(): ReactElement {
     params: { ...DEFAULT_PROMPT_CONFIG.params, compaction: { mode: "auto", thresholdPct: 0.72 } },
   };
   return (
-    <StoryForm entityId={STORY_PRESET} serverValues={serverValues} save={(): Promise<void> => Promise.resolve()}>
+    <StoryForm entityId={STORY_PRESET} serverValues={presetEditorValues(serverValues)} save={(): Promise<void> => Promise.resolve()}>
       {(session): ReactElement => (
         <ParamsDeck
           capability={undefined}
           capabilityError={null}
           effective={undefined}
-          form={session.form as AppFormInstance<PromptConfig>}
+          form={session.form as AppFormInstance<PresetEditorValues>}
           samplerSpelling={undefined}
         />
       )}
@@ -103,11 +109,11 @@ export function CompactionTabSetStory(): ReactElement {
 export function UserMacrosTabStory(): ReactElement {
   const { save, saves, savedLen } = usePersistenceSpy((c) => c.userMacros.length);
   return (
-    <StoryForm entityId={STORY_PRESET} serverValues={{ ...DEFAULT_PROMPT_CONFIG, userMacros: [] }} save={save}>
+    <StoryForm entityId={STORY_PRESET} serverValues={presetEditorValues({ ...DEFAULT_PROMPT_CONFIG, userMacros: [] })} save={save}>
       {(session): ReactElement => (
         <>
           <output>{`saves=${saves} savedLen=${savedLen}`}</output>
-          <UserMacrosTab form={session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} />
+          <UserMacrosTab form={session.form as AppFormInstance<PresetEditorValues>} presetId={STORY_PRESET} />
         </>
       )}
     </StoryForm>

@@ -3,13 +3,13 @@ import { chatSegments, embedGenerations, messages } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { ChatNotFoundError } from "#server/domain/chat/contract/errors.ts";
 import { createMessageWindow } from "#server/domain/chat/verbs/message-window.ts";
+import { principal } from "../../../../db/schema/_support.ts";
 import { makeSearch, seedChatSegment, vec } from "../../search/_support.ts";
 import { makeChatContext, makeLoadParticipantViews, seedChat, seedMessage, seedParticipant } from "../_support.ts";
 
@@ -88,11 +88,11 @@ describe("member-visible source windows", () => {
       throw new Error("missing standalone transcript result");
     }
     expect(hit.source).toMatchObject({ kind: "segment", chatId, blockIdx: 2, chunkIdx: 1 });
-    expect(await read({ principal: principal(host), chatId, target: { kind: "source", source: hit.source } })).toMatchObject({
+    expect(await read({ principal: await principal({ db }, host), chatId, target: { kind: "source", source: hit.source } })).toMatchObject({
       outcome: "resolved",
       anchorMessageId: hit.source.messageStartId,
     });
-    const memberWindow = await read({ principal: principal(member), chatId, target: { kind: "source", source: hit.source } });
+    const memberWindow = await read({ principal: await principal({ db }, member), chatId, target: { kind: "source", source: hit.source } });
     expect(memberWindow.messages[0]?.seq).toBe(24);
     expect(memberWindow.messages[0]?.content).toBe("public  end");
     expect(JSON.stringify(memberWindow)).not.toContain("private truth");
@@ -108,46 +108,48 @@ describe("member-visible source windows", () => {
       throw new Error("missing anchor fixture");
     }
     const target = { kind: "message" as const, messageId: anchor.messageId };
-    const page = await read({ principal: principal(me), chatId, target, limit: 10 });
+    const page = await read({ principal: await principal({ db }, me), chatId, target, limit: 10 });
     expect(page.outcome).toBe("resolved");
     expect(page.anchorMessageId).toBe(anchor.messageId);
     expect(page.messages.map((row) => row.seq)).toEqual([16, 17, 18, 19, 20, 21, 22, 23, 24, 25]);
     expect(page.hasBefore).toBe(true);
     expect(page.hasAfter).toBe(true);
-    const next = await read({ principal: principal(me), chatId, target, cursor: { kind: "after", seq: 25 }, limit: 10 });
+    const next = await read({ principal: await principal({ db }, me), chatId, target, cursor: { kind: "after", seq: 25 }, limit: 10 });
     expect(next.messages.map((row) => row.seq)).toEqual([26, 27, 28, 29, 30, 31, 32, 33, 34, 35]);
-    const previous = await read({ principal: principal(me), chatId, target, cursor: { kind: "before", seq: 16 }, limit: 10 });
+    const previous = await read({ principal: await principal({ db }, me), chatId, target, cursor: { kind: "before", seq: 16 }, limit: 10 });
     expect(previous.messages.map((row) => row.seq)).toEqual([6, 7, 8, 9, 10, 11, 12, 13, 14, 15]);
   });
 
   test("resolves the exact chunk and preserves its stable endpoints beyond ordinary paging", async () => {
-    const { host, chatId, source, read } = await setup();
-    const page = await read({ principal: principal(host), chatId, target: { kind: "source", source }, limit: 10 });
+    const { host, chatId, source, read, db } = await setup();
+    const page = await read({ principal: await principal({ db }, host), chatId, target: { kind: "source", source }, limit: 10 });
     expect(page).toMatchObject({ outcome: "resolved", anchorMessageId: source.messageStartId, endMessageId: source.messageEndId });
     expect(page.messages.map((message) => message.seq)).toEqual([16, 17, 18, 19, 20, 21, 22, 23, 24, 25]);
   });
 
   test("clamps every direction to the member floor and removes hidden bytes before delivery", async () => {
-    const { member, chatId, source, read } = await setup();
+    const { member, chatId, source, read, db } = await setup();
     const target = { kind: "source" as const, source };
-    const page = await read({ principal: principal(member), chatId, target, limit: 12 });
+    const page = await read({ principal: await principal({ db }, member), chatId, target, limit: 12 });
     expect(page.outcome).toBe("moved");
     expect(page.messages[0]?.seq).toBe(24);
     expect(page.messages[0]?.content).toBe("public  end");
     expect(JSON.stringify(page)).not.toContain("private truth");
     expect(page.hasBefore).toBe(false);
-    expect((await read({ principal: principal(member), chatId, target, cursor: { kind: "before", seq: 24 } })).messages).toEqual([]);
+    expect((await read({ principal: await principal({ db }, member), chatId, target, cursor: { kind: "before", seq: 24 } })).messages).toEqual([]);
     expect(
-      (await read({ principal: principal(member), chatId, target, cursor: { kind: "after", seq: 0 } })).messages.every((message) => message.seq >= 24),
+      (await read({ principal: await principal({ db }, member), chatId, target, cursor: { kind: "after", seq: 0 } })).messages.every(
+        (message) => message.seq >= 24,
+      ),
     ).toBe(true);
   });
 
   test("a replaced row or deleted start moves to surviving original coverage", async () => {
     const { db, host, chatId, source, read } = await setup();
     await db.update(chatSegments).set({ contentHash: "replacement" }).where(eq(chatSegments.id, source.rowId));
-    expect((await read({ principal: principal(host), chatId, target: { kind: "source", source } })).outcome).toBe("moved");
+    expect((await read({ principal: await principal({ db }, host), chatId, target: { kind: "source", source } })).outcome).toBe("moved");
     await db.delete(messages).where(and(eq(messages.chatId, chatId), eq(messages.seq, 20)));
-    const page = await read({ principal: principal(host), chatId, target: { kind: "source", source } });
+    const page = await read({ principal: await principal({ db }, host), chatId, target: { kind: "source", source } });
     expect(page.outcome).toBe("moved");
     expect(page).toMatchObject({ anchorMessageId: source.messageEndId, anchorSeq: 29 });
   });
@@ -155,7 +157,7 @@ describe("member-visible source windows", () => {
   test("same-hash replacement coverage cannot claim the original source span is exact", async () => {
     const { db, host, chatId, source, read } = await setup();
     await db.update(chatSegments).set({ seqStart: 30, seqEnd: 39 }).where(eq(chatSegments.id, source.rowId));
-    expect(await read({ principal: principal(host), chatId, target: { kind: "source", source } })).toMatchObject({
+    expect(await read({ principal: await principal({ db }, host), chatId, target: { kind: "source", source } })).toMatchObject({
       outcome: "moved",
       anchorMessageId: source.messageStartId,
       anchorSeq: source.seqStart,
@@ -173,7 +175,7 @@ describe("member-visible source windows", () => {
       variantId: mintTypeId(ID_PREFIX.messageVariant),
       content: "unrelated replacement",
     });
-    const page = await read({ principal: principal(host), chatId, target: { kind: "source", source } });
+    const page = await read({ principal: await principal({ db }, host), chatId, target: { kind: "source", source } });
     expect(page).toMatchObject({ outcome: "moved", anchorMessageId: source.messageStartId, anchorSeq: 61, endMessageId: source.messageStartId, endSeq: 61 });
     expect(page.anchorMessageId).not.toBe(replacement.messageId);
   });
@@ -190,7 +192,7 @@ describe("member-visible source windows", () => {
       variantId: mintTypeId(ID_PREFIX.messageVariant),
       content: "unrelated reused source slot",
     });
-    const page = await read({ principal: principal(host), chatId, target: { kind: "source", source } });
+    const page = await read({ principal: await principal({ db }, host), chatId, target: { kind: "source", source } });
     expect(page).toMatchObject({ outcome: "moved", anchorMessageId: source.messageEndId, anchorSeq: 61, endMessageId: source.messageEndId, endSeq: 61 });
     expect(page.anchorMessageId).not.toBe(replacement.messageId);
   });
@@ -200,13 +202,13 @@ describe("member-visible source windows", () => {
     for (let seq = 20; seq <= 29; seq += 1) {
       await db.delete(messages).where(and(eq(messages.chatId, chatId), eq(messages.seq, seq)));
     }
-    expect(await read({ principal: principal(host), chatId, target: { kind: "source", source } })).toMatchObject({
+    expect(await read({ principal: await principal({ db }, host), chatId, target: { kind: "source", source } })).toMatchObject({
       outcome: "deleted",
       anchorMessageId: null,
       messages: [],
     });
     await db.delete(embedGenerations).where(eq(embedGenerations.id, source.generationId));
-    expect(await read({ principal: principal(host), chatId, target: { kind: "source", source } })).toMatchObject({
+    expect(await read({ principal: await principal({ db }, host), chatId, target: { kind: "source", source } })).toMatchObject({
       outcome: "unavailable",
       anchorMessageId: null,
       messages: [],
@@ -215,7 +217,7 @@ describe("member-visible source windows", () => {
 
   test("membership and secondary message scope both refuse foreign identity bytes", async () => {
     const { db, host, outsider, chatId, source, read } = await setup();
-    await expect(read({ principal: principal(outsider), chatId, target: { kind: "source", source } })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(read({ principal: await principal({ db }, outsider), chatId, target: { kind: "source", source } })).rejects.toBeInstanceOf(ChatNotFoundError);
     const foreignChat = await seedChat(db, "foreign-source-room", { id: mintTypeId(ID_PREFIX.chat) });
     await seedParticipant(db, { chatId: foreignChat, key: "foreign-host", userId: outsider, role: "host" });
     const foreign = await seedMessage(db, foreignChat, 20, {
@@ -223,10 +225,12 @@ describe("member-visible source windows", () => {
       variantId: mintTypeId(ID_PREFIX.messageVariant),
       content: "foreign marker",
     });
-    const page = await read({ principal: principal(host), chatId, target: { kind: "message", messageId: foreign.messageId } });
+    const page = await read({ principal: await principal({ db }, host), chatId, target: { kind: "message", messageId: foreign.messageId } });
     expect(page).toMatchObject({ outcome: "deleted", anchorMessageId: null, messages: [] });
     expect(JSON.stringify(page)).not.toContain(foreign.messageId);
-    expect(await read({ principal: principal(host), chatId, target: { kind: "source", source: { ...source, chatId: foreignChat } } })).toMatchObject({
+    expect(
+      await read({ principal: await principal({ db }, host), chatId, target: { kind: "source", source: { ...source, chatId: foreignChat } } }),
+    ).toMatchObject({
       outcome: "unavailable",
       messages: [],
       anchorMessageId: null,

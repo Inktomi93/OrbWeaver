@@ -24,7 +24,7 @@ describe("revealHidden — the host-reveal trust boundary", () => {
   test("the HOST reads the parsed hidden content + the standing-lie inventory from the stored bodies", async () => {
     const { chatId, h } = await seedLiteGame(db);
     await seedMessage(db, chatId, 1, { role: "assistant", content: `Mari smiles warmly. ${LIE}` });
-    const reveal = await h.service.revealHidden({ principal: principal(castId<Handle>("host")), chatId });
+    const reveal = await h.service.revealHidden({ principal: await principal(db, castId<Handle>("host")), chatId });
     expect(reveal.messages).toHaveLength(1);
     expect(reveal.messages[0]?.spans[0]?.tag).toBe("lie");
     expect(reveal.messages[0]?.spans[0]?.fields.find((f) => f.key === "truth")?.value).toBe("she wants the crown");
@@ -40,7 +40,7 @@ describe("revealHidden — the host-reveal trust boundary", () => {
     // Register a present member (not host) — resolveHost refuses them.
     await seedUser(db, castId<Handle>("member"));
     h.fakes.membership.set("user_member", "member");
-    await expect(h.service.revealHidden({ principal: principal(castId<Handle>("member")), chatId })).rejects.toBeInstanceOf(DomainForbiddenError);
+    await expect(h.service.revealHidden({ principal: await principal(db, castId<Handle>("member")), chatId })).rejects.toBeInstanceOf(DomainForbiddenError);
   });
 
   test("M4: with hiddenContentReveal OFF the host gets an EMPTY reveal (pure-hidden posture)", async () => {
@@ -48,7 +48,7 @@ describe("revealHidden — the host-reveal trust boundary", () => {
     await seedMessage(db, chatId, 1, { role: "assistant", content: `Mari smiles. ${LIE}` });
     const base = liteConfig();
     await updateGame(db, gameId, { config: { ...base, features: { ...base.features, hiddenContentReveal: false } } });
-    const reveal = await h.service.revealHidden({ principal: principal(castId<Handle>("host")), chatId });
+    const reveal = await h.service.revealHidden({ principal: await principal(db, castId<Handle>("host")), chatId });
     expect(reveal).toEqual({ messages: [], standingLies: [] });
     // Sanity: the game row's toggle is actually off (the withhold is config-driven, not an empty transcript).
     const game = await findGameByChat(db, chatId);
@@ -58,6 +58,6 @@ describe("revealHidden — the host-reveal trust boundary", () => {
   test("a game with no hidden content reveals nothing (a clean host-plane read, not an error)", async () => {
     const { chatId, h } = await seedLiteGame(db);
     await seedMessage(db, chatId, 1, { role: "assistant", content: "Mari smiles warmly and says nothing untrue." });
-    expect(await h.service.revealHidden({ principal: principal(castId<Handle>("host")), chatId })).toEqual({ messages: [], standingLies: [] });
+    expect(await h.service.revealHidden({ principal: await principal(db, castId<Handle>("host")), chatId })).toEqual({ messages: [], standingLies: [] });
   });
 });

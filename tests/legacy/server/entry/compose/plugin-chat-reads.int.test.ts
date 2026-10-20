@@ -14,7 +14,10 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { resolveHistoryFloorSeq } from "#server/domain/chat/substrate/auth/clamp.ts";
 import { loadPluginMessages } from "#server/entry/compose/plugin-chat-reads.ts";
-import { seedChat, seedMessage } from "../../domain/chat/_support.ts";
+import { seatRoles, seedChat, seedMessage } from "../../domain/chat/_support.ts";
+
+// Seat roles are captured row data: one in-memory room supplies the host and member roles these checks read.
+const ROLES = await seatRoles(await freshDb());
 
 let db: Db;
 
@@ -36,7 +39,7 @@ describe("loadPluginMessages — the guest canon read honours the viewer floor",
     await seedRows(chatId, [1, 2, 3, 4, 5]);
 
     const clamped = await loadPluginMessages(databaseHandle(db), chatId, {
-      floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" }),
+      floorSeq: resolveHistoryFloorSeq({ role: ROLES.member, joinSeq: 3, joinHistoryVisibility: "from-join" }),
       readsHidden: true,
     });
 
@@ -49,7 +52,7 @@ describe("loadPluginMessages — the guest canon read honours the viewer floor",
     await seedRows(chatId, [1, 2, 3]);
 
     const unclamped = await loadPluginMessages(databaseHandle(db), chatId, {
-      floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 0, joinHistoryVisibility: "from-join" }),
+      floorSeq: resolveHistoryFloorSeq({ role: ROLES.member, joinSeq: 0, joinHistoryVisibility: "from-join" }),
       readsHidden: true,
     });
 
@@ -64,14 +67,14 @@ describe("loadPluginMessages — the guest canon read honours the viewer floor",
     // page that STRADDLES the floor it would return fewer than 3. Ask for a straddling page to prove it.
     const page = await loadPluginMessages(databaseHandle(db), chatId, {
       limit: 3,
-      floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 6, joinHistoryVisibility: "from-join" }),
+      floorSeq: resolveHistoryFloorSeq({ role: ROLES.member, joinSeq: 6, joinHistoryVisibility: "from-join" }),
       readsHidden: true,
     });
 
     expect(page.map((m) => m.seq)).toEqual([8, 9, 10]);
     const straddling = await loadPluginMessages(databaseHandle(db), chatId, {
       limit: 6,
-      floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 6, joinHistoryVisibility: "from-join" }),
+      floorSeq: resolveHistoryFloorSeq({ role: ROLES.member, joinSeq: 6, joinHistoryVisibility: "from-join" }),
       readsHidden: true,
     });
     expect(straddling.map((m) => m.seq)).toEqual([6, 7, 8, 9, 10]); // never a row below the floor
@@ -86,14 +89,14 @@ describe("loadPluginMessages — the guest canon read honours the viewer floor",
     await seedMessage(db, chatId, 1, { content: `He smiles. ${lie} "Nothing."` });
 
     const member = await loadPluginMessages(databaseHandle(db), chatId, {
-      floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 0, joinHistoryVisibility: "from-join" }),
+      floorSeq: resolveHistoryFloorSeq({ role: ROLES.member, joinSeq: 0, joinHistoryVisibility: "from-join" }),
       readsHidden: false,
     });
     expect(member[0]?.content).toBe('He smiles.  "Nothing."');
     expect(member[0]?.content).not.toContain("mole");
 
     const host = await loadPluginMessages(databaseHandle(db), chatId, {
-      floorSeq: resolveHistoryFloorSeq({ role: "member", joinSeq: 0, joinHistoryVisibility: "from-join" }),
+      floorSeq: resolveHistoryFloorSeq({ role: ROLES.member, joinSeq: 0, joinHistoryVisibility: "from-join" }),
       readsHidden: true,
     });
     expect(host[0]?.content).toContain("mole");

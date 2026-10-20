@@ -23,14 +23,14 @@ describe("getAppSettings", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_u", role: "user" });
-    await expect(h.svc.getAppSettings({ principal: principal(u, "user") })).rejects.toThrow(DomainForbiddenError);
+    await expect(h.svc.getAppSettings({ principal: await principal(db, u, "user") })).rejects.toThrow(DomainForbiddenError);
   });
 
   test("an admin reads the resolved config (env floor before any write)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a", role: "admin" });
-    const cfg = await h.svc.getAppSettings({ principal: principal(a, "admin") });
+    const cfg = await h.svc.getAppSettings({ principal: await principal(db, a, "admin") });
     expect(cfg.corpusAutoindex).toBe(env.CORPUS_AUTOINDEX);
     expect(cfg.logLevel).toBe(env.LOG_LEVEL);
   });
@@ -41,14 +41,14 @@ describe("getAppSettingsWithOverrides — the admin surface's floor-vs-override 
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_u", role: "user" });
-    await expect(h.svc.getAppSettingsWithOverrides({ principal: principal(u, "user") })).rejects.toThrow(DomainForbiddenError);
+    await expect(h.svc.getAppSettingsWithOverrides({ principal: await principal(db, u, "user") })).rejects.toThrow(DomainForbiddenError);
   });
 
   test("before any write: resolved is the floor and overrides is empty (nothing actively overridden)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a", role: "admin" });
-    const view = await h.svc.getAppSettingsWithOverrides({ principal: principal(a, "admin") });
+    const view = await h.svc.getAppSettingsWithOverrides({ principal: await principal(db, a, "admin") });
     expect(view.resolved.logLevel).toBe(env.LOG_LEVEL);
     // No override stored → the field is absent/nullish in the raw blob (the floor governs).
     expect(view.overrides.logLevel ?? null).toBeNull();
@@ -58,12 +58,12 @@ describe("getAppSettingsWithOverrides — the admin surface's floor-vs-override 
     const db = await freshDb();
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a", role: "admin" });
-    await h.svc.updateAppSettings({ principal: principal(a, "admin"), partial: { logLevel: "debug" } });
-    const set = await h.svc.getAppSettingsWithOverrides({ principal: principal(a, "admin") });
+    await h.svc.updateAppSettings({ principal: await principal(db, a, "admin"), partial: { logLevel: "debug" } });
+    const set = await h.svc.getAppSettingsWithOverrides({ principal: await principal(db, a, "admin") });
     expect(set.overrides.logLevel).toBe("debug"); // an ACTIVE override is visible as a value in overrides
     expect(set.resolved.logLevel).toBe("debug");
-    await h.svc.updateAppSettings({ principal: principal(a, "admin"), partial: { logLevel: null } });
-    const cleared = await h.svc.getAppSettingsWithOverrides({ principal: principal(a, "admin") });
+    await h.svc.updateAppSettings({ principal: await principal(db, a, "admin"), partial: { logLevel: null } });
+    const cleared = await h.svc.getAppSettingsWithOverrides({ principal: await principal(db, a, "admin") });
     expect(cleared.overrides.logLevel ?? null).toBeNull(); // cleared → back to floor-governed
     expect(cleared.resolved.logLevel).toBe(env.LOG_LEVEL);
   });
@@ -75,7 +75,7 @@ describe("updateAppSettings — admin tier", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a", role: "admin" });
     const resolved = await h.svc.updateAppSettings({
-      principal: principal(a, "admin"),
+      principal: await principal(db, a, "admin"),
       partial: { logLevel: "debug" },
     });
     expect(resolved.logLevel).toBe("debug");
@@ -88,7 +88,7 @@ describe("updateAppSettings — admin tier", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_u", role: "user" });
-    await expect(h.svc.updateAppSettings({ principal: principal(u, "user"), partial: { logLevel: "warn" } })).rejects.toThrow(DomainForbiddenError);
+    await expect(h.svc.updateAppSettings({ principal: await principal(db, u, "user"), partial: { logLevel: "warn" } })).rejects.toThrow(DomainForbiddenError);
   });
 
   test("null=CLEAR: an override is set, then cleared, and the env floor reads back", async () => {
@@ -96,12 +96,12 @@ describe("updateAppSettings — admin tier", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a", role: "admin" });
     await h.svc.updateAppSettings({
-      principal: principal(a, "admin"),
+      principal: await principal(db, a, "admin"),
       partial: { logLevel: "trace" },
     });
     expect(h.svc.getEffectiveConfig().logLevel).toBe("trace");
     const cleared = await h.svc.updateAppSettings({
-      principal: principal(a, "admin"),
+      principal: await principal(db, a, "admin"),
       partial: { logLevel: null },
     });
     expect(cleared.logLevel).toBe(env.LOG_LEVEL);
@@ -115,7 +115,7 @@ describe("updateAppSettings — the owner-box governance split (F12: the private
     const a = await seedUser(db, { id: "user_a", role: "admin" });
     await expect(
       h.svc.updateAppSettings({
-        principal: principal(a, "admin"),
+        principal: await principal(db, a, "admin"),
         partial: { privateEndpointAllowlist: ["10.0.0.0/8"] },
       }),
     ).rejects.toThrow(DomainForbiddenError);
@@ -127,7 +127,7 @@ describe("updateAppSettings — the owner-box governance split (F12: the private
     const a = await seedUser(db, { id: "user_a", role: "admin" });
     await expect(
       h.svc.updateAppSettings({
-        principal: principal(a, "admin"),
+        principal: await principal(db, a, "admin"),
         partial: { privateEndpointAllowlist: null },
       }),
     ).rejects.toThrow(DomainForbiddenError);
@@ -138,7 +138,7 @@ describe("updateAppSettings — the owner-box governance split (F12: the private
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a", role: "admin" });
     for (const ipCertificate of [{ address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 }, null]) {
-      await expect(h.svc.updateAppSettings({ principal: principal(a, "admin"), partial: { ipCertificate } })).rejects.toThrow(DomainForbiddenError);
+      await expect(h.svc.updateAppSettings({ principal: await principal(db, a, "admin"), partial: { ipCertificate } })).rejects.toThrow(DomainForbiddenError);
     }
     expect(h.svc.getEffectiveConfig().ipCertificate).toBeNull();
   });
@@ -148,7 +148,7 @@ describe("updateAppSettings — the owner-box governance split (F12: the private
     const h = makeHarness(db);
     const o = await seedUser(db, { id: "user_owner", role: "owner" });
     const resolved = await h.svc.updateAppSettings({
-      principal: principal(o, "owner"),
+      principal: await principal(db, o, "owner"),
       partial: { privateEndpointAllowlist: ["10.0.0.0/8", "127.0.0.1"] },
     });
     expect(resolved.privateEndpointAllowlist).toEqual(["10.0.0.0/8", "127.0.0.1"]);
@@ -163,16 +163,16 @@ describe("updateAppSettings — the owner-box governance split (F12: the private
     const o = await seedUser(db, { id: "user_owner", role: "owner" });
     const a = await seedUser(db, { id: "user_a", role: "admin" });
 
-    await expect(h.svc.updateAppSettings({ principal: principal(a, "admin"), partial: { privateEndpointAllowlist: ["10.0.0.5:11434"] } })).rejects.toThrow(
-      DomainForbiddenError,
-    );
+    await expect(
+      h.svc.updateAppSettings({ principal: await principal(db, a, "admin"), partial: { privateEndpointAllowlist: ["10.0.0.5:11434"] } }),
+    ).rejects.toThrow(DomainForbiddenError);
     expect(h.published).toEqual([]);
 
-    await h.svc.updateAppSettings({ principal: principal(o, "owner"), partial: { privateEndpointAllowlist: ["10.0.0.5:11434"] } });
+    await h.svc.updateAppSettings({ principal: await principal(db, o, "owner"), partial: { privateEndpointAllowlist: ["10.0.0.5:11434"] } });
     expect(h.published).toEqual([["10.0.0.5:11434"]]);
     // A delegated admin's save of a field it may write republishes the owner's stored list, unchanged.
-    await h.svc.updateAppSettings({ principal: principal(a, "admin"), partial: { promptCacheMinDepth: 1 } });
-    await h.svc.updateAppSettings({ principal: principal(o, "owner"), partial: { privateEndpointAllowlist: [] } });
+    await h.svc.updateAppSettings({ principal: await principal(db, a, "admin"), partial: { promptCacheMinDepth: 1 } });
+    await h.svc.updateAppSettings({ principal: await principal(db, o, "owner"), partial: { privateEndpointAllowlist: [] } });
     expect(h.published).toEqual([["10.0.0.5:11434"], ["10.0.0.5:11434"], []]);
   });
 
@@ -181,7 +181,7 @@ describe("updateAppSettings — the owner-box governance split (F12: the private
     const h = makeHarness(db);
     const o = await seedUser(db, { id: "user_owner", role: "owner" });
     const resolved = await h.svc.updateAppSettings({
-      principal: principal(o, "owner"),
+      principal: await principal(db, o, "owner"),
       partial: { corpusAutoindex: false },
     });
     expect(resolved.corpusAutoindex).toBe(false);

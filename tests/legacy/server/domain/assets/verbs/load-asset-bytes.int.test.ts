@@ -24,7 +24,7 @@ describe("loadAssetBytes", () => {
     const bytes = pngBytes(11, 22, 33, 44);
 
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes,
       kind: "avatar",
       mime: PNG,

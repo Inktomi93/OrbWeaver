@@ -34,7 +34,7 @@ const SMALL_CHUNKS = { chunk: { chunkSize: 200, overlapPercent: 0, wholeFileThre
 async function seedDoc(db: Db, ownerHandle: string): Promise<{ h: DatabankHarness; documentId: DocumentId; owner: UserId }> {
   const h = makeDatabankHarness(db, { settings: SMALL_CHUNKS });
   const owner = await seedUser(db, { handle: castId<Handle>(ownerHandle) });
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "scrolls.md", text: CANON });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "scrolls.md", text: CANON });
   return { h, documentId: document.id, owner };
 }
 
@@ -64,7 +64,7 @@ test("ingestDocument announces ONCE at its terminal, to the document's owner, wi
 test("an ingest of a VANISHED document announces nothing — the audience is owners actually touched", async () => {
   const db = await freshDb();
   const { h, documentId, owner } = await seedDoc(db, "owner");
-  await h.service.remove({ principal: principalFor(owner), id: documentId });
+  await h.service.remove({ principal: await principalFor(db, owner), id: documentId });
   h.userEvents.length = 0;
 
   // The delete-between-enqueue-and-dispatch path: `loadDocument` misses, so no owner enters the audience.
@@ -77,8 +77,8 @@ test("a BULK reindex (ownerId null) fans PER OWNER — one each, never one for t
   const h = makeDatabankHarness(db, { settings: SMALL_CHUNKS });
   const alpha = await seedUser(db, { handle: castId<Handle>("alpha") });
   const beta = await seedUser(db, { handle: castId<Handle>("beta") });
-  await h.service.createFromText({ principal: principalFor(alpha), name: "a.md", text: CANON });
-  await h.service.createFromText({ principal: principalFor(beta), name: "b.md", text: `${CANON} and one more line for beta.` });
+  await h.service.createFromText({ principal: await principalFor(db, alpha), name: "a.md", text: CANON });
+  await h.service.createFromText({ principal: await principalFor(db, beta), name: "b.md", text: `${CANON} and one more line for beta.` });
   h.userEvents.length = 0;
 
   await h.ingest.reindex({ ownerId: null, scope: { kind: "owner" }, mode: "chunk-embed", signal: new AbortController().signal });
@@ -208,7 +208,7 @@ test("mode:'re-extract' refreshes canon + version for a document stamped by an O
   const h = makeDatabankHarness(db, { settings: SMALL_CHUNKS, extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const bytes = new TextEncoder().encode("# Doc\r\n\r\nReal canon body.");
-  const { document } = await h.service.upload({ principal: principalFor(owner), bytes, mime: "text/markdown", name: "d.md" });
+  const { document } = await h.service.upload({ principal: await principalFor(db, owner), bytes, mime: "text/markdown", name: "d.md" });
 
   // Simulate a row left by an OLDER extractor version (the passthrough era): stale version + stale text.
   await db.update(documents).set({ extractorVersion: "textlike-0", extractedText: "STALE" }).where(eq(documents.id, document.id));
@@ -231,7 +231,7 @@ test("mode:'re-extract' SKIPS a document already at the current extractor versio
   const h = makeDatabankHarness(db, { settings: SMALL_CHUNKS, extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const bytes = new TextEncoder().encode("# Doc\r\n\r\nReal canon body.");
-  const { document } = await h.service.upload({ principal: principalFor(owner), bytes, mime: "text/markdown", name: "d.md" });
+  const { document } = await h.service.upload({ principal: await principalFor(db, owner), bytes, mime: "text/markdown", name: "d.md" });
 
   // The row is ALREADY at the current version ("1"). Plant a sentinel canon: if the version guard were
   // deleted, re-extract would run over the stored bytes and overwrite this with the real markdown — the
@@ -256,7 +256,7 @@ test("mode:'re-extract' SKIPS a text-origin doc (sourceAssetId NULL) even with a
   const h = makeDatabankHarness(db, { settings: SMALL_CHUNKS, extractor: { op: createExtractText(), version: EXTRACTOR_VERSION } });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   // A pasted-text doc: origin 'text', sourceAssetId NULL — there are no bytes to re-extract from.
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "pasted.md", text: "Pasted body." });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "pasted.md", text: "Pasted body." });
 
   // Force a STALE version stamp (≠ current "1"): the version clause ALONE would select this doc — only the
   // null-sourceAssetId guard keeps it skipped.

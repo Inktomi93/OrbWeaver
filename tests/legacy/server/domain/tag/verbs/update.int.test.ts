@@ -18,7 +18,7 @@ describe("updateTag", () => {
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
 
     const updated = await svc.updateTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       patch: { color: "#abc", folderType: "CLOSED" },
     });
@@ -30,10 +30,10 @@ describe("updateTag", () => {
     const owner = await seedUser(db);
     const svc = createTagService(makeTagHarness(db).ctx);
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
-    await svc.updateTag({ principal: principal(owner), tagId, patch: { color: "#abc" } });
+    await svc.updateTag({ principal: await principal(db, owner), tagId, patch: { color: "#abc" } });
 
     const cleared = await svc.updateTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       patch: { color: null },
     });
@@ -47,7 +47,7 @@ describe("updateTag", () => {
     await seedTag(db, owner, { id: "tag_a", name: "alpha" });
     const beta = await seedTag(db, owner, { id: "tag_b", name: "beta" });
 
-    await expect(svc.updateTag({ principal: principal(owner), tagId: beta, patch: { name: "alpha" } })).rejects.toThrow(DomainConflictError);
+    await expect(svc.updateTag({ principal: await principal(db, owner), tagId: beta, patch: { name: "alpha" } })).rejects.toThrow(DomainConflictError);
   });
 
   test("a rename normalizes (trim + whitespace-collapse); whitespace-only is refused, no empty-name row", async () => {
@@ -57,17 +57,17 @@ describe("updateTag", () => {
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
 
     const renamed = await svc.updateTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       patch: { name: "  neo   noir  " },
     });
     expect(renamed.name).toBe("neo noir");
 
     // Whitespace-only passes the wire min(1) but normalizes to "" — refused, the row keeps its name.
-    const err = await svc.updateTag({ principal: principal(owner), tagId, patch: { name: "   " } }).catch((e: unknown) => e);
+    const err = await svc.updateTag({ principal: await principal(db, owner), tagId, patch: { name: "   " } }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainOperationError);
     expect((err as DomainOperationError).code).toBe("tag_name_empty");
-    expect((await svc.listTags({ principal: principal(owner) })).find((t) => t.id === tagId)?.name).toBe("neo noir");
+    expect((await svc.listTags({ principal: await principal(db, owner) })).find((t) => t.id === tagId)?.name).toBe("neo noir");
   });
 
   test("updating a missing tag is not-found", async () => {
@@ -76,7 +76,7 @@ describe("updateTag", () => {
     const svc = createTagService(makeTagHarness(db).ctx);
     await expect(
       svc.updateTag({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         tagId: castId<TagId>("tag_ghost"),
         patch: { name: "x" },
       }),

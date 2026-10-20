@@ -13,15 +13,21 @@ test("the owner's delete lands; foreign and absent ids collapse to NOT_FOUND", a
   const owner = await seedUser(db, { id: "user_dsch_a" });
   const other = await seedUser(db, { id: "user_dsch_b" });
   const h = makeRefineryHarness(db);
-  const created = await h.svc.createSchema({ principal: principal(owner), name: "vibe_scorer", description: "", stage: "score", schema: validScoreSchema() });
+  const created = await h.svc.createSchema({
+    principal: await principal(db, owner),
+    name: "vibe_scorer",
+    description: "",
+    stage: "score",
+    schema: validScoreSchema(),
+  });
 
-  await expect(h.svc.deleteSchema({ principal: principal(other), schemaId: created.id })).rejects.toThrow(DomainNotFoundError);
-  await expect(h.svc.deleteSchema({ principal: principal(owner), schemaId: castId<RefinerySchemaId>("refinery_schema_gone") })).rejects.toThrow(
+  await expect(h.svc.deleteSchema({ principal: await principal(db, other), schemaId: created.id })).rejects.toThrow(DomainNotFoundError);
+  await expect(h.svc.deleteSchema({ principal: await principal(db, owner), schemaId: castId<RefinerySchemaId>("refinery_schema_gone") })).rejects.toThrow(
     DomainNotFoundError,
   );
 
-  await h.svc.deleteSchema({ principal: principal(owner), schemaId: created.id });
-  expect(await h.svc.listSchemas({ principal: principal(owner) })).toHaveLength(0);
+  await h.svc.deleteSchema({ principal: await principal(db, owner), schemaId: created.id });
+  expect(await h.svc.listSchemas({ principal: await principal(db, owner) })).toHaveLength(0);
   // Create + delete announced; the foreign and absent refusals did not (both threw before any write).
   expect(h.userEvents).toEqual([
     { userId: owner, event: { type: "refineryChanged" } },

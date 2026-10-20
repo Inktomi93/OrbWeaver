@@ -7,7 +7,6 @@ import { beforeEach, vi } from "vitest";
 import { declaredByPackage, resolveTypeMemberOrigin } from "../../../../tooling/src/floor/code-facts/type-member-origin.ts";
 import { createSemanticWorkspace } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
-import { gate as egress } from "../../../../tooling/src/verify/gates/no-raw-egress.ts";
 import { gate as history } from "../../../../tooling/src/verify/gates/no-raw-history-writes.ts";
 import { gate as persistence } from "../../../../tooling/src/verify/gates/persistence-boundary.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -26,12 +25,11 @@ beforeEach(async () => {
   };
 });
 
-const POLICIES = [egress, history, persistence];
+const POLICIES = [history, persistence];
 const NODE = "packages/server/src/domain/x/verbs/realm.ts";
 const BROWSER = "packages/client/src/features/x/surfaces/realm.tsx";
 const AMBIENT = "packages/client/src/features/x/surfaces/ambient.tsx";
 const LOCAL = "packages/client/src/features/x/surfaces/local.tsx";
-const FETCH = "packages/server/src/domain/x/verbs/fetch.ts";
 
 function fixture(root: string, repoRoot: string): void {
   const write = (path: string, text: string): void => {
@@ -41,7 +39,7 @@ function fixture(root: string, repoRoot: string): void {
   symlinkSync(join(repoRoot, "node_modules"), join(root, "node_modules"), "dir");
   write(".gitignore", "node_modules\n.cache\nreports\n");
   const options = { target: "ES2022", module: "ESNext", moduleResolution: "Bundler", strict: true, skipLibCheck: true, types: [] };
-  write("tsconfig.json", JSON.stringify({ compilerOptions: { ...options, lib: ["ES2022"] }, files: [NODE, FETCH, "node-door.ts"] }));
+  write("tsconfig.json", JSON.stringify({ compilerOptions: { ...options, lib: ["ES2022"] }, files: [NODE, "node-door.ts"] }));
   write(
     "tsconfig.tests-dom.json",
     JSON.stringify({
@@ -63,10 +61,6 @@ function fixture(root: string, repoRoot: string): void {
   write(
     LOCAL,
     "const cache={setQueryData():void{}}; const history={replaceState():void{}}; const globals={localStorage:{getItem():void{}}}; export function run():void{cache.setQueryData(); history.replaceState(); globals.localStorage.getItem();}\n",
-  );
-  write(
-    FETCH,
-    'const globals=globalThis as {fetch:(url:string)=>Promise<unknown>}; export async function run():Promise<unknown>{return await globals.fetch("https://example.invalid");}\n',
   );
   for (const { id } of POLICIES) {
     write(
@@ -129,8 +123,8 @@ test(
     using _poison = poisonSyntax(context.project);
     try {
       expect([
-        await nativeVerifyFixture(scratch, "structure", [`--check=${egress.id}`], { forbidSyntax: true }),
-        await nativeVerifyFixture(scratch, "scoped", ["--scope", [NODE, BROWSER, AMBIENT, LOCAL, FETCH].join(",")], { forbidSyntax: true }),
+        await nativeVerifyFixture(scratch, "structure", [`--check=${history.id}`], { forbidSyntax: true }),
+        await nativeVerifyFixture(scratch, "scoped", ["--scope", [NODE, BROWSER, AMBIENT, LOCAL].join(",")], { forbidSyntax: true }),
       ]).toEqual([1, 1]);
       const result = runPolicyPass({
         root: scratch,
@@ -151,7 +145,6 @@ test(
         })),
       ).toEqual(
         [
-          { id: egress.id, sites: [{ file: FETCH, token: "fetch", operation: "raw-fetch" }] },
           { id: history.id, sites: [{ file: AMBIENT, token: "replaceState", operation: null }] },
           { id: persistence.id, sites: [{ file: AMBIENT, token: "localStorage", operation: "raw-storage:localStorage" }] },
         ].toSorted((left, right) => left.id.localeCompare(right.id)),

@@ -7,8 +7,8 @@
 // whole-db reads (`@owner-scope-ok`, D20) — they take ids from QUERY PARAMS, never from auth — so whatever
 // this middleware admits reads the whole deployment. Two credentials pass and nothing else: an OWNER
 // SESSION (`AdminAuthChecker`) or the `x-debug-token` operator secret. An un-credentialed caller must never
-// pass in any AUTH_MODE, with or without a configured token; that invariant's enforcer is
-// `tests/legacy/server/entry/debug-gate.suite.test.ts` (AUTHFIX-2 — it did not hold until 2026-08-07).
+// pass in any AUTH_MODE, with or without a configured token; that invariant's enforcers are
+// `tests/server/entry/debug-gate-admission.int.test.ts` and the e2e specs over `tests/e2e/support/debug-gate.ts`.
 //
 // A DELEGATED `admin` IS NOT ADMITTED (2026-09-20, D17): this is BOX-OPERATOR scope. The session arm's
 // verdict (`entry/auth/seam.ts::debugGateAdmits`) asks `can(p,'owner',global)`, one rung narrower than every

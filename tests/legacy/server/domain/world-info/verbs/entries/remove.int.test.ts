@@ -15,16 +15,16 @@ describe("removeEntry", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     const entry = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "E", content: "c" },
     });
 
-    const res = await svc.removeEntry({ principal: principal(owner), entryId: entry.id });
+    const res = await svc.removeEntry({ principal: await principal(db, owner), entryId: entry.id });
     expect(res.deleted).toBe(true);
-    await expect(svc.getEntry({ principal: principal(owner), entryId: entry.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.getEntry({ principal: await principal(db, owner), entryId: entry.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 
   test("a foreign entry id is NotFound — no cross-tenant delete", async () => {
@@ -32,15 +32,15 @@ describe("removeEntry", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirBook = await svc.createBook({ principal: principal(other), input: { name: "T" } });
+    const theirBook = await svc.createBook({ principal: await principal(db, other), input: { name: "T" } });
     const theirEntry = await svc.createEntry({
-      principal: principal(other),
+      principal: await principal(db, other),
       bookId: theirBook.id,
       input: { title: "E", content: "c" },
     });
 
-    await expect(svc.removeEntry({ principal: principal(owner), entryId: theirEntry.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
-    const still = await svc.getEntry({ principal: principal(other), entryId: theirEntry.id });
+    await expect(svc.removeEntry({ principal: await principal(db, owner), entryId: theirEntry.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    const still = await svc.getEntry({ principal: await principal(db, other), entryId: theirEntry.id });
     expect(still.id).toBe(theirEntry.id);
   });
 });

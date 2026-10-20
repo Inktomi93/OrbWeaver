@@ -70,7 +70,7 @@ describe("bus golden — the turn lifecycle (send/swipe/continue) exact sequence
     const before = chat.events.length;
 
     await chat.turn.swipe({
-      principal: chat.principal(),
+      principal: await chat.principal(),
       chatId: chat.chatId,
       messageId: assistantId,
     });
@@ -143,7 +143,7 @@ describe("bus golden — the turn lifecycle (send/swipe/continue) exact sequence
     const before = chat.events.length;
 
     await chat.turn.continueTurn({
-      principal: chat.principal(),
+      principal: await chat.principal(),
       chatId: chat.chatId,
       messageId: assistantId,
     });
@@ -175,7 +175,7 @@ describe("bus golden — the canon-edit verbs (edit/delete/move) exact sequences
     });
 
     await edit.editMessage({
-      principal: chat.principal(),
+      principal: await chat.principal(),
       chatId: chat.chatId,
       messageId: userId,
       content: "hello (edited)",
@@ -207,7 +207,7 @@ describe("bus golden — the canon-edit verbs (edit/delete/move) exact sequences
     });
 
     await edit.deleteMessages({
-      principal: chat.principal(),
+      principal: await chat.principal(),
       chatId: chat.chatId,
       messageIds: [userId],
     });
@@ -238,7 +238,7 @@ describe("bus golden — the canon-edit verbs (edit/delete/move) exact sequences
 
     // Move the first user turn (seq 1) down past the following assistant + user rows.
     await edit.moveMessage({
-      principal: chat.principal(),
+      principal: await chat.principal(),
       chatId: chat.chatId,
       messageId: firstUser.id,
       toSeq: firstUser.seq + 2,
@@ -262,7 +262,7 @@ describe("bus golden — fork emits the create pair", () => {
       loadParticipantViews: () => Promise.resolve([]),
     });
 
-    const result = await fork.forkChat({ principal: chat.principal(), chatId: chat.chatId });
+    const result = await fork.forkChat({ principal: await chat.principal(), chatId: chat.chatId });
 
     // The fork's first emission announces the new room to its members (chatCreated on the NEW chatId).
     expect(busEvents[0]).toMatchObject({ type: "chatCreated", chatId: result.chat.id });

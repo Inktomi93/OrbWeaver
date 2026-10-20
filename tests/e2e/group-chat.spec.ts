@@ -42,7 +42,7 @@ import {
   openMemberRowMenu,
 } from "./support/chat-room.ts";
 import { WAIT_ROUND_TRIP_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
-import type { RosterSeat } from "./support/trpc.ts";
+import type { TrpcClientOutput } from "./support/trpc.ts";
 import {
   addCharacterToChat,
   characterSeats,
@@ -53,6 +53,8 @@ import {
   removeCharacter,
   startGroupChat,
 } from "./support/trpc.ts";
+
+type RosterSeat = TrpcClientOutput<"chat.getChat">["participants"][number];
 
 /** A spec-owned character pair: unique handles (idempotent re-mint across crashed runs) + unique DISPLAY names, so a
  *  `getByRole(..., { name })` locator can never collide with a seeded library card. */

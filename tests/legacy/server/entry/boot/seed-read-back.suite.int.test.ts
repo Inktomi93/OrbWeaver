@@ -2,7 +2,7 @@
 // through its current `@orb/contracts` schema, every seeded blob must survive its read seam's schema, and every
 // seeded table is either read back row for row or named in `NOT_READ_BACK`.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import "@orb/testkit/node/composed-real.ts";
 import { join } from "node:path";
 import process from "node:process";
@@ -20,7 +20,6 @@ import {
   userMacroDrawsSchema,
   variableDeltaSchema,
 } from "@orb/contracts/chat";
-import type { Principal } from "@orb/contracts/identity";
 import { normalizedFinishReasonSchema } from "@orb/contracts/inference";
 import { NOTIFICATION_TYPES, notificationEventSchema } from "@orb/contracts/notifications";
 import { createPersonaSchema, personaMetadataSchema } from "@orb/contracts/persona";
@@ -59,8 +58,7 @@ import { tagFolderTypeSchema, tagSourceSchema } from "@orb/contracts/tag";
 import { themeBackgroundSchema, themeOverrideSchema, themeSchema } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { isPlainObject } from "@orb/kit/guards";
-import type { CharacterHandle, Handle } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { CharacterHandle } from "@orb/kit/ids";
 import { seedDefaultBackgrounds, seedDefaultPreset, seedExamplePlugins, seedThemes, seedUserContent } from "@orb/server/entry/boot";
 import { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import type { AppCaller } from "@orb/testkit/node/fixtures.ts";
@@ -333,6 +331,7 @@ const messagePlan = view<MessageOut>({
   selectedVariantIdx: TYPED_ONLY,
   variantCount: TYPED_ONLY,
   hasContinuation: TYPED_ONLY,
+  hasGeneratedVariant: TYPED_ONLY,
   outputCapReached: TYPED_ONLY,
   content: TYPED_ONLY,
   reasoning: TYPED_ONLY,
@@ -579,8 +578,6 @@ async function storedDrift(db: Db): Promise<string[]> {
 
 // ── The seed and the read-back ─────────────────────────────────────────────────────────────────────────────
 
-const OWNER: Principal = { userId: OWNER_USER_ID, role: "owner", handle: castId<Handle>("fixture-owner"), externalId: null, via: "header" };
-
 /** The one page every list read is asked for; a full page means the census below would be reading a window. */
 const PAGE = 100;
 
@@ -672,12 +669,13 @@ test("every seeded row reads back through its read procedure, faithful to its cu
   clock,
   ownerCaller,
 }) => {
-  // The boot seed, in `entry/lifecycle.ts` order, for the deployment owner.
+  // The boot seed, in `entry/lifecycle.ts` order, for the deployment owner (resolved from the fixture's owner row).
+  const Owner = await makePrincipal({ db }, OWNER_USER_ID);
   await seedDefaultPreset({ db, now: clock.now });
   await seedThemes({ db, now: clock.now });
-  await seedDefaultBackgrounds({ seeder: app.backgroundSeeder, owner: OWNER });
-  await seedUserContent({ seeder: app.contentSeeder, owner: OWNER });
-  await seedExamplePlugins({ seeder: app.examplePluginSeeder, owner: OWNER });
+  await seedDefaultBackgrounds({ seeder: app.backgroundSeeder, owner: Owner });
+  await seedUserContent({ seeder: app.contentSeeder, owner: Owner });
+  await seedExamplePlugins({ seeder: app.examplePluginSeeder, owner: Owner });
 
   const drift: string[] = [];
   const check = (value: unknown, plan: Plan, path: string): void => {

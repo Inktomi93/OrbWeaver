@@ -416,8 +416,9 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
    * Behind the gate sit principal-blind whole-db reads whose `@owner-scope-ok` exemption
    * (`foundation/observability/debug/inspect/config.ts`) rests entirely on this verdict.
    *
-   * The enforcer is `tests/legacy/server/entry/debug-gate.suite.test.ts` — every AUTH_MODE × peer × posture × token
-   * state, asserted through the REAL registrar. Do not weaken this without turning that suite red first.
+   * The enforcers are `tests/server/entry/debug-gate-admission.int.test.ts` (every AUTH_MODE × Host × peer × posture,
+   * through the composed root) and the e2e debug-gate specs over `tests/e2e/support/debug-gate.ts` (each mode's
+   * token states on a booted stack). Do not weaken this without turning those red first.
    *
    * TOTAL — no throw, no await, no I/O: a record lookup plus the kernel's own caught verdict. The gate's
    * `try`/`catch` (`routes.ts`) stays as the port's belt, not because this function has a failure mode.

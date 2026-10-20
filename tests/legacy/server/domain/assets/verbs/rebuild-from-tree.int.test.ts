@@ -46,7 +46,7 @@ describe("rebuildFromTree", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(4, 5),
       kind: "avatar",
       mime: PNG,

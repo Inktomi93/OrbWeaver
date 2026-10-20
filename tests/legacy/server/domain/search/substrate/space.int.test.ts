@@ -28,7 +28,6 @@ import type { Db } from "@orb/db";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import type { FakeRoleClientControls } from "@orb/testkit/node/factories/role-clients.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -41,16 +40,17 @@ import { markGenerationComplete } from "#server/domain/embeddings/persistence/sp
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING } from "#server/domain/search/contract/errors.ts";
 import { withActiveQuerySpace } from "#server/domain/search/substrate/space.ts";
+import { principal } from "../../../../db/schema/_support.ts";
 import { makeResolvedSecret } from "../../../../inference/_support.ts";
 import { seedUser, vectorConnectionOf } from "../../embeddings/_support.ts";
 
 const NOW = 1_700_000_000_000;
 
 /** Compose's own resolve over the scripted encoders: the owner's bound row, snapshotted as production snapshots it. */
-function connectionOf(clients: RoleClients, ownerId: UserId, task: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
+function connectionOf(db: Db, clients: RoleClients, ownerId: UserId, task: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
   return createResolveEmbeddingConnection(
     makeEmbeddingRuntime(clients, () => Promise.resolve(makeResolvedSecret()), vectorConnectionOf),
-    (userId) => Promise.resolve(principal(userId)),
+    (userId) => principal({ db }, userId),
   )(ownerId, task);
 }
 
@@ -76,7 +76,7 @@ async function drive(controls: FakeRoleClientControls = {}): Promise<{
     ctx: {
       db,
       roleClientsFor: (): Promise<RoleClients> => Promise.resolve(clients),
-      resolveEmbeddingConnection: (owner, task) => connectionOf(clients, owner, task),
+      resolveEmbeddingConnection: (owner, task) => connectionOf(db, clients, owner, task),
     },
   };
 }
@@ -86,7 +86,7 @@ async function target(db: Db, ownerId: UserId, clients: RoleClients, task: Embed
     {
       db,
       now: () => NOW,
-      resolveEmbeddingConnection: (owner, resolvedTask) => connectionOf(clients, owner, resolvedTask),
+      resolveEmbeddingConnection: (owner, resolvedTask) => connectionOf(db, clients, owner, resolvedTask),
       withStableEmbeddingBinding: (_ownerId, read) => read(),
       onTargetGenerationMoved: () => undefined,
     },
@@ -212,7 +212,7 @@ test.each([
   { providerId: "openai", model: "text-embedding-3-small", legacy: LEGACY_TEXT_CAPABILITY },
 ])("$providerId pre-change generation remains queryable without rebuilding", async ({ providerId, model, legacy }) => {
   const { db, ownerId, clients } = await drive();
-  const base = await connectionOf(clients, ownerId, "embed");
+  const base = await connectionOf(db, clients, ownerId, "embed");
   if (base === null) {
     throw new Error("the fixture embedding connection must resolve");
   }

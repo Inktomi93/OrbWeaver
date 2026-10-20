@@ -6,13 +6,13 @@ import { chatGenerationObservations, connectionBindings, messages, messageVarian
 import { GenerationObservationPersistenceError } from "@orb/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import type { Fixtures } from "@orb/testkit/node/fixtures.ts";
 import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
 import { eq, sql } from "drizzle-orm";
 import { reconcileStats } from "#server/domain/stats/index.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import type { RecordedRequest } from "../../../inference/backends/_hosted-support.ts";
 import { openAiTextStream, scriptedSseFetch } from "../../../inference/backends/_hosted-support.ts";
 import { seedCharacter } from "../../domain/chat/_support.ts";
@@ -43,7 +43,7 @@ async function runSmart(
   { app, db, services, requests, clock }: Pick<Fixtures, "app" | "db" | "services" | "clock"> & { readonly requests: RecordedRequest[] },
 ): Promise<SmartExecution> {
   const owner = await seedUser(db, { handle: castId("smart_accounting") });
-  const who = principal(owner.id, { handle: owner.handle });
+  const who = await principal({ db }, owner.id, { handle: owner.handle });
   await services.settings.updateUserSettingsSection({ principal: who, input: { section: "memory", patch: { enabled: false } } });
   const connectionId = mintTypeId(ID_PREFIX.userConnection);
   await db.insert(userConnections).values({

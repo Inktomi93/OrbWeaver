@@ -18,20 +18,20 @@ describe("snapshot", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     h.events.length = 0;
     h.userEvents.length = 0;
 
     const ref = await svc.snapshot({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       label: "v1",
     });
 
     expect(ref.characterId).toBe(created.id);
-    const snaps = await svc.listSnapshots({ principal: principal(owner), characterId: created.id });
+    const snaps = await svc.listSnapshots({ principal: await principal(db, owner), characterId: created.id });
     expect(snaps.map((s) => s.id)).toEqual([ref.id]);
     expect(snaps[0]?.label).toBe("v1");
     // No `character.updated` domain event (card unchanged) — but the user-bus freshness emit DID fire.
@@ -45,9 +45,9 @@ describe("snapshot", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
-    await expect(svc.snapshot({ principal: principal(other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.snapshot({ principal: await principal(db, other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });
 });

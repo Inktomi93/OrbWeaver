@@ -2,6 +2,7 @@
 
 // The shipped UI action and lookup guest cross the real installer-variable, room-attachment and lore
 // persistence boundaries. Only the external DNS/HTTP edges are scripted; no provider/model is called.
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import "@orb/testkit/node/composed-real.ts";
 import { join } from "node:path";
 import vm from "node:vm";
@@ -48,9 +49,9 @@ test("the real Research picker persists its installer choice; only a genuinely a
   clock,
 }) => {
   const user = await seedUser(db);
-  const caller: Principal = { userId: user.id, handle: user.handle, role: user.role, externalId: user.externalId, via: "header" };
+  const caller: Principal = await makePrincipal({ db }, user.id);
   const otherUser = await seedUser(db);
-  const other: Principal = { userId: otherUser.id, handle: otherUser.handle, role: otherUser.role, externalId: otherUser.externalId, via: "header" };
+  const other: Principal = await makePrincipal({ db }, otherUser.id);
   const connectionId = mintTypeId(ID_PREFIX.userConnection);
   await db.insert(userConnections).values({
     id: connectionId,
@@ -92,7 +93,9 @@ test("the real Research picker persists its installer choice; only a genuinely a
   ];
   const installed = await services.plugin.install({ caller, bundle: built.bundle, grant });
   await services.plugin.setEnabled({ caller, pluginId: installed.id, enabled: true });
-  const watcher = startAutomationWatcher(createAutomationWatcherEnv({ automation: app.automation, eventBus: app.eventBus }));
+  const watcher = startAutomationWatcher(
+    createAutomationWatcherEnv({ automation: app.automation, eventBus: app.eventBus, chatEvents: app.liveBuses.chat, supervise: app.supervise }),
+  );
   try {
     expect(await services.plugin.invokeUiAction({ caller, pluginId: installed.id, surfaceId: "familiar_settings", actionId: "configure", values: {} })).toEqual(
       { toasts: [], openDialog: "familiar_configuration" },

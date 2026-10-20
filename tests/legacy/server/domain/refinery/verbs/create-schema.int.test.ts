@@ -22,7 +22,7 @@ test("create runs the whole belt and returns the library row at version 1", asyn
   const owner = await seedUser(db, { id: "user_csch_a" });
   const h = makeRefineryHarness(db);
   const created = await h.svc.createSchema({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     name: "vibe_scorer",
     description: "rate the vibe 1-10",
     stage: "score",
@@ -40,7 +40,7 @@ test("the belt refuses: out-of-subset, pattern, over-depth, malformed hint, miss
   const db = await freshDb();
   const owner = await seedUser(db, { id: "user_csch_b" });
   const h = makeRefineryHarness(db);
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const create = (schema: Record<string, unknown>, stage: RefinerySchemaStage = "score"): ReturnType<typeof h.svc.createSchema> =>
     h.svc.createSchema({ principal: p, name: "x", description: "", stage, schema });
 
@@ -82,12 +82,12 @@ test("S5 hygiene: per-owner name uniqueness is CASE-INSENSITIVE; another owner m
   const owner = await seedUser(db, { id: "user_csch_c" });
   const other = await seedUser(db, { id: "user_csch_d" });
   const h = makeRefineryHarness(db);
-  await h.svc.createSchema({ principal: principal(owner), name: "MyScorer", description: "", stage: "score", schema: validScoreSchema() });
+  await h.svc.createSchema({ principal: await principal(db, owner), name: "MyScorer", description: "", stage: "score", schema: validScoreSchema() });
   await expect(
-    h.svc.createSchema({ principal: principal(owner), name: "myscorer", description: "", stage: "score", schema: validScoreSchema() }),
+    h.svc.createSchema({ principal: await principal(db, owner), name: "myscorer", description: "", stage: "score", schema: validScoreSchema() }),
   ).rejects.toThrow(NAME_TAKEN_REFUSAL);
   await expect(
-    h.svc.createSchema({ principal: principal(other), name: "myscorer", description: "", stage: "score", schema: validScoreSchema() }),
+    h.svc.createSchema({ principal: await principal(db, other), name: "myscorer", description: "", stage: "score", schema: validScoreSchema() }),
   ).resolves.toBeDefined();
 });
 
@@ -97,8 +97,8 @@ test("two held creates of one folded name admit one row and type the loser", asy
   const h = makeRefineryHarness(db);
   const inserts = hold(REFINERY_SCHEMA_INSERT, 2);
   const creates = [
-    h.svc.createSchema({ principal: principal(owner), name: "RaceSchema", description: "a", stage: "score", schema: validScoreSchema() }),
-    h.svc.createSchema({ principal: principal(owner), name: "raceschema", description: "b", stage: "score", schema: validScoreSchema() }),
+    h.svc.createSchema({ principal: await principal(db, owner), name: "RaceSchema", description: "a", stage: "score", schema: validScoreSchema() }),
+    h.svc.createSchema({ principal: await principal(db, owner), name: "raceschema", description: "b", stage: "score", schema: validScoreSchema() }),
   ];
 
   await inserts.reached;
@@ -112,5 +112,5 @@ test("two held creates of one folded name admit one row and type the loser", asy
     throw new Error("expected the concurrent schema-name loser to be typed");
   }
   expect(rejected.reason.code).toBe("refinery_schema_name_taken");
-  expect(await h.svc.listSchemas({ principal: principal(owner) })).toHaveLength(1);
+  expect(await h.svc.listSchemas({ principal: await principal(db, owner) })).toHaveLength(1);
 });

@@ -16,22 +16,18 @@ import type { PortabilityRegistry, PortableEntity, PortableFile, PortableKind } 
 import type { WorkloadRef } from "@orb/contracts/workloads";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, beforeEach, describe, vi } from "vitest";
 import type { ImportTreeDeps } from "#server/entry/http/index.ts";
 import { registerImportTree } from "#server/entry/http/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 const TREE_ROUTE = "POST /api/import/tree";
 const REVIEW_ROUTE = "POST /api/import/tree/review";
 
-const OWNER: Principal = {
-  userId: castId<UserId>("usr_owner"),
-  role: "owner",
-  handle: castId<Handle>("owner"),
-  externalId: null,
-  via: "fallback",
-};
-const COOKIE_OWNER: Principal = { ...OWNER, via: "cookie" };
+// The subject reads no user rows of its own; the caller resolves from its row in one in-memory database.
+const OWNER: Principal = await makePrincipal({ db: await freshDb() }, castId<UserId>("usr_owner"), { role: "owner", handle: castId<Handle>("owner") });
 
 /** An empty export stream — the route never calls exportAll, so a done-on-first-next iterator suffices. */
 const EMPTY_EXPORT: AsyncIterable<PortableFile> = {
@@ -193,12 +189,6 @@ describe("registerImportTree — belt chain + guard", () => {
     expect(nexted).toBe(false);
   });
 
-  test("cookie session WITHOUT the CSRF header → 403", async () => {
-    const guard = chain()[0] as unknown as GuardMw;
-    const res = await guard(guardCtx(COOKIE_OWNER), () => Promise.resolve());
-    expect(res instanceof Response ? res.status : null).toBe(403);
-  });
-
   // #300 — the loopback owner FALLBACK arm is ambient-credential too; this CORS-simple multipart route must
   // require the CSRF header for it (OWNER is via:"fallback"), else a loopback web origin drives an owner import.
   test("fallback session WITHOUT the CSRF header → 403 (#300)", async () => {
@@ -228,12 +218,6 @@ describe("registerImportTree — the review route's guard chain", () => {
     });
     expect(res instanceof Response ? res.status : null).toBe(401);
     expect(nexted).toBe(false);
-  });
-
-  test("cookie session WITHOUT the CSRF header → 403", async () => {
-    const guard = chain(REVIEW_ROUTE)[0] as unknown as GuardMw;
-    const res = await guard(guardCtx(COOKIE_OWNER), () => Promise.resolve());
-    expect(res instanceof Response ? res.status : null).toBe(403);
   });
 
   test("fallback session WITHOUT the CSRF header → 403", async () => {

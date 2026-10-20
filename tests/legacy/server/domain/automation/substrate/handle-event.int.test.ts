@@ -14,6 +14,7 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AutomationRuleId, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { createSerialLanes } from "@orb/kit/serial-lanes";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -27,9 +28,12 @@ import { createAutomationService, createEnabledRuleIndex } from "#server/domain/
 import { listFiresForRule } from "#server/domain/automation/persistence/fires.ts";
 import { createSuggestionStore } from "#server/domain/automation/substrate/suggestions.ts";
 import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
-import { makeChatContext, seedAsset, seedCharacter, seedMessage } from "../../chat/_support.ts";
+import { chatAssembly, makeChatContext, seedAsset, seedCharacter, seedMessage } from "../../chat/_support.ts";
 import type { HarnessOverrides } from "../_support.ts";
 import { makeAutomationHarness, NO_TOOLS, principal, readFailingDb, realAutomationOps, seedHostChat, seedUser } from "../_support.ts";
+
+// One lane set per suite, the way the automation service owns one for its dispatcher and arms.
+const SERIAL_LANES = createSerialLanes();
 
 const CHAT_OPENED: AutomationTrigger = { bus: "chat", type: "chatOpened" };
 const TURN_COMPLETED: AutomationTrigger = { bus: "chat", type: "turnCompleted" };
@@ -94,7 +98,7 @@ interface RuleOpts {
 
 /** Create + enable a rule; returns its id. */
 async function armRule(f: Fixture, opts: RuleOpts): Promise<AutomationRuleId> {
-  const p = principal(f.host);
+  const p = await principal(f.db, f.host);
   const rule = await f.svc.createRule({
     timeZone: opts.timeZone ?? UTC_TIME_ZONE,
     principal: p,
@@ -179,7 +183,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     await f.svc.handleEvent(chatOpened(f.chatId));
 
     expect(f.calls).toEqual(["mood"]);
-    const fires = await f.svc.listFires({ principal: principal(f.host), ruleId });
+    const fires = await f.svc.listFires({ principal: await principal(f.db, f.host), ruleId });
     expect(fires.map((x) => x.outcome)).toEqual(["fired"]);
     expect(f.events).toContainEqual({ type: "ruleFired", chatId: f.chatId, ruleId });
   });
@@ -203,7 +207,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     await f.svc.handleEvent(chatOpened(f.chatId));
 
     expect(f.calls).toEqual(["a", "c"]);
-    const p = principal(f.host);
+    const p = await principal(f.db, f.host);
     expect((await f.svc.listFires({ principal: p, ruleId: ok1 }))[0]?.outcome).toBe("fired");
     expect((await f.svc.listFires({ principal: p, ruleId: boom }))[0]?.outcome).toBe("action_error");
     expect((await f.svc.listFires({ principal: p, ruleId: ok2 }))[0]?.outcome).toBe("fired");
@@ -213,7 +217,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     const f = await setup();
     const rule = await f.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: f.chatId,
       name: "disabled",
       trigger: CHAT_OPENED,
@@ -223,7 +227,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     await f.svc.handleEvent(chatOpened(f.chatId));
 
     expect(f.calls).toEqual([]);
-    expect(await f.svc.listFires({ principal: principal(f.host), ruleId: rule.id })).toEqual([]);
+    expect(await f.svc.listFires({ principal: await principal(f.db, f.host), ruleId: rule.id })).toEqual([]);
   });
 
   test("refuses a rule inside its cooldown window (budget_refused, not an error)", async () => {
@@ -234,7 +238,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     await f.svc.handleEvent(chatOpened(f.chatId)); // same instant — inside the 60s cooldown
 
     expect(f.calls).toEqual(["mood"]); // the arm ran ONCE
-    const outcomes = (await f.svc.listFires({ principal: principal(f.host), ruleId })).map((x) => x.outcome);
+    const outcomes = (await f.svc.listFires({ principal: await principal(f.db, f.host), ruleId })).map((x) => x.outcome);
     expect(outcomes).toContain("fired");
     expect(outcomes).toContain("budget_refused");
   });
@@ -271,7 +275,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
 
     expect(attemptsWhileHeld).toBe(1);
     expect(attempts).toBe(1);
-    const outcomes = (await f.svc.listFires({ principal: principal(f.host), ruleId })).map((row) => row.outcome);
+    const outcomes = (await f.svc.listFires({ principal: await principal(f.db, f.host), ruleId })).map((row) => row.outcome);
     expect(outcomes).toContain("fired");
     expect(outcomes).toContain("budget_refused");
   });
@@ -303,7 +307,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
 
     expect(attemptsWhileHeld).toBe(1);
     expect(attempts).toBe(2);
-    const outcomes = (await f.svc.listFires({ principal: principal(f.host), ruleId })).map((row) => row.outcome);
+    const outcomes = (await f.svc.listFires({ principal: await principal(f.db, f.host), ruleId })).map((row) => row.outcome);
     expect(outcomes).toContain("action_error");
     expect(outcomes).toContain("budget_refused");
     expect(outcomes).toContain("fired");
@@ -321,7 +325,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     await suggested.svc.handleEvent(chatOpened(suggested.chatId));
     await suggested.svc.handleEvent(chatOpened(suggested.chatId));
     expect(suggestedCalls).toBe(2);
-    await expect(suggested.svc.listFires({ principal: principal(suggested.host), ruleId: suggestedRule })).resolves.toEqual([]);
+    await expect(suggested.svc.listFires({ principal: await principal(suggested.db, suggested.host), ruleId: suggestedRule })).resolves.toEqual([]);
 
     let pausedCalls = 0;
     const paused = await setup({
@@ -342,7 +346,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     await paused.svc.handleEvent(chatOpened(paused.chatId));
     await paused.svc.handleEvent(chatOpened(paused.chatId));
     expect(pausedCalls).toBe(2);
-    await expect(paused.svc.listFires({ principal: principal(paused.host), ruleId: pausedRule })).resolves.toEqual([]);
+    await expect(paused.svc.listFires({ principal: await principal(paused.db, paused.host), ruleId: pausedRule })).resolves.toEqual([]);
   });
 
   test("hard-caps the cascade at depth 3 (depth_refused)", async () => {
@@ -352,7 +356,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     await f.svc.handleEvent(turnCompleted(f.chatId));
 
     expect(f.calls).toEqual([]);
-    expect((await f.svc.listFires({ principal: principal(f.host), ruleId }))[0]?.outcome).toBe("depth_refused");
+    expect((await f.svc.listFires({ principal: await principal(f.db, f.host), ruleId }))[0]?.outcome).toBe("depth_refused");
   });
 
   test("silently suppresses an un-opted cascade at depth 1 (no fire row)", async () => {
@@ -362,12 +366,12 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     await f.svc.handleEvent(turnCompleted(f.chatId));
 
     expect(f.calls).toEqual([]);
-    expect(await f.svc.listFires({ principal: principal(f.host), ruleId })).toEqual([]);
+    expect(await f.svc.listFires({ principal: await principal(f.db, f.host), ruleId })).toEqual([]);
   });
 
   test("a transform_draft rule is NOT watcher-dispatched (no arm, no fire row — A7 pipeline-owned)", async () => {
     const f = await setup();
-    const p = principal(f.host);
+    const p = await principal(f.db, f.host);
     // A transform-only rule on turnStarted registers into the prompt pipeline; the watcher must skip it (else
     // its arm records a spurious action_error every turn).
     const rule = await f.svc.createRule({
@@ -395,14 +399,14 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     await fireOpenedN(f, 20);
 
     expect(f.events).toContainEqual({ type: "ruleAutoDisabled", chatId: f.chatId, ruleId });
-    const rules = await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId });
+    const rules = await f.svc.listRules({ principal: await principal(f.db, f.host), chatId: f.chatId });
     expect(rules.find((r) => r.id === ruleId)?.enabled).toBe(false);
   });
 
   test("re-enabling an auto-disabled rule restarts its error budget and keeps the last error visible", async () => {
     const failDispatch: ArmDispatch = () => Promise.resolve({ ok: false as const, kind: "arm_error" as const, detail: "always fails" });
     const f = await setup({ runArm: failDispatch });
-    const p = principal(f.host);
+    const p = await principal(f.db, f.host);
     const ruleId = await armRule(f, { name: "flaky" });
     const autoDisabled = async (): Promise<boolean | undefined> =>
       (await f.svc.listRules({ principal: p, chatId: f.chatId })).find((r) => r.id === ruleId)?.autoDisabled;
@@ -439,7 +443,7 @@ describe("automation handleEvent — the A5 dispatch engine", () => {
     const ruleId = await armRule(f, { name: "flaky" });
     await fireOpenedN(f, 3);
 
-    await f.svc.setRuleEnabled({ principal: principal(f.host), ruleId, enabled: true });
+    await f.svc.setRuleEnabled({ principal: await principal(f.db, f.host), ruleId, enabled: true });
 
     const [row] = await f.db.select().from(automationRules).where(eq(automationRules.id, ruleId));
     expect(row).toMatchObject({ enabled: true, consecutiveErrors: 3 });
@@ -556,6 +560,7 @@ describe("F2 shared-env write-through (order is semantics)", () => {
     };
     return {
       runArm: createArmExecutors({
+        serialLanes: SERIAL_LANES,
         db,
         ops,
         prng: () => 0.42,
@@ -575,7 +580,7 @@ describe("F2 shared-env write-through (order is semantics)", () => {
     const { runArm, ops } = realArmOps(db, captured);
     const ctx = makeAutomationHarness(db, { runArm, ops });
     const svc = createAutomationService(ctx);
-    const p = principal(host);
+    const p = await principal(db, host);
     const rule = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
       principal: p,
@@ -608,7 +613,7 @@ describe("F2 shared-env write-through (order is semantics)", () => {
     const { runArm, ops } = realArmOps(db, captured);
     const ctx = makeAutomationHarness(db, { runArm, ops });
     const svc = createAutomationService(ctx);
-    const p = principal(host);
+    const p = await principal(db, host);
     // Rule A (position 0) sets the flag; Rule B (position 1) fires ONLY if it observes A's write.
     const ruleA = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
@@ -710,7 +715,7 @@ describe("F5 abort-path cascade guard (self-loop closed)", () => {
 
     // Suppressed at the cascade gate — no arm ran, no fire row (a default-suppressed cascade event records nothing).
     expect(f.calls).toEqual([]);
-    expect(await f.svc.listFires({ principal: principal(f.host), ruleId })).toEqual([]);
+    expect(await f.svc.listFires({ principal: await principal(f.db, f.host), ruleId })).toEqual([]);
   });
 
   test("a human-plane aborted turn (depth 0) DOES fire the turnAborted rule (the guard doesn't over-suppress)", async () => {
@@ -720,7 +725,7 @@ describe("F5 abort-path cascade guard (self-loop closed)", () => {
     await f.svc.handleEvent(turnAborted(f.chatId, 0));
 
     expect(f.calls).toEqual(["mood"]);
-    expect((await f.svc.listFires({ principal: principal(f.host), ruleId }))[0]?.outcome).toBe("fired");
+    expect((await f.svc.listFires({ principal: await principal(f.db, f.host), ruleId }))[0]?.outcome).toBe("fired");
   });
 });
 
@@ -756,16 +761,13 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     const asset = await seedAsset(db, host, "gen-art");
     const posts: ChatBusEvent[] = [];
     const chatCtx = makeChatContext(db, { mintSyntheticGroupCharacter: () => Promise.resolve({ characterId: groupChar }) });
-    const postNarratorMessage = createPostNarratorMessage(
-      { ...chatCtx, db: databaseHandle(chatCtx.db) },
-      {
-        claimChat: (): Promise<void> => Promise.resolve(),
-        emit: (event) => {
-          posts.push(event);
-          return Promise.resolve();
-        },
+    const postNarratorMessage = createPostNarratorMessage(chatAssembly(chatCtx), {
+      claimChat: (): Promise<void> => Promise.resolve(),
+      emit: (event) => {
+        posts.push(event);
+        return Promise.resolve();
       },
-    );
+    });
     // The chat reads are the production ones over the REAL db: the fact resolver reads the turn origin back off
     // the posted slot, and since #1417 a `messageCommitted` whose slot cannot be read is SKIPPED, so the re-fire
     // path under test needs the real message projection too.
@@ -783,6 +785,7 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     });
     return {
       runArm: createArmExecutors({
+        serialLanes: SERIAL_LANES,
         db,
         ops,
         prng: () => 0.42,
@@ -817,7 +820,7 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     const chatId = await seedHostChat(db, host);
     const { runArm, ops, posts } = await realImageryPostOps(db, host);
     const svc = createAutomationService(makeAutomationHarness(db, { runArm, ops }));
-    const p = principal(host);
+    const p = await principal(db, host);
     const rule = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
       principal: p,
@@ -852,7 +855,7 @@ describe("N1 image-post cascade guard (F1 self-loop closed)", () => {
     const chatId = await seedHostChat(db, host);
     const { runArm, ops, posts } = await realImageryPostOps(db, host);
     const svc = createAutomationService(makeAutomationHarness(db, { runArm, ops }));
-    const p = principal(host);
+    const p = await principal(db, host);
     // Opted into automation events ⇒ it INTENDS to react to automation-initiated posts. It still must not loop
     // forever — the cascade depth cap (AUTOMATION_DEPTH_HARD_CAP = 3) bounds the chain.
     const rule = await svc.createRule({
@@ -934,6 +937,7 @@ describe("W1 world-info-activation cascade guard (self-chain closed, #704)", () 
     };
     return {
       runArm: createArmExecutors({
+        serialLanes: SERIAL_LANES,
         db,
         ops,
         prng: () => 0.42,
@@ -968,7 +972,7 @@ describe("W1 world-info-activation cascade guard (self-chain closed, #704)", () 
     const chatId = await seedHostChat(db, host);
     const { runArm, ops, activations } = loreReactionOps(db);
     const svc = createAutomationService(makeAutomationHarness(db, { runArm, ops }));
-    const p = principal(host);
+    const p = await principal(db, host);
     const rule = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
       principal: p,
@@ -1002,7 +1006,7 @@ describe("W1 world-info-activation cascade guard (self-chain closed, #704)", () 
     const chatId = await seedHostChat(db, host);
     const { runArm, ops, activations } = loreReactionOps(db);
     const svc = createAutomationService(makeAutomationHarness(db, { runArm, ops }));
-    const p = principal(host);
+    const p = await principal(db, host);
     // Opted into automation events ⇒ it INTENDS to react to automation-plane re-activations. It still must not
     // loop forever — the cascade depth cap (AUTOMATION_DEPTH_HARD_CAP = 3) bounds the chain.
     const rule = await svc.createRule({
@@ -1086,7 +1090,7 @@ describe("#1423 same-chat events are serialized at the front door", () => {
 describe("#1433 - bus routing derives from the trigger tuples", () => {
   test("a DOMAIN-bus rule fires on its domain event and a CHAT-bus rule on its chat event", async () => {
     const f = await setup();
-    const p = principal(f.host);
+    const p = await principal(f.db, f.host);
     const chatRule = await f.svc.createRule({
       timeZone: UTC_TIME_ZONE,
       principal: p,
@@ -1137,14 +1141,14 @@ test("#1564 — an index-refresh failure after a dispatch auto-disable LATCHES S
   const svc = createAutomationService(ctx);
   const rule = await svc.createRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(host),
+    principal: await principal(db, host),
     chatId,
     name: "doomed",
     trigger: CHAT_OPENED,
     predicateCel: null,
     actions: [SET_VAR],
   });
-  await svc.setRuleEnabled({ principal: principal(host), ruleId: rule.id, enabled: true });
+  await svc.setRuleEnabled({ principal: await principal(db, host), ruleId: rule.id, enabled: true });
   await enabled.reload();
   // A blob no arm schema can parse ⇒ the dispatch DISABLES the rule ⇒ the reconcile under test.
   await db
@@ -1158,7 +1162,7 @@ test("#1564 — an index-refresh failure after a dispatch auto-disable LATCHES S
 
   expect(enabled.isStale()).toBe(true);
   // THE PREMISE, proven: the auto-disable really committed, so the reconcile really ran.
-  const [view] = await svc.listRules({ principal: principal(host), chatId });
+  const [view] = await svc.listRules({ principal: await principal(db, host), chatId });
   expect(view?.enabled).toBe(false);
 });
 
@@ -1196,7 +1200,7 @@ describe("#1554 domain-bus dispatch is keyed by OWNER, not one shared lane", () 
     const characterB = await seedCharacter(f.db, ownerB, "card-b");
 
     async function armGlobalRule(owner: UserId, key: string): Promise<void> {
-      const p = principal(owner);
+      const p = await principal(f.db, owner);
       const rule = await f.svc.createRule({
         timeZone: UTC_TIME_ZONE,
         principal: p,

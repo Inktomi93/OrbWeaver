@@ -33,7 +33,7 @@
 import type { CharacterHandle, CharacterId, ChatId, MessageId, UserConnectionId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
-import type { GroupConfigInput, RosterSeat } from "./support/trpc.ts";
+import type { GroupConfigInput, TrpcClientOutput } from "./support/trpc.ts";
 import {
   assistantTurns,
   characterSeats,
@@ -50,6 +50,8 @@ import {
   startGroupChat,
   swipeMessage,
 } from "./support/trpc.ts";
+
+type RosterSeat = TrpcClientOutput<"chat.getChat">["participants"][number];
 
 /** The spec-owned cast: unique handles (idempotent re-mint) + unique display names (so `@mention`
  *  resolution can only match the intended member). */

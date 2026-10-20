@@ -12,8 +12,9 @@
 // @subject packages/server/src/domain/automation/verbs/run-rule-now.ts
 
 import { chatParticipants } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AutomationRuleId } from "@orb/kit/ids";
+import { createSerialLanes } from "@orb/kit/serial-lanes";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, isNull } from "drizzle-orm";
@@ -24,6 +25,9 @@ import type { AutomationOps, AutomationTurnRequest } from "#server/domain/automa
 import { createAutomationService } from "#server/domain/automation/service.ts";
 import { seedParticipant } from "../../chat/_support.ts";
 import { principal, ruleFixture, seedUser } from "../_support.ts";
+
+// One lane set per suite, the way the automation service owns one for its dispatcher and arms.
+const SERIAL_LANES = createSerialLanes();
 
 const DISABLED_REFUSAL = /this rule is disabled/u;
 
@@ -41,10 +45,11 @@ async function runNowFixture(): Promise<{ fixture: Awaited<ReturnType<typeof rul
       },
     },
   };
-  const ctx: AutomationContext = {
+  const ctx: DbAssemblyInput<AutomationContext> = {
     ...base.ctx,
     ops,
     runArm: createArmExecutors({
+      serialLanes: SERIAL_LANES,
       db: base.db,
       ops,
       prng: () => 0.42,
@@ -53,7 +58,7 @@ async function runNowFixture(): Promise<{ fixture: Awaited<ReturnType<typeof rul
       newSuggestionId: base.ctx.newSuggestionId,
     }),
   };
-  return { fixture: { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) }, turns };
+  return { fixture: { ...base, ctx, svc: createAutomationService(ctx) }, turns };
 }
 
 /** Mint + enable a `trigger_turn` rule whose PREDICATE is the given source (`null` = always). */
@@ -61,7 +66,7 @@ async function runNowFixture(): Promise<{ fixture: Awaited<ReturnType<typeof rul
 async function enableRule(fx: Awaited<ReturnType<typeof ruleFixture>>, predicateCel: string | null, maxFiresPerHour?: number): Promise<AutomationRuleId> {
   const rule = await fx.svc.createRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(fx.host),
+    principal: await principal(fx.db, fx.host),
     chatId: fx.chatId,
     name: "vote",
     trigger: { bus: "chat", type: "chatOpened" },
@@ -69,7 +74,7 @@ async function enableRule(fx: Awaited<ReturnType<typeof ruleFixture>>, predicate
     actions: [{ type: "trigger_turn", guidedTemplate: "Do the thing." }],
     ...(maxFiresPerHour === undefined ? {} : { maxFiresPerHour }),
   });
-  await fx.svc.setRuleEnabled({ principal: principal(fx.host), ruleId: rule.id, enabled: true });
+  await fx.svc.setRuleEnabled({ principal: await principal(fx.db, fx.host), ruleId: rule.id, enabled: true });
   await fx.ctx.enabled.reload();
   return rule.id;
 }
@@ -83,7 +88,7 @@ describe("what a manual run LIFTS", () => {
     await fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
     expect(turns).toEqual([]);
 
-    const result = await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId });
+    const result = await fixture.svc.runRuleNow({ principal: await principal(fixture.db, fixture.host), ruleId });
 
     expect(result).toEqual({ outcome: "fired" });
     expect(turns).toEqual([
@@ -98,11 +103,11 @@ describe("what a manual run LIFTS", () => {
     // The bus path is refused by the ceiling…
     await fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
     expect(turns).toEqual([]);
-    const refused = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId });
+    const refused = await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId });
     expect(refused[0]?.outcome).toBe("budget_refused");
 
     // …and the host's own run is not.
-    expect(await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId })).toEqual({ outcome: "fired" });
+    expect(await fixture.svc.runRuleNow({ principal: await principal(fixture.db, fixture.host), ruleId })).toEqual({ outcome: "fired" });
     expect(turns).toHaveLength(1);
   });
 
@@ -110,7 +115,7 @@ describe("what a manual run LIFTS", () => {
     const { fixture } = await runNowFixture();
     const ruleId = await enableRule(fixture, null, 0);
 
-    await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId });
+    await fixture.svc.runRuleNow({ principal: await principal(fixture.db, fixture.host), ruleId });
 
     expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(0);
   });
@@ -123,16 +128,16 @@ describe("what a manual run KEEPS", () => {
     const member = await seedUser(fixture.db, "user_member");
     await seedParticipant(fixture.db, { chatId: fixture.chatId, key: "member", userId: member, role: "member" });
 
-    await expect(fixture.svc.runRuleNow({ principal: principal(member), ruleId })).rejects.toThrow();
+    await expect(fixture.svc.runRuleNow({ principal: await principal(fixture.db, member), ruleId })).rejects.toThrow();
     expect(turns).toEqual([]);
   });
 
   test("a DISABLED rule is refused — run-now is not a back door around withdrawn consent", async () => {
     const { fixture, turns } = await runNowFixture();
     const ruleId = await enableRule(fixture, null);
-    await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId, enabled: false });
+    await fixture.svc.setRuleEnabled({ principal: await principal(fixture.db, fixture.host), ruleId, enabled: false });
 
-    await expect(fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId })).rejects.toThrow(DISABLED_REFUSAL);
+    await expect(fixture.svc.runRuleNow({ principal: await principal(fixture.db, fixture.host), ruleId })).rejects.toThrow(DISABLED_REFUSAL);
     expect(turns).toEqual([]);
   });
 
@@ -140,9 +145,9 @@ describe("what a manual run KEEPS", () => {
     const { fixture } = await runNowFixture();
     const ruleId = await enableRule(fixture, "false");
 
-    await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId });
+    await fixture.svc.runRuleNow({ principal: await principal(fixture.db, fixture.host), ruleId });
 
-    const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId });
+    const fires = await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId });
     expect(fires).toHaveLength(1);
     expect(fires[0]).toMatchObject({ outcome: "fired" });
     expect(fires[0]?.detail).toEqual({ runNow: true, byUserId: fixture.host });
@@ -176,7 +181,7 @@ describe("what a manual run KEEPS", () => {
       .where(and(eq(chatParticipants.chatId, fixture.chatId), eq(chatParticipants.userId, fixture.host), isNull(chatParticipants.leftSeq)));
     await seedParticipant(fixture.db, { chatId: fixture.chatId, key: "successor", userId: successor, role: "host" });
 
-    const result = await fixture.svc.runRuleNow({ principal: principal(successor), ruleId });
+    const result = await fixture.svc.runRuleNow({ principal: await principal(fixture.db, successor), ruleId });
 
     expect(result).toEqual({ outcome: "authority_refused" });
     expect(turns).toEqual([]); // the belt's whole claim: a demoted ex-host's rule reaches NO arm
@@ -184,7 +189,7 @@ describe("what a manual run KEEPS", () => {
     // AND THE PREMISE, proven rather than assumed: `listFires` is host-gated through the SAME
     // `requireRuleHost` guard, on the SAME rule, for the SAME principal — it would throw if B's caller-side
     // gate were what refused above. It returns the row instead, so the refusal came from `runGates`.
-    const fires = await fixture.svc.listFires({ principal: principal(successor), ruleId });
+    const fires = await fixture.svc.listFires({ principal: await principal(fixture.db, successor), ruleId });
     expect(fires[0]).toMatchObject({ outcome: "authority_refused", detail: { code: "author-lost-authority" } });
   });
 
@@ -192,10 +197,10 @@ describe("what a manual run KEEPS", () => {
     const { fixture, turns } = await runNowFixture();
     const ruleId = await enableRule(fixture, null);
 
-    await fixture.svc.testRule({ principal: principal(fixture.host), ruleId });
+    await fixture.svc.testRule({ principal: await principal(fixture.db, fixture.host), ruleId });
 
     expect(turns).toEqual([]);
-    const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId });
+    const fires = await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId });
     expect(fires.map((f) => f.outcome)).toEqual(["test_run"]);
   });
 });
@@ -204,21 +209,21 @@ test("a manual run of a CONFIRM-FIRST rule still ASKS (the arm's authored postur
   const { fixture, turns } = await runNowFixture();
   const rule = await fixture.svc.createRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(fixture.host),
+    principal: await principal(fixture.db, fixture.host),
     chatId: fixture.chatId,
     name: "recap",
     trigger: { bus: "chat", type: "chatOpened" },
     actions: [{ type: "trigger_turn", guidedTemplate: "Recap.", confirmFirst: true }],
   });
-  await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: rule.id, enabled: true });
+  await fixture.svc.setRuleEnabled({ principal: await principal(fixture.db, fixture.host), ruleId: rule.id, enabled: true });
   await fixture.ctx.enabled.reload();
 
-  const result = await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId: rule.id });
+  const result = await fixture.svc.runRuleNow({ principal: await principal(fixture.db, fixture.host), ruleId: rule.id });
 
   // "Run this rule now" means run the RULE, and this rule's rule is to ask. The host gets a card, not a turn.
   expect(result).toEqual({ outcome: "suggested" });
   expect(turns).toEqual([]);
   expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(1);
   // …and no fire row: a suggestion is not a fire (§3-S4's fire-log honesty).
-  expect(await fixture.svc.listFires({ principal: principal(fixture.host), ruleId: rule.id })).toEqual([]);
+  expect(await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId: rule.id })).toEqual([]);
 });

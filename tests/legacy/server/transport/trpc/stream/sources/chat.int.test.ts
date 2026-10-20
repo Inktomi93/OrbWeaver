@@ -12,7 +12,7 @@
 // `chat_events`). It closes the gap the mock-based test structurally cannot: that the resume path returns
 // real persisted DELTAS (the token-carrying member), not just that the wiring is shaped right.
 
-import type { ChatBusEvent, DurableChatBusEvent, JoinHistoryVisibility, ParticipantView } from "@orb/contracts/chat";
+import type { ChatBusEvent, DurableChatBusEvent, JoinHistoryVisibility } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
 import type { Db } from "@orb/db";
@@ -26,6 +26,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { createChatBus } from "#server/domain/chat/bus.ts";
+import type { ParticipantData } from "#server/domain/chat/contract/views.ts";
 import { loadMessageView } from "#server/domain/chat/persistence/queries.ts";
 import { createRead } from "#server/domain/chat/verbs/read.ts";
 import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser } from "../../../../domain/chat/_support.ts";
@@ -43,7 +44,7 @@ beforeEach(async () => {
 function readDeps(): Parameters<typeof createRead>[1] {
   return {
     loadParticipantViews: () => Promise.resolve([]),
-    loadParticipantViewsBatch: () => Promise.resolve(new Map<ChatId, readonly ParticipantView[]>()),
+    loadParticipantViewsBatch: () => Promise.resolve(new Map<ChatId, readonly ParticipantData[]>()),
     resolveConnection: () => Promise.reject(new Error("unused: the room's pump never previews a connection")),
     checkSendAvailability: () => Promise.reject(new Error("unused: the room's pump never checks availability")),
     getNextTurnConnection: () => Promise.reject(new Error("unused: the room's pump never reads the next-turn connection")),
@@ -81,7 +82,7 @@ function seqOf(result: IteratorResult<unknown>): number {
  *  leaving an iterator parked exactly where the deleted subscription's iterator started. */
 async function openChatRoom(read: ReturnType<typeof createRead>, userId: UserId, chatId: ChatId, sinceSeq?: number): Promise<AsyncIterator<unknown>> {
   const ctx = makeContext({
-    auth: callerPrincipal("user", { userId }),
+    auth: await callerPrincipal(db, "user", { userId }),
     services: { chat: { replayChatEvents: read.replayChatEvents, chatEventBounds: read.chatEventBounds } },
   });
   const socketId = nextSocket();
@@ -351,7 +352,7 @@ describe("the chat room — the D16 join-history clamp on the LIVE half (real pa
 
     // REPLAY: the same two durable rows, same caller, same verdict — one row delivered at its own seq, the
     // other absent (a gap, never a renumber). This is the live/replay coherence the clamp is built on.
-    const replayed = await read.replayChatEvents({ principal: callerPrincipal("user", { userId: joiner }), chatId, afterSeq: 0 });
+    const replayed = await read.replayChatEvents({ principal: await callerPrincipal(db, "user", { userId: joiner }), chatId, afterSeq: 0 });
     expect(replayed.map((e) => e.seq)).toEqual([allowed.seq]);
     expect(JSON.stringify(replayed)).not.toContain("pre-join tokens");
     expect(JSON.stringify(replayed)).toContain("post-join tokens");

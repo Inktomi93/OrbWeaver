@@ -42,7 +42,7 @@ describe("§4 #16 the needle (the score → meter + backdrop pair)", () => {
     const f = await setup();
     const views = await f.svc.createRuleFromPreset({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: f.chatId,
       presetId: "theNeedle",
       knobs: { everyN: NEEDLE_CADENCE, threshold: NEEDLE_THRESHOLD },
@@ -159,8 +159,8 @@ describe("§4 #16 the needle (the score → meter + backdrop pair)", () => {
       config: rpgGameConfigSchema.parse({}),
     });
     await expect(
-      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "theNeedle" }),
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: await principal(f.db, f.host), chatId: f.chatId, presetId: "theNeedle" }),
     ).rejects.toThrow("directs its own story");
-    expect(await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).toEqual([]);
+    expect(await f.svc.listRules({ principal: await principal(f.db, f.host), chatId: f.chatId })).toEqual([]);
   });
 });

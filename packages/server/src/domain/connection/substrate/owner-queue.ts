@@ -13,9 +13,6 @@ export function createOwnerWriteQueue(): <T>(ownerId: UserId, write: () => Promi
   return <T>(ownerId: UserId, write: () => Promise<T>): Promise<T> => {
     const previous = tails.get(ownerId) ?? Promise.resolve();
     const next = previous.then(write);
-    // @orb-waive caught-failure-ownership(next): the write's rejection is owned by the caller, who awaits the
-    // returned `next` (`return next` below); this handler only builds the tail the following write waits on.
-    // Ends if `next` stops being the returned promise.
     const settled = next.then(
       () => undefined,
       () => undefined,

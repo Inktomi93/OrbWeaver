@@ -64,7 +64,7 @@ test("lists the caller's OWN enabled plugin's surfaces, projected to meta + plug
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   h.port.script({ ok: true, instance: instanceWith("panel") });
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
@@ -84,7 +84,7 @@ test("lists the caller's OWN enabled plugin's surfaces, projected to meta + plug
 test("a tool-card surface is projected with the MODEL-VISIBLE wire name (slug hyphens become underscores)", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   h.port.script({ ok: true, instance: instanceWithToolCard("draw") });
   // A HYPHENATED slug is the load-bearing case: the model-visible name has no hyphen in it, so a projection
   // that forwarded the raw slug would never match a persisted `ToolCallRecord.name` and the card would be
@@ -100,7 +100,7 @@ test("a tool-card surface is projected with the MODEL-VISIBLE wire name (slug hy
 test("a non-tool-card surface carries NO wire name (the linkage is the tool-card anchor's alone)", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   h.port.script({ ok: true, instance: instanceWith("panel") });
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
@@ -115,7 +115,7 @@ test("a DISABLED plugin (no resident instance) contributes no surfaces", async (
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   // Installed but never enabled ⇒ no resident ⇒ no surfaces.
   await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   expect(await h.service.listSurfaces({ caller })).toEqual([]);
@@ -124,8 +124,8 @@ test("a DISABLED plugin (no resident instance) contributes no surfaces", async (
 test("owner-scoped: a caller NEVER sees another owner's surfaces (the read is the gate)", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const alpha = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("alpha") }));
-  const beta = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("beta") }));
+  const alpha = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("alpha") }));
+  const beta = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("beta") }));
   // Alpha installs + enables a plugin with a surface; beta installs + enables their own.
   h.port.script({ ok: true, instance: instanceWith("alpha_panel") });
   const alphaPlugin = await h.service.install({ caller: alpha, bundle: makeBundle({ id: "mood" }), grant: [] });
@@ -162,7 +162,7 @@ test("#0234: scripted page, dialog and tool-card surfaces list only while ui.sur
   const h = makePluginHarness(db, {
     port: hostResources.use(createPluginHost({ nowEpochMs: () => FROZEN_AT_MS, nextRandom: () => 0.5, mintId: () => "surface-id" })),
   });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const bundle = (id: string): Uint8Array => makeBundle({ id, capabilities: ["ui.surface"], uiEntry: true }, SCRIPTED_ANCHORS_MAIN, "orb.ui(1);");
 
   const granted = await h.service.install({ caller, bundle: bundle("granted"), grant: ["ui.surface"] });

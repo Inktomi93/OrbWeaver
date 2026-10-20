@@ -46,7 +46,7 @@ import { expect, test } from "@playwright/test";
 import { openContextTab, openNewestChat, typeAndSend } from "./support/chat-room.ts";
 import { hasRpgFlush, rpgTurnSettled } from "./support/rpg-settle.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_RPG_ROUND_MS, WAIT_SETTLE_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
-import type { TrackerActor, TrackerDefInput, TrackerView } from "./support/trpc.ts";
+import type { TrackerDefInput, TrpcClientOutput } from "./support/trpc.ts";
 import {
   abortTurn,
   addJournalEntry,
@@ -79,6 +79,9 @@ import {
   startChat,
   upsertQuest,
 } from "./support/trpc.ts";
+
+type TrackerView = TrpcClientOutput<"rpg.getTrackerView">;
+type TrackerActor = TrackerView["actors"][number];
 
 const NON_WHITESPACE = /\S/u;
 

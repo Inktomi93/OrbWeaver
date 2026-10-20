@@ -18,15 +18,15 @@ describe("listGlobal", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
 
-    const first = await svc.createBook({ principal: principal(owner), input: { name: "First" } });
+    const first = await svc.createBook({ principal: await principal(db, owner), input: { name: "First" } });
     h.advance(1000);
-    const second = await svc.createBook({ principal: principal(owner), input: { name: "Second" } });
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
-    await svc.attachGlobal({ principal: principal(owner), bookId: first.id });
-    await svc.attachGlobal({ principal: principal(owner), bookId: second.id });
-    await svc.attachGlobal({ principal: principal(other), bookId: theirs.id });
+    const second = await svc.createBook({ principal: await principal(db, owner), input: { name: "Second" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "Theirs" } });
+    await svc.attachGlobal({ principal: await principal(db, owner), bookId: first.id });
+    await svc.attachGlobal({ principal: await principal(db, owner), bookId: second.id });
+    await svc.attachGlobal({ principal: await principal(db, other), bookId: theirs.id });
 
-    const globals = await svc.listGlobal({ principal: principal(owner) });
+    const globals = await svc.listGlobal({ principal: await principal(db, owner) });
     expect(globals.map((b) => b.id)).toEqual([second.id, first.id]);
   });
 
@@ -37,13 +37,13 @@ describe("listGlobal", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const a = await svc.createBook({ principal: principal(owner), input: { name: "A" } });
-    const b = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const a = await svc.createBook({ principal: await principal(db, owner), input: { name: "A" } });
+    const b = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     // Attached in ASCENDING id order so the scan order is the opposite of the expected one — a pass here
     // cannot be insertion order wearing a sort's clothes.
-    await svc.attachGlobal({ principal: principal(owner), bookId: a.id });
-    await svc.attachGlobal({ principal: principal(owner), bookId: b.id });
+    await svc.attachGlobal({ principal: await principal(db, owner), bookId: a.id });
+    await svc.attachGlobal({ principal: await principal(db, owner), bookId: b.id });
 
-    expect((await svc.listGlobal({ principal: principal(owner) })).map((x) => x.id)).toEqual([b.id, a.id]);
+    expect((await svc.listGlobal({ principal: await principal(db, owner) })).map((x) => x.id)).toEqual([b.id, a.id]);
   });
 });

@@ -24,7 +24,8 @@ const LITERAL = "orb/principal-literal";
 const MINT_SITE = "orb/principal-mint-site";
 const BLIND = "orb/turn-identity-principal";
 const LAUNDER = "orb/principal-brand-launder";
-const PRINCIPAL_RULES = [ASSERTION, RETURN, SYNTHETIC, LITERAL, MINT_SITE, LAUNDER];
+const ALIAS = "orb/principal-alias";
+const PRINCIPAL_RULES = [ASSERTION, RETURN, SYNTHETIC, LITERAL, MINT_SITE, LAUNDER, ALIAS];
 const IDENTITY = 'from "@orb/contracts/identity"';
 // The first config resolution loads the whole flat config; pay it at import, not inside the first row's timeout.
 await ordinary.calculateConfigForFile(join(ROOT, VERB));
@@ -505,6 +506,76 @@ test.for([
     count: 0,
   },
   { name: "verb layer", rule: BLIND, source: `import type { Principal } ${IDENTITY}; export const ok = (caller: Principal) => caller.userId;`, count: 0 },
+  // The engine derives no type from a value and reads nothing from the verb layer: either can carry a Principal unnamed.
+  { name: "engine re-export through a verb", rule: BLIND, path: ENGINE, source: 'import type { Caller } from "../verbs/caller-alias.ts";', count: 1 },
+  {
+    name: "engine parameter derived from a verb",
+    rule: BLIND,
+    path: ENGINE,
+    source: 'import type { send } from "../verbs/send.ts"; export const run = (c: Parameters<typeof send>[0]) => c;',
+    count: 1,
+  },
+  {
+    name: "engine types derived from its own pipeline",
+    rule: BLIND,
+    path: ENGINE,
+    source: 'import type { runTurnPipeline } from "./pipeline.ts"; export type Turn = Awaited<ReturnType<typeof runTurnPipeline>>;',
+    count: 0,
+  },
+  { name: "engine value typeof", rule: BLIND, path: ENGINE, source: 'export const isText = (v: unknown) => typeof v === "string";', count: 0 },
+  // Every other Principal rule keys on the name, so no spelling may rename it.
+  { name: "renamed import", rule: ALIAS, source: `import type { Principal as P } ${IDENTITY}; export const mint = (row: unknown) => row as P;`, count: 1 },
+  { name: "string-named renamed import", rule: ALIAS, source: `import type { "Principal" as P } ${IDENTITY};`, count: 1 },
+  { name: "renamed re-export", rule: ALIAS, source: `export type { Principal as Caller } ${IDENTITY};`, count: 1 },
+  { name: "renamed local export", rule: ALIAS, source: `import type { Principal } ${IDENTITY}; export type { Principal as Caller };`, count: 1 },
+  {
+    name: "local type alias",
+    rule: ALIAS,
+    source: `import type { Principal } ${IDENTITY}; type P = Principal; export const mint = (row: unknown) => row as P;`,
+    count: 1,
+  },
+  { name: "nullable type alias", rule: ALIAS, source: `import type { Principal } ${IDENTITY}; export type P = Principal | null;`, count: 1 },
+  { name: "namespace array alias", rule: ALIAS, source: `import type * as identity ${IDENTITY}; export type Ps = readonly identity.Principal[];`, count: 1 },
+  { name: "interface heritage", rule: ALIAS, source: `import type { Principal } ${IDENTITY}; export interface Caller extends Principal {}`, count: 1 },
+  { name: "class heritage", rule: ALIAS, source: `import type { Principal } ${IDENTITY}; export abstract class Caller implements Principal {}`, count: 1 },
+  {
+    name: "type parameter bound",
+    rule: ALIAS,
+    source: `import type { Principal } ${IDENTITY}; export function mint<T extends Principal>(row: unknown): T { return row as T; }`,
+    count: 1,
+  },
+  {
+    name: "assertion through typeof",
+    rule: ALIAS,
+    source: `import type { Principal } ${IDENTITY}; declare const caller: Principal; export const mint = (row: unknown) => row as typeof caller;`,
+    count: 1,
+  },
+  {
+    name: "return type through typeof a Principal binding",
+    rule: ALIAS,
+    source: `import type { Principal } ${IDENTITY}; declare const caller: Principal; export function mint(row: any): typeof caller { return row; }`,
+    count: 1,
+  },
+  {
+    name: "an op type taking a Principal",
+    rule: ALIAS,
+    source: `import type { Principal } ${IDENTITY}; export type ResolveOp = (principal: Principal) => Promise<void>;`,
+    count: 0,
+  },
+  { name: "a return type through typeof fetch", rule: ALIAS, source: "export function wrap(inner: typeof fetch): typeof fetch { return inner; }", count: 0 },
+  {
+    name: "an assertion to a typeof of a non-Principal binding",
+    rule: ALIAS,
+    source: "declare const columns: { a: number }; export const pick = (name: string) => columns[name as keyof typeof columns];",
+    count: 0,
+  },
+  {
+    name: "an assertion to a parameter type of an imported function",
+    rule: ALIAS,
+    source: 'import { createLocalJWKSet } from "jose"; export const read = (raw: unknown) => raw as Parameters<typeof createLocalJWKSet>[0];',
+    count: 0,
+  },
+  { name: "a plain import", rule: ALIAS, source: `import type { Principal } ${IDENTITY}; export const ok = (caller: Principal) => caller.userId;`, count: 0 },
 ] as const)("native Principal lint judges $name", async (row) => {
   const path = "path" in row ? row.path : VERB;
   expect(await findings(path, row.source, row.rule)).toEqual(Array.from({ length: row.count }, () => row.rule));
@@ -709,7 +780,7 @@ test("an inline directive cannot excuse a forged Principal", async () => {
   const [result] = await hard.lintText(source, { filePath: join(ROOT, VERB) });
   expect(result?.fatalErrorCount).toBe(0);
   const messages = result?.messages ?? [];
-  expect(messages.filter(({ ruleId }) => ruleId !== null).map(({ ruleId }) => ruleId)).toEqual([LITERAL]);
+  expect(messages.filter(({ ruleId }) => ruleId !== null).map(({ ruleId }) => ruleId)).toEqual([LITERAL, ALIAS]);
   // The profile itself reports each ignored directive.
   expect(messages.filter(({ ruleId }) => ruleId === null).map(({ message }) => message.includes("noInlineConfig"))).toEqual([true, true]);
 });

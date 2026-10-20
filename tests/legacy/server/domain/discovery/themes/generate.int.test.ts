@@ -8,7 +8,11 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createDiscoveryService } from "#server/domain/discovery/index.ts";
+import { everyOwnerAuthority } from "../../workloads/_support.ts";
 import { makeDiscoveryHarness, makeSummarizeRecorder, seedChatDigest, seedHostedChat, seedUser, vec } from "../_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 describe("computeThemes", () => {
   test("clusters solo digests, assigns every digest (full coverage), and names via summarize", async () => {
@@ -48,8 +52,8 @@ describe("computeThemes", () => {
     const summarize = makeSummarizeRecorder(["Romance", "Warfare"]);
     const svc = createDiscoveryService(makeDiscoveryHarness(db, { summarize }).ctx);
     // The call estimate reads the same clustering without naming anything: one call per name-worthy cluster.
-    const estimate = await svc.countThemeNameCalls({ k: 2 });
-    const stats = await svc.computeThemes({ k: 2, funderUserId: owner });
+    const estimate = await svc.countThemeNameCalls({ ...EVERY_OWNER.estimate, k: 2 });
+    const stats = await svc.computeThemes({ ...EVERY_OWNER.runScope, k: 2, funderUserId: owner });
 
     expect(estimate).toBe(summarize.calls.flat().length);
     expect(estimate).toBe(2);
@@ -88,7 +92,7 @@ describe("computeThemes", () => {
     });
 
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    const stats = await svc.computeThemes({ k: 1, funderUserId: owner });
+    const stats = await svc.computeThemes({ ...EVERY_OWNER.runScope, k: 1, funderUserId: owner });
     expect(stats.clustersWritten).toBe(0);
     // The two counts are DIFFERENT facts and the caller's refusal branch reads the second (issue #558):
     // digests exist, so "run the memory backfill" is the wrong sentence — none of them is a SOLO digest.
@@ -124,7 +128,7 @@ describe("computeThemes", () => {
     });
 
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    const stats = await svc.computeThemes({ k: 1, funderUserId: owner });
+    const stats = await svc.computeThemes({ ...EVERY_OWNER.runScope, k: 1, funderUserId: owner });
     expect(stats.clustersWritten).toBe(1);
     expect(stats.digestsAssigned).toBe(3); // full coverage — every digest assigned
     const clusters = await db.select().from(themeClusters).where(eq(themeClusters.ownerId, owner));
@@ -138,8 +142,8 @@ describe("computeThemes", () => {
     await seedChatDigest(db, { id: "d1", chatId: chat, embedding: vec(1, 0), blockIdx: 0 });
     await seedChatDigest(db, { id: "d2", chatId: chat, embedding: vec(1, 0), blockIdx: 1 });
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    await svc.computeThemes({ k: 1, funderUserId: owner });
-    await svc.computeThemes({ k: 1, funderUserId: owner });
+    await svc.computeThemes({ ...EVERY_OWNER.runScope, k: 1, funderUserId: owner });
+    await svc.computeThemes({ ...EVERY_OWNER.runScope, k: 1, funderUserId: owner });
     const clusters = await db.select().from(themeClusters);
     expect(clusters).toHaveLength(1); // not doubled
   });
@@ -159,7 +163,7 @@ describe("computeThemes", () => {
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
 
     // Seed both owners' clusters via a global (bulk) recompute first.
-    await svc.computeThemes({ k: 1, funderUserId: a });
+    await svc.computeThemes({ ...EVERY_OWNER.runScope, k: 1, funderUserId: a });
     expect(await db.select().from(themeClusters).where(eq(themeClusters.ownerId, b))).toHaveLength(1);
 
     // Now recompute ONLY owner A (singular) — B's clusters must survive untouched.
@@ -182,12 +186,12 @@ describe("computeThemes", () => {
     await seedChatDigest(db, { id: "d1", chatId: chat, embedding: vec(1, 0), blockIdx: 0 });
     await seedChatDigest(db, { id: "d2", chatId: chat, embedding: vec(1, 0.02), blockIdx: 1 });
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    await svc.computeThemes({ k: 1, funderUserId: owner });
+    await svc.computeThemes({ ...EVERY_OWNER.runScope, k: 1, funderUserId: owner });
     expect(await db.select().from(themeClusters)).toHaveLength(1);
 
     // The digests go away (a memory purge, a chat delete) and the pass runs again with nothing to read.
     await db.delete(chatDigests);
-    const stats = await svc.computeThemes({ k: 1, funderUserId: owner });
+    const stats = await svc.computeThemes({ ...EVERY_OWNER.runScope, k: 1, funderUserId: owner });
 
     // THE POINT, asserted FIRST because it is the durable damage: the previous pass's output is still
     // there. An empty input is not an instruction to delete.
@@ -202,7 +206,7 @@ describe("computeThemes", () => {
     const summarize = makeSummarizeRecorder([]);
     const svc = createDiscoveryService(makeDiscoveryHarness(db, { summarize }).ctx);
 
-    const stats = await svc.computeThemes({ k: 2, funderUserId: owner });
+    const stats = await svc.computeThemes({ ...EVERY_OWNER.runScope, k: 2, funderUserId: owner });
 
     expect(stats).toMatchObject({ ownersProcessed: 0, clustersWritten: 0, digestsAssigned: 0, digestsRead: 0, soloDigestsRead: 0 });
     expect(summarize.calls).toHaveLength(0);

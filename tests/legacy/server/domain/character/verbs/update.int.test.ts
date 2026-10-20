@@ -20,7 +20,7 @@ const CHARACTER_UPDATE = /^update "characters"/i;
 const ASSET_DELETE = /^delete from "assets"/i;
 const TWO_HOURS_MS = 2 * 3_600_000;
 
-async function oldBlob(h: Awaited<ReturnType<typeof makeAssetsHarness>>, ownerId: Parameters<typeof assetsPrincipal>[0], hash: string): Promise<void> {
+async function oldBlob(h: Awaited<ReturnType<typeof makeAssetsHarness>>, ownerId: Parameters<typeof assetsPrincipal>[1], hash: string): Promise<void> {
   const seconds = (FROZEN_AT_MS - TWO_HOURS_MS) / 1000;
   await utimes(h.ctx.cas.blobPath(ownerId, hash), seconds, seconds);
 }
@@ -32,13 +32,13 @@ describe("update", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "before" },
     });
     h.events.length = 0;
 
     const updated = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       input: { description: "after" },
     });
@@ -53,7 +53,7 @@ describe("update", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: {
         handle: castId<CharacterHandle>("nyx"),
         name: "Nyx",
@@ -64,7 +64,7 @@ describe("update", () => {
     });
 
     const updated = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       input: { personality: null },
     });
@@ -79,14 +79,14 @@ describe("update", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     h.events.length = 0;
     h.audits.length = 0;
 
     const same = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       input: {},
     });
@@ -101,13 +101,13 @@ describe("update", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     h.events.length = 0;
 
     const updated = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       input: { starred: true },
     });
@@ -124,10 +124,12 @@ describe("update", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
-    await expect(svc.update({ principal: principal(other), characterId: created.id, input: { name: "Hax" } })).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.update({ principal: await principal(db, other), characterId: created.id, input: { name: "Hax" } })).rejects.toBeInstanceOf(
+      CharacterNotFoundError,
+    );
   });
 
   test("a FOREIGN avatar asset throws AssetNotFoundError (D21 cross-root belt — nothing written)", async () => {
@@ -138,20 +140,20 @@ describe("update", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await seedAsset(db, { id: "asset_foreign", ownerId: other });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     h.events.length = 0;
 
     await expect(
       svc.update({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         characterId: created.id,
         input: { avatarAssetId: foreign },
       }),
     ).rejects.toBeInstanceOf(AssetNotFoundError);
 
-    const reread = await svc.get({ principal: principal(owner), characterId: created.id });
+    const reread = await svc.get({ principal: await principal(db, owner), characterId: created.id });
     expect(reread.avatarAssetId).toBeNull();
     expect(h.events).toHaveLength(0);
   });
@@ -163,18 +165,21 @@ describe("update", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await seedAsset(db, { id: "asset_foreignbg", ownerId: other });
-    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const created = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
     h.events.length = 0;
 
     await expect(
       svc.update({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         characterId: created.id,
         input: { backgroundOverride: { kind: "asset", externalUrl: "", assetId: foreign, assetHash: "h", mime: "image/png", provenanceUrl: "" } },
       }),
     ).rejects.toBeInstanceOf(AssetNotFoundError);
 
-    const reread = await svc.get({ principal: principal(owner), characterId: created.id });
+    const reread = await svc.get({ principal: await principal(db, owner), characterId: created.id });
     expect(reread.backgroundOverride).toBeNull();
     expect(h.events).toHaveLength(0);
   });
@@ -188,16 +193,19 @@ describe("update", () => {
     // A foreign id smuggled under kind:"none" — canonicalization empties it BEFORE the ownership belt, so the
     // write SUCCEEDS with a clean shape (assetId "") and never GC-roots the foreign id via background_override.
     const foreign = await seedAsset(db, { id: "asset_foreignsmuggle", ownerId: other });
-    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const created = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
 
     const updated = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       input: { backgroundOverride: { kind: "none", externalUrl: "", assetId: foreign, assetHash: "h", mime: "image/png", provenanceUrl: "" } },
     });
 
     expect(updated.backgroundOverride).toEqual({ kind: "none", externalUrl: "", assetId: "", assetHash: "", mime: "", provenanceUrl: "" });
-    const reread = await svc.get({ principal: principal(owner), characterId: created.id });
+    const reread = await svc.get({ principal: await principal(db, owner), characterId: created.id });
     expect(reread.backgroundOverride?.assetId).toBe("");
   });
 
@@ -211,11 +219,14 @@ describe("update", () => {
       materializeBackground: () => Promise.resolve({ ok: true, asset: { assetId: storedAssetId, assetHash: "hash_cardbg", mime: "image/png" } }),
     });
     const svc = createCharacterService(h.ctx);
-    const created = await svc.create({ principal: principal(owner0), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const created = await svc.create({
+      principal: await principal(db, owner0),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
 
     const url = "https://cdn.example/card-bg.jpg";
     const updated = await svc.update({
-      principal: principal(owner0),
+      principal: await principal(db, owner0),
       characterId: created.id,
       input: { backgroundOverride: { kind: "external", externalUrl: url, assetId: "", assetHash: "", mime: "", provenanceUrl: "" } },
     });
@@ -235,12 +246,15 @@ describe("update", () => {
     const h = makeHarness(db, { materializeBackground: () => Promise.resolve({ ok: false, reason: "unreachable" }) });
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const created = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
     h.events.length = 0;
 
     const err = await svc
       .update({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         characterId: created.id,
         input: {
           backgroundOverride: {
@@ -294,12 +308,12 @@ describe("update", () => {
       const owner = await seedUser(db, { handle: castId<Handle>("owner") });
       const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
       const theirs = await svc.create({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
       });
 
       await expect(
-        svc.update({ principal: principal(stranger), characterId: theirs.id, input: externalInput("https://cdn.example/ssrf.jpg") }),
+        svc.update({ principal: await principal(db, stranger), characterId: theirs.id, input: externalInput("https://cdn.example/ssrf.jpg") }),
       ).rejects.toBeInstanceOf(CharacterNotFoundError);
       expect(rec.calls).toEqual([]);
     });
@@ -312,7 +326,7 @@ describe("update", () => {
       const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
       await expect(
-        svc.update({ principal: principal(owner), characterId: castId("character_nope"), input: externalInput("https://cdn.example/ssrf.jpg") }),
+        svc.update({ principal: await principal(db, owner), characterId: castId("character_nope"), input: externalInput("https://cdn.example/ssrf.jpg") }),
       ).rejects.toBeInstanceOf(CharacterNotFoundError);
       expect(rec.calls).toEqual([]);
     });
@@ -325,12 +339,12 @@ describe("update", () => {
       const owner = await seedUser(db, { handle: castId<Handle>("owner") });
       const stored = await seedAsset(db, { id: "asset_never", ownerId: owner });
       const created = await svc.create({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
       });
 
       const url = "https://cdn.example/mine.jpg";
-      const updated = await svc.update({ principal: principal(owner), characterId: created.id, input: externalInput(url) });
+      const updated = await svc.update({ principal: await principal(db, owner), characterId: created.id, input: externalInput(url) });
 
       expect(rec.calls).toEqual([url]);
       expect(updated.backgroundOverride?.kind).toBe("asset");
@@ -345,16 +359,16 @@ describe("update", () => {
     onTestFinished(assetsHarness.cleanup);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetsSvc = createAssetsService(assetsHarness.ctx);
-    const stored = await assetsSvc.store({ principal: assetsPrincipal(owner), bytes: pngBytes(71), kind: "background", mime: "image/png" });
+    const stored = await assetsSvc.store({ principal: await assetsPrincipal(db, owner), bytes: pngBytes(71), kind: "background", mime: "image/png" });
     await oldBlob(assetsHarness, owner, stored.hash);
     const characterSvc = createCharacterService(makeHarness(db).ctx);
     const created = await characterSvc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     const updateHold = hold(CHARACTER_UPDATE);
     const updating = characterSvc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       input: {
         backgroundOverride: {
@@ -372,7 +386,7 @@ describe("update", () => {
     updateHold.release();
 
     await expect(updating).rejects.toMatchObject({ code: "background_unavailable" });
-    expect((await characterSvc.get({ principal: principal(owner), characterId: created.id })).backgroundOverride).toBeNull();
+    expect((await characterSvc.get({ principal: await principal(db, owner), characterId: created.id })).backgroundOverride).toBeNull();
   });
 
   test("writer-first: a real card update committed while GC DELETE is held keeps the asset and JSON ref", async () => {
@@ -381,18 +395,18 @@ describe("update", () => {
     onTestFinished(assetsHarness.cleanup);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const assetsSvc = createAssetsService(assetsHarness.ctx);
-    const stored = await assetsSvc.store({ principal: assetsPrincipal(owner), bytes: pngBytes(72), kind: "background", mime: "image/png" });
+    const stored = await assetsSvc.store({ principal: await assetsPrincipal(db, owner), bytes: pngBytes(72), kind: "background", mime: "image/png" });
     await oldBlob(assetsHarness, owner, stored.hash);
     const characterSvc = createCharacterService(makeHarness(db).ctx);
     const created = await characterSvc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     const deleteHold = hold(ASSET_DELETE);
     const collecting = assetsSvc.collectGarbage({});
     await deleteHold.reached;
     await characterSvc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       input: {
         backgroundOverride: {
@@ -408,7 +422,7 @@ describe("update", () => {
     deleteHold.release();
 
     expect((await collecting).reclaimed).toBe(0);
-    expect((await characterSvc.get({ principal: principal(owner), characterId: created.id })).backgroundOverride?.assetId).toBe(stored.assetId);
+    expect((await characterSvc.get({ principal: await principal(db, owner), characterId: created.id })).backgroundOverride?.assetId).toBe(stored.assetId);
   });
 
   test("applies a handle rename (FINAL-Character §2 identity column) and audits only `handle`", async () => {
@@ -417,13 +431,13 @@ describe("update", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     h.audits.length = 0;
 
     const updated = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       input: { handle: castId<CharacterHandle>("nyx-prime") },
     });
@@ -431,7 +445,7 @@ describe("update", () => {
     expect(updated.handle).toBe("nyx-prime");
     // A pure rename doesn't touch card content → the hash is unchanged (handle is not embedded).
     expect(updated.contentHash).toBe(created.contentHash);
-    const reread = await svc.get({ principal: principal(owner), characterId: created.id });
+    const reread = await svc.get({ principal: await principal(db, owner), characterId: created.id });
     expect(reread.handle).toBe("nyx-prime");
     expect(h.audits).toHaveLength(1);
     expect(h.audits[0]?.entry.metadata).toEqual({ fields: ["handle"] });
@@ -443,14 +457,14 @@ describe("update", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "before", personality: "stoic" },
     });
     h.audits.length = 0;
 
     // description changes; name + handle are re-sent identical (must NOT appear in the audit).
     await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       input: { description: "after", name: "Nyx", handle: castId<CharacterHandle>("nyx") },
     });
@@ -465,19 +479,19 @@ describe("update", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     h.events.length = 0;
 
     await expect(
       svc.update({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         characterId: created.id,
         input: { handle: castId<CharacterHandle>("__group__chat_1") },
       }),
     ).rejects.toBeInstanceOf(CharacterOperationError);
-    const reread = await svc.get({ principal: principal(owner), characterId: created.id });
+    const reread = await svc.get({ principal: await principal(db, owner), characterId: created.id });
     expect(reread.handle).toBe("nyx");
     expect(h.events).toHaveLength(0);
   });
@@ -487,18 +501,20 @@ describe("update", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     const mira = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("mira"), name: "Mira", description: "d" },
     });
 
-    await expect(svc.update({ principal: principal(owner), characterId: mira.id, input: { handle: castId<CharacterHandle>("nyx") } })).rejects.toMatchObject({
+    await expect(
+      svc.update({ principal: await principal(db, owner), characterId: mira.id, input: { handle: castId<CharacterHandle>("nyx") } }),
+    ).rejects.toMatchObject({
       code: "handle_conflict",
     });
-    const reread = await svc.get({ principal: principal(owner), characterId: mira.id });
+    const reread = await svc.get({ principal: await principal(db, owner), characterId: mira.id });
     expect(reread.handle).toBe("mira");
   });
 
@@ -507,20 +523,20 @@ describe("update", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     expect(created.themeOverride).toBeNull();
 
     const withOverride = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       input: { themeOverride: { accent: "oklch(0.7 0.14 250)" } },
     });
     expect(withOverride.themeOverride).toEqual({ accent: "oklch(0.7 0.14 250)" });
 
     const cleared = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       input: { themeOverride: null },
     });

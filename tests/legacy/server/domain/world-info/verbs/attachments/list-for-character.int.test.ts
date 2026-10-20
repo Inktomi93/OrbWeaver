@@ -17,23 +17,23 @@ describe("listForCharacter", () => {
     const svc = createWorldInfoService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
-    const aux = await svc.createBook({ principal: principal(owner), input: { name: "Aux" } });
-    const prim = await svc.createBook({ principal: principal(owner), input: { name: "Prim" } });
+    const aux = await svc.createBook({ principal: await principal(db, owner), input: { name: "Aux" } });
+    const prim = await svc.createBook({ principal: await principal(db, owner), input: { name: "Prim" } });
     await svc.attachToCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       bookId: aux.id,
       role: "auxiliary",
     });
     await svc.attachToCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       bookId: prim.id,
       role: "primary",
     });
 
     const listed = await svc.listForCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
     });
     expect(listed.map((b) => b.id)).toEqual([prim.id, aux.id]);
@@ -48,6 +48,6 @@ describe("listForCharacter", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await seedCharacter(db, { ownerId: other });
 
-    await expect(svc.listForCharacter({ principal: principal(owner), characterId: foreign })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.listForCharacter({ principal: await principal(db, owner), characterId: foreign })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

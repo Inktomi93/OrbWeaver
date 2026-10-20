@@ -15,12 +15,12 @@ describe("attachGlobal", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "G" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "G" } });
 
-    await svc.attachGlobal({ principal: principal(owner), bookId: book.id });
-    await svc.attachGlobal({ principal: principal(owner), bookId: book.id });
+    await svc.attachGlobal({ principal: await principal(db, owner), bookId: book.id });
+    await svc.attachGlobal({ principal: await principal(db, owner), bookId: book.id });
 
-    const globals = await svc.listGlobal({ principal: principal(owner) });
+    const globals = await svc.listGlobal({ principal: await principal(db, owner) });
     expect(globals.map((b) => b.id)).toEqual([book.id]);
     expect(globals[0]?.role).toBeNull();
   });
@@ -30,8 +30,8 @@ describe("attachGlobal", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "T" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "T" } });
 
-    await expect(svc.attachGlobal({ principal: principal(owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.attachGlobal({ principal: await principal(db, owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

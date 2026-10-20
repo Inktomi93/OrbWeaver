@@ -17,24 +17,24 @@ describe("restore", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "original" },
     });
     const snap = await svc.snapshot({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       label: "v1",
     });
     // edit away from the snapshot
     await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       input: { description: "edited" },
     });
     h.events.length = 0;
 
     const restored = await svc.restore({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       snapshotId: snap.id,
     });
@@ -42,7 +42,7 @@ describe("restore", () => {
     expect(restored.description).toBe("original");
     expect(h.events).toEqual([{ type: "character.updated", characterId: created.id, contentChanged: true }]);
     // snapshot-current-first added a second history entry (the pre-restore "edited" card)
-    const snaps = await svc.listSnapshots({ principal: principal(owner), characterId: created.id });
+    const snaps = await svc.listSnapshots({ principal: await principal(db, owner), characterId: created.id });
     expect(snaps).toHaveLength(2);
   });
 
@@ -51,12 +51,12 @@ describe("restore", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     await expect(
       svc.restore({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         characterId: created.id,
         snapshotId: castId<CharacterSnapshotId>("character_snapshot_ghost"),
       }),

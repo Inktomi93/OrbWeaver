@@ -4,6 +4,7 @@
 // in emission order.
 // @subject packages/server/src/domain/tool-use/verbs/execute-tool-calls.ts
 
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import { createToolUseService } from "#server/domain/tool-use/index.ts";
@@ -12,6 +13,7 @@ import { ANY_DRIVER, defOf, execOf, makeHarness } from "../_support.ts";
 const NOOP_SCHEMA = z.object({});
 
 test("unknown tool (model hallucination) → errors-as-data; the batch CONTINUES", async () => {
+  const db = await freshDb();
   const h = makeHarness();
   const svc = createToolUseService(h.ctx);
   svc.register(
@@ -27,7 +29,7 @@ test("unknown tool (model hallucination) → errors-as-data; the batch CONTINUES
       { toolCallId: "c1", name: "ghost", arguments: "{}" },
       { toolCallId: "c2", name: "real", arguments: "{}" },
     ],
-    execOf(),
+    await execOf(db),
   );
   expect(records.map((r) => r.isError)).toEqual([true, false]);
   expect(JSON.parse(records[0]?.result ?? "")).toEqual({ error: "unknown tool: ghost" });
@@ -35,6 +37,7 @@ test("unknown tool (model hallucination) → errors-as-data; the batch CONTINUES
 });
 
 test("malformed JSON and zod-invalid args each carry a readable correction surface", async () => {
+  const db = await freshDb();
   const h = makeHarness();
   const svc = createToolUseService(h.ctx);
   svc.register(
@@ -51,7 +54,7 @@ test("malformed JSON and zod-invalid args each carry a readable correction surfa
       { toolCallId: "c1", name: "typed", arguments: "{not json" },
       { toolCallId: "c2", name: "typed", arguments: '{"minutes":"thirty"}' },
     ],
-    execOf(),
+    await execOf(db),
   );
   expect(records[0]?.isError).toBe(true);
   expect(records[0]?.result).toContain("malformed arguments");
@@ -63,6 +66,7 @@ test("malformed JSON and zod-invalid args each carry a readable correction surfa
 });
 
 test("capability denial + chat-scope-without-roster are data, never a dead turn; the gate HELD", async () => {
+  const db = await freshDb();
   const h = makeHarness();
   h.denied.add("host");
   const svc = createToolUseService(h.ctx);
@@ -80,13 +84,18 @@ test("capability denial + chat-scope-without-roster are data, never a dead turn;
   );
   const set = svc.resolveTools(ANY_DRIVER, ["gated"]);
   // Null roster (non-chat consumer) → denial before can() is even consulted.
-  const noRoster = await svc.executeToolCalls(set, [{ toolCallId: "c1", name: "gated", arguments: "{}" }], execOf({ chatId: null, membership: null }));
+  const noRoster = await svc.executeToolCalls(
+    set,
+    [{ toolCallId: "c1", name: "gated", arguments: "{}" }],
+    await execOf(db, { chatId: null, membership: null }),
+  );
   expect(noRoster[0]?.isError).toBe(true);
   expect(noRoster[0]?.result).toContain("not permitted");
   expect(invoked).toBe(0);
 });
 
 test("a throwing handler becomes data (message only, no stack) and the batch continues", async () => {
+  const db = await freshDb();
   const h = makeHarness();
   const svc = createToolUseService(h.ctx);
   svc.register(
@@ -109,7 +118,7 @@ test("a throwing handler becomes data (message only, no stack) and the batch con
       { toolCallId: "c1", name: "boom", arguments: "{}" },
       { toolCallId: "c2", name: "after", arguments: "{}" },
     ],
-    execOf(),
+    await execOf(db),
   );
   expect(JSON.parse(records[0]?.result ?? "")).toEqual({ error: "null deref" });
   expect(records[0]?.result).not.toContain("at "); // no stack frames reach the model
@@ -117,6 +126,7 @@ test("a throwing handler becomes data (message only, no stack) and the batch con
 });
 
 test("the ONE stringify site: ok:false is a legality result; a string-returning handler still yields a JSON document", async () => {
+  const db = await freshDb();
   const h = makeHarness();
   const svc = createToolUseService(h.ctx);
   svc.register(
@@ -139,7 +149,7 @@ test("the ONE stringify site: ok:false is a legality result; a string-returning 
       { toolCallId: "c1", name: "misses", arguments: "{}" },
       { toolCallId: "c2", name: "stringy", arguments: "{}" },
     ],
-    execOf(),
+    await execOf(db),
   );
   // Every non-null result JSON.parses unconditionally — the client-chip contract (03 §4).
   expect(JSON.parse(records[0]?.result ?? "")).toEqual({ error: "the attack misses" });
@@ -149,6 +159,7 @@ test("the ONE stringify site: ok:false is a legality result; a string-returning 
 });
 
 test("sequential in emission order; durationMs rides the injected clock", async () => {
+  const db = await freshDb();
   const h = makeHarness();
   const svc = createToolUseService(h.ctx);
   const order: string[] = [];
@@ -180,7 +191,7 @@ test("sequential in emission order; durationMs rides the injected clock", async 
       { toolCallId: "c1", name: "slow_first", arguments: "{}" },
       { toolCallId: "c2", name: "fast_second", arguments: "{}" },
     ],
-    execOf(),
+    await execOf(db),
   );
   expect(order).toEqual(["slow_first", "fast_second"]);
   expect(records[0]?.durationMs).toBe(25);

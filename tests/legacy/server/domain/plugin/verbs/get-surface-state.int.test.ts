@@ -25,7 +25,7 @@ test("returns the surface's published state for an owned plugin", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   // The state plane is written by `ui.setState` at compose; here we seed the SAME store the verb reads.
   h.ctx.surfaceState.set(installed.id, "panel", null, { affinity: 7, mood: "warm" });
@@ -37,7 +37,7 @@ test("returns null when nothing has been published for that surface", async () =
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   expect(await h.service.getSurfaceState({ caller, pluginId: installed.id, surfaceId: "panel" })).toBeNull();
 });
@@ -45,8 +45,8 @@ test("returns null when nothing has been published for that surface", async () =
 test("a missing/foreign plugin is a leak-free NotFound (never a cross-tenant state read)", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const alpha = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("alpha") }));
-  const beta = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("beta") }));
+  const alpha = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("alpha") }));
+  const beta = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("beta") }));
   const alphaPlugin = await h.service.install({ caller: alpha, bundle: makeBundle({ id: "mood" }), grant: [] });
   h.ctx.surfaceState.set(alphaPlugin.id, "panel", null, { secret: "alpha" });
 
@@ -60,7 +60,7 @@ test("a missing/foreign plugin is a leak-free NotFound (never a cross-tenant sta
 test("row 777: a chatId reads THAT room's row, and never the plugin-wide one", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   h.ctx.surfaceState.set(installed.id, "panel", null, { scope: "plugin-wide" });
   h.ctx.surfaceState.set(installed.id, "panel", ROOM, { scope: "room" });
@@ -74,7 +74,7 @@ test("row 777: a chatId the caller cannot READ is a leak-free NotFound — the c
   // The membership seam refuses this room. In production it is `loadPresentRole` under the caller; here the
   // harness's own seam stands in, which is what makes this a test of the VERB's gate rather than of chat's.
   const h = makePluginHarness(db, { resolveChatAuthority: () => Promise.resolve({ canRead: false, canWrite: false }) });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   // State EXISTS for that room — so a verb that skipped the gate would return it, and this test would go green
   // for the wrong reason. The refusal has to come from the membership check, not from an empty plane.

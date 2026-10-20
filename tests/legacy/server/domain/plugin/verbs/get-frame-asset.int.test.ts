@@ -25,12 +25,12 @@ const FRAME_INSTANCE: PluginInstance = {
 async function seeded(): Promise<{
   readonly db: Awaited<ReturnType<typeof freshDb>>;
   readonly h: ReturnType<typeof makePluginHarness>;
-  readonly caller: ReturnType<typeof ownerPrincipalFor>;
+  readonly caller: Awaited<ReturnType<typeof ownerPrincipalFor>>;
   readonly pluginId: PluginId;
 }> {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("asset_owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("asset_owner") }));
   h.port.script({ ok: true, instance: FRAME_INSTANCE });
   const installed = await h.service.install({
     caller,
@@ -54,7 +54,7 @@ test("an enabled granted frame resolves its own linked bundle path to sniffed by
 
 test("a foreign owner cannot read through a real plugin id", async () => {
   const { db, h, pluginId } = await seeded();
-  const stranger = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("asset_stranger") }));
+  const stranger = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("asset_stranger") }));
   expect(await h.service.getFrameAsset({ caller: stranger, pluginId, bundlePath: "ui/assets/piece.png" })).toBeNull();
 });
 

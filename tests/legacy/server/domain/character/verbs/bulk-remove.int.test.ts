@@ -20,27 +20,27 @@ describe("bulkRemove", () => {
     const avatarB = await seedAsset(db, { id: "asset_b", ownerId: owner, hash: "avatar-b" });
     const foreignAvatar = await seedAsset(db, { id: "asset_foreign", ownerId: other, hash: "foreign-avatar" });
     const a = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d", avatarAssetId: avatarA },
     });
     const b = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d", avatarAssetId: avatarB },
     });
     const foreign = await svc.create({
-      principal: principal(other),
+      principal: await principal(db, other),
       input: { handle: castId<CharacterHandle>("c"), name: "C", description: "d", avatarAssetId: foreignAvatar },
     });
 
     await svc.bulkRemove({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterIds: [a.id, b.id, foreign.id, castId<CharacterId>("character_ghost")],
     });
 
-    expect((await svc.list({ principal: principal(owner) })).items).toHaveLength(0);
+    expect((await svc.list({ principal: await principal(db, owner) })).items).toHaveLength(0);
     // the foreign character survives (skipped, not deleted)
-    expect((await svc.list({ principal: principal(other) })).items).toHaveLength(1);
-    expect((await svc.get({ principal: principal(other), characterId: foreign.id })).avatarAssetId).toBe(foreignAvatar);
+    expect((await svc.list({ principal: await principal(db, other) })).items).toHaveLength(1);
+    expect((await svc.get({ principal: await principal(db, other), characterId: foreign.id })).avatarAssetId).toBe(foreignAvatar);
     expect(h.reaps).toEqual([[avatarA, avatarB]]);
     expect(h.audits.filter((entry) => entry.entry.action === "character.remove")).toHaveLength(2);
   });

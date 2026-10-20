@@ -238,8 +238,8 @@ describe("card RE-EMBED", () => {
     const characterId = await seedCharacter(db, owner);
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
-    await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: a });
-    await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: b });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId: a });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId: b });
 
     const out = await createExportCardScripts({ db: databaseHandle(db) })({ ownerId: owner, characterId });
 
@@ -256,8 +256,8 @@ describe("card RE-EMBED", () => {
     const source = await seedCharacter(db, owner, "source");
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a", behavior: behavior({ findRegex: "a" }) });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b", behavior: behavior({ findRegex: "b" }) });
-    await svc.attachToCharacter({ principal: principal(owner), characterId: source, scriptId: a });
-    await svc.attachToCharacter({ principal: principal(owner), characterId: source, scriptId: b });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId: source, scriptId: a });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId: source, scriptId: b });
 
     // EXPORT the card …
     const exported = await createExportCardScripts({ db: databaseHandle(db) })({ ownerId: owner, characterId: source });
@@ -285,7 +285,7 @@ describe("BUNDLE round-trip (the `regex` portable entity)", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const g = await seedScript(db, { ownerId: owner, id: "regex_script_g", name: "everywhere" });
     await seedScript(db, { ownerId: owner, id: "regex_script_l", name: "local only" });
-    await svc.attachGlobal({ principal: principal(owner), scriptId: g });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId: g });
 
     const files = await createExportRegexScripts({ db: databaseHandle(db) })({ ownerId: owner });
 
@@ -302,7 +302,7 @@ describe("BUNDLE round-trip (the `regex` portable entity)", () => {
     const source = await seedUser(db, { handle: castId<Handle>("source") });
     const g = await seedScript(db, { ownerId: source, id: "regex_script_g", name: "everywhere", behavior: behavior({ findRegex: "g" }) });
     await seedScript(db, { ownerId: source, id: "regex_script_l", name: "local only", behavior: behavior({ findRegex: "l" }) });
-    await svc.attachGlobal({ principal: principal(source), scriptId: g });
+    await svc.attachGlobal({ principal: await principal(db, source), scriptId: g });
 
     const files = await createExportRegexScripts({ db: databaseHandle(db) })({ ownerId: source });
 
@@ -372,7 +372,7 @@ describe("the single-script export door", () => {
     const svc = createRegexService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, id: "regex_script_g", name: "everywhere" });
-    await svc.attachGlobal({ principal: principal(owner), scriptId });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId });
 
     const door = await createExportRegexScript({ db: databaseHandle(db) })({ ownerId: owner, scriptId });
     // The portable file is FLAT (`schemaKind`/`schemaVersion` beside the payload's own fields), and `global`

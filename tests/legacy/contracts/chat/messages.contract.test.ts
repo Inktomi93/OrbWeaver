@@ -70,6 +70,7 @@ test("messageViewSchema carries the slot joined with its selected variant (conte
     selectedVariantIdx: 0,
     variantCount: 1,
     hasContinuation: false,
+    hasGeneratedVariant: true,
     outputCapReached: false,
     content: "hello there",
     reasoning: null,

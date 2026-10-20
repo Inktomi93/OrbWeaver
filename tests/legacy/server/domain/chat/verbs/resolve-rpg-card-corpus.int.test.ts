@@ -7,14 +7,13 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { Db } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach } from "vitest";
 import { createResolveRpgCardCorpus } from "#server/domain/chat/verbs/resolve-rpg-card-corpus.ts";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+import { chatAssembly, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 
@@ -37,10 +36,9 @@ test("renders the card's prose as labeled blocks + the room's OPENING line (the 
   await seedMessage(db, chatId, 1, { role: "assistant", content: "You meet at the ford." });
   await seedMessage(db, chatId, 2, { role: "user", content: "a later beat that is NOT the opening" });
 
-  const resolve = createResolveRpgCardCorpus({
-    ...makeChatContext(db, { getCard: () => Promise.resolve(card({ name: "Mira", description: "A warden.", scenario: "The ford at dusk." })) }),
-    db: databaseHandle(db),
-  });
+  const resolve = createResolveRpgCardCorpus(
+    chatAssembly(makeChatContext(db, { getCard: () => Promise.resolve(card({ name: "Mira", description: "A warden.", scenario: "The ford at dusk." })) })),
+  );
   const corpus = await resolve(chatId, characterId);
 
   expect(corpus?.name).toBe("Mira");
@@ -56,10 +54,9 @@ test("a room with no message yet yields an empty opening (the round runs on the 
   const characterId = await seedCharacter(db, hostId, "Vesna");
   await seedParticipant(db, { chatId, key: "c2_vesna", characterId });
 
-  const resolve = createResolveRpgCardCorpus({
-    ...makeChatContext(db, { getCard: () => Promise.resolve(card({ name: "Vesna", description: "A priest." })) }),
-    db: databaseHandle(db),
-  });
+  const resolve = createResolveRpgCardCorpus(
+    chatAssembly(makeChatContext(db, { getCard: () => Promise.resolve(card({ name: "Vesna", description: "A priest." })) })),
+  );
   const corpus = await resolve(chatId, characterId);
 
   expect(corpus).toEqual({ name: "Vesna", card: "DESCRIPTION:\nA priest.", opening: "" });
@@ -73,7 +70,7 @@ test("a card unreadable under the room host resolves NULL (the verb refuses rath
   await seedParticipant(db, { chatId, key: "c3_gone", characterId });
 
   // The card read (under the host's ownership) misses — a gone card / one the host does not own.
-  const resolve = createResolveRpgCardCorpus({ ...makeChatContext(db, { getCard: () => Promise.resolve(null) }), db: databaseHandle(db) });
+  const resolve = createResolveRpgCardCorpus(chatAssembly(makeChatContext(db, { getCard: () => Promise.resolve(null) })));
   await expect(resolve(chatId, characterId)).resolves.toBeNull();
 });
 
@@ -92,10 +89,9 @@ test("SECURITY: a host-OWNED character with NO present seat in this room resolve
   const unseated = await seedCharacter(db, hostId, "Unseated");
   await seedParticipant(db, { chatId, key: "c5_seated", characterId: seated });
 
-  const resolve = createResolveRpgCardCorpus({
-    ...makeChatContext(db, { getCard: () => Promise.resolve(card({ name: "Any", description: "prose" })) }),
-    db: databaseHandle(db),
-  });
+  const resolve = createResolveRpgCardCorpus(
+    chatAssembly(makeChatContext(db, { getCard: () => Promise.resolve(card({ name: "Any", description: "prose" })) })),
+  );
 
   // The control: the SEATED character still resolves through the same `getCard` double.
   await expect(resolve(chatId, seated)).resolves.not.toBeNull();
@@ -109,10 +105,9 @@ test("SECURITY: a character whose seat has LEFT the room resolves NULL (the rost
   const departed = await seedCharacter(db, hostId, "Departed");
   await seedParticipant(db, { chatId, key: "c6_departed", characterId: departed, leftSeq: 4 });
 
-  const resolve = createResolveRpgCardCorpus({
-    ...makeChatContext(db, { getCard: () => Promise.resolve(card({ name: "Any", description: "prose" })) }),
-    db: databaseHandle(db),
-  });
+  const resolve = createResolveRpgCardCorpus(
+    chatAssembly(makeChatContext(db, { getCard: () => Promise.resolve(card({ name: "Any", description: "prose" })) })),
+  );
 
   await expect(resolve(chatId, departed)).resolves.toBeNull();
 });
@@ -124,13 +119,14 @@ test("a HOSTLESS room resolves NULL — a card read needs an owner (D18/D19)", a
   const characterId = await seedCharacter(db, memberId, "Orphan");
 
   // `getCard` would answer, but the op must never reach it without a host to own the read.
-  const resolve = createResolveRpgCardCorpus({
-    ...makeChatContext(db, {
-      getCard: () => {
-        throw new Error("getCard must not be reached without a room host");
-      },
-    }),
-    db: databaseHandle(db),
-  });
+  const resolve = createResolveRpgCardCorpus(
+    chatAssembly(
+      makeChatContext(db, {
+        getCard: () => {
+          throw new Error("getCard must not be reached without a room host");
+        },
+      }),
+    ),
+  );
   await expect(resolve(chatId, characterId)).resolves.toBeNull();
 });

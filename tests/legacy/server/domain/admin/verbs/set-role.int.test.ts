@@ -24,7 +24,7 @@ describe("setRole", () => {
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
 
     const updated = await svc.setRole({
-      principal: principal(owner, "owner"),
+      principal: await principal(db, owner, "owner"),
       userId: target,
       role: "admin",
     });
@@ -41,7 +41,7 @@ describe("setRole", () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
-    await expect(svc.setRole({ principal: principal(admin, "admin"), userId: target, role: "admin" })).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.setRole({ principal: await principal(db, admin, "admin"), userId: target, role: "admin" })).rejects.toThrow(DomainForbiddenError);
   });
 
   test("promoting a SECOND user to owner is refused with a typed CONFLICT (D40 single-owner), never a raw DB throw", async () => {
@@ -51,7 +51,7 @@ describe("setRole", () => {
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     // The pre-check fires BEFORE the write, so the `users_single_owner_unique` partial index is never hit
     // — a friendly `DomainConflictError`, not the raw unique-violation.
-    await expect(svc.setRole({ principal: principal(owner, "owner"), userId: target, role: "owner" })).rejects.toThrow(DomainConflictError);
+    await expect(svc.setRole({ principal: await principal(db, owner, "owner"), userId: target, role: "owner" })).rejects.toThrow(DomainConflictError);
     // The target is untouched — still a plain user.
     const row = (await db.select().from(users).where(eq(users.id, target)))[0];
     expect(row?.role).toBe("user");
@@ -63,7 +63,7 @@ describe("setRole", () => {
     const svc = createAdminService(h.ctx);
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
     const result = await svc.setRole({
-      principal: principal(owner, "owner"),
+      principal: await principal(db, owner, "owner"),
       userId: owner,
       role: "owner",
     });
@@ -81,7 +81,9 @@ describe("setRole", () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
-    await expect(svc.setRole({ principal: principal(owner, "owner"), userId: owner, role: "user" })).rejects.toMatchObject({ code: "cannot_modify_owner" });
+    await expect(svc.setRole({ principal: await principal(db, owner, "owner"), userId: owner, role: "user" })).rejects.toMatchObject({
+      code: "cannot_modify_owner",
+    });
     const rows = await db.select().from(users).where(eq(users.id, owner));
     expect(rows[0]?.role).toBe("owner");
   });
@@ -92,7 +94,7 @@ describe("setRole", () => {
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
     const onlyAdmin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const updated = await svc.setRole({
-      principal: principal(owner, "owner"),
+      principal: await principal(db, owner, "owner"),
       userId: onlyAdmin,
       role: "user",
     });
@@ -105,7 +107,7 @@ describe("setRole", () => {
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
     await expect(
       svc.setRole({
-        principal: principal(owner, "owner"),
+        principal: await principal(db, owner, "owner"),
         userId: castId<UserId>("user_ghost"),
         role: "admin",
       }),
@@ -121,7 +123,7 @@ describe("setRole", () => {
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
 
-    await expect(svc.setRole({ principal: principal(owner, "owner"), userId: target, role: "admin" })).rejects.toThrow();
+    await expect(svc.setRole({ principal: await principal(db, owner, "owner"), userId: target, role: "admin" })).rejects.toThrow();
 
     const row = (await db.select().from(users).where(eq(users.id, target)))[0];
     expect(row?.role).toBe("user");

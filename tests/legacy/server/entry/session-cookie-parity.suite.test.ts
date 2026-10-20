@@ -38,6 +38,7 @@ import type { AuthSessionsPort } from "#server/entry/http/index.ts";
 import { registerAuthRoutes } from "#server/entry/http/index.ts";
 import type { AuthConfig } from "#server/infra/auth/index.ts";
 import { sessionCookieFor } from "#server/infra/auth/index.ts";
+import { testLiveBuses } from "../transport/trpc/_support.ts";
 
 const SLIDE_MS = 60_000;
 const TRANSPORTS: readonly RequestTransport[] = ["https", "http"];
@@ -194,6 +195,7 @@ function appDeps(): AppDeps {
     now: (): number => FROZEN_AT_MS,
     db: databaseHandle(NO_DB),
     oidcProviderName: "your identity provider",
+    liveBuses: testLiveBuses(),
     seam: {
       // The slide fires on every request: the middleware re-issues Set-Cookie ONLY from the token it
       // itself parsed off the Cookie header, so the header value is this probe's observable.

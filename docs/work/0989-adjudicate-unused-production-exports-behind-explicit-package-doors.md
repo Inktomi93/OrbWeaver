@@ -43,3 +43,5 @@ Reviewed client state doors: evidence `reports/review/peer-state-population-inde
 Reviewed feature doors: evidence `reports/review/989-feature-door-independent.md` and `reports/review/989-client-held-door-independent.md`.
 
 Plan-method evidence (`pnpm ast rot`/`apisurface`) does not complete at usable cost: rot server stopped at 2 h 54 min without a verdict. Bulk application waits on 1133 and 965, as the plan's public-doors section requires.
+
+Audit (`reports/review/legacy-kept-alive-audit.md`): of the production-baseline entries, most exports and types are imported only by tests/legacy; these lose their last consumer as rebuilt domains delete their legacy folders, so retire them in the batched codemod domain by domain rather than before.

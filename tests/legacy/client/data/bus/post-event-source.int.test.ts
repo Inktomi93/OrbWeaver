@@ -63,13 +63,15 @@ for (const { mode, ...expected } of CASES) {
       now: clock.now,
       db: databaseHandle(db),
       seam: {
-        resolvePrincipal: () => Promise.resolve({ principal: principal("user", { userId: OWNER_USER_ID }), sessionId: null, csrfHeaderPresent: false }),
+        resolvePrincipal: async () =>
+          Promise.resolve({ principal: await principal(db, "user", { userId: OWNER_USER_ID }), sessionId: null, csrfHeaderPresent: false }),
         debugGateAdmits: () => false,
       },
       services: { ...app.services, chat: { ...app.services.chat, impersonateStream } },
       rateLimit: { enforce: () => Promise.resolve() },
       presence: { connect: () => undefined, read: (userId) => ({ userId, online: true, lastSeenAt: null }) },
       sockets: app.sockets,
+      liveBuses: app.liveBuses,
       assets: app.assets,
       cas: createCas(join(importStagingDir, "unhit-cas")),
       character: app.services.character,

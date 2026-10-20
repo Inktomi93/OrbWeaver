@@ -62,7 +62,7 @@ describe("exportCharacter", () => {
     });
 
     const result = await svc.exportCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
     });
     if (result === null) {
@@ -92,7 +92,7 @@ describe("exportCharacter", () => {
     await seedCharacterTag(db, character, pending, "pending");
 
     const result = await svc.exportCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
     });
     const card = characterCardV3Schema.parse(await readCard(result?.bytes ?? new Uint8Array()));
@@ -123,7 +123,7 @@ describe("exportCharacter", () => {
     await seedCharacterBook(db, character, aux, "auxiliary");
 
     const result = await svc.exportCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
     });
     const card = characterCardV3Schema.parse(await readCard(result?.bytes ?? new Uint8Array()));
@@ -141,7 +141,7 @@ describe("exportCharacter", () => {
     // A cross-owner junction row: the writers refuse it, so only an older or hand-written row carries it.
     await seedCharacterTag(db, character, await seedTag(db, other, "private-label"), "accepted");
 
-    const result = await svc.exportCharacter({ principal: principal(owner), characterId: character });
+    const result = await svc.exportCharacter({ principal: await principal(db, owner), characterId: character });
     const card = characterCardV3Schema.parse(await readCard(result?.bytes ?? new Uint8Array()));
     expect(card.data.tags).toEqual(["fantasy"]);
   });
@@ -156,7 +156,7 @@ describe("exportCharacter", () => {
     await seedWorldEntry(db, { worldBookId: foreign, title: "Secret", content: "the other owner's lore", keys: ["secret"] });
     await seedCharacterBook(db, character, foreign, "primary");
 
-    const result = await svc.exportCharacter({ principal: principal(owner), characterId: character });
+    const result = await svc.exportCharacter({ principal: await principal(db, owner), characterId: character });
     const card = characterCardV3Schema.parse(await readCard(result?.bytes ?? new Uint8Array()));
     expect(card.data.character_book).toBeUndefined();
   });
@@ -173,7 +173,7 @@ describe("exportCharacter", () => {
     await seedCharacterBook(db, character, primary, "primary");
     await seedCharacterBook(db, character, aux, "auxiliary");
 
-    const result = await svc.exportCharacter({ principal: principal(owner), characterId: character });
+    const result = await svc.exportCharacter({ principal: await principal(db, owner), characterId: character });
     const card = characterCardV3Schema.parse(await readCard(result?.bytes ?? new Uint8Array()));
 
     expect(new Set(card.data.orbweaver_attached_books)).toEqual(
@@ -195,7 +195,7 @@ describe("exportCharacter", () => {
     await seedCharacterBook(db, source, aux, "auxiliary");
 
     // Export → re-parse the emitted card back into its carried references (the IN half of the serde).
-    const exported = await svc.exportCharacter({ principal: principal(owner), characterId: source });
+    const exported = await svc.exportCharacter({ principal: await principal(db, owner), characterId: source });
     const refs = (await parseCardPng(exported?.bytes ?? new Uint8Array(), "src"))?.attachedBooks ?? [];
 
     // Import lands a fresh character on the same install; the re-link op re-points the SAME books at it.
@@ -229,9 +229,9 @@ describe("exportCharacter", () => {
       handle: castId<CharacterHandle>("plain"),
     });
 
-    const a = await svc.exportCharacter({ principal: principal(owner), characterId: withAvatar });
+    const a = await svc.exportCharacter({ principal: await principal(db, owner), characterId: withAvatar });
     const b = await svc.exportCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: withoutAvatar,
     });
 
@@ -252,7 +252,7 @@ describe("exportCharacter", () => {
     const character = await seedCharacter(db, { ownerId: owner, avatarAssetId: avatar });
 
     const result = await svc.exportCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
     });
     expect(harness.transforms).toHaveLength(1);
@@ -270,7 +270,7 @@ describe("exportCharacter", () => {
     const character = await seedCharacter(db, { ownerId: owner, avatarAssetId: avatar });
 
     const result = await svc.exportCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
     });
     expect(harness.reads).toEqual([`${owner}:${AVATAR_HASH}`]);
@@ -287,7 +287,7 @@ describe("exportCharacter", () => {
     const character = await seedCharacter(db, { ownerId: owner });
 
     const result = await svc.exportCharacter({
-      principal: principal(other),
+      principal: await principal(db, other),
       characterId: character,
     });
     expect(result).toBeNull();
@@ -298,7 +298,7 @@ describe("exportCharacter", () => {
     const svc = createExportService({ ...makeHarness(db).ctx, db: databaseHandle(db) });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const result = await svc.exportCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: castId<CharacterId>("character_ghost"),
     });
     expect(result).toBeNull();

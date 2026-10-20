@@ -55,7 +55,7 @@ const MARKDOWN_LEDGERS = [ACTIVE_GATES_INDEX_REL, SNAP_FLAGS_INDEX_REL].map((pat
 
 /** One stage's trigger: the paths that can change its verdict, or `null` with the reason none can be
  *  written. `why` is load-bearing on BOTH arms — it is the evidence a future reader re-derives against. */
-export interface StageTrigger {
+interface StageTrigger {
   readonly paths: RegExp | null;
   readonly why: string;
 }

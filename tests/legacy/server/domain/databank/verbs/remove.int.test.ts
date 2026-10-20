@@ -16,12 +16,12 @@ test("removing a document cascades its chunks and junction rows away", async () 
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const chatId = await seedChat(db, "chat_room");
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "doc.md", text: "canon that chunks nicely" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "doc.md", text: "canon that chunks nicely" });
   await h.ingest.ingestDocument({ documentId: document.id, signal: new AbortController().signal });
-  await h.service.attachGlobal({ principal: principalFor(owner), documentId: document.id });
-  await h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId });
+  await h.service.attachGlobal({ principal: await principalFor(db, owner), documentId: document.id });
+  await h.service.attachToChat({ principal: await principalFor(db, owner), documentId: document.id, chatId });
 
-  await h.service.remove({ principal: principalFor(owner), id: document.id });
+  await h.service.remove({ principal: await principalFor(db, owner), id: document.id });
 
   expect(await db.select().from(documents).where(eq(documents.id, document.id))).toHaveLength(0);
   expect(await db.select().from(documentChunks).where(eq(documentChunks.documentId, document.id))).toHaveLength(0);
@@ -45,9 +45,9 @@ test("a non-owner's remove throws DocumentNotFoundError (nothing deleted)", asyn
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const other = await seedUser(db, { handle: castId<Handle>("other") });
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "doc.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "doc.md", text: "canon" });
 
-  await expect(h.service.remove({ principal: principalFor(other), id: document.id })).rejects.toBeInstanceOf(DocumentNotFoundError);
+  await expect(h.service.remove({ principal: await principalFor(db, other), id: document.id })).rejects.toBeInstanceOf(DocumentNotFoundError);
   expect(await db.select().from(documents).where(eq(documents.id, document.id))).toHaveLength(1);
   // Nothing was deleted, so nothing is announced — only the create's event stands.
   expect(h.userEvents).toEqual([{ userId: owner, event: { type: "databankChanged", documentId: document.id } }]);
@@ -65,15 +65,15 @@ test("#2471 removing an attached document fans the room it was attached to — t
   const chatId = await seedChat(db, "chat_room");
   await seedChatHost(db, chatId, owner);
   await seedChatHost(db, chatId, member, "member");
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
-  await h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
+  await h.service.attachToChat({ principal: await principalFor(db, owner), documentId: document.id, chatId });
   h.roomFans.length = 0;
 
-  await h.service.remove({ principal: principalFor(owner), id: document.id });
+  await h.service.remove({ principal: await principalFor(db, owner), id: document.id });
 
   expect(h.roomFans).toEqual([{ type: "roomEntityChanged", chatId, entity: "databank" }]);
   // The co-member's rack is empty — and it is the FAN that tells their device to go and find that out.
-  expect(await h.service.listActiveForChat({ principal: principalFor(member), chatId })).toEqual([]);
+  expect(await h.service.listActiveForChat({ principal: await principalFor(db, member), chatId })).toEqual([]);
 });
 
 test("#2471 a REFUSED remove (foreign document) fans nothing — the captured thunk is discarded", async () => {
@@ -83,11 +83,11 @@ test("#2471 a REFUSED remove (foreign document) fans nothing — the captured th
   const attacker = await seedUser(db, { handle: castId<Handle>("attacker") });
   const chatId = await seedChat(db, "chat_room");
   await seedChatHost(db, chatId, owner);
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
-  await h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
+  await h.service.attachToChat({ principal: await principalFor(db, owner), documentId: document.id, chatId });
   h.roomFans.length = 0;
 
-  await expect(h.service.remove({ principal: principalFor(attacker), id: document.id })).rejects.toBeInstanceOf(DocumentNotFoundError);
+  await expect(h.service.remove({ principal: await principalFor(db, attacker), id: document.id })).rejects.toBeInstanceOf(DocumentNotFoundError);
 
   expect(h.roomFans).toEqual([]);
 });

@@ -1,6 +1,7 @@
 // entry/http/upload — the multipart ingest routes. Pins: both routes mount the belt chain
-// [authCsrfGuard, bodyCap, handler]; the guard 401s the anonymous caller + 403s a cookie mutation missing
-// the CSRF header (BEFORE the body is read); the asset route validates file + kind (400) and calls store
+// [authCsrfGuard, bodyCap, handler]; the guard 401s the anonymous caller + 403s a fallback mutation missing
+// the CSRF header (BEFORE the body is read; the cookie and header arms run over real credentials in
+// tests/e2e/csrf-gates.local.spec.ts and tests/e2e/csrf-gates.forward.spec.ts); the asset route validates file + kind (400) and calls store
 // with enforceMagic:true + a maxBytes cap; the import route delegates to run-profile-import (400 with no
 // files; otherwise the per-card outcome); and the #1598 card-lorebook RESTORE door refuses — as a 400 body,
 // never a throw — a card no character of this owner was imported from. Hono isn't test-resolvable, so the registrars run over a captured
@@ -21,6 +22,7 @@ import { AssetContentRejectedError, createAssetsService } from "@orb/server/doma
 import type { ImportCharacterPort } from "@orb/server/domain/character";
 import { requireHost } from "@orb/server/domain/chat";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, onTestFinished } from "vitest";
 import { can } from "#server/domain/admin/index.ts";
@@ -32,17 +34,14 @@ import type { UploadAssetsPort, UploadDeps } from "#server/entry/http/index.ts";
 import { registerUpload } from "#server/entry/http/index.ts";
 import { createExtractText, EXTRACTOR_VERSION } from "#server/infra/extraction/index.ts";
 import { matchesAccept } from "#ui/primitives/file-dropzone/accept.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { makeHarness } from "../../domain/assets/_support.ts";
 import { makeDatabankHarness, principalFor, seedCharacter, seedChat, seedChatHost, seedUser } from "../../domain/databank/_support.ts";
 import { buildDocx, buildEpub, buildPdf } from "../../infra/extraction/_fixtures.ts";
 
-const OWNER: Principal = {
-  userId: castId<UserId>("usr_owner"),
-  role: "owner",
-  handle: castId<Handle>("owner"),
-  externalId: null,
-  via: "fallback",
-};
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+const OWNER: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("usr_owner"), { role: "owner", handle: castId<Handle>("owner") });
 const ASSET_ROUTE = "POST /api/assets/upload";
 const DATABANK_ROUTE = "POST /api/databank/upload";
 const IMPORT_ROUTE = "POST /api/import";
@@ -134,8 +133,6 @@ async function runGuard(deps: UploadDeps, key: string, ctx: GuardCtx): Promise<{
   });
   return { status: res instanceof Response ? res.status : null, nexted };
 }
-
-const COOKIE_OWNER: Principal = { ...OWNER, via: "cookie" };
 
 const STORED: StoredAsset = {
   assetId: castId<AssetId>("ast_1"),
@@ -432,18 +429,6 @@ describe("registerUpload — auth+CSRF guard (belt order, before the body is rea
       expect(nexted).toBe(false);
     });
 
-    test(`${key}: cookie session WITHOUT the CSRF header → 403`, async () => {
-      const { status, nexted } = await runGuard(okDeps, key, guardCtx(COOKIE_OWNER));
-      expect(status).toBe(403);
-      expect(nexted).toBe(false);
-    });
-
-    test(`${key}: cookie session WITH the CSRF header → passes to the body cap`, async () => {
-      const { status, nexted } = await runGuard(okDeps, key, guardCtx(COOKIE_OWNER, { [CSRF_HEADER]: "1" }));
-      expect(status).toBeNull();
-      expect(nexted).toBe(true);
-    });
-
     // #300 — the fallback (loopback owner) arm is AMBIENT-credential, like cookie: a multipart CSRF from a
     // loopback web origin rides it. `multipart/form-data` is CORS-simple (no preflight), so the peer gate
     // alone doesn't stop it — this route MUST require the CSRF header for `via:"fallback"` too.
@@ -455,13 +440,6 @@ describe("registerUpload — auth+CSRF guard (belt order, before the body is rea
 
     test(`${key}: fallback principal WITH the CSRF header → passes to the body cap`, async () => {
       const { status, nexted } = await runGuard(okDeps, key, guardCtx(OWNER, { [CSRF_HEADER]: "1" }));
-      expect(status).toBeNull();
-      expect(nexted).toBe(true);
-    });
-
-    // Only the proxy-asserted `via:"header"` arm stays CSRF-exempt (a browser can't forge the proxy's headers).
-    test(`${key}: SSO header principal is exempt → passes with no CSRF header`, async () => {
-      const { status, nexted } = await runGuard(okDeps, key, guardCtx({ ...OWNER, via: "header" }));
       expect(status).toBeNull();
       expect(nexted).toBe(true);
     });
@@ -494,7 +472,7 @@ async function realDatabankDeps(): Promise<{ readonly deps: UploadDeps; readonly
     ensureChatHost: (actor, id) => requireHost({ db: databaseHandle(db), can }, actor, id).then((): void => undefined),
   });
   const databank = createDatabankService({ ...h.ctx, assetsStore: createAssetsService(assets.ctx).store });
-  return { deps: { ...okDeps, databank }, principal: principalFor(ownerId), db };
+  return { deps: { ...okDeps, databank }, principal: await principalFor(db, ownerId), db };
 }
 
 describe("Databank picker admission reaches the real route, CAS belt and extraction", () => {

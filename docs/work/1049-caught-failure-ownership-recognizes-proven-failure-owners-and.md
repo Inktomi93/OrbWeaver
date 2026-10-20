@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: blocked
-updated: 2026-10-19
-priority: P2
+status: doing
+updated: 2026-10-20
+priority: P1
 area: tooling
-blocked: on 1133
+lane: wt/agent-a90a3cbfc9cead9d7
 plan: test-foundation
 ---
 
@@ -25,3 +25,5 @@ Planted controls prove each new owner kind and a fooled owner still fails. Waive
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Re-measure on main 492d691d89 after 1133, 1154 and 1155 (`reports/review/heavy2/`): `check:structure --check=caught-failure-ownership` alone ran 42:32 at 16.7 GB peak, over the 16 GB per-run bar, with 34 blocking findings across client data, inference, server infra, network, relay, acme and floor code-facts, and a waiver-budget alarm: 641 excused against a budget of 701, so the budget rows fall to 641.

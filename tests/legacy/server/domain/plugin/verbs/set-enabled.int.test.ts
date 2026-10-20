@@ -15,16 +15,16 @@ test("enable activates on the CAS bundle under the granted subset; the row is en
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "mood", capabilities: ["chat.read"] }),
     grant: ["chat.read"],
   });
 
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   expect(h.port.created.length).toBe(1);
   expect(h.port.created[0]?.grants).toEqual(["chat.read"]); // the granted subset crossed the seam
-  const [view] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+  const [view] = await h.service.list({ caller: await ownerPrincipalFor(db, owner) });
   expect(view?.status).toBe("enabled");
 });
 
@@ -32,11 +32,13 @@ test("a contained activation failure surfaces as PluginCrashedError; the row lan
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "mood" }), grant: [] });
   h.port.script({ ok: false, error: "main.js threw", log: [] });
 
-  await expect(h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true })).rejects.toBeInstanceOf(PluginCrashedError);
-  const [view] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+  await expect(h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true })).rejects.toBeInstanceOf(
+    PluginCrashedError,
+  );
+  const [view] = await h.service.list({ caller: await ownerPrincipalFor(db, owner) });
   expect(view?.status).toBe("errored");
   expect(view?.lastError).toBe("main.js threw");
 });
@@ -45,15 +47,15 @@ test("disable disposes the instance + lands the row disabled (idempotent)", asyn
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "mood" }), grant: [] });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: false });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: false });
   expect(h.port.disposed.length).toBe(1);
   // Idempotent second disable is a no-op (no resident to dispose again).
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: false });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: false });
   expect(h.port.disposed.length).toBe(1);
-  const [view] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+  const [view] = await h.service.list({ caller: await ownerPrincipalFor(db, owner) });
   expect(view?.status).toBe("disabled");
 });
 
@@ -62,9 +64,9 @@ test("a missing plugin id is a leak-free NotFound", async () => {
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  await expect(h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: castId<PluginId>("plugin_missing"), enabled: true })).rejects.toBeInstanceOf(
-    PluginNotFoundError,
-  );
+  await expect(
+    h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: castId<PluginId>("plugin_missing"), enabled: true }),
+  ).rejects.toBeInstanceOf(PluginNotFoundError);
 });
 
 test("a plain user (role:'user') enables their OWN plugin — D147", async () => {
@@ -72,15 +74,15 @@ test("a plain user (role:'user') enables their OWN plugin — D147", async () =>
   const h = makePluginHarness(db);
   const user = await seedUser(db, { handle: castId<Handle>("user") });
   const installed = await h.service.install({
-    caller: principalFor(user),
+    caller: await principalFor(db, user),
     bundle: makeBundle({ id: "mine", capabilities: ["chat.read"] }),
     grant: ["chat.read"],
   });
 
-  await h.service.setEnabled({ caller: principalFor(user), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await principalFor(db, user), pluginId: installed.id, enabled: true });
 
   expect(h.port.created[0]?.grants).toEqual(["chat.read"]);
-  expect((await h.service.list({ caller: principalFor(user) }))[0]?.status).toBe("enabled");
+  expect((await h.service.list({ caller: await principalFor(db, user) }))[0]?.status).toBe("enabled");
 });
 
 // THE CONFUSED-DEPUTY PIN (D147). `setEnabled` is the act that RUNS a plugin's untrusted guest bundle, and
@@ -97,18 +99,20 @@ test("a stranger cannot enable another user's plugin — not a plain user, and N
   const bob = await seedUser(db, { handle: castId<Handle>("bob") });
   const boss = await seedUser(db, { handle: castId<Handle>("boss") });
   const hers = await h.service.install({
-    caller: principalFor(alice),
+    caller: await principalFor(db, alice),
     bundle: makeBundle({ id: "mood", capabilities: ["chat.read"] }),
     grant: ["chat.read"],
   });
 
-  await expect(h.service.setEnabled({ caller: principalFor(bob), pluginId: hers.id, enabled: true })).rejects.toBeInstanceOf(PluginNotFoundError);
-  await expect(h.service.setEnabled({ caller: ownerPrincipalFor(boss), pluginId: hers.id, enabled: true })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.setEnabled({ caller: await principalFor(db, bob), pluginId: hers.id, enabled: true })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.setEnabled({ caller: await ownerPrincipalFor(db, boss), pluginId: hers.id, enabled: true })).rejects.toBeInstanceOf(
+    PluginNotFoundError,
+  );
 
   // No guest code ever booted, under either principal.
   expect(h.port.created.length).toBe(0);
   // …and A's row is untouched — a refusal that had already flipped the status would be a write-IDOR.
-  expect((await h.service.list({ caller: principalFor(alice) }))[0]?.status).toBe("disabled");
+  expect((await h.service.list({ caller: await principalFor(db, alice) }))[0]?.status).toBe("disabled");
 });
 
 // THE CONSENT-BYPASS PIN (2026-08-24). "Enabling grants nothing" was true of capability NAMES and FALSE of
@@ -123,18 +127,18 @@ test("enabling a row with a standing re-consent arms the wall at the CONSENTED h
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: ["net.fetch"],
   });
   // v2 widens REACH only — same capability set, one new destination. The grant survives by design.
   await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
   });
 
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   const armed = h.port.created.at(-1);
   expect(armed?.grants).toEqual(["net.fetch"]); // the stored grant crossed, untouched
@@ -146,24 +150,24 @@ test("a covering re-grant restores the full declared reach — the withholding i
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: ["net.fetch"],
   });
   const upgraded = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
   });
 
   // The owner ANSWERS: `net.fetch` re-confirmed with the echo of every host the screen rendered.
   await h.service.setGrant({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     grant: ["net.fetch"],
     acknowledgedNetHosts: upgraded.netHosts ?? [],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   const armed = h.port.created.at(-1);
   expect(armed?.netHosts).toEqual(["api.vendor.example", "collector.attacker.example"]);
@@ -182,14 +186,14 @@ test("DISABLING voids the plugin's pending posture-2 asks — a stale card never
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "sweep", capabilities: ["chat.read"] }),
     grant: ["chat.read"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
   voided.length = 0; // the enable's own clean-slate deactivate already swept; measure the DISABLE
 
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: false });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: false });
 
   expect(voided).toEqual([installed.id]);
 });
@@ -202,9 +206,9 @@ test("UNINSTALL voids them too (the same deactivate path — a removed plugin le
     ops: { ...ops, suggestions: { ...ops.suggestions, voidForPlugin: (pluginId): void => void voided.push(pluginId) } },
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "gone" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "gone" }), grant: [] });
 
-  await h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+  await h.service.uninstall({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
 
   expect(voided).toEqual([installed.id]);
 });

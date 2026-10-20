@@ -17,7 +17,11 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, onTestFinished, vi } from "vitest";
 import type { AssetsWorkloadDeps } from "#server/domain/assets/contract/service.ts";
 import { createAssetsWorkloadContributions } from "#server/domain/assets/workload-contributions.ts";
+import { everyOwnerAuthority } from "../workloads/_support.ts";
 import { makeHarness, seedCharacter, seedUser } from "./_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 const T0 = 1_700_000_000_000;
 const sig = (): AbortSignal => new AbortController().signal;
@@ -29,7 +33,9 @@ let cas: AssetsWorkloadDeps["cas"];
 let harness: Awaited<ReturnType<typeof makeHarness>>;
 
 function ctxFor(owner: UserId | null): WorkloadRunContext {
-  return { userId: ownerId, ownerId: owner, now: () => T0 };
+  return owner === null
+    ? { ...EVERY_OWNER.run, userId: ownerId, funderUserId: ownerId, now: () => T0 }
+    : { userId: ownerId, ownerId: owner, funderUserId: ownerId, now: () => T0 };
 }
 
 /** The three contributions over the real db/CAS plus a recording `assets` slice. */

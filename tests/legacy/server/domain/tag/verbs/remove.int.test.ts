@@ -20,13 +20,13 @@ describe("removeTag", () => {
     const characterId = await seedCharacter(db, owner);
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
     await svc.attachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       targetType: "character",
       targetId: characterId,
     });
 
-    await svc.removeTag({ principal: principal(owner), tagId });
+    await svc.removeTag({ principal: await principal(db, owner), tagId });
     expect(await db.select().from(characterTags).where(eq(characterTags.tagId, tagId))).toHaveLength(0);
   });
 
@@ -34,7 +34,7 @@ describe("removeTag", () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const svc = createTagService(makeTagHarness(db).ctx);
-    await expect(svc.removeTag({ principal: principal(owner), tagId: castId<TagId>("tag_ghost") })).rejects.toThrow(TagNotFoundError);
+    await expect(svc.removeTag({ principal: await principal(db, owner), tagId: castId<TagId>("tag_ghost") })).rejects.toThrow(TagNotFoundError);
   });
 });
 
@@ -46,10 +46,10 @@ describe("removeTag — audit", () => {
     const svc = createTagService(h.ctx);
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
 
-    await svc.removeTag({ principal: principal(owner), tagId });
+    await svc.removeTag({ principal: await principal(db, owner), tagId });
     expect(h.audits).toEqual([{ actorUserId: owner, action: "tag.remove", entityType: "tag", entityId: tagId }]);
 
-    await svc.removeTag({ principal: principal(owner), tagId }).catch((e: unknown) => e);
+    await svc.removeTag({ principal: await principal(db, owner), tagId }).catch((e: unknown) => e);
     expect(h.audits).toHaveLength(1);
   });
 });

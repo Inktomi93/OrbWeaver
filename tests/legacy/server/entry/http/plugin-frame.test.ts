@@ -21,22 +21,27 @@ import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PluginFrameBody } from "@orb/contracts/plugin";
 import { PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
+import type { Db } from "@orb/db";
 import { CARD_FRAME_HEIGHT_SCRIPT } from "@orb/kit/card-frame";
-import type { Handle, PluginId, UserId } from "@orb/kit/ids";
+import type { PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
 import type { PluginFrameDeps, PrincipalEnv } from "#server/entry/http/index.ts";
 import { registerPluginFrame, securityHeaders } from "#server/entry/http/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 const PLUGIN = castId<PluginId>("plugin_01h455vb4pex5vsknk084sn02q");
 
-function principal(id: string): Principal {
-  return { userId: castId<UserId>(id), role: "owner", handle: castId<Handle>(id), externalId: null, via: "fallback" };
+async function principal(db: Db, id: string): Promise<Principal> {
+  return await makePrincipal({ db }, castId<UserId>(id), { role: "owner" });
 }
-const ALICE = principal("usr_alice");
-const MALLORY = principal("usr_mallory");
+// These callers resolve from rows in one in-memory database; the subject under test reads no database of its own.
+const callersDb = await freshDb();
+const ALICE = await principal(callersDb, "usr_alice");
+const MALLORY = await principal(callersDb, "usr_mallory");
 
 const BOARD: PluginFrameBody = { html: "<canvas id='board'></canvas><script>drawChess()</script>", css: "body{background:#111}" };
 

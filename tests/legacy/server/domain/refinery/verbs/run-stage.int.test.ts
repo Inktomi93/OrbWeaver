@@ -51,7 +51,7 @@ test("a custom SCORE run: resolves the schema per call, EMBEDS provenance, valid
   const owner = await seedUser(db, { id: "user_cs_a" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "cs-card-a");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const row = await h.svc.createSchema({ principal: p, name: "vibe_scorer", description: "score the vibe", stage: "score", schema: validScoreSchema() });
   const session = await h.svc.startSession({ principal: p, characterId });
   await h.svc.updateSession({
@@ -83,7 +83,7 @@ test("a custom ANALYZE run stamps NOTHING into canon, but the roster badge still
   const owner = await seedUser(db, { id: "user_cs_b" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "cs-card-b");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const row = await h.svc.createSchema({ principal: p, name: "drift_check", description: "drift?", stage: "analyze", schema: validAnalyzeSchema() });
   const session = await h.svc.startSession({ principal: p, characterId });
   await h.svc.updateSession({
@@ -110,7 +110,7 @@ test("the read seam re-parses an old custom run against its EMBED — a later sc
   const owner = await seedUser(db, { id: "user_cs_c" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "cs-card-c");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const row = await h.svc.createSchema({ principal: p, name: "vibe_scorer", description: "v1", stage: "score", schema: validScoreSchema() });
   const session = await h.svc.startSession({ principal: p, characterId });
   await h.svc.updateSession({
@@ -148,7 +148,7 @@ test("operate-back: analyze judges the NAMED earlier rewrite, not the latest; fo
   const owner = await seedUser(db, { id: "user_cs_e" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "cs-card-e");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   h.queueReply(rewriteReply({ fields: [{ field: "description", text: "ROUND ONE description." }] }));
   const first = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });
@@ -174,10 +174,10 @@ test("a score run: prompt carries card {{macros}} VERBATIM (belt 5 both directio
   const owner = await seedUser(db, { id: "user_rs_a" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "rs-card-a");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
 
   h.queueReply(scoreReply());
-  const run = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "score" });
+  const run = await h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "score" });
 
   // ── belt 5, integration tier: the seeded description's {{char}}/{{user}} reach the model UNRESOLVED
   //    and UN-NEUTRALIZED (no ZWSP anywhere in the prompt) — the one assertion that breaks if anyone
@@ -200,7 +200,7 @@ test("a score run: prompt carries card {{macros}} VERBATIM (belt 5 both directio
   expect(call.opts?.temperature).toBe(0.2);
   const scoreBudget = call.opts?.maxOutputTokens ?? 0;
   expect(scoreBudget).toBeGreaterThanOrEqual(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);
-  const scorePre = (await h.svc.preflight({ principal: principal(owner), sessionId: session.id })).stages.find((s) => s.stage === "score");
+  const scorePre = (await h.svc.preflight({ principal: await principal(db, owner), sessionId: session.id })).stages.find((s) => s.stage === "score");
   expect(scoreBudget).toBeGreaterThanOrEqual(scorePre?.outputEstimate ?? Number.POSITIVE_INFINITY);
   // …and it is the SAME number the surface shows: preflight and the engine evaluate one expression.
   expect(scorePre?.maxOutputTokens).toBe(scoreBudget);
@@ -244,8 +244,10 @@ test("analyze before any rewrite is the typed stage-order refusal (after the own
   const owner = await seedUser(db, { id: "user_rs_b" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "rs-card-b");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
-  await expect(h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "analyze" })).rejects.toBeInstanceOf(RefineryStageNotReadyError);
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
+  await expect(h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "analyze" })).rejects.toBeInstanceOf(
+    RefineryStageNotReadyError,
+  );
 });
 
 // THE RULED BUDGET REFUSAL (owner ruling on the live-e2e 2026-08-09 open fork 1). The payload-aware floor
@@ -258,7 +260,7 @@ test("a run whose own preset cap sits under its payload is REFUSED with the fit 
   const owner = await seedUser(db, { id: "user_rs_budget" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "rs-card-budget");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   const pre = (await h.svc.preflight({ principal: p, sessionId: session.id })).stages.find((s) => s.stage === "score");
   const need = pre?.outputEstimate ?? 0;
@@ -298,16 +300,16 @@ test("rewrite→analyze stamps the ANALYSIS half and preserves the stamped score
   const owner = await seedUser(db, { id: "user_rs_c" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "rs-card-c");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
 
   h.queueReply(scoreReply());
-  const score = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "score" });
+  const score = await h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "score" });
   h.advance(10);
   h.queueReply(rewriteReply());
-  const rewrite = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+  const rewrite = await h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "rewrite" });
   h.advance(10);
   h.queueReply(analyzeReply());
-  const analyze = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "analyze" });
+  const analyze = await h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "analyze" });
 
   expect(analyze.stage).toBe("analyze");
   // The DAG parent edges (schema-renderer §21 edge 1): a timestamp-ordered list answers "which rewrite did
@@ -336,13 +338,13 @@ test("a foreign session and an absent session collapse to the SAME NOT_FOUND (no
   const stranger = await seedUser(db, { id: "user_rs_e", handle: castId<Handle>("rs-stranger") });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "rs-card-d");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
 
   // Same ERROR CLASS for foreign and absent — a stranger's rejection is indistinguishable from a miss
   // (the transport maps both to the identical NOT_FOUND; the cross-tenant sweep re-proves it end-to-end).
-  const foreign = await h.svc.runStage({ principal: principal(stranger), sessionId: session.id, stage: "score" }).catch((e: unknown) => e);
+  const foreign = await h.svc.runStage({ principal: await principal(db, stranger), sessionId: session.id, stage: "score" }).catch((e: unknown) => e);
   const absent = await h.svc
-    .runStage({ principal: principal(stranger), sessionId: castId<RefinerySessionId>("refinery_session_phantom"), stage: "score" })
+    .runStage({ principal: await principal(db, stranger), sessionId: castId<RefinerySessionId>("refinery_session_phantom"), stage: "score" })
     .catch((e: unknown) => e);
   expect(foreign).toBeInstanceOf(DomainNotFoundError);
   expect(absent).toBeInstanceOf(DomainNotFoundError);
@@ -353,10 +355,10 @@ test("an invented payload key is STRIPPED and itemized on the run row (paths, ne
   const owner = await seedUser(db, { id: "user_rs_f" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "rs-card-f");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
 
   h.queueReply(JSON.stringify({ ...SCORE_PAYLOAD, hacked: { exfil: "nope" } }));
-  const run = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "score" });
+  const run = await h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "score" });
   expect(run.strippedKeys).toEqual(["hacked"]);
   const rows = await db.select().from(refineryRuns).where(eq(refineryRuns.id, run.id));
   expect(rows[0]?.strippedKeys).toEqual(["hacked"]);
@@ -367,12 +369,12 @@ test("a null reaching the parse is the model's error, retried once: the structur
   const owner = await seedUser(db, { id: "user_rs_g" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "rs-card-g");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
 
   // `greetingIndex` is optional, never nullable: a null here did not come from the reshape, so the bounded retry asks again.
   h.queueReply(JSON.stringify({ fields: [{ field: "description", greetingIndex: null, text: "richer records" }] }));
   h.queueReply(JSON.stringify({ fields: [{ field: "description", text: "richer records" }] }));
-  const run = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+  const run = await h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "rewrite" });
   expect(run.payload).toEqual({ fields: [{ field: "description", text: "richer records" }] });
   expect(run.strippedKeys).toEqual([]);
 });
@@ -382,9 +384,9 @@ test("a model greetingIndex on a non-greetings rewrite entry is stripped at the 
   const owner = await seedUser(db, { id: "user_rs_gi" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "rs-card-gi");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
   await h.svc.updateSession({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     sessionId: session.id,
     patch: { selection: { fields: ["description", "personality", "greetings"] } },
   });
@@ -398,7 +400,7 @@ test("a model greetingIndex on a non-greetings rewrite entry is stripped at the 
       ],
     }),
   );
-  const run = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+  const run = await h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "rewrite" });
   expect(run.payload).toEqual({
     fields: [
       { field: "description", text: "richer records" },
@@ -414,11 +416,11 @@ test("a double schema failure is the typed RETRYABLE refusal — no run row, no 
   const owner = await seedUser(db, { id: "user_rs_h" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "rs-card-h");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
 
   h.queueReply("not json at all");
   h.queueReply('{"still": "wrong"}');
-  await expect(h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "score" })).rejects.toBeInstanceOf(RefineryRunFailedError);
+  await expect(h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "score" })).rejects.toBeInstanceOf(RefineryRunFailedError);
   expect(await db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, session.id))).toHaveLength(0);
   const charRows = await db.select({ refinery: characters.refinery }).from(characters).where(eq(characters.id, characterId));
   expect(charRows[0]?.refinery).toBeNull();

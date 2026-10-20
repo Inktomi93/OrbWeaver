@@ -1,9 +1,8 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-19
 priority: P2
-lane: wt/agent-a9e046ce6a105df9c
 ---
 
 # Migrate the tenancy text judgments onto floor predicate facts

@@ -57,7 +57,7 @@ describe("databank settings wire — composed-real (createServices)", () => {
     // Write through the REAL settings front door — a section patch merged into the current defaults, exactly
     // as a client would. The compose `getDatabankSettings(host)` reads `loadUserSettings(host).databank`, so
     // reading it back here observes precisely what the gather op resolves at turn time.
-    await writeDatabank(services, host);
+    await writeDatabank(db, services, host);
 
     const settings = await services.settings.loadUserSettings(host);
     expect(settings.databank.retrieval).toEqual({ k: 3, minScore: 0.4, rerank: true });
@@ -81,23 +81,23 @@ describe("databank room host — composed-real (createServices)", () => {
     const chatId = await seedChat(db, "rack");
     await seedParticipant(db, { chatId, key: "rack_host", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "rack_member", userId: member, role: "member" });
-    const { document } = await services.databank.createFromText({ principal: principal(host, "user"), name: "lore.md", text: "hidden lore" });
-    await services.databank.attachToChat({ principal: principal(host, "user"), documentId: document.id, chatId });
+    const { document } = await services.databank.createFromText({ principal: await principal(db, host, "user"), name: "lore.md", text: "hidden lore" });
+    await services.databank.attachToChat({ principal: await principal(db, host, "user"), documentId: document.id, chatId });
     await db
       .update(chats)
       .set({ metadata: { databankVisibility: { hidden: [document.id] } } })
       .where(eq(chats.id, chatId));
 
-    const hostView = await services.databank.listActiveForChat({ principal: principal(host, "user"), chatId });
+    const hostView = await services.databank.listActiveForChat({ principal: await principal(db, host, "user"), chatId });
     expect(hostView.map((row) => [row.id, row.hidden])).toEqual([[document.id, true]]);
-    expect(await services.databank.listActiveForChat({ principal: principal(member, "user"), chatId })).toEqual([]);
+    expect(await services.databank.listActiveForChat({ principal: await principal(db, member, "user"), chatId })).toEqual([]);
   });
 });
 
 /** Write a full non-default databank section through the composed settings verb. */
-function writeDatabank(services: Services, host: UserId): Promise<unknown> {
+async function writeDatabank(db: Db, services: Services, host: UserId): Promise<unknown> {
   return services.settings.updateUserSettingsSection({
-    principal: principal(host, "user"),
+    principal: await principal(db, host, "user"),
     input: {
       section: "databank",
       patch: { retrieval: { k: 3, minScore: 0.4, rerank: true }, chunk: { chunkSize: 1200 }, slotTokenBudget: 2048 },

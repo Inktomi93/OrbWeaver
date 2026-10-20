@@ -32,10 +32,10 @@ describe("resolveRegexSources", () => {
     const p = await seedScript(db, { ownerId: owner, id: "regex_script_p", name: "preset" });
     const c = await seedScript(db, { ownerId: owner, id: "regex_script_c", name: "cast" });
     const r = await seedScript(db, { ownerId: owner, id: "regex_script_r", name: "room" });
-    await svc.attachGlobal({ principal: principal(owner), scriptId: g });
-    await svc.attachToPreset({ principal: principal(owner), presetId, scriptId: p });
-    await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: c });
-    await svc.attachToChat({ principal: principal(owner), chatId, scriptId: r });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId: g });
+    await svc.attachToPreset({ principal: await principal(db, owner), presetId, scriptId: p });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId: c });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId, scriptId: r });
 
     const sources = await createResolveRegexSources({ db: databaseHandle(db) })({ ownerId: owner, presetId, characterIds: [characterId], chatId });
 
@@ -58,8 +58,8 @@ describe("resolveRegexSources", () => {
     const brin = await seedCharacter(db, owner, "brin");
     const forAria = await seedScript(db, { ownerId: owner, id: "regex_script_aria", name: "aria-script" });
     const forBrin = await seedScript(db, { ownerId: owner, id: "regex_script_brin", name: "brin-script" });
-    await svc.attachToCharacter({ principal: principal(owner), characterId: aria, scriptId: forAria });
-    await svc.attachToCharacter({ principal: principal(owner), characterId: brin, scriptId: forBrin });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId: aria, scriptId: forAria });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId: brin, scriptId: forBrin });
 
     const resolve = createResolveRegexSources({ db: databaseHandle(db) });
     // … then ask in BOTH roster orders. The answer must follow the ARGUMENT, not the insert order.
@@ -90,7 +90,7 @@ describe("resolveRegexSources", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const chatId = await seedChat(db);
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
-    await svc.attachGlobal({ principal: principal(stranger), scriptId: theirs });
+    await svc.attachGlobal({ principal: await principal(db, stranger), scriptId: theirs });
 
     // The op takes an ownerId, never a principal — D19: the turn passes the frozen host, and a member has
     // no parameter on this surface at all.
@@ -106,7 +106,7 @@ describe("resolveRegexSources", () => {
     const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
     const roomScript = await seedScript(db, { ownerId: host, name: "room quirk" });
-    await svc.attachToChat({ principal: principal(host), chatId, scriptId: roomScript });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, scriptId: roomScript });
 
     // Resolved under the MEMBER as owner: global/preset/cast come back empty (not theirs), but the room's
     // set still resolves — it is room-public prompt content, membership is the caller's gate upstream.

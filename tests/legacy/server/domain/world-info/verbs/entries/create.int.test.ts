@@ -16,10 +16,10 @@ describe("createEntry", () => {
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
 
     const entry = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: {
         title: "Castle",
@@ -44,11 +44,11 @@ describe("createEntry", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "Theirs" } });
 
     await expect(
       svc.createEntry({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         bookId: theirs.id,
         input: { title: "X", content: "c" },
       }),

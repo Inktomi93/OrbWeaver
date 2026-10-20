@@ -41,7 +41,7 @@ async function seedAttachment(db: Db, h: AssetsHarness): Promise<AttachScenario>
   const member = await seedUser(db, { handle: castId<Handle>("member") });
   const outsider = await seedUser(db, { handle: castId<Handle>("outsider") });
   const stored = await svc.store({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     bytes: pngBytes(1, 2, 3),
     kind: "attachment",
     mime: PNG,
@@ -98,7 +98,7 @@ describe("resolveChatAssetRefs — #67 co-participant render", () => {
     // The owner uploads a SECOND asset but never attaches it to any message in this chat — owner is a present
     // participant, yet the asset has no `message_assets` row here. Bare membership must NOT resolve it.
     const unattached = await s.svc.store({
-      principal: principal(s.owner),
+      principal: await principal(db, s.owner),
       bytes: pngBytes(9, 8, 7),
       kind: "attachment",
       mime: PNG,

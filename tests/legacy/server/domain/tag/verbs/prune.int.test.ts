@@ -21,15 +21,15 @@ describe("pruneUnusedTags", () => {
     const used = await seedTag(db, owner, { id: "tag_used", name: "used" });
     await seedTag(db, owner, { id: "tag_dead", name: "dead" });
     await svc.attachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId: used,
       targetType: "character",
       targetId: characterId,
     });
 
-    const result = await svc.pruneUnusedTags({ principal: principal(owner) });
+    const result = await svc.pruneUnusedTags({ principal: await principal(db, owner) });
     expect(result).toStrictEqual({ removed: 1 });
-    const surviving = (await svc.listTags({ principal: principal(owner) })).map((t) => t.id);
+    const surviving = (await svc.listTags({ principal: await principal(db, owner) })).map((t) => t.id);
     expect(surviving).toEqual([used]);
   });
 
@@ -42,14 +42,14 @@ describe("pruneUnusedTags", () => {
     const tagId = await seedTag(db, owner, { id: "tag_raced", name: "raced" });
     const deletes = hold(TAG_DELETE);
 
-    const pruning = svc.pruneUnusedTags({ principal: principal(owner) });
+    const pruning = svc.pruneUnusedTags({ principal: await principal(db, owner) });
     await deletes.reached;
-    await svc.attachTag({ principal: principal(owner), tagId, targetType: "character", targetId: characterId });
+    await svc.attachTag({ principal: await principal(db, owner), tagId, targetType: "character", targetId: characterId });
     deletes.release();
     const result = await pruning;
 
     expect(result).toEqual({ removed: 0 });
-    expect((await svc.listTags({ principal: principal(owner) })).map((tag) => tag.id)).toContain(tagId);
+    expect((await svc.listTags({ principal: await principal(db, owner) })).map((tag) => tag.id)).toContain(tagId);
     expect(await db.select().from(characterTags).where(eq(characterTags.tagId, tagId))).toHaveLength(1);
     expect(h.audits.filter((entry) => entry.action === "tag.prune")).toEqual([]);
   });
@@ -74,11 +74,11 @@ describe("pruneUnusedTags — authority reaches the write (cross-owner, #755)", 
     await seedTag(db, alice, { id: "tag_alice_dead", name: "dead" });
     const bobTag = await seedTag(db, bob, { id: "tag_bob_dead", name: "dead" });
 
-    const result = await svc.pruneUnusedTags({ principal: principal(alice) });
+    const result = await svc.pruneUnusedTags({ principal: await principal(db, alice) });
 
     expect(result).toStrictEqual({ removed: 1 }); // ONLY Alice's dead tag — never Bob's
     // Bob's tag survives, taken as Bob's own scoped read (a per-owner read is evidence about the asker).
-    expect((await svc.listTags({ principal: principal(bob) })).map((t) => t.id)).toEqual([bobTag]);
+    expect((await svc.listTags({ principal: await principal(db, bob) })).map((t) => t.id)).toEqual([bobTag]);
   });
 });
 
@@ -91,7 +91,7 @@ describe("pruneUnusedTags — audit", () => {
     await seedTag(db, owner, { id: "tag_a", name: "alpha" });
     await seedTag(db, owner, { id: "tag_b", name: "beta" });
 
-    const first = await svc.pruneUnusedTags({ principal: principal(owner) });
+    const first = await svc.pruneUnusedTags({ principal: await principal(db, owner) });
     expect(first.removed).toBe(2);
     expect(h.audits).toEqual([
       {
@@ -104,7 +104,7 @@ describe("pruneUnusedTags — audit", () => {
     ]);
 
     // Nothing left to prune — the idempotent zero-work rerun writes no row.
-    await svc.pruneUnusedTags({ principal: principal(owner) });
+    await svc.pruneUnusedTags({ principal: await principal(db, owner) });
     expect(h.audits).toHaveLength(1);
   });
 });

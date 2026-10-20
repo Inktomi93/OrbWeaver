@@ -36,17 +36,17 @@ async function cast(db: Awaited<ReturnType<typeof freshDb>>): Promise<{
 test("an admin publish lands a row for EVERY user — each disabled, granted nothing, standing a consent ask", async () => {
   const db = await freshDb();
   const { boss, members } = await cast(db);
-  const recipients = members.map((id) => principalFor(id));
+  const recipients = await Promise.all(members.map(async (id) => await principalFor(db, id)));
   const h = makePluginHarness(db, { listRecipients: () => Promise.resolve(recipients) });
 
   const result = await h.service.installForAllUsers({
-    caller: ownerPrincipalFor(boss),
+    caller: await ownerPrincipalFor(db, boss),
     bundle: makeBundle({ id: "house-style", name: "House Style", capabilities: ["chat.transform"] }),
   });
 
   expect(result).toMatchObject({ slug: "house-style", name: "House Style", version: "1.0.0", applied: 3, skipped: [] });
   for (const member of members) {
-    const rows = await h.service.list({ caller: principalFor(member) });
+    const rows = await h.service.list({ caller: await principalFor(db, member) });
     expect(
       rows.map((r) => r.slug),
       member,
@@ -69,17 +69,17 @@ test("a NON-ADMIN caller is refused, and nothing at all is written", async () =>
   const db = await freshDb();
   const { members } = await cast(db);
   const [ann, bo] = members;
-  const recipients = members.map((id) => principalFor(id));
+  const recipients = await Promise.all(members.map(async (id) => await principalFor(db, id)));
   const h = makePluginHarness(db, { listRecipients: () => Promise.resolve(recipients) });
 
-  await expect(h.service.installForAllUsers({ caller: principalFor(ann as UserId), bundle: makeBundle({ id: "house-style" }) })).rejects.toBeInstanceOf(
-    DomainForbiddenError,
-  );
+  await expect(
+    h.service.installForAllUsers({ caller: await principalFor(db, ann as UserId), bundle: makeBundle({ id: "house-style" }) }),
+  ).rejects.toBeInstanceOf(DomainForbiddenError);
 
   // The refusal precedes every write — no record, no rows, no CAS bytes. An admin gate that threw AFTER the
   // publish would leave a plain user able to seed the deployment and then read an error.
   expect(await listDistributions(db)).toEqual([]);
-  expect(await h.service.list({ caller: principalFor(bo as UserId) })).toEqual([]);
+  expect(await h.service.list({ caller: await principalFor(db, bo as UserId) })).toEqual([]);
   expect(h.storedBytes.size).toBe(0);
 });
 
@@ -87,67 +87,67 @@ test("a user who already holds the slug is SKIPPED and reported — their own ro
   const db = await freshDb();
   const { boss, members } = await cast(db);
   const [ann, bo, cy] = members;
-  const recipients = members.map((id) => principalFor(id));
+  const recipients = await Promise.all(members.map(async (id) => await principalFor(db, id)));
   const h = makePluginHarness(db, { listRecipients: () => Promise.resolve(recipients) });
 
   // Ann installed it herself first, at her own version, with a REAL grant she chose.
   const hers = await h.service.install({
-    caller: principalFor(ann as UserId),
+    caller: await principalFor(db, ann as UserId),
     bundle: makeBundle({ id: "house-style", version: "2.0.0", capabilities: ["chat.transform"] }),
     grant: ["chat.transform"],
   });
 
   const result = await h.service.installForAllUsers({
-    caller: ownerPrincipalFor(boss),
+    caller: await ownerPrincipalFor(db, boss),
     bundle: makeBundle({ id: "house-style", capabilities: ["chat.transform"] }),
   });
 
   expect(result.applied).toBe(2);
   // The skip NAMES the user — id and handle both, since the only reader is a human admin deciding whether to
   // chase it up. (`userHandle` is the recipient PRINCIPAL's handle; this harness mints it from the user id.)
-  expect(result.skipped).toEqual([{ userId: ann, userHandle: principalFor(ann as UserId).handle, reason: "already-installed" }]);
+  expect(result.skipped).toEqual([{ userId: ann, userHandle: (await principalFor(db, ann as UserId)).handle, reason: "already-installed" }]);
   // ANN'S ROW IS UNTOUCHED — same id, same version, same GRANT. A distribution that "healed" a user's own
   // install would be revoking a consent decision on their behalf.
-  const [hersNow] = await h.service.list({ caller: principalFor(ann as UserId) });
+  const [hersNow] = await h.service.list({ caller: await principalFor(db, ann as UserId) });
   expect(hersNow?.id).toBe(hers.id);
   expect(hersNow?.version).toBe("2.0.0");
   expect(hersNow?.grantedCapabilities).toEqual(["chat.transform"]);
   expect(hersNow?.reconsentPending).toBe(false);
   // …while the two who had nothing got the distributed copy.
-  expect((await h.service.list({ caller: principalFor(bo as UserId) })).map((r) => r.version)).toEqual(["1.0.0"]);
-  expect((await h.service.list({ caller: principalFor(cy as UserId) })).map((r) => r.version)).toEqual(["1.0.0"]);
+  expect((await h.service.list({ caller: await principalFor(db, bo as UserId) })).map((r) => r.version)).toEqual(["1.0.0"]);
+  expect((await h.service.list({ caller: await principalFor(db, cy as UserId) })).map((r) => r.version)).toEqual(["1.0.0"]);
 });
 
 test("a recipient enables THEIR OWN copy through the real consent path — the fan-out mints real installs", async () => {
   const db = await freshDb();
   const { boss, members } = await cast(db);
   const [ann, bo] = members;
-  const recipients = members.map((id) => principalFor(id));
+  const recipients = await Promise.all(members.map(async (id) => await principalFor(db, id)));
   const h = makePluginHarness(db, { listRecipients: () => Promise.resolve(recipients) });
 
   await h.service.installForAllUsers({
-    caller: ownerPrincipalFor(boss),
+    caller: await ownerPrincipalFor(db, boss),
     bundle: makeBundle({ id: "house-style", capabilities: ["chat.transform"] }),
   });
 
   // Ann consents and turns hers on. Bo does nothing.
-  const [hers] = await h.service.list({ caller: principalFor(ann as UserId) });
+  const [hers] = await h.service.list({ caller: await principalFor(db, ann as UserId) });
   await h.service.setGrant({
-    caller: principalFor(ann as UserId),
+    caller: await principalFor(db, ann as UserId),
     pluginId: hers?.id ?? castId("plugin_missing"),
     grant: ["chat.transform"],
     acknowledgedNetHosts: [],
   });
-  await h.service.setEnabled({ caller: principalFor(ann as UserId), pluginId: hers?.id ?? castId("plugin_missing"), enabled: true });
+  await h.service.setEnabled({ caller: await principalFor(db, ann as UserId), pluginId: hers?.id ?? castId("plugin_missing"), enabled: true });
 
-  expect((await h.service.list({ caller: principalFor(ann as UserId) }))[0]).toMatchObject({
+  expect((await h.service.list({ caller: await principalFor(db, ann as UserId) }))[0]).toMatchObject({
     status: "enabled",
     grantedCapabilities: ["chat.transform"],
     reconsentPending: false,
   });
   // Bo's copy is unaffected by Ann's consent — N owners, N independent decisions (the #677 per-owner registry
   // is what lets two users hold the same slug live at once).
-  expect((await h.service.list({ caller: principalFor(bo as UserId) }))[0]).toMatchObject({ status: "disabled", grantedCapabilities: [] });
+  expect((await h.service.list({ caller: await principalFor(db, bo as UserId) }))[0]).toMatchObject({ status: "disabled", grantedCapabilities: [] });
   // Exactly ONE activation happened, and it was Ann's own act.
   expect(h.port.created).toHaveLength(1);
 });
@@ -155,12 +155,12 @@ test("a recipient enables THEIR OWN copy through the real consent path — the f
 test("re-publishing the same slug REPLACES the record and serves only the users still missing it", async () => {
   const db = await freshDb();
   const { boss, members } = await cast(db);
-  const recipients = members.map((id) => principalFor(id));
+  const recipients = await Promise.all(members.map(async (id) => await principalFor(db, id)));
   const h = makePluginHarness(db, { listRecipients: () => Promise.resolve(recipients) });
 
-  await h.service.installForAllUsers({ caller: ownerPrincipalFor(boss), bundle: makeBundle({ id: "house-style" }) });
+  await h.service.installForAllUsers({ caller: await ownerPrincipalFor(db, boss), bundle: makeBundle({ id: "house-style" }) });
   const second = await h.service.installForAllUsers({
-    caller: ownerPrincipalFor(boss),
+    caller: await ownerPrincipalFor(db, boss),
     bundle: makeBundle({ id: "house-style", version: "1.1.0", name: "House Style II" }),
   });
 
@@ -177,9 +177,9 @@ test("re-publishing the same slug REPLACES the record and serves only the users 
 test("an invalid bundle is refused before the deployment records anything", async () => {
   const db = await freshDb();
   const { boss, members } = await cast(db);
-  const h = makePluginHarness(db, { listRecipients: () => Promise.resolve(members.map((id) => principalFor(id))) });
+  const h = makePluginHarness(db, { listRecipients: async () => await Promise.all(members.map(async (id) => await principalFor(db, id))) });
 
-  await expect(h.service.installForAllUsers({ caller: ownerPrincipalFor(boss), bundle: new Uint8Array([1, 2, 3]) })).rejects.toThrow();
+  await expect(h.service.installForAllUsers({ caller: await ownerPrincipalFor(db, boss), bundle: new Uint8Array([1, 2, 3]) })).rejects.toThrow();
 
   expect(await listDistributions(db)).toEqual([]);
   expect(h.storedBytes.size).toBe(0);

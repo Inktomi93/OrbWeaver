@@ -10,7 +10,7 @@ updated: 2026-10-18
 
 ## What this tier owns
 
-- **`env/` — the ONE `process.env` reader (config nature (a): boot / secret / identity).** The `.env` load (`node:util` `parseEnv` + our explicit override merge — override discipline + escape hatches; not `dotenv`, per the node-26 adoption program §3), the zod `envSchema` parse, the `superRefine` boot-fatality per `AUTH_MODE`, the frozen `env` object, and `processEnvSnapshot()` (the raw baseline the agent-sdk credential firewall spreads — the *denylist policy* is the firewall's, `packages/inference/src/backends/agent-sdk/env.ts`; env only produces the snapshot). Every tier dot-accesses typed keys (`env.PORT`); nothing else touches `process.env` (the `sole-env-reader` gate). Sessions binds an immutable role policy from frozen configuration when composition builds the graph.
+- **`env/` — the ONE `process.env` reader (config nature (a): boot / secret / identity).** The `.env` load (`node:util` `parseEnv` + our explicit override merge — override discipline + escape hatches; not `dotenv`, per the node-26 adoption program §3), the zod `envSchema` parse, the `superRefine` boot-fatality per `AUTH_MODE`, the frozen `env` object, and `processEnvSnapshot()` (the raw baseline the agent-sdk credential firewall spreads — the *denylist policy* is the firewall's, `packages/inference/src/backends/agent-sdk/env.ts`; env only produces the snapshot). Every tier dot-accesses typed keys (`env.PORT`); nothing else touches `process.env` (the `orb/sole-env-reader` lint rule). Sessions binds an immutable role policy from frozen configuration when composition builds the graph.
 - **`observability/logger.ts`** — pino + the `LineRing`/`RequestRing` bounded rings backing `/api/_debug` (logs are METADATA — RP content lives in the DB), the `AsyncLocalStorage` request scope (`runInRequest`/`getLog`/`bindRequestUser`), and `securityEvent` (the one greppable `security:true` audit-trail line).
 - **`observability/tracing.ts`** — OTel spans (`initTracing`, `span`/`withRequestSpan`/`addSpanEvent`/`setSpanAttrs`), the per-`requestId` `TraceRing` with orphan-bucket eviction, `recentTraces`/`getTraceByRequestId`, and `wrapLibSqlClient` (the libSQL Proxy turning every query into a `db.<method>` span). This IS the metrics surface — metrics are the per-trace totals + request-ring timing; no separate module unless an external sink is ever wanted (the `RingExporter` is the OTLP-replaceable seam).
 - **`observability/middleware.ts`** — the per-request Hono middleware: `X-Request-Id` (charset-guarded), request-root span, request-scoped logger, one structured `request` line + ring record. Skips `/api/_debug/*` so introspection doesn't evict real traces.
@@ -70,7 +70,7 @@ The DB probes need no port (`@orb/db` is a lower package). `wrapLibSqlClient` is
 
 ## Invariants
 
-1. **`foundation/env` is the ONLY `process.env` reader.** *(`sole-env-reader` gate and native `noProcessEnv` lint.)*
+1. **`foundation/env` is the ONLY `process.env` reader.** *(`orb/sole-env-reader` lint rule and Biome `noProcessEnv`.)*
 2. **Foundation reaches UP to nothing.** *(resolve-time deps + dep-cruiser `foundation-reaches-up-to-nothing`.)*
 3. **The `superRefine` boot-fatality holds.** *(test-time.)*
 4. **`logAudit` never throws to the caller; the 25th drop warns.** *(test-time.)*

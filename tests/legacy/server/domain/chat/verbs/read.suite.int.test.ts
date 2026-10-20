@@ -5,11 +5,11 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createTurnPersonaResolver } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { createRead } from "#server/domain/chat/verbs/read.ts";
 import { loadPersonasForOwners } from "#server/domain/persona/persistence/queries.ts";
+import { principal } from "../../../../db/schema/_support.ts";
 import { makeResolved } from "../../../../inference/_support.ts";
 import {
   batchParticipantViews,
@@ -58,11 +58,11 @@ test("greeting previews resolve against the room anchor for every viewer, re-pin
   const { variantId } = await seedMessage(db, chatId, 1, { characterId: character, content: raw });
   const read = reader(db);
   for (const userId of [host, member]) {
-    const page = await read.listChats({ principal: principal(userId) });
+    const page = await read.listChats({ principal: await principal({ db }, userId) });
     expect(page.items[0]?.lastMessagePreview).toBe("Aria greets Nyx. {{roll:1d6}}");
   }
   await db.update(chats).set({ anchorPersonaId: replacement }).where(eq(chats.id, chatId));
-  expect((await read.listChats({ principal: principal(host) })).items[0]?.lastMessagePreview).toBe("Aria greets Mira. {{roll:1d6}}");
+  expect((await read.listChats({ principal: await principal({ db }, host) })).items[0]?.lastMessagePreview).toBe("Aria greets Mira. {{roll:1d6}}");
   const stored = await db.select({ content: messageVariants.content }).from(messageVariants).where(eq(messageVariants.id, variantId));
   expect(stored).toEqual([{ content: raw }]);
 });
@@ -81,11 +81,14 @@ test("summary reads resolve departed speakers and authoring personas from row st
   }
   const read = reader(db);
   const expected = "Departed remembers NewPersona";
-  expect((await read.listChats({ principal: principal(host) })).items.map((row) => row.lastMessagePreview)).toEqual([expected, expected]);
-  expect((await read.listForks({ principal: principal(host), chatId: parent })).map((row) => row.lastMessagePreview)).toEqual([expected]);
-  expect((await read.getChatLineage({ principal: principal(host), chatId: child })).chain.map((row) => row.lastMessagePreview)).toEqual([expected, expected]);
+  expect((await read.listChats({ principal: await principal({ db }, host) })).items.map((row) => row.lastMessagePreview)).toEqual([expected, expected]);
+  expect((await read.listForks({ principal: await principal({ db }, host), chatId: parent })).map((row) => row.lastMessagePreview)).toEqual([expected]);
+  expect((await read.getChatLineage({ principal: await principal({ db }, host), chatId: child })).chain.map((row) => row.lastMessagePreview)).toEqual([
+    expected,
+    expected,
+  ]);
   await seedMessage(db, child, 2, { role: "user", authorUserId: host, personaId: oldPersona, content: "{{user}} remembers" });
-  expect((await read.listForks({ principal: principal(host), chatId: parent }))[0]?.lastMessagePreview).toBe("OldPersona remembers");
+  expect((await read.listForks({ principal: await principal({ db }, host), chatId: parent }))[0]?.lastMessagePreview).toBe("OldPersona remembers");
 });
 
 test("macro previews keep the viewer history floor and strip hidden content introduced by a persona description", async () => {
@@ -98,8 +101,8 @@ test("macro previews keep the viewer history floor and strip hidden content intr
   const membershipId = await seedParticipant(db, { chatId, key: "floor-member", userId: member, joinSeq: 2, joinHistoryVisibility: "from-join" });
   await seedMessage(db, chatId, 1, { content: "{{persona}}" });
   const read = reader(db);
-  expect((await read.listChats({ principal: principal(member) })).items[0]?.lastMessagePreview).toBeNull();
-  expect((await read.listChats({ principal: principal(host) })).items[0]?.lastMessagePreview).toBe("visible");
+  expect((await read.listChats({ principal: await principal({ db }, member) })).items[0]?.lastMessagePreview).toBeNull();
+  expect((await read.listChats({ principal: await principal({ db }, host) })).items[0]?.lastMessagePreview).toBe("visible");
   await db.update(chatParticipants).set({ joinHistoryVisibility: "full" }).where(eq(chatParticipants.id, membershipId));
-  expect((await read.listChats({ principal: principal(member) })).items[0]?.lastMessagePreview).toBe("visible");
+  expect((await read.listChats({ principal: await principal({ db }, member) })).items[0]?.lastMessagePreview).toBe("visible");
 });

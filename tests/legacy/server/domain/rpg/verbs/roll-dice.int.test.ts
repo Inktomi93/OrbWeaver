@@ -22,7 +22,7 @@ async function seedGame(dice: number[]): Promise<{ chatId: import("@orb/kit/ids"
   const chatId = await seedChat(db, "a");
   const h = makeRpgService(db, { dice });
   h.fakes.membership.set("user_host", "host");
-  await h.service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite" });
+  await h.service.createGame({ principal: await principal(db, castId<Handle>("host")), chatId, mode: "lite" });
   return { chatId, h };
 }
 
@@ -30,7 +30,7 @@ describe("rollDice", () => {
   test("rolls NdM+K from the CSPRNG, applies the modifier, and returns a composer stamp", async () => {
     // randomInt(6) returns queue%6; queue [3,5] → faces 4 and 6, +2 modifier → total 12.
     const { chatId, h } = await seedGame([3, 5]);
-    const result = await h.service.rollDice({ principal: principal(castId<Handle>("host")), chatId, notation: "2d6+2" });
+    const result = await h.service.rollDice({ principal: await principal(db, castId<Handle>("host")), chatId, notation: "2d6+2" });
     expect(result.rolls).toEqual([4, 6]);
     expect(result.modifier).toBe(2);
     expect(result.total).toBe(12);
@@ -39,20 +39,20 @@ describe("rollDice", () => {
 
   test("a bare dM notation defaults to one die", async () => {
     const { chatId, h } = await seedGame([9]);
-    const result = await h.service.rollDice({ principal: principal(castId<Handle>("host")), chatId, notation: "d20" });
+    const result = await h.service.rollDice({ principal: await principal(db, castId<Handle>("host")), chatId, notation: "d20" });
     expect(result.rolls).toEqual([10]);
     expect(result.total).toBe(10);
   });
 
   test("an unparseable notation is refused", async () => {
     const { chatId, h } = await seedGame([]);
-    await expect(h.service.rollDice({ principal: principal(castId<Handle>("host")), chatId, notation: "banana" })).rejects.toThrow(BAD_NOTATION_RE);
+    await expect(h.service.rollDice({ principal: await principal(db, castId<Handle>("host")), chatId, notation: "banana" })).rejects.toThrow(BAD_NOTATION_RE);
   });
 });
 
 describe("ability checks", () => {
   test("uses the caller's persisted score and the game's modifier, without changing the sheet", async () => {
-    const host = principal(castId<Handle>("host"));
+    const host = await principal(db, castId<Handle>("host"));
     const userId = await seedUser(db, castId<Handle>("host"));
     const { chatId, h } = await seedLiteGame(db, { participants: [participantUser(castId<Handle>("host"), "Host")] });
     await h.service.updateConfig({ principal: host, chatId, patch: { ruleset: "d20" } });
@@ -70,7 +70,7 @@ describe("ability checks", () => {
 
   test("refuses an unset or unknown ability and a non-d20 notation", async () => {
     const { chatId, h } = await seedGame([]);
-    const host = principal(castId<Handle>("host"));
+    const host = await principal(db, castId<Handle>("host"));
     await h.service.updateConfig({ principal: host, chatId, patch: { ruleset: "d20" } });
     await expect(h.service.rollDice({ principal: host, chatId, notation: "d20", ...{ ability: "str" } })).rejects.toThrow(/set.*score/i);
     await expect(h.service.rollDice({ principal: host, chatId, notation: "d20", ...{ ability: "absent" } })).rejects.toThrow(/not in the profile/i);
@@ -86,15 +86,15 @@ test("an ability check reads a member's own score and refuses nonmembers before 
     participants: [participantUser(castId<Handle>("host"), "Host"), participantUser(castId<Handle>("member"), "Member")],
   });
   h.fakes.membership.set("user_member", "member");
-  const host = principal(castId<Handle>("host"));
-  const member = principal(castId<Handle>("member"));
+  const host = await principal(db, castId<Handle>("host"));
+  const member = await principal(db, castId<Handle>("member"));
   await h.service.updateConfig({ principal: host, chatId, patch: { ruleset: "d20" } });
   await h.service.patchSheet({ principal: host, chatId, actorRef: { kind: "user", userId: hostId }, patch: { attributes: { str: 20 } } });
   await h.service.patchSheet({ principal: member, chatId, actorRef: { kind: "user", userId: memberId }, patch: { attributes: { str: 8 } } });
   const result = await h.service.rollDice({ principal: member, chatId, notation: "d20", ability: "str" });
   expect(result).toMatchObject({ rolls: [10], modifier: -1, total: 9, stamp: "[dice: Strength d20-1 → 9]" });
-  await expect(h.service.rollDice({ principal: principal(castId<Handle>("outsider")), chatId, notation: "d20", ability: "str" })).rejects.toBeInstanceOf(
-    DomainNotFoundError,
-  );
+  await expect(
+    h.service.rollDice({ principal: await principal(db, castId<Handle>("outsider")), chatId, notation: "d20", ability: "str" }),
+  ).rejects.toBeInstanceOf(DomainNotFoundError);
   expect(h.fakes.dice).toEqual([9]);
 });

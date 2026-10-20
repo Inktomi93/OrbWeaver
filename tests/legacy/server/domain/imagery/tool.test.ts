@@ -2,10 +2,12 @@
 // shape + the handler's arg→param mapping onto the injected generatePicture op, and the non-chat refusal.
 
 import { IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION } from "@orb/contracts/imagery";
+import type { Db } from "@orb/db";
 import type { AssetId, ChatId, ImageryGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { GeneratedPicture, GeneratePictureParams } from "#server/domain/imagery/index.ts";
@@ -47,8 +49,8 @@ function fakeGeneratePicture(): Recorder {
   return { calls, op };
 }
 
-function exec(chatId: ChatId | null): ToolExecutionContext {
-  return { principal: principal(OWNER), triggeredBy: OWNER, chatId, turnId: null, membership: null };
+async function exec(db: Db, chatId: ChatId | null): Promise<ToolExecutionContext> {
+  return { principal: await principal(db, OWNER), triggeredBy: OWNER, chatId, turnId: null, membership: null };
 }
 
 describe("generate_image tool", () => {
@@ -82,9 +84,10 @@ describe("generate_image tool", () => {
   });
 
   test("maps args onto GeneratePictureParams (caller/chat from exec) + returns the asset ids", async () => {
+    const db = await freshDb();
     const fake = fakeGeneratePicture();
     const [def] = imageryToolDefinitions({ generatePicture: fake.op });
-    const result = await def?.handler({ mode: "free", prompt: "a castle", n: 2, reuse: "prefer" }, exec(CHAT));
+    const result = await def?.handler({ mode: "free", prompt: "a castle", n: 2, reuse: "prefer" }, await exec(db, CHAT));
 
     expect(result).toEqual({ ok: true, value: { assetIds: [castId<AssetId>("asset_1")], reused: false, warnings: [] } });
     expect(fake.calls).toHaveLength(1);
@@ -92,9 +95,10 @@ describe("generate_image tool", () => {
   });
 
   test("refuses (ok:false, never throws) when the exec context has no chat", async () => {
+    const db = await freshDb();
     const fake = fakeGeneratePicture();
     const [def] = imageryToolDefinitions({ generatePicture: fake.op });
-    const result = await def?.handler({ mode: "free", prompt: "x", n: 1, reuse: "prefer" }, exec(null));
+    const result = await def?.handler({ mode: "free", prompt: "x", n: 1, reuse: "prefer" }, await exec(db, null));
 
     expect(result).toMatchObject({ ok: false });
     expect(fake.calls).toHaveLength(0);

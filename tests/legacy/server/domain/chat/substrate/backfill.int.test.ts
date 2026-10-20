@@ -751,7 +751,7 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
       mintSyntheticGroupCharacter: mint,
     });
 
-    const counts = await backfillGroupCharacters(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID, ...WHOLE_CORPUS });
+    const counts = await backfillGroupCharacters(ctx, { signal: new AbortController().signal, ...WHOLE_CORPUS });
 
     expect(counts).toEqual({ scanned: 1, changed: 1 });
     expect(mint).toHaveBeenCalledTimes(1);
@@ -767,7 +767,7 @@ describe("backfillGroupCharacters — mint only for group rooms lacking one", ()
       mintSyntheticGroupCharacter: mint,
     });
 
-    const counts = await backfillGroupCharacters(ctx, { signal: new AbortController().signal, funderUserId: HOST_ID, ...WHOLE_CORPUS });
+    const counts = await backfillGroupCharacters(ctx, { signal: new AbortController().signal, ...WHOLE_CORPUS });
 
     expect(counts).toEqual({ scanned: 1, changed: 0 });
     expect(mint).not.toHaveBeenCalled();

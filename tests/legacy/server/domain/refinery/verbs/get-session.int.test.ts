@@ -14,9 +14,9 @@ test("returns the started session's view verbatim; a stranger gets NOT_FOUND", a
   const stranger = await seedUser(db, { id: "user_gs_b", handle: castId<Handle>("gs-stranger") });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "gs-card-a");
-  const started = await h.svc.startSession({ principal: principal(owner), characterId });
+  const started = await h.svc.startSession({ principal: await principal(db, owner), characterId });
 
-  const got = await h.svc.getSession({ principal: principal(owner), sessionId: started.id });
+  const got = await h.svc.getSession({ principal: await principal(db, owner), sessionId: started.id });
   expect(got).toEqual(started);
-  await expect(h.svc.getSession({ principal: principal(stranger), sessionId: started.id })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(h.svc.getSession({ principal: await principal(db, stranger), sessionId: started.id })).rejects.toBeInstanceOf(DomainNotFoundError);
 });

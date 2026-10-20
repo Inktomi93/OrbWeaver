@@ -46,7 +46,6 @@ export class GameSeedFlights {
     const result = Promise.withResolvers<GameSeedResult>();
     const flight = new GameSeedFlight(profile, title, result.promise);
     this.inFlight = flight;
-    // @orb-waive caught-failure-ownership(flight.promise): both arms only release the inFlight pointer; `run` returns `flight.promise` itself, so the rejection reaches `buildAgentSeed`'s caller through `gameFlights.run(...)` in agent-seed/index.ts. Ends if `run` stops returning `flight.promise`.
     void flight.promise.then(
       () => this.release(flight),
       () => this.release(flight),

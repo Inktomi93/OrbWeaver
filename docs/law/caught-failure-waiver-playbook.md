@@ -10,35 +10,41 @@ How to judge one `caught-failure-ownership` waiver and record the verdict. A wor
 
 ## What the gate reports
 
-The gate is `tooling/src/verify/gates/caught-failure-ownership.ts`. Its reader is `tooling/src/verify/lib/caught-failure.ts` with its helpers `caught-failure-scope.ts`, `caught-failure-outcome.ts` and `caught-failure-handler.ts` in the same folder. The gate reports UNPROVEN OWNERSHIP, never "bug". It reports three site kinds:
+The gate is `tooling/src/verify/gates/caught-failure-ownership.ts`. Its reader is `tooling/src/verify/lib/caught-failure.ts` with its helpers `caught-failure-scope.ts`, `caught-failure-outcome.ts`, `caught-failure-sinks.ts`, `caught-failure-retained.ts` and `caught-failure-handler.ts` in the same folder. The gate reports UNPROVEN OWNERSHIP, never "bug". It reports three site kinds:
 
 | Kind | Where | Meaning |
 | - | - | - |
-| `promise` | `promiseAbsorberSite`, `tooling/src/verify/lib/caught-failure.ts:193` | a `.catch(h)` or `.then(_, h)` whose handler discards the rejection |
-| `default` | `silentDefault`, `tooling/src/verify/lib/caught-failure-handler.ts:24` | a catch whose only escape is a constant fallback |
-| `empty` | `unownedCatch`, `tooling/src/verify/lib/caught-failure-handler.ts:14` | a catch, with its finally, that names no owner |
+| `promise` | `promiseAbsorberSite`, `tooling/src/verify/lib/caught-failure.ts:208` | a `.catch(h)` or `.then(_, h)` whose handler discards the rejection |
+| `default` | `silentDefault`, `tooling/src/verify/lib/caught-failure-handler.ts:27` | a catch whose only escape is a constant fallback |
+| `empty` | `unownedCatch`, `tooling/src/verify/lib/caught-failure-handler.ts:17` | a catch, with its finally, that names no owner |
 
-`catchClauseSite` (`tooling/src/verify/lib/caught-failure.ts:327`) decides a catch. It checks the sole-operation owner first, then `default`, then `empty`.
+`catchClauseSite` (`tooling/src/verify/lib/caught-failure.ts:347`) decides a catch. It checks the sole-operation owner first, then `default`, then `empty`.
 
 ### What counts as an owner
 
-The reader's own header lists every owner (`tooling/src/verify/lib/caught-failure.ts:32`, "WHAT PASSES"). Each owner is checked for provenance: the reader resolves the declaration and refuses a lookalike.
+The reader's own header lists every owner (`tooling/src/verify/lib/caught-failure.ts:40`, "WHAT PASSES"). Each owner is checked for provenance: the reader resolves the declaration and refuses a lookalike.
 
-- Propagation: a rethrow of the caught binding, a `{ cause: err }` wrapper, a call typed `never` or `Promise<never>`, or the native `Promise.reject(err)`.
+- Propagation: a rethrow of the caught binding, a `{ cause: err }` wrapper, a call typed `never` or `Promise<never>`, the native `Promise.reject(err)`, or a rejection the function still returns to its caller.
 - Operator surfaces: a structured `getLog` or pino line, `securityEvent`, `withRequestSpan`, the `notify` or toast door with failure copy.
 - Observable state: a React `useState` setter fed a failure value, a TanStack query or form, and `createEntityMutation` with failure-copy `errorToast`.
-- Error as data: a returned object that a consumer reads, such as `{ ok: false, reason }`. A success discriminator such as `status: 'ok'` refuses ownership even beside the error.
+- Error as data: a returned or yielded object that a consumer reads, such as `{ ok: false, reason }`. A success discriminator such as `status: 'ok'` refuses ownership even beside the error.
 
 The newest owners and their provenance rules:
 
 | Owner | Rule | Code |
 | - | - | - |
-| imported mutation hook | the hook is a `const` initialized by `createEntityMutation` with failure copy, even through a re-export | `originatesFromOwnedEntityMutation`, `tooling/src/verify/lib/caught-failure-scope.ts:61` |
-| sole-operation try | the try holds exactly one call, it is a governed framework operation, and it holds no `new` | `hasFrameworkOwner`, `tooling/src/verify/lib/caught-failure-scope.ts:108` |
-| guarded rethrow | an `if` whose condition reads the caught binding, or a `const` derived from it in the same block, and whose branch ends by rethrowing the binding | `guardedRethrow`, `tooling/src/verify/lib/caught-failure-scope.ts:311` |
-| typed refusal | a call whose type has a failure literal in every member of `kind`, `status`, `step` or `verdict`, or a single-return factory whose body is a failure outcome without its parameter | `typeIsFailureOutcome` and `factoryReturnsFailure`, `tooling/src/verify/lib/caught-failure-outcome.ts:200` and `:176` |
+| imported mutation hook | the hook is a `const` initialized by `createEntityMutation` with failure copy, even through a re-export | `originatesFromOwnedEntityMutation`, `tooling/src/verify/lib/caught-failure-scope.ts:63` |
+| sole-operation try | the try holds exactly one call, it is a governed framework operation, and it holds no `new` | `hasFrameworkOwner`, `tooling/src/verify/lib/caught-failure-scope.ts:110` |
+| guarded rethrow | an `if` whose condition reads the caught binding, or a `const` derived from it in the same block, and whose branch ends by rethrowing the binding | `guardedRethrow`, `tooling/src/verify/lib/caught-failure-scope.ts:380` |
+| typed refusal | a call whose type has a failure literal in every member of `kind`, `status`, `step` or `verdict`, or a single-return factory whose body is a failure outcome without its parameter | `typeIsFailureOutcome` and `factoryReturnsFailure`, `tooling/src/verify/lib/caught-failure-outcome.ts:221` and `:197` |
+| imported handler | a named handler resolves through its import alias; one declared in another module must be a function or a `const` | `handlerDeclarations`, `tooling/src/verify/lib/caught-failure-handler.ts:45` |
+| forward | the binding is passed to a one-statement helper whose body owns that parameter; one hop only, and never an async or generator helper | `forwardsToOwner`, `tooling/src/verify/lib/caught-failure-scope.ts:243` |
+| zod issue | `ctx.addIssue` made directly in a synchronous `superRefine` or `transform` callback, on its second parameter, on a chain rooted at this file's `zod` import | `zodIssueOwns`, `tooling/src/verify/lib/caught-failure-sinks.ts:281` |
+| retained failure | the binding, or a wrapper chaining it as `cause`, is pushed into a `const` collection in the function that declares it, and a later top-level statement of that function throws the collection on every nonempty count (`length > 0`, or `=== 1` then `> 1`) with nothing between able to leave | `collectionIsAggregated`, `tooling/src/verify/lib/caught-failure-sinks.ts:337` |
+| retained rejection | a discarding handler on a top-level `const` promise that the function returns as its last statement through handler-free links, or a forward into a native `Promise.withResolvers()` deferred whose promise is returned that way | `rejectionRetainedByReturn` and `rejectionForwardedToReturnedDeferred`, `tooling/src/verify/lib/caught-failure-retained.ts:107` and `:114` |
+| yielded outcome | a generator's plain `yield` of a failure outcome, read like a `return` | `deliveredValue`, `tooling/src/verify/lib/caught-failure-scope.ts:199` |
 
-A factory body that is failure-valued only through its parameter, such as `(v) => ({ error: v })`, owns only when the call's first argument references the caught binding (`governedFailureFactoryCall`, `tooling/src/verify/lib/caught-failure-outcome.ts:193`). The failure literals are `FAILURE_DISCRIMINATOR_RE` and the `failureKinds` set in the same file.
+A factory body that is failure-valued only through its parameter, such as `(v) => ({ error: v })`, owns only when the call's first argument references the caught binding (`governedFailureFactoryCall`, `tooling/src/verify/lib/caught-failure-outcome.ts:214`). A one-expression helper such as `messageOf(err)` whose result preserves its parameter preserves the binding (`preservingHelperCall`, `:39`). The failure literals are `FAILURE_DISCRIMINATOR_RE` and the `failureKinds` set in the same file, and the failure keys are `FAILURE_KEY_ASSIGNMENT_RE`.
 
 ### Declared limits
 
@@ -47,7 +53,7 @@ The gate header lists them at `tooling/src/verify/gates/caught-failure-ownership
 - A dynamically keyed `.catch` link is not read.
 - zod's `.catch()` is schema construction.
 - Files outside `packages/<name>/src` and `tooling/src` are outside the population.
-- An owner behind an opaque helper is invisible.
+- An owner behind a multi-statement helper is invisible.
 - A mutation owner behind a wrapper hook, an injected save or a local wrapper is not expanded.
 - A function-valued `errorToast` is not expanded.
 - An `ok: false` member is proven only from a literal or a single-return factory body, never from a type.
@@ -108,7 +114,7 @@ The same disposition fits `revoked` (`CredentialHealth.status`, `packages/contra
 
 ### Good: an unwaived finding judged at its code
 
-`packages/server/src/domain/share/certificate/controller.ts:53` is `void run().then(operation.resolve, operation.reject)`. The handler forwards the rejection into the deferred, and `track` returns `operation.promise` at `:58`. That is propagation the reader does not see: GATE FALSE POSITIVE, escalate. `:54` attaches a settle-only handler for `pending` bookkeeping. The caller of `track` owns the rejection through the returned promise: KEEP, naming `:58`.
+`packages/server/src/domain/share/certificate/controller.ts:58` is `void run().then(operation.resolve, operation.reject)`. The handler forwards the rejection into the deferred, and `track` returns `operation.promise` as its last statement. `:59` attaches a settle-only handler for `pending` bookkeeping on that same returned promise. The reader proves both as retained rejections, so neither site reports and neither needs a marker.
 
 ### Bad: an identity factory launders a success value
 

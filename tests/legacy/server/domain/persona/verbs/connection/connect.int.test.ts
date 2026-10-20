@@ -22,17 +22,17 @@ describe("connectToCharacter", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
     const persona = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "P", description: "d" },
     });
 
     await svc.connectToCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       personaId: persona.id,
     });
     await svc.connectToCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       personaId: persona.id,
     });
@@ -52,12 +52,12 @@ describe("connectToCharacter", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreignCharacter = await seedCharacter(db, { ownerId: other });
     const persona = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "P", description: "d" },
     });
     await expect(
       svc.connectToCharacter({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         characterId: foreignCharacter,
         personaId: persona.id,
       }),
@@ -72,12 +72,12 @@ describe("connectToCharacter", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const character = await seedCharacter(db, { ownerId: owner });
     const foreignPersona = await svc.create({
-      principal: principal(other),
+      principal: await principal(db, other),
       input: { name: "Theirs", description: "d" },
     });
     await expect(
       svc.connectToCharacter({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         characterId: character,
         personaId: foreignPersona.id,
       }),

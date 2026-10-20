@@ -14,10 +14,13 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe, vi } from "vitest";
 import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#server/domain/chat/persistence/token-usage-backfill.ts";
 import { createBackfillTokenUsage } from "#server/domain/import/verbs/backfill-token-usage.ts";
+import { createStatsBatchWiring } from "#server/domain/stats/index.ts";
 import { reconcileStats } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
 import { readOverview } from "#server/domain/stats/persistence/rollups.ts";
-import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../chat/_support.ts";
+
+// The stats seam as the composition root wires it: the production writers behind the batch and database handles.
+const STATS_WIRING = createStatsBatchWiring();
 
 let db: Db;
 
@@ -44,7 +47,7 @@ describe("createBackfillTokenUsage", () => {
     const reconcileImportStats = vi.fn(async () => undefined);
     const deps = {
       listTokenUsageCandidates: createListImportedTokenUsageCandidates(databaseHandle(db)),
-      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(databaseHandle(db), bumpStatsCanonVersion),
+      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(databaseHandle(db), STATS_WIRING.bumpStatsCanonVersion),
       reconcileImportStats,
     };
     const backfillTokenUsage = createBackfillTokenUsage(deps);
@@ -124,7 +127,7 @@ describe("createBackfillTokenUsage", () => {
 
     const result = await createBackfillTokenUsage({
       listTokenUsageCandidates: createListImportedTokenUsageCandidates(databaseHandle(db)),
-      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(databaseHandle(db), bumpStatsCanonVersion),
+      compareAndSetTokenUsage: createCompareAndSetImportedTokenUsage(databaseHandle(db), STATS_WIRING.bumpStatsCanonVersion),
       reconcileImportStats: ({ ownerId: owner }) => reconcileStats(db, { ownerId: owner, now: clock.now }).then(() => undefined),
     })({ ownerId, dryRun: false, report: vi.fn(), signal: new AbortController().signal });
 

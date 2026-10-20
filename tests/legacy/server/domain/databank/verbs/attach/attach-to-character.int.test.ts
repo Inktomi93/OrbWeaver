@@ -18,17 +18,17 @@ test("owner attaches an owned document to an owned character; re-attach idempote
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const characterId = await seedCharacter(db, owner, { id: "character_owned" });
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
   h.userEvents.length = 0; // Drop the create event so this asserts only the character-binding write.
 
-  await h.service.attachToCharacter({ principal: principalFor(owner), documentId: document.id, characterId });
-  await h.service.attachToCharacter({ principal: principalFor(owner), documentId: document.id, characterId }); // idempotent
+  await h.service.attachToCharacter({ principal: await principalFor(db, owner), documentId: document.id, characterId });
+  await h.service.attachToCharacter({ principal: await principalFor(db, owner), documentId: document.id, characterId }); // idempotent
   expect(await db.select().from(characterDocuments).where(eq(characterDocuments.documentId, document.id))).toEqual([{ characterId, documentId: document.id }]);
   expect(h.userEvents).toEqual([{ userId: owner, event: { type: "databankChanged", documentId: document.id } }]);
 
   h.userEvents.length = 0;
-  await h.service.detachFromCharacter({ principal: principalFor(owner), documentId: document.id, characterId });
-  await h.service.detachFromCharacter({ principal: principalFor(owner), documentId: document.id, characterId }); // idempotent no-op
+  await h.service.detachFromCharacter({ principal: await principalFor(db, owner), documentId: document.id, characterId });
+  await h.service.detachFromCharacter({ principal: await principalFor(db, owner), documentId: document.id, characterId }); // idempotent no-op
   expect(await db.select().from(characterDocuments).where(eq(characterDocuments.documentId, document.id))).toHaveLength(0);
   expect(h.userEvents).toEqual([{ userId: owner, event: { type: "databankChanged", documentId: document.id } }]);
 });
@@ -39,11 +39,11 @@ test("a foreign DOCUMENT never attaches to an owned character (cross-tenant)", a
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const attacker = await seedUser(db, { handle: castId<Handle>("attacker") });
   const attackerCharacter = await seedCharacter(db, attacker, { id: "character_attacker" });
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
 
   // The attacker owns the character but NOT the document → DocumentNotFoundError, no junction row.
   await expect(
-    h.service.attachToCharacter({ principal: principalFor(attacker), documentId: document.id, characterId: attackerCharacter }),
+    h.service.attachToCharacter({ principal: await principalFor(db, attacker), documentId: document.id, characterId: attackerCharacter }),
   ).rejects.toBeInstanceOf(DocumentNotFoundError);
   expect(await db.select().from(characterDocuments).where(eq(characterDocuments.documentId, document.id))).toHaveLength(0);
 });
@@ -54,20 +54,20 @@ test("a foreign CHARACTER never receives a document, even the caller's own (cros
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const attacker = await seedUser(db, { handle: castId<Handle>("attacker") });
   const ownerCharacter = await seedCharacter(db, owner, { id: "character_owned" });
-  const { document } = await h.service.createFromText({ principal: principalFor(attacker), name: "d.md", text: "attacker canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, attacker), name: "d.md", text: "attacker canon" });
   // A REAL owner binding must exist for the detach arm to have teeth: the junction is keyed on characterId
   // alone, so an UNGATED delete would reach this row — the arm below proves the ownership gate protects it.
-  const { document: ownerDoc } = await h.service.createFromText({ principal: principalFor(owner), name: "o.md", text: "owner canon" });
-  await h.service.attachToCharacter({ principal: principalFor(owner), documentId: ownerDoc.id, characterId: ownerCharacter });
+  const { document: ownerDoc } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "o.md", text: "owner canon" });
+  await h.service.attachToCharacter({ principal: await principalFor(db, owner), documentId: ownerDoc.id, characterId: ownerCharacter });
 
   // The attacker owns the document but targets the OWNER's character → leak-free NOT_FOUND, no junction row.
-  await expect(h.service.attachToCharacter({ principal: principalFor(attacker), documentId: document.id, characterId: ownerCharacter })).rejects.toBeInstanceOf(
-    DatabankCharacterNotFoundError,
-  );
+  await expect(
+    h.service.attachToCharacter({ principal: await principalFor(db, attacker), documentId: document.id, characterId: ownerCharacter }),
+  ).rejects.toBeInstanceOf(DatabankCharacterNotFoundError);
   // detach is gated identically — a stranger can't remove a binding on a foreign character. The attacker
   // aims at the OWNER's real binding (their own doc id would be refused one gate earlier, at loadOwnedMeta).
   await expect(
-    h.service.detachFromCharacter({ principal: principalFor(attacker), documentId: ownerDoc.id, characterId: ownerCharacter }),
+    h.service.detachFromCharacter({ principal: await principalFor(db, attacker), documentId: ownerDoc.id, characterId: ownerCharacter }),
   ).rejects.toBeInstanceOf(DatabankCharacterNotFoundError);
   // The owner's binding SURVIVES the refused foreign detach (non-vacuous: an ungated delete would remove it),
   // and the attacker's refused attach added nothing beside it.
@@ -81,13 +81,13 @@ test("listAttachments surfaces the character binding (reverse view)", async () =
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const characterId = await seedCharacter(db, owner, { id: "character_owned" });
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
 
-  const before = await h.service.listAttachments({ principal: principalFor(owner), id: document.id });
+  const before = await h.service.listAttachments({ principal: await principalFor(db, owner), id: document.id });
   expect(before.characters).toEqual([]);
 
-  await h.service.attachToCharacter({ principal: principalFor(owner), documentId: document.id, characterId });
-  const after = await h.service.listAttachments({ principal: principalFor(owner), id: document.id });
+  await h.service.attachToCharacter({ principal: await principalFor(db, owner), documentId: document.id, characterId });
+  const after = await h.service.listAttachments({ principal: await principalFor(db, owner), id: document.id });
   // NAMED (#276): the card's own name rides the reverse view, so the CONTEXT roster needs no second read.
   expect(after).toEqual({ global: false, chats: [], characters: [{ id: characterId, name: expect.any(String) }] });
 });
@@ -110,20 +110,20 @@ test("#2471 a character attach/detach fans the rooms SEATING that character, and
   await seedChatHost(db, departed, owner);
   await seedRosterCharacter(db, seated, characterId);
   await seedRosterCharacter(db, departed, characterId, 7); // leftSeq set — no longer credits the room
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
   h.roomFans.length = 0;
 
-  await h.service.attachToCharacter({ principal: principalFor(owner), documentId: document.id, characterId });
+  await h.service.attachToCharacter({ principal: await principalFor(db, owner), documentId: document.id, characterId });
   expect(h.roomFans).toEqual([{ type: "roomEntityChanged", chatId: seated, entity: "databank" }]);
-  const asMember = await h.service.listActiveForChat({ principal: principalFor(member), chatId: seated });
+  const asMember = await h.service.listActiveForChat({ principal: await principalFor(db, member), chatId: seated });
   expect(asMember.map((row) => row.id)).toEqual([document.id]);
 
   h.roomFans.length = 0;
-  await h.service.detachFromCharacter({ principal: principalFor(owner), documentId: document.id, characterId });
+  await h.service.detachFromCharacter({ principal: await principalFor(db, owner), documentId: document.id, characterId });
   expect(h.roomFans).toEqual([{ type: "roomEntityChanged", chatId: seated, entity: "databank" }]);
 
   // Idempotent re-detach: no junction row removed, nothing announced.
   h.roomFans.length = 0;
-  await h.service.detachFromCharacter({ principal: principalFor(owner), documentId: document.id, characterId });
+  await h.service.detachFromCharacter({ principal: await principalFor(db, owner), documentId: document.id, characterId });
   expect(h.roomFans).toEqual([]);
 });

@@ -41,7 +41,7 @@ test("scrapes a page: fetches over the guard, extracts html, stamps 'web' canon,
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf(HTML_WITH_TITLE));
 
-  const result = await h.service.scrapeWeb({ principal: principalFor(owner), url: URL_WITH_TITLE });
+  const result = await h.service.scrapeWeb({ principal: await principalFor(db, owner), url: URL_WITH_TITLE });
 
   expect(result.outcome).toBe("created");
   expect(result.ingest).toBe("queued");
@@ -70,7 +70,7 @@ test("a page with no <title> falls back to hostname+path for the name", async ()
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf(HTML_NO_TITLE));
 
-  const result = await h.service.scrapeWeb({ principal: principalFor(owner), url: URL_NO_TITLE });
+  const result = await h.service.scrapeWeb({ principal: await principalFor(db, owner), url: URL_NO_TITLE });
   expect(result.document.name).toBe("docs.example.org/guide/toll");
 });
 
@@ -80,8 +80,8 @@ test("a re-scrape of identical bytes dedups (duplicate/skipped, no second enqueu
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValue(bytesOf(HTML_WITH_TITLE)); // both scrapes fetch the same bytes
 
-  const first = await h.service.scrapeWeb({ principal: principalFor(owner), url: URL_WITH_TITLE });
-  const second = await h.service.scrapeWeb({ principal: principalFor(owner), url: URL_WITH_TITLE });
+  const first = await h.service.scrapeWeb({ principal: await principalFor(db, owner), url: URL_WITH_TITLE });
+  const second = await h.service.scrapeWeb({ principal: await principalFor(db, owner), url: URL_WITH_TITLE });
 
   expect(second.outcome).toBe("duplicate");
   expect(second.ingest).toBe("skipped");
@@ -98,7 +98,7 @@ test("an SSRF-refused fetch collapses to ScrapeFailedError — no row, no CAS wr
   // In prod this is safeFetch's EgressBlockedError (a private-range redirect / non-https / ip-literal target).
   h.fetchUrl.mockRejectedValueOnce(new Error("SSRF_BLOCKED: internal.corp → 10.0.0.5"));
 
-  await expect(h.service.scrapeWeb({ principal: principalFor(owner), url: "https://internal.corp/" })).rejects.toBeInstanceOf(ScrapeFailedError);
+  await expect(h.service.scrapeWeb({ principal: await principalFor(db, owner), url: "https://internal.corp/" })).rejects.toBeInstanceOf(ScrapeFailedError);
 
   expect(h.fetchUrl).toHaveBeenCalledTimes(1); // NOT retry-looped
   expect(h.assetsStore).not.toHaveBeenCalled();
@@ -113,7 +113,7 @@ test("the leak-free ScrapeFailedError never surfaces the resolved private addres
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockRejectedValueOnce(new Error("SSRF_BLOCKED: internal.corp → 169.254.169.254"));
 
-  const error = await h.service.scrapeWeb({ principal: principalFor(owner), url: "https://internal.corp/" }).catch((e: unknown) => e);
+  const error = await h.service.scrapeWeb({ principal: await principalFor(db, owner), url: "https://internal.corp/" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ScrapeFailedError);
   expect((error as ScrapeFailedError).message).toBe("The web page could not be scraped.");
   expect((error as ScrapeFailedError).message).not.toContain("169.254.169.254"); // the address stays server-side
@@ -125,7 +125,7 @@ test("a fetch failure (non-2xx / network) also collapses to ScrapeFailedError wi
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockRejectedValueOnce(new Error("scrape fetch failed: HTTP 404"));
 
-  await expect(h.service.scrapeWeb({ principal: principalFor(owner), url: "https://example.com/missing" })).rejects.toBeInstanceOf(ScrapeFailedError);
+  await expect(h.service.scrapeWeb({ principal: await principalFor(db, owner), url: "https://example.com/missing" })).rejects.toBeInstanceOf(ScrapeFailedError);
   expect(h.enqueueIngest).not.toHaveBeenCalled();
 });
 
@@ -135,7 +135,7 @@ test("an html page that extracts to empty surfaces the empty-extraction warning 
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf("<html><head><title>Empty</title></head><body></body></html>"));
 
-  const result = await h.service.scrapeWeb({ principal: principalFor(owner), url: "https://example.com/empty" });
+  const result = await h.service.scrapeWeb({ principal: await principalFor(db, owner), url: "https://example.com/empty" });
   expect(result.outcome).toBe("created");
   expect(result.warning).toBe("empty-extraction");
   expect(h.enqueueIngest).toHaveBeenCalledTimes(1); // still queued — the empty doc is canon
@@ -157,7 +157,7 @@ test("a real html scrape stores end-to-end through the REAL assets.store belt (n
   const service = createDatabankService(ctx);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  const result = await service.scrapeWeb({ principal: principalFor(owner), url: URL_WITH_TITLE });
+  const result = await service.scrapeWeb({ principal: await principalFor(db, owner), url: URL_WITH_TITLE });
 
   expect(result.outcome).toBe("created");
   expect(result.ingest).toBe("queued");

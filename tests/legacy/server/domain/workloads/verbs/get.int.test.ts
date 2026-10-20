@@ -34,9 +34,9 @@ describe("workloads.get", () => {
       ownerId: alice,
     });
     const s = makeService(db);
-    await expect(s.get({ id, caller: principal("user_bob") })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(s.get({ id, caller: await principal(db, "user_bob") })).rejects.toBeInstanceOf(DomainNotFoundError);
     // The gate has teeth, not a blanket deny — the owner reads its own row.
-    expect((await s.get({ id, caller: principal("user_alice") })).ownerId).toBe(alice);
+    expect((await s.get({ id, caller: await principal(db, "user_alice") })).ownerId).toBe(alice);
   });
 
   test("an admin reads ANY owner's workload (the deployment-wide view)", async () => {
@@ -48,6 +48,6 @@ describe("workloads.get", () => {
       ownerId: alice,
     });
     const s = makeService(db);
-    expect((await s.get({ id, caller: principal("user_admin", "admin") })).ownerId).toBe(alice);
+    expect((await s.get({ id, caller: await principal(db, "user_admin", "admin") })).ownerId).toBe(alice);
   });
 });

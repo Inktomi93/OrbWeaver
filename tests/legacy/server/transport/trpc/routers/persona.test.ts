@@ -3,9 +3,11 @@
 // `ctx.services.persona.setActivePersona` with `principal = ctx.auth` (the verb owns the host-or-self
 // gate + the owner-scoped persona existence check). Driven through the real ladder via `createCaller`.
 
+import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Context } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { PersonaService } from "#server/domain/persona/index.ts";
@@ -22,16 +24,17 @@ const TARGET = castId<UserId>("user_target");
 const CHAT = ID.chat1;
 const PERSONA = ID.persona1;
 
-function ctxWith(persona: Partial<PersonaService>): Context {
-  return makeContext({ auth: principal("user", { userId: ACTOR }), services: { persona } });
+async function ctxWith(db: Db, persona: Partial<PersonaService>): Promise<Context> {
+  return makeContext({ auth: await principal(db, "user", { userId: ACTOR }), services: { persona } });
 }
 
 describe("persona.setActivePersona — wire-through", () => {
   test("delegates the parsed triple to the verb with the acting principal", async () => {
+    const db = await freshDb();
     const setActivePersona = vi.fn<PersonaService["setActivePersona"]>(async () => {
       // resolves void — the verb owns the write; the router only delegates.
     });
-    await caller(ctxWith({ setActivePersona })).persona.setActivePersona({
+    await caller(await ctxWith(db, { setActivePersona })).persona.setActivePersona({
       chatId: CHAT,
       targetUserId: TARGET,
       personaId: PERSONA,
@@ -45,10 +48,11 @@ describe("persona.setActivePersona — wire-through", () => {
   });
 
   test("passes personaId null verbatim (the clear-the-slot arm)", async () => {
+    const db = await freshDb();
     const setActivePersona = vi.fn<PersonaService["setActivePersona"]>(async () => {
       // resolves void.
     });
-    await caller(ctxWith({ setActivePersona })).persona.setActivePersona({
+    await caller(await ctxWith(db, { setActivePersona })).persona.setActivePersona({
       chatId: CHAT,
       targetUserId: TARGET,
       personaId: null,
@@ -57,10 +61,11 @@ describe("persona.setActivePersona — wire-through", () => {
   });
 
   test("an omitted targetUserId is accepted at the wire boundary and passed through undefined (the verb defaults it to self)", async () => {
+    const db = await freshDb();
     const setActivePersona = vi.fn<PersonaService["setActivePersona"]>(async () => {
       // resolves void.
     });
-    await caller(ctxWith({ setActivePersona })).persona.setActivePersona({
+    await caller(await ctxWith(db, { setActivePersona })).persona.setActivePersona({
       chatId: CHAT,
       personaId: PERSONA,
     });

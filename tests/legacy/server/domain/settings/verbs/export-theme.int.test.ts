@@ -27,15 +27,15 @@ describe("exportTheme", () => {
     const other = await seedUser(db, { id: "user_other" });
 
     await h.svc.createTheme({
-      principal: principal(owner, "user"),
+      principal: await principal(db, owner, "user"),
       input: { name: "Mine A", override: { accent: "#abcdef" }, css: ".x{}" },
     });
     await h.svc.createTheme({
-      principal: principal(owner, "user"),
+      principal: await principal(db, owner, "user"),
       input: { name: "Mine B", override: {} },
     });
     await h.svc.createTheme({
-      principal: principal(other, "user"),
+      principal: await principal(db, other, "user"),
       input: { name: "Theirs", override: {} },
     });
 

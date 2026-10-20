@@ -31,6 +31,7 @@
 
 import { setTimeout as sleep } from "node:timers/promises";
 import { messages } from "@orb/db";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, ChatTurnId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -49,8 +50,6 @@ import {
   test,
   turnConnection,
 } from "./_support.ts";
-
-const HOST = principal(castId<Handle>("host"));
 
 /** The round's delta — deliberately on a DIFFERENT ambient plane than the hand edit below, so "who won" is not
  *  a coin-flip on one field but a question of whether BOTH writers' work is present. */
@@ -88,14 +87,16 @@ test("A (single speaker): a hand edit mid-flight survives the flush — AND the 
   await untilRoundStarted(h.fakes.toolRoundCalls, 1);
 
   // The host steers mid-beat. It is accepted (a hand edit is never refused for being concurrent).
-  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the drowned chapel" } })).resolves.toEqual({ ok: true });
+  await expect(
+    h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "the drowned chapel" } }),
+  ).resolves.toEqual({ ok: true });
 
   releaseRound();
   await flush;
 
   // The round DID produce a delta — its absence below would be the defect, never an empty extraction.
   expect(h.fakes.toolRoundCalls).toHaveLength(1);
-  const view = await h.service.getTrackerView({ principal: HOST, chatId });
+  const view = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
   // The human's decision stands (manual-edit-wins — and the auto-lock says a model write may never take it).
   expect(view.ambient?.location).toBe("the drowned chapel");
   // …and the turn's OWN write, on a plane the hand never touched, is still there. Before the fix the hand row
@@ -122,12 +123,14 @@ test("B (back-to-back assistant turns): a hand edit mid-flight of the SECOND tur
   const flush = h.chatOps.onTurnCompleted(chatId, second.messageId, second.variantId, castId<ChatTurnId>("chat_turn_sp2"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
 
-  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the drowned chapel" } })).resolves.toEqual({ ok: true });
+  await expect(
+    h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "the drowned chapel" } }),
+  ).resolves.toEqual({ ok: true });
 
   releaseRound();
   await flush;
 
-  const view = await h.service.getTrackerView({ principal: HOST, chatId });
+  const view = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
   // The clobber the board suspected: before the fix the edit landed IN PLACE on SPEAKER 1's still-uncommitted
   // row (the ladder's turn arm sees no snapshot on the tail slot while the flush is in flight and degrades to
   // the game-wide fallback), and speaker 2's flush then wrote a strictly-later row from its pre-edit base — so
@@ -150,11 +153,13 @@ test("SAME field, both writers: the HUMAN's value stands (manual-edit-wins, to t
   h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, messageId, variantId, castId<ChatTurnId>("chat_turn_clash"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 1);
-  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the drowned chapel" } })).resolves.toEqual({ ok: true });
+  await expect(
+    h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "the drowned chapel" } }),
+  ).resolves.toEqual({ ok: true });
   releaseRound();
   await flush;
 
-  const view = await h.service.getTrackerView({ principal: HOST, chatId });
+  const view = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
   expect(view.ambient?.location).toBe("the drowned chapel"); // the LOCKED field is the human's
   expect(view.ambient?.weather?.type).toBe("fog"); // the unlocked one is still the round's — the lock scopes the win
 });
@@ -171,7 +176,9 @@ test("pre-first-turn: a hand edit made BEFORE any turn rides into the first turn
   // A fresh chat's GREETING — an opening assistant message with no turn ever flushed behind it.
   await seedMessage(db, chatId, 1, { role: "assistant", content: "You stand at the ford." });
 
-  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the drowned chapel" } })).resolves.toEqual({ ok: true });
+  await expect(
+    h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "the drowned chapel" } }),
+  ).resolves.toEqual({ ok: true });
 
   // The user sends; the first real turn commits and flushes onto a LATER slot.
   await seedMessage(db, chatId, 2, { role: "user", content: "I cross." });
@@ -180,7 +187,7 @@ test("pre-first-turn: a hand edit made BEFORE any turn rides into the first turn
 
   // Nothing is lost here and never was: the hand row sits at a seq strictly BELOW the first turn's slot, so it
   // is inside that flush's write base rather than racing it — the edit rides forward and its lock rides with it.
-  const view = await h.service.getTrackerView({ principal: HOST, chatId });
+  const view = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
   expect(view.ambient?.location).toBe("the drowned chapel");
   expect(view.ambient?.weather?.type).toBe("fog");
 });
@@ -199,11 +206,13 @@ test("pre-first-turn: an edit landing MID-FLIGHT of the very FIRST turn keeps bo
   h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, first.messageId, first.variantId, castId<ChatTurnId>("chat_turn_first"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 1);
-  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the drowned chapel" } })).resolves.toEqual({ ok: true });
+  await expect(
+    h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "the drowned chapel" } }),
+  ).resolves.toEqual({ ok: true });
   releaseRound();
   await flush;
 
-  const view = await h.service.getTrackerView({ principal: HOST, chatId });
+  const view = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
   expect(view.ambient?.location).toBe("the drowned chapel");
   expect(view.ambient?.weather?.type).toBe("fog"); // was `null` on HEAD source — the first beat lost the round
 });
@@ -218,7 +227,9 @@ test("no flush in flight: the hand door still writes IN PLACE on the settled tur
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, messageId, variantId, castId<ChatTurnId>("chat_turn_settled"), turnConnection());
 
-  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the ford" } })).resolves.toEqual({ ok: true });
+  await expect(h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "the ford" } })).resolves.toEqual({
+    ok: true,
+  });
 
   // The edit landed ON the turn's own variant-keyed row — no clone-forward, so a swipe of this slot still
   // carries the host's edit with it.
@@ -244,9 +255,9 @@ test("no flush in flight: the hand door still writes IN PLACE on the settled tur
 /** Seed a settled beat that mints an actor + their presence, then lock it in with the ordinary next send. */
 async function seedActorBeat(h: Awaited<ReturnType<typeof seedLiteGame>>["h"], chatId: ChatId): Promise<void> {
   h.fakes.toolRoundDelta = { statePatch: { actorState: [actorWithWallet("mira", 3, 2)], presentCharacters: ["npc:mira"] }, journal: [] };
-  const beat = await seedMessage(h.ctx.db, chatId, 1, { role: "assistant" });
+  const beat = await seedMessage(databaseForOwner(h.ctx.db), chatId, 1, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_seed"), turnConnection());
-  const sent = await seedMessage(h.ctx.db, chatId, 2, { role: "user", content: "ok" });
+  const sent = await seedMessage(databaseForOwner(h.ctx.db), chatId, 2, { role: "user", content: "ok" });
   await h.chatOps.onUserCommit(chatId, sent.messageId);
 }
 
@@ -264,14 +275,16 @@ test("CE1: a mid-flight dismissActor is NOT undone by the fold (the round's own 
   h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_dismiss"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
-  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mira" } })).resolves.toEqual({ ok: true });
+  await expect(
+    h.service.dismissActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: { kind: "npc", npcKey: "mira" } }),
+  ).resolves.toEqual({ ok: true });
   releaseRound();
   await flush;
 
   const head = await resolveSnapshotHead(db, { id: gameId, chatId });
   expect(head?.row.actorState ?? []).toHaveLength(0); // she STAYS dismissed
   expect(head?.row.presentCharacters ?? []).toHaveLength(0); // and so does her presence
-  const view = await h.service.getTrackerView({ principal: HOST, chatId });
+  const view = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
   expect(view.actors.some((a) => a.actorRef.kind === "npc" && a.actorRef.npcKey === "mira")).toBe(false);
   expect(view.ambient?.weather?.type).toBe("fog"); // …while the round's own write is not sacrificed to save her
 });
@@ -300,7 +313,9 @@ test("CE1 (PRODUCTION patch shape): a round that re-authors PRESENCE does not re
   h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_p6"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
-  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mira" } })).resolves.toEqual({ ok: true });
+  await expect(
+    h.service.dismissActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: { kind: "npc", npcKey: "mira" } }),
+  ).resolves.toEqual({ ok: true });
   releaseRound();
   await flush;
 
@@ -330,7 +345,9 @@ test("the tombstone BOUNDARY: a round that genuinely CHANGES the dismissed actor
   h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_tomb"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
-  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mira" } })).resolves.toEqual({ ok: true });
+  await expect(
+    h.service.dismissActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: { kind: "npc", npcKey: "mira" } }),
+  ).resolves.toEqual({ ok: true });
   releaseRound();
   await flush;
 
@@ -380,7 +397,9 @@ test("TWO staged writes on ONE flat plane: the fold duplicates nothing (beats an
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, turnId, turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
   // A hand edit on an UNRELATED field, so the fold runs but claims none of the planes under test.
-  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the docks" } })).resolves.toEqual({ ok: true });
+  await expect(h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "the docks" } })).resolves.toEqual({
+    ok: true,
+  });
   releaseRound();
   await flush;
 
@@ -408,7 +427,7 @@ test("CE1: a mid-flight deleteQuest is NOT undone by the fold either (the same c
   h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_q2"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
-  await h.service.deleteQuest({ principal: HOST, chatId, questId: castId("q_k1") }); // returns void, unlike the other hand doors
+  await h.service.deleteQuest({ principal: await principal(db, castId<Handle>("host")), chatId, questId: castId("q_k1") }); // returns void, unlike the other hand doors
   releaseRound();
   await flush;
 
@@ -429,7 +448,9 @@ test("CE1 (no race at all): dismiss, then REGEN that slot — the reroll's fold 
   h.fakes.toolRoundDelta = { statePatch: { actorState: [actorWithWallet("mira", 3, 2)], presentCharacters: ["npc:mira"] }, journal: [] };
   const beat = await seedMessage(db, chatId, 1, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_r1"), turnConnection());
-  await expect(h.service.dismissActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: "mira" } })).resolves.toEqual({ ok: true });
+  await expect(
+    h.service.dismissActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: { kind: "npc", npcKey: "mira" } }),
+  ).resolves.toEqual({ ok: true });
 
   // Reroll the SAME assistant slot: a new variant, selected — the swipe pointer moves with zero snapshot writes.
   const rerolled = await addVariant(db, beat.messageId, 1, "b");
@@ -458,11 +479,13 @@ test("CE2: the user sends their NEXT message mid-flight, then steers — the tur
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_ce2"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 1);
   await seedMessage(db, chatId, 2, { role: "user", content: "I cross." }); // the next send, while the round is out
-  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the drowned chapel" } })).resolves.toEqual({ ok: true });
+  await expect(
+    h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "the drowned chapel" } }),
+  ).resolves.toEqual({ ok: true });
   releaseRound();
   await flush;
 
-  const view = await h.service.getTrackerView({ principal: HOST, chatId });
+  const view = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
   expect(view.ambient?.weather?.type).toBe("fog"); // the turn's write is no longer erased by the later hand row
   expect(view.ambient?.location).toBe("the drowned chapel"); // and the human still holds the field they claimed
   // Nothing was LOST, so nothing is reported — the loud arms are for real losses, not for every fold.
@@ -487,7 +510,9 @@ test("the fold's REFUSAL arm fires onFlushDropped (a rejected merge is never sil
   await pinExtractionMode(h, chatId, "cheap");
   const first = await seedMessage(db, chatId, 1, { role: "assistant" });
   await h.chatOps.onTurnCompleted(chatId, first.messageId, first.variantId, castId<ChatTurnId>("chat_turn_ref1"), turnConnection());
-  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "the drowned chapel" } })).resolves.toEqual({ ok: true });
+  await expect(
+    h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "the drowned chapel" } }),
+  ).resolves.toEqual({ ok: true });
   const sent = await seedMessage(db, chatId, 2, { role: "user", content: "ok" });
   await h.chatOps.onUserCommit(chatId, sent.messageId);
 
@@ -497,7 +522,9 @@ test("the fold's REFUSAL arm fires onFlushDropped (a rejected merge is never sil
   h.fakes.stateRoundGate = stateRoundGate;
   const flush = h.chatOps.onTurnCompleted(chatId, beat.messageId, beat.variantId, castId<ChatTurnId>("chat_turn_ref2"), turnConnection());
   await untilRoundStarted(h.fakes.toolRoundCalls, 2);
-  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: {}, releaseLocks: ["location"] })).resolves.toEqual({ ok: true });
+  await expect(
+    h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: {}, releaseLocks: ["location"] }),
+  ).resolves.toEqual({ ok: true });
   releaseRound();
   await flush;
 
@@ -506,5 +533,5 @@ test("the fold's REFUSAL arm fires onFlushDropped (a rejected merge is never sil
   expect(h.fakes.flushDrops[0]?.reason).toContain("refused");
   expect(h.fakes.flushDrops[0]?.reason).toMatch(LOCATION_RE);
   // Nothing poisoned: the head is still a readable, contract-valid state (the belt did its job).
-  await expect(h.service.getTrackerView({ principal: HOST, chatId })).resolves.toBeDefined();
+  await expect(h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId })).resolves.toBeDefined();
 });

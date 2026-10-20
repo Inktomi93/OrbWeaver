@@ -22,7 +22,7 @@ describe("loadUserSettings", () => {
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_u" });
     await h.svc.updateUserSettingsSection({
-      principal: principal(u, "user"),
+      principal: await principal(db, u, "user"),
       input: { section: "memory", patch: { enabled: true } },
     });
     const settings = await h.svc.loadUserSettings(u);

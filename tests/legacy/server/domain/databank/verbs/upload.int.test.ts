@@ -15,7 +15,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { onTestFinished } from "vitest";
-import type { DatabankContext, DatabankService } from "#server/domain/databank/contract/service.ts";
+import type { DatabankService } from "#server/domain/databank/contract/service.ts";
 import { createDatabankService } from "#server/domain/databank/index.ts";
 import { createExtractText, EXTRACTOR_VERSION } from "#server/infra/extraction/index.ts";
 import { makeHarness as makeAssetsHarness } from "../../assets/_support.ts";
@@ -33,7 +33,7 @@ async function withRealAssetsStore(db: Db): Promise<DatabankService> {
   const assetsH = await makeAssetsHarness(db);
   onTestFinished(assetsH.cleanup);
   const assets = createAssetsService(assetsH.ctx);
-  const ctx: DatabankContext = { ...makeDatabankHarness(db).ctx, assetsStore: assets.store };
+  const ctx = { ...makeDatabankHarness(db).ctx, assetsStore: assets.store };
   return createDatabankService(ctx);
 }
 
@@ -42,7 +42,7 @@ test("stores the bytes, extracts the canon synchronously, and enqueues ingest", 
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  const result = await h.service.upload({ principal: principalFor(owner), bytes: BYTES, mime: MIME, name: "notes.md" });
+  const result = await h.service.upload({ principal: await principalFor(db, owner), bytes: BYTES, mime: MIME, name: "notes.md" });
   expect(result.outcome).toBe("created");
   expect(result.document.origin).toBe("upload");
   expect(h.assetsStore).toHaveBeenCalledTimes(1);
@@ -61,8 +61,8 @@ test("re-upload of identical bytes dedups without re-extracting", async () => {
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  await h.service.upload({ principal: principalFor(owner), bytes: BYTES, mime: MIME, name: "a.md" });
-  const second = await h.service.upload({ principal: principalFor(owner), bytes: BYTES, mime: MIME, name: "b.md" });
+  await h.service.upload({ principal: await principalFor(db, owner), bytes: BYTES, mime: MIME, name: "a.md" });
+  const second = await h.service.upload({ principal: await principalFor(db, owner), bytes: BYTES, mime: MIME, name: "b.md" });
 
   expect(second.outcome).toBe("duplicate");
   expect(second.ingest).toBe("skipped");
@@ -80,7 +80,7 @@ test("a REJECTED ingest enqueue does not reject the upload — the document land
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.enqueueIngest.mockRejectedValueOnce(new Error("the queue is down"));
 
-  const result = await h.service.upload({ principal: principalFor(owner), bytes: BYTES, mime: MIME, name: "a.md" });
+  const result = await h.service.upload({ principal: await principalFor(db, owner), bytes: BYTES, mime: MIME, name: "a.md" });
   expect(result.outcome).toBe("created");
   expect(result.ingest).toBe("not-queued");
   const rows = await db.select().from(documents).where(eq(documents.id, result.document.id));
@@ -94,7 +94,12 @@ test("an empty extraction surfaces the empty-extraction warning (data, not a thr
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.extractText.mockResolvedValueOnce({ text: "", meta: { format: "pdf", extractorVersion: "textlike-1", charCount: 0 } });
 
-  const result = await h.service.upload({ principal: principalFor(owner), bytes: new Uint8Array([1, 2, 3]), mime: "application/pdf", name: "scan.pdf" });
+  const result = await h.service.upload({
+    principal: await principalFor(db, owner),
+    bytes: new Uint8Array([1, 2, 3]),
+    mime: "application/pdf",
+    name: "scan.pdf",
+  });
   expect(result.outcome).toBe("created");
   expect(result.warning).toBe("empty-extraction");
 });
@@ -105,7 +110,7 @@ test("round-trips through the REAL infra/extraction dispatcher — canon normali
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   const bytes = new TextEncoder().encode("# Real\r\n\r\nExtracted through the actual loader.");
-  const result = await h.service.upload({ principal: principalFor(owner), bytes, mime: "text/markdown", name: "real.md" });
+  const result = await h.service.upload({ principal: await principalFor(db, owner), bytes, mime: "text/markdown", name: "real.md" });
   expect(result.outcome).toBe("created");
 
   const rows = await db.select().from(documents).where(eq(documents.id, result.document.id));
@@ -121,7 +126,9 @@ test("invalid UTF-8 past the store is refused at extraction, writing no document
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  await expect(h.service.upload({ principal: principalFor(owner), bytes: BINARY, mime: MIME, name: "x.md" })).rejects.toBeInstanceOf(ExtractionFailedError);
+  await expect(h.service.upload({ principal: await principalFor(db, owner), bytes: BINARY, mime: MIME, name: "x.md" })).rejects.toBeInstanceOf(
+    ExtractionFailedError,
+  );
 
   expect(await db.select().from(documents)).toHaveLength(0);
 });
@@ -135,7 +142,7 @@ test("a real text/markdown upload succeeds end-to-end through the REAL assets.st
   const service = await withRealAssetsStore(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  const result = await service.upload({ principal: principalFor(owner), bytes: BYTES, mime: MIME, name: "notes.md" });
+  const result = await service.upload({ principal: await principalFor(db, owner), bytes: BYTES, mime: MIME, name: "notes.md" });
 
   expect(result.outcome).toBe("created");
   expect(result.ingest).toBe("queued");
@@ -151,7 +158,7 @@ test("a mislabeled binary claimed text/markdown throws at the REAL belt, writing
   const service = await withRealAssetsStore(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  await expect(service.upload({ principal: principalFor(owner), bytes: BINARY, mime: MIME, name: "x.md" })).rejects.toThrow(MISMATCH_RE);
+  await expect(service.upload({ principal: await principalFor(db, owner), bytes: BINARY, mime: MIME, name: "x.md" })).rejects.toThrow(MISMATCH_RE);
 
   expect(await db.select().from(documents)).toHaveLength(0);
 });

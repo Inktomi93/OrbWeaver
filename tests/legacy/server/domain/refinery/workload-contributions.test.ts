@@ -10,13 +10,17 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { RefineryWorkloadDeps } from "#server/domain/refinery/contract/service.ts";
 import { createRefineryWorkloadContributions } from "#server/domain/refinery/workload-contributions.ts";
+import { everyOwnerAuthority } from "../workloads/_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 const OWNER_ID = castId<UserId>("user_owner");
 /** A library whose cards are ALL already scored — the FILL arm enumerates none of them. */
 const SCORED_LIBRARY_SIZE = 8;
 const T0 = 1_700_000_000_000;
 
-const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, now: () => T0 };
+const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, funderUserId: OWNER_ID, now: () => T0 };
 const sig = (): AbortSignal => new AbortController().signal;
 
 /** The deps a run body touches: the enumeration (whose ARGUMENTS are what this suite asserts) and the
@@ -31,6 +35,7 @@ function fakeDeps(): RefineryWorkloadDeps {
     resolveUtilityPresetParams: vi.fn(async () => ({})),
     resolveUserProse: vi.fn(async () => ({})),
     listRefineryScoreTargets: vi.fn(async () => ({ targets: [], inScope: 0 })),
+    countRefineryScoreTargets: vi.fn(async () => 0),
     stampRefinerySignals: vi.fn(async () => undefined),
     // The terminal fan's port. Never called in this suite by construction: no targets ⇒ nothing stamped ⇒
     // no owner to announce to (the sweep's own int suite pins the fan itself, both arms).
@@ -60,7 +65,7 @@ describe("refine-score-sweep", () => {
     const { deps, contributions } = build();
     // The engine's `userId` stays the acting user while `ownerId` is null — a pass that read `userId` here
     // would silently narrow a maintenance sweep to whoever pressed the button.
-    await contributions[0].run({ ...ctx, ownerId: null }, {}, vi.fn(), sig());
+    await contributions[0].run({ ...ctx, ...EVERY_OWNER.runScope }, {}, vi.fn(), sig());
     expect(deps.listRefineryScoreTargets).toHaveBeenCalledWith({ ownerId: null, unscoredOnly: true });
   });
 

@@ -21,14 +21,14 @@ describe("listBooksWithUsage", () => {
     const characterId = await seedCharacter(db, { ownerId: owner });
     const personaId = await seedPersona(db, { ownerId: owner });
 
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Reach" } });
-    await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "One", content: "a" } });
-    await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "Two", content: "b" } });
-    await svc.attachToCharacter({ principal: principal(owner), characterId, bookId: book.id, role: "auxiliary" });
-    await svc.attachToPersona({ principal: principal(owner), personaId, bookId: book.id });
-    await svc.attachGlobal({ principal: principal(owner), bookId: book.id });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Reach" } });
+    await svc.createEntry({ principal: await principal(db, owner), bookId: book.id, input: { title: "One", content: "a" } });
+    await svc.createEntry({ principal: await principal(db, owner), bookId: book.id, input: { title: "Two", content: "b" } });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, bookId: book.id, role: "auxiliary" });
+    await svc.attachToPersona({ principal: await principal(db, owner), personaId, bookId: book.id });
+    await svc.attachGlobal({ principal: await principal(db, owner), bookId: book.id });
 
-    const [row] = await svc.listBooksWithUsage({ principal: principal(owner) });
+    const [row] = await svc.listBooksWithUsage({ principal: await principal(db, owner) });
     expect(row?.entryCount).toBe(2);
     expect(row?.usage).toEqual({ characters: 1, personas: 1, chats: 0, global: true, total: 3 });
   });
@@ -41,11 +41,11 @@ describe("listBooksWithUsage", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const theirCharacter = await seedCharacter(db, { id: "character_other", ownerId: other });
 
-    const mine = await svc.createBook({ principal: principal(owner), input: { name: "Mine" } });
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
-    await svc.attachToCharacter({ principal: principal(other), characterId: theirCharacter, bookId: theirs.id, role: "auxiliary" });
+    const mine = await svc.createBook({ principal: await principal(db, owner), input: { name: "Mine" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "Theirs" } });
+    await svc.attachToCharacter({ principal: await principal(db, other), characterId: theirCharacter, bookId: theirs.id, role: "auxiliary" });
 
-    const rows = await svc.listBooksWithUsage({ principal: principal(owner) });
+    const rows = await svc.listBooksWithUsage({ principal: await principal(db, owner) });
     expect(rows.map((b) => b.id)).toEqual([mine.id]);
     expect(rows[0]?.entryCount).toBe(0);
     expect(rows[0]?.usage).toEqual({ characters: 0, personas: 0, chats: 0, global: false, total: 0 });

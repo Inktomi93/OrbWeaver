@@ -24,7 +24,7 @@ Read the [side-plan priority note](../inference-flow/design.md#reading-priority)
 
 Follow D328 before analysis dispatch. The bottleneck research (`reports/review/seven-day-bottleneck-claude-analysis.md`) records source-specific diagnosis, not a mandate to resume its repair loop. Derive current affected claims without another whole-tree audit.
 
-[D328](../../adr/0328-bounded-analysis-and-explicit-security-successors.md) bounds analyzer acceptance. Keep shared native facts and local analysis; stop exhaustive DI, callable and escape proofs. Prefer native tools and partial coverage. Unsupported flows stay explicit, not universal release blockers. Concrete violations block. Security migrations retain production authorization, native boundaries and real cross-tenant controls; record lost static guarantees. Preserve complete declared populations, world identity and store lifetimes. D323 prototype enforcement remains. No helper-specific repair, new unbounded diagnostic, TS7 experiment or heap increase.
+[D328](../../adr/0328-bounded-analysis-and-explicit-security-successors.md) bounds analyzer acceptance. Keep shared native facts and local analysis; stop exhaustive DI, callable and escape proofs. Prefer native tools and partial coverage. Unsupported flows stay explicit, not universal release blockers. Concrete violations block. Security migrations retain production authorization, native boundaries and real cross-tenant controls; record lost static guarantees. Preserve complete declared populations, world identity and store lifetimes. D323 prototype enforcement remains. No helper-specific repair, new unbounded diagnostic, TS7 experiment or raised heap limit. The memory bar is one check run's peak within the 16 GB runner budget that item 965 owns; checks do not run side by side, so a gate's peak may grow while the run stays under it.
 
 The original driver retains its signal-origin refusal; the full owner-policy run is stopped without a verdict. Neither qualifies the bounded successor. Item 1016 replaces the expensive reader with useful owner-read coverage and explicit limits. Evidence: `reports/review/1016-current-source-complete-policy-qualification.md` and `reports/review/1002-owner-read-native-partial-addendum.md`.
 
@@ -141,8 +141,8 @@ Today `pnpm ast` reads code through `tooling/src/ast/lib/` and the gates read it
 | Import doors and reach | `pnpm ast` importers, reaches and flow; `verify/lib` test-reach, test-import-door, tooling-import-door, policy-production-reach | 956 |
 | Codemods | codemod readers in `tooling/src/codemod/lib/` | 957 |
 | Liveness | `pnpm ast` dead, orphans, testonly, chains, swallowed, apisurface and clientgap readers in `ast/lib` and `ast/ops` | 1162 |
-| tRPC wiring | `pnpm ast` unwired, clientgap and viewgap; floor `trpc-doors` | not yet itemized |
-| Ambient calls: clock, random, timers, environment | no-raw-clock, no-raw-random, test-determinism, platform-spellings, sole-env-reader | not yet itemized |
+| tRPC wiring | `pnpm ast` unwired, clientgap and viewgap; floor `trpc-doors` | 1163 |
+| Ambient calls: clock, random, timers, environment | no-raw-clock, no-raw-random, test-determinism, platform-spellings, `orb/sole-env-reader` | 1164 |
 | Casts | Native assertion rules; shared brand and assignability facts retain semantic judgments | 1041; 973 widens the id gates |
 
 Gate families fold onto the shared readers:

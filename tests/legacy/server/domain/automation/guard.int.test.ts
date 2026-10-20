@@ -47,21 +47,23 @@ async function seedRule(
 describe("requireChatHost", () => {
   test("the host passes", async () => {
     const fixture = await ruleFixture();
-    await expect(requireChatHost({ db: fixture.db, can }, principal(fixture.host), fixture.chatId)).resolves.toBeUndefined();
+    await expect(requireChatHost({ db: fixture.db, can }, await principal(fixture.db, fixture.host), fixture.chatId)).resolves.toBeUndefined();
   });
 
   test("a non-member is a leak-free AutomationChatNotFoundError", async () => {
     const fixture = await ruleFixture();
     const outsider = await seedUser(fixture.db, "user_outsider");
-    await expect(requireChatHost({ db: fixture.db, can }, principal(outsider), fixture.chatId)).rejects.toThrow(AutomationChatNotFoundError);
+    await expect(requireChatHost({ db: fixture.db, can }, await principal(fixture.db, outsider), fixture.chatId)).rejects.toThrow(AutomationChatNotFoundError);
   });
 
   test("a present member who is not host is refused (can()'s own error propagates)", async () => {
     const fixture = await ruleFixture();
     const member = await seedUser(fixture.db, "user_member");
     await seedParticipant(fixture.db, { chatId: fixture.chatId, key: "member", userId: member, role: "member" });
-    await expect(requireChatHost({ db: fixture.db, can }, principal(member), fixture.chatId)).rejects.toThrow();
-    await expect(requireChatHost({ db: fixture.db, can }, principal(member), fixture.chatId)).rejects.not.toThrow(AutomationChatNotFoundError);
+    await expect(requireChatHost({ db: fixture.db, can }, await principal(fixture.db, member), fixture.chatId)).rejects.toThrow();
+    await expect(requireChatHost({ db: fixture.db, can }, await principal(fixture.db, member), fixture.chatId)).rejects.not.toThrow(
+      AutomationChatNotFoundError,
+    );
   });
 });
 
@@ -69,7 +71,7 @@ describe("requireRuleAuthority — chat-scoped rule", () => {
   test("the host loads the rule with chatId narrowed non-null", async () => {
     const fixture = await ruleFixture();
     const ruleId = await seedRule(fixture);
-    const rule = await requireRuleAuthority({ db: fixture.db, can }, principal(fixture.host), ruleId);
+    const rule = await requireRuleAuthority({ db: fixture.db, can }, await principal(fixture.db, fixture.host), ruleId);
     expect(rule.chatId).toBe(fixture.chatId);
   });
 
@@ -77,12 +79,14 @@ describe("requireRuleAuthority — chat-scoped rule", () => {
     const fixture = await ruleFixture();
     const ruleId = await seedRule(fixture);
     const outsider = await seedUser(fixture.db, "user_outsider");
-    await expect(requireRuleAuthority({ db: fixture.db, can }, principal(outsider), ruleId)).rejects.toThrow(RuleNotFoundError);
+    await expect(requireRuleAuthority({ db: fixture.db, can }, await principal(fixture.db, outsider), ruleId)).rejects.toThrow(RuleNotFoundError);
   });
 
   test("an unknown ruleId is RuleNotFoundError", async () => {
     const fixture = await ruleFixture();
-    await expect(requireRuleAuthority({ db: fixture.db, can }, principal(fixture.host), mintTypeId("automation_rule"))).rejects.toThrow(RuleNotFoundError);
+    await expect(requireRuleAuthority({ db: fixture.db, can }, await principal(fixture.db, fixture.host), mintTypeId("automation_rule"))).rejects.toThrow(
+      RuleNotFoundError,
+    );
   });
 });
 
@@ -90,7 +94,7 @@ describe("requireRuleAuthority — owner-global rule (C5)", () => {
   test("the owner loads the rule with chatId narrowed null", async () => {
     const fixture = await ruleFixture();
     const ruleId = await seedRule(fixture, fixture.host, null);
-    const rule = await requireRuleAuthority({ db: fixture.db, can }, principal(fixture.host), ruleId);
+    const rule = await requireRuleAuthority({ db: fixture.db, can }, await principal(fixture.db, fixture.host), ruleId);
     expect(rule.chatId).toBeNull();
   });
 
@@ -98,14 +102,14 @@ describe("requireRuleAuthority — owner-global rule (C5)", () => {
     const fixture = await ruleFixture();
     const ruleId = await seedRule(fixture, fixture.host, null);
     const other = await seedUser(fixture.db, "user_other");
-    await expect(requireRuleAuthority({ db: fixture.db, can }, principal(other), ruleId)).rejects.toThrow(RuleNotFoundError);
+    await expect(requireRuleAuthority({ db: fixture.db, can }, await principal(fixture.db, other), ruleId)).rejects.toThrow(RuleNotFoundError);
   });
 
   test("the same non-owner IS granted authority over their OWN chatless rule", async () => {
     const fixture = await ruleFixture();
     const other = await seedUser(fixture.db, "user_other");
     const ruleId = await seedRule(fixture, other, null);
-    const rule = await requireRuleAuthority({ db: fixture.db, can }, principal(other), ruleId);
+    const rule = await requireRuleAuthority({ db: fixture.db, can }, await principal(fixture.db, other), ruleId);
     expect(rule.chatId).toBeNull();
   });
 });

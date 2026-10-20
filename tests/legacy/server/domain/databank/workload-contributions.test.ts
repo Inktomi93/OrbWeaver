@@ -5,7 +5,7 @@
 // space. The terminal runs on BOTH enumeration arms and is handed the scope it must fan over (#2517); it is
 // still suppressed on abort, and on a per-DOCUMENT pass, which re-derives one row and can claim no scope.
 
-import type { WorkloadRunContext } from "@orb/contracts/workloads";
+import type { WorkloadRunContext, WorkloadRunScope } from "@orb/contracts/workloads";
 import type { DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -13,12 +13,16 @@ import { describe, vi } from "vitest";
 import type { DatabankWorkloadDeps } from "#server/domain/databank/contract/service.ts";
 import { createDatabankWorkloadContributions } from "#server/domain/databank/workload-contributions.ts";
 import type { GenerationReceipt } from "#server/domain/embeddings/index.ts";
+import { everyOwnerAuthority } from "../workloads/_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 const OWNER_ID = castId<UserId>("user_owner");
 const DOCUMENT_ID = castId<DocumentId>("document_a");
 const T0 = 1_700_000_000_000;
-const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, now: () => T0 };
-const bulkCtx: WorkloadRunContext = { ...ctx, ownerId: null };
+const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, funderUserId: OWNER_ID, now: () => T0 };
+const bulkCtx: WorkloadRunContext = { ...ctx, ...EVERY_OWNER.runScope };
 const sig = (): AbortSignal => new AbortController().signal;
 
 const RUN = { documents: 1, chunksUpserted: 3, chunksNoop: 0, chunksPruned: 0, reExtracted: 0, failed: [] } as const;
@@ -45,7 +49,7 @@ const SWEEP_RECEIPT = {
 function build(): { readonly deps: DatabankWorkloadDeps; readonly contributions: ReturnType<typeof createDatabankWorkloadContributions> } {
   const deps = {
     databankIngest: { ingestDocument: vi.fn(async () => RUN), reindex: vi.fn(async () => RUN) },
-    beginDocumentVectorSweep: vi.fn(async (_enumerationScope: UserId | null) => [SWEEP_RECEIPT]),
+    beginDocumentVectorSweep: vi.fn(async (_enumerationScope: WorkloadRunScope) => [SWEEP_RECEIPT]),
     purgeDocumentVectors: vi.fn(async () => undefined),
     // No target moves during these runs, so every round is the last.
     targetSnapshot: vi.fn(async () => "unmoved"),

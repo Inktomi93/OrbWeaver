@@ -17,9 +17,10 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { VariableWriteResult } from "@orb/contracts/chat";
 import { automationFires, chatParticipants } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { AutomationRuleId, AutomationSuggestionId, ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createSerialLanes } from "@orb/kit/serial-lanes";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
@@ -30,6 +31,9 @@ import type { AutomationOps, AutomationTurnRequest, ExecutePluginSuggestion } fr
 import { createAutomationService } from "#server/domain/automation/service.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, principal, ruleFixture, seedUser } from "../_support.ts";
+
+// One lane set per suite, the way the automation service owns one for its dispatcher and arms.
+const SERIAL_LANES = createSerialLanes();
 
 const SUGGESTION_REFUSAL = /automation_suggestion/u;
 /** `DomainOperationError` carries its machine code on `.code` and its REASON as the message, so a refusal
@@ -98,10 +102,11 @@ async function suggestFixture(): Promise<{
 }> {
   const base = await ruleFixture();
   const { ops, turns } = capturingOps(base.ctx.ops);
-  const ctx: AutomationContext = {
+  const ctx: DbAssemblyInput<AutomationContext> = {
     ...base.ctx,
     ops,
     runArm: createArmExecutors({
+      serialLanes: SERIAL_LANES,
       db: base.db,
       ops,
       prng: () => 0.42,
@@ -110,20 +115,20 @@ async function suggestFixture(): Promise<{
       newSuggestionId: base.ctx.newSuggestionId,
     }),
   };
-  return { fixture: { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) }, turns };
+  return { fixture: { ...base, ctx, svc: createAutomationService(ctx) }, turns };
 }
 
 /** Mint + enable a confirm-first `trigger_turn` rule on the fixture's chat. */
 async function enableConfirmFirstRule(fx: Awaited<ReturnType<typeof ruleFixture>>): Promise<string> {
   const rule = await fx.svc.createRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(fx.host),
+    principal: await principal(fx.db, fx.host),
     chatId: fx.chatId,
     name: "recap",
     trigger: { bus: "chat", type: "chatOpened" },
     actions: [{ type: "trigger_turn", guidedTemplate: "Recap the scene.", confirmFirst: true }],
   });
-  await fx.svc.setRuleEnabled({ principal: principal(fx.host), ruleId: rule.id, enabled: true });
+  await fx.svc.setRuleEnabled({ principal: await principal(fx.db, fx.host), ruleId: rule.id, enabled: true });
   await fx.ctx.enabled.reload();
   return rule.id;
 }
@@ -136,10 +141,11 @@ async function continuationFixture(): Promise<{
 }> {
   const base = await ruleFixture();
   const { ops, turns, varWrites } = capturingContinuationOps(base.ctx.ops);
-  const ctx: AutomationContext = {
+  const ctx: DbAssemblyInput<AutomationContext> = {
     ...base.ctx,
     ops,
     runArm: createArmExecutors({
+      serialLanes: SERIAL_LANES,
       db: base.db,
       ops,
       prng: () => 0.42,
@@ -148,7 +154,7 @@ async function continuationFixture(): Promise<{
       newSuggestionId: base.ctx.newSuggestionId,
     }),
   };
-  return { fixture: { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) }, turns, varWrites };
+  return { fixture: { ...base, ctx, svc: createAutomationService(ctx) }, turns, varWrites };
 }
 
 /** Mint + enable a MIXED rule: a direct `set_variable`, a confirm-first `trigger_turn`, and a second
@@ -156,7 +162,7 @@ async function continuationFixture(): Promise<{
 async function enableMixedRule(fx: Awaited<ReturnType<typeof ruleFixture>>): Promise<string> {
   const rule = await fx.svc.createRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(fx.host),
+    principal: await principal(fx.db, fx.host),
     chatId: fx.chatId,
     name: "mixed",
     trigger: { bus: "chat", type: "chatOpened" },
@@ -166,7 +172,7 @@ async function enableMixedRule(fx: Awaited<ReturnType<typeof ruleFixture>>): Pro
       { type: "set_variable", scope: "chat", key: "after", op: "set", value: "2" },
     ],
   });
-  await fx.svc.setRuleEnabled({ principal: principal(fx.host), ruleId: rule.id, enabled: true });
+  await fx.svc.setRuleEnabled({ principal: await principal(fx.db, fx.host), ruleId: rule.id, enabled: true });
   await fx.ctx.enabled.reload();
   return rule.id;
 }
@@ -205,7 +211,7 @@ describe("the confirm-first card", () => {
     // …and the bus told the host, on the ONE new member (host-only by the room's default-deny filter).
     expect(fixture.events.filter((e) => e.type === "suggestionRaised")).toHaveLength(1);
     // NO fire row at suggest time — a suggestion is not a fire (§3-S4's fire-log honesty).
-    expect(await fixture.svc.listFires({ principal: principal(fixture.host), ruleId: castId(ruleId) })).toEqual([]);
+    expect(await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId: castId(ruleId) })).toEqual([]);
   });
 
   test("CONFIRM executes the stashed arm as the AUTHOR and records a `fired` row stamped with the confirmer", async () => {
@@ -215,7 +221,7 @@ describe("the confirm-first card", () => {
     const [ask] = fixture.ctx.suggestions.listForChat(fixture.chatId, FIXED_NOW_MS);
 
     const result = await fixture.svc.confirmSuggestion({
-      principal: principal(fixture.host),
+      principal: await principal(fixture.db, fixture.host),
       suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion),
     });
 
@@ -228,7 +234,7 @@ describe("the confirm-first card", () => {
     expect(turns).toEqual([
       { authorUserId: fixture.host, ruleId, chatId: fixture.chatId, automationDepth: 1, timeZone: UTC_TIME_ZONE, guided: "Recap the scene." },
     ]);
-    const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId: castId(ruleId) });
+    const fires = await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId: castId(ruleId) });
     expect(fires).toHaveLength(1);
     expect(fires[0]?.outcome).toBe("fired");
     expect(fires[0]?.detail).toMatchObject({ confirmedByUserId: fixture.host, suggestionId: ask?.id, armType: "trigger_turn" });
@@ -243,8 +249,8 @@ describe("the confirm-first card", () => {
 
     // The REAL double-click shape: both confirms in flight at once, neither awaited before the other starts.
     const [first, second] = await Promise.allSettled([
-      fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId }),
-      fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId }),
+      fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, fixture.host), suggestionId }),
+      fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, fixture.host), suggestionId }),
     ]);
 
     const statuses = [first?.status, second?.status].toSorted();
@@ -265,7 +271,7 @@ describe("the confirm-first card", () => {
     expect(ask).toBeDefined();
 
     const result = await fixture.svc.confirmSuggestion({
-      principal: principal(fixture.host),
+      principal: await principal(fixture.db, fixture.host),
       suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion),
     });
 
@@ -277,7 +283,7 @@ describe("the confirm-first card", () => {
     expect(varWrites).toEqual(["before=1", "after=2"]);
     // ONE fire row for the confirm, naming the CONFIRMED arm (the continuation shares its terminal, exactly
     // as a fresh dispatch's `finalizeRule` writes one row for a whole rule's arm sequence).
-    const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId: castId(ruleId) });
+    const fires = await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId: castId(ruleId) });
     expect(fires).toHaveLength(1);
     expect(fires[0]?.outcome).toBe("fired");
   });
@@ -289,10 +295,10 @@ describe("the confirm-first card", () => {
     const [ask] = fixture.ctx.suggestions.listForChat(fixture.chatId, FIXED_NOW_MS);
     const suggestionId = ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion);
 
-    await fixture.svc.dismissSuggestion({ principal: principal(fixture.host), suggestionId });
+    await fixture.svc.dismissSuggestion({ principal: await principal(fixture.db, fixture.host), suggestionId });
     expect(turns).toEqual([]);
     expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(0);
-    await expect(fixture.svc.dismissSuggestion({ principal: principal(fixture.host), suggestionId })).rejects.toThrow(SUGGESTION_REFUSAL);
+    await expect(fixture.svc.dismissSuggestion({ principal: await principal(fixture.db, fixture.host), suggestionId })).rejects.toThrow(SUGGESTION_REFUSAL);
   });
 });
 
@@ -306,7 +312,7 @@ describe("the authority matrix", () => {
     await seedParticipant(fixture.db, { chatId: fixture.chatId, key: "member", userId: member, role: "member" });
 
     await expect(
-      fixture.svc.confirmSuggestion({ principal: principal(member), suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion) }),
+      fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, member), suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion) }),
     ).rejects.toThrow();
     expect(turns).toEqual([]);
     // The ask SURVIVES a refused confirm — a member's click must not consume the host's question.
@@ -321,7 +327,7 @@ describe("the authority matrix", () => {
     const stranger = await seedUser(fixture.db, "user_stranger");
 
     await expect(
-      fixture.svc.confirmSuggestion({ principal: principal(stranger), suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion) }),
+      fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, stranger), suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion) }),
     ).rejects.toThrow(SUGGESTION_REFUSAL);
   });
 
@@ -331,11 +337,14 @@ describe("the authority matrix", () => {
     await fireChatOpened(fixture);
     const [ask] = fixture.ctx.suggestions.listForChat(fixture.chatId, FIXED_NOW_MS);
 
-    await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: castId(ruleId), enabled: false });
+    await fixture.svc.setRuleEnabled({ principal: await principal(fixture.db, fixture.host), ruleId: castId(ruleId), enabled: false });
 
     expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(0);
     await expect(
-      fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion) }),
+      fixture.svc.confirmSuggestion({
+        principal: await principal(fixture.db, fixture.host),
+        suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion),
+      }),
     ).rejects.toThrow(SUGGESTION_REFUSAL);
     expect(turns).toEqual([]);
   });
@@ -352,7 +361,7 @@ describe("the authority matrix", () => {
     expect(newHost).not.toBe(fixture.host);
 
     await expect(
-      fixture.svc.confirmSuggestion({ principal: principal(newHost), suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion) }),
+      fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, newHost), suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion) }),
     ).rejects.toThrow(AUTHOR_LOST);
     expect(turns).toEqual([]);
   });
@@ -388,7 +397,7 @@ describe("the rate-refusal invitation (RULED F4)", () => {
   async function enableRateCappedSpendRule(fx: Awaited<ReturnType<typeof ruleFixture>>): Promise<AutomationRuleId> {
     const rule = await fx.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(fx.host),
+      principal: await principal(fx.db, fx.host),
       chatId: fx.chatId,
       name: "pacing",
       trigger: { bus: "chat", type: "chatOpened" },
@@ -396,7 +405,7 @@ describe("the rate-refusal invitation (RULED F4)", () => {
       // A per-rule ceiling of ZERO — the loop-safety belt the host themselves sets.
       maxFiresPerHour: 0,
     });
-    await fx.svc.setRuleEnabled({ principal: principal(fx.host), ruleId: rule.id, enabled: true });
+    await fx.svc.setRuleEnabled({ principal: await principal(fx.db, fx.host), ruleId: rule.id, enabled: true });
     await fx.ctx.enabled.reload();
     return rule.id;
   }
@@ -421,7 +430,7 @@ describe("the rate-refusal invitation (RULED F4)", () => {
     const [ask] = fixture.ctx.suggestions.listForChat(fixture.chatId, FIXED_NOW_MS);
 
     const result = await fixture.svc.confirmSuggestion({
-      principal: principal(fixture.host),
+      principal: await principal(fixture.db, fixture.host),
       suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion),
     });
 
@@ -436,14 +445,14 @@ describe("the rate-refusal invitation (RULED F4)", () => {
     const { fixture } = await suggestFixture();
     const rule = await fixture.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(fixture.host),
+      principal: await principal(fixture.db, fixture.host),
       chatId: fixture.chatId,
       name: "bookkeeping",
       trigger: { bus: "chat", type: "chatOpened" },
       actions: [{ type: "set_variable", scope: "chat", key: "opened", op: "inc" }],
       maxFiresPerHour: 0,
     });
-    await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: rule.id, enabled: true });
+    await fixture.svc.setRuleEnabled({ principal: await principal(fixture.db, fixture.host), ruleId: rule.id, enabled: true });
     await fixture.ctx.enabled.reload();
 
     await fireChatOpened(fixture);
@@ -459,14 +468,14 @@ describe("the rate-refusal invitation (RULED F4)", () => {
   test("B4 — an OPTED-OUT rule's refusal raises NO invitation, though its arms still qualify", async () => {
     const { fixture } = await suggestFixture();
     await enableRateCappedSpendRule(fixture);
-    const [rule] = await fixture.svc.listRules({ principal: principal(fixture.host), chatId: fixture.chatId });
+    const [rule] = await fixture.svc.listRules({ principal: await principal(fixture.db, fixture.host), chatId: fixture.chatId });
     if (rule === undefined) {
       throw new Error("the rate-capped spend rule was not listed");
     }
     // The arm shape has NOT changed — this rule still carries `trigger_turn`, so `invitesOnRefusal` still
     // says yes. Only the host's standing answer moved.
     expect(rule.suggestOnRefusal).toBe(true);
-    await fixture.svc.setRuleSuggestOnRefusal({ principal: principal(fixture.host), ruleId: rule.id, suggestOnRefusal: false });
+    await fixture.svc.setRuleSuggestOnRefusal({ principal: await principal(fixture.db, fixture.host), ruleId: rule.id, suggestOnRefusal: false });
 
     await fireChatOpened(fixture);
 
@@ -476,15 +485,15 @@ describe("the rate-refusal invitation (RULED F4)", () => {
   test("B4 — turning the offer back ON restores the invitation on the very next refusal (no reload seam)", async () => {
     const { fixture } = await suggestFixture();
     await enableRateCappedSpendRule(fixture);
-    const [rule] = await fixture.svc.listRules({ principal: principal(fixture.host), chatId: fixture.chatId });
+    const [rule] = await fixture.svc.listRules({ principal: await principal(fixture.db, fixture.host), chatId: fixture.chatId });
     if (rule === undefined) {
       throw new Error("the rate-capped spend rule was not listed");
     }
-    await fixture.svc.setRuleSuggestOnRefusal({ principal: principal(fixture.host), ruleId: rule.id, suggestOnRefusal: false });
+    await fixture.svc.setRuleSuggestOnRefusal({ principal: await principal(fixture.db, fixture.host), ruleId: rule.id, suggestOnRefusal: false });
     await fireChatOpened(fixture);
     expect(fixture.ctx.suggestions.countForChat(fixture.chatId)).toBe(0);
 
-    await fixture.svc.setRuleSuggestOnRefusal({ principal: principal(fixture.host), ruleId: rule.id, suggestOnRefusal: true });
+    await fixture.svc.setRuleSuggestOnRefusal({ principal: await principal(fixture.db, fixture.host), ruleId: rule.id, suggestOnRefusal: true });
     await fireChatOpened(fixture);
 
     // The dispatch reads the column off the rule ROW it loads per fire, so there is no index to reconcile
@@ -571,7 +580,7 @@ describe("S4 — a PLUGIN-origin ask", () => {
     const { fixture, executed } = await pluginAskFixture();
     const id = raisePluginAsk(fixture, fixture.host);
 
-    const result = await fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: id });
+    const result = await fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, fixture.host), suggestionId: id });
 
     expect(result).toEqual({ ran: "stashed-arm", outcome: "fired" });
     expect(executed).toHaveLength(1);
@@ -586,7 +595,7 @@ describe("S4 — a PLUGIN-origin ask", () => {
     const { fixture, executed } = await pluginAskFixture({ live: false });
     const id = raisePluginAsk(fixture, fixture.host);
 
-    await expect(fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: id })).rejects.toThrow(PLUGIN_GONE);
+    await expect(fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, fixture.host), suggestionId: id })).rejects.toThrow(PLUGIN_GONE);
     expect(executed).toEqual([]);
   });
 
@@ -596,7 +605,7 @@ describe("S4 — a PLUGIN-origin ask", () => {
     const id = raisePluginAsk(fixture, fixture.host);
     const newHost = await handOffHost(fixture, "plugin_newhost");
 
-    await expect(fixture.svc.confirmSuggestion({ principal: principal(newHost), suggestionId: id })).rejects.toThrow(INSTALLER_LOST);
+    await expect(fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, newHost), suggestionId: id })).rejects.toThrow(INSTALLER_LOST);
     expect(executed).toEqual([]);
   });
 
@@ -605,8 +614,8 @@ describe("S4 — a PLUGIN-origin ask", () => {
     const id = raisePluginAsk(fixture, fixture.host);
 
     const settled = await Promise.allSettled([
-      fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: id }),
-      fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: id }),
+      fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, fixture.host), suggestionId: id }),
+      fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, fixture.host), suggestionId: id }),
     ]);
 
     expect(settled.filter((s) => s.status === "fulfilled")).toHaveLength(1);
@@ -619,7 +628,7 @@ describe("S4 — a PLUGIN-origin ask", () => {
     const member = await seedUser(fixture.db, "plugin_member");
     await seedParticipant(fixture.db, { chatId: fixture.chatId, key: "plugin_member", userId: member, role: "member" });
 
-    await expect(fixture.svc.confirmSuggestion({ principal: principal(member), suggestionId: id })).rejects.toThrow();
+    await expect(fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, member), suggestionId: id })).rejects.toThrow();
     expect(executed).toEqual([]);
   });
 
@@ -628,7 +637,7 @@ describe("S4 — a PLUGIN-origin ask", () => {
     const id = raisePluginAsk(fixture, fixture.host);
     const stranger = await seedUser(fixture.db, "plugin_stranger");
 
-    await expect(fixture.svc.confirmSuggestion({ principal: principal(stranger), suggestionId: id })).rejects.toThrow(SUGGESTION_REFUSAL);
+    await expect(fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, stranger), suggestionId: id })).rejects.toThrow(SUGGESTION_REFUSAL);
     expect(executed).toEqual([]);
   });
 
@@ -639,7 +648,7 @@ describe("S4 — a PLUGIN-origin ask", () => {
     const { fixture, executed } = await pluginAskFixture({ failExec: true });
     const id = raisePluginAsk(fixture, fixture.host);
 
-    const result = await fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: id });
+    const result = await fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, fixture.host), suggestionId: id });
 
     expect(result).toEqual({ ran: "stashed-arm", outcome: "action_error" });
     expect(executed).toHaveLength(1);
@@ -650,7 +659,7 @@ describe("S4 — a PLUGIN-origin ask", () => {
     const { fixture, executed } = await pluginAskFixture();
     const id = raisePluginAsk(fixture, fixture.host);
 
-    await fixture.svc.dismissSuggestion({ principal: principal(fixture.host), suggestionId: id });
+    await fixture.svc.dismissSuggestion({ principal: await principal(fixture.db, fixture.host), suggestionId: id });
 
     expect(fixture.ctx.suggestions.peek(id, FIXED_NOW_MS)).toBeNull();
     expect(executed).toEqual([]);
@@ -674,13 +683,13 @@ describe('S5 — an ANALYSIS-origin confirm (the {via:"analysis"} payload arm)',
     // An enabled analysis rule (the state row's FK parent + the liveness re-check's subject).
     const rule = await fixture.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(fixture.host),
+      principal: await principal(fixture.db, fixture.host),
       chatId: fixture.chatId,
       name: "analysis",
       trigger: { bus: "chat", type: "turnCompleted" },
       actions: [{ type: "run_analysis", brief: "b", routes: { steer: { apply: "confirm" } } }],
     });
-    await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: rule.id, enabled: true });
+    await fixture.svc.setRuleEnabled({ principal: await principal(fixture.db, fixture.host), ruleId: rule.id, enabled: true });
     // The card, as the engine raises it (the raise mechanics have their own engine pins — this suite owns
     // the VERB branch: claim, re-checks, the analysis executor, the fire row).
     const suggestionId = castId<AutomationSuggestionId>(mintTypeId(ID_PREFIX.automationSuggestion));
@@ -695,14 +704,14 @@ describe('S5 — an ANALYSIS-origin confirm (the {via:"analysis"} payload arm)',
       payload: { via: "analysis", act: { kind: "steer", guidance: "Plant the courier's absence. {{getglobalvar::x}}" } },
     });
 
-    const result = await fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId });
+    const result = await fixture.svc.confirmSuggestion({ principal: await principal(fixture.db, fixture.host), suggestionId });
     expect(result).toEqual({ ran: "stashed-arm", outcome: "fired" });
 
     // The guidance landed VERBATIM (braces intact — §2 law 6)…
     const { selectRuleState } = await import("#server/domain/automation/persistence/rule-state.ts");
     expect((await selectRuleState(fixture.db, rule.id)).guidance).toBe("Plant the courier's absence. {{getglobalvar::x}}");
     // …and the fire log names the confirmer AND the act (the host's "why did this run" answer).
-    const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId: rule.id });
+    const fires = await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId: rule.id });
     expect(fires[0]?.outcome).toBe("fired");
     expect(fires[0]?.detail).toMatchObject({ confirmedByUserId: fixture.host, suggestionId, armType: "run_analysis", analysisAct: "steer" });
   });
@@ -721,11 +730,12 @@ describe("#1425 the confirmed fire row and the rule stamp land together or not a
     // A FIXED fire id, so the row the confirm is about to write collides with one already in the table. This
     // is the "the second write fails" arm, made deterministic: the batch must take the stamp down with it.
     const collidingId = mintTypeId(ID_PREFIX.automationFire);
-    const ctx: AutomationContext = {
+    const ctx: DbAssemblyInput<AutomationContext> = {
       ...base.ctx,
       ops,
       newFireId: () => collidingId,
       runArm: createArmExecutors({
+        serialLanes: SERIAL_LANES,
         db: base.db,
         ops,
         prng: () => 0.42,
@@ -734,7 +744,7 @@ describe("#1425 the confirmed fire row and the rule stamp land together or not a
         newSuggestionId: base.ctx.newSuggestionId,
       }),
     };
-    const fixture = { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) };
+    const fixture = { ...base, ctx, svc: createAutomationService(ctx) };
     const ruleId = await enableConfirmFirstRule(fixture);
     await fireChatOpened(fixture);
     const [ask] = fixture.ctx.suggestions.listForChat(fixture.chatId, FIXED_NOW_MS);
@@ -751,13 +761,16 @@ describe("#1425 the confirmed fire row and the rule stamp land together or not a
     });
 
     await expect(
-      fixture.svc.confirmSuggestion({ principal: principal(fixture.host), suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion) }),
+      fixture.svc.confirmSuggestion({
+        principal: await principal(fixture.db, fixture.host),
+        suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion),
+      }),
     ).rejects.toThrow();
 
     // The arm DID run (that is what makes the half-terminal unrecoverable) -- the control for the assertion below.
     expect(turns).toHaveLength(1);
     // And the rule is untouched: no cooldown stamp for a fire the log never recorded.
-    const rows = await fixture.svc.listRules({ principal: principal(fixture.host), chatId: fixture.chatId });
+    const rows = await fixture.svc.listRules({ principal: await principal(fixture.db, fixture.host), chatId: fixture.chatId });
     expect(rows.find((row) => row.id === castId(ruleId))?.lastFiredAt).toBeNull();
   });
 });
@@ -775,6 +788,7 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
     const base = await ruleFixture();
     const { ops, turns } = capturingOps(base.ctx.ops);
     const realArm = createArmExecutors({
+      serialLanes: SERIAL_LANES,
       db: base.db,
       ops,
       prng: () => 0.42,
@@ -788,7 +802,7 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
     // `confirmFirst === false`, which is what `armToExecute` clears (`substrate/suggestions.ts:235`), so the
     // re-stash the held bus event also performs cannot be mistaken for it.
     let hold: Promise<void> | null = null;
-    const ctx: AutomationContext = {
+    const ctx: DbAssemblyInput<AutomationContext> = {
       ...base.ctx,
       ops,
       runArm: async (action, frame) => {
@@ -810,13 +824,13 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
         return realArm(action, frame);
       },
     };
-    const fixture = { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) };
+    const fixture = { ...base, ctx, svc: createAutomationService(ctx) };
 
     // TWO rules on one chat: an ordinary arm to hold the lane with, and the confirm-first arm that raises the
     // card. Both fire off the same `chatOpened`, in position order.
     const holder = await fixture.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(fixture.host),
+      principal: await principal(fixture.db, fixture.host),
       chatId: fixture.chatId,
       name: "bookkeeping",
       trigger: { bus: "chat", type: "chatOpened" },
@@ -824,14 +838,14 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
     });
     const asker = await fixture.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(fixture.host),
+      principal: await principal(fixture.db, fixture.host),
       chatId: fixture.chatId,
       name: "recap",
       trigger: { bus: "chat", type: "chatOpened" },
       actions: [{ type: "trigger_turn", guidedTemplate: "Recap the scene.", confirmFirst: true }],
     });
-    await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: holder.id, enabled: true });
-    await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: asker.id, enabled: true });
+    await fixture.svc.setRuleEnabled({ principal: await principal(fixture.db, fixture.host), ruleId: holder.id, enabled: true });
+    await fixture.svc.setRuleEnabled({ principal: await principal(fixture.db, fixture.host), ruleId: asker.id, enabled: true });
     await ctx.enabled.reload();
 
     // 1. Raise the card.
@@ -847,7 +861,7 @@ describe("#1565 a confirmed stashed arm queues behind an in-flight bus event", (
 
     // 3. The host says yes WHILE that arm is parked.
     const confirm = fixture.svc.confirmSuggestion({
-      principal: principal(fixture.host),
+      principal: await principal(fixture.db, fixture.host),
       suggestionId: ask?.id ?? mintTypeId(ID_PREFIX.automationSuggestion),
     });
     await sleep(0);

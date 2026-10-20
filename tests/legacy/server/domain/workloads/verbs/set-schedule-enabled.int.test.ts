@@ -14,7 +14,7 @@ async function seedAliceSchedule(db: Parameters<typeof makeService>[0]): Promise
   const s = makeService(db);
   const { id } = await s.createSchedule({
     input: { kind: "index", params: { source: "text" } },
-    caller: principal("user_alice"),
+    caller: await principal(db, "user_alice"),
     cadence: "daily",
     mode: "singular",
     ownerId: alice,
@@ -29,13 +29,13 @@ describe("workloads.setScheduleEnabled", () => {
     const s = makeService(db);
     const disabled = await s.setScheduleEnabled({
       id,
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       enabled: false,
     });
     expect(disabled.enabled).toBe(false);
     const reEnabled = await s.setScheduleEnabled({
       id,
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       enabled: true,
     });
     expect(reEnabled.enabled).toBe(true);
@@ -46,8 +46,8 @@ describe("workloads.setScheduleEnabled", () => {
     const id = await seedAliceSchedule(db);
     await seedUser(db, "user_bob");
     const s = makeService(db);
-    await expect(s.setScheduleEnabled({ id, caller: principal("user_bob"), enabled: false })).rejects.toBeInstanceOf(DomainNotFoundError);
-    const [still] = await s.listSchedules({ caller: principal("user_alice") });
+    await expect(s.setScheduleEnabled({ id, caller: await principal(db, "user_bob"), enabled: false })).rejects.toBeInstanceOf(DomainNotFoundError);
+    const [still] = await s.listSchedules({ caller: await principal(db, "user_alice") });
     expect(still?.enabled).toBe(true); // untouched
   });
 });

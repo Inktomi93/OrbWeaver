@@ -310,10 +310,12 @@ export interface ResolvedIdentity {
 // SECURITY: the private member makes Principal nominal. A literal, a spread of another Principal or a
 // `satisfies` check cannot produce one, so the only constructor is the cast in
 // `packages/server/src/entry/auth/principal-mint.ts`, whose importers dependency-cruiser limits (D1, D40).
-// The brand cannot refuse an `any`-typed value or an Object.assign intersection; the ESLint
-// `orb/principal-*` rules in `eslint.config.js` refuse those spellings in server and inference code.
+// The brand cannot refuse an assertion, an Object.assign intersection or an `any`-typed value. The ESLint
+// `orb/principal-*` rules refuse the first two, and every rename of this name, in server and inference code.
+// No rule refuses an `any` value bound or passed as a Principal (Spine-Identity-and-Auth.md §3).
+// The private member is a method because Playwright's Babel transform rejects any field on a `declare class`.
 declare class PrincipalMint {
-  private readonly principalMint: true;
+  private principalMint(): void;
 }
 
 /** The post-seam, immutable, db-resolved caller, constructed ONCE and carried downstream unchanged. No

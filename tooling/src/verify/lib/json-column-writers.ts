@@ -7,6 +7,7 @@
 import { staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { CallExpression, Node as TsNode } from "ts-morph";
 import { Node } from "ts-morph";
+import { OrdinaryCohortBoundError } from "../../floor/code-facts/drizzle-value-origin.ts";
 import type { DrizzleWriteRootVerb } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { DRIZZLE_SET_VERB, DRIZZLE_UPDATE_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { readDrizzleWriteRoots } from "../../floor/code-facts/drizzle-write-chain.ts";
@@ -143,33 +144,67 @@ function jsonTableOf(
   return table === undefined || cols === undefined ? undefined : { table, cols };
 }
 
+/** A write the reader could not judge, with the reason; it is reported as an advisory unknown. */
+export interface JsonWriteUnknown {
+  readonly node: CallExpression;
+  readonly reason: string;
+}
+
+/** How a writer scan reads each call's world and where it records the writes it could not judge. */
+export interface JsonWriteScan {
+  readonly contextFor: (call: CallExpression) => JsonColumnOriginContext;
+  readonly unknowns: JsonWriteUnknown[];
+}
+
+/** D328: a write whose normalizer lies outside the captured cohort is unknown for that write alone; every other
+ *  refusal still ends the pass. */
+export function judgeOrUnknown<T>(call: CallExpression, unknowns: JsonWriteUnknown[], judge: () => T): T | undefined {
+  try {
+    return judge();
+  } catch (error) {
+    if (!(error instanceof OrdinaryCohortBoundError)) {
+      throw error;
+    }
+    unknowns.push({ node: call, reason: error.message });
+    return undefined;
+  }
+}
+
 /** Every `<table>.<column>` a domain `.set()` writes → its classified writers. Each native importing world supplies
  *  its own sealed questions while the writer population/order stays unchanged. */
 export function collectJsonWritersByColumnWith(
   calls: readonly CallExpression[],
   jsonColumns: ReadonlyMap<string, ReadonlySet<string>>,
-  contextFor: (call: CallExpression) => JsonColumnOriginContext,
+  scan: JsonWriteScan,
 ): Map<string, JsonColumnWriter[]> {
   const byColumn = new Map<string, JsonColumnWriter[]>();
   for (const call of calls) {
-    if (call.getSourceFile().getFilePath().includes(DOMAIN_DIR)) {
-      const context = contextFor(call);
-      const schema = context.schema;
-      const target = jsonTableOf(call, jsonColumns, context);
-      if (target === undefined) {
-        continue;
-      }
-      const found: JsonColumnWriter[] = [];
-      const table = schema.tables.find((candidate) => candidate.identity.declarationName === target.table);
-      if (table === undefined) {
-        throw new Error(`json-column-writes: writer table disappeared: ${target.table}`);
-      }
-      collectWriters(call.getArguments()[0], { cols: target.cols, out: found, table }, context, 0);
-      for (const w of found) {
-        const key = `${target.table}.${jsonWriterColumn(w)}`;
-        byColumn.set(key, [...(byColumn.get(key) ?? []), w]);
-      }
+    if (!call.getSourceFile().getFilePath().includes(DOMAIN_DIR)) {
+      continue;
+    }
+    const context = scan.contextFor(call);
+    const target = jsonTableOf(call, jsonColumns, context);
+    if (target === undefined) {
+      continue;
+    }
+    for (const w of judgeOrUnknown(call, scan.unknowns, () => writersOf(call, target, context)) ?? []) {
+      const key = `${target.table}.${jsonWriterColumn(w)}`;
+      byColumn.set(key, [...(byColumn.get(key) ?? []), w]);
     }
   }
   return byColumn;
+}
+
+function writersOf(
+  call: CallExpression,
+  target: { readonly table: string; readonly cols: ReadonlySet<string> },
+  context: JsonColumnOriginContext,
+): JsonColumnWriter[] {
+  const table = context.schema.tables.find((candidate) => candidate.identity.declarationName === target.table);
+  if (table === undefined) {
+    throw new Error(`json-column-writes: writer table disappeared: ${target.table}`);
+  }
+  const found: JsonColumnWriter[] = [];
+  collectWriters(call.getArguments()[0], { cols: target.cols, out: found, table }, context, 0);
+  return found;
 }

@@ -20,11 +20,11 @@ describe("attachToChat", () => {
     const svc = createWorldInfoService(harness.ctx);
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     const chatId = await seedChat(db);
-    const book = await svc.createBook({ principal: principal(host), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, host), input: { name: "B" } });
     harness.userEvents.length = 0; // drop createBook's own worldInfoChanged — assert only the attach's.
 
-    await svc.attachToChat({ principal: principal(host), chatId, bookId: book.id });
-    await svc.attachToChat({ principal: principal(host), chatId, bookId: book.id });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, bookId: book.id });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, bookId: book.id });
 
     const rows = await db.select().from(chatBooks);
     expect(rows).toHaveLength(1);
@@ -43,9 +43,9 @@ describe("attachToChat", () => {
     const svc = createWorldInfoService(harness.ctx);
     const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
-    const book = await svc.createBook({ principal: principal(member), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, member), input: { name: "B" } });
 
-    await expect(svc.attachToChat({ principal: principal(member), chatId, bookId: book.id })).rejects.toBe(refusal);
+    await expect(svc.attachToChat({ principal: await principal(db, member), chatId, bookId: book.id })).rejects.toBe(refusal);
     expect(await db.select().from(chatBooks)).toHaveLength(0);
     expect(harness.wiEvents).toEqual([]);
     expect(harness.audits.some((a) => a.entry.action === "worldInfo.attachToChat")).toBe(false);
@@ -58,9 +58,9 @@ describe("attachToChat", () => {
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const chatId = await seedChat(db);
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "T" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "T" } });
 
-    await expect(svc.attachToChat({ principal: principal(host), chatId, bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.attachToChat({ principal: await principal(db, host), chatId, bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
     expect(harness.wiEvents).toEqual([]);
   });
 });

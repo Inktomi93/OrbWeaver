@@ -3,14 +3,17 @@
 // verdict lives in `can()`, chat only re-expresses it as its leak-free/coded error). `assertParticipant` is the
 // leak-free PRESENCE half (a load miss → not-found), which is NOT a `can()` decision.
 import type { Principal } from "@orb/contracts/identity";
+import type { Db } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { can } from "#server/domain/admin/index.ts";
 import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { assertAuthorOrHost, assertHost, assertParticipant } from "#server/domain/chat/substrate/auth/index.ts";
+import { principal as makePrincipal } from "../../../../../db/schema/_support.ts";
+import { seatRoles, seedUser } from "../../_support.ts";
 
 const CHAT = castId<ChatId>("chat_x");
 const ALICE = castId<UserId>("user_alice");
@@ -18,9 +21,14 @@ const BOB = castId<UserId>("user_bob");
 
 /** A chat-resource principal (role `user` — the global role is irrelevant to the chat resource axis; the
  *  authority signal is the loaded `chat_participants` role passed to the deciders). */
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
+
+// The deciders read no database; their principal and seat roles are row data from one in-memory database.
+const db = await freshDb();
+const alice = await principal(db, await seedUser(db, castId<Handle>("alice")));
+const ROLES = await seatRoles(db);
 
 /** Capture a thrown value WITHOUT an expect inside the catch (biome `noConditionalExpect`). */
 function thrown(fn: () => unknown): unknown {
@@ -46,11 +54,11 @@ describe("assertParticipant — present-membership gate (leak-free DATA half)", 
 
 describe("assertHost — host-authority via the injected can() seam", () => {
   test("a host passes", () => {
-    expect(() => assertHost(can, principal(ALICE), "host", CHAT)).not.toThrow();
+    expect(() => assertHost(can, alice, ROLES.host, CHAT)).not.toThrow();
   });
 
   test("a member is refused with the not_host code (the seam denied; chat re-expresses)", () => {
-    const err = thrown(() => assertHost(can, principal(ALICE), "member", CHAT));
+    const err = thrown(() => assertHost(can, alice, ROLES.member, CHAT));
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
   });
@@ -58,22 +66,22 @@ describe("assertHost — host-authority via the injected can() seam", () => {
 
 describe("assertAuthorOrHost — edit/delete gate via the seam", () => {
   test("the host overrides any slot, including a character-authored (null-author) row", () => {
-    expect(() => assertAuthorOrHost(can, { principal: principal(ALICE), role: "host", authorUserId: BOB }, CHAT)).not.toThrow();
-    expect(() => assertAuthorOrHost(can, { principal: principal(ALICE), role: "host", authorUserId: null }, CHAT)).not.toThrow();
+    expect(() => assertAuthorOrHost(can, { principal: alice, role: ROLES.host, authorUserId: BOB }, CHAT)).not.toThrow();
+    expect(() => assertAuthorOrHost(can, { principal: alice, role: ROLES.host, authorUserId: null }, CHAT)).not.toThrow();
   });
 
   test("a member may act on their own slot", () => {
-    expect(() => assertAuthorOrHost(can, { principal: principal(ALICE), role: "member", authorUserId: ALICE }, CHAT)).not.toThrow();
+    expect(() => assertAuthorOrHost(can, { principal: alice, role: ROLES.member, authorUserId: ALICE }, CHAT)).not.toThrow();
   });
 
   test("a member is refused another member's slot with the not_author code", () => {
-    const err = thrown(() => assertAuthorOrHost(can, { principal: principal(ALICE), role: "member", authorUserId: BOB }, CHAT));
+    const err = thrown(() => assertAuthorOrHost(can, { principal: alice, role: ROLES.member, authorUserId: BOB }, CHAT));
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_author");
   });
 
   test("a null-authored slot is host-only for a member (not_author)", () => {
-    const err = thrown(() => assertAuthorOrHost(can, { principal: principal(ALICE), role: "member", authorUserId: null }, CHAT));
+    const err = thrown(() => assertAuthorOrHost(can, { principal: alice, role: ROLES.member, authorUserId: null }, CHAT));
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_author");
   });

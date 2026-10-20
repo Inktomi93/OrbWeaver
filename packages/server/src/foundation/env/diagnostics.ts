@@ -78,7 +78,7 @@ import type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, 
  *
  * WHAT IT DOES NOT WEAKEN: it says nothing about who may reach the socket. A LAN caller never mints
  * `via:"fallback"` at all (the peer gate), so a `true` here cannot admit anyone the box does not already
- * serve as the owner. ENFORCER: `tests/legacy/server/entry/debug-gate.suite.test.ts` (both postures, both peers).
+ * serve as the owner. ENFORCER: `tests/server/entry/debug-gate-admission.int.test.ts` (both postures, both peers).
  *
  * A WIDENED PEER SET RETRACTS THE CREDENTIAL (`AUTH_FALLBACK_TRUSTED_PEERS`, `fallback-peers.ts`). The whole
  * argument above rests on "loopback peer MEANS the human at this machine" on a dev box — the sentence the

@@ -90,7 +90,7 @@ describe("scenario.chat — a scripted error surfaces as a thrown ProviderError 
 describe("scenario.chat — leak-free NOT_FOUND for a non-member (can() default-deny)", () => {
   test("a stranger's send is refused leak-free (not a member)", async () => {
     const chat = await scenario.chat(tape().reply("Hi there"), { characters: ["aria"] });
-    const stranger = chat.principal(castId<UserId>("user_stranger"));
+    const stranger = await chat.principal(castId<UserId>("user_stranger"));
 
     await expect(chat.turn.send({ principal: stranger, chatId: chat.chatId, content: "hi" })).rejects.toBeInstanceOf(ChatNotFoundError);
   });

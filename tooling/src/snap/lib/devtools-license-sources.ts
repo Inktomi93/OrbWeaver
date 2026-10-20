@@ -1,4 +1,4 @@
-export interface DevToolsLicenseSource {
+interface DevToolsLicenseSource {
   readonly family: string;
   readonly assetPrefix: string;
   readonly paths: readonly string[];

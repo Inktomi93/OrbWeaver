@@ -14,7 +14,7 @@ async function seedAliceSchedule(db: Parameters<typeof makeService>[0]): Promise
   const s = makeService(db);
   const { id } = await s.createSchedule({
     input: { kind: "index", params: { source: "text" } },
-    caller: principal("user_alice"),
+    caller: await principal(db, "user_alice"),
     cadence: "daily",
     mode: "singular",
     ownerId: alice,
@@ -27,8 +27,8 @@ describe("workloads.deleteSchedule", () => {
     const db = await freshDb();
     const id = await seedAliceSchedule(db);
     const s = makeService(db);
-    await s.deleteSchedule({ id, caller: principal("user_alice") });
-    expect(await s.listSchedules({ caller: principal("user_alice") })).toHaveLength(0);
+    await s.deleteSchedule({ id, caller: await principal(db, "user_alice") });
+    expect(await s.listSchedules({ caller: await principal(db, "user_alice") })).toHaveLength(0);
   });
 
   test("a stranger deleting owner A's schedule → leak-free NOT_FOUND, no mutation", async () => {
@@ -36,7 +36,7 @@ describe("workloads.deleteSchedule", () => {
     const id = await seedAliceSchedule(db);
     await seedUser(db, "user_bob");
     const s = makeService(db);
-    await expect(s.deleteSchedule({ id, caller: principal("user_bob") })).rejects.toBeInstanceOf(DomainNotFoundError);
-    expect(await s.listSchedules({ caller: principal("user_alice") })).toHaveLength(1); // untouched
+    await expect(s.deleteSchedule({ id, caller: await principal(db, "user_bob") })).rejects.toBeInstanceOf(DomainNotFoundError);
+    expect(await s.listSchedules({ caller: await principal(db, "user_alice") })).toHaveLength(1); // untouched
   });
 });

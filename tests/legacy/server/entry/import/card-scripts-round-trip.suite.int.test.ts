@@ -9,15 +9,16 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
+import type { Db } from "@orb/db";
 import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { describe } from "vitest";
 import { runProfileImport } from "#server/entry/import/index.ts";
 import "@orb/testkit/node/composed-real.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();
@@ -41,14 +42,15 @@ const SCRIPTS = [
   { name: "Trim ellipsis", enabled: true },
 ];
 
-type App = Parameters<typeof scriptsOf>[0];
+type App = Parameters<typeof scriptsOf>[1];
 
 async function scriptsOf(
+  db: Db,
   app: {
     readonly services: {
       readonly regex: {
         readonly listForCharacter: (p: {
-          readonly principal: ReturnType<typeof makePrincipal>;
+          readonly principal: Awaited<ReturnType<typeof makePrincipal>>;
           readonly characterId: CharacterId;
         }) => Promise<readonly { readonly name: string; readonly enabled: boolean }[]>;
       };
@@ -57,7 +59,7 @@ async function scriptsOf(
   characterId: CharacterId,
   userId: UserId,
 ): Promise<{ readonly name: string; readonly enabled: boolean }[]> {
-  const rows = await app.services.regex.listForCharacter({ principal: makePrincipal(userId), characterId });
+  const rows = await app.services.regex.listForCharacter({ principal: await makePrincipal({ db }, userId), characterId });
   return rows.map((r) => ({ name: r.name, enabled: r.enabled })).toSorted((a, b) => a.name.localeCompare(b.name));
 }
 
@@ -108,9 +110,9 @@ describe("card round trip through every import door (0442)", () => {
     ownerCaller,
   }) => {
     void ownerCaller;
-    const door = (userId: UserId, files: { readonly bytes: Uint8Array; readonly filename: string }[]): ReturnType<typeof runProfileImport> =>
+    const door = async (userId: UserId, files: { readonly bytes: Uint8Array; readonly filename: string }[]): ReturnType<typeof runProfileImport> =>
       runProfileImport({
-        principal: makePrincipal(userId),
+        principal: await makePrincipal({ db }, userId),
         character: app.services.character,
         assets: app.assets,
         tag: app.services.tag,
@@ -119,7 +121,7 @@ describe("card round trip through every import door (0442)", () => {
         files,
       });
     const exportJson = async (userId: UserId, characterId: CharacterId): Promise<string> => {
-      const exported = await app.exportService.exportCharacter({ principal: makePrincipal(userId), characterId, format: "json" });
+      const exported = await app.exportService.exportCharacter({ principal: await makePrincipal({ db }, userId), characterId, format: "json" });
       if (exported === null) {
         throw new Error("the character did not export");
       }
@@ -134,7 +136,7 @@ describe("card round trip through every import door (0442)", () => {
     if (imported === undefined) {
       throw new Error("the card did not import");
     }
-    expect(await scriptsOf(app, imported.characterId, OWNER_USER_ID)).toEqual(SCRIPTS);
+    expect(await scriptsOf(db, app, imported.characterId, OWNER_USER_ID)).toEqual(SCRIPTS);
     const exported = shapeOf(await exportJson(OWNER_USER_ID, imported.characterId));
     expect(exported).toEqual({
       name: "Lantern Keeper",
@@ -156,7 +158,7 @@ describe("card round trip through every import door (0442)", () => {
     expect(second.failed).toEqual([]);
     expect(second.imported[0]?.created).toBe(false);
     expect(second.imported[0]?.characterId).toBe(imported.characterId);
-    expect(await scriptsOf(app, imported.characterId, OWNER_USER_ID)).toEqual(SCRIPTS);
+    expect(await scriptsOf(db, app, imported.characterId, OWNER_USER_ID)).toEqual(SCRIPTS);
 
     // 3. The same export into a FRESH owner's library (nothing to reuse by reference): the scripts, the book
     //    and the tags travel by value, and that owner's export has the same shape.
@@ -169,12 +171,13 @@ describe("card round trip through every import door (0442)", () => {
     }
     expect(theirs.created).toBe(true);
     expect(theirs.characterId).not.toBe(imported.characterId);
-    expect(await scriptsOf(app, theirs.characterId, other.id)).toEqual(SCRIPTS);
+    expect(await scriptsOf(db, app, theirs.characterId, other.id)).toEqual(SCRIPTS);
     expect(shapeOf(await exportJson(other.id, theirs.characterId))).toEqual(exported);
   });
 
   test("profile-folder door: a PNG card in a staged SillyTavern profile lands with its scripts through the real import-st contribution", async ({
     app,
+    db,
     clock,
     ownerCaller,
     importStagingDir,
@@ -189,7 +192,7 @@ describe("card round trip through every import door (0442)", () => {
 
     const contribution = app.workloadContributions["import-st"];
     const result = await contribution.run(
-      { userId: OWNER_USER_ID, ownerId: OWNER_USER_ID, now: () => clock.now() },
+      { userId: OWNER_USER_ID, ownerId: OWNER_USER_ID, funderUserId: OWNER_USER_ID, now: () => clock.now() },
       { stagedDir: token },
       () => undefined,
       new AbortController().signal,
@@ -202,6 +205,6 @@ describe("card round trip through every import door (0442)", () => {
     if (characterId === undefined) {
       throw new Error("the profile import minted no character");
     }
-    expect(await scriptsOf(app as App, characterId, OWNER_USER_ID)).toEqual(SCRIPTS);
+    expect(await scriptsOf(db, app as App, characterId, OWNER_USER_ID)).toEqual(SCRIPTS);
   });
 });

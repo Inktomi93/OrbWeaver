@@ -12,6 +12,7 @@ import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { PluginBelts, PluginHostOps } from "#server/domain/plugin/contract/ops.ts";
@@ -24,7 +25,11 @@ import {
   PLUGIN_QUIET_LLM_PER_HOUR,
   PLUGIN_SEARCH_QUERY_PER_HOUR,
 } from "#server/domain/plugin/substrate/rate-floor.ts";
+import { seatRoles } from "../../chat/_support.ts";
 import { makeInertOps } from "../_support.ts";
+
+// Seat roles are captured row data: one in-memory room supplies the host and member roles these checks read.
+const ROLES = await seatRoles(await freshDb());
 
 const INSTALLER = castId<UserId>("user_installer00000000000000");
 const OTHER = castId<UserId>("user_other000000000000000000");
@@ -178,7 +183,7 @@ function readingOps(visibility: Awaited<ReturnType<PluginHostOps["chat"]["resolv
 // legitimately admitted to a room whose pre-join canon they may not read.
 describe("buildPluginBridge — listMessages is clamped to the INSTALLER's own viewer visibility", () => {
   test("a clamped installer's read carries their D16 floor, resolved for the installer (not a guest-supplied id)", async () => {
-    const rec = readingOps({ role: "member", historyFloorSeq: historyFloor(7), readsHidden: false });
+    const rec = readingOps({ role: ROLES.member, historyFloorSeq: historyFloor(7), readsHidden: false });
     const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
 
     await bridge.chat.listMessages(CHAT, 20);
@@ -189,7 +194,7 @@ describe("buildPluginBridge — listMessages is clamped to the INSTALLER's own v
   });
 
   test("an unrestricted host installer reads at floor 0 verbatim — the common case is unchanged", async () => {
-    const rec = readingOps({ role: "host", historyFloorSeq: historyFloor(0), readsHidden: true });
+    const rec = readingOps({ role: ROLES.host, historyFloorSeq: historyFloor(0), readsHidden: true });
     const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
 
     await bridge.chat.listMessages(CHAT, undefined);
@@ -331,7 +336,7 @@ function noticeOps(): { readonly ops: PluginHostOps; readonly posts: Parameters<
   const base = makeInertOps();
   const ops: PluginHostOps = {
     ...base,
-    chat: { ...base.chat, resolveViewerVisibility: () => Promise.resolve({ role: "member", historyFloorSeq: historyFloor(0), readsHidden: false }) },
+    chat: { ...base.chat, resolveViewerVisibility: () => Promise.resolve({ role: ROLES.member, historyFloorSeq: historyFloor(0), readsHidden: false }) },
     notifications: {
       ...base.notifications,
       post: (req) => {
@@ -829,7 +834,7 @@ describe("buildPluginBridge — #788 READ gaps are owner-scoped + leak-free", ()
   });
 
   test("listCharacters for a MEMBER reads the invocation chat's roster (member-gated, this room only)", async () => {
-    const rec = readGapOps({ visibility: { role: "member", historyFloorSeq: historyFloor(0), readsHidden: false } });
+    const rec = readGapOps({ visibility: { role: ROLES.member, historyFloorSeq: historyFloor(0), readsHidden: false } });
     const bridge = buildPluginBridge(rec.ops, INSTALLER, PLUGIN_REF, freeBelts());
 
     const roster = await bridge.chat.listCharacters(CHAT);

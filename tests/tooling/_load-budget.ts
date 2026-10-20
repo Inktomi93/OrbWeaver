@@ -197,7 +197,7 @@ export function runPnpmWithBudget(args: readonly string[], opts: ChildBudgetOpts
   return runCommandWithBudget({ command: "pnpm", args, opts, budgetMs, label });
 }
 
-export interface SpawnBudgetResult {
+interface SpawnBudgetResult {
   readonly status: number | null;
   readonly stdout: string;
   readonly stderr: string;

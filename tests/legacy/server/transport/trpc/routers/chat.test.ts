@@ -7,7 +7,7 @@
 // are pinned on the room source at `tests/legacy/server/transport/trpc/stream/sources/chat.test.ts`. The one
 // subscription left on this router is `impersonateStream` (permanently unfolded, spec §14 decision 2).
 
-import type { ChatBusEvent, ChatIdentity, ChatReactionsView, MessageView, StartChatResult } from "@orb/contracts/chat";
+import type { ChatBusEvent, ChatIdentity, ChatReactionsView, MessageView } from "@orb/contracts/chat";
 import { CHAT_LIST_MAX_LIMIT, DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import { DEFAULT_MAX_OUTPUT_TOKENS } from "@orb/contracts/preset";
 import type { UserId } from "@orb/kit/ids";
@@ -15,10 +15,15 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { ChatService } from "@orb/server/domain/chat";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "@orb/server/domain/chat";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { z } from "zod";
+import { seatRoles } from "../../../domain/chat/_support.ts";
 import { caller, makeContext, principal } from "../_support.ts";
+
+// Seat roles are captured row data: one in-memory room supplies the host and member roles these checks read.
+const ROLES = await seatRoles(await freshDb());
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
 const ID = {
@@ -61,6 +66,7 @@ const MESSAGE: MessageView = {
   selectedVariantIdx: 0,
   variantCount: 1,
   hasContinuation: false,
+  hasGeneratedVariant: true,
   outputCapReached: false,
   content: "hi",
   reasoning: null,
@@ -100,8 +106,9 @@ describe("chat.listChats — the page ceiling refuses an over-bound ask (#101)",
   const page = { items: [], nextCursor: null, totalCount: 0, viewerLastTurnAt: null } as const;
 
   test("the ceiling itself is servable and reaches the verb verbatim (the bound is inclusive)", async () => {
+    const db = await freshDb();
     const listChats = vi.fn<ChatService["listChats"]>(async () => page);
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { listChats } } });
 
     await caller(ctx).chat.listChats({ limit: CHAT_LIST_MAX_LIMIT });
 
@@ -109,32 +116,36 @@ describe("chat.listChats — the page ceiling refuses an over-bound ask (#101)",
   });
 
   test("max + 1 is a BAD_REQUEST at the boundary; the verb never runs", async () => {
+    const db = await freshDb();
     const listChats = vi.fn<ChatService["listChats"]>(async () => page);
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { listChats } } });
 
     await expect(caller(ctx).chat.listChats({ limit: CHAT_LIST_MAX_LIMIT + 1 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(listChats).not.toHaveBeenCalled();
   });
 
   test("the absurd ask (1000) is refused, NOT silently served as a smaller page", async () => {
+    const db = await freshDb();
     const listChats = vi.fn<ChatService["listChats"]>(async () => page);
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { listChats } } });
 
     await expect(caller(ctx).chat.listChats({ limit: 1000 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(listChats).not.toHaveBeenCalled();
   });
 
   test("a non-positive page size is refused too (the floor of the same bound)", async () => {
+    const db = await freshDb();
     const listChats = vi.fn<ChatService["listChats"]>(async () => page);
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { listChats } } });
 
     await expect(caller(ctx).chat.listChats({ limit: 0 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(listChats).not.toHaveBeenCalled();
   });
 
   test("an omitted limit reaches the verb ABSENT — the default page size has ONE home (the verb)", async () => {
+    const db = await freshDb();
     const listChats = vi.fn<ChatService["listChats"]>(async () => page);
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { listChats } } });
 
     await caller(ctx).chat.listChats({});
 
@@ -143,8 +154,9 @@ describe("chat.listChats — the page ceiling refuses an over-bound ask (#101)",
   });
 
   test("the displayed-recency bound is validated and forwarded verbatim", async () => {
+    const db = await freshDb();
     const listChats = vi.fn<ChatService["listChats"]>(async () => page);
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { listChats } } });
 
     await caller(ctx).chat.listChats({ beforeRecencyAt: 1_593_561_600_000 });
 
@@ -152,8 +164,9 @@ describe("chat.listChats — the page ceiling refuses an over-bound ask (#101)",
   });
 
   test("a fractional displayed-recency bound is a BAD_REQUEST; the verb never runs", async () => {
+    const db = await freshDb();
     const listChats = vi.fn<ChatService["listChats"]>(async () => page);
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { listChats } } });
 
     await expect(caller(ctx).chat.listChats({ beforeRecencyAt: 1.5 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(listChats).not.toHaveBeenCalled();
@@ -166,8 +179,9 @@ describe("chat.listChats — the page ceiling refuses an over-bound ask (#101)",
   // superjson-style `{json:{limit:1000}}` envelope aimed at this transformer-less server) is stripped to `{}`
   // and answered with the DEFAULT page — it reads exactly like "an over-max limit fell back to 50".
   test("an unknown key is stripped, not refused — `direction` rides through and the known params still land", async () => {
+    const db = await freshDb();
     const listChats = vi.fn<ChatService["listChats"]>(async () => page);
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { listChats } } });
 
     // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — `direction` is what tRPC's infinite query actually sends.
     await caller(ctx).chat.listChats({ limit: 10, direction: "forward" } as any);
@@ -177,8 +191,9 @@ describe("chat.listChats — the page ceiling refuses an over-bound ask (#101)",
   });
 
   test("a mis-enveloped limit is answered with the DEFAULT page, which is how #101's symptom was measured", async () => {
+    const db = await freshDb();
     const listChats = vi.fn<ChatService["listChats"]>(async () => page);
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listChats } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { listChats } } });
 
     // biome-ignore lint/suspicious/noExplicitAny: deliberately off-schema — the superjson envelope the #101 probe sent.
     await caller(ctx).chat.listChats({ json: { limit: 1000 } } as any);
@@ -190,12 +205,13 @@ describe("chat.listChats — the page ceiling refuses an over-bound ask (#101)",
 
 describe("chat.listMessages — the paged canon read (D26), member-gated", () => {
   test("a member pages messages: the parsed cursor/limit reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const listMessages = vi.fn<ChatService["listMessages"]>(async () => ({
       messages: [MESSAGE],
       identities: EMPTY_CAST,
     }));
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { listMessages } },
     });
 
@@ -214,9 +230,10 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
   });
 
   test("a non-member gets the leak-free NOT_FOUND the verb's requireParticipant gate throws (the getChat collapse)", async () => {
+    const db = await freshDb();
     const listMessages = vi.fn<ChatService["listMessages"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { listMessages } },
     });
 
@@ -228,13 +245,14 @@ describe("chat.listMessages — the paged canon read (D26), member-gated", () =>
 
 describe("chat.listMessageVariants — the swipe strip's step-target resolver (D26 full sibling set)", () => {
   test("a thin pass-through: chatId/messageId reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const variants = [
       { variantId: ID.messageVariant1, idx: 0 },
       { variantId: ID.messageVariant2, idx: 1 },
     ];
     const listMessageVariants = vi.fn<ChatService["listMessageVariants"]>(async () => variants);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { listMessageVariants } },
     });
 
@@ -252,9 +270,10 @@ describe("chat.listMessageVariants — the swipe strip's step-target resolver (D
   });
 
   test("a foreign-chat messageId surfaces the verb's leak-free NOT_FOUND", async () => {
+    const db = await freshDb();
     const listMessageVariants = vi.fn<ChatService["listMessageVariants"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { listMessageVariants } },
     });
 
@@ -264,10 +283,11 @@ describe("chat.listMessageVariants — the swipe strip's step-target resolver (D
 
 describe("chat.selectVariant — the swipe strip's step-BACK verb (task #19 wire-through)", () => {
   test("a thin pass-through: chatId/messageId/variantId reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const variantId = ID.messageVariant2;
     const selectVariant = vi.fn<ChatService["selectVariant"]>(async () => MESSAGE);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { selectVariant } },
     });
 
@@ -284,10 +304,11 @@ describe("chat.selectVariant — the swipe strip's step-BACK verb (task #19 wire
   });
 
   test("a sibling-ownership miss (a variantId from a DIFFERENT slot) surfaces the verb's leak-free NOT_FOUND", async () => {
+    const db = await freshDb();
     const variantId = ID.messageVariantOtherSlot;
     const selectVariant = vi.fn<ChatService["selectVariant"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { selectVariant } },
     });
 
@@ -303,12 +324,13 @@ describe("chat.selectVariant — the swipe strip's step-BACK verb (task #19 wire
 
 describe("chat.continueTurn — the guided-continue verb (composer wand wire-through)", () => {
   test("a thin pass-through: chatId/messageId/guided reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const continueTurn = vi.fn<ChatService["continueTurn"]>(async () => ({
       messages: [MESSAGE],
       aborted: false,
     }));
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { continueTurn } },
     });
 
@@ -326,9 +348,10 @@ describe("chat.continueTurn — the guided-continue verb (composer wand wire-thr
   });
 
   test("a non-assistant / missing target surfaces the verb's leak-free NOT_FOUND", async () => {
+    const db = await freshDb();
     const continueTurn = vi.fn<ChatService["continueTurn"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { continueTurn } },
     });
 
@@ -342,9 +365,10 @@ describe("chat.continueTurn — the guided-continue verb (composer wand wire-thr
 // `no_continuation` (ChatOperationError → BAD_REQUEST via the error map, never a 500).
 describe("chat.undoContinue / chat.revertContinue — the continue undo/redo pair (Lane C wire-through)", () => {
   test("undoContinue: a thin pass-through — chatId/messageId reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const undoContinue = vi.fn<ChatService["undoContinue"]>(async () => MESSAGE);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { undoContinue } },
     });
 
@@ -359,9 +383,10 @@ describe("chat.undoContinue / chat.revertContinue — the continue undo/redo pai
   });
 
   test("revertContinue: a thin pass-through — chatId/messageId reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const revertContinue = vi.fn<ChatService["revertContinue"]>(async () => MESSAGE);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { revertContinue } },
     });
 
@@ -376,9 +401,10 @@ describe("chat.undoContinue / chat.revertContinue — the continue undo/redo pai
   });
 
   test("undoContinue on a never-continued target surfaces the verb's `no_continuation` as BAD_REQUEST", async () => {
+    const db = await freshDb();
     const undoContinue = vi.fn<ChatService["undoContinue"]>().mockRejectedValue(new ChatOperationError(CHAT_OP_CODES.noContinuation, "nothing to undo"));
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { undoContinue } },
     });
 
@@ -386,9 +412,10 @@ describe("chat.undoContinue / chat.revertContinue — the continue undo/redo pai
   });
 
   test("a non-member's foreign chatId surfaces the participant gate's leak-free NOT_FOUND", async () => {
+    const db = await freshDb();
     const revertContinue = vi.fn<ChatService["revertContinue"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { revertContinue } },
     });
 
@@ -404,8 +431,9 @@ describe("chat.undoContinue / chat.revertContinue — the continue undo/redo pai
 // `guided: z.any()` these inputs sail through and the assertion (`not.toHaveBeenCalled` + BAD_REQUEST) fails.
 describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_REQUEST, not a 500)", () => {
   test("send: a garbage guided.action is refused at the boundary; the verb never runs", async () => {
+    const db = await freshDb();
     const sendFn = vi.fn<ChatService["send"]>();
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { send: sendFn } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { send: sendFn } } });
 
     await expect(
       caller(ctx).chat.send({
@@ -420,8 +448,9 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
   });
 
   test("swipe: a non-string guided.input is refused at the boundary; the verb never runs", async () => {
+    const db = await freshDb();
     const swipeFn = vi.fn<ChatService["swipe"]>();
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { swipe: swipeFn } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { swipe: swipeFn } } });
 
     await expect(
       caller(ctx).chat.swipe({
@@ -436,8 +465,9 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
   });
 
   test("continueTurn: an arbitrary placement.role (off the message-role vocab) is refused; the verb never runs", async () => {
+    const db = await freshDb();
     const continueTurn = vi.fn<ChatService["continueTurn"]>();
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { continueTurn } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { continueTurn } } });
 
     await expect(
       caller(ctx).chat.continueTurn({
@@ -452,8 +482,9 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
   });
 
   test("a well-formed guided body still passes the boundary and reaches the verb (the boundary isn't over-tight)", async () => {
+    const db = await freshDb();
     const generate = vi.fn<ChatService["generate"]>(async () => ({ messages: [MESSAGE], aborted: false }));
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { generate } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { generate } } });
 
     const guided = { action: "response" as const, input: "hint at the letter", placement: { kind: "system" as const } };
     await caller(ctx).chat.generate({ timeZone: UTC_TIME_ZONE, chatId: CHAT, guided });
@@ -464,8 +495,9 @@ describe("F6 — the guided-steer wire boundary refuses a malformed body (BAD_RE
 
 describe("chat.impersonateStream — the NON-PERSISTING, STREAMING guided-impersonate verb (composer fill)", () => {
   test("a resume ID is rejected before generation instead of silently starting from scratch", async () => {
+    const db = await freshDb();
     const impersonateStream = vi.fn<ChatService["impersonateStream"]>(() => deltaStream(["second attempt"]));
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { impersonateStream } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { impersonateStream } } });
     await expect(caller(ctx).chat.impersonateStream({ timeZone: UTC_TIME_ZONE, chatId: CHAT, lastEventId: "0" })).rejects.toMatchObject({
       code: "BAD_REQUEST",
     });
@@ -495,9 +527,10 @@ describe("chat.impersonateStream — the NON-PERSISTING, STREAMING guided-impers
   const DeltaChunk = z.object({ delta: z.string() });
 
   test("a thin pass-through: chatId/personaId/guided (incl. the person word) reach the verb; yields text deltas", async () => {
+    const db = await freshDb();
     const impersonateStream = vi.fn<ChatService["impersonateStream"]>(() => deltaStream(["drafted ", "opening line"]));
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { impersonateStream } },
     });
 
@@ -526,9 +559,10 @@ describe("chat.impersonateStream — the NON-PERSISTING, STREAMING guided-impers
   });
 
   test("a non-member gets a leak-free NOT_FOUND terminal FRAME (withSubscriptionErrors converts the gate throw)", async () => {
+    const db = await freshDb();
     const impersonateStream = vi.fn<ChatService["impersonateStream"]>(() => throwingStream(new ChatNotFoundError(CHAT)));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { impersonateStream } },
     });
 
@@ -546,12 +580,13 @@ describe("chat.impersonateStream — the NON-PERSISTING, STREAMING guided-impers
 
 describe("chat.generate — the guided-response verb (composer wand wire-through)", () => {
   test("a thin pass-through: chatId/speakerCharacterId/guided reach the verb", async () => {
+    const db = await freshDb();
     const generate = vi.fn<ChatService["generate"]>(async () => ({
       messages: [MESSAGE],
       aborted: false,
     }));
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { generate } },
     });
 
@@ -568,9 +603,10 @@ describe("chat.generate — the guided-response verb (composer wand wire-through
   });
 
   test("a non-member gets the verb's leak-free NOT_FOUND (requireParticipant gate)", async () => {
+    const db = await freshDb();
     const generate = vi.fn<ChatService["generate"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { generate } },
     });
 
@@ -587,9 +623,10 @@ describe("chat.generate — the guided-response verb (composer wand wire-through
 
 describe("chat.editMessage — edit-in-place's save verb (chat-surface lane wire-through)", () => {
   test("a thin pass-through: chatId/messageId/content reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const editMessage = vi.fn<ChatService["editMessage"]>(async () => MESSAGE);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { editMessage } },
     });
 
@@ -606,9 +643,10 @@ describe("chat.editMessage — edit-in-place's save verb (chat-surface lane wire
   });
 
   test("a non-author non-host gets the verb's leak-free NOT_FOUND (author-or-host gate)", async () => {
+    const db = await freshDb();
     const editMessage = vi.fn<ChatService["editMessage"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { editMessage } },
     });
 
@@ -620,12 +658,13 @@ describe("chat.editMessage — edit-in-place's save verb (chat-surface lane wire
 
 describe("chat.setMessageHidden — the hide-from-AI toggle (chat-surface lane wire-through)", () => {
   test("a thin pass-through: chatId/messageId/hidden reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const setMessageHidden = vi.fn<ChatService["setMessageHidden"]>(async () => ({
       ...MESSAGE,
       excludedFromPrompt: true,
     }));
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { setMessageHidden } },
     });
 
@@ -645,9 +684,10 @@ describe("chat.setMessageHidden — the hide-from-AI toggle (chat-surface lane w
   });
 
   test("a non-author non-host gets the verb's leak-free NOT_FOUND (author-or-host gate)", async () => {
+    const db = await freshDb();
     const setMessageHidden = vi.fn<ChatService["setMessageHidden"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { setMessageHidden } },
     });
 
@@ -657,9 +697,10 @@ describe("chat.setMessageHidden — the hide-from-AI toggle (chat-surface lane w
 
 describe("chat.deleteMessages — the bulk delete verb (chat-surface lane wire-through)", () => {
   test("a thin pass-through: chatId/messageIds reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const deleteMessages = vi.fn<ChatService["deleteMessages"]>(async () => undefined);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { deleteMessages } },
     });
 
@@ -677,9 +718,10 @@ describe("chat.deleteMessages — the bulk delete verb (chat-surface lane wire-t
   });
 
   test("a member deleting another's slot without host role gets the verb's leak-free NOT_FOUND", async () => {
+    const db = await freshDb();
     const deleteMessages = vi.fn<ChatService["deleteMessages"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { deleteMessages } },
     });
 
@@ -733,9 +775,10 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
   const ForkedChat = ID.chatForked1;
 
   test("a thin pass-through: chatId/throughSeq/title reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const forkChat = vi.fn<ChatService["forkChat"]>(async () => FORK_RESULT);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { forkChat } },
     });
 
@@ -756,9 +799,10 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
   });
 
   test("a non-member gets the verb's leak-free NOT_FOUND (requireParticipant gate)", async () => {
+    const db = await freshDb();
     const forkChat = vi.fn<ChatService["forkChat"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { forkChat } },
     });
 
@@ -775,10 +819,11 @@ describe("chat.forkChat — the deep-copy-into-a-new-chat verb (chat-surface lan
 
 describe("chat.setRoomOverrides — the per-chat prompt overrides write (task #28 wire-through, host-only)", () => {
   test("a thin pass-through: chatId/overrides reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const overrides = { mainPrompt: "Be terse.", scenario: "A rainy dock at midnight." };
     const setRoomOverrides = vi.fn<ChatService["setRoomOverrides"]>(async () => overrides);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { setRoomOverrides } },
     });
 
@@ -793,9 +838,10 @@ describe("chat.setRoomOverrides — the per-chat prompt overrides write (task #2
   });
 
   test("a stray key is stripped at the boundary (roomOverridesSchema.strict allowlist) — the verb sees only the four fields", async () => {
+    const db = await freshDb();
     const setRoomOverrides = vi.fn<ChatService["setRoomOverrides"]>(async () => ({}));
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { setRoomOverrides } },
     });
 
@@ -811,9 +857,10 @@ describe("chat.setRoomOverrides — the per-chat prompt overrides write (task #2
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const db = await freshDb();
     const setRoomOverrides = vi.fn<ChatService["setRoomOverrides"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { setRoomOverrides } },
     });
 
@@ -883,9 +930,10 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
   };
 
   test("a thin pass-through: chatId reaches the verb with the resolved Principal; the preview+trace return verbatim", async () => {
+    const db = await freshDb();
     const previewAssembly = vi.fn<ChatService["previewAssembly"]>(async () => Preview);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { previewAssembly } },
     });
 
@@ -900,8 +948,9 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
   });
 
   test("the preset editor's presetOverride crosses the wire (D121-G) — and is ABSENT when unsent", async () => {
+    const db = await freshDb();
     const previewAssembly = vi.fn<ChatService["previewAssembly"]>(async () => Preview);
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { previewAssembly } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { previewAssembly } } });
 
     await caller(ctx).chat.previewAssembly({ timeZone: UTC_TIME_ZONE, chatId: CHAT, presetOverride: ID.presetBound });
     expect(previewAssembly).toHaveBeenLastCalledWith({
@@ -917,9 +966,10 @@ describe("chat.previewAssembly — the assembled-prompt preview + trace (task #2
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (the host-only debug-surface gate)", async () => {
+    const db = await freshDb();
     const previewAssembly = vi.fn<ChatService["previewAssembly"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { previewAssembly } },
     });
 
@@ -943,9 +993,10 @@ describe("chat.getShapeTrace — the content-free SHAPE trace (host-only)", () =
   };
 
   test("a thin pass-through: chatId + speakerCharacterId reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const getShapeTrace = vi.fn<ChatService["getShapeTrace"]>(async () => Trace);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { getShapeTrace } },
     });
 
@@ -959,9 +1010,10 @@ describe("chat.getShapeTrace — the content-free SHAPE trace (host-only)", () =
   });
 
   test("a non-host gets the verb's refusal (the host-only inspector gate)", async () => {
+    const db = await freshDb();
     const getShapeTrace = vi.fn<ChatService["getShapeTrace"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { getShapeTrace } },
     });
 
@@ -982,9 +1034,10 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
   };
 
   test("setChatInjection CREATE (no id): the authored fields reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const setChatInjection = vi.fn<ChatService["setChatInjection"]>(async () => InjectionView);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { setChatInjection } },
     });
 
@@ -1008,9 +1061,10 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
   });
 
   test("setChatInjection UPDATE (id present): the id reaches the verb (upsert)", async () => {
+    const db = await freshDb();
     const setChatInjection = vi.fn<ChatService["setChatInjection"]>(async () => InjectionView);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { setChatInjection } },
     });
 
@@ -1027,9 +1081,10 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
   });
 
   test("setChatInjection rejects an off-axis position before the verb (the wire enum)", async () => {
+    const db = await freshDb();
     const setChatInjection = vi.fn<ChatService["setChatInjection"]>(async () => InjectionView);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { setChatInjection } },
     });
 
@@ -1047,9 +1102,10 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
   });
 
   test("listChatInjections: a thin pass-through returning the splice-ordered list (member-gated)", async () => {
+    const db = await freshDb();
     const listChatInjections = vi.fn<ChatService["listChatInjections"]>(async () => [InjectionView]);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { listChatInjections } },
     });
 
@@ -1063,9 +1119,10 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
   });
 
   test("deleteChatInjection: chatId/injectionId reach the verb with the resolved Principal (host-only)", async () => {
+    const db = await freshDb();
     const deleteChatInjection = vi.fn<ChatService["deleteChatInjection"]>(async () => undefined);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { deleteChatInjection } },
     });
 
@@ -1083,9 +1140,10 @@ describe("chat.setChatInjection / listChatInjections / deleteChatInjection — t
   });
 
   test("a non-host deleting an injection gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const db = await freshDb();
     const deleteChatInjection = vi.fn<ChatService["deleteChatInjection"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { deleteChatInjection } },
     });
 
@@ -1108,7 +1166,7 @@ const PARTICIPANT: Awaited<ReturnType<ChatService["setSeatKnobs"]>> = {
   kind: "character",
   userId: null,
   characterId: CHARACTER,
-  role: "member",
+  role: ROLES.member,
   activePersonaId: null,
   talkativeness: 0.5,
   disabled: false,
@@ -1126,9 +1184,10 @@ const PARTICIPANT_ID = ID.chatParticipant1;
 
 describe("chat.setSeatKnobs — the ONE participantId-keyed AI-seat knob setter (D80 wire-through, host-only)", () => {
   test("a thin pass-through: chatId/participantId/patch reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const setSeatKnobs = vi.fn<ChatService["setSeatKnobs"]>(async () => ({ ...PARTICIPANT, disabled: true, talkativeness: 0.8 }));
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { setSeatKnobs } },
     });
 
@@ -1149,9 +1208,10 @@ describe("chat.setSeatKnobs — the ONE participantId-keyed AI-seat knob setter 
   });
 
   test("an empty patch is legal at the wire (both knobs optional)", async () => {
+    const db = await freshDb();
     const setSeatKnobs = vi.fn<ChatService["setSeatKnobs"]>(async () => PARTICIPANT);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { setSeatKnobs } },
     });
 
@@ -1165,9 +1225,10 @@ describe("chat.setSeatKnobs — the ONE participantId-keyed AI-seat knob setter 
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const db = await freshDb();
     const setSeatKnobs = vi.fn<ChatService["setSeatKnobs"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { setSeatKnobs } },
     });
 
@@ -1177,9 +1238,10 @@ describe("chat.setSeatKnobs — the ONE participantId-keyed AI-seat knob setter 
   });
 
   test("an out-of-range talkativeness is rejected at the wire before the verb (seatKnobsSchema clamp)", async () => {
+    const db = await freshDb();
     const setSeatKnobs = vi.fn<ChatService["setSeatKnobs"]>(async () => PARTICIPANT);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { setSeatKnobs } },
     });
 
@@ -1192,12 +1254,13 @@ describe("chat.setSeatKnobs — the ONE participantId-keyed AI-seat knob setter 
 
 describe("chat.forceCharacterTurn — the host summons a member to speak next (task #29 wire-through, host-only)", () => {
   test("a thin pass-through: chatId/characterId reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const forceCharacterTurn = vi.fn<ChatService["forceCharacterTurn"]>(async () => ({
       messages: [MESSAGE],
       aborted: false,
     }));
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { forceCharacterTurn } },
     });
 
@@ -1213,9 +1276,10 @@ describe("chat.forceCharacterTurn — the host summons a member to speak next (t
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const db = await freshDb();
     const forceCharacterTurn = vi.fn<ChatService["forceCharacterTurn"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { forceCharacterTurn } },
     });
 
@@ -1227,9 +1291,10 @@ describe("chat.forceCharacterTurn — the host summons a member to speak next (t
 
 describe("chat.updateTitle — the LIST-row rename verb (J5 wire-through, host-only)", () => {
   test("a thin pass-through: chatId/title reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const updateTitle = vi.fn<ChatService["updateTitle"]>(async () => undefined);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { updateTitle } },
     });
 
@@ -1244,9 +1309,10 @@ describe("chat.updateTitle — the LIST-row rename verb (J5 wire-through, host-o
   });
 
   test("a null title clears it (the wire accepts string | null)", async () => {
+    const db = await freshDb();
     const updateTitle = vi.fn<ChatService["updateTitle"]>(async () => undefined);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { updateTitle } },
     });
 
@@ -1260,9 +1326,10 @@ describe("chat.updateTitle — the LIST-row rename verb (J5 wire-through, host-o
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const db = await freshDb();
     const updateTitle = vi.fn<ChatService["updateTitle"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { updateTitle } },
     });
 
@@ -1274,9 +1341,10 @@ describe("chat.updateTitle — the LIST-row rename verb (J5 wire-through, host-o
 
 describe("chat.star — the LIST-row star toggle (J5 wire-through, host-only)", () => {
   test("a thin pass-through: chatId/starred reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const star = vi.fn<ChatService["star"]>(async () => undefined);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { star } },
     });
 
@@ -1290,9 +1358,10 @@ describe("chat.star — the LIST-row star toggle (J5 wire-through, host-only)", 
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const db = await freshDb();
     const star = vi.fn<ChatService["star"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { star } },
     });
 
@@ -1304,9 +1373,10 @@ describe("chat.star — the LIST-row star toggle (J5 wire-through, host-only)", 
 
 describe("chat.archive — the LIST-row archive toggle (J5 wire-through, host-only)", () => {
   test("a thin pass-through: chatId/archived reach the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const archive = vi.fn<ChatService["archive"]>(async () => undefined);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { archive } },
     });
 
@@ -1320,9 +1390,10 @@ describe("chat.archive — the LIST-row archive toggle (J5 wire-through, host-on
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const db = await freshDb();
     const archive = vi.fn<ChatService["archive"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { archive } },
     });
 
@@ -1334,9 +1405,10 @@ describe("chat.archive — the LIST-row archive toggle (J5 wire-through, host-on
 
 describe("chat.delete — the LIST-row delete verb (J5 wire-through, host-only)", () => {
   test("a thin pass-through: chatId reaches the verb with the resolved Principal", async () => {
+    const db = await freshDb();
     const del = vi.fn<ChatService["delete"]>(async () => undefined);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { delete: del } },
     });
 
@@ -1350,9 +1422,10 @@ describe("chat.delete — the LIST-row delete verb (J5 wire-through, host-only)"
   });
 
   test("a non-host gets the verb's leak-free NOT_FOUND (requireHost gate)", async () => {
+    const db = await freshDb();
     const del = vi.fn<ChatService["delete"]>().mockRejectedValue(new ChatNotFoundError(CHAT));
     const ctx = makeContext({
-      auth: principal("user", { userId: NON_MEMBER }),
+      auth: await principal(db, "user", { userId: NON_MEMBER }),
       services: { chat: { delete: del } },
     });
 
@@ -1364,9 +1437,10 @@ describe("chat.delete — the LIST-row delete verb (J5 wire-through, host-only)"
 
 describe("chat.getGroupConfig / chat.setGroupConfig — the group-config wire-through (domain-ahead-of-transport)", () => {
   test("setGroupConfig: a thin pass-through — chatId + the PARSED config reach the verb with the Principal", async () => {
+    const db = await freshDb();
     const setGroupConfig = vi.fn<ChatService["setGroupConfig"]>(async () => DEFAULT_GROUP_CONFIG);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { setGroupConfig } },
     });
     await caller(ctx).chat.setGroupConfig({
@@ -1382,9 +1456,10 @@ describe("chat.getGroupConfig / chat.setGroupConfig — the group-config wire-th
   });
 
   test("getGroupConfig: a thin pass-through — chatId reaches the verb; the effective config returns", async () => {
+    const db = await freshDb();
     const getGroupConfigForChat = vi.fn<ChatService["getGroupConfigForChat"]>(async () => DEFAULT_GROUP_CONFIG);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { getGroupConfigForChat } },
     });
     const result = await caller(ctx).chat.getGroupConfig({ chatId: CHAT });
@@ -1405,8 +1480,9 @@ describe("chat.getGroupConfig / chat.setGroupConfig — the group-config wire-th
 // is a real wire VALUE, so its exclusion is a genuine runtime BAD_REQUEST this router owns.
 describe("chat.startChat — CREATION-INTENT inputs only (R2)", () => {
   test('opening:"generate" is refused at the boundary; the verb never runs', async () => {
+    const db = await freshDb();
     const startChat = vi.fn<ChatService["startChat"]>();
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { startChat } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { startChat } } });
 
     await expect(
       caller(ctx).chat.startChat({
@@ -1419,9 +1495,12 @@ describe("chat.startChat — CREATION-INTENT inputs only (R2)", () => {
   });
 
   test("a well-formed creation body still passes the boundary and reaches the verb", async () => {
-    const result = { chat: { ...FORK_RESULT.chat, id: CHAT, parentChatId: null, forkedAt: null }, opening: null } satisfies StartChatResult;
+    const db = await freshDb();
+    const result = { chat: { ...FORK_RESULT.chat, id: CHAT, parentChatId: null, forkedAt: null }, opening: null } satisfies Awaited<
+      ReturnType<ChatService["startChat"]>
+    >;
     const startChat = vi.fn<ChatService["startChat"]>(async () => result);
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { startChat } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { startChat } } });
 
     await expect(caller(ctx).chat.startChat({ characterIds: [ID.characterAria], opening: "greet-all" })).resolves.toEqual(result);
 
@@ -1435,13 +1514,15 @@ describe("chat.startChat — CREATION-INTENT inputs only (R2)", () => {
 
 describe("chat output declarations", () => {
   test("member message pages reject a service result carrying host-only raw generation material", async () => {
+    const db = await freshDb();
     const widened = { ...MESSAGE, rawContent: "host-only raw text" };
     const listMessages = vi.fn<ChatService["listMessages"]>().mockResolvedValue({ messages: [widened], identities: EMPTY_CAST });
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listMessages } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { listMessages } } });
     await expect(caller(ctx).chat.listMessages({ chatId: CHAT })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
   });
 
   test("reaction output preserves the stored segment anchor and reactor membership", async () => {
+    const db = await freshDb();
     const view = {
       reactionsEnabled: true,
       groups: [
@@ -1457,7 +1538,7 @@ describe("chat output declarations", () => {
       ],
     } satisfies ChatReactionsView;
     const listReactions = vi.fn<ChatService["listReactions"]>().mockResolvedValue(view);
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { listReactions } } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { listReactions } } });
     await expect(caller(ctx).chat.listReactions({ chatId: CHAT })).resolves.toEqual(view);
     listReactions.mockResolvedValue({ ...view, groups: view.groups.map((group) => ({ ...group, privateReactorUserId: NON_MEMBER })) });
     await expect(caller(ctx).chat.listReactions({ chatId: CHAT })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
@@ -1530,10 +1611,11 @@ describe("the viewer's zone — each turn and rendered-preview procedure require
 
   /** Call `path` with `timeZone` behind a recording verb; resolves to the zones the verb received. */
   async function zonesReceived(zoneCase: ZoneCase, timeZone: string): Promise<readonly (string | undefined)[]> {
+    const db = await freshDb();
     const verb = vi.fn<ZoneVerb>(() => {
       throw new ChatNotFoundError(CHAT);
     });
-    const ctx = makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: zoneCase.stub(verb) } });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: zoneCase.stub(verb) } });
     await expect(zoneCase.call(caller(ctx), timeZone)).rejects.toMatchObject({ code: timeZone === notAZone ? "BAD_REQUEST" : "NOT_FOUND" });
     return verb.mock.calls.map(([params]) => params.timeZone);
   }

@@ -10,9 +10,13 @@ import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts
 import { policyProofRows } from "../../../../tooling/src/verify/lib/policy-proof-rows.ts";
 import { reviewedGrantsFor } from "../../../../tooling/src/verify/lib/reviewed-grants.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
+import { scaledBudget } from "../../_load-budget.ts";
+
+// A reads proof row runs up to about 1.4 s while the box is below its load threshold, where the budget does not stretch.
+const PROOF_ROW_BUDGET_MS = 2000;
 
 test("owner-scoped-reads preserves every declared owned-scope and every-owner authority proof", {
-  timeout: policyProofRows(ownerScopedReads).length * 1000,
+  timeout: scaledBudget(policyProofRows(ownerScopedReads).length * PROOF_ROW_BUDGET_MS),
 }, () => {
   expect(verifyPolicyProofs([ownerScopedReads])).toEqual([]);
 });

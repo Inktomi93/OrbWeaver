@@ -44,7 +44,7 @@ test("a declared composer action receives only its explicit draft and returns th
       },
     },
   });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "polish", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   const request = { caller, pluginId: installed.id, name: "draw", args: "", chatId: CHAT_ID, composerDraft: "Typed draft" };
@@ -60,8 +60,8 @@ test("unsent draft input is refused for undeclared commands, foreign owners and 
   const db = await freshDb();
   const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
   const h = makePluginHarness(db, { port: recordingPort(invokes) });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
-  const stranger = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("stranger") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
+  const stranger = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("stranger") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "ordinary", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   const request = { caller, pluginId: installed.id, name: "draw", args: "", chatId: CHAT_ID, composerDraft: "Unsent private draft" };
@@ -72,7 +72,7 @@ test("unsent draft input is refused for undeclared commands, foreign owners and 
   const declared = DRAW.map((command) => ({ ...command, composerDraft: true as const }));
   const ungrantedDb = await freshDb();
   const ungranted = makePluginHarness(ungrantedDb, { port: recordingPort(invokes, declared) });
-  const otherCaller = ownerPrincipalFor(await seedUser(ungrantedDb, { handle: castId<Handle>("other") }));
+  const otherCaller = await ownerPrincipalFor(db, await seedUser(ungrantedDb, { handle: castId<Handle>("other") }));
   const other = await ungranted.service.install({ caller: otherCaller, bundle: makeBundle({ id: "ungranted", capabilities: ["ui.surface"] }), grant: [] });
   await ungranted.service.setEnabled({ caller: otherCaller, pluginId: other.id, enabled: true });
   await expect(ungranted.service.invokeUiCommand({ ...request, caller: otherCaller, pluginId: other.id })).rejects.toThrow(/enabled, granted plugin/u);
@@ -93,7 +93,7 @@ test("composer input and output are bounded; a draft action has no non-composer 
       },
     },
   });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "polish", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   const request = { caller, pluginId: installed.id, name: "draw", args: "", chatId: CHAT_ID };
@@ -120,7 +120,7 @@ test("a disable during an async draft command refuses the late replacement", asy
       },
     },
   });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "polish", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   const pending = h.service.invokeUiCommand({ caller, pluginId: installed.id, name: "draw", args: "", chatId: CHAT_ID, composerDraft: "draft" });
@@ -148,7 +148,7 @@ test("revocation during final room authority lookup refuses the draft replacemen
       return Promise.resolve({ canRead: true, canWrite: true });
     },
   });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "polish", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   const pending = h.service.invokeUiCommand({ caller, pluginId: installed.id, name: "draw", args: "", chatId: CHAT_ID, composerDraft: "draft" });
@@ -200,7 +200,7 @@ test("re-enters onRun with ONE {args} object, and the room rides as the invocati
   const db = await freshDb();
   const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
   const h = makePluginHarness(db, { port: recordingPort(invokes) });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -221,7 +221,7 @@ test("#791: a command's DECLARED typed args reach the guest COERCED (enum string
   const db = await freshDb();
   const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
   const h = makePluginHarness(db, { port: recordingPort(invokes, CAST) });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -240,7 +240,7 @@ test("#791: a MISSING required arg is refused at the membrane BEFORE any guest r
   const db = await freshDb();
   const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
   const h = makePluginHarness(db, { port: recordingPort(invokes, CAST) });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -255,7 +255,7 @@ test("#791: an OFF-ENUM value and a MISTYPED value are both refused before re-en
   const db = await freshDb();
   const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
   const h = makePluginHarness(db, { port: recordingPort(invokes, CAST) });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -274,7 +274,7 @@ test("a command run OUTSIDE a room carries no scope — `chat.current()` throws 
   const db = await freshDb();
   const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
   const h = makePluginHarness(db, { port: recordingPort(invokes) });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -291,7 +291,7 @@ test("THE FOURTH RUNG: a room the caller cannot READ is NOT_FOUND, and no guest 
     // no-access one — the snippet gate's exact posture, reused so a command is not a second door.
     resolveChatAuthority: () => Promise.resolve({ canRead: false, canWrite: false }),
   });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -304,8 +304,8 @@ test("THE FOURTH RUNG: a room the caller cannot READ is NOT_FOUND, and no guest 
 test("a missing/foreign plugin is a leak-free NotFound BEFORE any guest re-entry", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const alpha = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("alpha") }));
-  const beta = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("beta") }));
+  const alpha = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("alpha") }));
+  const beta = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("beta") }));
   const alphaPlugin = await h.service.install({ caller: alpha, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
 
   await expect(h.service.invokeUiCommand({ caller: beta, pluginId: alphaPlugin.id, name: "draw", args: "", chatId: null })).rejects.toBeInstanceOf(
@@ -320,7 +320,7 @@ test("a DISABLED plugin, and an unknown command name, are both refused", async (
   const db = await freshDb();
   const invokes: { argsJson: string; chatId: ChatId | null }[] = [];
   const h = makePluginHarness(db, { port: recordingPort(invokes) });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
 
   await expect(h.service.invokeUiCommand({ caller, pluginId: installed.id, name: "draw", args: "", chatId: null })).rejects.toThrow(NOT_ENABLED_RE);
@@ -339,7 +339,7 @@ test("the UI OUTCOME is drained onto the result — and still drains when the ha
     dispose: () => undefined,
   };
   const h = makePluginHarness(db, { port: failing });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck", name: "Oracle Deck" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -362,7 +362,7 @@ async function runCommandThatRejects(reason: unknown): Promise<{ result: Promise
     dispose: () => undefined,
   };
   const h = makePluginHarness(db, { port: failing });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck", name: "Oracle Deck" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   h.ctx.uiOutbox.pushToast({ id: installed.id, name: "Oracle Deck", slug: "oracle-deck" }, "warn", "queued before the throw");

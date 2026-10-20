@@ -26,7 +26,7 @@ describe("tag persistence/junctions", () => {
     await expect(
       ensureTargetAccessible({
         db,
-        principal: principal(owner),
+        principal: await principal(db, owner),
         requireParticipant: h.ctx.requireParticipant,
         targetType: "character",
         targetId: mine,
@@ -35,7 +35,7 @@ describe("tag persistence/junctions", () => {
     await expect(
       ensureTargetAccessible({
         db,
-        principal: principal(owner),
+        principal: await principal(db, owner),
         requireParticipant: h.ctx.requireParticipant,
         targetType: "character",
         targetId: theirs,
@@ -54,7 +54,7 @@ describe("tag persistence/junctions", () => {
     await expect(
       ensureTargetAccessible({
         db,
-        principal: principal(owner),
+        principal: await principal(db, owner),
         requireParticipant: h.ctx.requireParticipant,
         targetType: "chat",
         targetId: memberChat,
@@ -63,7 +63,7 @@ describe("tag persistence/junctions", () => {
     await expect(
       ensureTargetAccessible({
         db,
-        principal: principal(owner),
+        principal: await principal(db, owner),
         requireParticipant: h.ctx.requireParticipant,
         targetType: "chat",
         targetId: otherChat,

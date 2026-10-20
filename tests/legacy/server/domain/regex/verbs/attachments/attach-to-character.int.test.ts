@@ -22,12 +22,12 @@ describe("attachToCharacter", () => {
     const first = await seedScript(db, { ownerId: owner, id: "regex_script_1", name: "first" });
     const second = await seedScript(db, { ownerId: owner, id: "regex_script_2", name: "second" });
 
-    await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: first });
-    await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: first });
-    await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: second });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId: first });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId: first });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId: second });
 
     expect(await db.select().from(characterRegexScripts).where(eq(characterRegexScripts.characterId, characterId))).toHaveLength(2);
-    expect((await svc.listForCharacter({ principal: principal(owner), characterId })).map((r) => r.name)).toEqual(["first", "second"]);
+    expect((await svc.listForCharacter({ principal: await principal(db, owner), characterId })).map((r) => r.name)).toEqual(["first", "second"]);
   });
 
   test("refuses a FOREIGN script", async () => {
@@ -39,7 +39,7 @@ describe("attachToCharacter", () => {
     const characterId = await seedCharacter(db, owner);
     const scriptId = await seedScript(db, { ownerId: stranger, name: "theirs" });
 
-    await expect(svc.attachToCharacter({ principal: principal(owner), characterId, scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
     expect(await db.select().from(characterRegexScripts)).toHaveLength(0);
   });
 });

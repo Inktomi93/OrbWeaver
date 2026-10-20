@@ -15,7 +15,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { CredentialsDecryptError, createCredentialsService } from "#server/domain/credentials/index.ts";
 import { createSecretBox } from "#server/infra/crypto/index.ts";
-import { makeHarness, principal, seedUser } from "../_support.ts";
+import { executionEvidence, makeHarness, principal, seedUser } from "../_support.ts";
 
 const OPENROUTER = castId<ProviderId>("openrouter");
 const CLAUDE_SUB = castId<ProviderId>("claude-sub");
@@ -35,7 +35,7 @@ describe("resolve", () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const added = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-or-secret" });
+    const added = await svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-or-secret" });
 
     const resolved = await svc.resolve({ ownerId: owner, credentialId: added.id, providerId: OPENROUTER });
     expect(resolved).toMatchObject({ kind: "apiKey", credentialId: added.id, secret: "sk-or-secret" });
@@ -45,8 +45,8 @@ describe("resolve", () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const token = await svc.add({ principal: principal(owner), provider: "claude-sub", key: "sk-ant-oat01-…", metadata: { auth: "oauthToken" } });
-    const bearer = await svc.add({ principal: principal(owner), provider: "vllm", key: "vllm-bearer", metadata: { auth: "endpoint" } });
+    const token = await svc.add({ principal: await principal(db, owner), provider: "claude-sub", key: "sk-ant-oat01-…", metadata: { auth: "oauthToken" } });
+    const bearer = await svc.add({ principal: await principal(db, owner), provider: "vllm", key: "vllm-bearer", metadata: { auth: "endpoint" } });
 
     expect(await svc.resolve({ ownerId: owner, credentialId: token.id, providerId: CLAUDE_SUB })).toMatchObject({
       kind: "oauthToken",
@@ -59,7 +59,7 @@ describe("resolve", () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_retired_metadata", role: "user" });
-    const added = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-retired-shape" });
+    const added = await svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-retired-shape" });
     await db
       .update(userCredentials)
       .set({ metadata: { auth: "apiKey", kind: "custom_openai", baseUrl: "http://retired.invalid/v1" } })
@@ -76,7 +76,7 @@ describe("resolve", () => {
     const harness = makeHarness(db);
     const enabledService = createCredentialsService(harness.ctx);
     const owner = await seedUser(db, { id: "user_missing_runtime_key", role: "user" });
-    const added = await enabledService.add({ principal: principal(owner), provider: "openrouter", key: "sk-or-stored" });
+    const added = await enabledService.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-or-stored" });
 
     const disabledService = createCredentialsService({ ...harness.ctx, box: createSecretBox(null) });
     await expect(disabledService.resolve({ ownerId: owner, credentialId: added.id, providerId: OPENROUTER })).rejects.toBeInstanceOf(CredentialsDecryptError);
@@ -90,7 +90,7 @@ describe("resolve", () => {
     const svc = createCredentialsService(makeHarness(db).ctx);
     const alice = await seedUser(db, { id: "user_alice", role: "user" });
     const bob = await seedUser(db, { id: "user_bob", role: "user" });
-    const added = await svc.add({ principal: principal(alice), provider: "openrouter", key: "sk-alice" });
+    const added = await svc.add({ principal: await principal(db, alice), provider: "openrouter", key: "sk-alice" });
 
     // Lift Alice's row into Bob's slot (the attack the AAD belt defends against). The ciphertext was
     // bound to `alice|openrouter`; decrypting it as `bob|openrouter` fails the GCM tag check.
@@ -107,7 +107,7 @@ describe("resolve", () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const added = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-or" });
+    const added = await svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-or" });
 
     await expect(svc.resolve({ ownerId: owner, credentialId: added.id, providerId: castId<ProviderId>("anthropic") })).rejects.toBeInstanceOf(
       CredentialsDecryptError,
@@ -119,7 +119,7 @@ describe("resolve", () => {
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
     const other = await seedUser(db, { id: "user_other", role: "user" });
-    const theirs = await svc.add({ principal: principal(other), provider: "openrouter", key: "sk-theirs" });
+    const theirs = await svc.add({ principal: await principal(db, other), provider: "openrouter", key: "sk-theirs" });
 
     await expect(svc.resolve({ ownerId: owner, credentialId: castId("user_credential_missing"), providerId: OPENROUTER })).rejects.toThrow(
       DomainNoCredentialError,
@@ -131,8 +131,8 @@ describe("resolve", () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const added = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-or" });
-    await svc.markRevokedByUser({ principal: principal(owner), credentialId: added.id });
+    const added = await svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-or" });
+    await svc.markRevokedByUser({ principal: await principal(db, owner), credentialId: added.id });
     await expect(svc.resolve({ ownerId: owner, credentialId: added.id, providerId: OPENROUTER })).rejects.toThrow(DomainNoCredentialError);
   });
 
@@ -140,8 +140,13 @@ describe("resolve", () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const added = await svc.add({ principal: principal(owner), provider: "vllm", key: "sk-custom", metadata: { auth: "endpoint" } });
-    await svc.maybeRevokeOnAuthFailed({ ownerId: owner, credentialId: added.id, errorKind: "auth_failed", errorMessage: "the endpoint rejected the key" });
+    const added = await svc.add({ principal: await principal(db, owner), provider: "vllm", key: "sk-custom", metadata: { auth: "endpoint" } });
+    await svc.maybeRevokeOnAuthFailed({
+      ownerId: owner,
+      ...(await executionEvidence(svc, owner, added.id, VLLM)),
+      errorKind: "auth_failed",
+      errorMessage: "the endpoint rejected the key",
+    });
 
     await expect(svc.resolve({ ownerId: owner, credentialId: added.id, providerId: VLLM })).rejects.toThrow(DomainNoCredentialError);
   });
@@ -151,7 +156,7 @@ describe("resolve", () => {
     const h = makeHarness(db);
     const svc = createCredentialsService(h.ctx);
     const owner = await seedUser(db, { id: "user_bad_ciphertext", role: "user" });
-    const added = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-valid-before-corruption" });
+    const added = await svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-valid-before-corruption" });
     await db.update(userCredentials).set({ ciphertext: "not-valid-ciphertext" }).where(eq(userCredentials.id, added.id));
 
     await expect(svc.resolve({ ownerId: owner, credentialId: added.id, providerId: OPENROUTER })).rejects.toMatchObject({
@@ -165,7 +170,7 @@ describe("resolve", () => {
     const h = makeHarness(db);
     const svc = createCredentialsService(h.ctx);
     const owner = await seedUser(db, { id: "user_wrong_key", role: "user" });
-    const added = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-encrypted" });
+    const added = await svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-encrypted" });
     const wrongKeyService = createCredentialsService({ ...h.ctx, box: createSecretBox(Buffer.alloc(32, 42)) });
 
     await expect(wrongKeyService.resolve({ ownerId: owner, credentialId: added.id, providerId: OPENROUTER })).rejects.toBeInstanceOf(CredentialsDecryptError);

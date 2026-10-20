@@ -34,11 +34,11 @@ describe("applyToChat", () => {
     const a = (await seedCharacter(db, { ownerId: owner })).id;
     const b = (await seedCharacter(db, { ownerId: owner })).id;
     const preset = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Cast", description: "", members: [memberSpec(b, 0, { talkativeness: 0.8 }), memberSpec(a, 1, { disabled: true })] },
     });
 
-    const result = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: preset.id, chatId: CHAT });
+    const result = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: preset.id, chatId: CHAT });
 
     expect(result).toEqual({
       added: [b, a],
@@ -66,12 +66,12 @@ describe("applyToChat", () => {
     const owner = (await seedUser(db)).id;
     const a = (await seedCharacter(db, { ownerId: owner })).id;
     const preset = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Solo", description: "", members: [memberSpec(a, 0, { talkativeness: 0.3 })] },
     });
 
-    const first = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: preset.id, chatId: CHAT });
-    const again = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: preset.id, chatId: CHAT });
+    const first = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: preset.id, chatId: CHAT });
+    const again = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: preset.id, chatId: CHAT });
 
     expect(first.added).toEqual([a]);
     expect(again).toEqual({ added: [], alreadyPresent: [a], skipped: [], configApplied: false, rulesMinted: [], rulesAlreadyPresent: [], rulesSkipped: [] });
@@ -88,11 +88,11 @@ describe("applyToChat", () => {
     const owner = (await seedUser(db)).id;
     const a = (await seedCharacter(db, { ownerId: owner })).id;
     const preset = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Narrated", description: "", groupConfig: { output: "narrator", policy: "list" }, members: [memberSpec(a, 0)] },
     });
 
-    const result = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: preset.id, chatId: CHAT });
+    const result = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: preset.id, chatId: CHAT });
     expect(result.configApplied).toBe(true);
     expect(h.configs).toHaveLength(1);
     expect(h.configs[0]?.config).toMatchObject({ output: "narrator", policy: "list" });
@@ -112,9 +112,9 @@ describe("applyToChat", () => {
     const svc = createRosterPresetService(refusing.ctx);
     const owner = (await seedUser(db)).id;
     const a = (await seedCharacter(db, { ownerId: owner })).id;
-    const preset = await svc.create({ principal: principal(owner), input: { name: "Mine", description: "", members: [memberSpec(a, 0)] } });
+    const preset = await svc.create({ principal: await principal(db, owner), input: { name: "Mine", description: "", members: [memberSpec(a, 0)] } });
 
-    await expect(svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: preset.id, chatId: CHAT })).rejects.toBeInstanceOf(
+    await expect(svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: preset.id, chatId: CHAT })).rejects.toBeInstanceOf(
       ChatNotFoundError,
     );
     // NOTHING room-shaped fired: no add, no knob, no config — and the all-present no-op oracle is closed
@@ -133,11 +133,11 @@ describe("applyToChat", () => {
     const owner = (await seedUser(db)).id;
     const stranger = (await seedUser(db)).id;
     const a = (await seedCharacter(db, { ownerId: owner })).id;
-    const preset = await svc.create({ principal: principal(owner), input: { name: "Mine", description: "", members: [memberSpec(a, 0)] } });
+    const preset = await svc.create({ principal: await principal(db, owner), input: { name: "Mine", description: "", members: [memberSpec(a, 0)] } });
 
-    await expect(svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(stranger), presetId: preset.id, chatId: CHAT })).rejects.toBeInstanceOf(
-      RosterPresetNotFoundError,
-    );
+    await expect(
+      svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, stranger), presetId: preset.id, chatId: CHAT }),
+    ).rejects.toBeInstanceOf(RosterPresetNotFoundError);
     expect(h.hostChecks).toHaveLength(0);
   });
 
@@ -149,7 +149,7 @@ describe("applyToChat", () => {
     const keep = (await seedCharacter(db, { ownerId: owner })).id;
     const doomed = (await seedCharacter(db, { ownerId: owner })).id;
     const preset = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Raced", description: "", members: [memberSpec(doomed, 0), memberSpec(keep, 1)] },
     });
 
@@ -159,7 +159,7 @@ describe("applyToChat", () => {
     // holds vs what the preset VIEW claimed... the surviving member still applies.
     await db.delete(characters).where(eq(characters.id, doomed));
 
-    const result = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: preset.id, chatId: CHAT });
+    const result = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: preset.id, chatId: CHAT });
     // The cascade already removed the doomed seat row, so it is neither added nor skipped — the honest
     // outcome of FK physics; `skipped` stays the reporting arm for the sub-cascade race window.
     expect(result.added).toEqual([keep]);
@@ -180,7 +180,7 @@ describe("applyToChat — the rules phase", () => {
     const owner = (await seedUser(db)).id;
     const a = (await seedCharacter(db, { ownerId: owner })).id;
     const cast = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: {
         name: "Ruled",
         description: "",
@@ -203,7 +203,7 @@ describe("applyToChat — the rules phase", () => {
     if (kathmandu === null) {
       throw new Error("the platform must know Asia/Kathmandu");
     }
-    const result = await svc.applyToChat({ timeZone: kathmandu, principal: principal(owner), presetId: cast.id, chatId: CHAT });
+    const result = await svc.applyToChat({ timeZone: kathmandu, principal: await principal(db, owner), presetId: cast.id, chatId: CHAT });
 
     expect(h.ruleMints.map((m) => m.rulePresetId)).toEqual(["sceneVeil", "clockFires"]);
     // The applying host's zone reaches every mint: the cast's hours are theirs.
@@ -223,11 +223,11 @@ describe("applyToChat — the rules phase", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const { svc, owner, cast } = await ruledCast(db, h);
-    await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: cast.id, chatId: CHAT });
+    await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: cast.id, chatId: CHAT });
     const mintsAfterFirst = h.ruleMints.length;
     const enablesAfterFirst = h.ruleEnables.length;
 
-    const again = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: cast.id, chatId: CHAT });
+    const again = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: cast.id, chatId: CHAT });
 
     expect(again.rulesMinted).toEqual([]);
     expect(again.rulesAlreadyPresent).toEqual(["sceneVeil", "clockFires"]);
@@ -242,7 +242,7 @@ describe("applyToChat — the rules phase", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const { svc, owner, cast } = await ruledCast(db, h);
-    await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: cast.id, chatId: CHAT });
+    await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: cast.id, chatId: CHAT });
     // The host toggled one rule off since — the cast re-asserts its all-enabled semantics.
     const veil = h.roomRules.find((rule) => rule.rulePresetId === "sceneVeil");
     if (veil === undefined) {
@@ -251,7 +251,7 @@ describe("applyToChat — the rules phase", () => {
     const index = h.roomRules.findIndex((rule) => rule.id === veil.id);
     h.roomRules[index] = { ...veil, enabled: false };
 
-    const again = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: cast.id, chatId: CHAT });
+    const again = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: cast.id, chatId: CHAT });
     expect(again.rulesAlreadyPresent).toContain("sceneVeil");
     expect(h.ruleEnables.at(-1)).toEqual({ ruleId: veil.id, enabled: true });
     expect(h.ruleMints.filter((m) => m.rulePresetId === "sceneVeil")).toHaveLength(1); // still ONE mint ever
@@ -261,7 +261,7 @@ describe("applyToChat — the rules phase", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const { svc, owner, cast } = await ruledCast(db, h);
-    await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: cast.id, chatId: CHAT });
+    await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: cast.id, chatId: CHAT });
     // Drift the room's veil bag out from under the cast (models a later re-mint with other knobs).
     const veil = h.roomRules.find((rule) => rule.rulePresetId === "sceneVeil");
     if (veil === undefined || veil.rulePresetKnobs === null) {
@@ -270,7 +270,7 @@ describe("applyToChat — the rules phase", () => {
     const index = h.roomRules.findIndex((rule) => rule.id === veil.id);
     h.roomRules[index] = { ...veil, rulePresetKnobs: { ...veil.rulePresetKnobs, veilWord: "((other))" } };
 
-    const again = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: cast.id, chatId: CHAT });
+    const again = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: cast.id, chatId: CHAT });
 
     expect(again.rulesMinted).toEqual(["sceneVeil"]);
     expect(again.rulesAlreadyPresent).toEqual(["clockFires"]);
@@ -284,7 +284,7 @@ describe("applyToChat — the rules phase", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const { svc, owner, cast } = await ruledCast(db, h);
-    await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: cast.id, chatId: CHAT });
+    await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: cast.id, chatId: CHAT });
     // Model the aborted-earlier-apply state: one of the clock's TWO rules is gone.
     const clockRule = h.roomRules.find((rule) => rule.rulePresetId === "clockFires");
     if (clockRule === undefined) {
@@ -295,7 +295,7 @@ describe("applyToChat — the rules phase", () => {
       1,
     );
 
-    const again = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: cast.id, chatId: CHAT });
+    const again = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: cast.id, chatId: CHAT });
 
     expect(again.rulesMinted).toEqual(["clockFires"]);
     // The surviving half was deleted before the fresh full set minted.
@@ -311,7 +311,7 @@ describe("applyToChat — the rules phase", () => {
     // class on the REAL graph — proven in tests/legacy/server/entry/compose/roster-preset.int.test.ts).
     h.refuseMints.set("sceneVeil", "that world book is not attached to this chat");
 
-    const result = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: cast.id, chatId: CHAT });
+    const result = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: cast.id, chatId: CHAT });
 
     expect(result.rulesSkipped).toEqual([{ rulePresetId: "sceneVeil", reason: "that world book is not attached to this chat" }]);
     expect(result.rulesMinted).toEqual(["clockFires"]);
@@ -334,7 +334,7 @@ describe("applyToChat — the rules phase", () => {
       knobs: {},
     });
 
-    const result = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: cast.id, chatId: CHAT });
+    const result = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: cast.id, chatId: CHAT });
 
     expect(result.rulesSkipped).toEqual([{ rulePresetId: "retiredPreset", reason: "this rule preset is no longer offered" }]);
     expect(result.rulesMinted).toEqual(["sceneVeil", "clockFires"]);
@@ -353,9 +353,9 @@ describe("applyToChat — the rules phase", () => {
     };
     const svc = createRosterPresetService(failingCtx);
 
-    await expect(svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(base.owner), presetId: base.cast.id, chatId: CHAT })).rejects.toBeInstanceOf(
-      ChatNotFoundError,
-    );
+    await expect(
+      svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, base.owner), presetId: base.cast.id, chatId: CHAT }),
+    ).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 
   test("a SANS-RULES cast performs ZERO automation ops — not even the classification read (the planted control)", async () => {
@@ -364,7 +364,7 @@ describe("applyToChat — the rules phase", () => {
     const svc = createRosterPresetService(h.ctx);
     const owner = (await seedUser(db)).id;
     const a = (await seedCharacter(db, { ownerId: owner })).id;
-    const plain = await svc.create({ principal: principal(owner), input: { name: "Plain", description: "", members: [memberSpec(a, 0)] } });
+    const plain = await svc.create({ principal: await principal(db, owner), input: { name: "Plain", description: "", members: [memberSpec(a, 0)] } });
     // The room HAS rules (planted) — an over-eager rules phase would see and touch them.
     h.roomRules.push(
       seededRuleView({
@@ -378,7 +378,7 @@ describe("applyToChat — the rules phase", () => {
       }),
     );
 
-    const result = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: principal(owner), presetId: plain.id, chatId: CHAT });
+    const result = await svc.applyToChat({ timeZone: UTC_TIME_ZONE, principal: await principal(db, owner), presetId: plain.id, chatId: CHAT });
 
     expect(result.rulesMinted).toEqual([]);
     expect(result.rulesAlreadyPresent).toEqual([]);

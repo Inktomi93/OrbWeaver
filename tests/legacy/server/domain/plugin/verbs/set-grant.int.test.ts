@@ -31,14 +31,14 @@ test("THE LOOP CLOSES: upgrade declares a new capability → setGrant allows it 
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
     grant: ["chat.read"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   const upgraded = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read", "notify"] }),
   });
@@ -48,7 +48,7 @@ test("THE LOOP CLOSES: upgrade declares a new capability → setGrant allows it 
   expect(upgraded.declaredCapabilities).toEqual(["chat.read", "notify"]); // the ASK is now projected
 
   const regranted = await h.service.setGrant({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     grant: ["chat.read", "notify"],
     acknowledgedNetHosts: [],
@@ -56,7 +56,7 @@ test("THE LOOP CLOSES: upgrade declares a new capability → setGrant allows it 
   expect(regranted.grantedCapabilities).toEqual(["chat.read", "notify"]);
   expect(regranted.status).toBe("disabled"); // re-grant is NOT enabling
 
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
   expect(h.port.created.at(-1)?.grants).toEqual(["chat.read", "notify"]); // the guest runs with the re-consented set
 });
 
@@ -67,13 +67,13 @@ test("re-grant never enables a disabled plugin, and enabling never re-grants", a
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["chat.read", "notify"] }),
     grant: ["chat.read"],
   });
 
   const regranted = await h.service.setGrant({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     grant: ["chat.read", "notify"],
     acknowledgedNetHosts: [],
@@ -82,15 +82,15 @@ test("re-grant never enables a disabled plugin, and enabling never re-grants", a
   expect(h.port.created.length).toBe(0); // nothing was activated by the consent act
 
   // …and the reverse: enabling a plugin whose manifest declares MORE than the grant does not widen it.
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: false });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: false });
   const narrow = await h.service.setGrant({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     grant: ["chat.read"],
     acknowledgedNetHosts: [],
   });
   expect(narrow.grantedCapabilities).toEqual(["chat.read"]);
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
   expect(h.port.created.at(-1)?.grants).toEqual(["chat.read"]); // still the STORED grant, not the declared set
 });
 
@@ -102,15 +102,15 @@ test("re-granting an ENABLED plugin restarts the resident so the running grants 
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["chat.read", "notify"] }),
     grant: ["chat.read", "notify"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
   expect(h.port.created.at(-1)?.grants).toEqual(["chat.read", "notify"]);
 
   const narrowed = await h.service.setGrant({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     grant: ["chat.read"],
     acknowledgedNetHosts: [],
@@ -133,13 +133,13 @@ test("a PARTIAL re-grant of an ENABLED row does NOT restore the withheld host (u
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: ["net.fetch"],
   });
   // v2 widens BOTH a capability (notify) AND a host (collector) — so a partial answer is possible.
   const upgraded = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({
       id: "pp",
@@ -149,13 +149,13 @@ test("a PARTIAL re-grant of an ENABLED row does NOT restore the withheld host (u
     }),
   });
   // Turn it ON while the re-consent stands — the switch the surface leaves live. Wall carries the consented set.
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
   expect(h.port.created.at(-1)?.netHosts).toEqual(["api.vendor.example"]);
 
   // PARTIAL re-grant of the now-ENABLED row: net.fetch re-confirmed with the full host echo, notify LEFT. The
   // acknowledgement gate forces the echo to cover collector, yet the update is not fully consented (notify).
   const partial = await h.service.setGrant({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     grant: ["net.fetch"],
     acknowledgedNetHosts: upgraded.netHosts ?? [],
@@ -172,21 +172,21 @@ test("a COVERING re-grant of an ENABLED row DOES restore full reach (the delta c
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: ["net.fetch"],
   });
   const upgraded = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
   expect(h.port.created.at(-1)?.netHosts).toEqual(["api.vendor.example"]);
 
   // COVERING re-grant: the whole ask answered (net.fetch is the only capability, echo covers every host).
   const covered = await h.service.setGrant({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     grant: ["net.fetch"],
     acknowledgedNetHosts: upgraded.netHosts ?? [],
@@ -200,12 +200,12 @@ test("a grant outside the PERSISTED manifest's declared set is refused", async (
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
     grant: [],
   });
   await expect(
-    h.service.setGrant({ caller: ownerPrincipalFor(owner), pluginId: installed.id, grant: ["turn.trigger"], acknowledgedNetHosts: [] }),
+    h.service.setGrant({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, grant: ["turn.trigger"], acknowledgedNetHosts: [] }),
   ).rejects.toBeInstanceOf(CapabilityNotGrantedError);
 });
 
@@ -217,18 +217,18 @@ test("granting net.fetch WITHOUT acknowledging the manifest's hosts is refused (
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: [],
   });
 
   await expect(
-    h.service.setGrant({ caller: ownerPrincipalFor(owner), pluginId: installed.id, grant: ["net.fetch"], acknowledgedNetHosts: [] }),
+    h.service.setGrant({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, grant: ["net.fetch"], acknowledgedNetHosts: [] }),
   ).rejects.toBeInstanceOf(PluginNetHostsUnacknowledgedError);
 
   // The same call WITH the echo the view hands the client (`PluginView.netHosts`) succeeds.
   const granted = await h.service.setGrant({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     grant: ["net.fetch"],
     acknowledgedNetHosts: installed.netHosts ?? [],
@@ -244,18 +244,18 @@ test("a STALE netHosts echo cannot arm the egress wall at a host the owner never
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: [],
   });
   await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["collector.attacker.example"] }),
   });
 
   const refused = h.service.setGrant({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     grant: ["net.fetch"],
     acknowledgedNetHosts: ["api.vendor.example"], // the stale screen
@@ -272,12 +272,12 @@ test("a CASE-only echo difference is the same reach and is accepted (no false co
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: [],
   });
   const granted = await h.service.setGrant({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     grant: ["net.fetch"],
     acknowledgedNetHosts: ["API.Vendor.Example"],
@@ -293,12 +293,12 @@ test("the netHosts echo is only consulted when net.fetch is in the grant", async
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["chat.read", "net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: ["net.fetch"],
   });
   const dropped = await h.service.setGrant({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     grant: ["chat.read"],
     acknowledgedNetHosts: [],
@@ -312,7 +312,7 @@ test("a missing plugin id is a leak-free NotFound", async () => {
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   await expect(
-    h.service.setGrant({ caller: ownerPrincipalFor(owner), pluginId: castId<PluginId>("plugin_missing"), grant: [], acknowledgedNetHosts: [] }),
+    h.service.setGrant({ caller: await ownerPrincipalFor(db, owner), pluginId: castId<PluginId>("plugin_missing"), grant: [], acknowledgedNetHosts: [] }),
   ).rejects.toBeInstanceOf(PluginNotFoundError);
 });
 
@@ -321,13 +321,13 @@ test("a plain user (role:'user') re-consents on their OWN plugin — D147", asyn
   const h = makePluginHarness(db);
   const user = await seedUser(db, { handle: castId<Handle>("user") });
   const installed = await h.service.install({
-    caller: principalFor(user),
+    caller: await principalFor(db, user),
     bundle: makeBundle({ id: "pp", capabilities: ["chat.read", "notify"] }),
     grant: ["chat.read"],
   });
 
   const regranted = await h.service.setGrant({
-    caller: principalFor(user),
+    caller: await principalFor(db, user),
     pluginId: installed.id,
     grant: ["chat.read", "notify"],
     acknowledgedNetHosts: [],
@@ -346,9 +346,9 @@ test("the seeder's own shape works for a plain user: install(grant:[]) then setG
   const db = await freshDb();
   const h = makePluginHarness(db);
   const user = await seedUser(db, { handle: castId<Handle>("user") });
-  const installed = await h.service.install({ caller: principalFor(user), bundle: makeBundle({ id: "example", capabilities: [] }), grant: [] });
+  const installed = await h.service.install({ caller: await principalFor(db, user), bundle: makeBundle({ id: "example", capabilities: [] }), grant: [] });
 
-  const settled = await h.service.setGrant({ caller: principalFor(user), pluginId: installed.id, grant: [], acknowledgedNetHosts: [] });
+  const settled = await h.service.setGrant({ caller: await principalFor(db, user), pluginId: installed.id, grant: [], acknowledgedNetHosts: [] });
 
   expect(settled.grantedCapabilities).toEqual([]);
   expect(settled.status).toBe("disabled"); // a re-grant without `enable` never enables
@@ -367,19 +367,19 @@ test("a stranger cannot re-grant another user's plugin — not a plain user, and
   const bob = await seedUser(db, { handle: castId<Handle>("bob") });
   const boss = await seedUser(db, { handle: castId<Handle>("boss") });
   const hers = await h.service.install({
-    caller: principalFor(alice),
+    caller: await principalFor(db, alice),
     bundle: makeBundle({ id: "pp", capabilities: ["chat.read", "notify"] }),
     grant: ["chat.read"],
   });
 
   await expect(
-    h.service.setGrant({ caller: principalFor(bob), pluginId: hers.id, grant: ["chat.read", "notify"], acknowledgedNetHosts: [] }),
+    h.service.setGrant({ caller: await principalFor(db, bob), pluginId: hers.id, grant: ["chat.read", "notify"], acknowledgedNetHosts: [] }),
   ).rejects.toBeInstanceOf(PluginNotFoundError);
   await expect(
-    h.service.setGrant({ caller: ownerPrincipalFor(boss), pluginId: hers.id, grant: ["chat.read", "notify"], acknowledgedNetHosts: [] }),
+    h.service.setGrant({ caller: await ownerPrincipalFor(db, boss), pluginId: hers.id, grant: ["chat.read", "notify"], acknowledgedNetHosts: [] }),
   ).rejects.toBeInstanceOf(PluginNotFoundError);
 
-  expect((await h.service.list({ caller: principalFor(alice) }))[0]?.grantedCapabilities).toEqual(["chat.read"]);
+  expect((await h.service.list({ caller: await principalFor(db, alice) }))[0]?.grantedCapabilities).toEqual(["chat.read"]);
 });
 
 // THE SYSTEM'S OWN REFUSAL, RECORDED (#650 P1-1). A forced disable used to render identically to the owner's
@@ -394,14 +394,14 @@ describe("reconsentPending — the forced-disable flag", () => {
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
       grant: ["chat.read"],
     });
     expect(installed.reconsentPending).toBe(false); // a fresh install has nothing to re-consent to
 
     const upgraded = await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read", "notify"] }),
     });
@@ -417,13 +417,13 @@ describe("reconsentPending — the forced-disable flag", () => {
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
       grant: ["net.fetch"],
     });
 
     const upgraded = await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["collector.attacker.example"] }),
     });
@@ -437,13 +437,13 @@ describe("reconsentPending — the forced-disable flag", () => {
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
       grant: ["chat.read"],
     });
 
     const upgraded = await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read"] }),
     });
@@ -458,18 +458,18 @@ describe("reconsentPending — the forced-disable flag", () => {
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
       grant: ["chat.read"],
     });
     await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read", "notify"] }),
     });
 
     const regranted = await h.service.setGrant({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       grant: ["chat.read", "notify"],
       acknowledgedNetHosts: [],
@@ -483,19 +483,19 @@ describe("reconsentPending — the forced-disable flag", () => {
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
       grant: ["chat.read"],
     });
     await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read", "notify", "storage.kv"] }),
     });
 
     // The owner allows ONE of the two newly-declared capabilities.
     const partial = await h.service.setGrant({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       grant: ["chat.read", "notify"],
       acknowledgedNetHosts: [],
@@ -514,13 +514,13 @@ describe("reconsentPending — the forced-disable flag", () => {
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
       grant: ["net.fetch"],
     });
     // v2 adds a destination AND a capability, so a partial answer is possible.
     const upgraded = await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({
         id: "pp",
@@ -535,7 +535,7 @@ describe("reconsentPending — the forced-disable flag", () => {
     // is still standing about the same update, so its marks stay: dropping them would quietly remove
     // information from a live consent surface.
     const partial = await h.service.setGrant({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       grant: ["net.fetch"],
       acknowledgedNetHosts: upgraded.netHosts ?? [],
@@ -545,7 +545,7 @@ describe("reconsentPending — the forced-disable flag", () => {
 
     // The COVERING answer clears both — there is no longer an ask to mark.
     const full = await h.service.setGrant({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       grant: ["net.fetch", "notify"],
       acknowledgedNetHosts: upgraded.netHosts ?? [],
@@ -571,19 +571,19 @@ describe("reconsentPending — the forced-disable flag", () => {
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
       grant: ["net.fetch"],
     });
     await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
     });
 
-    await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+    await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
-    const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+    const [row] = await h.service.list({ caller: await ownerPrincipalFor(db, owner) });
     expect(row?.status).toBe("enabled");
     expect(row?.reconsentPending).toBe(true);
     expect(row?.widenedNetHosts).toEqual(["collector.attacker.example"]);
@@ -598,19 +598,19 @@ describe("reconsentPending — the forced-disable flag", () => {
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
       grant: ["chat.read"],
     });
     await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read", "notify"] }),
     });
 
-    await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+    await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
-    const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+    const [row] = await h.service.list({ caller: await ownerPrincipalFor(db, owner) });
     expect(row?.status).toBe("enabled");
     expect(row?.reconsentPending).toBe(true);
     // …and it is running with the STORED grant, not the declared set — the two facts together are the whole
@@ -630,7 +630,7 @@ describe("approve with enable", () => {
     const db = await freshDb();
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const caller = principalFor(owner);
+    const caller = await principalFor(db, owner);
     const installed = await h.service.install({ caller, bundle: makeBundle({ id: "pp", capabilities: ["chat.read", "notify"] }), grant: [] });
     // The seeder's shape: the empty re-grant raises the standing ask and runs nothing.
     await h.service.setGrant({ caller, pluginId: installed.id, grant: [], acknowledgedNetHosts: [] });
@@ -650,7 +650,7 @@ describe("approve with enable", () => {
     const db = await freshDb();
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const caller = principalFor(owner);
+    const caller = await principalFor(db, owner);
     const installed = await h.service.install({
       caller,
       bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
@@ -680,7 +680,7 @@ describe("approve with enable", () => {
     const db = await freshDb();
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const caller = principalFor(owner);
+    const caller = await principalFor(db, owner);
     const installed = await h.service.install({ caller, bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }), grant: [] });
     await h.service.setGrant({ caller, pluginId: installed.id, grant: ["chat.read"], acknowledgedNetHosts: [], enable: true });
     expect(h.port.created.length).toBe(1);
@@ -703,14 +703,14 @@ describe("approve with enable", () => {
     const h = makePluginHarness(db);
     const alice = await seedUser(db, { handle: castId<Handle>("alice") });
     const boss = await seedUser(db, { handle: castId<Handle>("boss") });
-    const hers = await h.service.install({ caller: principalFor(alice), bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }), grant: [] });
+    const hers = await h.service.install({ caller: await principalFor(db, alice), bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }), grant: [] });
 
     await expect(
-      h.service.setGrant({ caller: ownerPrincipalFor(boss), pluginId: hers.id, grant: ["chat.read"], acknowledgedNetHosts: [], enable: true }),
+      h.service.setGrant({ caller: await ownerPrincipalFor(db, boss), pluginId: hers.id, grant: ["chat.read"], acknowledgedNetHosts: [], enable: true }),
     ).rejects.toBeInstanceOf(PluginNotFoundError);
 
     expect(h.port.created.length).toBe(0);
-    const [row] = await h.service.list({ caller: principalFor(alice) });
+    const [row] = await h.service.list({ caller: await principalFor(db, alice) });
     expect(row?.status).toBe("disabled");
     expect(row?.grantedCapabilities).toEqual([]);
   });
@@ -752,7 +752,7 @@ describe("approve with enable — real guest", () => {
   test("an approved-and-running guest is still refused a capability it declared but was not granted", async () => {
     const db = await freshDb();
     const h = makePluginHarness(db, { port: realHost() });
-    const caller = principalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+    const caller = await principalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
     const declared: PluginCapability[] = ["storage.kv", "chat.read"];
 
     // Both plugins DECLARE `chat.read`, so only the grant can tell them apart: the first is approved without it.

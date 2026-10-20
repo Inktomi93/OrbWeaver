@@ -30,7 +30,7 @@ describe("createFromCharacter", () => {
     });
 
     const detail = await svc.createFromCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       swapMacros: false,
     });
@@ -55,7 +55,7 @@ describe("createFromCharacter", () => {
     });
 
     const detail = await svc.createFromCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       swapMacros: true,
     });
@@ -70,7 +70,7 @@ describe("createFromCharacter", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner, description: null });
     const detail = await svc.createFromCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       swapMacros: true,
     });
@@ -85,7 +85,7 @@ describe("createFromCharacter", () => {
     const character = await seedCharacter(db, { ownerId: owner });
     await expect(
       svc.createFromCharacter({
-        principal: principal(other),
+        principal: await principal(db, other),
         characterId: character,
         swapMacros: false,
       }),
@@ -98,7 +98,7 @@ describe("createFromCharacter", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await expect(
       svc.createFromCharacter({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         characterId: castId<CharacterId>("character_ghost"),
         swapMacros: false,
       }),

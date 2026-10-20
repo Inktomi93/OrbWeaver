@@ -34,7 +34,6 @@ import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/id
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -46,6 +45,7 @@ import type { ActiveTurns } from "#server/domain/chat/contract/active-turns.ts";
 import type { HistoryMacroNames } from "#server/domain/chat/contract/results.ts";
 import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts";
 import { setParticipantActivePersona } from "#server/domain/chat/verbs/participants.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support.ts";
 
 let db: Db;
@@ -53,8 +53,8 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 /** A minimal character card, description overridable — the worked examples put `{{user}}`/`{{persona}}`
@@ -296,7 +296,7 @@ describe("canon freeze — swapping the Chat persona (#3) or the Anchor (#4) NEV
     });
 
     // The Anchor re-pin: this chat's card {{user}} moves Alex → Steve.
-    await life.setChatAnchorPersona({ principal: principal(host), chatId, personaId: steve });
+    await life.setChatAnchorPersona({ principal: await principal(db, host), chatId, personaId: steve });
 
     const [row] = await db.select().from(messages).where(eq(messages.id, messageId));
     expect(row?.personaId).toBe(alex); // untouched — only `reattributePersona` (edit.int.test.ts) may re-stamp

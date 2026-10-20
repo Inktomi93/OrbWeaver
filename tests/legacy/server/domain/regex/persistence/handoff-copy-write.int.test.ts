@@ -17,6 +17,7 @@
 import { chatRegexScripts, regexScripts } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import type { Handle, RegexScriptId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -62,7 +63,7 @@ describe("copyHandoffRegexScripts", () => {
     expect(copies.map((c) => c.name).sort()).toEqual(["Rename", "Strip tags"]);
     expect((await db.select().from(chatRegexScripts).where(eq(chatRegexScripts.chatId, chatId))).map((r) => r.regexScriptId).sort()).toEqual([first, second]);
 
-    await db.batch(batchMany([...repoint]));
+    await db.batch(batchMany(repoint.map(statementForOwner)));
 
     const attached = await db.select().from(chatRegexScripts).where(eq(chatRegexScripts.chatId, chatId));
     expect(attached).toHaveLength(2);
@@ -100,7 +101,7 @@ describe("copyHandoffRegexScripts", () => {
     await db.insert(chatRegexScripts).values({ chatId, regexScriptId: source, position: 2, createdAt: 1 });
 
     const repoint = await copier(db)({ fromOwnerId: oldHost, toOwnerId: newHost, chatId });
-    await db.batch(batchMany([...repoint]));
+    await db.batch(batchMany(repoint.map(statementForOwner)));
 
     // No second row in the recipient's library — the one dedup rule (name + canonical body) found theirs.
     expect((await db.select().from(regexScripts).where(eq(regexScripts.ownerId, newHost))).map((r) => r.id)).toEqual([mine]);
@@ -125,7 +126,7 @@ describe("copyHandoffRegexScripts", () => {
 
     // The retry finds its own copy by content instead of minting a second library row.
     const repoint = await copier(db)({ fromOwnerId: oldHost, toOwnerId: newHost, chatId });
-    await db.batch(batchMany([...repoint]));
+    await db.batch(batchMany(repoint.map(statementForOwner)));
 
     const mine = await db.select().from(regexScripts).where(eq(regexScripts.ownerId, newHost));
     expect(mine).toHaveLength(1);
@@ -153,14 +154,14 @@ describe("copyHandoffRegexScripts", () => {
     const svc = createRegexService(makeHarness(db, { requireChatHost: allowChat, requireChatMember: allowChat }).ctx);
 
     // BEFORE: the row is the departed host's, so the incoming host's owner-gated lever cannot see it.
-    await expect(svc.updateScript({ principal: principal(newHost), scriptId: source, input: { enabled: false } })).rejects.toThrow(/not found/i);
+    await expect(svc.updateScript({ principal: await principal(db, newHost), scriptId: source, input: { enabled: false } })).rejects.toThrow(/not found/i);
 
     const repoint = await copier(db)({ fromOwnerId: oldHost, toOwnerId: newHost, chatId });
-    await db.batch(batchMany([...repoint]));
+    await db.batch(batchMany(repoint.map(statementForOwner)));
 
     // AFTER: the room runs a row the sitting host owns, so the switch is theirs.
     const attachedId = (await db.select().from(chatRegexScripts).where(eq(chatRegexScripts.chatId, chatId)))[0]?.regexScriptId ?? source;
-    await svc.updateScript({ principal: principal(newHost), scriptId: attachedId, input: { enabled: false } });
+    await svc.updateScript({ principal: await principal(db, newHost), scriptId: attachedId, input: { enabled: false } });
     expect(
       (
         await db

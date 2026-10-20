@@ -18,10 +18,10 @@ test("host attaches an owned document to the room; re-attach idempotent", async 
   const h = makeDatabankHarness(db); // default ensureChatHost resolves (host)
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const chatId = await seedChat(db, "chat_room");
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
 
-  await h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId });
-  await h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId }); // idempotent
+  await h.service.attachToChat({ principal: await principalFor(db, owner), documentId: document.id, chatId });
+  await h.service.attachToChat({ principal: await principalFor(db, owner), documentId: document.id, chatId }); // idempotent
   const rows = await db.select().from(chatDocuments).where(eq(chatDocuments.documentId, document.id));
   expect(rows).toEqual([{ chatId, documentId: document.id }]);
 });
@@ -31,9 +31,9 @@ test("a non-host attach is rejected by the injected host guard — no junction r
   const h = makeDatabankHarness(db, { ensureChatHost: () => Promise.reject(new Error("not host")) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const chatId = await seedChat(db, "chat_room");
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
 
-  await expect(h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId })).rejects.toThrow("not host");
+  await expect(h.service.attachToChat({ principal: await principalFor(db, owner), documentId: document.id, chatId })).rejects.toThrow("not host");
   expect(await db.select().from(chatDocuments).where(eq(chatDocuments.documentId, document.id))).toHaveLength(0);
 });
 
@@ -43,9 +43,11 @@ test("a foreign document NEVER attaches to a chat even for the host (cross-tenan
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const attacker = await seedUser(db, { handle: castId<Handle>("attacker") });
   const chatId = await seedChat(db, "chat_room");
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
 
-  await expect(h.service.attachToChat({ principal: principalFor(attacker), documentId: document.id, chatId })).rejects.toBeInstanceOf(DocumentNotFoundError);
+  await expect(h.service.attachToChat({ principal: await principalFor(db, attacker), documentId: document.id, chatId })).rejects.toBeInstanceOf(
+    DocumentNotFoundError,
+  );
   expect(await db.select().from(chatDocuments).where(eq(chatDocuments.documentId, document.id))).toHaveLength(0);
 });
 
@@ -64,17 +66,17 @@ test("#2471 a host's attach fans the ROOM, and the co-member's own read carries 
   const chatId = await seedChat(db, "chat_room");
   await seedChatHost(db, chatId, host);
   await seedChatHost(db, chatId, member, "member");
-  const { document } = await h.service.createFromText({ principal: principalFor(host), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, host), name: "d.md", text: "canon" });
   h.userEvents.length = 0; // drop the create's own fan — this asserts what the ATTACH announces
 
-  await h.service.attachToChat({ principal: principalFor(host), documentId: document.id, chatId });
+  await h.service.attachToChat({ principal: await principalFor(db, host), documentId: document.id, chatId });
 
   // THE ROOM heard it — once, for this room, id-free (the bridge carries no payload).
   expect(h.roomFans).toEqual([{ type: "roomEntityChanged", chatId, entity: "databank" }]);
   // ...the host's own bank still announces per-person (both planes; neither replaces the other)...
   expect(h.userEvents).toEqual([{ userId: host, event: { type: "databankChanged", documentId: document.id } }]);
   // ...and the read that fan tells the co-member to re-issue returns the document, AS THE CO-MEMBER.
-  const asMember = await h.service.listActiveForChat({ principal: principalFor(member), chatId });
+  const asMember = await h.service.listActiveForChat({ principal: await principalFor(db, member), chatId });
   expect(asMember.map((row) => row.id)).toEqual([document.id]);
 });
 
@@ -86,20 +88,20 @@ test("#2471 a host's detach fans the same room, and the co-member's read drops t
   const chatId = await seedChat(db, "chat_room");
   await seedChatHost(db, chatId, host);
   await seedChatHost(db, chatId, member, "member");
-  const { document } = await h.service.createFromText({ principal: principalFor(host), name: "d.md", text: "canon" });
-  await h.service.attachToChat({ principal: principalFor(host), documentId: document.id, chatId });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, host), name: "d.md", text: "canon" });
+  await h.service.attachToChat({ principal: await principalFor(db, host), documentId: document.id, chatId });
   h.roomFans.length = 0;
 
-  await h.service.detachFromChat({ principal: principalFor(host), documentId: document.id, chatId });
+  await h.service.detachFromChat({ principal: await principalFor(db, host), documentId: document.id, chatId });
 
   expect(h.roomFans).toEqual([{ type: "roomEntityChanged", chatId, entity: "databank" }]);
-  expect(await h.service.listActiveForChat({ principal: principalFor(member), chatId })).toEqual([]);
+  expect(await h.service.listActiveForChat({ principal: await principalFor(db, member), chatId })).toEqual([]);
 
   // AN IDEMPOTENT DETACH FANS NOTHING — the guard that keeps a no-op toggle from storming every member
   // device (`invalidateQueries` cancels and restarts an in-flight fetch; that storm is what the narrow
   // bridge member exists to avoid).
   h.roomFans.length = 0;
-  await h.service.detachFromChat({ principal: principalFor(host), documentId: document.id, chatId });
+  await h.service.detachFromChat({ principal: await principalFor(db, host), documentId: document.id, chatId });
   expect(h.roomFans).toEqual([]);
 });
 
@@ -109,11 +111,11 @@ test("#2471 an idempotent RE-attach fans nothing — only a real junction write 
   const host = await seedUser(db, { handle: castId<Handle>("host") });
   const chatId = await seedChat(db, "chat_room");
   await seedChatHost(db, chatId, host);
-  const { document } = await h.service.createFromText({ principal: principalFor(host), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, host), name: "d.md", text: "canon" });
 
-  await h.service.attachToChat({ principal: principalFor(host), documentId: document.id, chatId });
+  await h.service.attachToChat({ principal: await principalFor(db, host), documentId: document.id, chatId });
   h.roomFans.length = 0;
-  await h.service.attachToChat({ principal: principalFor(host), documentId: document.id, chatId });
+  await h.service.attachToChat({ principal: await principalFor(db, host), documentId: document.id, chatId });
 
   expect(h.roomFans).toEqual([]);
 });
@@ -123,9 +125,9 @@ test("#2471 a REFUSED attach fans nothing — the host guard rejects before any 
   const h = makeDatabankHarness(db, { ensureChatHost: () => Promise.reject(new Error("not host")) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const chatId = await seedChat(db, "chat_room");
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
 
-  await expect(h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId })).rejects.toThrow("not host");
+  await expect(h.service.attachToChat({ principal: await principalFor(db, owner), documentId: document.id, chatId })).rejects.toThrow("not host");
 
   expect(h.roomFans).toEqual([]);
 });

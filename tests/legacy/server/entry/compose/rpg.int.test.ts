@@ -78,11 +78,11 @@ test("CHEAP turn — createGame + a real tool turn flush lands state + the point
   const { events } = collector;
 
   // createGame through the REAL service — writes the game row AND the opaque pointer via chat's real setRpgPointer.
-  const created = await services.rpg.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await services.rpg.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const created = await services.rpg.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await services.rpg.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
 
   // The pointer is projected onto ChatDetail (the client's takeover gate reads it off data it already holds).
-  const detail = await services.chat.getChat({ principal: hostPrincipal(hostId), chatId });
+  const detail = await services.chat.getChat({ principal: await hostPrincipal(db, hostId), chatId });
   expect(detail.rpg).toEqual({ gameId: created.gameId, engaged: true }); // born engaged (#40)
 
   // A committed assistant slot the flush keys the snapshot to.
@@ -96,7 +96,7 @@ test("CHEAP turn — createGame + a real tool turn flush lands state + the point
   const records = await app.toolUse.executeToolCalls(
     set,
     [{ toolCallId: "call_1", name: "update_scene", arguments: JSON.stringify({ location: "the cave mouth", recentEvent: "entered the cave" }) }],
-    { principal: hostPrincipal(hostId), triggeredBy: hostId, chatId, turnId: TURN, membership: null },
+    { principal: await hostPrincipal(db, hostId), triggeredBy: hostId, chatId, turnId: TURN, membership: null },
   );
   expect(records[0]?.isError).toBe(false); // the real handler staged the scene write (errors-as-data would set true)
 
@@ -107,7 +107,7 @@ test("CHEAP turn — createGame + a real tool turn flush lands state + the point
   await app.rpgChatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
   // State landed — read it back through the REAL tracker view (roster ∪ sheets, resolved-current snapshot).
-  const view = await services.rpg.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await services.rpg.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient?.location).toBe("the cave mouth");
   expect(view.recentBeats).toContain("entered the cave");
 
@@ -124,19 +124,19 @@ test("createGame on an unsent room claims it into the host's Chats list (compose
   const chatId = await seedChat(db, "husk", { startedAt: null });
   await seedParticipant(db, { chatId, key: "husk_host", userId: hostId, role: "host", joinSeq: 0 });
   const listed = async (): Promise<{ readonly ids: readonly ChatId[]; readonly totalCount: number }> => {
-    const page = await services.chat.listChats({ principal: hostPrincipal(hostId) });
+    const page = await services.chat.listChats({ principal: await hostPrincipal(db, hostId) });
     return { ids: page.items.map((c) => c.id), totalCount: page.totalCount };
   };
   expect(await listed()).toStrictEqual({ ids: [], totalCount: 0 });
 
-  await services.rpg.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await services.rpg.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
 
   expect(await listed()).toStrictEqual({ ids: [chatId], totalCount: 1 });
 });
 
 test("a start-as-game room the host edits is claimed: listed, and the nav-away reap leaves it (composed-real)", async ({ services, db }) => {
   const hostId = await seedUser(db, castId<Handle>("rpghost_startgame"));
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const characterId = await seedCharacter(db, hostId, "startgame", { id: mintTypeId(ID_PREFIX.character) });
   const { chat } = await services.chat.startChat({ principal, characterIds: [characterId], opening: "none", startAsGame: {} });
   const listedIds = async (): Promise<readonly ChatId[]> => (await services.chat.listChats({ principal })).items.map((c) => c.id);
@@ -155,7 +155,7 @@ test("a chat write racing createGame on an unsent room replays the creation stat
   const hostId = await seedUser(db, castId<Handle>("rpghost_race"));
   const chatId = await seedChat(db, "race", { startedAt: null, id: mintTypeId(ID_PREFIX.chat) });
   await seedParticipant(db, { chatId, key: "race_host", userId: hostId, role: "host", joinSeq: 0 });
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
 
   await Promise.all([services.chat.updateTitle({ principal, chatId, title: "We ride at dawn" }), services.rpg.createGame({ principal, chatId, mode: "lite" })]);
 
@@ -171,7 +171,7 @@ async function provePlantedPromotionRecovery(args: {
 }): Promise<{ readonly markedCards: number; readonly liveSeats: number; readonly characterActors: number; readonly castActors: number }> {
   const { db, services, key, seatBeforeRetry } = args;
   const { chatId, hostId } = await seedHostGameChat(db, key);
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   await services.rpg.createGame({ principal, chatId, mode: "lite" });
   await services.rpg.editSnapshot({ principal, chatId, patch: { presentCharacters: ["npc:vesna"] } });
   await services.rpg.patchActor({
@@ -244,8 +244,8 @@ test("CHEAP turn (tool-round arm) — a wire that CAN carry tools rides them, ne
     cannedToolCalls: [{ name: "update_scene", arguments: JSON.stringify({ location: "the obsidian tower", recentEvent: "arrived at the tower" }) }],
   });
 
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
@@ -255,7 +255,7 @@ test("CHEAP turn (tool-round arm) — a wire that CAN carry tools rides them, ne
   expect(spy.chatTurns).toEqual([{ model: "fake-chat-model", hasResponseFormat: false, hasToolServer: false }]);
   expect(spy.wireTools[0]?.map((t) => t.name)).toContain("update_scene");
 
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient?.location).toBe("the obsidian tower");
   expect(view.recentBeats).toContain("arrived at the tower");
 });
@@ -278,8 +278,8 @@ test("CHEAP turn repairs a named existing item's omitted move with one inventory
     ],
   });
 
-  const { gameId } = await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  const { gameId } = await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const base = await seedMessage(db, chatId, 1, { role: "assistant", content: "Mira eyes the key." });
   const state: RpgSnapshotState = {
     ...defaultSnapshotState(),
@@ -318,7 +318,7 @@ test("CHEAP turn repairs a named existing item's omitted move with one inventory
 
   expect(spy.chatTurns).toHaveLength(2);
   expect(spy.wireTools[1]?.map((tool) => tool.name)).toEqual(["update_inventory", "no_changes"]);
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.actors.find((actor) => actor.name === "Mira")?.volatile?.inventory).toEqual([
     expect.objectContaining({ name: "Small brass key", location: "front hoodie pocket" }),
   ]);
@@ -329,8 +329,8 @@ test("CHEAP turn (agent-sdk degrade) — a wire with no `tools[]` runs ONE struc
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
 
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
@@ -340,8 +340,8 @@ test("CHEAP turn (agent-sdk degrade) — a wire with no `tools[]` runs ONE struc
   expect(spy.chatTurns).toEqual([]);
 
   // IDENTICAL state lands via the structured call (same canned delta, one fold path).
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient?.location).toBe("the obsidian tower");
-  const journal = await rpgCompose.service.listJournal({ principal: hostPrincipal(hostId), chatId, limit: 50 });
+  const journal = await rpgCompose.service.listJournal({ principal: await hostPrincipal(db, hostId), chatId, limit: 50 });
   expect(journal.map((j) => j.title)).toContain("Arrival");
 });

@@ -269,6 +269,7 @@ export function makeMessageView(overrides: Partial<MessageView> = {}): MessageVi
     selectedVariantIdx: 0,
     variantCount: 1,
     hasContinuation: false,
+    hasGeneratedVariant: true,
     outputCapReached: false,
     content: "Hello there",
     reasoning: null,

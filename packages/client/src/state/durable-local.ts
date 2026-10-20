@@ -325,7 +325,6 @@ async function bindQueuedUser(userId: VerifiedUserId): Promise<void> {
 export function bindDurableLocalToUser(userId: VerifiedUserId): Promise<void> {
   desiredUserId = userId;
   const run = bindTail.then(() => bindQueuedUser(userId));
-  // @orb-waive caught-failure-ownership(run): bindTail recovers only the serialization queue; the original run is returned to useSessionRecovery, whose catch sets failedBind and AppRootSessionBoundary renders the Retry error state. Ends if callers receive bindTail instead of run or that catch stops setting failedBind.
   bindTail = run.catch(() => undefined);
   return run;
 }

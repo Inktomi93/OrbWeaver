@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { BLOB_ROUTE } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterHandle, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
@@ -48,7 +49,7 @@ function appAs(h: AssetsHarness, svc: AssetsService, who: Principal): Hono<Princ
 }
 
 async function get(h: AssetsHarness, svc: AssetsService, who: UserId, path: string): Promise<Response> {
-  return await appAs(h, svc, principal(who)).request(path);
+  return await appAs(h, svc, await principal(databaseForOwner(h.ctx.db), who)).request(path);
 }
 
 function cacheDir(h: AssetsHarness, ownerId: UserId, hash: string): string {
@@ -62,7 +63,7 @@ async function seedRoom(db: Db, h: AssetsHarness): Promise<Room> {
   const charOwner = await seedUser(db, { handle: castId<Handle>("char_owner") });
   const member = await seedUser(db, { handle: castId<Handle>("member") });
   const outsider = await seedUser(db, { handle: castId<Handle>("outsider") });
-  const avatar = await svc.store({ principal: principal(charOwner), bytes: pngBytes(10, 20, 30), kind: "avatar", mime: PNG });
+  const avatar = await svc.store({ principal: await principal(db, charOwner), bytes: pngBytes(10, 20, 30), kind: "avatar", mime: PNG });
   const character = await seedCharacter(db, charOwner, { handle: castId<CharacterHandle>("hero") });
   await setCharacterAvatar(db, character, avatar.assetId);
   const chat = await seedChatRow(db, "chat_shared");
@@ -112,7 +113,7 @@ describe("GET /api/blob/:hash?w= in a shared room", () => {
     onTestFinished(h.cleanup);
     const room = await seedRoom(db, h);
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
-    const unrelated = await room.svc.store({ principal: principal(stranger), bytes: pngBytes(40, 50, 60), kind: "avatar", mime: PNG });
+    const unrelated = await room.svc.store({ principal: await principal(db, stranger), bytes: pngBytes(40, 50, 60), kind: "avatar", mime: PNG });
 
     const res = await get(h, room.svc, room.member, `${BLOB_ROUTE}/${unrelated.hash}?${PORTRAIT_QUERY}`);
 

@@ -22,9 +22,6 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-const HOST = principal(castId<Handle>("host"));
-const STRANGER = principal(castId<Handle>("stranger"));
-
 /** One more reroll than the verb's default window has ROW slots (50) — the fixture size that makes the
  *  eviction pin below discriminate. Deliberately a literal rather than an import of the verb's private
  *  default: the pin must red if that default is quietly raised to hide the class instead of fixing it. */
@@ -43,7 +40,7 @@ describe("listTurnToolCalls", () => {
       createdAt: FROZEN_AT_MS,
     });
 
-    const rows = await h.service.listTurnToolCalls({ principal: HOST, chatId });
+    const rows = await h.service.listTurnToolCalls({ principal: await principal(db, castId<Handle>("host")), chatId });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.variantId).toBe(variantId);
     expect(rows[0]?.messageId).toBe(messageId);
@@ -52,12 +49,12 @@ describe("listTurnToolCalls", () => {
 
   test("a STRANGER is refused — leak-free, indistinguishable from a chat with no game", async () => {
     const { chatId, h } = await seedLiteGame(db);
-    await expect(h.service.listTurnToolCalls({ principal: STRANGER, chatId })).rejects.toThrow();
+    await expect(h.service.listTurnToolCalls({ principal: await principal(db, castId<Handle>("stranger")), chatId })).rejects.toThrow();
   });
 
   test("a game with no recorded turns answers EMPTY, never an error", async () => {
     const { chatId, h } = await seedLiteGame(db);
-    expect(await h.service.listTurnToolCalls({ principal: HOST, chatId })).toEqual([]);
+    expect(await h.service.listTurnToolCalls({ principal: await principal(db, castId<Handle>("host")), chatId })).toEqual([]);
   });
 
   // THE EVICTION PIN (dogfood-class-sweep 2026-08-14, `turn-tool-calls.ts:45-52`). The window used to be the
@@ -96,7 +93,7 @@ describe("listTurnToolCalls", () => {
       }),
     );
 
-    const rows = await h.service.listTurnToolCalls({ principal: HOST, chatId });
+    const rows = await h.service.listTurnToolCalls({ principal: await principal(db, castId<Handle>("host")), chatId });
     expect(rows.map((r) => r.variantId)).toContain(old.variantId);
   });
 });
@@ -109,7 +106,6 @@ describe("listTurnToolCalls", () => {
 // is a plain present member.
 const HIDDEN = '<lie character="Mira" truth="she is the informant"/>';
 const TRUTH = "she is the informant";
-const MEMBER = principal(castId<Handle>("member"));
 
 describe("listTurnToolCalls — hidden spans are the HOST's plane, not the member's", () => {
   test("a member reads the args PARSED and stripped; the host reads the raw bytes verbatim", async () => {
@@ -126,8 +122,8 @@ describe("listTurnToolCalls — hidden spans are the HOST's plane, not the membe
       createdAt: FROZEN_AT_MS,
     });
 
-    const memberRows = await h.service.listTurnToolCalls({ principal: MEMBER, chatId });
-    const hostRows = await h.service.listTurnToolCalls({ principal: HOST, chatId });
+    const memberRows = await h.service.listTurnToolCalls({ principal: await principal(db, castId<Handle>("member")), chatId });
+    const hostRows = await h.service.listTurnToolCalls({ principal: await principal(db, castId<Handle>("host")), chatId });
 
     // The truth BYTES never reach the member on any plane of the payload, at any depth.
     expect(JSON.stringify(memberRows)).not.toContain(TRUTH);
@@ -151,8 +147,8 @@ describe("listTurnToolCalls — hidden spans are the HOST's plane, not the membe
       createdAt: FROZEN_AT_MS,
     });
 
-    const memberRows = await h.service.listTurnToolCalls({ principal: MEMBER, chatId });
-    const hostRows = await h.service.listTurnToolCalls({ principal: HOST, chatId });
+    const memberRows = await h.service.listTurnToolCalls({ principal: await principal(db, castId<Handle>("member")), chatId });
+    const hostRows = await h.service.listTurnToolCalls({ principal: await principal(db, castId<Handle>("host")), chatId });
 
     expect(JSON.stringify(memberRows)).not.toContain(TRUTH);
     // The actionable half — WHICH field the vocabulary refused — is what the disclosure exists for.
@@ -175,8 +171,8 @@ describe("listTurnToolCalls — hidden spans are the HOST's plane, not the membe
       createdAt: FROZEN_AT_MS,
     });
 
-    const memberRows = await h.service.listTurnToolCalls({ principal: MEMBER, chatId });
-    const hostRows = await h.service.listTurnToolCalls({ principal: HOST, chatId });
+    const memberRows = await h.service.listTurnToolCalls({ principal: await principal(db, castId<Handle>("member")), chatId });
+    const hostRows = await h.service.listTurnToolCalls({ principal: await principal(db, castId<Handle>("host")), chatId });
 
     expect(JSON.stringify(memberRows)).not.toContain(TRUTH);
     expect(memberRows[0]?.calls[0]?.withheld).toBe("unparseable");

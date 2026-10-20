@@ -28,7 +28,7 @@ describe("reapIfOrphan", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1),
       kind: "avatar",
       mime: PNG,
@@ -49,7 +49,7 @@ describe("reapIfOrphan", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(2),
       kind: "avatar",
       mime: PNG,
@@ -72,12 +72,12 @@ describe("reapIfOrphan", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(3),
       kind: "avatar",
       mime: PNG,
     });
-    await svc.addToGallery({ principal: principal(owner), assetId: stored.assetId });
+    await svc.addToGallery({ principal: await principal(db, owner), assetId: stored.assetId });
 
     const result = await svc.reapIfOrphan([stored.assetId]);
 
@@ -92,7 +92,7 @@ describe("reapIfOrphan", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(20), kind: "background", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(20), kind: "background", mime: PNG });
     // NO FK column references it — the ONLY liveness signal is the carried-background JSON live-source. Before the
     // fix the FK-only `selectReferencedAmong` missed this pin and the NO-GRACE targeted reap purged a live blob.
     const chatId = await seedChatRow(db, "chat_bgc");
@@ -118,7 +118,7 @@ describe("reapIfOrphan", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(21), kind: "background", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(21), kind: "background", mime: PNG });
     // The ONLY liveness signal is the appearance JSON pin — no FK column. The FK-only targeted reap missed this
     // pre-existing live-source too, so the same regression pin covers both JSON sources.
     await db.insert(userSettings).values({
@@ -143,7 +143,7 @@ describe("reapIfOrphan", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // ONE asset (CAS dedup): a character avatar (FK) AND a chat carried background (JSON). Removing the character
     // drops the avatar FK; the JSON pin must keep the blob alive — the exact silent-data-loss path the fix closes.
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(22), kind: "avatar", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(22), kind: "avatar", mime: PNG });
     const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     await setCharacterAvatar(db, character, stored.assetId);
     const chatId = await seedChatRow(db, "chat_dedup");
@@ -172,7 +172,7 @@ describe("reapIfOrphan", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // Seed the asset through the real service first (real row + real blob).
     const stored = await createAssetsService(h.ctx).store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(4),
       kind: "avatar",
       mime: PNG,

@@ -15,7 +15,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { HumanSeatPersona, TurnMessage, TurnRequest, TurnStreamChunk } from "@orb/server/domain/chat";
 import { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge, createTurnPersonaResolver, voicePersonaFor } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { principal as principalOf } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { McpCallResult } from "@orb/testkit/node/mcp-in-memory.ts";
@@ -29,6 +29,7 @@ import type { PersonaListView } from "#server/domain/persona/contract/views.ts";
 import type { ToolExecutionContext, ToolUseService } from "#server/domain/tool-use/index.ts";
 import { createToolUseService } from "#server/domain/tool-use/index.ts";
 import { createGeneratePictureOp, createTaskWindowReaders } from "#server/entry/compose/chat.ts";
+import { principal as principalOf } from "../../../db/schema/_support.ts";
 import { fakeConnection, fakeDeps, fakeModelCache, makeResolved, memoryStores, newUserId } from "../../../inference/_support.ts";
 import { defOf, execOf, makeHarness } from "../../domain/tool-use/_support.ts";
 
@@ -746,12 +747,13 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
   // The production adapter itself: the lookup settles inside `prepareExecution`, so a failure rejects THAT call
   // and no executor ever exists; a successful lookup is spent once and every later call reuses it.
   test("prepareExecution resolves the host before it returns an executor — a failed lookup rejects prepareExecution itself", async () => {
+    const db = await freshDb();
     const svc = registry();
     const failing = buildChatToolOps(svc, () => Promise.reject(new Error("principal lookup failed: DB down")));
     await expect(failing.resolveTools(frame.runAsUserId, ["echo_tool"]).prepareExecution(frame)).rejects.toThrow("principal lookup failed: DB down");
 
     const lookups: UserId[] = [];
-    const principal = execOf().principal;
+    const principal = (await execOf(db)).principal;
     const ops = buildChatToolOps(svc, (userId) => {
       lookups.push(userId);
       return Promise.resolve(principal);
@@ -768,9 +770,10 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
     test(`${api}: a turn with no tools never calls the host lookup`, async () => {
       const lookups: UserId[] = [];
       const runner = sdkLikeRunner([]);
+      const principal = (await execOf(await freshDb())).principal;
       const ops = buildChatToolOps(registry(), (userId) => {
         lookups.push(userId);
-        return Promise.resolve(execOf().principal);
+        return Promise.resolve(principal);
       });
       await turnWith(api, ops, runner.runChatTurn, []);
       expect(runner.seen.runs).toBe(1);
@@ -779,7 +782,8 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
   }
 
   test("the permission gate fires through the mounted server — an errors-as-data denial the model reads, and a kept record", async () => {
-    const principal = execOf().principal;
+    const db = await freshDb();
+    const principal = (await execOf(db)).principal;
     const runner = sdkLikeRunner([{ name: "gated_tool", args: {} }]);
     const result = await turnWith(
       "agent-sdk",
@@ -791,7 +795,8 @@ describe("tool delivery — the real tool-use service behind the neutral offer",
   });
 
   test("record parity: a call through the mounted server is byte-equal to the same call on the direct execute path", async () => {
-    const principal = execOf().principal;
+    const db = await freshDb();
+    const principal = (await execOf(db)).principal;
     const svc = registry();
     const runner = sdkLikeRunner([
       { name: "echo_tool", args: { text: "hi" } },
@@ -850,6 +855,7 @@ describe("createTaskWindowReaders — a missing window names its cause", () => {
     readonly readers: ReturnType<typeof createTaskWindowReaders>;
     readonly ownerId: UserId;
   }> {
+    const db = await freshDb();
     const stores = memoryStores();
     const ownerId = newUserId();
     if (bind !== null) {
@@ -859,9 +865,9 @@ describe("createTaskWindowReaders — a missing window names its cause", () => {
     }
     const runtime = await createInferenceRuntime({ ...fakeDeps({ stores }), localLight: { cache: fakeModelCache() } });
     const readers = createTaskWindowReaders({
-      roleClientsFor: (funderUserId) => Promise.resolve(runtime.roleClientsFor(principalOf(funderUserId))),
+      roleClientsFor: async (funderUserId) => runtime.roleClientsFor(await principalOf({ db }, funderUserId)),
       availability: runtime.availability,
-      resolveHostPrincipal: (userId) => Promise.resolve(principalOf(userId)),
+      resolveHostPrincipal: (userId) => principalOf({ db }, userId),
       resolveUtilityPresetParams: () => Promise.resolve(undefined),
     });
     return { readers, ownerId };
@@ -914,6 +920,7 @@ describe("createTaskWindowReaders — a missing window names its cause", () => {
   // 0565: the summarize call sends the Utility preset's Max context on a route whose window the request sets, so the
   // digest guard budgets against that window; a route that sends no window keeps the model's own.
   test("the summarize window is the Utility preset's where the route sets one, and the model's own elsewhere", async () => {
+    const db = await freshDb();
     const readersOver = (settable: boolean): ReturnType<typeof createTaskWindowReaders> =>
       createTaskWindowReaders({
         roleClientsFor: () =>
@@ -924,7 +931,7 @@ describe("createTaskWindowReaders — a missing window names its cause", () => {
               ),
           }),
         availability: () => Promise.reject(new Error("a bound row never asks availability")),
-        resolveHostPrincipal: (userId) => Promise.resolve(principalOf(userId)),
+        resolveHostPrincipal: (userId) => principalOf({ db }, userId),
         resolveUtilityPresetParams: () => Promise.resolve({ maxContextTokens: 16_384 }),
       });
     const ownerId = newUserId();
@@ -935,6 +942,7 @@ describe("createTaskWindowReaders — a missing window names its cause", () => {
 
 describe("createGeneratePictureOp — chat's generatePicture op over imagery", () => {
   test("forwards every request field imagery reads, the size preset included", async () => {
+    const db = await freshDb();
     const calls: Parameters<ImageryService["generatePicture"]>[0][] = [];
     const op = createGeneratePictureOp((p) => {
       calls.push(p);
@@ -951,7 +959,7 @@ describe("createGeneratePictureOp — chat's generatePicture op over imagery", (
         warnings: [{ code: "image_edit_dropped", detail: "dropped" }],
       });
     });
-    const caller = principalOf(castId<UserId>("user_member"));
+    const caller = await principalOf({ db }, castId<UserId>("user_member"));
     const hostId = castId<UserId>("user_host");
     const chatId = castId<ChatId>("chat_room");
     const subjectCharacterId = castId<CharacterId>("character_aria");

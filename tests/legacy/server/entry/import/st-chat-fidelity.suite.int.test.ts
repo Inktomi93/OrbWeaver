@@ -34,6 +34,7 @@ import { createBulkImportChats } from "#server/domain/chat/persistence/import-wr
 import type { ImportContext } from "#server/domain/import/context.ts";
 import type { ImportChatsResult } from "#server/domain/import/contract/results.ts";
 import { createImportChats } from "#server/domain/import/verbs/import-chats.ts";
+import { createStatsBatchWiring } from "#server/domain/stats/index.ts";
 import { reconcileStats } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { parseChatJsonl } from "#server/primitives/serde/chat/index.ts";
@@ -154,7 +155,11 @@ function stImportContext(db: Db, ownerId: UserId, personas: Map<string, PersonaI
     profile: {
       now: (): number => NOW,
       personaByUserName: personas,
-      bulkImportChats: createBulkImportChats({ ...importCtx(db), db: databaseHandle(db) }),
+      bulkImportChats: createBulkImportChats({
+        ...importCtx(db),
+        db: databaseHandle(db),
+        bumpStatsCanonVersion: createStatsBatchWiring().bumpStatsCanonVersion,
+      }),
       bulkImportPersonas: inert,
       enqueueImportIndex: (): Promise<void> => Promise.resolve(),
       reconcileStats: (): Promise<void> => Promise.resolve(),

@@ -29,7 +29,7 @@ import { createHostPrincipalResolver } from "#server/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "#server/entry/compose/chat.ts";
 import type { OidcRoutesDeps } from "#server/entry/http/index.ts";
 import { registerAuthRoutes } from "#server/entry/http/index.ts";
-import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
+import { createAuditWiring } from "#server/foundation/observability/index.ts";
 import { createOwnerClaimCode } from "#server/infra/auth/index.ts";
 
 const MINUTE_MS = 60_000;
@@ -107,7 +107,7 @@ async function flow(
       signupPersonaStatement: createJoinerPersonaStatement({ db: databaseHandle(db), newPersonaId: () => mintTypeId(ID_PREFIX.persona) }),
       signupPersonaPointersStatement: createJoinerSettingsStatement({ db: databaseHandle(db) }),
       minterMayMintSignup: createSignupMinterCheck(sessions, createHostPrincipalResolver(sessions)),
-      auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
+      auditStatementAfterWrite: createAuditWiring(databaseHandle(db)).statementAfterWrite,
       assemblePreview: (chatId) => Promise.resolve({ chatId, roomName: "The room", hostHandle: castId<Handle>("host"), memberCount: 1, modeLabel: "turns" }),
       emit: (event) => {
         announced.push(event.chatId);

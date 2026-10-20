@@ -23,6 +23,7 @@ describe("workloads.start — enqueue + conflict", () => {
       caller: null,
       mode: "singular",
       ownerId: null,
+      funderUserId: null,
     });
     const row = await s.get({ id, caller: null });
     expect(row.status).toBe("queued");
@@ -40,6 +41,7 @@ describe("workloads.start — enqueue + conflict", () => {
       caller: null,
       mode: "singular",
       ownerId: null,
+      funderUserId: null,
     });
     // databank-ingest is the interactive archetype (a user is waiting on their upload).
     expect((await s.get({ id: ingest.id, caller: null })).lane).toBe("interactive");
@@ -49,6 +51,7 @@ describe("workloads.start — enqueue + conflict", () => {
       caller: null,
       mode: "bulk",
       ownerId: null,
+      funderUserId: null,
     });
     expect((await s.get({ id: sweep.id, caller: null })).lane).toBe("sweep");
   });
@@ -60,6 +63,7 @@ describe("workloads.start — enqueue + conflict", () => {
       caller: null,
       mode: "bulk",
       ownerId: null,
+      funderUserId: null,
     });
     await expect(
       s.start({
@@ -67,6 +71,7 @@ describe("workloads.start — enqueue + conflict", () => {
         caller: null,
         mode: "bulk",
         ownerId: null,
+        funderUserId: null,
       }),
     ).rejects.toBeInstanceOf(DomainConflictError);
   });
@@ -79,6 +84,7 @@ describe("workloads.start — enqueue + conflict", () => {
         caller: null,
         mode: "singular",
         ownerId: null,
+        funderUserId: null,
       }),
     ).rejects.toThrow();
   });
@@ -93,7 +99,13 @@ describe("workloads.start — the owner hears a system-started job", () => {
     const emit = vi.fn<EmitUserEvent>();
     const s = makeService(db, fakeContributions(), emit);
 
-    await s.start({ input: { kind: "index", params: { source: "all", force: true, embedderChanged: true } }, caller: null, mode: "singular", ownerId: owner });
+    await s.start({
+      input: { kind: "index", params: { source: "all", force: true, embedderChanged: true } },
+      caller: null,
+      mode: "singular",
+      ownerId: owner,
+      funderUserId: owner,
+    });
 
     expect(emit.mock.calls).toEqual([[owner, { type: "workloadsChanged" }]]);
   });
@@ -104,8 +116,8 @@ describe("workloads.start — the owner hears a system-started job", () => {
     const emit = vi.fn<EmitUserEvent>();
     const s = makeService(db, fakeContributions(), emit);
 
-    await s.start({ input: { kind: "index", params: { source: "text" } }, caller: principal(owner), mode: "singular", ownerId: owner });
-    await s.start({ input: { kind: "reconcile-stats", params: {} }, caller: null, mode: "bulk", ownerId: null });
+    await s.start({ input: { kind: "index", params: { source: "text" } }, caller: await principal(db, owner), mode: "singular", ownerId: owner });
+    await s.start({ input: { kind: "reconcile-stats", params: {} }, caller: null, mode: "bulk", ownerId: null, funderUserId: null });
 
     expect(emit).not.toHaveBeenCalled();
   });
@@ -132,6 +144,7 @@ describe("workloads.start — an embedder rebuild beside a plain index run", () 
       caller: null,
       mode: "singular",
       ownerId: owner,
+      funderUserId: owner,
       adoptActive: true,
     } as const;
 
@@ -140,7 +153,7 @@ describe("workloads.start — an embedder rebuild beside a plain index run", () 
 
     expect(first.id).not.toBe(running);
     expect(second.id).toBe(first.id);
-    expect(await s.list({ caller: principal("user_alice") })).toHaveLength(2);
+    expect(await s.list({ caller: await principal(db, "user_alice") })).toHaveLength(2);
   });
 
   // The move's two sibling sweeps hold the same rule: a plain run already going pinned the old generation.
@@ -166,7 +179,7 @@ describe("workloads.start — an embedder rebuild beside a plain index run", () 
       ownerId: owner,
       params: {},
     });
-    const start = { caller: null, mode: "singular", ownerId: owner, adoptActive: true } as const;
+    const start = { caller: null, mode: "singular", ownerId: owner, funderUserId: owner, adoptActive: true } as const;
     const databankRebuild = {
       ...start,
       input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed", embedderChanged: true } },
@@ -180,7 +193,7 @@ describe("workloads.start — an embedder rebuild beside a plain index run", () 
     expect(databank[1]?.id).toBe(databank[0]?.id);
     expect(memory[0]?.id).not.toBe(runningMemory);
     expect(memory[1]?.id).toBe(memory[0]?.id);
-    expect(await s.list({ caller: principal("user_alice") })).toHaveLength(4);
+    expect(await s.list({ caller: await principal(db, "user_alice") })).toHaveLength(4);
   });
 });
 
@@ -191,11 +204,11 @@ describe("workloads.start — MODE authz", () => {
     const s = makeService(db);
     const { id } = await s.start({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
       ownerId: alice,
     });
-    const row = await s.get({ id, caller: principal("user_alice") });
+    const row = await s.get({ id, caller: await principal(db, "user_alice") });
     expect(row.ownerId).toBe(alice);
     expect(row.mode).toBe("singular");
   });
@@ -207,11 +220,11 @@ describe("workloads.start — MODE authz", () => {
     const s = makeService(db);
     const { id } = await s.start({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
-      ownerId: principal("user_bob").userId, // hand-forged foreign owner — ignored
+      ownerId: (await principal(db, "user_bob")).userId, // hand-forged foreign owner — ignored
     });
-    expect((await s.get({ id, caller: principal("user_alice") })).ownerId).toBe(alice);
+    expect((await s.get({ id, caller: await principal(db, "user_alice") })).ownerId).toBe(alice);
   });
 
   test("a normal user starting a BULK run is REFUSED (DomainForbiddenError — owner-only)", async () => {
@@ -221,7 +234,7 @@ describe("workloads.start — MODE authz", () => {
     await expect(
       s.start({
         input: { kind: "index", params: { source: "text" } },
-        caller: principal("user_alice"),
+        caller: await principal(db, "user_alice"),
         mode: "bulk",
         ownerId: null,
       }),
@@ -234,11 +247,11 @@ describe("workloads.start — MODE authz", () => {
     const s = makeService(db);
     const { id } = await s.start({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_owner_box", "owner"),
+      caller: await principal(db, "user_owner_box", "owner"),
       mode: "bulk",
       ownerId: null,
     });
-    const row = await s.get({ id, caller: principal("user_owner_box", "owner") });
+    const row = await s.get({ id, caller: await principal(db, "user_owner_box", "owner") });
     expect(row.mode).toBe("bulk");
     expect(row.ownerId).toBeNull(); // a sweep-kind bulk enumerates ALL owners — no single owner
   });
@@ -250,9 +263,9 @@ describe("workloads.start — MODE authz", () => {
     await expect(
       s.start({
         input: { kind: "refresh-model-catalog", params: {} },
-        caller: principal("user_alice"),
+        caller: await principal(db, "user_alice"),
         mode: "singular",
-        ownerId: principal("user_alice").userId,
+        ownerId: (await principal(db, "user_alice")).userId,
       }),
     ).rejects.toBeInstanceOf(DomainOperationError);
   });
@@ -267,13 +280,13 @@ describe("workloads.start — dependency authority", () => {
 
     const { id } = await s.start({
       input: { kind: "compute-themes", params: {} },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
       ownerId: alice,
       dependsOn: [dependencyId],
     });
 
-    expect((await s.get({ id, caller: principal("user_alice") })).dependsOn).toEqual([dependencyId]);
+    expect((await s.get({ id, caller: await principal(db, "user_alice") })).dependsOn).toEqual([dependencyId]);
   });
 
   test("a missing dependency is leak-free NOT_FOUND and no dependent row is persisted", async () => {
@@ -285,13 +298,13 @@ describe("workloads.start — dependency authority", () => {
     await expect(
       s.start({
         input: { kind: "compute-themes", params: {} },
-        caller: principal("user_alice"),
+        caller: await principal(db, "user_alice"),
         mode: "singular",
         ownerId: alice,
         dependsOn: [missing],
       }),
     ).rejects.toBeInstanceOf(DomainNotFoundError);
-    expect(await s.list({ caller: principal("user_alice") })).toEqual([]);
+    expect(await s.list({ caller: await principal(db, "user_alice") })).toEqual([]);
   });
 
   test("another user's dependency collapses to the same NOT_FOUND and no dependent row is persisted", async () => {
@@ -304,13 +317,13 @@ describe("workloads.start — dependency authority", () => {
     await expect(
       s.start({
         input: { kind: "compute-themes", params: {} },
-        caller: principal("user_alice"),
+        caller: await principal(db, "user_alice"),
         mode: "singular",
         ownerId: alice,
         dependsOn: [foreign],
       }),
     ).rejects.toBeInstanceOf(DomainNotFoundError);
-    expect((await s.list({ caller: principal("user_admin", "admin") })).map((row) => row.id)).toEqual([foreign]);
+    expect((await s.list({ caller: await principal(db, "user_admin", "admin") })).map((row) => row.id)).toEqual([foreign]);
   });
 });
 
@@ -322,7 +335,7 @@ describe("workloads.start — bulk CREATE-kind target (import-st)", () => {
     await expect(
       s.start({
         input: { kind: "import-st", params: {} },
-        caller: principal("user_owner_box", "owner"),
+        caller: await principal(db, "user_owner_box", "owner"),
         mode: "bulk",
         ownerId: null,
       }),
@@ -336,12 +349,12 @@ describe("workloads.start — bulk CREATE-kind target (import-st)", () => {
     const s = makeService(db);
     const { id } = await s.start({
       input: { kind: "import-st", params: {} },
-      caller: principal("user_owner_box", "owner"),
+      caller: await principal(db, "user_owner_box", "owner"),
       mode: "bulk",
       targetOwnerId: target,
       ownerId: null,
     });
-    expect((await s.get({ id, caller: principal("user_owner_box", "owner") })).ownerId).toBe(target);
+    expect((await s.get({ id, caller: await principal(db, "user_owner_box", "owner") })).ownerId).toBe(target);
   });
 
   test("a bulk import into a NON-existent target → leak-free NOT_FOUND (the owner FK)", async () => {
@@ -351,9 +364,9 @@ describe("workloads.start — bulk CREATE-kind target (import-st)", () => {
     await expect(
       s.start({
         input: { kind: "import-st", params: {} },
-        caller: principal("user_owner_box", "owner"),
+        caller: await principal(db, "user_owner_box", "owner"),
         mode: "bulk",
-        targetOwnerId: principal("user_ghost").userId,
+        targetOwnerId: (await principal(db, "user_ghost")).userId,
         ownerId: null,
       }),
     ).rejects.toBeInstanceOf(DomainNotFoundError);
@@ -371,11 +384,11 @@ describe("workloads.start — databank singular enqueue (DBK-B(a))", () => {
     const s = makeService(db);
     const { id } = await s.start({
       input: { kind: "databank-ingest", params: { documentId: mintTypeId(ID_PREFIX.document) } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
       ownerId: alice,
     });
-    const row = await s.get({ id, caller: principal("user_alice") });
+    const row = await s.get({ id, caller: await principal(db, "user_alice") });
     expect(row.status).toBe("queued");
     expect(row.kind).toBe("databank-ingest");
     expect(row.mode).toBe("singular");
@@ -388,11 +401,11 @@ describe("workloads.start — databank singular enqueue (DBK-B(a))", () => {
     const s = makeService(db);
     const { id } = await s.start({
       input: { kind: "databank-reindex", params: { scope: { kind: "owner" } } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
       ownerId: alice,
     });
-    const row = await s.get({ id, caller: principal("user_alice") });
+    const row = await s.get({ id, caller: await principal(db, "user_alice") });
     expect(row.status).toBe("queued");
     expect(row.kind).toBe("databank-reindex");
     expect(row.mode).toBe("singular");
@@ -407,25 +420,25 @@ describe("workloads.start — the per-(kind, owner, source) singular lock", () =
     const s = makeService(db);
     await s.start({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
-      ownerId: principal("user_alice").userId,
+      ownerId: (await principal(db, "user_alice")).userId,
     });
     // Alice's 2nd index{text} collides on her per-(kind, owner, source) singular slot.
     await expect(
       s.start({
         input: { kind: "index", params: { source: "text" } },
-        caller: principal("user_alice"),
+        caller: await principal(db, "user_alice"),
         mode: "singular",
-        ownerId: principal("user_alice").userId,
+        ownerId: (await principal(db, "user_alice")).userId,
       }),
     ).rejects.toBeInstanceOf(DomainConflictError);
     // Bob's concurrent index{text} is ALLOWED — a different owner, a different slot.
     const bob = await s.start({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_bob"),
+      caller: await principal(db, "user_bob"),
       mode: "singular",
-      ownerId: principal("user_bob").userId,
+      ownerId: (await principal(db, "user_bob")).userId,
     });
     expect(bob.id).toBeTruthy();
   });
@@ -442,21 +455,21 @@ describe("workloads.start — the per-(kind, owner, source) singular lock", () =
     const s = makeService(db);
     const first = await s.start({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
-      ownerId: principal("user_alice").userId,
+      ownerId: (await principal(db, "user_alice")).userId,
     });
 
     const adopted = await s.start({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
-      ownerId: principal("user_alice").userId,
+      ownerId: (await principal(db, "user_alice")).userId,
       adoptActive: true,
     });
 
     expect(adopted.id).toBe(first.id);
-    expect(await s.list({ caller: principal("user_alice") })).toHaveLength(1);
+    expect(await s.list({ caller: await principal(db, "user_alice") })).toHaveLength(1);
   });
 
   test("adoptActive is per-UNIT, not per-kind — a different admission key still mints its own row", async () => {
@@ -465,16 +478,16 @@ describe("workloads.start — the per-(kind, owner, source) singular lock", () =
     const s = makeService(db);
     const text = await s.start({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
-      ownerId: principal("user_alice").userId,
+      ownerId: (await principal(db, "user_alice")).userId,
       adoptActive: true,
     });
     const image = await s.start({
       input: { kind: "index", params: { source: "image" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
-      ownerId: principal("user_alice").userId,
+      ownerId: (await principal(db, "user_alice")).userId,
       adoptActive: true,
     });
     expect(image.id).not.toBe(text.id);
@@ -491,18 +504,18 @@ describe("workloads.start — the per-(kind, owner, source) singular lock", () =
     const s = makeService(db);
     const first = await s.start({
       input: { kind: "databank-ingest", params: { documentId: mintTypeId(ID_PREFIX.document) } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
-      ownerId: principal("user_alice").userId,
+      ownerId: (await principal(db, "user_alice")).userId,
     });
     const second = await s.start({
       input: { kind: "databank-ingest", params: { documentId: mintTypeId(ID_PREFIX.document) } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
-      ownerId: principal("user_alice").userId,
+      ownerId: (await principal(db, "user_alice")).userId,
     });
     expect(first.id).not.toBe(second.id);
-    const rows = await s.list({ caller: principal("user_alice") });
+    const rows = await s.list({ caller: await principal(db, "user_alice") });
     expect(rows.map((r) => r.status)).toEqual(["queued", "queued"]);
   });
 
@@ -515,16 +528,16 @@ describe("workloads.start — the per-(kind, owner, source) singular lock", () =
     const documentId = mintTypeId(ID_PREFIX.document);
     await s.start({
       input: { kind: "databank-ingest", params: { documentId } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
-      ownerId: principal("user_alice").userId,
+      ownerId: (await principal(db, "user_alice")).userId,
     });
     await expect(
       s.start({
         input: { kind: "databank-ingest", params: { documentId } },
-        caller: principal("user_alice"),
+        caller: await principal(db, "user_alice"),
         mode: "singular",
-        ownerId: principal("user_alice").userId,
+        ownerId: (await principal(db, "user_alice")).userId,
       }),
     ).rejects.toBeInstanceOf(DomainConflictError);
   });
@@ -537,20 +550,20 @@ describe("workloads.start — the per-(kind, owner, source) singular lock", () =
     const s = makeService(db);
     const textRun = await s.start({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
-      ownerId: principal("user_alice").userId,
+      ownerId: (await principal(db, "user_alice")).userId,
     });
     const imageRun = await s.start({
       input: { kind: "index", params: { source: "image" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
-      ownerId: principal("user_alice").userId,
+      ownerId: (await principal(db, "user_alice")).userId,
     });
     expect(textRun.id).toBeTruthy();
     expect(imageRun.id).toBeTruthy();
     // Both are live, un-conflicted, under their OWN slots.
-    const rows = await s.list({ caller: principal("user_alice") });
+    const rows = await s.list({ caller: await principal(db, "user_alice") });
     expect(rows.map((r) => r.status)).toEqual(["queued", "queued"]);
   });
 });
@@ -566,18 +579,23 @@ describe("workloads.start — the owning domain's admission precondition", () =>
     const alice = await seedUser(db, "user_alice");
     const s = makeService(db, fakeContributions({ memoryEnabled: false }));
     await expect(
-      s.start({ input: { kind: "memory-backfill", params: {} }, caller: principal("user_alice"), mode: "singular", ownerId: alice }),
+      s.start({ input: { kind: "memory-backfill", params: {} }, caller: await principal(db, "user_alice"), mode: "singular", ownerId: alice }),
     ).rejects.toThrow(MEMORY_OFF_RE);
     // The point of gating at ADMISSION: no row exists to read as a vacuous success.
-    expect(await s.list({ caller: principal("user_alice") })).toEqual([]);
+    expect(await s.list({ caller: await principal(db, "user_alice") })).toEqual([]);
   });
 
   test("ADMITS the same run once memory is on", async () => {
     const db = await freshDb();
     const alice = await seedUser(db, "user_alice");
     const s = makeService(db, fakeContributions({ memoryEnabled: true }));
-    const { id } = await s.start({ input: { kind: "memory-backfill", params: {} }, caller: principal("user_alice"), mode: "singular", ownerId: alice });
-    expect((await s.get({ id, caller: principal("user_alice") })).status).toBe("queued");
+    const { id } = await s.start({
+      input: { kind: "memory-backfill", params: {} },
+      caller: await principal(db, "user_alice"),
+      mode: "singular",
+      ownerId: alice,
+    });
+    expect((await s.get({ id, caller: await principal(db, "user_alice") })).status).toBe("queued");
   });
 
   test("a kind that declares NO precondition is unaffected by a refusing sibling", async () => {
@@ -586,11 +604,11 @@ describe("workloads.start — the owning domain's admission precondition", () =>
     const s = makeService(db, fakeContributions({ memoryEnabled: false }));
     const { id } = await s.start({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       mode: "singular",
       ownerId: alice,
     });
-    expect((await s.get({ id, caller: principal("user_alice") })).status).toBe("queued");
+    expect((await s.get({ id, caller: await principal(db, "user_alice") })).status).toBe("queued");
   });
 
   test("the BULK all-owners pass is still admitted with memory off (one host's opt-out is not the box's)", async () => {
@@ -599,11 +617,11 @@ describe("workloads.start — the owning domain's admission precondition", () =>
     const s = makeService(db, fakeContributions({ memoryEnabled: false }));
     const { id } = await s.start({
       input: { kind: "memory-backfill", params: {} },
-      caller: principal("user_owner_box", "owner"),
+      caller: await principal(db, "user_owner_box", "owner"),
       mode: "bulk",
       ownerId: null,
     });
-    expect((await s.get({ id, caller: principal("user_owner_box", "owner") })).ownerId).toBeNull();
+    expect((await s.get({ id, caller: await principal(db, "user_owner_box", "owner") })).ownerId).toBeNull();
   });
 });
 
@@ -618,11 +636,11 @@ describe("workloads.start — memory-backfill's admission units", () => {
     const db = await freshDb();
     const alice = await seedUser(db, "user_alice");
     const s = makeService(db, fakeContributions({ memoryEnabled: true }));
-    const caller = principal("user_alice");
+    const caller = await principal(db, "user_alice");
 
     await s.start({ input: { kind: "memory-backfill", params: { importWindow, segmentsOnly: true } }, caller, mode: "singular", ownerId: alice });
     await s.start({ input: { kind: "memory-backfill", params: { importWindow } }, caller, mode: "singular", ownerId: alice });
-    const whole = await s.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode: "singular", ownerId: alice });
+    const whole = await s.start({ input: { kind: "memory-backfill", params: {} }, caller: null, mode: "singular", ownerId: alice, funderUserId: alice });
 
     expect((await s.get({ id: whole.id, caller })).status).toBe("queued");
     expect((await s.list({ caller })).map((row) => row.status)).toEqual(["queued", "queued", "queued"]);
@@ -632,7 +650,7 @@ describe("workloads.start — memory-backfill's admission units", () => {
     const db = await freshDb();
     const alice = await seedUser(db, "user_alice");
     const s = makeService(db, fakeContributions({ memoryEnabled: true }));
-    const caller = principal("user_alice");
+    const caller = await principal(db, "user_alice");
     await s.start({ input: { kind: "memory-backfill", params: { importWindow } }, caller, mode: "singular", ownerId: alice });
 
     await expect(s.start({ input: { kind: "memory-backfill", params: { importWindow } }, caller, mode: "singular", ownerId: alice })).rejects.toBeInstanceOf(

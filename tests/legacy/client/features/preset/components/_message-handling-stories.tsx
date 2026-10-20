@@ -13,6 +13,8 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import type { ReactElement } from "react";
 import { MessageHandlingSection } from "#client/features/preset/components/message-handling-section.tsx";
+import type { PresetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
+import { admitPresetValues, canonicalPresetValues, presetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
 import type { AppFormInstance } from "#client/forms/editor/index.ts";
 import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
@@ -54,7 +56,11 @@ const FLOORLESS_CAPABILITY: GenerationCapability = makeGenerationCapability({
   },
 });
 
-const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
+const StoryForm = createAutosaveEntityForm<PresetEditorValues>({
+  defaultValues: presetEditorValues(DEFAULT_PROMPT_CONFIG),
+  canonicalValues: canonicalPresetValues,
+  admitValues: admitPresetValues,
+});
 
 /** A model that DOES enforce a floor, with a below-floor pick stored — the note AND the clamp badge. */
 export function MessageHandlingStrictFloorStory(): ReactElement {
@@ -94,8 +100,8 @@ function Harness({
     params: { ...DEFAULT_PROMPT_CONFIG.params, advanced: { ...DEFAULT_PROMPT_CONFIG.params.advanced, roleHandling } },
   };
   return (
-    <StoryForm entityId={STORY_PRESET} save={(): Promise<void> => Promise.resolve()} serverValues={serverValues}>
-      {(session): ReactElement => <MessageHandlingSection capability={capability} form={session.form as AppFormInstance<PromptConfig>} />}
+    <StoryForm entityId={STORY_PRESET} save={(): Promise<void> => Promise.resolve()} serverValues={presetEditorValues(serverValues)}>
+      {(session): ReactElement => <MessageHandlingSection capability={capability} form={session.form as AppFormInstance<PresetEditorValues>} />}
     </StoryForm>
   );
 }

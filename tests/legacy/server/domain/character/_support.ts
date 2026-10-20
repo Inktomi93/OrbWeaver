@@ -30,12 +30,12 @@ import { castId } from "@orb/kit/ids";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { AttachCardTagOp, CharacterAssemblyInput as CharacterContext, DetachCardTagOp } from "#server/domain/character/contract/service.ts";
 import { createStatsBatchWiring } from "#server/domain/stats/index.ts";
 import type { BulkImportLorebook, HasPrimaryBook } from "#server/domain/world-info/index.ts";
 import { createBulkImportLorebook, createCopyCharacterBooks, createHasPrimaryBook } from "#server/domain/world-info/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 interface AuditCall {
   readonly entry: Parameters<CharacterContext["audit"]>[0];
@@ -333,10 +333,9 @@ export async function seedCharacterSummary(db: Db, args: { readonly characterId:
   });
 }
 
-/** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
- *  `support/factories/principal` — character keeps its existing positional `(id, role, handle?)` convention. */
-export function principal(userId: UserId, role: UserRole = "user", handle: Handle = castId<Handle>(userId)): Principal {
-  return makePrincipal(userId, { role, handle });
+/** Resolve a caller's Principal through the production row resolver; a passed role or handle is first written onto the user's row. */
+export async function principal(db: Db, userId: UserId, role?: UserRole, handle?: Handle): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role, handle });
 }
 
 /** World-info's REAL lorebook import pair over the same db — the default-card seeder's lore step writes through

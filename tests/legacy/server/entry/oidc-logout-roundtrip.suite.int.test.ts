@@ -30,9 +30,9 @@
 // AUTHENTICATE (`sessions.validate` — the read `sessions.me` projects), and the REAL logout spends the hint.
 //
 // STILL NOT COVERED HERE, and it belongs elsewhere: the grant's CRYPTOGRAPHY (JWKS signature, issuer and
-// audience validation, nonce/PKCE binding) is `openid-client`'s, and an e2e OIDC mode against a mock IdP
-// (`tests/e2e/support/modes.ts`) remains deferred — injecting the seam does not give the e2e stack a fake
-// IdP, because that stack boots the real server, which wires the real grant by design.
+// audience validation, nonce/PKCE binding) is `openid-client`'s, and the e2e `oidc` project
+// (`tests/e2e/support/modes.ts`) runs that real grant against an HTTPS mock issuer. Injecting the seam here
+// gives that stack nothing: it boots the real server, which wires the real grant by design.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";

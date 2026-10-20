@@ -13,16 +13,16 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { describe } from "vitest";
+import { principal } from "../../../db/schema/_support.ts";
 import { seedCharacter, seedUser } from "../../domain/chat/_support.ts";
 
 describe("roster-preset applyToChat — composed-real (createServices)", () => {
   test("apply drives the REAL chat verbs: adds in position order, stamps knobs, lands the config; re-apply mints nothing", async ({ services, db }) => {
     const host = await seedUser(db, castId<Handle>("rphost"));
-    const hostP = principal(host);
+    const hostP = await principal({ db }, host);
     const c1 = await seedCharacter(db, host, "rp_founding");
     const c2 = await seedCharacter(db, host, "rp_second");
     const c3 = await seedCharacter(db, host, "rp_third");
@@ -85,7 +85,7 @@ describe("roster-preset applyToChat — composed-real (createServices)", () => {
     db,
   }) => {
     const host = await seedUser(db, castId<Handle>("rprules"));
-    const hostP = principal(host);
+    const hostP = await principal({ db }, host);
     const c1 = await seedCharacter(db, host, "rp_ruled");
 
     // Room A — the SOURCE: a book attached HERE (the lore rule's consent), rules minted + enabled.
@@ -162,8 +162,8 @@ describe("roster-preset applyToChat — composed-real (createServices)", () => {
   test("a NON-HOST apply is chat's own leak-free NOT_FOUND through the injected guard, and the room is untouched", async ({ services, db }) => {
     const host = await seedUser(db, castId<Handle>("rphost2"));
     const stranger = await seedUser(db, castId<Handle>("rpstranger"));
-    const hostP = principal(host);
-    const strangerP = principal(stranger);
+    const hostP = await principal({ db }, host);
+    const strangerP = await principal({ db }, stranger);
     const hc = await seedCharacter(db, host, "rp_hosted");
     const sc = await seedCharacter(db, stranger, "rp_strangers");
 
@@ -195,7 +195,7 @@ describe("roster-preset applyToChat — composed-real (createServices)", () => {
 describe("starting a campaign roster — composed-real (createServices)", () => {
   test("the start creates exactly one room and one game, born with the roster's ruleset", async ({ services, db }) => {
     const host = await seedUser(db, castId<Handle>("cphost"));
-    const hostP = principal(host);
+    const hostP = await principal({ db }, host);
     const knight = await seedCharacter(db, host, "cp_knight");
     const queen = await seedCharacter(db, host, "cp_queen");
     await services.rosterPreset.create({
@@ -233,7 +233,7 @@ describe("starting a campaign roster — composed-real (createServices)", () => 
 
   test("a stored template whose ruleset no longer parses fails the start whole: no room, no seats, no game", async ({ services, db }) => {
     const host = await seedUser(db, castId<Handle>("cphost2"));
-    const hostP = principal(host);
+    const hostP = await principal({ db }, host);
     const knight = await seedCharacter(db, host, "cp_knight2");
     const created = await services.rosterPreset.create({
       principal: hostP,

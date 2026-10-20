@@ -11,7 +11,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { getWorkspace } from "../../floor/compiler/ts-workspace.ts";
 import { printVerdict } from "../../floor/verdict/evidence.ts";
-import type { ReviewMirrorEvidence } from "../contract/types.ts";
+import type { ReviewMirrorEvidence, RunReviewMirrorResult } from "../contract/types.ts";
 import { assertReviewEvidence } from "../lib/evidence.ts";
 import { resolveReviewFocus } from "../lib/focus.ts";
 import { depositTrackedEvidence } from "../lib/tracked-evidence.ts";
@@ -33,14 +33,6 @@ export interface RunReviewMirrorOptions {
   readonly root?: string;
   /** Optional in-repo path (absolute, or relative to `root`) where the evidence JSON is also written so a milestone run leaves a tracked, board-linkable findings artifact. */
   readonly evidenceOut?: string;
-}
-
-export interface RunReviewMirrorResult {
-  readonly code: number;
-  readonly evidencePath: string;
-  /** The resolved absolute path of the tracked deposit when `evidenceOut` was requested, else null. */
-  readonly trackedEvidencePath: string | null;
-  readonly evidence: ReviewMirrorEvidence;
 }
 
 export function runReviewMirror(options: RunReviewMirrorOptions = {}): RunReviewMirrorResult {

@@ -16,7 +16,7 @@ describe("admin session verbs", () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
     const t = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
-    const list = await svc.listSessions({ principal: principal(admin, "admin"), userId: t });
+    const list = await svc.listSessions({ principal: await principal(db, admin, "admin"), userId: t });
     expect(Array.isArray(list)).toBe(true);
   });
 
@@ -26,7 +26,7 @@ describe("admin session verbs", () => {
     const svc = createAdminService(h.ctx);
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const sid = castId<SessionId>("session_abc");
-    await svc.revokeSession({ principal: principal(admin, "admin"), sessionId: sid });
+    await svc.revokeSession({ principal: await principal(db, admin, "admin"), sessionId: sid });
     expect(h.revokedSessions).toContain(sid);
     expect(h.audits.map((a) => a.entry.action)).toContain("admin.revokeSession");
   });
@@ -38,7 +38,7 @@ describe("admin session verbs", () => {
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const t = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     const result = await svc.revokeUserSessions({
-      principal: principal(admin, "admin"),
+      principal: await principal(db, admin, "admin"),
       userId: t,
     });
     expect(result.revoked).toBeGreaterThan(0);
@@ -50,7 +50,7 @@ describe("admin session verbs", () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
     const u = await seedUser(db, { id: "user_u", role: "user", handle: castId<Handle>("u") });
-    const p = principal(u, "user");
+    const p = await principal(db, u, "user");
     await expect(svc.listSessions({ principal: p, userId: u })).rejects.toThrow(DomainForbiddenError);
     await expect(svc.revokeSession({ principal: p, sessionId: castId<SessionId>("session_x") })).rejects.toThrow(DomainForbiddenError);
     await expect(svc.revokeUserSessions({ principal: p, userId: u })).rejects.toThrow(DomainForbiddenError);

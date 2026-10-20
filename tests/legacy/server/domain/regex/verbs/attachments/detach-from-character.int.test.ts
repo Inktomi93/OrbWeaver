@@ -18,11 +18,11 @@ describe("detachFromCharacter", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const characterId = await seedCharacter(db, owner);
     const scriptId = await seedScript(db, { ownerId: owner, name: "s" });
-    await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId });
 
-    expect(await svc.detachFromCharacter({ principal: principal(owner), characterId, scriptId })).toEqual({ detached: true });
-    expect(await svc.detachFromCharacter({ principal: principal(owner), characterId, scriptId })).toEqual({ detached: false });
-    expect(await svc.listForCharacter({ principal: principal(owner), characterId })).toEqual([]);
+    expect(await svc.detachFromCharacter({ principal: await principal(db, owner), characterId, scriptId })).toEqual({ detached: true });
+    expect(await svc.detachFromCharacter({ principal: await principal(db, owner), characterId, scriptId })).toEqual({ detached: false });
+    expect(await svc.listForCharacter({ principal: await principal(db, owner), characterId })).toEqual([]);
   });
 
   test("refuses a foreign script", async () => {
@@ -34,6 +34,6 @@ describe("detachFromCharacter", () => {
     const characterId = await seedCharacter(db, owner);
     const scriptId = await seedScript(db, { ownerId: stranger, name: "theirs" });
 
-    await expect(svc.detachFromCharacter({ principal: principal(owner), characterId, scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.detachFromCharacter({ principal: await principal(db, owner), characterId, scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
   });
 });

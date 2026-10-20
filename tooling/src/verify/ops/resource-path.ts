@@ -75,7 +75,6 @@ function linkIdentity(rootReal: string, subject: Subject): AuthoredPathIdentity 
   if (!contained(rootReal, canonical)) {
     return { selector, form, status: "outside", reason: "selector resolves outside the repository root through a symbolic link" };
   }
-  // @orb-waive caught-failure-ownership(error): resource-path resolution: error surfaces as a structured tool-error; the broken path is excluded from the resource set
   try {
     return nodeIdentity(subject, statSync(targetAbs));
   } catch (error) {

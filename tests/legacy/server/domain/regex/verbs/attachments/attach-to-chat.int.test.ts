@@ -24,7 +24,7 @@ describe("attachToChat", () => {
     const chatId = await seedChat(db);
     const scriptId = await seedScript(db, { ownerId: owner, name: "room" });
 
-    await expect(svc.attachToChat({ principal: principal(owner), chatId, scriptId })).rejects.toThrow("not the host");
+    await expect(svc.attachToChat({ principal: await principal(db, owner), chatId, scriptId })).rejects.toThrow("not the host");
     expect(await db.select().from(chatRegexScripts)).toHaveLength(0);
   });
 
@@ -38,11 +38,11 @@ describe("attachToChat", () => {
     const mine = await seedScript(db, { ownerId: host, id: "regex_script_mine", name: "mine" });
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
 
-    await svc.attachToChat({ principal: principal(host), chatId, scriptId: mine });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, scriptId: mine });
     expect(await db.select().from(chatRegexScripts)).toHaveLength(1);
 
     // Host authority over the ROOM is not authority over someone else's LIBRARY.
-    await expect(svc.attachToChat({ principal: principal(host), chatId, scriptId: theirs })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.attachToChat({ principal: await principal(db, host), chatId, scriptId: theirs })).rejects.toBeInstanceOf(RegexNotFoundError);
     expect(await db.select().from(chatRegexScripts)).toHaveLength(1);
   });
 
@@ -58,7 +58,7 @@ describe("attachToChat", () => {
     const chatId = await seedChat(db);
     const scriptId = await seedScript(db, { ownerId: host, name: "strip ooc" });
 
-    await svc.attachToChat({ principal: principal(host), chatId, scriptId });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, scriptId });
 
     expect(h.userEvents.map((e) => e.event.type)).toEqual(["regexChanged"]);
     expect(h.roomFans).toEqual([{ kind: "room", id: chatId }]);
@@ -77,8 +77,8 @@ describe("attachToChat", () => {
     const chatId = await seedChat(db);
     const scriptId = await seedScript(db, { ownerId: host, name: "strip ooc" });
 
-    await svc.attachToChat({ principal: principal(host), chatId, scriptId });
-    await svc.attachToChat({ principal: principal(host), chatId, scriptId });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, scriptId });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, scriptId });
 
     expect(await db.select().from(chatRegexScripts)).toHaveLength(1);
     expect(h.roomFans).toEqual([

@@ -18,7 +18,7 @@ describe("getScript", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
 
-    expect((await svc.getScript({ principal: principal(owner), scriptId })).name).toBe("mine");
+    expect((await svc.getScript({ principal: await principal(db, owner), scriptId })).name).toBe("mine");
     // A read audits nothing and emits nothing.
     expect(h.audits).toEqual([]);
     expect(h.userEvents).toEqual([]);
@@ -32,8 +32,8 @@ describe("getScript", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
 
-    await expect(svc.getScript({ principal: principal(stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
-    await expect(svc.getScript({ principal: principal(owner), scriptId: castId<RegexScriptId>("regex_script_absent") })).rejects.toBeInstanceOf(
+    await expect(svc.getScript({ principal: await principal(db, stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.getScript({ principal: await principal(db, owner), scriptId: castId<RegexScriptId>("regex_script_absent") })).rejects.toBeInstanceOf(
       RegexNotFoundError,
     );
   });

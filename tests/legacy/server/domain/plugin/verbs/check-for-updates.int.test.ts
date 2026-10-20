@@ -36,14 +36,14 @@ test("checkForUpdates flags a url-origin plugin whose REMOTE version is newer (u
   const h = makePluginHarness(db, { fetchBundle: () => Promise.resolve(served) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const view = await h.service.installFromUrl({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     url: URL,
     expectedBundleHash: hashBundle(served),
     grant: ["chat.read"],
   });
 
   served = makeBundle({ id: "scraper", version: "1.1.0", capabilities: ["chat.read"] });
-  const checks = await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) });
+  const checks = await h.service.checkForUpdates({ caller: await ownerPrincipalFor(db, owner) });
 
   expect(checks).toEqual([{ pluginId: view.id, status: "update-available", source: "url", newVersion: "1.1.0", bundleHash: hashBundle(served) }]);
 });
@@ -53,9 +53,14 @@ test("checkForUpdates reports up-to-date when the remote version matches the ins
   const bundle = makeBundle({ id: "scraper", version: "2.0.0", capabilities: ["chat.read"] });
   const h = makePluginHarness(db, { fetchBundle: returns(bundle) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const view = await h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, expectedBundleHash: hashBundle(bundle), grant: ["chat.read"] });
+  const view = await h.service.installFromUrl({
+    caller: await ownerPrincipalFor(db, owner),
+    url: URL,
+    expectedBundleHash: hashBundle(bundle),
+    grant: ["chat.read"],
+  });
 
-  const checks = await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) });
+  const checks = await h.service.checkForUpdates({ caller: await ownerPrincipalFor(db, owner) });
 
   expect(checks).toEqual([{ pluginId: view.id, status: "up-to-date" }]);
 });
@@ -67,10 +72,15 @@ test("checkForUpdates on an UNREACHABLE source is leak-free (the arm collapses; 
   const good = makeBundle({ id: "scraper", version: "1.0.0", capabilities: ["chat.read"] });
   const h = makePluginHarness(db, { fetchBundle: () => (mode === "install" ? Promise.resolve(good) : blockedFetch()) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const view = await h.service.installFromUrl({ caller: ownerPrincipalFor(owner), url: URL, expectedBundleHash: hashBundle(good), grant: ["chat.read"] });
+  const view = await h.service.installFromUrl({
+    caller: await ownerPrincipalFor(db, owner),
+    url: URL,
+    expectedBundleHash: hashBundle(good),
+    grant: ["chat.read"],
+  });
 
   mode = "blocked";
-  const checks = await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) });
+  const checks = await h.service.checkForUpdates({ caller: await ownerPrincipalFor(db, owner) });
 
   // ONE leak-free arm — no version, no reason, no distinction between "blocked" / "404" / "garbage".
   expect(checks).toEqual([{ pluginId: view.id, status: "unreachable" }]);
@@ -83,12 +93,12 @@ test("checkForUpdates flags a DIVERGED seeded showcase install when a NEWER bund
   const h = makePluginHarness(db, { showcase: makeShowcaseShipping([{ id: "oracle-deck", version: "1.2.0" }]) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const view = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "oracle-deck", version: "1.1.0" }),
     grant: [],
   });
 
-  const checks = await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) });
+  const checks = await h.service.checkForUpdates({ caller: await ownerPrincipalFor(db, owner) });
 
   expect(checks).toEqual([{ pluginId: view.id, status: "update-available", source: "showcase", newVersion: "1.2.0" }]);
 });
@@ -99,12 +109,12 @@ test("checkForUpdates reports a PRISTINE seeded showcase install up-to-date — 
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   // Equal by construction after a boot pass: the seeder installs/upgrades to exactly the shipped version.
   const view = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "oracle-deck", version: "1.2.0" }),
     grant: [],
   });
 
-  const checks = await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) });
+  const checks = await h.service.checkForUpdates({ caller: await ownerPrincipalFor(db, owner) });
 
   expect(checks).toEqual([{ pluginId: view.id, status: "up-to-date" }]);
 });
@@ -113,11 +123,11 @@ test("checkForUpdates OMITS an upload plugin this build ships no bundle for — 
   const db = await freshDb();
   const h = makePluginHarness(db, { showcase: makeShowcaseShipping([{ id: "oracle-deck", version: "1.2.0" }]) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "hand-rolled", version: "1.0.0" }), grant: [] });
+  await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "hand-rolled", version: "1.0.0" }), grant: [] });
 
   // Absent, not `unreachable`: nothing was fetched and nothing ships, so there is no source that could have
   // failed. (A shipped slug WITHDRAWN from a later build lands on this same arm, for the same reason.)
-  expect(await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) })).toEqual([]);
+  expect(await h.service.checkForUpdates({ caller: await ownerPrincipalFor(db, owner) })).toEqual([]);
 });
 
 test("checkForUpdates OMITS a file (upload-origin) plugin — nothing to check, never a dishonest 'unreachable'", async () => {
@@ -127,14 +137,14 @@ test("checkForUpdates OMITS a file (upload-origin) plugin — nothing to check, 
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   // One url-origin plugin (checkable) + one file-origin plugin (NOT checkable).
   const urlView = await h.service.installFromUrl({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     url: URL,
     expectedBundleHash: hashBundle(urlBundle),
     grant: ["chat.read"],
   });
-  await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "fileplug", capabilities: [] }), grant: [] });
+  await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "fileplug", capabilities: [] }), grant: [] });
 
-  const checks = await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) });
+  const checks = await h.service.checkForUpdates({ caller: await ownerPrincipalFor(db, owner) });
 
   // The file plugin is simply absent — the url plugin is the only entry.
   expect(checks).toEqual([{ pluginId: urlView.id, status: "up-to-date" }]);

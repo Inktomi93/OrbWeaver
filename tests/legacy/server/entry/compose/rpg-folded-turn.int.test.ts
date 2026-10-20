@@ -32,8 +32,8 @@ test("R1 composed-real: the character turn's own tool calls land state — and N
   const { chatId, hostId } = await seedHostGameChat(db, "r1-fold");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "She fords the river as the rain starts." });
 
   await rpgCompose.chatOps.onTurnCompleted(
@@ -51,12 +51,12 @@ test("R1 composed-real: the character turn's own tool calls land state — and N
   expect(spy.summarizeModels).toEqual([]);
   expect(spy.chatTurns).toEqual([]);
   // The state landed through the SAME fold + accumulator + flush the dedicated round uses.
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient?.location).toBe("the ford");
   // The folded tool round wrote the closed type + the model's flavor label (the weather enum on the wire).
   expect(view.ambient?.weather).toEqual({ type: "rain", label: "cold spitting rain" });
   expect(view.recentBeats).toContain("forded the river");
-  const journal = await rpgCompose.service.listJournal({ principal: hostPrincipal(hostId), chatId, limit: 50 });
+  const journal = await rpgCompose.service.listJournal({ principal: await hostPrincipal(db, hostId), chatId, limit: 50 });
   expect(journal.map((j) => j.title)).toContain("The Ford");
 });
 
@@ -79,8 +79,8 @@ test("R-OBS composed-real: a folded turn records its mount, its calls, its flush
     cannedText: JSON.stringify(CANNED_EXTRACTION),
     trace: recorder.sink,
   });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "She fords the river." });
 
   // The MOUNT half runs at GATHER — the same entry point the engine drives to attach the terminal tools.
@@ -170,8 +170,8 @@ test("#1468: a CHEAP TOOL ROUND the provider refused settles `failed` with the r
     chatThrows: new Error("upstream 502 from the state-round wire"),
     trace: recorder.sink,
   });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They cross the ford." });
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
@@ -207,8 +207,8 @@ test("#1468: the AGENT-SDK degrade (structured extraction) carries the same fail
     structuredThrows: new Error("agent-sdk transport closed"),
     trace: recorder.sink,
   });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They cross the ford." });
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
@@ -222,8 +222,8 @@ test("#1468: the AGENT-SDK degrade (structured extraction) carries the same fail
 test("TOOLCALLS arm A: a folded turn RECORDS what it called, keyed to the producing variant", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "toolcalls-record");
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "She fords the river." });
 
   await rpgCompose.chatOps.onTurnCompleted(
@@ -239,7 +239,7 @@ test("TOOLCALLS arm A: a folded turn RECORDS what it called, keyed to the produc
     ]),
   );
 
-  const recorded = await rpgCompose.service.listTurnToolCalls({ principal: hostPrincipal(hostId), chatId });
+  const recorded = await rpgCompose.service.listTurnToolCalls({ principal: await hostPrincipal(db, hostId), chatId });
   expect(recorded).toHaveLength(1);
   expect(recorded[0]?.variantId).toBe(variantId);
   expect(recorded[0]?.messageId).toBe(messageId);
@@ -258,8 +258,8 @@ test("TOOLCALLS arm A: a turn whose calls ALL dropped still records — that is 
   // they are asking "why did nothing happen?".
   const { chatId, hostId } = await seedHostGameChat(db, "toolcalls-all-dropped");
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The prose is fine." });
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, {
@@ -267,20 +267,20 @@ test("TOOLCALLS arm A: a turn whose calls ALL dropped still records — that is 
     terminalToolCalls: [{ toolCallId: "c1", name: "upsert_quest", arguments: JSON.stringify({ name: 42 }) }],
   });
 
-  const recorded = await rpgCompose.service.listTurnToolCalls({ principal: hostPrincipal(hostId), chatId });
+  const recorded = await rpgCompose.service.listTurnToolCalls({ principal: await hostPrincipal(db, hostId), chatId });
   expect(recorded[0]?.calls.map((c) => c.verdict)).toEqual(["dropped"]);
 });
 
 test("TOOLCALLS arm A: a QUIET beat records nothing (no empty disclosure on every silent turn)", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "toolcalls-quiet");
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They walk on." });
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, foldedTurn([]));
 
-  expect(await rpgCompose.service.listTurnToolCalls({ principal: hostPrincipal(hostId), chatId })).toEqual([]);
+  expect(await rpgCompose.service.listTurnToolCalls({ principal: await hostPrincipal(db, hostId), chatId })).toEqual([]);
 });
 
 test("TOOLCALLS arm A: a NON-folded (cheap) turn records the round that changed its state", async ({ app, db }) => {
@@ -295,16 +295,16 @@ test("TOOLCALLS arm A: a NON-folded (cheap) turn records the round that changed 
     cannedText: "{}",
     cannedToolCalls: [{ name: "update_scene", arguments: JSON.stringify({ location: "the tower" }) }],
   });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive." });
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
   // The state and its producing call land on the same visible variant.
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient?.location).toBe("the tower");
-  const recorded = await rpgCompose.service.listTurnToolCalls({ principal: hostPrincipal(hostId), chatId });
+  const recorded = await rpgCompose.service.listTurnToolCalls({ principal: await hostPrincipal(db, hostId), chatId });
   expect(recorded).toHaveLength(1);
   expect(recorded[0]).toMatchObject({ messageId, variantId });
   expect(recorded[0]?.calls.map((call) => [call.name, call.verdict])).toEqual([["update_scene", "applied"]]);
@@ -316,8 +316,8 @@ test("R-OBS: an UNTRACED game is byte-identical — the same turn lands the same
   const { chatId, hostId } = await seedHostGameChat(db, "robs-untraced");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "She fords the river." });
 
   await rpgCompose.chatOps.onTurnCompleted(
@@ -329,7 +329,7 @@ test("R-OBS: an UNTRACED game is byte-identical — the same turn lands the same
   );
 
   expect(spy.chatTurns).toEqual([]);
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient?.location).toBe("the ford");
 });
 
@@ -339,8 +339,8 @@ test("R1 composed-real: the same calls, folded vs a tool ROUND, produce the SAME
 
   const folded = await seedHostGameChat(db, "r1-parity-fold");
   const foldCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
-  await foldCompose.service.createGame({ principal: hostPrincipal(folded.hostId), chatId: folded.chatId, mode: "lite" });
-  await foldCompose.service.updateConfig({ principal: hostPrincipal(folded.hostId), chatId: folded.chatId, extractionMode: "folded" });
+  await foldCompose.service.createGame({ principal: await hostPrincipal(db, folded.hostId), chatId: folded.chatId, mode: "lite" });
+  await foldCompose.service.updateConfig({ principal: await hostPrincipal(db, folded.hostId), chatId: folded.chatId, extractionMode: "folded" });
   const foldSlot = await seedMessage(db, folded.chatId, 1, { role: "assistant", content: "They arrive." });
   await foldCompose.chatOps.onTurnCompleted(folded.chatId, foldSlot.messageId, foldSlot.variantId, TURN, foldedTurn(calls));
 
@@ -354,13 +354,13 @@ test("R1 composed-real: the same calls, folded vs a tool ROUND, produce the SAME
     cannedText: "{}",
     cannedToolCalls: calls.map((c) => ({ name: c.name, arguments: JSON.stringify(c.args) })),
   });
-  await roundCompose.service.createGame({ principal: hostPrincipal(round.hostId), chatId: round.chatId, mode: "lite" });
-  await roundCompose.service.updateConfig({ principal: hostPrincipal(round.hostId), chatId: round.chatId, extractionMode: "cheap" });
+  await roundCompose.service.createGame({ principal: await hostPrincipal(db, round.hostId), chatId: round.chatId, mode: "lite" });
+  await roundCompose.service.updateConfig({ principal: await hostPrincipal(db, round.hostId), chatId: round.chatId, extractionMode: "cheap" });
   const roundSlot = await seedMessage(db, round.chatId, 1, { role: "assistant", content: "They arrive." });
   await roundCompose.chatOps.onTurnCompleted(round.chatId, roundSlot.messageId, roundSlot.variantId, TURN, tc("chat-completions"));
 
-  const foldView = await foldCompose.service.getTrackerView({ principal: hostPrincipal(folded.hostId), chatId: folded.chatId });
-  const roundView = await roundCompose.service.getTrackerView({ principal: hostPrincipal(round.hostId), chatId: round.chatId });
+  const foldView = await foldCompose.service.getTrackerView({ principal: await hostPrincipal(db, folded.hostId), chatId: folded.chatId });
+  const roundView = await roundCompose.service.getTrackerView({ principal: await hostPrincipal(db, round.hostId), chatId: round.chatId });
   expect(foldView.ambient?.location).toBe(roundView.ambient?.location);
   expect(foldView.recentBeats).toEqual(roundView.recentBeats);
 });
@@ -370,8 +370,8 @@ test("R1 degrade: a MALFORMED tool arg is dropped + logged; the rest of the turn
   const { chatId, hostId } = await seedHostGameChat(db, "r1-malformed");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The prose is fine." });
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, {
@@ -387,7 +387,7 @@ test("R1 degrade: a MALFORMED tool arg is dropped + logged; the rest of the turn
 
   // The turn did not fail (we are here), no model call was made to recover, and the GOOD call still applied.
   expect(spy.summarizeModels).toEqual([]);
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient?.location).toBe("the ford");
   // The narrative is untouched — the flush never edits the committed variant, only the snapshot beside it.
   const rows = await db.select({ content: messageVariants.content }).from(messageVariants).where(eq(messageVariants.id, variantId));
@@ -408,8 +408,8 @@ test("D112 (3): an INVENTED key on an otherwise-valid folded call is NAMED, neve
   const { chatId, hostId } = await seedHostGameChat(db, "r1-stripped");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "He spends himself holding the line." });
 
   await rpgCompose.chatOps.onTurnCompleted(
@@ -427,7 +427,7 @@ test("D112 (3): an INVENTED key on an otherwise-valid folded call is NAMED, neve
 
   // The declared writes still applied — strictness would have cost the whole call (EXT-4a: drop as little as
   // possible), so detection is the closing arm, not rejection.
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient?.location).toBe("the ford");
   expect(view.actors.map((a) => a.volatile?.status ?? null)).toContain("wounded");
   // …and the vanished writes are NAMED, with the path that says which key on which tool.
@@ -454,12 +454,12 @@ test("D112 (3): the STRUCTURED arm names the same strips — incl. a whole plane
       trackerDeltas: [{ key: "hp", delta: -2 }],
     }),
   });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "He holds the line." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient?.location).toBe("the ford"); // the conforming writes landed
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.stripped");
   expect(line).toBeDefined();
@@ -471,8 +471,8 @@ test("R1 degrade: ZERO terminal tool calls trigger the required fallback round i
   const { chatId, hostId } = await seedHostGameChat(db, "r1-quiet");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They talk about the weather." });
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, foldedTurn([]));
@@ -490,8 +490,8 @@ test("R1 degrade: a GHOST actor in a folded call is dropped (no cast mint) + log
   const warnSpy = vi.spyOn(logger, "warn");
   const { chatId, hostId } = await seedHostGameChat(db, "r1-ghost");
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "folded" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A stranger appears." });
 
   await rpgCompose.chatOps.onTurnCompleted(
@@ -504,6 +504,6 @@ test("R1 degrade: a GHOST actor in a folded call is dropped (no cast mint) + log
 
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.phantom");
   expect((line?.[0] as { phantomTargets?: string[] })?.phantomTargets).toContain("Zzyzx the Unknown");
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.actors.some((a) => a.actorRef.kind === "npc")).toBe(false);
 });

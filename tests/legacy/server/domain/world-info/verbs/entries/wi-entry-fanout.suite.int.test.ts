@@ -22,15 +22,15 @@ describe("entry verbs — wiEntry* fan-out", () => {
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     const chatA = await seedChat(db, "a");
     const chatB = await seedChat(db, "b");
-    await svc.attachToChat({ principal: principal(owner), chatId: chatA, bookId: book.id });
-    await svc.attachToChat({ principal: principal(owner), chatId: chatB, bookId: book.id });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId: chatA, bookId: book.id });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId: chatB, bookId: book.id });
     harness.wiEvents.length = 0; // drop the two wiBookAttached emits from the setup above
 
     const entry = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "E", content: "c", keys: ["castle"] },
     });
@@ -58,10 +58,10 @@ describe("entry verbs — wiEntry* fan-out", () => {
     const harness = makeHarness(db);
     const svc = createWorldInfoService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
 
     await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "E", content: "c" },
     });
@@ -74,19 +74,19 @@ describe("entry verbs — wiEntry* fan-out", () => {
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     const chatA = await seedChat(db, "a");
     const chatB = await seedChat(db, "b");
-    await svc.attachToChat({ principal: principal(owner), chatId: chatA, bookId: book.id });
-    await svc.attachToChat({ principal: principal(owner), chatId: chatB, bookId: book.id });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId: chatA, bookId: book.id });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId: chatB, bookId: book.id });
     const entry = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "E", content: "c" },
     });
     harness.wiEvents.length = 0; // drop the attach + create emits above
 
-    await svc.removeEntry({ principal: principal(owner), entryId: entry.id });
+    await svc.removeEntry({ principal: await principal(db, owner), entryId: entry.id });
 
     expect(harness.wiEvents).toEqual([
       { type: "wiEntryDetached", chatId: chatA, surface: "chat", entryId: entry.id },
@@ -99,14 +99,14 @@ describe("entry verbs — wiEntry* fan-out", () => {
     const harness = makeHarness(db);
     const svc = createWorldInfoService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     const entry = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "E", content: "c" },
     });
 
-    await svc.removeEntry({ principal: principal(owner), entryId: entry.id });
+    await svc.removeEntry({ principal: await principal(db, owner), entryId: entry.id });
 
     expect(harness.wiEvents).toEqual([]);
   });
@@ -116,20 +116,20 @@ describe("entry verbs — wiEntry* fan-out", () => {
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     const chatA = await seedChat(db, "a");
     const chatB = await seedChat(db, "b");
-    await svc.attachToChat({ principal: principal(owner), chatId: chatA, bookId: book.id });
-    await svc.attachToChat({ principal: principal(owner), chatId: chatB, bookId: book.id });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId: chatA, bookId: book.id });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId: chatB, bookId: book.id });
     const entry = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "E", content: "c" }, // no keys → always-scope
     });
     harness.wiEvents.length = 0; // drop the attach + create emits above
 
     await svc.updateEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       entryId: entry.id,
       input: { keys: ["dragon"] },
     });
@@ -157,18 +157,18 @@ describe("entry verbs — wiEntry* fan-out", () => {
     const harness = makeHarness(db, { requireChatHost: () => Promise.resolve() });
     const svc = createWorldInfoService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     const chatId = await seedChat(db);
-    await svc.attachToChat({ principal: principal(owner), chatId, bookId: book.id });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId, bookId: book.id });
     const entry = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "E", content: "old" },
     });
     harness.wiEvents.length = 0; // drop the attach + create emits above
 
     await svc.updateEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       entryId: entry.id,
       input: { content: "new" },
     });
@@ -181,15 +181,15 @@ describe("entry verbs — wiEntry* fan-out", () => {
     const harness = makeHarness(db);
     const svc = createWorldInfoService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     const entry = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "E", content: "c" },
     });
 
     await svc.updateEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       entryId: entry.id,
       input: { enabled: false },
     });

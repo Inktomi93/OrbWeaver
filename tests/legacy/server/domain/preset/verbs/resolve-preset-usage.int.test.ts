@@ -61,7 +61,7 @@ describe("preset/resolve-preset-usage — a preset's backward bindings", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const resolve = usageResolver(db, settingsWithDefault(PRESET));
 
-    expect(await resolve(principal(owner), PRESET)).toEqual({ isUserDefault: true, gmRooms: [] });
+    expect(await resolve(await principal(db, owner), PRESET)).toEqual({ isUserDefault: true, gmRooms: [] });
   });
 
   test("a GM-voice game names its room; a game the caller was removed from does NOT", async () => {
@@ -76,7 +76,7 @@ describe("preset/resolve-preset-usage — a preset's backward bindings", () => {
     await seedGmGame(db, kicked, "kicked", PRESET);
 
     const resolve = usageResolver(db, settingsWithDefault(null));
-    const usage = await resolve(principal(owner), PRESET);
+    const usage = await resolve(await principal(db, owner), PRESET);
 
     expect(usage.isUserDefault).toBe(false);
     expect(usage.gmRooms.map((room) => room.id)).toEqual([seated]);
@@ -98,7 +98,7 @@ describe("preset/resolve-preset-usage — a preset's backward bindings", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const resolve = usageResolver(db, settingsWithDefault(null));
 
-    expect(await resolve(principal(owner), SYSTEM_DEFAULT_PRESET_ID)).toEqual({ isUserDefault: true, gmRooms: [] });
+    expect(await resolve(await principal(db, owner), SYSTEM_DEFAULT_PRESET_ID)).toEqual({ isUserDefault: true, gmRooms: [] });
   });
 
   test("an EXPLICIT pick elsewhere leaves the built-in un-active — the null arm is not a blanket exemption", async () => {
@@ -106,9 +106,9 @@ describe("preset/resolve-preset-usage — a preset's backward bindings", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const resolve = usageResolver(db, settingsWithDefault(PRESET));
 
-    expect(await resolve(principal(owner), SYSTEM_DEFAULT_PRESET_ID)).toEqual({ isUserDefault: false, gmRooms: [] });
+    expect(await resolve(await principal(db, owner), SYSTEM_DEFAULT_PRESET_ID)).toEqual({ isUserDefault: false, gmRooms: [] });
     // …and the preset that IS picked still reports itself, so the new arm did not move the ordinary answer.
-    expect((await resolve(principal(owner), PRESET)).isUserDefault).toBe(true);
+    expect((await resolve(await principal(db, owner), PRESET)).isUserDefault).toBe(true);
   });
 
   test("a game pointing at ANOTHER preset is not a binding", async () => {
@@ -122,6 +122,6 @@ describe("preset/resolve-preset-usage — a preset's backward bindings", () => {
 
     const resolve = usageResolver(db, settingsWithDefault(null));
 
-    expect(await resolve(principal(owner), PRESET)).toEqual({ isUserDefault: false, gmRooms: [] });
+    expect(await resolve(await principal(db, owner), PRESET)).toEqual({ isUserDefault: false, gmRooms: [] });
   });
 });

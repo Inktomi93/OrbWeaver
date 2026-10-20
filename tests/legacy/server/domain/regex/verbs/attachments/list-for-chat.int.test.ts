@@ -20,9 +20,9 @@ describe("listForChat", () => {
     const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
     const scriptId = await seedScript(db, { ownerId: host, name: "room quirk" });
-    await svc.attachToChat({ principal: principal(host), chatId, scriptId });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, scriptId });
 
-    expect((await svc.listForChat({ principal: principal(member), chatId })).map((r) => r.name)).toEqual(["room quirk"]);
+    expect((await svc.listForChat({ principal: await principal(db, member), chatId })).map((r) => r.name)).toEqual(["room quirk"]);
   });
 
   test("a NON-member is refused by the injected membership guard", async () => {
@@ -32,6 +32,6 @@ describe("listForChat", () => {
     const outsider = await seedUser(db, { handle: castId<Handle>("outsider") });
     const chatId = await seedChat(db);
 
-    await expect(createRegexService(h.ctx).listForChat({ principal: principal(outsider), chatId })).rejects.toThrow("not a member");
+    await expect(createRegexService(h.ctx).listForChat({ principal: await principal(db, outsider), chatId })).rejects.toThrow("not a member");
   });
 });

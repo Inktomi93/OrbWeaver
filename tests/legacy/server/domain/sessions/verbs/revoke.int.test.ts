@@ -5,6 +5,7 @@ import type { Db } from "@orb/db";
 import { auditLogs, sessions, users } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, SessionId, SessionToken, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -101,12 +102,12 @@ describe("sessions.revokeAllForUserStatement (the batch-riding kick)", () => {
     const a = await svc.create({ userId: USER_ID });
     const b = await svc.create({ userId: USER_ID });
 
-    const revoked = await db.batch(batchMany([svc.revokeAllForUserStatement(USER_ID, FROZEN_AT_MS)]));
+    const revoked = await db.batch(batchMany([statementForOwner(svc.revokeAllForUserStatement(USER_ID, FROZEN_AT_MS))]));
     expect((revoked[0] as { id: SessionId }[]).map((r) => r.id).sort()).toEqual([a.sessionId, b.sessionId].sort());
     expect(await svc.validate(a.token)).toBeNull();
     expect(await svc.validate(b.token)).toBeNull();
 
-    const again = await db.batch(batchMany([svc.revokeAllForUserStatement(USER_ID, FROZEN_AT_MS)]));
+    const again = await db.batch(batchMany([statementForOwner(svc.revokeAllForUserStatement(USER_ID, FROZEN_AT_MS))]));
     expect(again[0]).toHaveLength(0);
   });
 

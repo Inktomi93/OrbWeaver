@@ -22,7 +22,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ThemeBackground } from "@orb/contracts/theme";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type {
   DefaultBackgroundSeederDeps,
@@ -32,6 +32,7 @@ import type {
   SeededSlugResolver,
 } from "#server/domain/settings/index.ts";
 import { createDefaultBackgroundSeeder } from "#server/domain/settings/index.ts";
+import { principal } from "../../../../db/schema/_support.ts";
 
 const PLATES: readonly SeedBackgroundPlateRef[] = [
   { slug: "assistant-bg", label: "Charlotte's study" },
@@ -39,7 +40,8 @@ const PLATES: readonly SeedBackgroundPlateRef[] = [
   { slug: "morgatha-bg", label: "The Ashen Spire" },
 ];
 
-const ACTOR: Principal = principal(castId<UserId>("user_plates"));
+// The seeder reads no user rows; its actor resolves from a row in one in-memory database.
+const ACTOR: Principal = await principal({ db: await freshDb() }, castId<UserId>("user_plates"));
 
 /** The recorder's MUTABLE half — read live after the pass, so it is one object the deps close over rather
  *  than a snapshot (a spread would freeze the counters at build time and every assertion would read zero). */

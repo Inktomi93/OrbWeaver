@@ -6,10 +6,11 @@
 import type { ResolvedSecret } from "@orb/contracts/credentials";
 import type { UserConnection } from "@orb/contracts/inference";
 import { createInferenceRuntime } from "@orb/inference";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runOpenAiCompatChatTurn } from "#inference/backends/openai-compat/chat.ts";
 import { detectServer } from "#inference/catalog/detect.ts";
+import { principal } from "../../db/schema/_support.ts";
 import type { LocalServerArm } from "../_support.ts";
 import { fakeConnection, fakeDeps, memoryStores, memoryTokenLexicon, newUserId } from "../_support.ts";
 import { OLLAMA_NATIVE_RECORDINGS } from "../backends/openai-compat/_ollama-native-recordings.ts";
@@ -27,13 +28,14 @@ interface Box {
   readonly seen: string[];
   readonly credentialFor: string[];
   readonly snapshots: Map<string, string>;
-  readonly alice: ReturnType<typeof principal>;
+  readonly alice: Awaited<ReturnType<typeof principal>>;
 }
 
 async function box(
   arm: LocalServerArm,
   opts: { readonly overrides?: Record<string, unknown>; readonly declared?: UserConnection["declared"] } = {},
 ): Promise<Box> {
+  const db = await freshDb();
   const stores = memoryStores();
   const seen: string[] = [];
   const credentialFor: string[] = [];
@@ -56,7 +58,7 @@ async function box(
   stores.connections.rows.set(connection.id, connection);
   stores.bindings.bind({ actorKind: "user", actorId: aliceId, task: "chat", connectionId: connection.id });
   const runtime = await createInferenceRuntime(deps);
-  return { runtime, connection, seen, credentialFor, snapshots: stores.snapshotStore.entries, alice: principal(aliceId) };
+  return { runtime, connection, seen, credentialFor, snapshots: stores.snapshotStore.entries, alice: await principal({ db }, aliceId) };
 }
 
 /** The one model each rig server lists. */

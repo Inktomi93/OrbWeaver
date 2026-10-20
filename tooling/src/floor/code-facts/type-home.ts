@@ -21,7 +21,12 @@ export const PACKAGE_TYPE_HOMES = {
 export const UI_TOKEN_AUTHORING_CONTRACT_HOME = "packages/ui/token-contract.ts";
 
 const TYPE_HOME_GENERATED_SUFFIX = ".gen.ts";
-export const TYPE_HOME_NATIVE_UNADMITTED_GLOBS = [`**/*${TYPE_HOME_GENERATED_SUFFIX}`, "packages/server/src/domain/**/*.test.{ts,tsx}"] as const;
+// D320: legacy tests stay outside type-aware lint.
+export const TYPE_HOME_NATIVE_UNADMITTED_GLOBS = [
+  `**/*${TYPE_HOME_GENERATED_SUFFIX}`,
+  "packages/server/src/domain/**/*.test.{ts,tsx}",
+  "tests/legacy/**",
+] as const;
 
 export const TYPE_HOME_NATIVE_POLICY_ID = "type-home-direct-export";
 export const SERVER_FACTORY_TIER_REFERENCE_POLICY_ID = "server-factory-tier-reference";
@@ -55,6 +60,21 @@ export const SERVER_EXACT_CONTRACT_HOMES = [
 ] as const;
 const SERVER_FACTORY_TIERS = ["entry", "transport", "infra", "foundation"] as const;
 export const SERVER_FACTORY_TYPE_HOME_ROOTS = SERVER_FACTORY_TIERS.map((tier) => `packages/server/src/${tier}/`);
+const TOOLING_ROOT = "tooling/src/";
+const TESTS_ROOT = "tests/";
+// D324 and D331: a shape here is owned by the signature of a function declared in its file.
+export const SIGNATURE_TYPE_HOME_ROOTS = [...SERVER_FACTORY_TYPE_HOME_ROOTS, TOOLING_ROOT, TESTS_ROOT] as const;
+// The tool contract and plumbing floor (Core-Tooling-Law §2.4, §2.5), and the test kit and fixture modules.
+const TOOLING_TYPE_HOMES = [`${TOOLING_ROOT}floor/**/*.{ts,tsx}`, `${TOOLING_ROOT}**/contract/**/*.{ts,tsx}`, `${TOOLING_ROOT}**/contract.ts`] as const;
+const TEST_TYPE_HOMES = [
+  `${TESTS_ROOT}support/**/*.{ts,tsx}`,
+  `${TESTS_ROOT}**/contract/**/*.{ts,tsx}`,
+  `${TESTS_ROOT}**/contract.ts`,
+  `${TESTS_ROOT}**/fixtures.ts`,
+  `${TESTS_ROOT}**/*.fixtures.{ts,tsx}`,
+  `${TESTS_ROOT}**/*-fixtures.{ts,tsx}`,
+  `${TESTS_ROOT}**/_support.ts`,
+] as const;
 
 /** A server file the tier-reference rule does not lint, so nothing judges its own imports. */
 export function unjudgedServerFile(path: string): boolean {
@@ -86,6 +106,8 @@ export const TYPE_HOME_NATIVE_SOURCE_GLOBS = [
   ...NATIVE_PACKAGES.map((name) => `${sourceRoot(name)}**/*.{ts,tsx}`),
   ...NATIVE_SERVER_ROOTS.map((root) => `${root}/**/*.{ts,tsx}`),
   ...SERVER_FACTORY_TYPE_HOME_ROOTS.map((root) => `${root}**/*.{ts,tsx}`),
+  `${TOOLING_ROOT}**/*.{ts,tsx}`,
+  `${TESTS_ROOT}**/*.{ts,tsx}`,
 ];
 export const TYPE_HOME_NATIVE_CONTRACT_GLOBS = [
   ...SERVER_TYPE_API_HOMES,
@@ -96,6 +118,8 @@ export const TYPE_HOME_NATIVE_CONTRACT_GLOBS = [
   "packages/server/src/transport/trpc/contract/**/*.{ts,tsx}",
   "packages/server/src/transport/jobs/contract/**/*.{ts,tsx}",
   ...SERVER_EXACT_CONTRACT_HOMES,
+  ...TOOLING_TYPE_HOMES,
+  ...TEST_TYPE_HOMES,
 ];
 
 /** Classify the canonical package/world and answer only the sanctioned package-contract path question. */

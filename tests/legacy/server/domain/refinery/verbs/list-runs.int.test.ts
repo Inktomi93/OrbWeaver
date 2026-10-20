@@ -18,13 +18,13 @@ test("the ledger reads oldest-first; a stranger gets NOT_FOUND; a corrupt row is
   const stranger = await seedUser(db, { id: "user_lr_b", handle: castId<Handle>("lr-stranger") });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "lr-card-a");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
 
   h.queueReply(scoreReply());
-  const score = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "score" });
+  const score = await h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "score" });
   h.advance(10);
   h.queueReply(rewriteReply());
-  const rewrite = await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+  const rewrite = await h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "rewrite" });
   // Plant a CORRUPT row (the read-seam's subject — the engine can't produce one): insert VALID, then
   // corrupt the stored payload as RAW COLUMN BYTES (no typed-value fabrication).
   await db.insert(refineryRuns).values({
@@ -38,7 +38,7 @@ test("the ledger reads oldest-first; a stranger gets NOT_FOUND; a corrupt row is
   });
   await db.run(sql`UPDATE refinery_runs SET payload = '{"totally":"wrong"}' WHERE id = 'refinery_run_corrupt'`);
 
-  const runs = await h.svc.listRuns({ principal: principal(owner), sessionId: session.id });
+  const runs = await h.svc.listRuns({ principal: await principal(db, owner), sessionId: session.id });
   expect(runs.map((r) => r.id)).toEqual([score.id, rewrite.id]);
-  await expect(h.svc.listRuns({ principal: principal(stranger), sessionId: session.id })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(h.svc.listRuns({ principal: await principal(db, stranger), sessionId: session.id })).rejects.toBeInstanceOf(DomainNotFoundError);
 });

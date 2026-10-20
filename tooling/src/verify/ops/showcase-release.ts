@@ -49,7 +49,7 @@ const RECEIPT_SCHEMA = z.object({
 
 refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm verify [--push|--full])");
 
-export interface ShowcaseVersionInput {
+interface ShowcaseVersionInput {
   readonly slug: string;
   readonly before: string | null;
   readonly after: string;

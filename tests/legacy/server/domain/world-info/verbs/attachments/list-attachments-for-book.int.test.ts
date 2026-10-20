@@ -18,11 +18,11 @@ describe("listAttachmentsForBook", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
     const persona = await seedPersona(db, { ownerId: owner });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
-    await svc.attachToCharacter({ principal: principal(owner), characterId: character, bookId: book.id, role: "primary" });
-    await svc.attachToPersona({ principal: principal(owner), personaId: persona, bookId: book.id });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId: character, bookId: book.id, role: "primary" });
+    await svc.attachToPersona({ principal: await principal(db, owner), personaId: persona, bookId: book.id });
 
-    await expect(svc.listAttachmentsForBook({ principal: principal(owner), bookId: book.id })).resolves.toEqual({
+    await expect(svc.listAttachmentsForBook({ principal: await principal(db, owner), bookId: book.id })).resolves.toEqual({
       characters: [{ characterId: character, role: "primary" }],
       personaIds: [persona],
     });
@@ -41,15 +41,15 @@ describe("listAttachmentsForBook", () => {
     const minePersona = await seedPersona(db, { id: "persona_mine", ownerId: owner });
     const theirCharacter = await seedCharacter(db, { id: "character_theirs", ownerId: stranger });
     const theirPersona = await seedPersona(db, { id: "persona_theirs", ownerId: stranger });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
-    await svc.attachToCharacter({ principal: principal(owner), characterId: mineCharacter, bookId: book.id, role: "primary" });
-    await svc.attachToPersona({ principal: principal(owner), personaId: minePersona, bookId: book.id });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId: mineCharacter, bookId: book.id, role: "primary" });
+    await svc.attachToPersona({ principal: await principal(db, owner), personaId: minePersona, bookId: book.id });
     // Planted directly: the verbs gate both ends, but the handoff/carry write paths can leave a junction
     // whose TARGET belongs to another owner.
     await db.insert(characterBooks).values({ characterId: theirCharacter, worldBookId: book.id, role: "auxiliary", createdAt: FROZEN_AT_MS });
     await db.insert(personaBooks).values({ personaId: theirPersona, worldBookId: book.id, createdAt: FROZEN_AT_MS });
 
-    const targets = await svc.listAttachmentsForBook({ principal: principal(owner), bookId: book.id });
+    const targets = await svc.listAttachmentsForBook({ principal: await principal(db, owner), bookId: book.id });
 
     expect(targets).toEqual({ characters: [{ characterId: mineCharacter, role: "primary" }], personaIds: [minePersona] });
   });
@@ -59,8 +59,8 @@ describe("listAttachmentsForBook", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const book = await svc.createBook({ principal: principal(other), input: { name: "Foreign" } });
+    const book = await svc.createBook({ principal: await principal(db, other), input: { name: "Foreign" } });
 
-    await expect(svc.listAttachmentsForBook({ principal: principal(owner), bookId: book.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.listAttachmentsForBook({ principal: await principal(db, owner), bookId: book.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

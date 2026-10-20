@@ -6,7 +6,7 @@ import { createWrappedNode, Node, Project, SyntaxKind } from "ts-morph";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
 import { vi } from "vitest";
-import { serverFactoryTypeHome } from "../../../../tooling/src/floor/code-facts/server-factory-type-home.ts";
+import { signatureTypeHome } from "../../../../tooling/src/floor/code-facts/server-factory-type-home.ts";
 import {
   nativeGenericReferenceContributes,
   parserGenericReferenceContributes,
@@ -110,20 +110,20 @@ export function wire():DataResponse{return {value:"wire"}}
   const predicate = vi.spyOn(shapeDerivation, "parserGenericReferenceContributes");
   const returned = vi.spyOn(origins, "readParserReturnedTypeIdentities");
   try {
-    expect(serverFactoryTypeHome(declaredShape(source, "Options"), PATH, parser)).toBe(true);
+    expect(signatureTypeHome(declaredShape(source, "Options"), PATH, parser)).toBe(true);
     const first = signatures.mock.calls.length;
     expect(first).toBeGreaterThan(0);
-    expect(serverFactoryTypeHome(declaredShape(source, "Handle"), PATH, parser)).toBe(true);
-    expect(serverFactoryTypeHome(declaredShape(source, "DataResponse"), PATH, parser)).toBe(false);
-    expect(serverFactoryTypeHome(declaredShape(source, "Options"), "packages/server/src/primitives/other.ts", parser)).toBe(false);
+    expect(signatureTypeHome(declaredShape(source, "Handle"), PATH, parser)).toBe(true);
+    expect(signatureTypeHome(declaredShape(source, "DataResponse"), PATH, parser)).toBe(false);
+    expect(signatureTypeHome(declaredShape(source, "Options"), "packages/server/src/primitives/other.ts", parser)).toBe(false);
     expect(signatures).toHaveBeenCalledTimes(first);
     predicate.mockRestore();
-    expect(serverFactoryTypeHome(declaredShape(source, "Options"), PATH, parser)).toBe(true);
+    expect(signatureTypeHome(declaredShape(source, "Options"), PATH, parser)).toBe(true);
     expect(signatures.mock.calls.length).toBeGreaterThan(first);
     const rebound = signatures.mock.calls.length;
     expect(returned).toHaveBeenCalled();
     returned.mockRestore();
-    expect(serverFactoryTypeHome(declaredShape(source, "Options"), PATH, parser)).toBe(true);
+    expect(signatureTypeHome(declaredShape(source, "Options"), PATH, parser)).toBe(true);
     expect(signatures.mock.calls.length).toBeGreaterThan(rebound);
     writeFileSync(path, text.replace("options:Options", "options:number"));
     const changed = ts.createProgram([path], options);
@@ -132,9 +132,9 @@ export function wire():DataResponse{return {value:"wire"}}
       throw new Error("changed factory source missing");
     }
     const current = { kind: "parser" as const, program: changed, source: changedSource, checker: changed.getTypeChecker() };
-    expect(serverFactoryTypeHome(declaredShape(changedSource, "Options"), PATH, current)).toBe(false);
-    expect(() => serverFactoryTypeHome(declaredShape(source, "Options"), PATH, current)).toThrow("foreign or stale");
-    expect(() => serverFactoryTypeHome(declaredShape(source, "Options"), PATH, { ...parser, checker: current.checker })).toThrow("foreign or stale");
+    expect(signatureTypeHome(declaredShape(changedSource, "Options"), PATH, current)).toBe(false);
+    expect(() => signatureTypeHome(declaredShape(source, "Options"), PATH, current)).toThrow("foreign or stale");
+    expect(() => signatureTypeHome(declaredShape(source, "Options"), PATH, { ...parser, checker: current.checker })).toThrow("foreign or stale");
   } finally {
     returned.mockRestore();
     predicate.mockRestore();
@@ -292,9 +292,9 @@ test("parser generic observations retain canonical substitution while refusing f
     expect(parserGenericReferenceContributes(binding, parser)).toBe(true);
     expect(readParserGenericArgumentContribution({ ...input, parser: { ...parser, checker: foreign.getTypeChecker() } })).toMatchObject({ kind: "unresolved" });
     expect(readParserGenericArgumentContribution({ ...input, parser: { ...parser, source: other } })).toMatchObject({ kind: "unresolved" });
-    expect(() => serverFactoryTypeHome(alias, PATH, { ...parser, checker: foreign.getTypeChecker() })).toThrow("foreign or stale");
+    expect(() => signatureTypeHome(alias, PATH, { ...parser, checker: foreign.getTypeChecker() })).toThrow("foreign or stale");
     const stale = ts.createSourceFile(path, SOURCE, ts.ScriptTarget.ES2022, true);
-    expect(() => serverFactoryTypeHome(declaredShape(stale, "NestedOptions"), PATH, parser)).toThrow("foreign or stale");
+    expect(() => signatureTypeHome(declaredShape(stale, "NestedOptions"), PATH, parser)).toThrow("foreign or stale");
     expect(project).not.toHaveBeenCalled();
   } finally {
     project.mockRestore();
@@ -581,10 +581,10 @@ export function body(value:Body<BodyOnly>):void{}
       throw new Error("Hono env argument missing");
     }
     for (const name of ["DirectEnv", "InheritedEnv", "MappedEnv", "IntersectionEnv"]) {
-      expect(serverFactoryTypeHome(declaredShape(source, name), relative, parser), name).toBe(true);
+      expect(signatureTypeHome(declaredShape(source, name), relative, parser), name).toBe(true);
     }
     for (const name of ["DirectErased", "InheritedErased", "ConstraintOnly", "BodyOnly", "RemappedEnv", "ChangedFieldEnv", "ErasedMappedEnv", "PrincipalEnv"]) {
-      expect(serverFactoryTypeHome(declaredShape(source, name), relative, parser), name).toBe(false);
+      expect(signatureTypeHome(declaredShape(source, name), relative, parser), name).toBe(false);
     }
     const contribution = readParserGenericArgumentContribution({ reference, argument, binding: argument.typeName, parser });
     expect(contribution).toMatchObject({

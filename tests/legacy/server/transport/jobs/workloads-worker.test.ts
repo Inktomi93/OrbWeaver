@@ -4,7 +4,7 @@
 // LANE INDEPENDENCE that the two-lane worker exists for.
 
 import type { WorkloadLane } from "@orb/contracts/workloads";
-import type { Db } from "@orb/db";
+import type { DatabaseHandle } from "@orb/db/wiring";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { ReapWorkloadsArgs, WorkloadContributions, WorkloadRunnableRow, WorkloadRunnerDeps } from "#server/domain/workloads/index.ts";
@@ -104,7 +104,9 @@ describe("workloads-worker loop", () => {
       controller.abort();
       return Promise.resolve();
     });
-    const nextRunnable = vi.fn((_db: Db, _contributions: WorkloadContributions, _now: number, lane: WorkloadLane) => Promise.resolve(makeRow({ lane })));
+    const nextRunnable = vi.fn((_db: DatabaseHandle, _contributions: WorkloadContributions, _now: number, lane: WorkloadLane) =>
+      Promise.resolve(makeRow({ lane })),
+    );
     const clearReap = vi.fn();
     const unsubscribe = vi.fn();
 
@@ -194,7 +196,7 @@ describe("workloads-worker loop", () => {
     const deps = makeWorkerDeps({
       signal: controller.signal,
       run,
-      nextRunnable: vi.fn((_db: Db, _contributions: WorkloadContributions, _now: number, lane: WorkloadLane) => Promise.resolve(makeRow({ lane }))),
+      nextRunnable: vi.fn((_db: DatabaseHandle, _contributions: WorkloadContributions, _now: number, lane: WorkloadLane) => Promise.resolve(makeRow({ lane }))),
       load: vi.fn(() => Promise.resolve(makeRow({ status: "succeeded" }))),
     });
 

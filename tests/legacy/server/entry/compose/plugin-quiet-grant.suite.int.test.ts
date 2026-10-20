@@ -90,7 +90,7 @@ describe("plugin llm.quiet resolves the plugin-grant summarize binding", () => {
       roleClientsFor: app.roleClientsFor,
       resolveUtilityPresetParams: () => Promise.resolve({}),
       assets: app.services.assets,
-      resolveOwnerPrincipal: () => Promise.resolve(principal(OWNER_USER_ID)),
+      resolveOwnerPrincipal: async () => Promise.resolve(await principal(db, OWNER_USER_ID)),
     });
     const signal = new AbortController().signal;
 

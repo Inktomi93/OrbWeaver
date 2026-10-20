@@ -6,7 +6,7 @@ import type { WaiverBudget } from "../contract/gate-authority.ts";
 const APPLICATION = Object.freeze({
   "assets-single-writer": 6,
   "audit-client-tests": 1,
-  "caught-failure-ownership": 680,
+  "caught-failure-ownership": 598,
   "chat-viewer-plane-canon-reads": 3,
   "contract-structural-copy": 87,
   "css-family-direct-client-mechanism": 3,
@@ -20,10 +20,8 @@ const APPLICATION = Object.freeze({
   "knob-wire-coverage": 4,
   "membership-enforcer": 6,
   "no-await-db-in-loop": 13,
-  "no-inline-types": 5,
-  "no-inline-wire-interface": 31,
+  "no-inline-types": 3,
   "no-manual-memo": 3,
-  "no-raw-egress": 1,
   "no-vanity-alias": 91,
   "nullable-column-inequality": 1,
   "over-art-plate-arm": 1,
@@ -36,7 +34,6 @@ const APPLICATION = Object.freeze({
   "scrubber-home": 1,
   "seed-theme-ink-contrast": 9,
   "single-stream-transport": 2,
-  "sole-env-reader": 10,
   suppressions: 57,
   "test-reach": 112,
   "tooling-argv-front-door": 1,
@@ -51,7 +48,6 @@ const APPLICATION = Object.freeze({
 
 const IMPLEMENTATION = Object.freeze({
   "caught-failure-ownership": 21,
-  "no-inline-types": 1,
   "no-vanity-alias": 1,
   suppressions: 5,
   "test-determinism": 32,

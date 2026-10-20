@@ -29,14 +29,14 @@ describe("promoteTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
 
-    const promoted = await h.svc.promoteTheme({ principal: principal(a, "user"), input: { name: "Charlotte", override: { ...CARD_LOOK } } });
+    const promoted = await h.svc.promoteTheme({ principal: await principal(db, a, "user"), input: { name: "Charlotte", override: { ...CARD_LOOK } } });
 
     expect(promoted.name).toBe("Charlotte");
     expect(promoted.isSeed).toBe(false);
     expect(promoted.css).toBeNull();
     expect(promoted.override).toEqual(CARD_LOOK);
     // It is a real library row the picker lists, not a detached view.
-    const listed = await h.svc.listThemes({ principal: principal(a, "user") });
+    const listed = await h.svc.listThemes({ principal: await principal(db, a, "user") });
     expect(listed.map((t) => t.name)).toContain("Charlotte");
   });
 
@@ -46,7 +46,7 @@ describe("promoteTheme", () => {
     const a = await seedUser(db, { id: "user_a" });
 
     const promoted = await h.svc.promoteTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Charlotte", override: { ...CARD_LOOK, density: "compact" } },
     });
 
@@ -60,7 +60,7 @@ describe("promoteTheme", () => {
     const a = await seedUser(db, { id: "user_a" });
 
     const promoted = await h.svc.promoteTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       // The wire schema is lenient per-field: a hostile colour degrades to undefined rather than rejecting
       // the whole promote (the same clamp `createTheme` runs).
       input: { name: "Charlotte", override: { accent: "url(https://evil.example/x)", speaker: "red" } },
@@ -74,9 +74,9 @@ describe("promoteTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
 
-    const first = await h.svc.promoteTheme({ principal: principal(a, "user"), input: { name: "Aria", override: { accent: "red" } } });
-    const second = await h.svc.promoteTheme({ principal: principal(a, "user"), input: { name: "Aria", override: { accent: "blue" } } });
-    const third = await h.svc.promoteTheme({ principal: principal(a, "user"), input: { name: "Aria", override: { accent: "green" } } });
+    const first = await h.svc.promoteTheme({ principal: await principal(db, a, "user"), input: { name: "Aria", override: { accent: "red" } } });
+    const second = await h.svc.promoteTheme({ principal: await principal(db, a, "user"), input: { name: "Aria", override: { accent: "blue" } } });
+    const third = await h.svc.promoteTheme({ principal: await principal(db, a, "user"), input: { name: "Aria", override: { accent: "green" } } });
 
     expect([first.name, second.name, third.name]).toEqual(["Aria", "Aria 2", "Aria 3"]);
   });
@@ -87,7 +87,7 @@ describe("promoteTheme", () => {
     await ensureSeedThemes(db, () => h.clock.now());
     const a = await seedUser(db, { id: "user_a" });
 
-    const promoted = await h.svc.promoteTheme({ principal: principal(a, "user"), input: { name: "Hearth", override: { accent: "red" } } });
+    const promoted = await h.svc.promoteTheme({ principal: await principal(db, a, "user"), input: { name: "Hearth", override: { accent: "red" } } });
 
     // The unique index is `(ownerId, name)` and NULLs are distinct — an owned "Hearth" is a different row.
     expect(promoted.name).toBe("Hearth");
@@ -99,9 +99,9 @@ describe("promoteTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const b = await seedUser(db, { id: "user_b" });
-    await h.svc.createTheme({ principal: principal(b, "user"), input: { name: "Aria", override: {} } });
+    await h.svc.createTheme({ principal: await principal(db, b, "user"), input: { name: "Aria", override: {} } });
 
-    const promoted = await h.svc.promoteTheme({ principal: principal(a, "user"), input: { name: "Aria", override: { accent: "red" } } });
+    const promoted = await h.svc.promoteTheme({ principal: await principal(db, a, "user"), input: { name: "Aria", override: { accent: "red" } } });
 
     expect(promoted.name).toBe("Aria");
   });
@@ -111,7 +111,7 @@ describe("promoteTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
 
-    const promoted = await h.svc.promoteTheme({ principal: principal(a, "user"), input: { name: "Aria", override: { accent: "red" } } });
+    const promoted = await h.svc.promoteTheme({ principal: await principal(db, a, "user"), input: { name: "Aria", override: { accent: "red" } } });
 
     const entry = h.audits.at(-1)?.entry;
     expect(entry?.action).toBe("theme.promote");

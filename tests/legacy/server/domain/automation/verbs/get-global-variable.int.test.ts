@@ -13,9 +13,9 @@ describe("getGlobalVariable", () => {
     const owner = await seedUser(db);
     const svc = createAutomationService(makeAutomationHarness(db));
 
-    await svc.setGlobalVariable({ principal: principal(owner), key: "streak", value: "7" });
+    await svc.setGlobalVariable({ principal: await principal(db, owner), key: "streak", value: "7" });
 
-    await expect(svc.getGlobalVariable({ principal: principal(owner), key: "streak" })).resolves.toBe("7");
+    await expect(svc.getGlobalVariable({ principal: await principal(db, owner), key: "streak" })).resolves.toBe("7");
   });
 
   test("an unset key reads as null", async () => {
@@ -23,7 +23,7 @@ describe("getGlobalVariable", () => {
     const owner = await seedUser(db);
     const svc = createAutomationService(makeAutomationHarness(db));
 
-    await expect(svc.getGlobalVariable({ principal: principal(owner), key: "nope" })).resolves.toBeNull();
+    await expect(svc.getGlobalVariable({ principal: await principal(db, owner), key: "nope" })).resolves.toBeNull();
   });
 
   test("user B cannot read user A's global (fetchOwned isolation)", async () => {
@@ -32,8 +32,8 @@ describe("getGlobalVariable", () => {
     const other = await seedUser(db, "user_other");
     const svc = createAutomationService(makeAutomationHarness(db));
 
-    await svc.setGlobalVariable({ principal: principal(owner), key: "secret", value: "42" });
+    await svc.setGlobalVariable({ principal: await principal(db, owner), key: "secret", value: "42" });
 
-    await expect(svc.getGlobalVariable({ principal: principal(other), key: "secret" })).resolves.toBeNull();
+    await expect(svc.getGlobalVariable({ principal: await principal(db, other), key: "secret" })).resolves.toBeNull();
   });
 });

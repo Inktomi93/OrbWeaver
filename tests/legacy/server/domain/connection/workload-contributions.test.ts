@@ -12,10 +12,14 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { ConnectionWorkloadDeps } from "#server/domain/connection/index.ts";
 import { createConnectionWorkloadContributions } from "#server/domain/connection/index.ts";
+import { everyOwnerAuthority } from "../workloads/_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 const T0 = 1_700_000_000_000;
 // A catalog refresh is deployment-wide (bulk-only): the row carries no owner.
-const ctx: WorkloadRunContext = { userId: castId<UserId>("system"), ownerId: null, now: () => T0 };
+const ctx: WorkloadRunContext = { ...EVERY_OWNER.run, userId: castId<UserId>("system"), now: () => T0 };
 
 interface Call {
   readonly providerId: string;

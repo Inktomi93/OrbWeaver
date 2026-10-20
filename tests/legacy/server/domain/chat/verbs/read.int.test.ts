@@ -52,7 +52,6 @@ import { resolveImageRefToUrl } from "@orb/server/domain/chat";
 import { createTurnPersonaResolver, voicePersonaFor } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
@@ -64,12 +63,14 @@ import type { ChatContext } from "#server/domain/chat/context.ts";
 import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { insertInvite, redeemInviteAtomic } from "#server/domain/chat/persistence/invites.ts";
 import { loadMessageView } from "#server/domain/chat/persistence/queries.ts";
+import { hostUserIdOf } from "#server/domain/chat/substrate/participants-host.ts";
 import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts";
 // The D16 policy SETTER (verbs/participants.ts) — imported here so the round-trip tests below drive the real
 // write path against the real read clamp in one room (the setter's own gates live in roster.int.test.ts).
 import { createParticipants, setParticipantActivePersona } from "#server/domain/chat/verbs/participants.ts";
 import { createRead } from "#server/domain/chat/verbs/read.ts";
 import { loadPersonasForOwners } from "#server/domain/persona/persistence/queries.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeResolved } from "../../../../inference/_support.ts";
 import {
   addVariant,
@@ -106,8 +107,8 @@ beforeEach(async () => {
   loadParticipantViews = makeLoadParticipantViews(db);
 });
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 /** The read deps — the roster resolver + the (preview-only) connection/assemble resolvers. */
@@ -182,8 +183,8 @@ test("assembly and context-fit previews preserve host quality and drop unsupport
         }),
     }),
   );
-  await read.previewAssembly({ principal: principal(host), chatId });
-  fitOf(await read.previewContextFit({ principal: principal(host), chatId }));
+  await read.previewAssembly({ principal: await principal(db, host), chatId });
+  fitOf(await read.previewContextFit({ principal: await principal(db, host), chatId }));
   expect(resolveImageUrl.mock.calls).toEqual([[{ ownerId: host, chatId, ref, quality }], [{ ownerId: host, chatId, ref, quality }]]);
   expect(prepareVideo).not.toHaveBeenCalled();
 });
@@ -210,7 +211,7 @@ test("the assembly preview budgets the window the preset sets on a route that se
     }),
   );
 
-  const { budget } = await read.previewAssembly({ principal: principal(host), chatId });
+  const { budget } = await read.previewAssembly({ principal: await principal(db, host), chatId });
 
   expect(budget.limit).toEqual({ kind: "window", tokens: 16_384 });
   expect(budget.ceilingEstimated).toBe(false);
@@ -248,7 +249,7 @@ describe("read — listEffectiveRegex (host-only, #1742)", () => {
     await seedParticipant(db, { chatId, key: "rxr_c", characterId: character });
     const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
 
-    const view = await createRead(ctx, makeDeps()).listEffectiveRegex({ principal: principal(host), chatId });
+    const view = await createRead(ctx, makeDeps()).listEffectiveRegex({ principal: await principal(db, host), chatId });
 
     expect(view.enabled).toBe(true);
     expect(view.tiers.map((t) => t.scope)).toEqual(["global", "preset", characterRegexTierKey(character), "chat"]);
@@ -265,7 +266,7 @@ describe("read — listEffectiveRegex (host-only, #1742)", () => {
     const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
     const unbound = makeDeps({ resolveConnection: () => Promise.reject(new NoConnectionError("chat")) });
 
-    const view = await createRead(ctx, unbound).listEffectiveRegex({ principal: principal(host), chatId });
+    const view = await createRead(ctx, unbound).listEffectiveRegex({ principal: await principal(db, host), chatId });
 
     expect(view.tiers.flatMap((t) => t.rows.map((r) => r.script.name))).toEqual(["g1", "p1", "c1", "r1"]);
   });
@@ -280,7 +281,7 @@ describe("read — listEffectiveRegex (host-only, #1742)", () => {
     await seedParticipant(db, { chatId, key: "rxr2_c", characterId: character });
     const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
 
-    await expect(createRead(ctx, makeDeps()).listEffectiveRegex({ principal: principal(member), chatId })).rejects.toThrow();
+    await expect(createRead(ctx, makeDeps()).listEffectiveRegex({ principal: await principal(db, member), chatId })).rejects.toThrow();
   });
 
   test("the room's levers are HONOURED by the read, not just by the turn", async () => {
@@ -291,9 +292,9 @@ describe("read — listEffectiveRegex (host-only, #1742)", () => {
     await seedParticipant(db, { chatId, key: "rxr3_c", characterId: character });
     const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
     const roster = createParticipants(ctx, { emit: (): Promise<void> => Promise.resolve(), claimChat: (): Promise<void> => Promise.resolve() });
-    await roster.setRegexAllow({ principal: principal(host), chatId, lever: { kind: "tier", tier: "preset", enabled: false } });
+    await roster.setRegexAllow({ principal: await principal(db, host), chatId, lever: { kind: "tier", tier: "preset", enabled: false } });
 
-    const view = await createRead(ctx, makeDeps()).listEffectiveRegex({ principal: principal(host), chatId });
+    const view = await createRead(ctx, makeDeps()).listEffectiveRegex({ principal: await principal(db, host), chatId });
 
     // The switched-off tier is LISTED (the host has to be able to switch it back on) and contributes no rank.
     expect(view.tiers.find((t) => t.scope === "preset")?.allowed).toBe(false);
@@ -337,7 +338,7 @@ describe("read — listEffectiveRegex (host-only, #1742)", () => {
     const ctx = makeChatContext(db, { rpg, resolveRegexSources: regexSources(character) });
 
     const view = await createRead(ctx, namingDeps({ redirected: "Grimdark GM", hostDefault: "House default" })).listEffectiveRegex({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
     });
 
@@ -355,7 +356,7 @@ describe("read — listEffectiveRegex (host-only, #1742)", () => {
     const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
 
     const view = await createRead(ctx, namingDeps({ redirected: "Grimdark GM", hostDefault: "House default" })).listEffectiveRegex({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
     });
 
@@ -371,7 +372,7 @@ describe("read — listEffectiveRegex (host-only, #1742)", () => {
     const ctx = makeChatContext(db, { resolveRegexSources: regexSources(character) });
 
     const view = await createRead(ctx, namingDeps({ redirected: null, hostDefault: null })).listEffectiveRegex({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
     });
 
@@ -388,7 +389,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     await seedMessage(db, mine, 1, { role: "user", authorUserId: me, content: "hi" });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const chats = (await listChats({ principal: principal(me) })).items;
+    const chats = (await listChats({ principal: await principal(db, me) })).items;
 
     expect(chats.map((c) => c.id)).toEqual([mine]);
     expect(chats.map((c) => c.id)).not.toContain(theirs);
@@ -408,8 +409,8 @@ describe("read — listings (membership-scoped, D18)", () => {
       await seedParticipant(db, { chatId, key: "shared_friend", userId: friend, role: "member" });
 
       const { listChats } = createRead(makeChatContext(db), makeDeps());
-      const [mine] = (await listChats({ principal: principal(me) })).items;
-      const [theirs] = (await listChats({ principal: principal(friend) })).items;
+      const [mine] = (await listChats({ principal: await principal(db, me) })).items;
+      const [theirs] = (await listChats({ principal: await principal(db, friend) })).items;
 
       // PER-CALLER, from the SAME row: each viewer's own name is the one that's gone. Both answers are in
       // SEAT ORDER (joinSeq, then participant id) — the second line used to expect `["user_me", …]`, which
@@ -425,7 +426,7 @@ describe("read — listings (membership-scoped, D18)", () => {
       await seedParticipant(db, { chatId: solo, key: "solo_me", userId: me, role: "host" });
 
       const { listChats } = createRead(makeChatContext(db), makeDeps());
-      const chats = (await listChats({ principal: principal(me) })).items;
+      const chats = (await listChats({ principal: await principal(db, me) })).items;
 
       // Otherwise the row would fall through the client's title chain to "Untitled chat".
       expect(chats[0]?.participantNames).toEqual(["user_me"]);
@@ -441,7 +442,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     await seedParticipant(db, { chatId: guested, key: "guested_me", userId: me, role: "member" });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const byId = new Map((await listChats({ principal: principal(me) })).items.map((c) => [c.id, c.viewerRole]));
+    const byId = new Map((await listChats({ principal: await principal(db, me) })).items.map((c) => [c.id, c.viewerRole]));
 
     expect(byId.get(hosted)).toBe("host");
     expect(byId.get(guested)).toBe("member");
@@ -458,17 +459,17 @@ describe("read — listings (membership-scoped, D18)", () => {
     await seedMessage(db, room, 2, { role: "assistant", content: "a character answers", createdAt: 2000 });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const fresh = await listChats({ principal: principal(joiner) });
+    const fresh = await listChats({ principal: await principal(db, joiner) });
     expect(fresh.viewerLastTurnAt).toBeNull();
     expect(fresh.items.map((c) => c.viewerLastTurnAt)).toEqual([null]);
 
     await seedMessage(db, room, 3, { role: "user", authorUserId: joiner, content: "hello", createdAt: 3000 });
     await seedMessage(db, room, 4, { role: "assistant", content: "a later reply", createdAt: 4000 });
-    const spoken = await listChats({ principal: principal(joiner) });
+    const spoken = await listChats({ principal: await principal(db, joiner) });
     expect(spoken.viewerLastTurnAt).toBe(3000);
     expect(spoken.items[0]?.viewerLastTurnAt).toBe(3000);
     // The host's own view of the same room dates the host's own turn.
-    expect((await listChats({ principal: principal(host) })).viewerLastTurnAt).toBe(1000);
+    expect((await listChats({ principal: await principal(db, host) })).viewerLastTurnAt).toBe(1000);
   });
 
   // An imported history (a user's import, the seeded example rooms) is attributed to its owner but was never typed in
@@ -480,12 +481,12 @@ describe("read — listings (membership-scoped, D18)", () => {
     await seedMessage(db, room, 2, { role: "assistant", content: "an imported reply", createdAt: 6000, initiator: "import" });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const imported = await listChats({ principal: principal(me) });
+    const imported = await listChats({ principal: await principal(db, me) });
     expect(imported.viewerLastTurnAt).toBeNull();
     expect(imported.items.map((c) => c.viewerLastTurnAt)).toEqual([null]);
 
     await seedMessage(db, room, 3, { role: "user", authorUserId: me, content: "typed here", createdAt: 7000 });
-    const typed = await listChats({ principal: principal(me) });
+    const typed = await listChats({ principal: await principal(db, me) });
     expect(typed.viewerLastTurnAt).toBe(7000);
     expect(typed.items[0]?.viewerLastTurnAt).toBe(7000);
   });
@@ -498,8 +499,8 @@ describe("read — listings (membership-scoped, D18)", () => {
     await seedParticipant(db, { chatId: archived, key: "a", userId: me, role: "host" });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    expect((await listChats({ principal: principal(me) })).items.map((c) => c.id)).toEqual([live]);
-    const all = (await listChats({ principal: principal(me), includeArchived: true })).items;
+    expect((await listChats({ principal: await principal(db, me) })).items.map((c) => c.id)).toEqual([live]);
+    const all = (await listChats({ principal: await principal(db, me), includeArchived: true })).items;
     expect(all.map((c) => c.id).sort()).toEqual([archived, live].sort());
   });
 
@@ -511,9 +512,9 @@ describe("read — listings (membership-scoped, D18)", () => {
     await seedParticipant(db, { chatId: temp, key: "t", userId: me, role: "host" });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    expect((await listChats({ principal: principal(me) })).items.map((c) => c.id)).toEqual([normal]);
+    expect((await listChats({ principal: await principal(db, me) })).items.map((c) => c.id)).toEqual([normal]);
     // includeArchived widens the archive filter only — a temporary chat never surfaces in the library.
-    const all = (await listChats({ principal: principal(me), includeArchived: true })).items;
+    const all = (await listChats({ principal: await principal(db, me), includeArchived: true })).items;
     expect(all.map((c) => c.id)).toEqual([normal]);
   });
 
@@ -529,7 +530,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const preview = (await listChats({ principal: principal(me) })).items[0]?.lastMessagePreview;
+    const preview = (await listChats({ principal: await principal(db, me) })).items[0]?.lastMessagePreview;
 
     expect(preview).toBe("The Gate The door gives way. Ash on the wind.");
     // The §3.6 class: a lie's TRUTH is never list chrome, for ANY viewer (the strip is unconditional).
@@ -544,7 +545,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     await seedMessage(db, anchorOnly, 1, { role: "assistant", content: "" });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const byId = new Map((await listChats({ principal: principal(me) })).items.map((c) => [c.id, c.lastMessagePreview]));
+    const byId = new Map((await listChats({ principal: await principal(db, me) })).items.map((c) => [c.id, c.lastMessagePreview]));
 
     expect(byId.get(empty)).toBeNull();
     expect(byId.get(anchorOnly)).toBeNull();
@@ -563,7 +564,7 @@ describe("read — listings (membership-scoped, D18)", () => {
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     const previewFor = async (userId: UserId): Promise<string | null | undefined> =>
-      (await listChats({ principal: principal(userId) })).items.find((c) => c.id === chatId)?.lastMessagePreview;
+      (await listChats({ principal: await principal(db, userId) })).items.find((c) => c.id === chatId)?.lastMessagePreview;
 
     expect(await previewFor(host)).toBe("the pre-join secret");
     expect(await previewFor(clamped)).toBeNull();
@@ -586,7 +587,7 @@ describe("read — listings (membership-scoped, D18)", () => {
     );
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const rows = new Map((await listChats({ principal: principal(me) })).items.map((c) => [c.id, c]));
+    const rows = new Map((await listChats({ principal: await principal(db, me) })).items.map((c) => [c.id, c]));
 
     expect(rows.get(game)?.isGame).toBe(true);
     expect(rows.get(plain)?.isGame).toBe(false);
@@ -621,7 +622,7 @@ describe("read — listChats orders by the clock its rows DISPLAY (#150)", () =>
     await seedMessage(db, touched, 1, { role: "user", authorUserId: me, content: "a fortnight ago", createdAt: 2000 });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const { items } = await listChats({ principal: principal(me) });
+    const { items } = await listChats({ principal: await principal(db, me) });
 
     expect(items.map((c) => c.id)).toStrictEqual([talked, silent, touched]);
     // …and the HERO's own stamp is the fresh one, so the sentence the masthead builds off `items[0]` reads
@@ -640,11 +641,11 @@ describe("read — listChats orders by the clock its rows DISPLAY (#150)", () =>
     await seedMessage(db, ahead, 1, { role: "user", authorUserId: me, content: "newer", createdAt: 2000 });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    expect((await listChats({ principal: principal(me) })).items.map((c) => c.id)).toStrictEqual([ahead, behind]);
+    expect((await listChats({ principal: await principal(db, me) })).items.map((c) => c.id)).toStrictEqual([ahead, behind]);
 
     // The turn path appends canon and does NOT touch `chats.updated_at` — the whole reason the old sort lied.
     await seedMessage(db, behind, 2, { role: "assistant", content: "just now", createdAt: 3000 });
-    expect((await listChats({ principal: principal(me) })).items.map((c) => c.id)).toStrictEqual([behind, ahead]);
+    expect((await listChats({ principal: await principal(db, me) })).items.map((c) => c.id)).toStrictEqual([behind, ahead]);
   });
 
   test("the keyset pages across the recency clock — every room exactly once, in one non-increasing run", async () => {
@@ -663,7 +664,7 @@ describe("read — listChats orders by the clock its rows DISPLAY (#150)", () =>
     let cursor: ChatListCursor | undefined;
     let pages = 0;
     do {
-      const page = await listChats({ principal: principal(me), limit: 2, ...(cursor === undefined ? {} : { cursor }) });
+      const page = await listChats({ principal: await principal(db, me), limit: 2, ...(cursor === undefined ? {} : { cursor }) });
       walked.push(...page.items.map((c) => c.id));
       shown.push(...page.items.map((c) => c.lastMessageAt ?? c.updatedAt));
       cursor = page.nextCursor ?? undefined;
@@ -711,7 +712,7 @@ describe("read — countChats", () => {
     ] as const) {
       single.mockClear();
       batch.mockClear();
-      const params = { principal: principal(me), ...lens };
+      const params = { principal: await principal(db, me), ...lens };
       expect(await read.countChats(params)).toBe(expected);
       expect(single).not.toHaveBeenCalled();
       expect(batch).not.toHaveBeenCalled();
@@ -719,7 +720,7 @@ describe("read — countChats", () => {
       expect(page.totalCount).toBe(expected);
       expect(page.items).toHaveLength(expected);
     }
-    expect(await read.countChats({ principal: principal(stranger), characterId, search: "rain" })).toBe(2);
+    expect(await read.countChats({ principal: await principal(db, stranger), characterId, search: "rain" })).toBe(2);
   });
 
   test("count search does not become a hidden-content or pre-join-history oracle", async () => {
@@ -732,11 +733,11 @@ describe("read — countChats", () => {
     await seedParticipant(db, { chatId, key: "count_secret_f", userId: floored, role: "member", joinSeq: 2, joinHistoryVisibility: "from-join" });
     await seedMessage(db, chatId, 1, { role: "assistant", content: 'The visible door. <lie truth="buried treasure"/>' });
     const read = createRead(makeChatContext(db), makeDeps());
-    expect(await read.countChats({ principal: principal(host), search: "buried treasure" })).toBe(1);
-    expect(await read.countChats({ principal: principal(member), search: "buried treasure" })).toBe(0);
-    expect(await read.countChats({ principal: principal(floored), search: "visible door" })).toBe(0);
-    expect(await read.countChats({ principal: principal(member), search: "vault" })).toBe(1);
-    expect(await read.countChats({ principal: principal(floored), search: "vault" })).toBe(1);
+    expect(await read.countChats({ principal: await principal(db, host), search: "buried treasure" })).toBe(1);
+    expect(await read.countChats({ principal: await principal(db, member), search: "buried treasure" })).toBe(0);
+    expect(await read.countChats({ principal: await principal(db, floored), search: "visible door" })).toBe(0);
+    expect(await read.countChats({ principal: await principal(db, member), search: "vault" })).toBe(1);
+    expect(await read.countChats({ principal: await principal(db, floored), search: "vault" })).toBe(1);
   });
 });
 
@@ -762,7 +763,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     let cursor: ChatListCursor | undefined;
     let pages = 0;
     do {
-      const page = await listChats({ principal: principal(me), limit: 3, ...(cursor === undefined ? {} : { cursor }) });
+      const page = await listChats({ principal: await principal(db, me), limit: 3, ...(cursor === undefined ? {} : { cursor }) });
       walked.push(...page.items.map((c) => c.id));
       cursor = page.nextCursor ?? undefined;
       pages += 1;
@@ -793,7 +794,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     let cursor: ChatListCursor | undefined;
     do {
       const page = await listChats({
-        principal: principal(me),
+        principal: await principal(db, me),
         beforeRecencyAt: 10_000,
         limit: 2,
         ...(cursor === undefined ? {} : { cursor }),
@@ -816,15 +817,15 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     await seedSameStampRooms(me, 4, FROZEN_AT_MS);
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const short = await listChats({ principal: principal(me), limit: 10 });
+    const short = await listChats({ principal: await principal(db, me), limit: 10 });
     expect(short.items.length).toBe(4);
     expect(short.nextCursor).toBeNull();
 
     // A page that came back FULL cannot know it is the last, so it mints a cursor — which must then be empty
     // rather than repeating the tail.
-    const exact = await listChats({ principal: principal(me), limit: 4 });
+    const exact = await listChats({ principal: await principal(db, me), limit: 4 });
     expect(exact.nextCursor).not.toBeNull();
-    const after = await listChats({ principal: principal(me), limit: 4, ...(exact.nextCursor === null ? {} : { cursor: exact.nextCursor }) });
+    const after = await listChats({ principal: await principal(db, me), limit: 4, ...(exact.nextCursor === null ? {} : { cursor: exact.nextCursor }) });
     expect(after.items).toEqual([]);
   });
 
@@ -837,14 +838,14 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     await seedSameStampRooms(me, CHAT_LIST_PAGE_CEILING + 1, FROZEN_AT_MS);
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const page = await listChats({ principal: principal(me), limit: 10_000 });
+    const page = await listChats({ principal: await principal(db, me), limit: 10_000 });
 
     expect(page.items.length).toBe(CHAT_LIST_PAGE_CEILING);
     // The CENSUS is not clamped — it answers about the library, which is what the band prints.
     expect(page.totalCount).toBe(CHAT_LIST_PAGE_CEILING + 1);
     // A clamped page is still a real page: it hands back a cursor, and the tail is reachable through it.
     expect(page.nextCursor).not.toBeNull();
-    const tail = await listChats({ principal: principal(me), limit: 10_000, ...(page.nextCursor === null ? {} : { cursor: page.nextCursor }) });
+    const tail = await listChats({ principal: await principal(db, me), limit: 10_000, ...(page.nextCursor === null ? {} : { cursor: page.nextCursor }) });
     expect(tail.items.length).toBe(1);
   });
 
@@ -858,13 +859,13 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     await seedParticipant(db, { chatId: archived, key: "arch_h", userId: me, role: "host" });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const page = await listChats({ principal: principal(me), limit: 2 });
+    const page = await listChats({ principal: await principal(db, me), limit: 2 });
 
     // The band prints THIS number over a two-row page.
     expect(page.items.length).toBe(2);
     expect(page.totalCount).toBe(5);
     // Someone else's room is not in my census; my archived one joins it only when I ask for archived.
-    expect((await listChats({ principal: principal(me), limit: 1, includeArchived: true })).totalCount).toBe(6);
+    expect((await listChats({ principal: await principal(db, me), limit: 1, includeArchived: true })).totalCount).toBe(6);
   });
 
   test("the date lens composes with D18 membership, archive, character projection, search, and the census", async () => {
@@ -889,7 +890,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     await seedParticipant(db, { chatId: foreign, key: "df_c", characterId: her });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const params = { principal: principal(me), beforeRecencyAt: 10_000, characterId: her, search: " NEEDLE ", limit: 50 } as const;
+    const params = { principal: await principal(db, me), beforeRecencyAt: 10_000, characterId: her, search: " NEEDLE ", limit: 50 } as const;
 
     expect((await listChats(params)).items).toEqual([]);
     const page = await listChats({ ...params, includeArchived: true });
@@ -916,7 +917,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     await seedParticipant(db, { chatId: withHim, key: "whm_c", characterId: him });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const hers = await listChats({ principal: principal(me), characterId: her, limit: 50 });
+    const hers = await listChats({ principal: await principal(db, me), characterId: her, limit: 50 });
 
     expect(hers.items.map((c) => c.id).toSorted()).toEqual([sheLeft, withHer].sort());
     expect(hers.totalCount).toBe(2);
@@ -942,13 +943,13 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     await seedParticipant(db, { chatId, key: "fa_c0", characterId: gone, joinSeq: 0, leftSeq: 3 });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const row = (await listChats({ principal: principal(me), limit: 50 })).items[0];
+    const row = (await listChats({ principal: await principal(db, me), limit: 50 })).items[0];
 
     expect(row?.participantPortraits.map((seat) => seat.characterId)).toEqual([her, him]);
     // The human host holds a seat and a name, but not a FACE: the leading slot is the room's CHARACTER.
     expect(row?.participantPortraits.some((seat) => seat.characterId === castId<CharacterId>(me))).toBe(false);
     // …while the character-scoped history read still finds the room through the departed seat.
-    const departedHistory = await listChats({ principal: principal(me), characterId: gone, limit: 50 });
+    const departedHistory = await listChats({ principal: await principal(db, me), characterId: gone, limit: 50 });
     expect(departedHistory.items.map((chat) => chat.id)).toEqual([chatId]);
   });
 
@@ -962,7 +963,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     await seedParticipant(db, { chatId, key: "tw_c2", characterId: her });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const page = await listChats({ principal: principal(me), characterId: her, limit: 50 });
+    const page = await listChats({ principal: await principal(db, me), characterId: her, limit: 50 });
 
     // A JOIN instead of an EXISTS would return the row twice AND count it twice.
     expect(page.items.map((c) => c.id)).toEqual([chatId]);
@@ -990,7 +991,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     const found = async (q: string): Promise<readonly ChatId[]> =>
-      (await listChats({ principal: principal(me), search: q, limit: 50 })).items.map((c) => c.id).toSorted();
+      (await listChats({ principal: await principal(db, me), search: q, limit: 50 })).items.map((c) => c.id).toSorted();
 
     // Case-insensitive across all three arms — the user types what they remember, not what was stored.
     expect(await found("ashen")).toEqual([byBody, byTitle].sort());
@@ -998,7 +999,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     expect(await found("  ")).toEqual([byBody, byName, byTitle, decoy].sort());
     expect(await found("nothing-in-here")).toEqual([]);
     // The census answers about the SEARCH, or the band would print the unsearched library over a filtered page.
-    expect((await listChats({ principal: principal(me), search: "ashen", limit: 50 })).totalCount).toBe(2);
+    expect((await listChats({ principal: await principal(db, me), search: "ashen", limit: 50 })).totalCount).toBe(2);
   });
 
   test("`search` matches only the NEWEST message — an older body is not full-transcript search", async () => {
@@ -1010,8 +1011,8 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     // The 2026-08-01 ruling: search matches the SNIPPET THE ROW SHOWS, and the row shows the newest body.
-    expect((await listChats({ principal: principal(me), search: "buried", limit: 50 })).items).toEqual([]);
-    expect((await listChats({ principal: principal(me), search: "entirely", limit: 50 })).items.map((c) => c.id)).toEqual([chatId]);
+    expect((await listChats({ principal: await principal(db, me), search: "buried", limit: 50 })).items).toEqual([]);
+    expect((await listChats({ principal: await principal(db, me), search: "entirely", limit: 50 })).items.map((c) => c.id)).toEqual([chatId]);
   });
 
   test("`search` OBEYS THE D16 FLOOR — a from-join member cannot find a phrase they may not read", async () => {
@@ -1025,13 +1026,13 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     const hit = async (userId: UserId): Promise<readonly ChatId[]> =>
-      (await listChats({ principal: principal(userId), search: "pre-join secret", limit: 50 })).items.map((c) => c.id);
+      (await listChats({ principal: await principal(db, userId), search: "pre-join secret", limit: 50 })).items.map((c) => c.id);
 
     expect(await hit(host)).toEqual([chatId]);
     // Search would otherwise be the ONE read that reaches beneath the floor every other read enforces.
     expect(await hit(clamped)).toEqual([]);
     // The title still finds it — they are a member of the room, they just may not read its pre-join canon.
-    expect((await listChats({ principal: principal(clamped), search: "sealed", limit: 50 })).items.map((c) => c.id)).toEqual([chatId]);
+    expect((await listChats({ principal: await principal(db, clamped), search: "sealed", limit: 50 })).items.map((c) => c.id)).toEqual([chatId]);
   });
 
   test("`search` cannot find a HIDDEN-class span's text — result PRESENCE is the oracle, not the preview", async () => {
@@ -1050,7 +1051,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
     const found = async (userId: UserId, q: string): Promise<readonly ChatId[]> =>
-      (await listChats({ principal: principal(userId), search: q, limit: 50 })).items.map((c) => c.id);
+      (await listChats({ principal: await principal(db, userId), search: q, limit: 50 })).items.map((c) => c.id);
 
     // The host reads canon verbatim (the reveal-eye plane) — their own search finds their own lie.
     expect(await found(host, "reliquary is already empty")).toEqual([chatId]);
@@ -1058,7 +1059,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     // comes back. A stripped preview does not save it — the result's presence IS the answer.
     expect(await found(member, "reliquary is already empty")).toEqual([]);
     // …and the census is the same oracle one level down: a page of zero rows over `totalCount: 1` still says yes.
-    expect((await listChats({ principal: principal(member), search: "reliquary is already empty", limit: 50 })).totalCount).toBe(0);
+    expect((await listChats({ principal: await principal(db, member), search: "reliquary is already empty", limit: 50 })).totalCount).toBe(0);
     // THE DELIBERATE NARROWING (pinned, not incidental): for a non-host the whole BODY arm is withheld on a
     // tail that carries any hidden tag — SQL cannot strip a span, so matching the visible half would have to
     // match the raw bytes. Fewer results, never a leak. The other two arms are untouched.
@@ -1085,7 +1086,7 @@ describe("read — listChats PAGING, projection + search (the 880-chat class)", 
     await seedParticipant(db, { chatId: theirs, key: "th_c", characterId: her });
 
     const { listChats } = createRead(makeChatContext(db), makeDeps());
-    const page = await listChats({ principal: principal(me), characterId: her, search: "rain", limit: 50 });
+    const page = await listChats({ principal: await principal(db, me), characterId: her, search: "rain", limit: 50 });
 
     expect(page.items.map((c) => c.id)).toEqual([mineHit]);
     expect(page.totalCount).toBe(1);
@@ -1104,7 +1105,7 @@ describe("read — fork lineage (D27, membership-gated per ancestor)", () => {
     await seedChat(db, "child_foreign", { parentChatId: parent });
 
     const { listForks } = createRead(makeChatContext(db), makeDeps());
-    const forks = await listForks({ principal: principal(me), chatId: parent });
+    const forks = await listForks({ principal: await principal(db, me), chatId: parent });
     expect(forks.map((f) => f.id)).toEqual([childMine]);
   });
 
@@ -1118,7 +1119,7 @@ describe("read — fork lineage (D27, membership-gated per ancestor)", () => {
     await seedParticipant(db, { chatId: leaf, key: "lf", userId: me, role: "host" });
 
     const { getChatLineage } = createRead(makeChatContext(db), makeDeps());
-    const { chain } = await getChatLineage({ principal: principal(me), chatId: leaf });
+    const { chain } = await getChatLineage({ principal: await principal(db, me), chatId: leaf });
     expect(chain.map((c) => c.id)).toEqual([root, leaf]);
   });
 });
@@ -1129,9 +1130,9 @@ describe("read — single reads", () => {
     const chatId = await seedRoom("room", me);
 
     const { getChat } = createRead(makeChatContext(db), makeDeps());
-    const detail = await getChat({ principal: principal(me), chatId });
+    const detail = await getChat({ principal: await principal(db, me), chatId });
     expect(detail.id).toBe(chatId);
-    expect(detail.participants.some((p) => p.role === "host" && p.userId === me)).toBe(true);
+    expect(hostUserIdOf(detail.participants) === me).toBe(true);
     expect(detail.group.output).toBe("per-speaker"); // DEFAULT_GROUP_CONFIG applied
     expect(detail.opening).toBeNull();
     // The participant-scoped identity producer (Chat-Macro-Resolution.md §1 / D137) covers the roster's character.
@@ -1154,7 +1155,7 @@ describe("read — single reads", () => {
       .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, me)));
 
     const { getChat } = createRead(makeChatContext(db), makeDeps());
-    const detail = await getChat({ principal: principal(me), chatId });
+    const detail = await getChat({ principal: await principal(db, me), chatId });
     expect(detail.viewerActivePersonaId).toBe(personaId);
   });
 
@@ -1169,21 +1170,21 @@ describe("read — single reads", () => {
     const read = (enabled: boolean): ReturnType<typeof createRead> =>
       createRead(makeChatContext(db, { resolveUserEnabled: (userId) => Promise.resolve(enabled || userId !== member) }), makeDeps());
 
-    const live = await read(true).getChat({ principal: principal(host), chatId });
+    const live = await read(true).getChat({ principal: await principal(db, host), chatId });
     expect(live.anchorState).toBe("live");
-    expect((await read(false).getChat({ principal: principal(host), chatId })).anchorState).toBe("held");
+    expect((await read(false).getChat({ principal: await principal(db, host), chatId })).anchorState).toBe("held");
 
     await db
       .update(chatParticipants)
       .set({ leftSeq: 0 })
       .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, member)));
-    const held = await read(true).getChat({ principal: principal(host), chatId });
+    const held = await read(true).getChat({ principal: await principal(db, host), chatId });
     expect(held.anchorState).toBe("held");
     // The pin's name still renders: the pointer is an identity source of its own.
     expect(held.identities.some((e) => e.kind === "persona" && e.id === pinned)).toBe(true);
 
     await db.update(chatsTable).set({ anchorPersonaId: null }).where(eq(chatsTable.id, chatId));
-    expect((await read(true).getChat({ principal: principal(host), chatId })).anchorState).toBe("none");
+    expect((await read(true).getChat({ principal: await principal(db, host), chatId })).anchorState).toBe("none");
   });
 
   test("getChat's viewerIsHost is false for a present MEMBER (not the host)", async () => {
@@ -1193,7 +1194,7 @@ describe("read — single reads", () => {
     await seedParticipant(db, { chatId, key: "room2_m", userId: member, role: "member" });
 
     const { getChat } = createRead(makeChatContext(db), makeDeps());
-    const detail = await getChat({ principal: principal(member), chatId });
+    const detail = await getChat({ principal: await principal(db, member), chatId });
     expect(detail.viewerUserId).toBe(member);
     expect(detail.viewerIsHost).toBe(false);
     expect(detail.viewerActivePersonaId).toBeNull();
@@ -1212,7 +1213,7 @@ describe("read — single reads", () => {
     await seedParticipant(db, { chatId, key: "gal_c1", characterId: first, joinSeq: 1 });
 
     const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
-    const detail = await getChat({ principal: principal(host), chatId });
+    const detail = await getChat({ principal: await principal(db, host), chatId });
     expect(detail.viewerGalleryCharacterId).toBe(first);
   });
 
@@ -1226,7 +1227,7 @@ describe("read — single reads", () => {
     await seedParticipant(db, { chatId, key: "gal_left_c2", characterId: stays, joinSeq: 2 });
 
     const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
-    const detail = await getChat({ principal: principal(host), chatId });
+    const detail = await getChat({ principal: await principal(db, host), chatId });
     expect(detail.viewerGalleryCharacterId).toBe(stays);
   });
 
@@ -1237,9 +1238,9 @@ describe("read — single reads", () => {
     await seedParticipant(db, { chatId, key: "gal_room2_g", userId: guest, role: "member" });
 
     const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
-    expect((await getChat({ principal: principal(guest), chatId })).viewerGalleryCharacterId).toBeNull();
+    expect((await getChat({ principal: await principal(db, guest), chatId })).viewerGalleryCharacterId).toBeNull();
     // The positive control in the same room: the host owns that character.
-    expect((await getChat({ principal: principal(host), chatId })).viewerGalleryCharacterId).toBe(castId<CharacterId>("character_gal_room2_char"));
+    expect((await getChat({ principal: await principal(db, host), chatId })).viewerGalleryCharacterId).toBe(castId<CharacterId>("character_gal_room2_char"));
   });
 
   // The viewer's owned character seats: the ⋯ menu offers a gallery only for these, because a gallery add is
@@ -1254,7 +1255,7 @@ describe("read — single reads", () => {
     await seedParticipant(db, { chatId, key: "own_c1", characterId: first, joinSeq: 1 });
 
     const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
-    expect((await getChat({ principal: principal(host), chatId })).viewerOwnedCharacterIds).toEqual([first, second]);
+    expect((await getChat({ principal: await principal(db, host), chatId })).viewerOwnedCharacterIds).toEqual([first, second]);
   });
 
   test("getChat's viewerOwnedCharacterIds leaves out a departed character seat", async () => {
@@ -1267,7 +1268,7 @@ describe("read — single reads", () => {
     await seedParticipant(db, { chatId, key: "own_left_c2", characterId: stays, joinSeq: 2 });
 
     const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
-    expect((await getChat({ principal: principal(host), chatId })).viewerOwnedCharacterIds).toEqual([stays]);
+    expect((await getChat({ principal: await principal(db, host), chatId })).viewerOwnedCharacterIds).toEqual([stays]);
   });
 
   test("getChat's viewerOwnedCharacterIds is empty for a guest who owns no character here", async () => {
@@ -1277,9 +1278,11 @@ describe("read — single reads", () => {
     await seedParticipant(db, { chatId, key: "own_room2_g", userId: guest, role: "member" });
 
     const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
-    expect((await getChat({ principal: principal(guest), chatId })).viewerOwnedCharacterIds).toEqual([]);
+    expect((await getChat({ principal: await principal(db, guest), chatId })).viewerOwnedCharacterIds).toEqual([]);
     // The positive control in the same room: the host owns that character.
-    expect((await getChat({ principal: principal(host), chatId })).viewerOwnedCharacterIds).toEqual([castId<CharacterId>("character_own_room2_char")]);
+    expect((await getChat({ principal: await principal(db, host), chatId })).viewerOwnedCharacterIds).toEqual([
+      castId<CharacterId>("character_own_room2_char"),
+    ]);
   });
 
   test("in a group room with mixed owners, each viewer's set and gallery subject are their own", async () => {
@@ -1294,8 +1297,8 @@ describe("read — single reads", () => {
     await seedParticipant(db, { chatId, key: "mix_c2", characterId: guestChar, joinSeq: 2 });
 
     const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
-    const hostView = await getChat({ principal: principal(host), chatId });
-    const guestView = await getChat({ principal: principal(guest), chatId });
+    const hostView = await getChat({ principal: await principal(db, host), chatId });
+    const guestView = await getChat({ principal: await principal(db, guest), chatId });
     expect(hostView.viewerOwnedCharacterIds).toEqual([hostChar]);
     expect(guestView.viewerOwnedCharacterIds).toEqual([guestChar]);
     // One source: the gallery subject is the first seat, and only its owner is named it.
@@ -1309,7 +1312,7 @@ describe("read — single reads", () => {
     await seedParticipant(db, { chatId, key: "gal_room3_h", userId: host, role: "host" });
 
     const { getChat } = createRead(makeChatContext(db, { getCard: ownerScopedGetCard() }), makeDeps());
-    expect((await getChat({ principal: principal(host), chatId })).viewerGalleryCharacterId).toBeNull();
+    expect((await getChat({ principal: await principal(db, host), chatId })).viewerGalleryCharacterId).toBeNull();
   });
 
   // #54 — the honest-refusal pre-send gate. The verb resolves the room host, calls the injected
@@ -1321,7 +1324,7 @@ describe("read — single reads", () => {
     const chatId = await seedRoom("avail_room", host);
 
     const { checkSendAvailability } = createRead(makeChatContext(db), makeDeps());
-    const verdict = await checkSendAvailability({ principal: principal(host), chatId });
+    const verdict = await checkSendAvailability({ principal: await principal(db, host), chatId });
     expect(verdict).toEqual({ available: true });
   });
 
@@ -1333,7 +1336,7 @@ describe("read — single reads", () => {
       makeChatContext(db),
       makeDeps({ checkSendAvailability: () => Promise.resolve({ available: false, cause: "no-connection" }) }),
     );
-    const verdict = await checkSendAvailability({ principal: principal(host), chatId });
+    const verdict = await checkSendAvailability({ principal: await principal(db, host), chatId });
     expect(verdict).toEqual({ available: false, cause: "no-connection" });
   });
 
@@ -1343,7 +1346,7 @@ describe("read — single reads", () => {
     const chatId = await seedRoom("gate_room", host);
 
     const { checkSendAvailability } = createRead(makeChatContext(db), makeDeps());
-    await expect(checkSendAvailability({ principal: principal(stranger), chatId })).rejects.toThrow(ChatNotFoundError);
+    await expect(checkSendAvailability({ principal: await principal(db, stranger), chatId })).rejects.toThrow(ChatNotFoundError);
   });
 
   test("getNextTurnConnection reads the present host binding and hides its private label from a member", async () => {
@@ -1367,14 +1370,14 @@ describe("read — single reads", () => {
         },
       }),
     );
-    expect(await getNextTurnConnection({ principal: principal(host), chatId })).toEqual({
+    expect(await getNextTurnConnection({ principal: await principal(db, host), chatId })).toEqual({
       state: "configured",
       connectionLabel: "Private work model",
       provider: "openrouter",
       providerLabel: "OpenRouter",
       model: "model-a",
     });
-    expect(await getNextTurnConnection({ principal: principal(member), chatId })).toEqual({
+    expect(await getNextTurnConnection({ principal: await principal(db, member), chatId })).toEqual({
       state: "configured",
       connectionLabel: null,
       provider: "openrouter",
@@ -1390,8 +1393,8 @@ describe("read — single reads", () => {
       .update(chatParticipants)
       .set({ role: "host" })
       .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, member)));
-    expect(await getNextTurnConnection({ principal: principal(member), chatId })).toMatchObject({ connectionLabel: "Private work model" });
-    expect(await getNextTurnConnection({ principal: principal(host), chatId })).toMatchObject({ connectionLabel: null });
+    expect(await getNextTurnConnection({ principal: await principal(db, member), chatId })).toMatchObject({ connectionLabel: "Private work model" });
+    expect(await getNextTurnConnection({ principal: await principal(db, host), chatId })).toMatchObject({ connectionLabel: null });
     expect(seen).toEqual([host, host, member, member]);
   });
 
@@ -1400,12 +1403,12 @@ describe("read — single reads", () => {
     const outsider = await seedUser(db, castId<Handle>("next_outsider"));
     const chatId = await seedRoom("next_unset_room", host);
     const { getNextTurnConnection } = createRead(makeChatContext(db), makeDeps());
-    expect(await getNextTurnConnection({ principal: principal(host), chatId })).toEqual({ state: "unset" });
-    await expect(getNextTurnConnection({ principal: principal(outsider), chatId })).rejects.toThrow(ChatNotFoundError);
+    expect(await getNextTurnConnection({ principal: await principal(db, host), chatId })).toEqual({ state: "unset" });
+    await expect(getNextTurnConnection({ principal: await principal(db, outsider), chatId })).rejects.toThrow(ChatNotFoundError);
 
     const hostless = await seedChat(db, "next_hostless");
     await seedParticipant(db, { chatId: hostless, key: "next_hostless_m", userId: host, role: "member" });
-    await expect(getNextTurnConnection({ principal: principal(host), chatId: hostless })).rejects.toThrow(ChatNotFoundError);
+    await expect(getNextTurnConnection({ principal: await principal(db, host), chatId: hostless })).rejects.toThrow(ChatNotFoundError);
   });
 
   test("getNextTurnConnection exposes plugin provider identity but never the host's custom connection label to a member", async () => {
@@ -1426,7 +1429,7 @@ describe("read — single reads", () => {
           }),
       }),
     );
-    expect(await getNextTurnConnection({ principal: principal(member), chatId })).toEqual({
+    expect(await getNextTurnConnection({ principal: await principal(db, member), chatId })).toEqual({
       state: "configured",
       connectionLabel: null,
       provider: "plugin:story-tools/anthropic",
@@ -1441,7 +1444,7 @@ describe("read — single reads", () => {
     const { messageId, variantId: first } = await seedMessage(db, chatId, 1, { role: "assistant", content: "first" });
     const second = await addVariant(db, messageId, 1, "second");
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    expect((await listMessages({ principal: principal(host), chatId })).messages[0]).toMatchObject({
+    expect((await listMessages({ principal: await principal(db, host), chatId })).messages[0]).toMatchObject({
       connectionId: null,
       connectionAttributionProvenance: "unrecorded",
     });
@@ -1469,7 +1472,7 @@ describe("read — single reads", () => {
         model: castId<ModelId>("model-b"),
       })
       .where(eq(messageVariants.id, second));
-    const selected = async (): Promise<MessageView | undefined> => (await listMessages({ principal: principal(host), chatId })).messages[0];
+    const selected = async (): Promise<MessageView | undefined> => (await listMessages({ principal: await principal(db, host), chatId })).messages[0];
     expect(await selected()).toMatchObject({
       content: "first",
       connectionId: firstConnection,
@@ -1507,12 +1510,12 @@ describe("read — single reads", () => {
     await seedMessage(db, chatId, 3, { role: "user", authorUserId: me, content: "third" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    const all = await listMessages({ principal: principal(me), chatId });
+    const all = await listMessages({ principal: await principal(db, me), chatId });
     expect(all.messages.map((m) => m.content)).toEqual(["first", "second", "third"]);
     expect(all.messages[1]?.excludedFromPrompt).toBe(true);
 
     // Paging: a backward window before seq 3 returns the older two, still chronological.
-    const page = await listMessages({ principal: principal(me), chatId, beforeSeq: 3, limit: 1 });
+    const page = await listMessages({ principal: await principal(db, me), chatId, beforeSeq: 3, limit: 1 });
     expect(page.messages.map((m) => m.content)).toEqual(["second"]);
   });
 
@@ -1524,7 +1527,7 @@ describe("read — single reads", () => {
     await seedMessage(db, chatId, 1, { role: "user", personaId: oldPersona, content: "hi" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    const { identities } = await listMessages({ principal: principal(me), chatId });
+    const { identities } = await listMessages({ principal: await principal(db, me), chatId });
     expect(identities.some((e) => e.kind === "character" && e.name === "room_char")).toBe(true);
     expect(identities.some((e) => e.kind === "persona" && e.id === oldPersona)).toBe(true);
   });
@@ -1536,7 +1539,7 @@ describe("read — single reads", () => {
     const v1 = await addVariant(db, messageId, 1, "second take");
 
     const { listMessageVariants } = createRead(makeChatContext(db), makeDeps());
-    const variants = await listMessageVariants({ principal: principal(me), chatId, messageId });
+    const variants = await listMessageVariants({ principal: await principal(db, me), chatId, messageId });
     expect(variants).toStrictEqual([
       { variantId, idx: 0 },
       { variantId: v1, idx: 1 },
@@ -1550,7 +1553,7 @@ describe("read — single reads", () => {
     const { messageId } = await seedMessage(db, other, 1);
 
     const { listMessageVariants } = createRead(makeChatContext(db), makeDeps());
-    await expect(listMessageVariants({ principal: principal(me), chatId, messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(listMessageVariants({ principal: await principal(db, me), chatId, messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 
   test("listParticipants returns the present roster", async () => {
@@ -1558,8 +1561,8 @@ describe("read — single reads", () => {
     const chatId = await seedRoom("room", me);
 
     const { listParticipants } = createRead(makeChatContext(db), makeDeps());
-    const roster = await listParticipants({ principal: principal(me), chatId });
-    expect(roster.some((p) => p.userId === me && p.role === "host")).toBe(true);
+    const roster = await listParticipants({ principal: await principal(db, me), chatId });
+    expect(hostUserIdOf(roster) === me).toBe(true);
     expect(roster.some((p) => p.kind === "character")).toBe(true);
   });
 });
@@ -1595,7 +1598,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     await seedParticipant(db, { chatId, key: "jh_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    const page = await listMessages({ principal: principal(joiner), chatId });
+    const page = await listMessages({ principal: await principal(db, joiner), chatId });
 
     expect(page.messages.map((m) => m.seq)).toEqual([4]);
     const body = JSON.stringify(page.messages);
@@ -1623,7 +1626,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     await seedParticipant(db, { chatId, key: "f2_p", userId: promoted, role: "host", joinSeq: 4, joinHistoryVisibility: "from-join" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    const page = await listMessages({ principal: principal(promoted), chatId });
+    const page = await listMessages({ principal: await principal(db, promoted), chatId });
 
     expect(page.messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
     const body = JSON.stringify(page.messages);
@@ -1646,7 +1649,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     expect(row.at(0)?.joinHistoryVisibility).toBe("full");
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    const page = await listMessages({ principal: principal(joiner), chatId });
+    const page = await listMessages({ principal: await principal(db, joiner), chatId });
     expect(page.messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
     expect(JSON.stringify(page.messages)).toContain("greeting one");
   });
@@ -1658,7 +1661,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     await seedParticipant(db, { chatId, key: "jhf_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "full" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    const page = await listMessages({ principal: principal(joiner), chatId });
+    const page = await listMessages({ principal: await principal(db, joiner), chatId });
     expect(page.messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
   });
 
@@ -1672,12 +1675,12 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     // The invite-redeem shape: no explicit policy → the `full` column default. They read everything first.
     await seedParticipant(db, { chatId, key: "jhw_m", userId: joiner, role: "member", joinSeq: 4 });
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
+    expect((await listMessages({ principal: await principal(db, joiner), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
 
     const roster = createParticipants(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit: async (): Promise<void> => undefined });
-    await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: joiner, visibility: "from-join" });
+    await roster.setMemberHistoryVisibility({ principal: await principal(db, host), chatId, userId: joiner, visibility: "from-join" });
 
-    const after = await listMessages({ principal: principal(joiner), chatId });
+    const after = await listMessages({ principal: await principal(db, joiner), chatId });
     expect(after.messages.map((m) => m.seq)).toEqual([4]);
     expect(JSON.stringify(after.messages)).not.toContain("private chatter");
     // The restriction never moved their join point — it only changed what they may read from it.
@@ -1691,12 +1694,12 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const chatId = await seedRoomWithHistory("jhwr", host);
     await seedParticipant(db, { chatId, key: "jhwr_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([4]);
+    expect((await listMessages({ principal: await principal(db, joiner), chatId })).messages.map((m) => m.seq)).toEqual([4]);
 
     const roster = createParticipants(makeChatContext(db), { claimChat: (): Promise<void> => Promise.resolve(), emit: async (): Promise<void> => undefined });
-    await roster.setMemberHistoryVisibility({ principal: principal(host), chatId, userId: joiner, visibility: "full" });
+    await roster.setMemberHistoryVisibility({ principal: await principal(db, host), chatId, userId: joiner, visibility: "full" });
 
-    expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
+    expect((await listMessages({ principal: await principal(db, joiner), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
   });
 
   test("the HOST is never clamped by a member's floor (the clamp is per-CALLER)", async () => {
@@ -1706,9 +1709,9 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     await seedParticipant(db, { chatId, key: "jhh_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    expect((await listMessages({ principal: principal(host), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
+    expect((await listMessages({ principal: await principal(db, host), chatId })).messages.map((m) => m.seq)).toEqual([1, 2, 3, 4]);
     // …and the clamped member in the SAME room still only sees their own window.
-    expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([4]);
+    expect((await listMessages({ principal: await principal(db, joiner), chatId })).messages.map((m) => m.seq)).toEqual([4]);
   });
 
   test("pagination stays honest: a beforeSeq cursor at/below the floor is an EMPTY page, never a fabricated one", async () => {
@@ -1719,8 +1722,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
     // The member's window is seq 3-4; walking back from 4 yields the floor row, then nothing.
-    expect((await listMessages({ principal: principal(joiner), chatId, beforeSeq: 4 })).messages.map((m) => m.seq)).toEqual([3]);
-    const exhausted = await listMessages({ principal: principal(joiner), chatId, beforeSeq: 3 });
+    expect((await listMessages({ principal: await principal(db, joiner), chatId, beforeSeq: 4 })).messages.map((m) => m.seq)).toEqual([3]);
+    const exhausted = await listMessages({ principal: await principal(db, joiner), chatId, beforeSeq: 3 });
     expect(exhausted.messages).toEqual([]);
     // The terminal page is truthful, not a re-served window: nothing below the floor is smuggled in.
     expect(JSON.stringify(exhausted.messages)).not.toContain("greeting");
@@ -1734,11 +1737,11 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     await db.update(chatsTable).set({ compactSummary: "the pre-join story so far", compactedAtSeq: 3 }).where(eq(chatsTable.id, chatId));
 
     const { getChat } = createRead(makeChatContext(db), makeDeps());
-    const hostDetail = await getChat({ principal: principal(host), chatId });
+    const hostDetail = await getChat({ principal: await principal(db, host), chatId });
     expect(hostDetail.compactSummary).toBe("the pre-join story so far");
     expect(hostDetail.compactedAtSeq).toBe(3);
 
-    const memberDetail = await getChat({ principal: principal(joiner), chatId });
+    const memberDetail = await getChat({ principal: await principal(db, joiner), chatId });
     expect(memberDetail.compactSummary).toBeNull();
     expect(memberDetail.compactedAtSeq).toBeNull();
   });
@@ -1770,7 +1773,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
 
     const { replayChatEvents } = createRead(ctx, makeDeps());
     // `afterSeq: 0` IS the client's `lastEventId:"0"` seed — the exact live repro cursor.
-    const replayed = await replayChatEvents({ principal: principal(joiner), chatId, afterSeq: 0 });
+    const replayed = await replayChatEvents({ principal: await principal(db, joiner), chatId, afterSeq: 0 });
 
     expect(JSON.stringify(replayed)).not.toContain("pre-join greeting");
     // The member receives their OWN post-join commit AND the post-join slot's token stream, each at its true
@@ -1781,7 +1784,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     expect(JSON.stringify(replayed)).toContain("post-join tokens");
 
     // The host, unclamped, still gets the whole log — the clamp is per-CALLER.
-    const hostReplay = await replayChatEvents({ principal: principal(host), chatId, afterSeq: 0 });
+    const hostReplay = await replayChatEvents({ principal: await principal(db, host), chatId, afterSeq: 0 });
     expect(hostReplay.map((e) => e.seq)).toEqual([1, 2, 3, 4, 5]);
   });
 
@@ -1796,9 +1799,9 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     await seedParticipant(db, { chatId, key: "jhb_m", userId: joiner, role: "member", joinSeq: 4, joinHistoryVisibility: "from-join" });
 
     const { chatEventBounds } = createRead(makeChatContext(db), makeDeps());
-    expect((await chatEventBounds({ principal: principal(joiner), chatId })).historyFloorSeq).toBe(4);
+    expect((await chatEventBounds({ principal: await principal(db, joiner), chatId })).historyFloorSeq).toBe(4);
     // Same probe, same room, same instant — the host is never clamped by the member's policy.
-    expect((await chatEventBounds({ principal: principal(host), chatId })).historyFloorSeq).toBe(0);
+    expect((await chatEventBounds({ principal: await principal(db, host), chatId })).historyFloorSeq).toBe(0);
   });
 
   test("a `full` member's durable replay is unchanged (the other arm, on the event path too)", async () => {
@@ -1816,7 +1819,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     await bus.emit({ type: "delta", chatId, slotSeq: 1, delta: { chatId, kind: "text", text: "pre-join greeting" } });
 
     const { replayChatEvents } = createRead(ctx, makeDeps());
-    const replayed = await replayChatEvents({ principal: principal(joiner), chatId, afterSeq: 0 });
+    const replayed = await replayChatEvents({ principal: await principal(db, joiner), chatId, afterSeq: 0 });
     expect(replayed.map((e) => e.seq)).toEqual([1, 2]);
     expect(JSON.stringify(replayed)).toContain("pre-join greeting");
   });
@@ -1855,7 +1858,7 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     expect(rejoined?.participant.joinSeq).toBe(4);
     expect(rejoined?.participant.joinHistoryVisibility).toBe("from-join"); // untouched by the re-join upsert
 
-    expect((await listMessages({ principal: principal(joiner), chatId })).messages.map((m) => m.seq)).toEqual([4]);
+    expect((await listMessages({ principal: await principal(db, joiner), chatId })).messages.map((m) => m.seq)).toEqual([4]);
   });
 
   // #1399 — the variant-ID ORACLE. `listMessageVariants` gated on membership alone: a from-join member who
@@ -1876,14 +1879,14 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     const { listMessageVariants } = createRead(makeChatContext(db), makeDeps());
 
     // The POSITIVE CONTROL first — the same caller, the same verb, a slot AT their floor: two ids, in order.
-    expect(await listMessageVariants({ principal: principal(joiner), chatId, messageId: post.messageId })).toStrictEqual([
+    expect(await listMessageVariants({ principal: await principal(db, joiner), chatId, messageId: post.messageId })).toStrictEqual([
       { variantId: post.variantId, idx: 0 },
       { variantId: postSwipe, idx: 1 },
     ]);
     // The pre-join slot: refused, and its ids never cross.
-    await expect(listMessageVariants({ principal: principal(joiner), chatId, messageId: pre.messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(listMessageVariants({ principal: await principal(db, joiner), chatId, messageId: pre.messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
     // The HOST is unclamped — the same slot still resolves for them (the floor is per-CALLER, not a delete).
-    expect((await listMessageVariants({ principal: principal(host), chatId, messageId: pre.messageId })).map((v) => v.variantId)).toEqual([
+    expect((await listMessageVariants({ principal: await principal(db, host), chatId, messageId: pre.messageId })).map((v) => v.variantId)).toEqual([
       pre.variantId,
       preSwipe,
     ]);
@@ -1900,8 +1903,8 @@ describe("read — the D16 join-history floor (joinHistoryVisibility)", () => {
     await seedStreamEvent(db, chatId, 2, { delta: "post-join tokens", messageId: post.messageId });
 
     const { replayStreamEvents } = createRead(makeChatContext(db), makeDeps());
-    expect((await replayStreamEvents({ principal: principal(joiner), chatId })).map((e) => e.delta)).toEqual(["post-join tokens"]);
-    expect((await replayStreamEvents({ principal: principal(host), chatId })).map((e) => e.delta)).toEqual(["pre-join tokens", "post-join tokens"]);
+    expect((await replayStreamEvents({ principal: await principal(db, joiner), chatId })).map((e) => e.delta)).toEqual(["post-join tokens"]);
+    expect((await replayStreamEvents({ principal: await principal(db, host), chatId })).map((e) => e.delta)).toEqual(["pre-join tokens", "post-join tokens"]);
   });
 });
 
@@ -1912,9 +1915,9 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "hi" });
 
     const { peekPrompt, previewAssembly } = createRead(makeChatContext(db), makeDeps());
-    const prompt = await peekPrompt({ principal: principal(me), chatId });
+    const prompt = await peekPrompt({ principal: await principal(db, me), chatId });
     expect(typeof prompt.static).toBe("string");
-    const preview = await previewAssembly({ principal: principal(me), chatId });
+    const preview = await previewAssembly({ principal: await principal(db, me), chatId });
     expect(preview.prompt.static).toBe(prompt.static);
     expect(preview.trace).toBe(preview.prompt.trace);
     // The activated-WI list reaches the wire trace (freshTrace → prompt.trace passthrough); this room has no
@@ -1937,15 +1940,15 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const { peekPrompt, previewAssembly } = createRead(makeChatContext(db), makeDeps());
 
     // The host reads both.
-    expect(typeof (await peekPrompt({ principal: principal(host), chatId })).static).toBe("string");
-    expect(typeof (await previewAssembly({ principal: principal(host), chatId })).prompt.static).toBe("string");
+    expect(typeof (await peekPrompt({ principal: await principal(db, host), chatId })).static).toBe("string");
+    expect(typeof (await previewAssembly({ principal: await principal(db, host), chatId })).prompt.static).toBe("string");
 
     // The present member is refused (known-existence authority refusal — the client mounts these host-only).
-    const peekErr = await peekPrompt({ principal: principal(member), chatId }).catch((e: unknown) => e);
+    const peekErr = await peekPrompt({ principal: await principal(db, member), chatId }).catch((e: unknown) => e);
     expect(peekErr).toBeInstanceOf(ChatOperationError);
     expect((peekErr as ChatOperationError).code).toBe("not_host");
 
-    const previewErr = await previewAssembly({ principal: principal(member), chatId }).catch((e: unknown) => e);
+    const previewErr = await previewAssembly({ principal: await principal(db, member), chatId }).catch((e: unknown) => e);
     expect(previewErr).toBeInstanceOf(ChatOperationError);
     expect((previewErr as ChatOperationError).code).toBe("not_host");
   });
@@ -1956,7 +1959,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     const { previewAssembly } = createRead(makeChatContext(db), makeDeps());
     const steered = await previewAssembly({
-      principal: principal(me),
+      principal: await principal(db, me),
       chatId,
       guided: { action: "response", input: "be dramatic" },
     });
@@ -1966,7 +1969,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(steered.trace.guidedInstructionIncluded).toBe(true);
     expect(steeredTail).toContain("be dramatic");
 
-    const plain = await previewAssembly({ principal: principal(me), chatId });
+    const plain = await previewAssembly({ principal: await principal(db, me), chatId });
     expect(plain.trace.guidedInstructionIncluded).toBe(false);
     expect([plain.prompt.dynamic, ...plain.prompt.afterHistory.map((inj) => inj.content)].join("\n")).not.toContain("be dramatic");
   });
@@ -1993,12 +1996,17 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       }),
     );
 
-    const assembled = await previewAssembly({ principal: principal(me), chatId, timeZone: kathmandu });
+    const assembled = await previewAssembly({ principal: await principal(db, me), chatId, timeZone: kathmandu });
     expect(assembled.prompt.static).toContain("CLOCK 2026-01-16 01:45:00 Friday");
-    const templates = await previewActionTemplates({ principal: principal(me), chatId, presetId: castId<PresetId>("preset_tz"), timeZone: kathmandu });
+    const templates = await previewActionTemplates({
+      principal: await principal(db, me),
+      chatId,
+      presetId: castId<PresetId>("preset_tz"),
+      timeZone: kathmandu,
+    });
     expect(templates.templates.find((t) => t.id === "response")?.resolved).toBe("2026-01-16 01:45:00 Friday");
     // A preview with no viewer zone reads UTC, never the server's own zone.
-    expect((await previewAssembly({ principal: principal(me), chatId })).prompt.static).toContain("CLOCK 2026-01-15 20:00:00 Thursday");
+    expect((await previewAssembly({ principal: await principal(db, me), chatId })).prompt.static).toContain("CLOCK 2026-01-15 20:00:00 Thursday");
   });
 
   test("previewAssembly's BUDGET partitions the next turn's context by source (D-4)", async () => {
@@ -2015,7 +2023,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       makeChatContext(db),
       makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ generation: capability })) }),
     );
-    const { budget, prompt } = await previewAssembly({ principal: principal(me), chatId });
+    const { budget, prompt } = await previewAssembly({ principal: await principal(db, me), chatId });
 
     expect(budget.sources.reduce((sum, s) => sum + s.tokens, 0)).toBe(budget.totalTokens);
     expect(budget.totalTokens).toBeGreaterThan(0);
@@ -2043,7 +2051,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: me, content: "the older turn" });
     await seedMessage(db, chatId, 2, { role: "assistant", content: "a reply worth some tokens" });
 
-    const { budget } = await createRead(makeChatContext(db), makeDeps()).previewAssembly({ principal: principal(me), chatId });
+    const { budget } = await createRead(makeChatContext(db), makeDeps()).previewAssembly({ principal: await principal(db, me), chatId });
 
     const ids = budget.sections.map((s) => s.sectionId);
     // Every id is a REAL rack row of the resolved config (never a synthesized key), in rack order.
@@ -2089,13 +2097,13 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     );
 
     const presetId = castId<PresetId>("preset_over");
-    const overridden = await previewAssembly({ principal: principal(me), chatId, presetOverride: presetId });
+    const overridden = await previewAssembly({ principal: await principal(db, me), chatId, presetOverride: presetId });
     expect(seen).toEqual([presetId]);
     expect(overridden.prompt.static).toContain("THE OVERRIDE PRESET SPEAKS");
     expect(overridden.budget.sections.map((s) => s.sectionId)).toEqual(["only-row"]);
 
     // ABSENT ⇒ byte-identical to every pre-existing caller: the room's own preset, no override threaded.
-    const plain = await previewAssembly({ principal: principal(me), chatId });
+    const plain = await previewAssembly({ principal: await principal(db, me), chatId });
     expect(seen).toEqual([presetId, undefined]);
     expect(plain.prompt.static).not.toContain("THE OVERRIDE PRESET SPEAKS");
   });
@@ -2120,7 +2128,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       getCard: ({ characterId }) => Promise.resolve((cards[characterId] ?? null) as unknown as CharacterCard),
     });
 
-    const { budget } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
+    const { budget } = await createRead(ctx, makeDeps()).previewAssembly({ principal: await principal(db, me), chatId });
 
     const cardsRow = budget.sources.find((s) => s.source === "cards");
     // Both present members are named — the detail line AND a part apiece with its own real token count.
@@ -2161,7 +2169,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const ctx = makeChatContext(db, {
       getCard: ({ characterId }) => Promise.resolve((cards[characterId] ?? null) as unknown as CharacterCard),
     });
-    const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
+    const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: await principal(db, me), chatId });
 
     // The `DEFAULT_PROMPT_CONFIG` main section is a TOP-LEVEL (non-card) framing, so its `{{char}}` resolves
     // through the speaker arm: a narrator turn binds it to the JOINED character names. The shipped preview bound it to a
@@ -2193,7 +2201,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const ctx = makeChatContext(db, {
       getCard: ({ characterId }) => Promise.resolve((cards[characterId] ?? null) as unknown as CharacterCard),
     });
-    const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(me), chatId });
+    const { prompt } = await createRead(ctx, makeDeps()).previewAssembly({ principal: await principal(db, me), chatId });
 
     // Owner ruling: a merged room's system block is the whole roster for every speaker and names none — the
     // single default binds `{{char}}` to the joined names, and every non-primary card rides as "[Character — X]".
@@ -2215,7 +2223,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     // A small-context local model: the ceiling tracks IT, not any blanket default.
     const small = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] }, context: { window: 40_960 } });
     const { previewAssembly } = createRead(makeChatContext(db), makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ generation: small })) }));
-    const known = await previewAssembly({ principal: principal(me), chatId });
+    const known = await previewAssembly({ principal: await principal(db, me), chatId });
     expect(known.budget.ceilingTokens).toBe(safeTokenWindow(40_960 - DEFAULT_MAX_OUTPUT_TOKENS));
     expect(known.budget.ceilingEstimated).toBe(false);
 
@@ -2229,7 +2237,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       makeChatContext(db),
       makeDeps({ resolveConnection: () => Promise.resolve(makeResolved({ generation: guessed })) }),
     );
-    const unknown = await previewGuessed({ principal: principal(me), chatId });
+    const unknown = await previewGuessed({ principal: await principal(db, me), chatId });
     expect(unknown.budget.ceilingTokens).toBe(safeTokenWindow(200_000 - DEFAULT_MAX_OUTPUT_TOKENS));
     expect(unknown.budget.ceilingEstimated).toBe(true);
   });
@@ -2258,7 +2266,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       }),
     );
 
-    const preview = await previewAssembly({ principal: principal(me), chatId });
+    const preview = await previewAssembly({ principal: await principal(db, me), chatId });
 
     expect(preview.budget.ceilingTokens).toBe(16_000 - DEFAULT_MAX_OUTPUT_TOKENS);
     expect(preview.budget.ceilingEstimated).toBe(false);
@@ -2311,7 +2319,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
           injectionTokenBudget: 0,
         }),
     });
-    const { budget } = await createRead(ctx, deps).previewAssembly({ principal: principal(me), chatId });
+    const { budget } = await createRead(ctx, deps).previewAssembly({ principal: await principal(db, me), chatId });
 
     const gameState = budget.sources.find((s) => s.source === "game-state");
     expect(gameState?.text).toBe("## Game state\nroster: Mira (VIT 24/30)");
@@ -2379,7 +2387,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       },
     });
 
-    const { budget } = await createRead(makeChatContext(db, { rpg }), deps).previewAssembly({ principal: principal(me), chatId });
+    const { budget } = await createRead(makeChatContext(db, { rpg }), deps).previewAssembly({ principal: await principal(db, me), chatId });
 
     // THE WHOLE CLASS, in one line: the foreign read ran under the GM preset, so EVERY template it carries —
     // sections and guided prompts included, not just prose — is the one the turn would use.
@@ -2417,7 +2425,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       },
     });
 
-    await createRead(makeChatContext(db, { rpg }), deps).previewAssembly({ principal: principal(me), chatId, presetOverride: candidateId });
+    await createRead(makeChatContext(db, { rpg }), deps).previewAssembly({ principal: await principal(db, me), chatId, presetOverride: candidateId });
     expect(seen).toEqual([candidateId]);
   });
 
@@ -2481,7 +2489,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       newPersona,
       read: createRead(ctx, makeDeps(personaResolvingDeps())),
       // "Re-pin" — the host anchor verb.
-      rePin: (personaId) => life.setChatAnchorPersona({ principal: principal(me), chatId, personaId }),
+      rePin: async (personaId) => life.setChatAnchorPersona({ principal: await principal(db, me), chatId, personaId }),
     };
   }
 
@@ -2490,7 +2498,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     // BEFORE the re-pin the old persona is still the ANCHOR, so it legitimately rides card-context (the
     // both-personas swap rule) — this is the state the owner saw, reproduced.
-    const swapped = await read.previewAssembly({ principal: principal(me), chatId });
+    const swapped = await read.previewAssembly({ principal: await principal(db, me), chatId });
     expect(swapped.budget.sources.find((s) => s.source === "cards")?.parts.map((p) => p.label)).toEqual(
       expect.arrayContaining(["Alex (persona)", "You (persona)"]),
     );
@@ -2499,12 +2507,12 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     // AFTER: the old persona is neither the anchor nor anyone's active persona ⇒ it contributes NOTHING,
     // even though canon row 1 is still STAMPED with it (stamp-derived DISPLAY names are untouched by design).
-    const rePinned = await read.previewAssembly({ principal: principal(me), chatId });
+    const rePinned = await read.previewAssembly({ principal: await principal(db, me), chatId });
     const cards = rePinned.budget.sources.find((s) => s.source === "cards");
     expect(cards?.parts.map((p) => p.label)).toContain("Alex (persona)");
     expect(cards?.parts.map((p) => p.label)).not.toContain("You (persona)");
     // …and the same verdict on the bytes the model actually receives — this is a PROMPT fact, not a panel fact.
-    const peeked = await read.peekPrompt({ principal: principal(me), chatId });
+    const peeked = await read.peekPrompt({ principal: await principal(db, me), chatId });
     for (const text of [`${rePinned.prompt.static}\n${rePinned.prompt.dynamic}`, `${peeked.static}\n${peeked.dynamic}`]) {
       expect(text).toContain("Alex, the current player");
       expect(text).not.toContain("the old traveller nobody plays anymore");
@@ -2524,7 +2532,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     await seedParticipant(db, { chatId, key: "left_guest", userId: guest, role: "member", activePersonaId: guestPersona });
 
     const read = createRead(makeChatContext(db), makeDeps(personaResolvingDeps()));
-    const present = await read.previewAssembly({ principal: principal(host), chatId });
+    const present = await read.previewAssembly({ principal: await principal(db, host), chatId });
     const presentText = `${present.prompt.static}\n${present.prompt.dynamic}`;
     expect(presentText).toContain("roleplay with Traveler");
     expect(presentText).toContain(`${resolveProseText("chat.group.personaHeading", {}, { name: "Departed" })}\nthe guest who walked out`);
@@ -2537,7 +2545,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       .set({ leftSeq: 1 })
       .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, guest)));
 
-    const departed = await read.previewAssembly({ principal: principal(host), chatId });
+    const departed = await read.previewAssembly({ principal: await principal(db, host), chatId });
     expect(`${departed.prompt.static}\n${departed.prompt.dynamic}`).not.toContain("the guest who walked out");
     const departedCards = departed.budget.sources.find((s) => s.source === "cards")?.parts ?? [];
     expect(departedCards.map((p) => p.label)).not.toContain("Departed (persona)");
@@ -2559,7 +2567,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     await db.update(chatsTable).set({ anchorPersonaId: anchorPersona }).where(eq(chatsTable.id, chatId));
 
     const read = createRead(makeChatContext(db), makeDeps(personaResolvingDeps()));
-    const preview = await read.previewAssembly({ principal: principal(host), chatId });
+    const preview = await read.previewAssembly({ principal: await principal(db, host), chatId });
 
     const prompt = `${preview.prompt.static}\n${preview.prompt.dynamic}`;
     // The discriminating read is the ACTIVE binding, not the anchor's card contribution — the anchor arm is
@@ -2599,7 +2607,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       }),
     );
 
-    await previewAssembly({ principal: principal(host), chatId });
+    await previewAssembly({ principal: await principal(db, host), chatId });
 
     expect(presentHumanUserIds).toContain(host);
     expect(presentHumanUserIds).not.toContain(member);
@@ -2632,7 +2640,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     const previewWith = async (online: boolean): Promise<string> => {
       const ctx = makeChatContext(db, { readPresence: (userId) => Promise.resolve({ userId, online: online || userId === host, lastSeenAt: null }) });
-      const preview = await createRead(ctx, makeDeps()).previewAssembly({ principal: principal(host), chatId });
+      const preview = await createRead(ctx, makeDeps()).previewAssembly({ principal: await principal(db, host), chatId });
       return `${preview.prompt.static}\n${preview.prompt.dynamic}`;
     };
 
@@ -2650,7 +2658,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const chatId = await seedRoom("room", me);
 
     const { getActivePresetConfig } = createRead(makeChatContext(db), makeDeps());
-    const config = await getActivePresetConfig({ principal: principal(me), chatId });
+    const config = await getActivePresetConfig({ principal: await principal(db, me), chatId });
     expect(config.sections.length).toBe(DEFAULT_PROMPT_CONFIG.sections.length);
   });
 
@@ -2689,7 +2697,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       }),
     );
 
-    const preview = await previewActionTemplates({ principal: principal(me), chatId, presetId: castId<PresetId>("preset_bind") });
+    const preview = await previewActionTemplates({ principal: await principal(db, me), chatId, presetId: castId<PresetId>("preset_bind") });
     const impersonate = preview.templates.find((t) => t.id === "impersonate")?.resolved ?? "";
 
     // REAL: the chat's persona is what `{{user}}` became — the editor could not have known this alone.
@@ -2716,9 +2724,9 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     const { previewActionTemplates } = createRead(makeChatContext(db), makeDeps());
     const presetId = castId<PresetId>("preset_bind2");
-    expect((await previewActionTemplates({ principal: principal(host), chatId, presetId })).templates.length).toBeGreaterThan(0);
+    expect((await previewActionTemplates({ principal: await principal(db, host), chatId, presetId })).templates.length).toBeGreaterThan(0);
 
-    const err = await previewActionTemplates({ principal: principal(member), chatId, presetId }).catch((e: unknown) => e);
+    const err = await previewActionTemplates({ principal: await principal(db, member), chatId, presetId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
   });
@@ -2729,10 +2737,10 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const sectionId = DEFAULT_PROMPT_CONFIG.sections[0]?.id ?? "main";
 
     const { previewSection } = createRead(makeChatContext(db), makeDeps());
-    const section = await previewSection({ principal: principal(me), chatId, sectionId });
+    const section = await previewSection({ principal: await principal(db, me), chatId, sectionId });
     expect(section.half === "static" || section.half === "dynamic").toBe(true);
 
-    await expect(previewSection({ principal: principal(me), chatId, sectionId: "no-such-section" })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(previewSection({ principal: await principal(db, me), chatId, sectionId: "no-such-section" })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 
   // ═══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -2792,12 +2800,12 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
     // TEETH FIRST: the section genuinely carries the full-only field, so the refusal below closes a REAL
     // leak rather than an empty hole (the card override replaces the preset template in place).
-    const hostView = await previewSection({ principal: principal(host), chatId, sectionId: "main" });
+    const hostView = await previewSection({ principal: await principal(db, host), chatId, sectionId: "main" });
     expect(hostView.rendered).toContain(secretSystemPrompt);
 
     // The plain member is refused at the gate — a known-existence authority refusal, exactly as
     // peekPrompt/previewAssembly refuse them.
-    const err = await previewSection({ principal: principal(member), chatId, sectionId: "main" }).catch((e: unknown) => e);
+    const err = await previewSection({ principal: await principal(db, member), chatId, sectionId: "main" }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
   });
@@ -2810,14 +2818,14 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const { previewSection } = createRead(ctx, makeDeps());
     const sectionIds = ["main", "post-history", "char-desc", "scenario", "examples"] as const;
 
-    const hostRenders = await Promise.all(sectionIds.map((sectionId) => previewSection({ principal: principal(host), chatId, sectionId })));
+    const hostRenders = await Promise.all(sectionIds.map(async (sectionId) => previewSection({ principal: await principal(db, host), chatId, sectionId })));
     // Every named section resolves card bytes for the host (each carries its own sentinel).
     expect(hostRenders.map((r) => r.rendered).join("\n")).toContain("SECRET-DESC");
     expect(hostRenders.map((r) => r.rendered).join("\n")).toContain("SECRET-JB");
 
     const codes = await Promise.all(
-      sectionIds.map((sectionId) =>
-        previewSection({ principal: principal(member), chatId, sectionId }).then(
+      sectionIds.map(async (sectionId) =>
+        previewSection({ principal: await principal(db, member), chatId, sectionId }).then(
           () => "RESOLVED (leak)",
           (e: unknown) => (e instanceof ChatOperationError ? e.code : `unexpected ${String(e)}`),
         ),
@@ -2836,8 +2844,8 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(secretCard) });
     const { previewContextFit, getActivePresetConfig } = createRead(ctx, makeDeps());
 
-    const fit = fitOf(await previewContextFit({ principal: principal(member), chatId }));
-    const config = await getActivePresetConfig({ principal: principal(member), chatId });
+    const fit = fitOf(await previewContextFit({ principal: await principal(db, member), chatId }));
+    const config = await getActivePresetConfig({ principal: await principal(db, member), chatId });
 
     expect(JSON.stringify(fit)).not.toContain("SECRET-");
     expect(JSON.stringify(config)).not.toContain("SECRET-");
@@ -2884,7 +2892,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     });
 
     const { previewSection } = createRead(makeChatContext(db), deps);
-    const persona = await previewSection({ principal: principal(host), chatId, sectionId: "persona" });
+    const persona = await previewSection({ principal: await principal(db, host), chatId, sectionId: "persona" });
 
     expect(persona.rendered).toContain("HOST-PERSONA-DESC");
     expect(persona.rendered).not.toContain("OTHER-PERSONA-DESC");
@@ -2899,7 +2907,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     await seedMessage(db, chatId, 2, { role: "assistant", content: "hey there" });
 
     const { getShapeTrace } = createRead(makeChatContext(db), makeDeps());
-    const trace = await getShapeTrace({ principal: principal(me), chatId });
+    const trace = await getShapeTrace({ principal: await principal(db, me), chatId });
 
     // Row COUNTS per stage, no content bytes — the content-free projection.
     expect(trace.stageCounts.withTail).toBe(2);
@@ -2909,7 +2917,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
     expect(JSON.stringify(trace)).not.toContain("hey there");
 
     // A present but non-host member is refused (the host/admin inspector gate, matrix `getShapeTrace: "host"`).
-    const err = await getShapeTrace({ principal: principal(member), chatId }).catch((e: unknown) => e);
+    const err = await getShapeTrace({ principal: await principal(db, member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
   });
@@ -2966,7 +2974,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const { chatId, variantId } = await seedWiredRoom("wire_host", host);
 
       const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
-      const wire = await getVariantWire({ principal: principal(host), chatId, variantId: castId(variantId) });
+      const wire = await getVariantWire({ principal: await principal(db, host), chatId, variantId: castId(variantId) });
 
       expect(wire.variantId).toBe(variantId);
       // The host IS entitled to the hidden plane (§3.6 "the host reads their own payload UNSTRIPPED") and to
@@ -2987,7 +2995,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       await seedParticipant(db, { chatId, key: "wire_member_m", userId: member, role: "member" });
 
       const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
-      const err = await getVariantWire({ principal: principal(member), chatId, variantId: castId(variantId) }).catch((e: unknown) => e);
+      const err = await getVariantWire({ principal: await principal(db, member), chatId, variantId: castId(variantId) }).catch((e: unknown) => e);
 
       expect(err).toBeInstanceOf(ChatOperationError);
       expect((err as ChatOperationError).code).toBe("not_host");
@@ -3001,7 +3009,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const { chatId, variantId } = await seedWiredRoom("wire_stranger", host);
 
       const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
-      const err = await getVariantWire({ principal: principal(stranger), chatId, variantId: castId(variantId) }).catch((e: unknown) => e);
+      const err = await getVariantWire({ principal: await principal(db, stranger), chatId, variantId: castId(variantId) }).catch((e: unknown) => e);
 
       expect(err).toBeInstanceOf(ChatNotFoundError);
     });
@@ -3017,11 +3025,15 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
 
       const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
       // A hosts `mine` legitimately, and aims the variantId at B's room.
-      const err = await getVariantWire({ principal: principal(hostA), chatId: mine.chatId, variantId: castId(theirs.variantId) }).catch((e: unknown) => e);
+      const err = await getVariantWire({ principal: await principal(db, hostA), chatId: mine.chatId, variantId: castId(theirs.variantId) }).catch(
+        (e: unknown) => e,
+      );
 
       expect(err).toBeInstanceOf(ChatNotFoundError);
       // The refusal is byte-identical to an UNKNOWN id — never "wrong chat", which would confirm it exists.
-      const unknown = await getVariantWire({ principal: principal(hostA), chatId: mine.chatId, variantId: castId("variant_nope") }).catch((e: unknown) => e);
+      const unknown = await getVariantWire({ principal: await principal(db, hostA), chatId: mine.chatId, variantId: castId("variant_nope") }).catch(
+        (e: unknown) => e,
+      );
       expect(unknown).toEqual(err);
     });
 
@@ -3032,7 +3044,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
       const m = await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hi" });
 
       const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
-      const wire = await getVariantWire({ principal: principal(host), chatId, variantId: castId(m.variantId) });
+      const wire = await getVariantWire({ principal: await principal(db, host), chatId, variantId: castId(m.variantId) });
 
       expect(wire.prompt).toBeNull();
       expect(wire.params).toBeNull();
@@ -3054,7 +3066,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
         .where(eq(messageVariants.id, castId(m.variantId)));
 
       const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
-      const wire = await getVariantWire({ principal: principal(host), chatId, variantId: castId(m.variantId) });
+      const wire = await getVariantWire({ principal: await principal(db, host), chatId, variantId: castId(m.variantId) });
 
       expect(wire.rawContent).toBe('I roll {{roll::d20}} <lie truth="pre-strip bytes"/>');
       expect(wire.macroFreezes).toEqual([{ name: "roll", args: "d20", value: "17" }]);
@@ -3071,7 +3083,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
         .where(eq(messageVariants.id, castId(m.variantId)));
 
       const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
-      const wire = await getVariantWire({ principal: principal(host), chatId, variantId: castId(m.variantId) });
+      const wire = await getVariantWire({ principal: await principal(db, host), chatId, variantId: castId(m.variantId) });
 
       expect(wire.macroFreezes).toBeNull();
     });
@@ -3089,7 +3101,7 @@ describe("read — dry-run prompt previews (NO persist, NO turn)", () => {
         .where(eq(messageVariants.id, castId(m.variantId)));
 
       const { getVariantWire } = createRead(makeChatContext(db), makeDeps());
-      const wire = await getVariantWire({ principal: principal(host), chatId, variantId: castId(m.variantId) });
+      const wire = await getVariantWire({ principal: await principal(db, host), chatId, variantId: castId(m.variantId) });
 
       expect(wire.prompt).toBeNull();
     });
@@ -3105,9 +3117,9 @@ describe("read — resumable stream ring", () => {
     await seedStreamEvent(db, chatId, 3, "c");
 
     const { replayStreamEvents, streamEventBounds } = createRead(makeChatContext(db), makeDeps());
-    const tail = await replayStreamEvents({ principal: principal(me), chatId, afterSeq: 1 });
+    const tail = await replayStreamEvents({ principal: await principal(db, me), chatId, afterSeq: 1 });
     expect(tail.map((e) => e.delta)).toEqual(["b", "c"]);
-    const bounds = await streamEventBounds({ principal: principal(me), chatId });
+    const bounds = await streamEventBounds({ principal: await principal(db, me), chatId });
     expect(bounds).toEqual({ minSeq: 1, maxSeq: 3 });
   });
 });
@@ -3120,7 +3132,7 @@ describe("read — default-deny (membership chokepoint)", () => {
     const { messageId } = await seedMessage(db, chatId, 1);
 
     const read = createRead(makeChatContext(db), makeDeps());
-    const p = principal(stranger);
+    const p = await principal(db, stranger);
     await expect(read.getChat({ principal: p, chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
     await expect(read.listMessages({ principal: p, chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
     await expect(read.listMessageVariants({ principal: p, chatId, messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
@@ -3146,19 +3158,19 @@ describe("read — durable chat-bus log (the chat room SSE resume)", () => {
 
     const { replayChatEvents, chatEventBounds } = createRead(ctx, makeDeps());
 
-    const tail = await replayChatEvents({ principal: principal(me), chatId, afterSeq: 1 });
+    const tail = await replayChatEvents({ principal: await principal(db, me), chatId, afterSeq: 1 });
     expect(tail.map((e) => e.seq)).toEqual([2, 3]);
     expect(tail.map((e) => e.event.type)).toEqual(["chatCreated", "chatUpdated"]);
 
     // The attach probe carries the caller's own D16 floor alongside the window (the SSE live loop clamps on
     // it) — `me` is the born-here host, so it is the unclamped 0.
-    const bounds = await chatEventBounds({ principal: principal(me), chatId });
+    const bounds = await chatEventBounds({ principal: await principal(db, me), chatId });
     // `reasoningHostOnly` is false — the host reads verbatim, and a plain chat is never deception-active.
     expect(bounds).toEqual({ minSeq: 1, maxSeq: 3, historyFloorSeq: 0, viewerIsHost: true, reasoningHostOnly: false });
 
     // The membership chokepoint: a stranger's read collapses to a leak-free NOT_FOUND.
-    await expect(replayChatEvents({ principal: principal(stranger), chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
-    await expect(chatEventBounds({ principal: principal(stranger), chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(replayChatEvents({ principal: await principal(db, stranger), chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(chatEventBounds({ principal: await principal(db, stranger), chatId })).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 
   // The FIRST-TURN-RACE server pin (#1): the client seeds `lastEventId:"0"` for a just-created chat so
@@ -3190,7 +3202,7 @@ describe("read — durable chat-bus log (the chat room SSE resume)", () => {
 
     const { replayChatEvents } = createRead(ctx, makeDeps());
     // afterSeq:0 == the client's `lastEventId:"0"` seed — replay the whole durable log from baseline.
-    const replayed = await replayChatEvents({ principal: principal(me), chatId, afterSeq: 0 });
+    const replayed = await replayChatEvents({ principal: await principal(db, me), chatId, afterSeq: 0 });
 
     expect(replayed.map((e) => e.seq)).toEqual([1, 2, 3]);
     expect(replayed.map((e) => e.event.type)).toEqual(["turnStarted", "delta", "delta"]);
@@ -3252,7 +3264,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
       checkSendAvailability: () => Promise.resolve({ available: false, cause: "no-connection" }),
     });
 
-    await expect(previewContextFit({ principal: principal(host), chatId })).resolves.toEqual({ unbound: true });
+    await expect(previewContextFit({ principal: await principal(db, host), chatId })).resolves.toEqual({ unbound: true });
   });
 
   test("reproduces the engine's stamped boundary (earliest kept id) + honest budget numbers", async () => {
@@ -3270,7 +3282,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     );
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(midCapability));
-    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
+    const fit = fitOf(await previewContextFit({ principal: await principal(db, host), chatId }));
 
     // The fit trimmed SOME rows (0 < droppedCount < 11 → real rows survive), the boundary is the earliest
     // KEPT message id (message_<chatId>_<seq> for seq = droppedCount + 1 — the seeded 1-indexed scheme), and
@@ -3300,7 +3312,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     const tiny = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 200 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tiny));
-    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
+    const fit = fitOf(await previewContextFit({ principal: await principal(db, host), chatId }));
 
     // Everything older than the newest real row drops (5 canon rows; the nudge rides irreducibly and is
     // uncounted as a drop), and the boundary NAMES the survivor — the newest seeded row.
@@ -3318,7 +3330,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     const wide = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 1_000_000 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(wide));
-    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
+    const fit = fitOf(await previewContextFit({ principal: await principal(db, host), chatId }));
 
     expect(fit.droppedCount).toBe(0);
     expect(fit.boundaryMessageId).toBeNull();
@@ -3340,7 +3352,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     const eightK = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 8192 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(eightK));
-    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
+    const fit = fitOf(await previewContextFit({ principal: await principal(db, host), chatId }));
 
     expect(fit.droppedCount).toBeGreaterThan(0);
     expect(fit.usedTokens).toBeLessThanOrEqual(fit.ceilingTokens);
@@ -3348,7 +3360,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
 
     // The shape trace runs the same sequence, so it traces the survivors the turn shapes, not the whole run.
     const { getShapeTrace } = createRead(makeChatContext(db), makeFitDeps(eightK));
-    const trace = await getShapeTrace({ principal: principal(host), chatId });
+    const trace = await getShapeTrace({ principal: await principal(db, host), chatId });
     expect(trace.stageCounts.withTail).toBe(21 - fit.droppedCount);
   });
 
@@ -3368,7 +3380,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     const wide = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 1_000_000 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(wide));
-    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
+    const fit = fitOf(await previewContextFit({ principal: await principal(db, host), chatId }));
 
     // Covered rows (seq 1-2) fell out of the shaped history, so the fit dropped nothing MORE; the boundary is
     // the first row STILL in the prompt above the coverage point (seq 3), and the marker is exposed.
@@ -3389,7 +3401,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     const tiny = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 260 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tiny));
-    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
+    const fit = fitOf(await previewContextFit({ principal: await principal(db, host), chatId }));
 
     // The shaped input already excludes seq 1-2; the tiny window then trims some of the post-marker rows. The
     // boundary NAMES a survivor with seq > 2 (never a covered row), and the marker covers everything above it.
@@ -3410,7 +3422,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     const tiny = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 260 } });
 
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tiny));
-    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
+    const fit = fitOf(await previewContextFit({ principal: await principal(db, host), chatId }));
 
     expect(fit.droppedCount).toBeGreaterThan(0);
     expect(fit.compactSummary).toBeNull();
@@ -3458,7 +3470,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
 
     const ctx = makeChatContext(db, { rpg: cardWindowRpg(0) });
     const { previewContextFit } = createRead(ctx, makeFitDeps(wideEnoughForStubs));
-    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
+    const fit = fitOf(await previewContextFit({ principal: await principal(db, host), chatId }));
 
     // Every card collapses to `[card: cN]` before the fit prices it, so the whole transcript fits: nothing
     // is dropped and the divider has no line to draw. Pre-fix the three raw bodies (~6000 tokens) blew the
@@ -3489,7 +3501,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
 
     const tight = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 8192 }, modalities: ["text"] }, context: { window: 2800 } });
     const { previewContextFit } = createRead(makeChatContext(db), makeFitDeps(tight));
-    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
+    const fit = fitOf(await previewContextFit({ principal: await principal(db, host), chatId }));
 
     expect(fit.droppedCount).toBe(0);
     expect(fit.boundaryMessageId).toBeNull();
@@ -3517,7 +3529,7 @@ describe("previewContextFit — present-tense fit budget (engine-stamp parity)",
     // which is the other half of the honesty claim: the fit tracks the window, it does not just always stub.
     const ctx = makeChatContext(db, { rpg: cardWindowRpg(1) });
     const { previewContextFit } = createRead(ctx, makeFitDeps(wideEnoughForStubs));
-    const fit = fitOf(await previewContextFit({ principal: principal(host), chatId }));
+    const fit = fitOf(await previewContextFit({ principal: await principal(db, host), chatId }));
 
     expect(fit.usedTokens).toBeGreaterThan(1000);
   });
@@ -3556,10 +3568,10 @@ describe("read — the §3.6 hidden-content member-strip", () => {
       .set({ toolCalls: [record] })
       .where(eq(messageVariants.id, variantId));
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
-    const projected = (await listMessages({ principal: principal(member), chatId })).messages[0];
+    const projected = (await listMessages({ principal: await principal(db, member), chatId })).messages[0];
     expect(projected?.content).toBe("Before.After.Done.");
     expect(projected?.toolCalls).toEqual([{ ...record, textOffset: 7, exchangeTextEnd: 13 }]);
-    const unstripped = (await listMessages({ principal: principal(host), chatId })).messages[0];
+    const unstripped = (await listMessages({ principal: await principal(db, host), chatId })).messages[0];
     expect(unstripped?.content).toBe(content);
     expect(unstripped?.toolCalls).toEqual([record]);
     const [stored] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
@@ -3576,13 +3588,13 @@ describe("read — the §3.6 hidden-content member-strip", () => {
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
 
-    const memberPage = await listMessages({ principal: principal(member), chatId });
+    const memberPage = await listMessages({ principal: await principal(db, member), chatId });
     const memberPayload = JSON.stringify(memberPage);
     expect(memberPayload).not.toContain("crypt");
     expect(memberPayload).not.toContain("<lie");
     expect(memberPage.messages[0]?.content).toBe('He nods.  "Nothing," he says.');
 
-    const hostPage = await listMessages({ principal: principal(host), chatId });
+    const hostPage = await listMessages({ principal: await principal(db, host), chatId });
     expect(hostPage.messages[0]?.content).toBe(`He nods. ${lieTag} "Nothing," he says.`);
   });
 
@@ -3601,7 +3613,7 @@ describe("read — the §3.6 hidden-content member-strip", () => {
 
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
 
-    const memberPage = await listMessages({ principal: principal(member), chatId });
+    const memberPage = await listMessages({ principal: await principal(db, member), chatId });
     const memberPayload = JSON.stringify(memberPage);
     expect(memberPayload).not.toContain("crypt");
     expect(memberPayload).not.toContain("<lie");
@@ -3609,7 +3621,7 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     expect(memberPage.messages[0]?.content).toBe(stored.replace(lieTag, ""));
 
     // THE DUAL: the host's stored body is byte-identical — hosts read their own lies, in cards included.
-    const hostPage = await listMessages({ principal: principal(host), chatId });
+    const hostPage = await listMessages({ principal: await principal(db, host), chatId });
     expect(hostPage.messages[0]?.content).toBe(stored);
   });
 
@@ -3642,14 +3654,14 @@ describe("read — the §3.6 hidden-content member-strip", () => {
 
     const { listMessages } = createRead(deceptionCtx(), makeDeps());
 
-    const memberPage = await listMessages({ principal: principal(member), chatId });
+    const memberPage = await listMessages({ principal: await principal(db, member), chatId });
     // The whole serialized payload, not just the field — a devtools-open member must find no truth bytes.
     expect(JSON.stringify(memberPage)).not.toContain("crypt");
     expect(memberPage.messages[0]?.reasoning).toBeNull();
     // The body is untouched — the reasoning cut is whole-channel, never a body edit.
     expect(memberPage.messages[0]?.content).toBe("He shrugs.");
 
-    const hostPage = await listMessages({ principal: principal(host), chatId });
+    const hostPage = await listMessages({ principal: await principal(db, host), chatId });
     expect(hostPage.messages[0]?.reasoning).toBe(reasoningSpill);
   });
 
@@ -3662,8 +3674,8 @@ describe("read — the §3.6 hidden-content member-strip", () => {
 
     const { listMessages } = createRead(deceptionCtx(), makeDeps());
 
-    expect((await listMessages({ principal: principal(founder), chatId })).messages[0]?.reasoning).toBe(reasoningSpill);
-    expect((await listMessages({ principal: principal(successor), chatId })).messages[0]?.reasoning).toBeNull();
+    expect((await listMessages({ principal: await principal(db, founder), chatId })).messages[0]?.reasoning).toBe(reasoningSpill);
+    expect((await listMessages({ principal: await principal(db, successor), chatId })).messages[0]?.reasoning).toBeNull();
 
     // The handoff: the founder drops to member, the successor takes the host seat — DEMOTE BEFORE PROMOTE,
     // the order `acceptHostHandoffSwapStatements` writes, because one present host per chat is a partial
@@ -3678,8 +3690,8 @@ describe("read — the §3.6 hidden-content member-strip", () => {
       .set({ role: "host" })
       .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, successor)));
 
-    expect((await listMessages({ principal: principal(successor), chatId })).messages[0]?.reasoning).toBe(reasoningSpill);
-    const demoted = await listMessages({ principal: principal(founder), chatId });
+    expect((await listMessages({ principal: await principal(db, successor), chatId })).messages[0]?.reasoning).toBe(reasoningSpill);
+    const demoted = await listMessages({ principal: await principal(db, founder), chatId });
     expect(demoted.messages[0]?.reasoning).toBeNull();
     expect(JSON.stringify(demoted)).not.toContain("crypt");
   });
@@ -3694,7 +3706,7 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     // The default harness ctx wires NO rpg op ⇒ `resolveReasoningHostOnly` resolves false (a plain chat).
     const { listMessages } = createRead(makeChatContext(db), makeDeps());
 
-    expect((await listMessages({ principal: principal(member), chatId })).messages[0]?.reasoning).toBe("weighing two openings");
+    expect((await listMessages({ principal: await principal(db, member), chatId })).messages[0]?.reasoning).toBe("weighing two openings");
   });
 
   test("replayChatEvents: a replayed view payload is stripped for a MEMBER, full for the HOST; chatEventBounds resolves viewerIsHost", async () => {
@@ -3711,17 +3723,17 @@ describe("read — the §3.6 hidden-content member-strip", () => {
 
     const { replayChatEvents, chatEventBounds } = createRead(ctx, makeDeps());
 
-    const memberReplay = await replayChatEvents({ principal: principal(member), chatId, afterSeq: 0 });
+    const memberReplay = await replayChatEvents({ principal: await principal(db, member), chatId, afterSeq: 0 });
     expect(memberReplay).toHaveLength(1);
     expect(JSON.stringify(memberReplay)).not.toContain("crypt");
     expect(JSON.stringify(memberReplay)).not.toContain("<lie");
 
-    const hostReplay = await replayChatEvents({ principal: principal(host), chatId, afterSeq: 0 });
+    const hostReplay = await replayChatEvents({ principal: await principal(db, host), chatId, afterSeq: 0 });
     expect(JSON.stringify(hostReplay)).toContain("crypt");
 
     // The LIVE half's verdict input: the same member-gated probe hands the transport `viewerIsHost`.
-    expect((await chatEventBounds({ principal: principal(host), chatId })).viewerIsHost).toBe(true);
-    expect((await chatEventBounds({ principal: principal(member), chatId })).viewerIsHost).toBe(false);
+    expect((await chatEventBounds({ principal: await principal(db, host), chatId })).viewerIsHost).toBe(true);
+    expect((await chatEventBounds({ principal: await principal(db, member), chatId })).viewerIsHost).toBe(false);
   });
 
   // The DURABLE-replay DELTA leak (found by the e2e reasoning-strip proof): a resume from afterSeq:0 re-drains
@@ -3752,7 +3764,7 @@ describe("read — the §3.6 hidden-content member-strip", () => {
 
     const { replayChatEvents } = createRead(ctx, makeDeps());
 
-    const memberReplay = await replayChatEvents({ principal: principal(member), chatId, afterSeq: 0 });
+    const memberReplay = await replayChatEvents({ principal: await principal(db, member), chatId, afterSeq: 0 });
     const memberBytes = JSON.stringify(memberReplay);
     // Zero truth bytes anywhere — reasoning delta withheld, text delta scrubbed, committed view stripped.
     expect(memberBytes).not.toContain("crypt");
@@ -3762,7 +3774,7 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     expect(memberReplay.some((e) => e.event.type === "reasoningStreamDone")).toBe(false);
 
     // The host gets the whole log verbatim — the reasoning delta + the raw `<lie>` + reasoningStreamDone.
-    const hostReplay = await replayChatEvents({ principal: principal(host), chatId, afterSeq: 0 });
+    const hostReplay = await replayChatEvents({ principal: await principal(db, host), chatId, afterSeq: 0 });
     const hostBytes = JSON.stringify(hostReplay);
     expect(hostBytes).toContain("crypt");
     expect(hostReplay.some((e) => e.event.type === "delta" && e.event.delta.kind === "reasoning")).toBe(true);
@@ -3792,7 +3804,7 @@ describe("read — the §3.6 hidden-content member-strip", () => {
 
     const { replayChatEvents } = createRead(ctx, makeDeps());
     // Resume from EVERY cursor position, including the two that land inside the open span.
-    const byCursor = await Promise.all([0, 1, 2, 3].map((afterSeq) => replayChatEvents({ principal: principal(member), chatId, afterSeq })));
+    const byCursor = await Promise.all([0, 1, 2, 3].map(async (afterSeq) => replayChatEvents({ principal: await principal(db, member), chatId, afterSeq })));
     for (const replayed of byCursor) {
       const bytes = JSON.stringify(replayed);
       expect(bytes).not.toContain("1234");
@@ -3802,11 +3814,11 @@ describe("read — the §3.6 hidden-content member-strip", () => {
     }
     // …and the delivered prose is still whole: resuming at the cursor BEFORE the opener replays exactly the
     // stripped body, so the member's ghost reads correctly rather than merely safely.
-    const fromStart = await replayChatEvents({ principal: principal(member), chatId, afterSeq: 0 });
+    const fromStart = await replayChatEvents({ principal: await principal(db, member), chatId, afterSeq: 0 });
     const assembled = fromStart.map((e) => (e.event.type === "delta" && e.event.delta.kind === "text" ? e.event.delta.text : "")).join("");
     expect(assembled).toBe("The vault is  empty. Vex smiles.");
     // The HOST reads the same log verbatim from a mid-span cursor — the strip is the MEMBER's, not a mangle.
-    expect(JSON.stringify(await replayChatEvents({ principal: principal(host), chatId, afterSeq: 1 }))).toContain("1234");
+    expect(JSON.stringify(await replayChatEvents({ principal: await principal(db, host), chatId, afterSeq: 1 }))).toContain("1234");
   });
 });
 
@@ -3931,10 +3943,10 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     };
     const { getMemberCard } = createRead(ctx, makeCardDeps());
 
-    expect((await getMemberCard({ principal: principal(host), chatId, characterId: cardChar, timeZone: kathmandu })).description).toBe(
+    expect((await getMemberCard({ principal: await principal(db, host), chatId, characterId: cardChar, timeZone: kathmandu })).description).toBe(
       "Friday 2026-01-16 01:45:00",
     );
-    expect((await getMemberCard({ principal: principal(host), chatId, characterId: cardChar })).description).toBe("Thursday 2026-01-15 20:00:00");
+    expect((await getMemberCard({ principal: await principal(db, host), chatId, characterId: cardChar })).description).toBe("Thursday 2026-01-15 20:00:00");
   });
 
   test("a MEMBER at `sheet` sees name/description/personality/scenario but NOT systemPrompt/postHistory/lore (wire payload)", async () => {
@@ -3943,7 +3955,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     await seedCardLore(host, "mc_sheet_lore", "hidden lore");
 
     const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
-    const view = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+    const view = await getMemberCard({ principal: await principal(db, member), chatId, characterId: cardChar });
 
     // sheet-tier fields present…
     expect(view.name).toBe("Seraphine");
@@ -3979,10 +3991,10 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     };
     const { getMemberCard } = createRead(makeCardCtx({ card, tags: [`relic ${lie}`] }), makeCardDeps());
 
-    const memberView = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+    const memberView = await getMemberCard({ principal: await principal(db, member), chatId, characterId: cardChar });
     expect(memberView.description).toBe("Ash-grey habit ");
     expect(JSON.stringify(memberView)).not.toContain("abbess");
-    const hostView = await getMemberCard({ principal: principal(host), chatId, characterId: cardChar });
+    const hostView = await getMemberCard({ principal: await principal(db, host), chatId, characterId: cardChar });
     expect(hostView.description).toBe(`Ash-grey habit ${lie}`);
     expect(hostView.systemPrompt).toBe(`stay calm ${lie}`);
   });
@@ -4016,7 +4028,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     };
     const { getMemberCard } = createRead(ctx, deps);
 
-    await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+    await getMemberCard({ principal: await principal(db, member), chatId, characterId: cardChar });
 
     expect(presentHumanUserIds).toContain(host);
     expect(presentHumanUserIds).not.toContain(member);
@@ -4028,7 +4040,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     await seedCardLore(host, "mc_lore_entry", "the ancient prophecy");
 
     const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
-    const view = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+    const view = await getMemberCard({ principal: await principal(db, member), chatId, characterId: cardChar });
 
     expect(view.lore).toEqual(["the ancient prophecy"]);
     expect(view.systemPrompt).toBeNull();
@@ -4038,8 +4050,8 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
   test("only the card owner receives editable manual tag identities", async () => {
     const { host, member, chatId } = await seedCardRoom("mc_editable_tags", "full");
     const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
-    const ownerView = await getMemberCard({ principal: principal(host), chatId, characterId: cardChar });
-    const guestView = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+    const ownerView = await getMemberCard({ principal: await principal(db, host), chatId, characterId: cardChar });
+    const guestView = await getMemberCard({ principal: await principal(db, member), chatId, characterId: cardChar });
     expect(ownerView.editableTags).toEqual(cardTags);
     expect(guestView).toHaveProperty("editableTags", null);
     expect(guestView.tags).toEqual(ownerView.tags);
@@ -4050,7 +4062,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     await seedCardLore(host, "mc_host_lore", "host-visible lore");
 
     const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
-    const view = await getMemberCard({ principal: principal(host), chatId, characterId: cardChar });
+    const view = await getMemberCard({ principal: await principal(db, host), chatId, characterId: cardChar });
 
     expect(view.visibility).toBe("full");
     expect(view.systemPrompt).not.toBeNull();
@@ -4063,7 +4075,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
 
     const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
     // Host = full, so every field survives and every field renders.
-    const view = await getMemberCard({ principal: principal(host), chatId, characterId: cardChar });
+    const view = await getMemberCard({ principal: await principal(db, host), chatId, characterId: cardChar });
 
     // `{{user}}` → anchor name (Alex), `{{char}}` → the card name (Seraphine); never literal braces.
     expect(view.scenario).toBe("Alex meets Seraphine");
@@ -4078,7 +4090,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     const stranger = await seedUser(db, castId<Handle>("mc_the_stranger"));
 
     const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
-    const err = await getMemberCard({ principal: principal(stranger), chatId, characterId: cardChar }).catch((e: unknown) => e);
+    const err = await getMemberCard({ principal: await principal(db, stranger), chatId, characterId: cardChar }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatNotFoundError);
     // The refusal carries no card content — it names the chat, not the character.
     expect(JSON.stringify((err as ChatNotFoundError).message)).not.toContain("Seraphine");
@@ -4091,15 +4103,15 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
 
     const { getMemberCard } = createRead(makeCardCtx(), makeCardDeps());
     // Even the host cannot read a not-in-roster card through this chat.
-    await expect(getMemberCard({ principal: principal(host), chatId, characterId: foreignChar })).rejects.toBeInstanceOf(ChatNotFoundError);
-    await expect(getMemberCard({ principal: principal(member), chatId, characterId: foreignChar })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(getMemberCard({ principal: await principal(db, host), chatId, characterId: foreignChar })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(getMemberCard({ principal: await principal(db, member), chatId, characterId: foreignChar })).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 
   test("at `name-avatar` even the sheet identity is withheld — only name/avatarHash/tags-null survive", async () => {
     const { member, chatId } = await seedCardRoom("mc_floor", "name-avatar");
 
     const { getMemberCard } = createRead(makeCardCtx({ avatarHash: "hash_seraphine" }), makeCardDeps());
-    const view = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+    const view = await getMemberCard({ principal: await principal(db, member), chatId, characterId: cardChar });
 
     expect(view.name).toBe("Seraphine");
     expect(view.avatarHash).toBe("hash_seraphine");
@@ -4135,7 +4147,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     const { member, chatId } = await seedCardRoom("mc_bypass", "sheet");
 
     const { getMemberCard } = createRead(makeCardCtx({ card: bypassCard }), makeCardDeps());
-    const view = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+    const view = await getMemberCard({ principal: await principal(db, member), chatId, characterId: cardChar });
 
     // The full-only fields are NULL…
     expect(view.systemPrompt).toBeNull();
@@ -4159,7 +4171,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     const { member, chatId } = await seedCardRoom("mc_bypass_floor", "name-avatar");
 
     const { getMemberCard } = createRead(makeCardCtx({ card: bypassCard }), makeCardDeps());
-    const view = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+    const view = await getMemberCard({ principal: await principal(db, member), chatId, characterId: cardChar });
 
     // Below `sheet`, description/scenario/etc. are themselves clamped null — nothing to render, nothing to leak.
     expect(view.description).toBeNull();
@@ -4173,7 +4185,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     await seedCardLore(host, "mc_bypass_lore_entry", "the prophecy");
 
     const { getMemberCard } = createRead(makeCardCtx({ card: bypassCard }), makeCardDeps());
-    const view = await getMemberCard({ principal: principal(member), chatId, characterId: cardChar });
+    const view = await getMemberCard({ principal: await principal(db, member), chatId, characterId: cardChar });
 
     expect(view.lore).toEqual(["the prophecy"]);
     expect(view.systemPrompt).toBeNull();
@@ -4185,7 +4197,7 @@ describe("read — getMemberCard (D22 member-card visibility)", () => {
     const { host, chatId } = await seedCardRoom("mc_bypass_host", "full");
 
     const { getMemberCard } = createRead(makeCardCtx({ card: bypassCard }), makeCardDeps());
-    const view = await getMemberCard({ principal: principal(host), chatId, characterId: cardChar });
+    const view = await getMemberCard({ principal: await principal(db, host), chatId, characterId: cardChar });
 
     // At `full`, systemPrompt survives, so `{{charsysinfo}}` in the description resolves to it (render-on-display
     // for the fields the viewer IS allowed to see — the fix clamps the render context to the LEVEL, not to empty).
@@ -4237,7 +4249,7 @@ describe("the shape preview follows the turn's turns rule", () => {
           injectionTokenBudget: 0,
         }),
     });
-    return (await createRead(makeChatContext(db, { rpg }), deps).getShapeTrace({ principal: principal(me), chatId })).rows;
+    return (await createRead(makeChatContext(db, { rpg }), deps).getShapeTrace({ principal: await principal(db, me), chatId })).rows;
   }
 
   test("an unmeasured local model with the preset at `none` previews the note as a system row, as the turn sends it", async () => {

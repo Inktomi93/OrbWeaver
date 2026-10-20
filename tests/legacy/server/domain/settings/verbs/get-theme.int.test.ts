@@ -14,10 +14,10 @@ describe("getTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const created = await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Mine", override: {} },
     });
-    const view = await h.svc.getTheme({ principal: principal(a, "user"), id: created.id });
+    const view = await h.svc.getTheme({ principal: await principal(db, a, "user"), id: created.id });
     expect(view.name).toBe("Mine");
   });
 
@@ -27,7 +27,7 @@ describe("getTheme", () => {
     await ensureSeedThemes(db, () => h.clock.now());
     const a = await seedUser(db, { id: "user_a" });
     const hearth = await findSeedTheme(h, a, "Hearth");
-    const view = await h.svc.getTheme({ principal: principal(a, "user"), id: hearth.id });
+    const view = await h.svc.getTheme({ principal: await principal(db, a, "user"), id: hearth.id });
     expect(view.isSeed).toBe(true);
   });
 
@@ -37,9 +37,9 @@ describe("getTheme", () => {
     const a = await seedUser(db, { id: "user_a" });
     const b = await seedUser(db, { id: "user_b" });
     const created = await h.svc.createTheme({
-      principal: principal(b, "user"),
+      principal: await principal(db, b, "user"),
       input: { name: "Theirs", override: {} },
     });
-    await expect(h.svc.getTheme({ principal: principal(a, "user"), id: created.id })).rejects.toThrow(ThemeNotFoundError);
+    await expect(h.svc.getTheme({ principal: await principal(db, a, "user"), id: created.id })).rejects.toThrow(ThemeNotFoundError);
   });
 });

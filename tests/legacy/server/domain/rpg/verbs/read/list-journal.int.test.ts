@@ -18,9 +18,9 @@ beforeEach(async () => {
 describe("listJournal", () => {
   test("returns the game's entries (a just-added hand entry)", async () => {
     const { chatId, h } = await seedLiteGame(db);
-    await h.service.addJournalEntry({ principal: principal(castId<Handle>("host")), chatId, type: "note", title: "Prologue", content: "…" });
+    await h.service.addJournalEntry({ principal: await principal(db, castId<Handle>("host")), chatId, type: "note", title: "Prologue", content: "…" });
 
-    const entries = await h.service.listJournal({ principal: principal(castId<Handle>("host")), chatId });
+    const entries = await h.service.listJournal({ principal: await principal(db, castId<Handle>("host")), chatId });
     expect(entries.map((e) => e.title)).toEqual(["Prologue"]);
   });
 });
@@ -36,15 +36,15 @@ describe("listJournal — hidden spans are the HOST's plane, not the member's", 
     const { chatId, h } = await seedLiteGame(db);
     h.fakes.membership.set("user_member", "member");
     await h.service.addJournalEntry({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       type: "note",
       title: `Prologue ${HIDDEN}`,
       content: `They met at the ford ${HIDDEN}`,
     });
 
-    const memberEntries = await h.service.listJournal({ principal: principal(castId<Handle>("member")), chatId });
-    const hostEntries = await h.service.listJournal({ principal: principal(castId<Handle>("host")), chatId });
+    const memberEntries = await h.service.listJournal({ principal: await principal(db, castId<Handle>("member")), chatId });
+    const hostEntries = await h.service.listJournal({ principal: await principal(db, castId<Handle>("host")), chatId });
 
     expect(JSON.stringify(memberEntries)).not.toContain(TRUTH);
     expect(memberEntries[0]?.title).toBe("Prologue ");
@@ -88,10 +88,10 @@ describe("listJournal — the D16 history floor", () => {
     });
     // A HAND entry carries NO canon anchor (`sourceMessageId IS NULL`) — the anchorless-rides-through rule the
     // chat event clamp states. A host's room note is not a pre-join turn.
-    await h.service.addJournalEntry({ principal: principal(castId<Handle>("host")), chatId, type: "note", title: "Room rules", content: "no PvP" });
+    await h.service.addJournalEntry({ principal: await principal(db, castId<Handle>("host")), chatId, type: "note", title: "Room rules", content: "no PvP" });
 
-    const memberTitles = (await h.service.listJournal({ principal: principal(castId<Handle>("member")), chatId })).map((e) => e.title);
-    const hostTitles = (await h.service.listJournal({ principal: principal(castId<Handle>("host")), chatId })).map((e) => e.title);
+    const memberTitles = (await h.service.listJournal({ principal: await principal(db, castId<Handle>("member")), chatId })).map((e) => e.title);
+    const hostTitles = (await h.service.listJournal({ principal: await principal(db, castId<Handle>("host")), chatId })).map((e) => e.title);
 
     expect(memberTitles.sort()).toEqual(["After they arrived", "Room rules"]);
     expect(hostTitles.sort()).toEqual(["After they arrived", "Before they arrived", "Room rules"]);

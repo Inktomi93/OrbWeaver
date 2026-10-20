@@ -15,11 +15,11 @@ describe("listEntryIndex", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Keeper" } });
-    await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "Castle", content: "c", keys: ["castle"] } });
-    await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "River", content: "r" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Keeper" } });
+    await svc.createEntry({ principal: await principal(db, owner), bookId: book.id, input: { title: "Castle", content: "c", keys: ["castle"] } });
+    await svc.createEntry({ principal: await principal(db, owner), bookId: book.id, input: { title: "River", content: "r" } });
 
-    const index = await svc.listEntryIndex({ principal: principal(owner), bookId: book.id });
+    const index = await svc.listEntryIndex({ principal: await principal(db, owner), bookId: book.id });
 
     expect(index).toContainEqual({ title: "Castle", keys: ["castle"] });
     expect(index).toContainEqual({ title: "River", keys: [] });
@@ -30,8 +30,8 @@ describe("listEntryIndex", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "Theirs" } });
 
-    await expect(svc.listEntryIndex({ principal: principal(owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.listEntryIndex({ principal: await principal(db, owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

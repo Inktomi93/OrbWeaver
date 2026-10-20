@@ -33,7 +33,7 @@ describe("listPendingSuggestions", () => {
       status: "accepted",
     });
 
-    const pending = await svc.listPendingSuggestions({ principal: principal(owner) });
+    const pending = await svc.listPendingSuggestions({ principal: await principal(db, owner) });
     expect(pending).toHaveLength(1);
     expect(pending[0]).toMatchObject({
       name: "sky-pirates",
@@ -56,7 +56,7 @@ describe("listPendingSuggestions", () => {
       status: "pending",
     });
 
-    const pending = await svc.listPendingSuggestions({ principal: principal(owner) });
+    const pending = await svc.listPendingSuggestions({ principal: await principal(db, owner) });
     expect(pending).toHaveLength(0);
   });
 
@@ -81,9 +81,9 @@ describe("listPendingSuggestions", () => {
       status: "pending",
     });
 
-    const all = await svc.listPendingSuggestions({ principal: principal(owner) });
+    const all = await svc.listPendingSuggestions({ principal: await principal(db, owner) });
     expect(all).toHaveLength(2);
-    const justA = await svc.listPendingSuggestions({ principal: principal(owner), characterId: a });
+    const justA = await svc.listPendingSuggestions({ principal: await principal(db, owner), characterId: a });
     expect(justA.map((s) => s.name)).toEqual(["for-a"]);
   });
 });

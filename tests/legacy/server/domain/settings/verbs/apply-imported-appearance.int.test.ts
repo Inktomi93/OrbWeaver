@@ -52,7 +52,7 @@ describe("applyImportedAppearance", () => {
     const h = makeHarness(db);
     const apply = createApplyImportedAppearance(createSettingsContext(h.deps));
     const owner = await seedUser(db, { id: "user_bg" });
-    const p = principal(owner, "user");
+    const p = await principal(db, owner, "user");
 
     const firstEntries = [entry("aaa", "bedroom clean"), entry("bbb", "tavern day")];
     await seedEntries(db, owner, [...firstEntries, entry("ccc", "royal")]);
@@ -74,7 +74,7 @@ describe("applyImportedAppearance", () => {
     const h = makeHarness(db);
     const ctx = createSettingsContext(h.deps);
     const owner = await seedUser(db, { id: "user_own_bg" });
-    const p = principal(owner, "user");
+    const p = await principal(db, owner, "user");
 
     await seedEntries(db, owner, [entry("mine", "my upload"), entry("aaa", "bedroom clean")]);
     await h.svc.updateUserSettingsSection({ principal: p, input: { section: "appearance", patch: { backgroundLibrary: [entry("mine", "my upload")] } } });
@@ -89,7 +89,7 @@ describe("applyImportedAppearance", () => {
     const h = makeHarness(db);
     const ctx = createSettingsContext(h.deps);
     const owner = await seedUser(db, { id: "user_pref" });
-    const p = principal(owner, "user");
+    const p = await principal(db, owner, "user");
 
     // The user has deliberately chosen a chat width; `showMessageId` is still at its default.
     const chosenWidth = DEFAULTS.chatWidthPct + 10;

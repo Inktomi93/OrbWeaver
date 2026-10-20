@@ -35,7 +35,10 @@ test("a design becomes a belt-legal draft; the call rides the ENFORCED grammar a
   const owner = await seedUser(db, { id: "user_gsch_a" });
   const h = makeRefineryHarness(db);
   h.queueReply(designReply());
-  const result = asArm(await h.svc.generateSchema({ principal: principal(owner), description: "rate the vibe 1-10 plus a mood", stage: "score" }), "draft");
+  const result = asArm(
+    await h.svc.generateSchema({ principal: await principal(db, owner), description: "rate the vibe 1-10 plus a mood", stage: "score" }),
+    "draft",
+  );
 
   // The stage core was SPLICED — the model never described it, and it is required at the exact 1-10 scale.
   const properties = result.schema["properties"] as Record<string, Record<string, unknown>>;
@@ -76,7 +79,7 @@ test("the owner's preset sampling reaches the forge call whole — topP included
   const owner = await seedUser(db, { id: "user_gsch_topp" });
   const h = makeRefineryHarness(db, { presetParams: { topP: 0.85, temperature: 0.5 } });
   h.queueReply(designReply());
-  asArm(await h.svc.generateSchema({ principal: principal(owner), description: "rate the vibe", stage: "score" }), "draft");
+  asArm(await h.svc.generateSchema({ principal: await principal(db, owner), description: "rate the vibe", stage: "score" }), "draft");
   expect(h.summarizeCalls.at(-1)?.opts).toMatchObject({ topP: 0.85, temperature: 0.5 });
 });
 
@@ -85,7 +88,7 @@ test("a row the transpiler cannot place is itemized on the draft, never silently
   const owner = await seedUser(db, { id: "user_gsch_drop" });
   const h = makeRefineryHarness(db);
   h.queueReply(designReply({ fields: [fieldRow(), fieldRow({ path: "mood.tone" })] }));
-  const result = asArm(await h.svc.generateSchema({ principal: principal(owner), description: "anything", stage: "score" }), "draft");
+  const result = asArm(await h.svc.generateSchema({ principal: await principal(db, owner), description: "anything", stage: "score" }), "draft");
   expect(result.dropped).toHaveLength(1);
   expect(result.dropped[0]).toContain("mood.tone");
 });
@@ -95,7 +98,10 @@ test("needsRaw resolves as the HONEST REFUSAL arm with a starter skeleton — ne
   const owner = await seedUser(db, { id: "user_gsch_raw" });
   const h = makeRefineryHarness(db);
   h.queueReply(designReply({ needsRaw: true, needsRawReason: "the score can also be the word 'unrated'" }));
-  const result = asArm(await h.svc.generateSchema({ principal: principal(owner), description: "a score that can be unrated", stage: "score" }), "needs-raw");
+  const result = asArm(
+    await h.svc.generateSchema({ principal: await principal(db, owner), description: "a score that can be unrated", stage: "score" }),
+    "needs-raw",
+  );
   expect(result.message).toContain("unrated");
   expect(result.message).toContain("raw schema editor");
   // The skeleton carries what DID fit, so the raw door opens on a starting point rather than a blank pane.
@@ -109,7 +115,7 @@ test("a reply outside the grammar retries ONCE and then resolves as the failed a
   // Turn 1: a row with an unknown leaf type (the closed vocabulary refuses). Turn 2: fixed.
   h.queueReply(JSON.stringify({ name: "bad", description: "", fields: [fieldRow({ type: "date" })] }));
   h.queueReply(designReply());
-  const fixed = await h.svc.generateSchema({ principal: principal(owner), description: "anything", stage: "score" });
+  const fixed = await h.svc.generateSchema({ principal: await principal(db, owner), description: "anything", stage: "score" });
   expect(fixed.kind).toBe("draft");
   expect(h.summarizeCalls).toHaveLength(2);
   // The retry quotes the grammar's own complaint back at the model, by path.
@@ -117,7 +123,7 @@ test("a reply outside the grammar retries ONCE and then resolves as the failed a
 
   h.queueReply("not even json");
   h.queueReply('{"name":"still_bad","description":"","fields":[{"path":"x","type":"date","description":"","required":true}]}');
-  const failed = await h.svc.generateSchema({ principal: principal(owner), description: "anything", stage: "analyze" });
+  const failed = await h.svc.generateSchema({ principal: await principal(db, owner), description: "anything", stage: "analyze" });
   expect(failed).toMatchObject({ kind: "failed", raw: expect.stringContaining("still_bad") });
 });
 
@@ -141,7 +147,7 @@ test("the GUIDED arm plans first, then designs each planned field in ONE batch, 
   h.queueReply(JSON.stringify({ field: fieldRow({ path: "sneaky", type: "number", minimum: 1, maximum: 5 }) }));
 
   const result = asArm(
-    await h.svc.generateSchema({ principal: principal(owner), description: "a thorough vibe read", stage: "score", arm: "guided" }),
+    await h.svc.generateSchema({ principal: await principal(db, owner), description: "a thorough vibe read", stage: "score", arm: "guided" }),
     "draft",
   );
   expect(Object.keys(result.schema["properties"] as object).sort()).toEqual(["mood", "overallScore", "pace"]);
@@ -162,7 +168,10 @@ test("the TWO-STAGE arm designs the structure hint-free, then a second call choo
   h.queueReply(designReply({ fields: [fieldRow({ enum: ["calm", "tense"] })] }));
   h.queueReply(JSON.stringify({ hints: [{ path: "mood", role: "verdict", tones: [{ member: "calm", tone: "good" }] }] }));
 
-  const result = asArm(await h.svc.generateSchema({ principal: principal(owner), description: "a vibe read", stage: "score", arm: "two-stage" }), "draft");
+  const result = asArm(
+    await h.svc.generateSchema({ principal: await principal(db, owner), description: "a vibe read", stage: "score", arm: "two-stage" }),
+    "draft",
+  );
   const mood = (result.schema["properties"] as Record<string, Record<string, unknown>>)["mood"] ?? {};
   expect(mood["x-orb-ui"]).toEqual({ role: "verdict", tone: { calm: "good" } });
 

@@ -12,6 +12,7 @@
 
 import { CONNECTION_OP_CODES, providerIdSchema } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets, embedSpaceState, imageAnalyses, imageEmbeddings, imageIndexSkips } from "@orb/db";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import { DEFAULT_EMBED_MODEL, localLightEmbedSpaceTag } from "@orb/inference";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
@@ -565,8 +566,8 @@ test.each(["empty-sweep", "indexer", "analysis-counter"] as const)(
       onTargetGenerationMoved: (id) => rebuilds.push(id),
     };
     const embeddings = createEmbeddingsService(ctx);
-    await resolveTargetGeneration(ctx, owner.userId, "embed");
-    const generation = await resolveTargetGeneration(ctx, owner.userId, "imageEmbed");
+    await resolveTargetGeneration({ ...ctx, db: databaseForOwner(ctx.db) }, owner.userId, "embed");
+    const generation = await resolveTargetGeneration({ ...ctx, db: databaseForOwner(ctx.db) }, owner.userId, "imageEmbed");
     if (generation === null) {
       throw new Error("the joint encoder must resolve an image generation");
     }

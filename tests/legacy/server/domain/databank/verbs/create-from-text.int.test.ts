@@ -19,7 +19,7 @@ test("creates a text-origin document, stamps the canon, and enqueues ingest", as
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  const result = await h.service.createFromText({ principal: principalFor(owner), name: "note.md", text: TEXT });
+  const result = await h.service.createFromText({ principal: await principalFor(db, owner), name: "note.md", text: TEXT });
   expect(result.outcome).toBe("created");
   expect(result.ingest).toBe("queued");
   expect(result.document.origin).toBe("text");
@@ -38,8 +38,8 @@ test("a re-paste of identical text dedups (duplicate/skipped, no second enqueue)
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  const first = await h.service.createFromText({ principal: principalFor(owner), name: "note.md", text: TEXT });
-  const second = await h.service.createFromText({ principal: principalFor(owner), name: "note-again.md", text: TEXT });
+  const first = await h.service.createFromText({ principal: await principalFor(db, owner), name: "note.md", text: TEXT });
+  const second = await h.service.createFromText({ principal: await principalFor(db, owner), name: "note-again.md", text: TEXT });
 
   expect(second.outcome).toBe("duplicate");
   expect(second.ingest).toBe("skipped");
@@ -60,7 +60,7 @@ test("a REJECTED ingest enqueue does not reject the create — the document land
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.enqueueIngest.mockRejectedValueOnce(new Error('That "databank-ingest" run is already in progress'));
 
-  const result = await h.service.createFromText({ principal: principalFor(owner), name: "note.md", text: TEXT });
+  const result = await h.service.createFromText({ principal: await principalFor(db, owner), name: "note.md", text: TEXT });
   expect(result.outcome).toBe("created");
   // The document is REAL and readable — the paste is not lost to a queue refusal.
   const rows = await db.select().from(documents).where(eq(documents.id, result.document.id));
@@ -76,8 +76,8 @@ test("two owners pasting identical text each get their OWN document (dedup is pe
   const a = await seedUser(db, { handle: castId<Handle>("a") });
   const b = await seedUser(db, { handle: castId<Handle>("b") });
 
-  const da = await h.service.createFromText({ principal: principalFor(a), name: "n.md", text: TEXT });
-  const db2 = await h.service.createFromText({ principal: principalFor(b), name: "n.md", text: TEXT });
+  const da = await h.service.createFromText({ principal: await principalFor(db, a), name: "n.md", text: TEXT });
+  const db2 = await h.service.createFromText({ principal: await principalFor(db, b), name: "n.md", text: TEXT });
   expect(da.outcome).toBe("created");
   expect(db2.outcome).toBe("created");
   expect(da.document.id).not.toBe(db2.document.id);

@@ -9,6 +9,7 @@ import type { Db } from "@orb/db";
 import { automationRules, chatBooks, worldBooks } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createSerialLanes } from "@orb/kit/serial-lanes";
 import { parseIanaTimeZone } from "@orb/kit/time";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -25,6 +26,9 @@ import { selectRuleState } from "#server/domain/automation/persistence/rule-stat
 import { runAnalysisConfirm } from "#server/domain/automation/substrate/analysis-confirm.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { NO_TOOLS, seedUser } from "../_support.ts";
+
+// One lane set per suite, the way the automation service owns one for its dispatcher and arms.
+const SERIAL_LANES = createSerialLanes();
 
 const FIXED_NOW_MS = 1_700_000_000_000;
 
@@ -69,6 +73,7 @@ function makeOps(captured: Captured): AutomationOps {
  *  the real chat verb: its own two pins are the CHAT verb's, pinned in `tests/server/domain/chat/edit.int`. */
 function makeDeps(db: Db, captured: Captured): AnalysisConfirmDeps {
   return {
+    serialLanes: SERIAL_LANES,
     db,
     ops: makeOps(captured),
     nowMs: FIXED_NOW_MS,

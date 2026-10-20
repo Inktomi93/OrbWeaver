@@ -64,7 +64,7 @@ describe("§4 #15 prose audit (C3 — confirm-first, variant-pinned + hash-guard
     await f.seedBeats(3); // seq 3 is the newest assistant reply — `body-3`
     f.setQuietReply(auditReply("flawed", "Said once, cleanly."));
 
-    const { outcome } = await f.svc.runRuleNow({ principal: principal(f.host), ruleId: castId<AutomationRuleId>(nth(views, 0).id) });
+    const { outcome } = await f.svc.runRuleNow({ principal: await principal(f.db, f.host), ruleId: castId<AutomationRuleId>(nth(views, 0).id) });
 
     expect(outcome).toBe("suggested");
     const pending = f.suggestions.listForChat(f.chatId, FIXED_NOW_MS)[0];
@@ -85,7 +85,7 @@ describe("§4 #15 prose audit (C3 — confirm-first, variant-pinned + hash-guard
     await f.seedBeats(3);
     f.setQuietReply(auditReply("clean"));
 
-    const { outcome } = await f.svc.runRuleNow({ principal: principal(f.host), ruleId: castId<AutomationRuleId>(nth(views, 0).id) });
+    const { outcome } = await f.svc.runRuleNow({ principal: await principal(f.db, f.host), ruleId: castId<AutomationRuleId>(nth(views, 0).id) });
 
     // `fired` — it RAN. That is the legacy transient-clean lesson carried without a new terminal: a host who
     // pressed Run now learns "checked, nothing wrong" rather than getting silence they cannot tell from a
@@ -106,11 +106,11 @@ describe("§4 #15 prose audit (C3 — confirm-first, variant-pinned + hash-guard
     const views = await mintAndEnable(f, "proseAudit");
     await f.seedBeats(3);
     f.setQuietReply(auditReply("flawed", "Said once, cleanly."));
-    await f.svc.runRuleNow({ principal: principal(f.host), ruleId: castId<AutomationRuleId>(nth(views, 0).id) });
+    await f.svc.runRuleNow({ principal: await principal(f.db, f.host), ruleId: castId<AutomationRuleId>(nth(views, 0).id) });
     const raisedId = f.suggestions.listForChat(f.chatId, FIXED_NOW_MS)[0]?.id;
     expect(raisedId).toBeDefined();
 
-    const result = await f.svc.confirmSuggestion({ principal: principal(f.host), suggestionId: castId<AutomationSuggestionId>(String(raisedId)) });
+    const result = await f.svc.confirmSuggestion({ principal: await principal(f.db, f.host), suggestionId: castId<AutomationSuggestionId>(String(raisedId)) });
 
     expect(result).toEqual({ ran: "stashed-arm", outcome: "fired" });
     expect(rewrites).toEqual([
@@ -263,7 +263,7 @@ describe("§4 #14 spotlight balance", () => {
       config: rpgGameConfigSchema.parse({}),
     });
     await expect(
-      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "spotlightBalance" }),
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: await principal(f.db, f.host), chatId: f.chatId, presetId: "spotlightBalance" }),
     ).rejects.toThrow("directs its own story");
   });
 });

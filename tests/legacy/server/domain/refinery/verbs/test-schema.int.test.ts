@@ -15,7 +15,7 @@ test("drills the draft against an owned card and persists NOTHING; the ownership
   const owner = await seedUser(db, { id: "user_tsch_a" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "tsch-card-a");
-  const p = principal(owner);
+  const p = await principal(db, owner);
 
   // Ownership FIRST (the existence-oracle ordering): an absent character refuses before any model call.
   await expect(

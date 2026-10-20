@@ -17,14 +17,17 @@ import type { ParticipantView, RenderPolicy } from "@orb/contracts/chat";
 import { CARD_FRAME_MINT_BODY_MAX_BYTES } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import type { Db } from "@orb/db";
 import { CARD_FRAME_HEIGHT_SCRIPT, CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH } from "@orb/kit/card-frame";
-import type { CharacterId, ChatId, ChatParticipantId, Handle, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
 import type { CardFrameDeps, PrincipalEnv } from "#server/entry/http/index.ts";
 import { registerCardFrame, securityHeaders } from "#server/entry/http/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 // REAL TypeIDs: the mint contract brands both selectors (`typeIdSchema`), so a placeholder like "chat_1"
 // is now a 400 rather than a floor — the shapes here are what a live client actually sends.
@@ -34,11 +37,13 @@ const UNTRUSTED = castId<CharacterId>("character_01h455vb4pex5vsknk084sn02s");
 const GHOST = castId<CharacterId>("character_01h455vb4pex5vsknk084sn02t");
 const INTERACTIVE = castId<CharacterId>("character_01h455vb4pex5vsknk084sn02v");
 
-function principal(id: string): Principal {
-  return { userId: castId<UserId>(id), role: "owner", handle: castId<Handle>(id), externalId: null, via: "fallback" };
+async function principal(db: Db, id: string): Promise<Principal> {
+  return await makePrincipal({ db }, castId<UserId>(id), { role: "owner" });
 }
-const ALICE = principal("usr_alice");
-const MALLORY = principal("usr_mallory");
+// These callers resolve from rows in one in-memory database; the subject under test reads no database of its own.
+const callersDb = await freshDb();
+const ALICE = await principal(callersDb, "usr_alice");
+const MALLORY = await principal(callersDb, "usr_mallory");
 
 function participant(characterId: CharacterId, renderPolicy: RenderPolicy): ParticipantView {
   // Only the two fields the doorway reads are meaningful; the rest is the row's required shape, spelled

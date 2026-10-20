@@ -1,4 +1,5 @@
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptCacheSettings } from "@orb/contracts/inference";
@@ -132,8 +133,8 @@ for (const enabled of [false, true]) {
   }) => {
     const host = await seedUser(db, { id: newId<UserId>(), handle: castId("shapehost") });
     const member = await seedUser(db, { id: newId<UserId>(), handle: castId("shapemember") });
-    const hostPrincipal: Principal = { userId: host.id, handle: host.handle, role: host.role, externalId: null, via: "header" };
-    const memberPrincipal: Principal = { userId: member.id, handle: member.handle, role: member.role, externalId: null, via: "header" };
+    const hostPrincipal: Principal = await makePrincipal({ db }, host.id);
+    const memberPrincipal: Principal = await makePrincipal({ db }, member.id);
     await services.settings.updateUserSettingsSection({ principal: hostPrincipal, input: { section: "memory", patch: { enabled: false } } });
     const preset = await services.preset.create({
       userId: host.id,
@@ -199,9 +200,8 @@ replayAccountingTest(
   async ({ app, db, services, clock, requests }) => {
     const host = await seedUser(db, { id: newId<UserId>(), handle: castId("cachehost") });
     const member = await seedUser(db, { id: newId<UserId>(), handle: castId("cachemember") });
-    const principal = (user: typeof host): Principal => ({ userId: user.id, handle: user.handle, role: user.role, externalId: null, via: "header" });
-    const hostPrincipal = principal(host);
-    const memberPrincipal = principal(member);
+    const hostPrincipal = await makePrincipal({ db }, host.id);
+    const memberPrincipal = await makePrincipal({ db }, member.id);
     await services.settings.updateUserSettingsSection({ principal: hostPrincipal, input: { section: "memory", patch: { enabled: false } } });
     const credential = await services.credentials.add({ principal: hostPrincipal, provider: "openrouter", key: "scripted-host-cache-key" });
     const connectionId = mintTypeId(ID_PREFIX.userConnection);
@@ -391,7 +391,7 @@ async function createMatrixRoom(fixtures: MatrixFixture, route: MatrixRoute, mod
   if (host === undefined) {
     throw new Error("A matrix cohort must contain its host.");
   }
-  const principals = humans.map((user): Principal => ({ userId: user.id, handle: user.handle, role: user.role, externalId: null, via: "header" }));
+  const principals = await Promise.all(humans.map((user) => makePrincipal({ db }, user.id)));
   const [hostPrincipal] = principals;
   if (hostPrincipal === undefined) {
     throw new Error("A matrix cohort must contain its host principal.");

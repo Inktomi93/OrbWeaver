@@ -23,7 +23,6 @@ import { trpcServerProof } from "../../../../tooling/src/verify/gates/_proof/ser
 import { gate as ownerRoleSplit } from "../../../../tooling/src/verify/gates/owner-role-split.ts";
 import { gate as scrubberHome } from "../../../../tooling/src/verify/gates/scrubber-home.ts";
 import { gate as singleStreamTransport } from "../../../../tooling/src/verify/gates/single-stream-transport.ts";
-import { gate as soleEnvReader } from "../../../../tooling/src/verify/gates/sole-env-reader.ts";
 import { gate as twoClassRoleAuthority } from "../../../../tooling/src/verify/gates/two-class-role-authority.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
@@ -32,7 +31,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 const FAMILY_TIMEOUT_MS = scaledBudget(300_000);
 const ROOT = "/home-server-family";
 
-const FAMILY: readonly GatePolicy[] = [ownerRoleSplit, scrubberHome, singleStreamTransport, soleEnvReader, twoClassRoleAuthority];
+const FAMILY: readonly GatePolicy[] = [ownerRoleSplit, scrubberHome, singleStreamTransport, twoClassRoleAuthority];
 
 test(
   "every sanctioned-home policy judges declaration homes and vocabularies rather than written names",
@@ -109,14 +108,6 @@ const GRANT_CASES: readonly GrantCase[] = [
     },
     subject: "packages/server/src/transport/trpc/routers/probe.ts",
     operation: "sse-subscription:live",
-  },
-  {
-    policy: soleEnvReader,
-    files: {
-      "packages/server/src/domain/hub/door.ts": 'import process from "node:process";\nexport const x = process.env["OWNER_HANDLES"];\n',
-    },
-    subject: "packages/server/src/domain/hub/door.ts",
-    operation: "process-env-read:OWNER_HANDLES",
   },
   {
     policy: twoClassRoleAuthority,

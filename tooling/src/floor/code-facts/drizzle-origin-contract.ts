@@ -52,6 +52,8 @@ export interface DrizzleOriginReaders {
 export interface DrizzleValueContext {
   readonly readers?: DrizzleOriginReaders;
   readonly readNormalizer?: (call: CallExpression) => ReferenceFact<DrizzleNormalization | undefined>;
+  /** D328: the calls a partial ordinary cohort captured; a normalizer outside it is an `OrdinaryCohortBoundError`. */
+  readonly cohort?: ReadonlySet<CallExpression>;
   readonly schema: SchemaProjectedModel;
   readonly bindings: ReadonlyMap<Node, Node>;
   readonly active: ReadonlySet<object>;

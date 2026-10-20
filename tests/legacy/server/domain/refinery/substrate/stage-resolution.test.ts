@@ -24,7 +24,7 @@ test("rewrite is fixed-or-manual by construction — it never resolves custom, e
   const owner = await seedUser(db, { id: "user_sr_rewrite" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "sr-rewrite");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
   const resolution = await resolveStageResolution({ ...h.ctx, db }, { ownerId: owner, stage: "rewrite", session });
   expect(resolution).toEqual({ kind: "fixed" });
 });
@@ -34,7 +34,7 @@ test("a session with no custom stageConfig for score/analyze resolves fixed", as
   const owner = await seedUser(db, { id: "user_sr_fixed" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "sr-fixed");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
   expect(await resolveStageResolution({ ...h.ctx, db }, { ownerId: owner, stage: "score", session })).toEqual({ kind: "fixed" });
   expect(await resolveStageResolution({ ...h.ctx, db }, { ownerId: owner, stage: "analyze", session })).toEqual({ kind: "fixed" });
 });
@@ -43,7 +43,7 @@ test("a valid custom schema resolves `custom`, WIRE-CLOSED (additionalProperties
   const db = await freshDb();
   const owner = await seedUser(db, { id: "user_sr_custom" });
   const h = makeRefineryHarness(db);
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const characterId = await seedOwnedCharacter(h, owner, "sr-custom");
   const row = await h.svc.createSchema({ principal: p, name: "vibe_scorer", description: "score the vibe", stage: "score", schema: validScoreSchema() });
   const session = await h.svc.startSession({ principal: p, characterId });
@@ -63,7 +63,7 @@ test("a session pointing at a DELETED/foreign schema throws leak-free NOT_FOUND"
   const db = await freshDb();
   const owner = await seedUser(db, { id: "user_sr_deleted" });
   const h = makeRefineryHarness(db);
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const characterId = await seedOwnedCharacter(h, owner, "sr-deleted");
   const row = await h.svc.createSchema({ principal: p, name: "vibe_scorer", description: "score the vibe", stage: "score", schema: validScoreSchema() });
   const session = await h.svc.startSession({ principal: p, characterId });

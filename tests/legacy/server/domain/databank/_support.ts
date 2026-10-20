@@ -13,7 +13,7 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { assets, chatParticipants } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import type { AssetId, CharacterId, ChatId, ChatParticipantId, DocumentId, Handle, UserId, WorkloadId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatParticipantId, DocumentId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -33,6 +33,7 @@ import {
   createFanDatabankMemberRooms,
 } from "#server/entry/compose/room-reach.ts";
 import { createExtractText, EXTRACTOR_VERSION } from "#server/infra/extraction/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { EMBED_DIM, EMBED_MODEL, makeStoreHarness } from "../embeddings/_support.ts";
 
 // `seedUser` seeds the `users` row AND the `user_connections` row the harness's fake embed connection
@@ -54,9 +55,9 @@ export async function seedRosterCharacter(db: Db, chatId: ChatId, characterId: C
   });
 }
 
-/** A resolved `Principal` for `userId` (the fetchOwned subject). */
-export function principalFor(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>(userId), externalId: null, via: "fallback" };
+/** Resolve the fetchOwned subject's Principal through the production row resolver; the stored row decides the role. */
+export async function principalFor(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId);
 }
 
 /** Seed a chat with `hostId` as its live host (the scope resolver reads chat_participants role='host'). */

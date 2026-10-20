@@ -16,15 +16,15 @@ describe("listThemes", () => {
     const a = await seedUser(db, { id: "user_a" });
     const b = await seedUser(db, { id: "user_b" });
     await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Mine", override: {} },
     });
     await h.svc.createTheme({
-      principal: principal(b, "user"),
+      principal: await principal(db, b, "user"),
       input: { name: "Theirs", override: {} },
     });
 
-    const views = await h.svc.listThemes({ principal: principal(a, "user") });
+    const views = await h.svc.listThemes({ principal: await principal(db, a, "user") });
     const names = views.map((v) => v.name).sort();
     // Every seed palette in the registry (base trio + the default-character palettes) plus the caller's own.
     expect(names).toEqual([...SEED_THEMES.map((t) => t.name), "Mine"].sort((x, y) => x.localeCompare(y)));

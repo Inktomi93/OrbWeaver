@@ -103,7 +103,7 @@ describe("listTagGroups", () => {
     const { owner } = await seedLibrary(db);
 
     // Default lens: `archived` omitted is UNFILTERED, so Dusk counts too.
-    const census = await svc.listTagGroups({ principal: principal(owner) });
+    const census = await svc.listTagGroups({ principal: await principal(db, owner) });
 
     expect(bucket(census.groups, "rpg")).toBe(3);
     expect(bucket(census.groups, "noir")).toBe(1);
@@ -120,8 +120,8 @@ describe("listTagGroups", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const { owner } = await seedLibrary(db);
 
-    const census = await svc.listTagGroups({ principal: principal(owner) });
-    const page = await svc.list({ principal: principal(owner), limit: 1 });
+    const census = await svc.listTagGroups({ principal: await principal(db, owner) });
+    const page = await svc.list({ principal: await principal(db, owner), limit: 1 });
 
     // Aria carries two visible tags, so she is counted in two buckets: `total − sum(groups)` is −1 here, and
     // an implementation that derived Uncategorized that way would print a negative bucket on a tagged
@@ -137,7 +137,7 @@ describe("listTagGroups", () => {
 
     // The stranger owns exactly one tagged character, so a leak-free answer is their OWN one bucket and
     // nothing of the owner's.
-    const census = await svc.listTagGroups({ principal: principal(stranger) });
+    const census = await svc.listTagGroups({ principal: await principal(db, stranger) });
     expect(census.groups.map((group) => group.name)).toEqual(["strangers-tag"]);
     expect(census.uncategorized).toBe(0);
   });
@@ -150,10 +150,10 @@ describe("listTagGroups", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const { owner } = await seedLibrary(db);
 
-    const shown = await svc.listTagGroups({ principal: principal(owner), archived: false });
+    const shown = await svc.listTagGroups({ principal: await principal(db, owner), archived: false });
     // Dusk is archived, so the toggle's OFF state drops her from `rpg` — 3 becomes 2.
     expect(bucket(shown.groups, "rpg")).toBe(2);
-    const archivedOnly = await svc.listTagGroups({ principal: principal(owner), archived: true });
+    const archivedOnly = await svc.listTagGroups({ principal: await principal(db, owner), archived: true });
     expect(bucket(archivedOnly.groups, "rpg")).toBe(1);
     expect(archivedOnly.uncategorized).toBe(0);
   });
@@ -163,13 +163,13 @@ describe("listTagGroups", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const { owner } = await seedLibrary(db);
 
-    const searched = await svc.listTagGroups({ principal: principal(owner), search: "cassius" });
+    const searched = await svc.listTagGroups({ principal: await principal(db, owner), search: "cassius" });
     expect(bucket(searched.groups, "rpg")).toBe(1);
     // Her `noir` is PENDING, so the search that finds her still does not put her in that bucket.
     expect(bucket(searched.groups, "noir")).toBeUndefined();
     expect(searched.uncategorized).toBe(0);
 
-    const starred = await svc.listTagGroups({ principal: principal(owner), starred: true });
+    const starred = await svc.listTagGroups({ principal: await principal(db, owner), starred: true });
     expect(bucket(starred.groups, "rpg")).toBe(1);
     expect(bucket(starred.groups, "noir")).toBe(1);
   });
@@ -179,7 +179,7 @@ describe("listTagGroups", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const { owner, noir } = await seedLibrary(db);
 
-    const census = await svc.listTagGroups({ principal: principal(owner), includeTagIds: [noir] });
+    const census = await svc.listTagGroups({ principal: await principal(db, owner), includeTagIds: [noir] });
     // Only Aria carries noir, and she also carries rpg — so BOTH of her buckets read 1 and nothing else
     // survives the chip.
     expect(bucket(census.groups, "noir")).toBe(1);
@@ -192,8 +192,8 @@ describe("listTagGroups", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const { owner } = await seedLibrary(db);
 
-    const first = await svc.listTagGroups({ principal: principal(owner) });
-    const second = await svc.listTagGroups({ principal: principal(owner) });
+    const first = await svc.listTagGroups({ principal: await principal(db, owner) });
+    const second = await svc.listTagGroups({ principal: await principal(db, owner) });
     expect(first.groups.map((group) => group.name)).toEqual(["rpg", "noir"]);
     // A count sort alone reshuffles equal-count rows between identical calls; the name tie-break is what
     // makes two identical asks two identical answers.
@@ -205,7 +205,7 @@ describe("listTagGroups", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("lonely") });
 
-    const census = await svc.listTagGroups({ principal: principal(owner) });
+    const census = await svc.listTagGroups({ principal: await principal(db, owner) });
     expect(census.groups).toEqual([]);
     expect(census.uncategorized).toBe(0);
   });

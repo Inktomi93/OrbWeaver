@@ -17,7 +17,7 @@ test("`unchecked` is not a verdict: no row write, and it does not claim the thro
   const h = makeHarness(db);
   const { svc, owner, cred } = await seedCredential(db, h);
   const unchecked = await svc.recordProbeOutcome({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     credentialId: cred.id,
     result: { status: "unchecked", checkedAt: 0, reason: "no endpoint to dial" },
     localEndpoint: false,
@@ -25,7 +25,7 @@ test("`unchecked` is not a verdict: no row write, and it does not claim the thro
   expect(unchecked.status).toBe("unchecked");
   // The window was NOT claimed — a real probe immediately after still lands.
   const real = await svc.recordProbeOutcome({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     credentialId: cred.id,
     result: { status: "ok", checkedAt: 0 },
     localEndpoint: false,
@@ -37,26 +37,26 @@ test("a second ask inside the throttle window answers `throttled` without touchi
   const db = await freshDb();
   const h = makeHarness(db);
   const { svc, owner, cred } = await seedCredential(db, h, { ownerId: "user_throttle" });
-  await svc.recordProbeOutcome({ principal: principal(owner), credentialId: cred.id, result: { status: "ok", checkedAt: 0 }, localEndpoint: false });
+  await svc.recordProbeOutcome({ principal: await principal(db, owner), credentialId: cred.id, result: { status: "ok", checkedAt: 0 }, localEndpoint: false });
   const second = await svc.recordProbeOutcome({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     credentialId: cred.id,
     result: { status: "revoked", checkedAt: 0, reason: "401" },
     localEndpoint: false,
   });
   expect(second.status, "a revoking verdict inside the window is not applied — the dial was throttled").toBe("throttled");
-  expect((await svc.list({ principal: principal(owner) })).find((row) => row.id === cred.id)?.revokedAt).toBeNull();
+  expect((await svc.list({ principal: await principal(db, owner) })).find((row) => row.id === cred.id)?.revokedAt).toBeNull();
 
   // Past the window the same verdict DOES land — the positive control for the throttle.
   h.advance(HEALTH_THROTTLE_MS + 1);
   const third = await svc.recordProbeOutcome({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     credentialId: cred.id,
     result: { status: "revoked", checkedAt: 0, reason: "401" },
     localEndpoint: false,
   });
   expect(third.status).toBe("revoked");
-  expect((await svc.list({ principal: principal(owner) })).find((row) => row.id === cred.id)?.revokedAt).not.toBeNull();
+  expect((await svc.list({ principal: await principal(db, owner) })).find((row) => row.id === cred.id)?.revokedAt).not.toBeNull();
 });
 
 test("a LOCAL endpoint's unreachable answer strikes NOTHING, however many times it is asked", async () => {
@@ -65,7 +65,7 @@ test("a LOCAL endpoint's unreachable answer strikes NOTHING, however many times 
   const { svc, owner, cred } = await seedCredential(db, h, { ownerId: "user_local" });
   for (let attempt = 0; attempt < HEALTH_STRIKE_LIMIT + 2; attempt += 1) {
     const result = await svc.recordProbeOutcome({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       credentialId: cred.id,
       result: { status: "unreachable", checkedAt: 0, reason: "ECONNREFUSED" },
       localEndpoint: true,
@@ -73,7 +73,7 @@ test("a LOCAL endpoint's unreachable answer strikes NOTHING, however many times 
     expect(result.status, "an offline box on loopback/LAN never costs the key").toBe("unreachable");
     h.advance(HEALTH_THROTTLE_MS + 1);
   }
-  expect((await svc.list({ principal: principal(owner) })).find((row) => row.id === cred.id)?.revokedAt).toBeNull();
+  expect((await svc.list({ principal: await principal(db, owner) })).find((row) => row.id === cred.id)?.revokedAt).toBeNull();
 });
 
 test("a REMOTE endpoint's unreachable answer strikes, and the limit revokes as `unreachable`, not auth", async () => {
@@ -83,7 +83,7 @@ test("a REMOTE endpoint's unreachable answer strikes, and the limit revokes as `
   const statuses: string[] = [];
   for (let attempt = 0; attempt < HEALTH_STRIKE_LIMIT; attempt += 1) {
     const result = await svc.recordProbeOutcome({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       credentialId: cred.id,
       result: { status: "unreachable", checkedAt: 0, reason: "ETIMEDOUT" },
       localEndpoint: false,
@@ -103,7 +103,7 @@ test("a REMOTE endpoint that answered with a client error strikes nothing and ke
   const { svc, owner, cred } = await seedCredential(db, h, { ownerId: "user_answered" });
   for (let attempt = 0; attempt < HEALTH_STRIKE_LIMIT + 1; attempt += 1) {
     const result = await svc.recordProbeOutcome({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       credentialId: cred.id,
       result: { status: "unreachable", checkedAt: 0, reason: "credential probe: HTTP 404", httpStatus: 404 },
       localEndpoint: false,
@@ -111,13 +111,13 @@ test("a REMOTE endpoint that answered with a client error strikes nothing and ke
     expect(result).toMatchObject({ status: "unreachable", httpStatus: 404 });
     h.advance(HEALTH_THROTTLE_MS + 1);
   }
-  expect((await svc.list({ principal: principal(owner) })).find((row) => row.id === cred.id)?.revokedAt).toBeNull();
+  expect((await svc.list({ principal: await principal(db, owner) })).find((row) => row.id === cred.id)?.revokedAt).toBeNull();
 
   const { owner: proxyOwner, cred: proxied } = await seedCredential(db, h, { ownerId: "user_proxied" });
   const statuses: string[] = [];
   for (let attempt = 0; attempt < HEALTH_STRIKE_LIMIT; attempt += 1) {
     const result = await svc.recordProbeOutcome({
-      principal: principal(proxyOwner),
+      principal: await principal(db, proxyOwner),
       credentialId: proxied.id,
       result: { status: "unreachable", checkedAt: 0, reason: "credential probe: HTTP 502", httpStatus: 502 },
       localEndpoint: false,
@@ -133,21 +133,21 @@ test("a recovered `ok` CLEARS a prior revocation", async () => {
   const h = makeHarness(db);
   const { svc, owner, cred } = await seedCredential(db, h, { ownerId: "user_recover" });
   await svc.recordProbeOutcome({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     credentialId: cred.id,
     result: { status: "revoked", checkedAt: 0, reason: "401" },
     localEndpoint: false,
   });
-  expect((await svc.list({ principal: principal(owner) })).find((row) => row.id === cred.id)?.revokedAt).not.toBeNull();
+  expect((await svc.list({ principal: await principal(db, owner) })).find((row) => row.id === cred.id)?.revokedAt).not.toBeNull();
   h.advance(HEALTH_THROTTLE_MS + 1);
   const recovered = await svc.recordProbeOutcome({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     credentialId: cred.id,
     result: { status: "ok", checkedAt: 0 },
     localEndpoint: false,
   });
   expect(recovered.status).toBe("ok");
-  expect((await svc.list({ principal: principal(owner) })).find((row) => row.id === cred.id)?.revokedAt).toBeNull();
+  expect((await svc.list({ principal: await principal(db, owner) })).find((row) => row.id === cred.id)?.revokedAt).toBeNull();
 });
 
 test("a credential that is not the caller's is refused — the verb never writes a stranger's row", async () => {
@@ -157,7 +157,7 @@ test("a credential that is not the caller's is refused — the verb never writes
   const stranger = await seedUser(db, { id: "user_stranger" });
   await expect(
     svc.recordProbeOutcome({
-      principal: principal(stranger),
+      principal: await principal(db, stranger),
       credentialId: cred.id,
       result: { status: "revoked", checkedAt: 0, reason: "401" },
       localEndpoint: false,

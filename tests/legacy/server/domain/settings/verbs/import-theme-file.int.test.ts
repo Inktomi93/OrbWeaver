@@ -19,7 +19,7 @@ describe("importThemeFile", () => {
     const h = makeHarness(db);
     const svc = createSettingsService(h.deps);
     const owner = await seedUser(db, { id: "user_owner" });
-    const p = principal(owner, "user");
+    const p = await principal(db, owner, "user");
 
     const fileText = JSON.stringify({ name: "Weft", override: { accent: "#abcdef" }, css: null });
     const first = await svc.importThemeFile({ principal: p, fileText, filename: "Weft.orbtheme.json" });
@@ -37,7 +37,7 @@ describe("importThemeFile", () => {
     const h = makeHarness(db);
     const svc = createSettingsService(h.deps);
     const owner = await seedUser(db, { id: "user_owner" });
-    const p = principal(owner, "user");
+    const p = await principal(db, owner, "user");
 
     const fileText = DEC.decode(buildThemeBackup({ themes: [{ name: "Backed", override: {}, css: null }] }));
     expect(await svc.importThemeFile({ principal: p, fileText })).toEqual({ ok: true, created: true, name: "Backed", renamedFrom: null });
@@ -48,7 +48,7 @@ describe("importThemeFile", () => {
     const h = makeHarness(db);
     const svc = createSettingsService(h.deps);
     const owner = await seedUser(db, { id: "user_owner" });
-    const p = principal(owner, "user");
+    const p = await principal(db, owner, "user");
 
     const fileText = '{"blur_tint_color":"rgba(20, 24, 30, 1)","main_text_color":"rgba(230, 230, 230, 1)"}';
     const outcome = await svc.importThemeFile({ principal: p, fileText, filename: "Night Dock.json" });
@@ -60,7 +60,7 @@ describe("importThemeFile", () => {
     const h = makeHarness(db);
     const svc = createSettingsService(h.deps);
     const owner = await seedUser(db, { id: "user_owner" });
-    const p = principal(owner, "user");
+    const p = await principal(db, owner, "user");
 
     const outcome = await svc.importThemeFile({ principal: p, fileText: '{"name":"Nothing","chat_width":50}', filename: "Nothing.json" });
     expect(outcome.ok).toBe(false);

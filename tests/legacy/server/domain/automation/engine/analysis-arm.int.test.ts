@@ -24,6 +24,7 @@ import type { AutomationRuleId, ChatId, MessageId, MessageVariantId, UserId, Wor
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import { ZWSP } from "@orb/kit/macro";
+import { createSerialLanes } from "@orb/kit/serial-lanes";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -40,6 +41,9 @@ import { sha256Hex } from "#server/primitives/content-hash/index.ts";
 import { seedChat, seedMessage, seedParticipant } from "../../chat/_support.ts";
 import { makeHarness as makeWorldInfoHarness } from "../../world-info/_support.ts";
 import { arm, makeAutomationHarness, NO_TOOLS, principal, seedUser } from "../_support.ts";
+
+// One lane set per suite, the way the automation service owns one for its dispatcher and arms.
+const SERIAL_LANES = createSerialLanes();
 
 const FIXED_NOW_MS = 1_700_000_000_000;
 const FIXED_PRNG = (): number => 0.42;
@@ -104,6 +108,7 @@ function makeHarness(
   };
   const suggestions = createSuggestionStore();
   const dispatch = createArmExecutors({
+    serialLanes: SERIAL_LANES,
     db,
     ops,
     prng: FIXED_PRNG,
@@ -593,7 +598,7 @@ for (const cold of [true, false]) {
       db,
       [reply({ ...EMPTY_PLOT, lore: [{ key: "fact", keys: ["courier"], content: "The courier {{roll::d20}} left." }] })],
       {
-        upsertEntries: ({ authorUserId, ...args }) => world.upsertEntries({ principal: principal(authorUserId), ...args }),
+        upsertEntries: async ({ authorUserId, ...args }) => world.upsertEntries({ principal: await principal(db, authorUserId), ...args }),
       },
     );
     expect(
@@ -602,7 +607,7 @@ for (const cold of [true, false]) {
         makeFrame({ chatId, authorUserId: host, ruleId }),
       ),
     ).toEqual({ ok: true });
-    const rows = await world.listEntries({ principal: principal(host), bookId });
+    const rows = await world.listEntries({ principal: await principal(db, host), bookId });
     expect(rows).toHaveLength(1);
     const fromSeq = cold ? SLICE_THROUGH - 300 : WARM_FROM_SEQ;
     const toSeq = cold ? SLICE_THROUGH : WARM_FROM_SEQ + 300;
@@ -621,22 +626,22 @@ test("delayed lore confirmation persists captured read bounds after chat growth,
   const bookId = await seedBook(db, host, chatId, true);
   const world = createWorldInfoService(makeWorldInfoHarness(db).ctx);
   const h = makeHarness(db, [reply({ ...EMPTY_PLOT, lore: [{ key: "fact", keys: ["courier"], content: "A promise." }] })], {
-    upsertEntries: ({ authorUserId, ...args }) => world.upsertEntries({ principal: principal(authorUserId), ...args }),
+    upsertEntries: async ({ authorUserId, ...args }) => world.upsertEntries({ principal: await principal(db, authorUserId), ...args }),
   });
   const svc = createAutomationService(makeAutomationHarness(db, { ops: h.ops, suggestions: h.suggestions, runArm: h.dispatch }));
   expect(await h.dispatch(arm({ type: "run_analysis", brief: "b", routes: { lore: { bookId } } }), makeFrame({ chatId, authorUserId: host, ruleId }))).toEqual({
     ok: true,
     suggested: true,
   });
-  expect(await world.listEntries({ principal: principal(host), bookId })).toEqual([]);
+  expect(await world.listEntries({ principal: await principal(db, host), bookId })).toEqual([]);
   expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(0);
   const pending = h.suggestions.listForChat(chatId, FIXED_NOW_MS)[0];
   if (pending === undefined) {
     throw new Error("analysis did not raise a card");
   }
   await seedMessage(db, chatId, SLICE_CHAT_MESSAGES + 100, { role: "assistant", content: "Later play." });
-  expect(await svc.confirmSuggestion({ principal: principal(host), suggestionId: pending.id })).toEqual({ ran: "stashed-arm", outcome: "fired" });
-  const rows = await world.listEntries({ principal: principal(host), bookId });
+  expect(await svc.confirmSuggestion({ principal: await principal(db, host), suggestionId: pending.id })).toEqual({ ran: "stashed-arm", outcome: "fired" });
+  const rows = await world.listEntries({ principal: await principal(db, host), bookId });
   expect(rows).toHaveLength(1);
   expect(rows[0]?.title).toBe(`auto/${ruleId}:s0.fact`);
   expect(rows[0]?.metadata?.provenance?.span).toEqual({ fromSeq: SLICE_THROUGH - 300, toSeq: SLICE_THROUGH });
@@ -649,13 +654,13 @@ test("ordinary host-authored lore stays spanless while empty analysis reads and 
   const bookId = await seedBook(db, host, chatId, true);
   const world = createWorldInfoService(makeWorldInfoHarness(db).ctx);
   const h = makeHarness(db, [reply({ ...EMPTY_PLOT, lore: [] }), reply({ ...EMPTY_PLOT, lore: [{ key: "unread", keys: [], content: "No source." }] })], {
-    upsertEntries: ({ authorUserId, ...args }) => world.upsertEntries({ principal: principal(authorUserId), ...args }),
+    upsertEntries: async ({ authorUserId, ...args }) => world.upsertEntries({ principal: await principal(db, authorUserId), ...args }),
   });
   const frame = makeFrame({ chatId, authorUserId: host, ruleId });
   expect(
     await h.dispatch(arm({ type: "insert_world_info_entry", bookId, entryKey: "host", keys: ["k"], contentTemplate: "Host-authored fact." }), frame),
   ).toEqual({ ok: true });
-  const before = await world.listEntries({ principal: principal(host), bookId });
+  const before = await world.listEntries({ principal: await principal(db, host), bookId });
   expect(before).toHaveLength(1);
   expect(before[0]?.metadata?.provenance?.contentHash).toBe(sha256Hex("Host-authored fact."));
   expect(before[0]?.metadata?.provenance).not.toHaveProperty("span");
@@ -663,7 +668,7 @@ test("ordinary host-authored lore stays spanless while empty analysis reads and 
   expect(await h.dispatch(action, frame)).toEqual({ ok: true });
   expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(LORE_SPAN_END);
   expect(await h.dispatch(action, frame)).toEqual({ ok: true });
-  expect(await world.listEntries({ principal: principal(host), bookId })).toEqual(before);
+  expect(await world.listEntries({ principal: await principal(db, host), bookId })).toEqual(before);
   expect(h.captured.upserts).toHaveLength(1);
 });
 
@@ -680,7 +685,7 @@ test("analysis provenance bounds come from visible rows without claiming sequenc
     .where(eq(messages.id, auditedIds(chatId, 3).messageId));
   const world = createWorldInfoService(makeWorldInfoHarness(db).ctx);
   const h = makeHarness(db, [reply({ ...EMPTY_PLOT, lore: [{ key: "fact", keys: [], content: "Visible play." }] })], {
-    upsertEntries: ({ authorUserId, ...args }) => world.upsertEntries({ principal: principal(authorUserId), ...args }),
+    upsertEntries: async ({ authorUserId, ...args }) => world.upsertEntries({ principal: await principal(db, authorUserId), ...args }),
   });
   expect(
     await h.dispatch(
@@ -693,7 +698,7 @@ test("analysis provenance bounds come from visible rows without claiming sequenc
   expect(settled).toContain("beat 4");
   expect(settled).not.toContain("beat 1");
   expect(settled).not.toContain("beat 3");
-  const rows = await world.listEntries({ principal: principal(host), bookId });
+  const rows = await world.listEntries({ principal: await principal(db, host), bookId });
   expect(rows[0]?.metadata?.provenance?.span).toEqual({ fromSeq: 1, toSeq: 4 });
   expect(rows[0]?.title).toBe(`auto/${ruleId}:s0.fact`);
   expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(LORE_SPAN_END);
@@ -705,7 +710,7 @@ test("dismissed analysis lore retries the same title and original slice while th
   const world = createWorldInfoService(makeWorldInfoHarness(db).ctx);
   const payload = reply({ ...EMPTY_PLOT, lore: [{ key: "fact", keys: [], content: "A promise." }] });
   const h = makeHarness(db, [payload, payload], {
-    upsertEntries: ({ authorUserId, ...args }) => world.upsertEntries({ principal: principal(authorUserId), ...args }),
+    upsertEntries: async ({ authorUserId, ...args }) => world.upsertEntries({ principal: await principal(db, authorUserId), ...args }),
   });
   const svc = createAutomationService(makeAutomationHarness(db, { ops: h.ops, suggestions: h.suggestions, runArm: h.dispatch }));
   const action = arm({ type: "run_analysis", brief: "b", routes: { lore: { bookId } } });
@@ -717,15 +722,15 @@ test("dismissed analysis lore retries the same title and original slice while th
   }
   expect(h.suggestions.drop(first.id, FIXED_NOW_MS)).toEqual(first);
   expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(0);
-  expect(await world.listEntries({ principal: principal(host), bookId })).toEqual([]);
+  expect(await world.listEntries({ principal: await principal(db, host), bookId })).toEqual([]);
   expect(await h.dispatch(action, frame)).toEqual({ ok: true, suggested: true });
   const retry = h.suggestions.listForChat(chatId, FIXED_NOW_MS)[0];
   if (retry === undefined) {
     throw new Error("analysis did not retry the dismissed card");
   }
   expect(retry.payload).toEqual(first.payload);
-  expect(await svc.confirmSuggestion({ principal: principal(host), suggestionId: retry.id })).toEqual({ ran: "stashed-arm", outcome: "fired" });
-  const rows = await world.listEntries({ principal: principal(host), bookId });
+  expect(await svc.confirmSuggestion({ principal: await principal(db, host), suggestionId: retry.id })).toEqual({ ran: "stashed-arm", outcome: "fired" });
+  const rows = await world.listEntries({ principal: await principal(db, host), bookId });
   expect(rows).toHaveLength(1);
   expect(rows[0]?.title).toBe(`auto/${ruleId}:s0.fact`);
   expect(rows[0]?.metadata?.provenance?.span).toEqual({ fromSeq: 0, toSeq: LORE_SPAN_END });
@@ -744,7 +749,7 @@ test("an empty settled read never stamps requested bounds or writes model lore",
   }
   const world = createWorldInfoService(makeWorldInfoHarness(db).ctx);
   const h = makeHarness(db, [reply({ ...EMPTY_PLOT, lore: [{ key: "unread", keys: [], content: "No source." }] })], {
-    upsertEntries: ({ authorUserId, ...args }) => world.upsertEntries({ principal: principal(authorUserId), ...args }),
+    upsertEntries: async ({ authorUserId, ...args }) => world.upsertEntries({ principal: await principal(db, authorUserId), ...args }),
   });
   expect(
     await h.dispatch(
@@ -755,6 +760,6 @@ test("an empty settled read never stamps requested bounds or writes model lore",
   expect(h.captured.quiet).toHaveLength(1);
   expect(h.captured.quiet[0]?.prompt).not.toContain("SETTLED transcript");
   expect(h.captured.upserts).toEqual([]);
-  expect(await world.listEntries({ principal: principal(host), bookId })).toEqual([]);
+  expect(await world.listEntries({ principal: await principal(db, host), bookId })).toEqual([]);
   expect((await selectRuleState(db, ruleId)).state.settledThroughSeq).toBe(0);
 });

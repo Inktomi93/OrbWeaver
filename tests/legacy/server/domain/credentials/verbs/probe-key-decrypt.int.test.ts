@@ -35,7 +35,7 @@ describe("probeKeyDecrypt", () => {
     const harness = makeHarness(db);
     const svc = createCredentialsService(harness.ctx);
     const owner = await seedUser(db, { id: "user_probe_ok", role: "user" });
-    await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-probe-ok" });
+    await svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-probe-ok" });
     const result = await svc.probeKeyDecrypt();
     expect(result).toBe(true);
   });
@@ -45,7 +45,7 @@ describe("probeKeyDecrypt", () => {
     const harness = makeHarness(db);
     const enabledService = createCredentialsService(harness.ctx);
     const owner = await seedUser(db, { id: "user_probe_missing_key", role: "user" });
-    await enabledService.add({ principal: principal(owner), provider: "openrouter", key: "sk-probe-missing-key" });
+    await enabledService.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-probe-missing-key" });
 
     const disabledService = createCredentialsService({ ...harness.ctx, box: createSecretBox(null) });
     const result = await disabledService.probeKeyDecrypt();
@@ -59,7 +59,7 @@ describe("probeKeyDecrypt", () => {
     const harnessA = makeHarness(db);
     const svcA = createCredentialsService(harnessA.ctx);
     const owner = await seedUser(db, { id: "user_probe_rot", role: "user" });
-    await svcA.add({ principal: principal(owner), provider: "openrouter", key: "sk-old" });
+    await svcA.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-old" });
 
     // Probe with a DIFFERENT key (all-42s) — the row was sealed under the harness key → decrypt fails.
     let credCounter = 9000;

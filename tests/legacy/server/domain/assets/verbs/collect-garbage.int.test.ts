@@ -77,7 +77,7 @@ async function seedBackgroundLibrary(
 /** Install one plugin for `owner` (its bundle bytes go through the real CAS store, so the row's RESTRICT FK
  *  points at a real asset) and return its id — the parent every `plugin_assets` fetch row hangs off. */
 async function seedInstalledPlugin(db: Awaited<ReturnType<typeof freshDb>>, owner: UserId, svc: ReturnType<typeof createAssetsService>): Promise<PluginId> {
-  const bundle = await svc.store({ principal: principal(owner), bytes: pngBytes(90), kind: "document", mime: "application/zip" });
+  const bundle = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(90), kind: "document", mime: "application/zip" });
   const id = castId<PluginId>("plugin_gcfixture0000000000000");
   const manifest = pluginManifestSchema.parse({
     id: "gc-fixture",
@@ -136,7 +136,7 @@ describe("collectGarbage", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(2),
       kind: "avatar",
       mime: PNG,
@@ -157,7 +157,7 @@ describe("collectGarbage", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(3),
       kind: "avatar",
       mime: PNG,
@@ -178,7 +178,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await createAssetsService(h.ctx).store({ principal: principal(owner), bytes: pngBytes(31), kind: "avatar", mime: PNG });
+    const stored = await createAssetsService(h.ctx).store({ principal: await principal(db, owner), bytes: pngBytes(31), kind: "avatar", mime: PNG });
     const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("late-ref") });
     await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
     const reached = Promise.withResolvers<void>();
@@ -245,7 +245,7 @@ describe("collectGarbage", () => {
     const collecting = createAssetsService({ ...h.ctx, cas }).collectGarbage({});
     await reached.promise;
     // The transition the snapshot cannot see: a store dedups onto these bytes and INDEXES them.
-    const stored = await createAssetsService(h.ctx).store({ principal: principal(owner), bytes, kind: "avatar", mime: PNG });
+    const stored = await createAssetsService(h.ctx).store({ principal: await principal(db, owner), bytes, kind: "avatar", mime: PNG });
     release.resolve();
 
     const result = await collecting;
@@ -261,7 +261,7 @@ describe("collectGarbage", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await createAssetsService(h.ctx).store({ principal: principal(owner), bytes: pngBytes(32), kind: "background", mime: PNG });
+    const stored = await createAssetsService(h.ctx).store({ principal: await principal(db, owner), bytes: pngBytes(32), kind: "background", mime: PNG });
     await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
     const deletion = hold(ASSET_DELETE);
     const collecting = createAssetsService(h.ctx).collectGarbage({});
@@ -283,7 +283,7 @@ describe("collectGarbage", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(4),
       kind: "avatar",
       mime: PNG,
@@ -304,7 +304,7 @@ describe("collectGarbage", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(5),
       kind: "avatar",
       mime: PNG,
@@ -325,7 +325,7 @@ describe("collectGarbage", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(6),
       kind: "background",
       mime: PNG,
@@ -347,7 +347,7 @@ describe("collectGarbage", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(11), kind: "background", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(11), kind: "background", mime: PNG });
     // The ONLY liveness signal is the JSON background_override column on the character card.
     const characterId = await seedCharacter(db, owner);
     await db
@@ -371,7 +371,7 @@ describe("collectGarbage", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(12), kind: "background", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(12), kind: "background", mime: PNG });
     // The ONLY liveness signal is the JSON metadata.background sub-blob on the chat row.
     await db.insert(chats).values({
       id: castId<ChatId>("chat_bgc"),
@@ -395,7 +395,7 @@ describe("collectGarbage", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(8),
       kind: "background",
       mime: PNG,
@@ -418,7 +418,7 @@ describe("collectGarbage", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(9),
       kind: "background",
       mime: PNG,
@@ -441,7 +441,7 @@ describe("collectGarbage", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(7),
       kind: "background",
       mime: PNG,
@@ -463,7 +463,7 @@ describe("collectGarbage", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(13), kind: "background", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(13), kind: "background", mime: PNG });
     // A hand-crafted / pre-canonicalization row: `kind:"none"` but carrying a populated `assetId`. The GC scan's
     // kind guard must NOT root it — nothing legitimately references the blob, so it is reaped past grace.
     await db.insert(chats).values({
@@ -487,7 +487,7 @@ describe("collectGarbage", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(14), kind: "background", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(14), kind: "background", mime: PNG });
     const characterId = await seedCharacter(db, owner);
     await db
       .update(characters)
@@ -516,7 +516,7 @@ describe("collectGarbage", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(21), kind: "background", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(21), kind: "background", mime: PNG });
     // Seed a normal (parseable) library row first, then corrupt it past the type system — mirroring the
     // regex-scripts precedent (queries.int.test.ts) for "a row a hand-edit / bug wrote, not the app".
     await seedBackgroundLibrary(db, owner, [{ assetId: stored.assetId, assetHash: stored.hash }]);
@@ -535,7 +535,7 @@ describe("collectGarbage", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(22), kind: "background", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(22), kind: "background", mime: PNG });
     await seedBackgroundLibrary(db, owner, [{ assetId: stored.assetId, assetHash: stored.hash }]);
     // Valid JSON, but the wrong shape — an object instead of an array.
     await db.run(
@@ -560,7 +560,7 @@ describe("collectGarbage", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const pluginId = await seedInstalledPlugin(db, owner, svc);
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(41), kind: "generated", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(41), kind: "generated", mime: PNG });
     // The ONLY liveness signal is the fetch link the `storeFetched` host op writes.
     await recordPluginFetchedAsset(db, pluginId, stored.assetId, FROZEN_AT_MS);
     await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
@@ -582,7 +582,7 @@ describe("collectGarbage", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const pluginId = await seedInstalledPlugin(db, owner, svc);
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(42), kind: "generated", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(42), kind: "generated", mime: PNG });
     await recordPluginFetchedAsset(db, pluginId, stored.assetId, FROZEN_AT_MS);
     await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
     // Uninstall: the row goes and the FK CASCADE takes the fetch link with it.
@@ -602,7 +602,7 @@ describe("collectGarbage", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(23), kind: "background", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(23), kind: "background", mime: PNG });
     // No user_settings row at all — the documented no-settings-yet state.
     await setBlobMtime(h, owner, stored.hash, FROZEN_AT_MS - TWO_HOURS_MS);
 

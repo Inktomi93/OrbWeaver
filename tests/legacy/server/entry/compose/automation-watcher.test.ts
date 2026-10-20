@@ -9,11 +9,15 @@ import { vi } from "vitest";
 import { startAutomationWatcher } from "#server/domain/automation/index.ts";
 import { createAutomationWatcherEnv } from "#server/entry/compose/automation-watcher.ts";
 import { createDomainEventBus } from "#server/entry/compose/event-bus.ts";
+import { superviseDetached } from "#server/foundation/observability/index.ts";
+import { testLiveBuses } from "../../transport/trpc/_support.ts";
 
 test("stop detaches the domain-event handler from the composed watcher", async () => {
   using eventBus = createDomainEventBus();
   const handleEvent = vi.fn(() => Promise.resolve());
-  const watcher = startAutomationWatcher(createAutomationWatcherEnv({ automation: { handleEvent }, eventBus }));
+  const watcher = startAutomationWatcher(
+    createAutomationWatcherEnv({ automation: { handleEvent }, eventBus, chatEvents: testLiveBuses().chat, supervise: superviseDetached }),
+  );
   const event: AssetCreatedEvent = { type: "asset.created", assetId: castId<AssetId>("asset_watcher_stop") };
 
   eventBus.emit(event);

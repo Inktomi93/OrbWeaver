@@ -35,13 +35,13 @@ describe("store", () => {
     const bytes = pngBytes(1, 2, 3);
 
     const first = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes,
       kind: "avatar",
       mime: PNG,
     });
     const second = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes,
       kind: "avatar",
       mime: PNG,
@@ -65,8 +65,8 @@ describe("store", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const bytes = pngBytes(9, 9, 9);
 
-    const a = await svc.store({ principal: principal(owner), bytes, kind: "avatar", mime: PNG });
-    const b = await svc.store({ principal: principal(other), bytes, kind: "avatar", mime: PNG });
+    const a = await svc.store({ principal: await principal(db, owner), bytes, kind: "avatar", mime: PNG });
+    const b = await svc.store({ principal: await principal(db, other), bytes, kind: "avatar", mime: PNG });
 
     // Identical bytes ⇒ identical content hash, but distinct owners ⇒ distinct rows + distinct blobs.
     expect(b.hash).toBe(a.hash);
@@ -91,14 +91,14 @@ describe("store", () => {
     const bytes = pngBytes(4, 2);
 
     const first = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes,
       kind: "avatar",
       mime: PNG,
     });
     expect(h.emitted).toEqual([{ type: "asset.created", assetId: first.assetId }]);
 
-    await svc.store({ principal: principal(owner), bytes, kind: "avatar", mime: PNG });
+    await svc.store({ principal: await principal(db, owner), bytes, kind: "avatar", mime: PNG });
     // Still exactly one emit — the second store deduped, so the indexer is not re-notified.
     expect(h.emitted).toHaveLength(1);
   });
@@ -117,7 +117,7 @@ describe("store", () => {
     expect(put.created).toBe(true);
     expect(await db.select().from(assets)).toHaveLength(0);
 
-    const stored = await svc.store({ principal: principal(owner), bytes, kind: "avatar", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes, kind: "avatar", mime: PNG });
 
     // The ROW is what was created — the CAS write deduped. `created` reports the row, so the recovered
     // asset is indexed exactly once (the embeddings seam never hears about it otherwise).
@@ -135,7 +135,7 @@ describe("store", () => {
 
     await expect(
       svc.store({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         bytes: notAnImage,
         kind: "avatar",
         mime: PNG,
@@ -157,7 +157,7 @@ describe("store", () => {
 
     await expect(
       svc.store({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         bytes: pngBytes(7),
         kind: "avatar",
         mime: "image/jpeg",
@@ -176,7 +176,7 @@ describe("store", () => {
 
     await expect(
       svc.store({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         bytes,
         kind: "avatar",
         mime: PNG,
@@ -198,7 +198,7 @@ describe("store", () => {
     const bytes = pngBytes(1, 2, 3);
 
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes,
       kind: "avatar",
       mime: PNG,
@@ -216,7 +216,7 @@ describe("store", () => {
     const card = pngBytes(0xca, 0xfe);
 
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: card,
       kind: "card",
       mime: PNG,
@@ -243,7 +243,13 @@ describe("store — enforceMagic over document mimes (DBK-A)", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const stored = await svc.store({ principal: principal(owner), bytes: markdownBytes, kind: "document", mime: "text/markdown", enforceMagic: true });
+    const stored = await svc.store({
+      principal: await principal(db, owner),
+      bytes: markdownBytes,
+      kind: "document",
+      mime: "text/markdown",
+      enforceMagic: true,
+    });
     expect(stored.created).toBe(true);
     const rows = await db.select().from(assets).where(eq(assets.ownerId, owner));
     expect(rows).toHaveLength(1);
@@ -257,7 +263,7 @@ describe("store — enforceMagic over document mimes (DBK-A)", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const stored = await svc.store({ principal: principal(owner), bytes: pdfBytes, kind: "document", mime: "application/pdf", enforceMagic: true });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pdfBytes, kind: "document", mime: "application/pdf", enforceMagic: true });
     expect(stored.created).toBe(true);
   });
 
@@ -268,9 +274,9 @@ describe("store — enforceMagic over document mimes (DBK-A)", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    await expect(svc.store({ principal: principal(owner), bytes: binaryBytes, kind: "document", mime: "text/markdown", enforceMagic: true })).rejects.toThrow(
-      MISMATCH_RE,
-    );
+    await expect(
+      svc.store({ principal: await principal(db, owner), bytes: binaryBytes, kind: "document", mime: "text/markdown", enforceMagic: true }),
+    ).rejects.toThrow(MISMATCH_RE);
     expect(await db.select().from(assets)).toHaveLength(0);
   });
 
@@ -282,7 +288,7 @@ describe("store — enforceMagic over document mimes (DBK-A)", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     await expect(
-      svc.store({ principal: principal(owner), bytes: markdownBytes, kind: "document", mime: "application/pdf", enforceMagic: true }),
+      svc.store({ principal: await principal(db, owner), bytes: markdownBytes, kind: "document", mime: "application/pdf", enforceMagic: true }),
     ).rejects.toThrow(MISMATCH_RE);
   });
 
@@ -298,7 +304,7 @@ describe("store — enforceMagic over document mimes (DBK-A)", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const stored = await svc.store({ principal: principal(owner), bytes: zipHeaderBytes, kind: "document", mime: docxMime, enforceMagic: true });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: zipHeaderBytes, kind: "document", mime: docxMime, enforceMagic: true });
     expect(stored.created).toBe(true);
   });
 
@@ -309,9 +315,9 @@ describe("store — enforceMagic over document mimes (DBK-A)", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    await expect(svc.store({ principal: principal(owner), bytes: pkTextBytes, kind: "document", mime: docxMime, enforceMagic: true })).rejects.toThrow(
-      MISMATCH_RE,
-    );
+    await expect(
+      svc.store({ principal: await principal(db, owner), bytes: pkTextBytes, kind: "document", mime: docxMime, enforceMagic: true }),
+    ).rejects.toThrow(MISMATCH_RE);
     expect(await db.select().from(assets)).toHaveLength(0);
   });
 });

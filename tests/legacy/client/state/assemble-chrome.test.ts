@@ -34,7 +34,10 @@ function modal(id: ModalDefinition["id"], placement: ModalDefinition["trigger"][
 }
 
 function widget(id: string, zone: ChromeZone, order?: number): ChromeEntry {
-  return { id, label: id, zone, ...(order === undefined ? {} : { order }), behavior: { kind: "widget", body: () => null } };
+  const ordered = order === undefined ? {} : { order };
+  const behavior = { kind: "widget" as const, body: (): null => null };
+  // A rail action declares its phone fate; the overflow sheet is the one no assembly case here reads.
+  return zone === "topbar.trail" ? { id, label: id, zone, ...ordered, behavior } : { id, label: id, zone, mobile: "sheet", ...ordered, behavior };
 }
 
 describe("assembleChrome", () => {
@@ -117,7 +120,7 @@ describe("assembleChrome", () => {
   });
 
   test("throws on a zone outside CHROME_ZONES", () => {
-    const bad: ChromeEntry = { id: "x", label: "X", zone: "sidebar.top" as ChromeZone, behavior: { kind: "widget", body: () => null } };
+    const bad: ChromeEntry = widget("x", "sidebar.top" as ChromeZone);
     expect(() => assembleChrome({ sections: [], modals: [], widgets: [bad] })).toThrow("not one of CHROME_ZONES");
   });
 });

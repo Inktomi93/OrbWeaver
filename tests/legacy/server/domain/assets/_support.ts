@@ -40,13 +40,13 @@ import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "@orb/serv
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { AssetsContext } from "#server/domain/assets/index.ts";
 import { createCas, createVariantCache } from "#server/infra/storage/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { makeHarness as makeCharacterHarness } from "../character/_support.ts";
 
 // The PNG magic bytes — every `pngBytes(...)` starts here so `sniffMime` returns image/png. The tail makes
@@ -148,10 +148,9 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
   return seeded.id;
 }
 
-/** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
- *  `support/factories/principal` — assets keeps its existing positional `(id, role, handle?)` convention. */
-export function principal(userId: UserId, role: UserRole = "user", handle: Handle = castId<Handle>(userId)): Principal {
-  return makePrincipal(userId, { role, handle });
+/** Resolve a caller's Principal through the production row resolver; a passed role or handle is first written onto the user's row. */
+export async function principal(db: Db, userId: UserId, role?: UserRole, handle?: Handle): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role, handle });
 }
 
 /** Fake but well-formed PNG bytes: the PNG signature + a distinguishing tail (distinct tails ⇒ distinct

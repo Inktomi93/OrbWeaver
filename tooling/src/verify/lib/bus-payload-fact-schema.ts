@@ -9,7 +9,8 @@ import type { Node as MorphNode, VariableDeclaration } from "ts-morph";
 import { Node as N } from "ts-morph";
 import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
 import { unwrapExpression } from "./ast-read.ts";
-import type { CollectorState, WalkFrame } from "./bus-payload-fact-resolve.ts";
+import type { WalkFrame } from "./bus-payload-fact-field.ts";
+import type { CollectorState } from "./bus-payload-fact-resolve.ts";
 import {
   contributionMark,
   NOTIFICATION_SCHEMA_NAME,

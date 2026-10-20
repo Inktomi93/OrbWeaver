@@ -209,7 +209,7 @@ export function roomAuthority(db: Db): Pick<PluginHostOps["chat"], "resolveViewe
   return {
     resolveViewerVisibility: createResolveViewerVisibility({ db: handle }),
     requireHost: async (chatId, installerUserId): Promise<void> => {
-      await requireHost({ db: handle, can }, principalFor(installerUserId), chatId);
+      await requireHost({ db: handle, can }, await principalFor(db, installerUserId), chatId);
     },
   };
 }
@@ -239,7 +239,7 @@ export function requireHandler(entries: readonly { readonly handler: PluginHandl
  *  anti-TOCTOU pin `setGrant` refuses on when the grant includes `net.fetch`. */
 export async function installGrantEnable(args: {
   readonly h: ReturnType<typeof makePluginHarness>;
-  readonly caller: ReturnType<typeof ownerPrincipalFor>;
+  readonly caller: Awaited<ReturnType<typeof ownerPrincipalFor>>;
   readonly slug: string;
   readonly grant: readonly PluginCapability[];
   readonly netHosts?: readonly string[];

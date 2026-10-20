@@ -2,20 +2,13 @@
 // syntax facts preserve the legacy direct-export, literal-color and JSX-tag observation boundaries.
 
 import { blankSpan } from "@orb/kit/strings";
-import type { ExportDeclaration, SourceFile, VariableDeclaration } from "ts-morph";
+import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { defineFact } from "../contract/fact.ts";
+import type { SourceEvidence } from "../contract/ui-primitive-source.ts";
 import { blankTsComments } from "./comment-spans.ts";
 import { testNarrationSpans } from "./test-narration.ts";
 
-export interface SourceEvidence {
-  readonly source: SourceFile;
-  readonly code: string;
-  readonly colorText: string;
-  readonly tvExports: readonly VariableDeclaration[];
-  readonly exports: readonly ExportDeclaration[];
-  readonly jsx: readonly { readonly tag: string; readonly line: number; readonly node: Node }[];
-}
 interface CollectedSource {
   readonly source: SourceFile;
   readonly spans: { readonly pos: number; readonly end: number }[];

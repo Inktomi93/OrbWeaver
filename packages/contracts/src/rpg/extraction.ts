@@ -462,7 +462,9 @@ function salvageArgs(schema: z.ZodType, args: unknown): SalvagedArgs<unknown> | 
   if (offending.size === 0) {
     return null; // a root-level failure — the whole shape is wrong, not one field
   }
-  const remainder: Record<string, unknown> = {};
+  // Null prototype: the keys are model output, and copying a `__proto__` key into `{}` would re-parent the remainder
+  // onto a model object whose fields the re-parse then reads, including the ones just dropped.
+  const remainder: Record<string, unknown> = { __proto__: null };
   for (const [key, value] of Object.entries(args)) {
     if (!offending.has(key)) {
       remainder[key] = value;

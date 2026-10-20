@@ -14,7 +14,7 @@ test("owner-scope reindex enqueues a databank-reindex workload with the resolved
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  const result = await h.service.reindex({ principal: principalFor(owner), scope: { kind: "owner" } });
+  const result = await h.service.reindex({ principal: await principalFor(db, owner), scope: { kind: "owner" } });
   expect(result.workloadId).toBeDefined();
   expect(h.enqueueReindex).toHaveBeenCalledWith({ ownerId: owner, scope: { kind: "owner" }, mode: "chunk-embed" });
 });
@@ -24,12 +24,12 @@ test("document-scope reindex verifies ownership; a foreign document throws and d
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const other = await seedUser(db, { handle: castId<Handle>("other") });
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "doc.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "doc.md", text: "canon" });
 
-  await h.service.reindex({ principal: principalFor(owner), scope: { kind: "document", documentId: document.id }, mode: "re-extract" });
+  await h.service.reindex({ principal: await principalFor(db, owner), scope: { kind: "document", documentId: document.id }, mode: "re-extract" });
   expect(h.enqueueReindex).toHaveBeenLastCalledWith({ ownerId: owner, scope: { kind: "document", documentId: document.id }, mode: "re-extract" });
 
-  await expect(h.service.reindex({ principal: principalFor(other), scope: { kind: "document", documentId: document.id } })).rejects.toBeInstanceOf(
+  await expect(h.service.reindex({ principal: await principalFor(db, other), scope: { kind: "document", documentId: document.id } })).rejects.toBeInstanceOf(
     DocumentNotFoundError,
   );
   expect(h.enqueueReindex).toHaveBeenCalledTimes(1); // the foreign attempt did not enqueue

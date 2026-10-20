@@ -4,18 +4,16 @@
 // `persistence/queries.ts#findOwnedForkOf`, which the CT can't prove because it stubs the server), and the
 // suggested name for a new fork must not be one the owner already uses.
 
+import type { PresetId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { PresetForkRow } from "#client/features/preset/lib/preset-fork-choice.ts";
 import { findConvergenceFork, suggestForkName } from "#client/features/preset/lib/preset-fork-choice.ts";
 
 const BUILT_IN = "preset_00000000000000000000000000";
 
-function row(
-  id: string,
-  name: string,
-  forkedFrom: string | null,
-  createdAt: number,
-): { id: string; name: string; forkedFrom: string | null; createdAt: number } {
-  return { id, name, forkedFrom, createdAt };
+function row(id: string, name: string, forkedFrom: string | null, createdAt: number): PresetForkRow {
+  return { id: castId<PresetId>(id), name, forkedFrom: forkedFrom === null ? null : castId<PresetId>(forkedFrom), createdAt };
 }
 
 test("no fork of the source — the silent copy-on-write case", () => {

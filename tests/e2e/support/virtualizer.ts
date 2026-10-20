@@ -16,7 +16,7 @@ const SCROLL_CONTAINER = '[data-slot="message-list-scroll"]';
 const MESSAGE_ROW = "[data-message-id]";
 
 /** One row as swept from the DOM: identity + the fields comparable against canon. */
-export interface SweptRow {
+interface SweptRow {
   readonly id: string;
   readonly role: string;
   readonly text: string;

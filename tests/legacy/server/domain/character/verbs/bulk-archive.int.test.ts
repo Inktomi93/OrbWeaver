@@ -17,23 +17,23 @@ describe("bulkArchive", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const a = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     const foreign = await svc.create({
-      principal: principal(other),
+      principal: await principal(db, other),
       input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" },
     });
     h.events.length = 0;
 
     await svc.bulkArchive({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterIds: [a.id, foreign.id],
       archived: true,
     });
 
-    const owned = await svc.get({ principal: principal(owner), characterId: a.id });
-    const foreignRow = await svc.get({ principal: principal(other), characterId: foreign.id });
+    const owned = await svc.get({ principal: await principal(db, owner), characterId: a.id });
+    const foreignRow = await svc.get({ principal: await principal(db, other), characterId: foreign.id });
     expect(owned.archived).toBe(true);
     expect(foreignRow.archived).toBe(false);
     expect(h.events).toEqual([]);
@@ -44,12 +44,12 @@ describe("bulkArchive", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
-    await svc.bulkArchive({ principal: principal(owner), characterIds: [a.id], archived: true });
-    await svc.bulkArchive({ principal: principal(owner), characterIds: [a.id], archived: false });
-    const row = await svc.get({ principal: principal(owner), characterId: a.id });
+    await svc.bulkArchive({ principal: await principal(db, owner), characterIds: [a.id], archived: true });
+    await svc.bulkArchive({ principal: await principal(db, owner), characterIds: [a.id], archived: false });
+    const row = await svc.get({ principal: await principal(db, owner), characterId: a.id });
     expect(row.archived).toBe(false);
   });
 });

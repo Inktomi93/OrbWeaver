@@ -1,28 +1,65 @@
 // Shared substrate for the transport/trpc tests (NOT a test file — the test-layout gate collects only
 // *.test kinds; this is imported, never run). Transport is a THIN driver, so the unit tests inject a FAKE
-// `Services` bundle (only the verbs under test, as typed `vi.fn`s) + a constructed `Principal` + a no-op
+// `Services` bundle (only the verbs under test, as typed `vi.fn`s) + a row-resolved `Principal` + a no-op
 // rate-limit gate, and drive the real `appRouter` through `createCaller` — exercising the real middleware
-// ladder + router wiring without a db or HTTP. (No determinism seam needed: transport reads no clock.)
+// ladder + router wiring without HTTP. The only database is the testkit in-memory one the caller's row lives in.
 
-import type { CreateInviteResult, InvitePreview, RedeemInviteResult } from "@orb/contracts/chat";
+import type { CreateInviteResult, InvitePreview, ParticipantView, RedeemInviteResult } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { Db } from "@orb/db";
 import type { Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import type { Context, PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "@orb/server/transport/trpc";
-import { createCaller, createSocketRegistry } from "@orb/server/transport/trpc";
+import type { ChatService } from "@orb/server/domain/chat";
+import { createRpgEventBus } from "@orb/server/domain/rpg";
+import { createWorkloadProgressBus } from "@orb/server/domain/workloads";
+import type { Context, LiveBuses, PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "@orb/server/transport/trpc";
+import { createCaller, createLiveBuses, createSocketRegistry } from "@orb/server/transport/trpc";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { onTestFinished } from "vitest";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
+import type { seatRoles } from "../../domain/chat/_support.ts";
 
-/** A minimal Principal carrying the given role; `via` defaults to header (no CSRF surface). */
-export function principal(role: UserRole, overrides: Partial<Principal> = {}): Principal {
+/** The caller for a role, resolved from its seeded row. `userId` and `handle` are written onto that row first.
+ *  @throws Error for any other override (`via`, `externalId`): a row-resolved caller is always `via: "fallback"`, so a
+ *  case that needs a request credential fails here instead of silently passing as a fallback caller. */
+export async function principal(db: Db, role: UserRole, overrides: { readonly userId?: UserId; readonly handle?: Handle } = {}): Promise<Principal> {
+  const unhonored = Object.keys(overrides).filter((key) => key !== "userId" && key !== "handle");
+  if (unhonored.length > 0) {
+    throw new Error(`principal(): a row-resolved caller cannot carry ${unhonored.join(", ")}; this case needs a request credential`);
+  }
   const userId = overrides.userId ?? castId<UserId>(`user_${role}`);
+  return await makePrincipal({ db }, userId, { role, handle: overrides.handle ?? castId<Handle>(userId) });
+}
+
+/** The production live channels of one application graph, released when the calling test finishes. */
+export function testLiveBuses(): LiveBuses {
+  const owner = new DisposableStack();
+  onTestFinished(() => {
+    owner.dispose();
+  });
+  // biome-ignore lint/nursery/useDisposables: the test-scoped owner stack above disposes this bus when the test finishes.
+  const rpg = owner.use(createRpgEventBus());
+  // biome-ignore lint/nursery/useDisposables: the test-scoped owner stack above disposes this bus when the test finishes.
+  const workloads = owner.use(createWorkloadProgressBus());
+  return owner.use(createLiveBuses({ rpg, workloads }));
+}
+
+type RedeemInviteData = Awaited<ReturnType<ChatService["redeemInvite"]>>;
+type ParticipantData = RedeemInviteData["participant"];
+type SeatRoleStates = Awaited<ReturnType<typeof seatRoles>>;
+
+/** The domain twin of a wire roster row: the same fields, the seat role as captured row data. */
+export function participantData(view: ParticipantView, roles: SeatRoleStates): ParticipantData {
+  return { ...view, role: roles[view.role] };
+}
+
+/** The domain twin of a wire redeem result, the shape the chat service hands the router. */
+export function redeemedData(wire: RedeemInviteResult, roles: SeatRoleStates): RedeemInviteData {
   return {
-    userId,
-    role,
-    handle: castId<Handle>(userId),
-    externalId: null,
-    via: "header",
-    ...overrides,
+    ...wire,
+    participant: participantData(wire.participant, roles),
+    chat: { ...wire.chat, participants: wire.chat.participants.map((row) => participantData(row, roles)) },
   };
 }
 
@@ -82,9 +119,12 @@ export function makeContext(parts: {
   multiHumanCapable?: boolean;
   csrfHeaderPresent?: boolean;
   clientIp?: string | null;
+  /** The application graph's live channels; the production set, owned by the calling test, unless supplied. */
+  liveBuses?: LiveBuses;
 }): Context {
   return {
     auth: parts.auth ?? null,
+    liveBuses: parts.liveBuses ?? testLiveBuses(),
     sessionId: parts.sessionId ?? null,
     services: testServices(parts.services ?? {}),
     rateLimit: parts.rateLimit ?? allowAll,

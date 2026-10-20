@@ -17,6 +17,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import type { SocketRegistry } from "@orb/server/transport/trpc";
 import { createSocketRegistry, publishChatEvent } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 // The LEAF, not the `@orb/client/data/bus` barrel (it value-exports the socket/room hooks — type-worlds #1351).
@@ -62,11 +63,12 @@ const SYNTHETIC_TYPES: ReadonlySet<ChatBusEvent["type"]> = new Set<ChatBusEvent[
 
 describe("the room cursor counts DELIVERED frames, never enqueued ones", () => {
   test("three rows enqueued, ONE pulled → the cell cursor is the pulled one (the shed/disconnect fence)", async () => {
+    const db = await freshDb();
     const chatId = ID.chatCursorDelivery;
     const sockets: SocketRegistry = createSocketRegistry(() => 0);
     const socketId = nextSocket();
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
       sockets,
     });
@@ -101,6 +103,7 @@ describe("the room cursor counts DELIVERED frames, never enqueued ones", () => {
 
 describe("a `lag` shed heals itself — the stranded-terminal class", () => {
   test("a turn TERMINAL shed by an overflow is re-delivered by the room's restart replay", async () => {
+    const db = await freshDb();
     // The scenario that made this MANDATORY: a backgrounded tab during a long turn. Every token delta is one
     // durable frame, so the socket queue saturates, sheds the room's tail — and the tail holds the turn's
     // `turnCompleted`. The chat-stream store clears a slot ONLY on a terminal, so losing it strands the slot
@@ -121,7 +124,7 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
     const sockets: SocketRegistry = createSocketRegistry(() => 0);
     const socketId = nextSocket();
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { chatEventBounds: bounds, replayChatEvents } },
       sockets,
     });
@@ -183,6 +186,7 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
   });
 
   test("a room re-attached while its lag notice is still pending still gets its shed rows back", async () => {
+    const db = await freshDb();
     // The park-skip corner: something restarts a parked room's pump BEFORE its notice delivers (a re-attach,
     // a rewind), so the pump is running again when the notice finally lands. If the resume skipped on
     // "a pump already exists", every row shed in that window would be orphaned — the running pump's own
@@ -198,7 +202,7 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
     const sockets: SocketRegistry = createSocketRegistry(() => 0);
     const socketId = nextSocket();
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { chatEventBounds: bounds, replayChatEvents } },
       sockets,
     });
@@ -243,6 +247,7 @@ describe("a `lag` shed heals itself — the stranded-terminal class", () => {
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 describe("a reconnect resumes from the CLIENT's mark, not the server's delivered cursor", () => {
   test("rows lost in flight (terminal included) are re-delivered AND applied after the re-announce", async () => {
+    const db = await freshDb();
     const chatId = ID.chatReconnectBarrier;
     // The durable log. Rows 1-3 reach the client; 4 (delta) + 5 (turnCompleted) are yielded into the dying
     // socket and never arrive; row 6 is another member's write, landing while this client is offline.
@@ -257,7 +262,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     const sockets: SocketRegistry = createSocketRegistry(() => 0);
     const socketId = nextSocket();
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { chatEventBounds: bounds, replayChatEvents } },
       sockets,
     });
@@ -331,6 +336,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
   });
 
   test("the OVERLAP case: a reconnect that outruns the server's death-detection still holds, and the zombie cannot clobber the live cell", async () => {
+    const db = await freshDb();
     // THE HALF-OPEN TCP CLASS (§8's motivating one, and the barrier's primary trigger). A server learns a
     // socket died when a write to it fails; on a NAT rebind / sleep / dead proxy those writes BUFFER for
     // minutes, while the client gives up at 45s and reconnects. Two generators then share one cell, so:
@@ -351,7 +357,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     const sockets: SocketRegistry = createSocketRegistry(() => 0);
     const socketId = nextSocket();
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { chatEventBounds: bounds, replayChatEvents } },
       sockets,
     });
@@ -417,6 +423,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
   });
 
   test("a live-only room does NOT wait for the announce — it has no cursor to be wrong about", async () => {
+    const db = await freshDb();
     // The barrier costs a round trip of freshness, so it is spent only where it buys something. `rpg`/`user`
     // carry no durable cursor: their recovery is the client's blanket invalidate, which a delay would only
     // postpone.
@@ -424,7 +431,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
     const sockets: SocketRegistry = createSocketRegistry(() => 0);
     const socketId = nextSocket();
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
       sockets,
     });
@@ -453,6 +460,7 @@ describe("a reconnect resumes from the CLIENT's mark, not the server's delivered
 // streaming. Before this, a revoked cookie left the socket running for the life of the connection.
 describe("session eviction ends the live socket (W7a)", () => {
   test("evicting ONE session completes that socket's generator and leaves the sibling device's live", async () => {
+    const db = await freshDb();
     const chatId = ID.chatEvictSession;
     const sockets: SocketRegistry = createSocketRegistry(() => 0);
     const phoneSession = castId<SessionId>("sess_phone");
@@ -461,7 +469,7 @@ describe("session eviction ends the live socket (W7a)", () => {
     const openDevice = async (sessionId: SessionId): Promise<AsyncIterator<unknown>> => {
       const socketId = nextSocket();
       const ctx = makeContext({
-        auth: principal("user", { userId: MEMBER }),
+        auth: await principal(db, "user", { userId: MEMBER }),
         services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
         sockets,
         sessionId,
@@ -491,7 +499,7 @@ describe("session eviction ends the live socket (W7a)", () => {
     // …while the desktop is still serving: a new room attaches and gets its ack on the SAME connection.
     await caller(
       makeContext({
-        auth: principal("user", { userId: MEMBER }),
+        auth: await principal(db, "user", { userId: MEMBER }),
         services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
         sockets,
         sessionId: deskSession,

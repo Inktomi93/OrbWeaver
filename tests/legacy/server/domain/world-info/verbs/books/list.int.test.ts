@@ -18,12 +18,12 @@ describe("listBooks", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
 
-    const first = await svc.createBook({ principal: principal(owner), input: { name: "First" } });
+    const first = await svc.createBook({ principal: await principal(db, owner), input: { name: "First" } });
     h.advance(1000);
-    const second = await svc.createBook({ principal: principal(owner), input: { name: "Second" } });
-    await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
+    const second = await svc.createBook({ principal: await principal(db, owner), input: { name: "Second" } });
+    await svc.createBook({ principal: await principal(db, other), input: { name: "Theirs" } });
 
-    const books = await svc.listBooks({ principal: principal(owner) });
+    const books = await svc.listBooks({ principal: await principal(db, owner) });
     expect(books.map((b) => b.id)).toEqual([second.id, first.id]);
   });
 
@@ -37,11 +37,11 @@ describe("listBooks", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const a = await svc.createBook({ principal: principal(owner), input: { name: "A" } });
-    const b = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
-    const c = await svc.createBook({ principal: principal(owner), input: { name: "C" } });
+    const a = await svc.createBook({ principal: await principal(db, owner), input: { name: "A" } });
+    const b = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
+    const c = await svc.createBook({ principal: await principal(db, owner), input: { name: "C" } });
 
-    const books = await svc.listBooks({ principal: principal(owner) });
+    const books = await svc.listBooks({ principal: await principal(db, owner) });
     expect(books.map((x) => x.id)).toEqual([c.id, b.id, a.id]);
   });
 
@@ -49,6 +49,6 @@ describe("listBooks", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    expect(await svc.listBooks({ principal: principal(owner) })).toEqual([]);
+    expect(await svc.listBooks({ principal: await principal(db, owner) })).toEqual([]);
   });
 });

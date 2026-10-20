@@ -56,7 +56,7 @@ test("0511: a patch reply naming a prototype key drops that field by name and st
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.claudeNoForce));
 
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient?.location).toBe("the inn");
   expect(warn.mock.calls.some(([line]) => JSON.stringify((line as { droppedFields?: unknown }).droppedFields) === '["update_scene.constructor"]')).toBe(true);
   // The durable record names the cause and keeps the entry as sent, beside the call that applied.
@@ -86,7 +86,7 @@ test("0511: a structured reply that splits one scene update across calls lands e
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.claudeNoForce));
 
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient).toMatchObject({ location: "the inn", weather: expect.objectContaining({ type: "rain" }) });
   expect(view.recentBeats).toContain("Mira lit the lamps.");
 });
@@ -143,8 +143,8 @@ test("0511: a structured round that skipped a named existing item runs the inven
     ],
   });
   const seeded = await seedHostGameChat(db, "sr-audit");
-  const created = await rpgCompose.service.createGame({ principal: hostPrincipal(seeded.hostId), chatId: seeded.chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(seeded.hostId), chatId: seeded.chatId, extractionMode: "cheap" });
+  const created = await rpgCompose.service.createGame({ principal: await hostPrincipal(db, seeded.hostId), chatId: seeded.chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, seeded.hostId), chatId: seeded.chatId, extractionMode: "cheap" });
   const base = await seedMessage(db, seeded.chatId, 1, { role: "assistant", content: "Mira eyes the key." });
   const state: RpgSnapshotState = {
     ...defaultSnapshotState(),
@@ -185,7 +185,7 @@ test("0511: a structured round that skipped a named existing item runs the inven
   expect(spy.summarizeModels).toHaveLength(2);
   const audit = spy.schemas[1] as { properties: { changes: { items: { anyOf: { properties: { tool: { enum: string[] } } }[] } } } };
   expect(audit.properties.changes.items.anyOf.map((member) => member.properties.tool.enum[0])).toEqual(["update_inventory", "no_changes"]);
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(seeded.hostId), chatId: seeded.chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, seeded.hostId), chatId: seeded.chatId });
   expect(view.actors.find((actor) => actor.name === "Mira")?.volatile?.inventory).toEqual([
     expect.objectContaining({ name: "Small brass key", location: "front hoodie pocket" }),
   ]);
@@ -195,7 +195,7 @@ test("0511: the panel's game read names a `structured` knob the room's model can
   const toolsOnly = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, modalities: ["text"] }, tools: { parallel: true } });
   const unable = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: toolsOnly });
   const a = await cheapGame(db, unable, "panel-unavailable", "structured");
-  expect((await unable.service.getGame({ principal: hostPrincipal(a.hostId), chatId: a.chatId })).effectiveDelivery).toEqual({
+  expect((await unable.service.getGame({ principal: await hostPrincipal(db, a.hostId), chatId: a.chatId })).effectiveDelivery).toEqual({
     path: "tool-round",
     fallbackReason: null,
     structuredUnavailable: true,
@@ -204,7 +204,7 @@ test("0511: the panel's game read names a `structured` knob the room's model can
 
   const able = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}" });
   const b = await cheapGame(db, able, "panel-available", "structured");
-  expect((await able.service.getGame({ principal: hostPrincipal(b.hostId), chatId: b.chatId })).effectiveDelivery).toEqual({
+  expect((await able.service.getGame({ principal: await hostPrincipal(db, b.hostId), chatId: b.chatId })).effectiveDelivery).toEqual({
     path: "tool-round",
     fallbackReason: null,
     structuredUnavailable: false,
@@ -224,7 +224,7 @@ test("0532: a state round that cannot fit the connection's window is named on th
     });
   const unpinned = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: withWindow(4096) });
   const game = await cheapGame(db, unpinned, "window-unpinned");
-  const read = { principal: hostPrincipal(game.hostId), chatId: game.chatId };
+  const read = { principal: await hostPrincipal(db, game.hostId), chatId: game.chatId };
   expect((await unpinned.service.getGame(read)).effectiveDelivery.stateRoundOverflow).toEqual({ connectionId: TEST_CONNECTION_ID, windowTokens: 4096 });
 
   const declared = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: withWindow(16_384) });
@@ -245,7 +245,7 @@ test("0532: on a route that sends the window, the overflow notice prices the pre
   });
   const unset = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: floor });
   const game = await cheapGame(db, unset, "window-settable");
-  const read = { principal: hostPrincipal(game.hostId), chatId: game.chatId };
+  const read = { principal: await hostPrincipal(db, game.hostId), chatId: game.chatId };
   expect((await unset.service.getGame(read)).effectiveDelivery.stateRoundOverflow).toEqual({ connectionId: TEST_CONNECTION_ID, windowTokens: 4096 });
 
   const raised = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}", capability: floor, presetMaxContext: 16_384 });
@@ -263,7 +263,7 @@ const OLLAMA_FLOOR = makeGenerationCapability({
 // or the server cuts the story at its floor while the turn and the overflow notice say it fits.
 test("0532: a host resync and populate send the room preset's Max context as the window, not the server's floor", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "resync-window");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const spy = emptySpy();
   const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: "{}", capability: OLLAMA_FLOOR, presetMaxContext: 16_384 });
   await compose.service.createGame({ principal, chatId, mode: "lite" });
@@ -294,7 +294,7 @@ async function hostAndMemberGame(
   });
   const game = await cheapGame(args.db, rpgCompose, key);
   await seedParticipant(args.db, { chatId: game.chatId, key: `${key}_member`, userId: memberId, role: "member", joinSeq: 1 });
-  return { rpgCompose, host: hostPrincipal(game.hostId), member: hostPrincipal(memberId), chatId: game.chatId };
+  return { rpgCompose, host: await hostPrincipal(args.db, game.hostId), member: await hostPrincipal(args.db, memberId), chatId: game.chatId };
 }
 
 function chatConnection(window: number, tools: boolean): ReturnType<typeof makeResolved> {
@@ -356,8 +356,8 @@ test("0536: a hidden span in a model-written NPC name never reaches a member thr
   await seedParticipant(db, { chatId, key: "npc_key_member", userId: memberId, role: "member", joinSeq: 1 });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
-  const memberView = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(memberId), chatId });
-  const hostView = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const memberView = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, memberId), chatId });
+  const hostView = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(JSON.stringify(memberView)).not.toContain(truth);
   // One address for every viewer; the host still reads the name the model wrote.
   expect(memberView.cast).toEqual(["npc:mara"]);
@@ -381,7 +381,7 @@ test("0511: a patch reply whose every value was refused is a recorded DROP namin
 
 test("0567: resync refuses a room window smaller than its fixed request instead of sending an overflowing read", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "resync-small-window");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const spy = emptySpy();
   const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: "{}", capability: OLLAMA_FLOOR });
   await compose.service.createGame({ principal, chatId, mode: "lite" });
@@ -394,7 +394,7 @@ test("0567: resync refuses a room window smaller than its fixed request instead 
 
 test("0567: a larger room window admits resync and the actual sent request fits it", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "resync-fit-window");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const spy = emptySpy();
   const compose = buildCannedRpgWithText({ app, db, api: "agent-sdk", spy, cannedText: "{}", capability: OLLAMA_FLOOR, presetMaxContext: 16_384 });
   await compose.service.createGame({ principal, chatId, mode: "lite" });
@@ -409,7 +409,7 @@ test("0567: a larger room window admits resync and the actual sent request fits 
 
 test("0681: an ability roll persists in canon through Simple send and survives a room re-read", async ({ app, services, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "ability-canon");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: "{}" });
   await compose.service.createGame({ principal, chatId, mode: "lite", ruleset: "d20" });
   await compose.service.patchSheet({ principal, chatId, actorRef: { kind: "user", userId: hostId }, patch: { attributes: { str: 15 } } });
@@ -438,7 +438,7 @@ test("0681: an ability roll persists in canon through Simple send and survives a
 test("RPG-R2: a structured-only chat-completions resync fits its actual request in 8000 tokens", async ({ app, db }) => {
   for (const window of [10_000, 8000]) {
     const { chatId, hostId } = await seedHostGameChat(db, `r2-structured-${window}`);
-    const principal = hostPrincipal(hostId);
+    const principal = await hostPrincipal(db, hostId);
     const spy = emptySpy();
     const compose = buildCannedRpgWithText({
       app,
@@ -465,7 +465,7 @@ test("RPG-R2: a forced tool resync reserves only requests its dispatcher can sen
   let tightWindow = 20_000;
   for (const pass of ["control", "tight"] as const) {
     const { chatId, hostId } = await seedHostGameChat(db, `r2-tool-${pass}`);
-    const principal = hostPrincipal(hostId);
+    const principal = await hostPrincipal(db, hostId);
     const requests: ChatRequest[] = [];
     const compose = buildCannedRpgWithText({
       app,

@@ -1,7 +1,8 @@
-import { LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
+import type { Wire } from "@orb/contracts/inference";
+import { ENCODER_IDENTITY_NO_API, LOCAL_TEXT_ENCODING } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { documentChunks, embedGenerationTargets, embedSpaceState, userConnections } from "@orb/db";
-import { embedRequestTimeoutMs, LOCAL_ENCODER_PROBE_TIMEOUT_MS, ProviderError } from "@orb/inference";
+import { embeddingExecution, embedRequestTimeoutMs, LOCAL_ENCODER_PROBE_TIMEOUT_MS, ProviderError } from "@orb/inference";
 import type { DocumentChunkId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -33,8 +34,9 @@ async function seedConnection(db: Db, ownerId: UserId, key: string): Promise<Emb
   return {
     ...resolved,
     connectionId,
-    api: "test",
-    wire: "test",
+    api: ENCODER_IDENTITY_NO_API,
+    wire: "openai-compat",
+    execution: embeddingExecution({ wire: "openai-compat", features: {} }),
     baseUrl: null,
     features: {},
     extras: null,
@@ -239,13 +241,24 @@ test("a slow stale resolution cannot reset a newer target or promote its generat
 });
 
 /** A text embedder on `wire` whose embed is `embed`. */
-async function probeTarget(wire: string, embed: EmbeddingConnectionSnapshot["embed"]): Promise<EmbeddingConnectionSnapshot> {
+async function probeTarget(wire: Wire, embed: EmbeddingConnectionSnapshot["embed"]): Promise<EmbeddingConnectionSnapshot> {
   const clients = makeFakeRoleClients({ embedDim: 8, embedModel: "embed-probe" });
   const resolved = await clients.resolved("embed");
   if (resolved === null) {
     throw new Error("the embed test connection must resolve");
   }
-  return { ...resolved, api: "test", wire, baseUrl: null, features: {}, extras: null, transport: null, embed, imageEmbed: clients.imageEmbed };
+  return {
+    ...resolved,
+    api: ENCODER_IDENTITY_NO_API,
+    wire,
+    execution: embeddingExecution({ wire, features: {} }),
+    baseUrl: null,
+    features: {},
+    extras: null,
+    transport: null,
+    embed,
+    imageEmbed: clients.imageEmbed,
+  };
 }
 
 /** Run the width probe on a fake clock advanced by `ms`, and say how it ended by then. */
