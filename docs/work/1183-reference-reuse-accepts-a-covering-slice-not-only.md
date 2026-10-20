@@ -2,7 +2,7 @@
 kind: bug
 status: open
 updated: 2026-10-20
-priority: P2
+priority: P1
 plan: test-foundation
 ---
 
@@ -23,3 +23,5 @@ Reuse succeeds when stored references cover the demanded slice, extraction defau
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Priority evidence from 1179: in the root world, test-root declarations produce 8.05M reference rows that no verb reads. Demand-keyed references are now the main cost lever for scoped verbs.
