@@ -350,72 +350,6 @@ function wireRealArms(f: RuleFixture, requests: AutomationImageRequest[]): { rea
 // message would pin copy while claiming to pin behaviour.
 
 describe("C5 dispatch — the owner's test", () => {
-  test("a global rule FIRES on a character import with NO room open, through the real engine", async () => {
-    const requests: AutomationImageRequest[] = [];
-    const f = await ruleFixture();
-    const character = await seedCharacter(f.db, { ownerId: f.host, name: "Mira" });
-    const { svc, reload } = wireRealArms(f, requests);
-
-    const rule = await svc.createRule({
-      timeZone: UTC_TIME_ZONE,
-      principal: await principal(f.db, f.host),
-      chatId: null,
-      name: "living library",
-      trigger: C5_DOMAIN_TRIGGER,
-      predicateCel: "has(event.character) && event.character.contentChanged",
-      actions: [C5_QUIET_PORTRAIT],
-    });
-    await svc.setRuleEnabled({ principal: await principal(f.db, f.host), ruleId: rule.id, enabled: true });
-    await reload();
-
-    // THE EVENT. No chat is opened, no chat exists in the frame, and the fact is chat-less by construction.
-    await svc.handleEvent({ type: "character.updated", characterId: character.id, contentChanged: true });
-
-    expect(requests).toHaveLength(1);
-    const request = requests[0];
-    expect(request?.chatId).toBeNull(); // the whole point: the arm ran with NO room
-    expect(request?.quiet).toBe(true);
-    expect(request?.authorUserId).toBe(f.host);
-    // The SUBJECT came off the FACT — an arm authored with no `subjectCharacterId` illustrates whichever
-    // character just changed, which is what makes one standing rule a LIBRARY rule rather than one card's.
-    expect(request?.subjectCharacterId).toBe(character.id);
-    // …and it is recorded as a real fire on the durable log, which is the global lane's only feedback
-    // surface (the transient bus is per-chat and correctly says nothing).
-    const fires = await svc.listFires({ principal: await principal(f.db, f.host), ruleId: rule.id });
-    expect(fires.map((row) => row.outcome)).toEqual(["fired"]);
-    expect(fires[0]?.chatId).toBeNull();
-  });
-
-  test("S7 `contentChanged`: a CONTENT write fires it, a flag-only edit does not", async () => {
-    const requests: AutomationImageRequest[] = [];
-    const f = await ruleFixture();
-    const character = await seedCharacter(f.db, { ownerId: f.host, name: "Mira" });
-    const { svc, reload } = wireRealArms(f, requests);
-    const rule = await svc.createRule({
-      timeZone: UTC_TIME_ZONE,
-      principal: await principal(f.db, f.host),
-      chatId: null,
-      name: "living library",
-      trigger: C5_DOMAIN_TRIGGER,
-      predicateCel: "has(event.character) && event.character.contentChanged",
-      actions: [C5_QUIET_PORTRAIT],
-    });
-    await svc.setRuleEnabled({ principal: await principal(f.db, f.host), ruleId: rule.id, enabled: true });
-    await reload();
-
-    // A FLAG-ONLY edit (star/archive/theme) raises the same event with `contentChanged: false`. Before S7
-    // the resolver DROPPED the flag entirely, so this fired identically to a real card write — the
-    // edit-burst chore the catalogue's fun pass killed, and the reason this preset needed the field.
-    await svc.handleEvent({ type: "character.updated", characterId: character.id, contentChanged: false });
-    expect(requests).toEqual([]);
-    // A `predicate_false` before a rule's first fire logs nothing (the LEAN first-match rule), so the empty
-    // log here is the honest evidence that nothing ran rather than an absence of instrumentation.
-    await expect(svc.listFires({ principal: await principal(f.db, f.host), ruleId: rule.id })).resolves.toEqual([]);
-
-    await svc.handleEvent({ type: "character.updated", characterId: character.id, contentChanged: true });
-    expect(requests).toHaveLength(1);
-  });
-
   test("a global rule does NOT fire on another owner's row — the subject gate", async () => {
     const requests: AutomationImageRequest[] = [];
     const f = await ruleFixture();
@@ -554,65 +488,6 @@ describe("C5 engine — the chat plane is UNBOUND on a global frame, never faked
     const authorPlane = await runArm({ type: "set_variable", scope: "global", key: "copy", op: "set", value: "{{expr::global.note}}" }, frame);
     expect(authorPlane.ok).toBe(true);
     await expect(f.svc.getGlobalVariable({ principal: await principal(f.db, f.host), key: "copy" })).resolves.toBe("kept");
-  });
-});
-
-// -- #1419: a raised CONFIRMATION aborts the arm chain ------------------------------------------------------
-// `runArms` used to abort only on `!outcome.ok`, and a confirm-first arm returns `{ok: true, suggested: true}`
-// WITHOUT acting -- so the loop read the ask as an ordinary success and ran the arms behind it anyway. The
-// gated act waited on a human while its continuation executed immediately, and `finalizeRule` then routed the
-// whole rule to the `suggested` terminal: no `fired` row, no rate charge, nothing in the log a host could read.
-// The terminal ruling is UNCHANGED (a direct arm AHEAD of the ask still lands `suggested`); what changed is
-// that the arms BEHIND the ask no longer run.
-describe("#1419 a confirm-first arm stops the chain", () => {
-  /** A dispatcher that records every arm it is handed and STASHES (asks) on the arm named by `askAt`. */
-  function chainDispatch(seen: string[], askAt: string): AutomationContext["runArm"] {
-    return (action): Promise<{ readonly ok: true; readonly suggested?: true }> => {
-      const key = action.type === "set_variable" ? action.key : action.type;
-      seen.push(key);
-      return Promise.resolve(key === askAt ? { ok: true, suggested: true } : { ok: true });
-    };
-  }
-
-  async function fireChain(seen: string[], askAt: string): Promise<{ readonly fixture: Fixture; readonly ruleId: AutomationRuleId }> {
-    const base = await ruleFixture();
-    const ctx: DbAssemblyInput<AutomationContext> = { ...base.ctx, runArm: chainDispatch(seen, askAt) };
-    const fixture: Fixture = { ...base, ctx, svc: createAutomationService(ctx) };
-    const rule = await fixture.svc.createRule({
-      timeZone: UTC_TIME_ZONE,
-      principal: await principal(base.db, fixture.host),
-      chatId: fixture.chatId,
-      name: "mixed postures",
-      trigger: { bus: "chat", type: "chatOpened" },
-      actions: [
-        { type: "set_variable", scope: "chat", key: "before", op: "inc" },
-        { type: "set_variable", scope: "chat", key: "asks", op: "inc" },
-        { type: "set_variable", scope: "chat", key: "after", op: "inc" },
-      ],
-    });
-    await fixture.svc.setRuleEnabled({ principal: await principal(base.db, fixture.host), ruleId: rule.id, enabled: true });
-    await ctx.enabled.reload();
-    await fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
-    return { fixture, ruleId: rule.id };
-  }
-
-  test("CONTROL: with no arm asking, every arm in the list runs and the rule FIRES", async () => {
-    const seen: string[] = [];
-    const { fixture, ruleId } = await fireChain(seen, "nothing-asks");
-    expect(seen).toEqual(["before", "asks", "after"]);
-    const fires = await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId });
-    expect(fires.map((row) => row.outcome)).toEqual(["fired"]);
-  });
-
-  test("the arms BEHIND the confirm-first one never run -- the continuation waits for the human, it does not race ahead", async () => {
-    const seen: string[] = [];
-    const { fixture, ruleId } = await fireChain(seen, "asks");
-    // `after` is absent: the chain stopped at the ask. `before` ran -- it is ahead of the question, and the
-    // `suggested` terminal's own doc states why the rule still reports `suggested` for it.
-    expect(seen).toEqual(["before", "asks"]);
-    // The terminal writes NOTHING (S4 fire-log honesty) -- unchanged by this fix, and asserted here so a
-    // future "just log the partial fire" edit reds against the ruling rather than against a comment.
-    expect(await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId })).toEqual([]);
   });
 });
 

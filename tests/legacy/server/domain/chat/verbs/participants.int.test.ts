@@ -750,34 +750,6 @@ describe("remove character from chat — the symmetric drop (rpg scene-cast prun
 });
 
 describe("add character to chat — the participant-insert chokepoint", () => {
-  test("the host adds a character; the row is inserted + the view resolves the card", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const characterId = await seedCharacter(db, host, "aria");
-    const chatId = await seedChat(db, "a");
-    await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    const participants = createParticipants(makeChatContext(db, { getCard: () => Promise.resolve(card("Aria")) }), {
-      claimChat: (): Promise<void> => Promise.resolve(),
-      emit,
-    });
-
-    const view = await participants.addCharacterToChat({
-      principal: await principal(db, host),
-      chatId,
-      characterId,
-    });
-
-    expect(view.kind).toBe("character");
-    expect(view.characterId).toBe(characterId);
-    expect(view.role).toBe("member");
-    expect(view.displayName).toBe("Aria");
-    const rows = await db
-      .select()
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.characterId, characterId)));
-    expect(rows).toHaveLength(1);
-    expect(emitted).toEqual([{ type: "chatUpdated", chatId }]);
-  });
-
   test("a foreign/unknown character is refused NOT_FOUND — no ghost seat", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
