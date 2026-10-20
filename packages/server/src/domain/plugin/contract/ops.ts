@@ -24,7 +24,7 @@ import type {
   PluginTransformRegistration,
   PluginWorldInfoReads,
 } from "@orb/contracts/plugin";
-import type { ChatId, PluginId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, DocumentId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import type { UserMacroDef } from "@orb/kit/macro";
 import type { AutomationOps } from "#domain/automation";
 
@@ -179,8 +179,7 @@ export interface PluginHostOps {
       readonly bytes: Uint8Array;
       readonly mime: string;
     }) => Promise<{
-      // eslint-disable-next-line orb/brand-in-name-position -- the injected-op result id for the installer's own new asset, minted under the installer by the CAS store and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
-      readonly assetId: string;
+      readonly assetId: SandboxWireId<AssetId>;
     }>;
   };
   /** The `search.query` capability's READ op (#788 F1). Semantic document search over the INSTALLER's OWN
@@ -258,8 +257,7 @@ export interface PluginHostOps {
    *  (connection). Cost VISIBILITY rides the stats domain off the imagery write itself. */
   readonly imagery: {
     readonly generatePicture: (req: { readonly authorUserId: UserId; readonly chatId: ChatId; readonly args: GenerateImageActionArgs }) => Promise<{
-      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-      readonly assetId: string;
+      readonly assetId: SandboxWireId<AssetId>;
     }>;
   };
   /** The QUIET (non-canon) generation seam. `capability: llm.quiet` — SPEND. Wired at compose to the
@@ -346,8 +344,7 @@ export interface PluginHostOps {
    *  the bridge closes the installer over this, a guest names only the document. Returns the new document id. */
   readonly databank: {
     readonly ingest: (req: { readonly installerUserId: UserId; readonly name: string; readonly text: string }) => Promise<{
-      // eslint-disable-next-line orb/brand-in-name-position -- the injected-op result id for the installer's own new document; the domain minted it under the installer, and it crosses back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
-      readonly documentId: string;
+      readonly documentId: SandboxWireId<DocumentId>;
     }>;
   };
   /** The `character.ingest` capability's write op (U8 seam 17). Ingest a V2/V3 character
@@ -366,8 +363,7 @@ export interface PluginHostOps {
        *  transient-snippet path. */
       readonly pluginId: PluginId | null;
     }) => Promise<{
-      // eslint-disable-next-line orb/brand-in-name-position -- the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
-      readonly characterId: string;
+      readonly characterId: SandboxWireId<CharacterId>;
       readonly created: boolean;
     }>;
     /** The remote-image "summon with art" op (`character.ingestAsset`, capability `character.ingest` — #798).
@@ -378,13 +374,11 @@ export interface PluginHostOps {
      *  per-installer `ingestCharacterAsset`. Returns the new character id + whether it was freshly created. */
     readonly ingestAsset: (req: {
       readonly installerUserId: UserId;
-      // eslint-disable-next-line orb/brand-in-name-position -- the guest's untrusted wire string, owner-scope-gated by the CAS read, cast at compose — branding here would claim a validation this boundary has not performed.
-      readonly assetId: string;
+      readonly assetId: SandboxWireId<AssetId>;
       /** See `ingest`'s `pluginId` — the same provenance identity, for the PNG-carrying arm. */
       readonly pluginId: PluginId | null;
     }) => Promise<{
-      // eslint-disable-next-line orb/brand-in-name-position -- the injected-op result id for the installer's own new character, minted under the installer and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
-      readonly characterId: string;
+      readonly characterId: SandboxWireId<CharacterId>;
       readonly created: boolean;
     }>;
     /** The `character.card_state` capability's WRITE op (D148). Merge this plugin's per-card state under the
@@ -397,27 +391,24 @@ export interface PluginHostOps {
      *  does NOT recompute `contentHash` or re-index (D148 clause d). Owner-scoped by construction — no principal
      *  resolve (the `storage.kv` posture, not the `ingest` import funnel). Returns void; the compose wiring maps a
      *  not-found (installer does not own the character) to the leak-free `PluginNotFoundError`. The
-     *  `characterId` is the guest's untrusted wire string (owner-scope-gated at the persistence predicate, cast
-     *  at compose), so it stays a bare `string` under the foreign-id exemption marker below. */
+     *  `characterId` is the guest's untrusted wire text, owner-scope-gated at the persistence predicate and cast
+     *  at compose. */
     readonly setCardData: (req: {
       readonly installerUserId: UserId;
       readonly slug: string;
-      // eslint-disable-next-line orb/brand-in-name-position -- the guest's untrusted wire string, owner-scope-gated at the persistence predicate, cast at compose — branding here would claim a validation this boundary has not performed.
-      readonly characterId: string;
+      readonly characterId: SandboxWireId<CharacterId>;
       readonly data: Record<string, unknown>;
     }) => Promise<void>;
     /** The `character.card_state` capability's READ op (D148). Read this plugin's per-card state
      *  (`plugin_<slug>`) from the INSTALLER-OWNED character — wired at compose to character's `readPluginCardData`
      *  under the same owner-scope + host-stamped-slug walls. Returns the stored blob, or `null` when this plugin
      *  has written none on that owned character; the compose wiring maps a not-found (foreign/absent character) to
-     *  the leak-free `PluginNotFoundError`. The `characterId` is the guest's untrusted wire string (owner-scope-gated
-     *  at the persistence predicate, cast at compose), so it stays a bare `string` under the foreign-id exemption
-     *  marker below. */
+     *  the leak-free `PluginNotFoundError`. The `characterId` is the guest's untrusted wire text, owner-scope-gated
+     *  at the persistence predicate and cast at compose. */
     readonly getCardData: (req: {
       readonly installerUserId: UserId;
       readonly slug: string;
-      // eslint-disable-next-line orb/brand-in-name-position -- the guest's untrusted wire string, owner-scope-gated at the persistence predicate, cast at compose — branding here would claim a validation this boundary has not performed.
-      readonly characterId: string;
+      readonly characterId: SandboxWireId<CharacterId>;
     }) => Promise<Record<string, unknown> | null>;
   };
   /** The `plugin_events` capability's EMIT op. Publish a private event on the

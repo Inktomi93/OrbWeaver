@@ -27,7 +27,6 @@ export type { GateContractCode, GateContractFinding, GateContractReport } from "
 export { GATE_CONTRACT_CODES } from "./contract/gate-contract.ts";
 export type { GateContractKind, GateCorpus, GatePolicyCorpus, GateRosterEntry, SelectedGateCorpus } from "./contract/gate-corpus.ts";
 export { GATE_CONTRACT_KINDS } from "./contract/gate-corpus.ts";
-export type { GateIgnoreMarker } from "./contract/gate-ignore-marker.ts";
 export type { CheckContext, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
 export type { InstrumentAffectedSelection } from "./contract/instrument-affected.ts";
@@ -117,7 +116,6 @@ export { readNativeCtCases } from "./lib/ct-listing.ts";
 export { balanceNativeFiles, requireNativeSelection } from "./lib/duration-shards.ts";
 export { aggregateExit, asViolations, eslintScheme, noVerdictStages, ownScheme, producedNoVerdict } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
-export { findGateIgnoreMarkersWithSpans, GATE_IGNORE_MENTION_SPAN_KINDS } from "./lib/gate-ignore.ts";
 export { getProject } from "./lib/harness.ts";
 export {
   appendHistory,
@@ -138,8 +136,9 @@ export { stripProbePolicyFindings } from "./lib/planted-fixtures.ts";
 export { parsePolicyCommand } from "./lib/policy-command.ts";
 export { loadPolicies, loadPolicyCorpus } from "./lib/policy-loader.ts";
 export { runPolicyPass } from "./lib/policy-pass.ts";
-export { planPolicyArgv, planPolicyCommand, policyPassExitCode } from "./lib/policy-plan.ts";
-export { executePolicyPlan } from "./lib/policy-plan-execute.ts";
+export { planPolicyCommand } from "./lib/policy-plan.ts";
+export { planPolicyArgv } from "./lib/policy-plan-argv.ts";
+export { executePolicyPlan, policyPassExitCode } from "./lib/policy-plan-execute.ts";
 export { resolvePolicyScope } from "./lib/policy-scope.ts";
 export { isPolicySourceCandidate, policySourceCandidates } from "./lib/policy-source-candidate.ts";
 export { planTypecheckPrograms } from "./lib/program-routing.ts";

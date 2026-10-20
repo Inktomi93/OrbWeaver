@@ -1,6 +1,8 @@
 // Signed-header verification uses the production graph's network owner, never an ambient transport.
 // @subject packages/server/src/entry/http/app.ts
 // @subject packages/server/src/infra/auth/jwks.ts
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import "@orb/testkit/node/composed-real.ts";
 import { authMeSchema } from "@orb/contracts/identity";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
@@ -33,7 +35,7 @@ function rootFor(execution: typeof fetch): Promise<ServerTestHarness> {
   });
 }
 
-function signedToken(issuer: Awaited<ReturnType<typeof createNativeIssuer>>, handle: string): Promise<string> {
+function signedToken(issuer: Awaited<ReturnType<typeof createNativeIssuer>>, handle: Handle): Promise<string> {
   // biome-ignore lint/style/useNamingConvention: preferred_username is the native signed issuer claim.
   return issuer.signedToken({ preferred_username: handle, sub: `subject-${handle}`, iss: ISSUER, aud: CLIENT_ID });
 }
@@ -44,7 +46,7 @@ function headers(jwt: string): Headers {
 
 test("actual signed-header verification uses the owning graph network execution", async () => {
   const issuer = await createNativeIssuer();
-  const jwt = await signedToken(issuer, "scoped-header-member");
+  const jwt = await signedToken(issuer, castId<Handle>("scoped-header-member"));
   const execution = vi.fn<typeof fetch>((input, init) => {
     const request = new Request(input, init);
     expect(request.url).toBe(KEY_URL);
@@ -73,8 +75,8 @@ test("actual graphs isolate same-URL signing keys and revoke held cached and lit
   const secondExecution = vi.fn<typeof fetch>((input, init) => secondIssuer.fetch(input, init));
   await using first = await rootFor(firstExecution);
   await using second = await rootFor(secondExecution);
-  const firstToken = await signedToken(firstIssuer, "first-graph");
-  const secondToken = await signedToken(secondIssuer, "second-graph");
+  const firstToken = await signedToken(firstIssuer, castId<Handle>("first-graph"));
+  const secondToken = await signedToken(secondIssuer, castId<Handle>("second-graph"));
   const firstKeys = await (await firstIssuer.fetch(KEY_URL)).text();
   const held = first.app.forwardJwtVerifier;
   const literal = { jwt: firstToken, metaJwks: firstKeys, allowlist: [KEY_HOST], issuer: ISSUER, audience: CLIENT_ID };
@@ -136,7 +138,7 @@ test("graph disposal cancels and physically joins a key retrieval held by native
     );
   await using root = await rootFor(execution);
   const pending = root.app.forwardJwtVerifier.verify({
-    jwt: await signedToken(issuer, "held-key-request"),
+    jwt: await signedToken(issuer, castId<Handle>("held-key-request")),
     metaJwks: KEY_URL,
     allowlist: [KEY_HOST],
     issuer: ISSUER,

@@ -34,7 +34,7 @@ function forwardHeaderRoot(policy: Partial<SessionsRolePolicyConfig> = {}): Prom
 
 async function login(
   root: ServerTestHarness,
-  as: { readonly handle: string; readonly subject: ExternalId; readonly groups?: string },
+  as: { readonly handle: Handle; readonly subject: ExternalId; readonly groups?: string },
 ): Promise<ReturnType<typeof authMeSchema.parse>> {
   const response = await root.http.request("/api/auth/me", {
     headers: { "x-authentik-username": as.handle, "x-authentik-uid": as.subject, "x-authentik-groups": as.groups ?? MEMBER_GROUP },
@@ -51,9 +51,9 @@ async function storedSubject(root: ServerTestHarness, where: SQL): Promise<(Exte
 test("an SSO login whose handle resolves to a row bound to another subject never rebinds it", async () => {
   await using root = await forwardHeaderRoot();
   const first = subject("identity-alice-first");
-  expect(await login(root, { handle: "identity-alice", subject: first })).toMatchObject({ authenticated: true, handle: "identity-alice" });
+  expect(await login(root, { handle: handle("identity-alice"), subject: first })).toMatchObject({ authenticated: true, handle: "identity-alice" });
   const impostor = subject("identity-alice-impostor");
-  expect(await login(root, { handle: "identity-alice", subject: impostor })).not.toMatchObject({ authenticated: true, handle: "identity-alice" });
+  expect(await login(root, { handle: handle("identity-alice"), subject: impostor })).not.toMatchObject({ authenticated: true, handle: "identity-alice" });
   expect(await storedSubject(root, eq(users.handle, handle("identity-alice")))).toEqual([first]);
   expect(await root.db.select({ id: users.id }).from(users).where(eq(users.externalId, impostor))).toEqual([]);
 });
@@ -95,11 +95,11 @@ test("concurrent owner-policy logins with different subjects adopt the unbound o
   await using root = await forwardHeaderRoot({ ["OWNER_GROUP"]: OWNER_GROUP });
   expect(await storedSubject(root, eq(users.id, root.ownerId))).toEqual([null]);
   const callers = [
-    { handle: "identity-owner-a", subject: subject("identity-owner-a"), groups: OWNER_GROUP },
-    { handle: "identity-owner-b", subject: subject("identity-owner-b"), groups: OWNER_GROUP },
+    { handle: handle("identity-owner-a"), subject: subject("identity-owner-a"), groups: OWNER_GROUP },
+    { handle: handle("identity-owner-b"), subject: subject("identity-owner-b"), groups: OWNER_GROUP },
   ];
   const identities = await Promise.all(callers.map((caller) => login(root, caller)));
-  const owners = callers.filter((_, index) => identities[index]?.authenticated === true && identities[index]?.role === "owner");
+  const owners = callers.filter((_, index) => identities[index]?.authenticated === true && identities[index].role === "owner");
   expect(owners).toHaveLength(1);
   expect(await storedSubject(root, eq(users.id, root.ownerId))).toEqual(owners.map(({ subject: bound }) => bound));
   expect(await root.db.select({ id: users.id }).from(users).where(eq(users.role, "owner"))).toEqual([{ id: root.ownerId }]);
@@ -108,13 +108,13 @@ test("concurrent owner-policy logins with different subjects adopt the unbound o
 test("an IdP rename stores the new handle's key, so a look-alike of the new handle cannot take it", async () => {
   await using root = await forwardHeaderRoot();
   const renamed = subject("identity-rename");
-  expect(await login(root, { handle: "identity-bob", subject: renamed })).toMatchObject({ authenticated: true, handle: "identity-bob" });
-  expect(await login(root, { handle: "Identity-Robert", subject: renamed })).toMatchObject({ authenticated: true, handle: "Identity-Robert" });
+  expect(await login(root, { handle: handle("identity-bob"), subject: renamed })).toMatchObject({ authenticated: true, handle: "identity-bob" });
+  expect(await login(root, { handle: handle("Identity-Robert"), subject: renamed })).toMatchObject({ authenticated: true, handle: "Identity-Robert" });
   expect(await root.db.select({ handle: users.handle, handleKey: users.handleKey }).from(users).where(eq(users.externalId, renamed))).toEqual([
     { handle: "Identity-Robert", handleKey: handleKey(handle("Identity-Robert")) },
   ]);
   const lookalike = subject("identity-robert-lookalike");
-  expect(await login(root, { handle: "IDENTITY-ROBERT", subject: lookalike })).not.toMatchObject({ authenticated: true, handle: "IDENTITY-ROBERT" });
+  expect(await login(root, { handle: handle("IDENTITY-ROBERT"), subject: lookalike })).not.toMatchObject({ authenticated: true, handle: "IDENTITY-ROBERT" });
   expect(
     await root.db
       .select({ id: users.id })

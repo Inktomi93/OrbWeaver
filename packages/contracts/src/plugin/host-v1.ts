@@ -8,7 +8,7 @@
 
 // ── Opaque handles (branded strings; minted host-side; forged values fail resolution) ──────────────────────
 
-import type { Branded } from "@orb/kit/ids";
+import type { AssetId, Branded, CharacterId, ChatId, DocumentId, MessageId, SandboxWireId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
 import type { MessageRole } from "@orb/kit/message-role";
 import type { EntryPosition } from "@orb/kit/world-info";
@@ -43,8 +43,7 @@ export interface PluginMessageView {
   readonly role: MessageRole;
   // @view-server-only: the PluginHostV1 membrane is the GUEST's surface — its reader is the plugin sandbox (infra/plugin-host), never packages/client. Ends if a host UI surface starts rendering guest message projections.
   readonly authorDisplayName: string;
-  // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-  readonly characterId: string | null;
+  readonly characterId: SandboxWireId<CharacterId> | null;
   readonly seq: number;
   readonly content: string;
 }
@@ -56,13 +55,9 @@ export interface PluginMessageView {
  *  is the invocation chat's present CHARACTER seats only, member-visible, D16-clamped by the same viewer verdict
  *  `listMessages` resolves. Human seats are excluded (this is the CHARACTER roster). */
 export interface PluginCharacterView {
-  // `id`/`avatarAssetId` are guest-wire DTO fields (inert text a guest may key off or pass to `assets.read`), but
-  // neither NAME is the lowerCamel of a kit brand (`characterId`/`assetId` are; these are not), so the
-  // brand-in-name gate does not flag them and no foreign-id exemption is owed (a marker on a non-brand position
-  // is itself stale-RED).
-  readonly id: string;
+  readonly id: SandboxWireId<CharacterId>;
   readonly name: string;
-  readonly avatarAssetId: string | null;
+  readonly avatarAssetId: SandboxWireId<AssetId> | null;
 }
 
 // @orb-waive no-vanity-alias(PluginVariableOp): baselined when the gate widened; burn-down item 906.
@@ -97,9 +92,7 @@ export interface PluginWorldEntryUpsert {
 /** A REDUCED world-book projection (`worldInfo.listBooks`, #788 F12). The room's own lore books — those ATTACHED
  *  to the invocation chat, member-visible. `id` is what the guest passes back to `worldInfo.listEntries`. */
 export interface PluginWorldBookView {
-  // `id` is a guest-wire DTO field (inert text the guest keys `listEntries` off); its name is not a kit brand
-  // lowerCamel (`worldBookId` is), so the brand-in-name gate does not flag it and no marker is owed.
-  readonly id: string;
+  readonly id: SandboxWireId<WorldBookId>;
   readonly name: string;
 }
 
@@ -107,9 +100,7 @@ export interface PluginWorldBookView {
  *  `PluginWorldEntryUpsert`: the keys + content of ONE entry in an attached book, for the lore-indexing class
  *  (the vectors extension consumes exactly these). Content is host-capped like `PluginMessageView.content`. */
 export interface PluginWorldEntryView {
-  // `id` is a guest-wire DTO field (inert text); its name is not a kit brand lowerCamel (`worldEntryId` is), so
-  // the brand-in-name gate does not flag it and no marker is owed.
-  readonly id: string;
+  readonly id: SandboxWireId<WorldEntryId>;
   readonly keys: readonly string[];
   readonly content: string;
   readonly enabled: boolean;
@@ -152,8 +143,7 @@ export const PLUGIN_SEARCH_RESULTS_MAX = 20;
  *  score. Chunk internals (chunkId/idx/contentHash) are withheld — a guest wants the text + provenance, not the
  *  index plumbing. */
 export interface PluginSearchHit {
-  // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — a host-resolved document id handed to the guest as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-  readonly documentId: string;
+  readonly documentId: SandboxWireId<DocumentId>;
   readonly documentName: string;
   readonly content: string;
   readonly score: number;
@@ -277,10 +267,7 @@ export interface PluginHostV1 {
      *  absent id is the leak-free `null` — indistinguishable, no existence oracle for another owner's CAS. An
      *  owned asset over {@link PLUGIN_ASSET_READ_MAX_BYTES} returns its metadata with `dataBase64: null` (never a
      *  truncated read). capability: assets.read */
-    read: (
-      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON, owner-scope-gated by the domain read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
-      assetId: string,
-    ) => Promise<PluginAssetView | null>;
+    read: (assetId: SandboxWireId<AssetId>) => Promise<PluginAssetView | null>;
   };
 
   readonly search: {
@@ -347,8 +334,7 @@ export interface PluginHostV1 {
       chat: ChatHandle,
       p: GenerateImageActionArgs,
     ) => Promise<{
-      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-      assetId: string;
+      assetId: SandboxWireId<AssetId>;
     }>;
   };
 
@@ -396,8 +382,7 @@ export interface PluginHostV1 {
      *  so a cross-owner write is not expressible. Deduped by content hash host-side (a re-ingest of the same
      *  text is idempotent). Returns the new (or deduped) document id — the guest's OWN new content. */
     ingest: (doc: { name: string; text: string }) => Promise<{
-      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — a host-minted id for the installer's own new document, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-      documentId: string;
+      documentId: SandboxWireId<DocumentId>;
     }>;
   };
 
@@ -415,8 +400,7 @@ export interface PluginHostV1 {
      *  card is a typed refusal of the CALL, never a partial write. Returns the new character id + whether it
      *  was freshly created (`false` = a byte-identical re-ingest deduped by importHash). */
     ingest: (card: Record<string, unknown>) => Promise<{
-      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-      characterId: string;
+      characterId: SandboxWireId<CharacterId>;
       created: boolean;
     }>;
     /** Ingest a character from a PNG ASSET the guest already has in the INSTALLER's OWN CAS (plugin-remote-image
@@ -434,12 +418,8 @@ export interface PluginHostV1 {
      *  characters to your library" agreed to this whether the card arrives as JSON or as a fetched PNG. Returns
      *  the new character id + whether it was freshly created (`false` = a byte-identical re-ingest, importHash
      *  dedup). */
-    ingestAsset: (
-      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON string naming an asset in the installer's OWN CAS, owner-scope-gated by the host read, never branded here. Ends if the bridge starts parsing to brands at the membrane.
-      assetId: string,
-    ) => Promise<{
-      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — a host-minted id for the installer's own new character, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-      characterId: string;
+    ingestAsset: (assetId: SandboxWireId<AssetId>) => Promise<{
+      characterId: SandboxWireId<CharacterId>;
       created: boolean;
     }>;
     /** Store this plugin's OWN per-card state on one of the INSTALLER's OWN characters (D148 — the ST
@@ -460,20 +440,13 @@ export interface PluginHostV1 {
      *  `create`/`update`. NO chat scope, NO host authority — the `storage.kv` posture: a write to the installer's
      *  OWN character is the installer's own reach, not room state, so gating it on `canWrite` would claim a
      *  protection it does not need. */
-    setCardData: (
-      // eslint-disable-next-line orb/brand-in-name-position -- the guest SANDBOX wire surface — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
-      characterId: string,
-      data: Record<string, unknown>,
-    ) => Promise<void>;
+    setCardData: (characterId: SandboxWireId<CharacterId>, data: Record<string, unknown>) => Promise<void>;
     /** Read back this plugin's OWN per-card state (`data.extensions.plugin_<slug>`) from one of the INSTALLER's
      *  OWN characters. capability: `character.card_state`. Same host-stamped-slug + owner-scope walls as
      *  {@link setCardData}: a foreign/absent character rejects leak-free, and a plugin reads only its own key —
      *  never another plugin's `plugin_<otherslug>` field. Returns the stored blob, or `null` when this plugin has
      *  written none on that (owned) character. */
-    getCardData: (
-      // eslint-disable-next-line orb/brand-in-name-position -- the guest SANDBOX wire surface — an untrusted guest's JSON string, owner-scope-gated by the persistence predicate, never branded here. Ends if the bridge starts parsing to brands at the membrane.
-      characterId: string,
-    ) => Promise<Record<string, unknown> | null>;
+    getCardData: (characterId: SandboxWireId<CharacterId>) => Promise<Record<string, unknown> | null>;
   };
 
   readonly events: {
@@ -535,8 +508,7 @@ export interface PluginHostV1 {
       apply: (input: {
         draft: string;
         env: {
-          // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-          chatId: string;
+          chatId: SandboxWireId<ChatId>;
           vars: Record<string, string>;
         };
       }) => Promise<PromptTransformOutcome>;
@@ -560,11 +532,9 @@ export interface PluginHostV1 {
       apply: (input: {
         text: string;
         env: {
-          // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-          chatId: string;
+          chatId: SandboxWireId<ChatId>;
 
-          // eslint-disable-next-line orb/brand-in-name-position -- same DTO, same reason — the row id crosses INTO the guest as inert text it may key off, and nothing on this side reads it back as one of ours. Ends if the bridge starts parsing to brands at the membrane.
-          messageId: string;
+          messageId: SandboxWireId<MessageId>;
         };
       }) => Promise<string>;
     }) => void;
@@ -620,8 +590,7 @@ export interface PluginHostV1 {
      *  bridge closes the installer over it — a guest names no owner), the `character.ingest`/`assets.read`
      *  ceiling: the installer's own storage, no paid credential. */
     fetchAsset: (url: string) => Promise<{
-      // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — a host-minted id for the installer's own new asset, handed back as inert text; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-      assetId: string;
+      assetId: SandboxWireId<AssetId>;
     }>;
   };
 

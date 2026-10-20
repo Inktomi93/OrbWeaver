@@ -1,4 +1,4 @@
-import type { GatePolicy } from "@orb/tooling/verify";
+import type { GatePolicy, PolicyCommandRequest, PolicyScopeResolution } from "@orb/tooling/verify";
 import { defineGate } from "@orb/tooling/verify";
 import { SyntaxKind } from "ts-morph";
 
@@ -28,4 +28,56 @@ export function policy(
     mustPass: [{ mode: proofMode, files, why: "nearest legal shape" }],
   } as const;
   return options.severity === "warning" ? defineGate({ ...base, severity: "warning", workItem: 1584 }) : defineGate({ ...base, severity: "error" });
+}
+
+/** The one compiler program every planner control resolves against. */
+export const PROGRAM = {
+  id: "tooling/tsconfig.json",
+  config: "tooling/tsconfig.json",
+  files: ["tooling/src/a.ts", "tooling/src/b.ts"],
+  references: [],
+  configPaths: ["tooling/tsconfig.json"],
+} as const;
+
+/** A resolved scope manifest over `currentPaths`, whole or file-scoped. */
+export function scope(currentPaths: readonly string[], kind: PolicyScopeResolution["kind"] = "whole"): PolicyScopeResolution {
+  const semanticPaths = currentPaths.map((path) => ({ path, status: "present" as const, previousPath: null }));
+  return {
+    request: kind === "whole" ? { kind: "whole" } : { kind: "file", paths: currentPaths },
+    kind,
+    label: kind,
+    requestedPaths: kind === "whole" ? null : semanticPaths,
+    currentPaths,
+    semanticPaths: kind === "whole" ? [] : semanticPaths,
+    programs: [PROGRAM],
+    requestedProgramIds: kind === "whole" ? [PROGRAM.id] : [PROGRAM.id],
+    ownership: semanticPaths.map((path) => ({ ...path, programIds: [PROGRAM.id], reason: "compiler-membership" as const })),
+    workspacePackage: null,
+    projectConfig: null,
+    inventory: {
+      source: "git",
+      trackedCommand: ["git", "ls-files", "-z"],
+      untrackedCommand: ["git", "ls-files", "--others", "-z"],
+      trackedCount: 2,
+      untrackedCount: 0,
+      authoredCount: 2,
+      mergeBase: null,
+    },
+  };
+}
+
+type RunRequest = Extract<PolicyCommandRequest, { readonly mode: "run" }>;
+
+/** A file-scoped run request with every flag at its default, overridable per control. */
+export function runRequest(overrides: Partial<RunRequest> = {}): RunRequest {
+  return {
+    mode: "run" as const,
+    tier: "changed" as const,
+    scope: { kind: "file" as const, paths: ["tooling/src/a.ts"] },
+    selector: { kind: "all" as const },
+    strictScope: false,
+    failOnWarnings: false,
+    json: true,
+    ...overrides,
+  };
 }

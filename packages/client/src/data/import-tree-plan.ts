@@ -16,6 +16,7 @@ import { admitTreeBatch, chatDirCardCandidates, isStSecretsFile, ST_SECRETS_FILE
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { slugifyHandle } from "@orb/kit/slug";
 import { relativePathOf } from "./import-tree.ts";
+import { UploadPacker } from "./import-tree-packer.ts";
 
 /** The served folder-import caps the plan packs against (`UploadCaps.importTree*`). */
 export interface TreeImportCaps {
@@ -127,92 +128,9 @@ function bundleKeyForChatDir(dirName: string, cardKeys: ReadonlySet<string>): st
   return chatDirCardCandidates(handle).find((c) => cardKeys.has(c)) ?? null;
 }
 
-/** Greedy packing of units (each a file list) under the caps, `always` riding in every upload. A unit that
- *  does not fit beside others starts a fresh upload; a unit over the cap on its own is split at file
- *  boundaries with its `repeat` files (a card, a group's definition and members) carried into each part. */
-class Packer {
-  readonly batches: File[][] = [];
-  private readonly caps: TreeImportCaps;
-  private readonly always: readonly PlannedFile[];
-  private readonly alwaysBytes: number;
-  private current: PlannedFile[] = [];
-  private currentBytes = 0;
-  private inCurrent = new Set<PlannedFile>();
-
-  constructor(caps: TreeImportCaps, always: readonly PlannedFile[]) {
-    this.caps = caps;
-    this.always = always;
-    this.alwaysBytes = always.reduce((n, f) => n + f.file.size, 0);
-  }
-
-  private fits(extraBytes: number, extraFiles: number): boolean {
-    return this.currentBytes + extraBytes <= this.caps.totalBytes && this.current.length + extraFiles <= this.caps.files;
-  }
-
-  private open(): void {
-    this.current = [...this.always];
-    this.inCurrent = new Set(this.always);
-    this.currentBytes = this.alwaysBytes;
-  }
-
-  private flush(): void {
-    if (this.current.length > this.always.length) {
-      this.batches.push(this.current.map((f) => f.file));
-    }
-    this.current = [];
-    this.inCurrent = new Set();
-    this.currentBytes = 0;
-  }
-
-  /** Append the files not already in this upload — a group's member card repeats a bundle's card. */
-  private push(files: readonly PlannedFile[]): void {
-    for (const f of files) {
-      if (!this.inCurrent.has(f)) {
-        this.inCurrent.add(f);
-        this.current.push(f);
-        this.currentBytes += f.file.size;
-      }
-    }
-  }
-
-  /** Add one unit; `repeat` is the part of it every split must carry. */
-  add(repeat: readonly PlannedFile[], rest: readonly PlannedFile[]): void {
-    const unit = [...repeat, ...rest];
-    const bytes = unit.reduce((n, f) => n + f.file.size, 0);
-    if (this.current.length === 0) {
-      this.open();
-    }
-    if (this.fits(bytes, unit.length)) {
-      this.push(unit);
-      return;
-    }
-    this.flush();
-    this.open();
-    if (this.fits(bytes, unit.length)) {
-      this.push(unit);
-      return;
-    }
-    // Over the cap on its own: split `rest` across uploads, each carrying `repeat`.
-    this.push(repeat);
-    for (const file of rest) {
-      if (!this.fits(file.file.size, 1)) {
-        this.flush();
-        this.open();
-        this.push(repeat);
-      }
-      this.push([file]);
-    }
-  }
-
-  finish(): File[][] {
-    this.flush();
-    return this.batches;
-  }
-}
-
 /** A greedy split in the given order; an over-cap file joins `skipped`. */
 function packGeneric(planned: readonly PlannedFile[], caps: TreeImportCaps, skipped: SkippedTreeFile[]): Omit<TreeImportPlan, "layout"> {
-  const packer = new Packer(caps, []);
+  const packer = new UploadPacker<PlannedFile>(caps, []);
   let files = 0;
   let bytes = 0;
   for (const f of planned) {
@@ -412,7 +330,7 @@ export async function planTreeImport(
   const { groups, unclaimedGroupChats } = await groupUnits(classified, readText);
 
   const always = classified.shared;
-  const packer = new Packer(caps, always);
+  const packer = new UploadPacker(caps, always);
   const counted = new Set<PlannedFile>(always);
 
   // Base plane first: presets, themes, backgrounds, orphan chats, unclaimed group chats.

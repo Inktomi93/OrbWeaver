@@ -3,6 +3,8 @@
 // @subject packages/server/src/domain/refinery/verbs/score-sweep.ts
 // @subject packages/server/src/domain/refinery/workload-contributions.ts
 // @subject packages/server/src/entry/compose/refinery.ts
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import "@orb/testkit/node/composed-real.ts";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
@@ -31,7 +33,7 @@ async function fund(root: ServerTestHarness, principal: Principal): Promise<void
 async function card(
   root: ServerTestHarness,
   principal: Principal,
-  handle: string,
+  handle: CharacterHandle,
   fields: Partial<Omit<Parameters<ServerTestHarness["services"]["character"]["create"]>[0]["input"], "handle" | "name">> = {},
 ): ReturnType<ServerTestHarness["services"]["character"]["create"]> {
   return await root.services.character.create({ principal, input: createCharacterSchema.parse({ description: "", ...fields, handle, name: handle }) });
@@ -54,16 +56,22 @@ test("admitted singular and bulk estimates exactly match FILL/refresh execution 
   const member = await root.principalFor((await root.actor()).id);
   await fund(root, owner);
   await fund(root, member);
-  const scored = await card(root, member, "previously-scored", { description: "A previously scored private member paragraph." });
+  const scored = await card(root, member, castId<CharacterHandle>("previously-scored"), { description: "A previously scored private member paragraph." });
   await root.settleBackground();
   const warm = await root.services.workloads.start({ caller: member, ownerId: null, mode: "singular", input: FILL });
   await executeAdmitted(root, warm.id);
   expect(await root.services.workloads.get({ caller: member, id: warm.id })).toMatchObject({ status: "succeeded", result: { scanned: 1, scored: 1 } });
-  const own = await card(root, owner, "owner-description", { description: "Only the owner reads this private description in a singular pass." });
-  const depth = await card(root, owner, "owner-depth", { depthPrompt: { prompt: "A populated depth note alone is refinable.", depth: 4, role: "system" } });
-  await card(root, owner, "owner-name-only");
-  const greeting = await card(root, member, "member-greeting", { greetings: [{ text: "The member's private greeting is refinable without a description." }] });
-  await card(root, member, "member-name-only");
+  const own = await card(root, owner, castId<CharacterHandle>("owner-description"), {
+    description: "Only the owner reads this private description in a singular pass.",
+  });
+  const depth = await card(root, owner, castId<CharacterHandle>("owner-depth"), {
+    depthPrompt: { prompt: "A populated depth note alone is refinable.", depth: 4, role: "system" },
+  });
+  await card(root, owner, castId<CharacterHandle>("owner-name-only"));
+  const greeting = await card(root, member, castId<CharacterHandle>("member-greeting"), {
+    greetings: [{ text: "The member's private greeting is refinable without a description." }],
+  });
+  await card(root, member, castId<CharacterHandle>("member-name-only"));
   const room = await root.services.chat.startChat({ principal: owner, characterIds: [own.id], opening: "none" });
   const group = await root.services.character.mintSyntheticGroupCharacter({ ownerId: owner.userId, chatId: room.chat.id });
   const synthetic = await root.db.select().from(characters).where(eq(characters.id, group.characterId)).get();

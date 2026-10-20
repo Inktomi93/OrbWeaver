@@ -70,7 +70,7 @@ async function holdPhysicalExit(enabled) {
 }
 
 async function run() {
-  const { sessionId, frameId, lines } = await readSdkProcessInput();
+  const { sdkSessionId: sessionId, frameId, lines } = await readSdkProcessInput();
   const resume = process.argv.find((argument) => argument.startsWith("--resume="))?.slice("--resume=".length) ?? null;
   // biome-ignore lint/style/noProcessEnv: the physical CLI consumes the SDK-prepared protocol environment, not application configuration.
   const config = process.env.CLAUDE_CONFIG_DIR;

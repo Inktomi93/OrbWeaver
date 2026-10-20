@@ -38,7 +38,9 @@ const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..", "..");
 // guest JS, the same bytes `packShowcaseBundle` serves to the per-user seeder.
 beforeAll(async () => {
   const built = await writeShowcaseArtifacts(REPO_ROOT);
-  expect(built.diagnostics).toEqual([]);
+  if (built.diagnostics.length > 0) {
+    throw new Error(`the showcase artifacts did not build: ${JSON.stringify(built.diagnostics)}`);
+  }
 });
 
 let hostResources = new AsyncDisposableStack();

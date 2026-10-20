@@ -7,7 +7,7 @@ import { ModuleKind, ModuleResolutionKind, Project } from "ts-morph";
 import { gate as schemaBranding } from "../../../../tooling/src/verify/gates/schema-branding.ts";
 import { gate as artifactSlot } from "../../../../tooling/src/verify/gates/tooling-artifact-run-slot.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
-import { policyPassExitCode } from "../../../../tooling/src/verify/lib/policy-plan.ts";
+import { policyPassExitCode } from "../../../../tooling/src/verify/lib/policy-plan-execute.ts";
 import { isolatedTypeFacts } from "../../../../tooling/src/verify/ops/policy-conformance.ts";
 import { policy } from "./_policy-plan-fixture.ts";
 

@@ -21,7 +21,7 @@ import { nativeFabricationPlugin } from "./_fixtures/native-fabrication-candidat
 const SUBJECT = "packages/server/src/domain/chat/contract/fixture.ts";
 const BRAND_RULE = "orb/brand-in-name-position";
 const BRAND_SOURCE =
-  'declare const brand:unique symbol;export type Branded<P extends string>=string & {readonly [brand]:P};export type ChatId=Branded<"chat">;';
+  'declare const brand:unique symbol;export type Branded<P extends string>=string & {readonly [brand]:P};export type ChatId=Branded<"chat">;export type SandboxWireId<Id extends Branded<string>>=Id extends string?string:never;';
 
 const MAINTAINED_TEST_PATHS = [
   "tests/client/compose/_mount-stories.tsx",

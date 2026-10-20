@@ -105,7 +105,9 @@ export function createTrpcClient(baseUrl: string, headers: Readonly<Record<strin
         fetch: async (url, init) => {
           const response = await fetch(url, init === undefined ? undefined : { ...init, signal: init.signal ?? null });
           if (!response.ok) {
-            throw new Error(`e2e trpc: ${String(url)} ${init?.method ?? "GET"} failed (${String(response.status)}): ${await response.text()}`);
+            throw new Error(
+              `e2e trpc: ${url instanceof Request ? url.url : String(url)} ${init?.method ?? "GET"} failed (${String(response.status)}): ${await response.text()}`,
+            );
           }
           return response;
         },

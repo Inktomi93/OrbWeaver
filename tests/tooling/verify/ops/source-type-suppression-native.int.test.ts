@@ -89,13 +89,19 @@ test("tests negative expectations stay outside the mandatory source rule", async
 });
 
 test("the real scoped CLI cannot disable the mandatory source rule", { tags: ["slow"] }, async ({ plantedTree, repoRoot, runCli }) => {
+  // The counterfactual isolates the real mandatory rule, not unrelated typed-policy populations.
   const root = await plantedTree({
-    "package.json": '{"type":"module","private":true}',
+    ".gitignore": "node_modules\n.cache\nreports\n",
+    "package.json": '{"name":"native-metadata-fixture","type":"module","private":true}',
+    "pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+    "packages/server/package.json": '{"name":"@orb/server","type":"module","private":true}',
     "eslint.config.js": `import {hardConfig} from ${JSON.stringify(pathToFileURL(join(repoRoot, "eslint.config.js")).href)};export default hardConfig.map(row=>({...row,rules:{},linterOptions:{noInlineConfig:false,reportUnusedDisableDirectives:"off"}}));`,
-    "eslint-hard.config.js": `import {hardConfig} from ${JSON.stringify(pathToFileURL(join(repoRoot, "eslint.config.js")).href)};export default [...hardConfig];`,
+    "eslint-hard.config.js": `import {hardConfig} from ${JSON.stringify(pathToFileURL(join(repoRoot, "eslint.config.js")).href)};export default hardConfig.map(row=>({...row,rules:Object.fromEntries(Object.entries(row.rules??{}).filter(([rule])=>rule===${JSON.stringify(SOURCE_TYPE_SUPPRESSION_RULE)}))}));`,
     "scripts/eslint.ts": `await import(${JSON.stringify(pathToFileURL(join(repoRoot, "scripts/eslint.ts")).href)});`,
     [USER_BUS]: `/* eslint-disable ${SOURCE_TYPE_SUPPRESSION_RULE} -- Attempted hard bypass. */\n${SOURCE}`,
   });
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "."]);
   const result = await runCli("verify", ["eslint-scoped", USER_BUS], { cwd: root });
   await expect(result).toExitWith(1);
   expect(result.stdout).toContain(SOURCE_TYPE_SUPPRESSION_RULE);
@@ -150,12 +156,16 @@ test("changed source and metadata reach mandatory lint without adding tests to t
 });
 
 test("metadata-only scoped CLI changes rejudge the real source rule without a typed program", { tags: ["slow"] }, async ({ plantedTree, repoRoot, runCli }) => {
+  // Metadata rejudgment must retain the syntax rule without borrowing a compiler Program.
   const ordinary = `import {hardConfig} from ${JSON.stringify(pathToFileURL(join(repoRoot, "eslint.config.js")).href)};export default hardConfig.map(row=>({...row,rules:{},linterOptions:{noInlineConfig:false,reportUnusedDisableDirectives:"off"}}));`;
   const root = await plantedTree({
+    ".gitignore": "node_modules\n.cache\nreports\n",
     ...Object.fromEntries(SOURCE_TYPE_SUPPRESSION_NATIVE_INPUT_PATHS.map((path) => [path, ""])),
-    "package.json": '{"type":"module","private":true}',
+    "package.json": '{"name":"native-metadata-fixture","type":"module","private":true}',
+    "pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+    "packages/server/package.json": '{"name":"@orb/server","type":"module","private":true}',
     "eslint.config.js": ordinary,
-    "eslint-hard.config.js": `import {hardConfig} from ${JSON.stringify(pathToFileURL(join(repoRoot, "eslint.config.js")).href)};export default [...hardConfig];`,
+    "eslint-hard.config.js": `import {hardConfig} from ${JSON.stringify(pathToFileURL(join(repoRoot, "eslint.config.js")).href)};export default hardConfig.map(row=>({...row,rules:Object.fromEntries(Object.entries(row.rules??{}).filter(([rule])=>rule===${JSON.stringify(SOURCE_TYPE_SUPPRESSION_RULE)}))}));`,
     "scripts/eslint.ts": `await import(${JSON.stringify(pathToFileURL(join(repoRoot, "scripts/eslint.ts")).href)});`,
     "root-probe.ts": "export {};",
     "packages/ui/native-probe.ts": "export {};",
@@ -165,6 +175,8 @@ test("metadata-only scoped CLI changes rejudge the real source rule without a ty
     "tooling/src/verify/lib/source-type-suppression-native.ts": "export const metadata=true;",
     [USER_BUS]: SOURCE,
   });
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "."]);
   const result = await runCli("verify", ["eslint-scoped", "tooling/src/verify/lib/source-type-suppression-native.ts"], { cwd: root });
   expect(result.code, result.stdout + result.stderr).toBe(1);
   await expect(result).toExitWith(1);

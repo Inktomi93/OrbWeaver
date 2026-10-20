@@ -51,7 +51,7 @@ export async function makeResolvedSecret(
 }
 
 /** Persist and resolve an API key through its real owner; never manufacture execution evidence. */
-export async function makeApiKeySecret(
+export async function seedApiKeySecret(
   db: Db,
   credentials: Pick<CredentialsService, "add" | "resolve">,
   params: Omit<Parameters<CredentialsService["add"]>[0], "metadata">,

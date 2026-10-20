@@ -144,18 +144,20 @@ test(
   scaledBudget(120_000),
 );
 
-test(
-  "contextual module demand captures non-authored imports, keeps prospective closure refusals and refuses missing available rows",
-  ({ scratch }) => {
+test.for(["bridge.ts", "node_modules/fixture/bridge.ts"])(
+  "contextual module demand captures closure imports in %s, keeps prospective closure refusals and refuses missing available rows",
+  { timeout: scaledBudget(30_000) },
+  (bridgePath, { scratch }) => {
     const write = (file: string, text: string): void => {
       mkdirSync(dirname(join(scratch, file)), { recursive: true });
       writeFileSync(join(scratch, file), text);
     };
     write(".gitignore", ".cache\nnode_modules\n");
     write("tsconfig.json", JSON.stringify({ compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" }, files: ["root.ts"] }));
-    write("root.ts", 'import "./node_modules/fixture/bridge.ts";export const root=1;');
-    write("node_modules/fixture/bridge.ts", 'import "./leaf.ts";import "./missing.ts";');
-    write("node_modules/fixture/leaf.ts", "export const leaf=1;");
+    write("root.ts", `import "./${bridgePath}";export const root=1;`);
+    write(bridgePath, 'import "./leaf.ts";import "./missing.ts";');
+    const leafPath = join(scratch, dirname(bridgePath), "leaf.ts");
+    writeFileSync(leafPath, "export const leaf=1;");
     write("outside.ts", 'import "./outside-target.ts";');
     execFixtureGit(scratch, ["init", "-q"]);
     const workspace = createSemanticWorkspace({ root: scratch });
@@ -179,7 +181,7 @@ test(
       using inventory = nativeInventoryFixture({ root: scratch, families: ["modules"], programs: [program.descriptor], moduleTargetQueries: queries });
       generation = inventory.generation;
       expect(generation).toBeGreaterThan(baselineGeneration);
-      expect(inventory.moduleTarget(door, program.descriptor.id, importer)?.getFilePath()).toBe(join(scratch, "node_modules/fixture/leaf.ts"));
+      expect(inventory.moduleTarget(door, program.descriptor.id, importer)?.getFilePath()).toBe(leafPath);
       expect(inventory.moduleTarget(absent, program.descriptor.id, importer)).toBeUndefined();
       expect(() => inventory.moduleTarget(unavailable, program.descriptor.id, importer)).toThrow("outside its importing closure");
       expect(() => inventory.moduleTarget(door, program.descriptor.id, outside)).toThrow("not admitted");
@@ -192,14 +194,13 @@ test(
       moduleTargetQueries: queries,
       dispose: () => undefined,
     });
-    expect(borrowed.moduleTarget(door, program.descriptor.id, importer)?.getFilePath()).toBe(join(scratch, "node_modules/fixture/leaf.ts"));
+    expect(borrowed.moduleTarget(door, program.descriptor.id, importer)?.getFilePath()).toBe(leafPath);
     db.prepare("DELETE FROM inventory_declaration WHERE kind='modules'").run();
     db.prepare("DELETE FROM inventory_fact WHERE kind='modules'").run();
     expect(() => borrowed.moduleTarget(door, program.descriptor.id, importer)).toThrow("coverage is unavailable");
     borrowed[Symbol.dispose]();
     expect(() => borrowed.moduleTarget(door, program.descriptor.id, importer)).toThrow("disposed");
   },
-  scaledBudget(30_000),
 );
 
 test("contextual module registration binds exact importer identities and same-text epochs before acquisition", () => {

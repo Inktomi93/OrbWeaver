@@ -4,7 +4,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { buildConnector } from "undici";
 import { vi } from "vitest";
 
-const raw = vi.hoisted(() => ({ reached: new Error("controlled raw dial reached"), calls: [] as string[] }));
+const raw = vi.hoisted((): { reached: Error; calls: string[] } => ({ reached: new Error("controlled raw dial reached"), calls: [] }));
 
 // Only the physical connector is scripted. The production lookup callback makes the actual address judgment.
 vi.mock("undici", async (importOriginal) => {

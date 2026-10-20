@@ -29,6 +29,7 @@
 // Every act here maps onto an existing `confirmFirst` automation arm, so the host-facing question a plugin
 // raises is one the product already knows how to ask.
 
+import type { CharacterId, SandboxWireId } from "@orb/kit/ids";
 import type { GenerateImageActionArgs } from "#imagery";
 import type { PluginWorldEntryUpsert } from "./host-v1.ts";
 
@@ -48,11 +49,8 @@ export type PluginSuggestedAct =
        *  (invocation depth + 1). Frozen at ASK time, not re-derived at confirm: the confirmed act must be the
        *  act the host was shown, and the loop-prevention ceiling must not be re-based by the delay. */
       readonly automationDepth: number;
-      /** The guest's speaker hint, unbranded like every other plugin SANDBOX wire field — an untrusted guest's
-       *  JSON, branded only after the host parses it. It carries NO foreign-id exemption marker on purpose:
-       *  `brand-in-name-position` does not flag an OPTIONAL bare-string position, and a marker that exempts
-       *  nothing is a stale lie the next bare-string id written here would silently inherit. */
-      readonly speakerCharacterId?: string;
+      /** The guest's speaker hint: untrusted guest text, branded only after the host parses it. */
+      readonly speakerCharacterId?: SandboxWireId<CharacterId>;
       readonly guided?: string;
     }
   | { readonly kind: "worldInfoUpsert"; readonly entry: PluginWorldEntryUpsert }

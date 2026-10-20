@@ -24,7 +24,7 @@ interface JoinerScenario {
 
 /** A real room, a share invite and a fresh local account whose signed-in browser has not yet opened the invite link. */
 async function withInvitedJoiner(
-  { browser, baseURL, info, handle }: { readonly browser: Browser; readonly baseURL: string; readonly info: TestInfo; readonly handle: string },
+  { browser, baseURL, info, handle }: { readonly browser: Browser; readonly baseURL: string; readonly info: TestInfo; readonly handle: Handle },
   run: (scenario: JoinerScenario) => Promise<void>,
 ): Promise<void> {
   const wire = SELECTED_LOCAL_CORPUS_FIXTURE?.wire;
@@ -38,7 +38,7 @@ async function withInvitedJoiner(
   const host = await loginLocal(baseURL, viewerViewSchema.parse(owner).handle, ownerPassword);
   const started = await host.trpc.chat.startChat.mutate({ characterIds: [characterId] });
   const invite = await host.trpc.invites.createInvite.mutate({ chatId: started.chat.id, input: {} });
-  const account = { handle: castId<Handle>(handle), password: randomBytes(PASSWORD_BYTES).toString("hex") };
+  const account = { handle, password: randomBytes(PASSWORD_BYTES).toString("hex") };
   await host.trpc.admin.createUser.mutate(account);
   const joiner = await loginLocal(baseURL, account.handle, account.password);
   const context = await browser.newContext({ ...devices[project.device], baseURL, locale: "en-US", timezoneId: "UTC" });
@@ -60,7 +60,7 @@ test.describe("committed corpus joiner", () => {
     { tag: "@smoke" },
     async ({ browser, baseURL }, info) => {
       // The local stack's database is shared by every cell of a run, so each project mints its own joiner.
-      const handle = `joiner-${info.project.name.replace("corpus-local-", "")}`;
+      const handle = castId<Handle>(`joiner-${info.project.name.replace("corpus-local-", "")}`);
       await withInvitedJoiner({ browser, baseURL: baseURL ?? "", info, handle }, async ({ joiner, page, joinPath }) => {
         const persona = await joiner.trpc.persona.create.mutate({ input: { name: PERSONA_NAME, description: "A joiner who already speaks." } });
         await joiner.trpc.settings.updateUserSettingsSection.mutate({
@@ -76,27 +76,30 @@ test.describe("committed corpus joiner", () => {
 
   test("a joiner with no persona names one in the first-run ask before the join dialog opens", { tag: "@smoke" }, async ({ browser, baseURL }, info) => {
     // This handle is the one the harness stack leaves out of its persona auto-create (E2E_FIRST_RUN_ASK_HANDLES).
-    await withInvitedJoiner({ browser, baseURL: baseURL ?? "", info, handle: firstRunAskHandle(info.project.name) }, async ({ joiner, page, joinPath }) => {
-      expect(await joiner.trpc.persona.list.query()).toEqual([]);
-      let previews = 0;
-      page.on("request", (request) => {
-        previews += request.url().includes("/api/trpc/invites.previewInvite") ? 1 : 0;
-      });
-      await page.goto(joinPath);
-      const gate = page.getByTestId(testId("firstRunPersonaDialog"));
-      const join = page.getByTestId(testId("joinInviteDialog"));
-      // The gate renders only once both of its reads settled, so its presence is the barrier for the join's absence.
-      await expect(gate).toBeVisible({ timeout: WAIT_SETTLE_MS });
-      await expect(join).toHaveCount(0);
-      expect(previews).toBe(0);
+    await withInvitedJoiner(
+      { browser, baseURL: baseURL ?? "", info, handle: castId<Handle>(firstRunAskHandle(info.project.name)) },
+      async ({ joiner, page, joinPath }) => {
+        expect(await joiner.trpc.persona.list.query()).toEqual([]);
+        let previews = 0;
+        page.on("request", (request) => {
+          previews += request.url().includes("/api/trpc/invites.previewInvite") ? 1 : 0;
+        });
+        await page.goto(joinPath);
+        const gate = page.getByTestId(testId("firstRunPersonaDialog"));
+        const join = page.getByTestId(testId("joinInviteDialog"));
+        // The gate renders only once both of its reads settled, so its presence is the barrier for the join's absence.
+        await expect(gate).toBeVisible({ timeout: WAIT_SETTLE_MS });
+        await expect(join).toHaveCount(0);
+        expect(previews).toBe(0);
 
-      await page.getByTestId(testId("firstRunPersonaName")).fill(PERSONA_NAME);
-      await page.getByTestId(testId("firstRunPersonaCreate")).click();
+        await page.getByTestId(testId("firstRunPersonaName")).fill(PERSONA_NAME);
+        await page.getByTestId(testId("firstRunPersonaCreate")).click();
 
-      await expect(gate).toHaveCount(0);
-      await expect(join).toBeVisible();
-      await expect(join.getByTestId(testId("joinInviteConfirm"))).toBeVisible();
-      expect((await joiner.trpc.persona.list.query()).map((persona) => persona.name)).toEqual([PERSONA_NAME]);
-    });
+        await expect(gate).toHaveCount(0);
+        await expect(join).toBeVisible();
+        await expect(join.getByTestId(testId("joinInviteConfirm"))).toBeVisible();
+        expect((await joiner.trpc.persona.list.query()).map((persona) => persona.name)).toEqual([PERSONA_NAME]);
+      },
+    );
   });
 });

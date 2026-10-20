@@ -69,7 +69,7 @@ function playwrightSelectors(source: string, config: typeof e2eConfig): readonly
     if (owner.testDir !== undefined) {
       rows.push({ source, field: "testDir", value: owner.testDir });
     }
-    if ("globalSetup" in owner && owner.globalSetup !== undefined && owner.globalSetup !== null) {
+    if ("globalSetup" in owner) {
       for (const value of [owner.globalSetup].flat()) {
         rows.push({ source, field: "globalSetup", value });
       }

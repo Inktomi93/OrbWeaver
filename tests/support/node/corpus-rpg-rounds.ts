@@ -1,5 +1,8 @@
 // Physical unwinding and native timer observation expose the real post-commit cancellation/barrier lifecycle.
+
 import { createCharacterSchema } from "@orb/contracts/character";
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import type { createRpgFlightTimers, createRpgFlightWire } from "./corpus-rpg-flight-wire.ts";
@@ -47,7 +50,7 @@ interface CorpusRpgRounds {
   readonly foreignStop: ForeignStopRound;
 }
 
-async function roundRoom(root: ServerTestHarness, memberUserId: ServerTestHarness["ownerId"], handle: string): Promise<NativeRoundRoom> {
+async function roundRoom(root: ServerTestHarness, memberUserId: ServerTestHarness["ownerId"], handle: CharacterHandle): Promise<NativeRoundRoom> {
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);
   const member = await root.principalFor(memberUserId);
@@ -70,7 +73,7 @@ async function cancelRound(
   timers: FlightTimers,
   memberUserId: ServerTestHarness["ownerId"],
 ): Promise<CancelledRound> {
-  const source = await roundRoom(root, memberUserId, "corpus-rpg-cancelled");
+  const source = await roundRoom(root, memberUserId, castId<CharacterHandle>("corpus-rpg-cancelled"));
   const principal = await root.principalFor(root.ownerId);
   const chatId = source.room.chat.id;
   const trace = root.app.rpgTrace;
@@ -123,7 +126,7 @@ async function cancelRound(
 }
 
 async function foreignStopRound(root: ServerTestHarness, wire: FlightWire, memberUserId: ServerTestHarness["ownerId"]): Promise<ForeignStopRound> {
-  const source = await roundRoom(root, memberUserId, "corpus-rpg-foreign-stop");
+  const source = await roundRoom(root, memberUserId, castId<CharacterHandle>("corpus-rpg-foreign-stop"));
   const principal = await root.principalFor(root.ownerId);
   const member = await root.principalFor(memberUserId);
   const caller = await root.internalCallerFor(root.ownerId);

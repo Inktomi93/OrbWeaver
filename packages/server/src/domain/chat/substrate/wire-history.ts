@@ -102,7 +102,7 @@ function ridesAsModelMedia(span: { readonly ref: ContentImageRef }, row: WireRow
 
 /** THE §6.7 EXFIL FENCE'S ONE INPUT: for each canon slot, the asset ids whose `message_assets` link is
  *  stamped `inline-reply` — pictures the model emitted inside that slot's own generation. Loaded per chat by
- *  `persistence/queries.loadInlineReplyAssetIds` (the tenancy belt is its `messages` join) and handed in,
+ *  `persistence/message-asset-links.loadInlineReplyAssetIds` (the tenancy belt is its `messages` join) and handed in,
  *  because this module holds no db handle. EMPTY is the safe value: no asset rides off an assistant row. */
 type InlineReplyAssets = ReadonlyMap<MessageId, ReadonlySet<AssetId>>;
 
@@ -689,7 +689,7 @@ export async function buildWireHistory(
      *  assistant-delivered row actually carries an `asset:` span. A history with no model-emitted picture
      *  (every history today, and every history on a text-only model forever) performs NO read, the same
      *  posture the §8.8 carry takes. Both callers close it over their own chat id; the query is the ONE home
-     *  (`persistence/queries.loadInlineReplyAssetIds`) so the fence cannot be re-derived differently on the
+     *  (`persistence/message-asset-links.loadInlineReplyAssetIds`) so the fence cannot be re-derived differently on the
      *  turn path and the preview path. */
     readonly loadInlineReplyAssetIds: () => Promise<InlineReplyAssets>;
   },

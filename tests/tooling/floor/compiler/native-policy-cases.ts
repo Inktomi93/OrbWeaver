@@ -124,7 +124,11 @@ async function run(mode: string, root: string): Promise<object> {
       return {
         errors: result.toolErrors,
         policies: result.policies.map(({ owner, findings }) => [owner.status, findings.length]),
-        rows: result.policies.map(({ id, findings, receipts }) => ({ id, tokens: findings.map(({ token }) => token).toSorted(), receipts })),
+        rows: result.policies.map(({ id, findings, receipts }) => ({
+          id,
+          tokens: findings.map(({ token }) => token).toSorted((left, right) => String(left).localeCompare(String(right))),
+          receipts,
+        })),
         workers: requests.length - before,
         findings: result.policies.flatMap(({ findings }) => findings.map(({ file, token, message }) => ({ file, token, message }))),
         effective: result.authority.effectiveFindings.map(({ file, token }) => [file, token]),

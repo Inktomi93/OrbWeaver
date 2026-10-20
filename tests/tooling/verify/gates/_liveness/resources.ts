@@ -16,7 +16,6 @@
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as cssFamilyOwnershipHealth } from "../../../../../tooling/src/verify/gates/css-family-ownership-health.ts";
 import { gate as cssSelectorHasAWriterHealth } from "../../../../../tooling/src/verify/gates/css-selector-has-a-writer-health.ts";
-import { gate as noFormStateInUseeffect } from "../../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
 import { gate as overArtPlateArm } from "../../../../../tooling/src/verify/gates/over-art-plate-arm.ts";
 import { gate as suppressions } from "../../../../../tooling/src/verify/gates/suppressions.ts";
 import { gate as testLayout } from "../../../../../tooling/src/verify/gates/test-layout.ts";
@@ -55,17 +54,6 @@ export const RESOURCE_ARMS: readonly RealCorpusLivenessArm[] = [
       ...PRODUCT_SHEETS.slice(1).map((path) => source(path, ":root {\n  --liveness-probe: 0;\n}\n")),
     ],
     messageIncludes: "learned ZERO authored hooks",
-  },
-  {
-    policy: noFormStateInUseeffect,
-    overlays: [
-      {
-        kind: "add",
-        path: "packages/client/src/features/chat/components/liveness-form-effect.tsx",
-        source: 'export const formDependencyKey = "store"; useEffect(() => {}, [form[formDependencyKey]]);\n',
-      },
-    ],
-    messageIncludes: "computed form dependency",
   },
   {
     policy: overArtPlateArm,

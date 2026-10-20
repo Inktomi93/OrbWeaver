@@ -42,7 +42,7 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "orb/brand-in-name-position",
     operation: "source",
-    why: "RULING — plugin sandbox DTOs, origin-wide channel payloads and portable chat-bundle fields carry unvalidated wire identifiers. Applying host brands before parsing would claim validation these boundaries have not performed. Only the actual raw-wire declarations and their boundary adapters receive adjacent permissions.",
+    why: "RULING — origin-wide channel payloads and portable chat-bundle fields carry unvalidated wire identifiers, and plugin lifecycle errors echo the caller's own plugin id as operator text. Applying host brands there would claim validation these boundaries have not performed. Plugin sandbox ids need no permission: they are typed SandboxWireId<Brand>.",
     endsWhen: "these boundaries parse their identifiers to canonical host brands, the raw-wire fields disappear, or the final directive is removed.",
   },
   {
@@ -50,9 +50,8 @@ export const REVIEWED_GRANTS_SUPPRESSIONS_B: readonly ReviewedGateGrant[] = [
     policyId: "suppressions",
     subject: "orb/brand-in-name-position",
     operation: "tests",
-    why: "RULING — the guest-host fixture preserves the actual unvalidated plugin wire; the tRPC type pin deliberately accepts a bare string; the hook fixture carries Claude Code's external session identifier rather than an Orbweaver SessionId. Branding these fields would change the subjects being proved.",
-    endsWhen:
-      "the actual wire gains validated brands, tRPC natively brands its input, the external hook identity stops being carried, or the final directive is removed.",
+    why: "RULING — the tRPC type pin deliberately accepts a bare string; the hook fixture carries Claude Code's external session identifier rather than an Orbweaver SessionId. Branding these fields would change the subjects being proved.",
+    endsWhen: "tRPC natively brands its input, the external hook identity stops being carried, or the final directive is removed.",
   },
   {
     id: "suppressions:source-orb-client-cache-surgery-only-in-data",

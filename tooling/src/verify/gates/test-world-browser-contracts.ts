@@ -7,7 +7,7 @@
 // the unreadable-origin refusal is preserved verbatim (an unreadable relevant import still throws a tool
 // error rather than silently passing).
 //
-// FAMILY DECISION: singleton. `verify/lib/browser-contract-reader.ts` has exactly one consumer — this
+// FAMILY DECISION: singleton. `verify/lib/browser-contract-reader.ts` and `-nomination.ts` have one consumer — this
 // policy — so there is no sibling to share a family with (design doc: "not that their filenames share a
 // prefix or their prose mentions the same topic").
 //
@@ -40,14 +40,9 @@
 import { Node, SyntaxKind } from "ts-morph";
 import type { BrowserContractRead } from "../contract/browser-mount-native.ts";
 import { defineGate } from "../contract/policy.ts";
+import { isConsumedReference, isPotentialModuleReference } from "../lib/browser-contract-nomination.ts";
 import type { BrowserContractIssue } from "../lib/browser-contract-reader.ts";
-import {
-  browserContractIssue,
-  directBaseUiDoor,
-  isConsumedReference,
-  isNodeTestContractRoot,
-  isPotentialModuleReference,
-} from "../lib/browser-contract-reader.ts";
+import { browserContractIssue, directBaseUiDoor, isNodeTestContractRoot } from "../lib/browser-contract-reader.ts";
 import { nativeBrowserContractRead } from "../lib/browser-mount-native.ts";
 
 const MESSAGE =

@@ -136,7 +136,7 @@ export function observedTypePropertyOrigin(receiver: MorphNode, name: string, re
  *
  *  WHAT FOLDED ONTO IT, AND WHAT DID NOT (the move must END a duplicate, never create one). Folded in the
  *  same commit: `project-home-origin.ts#uncastMemberDeclaredByPackage` and
- *  `bus-fact-read.ts#busChannelPublisher` — both spelled the identical chain and both already treated "no
+ *  `bus-fact-call.ts#busChannelPublisher` — both spelled the identical chain and both already treated "no
  *  symbol" and "no declaration" as one no-evidence answer, so each collapses an unresolved fact to `[]` and
  *  is behaviour-identical. NOT folded: `resolveTypeMemberOrigin`, which looks like the same
  *  three lines and is a DIFFERENT predicate — it anchors its refusal on the `nameNode` rather than on the

@@ -101,7 +101,7 @@ test("native repeated, variadic, equals and wildcard project selection agrees wi
     const bootConfiguration: unknown = JSON.parse(
       execFileSync(process.execPath, ["--input-type=module", "-e", CONFIG_PROBE, "--", ...argv], { encoding: "utf8" }),
     );
-    const bootModes = pageArray(bootConfiguration, "configuration probe auth modes");
+    const bootModes = pageArray(bootConfiguration, "configuration probe auth modes").map((mode) => pageString(mode, "configuration probe auth mode"));
     expect(sharedSelection, JSON.stringify(selector)).toEqual(native);
     expect([...bootModes].sort(), JSON.stringify(selector)).toEqual(native);
   }

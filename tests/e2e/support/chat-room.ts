@@ -44,19 +44,6 @@ const BOOTSTRAP_MESSAGE = "Hi";
 // that one-time dev-server restart. Warm navigation remains immediate.
 const COLD_CHAT_SURFACE_TIMEOUT = budget(45_000);
 
-// The dev introspection handle's shape, as read from inside a browser-context `page.evaluate`. Declared
-// locally because the client's ambient `declare global` is not importable from this program; it is a dev global,
-// not a wire shape. `__orb` is a dev-only global no lib declares, so the direct cast (all-optional target —
-// always assignable) is the one sanctioned bridge to it.
-interface OrbBusHandle {
-  readonly __orb?: {
-    readonly bus: () => {
-      readonly live: number;
-      readonly events: ReadonlyArray<{ readonly type: string }>;
-    };
-  };
-}
-
 /** Identity-scoped locator for ONE message row, keyed on `data-message-id` (message-row.tsx). The
  *  deliberate alternative to a positional `.first()/.last()` pick when the target row's id is known
  *  (from canon or a prior mutation's return value) — strict-mode-safe by construction (exactly one
@@ -72,14 +59,35 @@ export function assistantRows(page: Page): ReturnType<Page["locator"]> {
   return page.locator('[data-slot="message-row"][data-role="assistant"]');
 }
 
-/** The live SSE-subscription count off the dev handle (0 if the handle isn't installed yet). */
+/** The live SSE-subscription count off the dev handle (0 if the handle isn't installed yet).
+ *
+ *  `__orb` is a dev-only global no lib declares, so the browser-side read stays `unknown` and is narrowed
+ *  in page. Each `page.evaluate` callback is serialized alone, so the two bus reads each repeat it. */
 export function busLive(page: Page): Promise<number> {
-  return page.evaluate(() => (globalThis as OrbBusHandle).__orb?.bus().live ?? 0);
+  return page.evaluate(() => {
+    const handle: unknown = Reflect.get(globalThis, "__orb");
+    if (typeof handle !== "object" || handle === null || !("bus" in handle) || typeof handle.bus !== "function") {
+      return 0;
+    }
+    const bus: unknown = Reflect.apply(handle.bus, handle, []);
+    return typeof bus === "object" && bus !== null && "live" in bus && typeof bus.live === "number" ? bus.live : 0;
+  });
 }
 
 /** The recent bus-event types the client has reduced (dev introspection ring; empty if not installed). */
 export function busEventTypes(page: Page): Promise<readonly string[]> {
-  return page.evaluate(() => (globalThis as OrbBusHandle).__orb?.bus().events.map((e) => e.type) ?? []);
+  return page.evaluate(() => {
+    const handle: unknown = Reflect.get(globalThis, "__orb");
+    if (typeof handle !== "object" || handle === null || !("bus" in handle) || typeof handle.bus !== "function") {
+      return [];
+    }
+    const bus: unknown = Reflect.apply(handle.bus, handle, []);
+    if (typeof bus !== "object" || bus === null || !("events" in bus) || !Array.isArray(bus.events)) {
+      return [];
+    }
+    const events: readonly unknown[] = bus.events;
+    return events.flatMap((event) => (typeof event === "object" && event !== null && "type" in event && typeof event.type === "string" ? [event.type] : []));
+  });
 }
 
 /** Wait for the app shell + its initial reads to settle (the app-ready idle signal). */

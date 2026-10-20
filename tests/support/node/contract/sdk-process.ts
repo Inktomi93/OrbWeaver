@@ -6,7 +6,8 @@ export type SdkScriptSpawn = (options: Parameters<AgentSdkSpawn>[0]) => ChildPro
 
 export interface SdkScriptInput {
   readonly lines: AsyncIterable<string>;
-  readonly sessionId: string;
+  /** The agent SDK's own session uuid (its `--resume` value), never an Orbweaver session row. */
+  readonly sdkSessionId: string;
   readonly frameId: (name: string) => string;
 }
 

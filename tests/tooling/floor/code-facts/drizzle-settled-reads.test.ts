@@ -62,8 +62,8 @@ const CASES = [
   },
 ] as const;
 
-for (const scenario of CASES) {
-  test(scenario.name, async ({ plantedTree, repoRoot }) => {
+for (const { name, ...scenario } of CASES) {
+  test(name, async ({ plantedTree, repoRoot }) => {
     const producer = `${HEAD}${"before" in scenario ? scenario.before : ""}export async function read(db:Db,ownerId:string){${scenario.body}}`;
     const fixture = await nativeFixture({ plantedTree, repoRoot }, { producer, recipient: "" });
     const observations = statementObservations(fixture.root, fixture.project);

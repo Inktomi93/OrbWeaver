@@ -600,7 +600,8 @@ export function warningCodesOf(events: readonly ChatEvent[]): string[] {
  */
 export function cellTest(wire: Wire, task: ConformanceTask, title: string, body: () => Promise<void>): void {
   const skip = skipReasonFor(wire, task);
-  test.skipIf(skip !== null)(skip === null ? `${wire} — ${title}` : `${wire} — ${title} [SKIPPED: ${skip}]`, body);
+  const name = skip === null ? `${wire} — ${title}` : `${wire} — ${title} [SKIPPED: ${skip}]`;
+  test.skipIf(skip !== null)(name, body);
 }
 
 /** The task each wire is CANCELLED on: the FIRST conformance task it both serves and the harness can drive.

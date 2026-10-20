@@ -4,6 +4,17 @@ import type { DatabaseSync } from "node:sqlite";
 import type { InventoryBuildRequest } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { inventoryString } from "../../../../tooling/src/floor/code-facts/semantic-inventory-records.ts";
 
+// The faults a dependency or source edit plants, and the export-family staging cuts; each has its own dispatcher.
+const DEPENDENCY_STAGE_FAULTS = [
+  "drizzle-consumer-tail",
+  "drizzle-catalog-input",
+  "schema-graph-tail",
+  "declaration-output-race",
+  "member-world-race",
+] as const;
+type DependencyStageFault = (typeof DEPENDENCY_STAGE_FAULTS)[number];
+type ExportStageFault = `export-${Exclude<keyof typeof NATIVE_EXPORT_CUTS, "worker">}`;
+
 export type NativeInventoryFault =
   | "computed-coverage"
   | "global-origin-coverage"
@@ -18,13 +29,9 @@ export type NativeInventoryFault =
   | "shape-excluded"
   | "shape-descriptor"
   | "shape-coverage"
-  | "drizzle-consumer-tail"
-  | "drizzle-catalog-input"
-  | "schema-graph-tail"
-  | "declaration-output-race"
-  | "member-world-race"
   | "projected-alias-retarget"
-  | `export-${Exclude<keyof typeof NATIVE_EXPORT_CUTS, "worker">}`;
+  | DependencyStageFault
+  | ExportStageFault;
 
 export const NATIVE_EXPORT_CUTS = {
   query: "export source/name coverage",
@@ -52,15 +59,22 @@ function removeCapturedSource(db: DatabaseSync, id: string, file: string, metada
 /** Fixed fault sites alter the real exited worker's staging database, never its execution authority. */
 export function mutateNativeInventoryStage(fault: NativeInventoryFault, request: InventoryBuildRequest, db: DatabaseSync, id: string): boolean {
   db.exec("PRAGMA foreign_keys=OFF");
-  const dependency = mutateDependencyStage(fault, request, db, id);
-  if (dependency !== undefined) {
-    return dependency;
-  }
-  const exported = mutateExportStage(fault, request, db, id);
-  if (exported !== undefined) {
-    return exported;
-  }
   switch (fault) {
+    case "drizzle-consumer-tail":
+    case "drizzle-catalog-input":
+    case "schema-graph-tail":
+    case "declaration-output-race":
+    case "member-world-race":
+      return mutateDependencyStage(fault, request, db, id);
+    case "export-query":
+    case "export-declarations":
+    case "export-source":
+    case "export-family":
+    case "export-metadata":
+    case "export-text":
+    case "export-declarationSource":
+    case "export-closure":
+      return mutateExportStage(fault, request, db, id);
     case "computed-coverage":
       db.exec("DELETE FROM inventory_computed_trace;DELETE FROM inventory_computed_name;");
       return true;
@@ -120,13 +134,10 @@ export function mutateNativeInventoryStage(fault: NativeInventoryFault, request:
       unlinkSync(join(request.root, "vendor/alias.ts"));
       symlinkSync("other.ts", join(request.root, "vendor/alias.ts"));
       return true;
-
-    default:
-      throw new Error(`unsupported native stage fault: ${fault}`);
   }
 }
 
-function mutateDependencyStage(fault: NativeInventoryFault, request: InventoryBuildRequest, db: DatabaseSync, id: string): boolean | undefined {
+function mutateDependencyStage(fault: DependencyStageFault, request: InventoryBuildRequest, db: DatabaseSync, id: string): boolean {
   switch (fault) {
     case "drizzle-consumer-tail":
     case "drizzle-catalog-input":
@@ -174,13 +185,9 @@ function mutateDependencyStage(fault: NativeInventoryFault, request: InventoryBu
         writeFileSync(path, `${readFileSync(path, "utf8")}\nexport const changedDuringExtraction=1;`);
       }
       return true;
-    case "projected-alias-retarget":
-      return undefined;
-    default:
-      return undefined;
   }
 }
-function mutateExportStage(fault: NativeInventoryFault, request: InventoryBuildRequest, db: DatabaseSync, id: string): boolean | undefined {
+function mutateExportStage(fault: ExportStageFault, request: InventoryBuildRequest, db: DatabaseSync, id: string): boolean {
   switch (fault) {
     case "export-query":
       db.prepare("DELETE FROM inventory_export_declaration_node WHERE partition=?").run(id);
@@ -210,9 +217,5 @@ function mutateExportStage(fault: NativeInventoryFault, request: InventoryBuildR
         inventoryString(join(request.root, "browser-bound.ts")),
       );
       return true;
-    case "projected-alias-retarget":
-      return undefined;
-    default:
-      return undefined;
   }
 }

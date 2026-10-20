@@ -9,18 +9,16 @@ import { canonicalSemanticPrograms, registeredSemanticSourceView, semanticProgra
 import { LEGACY_ANALYSIS_EXCLUSION_REASON } from "../../floor/testing/test-population.ts";
 import type { GateFact } from "../contract/fact.ts";
 import { factProvider } from "../contract/fact.ts";
-import type { RawGateFinding } from "../contract/gate-authority.ts";
 import type { GatePolicy } from "../contract/policy.ts";
-import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type { PolicyRequestedSelection } from "../contract/policy-effective-population.ts";
 import type { PolicyOwnerPlan, PolicyPassInput, PolicyToolError } from "../contract/policy-pass.ts";
-import { POLICY_OWNER_PLAN_MODES, POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
+import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
 import type { ResourceHost } from "../contract/resource-host.ts";
 import { resolveEffectivePopulation } from "./policy-effective-population.ts";
 import type { FactControl, FactRun, PolicyRun } from "./policy-pass-types.ts";
 import { charge, chargeFact, EMPTY_POPULATION, factPhaseRecord, guard, markFactIncomplete, markIncomplete, phaseRecord } from "./policy-pass-types.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
-import { assertGateFactDescriptor, assertGatePolicyDescriptor, assertRepoPathIdentity, normalizePathSet } from "./policy-validation.ts";
+import { assertGateFactDescriptor, assertRepoPathIdentity, normalizePathSet } from "./policy-validation.ts";
 import { explicitNonePopulation, resolvePopulation } from "./population-resolver.ts";
 import { resolveResourceDeclarations } from "./resource-declaration.ts";
 
@@ -62,56 +60,6 @@ function nativeExecutableSource(
     throw new Error(`${POLICY_PASS_REFUSALS.nativeSourceViewMeaning}: ${path}`);
   }
   return view.sourceFile;
-}
-
-export function canonicalFindings(findings: readonly RawGateFinding[]): readonly RawGateFinding[] {
-  return [...findings].toSorted(
-    (left, right) =>
-      left.file.localeCompare(right.file) ||
-      left.line - right.line ||
-      left.column - right.column ||
-      (left.token ?? "").localeCompare(right.token ?? "") ||
-      (left.message ?? "").localeCompare(right.message ?? ""),
-  );
-}
-
-export function assertInvocationPolicies(policies: readonly GatePolicy[]): void {
-  const value: unknown = policies;
-  if (!Array.isArray(value) || value.length === 0) {
-    throw new Error("runPolicyPass requires a nonempty policy array");
-  }
-  const ids = new Set<string>();
-  const facts = new Map<string, GateFact>();
-  for (const candidate of value) {
-    if (!isDefinedGatePolicy(candidate)) {
-      throw new Error("runPolicyPass accepts only policies branded by defineGate");
-    }
-    assertGatePolicyDescriptor(candidate);
-    if (ids.has(candidate.id)) {
-      throw new Error(`runPolicyPass received duplicate policy id ${candidate.id}`);
-    }
-    ids.add(candidate.id);
-    for (const fact of candidate.facts.map(factProvider)) {
-      const existing = facts.get(fact.id);
-      if (existing !== undefined && existing !== fact) {
-        throw new Error(`loaded policies import different fact descriptors with id ${fact.id}`);
-      }
-      facts.set(fact.id, fact);
-    }
-  }
-}
-
-export function assertSelectedPoliciesAreLoaded(knownPolicies: readonly GatePolicy[], selectedPolicies: readonly GatePolicy[]): void {
-  const knownById = new Map(knownPolicies.map((policy) => [policy.id, policy]));
-  for (const policy of selectedPolicies) {
-    const known = knownById.get(policy.id);
-    if (known === undefined) {
-      throw new Error(`runPolicyPass selected policy is absent from the known roster: ${policy.id}`);
-    }
-    if (known !== policy) {
-      throw new Error(`runPolicyPass selected policy is not the loaded descriptor identity: ${policy.id}`);
-    }
-  }
 }
 
 /** WHICH DECLARATIONS SURVIVE INTO THE RUN'S DECLARED SET — and why there is no longer a filter here (#2309).
@@ -249,32 +197,6 @@ function applyOwnerPlan(run: PolicyRun, plan: PolicyOwnerPlan): void {
     throw new Error(`planned ${plan.mode} policy disagrees with dispatcher applicability: ${run.policy.id}`);
   }
   run.owner = { status: "not-applicable", population: "complete", reason: plan.reason };
-}
-
-export function assertOwnerPlans(input: PolicyPassInput): void {
-  const plans = input.ownerPlansByPolicy;
-  if (plans === undefined) {
-    return;
-  }
-  if (!(plans instanceof Map)) {
-    throw new Error("runPolicyPass owner plans must be a Map");
-  }
-  const expected = input.policies.map(({ id }) => id).toSorted((left, right) => left.localeCompare(right));
-  const actual = [...plans.keys()].toSorted((left, right) => left.localeCompare(right));
-  if (JSON.stringify(actual) !== JSON.stringify(expected)) {
-    throw new Error("runPolicyPass owner plans must cover exactly the selected policies");
-  }
-  for (const [policyId, plan] of plans) {
-    if (!(POLICY_OWNER_PLAN_MODES as readonly string[]).includes(plan.mode)) {
-      throw new Error(`runPolicyPass owner plan mode is invalid for ${policyId}`);
-    }
-    if ((plan.mode === "run") !== (plan.reason === null)) {
-      throw new Error(`runPolicyPass owner plan reason disagrees with mode for ${policyId}`);
-    }
-    if (plan.reason !== null && plan.reason.trim().length === 0) {
-      throw new Error(`runPolicyPass owner plan reason is blank for ${policyId}`);
-    }
-  }
 }
 
 /** A consumed fact's DECLARED population, per fact id — the dependency half of the shared selection input.

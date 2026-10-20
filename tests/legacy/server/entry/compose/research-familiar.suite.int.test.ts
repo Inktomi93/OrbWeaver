@@ -28,7 +28,9 @@ beforeEach(() => {
   __setEgressResolverForTest(() => Promise.resolve(["93.184.216.34"]));
   vi.stubGlobal("fetch", (input: Parameters<typeof fetch>[0]): Promise<Response> => {
     const url = input instanceof Request ? input.url : String(input);
-    expect(url).toMatch(/^https:\/\/en\.wikipedia\.org\/api\/rest_v1\/page\/summary\//u);
+    if (!/^https:\/\/en\.wikipedia\.org\/api\/rest_v1\/page\/summary\//u.test(url)) {
+      throw new Error(`the familiar fetched outside the summary endpoint: ${url}`);
+    }
     fetches.push(url);
     return Promise.resolve(
       url.endsWith("Missing_term")

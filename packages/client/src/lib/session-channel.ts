@@ -11,7 +11,7 @@
 //   • SERVER TRUTH NEVER RIDES THIS CHANNEL (§13's one-router law). The payloads below carry SESSION
 //     LIFECYCLE and a durable-local WRITE POKE — never a row, never a query payload. A data payload here
 //     would fork the invalidation seam into a second, unaudited router.
-//   • ONE HOME. `new BroadcastChannel` outside this file is gate-RED (`session-channel-boundary`) — the
+//   • ONE HOME. `new BroadcastChannel` outside this file is lint-RED (`orb/session-channel-boundary`) — the
 //     client twin of the rogue-EventEmitter rule. A second channel is a second protocol nobody versions.
 //
 // SINGLE-FLIGHT IS `ifAvailable`, NOT A QUEUE. `navigator.locks.request(..., { ifAvailable: true })` hands
@@ -95,7 +95,7 @@ function asSessionMessage(data: unknown): SessionMessage | null {
 
 /** The lazily-opened channel, or null where the primitive does not exist (node lanes, non-secure contexts).
  *  The construction is UNQUALIFIED on purpose — `new BroadcastChannel(...)` is the exact shape the
- *  `session-channel-boundary` gate fences, so the one sanctioned site is spelled the way the gate reads. */
+ *  `orb/session-channel-boundary` lint rule fences, so the one sanctioned site is spelled the way the rule reads. */
 function openChannel(): BroadcastChannel | null {
   if (channelResolved) {
     return channel;

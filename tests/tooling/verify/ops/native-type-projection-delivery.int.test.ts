@@ -7,7 +7,6 @@ import { Node } from "ts-morph";
 import { afterEach, beforeEach, vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
-import { gate as inference } from "../../../../tooling/src/verify/gates/domain-inference-dispatch.ts";
 import { gate as routes } from "../../../../tooling/src/verify/gates/route-trpc-no-broad-spread.ts";
 import { gate as sections } from "../../../../tooling/src/verify/gates/section-factory-contribution-bundle.ts";
 import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
@@ -17,7 +16,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 import { nativeInventoryFixture } from "../../floor/compiler/native-inventory-fixture.ts";
 import { nativeVerifyFixture } from "../../floor/compiler/native-verify-fixture.ts";
 
-const COHORT = [routes, sections, inference] as const;
+const COHORT = [routes, sections] as const;
 const SECTION_SHADOW = "packages/client/src/native-section-shadow.ts";
 
 beforeEach(async () => {

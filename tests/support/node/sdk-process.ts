@@ -56,7 +56,7 @@ export async function readSdkProcessInput(): Promise<SdkScriptInput> {
   const available = new Map(Object.entries(identity.frames));
   return {
     lines: input,
-    sessionId: resume ?? identity.sessionId,
+    sdkSessionId: resume ?? identity.sessionId,
     frameId: (name: string): string => {
       const uuid = available.get(name);
       if (uuid === undefined) {

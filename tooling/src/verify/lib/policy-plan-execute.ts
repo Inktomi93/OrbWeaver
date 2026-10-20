@@ -6,7 +6,7 @@ import type { GatePolicy } from "../contract/policy.ts";
 import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type { PolicyPlanExecutionInput, PolicyPlanExecutionResult } from "../contract/policy-plan.ts";
 import { runPolicyPass } from "./policy-pass.ts";
-import { factsForPolicies, policyPassExitCode, validateCorpus } from "./policy-plan.ts";
+import { factsForPolicies, validateCorpus } from "./policy-plan.ts";
 import { normalizePathSet } from "./policy-validation.ts";
 
 function executionPolicies(input: PolicyPlanExecutionInput): readonly GatePolicy[] {
@@ -150,4 +150,12 @@ export function executePolicyPlan(input: PolicyPlanExecutionInput): PolicyPlanEx
   } catch (error) {
     return { ok: false, exitCode: 2, message: error instanceof Error ? error.message : String(error) };
   }
+}
+
+/** Map the completed dispatcher result onto the house 0/1/2 contract; argv/planning misuse is class 3. */
+export function policyPassExitCode(result: PolicyPassResult): 0 | 1 | 2 {
+  if (result.factErrors.length > 0 || result.toolErrors.length > 0 || result.authority.toolErrors.length > 0) {
+    return 2;
+  }
+  return result.authority.verdict.blocking > 0 ? 1 : 0;
 }

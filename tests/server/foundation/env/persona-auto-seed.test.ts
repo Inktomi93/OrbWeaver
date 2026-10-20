@@ -2,7 +2,8 @@
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { personaAutoSeedAdmits } from "@orb/server/foundation/env";
-import { describe, expect, test } from "vitest";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { describe } from "vitest";
 
 type Stamp = "on" | "off";
 const HARNESS = "E2E_HARNESS";

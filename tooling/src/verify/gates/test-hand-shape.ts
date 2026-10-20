@@ -6,8 +6,9 @@
 import type { Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { InventoryInvocationPlan } from "../../floor/code-facts/semantic-inventory-contract.ts";
-import { baseReferences, readShapeAssociation, shapeAssociationQuestions, shapeAssociationSites } from "../../floor/code-facts/shape-association.ts";
+import { readShapeAssociation } from "../../floor/code-facts/shape-association.ts";
 import type { ShapeAssociation, ShapeAssociationSite } from "../../floor/code-facts/shape-association-contract.ts";
+import { baseReferences, shapeAssociationQuestions, shapeAssociationSites } from "../../floor/code-facts/shape-association-sites.ts";
 import { classifyTestFilename } from "../../floor/testing/test-kinds.ts";
 import { isLegacyTestPath } from "../../floor/testing/test-population.ts";
 import { defineGate } from "../contract/policy.ts";

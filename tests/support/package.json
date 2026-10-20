@@ -116,6 +116,7 @@
     "./node/native-owner-read-fixture.ts": "./node/native-owner-read-fixture.ts",
     "./node/open-context-sections.ts": "./node/open-context-sections.ts",
     "./node/planted-gate-corpus.ts": "./node/planted-gate-corpus.ts",
+    "./node/prototype-fault-plant.ts": "./node/prototype-fault-plant.ts",
     "./node/provider-stream.ts": "./node/provider-stream.ts",
     "./node/real-corpus-liveness.ts": "./node/real-corpus-liveness.ts",
     "./node/regex-reads-empty.ts": "./node/regex-reads-empty.ts",

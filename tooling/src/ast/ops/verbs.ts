@@ -98,6 +98,9 @@ export const INVENTORY_VERB_FAMILIES: ReadonlyMap<string, readonly InventoryFami
 /** Inventory routing cannot admit a verb without its explicit fact demand. */
 export const INVENTORY_VERBS = new Set(INVENTORY_VERB_FAMILIES.keys());
 
+/** Inventory verbs whose positional argument is a file scope; `dead` names a symbol searched corpus-wide. */
+export const INVENTORY_SCOPED_VERBS: ReadonlySet<string> = new Set(["orphans", "testonly", "swallowed", "typeonly-alive", "chains", "apisurface", "rot"]);
+
 // Verbs that load searchGlobs WITHOUT the type graph — purely syntactic walks over the wide corpus.
 export const WIDE_SYNTACTIC_VERBS = new Set(["aliases", "exports", "ident", "literal"]);
 

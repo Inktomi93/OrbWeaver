@@ -276,7 +276,7 @@ for (const st of statements) {
     }
     if (/^export\s+(?:type\s+)?\*\s*(?:as\s+[\w$]+\s*)?from/u.test(text)) {
       if (/\*\s+as\s/u.test(text)) {
-        bindings.push({ importer: st.file, target, name: null, ns: text.match(/\*\s+as\s+([\w$]+)/u)?.[1] ?? null, line: st.line });
+        bindings.push({ importer: st.file, target, name: null, ns: /\*\s+as\s+([\w$]+)/u.exec(text)?.[1] ?? null, line: st.line });
       } else {
         starFrom.set(st.file, [...(starFrom.get(st.file) ?? []), target]);
         starInto.set(target, [...(starInto.get(target) ?? []), st.file]);
@@ -491,7 +491,7 @@ const knownKeys = new Set([...baselineKeys, ...findingKeys]);
 const rows: Row[] = (values.knip === undefined ? baselineKeys : findingKeys)
   .map((key) => {
     const [kind, file, , symbol] = JSON.parse(key) as [string, string, string, string];
-    return { key, kind: kind ?? "", file: file ?? "", symbol: symbol ?? "" };
+    return { key, kind, file, symbol };
   })
   .filter((r) => r.file.startsWith(`${pkgDir}/`));
 

@@ -6,6 +6,7 @@ import process from "node:process";
 import { DatabaseSync, StatementSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
 import { isDeepStrictEqual } from "node:util";
+import { plantPrototypeFault } from "@orb/testkit/node/prototype-fault-plant.ts";
 import type {
   InventoryBuildRequest,
   SemanticInventoryOptions,
@@ -151,7 +152,7 @@ async function run(mode: string, implementation: string, root: string): Promise<
       concurrentPublication();
     }
   };
-  Object.defineProperty(DatabaseSync.prototype, "exec", {
+  const restoreExec = plantPrototypeFault(DatabaseSync.prototype, "exec", {
     value(this: DatabaseSync, sql: string): void {
       if (!(active && this.location() === path)) {
         execute.call(this, sql);
@@ -174,7 +175,7 @@ async function run(mode: string, implementation: string, root: string): Promise<
       afterPublication(this);
     },
   });
-  Object.defineProperty(DatabaseSync.prototype, "prepare", {
+  const restorePrepare = plantPrototypeFault(DatabaseSync.prototype, "prepare", {
     value(this: DatabaseSync, ...args: Parameters<DatabaseSync["prepare"]>): ReturnType<DatabaseSync["prepare"]> {
       if (active && this.location() === path && pinned && mode === "post-metadata" && args[0].includes("SELECT ordinal,file,path,consumerClass")) {
         injections++;
@@ -224,13 +225,13 @@ async function run(mode: string, implementation: string, root: string): Promise<
       };
       const all = StatementSync.prototype.all;
       const iterate = StatementSync.prototype.iterate;
-      Object.defineProperty(StatementSync.prototype, "all", {
+      const restoreAll = plantPrototypeFault(StatementSync.prototype, "all", {
         value(this: StatementSync, ...args: Parameters<StatementSync["all"]>): ReturnType<StatementSync["all"]> {
           observe(this);
           return all.apply(this, args);
         },
       });
-      Object.defineProperty(StatementSync.prototype, "iterate", {
+      const restoreIterate = plantPrototypeFault(StatementSync.prototype, "iterate", {
         value(this: StatementSync, ...args: Parameters<StatementSync["iterate"]>): ReturnType<StatementSync["iterate"]> {
           observe(this);
           return iterate.apply(this, args);
@@ -254,8 +255,8 @@ async function run(mode: string, implementation: string, root: string): Promise<
         current[Symbol.dispose]();
         return { mode, before, count, nonempty: count > 0, after: queries, queried: queries > 0, disposed };
       } finally {
-        Object.defineProperty(StatementSync.prototype, "all", { value: all });
-        Object.defineProperty(StatementSync.prototype, "iterate", { value: iterate });
+        restoreAll();
+        restoreIterate();
       }
     }
     if (mode === "shape-writer") {
@@ -366,8 +367,8 @@ async function run(mode: string, implementation: string, root: string): Promise<
       checkpointBusy: observer.prepare("PRAGMA wal_checkpoint(TRUNCATE)").get()?.["busy"],
     };
   } finally {
-    Object.defineProperty(DatabaseSync.prototype, "prepare", { value: prepare });
-    Object.defineProperty(DatabaseSync.prototype, "exec", { value: execute });
+    restorePrepare();
+    restoreExec();
   }
 }
 

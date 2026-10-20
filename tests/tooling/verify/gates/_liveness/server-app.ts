@@ -10,30 +10,21 @@
 
 import type { RealCorpusLivenessArm, RealCorpusOverlay } from "@orb/testkit/node/real-corpus-liveness.ts";
 import { gate as chatViewerPlaneCanonReads } from "../../../../../tooling/src/verify/gates/chat-viewer-plane-canon-reads.ts";
-import { gate as discoveryNoStatsRollups } from "../../../../../tooling/src/verify/gates/discovery-no-stats-rollups.ts";
 import { gate as membershipEnforcer } from "../../../../../tooling/src/verify/gates/membership-enforcer.ts";
 import { gate as membershipWriteFan } from "../../../../../tooling/src/verify/gates/membership-write-fan.ts";
-import { gate as noHardcodedSideGenSampling } from "../../../../../tooling/src/verify/gates/no-hardcoded-side-gen-sampling.ts";
 import { gate as ownTablesOnly } from "../../../../../tooling/src/verify/gates/own-tables-only.ts";
 import { gate as ownerScopedReads } from "../../../../../tooling/src/verify/gates/owner-scoped-reads.ts";
 import { gate as ownerScopedUpserts } from "../../../../../tooling/src/verify/gates/owner-scoped-upserts.ts";
 import { gate as ownerScopedWrites } from "../../../../../tooling/src/verify/gates/owner-scoped-writes.ts";
-import { gate as serdeCoreDefinitionUniqueness } from "../../../../../tooling/src/verify/gates/serde-core-definition-uniqueness.ts";
 import { gate as singleStreamTransport } from "../../../../../tooling/src/verify/gates/single-stream-transport.ts";
 import { gate as twoClassRoleAuthority } from "../../../../../tooling/src/verify/gates/two-class-role-authority.ts";
-import { gate as typesInContract } from "../../../../../tooling/src/verify/gates/types-in-contract.ts";
 import { gate as verbNaming } from "../../../../../tooling/src/verify/gates/verb-naming.ts";
 
 const SERVER = "packages/server/src";
 const CHAT_VERBS = `${SERVER}/domain/chat/verbs`;
-const EMPTY = "export {};\n";
 
 function add(path: string, source: string): RealCorpusOverlay {
   return { kind: "add", path, source };
-}
-
-function neutralise(path: string, source = EMPTY): RealCorpusOverlay {
-  return { kind: "neutralise", path, source };
 }
 
 export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
@@ -49,13 +40,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "loadCanonHistory",
   },
   {
-    policy: discoveryNoStatsRollups,
-    overlays: [
-      add(`${SERVER}/domain/discovery/persistence/liveness-rollup.ts`, 'import { ownerStats } from "@orb/db";\nexport const livenessRollup = ownerStats;\n'),
-    ],
-    messageIncludes: "stats rollup tables",
-  },
-  {
     policy: membershipEnforcer,
     overlays: [add(`${CHAT_VERBS}/liveness-owner.ts`, "export const bad = (x: { readonly ownerId: string }, y: string): boolean => x.ownerId === y;\n")],
     messageIncludes: "ownerId",
@@ -69,11 +53,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "MEMBERSHIP-class write",
-  },
-  {
-    policy: noHardcodedSideGenSampling,
-    overlays: [add(`${CHAT_VERBS}/liveness-sampling.ts`, "export const livenessOpts = { temperature: 0.3, maxTokens: 24 };\n")],
-    messageIncludes: "hardcoded side-gen sampling",
   },
   {
     policy: ownTablesOnly,
@@ -116,11 +95,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
     messageIncludes: "cross-tenant WRITE hole",
   },
   {
-    policy: serdeCoreDefinitionUniqueness,
-    overlays: [add(`${SERVER}/domain/import/substrate/liveness-dup.ts`, "export function cardFromJson(raw: unknown): unknown {\n  return raw;\n}\n")],
-    messageIncludes: "cardFromJson",
-  },
-  {
     policy: singleStreamTransport,
     overlays: [
       add(
@@ -139,11 +113,6 @@ export const SERVER_APP_ARMS: readonly RealCorpusLivenessArm[] = [
       ),
     ],
     messageIncludes: "packages/server/src/domain/rpg/verbs/liveness-role.ts",
-  },
-  {
-    policy: typesInContract,
-    overlays: [neutralise(`${SERVER}/domain/admin/contract/service.ts`, "export const noInterface = 1;\n")],
-    messageIncludes: "must declare the exported",
   },
   {
     policy: verbNaming,

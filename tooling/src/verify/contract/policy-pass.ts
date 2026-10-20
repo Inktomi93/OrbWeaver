@@ -58,7 +58,10 @@ export const POLICY_REFUSAL_EMITTERS = Object.freeze([
  *  declared them. `tests/tooling/verify/lib/policy-refusal-envelope.test.ts` censuses these modules TOGETHER with
  *  the emitters and holds this list two-sided in the other direction: a member here that starts composing from the
  *  table belongs in `POLICY_REFUSAL_EMITTERS` instead, and reds. */
-export const POLICY_REFUSAL_INVARIANT_ONLY = Object.freeze(["tooling/src/verify/lib/policy-pass-context-receipts.ts"] as const);
+export const POLICY_REFUSAL_INVARIANT_ONLY = Object.freeze([
+  "tooling/src/verify/lib/policy-pass-admission.ts",
+  "tooling/src/verify/lib/policy-pass-context-receipts.ts",
+] as const);
 
 export const POLICY_PASS_REFUSALS = Object.freeze({
   populationUnresolved: "population has not resolved",

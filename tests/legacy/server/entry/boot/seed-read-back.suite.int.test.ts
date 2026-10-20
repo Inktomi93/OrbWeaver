@@ -74,7 +74,9 @@ import { chatIdentitySchema } from "#contracts/chat/producers.ts";
 // A fresh checkout has no release zips; this suite must not borrow another file's artifact build.
 beforeAll(async () => {
   const built = await writeShowcaseArtifacts(join(import.meta.dirname, "..", "..", "..", "..", ".."));
-  expect(built.diagnostics).toEqual([]);
+  if (built.diagnostics.length > 0) {
+    throw new Error(`the showcase artifacts did not build: ${JSON.stringify(built.diagnostics)}`);
+  }
 });
 
 // `DEV_SEED=on` is the automation stamp that arms the default-persona seeder; without it no persona row exists.

@@ -162,6 +162,19 @@ export function combine(left: StaticValue, right: StaticValue): StaticValue {
 }
 
 /** Preserve producer coordinates while applying a built-in string slice to a proven static value. */
+/** Every left value joined to every right value, the product a concatenation or template span takes. */
+export function productValues(left: readonly StaticValue[], right: readonly StaticValue[]): StaticValue[] {
+  return dedupeValues(left.flatMap((a) => right.map((b) => combine(a, b))));
+}
+
+/** One template literal part as a value whose single segment maps back past the part's opening delimiter. */
+export function templatePartValue(node: Node, value: string): StaticValue {
+  return {
+    value,
+    segments: value.length === 0 ? [] : [{ node, valueStart: 0, valueEnd: value.length, sourceStart: node.getStart() + 1 }],
+  };
+}
+
 export function sliceStaticValue(value: StaticValue, start: number, end: number): StaticValue {
   const segments = value.segments.flatMap((segment): StaticClassSegment[] => {
     const overlapStart = Math.max(segment.valueStart, start);

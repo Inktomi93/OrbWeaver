@@ -15,6 +15,7 @@ import type { BusBeltShape, BusDefinitionFact, BusUnionDefinition } from "../con
 import type { BusDeclarationIdentity, BusReadContext, BusUnresolvedIdentity } from "../contract/bus-fact.ts";
 import type { GateFactContext, GateFactHooks } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
+import { callableDeclaration } from "./bus-fact-call.ts";
 import {
   BUS_UNION_SUFFIX,
   beltUnionNode,
@@ -23,7 +24,6 @@ import {
   busDeclarationIdentity,
   busIdentityKey,
   busRefusal,
-  callableDeclaration,
   canonicalTypeAlias,
   EVENT_TYPES_SUFFIX,
   NAMED_BUS_UNIONS,

@@ -6,6 +6,7 @@ import process from "node:process";
 import type { DatabaseSync } from "node:sqlite";
 import { StatementSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
+import { plantPrototypeFault } from "@orb/testkit/node/prototype-fault-plant.ts";
 import type { InventoryBuildRequest, InventoryInput } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 import { NATIVE_QUERY_MUTATIONS, NATIVE_QUERY_TRIGGER } from "./native-query-mutation.ts";
 
@@ -80,8 +81,9 @@ async function run(mode: string, implementation: string, root: string): Promise<
   const { ts } = await import("ts-morph");
   const runStatement = StatementSync.prototype.run;
   let publications = 0;
+  let restoreRun: (() => void) | undefined;
   if (mode === "authored-publication-race") {
-    Object.defineProperty(StatementSync.prototype, "run", {
+    restoreRun = plantPrototypeFault(StatementSync.prototype, "run", {
       value(this: StatementSync, ...args: Parameters<StatementSync["run"]>): ReturnType<StatementSync["run"]> {
         const result = runStatement.apply(this, args);
         if (active && this.sourceSQL.startsWith("INSERT INTO inventory_member(")) {
@@ -110,13 +112,13 @@ async function run(mode: string, implementation: string, root: string): Promise<
         throw new Error("membership validation decoded source text");
       }
     };
-    Object.defineProperty(StatementSync.prototype, "all", {
+    const restoreAll = plantPrototypeFault(StatementSync.prototype, "all", {
       value(this: StatementSync, ...args: Parameters<StatementSync["all"]>): ReturnType<StatementSync["all"]> {
         refuseText(this);
         return all.apply(this, args);
       },
     });
-    Object.defineProperty(StatementSync.prototype, "iterate", {
+    const restoreIterate = plantPrototypeFault(StatementSync.prototype, "iterate", {
       value(this: StatementSync, ...args: Parameters<StatementSync["iterate"]>): ReturnType<StatementSync["iterate"]> {
         refuseText(this);
         return iterate.apply(this, args);
@@ -127,8 +129,8 @@ async function run(mode: string, implementation: string, root: string): Promise<
       using current = createSemanticInventory({ root });
       return { mode, absentInput, workers, textReads, sameGeneration: current.generation === previous.generation };
     } finally {
-      Object.defineProperty(StatementSync.prototype, "all", { value: all });
-      Object.defineProperty(StatementSync.prototype, "iterate", { value: iterate });
+      restoreAll();
+      restoreIterate();
     }
   };
   const sdkPins = (previous: ReturnType<typeof createSemanticInventory>, database: ReturnType<typeof openInventoryDatabase>): object => {
@@ -243,7 +245,7 @@ async function run(mode: string, implementation: string, root: string): Promise<
     }
     return queryRace(previous, database);
   } finally {
-    Object.defineProperty(StatementSync.prototype, "run", { value: runStatement });
+    restoreRun?.();
     Object.defineProperty(childProcess, "spawnSync", { value: spawn });
   }
 }

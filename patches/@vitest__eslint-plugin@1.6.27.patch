@@ -1,0 +1,276 @@
+diff --git a/dist/index.cjs b/dist/index.cjs
+index 17550ca86649d7ff89fa91e7ad36e1f5d176e071..4283a1c876db33caf360bebf43dd77ae50caac42 100644
+--- a/dist/index.cjs
++++ b/dist/index.cjs
+@@ -2255,6 +2255,116 @@ function parsePluginSettings(settings) {
+ 	};
+ }
+ 
++//#endregion
++//#region orbweaver patch: syntactic reachability for stored assertions and forwarded wrapper bodies
++function orbChildren(node) {
++	const out = [];
++	for (const key of Object.keys(node)) {
++		if (key === "parent") continue;
++		const value = node[key];
++		if (Array.isArray(value)) {
++			for (const item of value) if (item && typeof item.type === "string") out.push(item);
++		} else if (value && typeof value.type === "string") out.push(value);
++	}
++	return out;
++}
++function orbIsFunction(node) {
++	return node.type === _typescript_eslint_utils.AST_NODE_TYPES.FunctionDeclaration || node.type === _typescript_eslint_utils.AST_NODE_TYPES.FunctionExpression || node.type === _typescript_eslint_utils.AST_NODE_TYPES.ArrowFunctionExpression;
++}
++function orbPatternNames(pattern, names) {
++	if (!pattern) return names;
++	if (pattern.type === _typescript_eslint_utils.AST_NODE_TYPES.Identifier) names.push(pattern.name);
++	else if (pattern.type === _typescript_eslint_utils.AST_NODE_TYPES.ArrayPattern) for (const element of pattern.elements) orbPatternNames(element, names);
++	else if (pattern.type === _typescript_eslint_utils.AST_NODE_TYPES.ObjectPattern) for (const property of pattern.properties) orbPatternNames(property.type === _typescript_eslint_utils.AST_NODE_TYPES.RestElement ? property.argument : property.value, names);
++	else if (pattern.type === _typescript_eslint_utils.AST_NODE_TYPES.AssignmentPattern) orbPatternNames(pattern.left, names);
++	else if (pattern.type === _typescript_eslint_utils.AST_NODE_TYPES.RestElement) orbPatternNames(pattern.argument, names);
++	return names;
++}
++/** Whether `node`, nested functions included, writes `name` or declares a binding that shadows it. */
++function orbTouchesName(node, name) {
++	if (node.type === _typescript_eslint_utils.AST_NODE_TYPES.AssignmentExpression && orbPatternNames(node.left, []).includes(name)) return true;
++	if (node.type === _typescript_eslint_utils.AST_NODE_TYPES.UpdateExpression && node.argument.type === _typescript_eslint_utils.AST_NODE_TYPES.Identifier && node.argument.name === name) return true;
++	if (node.type === _typescript_eslint_utils.AST_NODE_TYPES.VariableDeclarator && orbPatternNames(node.id, []).includes(name)) return true;
++	if ((node.type === _typescript_eslint_utils.AST_NODE_TYPES.ForOfStatement || node.type === _typescript_eslint_utils.AST_NODE_TYPES.ForInStatement) && node.left.type !== _typescript_eslint_utils.AST_NODE_TYPES.VariableDeclaration && orbPatternNames(node.left, []).includes(name)) return true;
++	if (orbIsFunction(node) && (node.id?.name === name || node.params.some((param) => orbPatternNames(param, []).includes(name)))) return true;
++	if ((node.type === _typescript_eslint_utils.AST_NODE_TYPES.ClassDeclaration || node.type === _typescript_eslint_utils.AST_NODE_TYPES.ClassExpression) && node.id?.name === name) return true;
++	if (node.type === _typescript_eslint_utils.AST_NODE_TYPES.CatchClause && node.param !== null && orbPatternNames(node.param, []).includes(name)) return true;
++	return orbChildren(node).some((child) => orbTouchesName(child, name));
++}
++/** Whether `node` can leave the enclosing block early: a return or throw outside nested functions, a break
++ *  not owned by a loop or switch inside `node`, or a continue not owned by a loop inside `node` (a switch
++ *  never owns a continue; it targets the enclosing loop). A labeled jump always counts. */
++function orbCanExit(node, breakOwned = false, continueOwned = false) {
++	if (node.type === _typescript_eslint_utils.AST_NODE_TYPES.ReturnStatement || node.type === _typescript_eslint_utils.AST_NODE_TYPES.ThrowStatement) return true;
++	if (node.type === _typescript_eslint_utils.AST_NODE_TYPES.BreakStatement) return !breakOwned || node.label !== null;
++	if (node.type === _typescript_eslint_utils.AST_NODE_TYPES.ContinueStatement) return !continueOwned || node.label !== null;
++	if (orbIsFunction(node) || node.type === _typescript_eslint_utils.AST_NODE_TYPES.ClassDeclaration || node.type === _typescript_eslint_utils.AST_NODE_TYPES.ClassExpression) return false;
++	const loop = node.type === _typescript_eslint_utils.AST_NODE_TYPES.ForStatement || node.type === _typescript_eslint_utils.AST_NODE_TYPES.ForInStatement || node.type === _typescript_eslint_utils.AST_NODE_TYPES.ForOfStatement || node.type === _typescript_eslint_utils.AST_NODE_TYPES.WhileStatement || node.type === _typescript_eslint_utils.AST_NODE_TYPES.DoWhileStatement;
++	const ownsBreak = breakOwned || loop || node.type === _typescript_eslint_utils.AST_NODE_TYPES.SwitchStatement;
++	const ownsContinue = continueOwned || loop;
++	return orbChildren(node).some((child) => orbCanExit(child, ownsBreak, ownsContinue));
++}
++/** Whether `expression` awaits or returns `name` itself, or settles it through Promise.all. Promise.allSettled
++ *  never counts: it resolves on a rejection, so the assertion's failure is lost. */
++function orbSettlesValue(expression, name) {
++	if (!expression) return false;
++	if (expression.type === _typescript_eslint_utils.AST_NODE_TYPES.Identifier) return expression.name === name;
++	if (expression.type === _typescript_eslint_utils.AST_NODE_TYPES.AwaitExpression) return orbSettlesValue(expression.argument, name);
++	const callee = expression.type === _typescript_eslint_utils.AST_NODE_TYPES.CallExpression ? expression.callee : undefined;
++	if (callee?.type === _typescript_eslint_utils.AST_NODE_TYPES.MemberExpression && !callee.computed && callee.object.type === _typescript_eslint_utils.AST_NODE_TYPES.Identifier && callee.object.name === "Promise" && callee.property.name === "all") {
++		const list = expression.arguments[0];
++		return list?.type === _typescript_eslint_utils.AST_NODE_TYPES.ArrayExpression && list.elements.some((element) => element?.type === _typescript_eslint_utils.AST_NODE_TYPES.Identifier && element.name === name);
++	}
++	return false;
++}
++/** "settled" when every path through `statements` awaits or returns `name`, "lost" when a path can skip
++ *  it, "pending" when the statements end without deciding. */
++function orbScanStatements(statements, name) {
++	for (const statement of statements) {
++		const verdict = orbScanStatement(statement, name);
++		if (verdict !== "pending") return verdict;
++	}
++	return "pending";
++}
++function orbScanStatement(statement, name) {
++	if (statement.type === _typescript_eslint_utils.AST_NODE_TYPES.ExpressionStatement && statement.expression.type === _typescript_eslint_utils.AST_NODE_TYPES.AwaitExpression && orbSettlesValue(statement.expression.argument, name)) return "settled";
++	if (statement.type === _typescript_eslint_utils.AST_NODE_TYPES.ReturnStatement && orbSettlesValue(statement.argument, name)) return "settled";
++	if (orbTouchesName(statement, name)) return "lost";
++	if (statement.type === _typescript_eslint_utils.AST_NODE_TYPES.BlockStatement) return orbScanStatements(statement.body, name);
++	if (statement.type === _typescript_eslint_utils.AST_NODE_TYPES.TryStatement) {
++		// A catch can swallow the failure that skips an await inside the try, so only a catch-free try or a
++		// finally block can settle the value.
++		if (statement.handler === null) {
++			const inner = orbScanStatements(statement.block.body, name);
++			if (inner !== "pending") return inner;
++		} else if (orbCanExit(statement.block) || orbCanExit(statement.handler.body)) return "lost";
++		return statement.finalizer === null ? "pending" : orbScanStatements(statement.finalizer.body, name);
++	}
++	if (statement.type === _typescript_eslint_utils.AST_NODE_TYPES.IfStatement && statement.alternate !== null && orbScanStatement(statement.consequent, name) === "settled" && orbScanStatement(statement.alternate, name) === "settled") return "settled";
++	return orbCanExit(statement) ? "lost" : "pending";
++}
++/** Whether a stored async assertion is awaited or returned on every path after its declaration. Outside a
++ *  block (module scope, a static block) it never is, so the unpatched finding stands. */
++function orbStoredAssertionSettled(declarator) {
++	const declaration = declarator.parent;
++	const block = declaration?.parent;
++	if (declarator.id.type !== _typescript_eslint_utils.AST_NODE_TYPES.Identifier || declaration?.type !== _typescript_eslint_utils.AST_NODE_TYPES.VariableDeclaration || block?.type !== _typescript_eslint_utils.AST_NODE_TYPES.BlockStatement) return false;
++	return orbScanStatements(block.body.slice(block.body.indexOf(declaration) + 1), declarator.id.name) === "settled";
++}
++/** Whether a test call is a listed wrapper's definition forwarding its own body parameter (its last
++ *  parameter), never rebound. */
++function orbForwardsListedWrapperBody(node, wrappers) {
++	const body = node.arguments[1];
++	if (body?.type !== _typescript_eslint_utils.AST_NODE_TYPES.Identifier) return false;
++	let wrapper = node.parent;
++	while (wrapper && !orbIsFunction(wrapper)) wrapper = wrapper.parent;
++	if (!wrapper) return false;
++	const wrapperName = wrapper.type === _typescript_eslint_utils.AST_NODE_TYPES.FunctionDeclaration ? wrapper.id?.name : wrapper.parent?.type === _typescript_eslint_utils.AST_NODE_TYPES.VariableDeclarator && wrapper.parent.id.type === _typescript_eslint_utils.AST_NODE_TYPES.Identifier ? wrapper.parent.id.name : undefined;
++	if (wrapperName === undefined || !wrappers.includes(wrapperName)) return false;
++	const bodyParam = wrapper.params.at(-1);
++	if (bodyParam?.type !== _typescript_eslint_utils.AST_NODE_TYPES.Identifier || bodyParam.name !== body.name) return false;
++	return !orbTouchesName(wrapper.body, body.name);
++}
+ //#endregion
+ //#region src/rules/expect-expect.ts
+ const RULE_NAME$77 = "expect-expect";
+@@ -2313,6 +2423,7 @@ var expect_expect_default = createEslintRule({
+ 				const name = getNodeName(node) ?? "";
+ 				if (isTypeOfVitestFnCall(node, context, ["test"]) || additionalTestBlockFunctions.includes(name)) {
+ 					if (node.callee.type === _typescript_eslint_utils.AST_NODE_TYPES.MemberExpression && isSupportedAccessor(node.callee.property, "todo")) return;
++					if (orbForwardsListedWrapperBody(node, additionalTestBlockFunctions)) return;
+ 					unchecked.push(node);
+ 				} else if (assertFunctionRegexps.some((p) => p.test(name))) checkCallExpression(context.sourceCode.getAncestors(node));
+ 			},
+@@ -6859,7 +6970,7 @@ var valid_expect_default = createEslintRule({
+ 				const isParentArrayExpression = parentNode.parent.type === _typescript_eslint_utils.AST_NODE_TYPES.ArrayExpression;
+ 				const targetNode = getParentIfThenified(parentNode);
+ 				const finalNode = findPromiseCallExpressionNode(targetNode) || targetNode;
+-				if (finalNode.parent && !isAcceptableReturnNode(finalNode.parent, !alwaysAwait) && !promiseArrayExceptionExists(finalNode.loc)) {
++				if (finalNode.parent && !isAcceptableReturnNode(finalNode.parent, !alwaysAwait) && !(finalNode.parent.type === _typescript_eslint_utils.AST_NODE_TYPES.VariableDeclarator && orbStoredAssertionSettled(finalNode.parent)) && !promiseArrayExceptionExists(finalNode.loc)) {
+ 					descriptors.push({
+ 						messageId: finalNode === targetNode ? "asyncMustBeAwaited" : "promisesWithAsyncAssertionsMustBeAwaited",
+ 						node: finalNode
+diff --git a/dist/index.mjs b/dist/index.mjs
+index 7481d6d8eeace4672be88e787b9cd11ce87fb08a..e148a808f469723edc9123ef0e2d5bf7423baf3d 100644
+--- a/dist/index.mjs
++++ b/dist/index.mjs
+@@ -2255,6 +2255,116 @@ function parsePluginSettings(settings) {
+ 	};
+ }
+ 
++//#endregion
++//#region orbweaver patch: syntactic reachability for stored assertions and forwarded wrapper bodies
++function orbChildren(node) {
++	const out = [];
++	for (const key of Object.keys(node)) {
++		if (key === "parent") continue;
++		const value = node[key];
++		if (Array.isArray(value)) {
++			for (const item of value) if (item && typeof item.type === "string") out.push(item);
++		} else if (value && typeof value.type === "string") out.push(value);
++	}
++	return out;
++}
++function orbIsFunction(node) {
++	return node.type === AST_NODE_TYPES.FunctionDeclaration || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.ArrowFunctionExpression;
++}
++function orbPatternNames(pattern, names) {
++	if (!pattern) return names;
++	if (pattern.type === AST_NODE_TYPES.Identifier) names.push(pattern.name);
++	else if (pattern.type === AST_NODE_TYPES.ArrayPattern) for (const element of pattern.elements) orbPatternNames(element, names);
++	else if (pattern.type === AST_NODE_TYPES.ObjectPattern) for (const property of pattern.properties) orbPatternNames(property.type === AST_NODE_TYPES.RestElement ? property.argument : property.value, names);
++	else if (pattern.type === AST_NODE_TYPES.AssignmentPattern) orbPatternNames(pattern.left, names);
++	else if (pattern.type === AST_NODE_TYPES.RestElement) orbPatternNames(pattern.argument, names);
++	return names;
++}
++/** Whether `node`, nested functions included, writes `name` or declares a binding that shadows it. */
++function orbTouchesName(node, name) {
++	if (node.type === AST_NODE_TYPES.AssignmentExpression && orbPatternNames(node.left, []).includes(name)) return true;
++	if (node.type === AST_NODE_TYPES.UpdateExpression && node.argument.type === AST_NODE_TYPES.Identifier && node.argument.name === name) return true;
++	if (node.type === AST_NODE_TYPES.VariableDeclarator && orbPatternNames(node.id, []).includes(name)) return true;
++	if ((node.type === AST_NODE_TYPES.ForOfStatement || node.type === AST_NODE_TYPES.ForInStatement) && node.left.type !== AST_NODE_TYPES.VariableDeclaration && orbPatternNames(node.left, []).includes(name)) return true;
++	if (orbIsFunction(node) && (node.id?.name === name || node.params.some((param) => orbPatternNames(param, []).includes(name)))) return true;
++	if ((node.type === AST_NODE_TYPES.ClassDeclaration || node.type === AST_NODE_TYPES.ClassExpression) && node.id?.name === name) return true;
++	if (node.type === AST_NODE_TYPES.CatchClause && node.param !== null && orbPatternNames(node.param, []).includes(name)) return true;
++	return orbChildren(node).some((child) => orbTouchesName(child, name));
++}
++/** Whether `node` can leave the enclosing block early: a return or throw outside nested functions, a break
++ *  not owned by a loop or switch inside `node`, or a continue not owned by a loop inside `node` (a switch
++ *  never owns a continue; it targets the enclosing loop). A labeled jump always counts. */
++function orbCanExit(node, breakOwned = false, continueOwned = false) {
++	if (node.type === AST_NODE_TYPES.ReturnStatement || node.type === AST_NODE_TYPES.ThrowStatement) return true;
++	if (node.type === AST_NODE_TYPES.BreakStatement) return !breakOwned || node.label !== null;
++	if (node.type === AST_NODE_TYPES.ContinueStatement) return !continueOwned || node.label !== null;
++	if (orbIsFunction(node) || node.type === AST_NODE_TYPES.ClassDeclaration || node.type === AST_NODE_TYPES.ClassExpression) return false;
++	const loop = node.type === AST_NODE_TYPES.ForStatement || node.type === AST_NODE_TYPES.ForInStatement || node.type === AST_NODE_TYPES.ForOfStatement || node.type === AST_NODE_TYPES.WhileStatement || node.type === AST_NODE_TYPES.DoWhileStatement;
++	const ownsBreak = breakOwned || loop || node.type === AST_NODE_TYPES.SwitchStatement;
++	const ownsContinue = continueOwned || loop;
++	return orbChildren(node).some((child) => orbCanExit(child, ownsBreak, ownsContinue));
++}
++/** Whether `expression` awaits or returns `name` itself, or settles it through Promise.all. Promise.allSettled
++ *  never counts: it resolves on a rejection, so the assertion's failure is lost. */
++function orbSettlesValue(expression, name) {
++	if (!expression) return false;
++	if (expression.type === AST_NODE_TYPES.Identifier) return expression.name === name;
++	if (expression.type === AST_NODE_TYPES.AwaitExpression) return orbSettlesValue(expression.argument, name);
++	const callee = expression.type === AST_NODE_TYPES.CallExpression ? expression.callee : undefined;
++	if (callee?.type === AST_NODE_TYPES.MemberExpression && !callee.computed && callee.object.type === AST_NODE_TYPES.Identifier && callee.object.name === "Promise" && callee.property.name === "all") {
++		const list = expression.arguments[0];
++		return list?.type === AST_NODE_TYPES.ArrayExpression && list.elements.some((element) => element?.type === AST_NODE_TYPES.Identifier && element.name === name);
++	}
++	return false;
++}
++/** "settled" when every path through `statements` awaits or returns `name`, "lost" when a path can skip
++ *  it, "pending" when the statements end without deciding. */
++function orbScanStatements(statements, name) {
++	for (const statement of statements) {
++		const verdict = orbScanStatement(statement, name);
++		if (verdict !== "pending") return verdict;
++	}
++	return "pending";
++}
++function orbScanStatement(statement, name) {
++	if (statement.type === AST_NODE_TYPES.ExpressionStatement && statement.expression.type === AST_NODE_TYPES.AwaitExpression && orbSettlesValue(statement.expression.argument, name)) return "settled";
++	if (statement.type === AST_NODE_TYPES.ReturnStatement && orbSettlesValue(statement.argument, name)) return "settled";
++	if (orbTouchesName(statement, name)) return "lost";
++	if (statement.type === AST_NODE_TYPES.BlockStatement) return orbScanStatements(statement.body, name);
++	if (statement.type === AST_NODE_TYPES.TryStatement) {
++		// A catch can swallow the failure that skips an await inside the try, so only a catch-free try or a
++		// finally block can settle the value.
++		if (statement.handler === null) {
++			const inner = orbScanStatements(statement.block.body, name);
++			if (inner !== "pending") return inner;
++		} else if (orbCanExit(statement.block) || orbCanExit(statement.handler.body)) return "lost";
++		return statement.finalizer === null ? "pending" : orbScanStatements(statement.finalizer.body, name);
++	}
++	if (statement.type === AST_NODE_TYPES.IfStatement && statement.alternate !== null && orbScanStatement(statement.consequent, name) === "settled" && orbScanStatement(statement.alternate, name) === "settled") return "settled";
++	return orbCanExit(statement) ? "lost" : "pending";
++}
++/** Whether a stored async assertion is awaited or returned on every path after its declaration. Outside a
++ *  block (module scope, a static block) it never is, so the unpatched finding stands. */
++function orbStoredAssertionSettled(declarator) {
++	const declaration = declarator.parent;
++	const block = declaration?.parent;
++	if (declarator.id.type !== AST_NODE_TYPES.Identifier || declaration?.type !== AST_NODE_TYPES.VariableDeclaration || block?.type !== AST_NODE_TYPES.BlockStatement) return false;
++	return orbScanStatements(block.body.slice(block.body.indexOf(declaration) + 1), declarator.id.name) === "settled";
++}
++/** Whether a test call is a listed wrapper's definition forwarding its own body parameter (its last
++ *  parameter), never rebound. */
++function orbForwardsListedWrapperBody(node, wrappers) {
++	const body = node.arguments[1];
++	if (body?.type !== AST_NODE_TYPES.Identifier) return false;
++	let wrapper = node.parent;
++	while (wrapper && !orbIsFunction(wrapper)) wrapper = wrapper.parent;
++	if (!wrapper) return false;
++	const wrapperName = wrapper.type === AST_NODE_TYPES.FunctionDeclaration ? wrapper.id?.name : wrapper.parent?.type === AST_NODE_TYPES.VariableDeclarator && wrapper.parent.id.type === AST_NODE_TYPES.Identifier ? wrapper.parent.id.name : undefined;
++	if (wrapperName === undefined || !wrappers.includes(wrapperName)) return false;
++	const bodyParam = wrapper.params.at(-1);
++	if (bodyParam?.type !== AST_NODE_TYPES.Identifier || bodyParam.name !== body.name) return false;
++	return !orbTouchesName(wrapper.body, body.name);
++}
+ //#endregion
+ //#region src/rules/expect-expect.ts
+ const RULE_NAME$77 = "expect-expect";
+@@ -2313,6 +2423,7 @@ var expect_expect_default = createEslintRule({
+ 				const name = getNodeName(node) ?? "";
+ 				if (isTypeOfVitestFnCall(node, context, ["test"]) || additionalTestBlockFunctions.includes(name)) {
+ 					if (node.callee.type === AST_NODE_TYPES.MemberExpression && isSupportedAccessor(node.callee.property, "todo")) return;
++					if (orbForwardsListedWrapperBody(node, additionalTestBlockFunctions)) return;
+ 					unchecked.push(node);
+ 				} else if (assertFunctionRegexps.some((p) => p.test(name))) checkCallExpression(context.sourceCode.getAncestors(node));
+ 			},
+@@ -6859,7 +6970,7 @@ var valid_expect_default = createEslintRule({
+ 				const isParentArrayExpression = parentNode.parent.type === AST_NODE_TYPES.ArrayExpression;
+ 				const targetNode = getParentIfThenified(parentNode);
+ 				const finalNode = findPromiseCallExpressionNode(targetNode) || targetNode;
+-				if (finalNode.parent && !isAcceptableReturnNode(finalNode.parent, !alwaysAwait) && !promiseArrayExceptionExists(finalNode.loc)) {
++				if (finalNode.parent && !isAcceptableReturnNode(finalNode.parent, !alwaysAwait) && !(finalNode.parent.type === AST_NODE_TYPES.VariableDeclarator && orbStoredAssertionSettled(finalNode.parent)) && !promiseArrayExceptionExists(finalNode.loc)) {
+ 					descriptors.push({
+ 						messageId: finalNode === targetNode ? "asyncMustBeAwaited" : "promisesWithAsyncAssertionsMustBeAwaited",
+ 						node: finalNode

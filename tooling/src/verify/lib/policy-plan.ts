@@ -6,7 +6,6 @@ import { factProvider } from "../contract/fact.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import { isDefinedGatePolicy } from "../contract/policy.ts";
 import type { PolicySelectionDisposition } from "../contract/policy-effective-population.ts";
-import type { PolicyPassResult } from "../contract/policy-pass.ts";
 import type {
   PlannedFact,
   PlannedPolicy,
@@ -18,13 +17,10 @@ import type {
 } from "../contract/policy-plan.ts";
 import type { PolicyScopeResolution, PolicySemanticPath } from "../contract/policy-scope.ts";
 import { isUnpopulatedResourceRequest } from "../contract/resource-declaration.ts";
-import type { ResourceHostOptions } from "../contract/resource-host.ts";
-import { parsePolicyCommand } from "./policy-command.ts";
 import { resolveEffectivePopulation } from "./policy-effective-population.ts";
 import { resourceManifests } from "./policy-plan-resources.ts";
 import { planSourceCandidates } from "./policy-plan-source-candidates.ts";
 import { policyProofArmCounts } from "./policy-proof-rows.ts";
-import { resolvePolicyScope } from "./policy-scope.ts";
 import { refuseSelection } from "./policy-selection.ts";
 import { isPolicySourceCandidate } from "./policy-source-candidate.ts";
 import { assertGatePolicyDescriptor, normalizePathSet } from "./policy-validation.ts";
@@ -35,7 +31,8 @@ function misuse(message: string): PolicyPlanningResult {
   return { ok: false, exitCode: 3, message };
 }
 
-function toolError(message: string): PolicyPlanningResult {
+/** A planning refusal the checker raised, class 2 under the house exit contract. */
+export function planningToolError(message: string): PolicyPlanningResult {
   return { ok: false, exitCode: 2, message };
 }
 
@@ -334,7 +331,7 @@ function runPlan(
 ): PolicyPlanningResult {
   const scope = input.scope;
   if (scope === undefined) {
-    return toolError("policy run planning requires a resolved scope manifest");
+    return planningToolError("policy run planning requires a resolved scope manifest");
   }
   assertScopeMatches(request, scope);
   const selected = selectedPolicies(policies, request.selector);
@@ -343,7 +340,7 @@ function runPlan(
   }
   const applicationPaths = input.applicationPaths === undefined ? undefined : new Set(input.applicationPaths);
   if (request.application === true && (applicationPaths === undefined || applicationPaths.size === 0)) {
-    return toolError("application policy planning requires a complete nonempty subject population");
+    return planningToolError("application policy planning requires a complete nonempty subject population");
   }
   const admitted = applicationPaths === undefined ? selected : selected.filter((policy) => policy.application !== "implementation");
   const selectedFacts = factsForPolicies(admitted);
@@ -398,7 +395,7 @@ function runPlan(
       population.declaredSourcePaths.length + population.declaredResourcePaths.length === 0 && population.excludedLegacySourcePaths !== undefined,
   );
   if (excludedFact !== undefined) {
-    return toolError(`fact ${excludedFact.factId} has no eligible typed inputs: ${LEGACY_ANALYSIS_EXCLUSION_REASON}`);
+    return planningToolError(`fact ${excludedFact.factId} has no eligible typed inputs: ${LEGACY_ANALYSIS_EXCLUSION_REASON}`);
   }
   const factOwners = selectedFacts.filter(({ id }) => runningFactIds.has(id));
   return {
@@ -431,55 +428,6 @@ export function planPolicyCommand(input: PolicyPlannerInput): PolicyPlanningResu
     const policies = validateCorpus(input);
     return input.request.mode === "run" ? runPlan(input, input.request, policies) : inspection(input.request, policies);
   } catch (error) {
-    return toolError(error instanceof Error ? error.message : String(error));
+    return planningToolError(error instanceof Error ? error.message : String(error));
   }
-}
-
-/** Parse argv and resolve its six-kind scope before producing the single final-policy command plan. */
-export interface PolicyArgvOptions extends Omit<ResourceHostOptions, "root"> {
-  readonly applicationPaths?: readonly string[];
-  /** Exact files from the structure pass's own workspace, consulted only for whole scope at a standalone
-   *  non-Git fixture root. A real repository always retains its Git-authored inventory. */
-  readonly wholeWorkspacePaths?: () => readonly string[];
-  /** Lazy so list/explain and parse refusals do not build the execution Project. */
-  readonly executionWorkspacePaths?: () => readonly string[];
-  readonly deferResourceFailuresToExecution?: boolean;
-}
-
-export function planPolicyArgv(
-  root: string,
-  argv: readonly string[],
-  corpus: PolicyPlannerInput["corpus"],
-  options: PolicyArgvOptions = {},
-): PolicyPlanningResult {
-  const parsed = parsePolicyCommand(argv);
-  if (!parsed.ok) {
-    return parsed;
-  }
-  try {
-    const { wholeWorkspacePaths, executionWorkspacePaths, deferResourceFailuresToExecution, applicationPaths, ...resourceOptions } = options;
-    const scope =
-      parsed.request.mode === "run"
-        ? resolvePolicyScope(root, parsed.request.scope, wholeWorkspacePaths === undefined ? {} : { wholeWorkspacePaths })
-        : undefined;
-    return planPolicyCommand({
-      request: parsed.request,
-      ...(applicationPaths === undefined ? {} : { applicationPaths }),
-      corpus,
-      ...(scope === undefined ? {} : { scope }),
-      resourceOptions: { root, ...resourceOptions },
-      ...(parsed.request.mode === "run" && executionWorkspacePaths !== undefined ? { executionWorkspacePaths: executionWorkspacePaths() } : {}),
-      ...(deferResourceFailuresToExecution === undefined ? {} : { deferResourceFailuresToExecution }),
-    });
-  } catch (error) {
-    return toolError(error instanceof Error ? error.message : String(error));
-  }
-}
-
-/** Map the completed dispatcher result onto the house 0/1/2 contract; argv/planning misuse is class 3. */
-export function policyPassExitCode(result: PolicyPassResult): 0 | 1 | 2 {
-  if (result.factErrors.length > 0 || result.toolErrors.length > 0 || result.authority.toolErrors.length > 0) {
-    return 2;
-  }
-  return result.authority.verdict.blocking > 0 ? 1 : 0;
 }

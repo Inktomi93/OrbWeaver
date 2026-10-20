@@ -124,9 +124,7 @@ test("same-ID RPG producers stay on their graph and disposal joins its subscribe
     const firstGame = await first.services.rpg.createGame({ principal: firstPrincipal, chatId: firstChat.id, mode: "lite" });
     expect(firstGame.gameId).toBe(secondGame.gameId);
     expect((await firstNext).value).toEqual({ type: "gameChanged", chatId: firstChat.id });
-    const stopped = expect(firstStream.next()).rejects.toMatchObject({ name: "AbortError" });
-    await first[Symbol.asyncDispose]();
-    await stopped;
+    await Promise.all([expect(firstStream.next()).rejects.toMatchObject({ name: "AbortError" }), first[Symbol.asyncDispose]()]);
     const stillLive = secondStream.next();
     await second.services.rpg.updateConfig({ principal: secondPrincipal, chatId: secondChat.id, patch: { steeringNote: "still live" } });
     expect((await stillLive).value).toEqual({ type: "gameChanged", chatId: secondChat.id });

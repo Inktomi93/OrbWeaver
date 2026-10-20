@@ -174,8 +174,8 @@ const DEFAULT_CASES = [false, true].flatMap((safeDefault) =>
     };
   }),
 );
-for (const scenario of [...CASES, ...DEFAULT_CASES]) {
-  test(scenario.name, async ({ plantedTree, repoRoot }) => {
+for (const { name, ...scenario } of [...CASES, ...DEFAULT_CASES]) {
+  test(name, async ({ plantedTree, repoRoot }) => {
     const fixture = await nativeFixture({ plantedTree, repoRoot }, { producer: HEAD + scenario.body, recipient: "" });
     const result = runPolicyPass({
       knownPolicies: [gate],

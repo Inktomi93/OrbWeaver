@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const STORY_ID = "orb/testid-typed-only-stories";
 const ROUTE_ORDER = "orb/route-trpc-lifo-order";
@@ -11,7 +12,8 @@ const STORY = "tests/client/features/chat/_ct-stories.tsx";
 const SPEC = "tests/client/features/g/g.ct.tsx";
 const HARD_CONFIG = "eslint-hard.config.js";
 // The first row of a file pays the flat-config load.
-const CONFIG_LOAD = { timeout: 60_000 };
+const CONFIG_LOAD_BASE_MS = 60_000;
+const CONFIG_LOAD = { timeout: scaledBudget(CONFIG_LOAD_BASE_MS) };
 
 async function ordinary(root: string, rule: string, source: string, path: string): Promise<readonly Linter.LintMessage[]> {
   const filename = join(root, path);

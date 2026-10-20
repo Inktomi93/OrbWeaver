@@ -15,7 +15,7 @@ import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { assets, characters, chats, closeDb, documents, userSettings } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
-import type { AssetId, ChatId, MessageId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { recordPluginFetchedAsset } from "@orb/server/domain/plugin";
 import type { Cas } from "@orb/server/infra/storage/cas";
@@ -86,7 +86,7 @@ async function openBox(db?: Db): Promise<GcBox> {
   onTestFinished(async () => {
     await root[Symbol.asyncDispose]();
     if (db !== undefined) {
-      await closeDb(db);
+      closeDb(db);
     }
     await rm(dir, { recursive: true, force: true });
   });
@@ -176,7 +176,7 @@ function inlineImage(ref: StoredRef): string {
   return contentSpanRaw({ kind: "image", ref: { kind: "asset", assetId: ref.assetId }, alt: "kept" });
 }
 
-async function openRoom(box: GcBox, handle: string, principal: Principal = box.principal): Promise<ChatId> {
+async function openRoom(box: GcBox, handle: CharacterHandle, principal: Principal = box.principal): Promise<ChatId> {
   const character = await box.root.services.character.create({
     principal,
     input: createCharacterSchema.parse({ handle, name: "Keeper", description: "A keeper tends the orbital ledger." }),
@@ -232,7 +232,7 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
   refs["gallery_items.asset_id"] = await store(box, "gallery");
   await root.services.assets.addToGallery({ principal, assetId: refs["gallery_items.asset_id"].assetId });
 
-  const room = await openRoom(box, "gc-room");
+  const room = await openRoom(box, castId<CharacterHandle>("gc-room"));
   refs["message_assets.asset_id"] = await store(box, "attachment");
   await attach(box, room, refs["message_assets.asset_id"]);
 
@@ -338,7 +338,7 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
 
   // A fork copies the canon body; deleting the source leaves the fork's body as the image's only reference.
   refs["message body (fork of a deleted chat)"] = await store(box, "attachment");
-  const forkSource = await openRoom(box, "gc-fork-source");
+  const forkSource = await openRoom(box, castId<CharacterHandle>("gc-fork-source"));
   await attach(box, forkSource, refs["message body (fork of a deleted chat)"]);
   await root.services.chat.forkChat({ principal, chatId: forkSource });
   await root.services.chat.delete({ principal, chatId: forkSource });
@@ -390,8 +390,11 @@ test("a body quoting another owner's asset retains nothing, while the owner's ow
   await seedCorpusConnections(box.root, foreign);
   const quotedByStranger = await store(box, "attachment");
   const quotedByOwner = await store(box, "attachment");
-  await say(box, await openRoom(box, "gc-stranger-room", foreign), { content: `Borrowed. ${inlineImage(quotedByStranger)}`, as: foreign });
-  await say(box, await openRoom(box, "gc-owner-room"), { content: `Mine. ${inlineImage(quotedByOwner)}` });
+  await say(box, await openRoom(box, castId<CharacterHandle>("gc-stranger-room"), foreign), {
+    content: `Borrowed. ${inlineImage(quotedByStranger)}`,
+    as: foreign,
+  });
+  await say(box, await openRoom(box, castId<CharacterHandle>("gc-owner-room")), { content: `Mine. ${inlineImage(quotedByOwner)}` });
   await ageOnly(box, quotedByStranger, quotedByOwner);
 
   const run = await runScheduledGc(box);
@@ -404,7 +407,7 @@ test("a body quoting another owner's asset retains nothing, while the owner's ow
 test("a reference written after the sweep's snapshot still wins the destructive edge, for each body and JSON source", async () => {
   const { db, hold } = await freshHeldDb();
   const box = await openBox(db);
-  const room = await openRoom(box, "gc-race-room");
+  const room = await openRoom(box, castId<CharacterHandle>("gc-race-room"));
   const plain = await say(box, room, { content: "The ledger, before the picture." });
   const late = {
     "message body": async (ref: StoredRef): Promise<void> => {
@@ -443,7 +446,7 @@ test("a co-member's quote keeps nothing once the owner's own attachment message 
   const box = await openBox();
   const member = await box.root.principalFor((await box.root.actor()).id);
   await seedCorpusConnections(box.root, member);
-  const room = await openRoom(box, "gc-shared-room");
+  const room = await openRoom(box, castId<CharacterHandle>("gc-shared-room"));
   const invite = await seedChatInvite(box.root.db, box.root.services.chat.createInvite, {
     principal: box.principal,
     chatId: room,
@@ -488,19 +491,19 @@ test("a same-bytes upload indexed between the row delete and the unlink keeps it
  *  Each plant answers the primary key of the row it broke: the refusal must name it for the owner to repair. */
 const UNREADABLE_REFERENCES = {
   "a room background of a source kind this build does not know": async (box: GcBox, ref: StoredRef): Promise<string> => {
-    const room = await openRoom(box, "gc-unknown-room-kind");
+    const room = await openRoom(box, castId<CharacterHandle>("gc-unknown-room-kind"));
     await plantRoomBackground(box, room, { kind: "library", assetId: ref.assetId });
     return room;
   },
   "a room background that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> => {
-    const room = await openRoom(box, "gc-encoded-room-background");
+    const room = await openRoom(box, castId<CharacterHandle>("gc-encoded-room-background"));
     await plantRoomBackground(box, room, JSON.stringify({ kind: "asset", assetId: ref.assetId }));
     return room;
   },
   "a card background of a source kind this build does not know": async (box: GcBox, ref: StoredRef): Promise<string> =>
-    await plantCardBackground(box, "gc-unknown-card-kind", { kind: "library", assetId: ref.assetId }),
+    await plantCardBackground(box, castId<CharacterHandle>("gc-unknown-card-kind"), { kind: "library", assetId: ref.assetId }),
   "a card background override that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> =>
-    await plantCardBackground(box, "gc-encoded-card-background", JSON.stringify({ kind: "asset", assetId: ref.assetId })),
+    await plantCardBackground(box, castId<CharacterHandle>("gc-encoded-card-background"), JSON.stringify({ kind: "asset", assetId: ref.assetId })),
   "a background-library entry whose assetId is not a string": async (box: GcBox, ref: StoredRef): Promise<string> =>
     await rewriteSettings(box, "$.appearance.backgroundLibrary", [{ entryId: "gc-entry", assetId: { id: ref.assetId } }]),
   "a background-library entry that is not an object": async (box: GcBox, ref: StoredRef): Promise<string> =>
@@ -531,7 +534,7 @@ async function plantRoomBackground(box: GcBox, room: ChatId, value: unknown): Pr
     .where(eq(chats.id, room));
 }
 
-async function plantCardBackground(box: GcBox, handle: string, value: unknown): Promise<string> {
+async function plantCardBackground(box: GcBox, handle: CharacterHandle, value: unknown): Promise<string> {
   const card = await box.root.services.character.create({
     principal: box.principal,
     input: createCharacterSchema.parse({ handle, name: "Unreadable", description: "" }),

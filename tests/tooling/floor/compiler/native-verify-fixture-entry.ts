@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import { dirname, join } from "node:path";
 import process from "node:process";
+import { plantPrototypeFault } from "@orb/testkit/node/prototype-fault-plant.ts";
 import type { Identifier as MorphIdentifier, Node as MorphNode } from "ts-morph";
 import type { InventoryWorkerRequest } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 
@@ -51,37 +52,43 @@ const { hasRegisteredSemanticProgram } = await import("../../../../tooling/src/f
 const symbolFor = Node.prototype.getSymbol;
 const typeFor = Node.prototype.getType;
 const definitionsFor = Identifier.prototype.getDefinitionNodes;
-const definitionsOwn = Object.getOwnPropertyDescriptor(Identifier.prototype, "getDefinitionNodes");
 let syntaxReads = 0;
+const restores: (() => void)[] = [];
 if (request.forbidSyntax === true) {
-  Object.defineProperty(Node.prototype, "getSymbol", {
-    value(this: MorphNode): ReturnType<MorphNode["getSymbol"]> {
-      if (!hasRegisteredSemanticProgram(this.getProject())) {
-        syntaxReads++;
-        throw new Error("native command read a syntax carrier symbol");
-      }
-      return symbolFor.call(this);
-    },
-  });
-  Object.defineProperty(Node.prototype, "getType", {
-    value(this: MorphNode): ReturnType<MorphNode["getType"]> {
-      if (!hasRegisteredSemanticProgram(this.getProject())) {
-        syntaxReads++;
-        throw new Error("native command read a syntax carrier Type");
-      }
-      return typeFor.call(this);
-    },
-  });
-  Object.defineProperty(Identifier.prototype, "getDefinitionNodes", {
-    configurable: true,
-    value(this: MorphIdentifier): ReturnType<MorphIdentifier["getDefinitionNodes"]> {
-      if (!hasRegisteredSemanticProgram(this.getProject())) {
-        syntaxReads++;
-        throw new Error("native command read syntax carrier definitions");
-      }
-      return definitionsFor.call(this);
-    },
-  });
+  restores.push(
+    plantPrototypeFault(Node.prototype, "getSymbol", {
+      value(this: MorphNode): ReturnType<MorphNode["getSymbol"]> {
+        if (!hasRegisteredSemanticProgram(this.getProject())) {
+          syntaxReads++;
+          throw new Error("native command read a syntax carrier symbol");
+        }
+        return symbolFor.call(this);
+      },
+    }),
+  );
+  restores.push(
+    plantPrototypeFault(Node.prototype, "getType", {
+      value(this: MorphNode): ReturnType<MorphNode["getType"]> {
+        if (!hasRegisteredSemanticProgram(this.getProject())) {
+          syntaxReads++;
+          throw new Error("native command read a syntax carrier Type");
+        }
+        return typeFor.call(this);
+      },
+    }),
+  );
+  restores.push(
+    plantPrototypeFault(Identifier.prototype, "getDefinitionNodes", {
+      configurable: true,
+      value(this: MorphIdentifier): ReturnType<MorphIdentifier["getDefinitionNodes"]> {
+        if (!hasRegisteredSemanticProgram(this.getProject())) {
+          syntaxReads++;
+          throw new Error("native command read syntax carrier definitions");
+        }
+        return definitionsFor.call(this);
+      },
+    }),
+  );
 }
 try {
   const exit =
@@ -91,11 +98,7 @@ try {
   writeFileSync(resultPath, JSON.stringify({ exit, workers, syntaxReads, requests }));
 } finally {
   Object.defineProperty(childProcess, "spawnSync", { value: spawn });
-  Object.defineProperty(Node.prototype, "getSymbol", { value: symbolFor });
-  Object.defineProperty(Node.prototype, "getType", { value: typeFor });
-  if (definitionsOwn === undefined) {
-    Reflect.deleteProperty(Identifier.prototype, "getDefinitionNodes");
-  } else {
-    Object.defineProperty(Identifier.prototype, "getDefinitionNodes", definitionsOwn);
+  for (const restore of restores.toReversed()) {
+    restore();
   }
 }

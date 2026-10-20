@@ -5,7 +5,7 @@ import { credentialExecutionEvidenceOf, credentialViewSchema } from "@orb/contra
 import { auditLogs, userCredentials } from "@orb/db";
 import { DomainNoCredentialError, DomainOperationError } from "@orb/kit/errors";
 import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
-import { makeApiKeySecret, makeResolvedSecret, seedUserCredential } from "@orb/testkit/node/factories/credentials.ts";
+import { makeResolvedSecret, seedApiKeySecret, seedUserCredential } from "@orb/testkit/node/factories/credentials.ts";
 import { makeResolved } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
@@ -17,7 +17,7 @@ const REPLACEMENT_KEY = "replacement-corpus-credential";
 test("a resolved credential builder carries real dispatched-key authority into the credential owner's strike", async () => {
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
   const principal = await root.principalFor(root.ownerId);
-  const resolved = await makeApiKeySecret(root.db, root.services.credentials, { principal, provider: "openrouter", key: KEY });
+  const resolved = await seedApiKeySecret(root.db, root.services.credentials, { principal, provider: "openrouter", key: KEY });
   const foreign = await root.actor();
   const caller = await root.internalCallerFor(root.ownerId);
   await expect(
@@ -69,7 +69,7 @@ test("an unknown provider cannot create resolved authority or leave credential a
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
   const principal = await root.principalFor(root.ownerId);
   const before = { credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) };
-  await expect(makeApiKeySecret(root.db, root.services.credentials, { principal, provider: "unregistered-test-provider", key: KEY })).rejects.toBeInstanceOf(
+  await expect(seedApiKeySecret(root.db, root.services.credentials, { principal, provider: "unregistered-test-provider", key: KEY })).rejects.toBeInstanceOf(
     DomainOperationError,
   );
   expect({ credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) }).toEqual(before);
@@ -159,7 +159,7 @@ test("disabled deployment storage refuses before producing a credential or audit
   expect(await caller.credentials.storageStatus()).toEqual({ enabled: false });
   const credentialsBefore = await root.db.select().from(userCredentials);
   const auditBefore = await root.db.select().from(auditLogs);
-  const refused = makeApiKeySecret(root.db, root.services.credentials, { principal, provider: "custom-openai", key: KEY });
+  const refused = seedApiKeySecret(root.db, root.services.credentials, { principal, provider: "custom-openai", key: KEY });
   await expect(refused).rejects.toBeInstanceOf(DomainOperationError);
   await expect(refused).rejects.toThrow("Per-user credential storage is disabled");
   expect(await root.db.select().from(userCredentials)).toEqual(credentialsBefore);

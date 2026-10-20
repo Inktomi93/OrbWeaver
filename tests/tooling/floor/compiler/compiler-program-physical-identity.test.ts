@@ -6,7 +6,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 
-const resolved = vi.hoisted(() => ({ paths: [] as string[] }));
+const resolved = vi.hoisted((): { paths: string[] } => ({ paths: [] }));
 
 vi.mock("node:fs", async (importOriginal) => {
   const real = await importOriginal<typeof Fs>();

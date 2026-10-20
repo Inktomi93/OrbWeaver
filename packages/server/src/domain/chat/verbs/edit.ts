@@ -97,13 +97,13 @@ import {
   generationObservationRemovalStatements,
   loadGenerationObservationsForRemoval,
 } from "../persistence/generation-observation.ts";
+import { loadMessageAssetLinks } from "../persistence/message-asset-links.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadAuthoredUserMessageIds,
   loadHasUserMessage,
   loadMaxMessageSeq,
-  loadMessageAssetLinks,
   loadMessageSeqs,
   loadMessageView,
   loadSlotTarget,

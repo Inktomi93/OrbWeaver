@@ -273,6 +273,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
           invocationQueries,
           moduleTargetQueries,
           drizzle: request,
+          roots: new Set(roots),
         });
   return {
     intent: request.intent ?? "facts",
@@ -364,6 +365,7 @@ function extractTypedFacts(
     readonly invocationQueries: readonly InventoryInvocationQuery[];
     readonly moduleTargetQueries: readonly InventoryModuleTargetQuery[];
     readonly drizzle: InventoryBuildRequest;
+    readonly roots: ReadonlySet<string>;
   },
 ): SourceFactValues & Pick<InventoryPartition, "pairs" | "references" | "referenceQueries" | "schemaIdentity" | "schemaData" | "drizzleCalls"> {
   const {
@@ -434,6 +436,7 @@ function extractTypedFacts(
         : {};
     const { referenceDeclarations, ...sourceFacts } = extractSourceFacts(program, sources, authored, {
       spans,
+      roots: input.roots,
       families: sourceFamilies(families, input.drizzle),
       exportQueries,
       callableQueries,
@@ -570,6 +573,10 @@ interface SourceFactCollection {
   readonly globalBindingQueries: Set<string>;
   readonly globalKinds: ReadonlySet<SyntaxKind>;
   readonly invocationBindings: Map<string, InventorySymbols>;
+  /** This world's own root files; every reader question about another file goes to that file's owning world. */
+  readonly roots: ReadonlySet<string>;
+  /** Every name spelled in a root, when references are demanded: a reference located in a root spells its name. */
+  readonly rootNames: ReadonlySet<string> | undefined;
 }
 
 function exportFactProjection(
@@ -593,7 +600,7 @@ function exportDemandBySource(queries: readonly InventoryExportDeclarationQuery[
   return grouped;
 }
 
-function collectExportFacts(sf: SourceFile, context: SourceFactCollection): void {
+function collectExportFacts(sf: SourceFile, context: SourceFactCollection, root: boolean): void {
   const file = context.spans.path(sf.getFilePath());
   const queries = context.exportQueries.get(file);
   const complete = context.families.has("exports") || context.families.has("references") || context.families.has("shape-catalog");
@@ -614,9 +621,14 @@ function collectExportFacts(sf: SourceFile, context: SourceFactCollection): void
     if (context.families.has("exports")) {
       context.values.exports.push({ file: context.spans.path(sf.getFilePath()), name, declarations: declarations.map(context.spans.node) });
     }
-    if (context.families.has("references")) {
-      registerReferenceDeclarations(declarations, context.authored, context.referenceDeclarations, context.spans);
-    }
+    registerExportReferences(declarations, context, root);
+  }
+}
+
+function registerExportReferences(declarations: readonly MorphNode[], context: SourceFactCollection, root: boolean): void {
+  if (context.families.has("references")) {
+    const admitted = root ? declarations : declarations.filter((declaration) => rootSpelled(declaration, context));
+    registerReferenceDeclarations(admitted, context.authored, context.referenceDeclarations, context.spans);
   }
 }
 
@@ -654,7 +666,10 @@ function collectIdentifierFacts(node: MorphNode, context: SourceFactCollection):
     context.values.globalBindings.push(span);
   }
   if (context.families.has("references")) {
-    registerReferenceDeclarations(node.getSymbol()?.getDeclarations() ?? [], context.authored, context.referenceDeclarations, context.spans);
+    const symbol = node.getSymbol();
+    // An import names its origin by alias; the origin's own file may be closure-only in this world.
+    const aliased = symbol?.isAlias() === true ? symbol.getAliasedSymbol()?.getDeclarations() : undefined;
+    registerReferenceDeclarations([...(symbol?.getDeclarations() ?? []), ...(aliased ?? [])], context.authored, context.referenceDeclarations, context.spans);
   }
 }
 
@@ -755,21 +770,21 @@ function addCallableVisitors(visitors: Map<SyntaxKind, ((node: MorphNode) => voi
   }
 }
 
-function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): void {
-  const { families, spans, values } = context;
-  collectFileFacts(sf, context);
+const SHAPE_KINDS = [
+  SyntaxKind.InterfaceDeclaration,
+  SyntaxKind.TypeAliasDeclaration,
+  SyntaxKind.ClassDeclaration,
+  SyntaxKind.TypeLiteral,
+  SyntaxKind.VariableDeclaration,
+  SyntaxKind.FunctionDeclaration,
+  SyntaxKind.EnumDeclaration,
+  SyntaxKind.ExportAssignment,
+] as const;
+
+function shapeVisitors(context: SourceFactCollection): Map<SyntaxKind, ((node: MorphNode) => void)[]> {
   const visitors = new Map<SyntaxKind, ((node: MorphNode) => void)[]>();
-  if (families.has("shape-catalog")) {
-    for (const kind of [
-      SyntaxKind.InterfaceDeclaration,
-      SyntaxKind.TypeAliasDeclaration,
-      SyntaxKind.ClassDeclaration,
-      SyntaxKind.TypeLiteral,
-      SyntaxKind.VariableDeclaration,
-      SyntaxKind.FunctionDeclaration,
-      SyntaxKind.EnumDeclaration,
-      SyntaxKind.ExportAssignment,
-    ]) {
+  if (context.families.has("shape-catalog")) {
+    for (const kind of SHAPE_KINDS) {
       visitors.set(kind, [
         (node): void => {
           collectShapeFact(node, context);
@@ -777,6 +792,79 @@ function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): vo
       ]);
     }
   }
+  return visitors;
+}
+
+const ROOT_WORD_RE = /[\p{ID_Start}$_][\p{ID_Continue}$\u200C\u200D]*/gu;
+const ROOT_LITERAL_KINDS = new Set<ts.SyntaxKind>([ts.SyntaxKind.StringLiteral, ts.SyntaxKind.NoSubstitutionTemplateLiteral, ts.SyntaxKind.NumericLiteral]);
+
+/** Words of the full root text (code, comments and JSDoc links) plus literal names a word cannot spell. */
+function rootNames(files: readonly SourceFile[], roots: ReadonlySet<string>, spans: InventorySpans): ReadonlySet<string> {
+  const names = new Set<string>();
+  for (const sf of files) {
+    if (!roots.has(spans.path(sf.getFilePath()))) {
+      continue;
+    }
+    for (const word of sf.getFullText().matchAll(ROOT_WORD_RE)) {
+      names.add(word[0]);
+    }
+    const walk = (node: ts.Node): void => {
+      if (ROOT_LITERAL_KINDS.has(node.kind)) {
+        names.add((node as ts.LiteralExpression).text);
+      }
+      ts.forEachChild(node, walk);
+    };
+    ts.forEachChild(sf.compilerNode, walk);
+  }
+  return names;
+}
+
+/** A closure declaration can hold a reference in a root only if some root spells its name; unnamed ones stay. */
+function rootSpelled(declaration: MorphNode, context: SourceFactCollection): boolean {
+  const name = declaration.getNodeProperty<"name", ts.NamedDeclaration>("name");
+  if (Node.isIdentifier(name)) {
+    return context.rootNames?.has(name.getText()) !== false;
+  }
+  if (Node.isStringLiteral(name) || Node.isNumericLiteral(name)) {
+    return context.rootNames?.has(name.getLiteralText()) !== false;
+  }
+  return true;
+}
+
+/** A closure file is type context for this world's roots: it keeps shapes and the reference declarations its
+ *  roots can spell, never per-file facts, which its owning world answers. */
+function collectClosureFacts(sf: SourceFile, context: SourceFactCollection): void {
+  const visitors = shapeVisitors(context);
+  const names = context.rootNames;
+  if (names !== undefined) {
+    visitors.set(SyntaxKind.Identifier, [
+      (node): void => {
+        if (names.has(node.getText())) {
+          registerReferenceDeclarations(node.getSymbol()?.getDeclarations() ?? [], context.authored, context.referenceDeclarations, context.spans);
+        }
+      },
+    ]);
+  }
+  collectByKinds([sf], visitors);
+}
+
+function collectSourceFacts(sf: SourceFile, file: string, context: SourceFactCollection): void {
+  const root = context.roots.has(file);
+  collectExportFacts(sf, context, root);
+  if (!context.authored(file)) {
+    return;
+  }
+  if (root) {
+    collectAuthoredFacts(sf, context);
+  } else {
+    collectClosureFacts(sf, context);
+  }
+}
+
+function collectAuthoredFacts(sf: SourceFile, context: SourceFactCollection): void {
+  const { families, spans, values } = context;
+  collectFileFacts(sf, context);
+  const visitors = shapeVisitors(context);
   if (families.has("bindings") || families.has("references") || context.globalBindingQueries.size > 0) {
     visitors.set(SyntaxKind.Identifier, [(node): void => collectIdentifierFacts(node, context)]);
   }
@@ -811,7 +899,7 @@ function collectModuleDoor(node: MorphNode, file: string, context: SourceFactCol
   if (!(Node.isImportDeclaration(node) || Node.isExportDeclaration(node))) {
     throw new Error("native contextual module query is not an authored import/export door");
   }
-  if (!context.authored(file)) {
+  if (!(context.roots.has(file) && context.authored(file))) {
     const fact = moduleFact(node, context.spans);
     if (fact === undefined) {
       throw new Error("native contextual module query has no module specifier");
@@ -852,7 +940,7 @@ function extractSourceFacts(
   program: ts.Program,
   sources: InventorySources,
   authored: (path: string) => boolean,
-  input: Pick<SourceFactCollection, "families" | "spans"> & {
+  input: Pick<SourceFactCollection, "families" | "spans" | "roots"> & {
     readonly exportQueries: readonly InventoryExportDeclarationQuery[];
     readonly callableQueries: readonly InventorySpan[];
     readonly computedNameQueries: readonly InventorySpan[];
@@ -900,6 +988,7 @@ function extractSourceFacts(
     invocationBindings: new Map(),
     referenceDeclarations: new Map(),
     shapeNodes: new WeakSet(),
+    rootNames: input.families.has("references") ? rootNames(sources.files, input.roots, spans) : undefined,
   };
   const standaloneSources = nativeCompilerSourceFiles(program);
   const byCompilerSource = new Map(standaloneSources.map((sf) => [sf.compilerNode, sf]));
@@ -922,10 +1011,7 @@ function extractSourceFacts(
       if (authored(file)) {
         assertAuthoredSyntax(original, sf, spans);
       }
-      collectExportFacts(sf, context);
-      if (authored(file)) {
-        collectAuthoredFacts(sf, context);
-      }
+      collectSourceFacts(sf, file, context);
       sf.forgetDescendants();
     }
     if (context.exportQueries.size > 0) {
@@ -1415,8 +1501,8 @@ function collectInvocationBinding(identifier: MorphNode, state: InvocationCollec
   context.values.globalBindings.push(node);
   const symbols = bindingFacts(identifier, context.spans);
   context.invocationBindings.set(key, symbols);
-  // Complete authored order stays with its walk; matching normalized bytes prove the shared row for both owners.
-  if (!(context.families.has("bindings") && context.authored(node.file))) {
+  // Only authored roots take the complete walk; demanded closure bindings must be captured here.
+  if (!(context.families.has("bindings") && context.roots.has(node.file) && context.authored(node.file))) {
     context.values.bindings.push({ node, symbols });
   }
 }

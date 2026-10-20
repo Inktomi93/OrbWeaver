@@ -304,7 +304,7 @@ test.describe("maintained browser boundaries", () => {
     const findings = await labelInNameFindings(page);
     expect(findings).toHaveLength(1);
     expect(findings[0]?.detail).toContain('"jump"');
-    expect(await page.getByRole("button", { name: "Aria — character", exact: true }).textContent()).toBe("Aria respondingsecret");
+    await expect(page.getByRole("button", { name: "Aria — character", exact: true })).toHaveText("Aria respondingsecret");
   });
 
   test("autosave records ordered distinct transitions and reads raw JSON without healing malformed bytes", async ({ page }) => {
@@ -331,7 +331,8 @@ test.describe("maintained browser boundaries", () => {
     });
     expect(await readAutosaveStatusTranscript(page)).toEqual(["Saving…", "Saved"]);
     const sink = page.locator('script[type="application/json"]');
-    expect(await sink.textContent()).toBe('["Saving…","Saved"]');
+    // A script element renders no text, so the retrying read is its textContent property, not toHaveText.
+    await expect(sink).toHaveJSProperty("textContent", '["Saving…","Saved"]');
     await sink.evaluate((node) => {
       node.textContent = '[1,"raw",null]';
     });
