@@ -23,3 +23,5 @@ A scoped verb extracts only the worlds whose files it reads or whose consumers i
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Prior-art review (`reports/review/semantic-store-prior-art.md`): currentDemandDescriptors returns every program whenever a shape plan is set (tooling/src/floor/code-facts/semantic-inventory.ts:261), demandShapePartitions then runs a membership extraction per descriptor (:519-521), each loading a whole Program, one worker at a time. Scope the acquired worlds first, then make membership a cached cheap read.
