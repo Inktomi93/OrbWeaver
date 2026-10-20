@@ -313,8 +313,9 @@ export interface ResolvedIdentity {
 // The brand cannot refuse an assertion, an Object.assign intersection or an `any`-typed value. The ESLint
 // `orb/principal-*` rules refuse the first two, and every rename of this name, in server and inference code.
 // No rule refuses an `any` value bound or passed as a Principal (Spine-Identity-and-Auth.md §3).
+// The private member is a method because Playwright's Babel transform rejects any field on a `declare class`.
 declare class PrincipalMint {
-  private readonly principalMint: true;
+  private principalMint(): void;
 }
 
 /** The post-seam, immutable, db-resolved caller, constructed ONCE and carried downstream unchanged. No
