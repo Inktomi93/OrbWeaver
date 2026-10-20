@@ -8,8 +8,7 @@
 // still ERRORS rather than committing an empty reply (#1400's class, where a collapse-to-null fed an
 // all-null chunk that committed an empty reply as canon).
 //
-// THE EXECUTION PATH IS THE REAL ONE. Every arm runs `buildBackends(deps)` → `createProviderExecutor(…)` →
-// `runTask`, so each cell crosses the same dispatch seam production does — including the abort FLATTEN
+// THE EXECUTION PATH IS THE REAL ONE. Every arm runs `buildBackends(deps)` → `runTask`, so each cell crosses the same dispatch seam production does — including the abort FLATTEN
 // (`registry/dispatch.ts` → `backends/http/abort-flatten.ts`), which a direct `backend.runChatTurn(req)` call
 // would skip. What differs per wire is only the FIXTURE (which bytes / which SDK frames the fake transport
 // produces), because that is the one thing that genuinely cannot be shared.
@@ -39,13 +38,12 @@ import { ProviderError } from "#inference/contract/errors.ts";
 import type { ChatEvent } from "#inference/contract/events.ts";
 import type { EmbedRequest, StructuredRequest } from "#inference/contract/roles.ts";
 import { BACKEND_DEFS, buildBackends } from "#inference/registry/backends.ts";
-import { createProviderExecutor } from "#inference/roles/executor.ts";
-import { fakeApiKeySecret, fakeDeps, fakeResolved } from "../_support.ts";
+import { physicalSdkScenario } from "../../../inference/backends/agent-sdk/regression-edge.fixtures.ts";
+import { fakeApiKeySecret, fakeDeps, fakeResolved, registryExecutor } from "../_support.ts";
 import type { RecordedRequest, SseEvent } from "../backends/_hosted-support.ts";
 import { abortAware, generationCapability, scriptedJsonFetch, scriptedSseFetch } from "../backends/_hosted-support.ts";
 
-/** The bundled-runtime path `BACKEND_DEFS["agent-sdk"].needs` gates on. Never spawned: the `query` seam is
- *  faked, so this string only has to be present. */
+/** Registration requires a runtime path; the owned physical executable replaces only its spawn. */
 export const CLAUDE_EXECUTABLE = "/usr/bin/claude";
 const SESSION_ID = "a95fcd1f-a1ca-42db-ac6c-de6b1f01091d";
 const CONTEXT_WINDOW = 200_000;
@@ -260,24 +258,6 @@ function agentSdkFrames(script: ChatScript, model: string): Record<string, unkno
   return frames;
 }
 
-/** An agent-sdk `query` stand-in over pre-rendered frames. Honours `options.abortController` the way the
- *  bundled runtime does — rejecting with the signal's OWN reason — so the cancellation arm can read WHICH
- *  reason reached the transport rather than merely that the turn ended. */
-function fakeQuery(frames: readonly Record<string, unknown>[]): unknown {
-  return (args: { readonly options?: { readonly abortController?: AbortController } }): AsyncGenerator<Record<string, unknown>> => {
-    const signal = args.options?.abortController?.signal;
-    return (async function* stream(): AsyncGenerator<Record<string, unknown>> {
-      for (const frame of frames) {
-        await Promise.resolve();
-        if (signal?.aborted === true) {
-          throw signal.reason;
-        }
-        yield frame;
-      }
-    })();
-  };
-}
-
 // ── the built runtime ─────────────────────────────────────────────────────────────────────────────────────
 
 /** One built inference runtime plus the two observation points every arm reads: the send-boundary capture
@@ -288,7 +268,7 @@ interface ConformanceRuntime {
   readonly skipped: ReadonlyMap<Wire, string>;
 }
 
-function buildRuntime(options: { readonly fetch?: typeof fetch | undefined; readonly agentSdkQuery?: unknown }): ConformanceRuntime {
+function buildRuntime(options: { readonly fetch?: typeof fetch | undefined; readonly agentSdk?: ReturnType<typeof physicalSdkScenario> }): ConformanceRuntime {
   const captured: { api: string; wire: Wire; body: Record<string, unknown> }[] = [];
   const captureWire: WireCaptureSink = (entry) => {
     captured.push({ api: entry.api, wire: entry.wire, body: entry.body });
@@ -297,11 +277,11 @@ function buildRuntime(options: { readonly fetch?: typeof fetch | undefined; read
     claudeExecutable: CLAUDE_EXECUTABLE,
     captureWire,
     ...(options.fetch !== undefined ? { fetch: options.fetch } : {}),
-    ...(options.agentSdkQuery !== undefined ? { agentSdkQuery: options.agentSdkQuery } : {}),
+    ...(options.agentSdk === undefined ? {} : { agentSdkSpawn: options.agentSdk.spawn, userRuntimeDir: () => options.agentSdk.directory }),
   });
   const built = buildBackends(deps);
   return {
-    executor: createProviderExecutor({ registry: built.registry, span: deps.span, beginEmbeddingAccounting: deps.beginEmbeddingAccounting }),
+    executor: registryExecutor(deps, built),
     captured,
     skipped: built.skipped,
   };
@@ -430,7 +410,9 @@ function chatRequestFor(wire: Wire, options: ChatArmOptions, sink: ChatEventSink
 }
 
 function runtimeFor(wire: Wire, frames: () => Record<string, unknown>[], sse: () => SseEvent[], recorded: RecordedRequest[]): ConformanceRuntime {
-  return wire === "agent-sdk" ? buildRuntime({ agentSdkQuery: fakeQuery(frames()) }) : buildRuntime({ fetch: abortAware(scriptedSseFetch([sse()], recorded)) });
+  return wire === "agent-sdk"
+    ? buildRuntime({ agentSdk: physicalSdkScenario({ frames: frames() }) })
+    : buildRuntime({ fetch: abortAware(scriptedSseFetch([sse()], recorded)) });
 }
 
 /** Drive ONE chat turn on ONE wire through the real executor. Resolves with the turn plus everything the
@@ -506,7 +488,7 @@ export function driveStructuredMalformed(wire: Wire): Promise<unknown> {
   const model = modelForWire(wire);
   const runtime =
     wire === "agent-sdk"
-      ? buildRuntime({ agentSdkQuery: fakeQuery(agentSdkStructuredFrames(model, undefined)) })
+      ? buildRuntime({ agentSdk: physicalSdkScenario({ frames: agentSdkStructuredFrames(model, undefined) }) })
       : buildRuntime({ fetch: abortAware(truncatedEventFetch) });
   const request: StructuredRequest = {
     connection: fakeResolved({

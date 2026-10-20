@@ -1,13 +1,12 @@
 // roles/side-gen — a summarize or structured item is one non-delivered chat turn on the wire's own chat path, so
-// a fix to the chat request reaches side generation by construction. Each pin drives the public executor (the
-// same dispatch seam production crosses) and asserts on the wire body or the item; each names a divergence the
+// a fix to the chat request reaches side generation by construction. Each pin drives the production registry dispatch (including abort flattening) and asserts on the wire body or the item; each names a divergence the
 // separate batch path had from the chat turn.
 
-import { setTimeout as sleep } from "node:timers/promises";
 import type { Capability, ProviderId } from "@orb/contracts/inference";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { castId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
+import { createManualTimer } from "@orb/testkit/iso/clock.ts";
 import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
@@ -16,9 +15,8 @@ import { synthesizeCapability } from "#inference/capability/synthesize.ts";
 import type { ProviderExecutor } from "#inference/contract/backend.ts";
 import { ProviderError } from "#inference/contract/errors.ts";
 import type { InferenceLog } from "#inference/deps.ts";
-import { buildBackends } from "#inference/registry/backends.ts";
-import { createProviderExecutor } from "#inference/roles/executor.ts";
-import { fakeApiKeySecret, fakeDeps, fakeResolved, wireSchema } from "../_support.ts";
+import { physicalSdkScenario } from "../../../inference/backends/agent-sdk/regression-edge.fixtures.ts";
+import { fakeApiKeySecret, fakeDeps, fakeResolved, registryExecutor, wireSchema } from "../_support.ts";
 import type { RecordedRequest, SseEvent } from "../backends/_hosted-support.ts";
 import { anthropicTextStream, generationCapability } from "../backends/_hosted-support.ts";
 
@@ -40,14 +38,19 @@ function recordingLog(lines: LogLine[]): InferenceLog {
   return { debug: push("debug"), info: push("info"), warn: push("warn"), error: push("error") };
 }
 
-function executorWith(args: { readonly fetch?: typeof fetch; readonly agentSdkQuery?: unknown; readonly lines?: LogLine[] }): ProviderExecutor {
+function executorWith(args: {
+  readonly fetch?: typeof fetch;
+  readonly agentSdk?: ReturnType<typeof physicalSdkScenario>;
+  readonly lines?: LogLine[];
+  readonly scheduleTimeout?: ReturnType<typeof createManualTimer>["schedule"];
+}): ReturnType<typeof registryExecutor> {
   const deps = fakeDeps({
     claudeExecutable: "/usr/bin/claude",
     log: recordingLog(args.lines ?? []),
     ...(args.fetch !== undefined ? { fetch: args.fetch } : {}),
-    ...(args.agentSdkQuery !== undefined ? { agentSdkQuery: args.agentSdkQuery } : {}),
+    ...(args.agentSdk === undefined ? {} : { agentSdkSpawn: args.agentSdk.spawn, userRuntimeDir: () => args.agentSdk.directory }),
   });
-  return createProviderExecutor({ registry: buildBackends(deps).registry, span: deps.span, beginEmbeddingAccounting: deps.beginEmbeddingAccounting });
+  return registryExecutor({ ...deps, ...(args.scheduleTimeout === undefined ? {} : { scheduleTimeout: args.scheduleTimeout }) });
 }
 
 function warnedCodes(lines: readonly LogLine[]): readonly unknown[] {
@@ -402,18 +405,6 @@ function agentFrames(model: string, structuredOutput?: unknown): Record<string, 
   ];
 }
 
-function recordingQuery(frames: readonly Record<string, unknown>[], options: Record<string, unknown>[]): unknown {
-  return (args: { readonly options: Record<string, unknown> }): AsyncGenerator<Record<string, unknown>> => {
-    options.push(args.options);
-    return (async function* stream(): AsyncGenerator<Record<string, unknown>> {
-      for (const frame of frames) {
-        await Promise.resolve();
-        yield frame;
-      }
-    })();
-  };
-}
-
 function agentConnection<T extends "summarize" | "structured">(task: T, model: string): ReturnType<typeof fakeResolved<T>> {
   const { capability } = synthesizeCapability("generation", "anthropic", {
     curated: curatedRows({ model, providerId: castId<ProviderId>("claude-sub"), wire: "agent-sdk", api: "agent-sdk" }),
@@ -422,21 +413,21 @@ function agentConnection<T extends "summarize" | "structured">(task: T, model: s
 }
 
 test("(7) agent-sdk summarize runs a preset's effort with thinking on, and drops a role temperature by name", async () => {
-  const options: Record<string, unknown>[] = [];
+  const edge = physicalSdkScenario({ frames: agentFrames("claude-opus-5") });
   const lines: LogLine[] = [];
   const model = "claude-opus-5";
-  const executor = executorWith({ agentSdkQuery: recordingQuery(agentFrames(model), options), lines });
+  const executor = executorWith({ agentSdk: edge, lines });
   const result = await executor.summarize({ connection: agentConnection("summarize", model), inputs: [ITEM], effort: "high", temperature: 0.5 });
   expect(result.items.map((item) => item.text)).toEqual(["a summary"]);
-  expect(options[0]?.["thinking"]).toMatchObject({ type: "adaptive" });
-  expect(options[0]?.["effort"]).toBe("high");
-  expect((options[0]?.["env"] as Record<string, unknown>)?.["CLAUDE_CODE_DISABLE_THINKING"]).toBeUndefined();
+  expect(edge.args[0]?.join(" ")).toContain("--thinking adaptive");
+  expect(edge.args[0]?.join(" ")).toContain("--effort high");
+  expect(edge.environments[0]?.["CLAUDE_CODE_DISABLE_THINKING"]).toBeUndefined();
   expect(warnedCodes(lines)).toContain("sampling_knob_dropped");
 });
 
 test("(7) agent-sdk structured still refuses a turn that produced no structured_output frame", async () => {
   const model = "claude-opus-5";
-  const executor = executorWith({ agentSdkQuery: recordingQuery(agentFrames(model), []) });
+  const executor = executorWith({ agentSdk: physicalSdkScenario({ frames: agentFrames(model) }) });
   const format: ResponseFormat = {
     name: "row",
     schema: wireSchema({ type: "object", properties: { ok: { type: "boolean" } }, required: ["ok"], additionalProperties: false }),
@@ -448,18 +439,9 @@ test("(7) agent-sdk structured still refuses a turn that produced no structured_
 
 test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's idle ceiling and fails retryably", async () => {
   const model = "claude-opus-5";
-  const controllers: (AbortController | undefined)[] = [];
-  // The init frame arrives, then nothing: the subprocess ends only when its controller aborts.
-  const wedged = (args: { readonly options: Record<string, unknown> }): AsyncGenerator<Record<string, unknown>> => {
-    const controller = args.options["abortController"] as AbortController | undefined;
-    controllers.push(controller);
-    return (async function* stream(): AsyncGenerator<Record<string, unknown>> {
-      yield { type: "system", subtype: "init", session_id: SESSION_ID, apiKeySource: "none", model };
-      await new Promise<void>((resolve) => controller?.signal.addEventListener("abort", () => resolve(), { once: true }));
-      throw Object.assign(new Error("aborted"), { name: "AbortError" });
-    })();
-  };
-  const executor = executorWith({ agentSdkQuery: wedged });
+  const edge = physicalSdkScenario({ frames: agentFrames(model).slice(0, 1), hang: true });
+  const timer = createManualTimer();
+  const executor = executorWith({ agentSdk: edge, scheduleTimeout: timer.schedule });
   const { capability } = synthesizeCapability("generation", "anthropic", {
     curated: curatedRows({ model, providerId: castId<ProviderId>("claude-sub"), wire: "agent-sdk", api: "agent-sdk" }),
   });
@@ -471,37 +453,53 @@ test("(3) a wedged agent-sdk item with no caller signal is aborted at the row's 
     secret: fakeApiKeySecret("sk-ant-oat-not-a-real-token"),
     declaredFeatures: { requestTimeoutMs: 50 },
   });
-  const outcome = await Promise.race([
-    executor.summarize({ connection, inputs: [ITEM] }).then(
-      () => "resolved",
-      (error: unknown) => error,
-    ),
-    new Promise((resolve) => setTimeout(() => resolve("still pending"), 2000)),
-  ]);
-  expect(outcome).toMatchObject({ kind: "server", retryable: true });
-  expect(controllers[0]?.signal.aborted).toBe(true);
+  const outcome = executor.summarize({ connection, inputs: [ITEM] }).catch((error: unknown) => error);
+  // A failed setup assertion must still cancel the real Query and await its operation's settlement.
+  await using _idleQuery = {
+    async [Symbol.asyncDispose](): Promise<void> {
+      try {
+        await executor[Symbol.asyncDispose]();
+      } finally {
+        await outcome;
+      }
+    },
+  };
+  await edge.initialized;
+  expect(timer.armed()).toContain(50);
+  timer.fire();
+  expect(await outcome).toMatchObject({ kind: "server", retryable: true });
+  expect(edge.children).toHaveLength(1);
+  expect(edge.children[0]?.exitCode !== null || edge.children[0]?.signalCode !== null).toBe(true);
   // The caller's own cancel inside the same window stays a non-retryable abort.
   const cancel = new AbortController();
-  setTimeout(() => cancel.abort(), 10);
-  await expect(executor.summarize({ connection, inputs: [ITEM], signal: cancel.signal })).rejects.toMatchObject({ kind: "aborted", retryable: false });
+  const cancellationEdge = physicalSdkScenario({ frames: agentFrames(model).slice(0, 1), hang: true });
+  const callerTimer = createManualTimer();
+  const caller = executorWith({ agentSdk: cancellationEdge, scheduleTimeout: callerTimer.schedule });
+  const cancelled = caller.summarize({ connection, inputs: [ITEM], signal: cancel.signal }).catch((error: unknown) => error);
+  await using _callerQuery = {
+    async [Symbol.asyncDispose](): Promise<void> {
+      try {
+        await caller[Symbol.asyncDispose]();
+      } finally {
+        await cancelled;
+      }
+    },
+  };
+  await cancellationEdge.initialized;
+  expect(callerTimer.armed()).toContain(50);
+  cancel.abort(new Error("network timeout"));
+  expect(await cancelled).toMatchObject({ kind: "aborted", retryable: false });
+  expect(callerTimer.armed()).toEqual([]);
+  expect(cancellationEdge.children).toHaveLength(1);
+  expect(cancellationEdge.children[0]?.exitCode !== null || cancellationEdge.children[0]?.signalCode !== null).toBe(true);
 });
 
 // Each agent-sdk item is a Claude subprocess; the connection's 'utility calls at once' bounds how many run together.
 test("(3) agent-sdk side generation fans out to the connection's utility calls at once, 4 when it states none", async () => {
   const model = "claude-opus-5";
   const run = async (declaredFeatures: { readonly concurrency?: { readonly summarize: number } }): Promise<number> => {
-    let inFlight = 0;
-    let peak = 0;
-    const counting = (): AsyncGenerator<Record<string, unknown>> => {
-      inFlight += 1;
-      peak = Math.max(peak, inFlight);
-      return (async function* stream(): AsyncGenerator<Record<string, unknown>> {
-        await sleep(5);
-        yield* agentFrames(model);
-        inFlight -= 1;
-      })();
-    };
-    const executor = executorWith({ agentSdkQuery: counting });
+    const edge = physicalSdkScenario({ frames: agentFrames(model), delayMs: 20 });
+    const executor = executorWith({ agentSdk: edge });
     const connection = fakeResolved({
       task: "summarize",
       providerId: "claude-sub",
@@ -511,7 +509,7 @@ test("(3) agent-sdk side generation fans out to the connection's utility calls a
       declaredFeatures,
     });
     await executor.summarize({ connection, inputs: Array.from({ length: 10 }, () => ITEM) });
-    return peak;
+    return edge.peak();
   };
   expect(await run({})).toBe(4);
   expect(await run({ concurrency: { summarize: 2 } })).toBe(2);

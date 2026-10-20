@@ -6,6 +6,20 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 const MEMBER: SettingsViewerView = { isAdmin: false, isOwner: false };
 const ADMIN: SettingsViewerView = { isAdmin: true, isOwner: false };
 
+test("registered groups sharing a section id receive distinct render and navigation anchors", () => {
+  const registry = createContributorRegistry<ConfigSectionContribution>("shared-section-control", [
+    { id: "appearance-shared", anchor: "appearance", nav: { id: "shared", label: "Appearance" }, body: (anchor) => anchor },
+    { id: "admin-shared", anchor: "admin", nav: { id: "shared", label: "Admin" }, body: (anchor) => anchor },
+  ]);
+  const appearance = resolveConfigSectionAnchor(registry, "appearance", "shared", ADMIN);
+  const admin = resolveConfigSectionAnchor(registry, "admin", "shared", ADMIN);
+  expect(appearance).not.toBeNull();
+  expect(admin).not.toBeNull();
+  expect(appearance).not.toBe(admin);
+  expect(resolveConfigSections(registry, "appearance", ADMIN).primary[0]?.node).toBe(appearance);
+  expect(resolveConfigSections(registry, "admin", ADMIN).primary[0]?.node).toBe(admin);
+});
+
 test("the resolver supplies the same anchor that navigation resolves, independently of the contribution's registry key", () => {
   const registry = createContributorRegistry<ConfigSectionContribution>("anchor-control", [
     {

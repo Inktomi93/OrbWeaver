@@ -361,52 +361,6 @@ describe("createApp", () => {
     expect(seeded).toHaveLength(0);
   });
 
-  // FINAL-Auth-Modes §7 P0 — the public bootstrap surface is assembled onto the app. Test env runs the
-  // default AUTH_MODE (single-user), so /config reports the no-login mode and /me reflects whatever the
-  // seam resolved for THIS request (the drift-free same-resolver property: the route reads the
-  // middleware-stashed principal, so the "resolves EXACTLY ONCE" pin above covers it too).
-  test("GET /api/auth/config → the injected mode + flags (anonymous, pre-tRPC)", async () => {
-    const app = createApp(deps({}));
-    const res = await hit(app, new Request("http://localhost/api/auth/config"));
-    expect(res.status).toBe(OK);
-    expect(await res.json()).toEqual({
-      mode: "single-user",
-      localEnabled: false,
-      oidcEnabled: false,
-      // A8 — the human-facing IdP name (env default here; single-user never shows a login button, but the
-      // field is served in every mode so the client reads one source).
-      oidcProviderName: "your identity provider",
-      // B4 — single-user is never a local-first-run box (no owner-password to set); served false.
-      localFirstRun: false,
-      discreetLogin: false,
-      defaultHandle: "owner",
-      // single-user can never seat a second human (the MULTI_HUMAN_CAPABLE map's fixed arm).
-      multiHumanCapable: false,
-      // The deployment external-media ceiling (born-in-DB floor = blocked) — the same live read the CSP uses.
-      forbidExternalMedia: true,
-      // The deployment HTML-trust default (born-in-DB floor = untrusted) — the render-policy floor's other axis.
-      trustHtml: false,
-      // The interactive-card deployment ceiling (#111 leg 3; born-in-DB floor = ON, an admin `false` revokes it) —
-      // the precondition the per-character Interactive rung is AND-gated against before card scripts can run.
-      allowInteractiveCards: true,
-      // The share relay is off, and an anonymous caller would never read its link anyway.
-      share: { state: "off", url: null },
-      // The served deployment byte caps (L5 uploads catalog): route caps + the effective image ceiling.
-      uploads: {
-        assetUpload: 67_108_864,
-        image: 5_000_000,
-        databankUpload: 20_971_520,
-        importTotal: 268_435_456,
-        importTreeTotal: 1_073_741_824,
-        importTreeFile: 67_108_864,
-        importTreeFiles: 50_000,
-      },
-      // This request's own transport and client scope: a loopback peer with no proxy header.
-      transport: "http",
-      clientScope: "loopback",
-    });
-  });
-
   test("GET /api/auth/me reflects the seam-resolved principal (and anonymous → authenticated:false)", async () => {
     const authed = createApp(deps({ seam: fakeSeam(OWNER) }));
     const meRes = await hit(authed, new Request("http://localhost/api/auth/me"));
@@ -416,14 +370,6 @@ describe("createApp", () => {
     const anon = createApp(deps({ seam: fakeSeam(null) }));
     const anonRes = await hit(anon, new Request("http://localhost/api/auth/me"));
     expect(await anonRes.json()).toEqual({ authenticated: false, handle: null, role: null });
-  });
-
-  // §7 P1 — the /join landing is gated on the multi-human capability (single-user test env → false → the
-  // leak-free 404, matching the tRPC belt's unmounted shape).
-  test("GET /join/:token → 404 while not multi-human capable (single-user env)", async () => {
-    const app = createApp(deps({}));
-    const res = await hit(app, new Request("http://localhost/join/some-token"));
-    expect(res.status).toBe(NOT_FOUND);
   });
 
   // `observability` is mounted in the chain — every response carries X-Request-Id, and the

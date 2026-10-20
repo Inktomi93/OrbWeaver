@@ -15,7 +15,7 @@ import type {
   UserConnection,
 } from "@orb/contracts/inference";
 import { builtinProvider, foldFeatures, modelIdSchema, providerIdSchema, requirementMet, SHIPPED_PROMPT_CACHE, taskDef } from "@orb/contracts/inference";
-import type { AgentSdkQuery } from "@orb/inference";
+import type { AgentSdkQuery, AgentSdkSpawn, ProviderExecutor } from "@orb/inference";
 import type { AutomationRuleId, ModelId, PluginId, UserConnectionId, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
@@ -26,6 +26,8 @@ import type { TokenLexicon } from "#inference/backends/openai-compat/tokens.ts";
 import { createTokenLexicon } from "#inference/backends/openai-compat/tokens.ts";
 import type { ConnectionTransport, Resolved } from "#inference/contract/resolved.ts";
 import type { BindingStore, ConnectionStore, InferenceDeps, InferenceLog, ProviderSnapshot, ProviderStore, SnapshotStore } from "#inference/deps.ts";
+import { buildBackends } from "#inference/registry/backends.ts";
+import { runTask } from "#inference/registry/dispatch.ts";
 import type { LOCAL_SERVER_FIXTURES } from "./catalog/_local-servers-fixtures.ts";
 import type { LOCAL_SERVER_TRANSCRIPTS } from "./catalog/_local-servers-transcripts.ts";
 
@@ -263,6 +265,8 @@ export interface FakeDepsOptions {
   readonly captureWire?: InferenceDeps["captureWire"];
   /** The raw SDK execution seam uses the installed query vocabulary. */
   readonly agentSdkQuery?: AgentSdkQuery;
+  readonly agentSdkSpawn?: AgentSdkSpawn;
+  readonly userRuntimeDir?: InferenceDeps["userRuntimeDir"];
 }
 
 const NO_NETWORK: typeof fetch = () => Promise.reject(new Error("tests/legacy/inference: unexpected network call"));
@@ -299,9 +303,12 @@ export function fakeDeps(options: FakeDepsOptions = {}): InferenceDeps & { reado
     connections: stores.connections,
     bindings: stores.bindings,
     providerStore: stores.providerStore,
-    agentSdk: { ...(options.agentSdkQuery !== undefined ? { query: options.agentSdkQuery } : {}) },
+    agentSdk: {
+      ...(options.agentSdkQuery !== undefined ? { query: options.agentSdkQuery } : {}),
+      ...(options.agentSdkSpawn === undefined ? {} : { spawnClaudeCodeProcess: options.agentSdkSpawn }),
+    },
     ...(options.captureWire !== undefined ? { captureWire: options.captureWire } : {}),
-    userRuntimeDir: (ownerId, tool) => `/tmp/orb-test/${ownerId}/${tool}`,
+    userRuntimeDir: options.userRuntimeDir ?? ((ownerId, tool): string => `/tmp/orb-test/${ownerId}/${tool}`),
     localLight: { cache: fakeModelCache() },
     sdkFetch: options.fetch ?? NO_NETWORK,
   };
@@ -421,3 +428,20 @@ export type LocalServerArm = keyof typeof LOCAL_SERVER_FIXTURES;
 
 /** One rig server whose recorded request/response transcript `transcriptFetch` replays. */
 export type TranscriptArm = keyof typeof LOCAL_SERVER_TRANSCRIPTS;
+
+/** Wire fixtures cross production dispatch without fabricating current connection authority. */
+export function registryExecutor(deps: InferenceDeps, built: ReturnType<typeof buildBackends> = buildBackends(deps)): ProviderExecutor & AsyncDisposable {
+  const registry = built.registry;
+  const span = deps.span;
+  return {
+    runChatTurn: (req) => runTask({ registry, span, task: "chat", pick: (backend) => backend.runChatTurn, req }),
+    runAgentTurn: (req) => runTask({ registry, span, task: "agent", pick: (backend) => backend.runAgentTurn, req }),
+    summarize: (req) => runTask({ registry, span, task: "summarize", pick: (backend) => backend.summarize, req }),
+    structured: (req) => runTask({ registry, span, task: "structured", pick: (backend) => backend.structured, req }),
+    embed: (req) => runTask({ registry, span, task: "embed", pick: (backend) => backend.embed, req }),
+    imageEmbed: (req) => runTask({ registry, span, task: "imageEmbed", pick: (backend) => backend.imageEmbed, req }),
+    rerank: (req) => runTask({ registry, span, task: "rerank", pick: (backend) => backend.rerank, req }),
+    generateImage: (req) => runTask({ registry, span, task: "generateImage", pick: (backend) => backend.generateImage, req }),
+    [Symbol.asyncDispose]: () => built.settle(),
+  };
+}
