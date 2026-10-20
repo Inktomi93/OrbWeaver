@@ -50,17 +50,18 @@ import {
   readInventoryGeneration,
 } from "./semantic-inventory-database.ts";
 import { canonicalInventoryPath, contentVersion, descriptorVersion, inputsCurrent, inventoryAuthoredFiles } from "./semantic-inventory-inputs.ts";
+import { readInventoryFacts } from "./semantic-inventory-loader.ts";
 import {
   acquireInventoryReadLease,
   hasInventoryInvocationCoverage,
-  readInventoryCallableDeclarations,
-  readInventoryComputedNames,
+  inventoryCallableDeclarations,
+  inventoryComputedNames,
+  inventoryGlobalOrigins,
+  inventoryModulesAt,
   readInventoryDrizzleCall,
   readInventoryExportDeclarations,
   readInventoryGlobalBindings,
-  readInventoryGlobalOrigins,
   readInventoryInputs,
-  readInventoryModules,
   readInventoryPairs,
   readInventoryReferenceQueries,
   readInventorySchemaData,
@@ -532,7 +533,17 @@ function demandShapePartitions(
       acquire(descriptor, families, []);
     }
   }
-  using catalog = inventoryReader(options.root, 0, [...partitions.values()], { db, shapeOwners, dispose: () => undefined });
+  using catalog = inventoryReader(options.root, 0, [...partitions.values()], {
+    db,
+    shapeOwners,
+    // Planning reads inside this writer transaction, whose lock keeps every admitted partition row fixed.
+    pinned: () => {
+      if (!db.isTransaction) {
+        throw new SemanticInventoryError("native shape planning outlived its writer transaction");
+      }
+    },
+    dispose: () => undefined,
+  });
   assertCohortCurrent();
   const queries = [...new Map(plan.prepare(catalog).map((query) => [shapePairKey(query), query])).values()];
   for (const descriptor of descriptors) {
@@ -761,7 +772,7 @@ function callableDemand(options: SemanticInventoryOptions, program: string): rea
 }
 
 function coversCallableDemand(db: ReturnType<typeof openInventoryDatabase>, partition: StoredInventoryPartition, queries: readonly InventorySpan[]): boolean {
-  return queries.every((query) => [...readInventoryCallableDeclarations(db, partition.id, query)].length === 1);
+  return readInventoryFacts(db, inventoryCallableDeclarations, partition.id, queries).every((fact) => fact !== undefined);
 }
 
 function assertCallableDemand(
@@ -787,7 +798,7 @@ function computedDemand(options: SemanticInventoryOptions, program: string): rea
 }
 
 function coversComputedDemand(db: ReturnType<typeof openInventoryDatabase>, partition: StoredInventoryPartition, queries: readonly InventorySpan[]): boolean {
-  return queries.every((query) => [...readInventoryComputedNames(db, partition.id, query)].length === 1);
+  return readInventoryFacts(db, inventoryComputedNames, partition.id, queries).every((fact) => fact !== undefined);
 }
 
 function assertComputedDemand(
@@ -843,11 +854,11 @@ function coversModuleDemand(
   partition: StoredInventoryPartition,
   queries: readonly InventoryModuleTargetQuery[],
 ): boolean {
-  return queries.every(
-    (query) =>
-      partition.roots.includes(query.importer.file) &&
-      (!partition.available.includes(query.node.file) || [...readInventoryModules(db, partition.id, query.node)].length === 1),
-  );
+  if (!queries.every((query) => partition.roots.includes(query.importer.file))) {
+    return false;
+  }
+  const available = queries.filter((query) => partition.available.includes(query.node.file)).map((query) => query.node);
+  return readInventoryFacts(db, inventoryModulesAt, partition.id, available).every((modules) => modules?.length === 1);
 }
 function assertModuleCohort(
   db: ReturnType<typeof openInventoryDatabase>,
@@ -1118,7 +1129,7 @@ function coversGlobalDemand(
   queries: Pick<InventoryBuildRequest, "globalOriginQueries" | "globalBindingQueries" | "invocationQueries">,
 ): boolean {
   return (
-    (queries.globalOriginQueries ?? []).every((query) => [...readInventoryGlobalOrigins(db, partition.id, query)].length === 1) &&
+    readInventoryFacts(db, inventoryGlobalOrigins, partition.id, queries.globalOriginQueries ?? []).every((fact) => fact !== undefined) &&
     (queries.globalBindingQueries ?? []).every((query) => [...readInventoryGlobalBindings(db, partition.id, query)].length === 1)
   );
 }

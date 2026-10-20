@@ -28,6 +28,7 @@ import {
   INVENTORY_LISTS,
   inputSchema,
   inventoryNodeQueryKey,
+  inventorySpanKey,
   invocationEvidenceSchema,
   invocationQueryKey,
   memberOriginSchema,
@@ -676,17 +677,15 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
 
 type ReferenceRow = InventoryPartition["references"][number];
 
-const referenceSpanKey = (span: InventorySpan): string => `${span.file}\0${String(span.start)}\0${String(span.end)}\0${String(span.kind)}`;
-
 function referenceNameLinks(names: NonNullable<InventoryPartition["referenceNames"]>): ReadonlyMap<string, readonly string[]> {
   const namesOf = new Map<string, string[]>();
   for (const { name, declaration } of names) {
-    const existing = namesOf.get(referenceSpanKey(declaration)) ?? [];
-    if (existing.includes(referenceSpanKey(name))) {
+    const existing = namesOf.get(inventorySpanKey(declaration)) ?? [];
+    if (existing.includes(inventorySpanKey(name))) {
       throw new Error("native reference name link is repeated");
     }
-    existing.push(referenceSpanKey(name));
-    namesOf.set(referenceSpanKey(declaration), existing);
+    existing.push(inventorySpanKey(name));
+    namesOf.set(inventorySpanKey(declaration), existing);
   }
   return namesOf;
 }
@@ -694,7 +693,7 @@ function referenceNameLinks(names: NonNullable<InventoryPartition["referenceName
 function referenceGroups(references: InventoryPartition["references"]): readonly { readonly key: string; readonly rows: readonly ReferenceRow[] }[] {
   const groups: { readonly key: string; readonly rows: ReferenceRow[] }[] = [];
   for (const row of references) {
-    const key = referenceSpanKey(row.declaration);
+    const key = inventorySpanKey(row.declaration);
     const last = groups.at(-1);
     if (last?.key === key) {
       last.rows.push(row);
@@ -710,7 +709,7 @@ function sameReferenceRows(copy: readonly ReferenceRow[], original: readonly Ref
     copy.length === original.length &&
     copy.every((row, index) => {
       const source = original[index];
-      return source !== undefined && referenceSpanKey(row.reference) === referenceSpanKey(source.reference) && row.consumerClass === source.consumerClass;
+      return source !== undefined && inventorySpanKey(row.reference) === inventorySpanKey(source.reference) && row.consumerClass === source.consumerClass;
     })
   );
 }
