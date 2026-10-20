@@ -34,6 +34,7 @@ import {
   INVENTORY_KEY_SEPARATOR,
   INVENTORY_REFERENCE_MODES,
   inventoryNodeQueryKey,
+  inventorySpanKey,
   invocationNeedsValueSourceCatalog,
   moduleTargetQueryKey,
   moduleTargetQuerySchema,
@@ -41,30 +42,32 @@ import {
   shapePairKey,
 } from "./semantic-inventory-contract.ts";
 import { canonicalInventoryPath } from "./semantic-inventory-inputs.ts";
+import { createInventoryLoader } from "./semantic-inventory-loader.ts";
 
 import {
-  readInventoryBindings,
-  readInventoryCallableDeclarations,
-  readInventoryComputedNames,
-  readInventoryDeclarationOutputs,
+  inventoryBindingsAt,
+  inventoryCallableDeclarations,
+  inventoryComputedNames,
+  inventoryDeclarationOutputs,
+  inventoryExportsOf,
+  inventoryGlobalOrigins,
+  inventoryMemberOrigins,
+  inventoryModulesAt,
+  inventoryPairs,
+  inventoryRuntimeExportsOf,
+  inventoryShapes,
+  inventorySourcesByFile,
+  inventoryWitnessesAt,
   readInventoryDrizzleCall,
   readInventoryExportDeclarations,
-  readInventoryExports,
   readInventoryGlobalBindings,
-  readInventoryGlobalOrigins,
   readInventoryInvocationEvidence,
-  readInventoryMemberOrigins,
-  readInventoryModules,
-  readInventoryPairs,
   readInventoryReferenceQueries,
   readInventoryReferences,
-  readInventoryRuntimeExports,
   readInventorySchemaData,
   readInventorySchemaIdentity,
-  readInventoryShape,
   readInventorySourceMetadata,
   readInventorySourceText,
-  readInventoryWitnesses,
 } from "./semantic-inventory-queries.ts";
 import { inventoryTextParts, inventoryTextVersion } from "./semantic-inventory-records.ts";
 
@@ -92,10 +95,6 @@ const inventories = new WeakMap<object, SemanticInventory>();
 /** Identify a syntax carrier whose semantic queries belong to a pinned native generation. */
 export function semanticInventoryOf(value: object): SemanticInventory | undefined {
   return inventories.get(value);
-}
-
-function spanKey(span: InventorySpan): string {
-  return `${span.file}${INVENTORY_KEY_SEPARATOR}${String(span.start)}${INVENTORY_KEY_SEPARATOR}${String(span.end)}${INVENTORY_KEY_SEPARATOR}${String(span.kind)}`;
 }
 
 function nodeSpan(node: Node): InventorySpan {
@@ -178,8 +177,25 @@ function createInventoryReader(
       throw new SemanticInventoryError("native semantic inventory has been disposed");
     }
     lease?.assertOpen();
+    storage.pinned?.();
     storage.assertImplementation?.();
   };
+  // Partition rows are insert-once; a leased or caller-pinned snapshot can retain them, a borrowed live read cannot.
+  // biome-ignore lint/nursery/useDisposables: the inventory's own dispose releases its session loader.
+  const loader = createInventoryLoader(db, lease !== undefined || storage.pinned !== undefined, assertOpen);
+  const shapeFacts = loader.family(inventoryShapes);
+  const pairFacts = loader.family(inventoryPairs);
+  const bindingFacts = loader.family(inventoryBindingsAt);
+  const moduleFacts = loader.family(inventoryModulesAt);
+  const witnessFacts = loader.family(inventoryWitnessesAt);
+  const exportFacts = loader.family(inventoryExportsOf);
+  const sourceFacts = loader.family(inventorySourcesByFile);
+  const globalOriginFacts = loader.family(inventoryGlobalOrigins);
+  const computedFacts = loader.family(inventoryComputedNames);
+  const callableFacts = loader.family(inventoryCallableDeclarations);
+  const memberFacts = loader.family(inventoryMemberOrigins);
+  const outputFacts = loader.family(inventoryDeclarationOutputs);
+  const runtimeExportFacts = loader.family(inventoryRuntimeExportsOf);
   // Captured library text owns these paths; implicit virtual libs would collide before lazy source creation.
   const project = new Project({
     skipAddingFilesFromTsConfig: true,
@@ -196,7 +212,6 @@ function createInventoryReader(
   const identityCatalogs = new Map<StoredInventoryPartition, InventorySchemaIdentityCatalog>();
   const fullCatalogs = new Map<StoredInventoryPartition, InventorySchemaProjectedCatalog>();
   const columnCatalogs = new Map<StoredInventoryPartition, readonly SchemaColumnIdentity[]>();
-  const shapes = new Map<string, ReturnType<SemanticInventory["shape"]>>();
   const { texts, aliases, authored } = readerSourceMetadata(db, partitions);
   const canonicalPaths = new Map<string, string>();
   const roots = new Set(partitions.flatMap((partition) => partition.roots));
@@ -281,7 +296,7 @@ function createInventoryReader(
   };
   const nodeOf = (span: InventorySpan, context?: readonly string[], source?: SourceFile): Node => {
     const sf = source ?? sourceFile(span.file, context);
-    const key = spanKey(span);
+    const key = inventorySpanKey(span);
     if (sf === undefined || sf.wasForgotten()) {
       throw new SemanticInventoryError(`native semantic inventory cannot materialize span: ${key}`);
     }
@@ -300,7 +315,7 @@ function createInventoryReader(
       node = node.getChildAtPos(span.start);
     }
     if (node === undefined) {
-      throw new SemanticInventoryError(`native semantic inventory cannot materialize span: ${spanKey(span)}`);
+      throw new SemanticInventoryError(`native semantic inventory cannot materialize span: ${inventorySpanKey(span)}`);
     }
     projection.nodes.set(key, node);
     return node;
@@ -403,7 +418,7 @@ function createInventoryReader(
     if (!(TsNode.isImportDeclaration(node) || (TsNode.isExportDeclaration(node) && node.getModuleSpecifier() !== undefined))) {
       throw new SemanticInventoryError("native module target requires an authored import or export door");
     }
-    const entries = [...readInventoryModules(db, partition.id, span)];
+    const entries = moduleFacts.load(partition.id, [span])[0] ?? [];
     const entry = entries[0];
     if (entries.length !== 1 || entry === undefined) {
       throw new SemanticInventoryError("native module target coverage is unavailable in its captured native partition");
@@ -425,7 +440,7 @@ function createInventoryReader(
     }
     requireFamily([partition], "references");
     const span = capturedSpan(node);
-    const recorded = [...readInventorySourceMetadata(db, partition.id)].filter((captured) => captured.file === span.file);
+    const recorded = sourceFacts.load(partition.id, [span.file])[0] ?? [];
     const source = recorded[0];
     if (
       node.wasForgotten() ||
@@ -592,8 +607,8 @@ function createInventoryReader(
       assertValueSourceBasis(db, wire, partition, indexes);
       const replay = replayFor(node, program, partition, "invocation");
       const bindings = invocationBindings(wire, replay, (file) => lease?.bindings(partition.id, file) ?? readInventoryGlobalBindings(db, partition.id, file));
-      const computed = invocationComputed(db, partition.id, wire, replay);
-      const globals = invocationGlobals(db, partition.id, wire, replay);
+      const computed = invocationComputed(computedFacts.load(partition.id, invocationComputedKeys(wire)), wire, replay);
+      const globals = invocationGlobals(globalOriginFacts.load(partition.id, invocationGlobalKeys(wire)), wire, replay);
       const required = <T>(map: ReadonlyMap<Node, T>, subject: Node): T => {
         // Replaying again checks both query epoch and each related-source epoch on every callback read.
         if (replay(capturedSpan(subject)) !== subject || !map.has(subject)) {
@@ -618,9 +633,8 @@ function createInventoryReader(
     },
     globalOrigin: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "global-origins");
-      const matches = [...readInventoryGlobalOrigins(db, partition.id, span)];
-      const fact = matches[0];
-      if (matches.length !== 1 || fact === undefined) {
+      const fact = globalOriginFacts.load(partition.id, [span])[0];
+      if (fact === undefined) {
         throw new SemanticInventoryError("native global origin span is unavailable in its native partition");
       }
       const replay = replayFor(node, program, partition, "global origin");
@@ -637,9 +651,8 @@ function createInventoryReader(
     },
     computedName: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "computed-names");
-      const matches = [...readInventoryComputedNames(db, partition.id, span)];
-      const fact = matches[0];
-      if (matches.length !== 1 || fact === undefined) {
+      const fact = computedFacts.load(partition.id, [span])[0];
+      if (fact === undefined) {
         throw new SemanticInventoryError("native computed-name span is unavailable in its native partition");
       }
       const replay = replayFor(node, program, partition, "computed-name");
@@ -651,9 +664,8 @@ function createInventoryReader(
     },
     callableDeclaration: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "callable-declarations");
-      const matches = [...readInventoryCallableDeclarations(db, partition.id, span)];
-      const fact = matches[0];
-      if (matches.length !== 1 || fact === undefined) {
+      const fact = callableFacts.load(partition.id, [span])[0];
+      if (fact === undefined) {
         throw new SemanticInventoryError("native callable declaration span is unavailable in its native partition");
       }
       const replay = replayFor(node, program, partition, "callable declaration");
@@ -667,13 +679,12 @@ function createInventoryReader(
     callMemberOrigin: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "type-member-origins");
       requireFamily([partition], "bindings");
-      const matches = [...readInventoryMemberOrigins(db, partition.id, span)];
-      const fact = matches[0];
-      if (matches.length !== 1 || fact === undefined) {
+      const fact = memberFacts.load(partition.id, [span])[0];
+      if (fact === undefined) {
         throw new SemanticInventoryError("native call member origin span is unavailable in its native partition");
       }
       const materialize = (value: InventorySpan): Node => nodeOf(value, [program]);
-      const bindings = fact.leaf === null ? [] : [...readInventoryBindings(db, partition.id, fact.leaf)];
+      const bindings = fact.leaf === null ? [] : (bindingFacts.load(partition.id, [fact.leaf])[0] ?? []);
       if (fact.leaf !== null && bindings.length !== 1) {
         throw new SemanticInventoryError("native call member leaf binding is unavailable in its native partition");
       }
@@ -689,9 +700,8 @@ function createInventoryReader(
     },
     declarationOutput: (node, program) => {
       const { partition, span } = nativeSpan(node, program, "declaration-outputs");
-      const matches = [...readInventoryDeclarationOutputs(db, partition.id, span)];
-      const match = matches[0];
-      if (matches.length !== 1 || match === undefined) {
+      const match = outputFacts.load(partition.id, [span])[0];
+      if (match === undefined) {
         throw new SemanticInventoryError("native declaration output span is unavailable in its native partition");
       }
       return match.unknown;
@@ -727,15 +737,11 @@ function createInventoryReader(
         throw new SemanticInventoryError("native shape source has no unambiguous catalog owner");
       }
       inventory.assertShapeSource(node.getSourceFile());
-      const span = capturedSpan(node);
-      const key = `${partition.id}${INVENTORY_KEY_SEPARATOR}${spanKey(span)}`;
-      // A partition's rows are immutable under the lease; pair planning asks for the same two shapes per field query.
-      const cached = shapes.get(key);
-      if (cached !== undefined) {
-        return cached;
+      // Pair planning asks for the same two shapes per field query; the loader answers repeats from the pinned session.
+      const shape = shapeFacts.load(partition.id, [capturedSpan(node)])[0];
+      if (shape === undefined) {
+        throw new SemanticInventoryError("native shape catalog span is unavailable");
       }
-      const shape = readInventoryShape(db, partition.id, span);
-      shapes.set(key, shape);
       return shape;
     },
     shapePair: (query) => {
@@ -750,9 +756,8 @@ function createInventoryReader(
       return indexes
         .filter((partition) => hasAvailableSource(partition, query.left.file) && hasAvailableSource(partition, query.right.file))
         .map((partition) => {
-          const matches = [...readInventoryPairs(db, partition.id, key)];
-          const match = matches[0];
-          if (matches.length !== 1 || match === undefined) {
+          const match = pairFacts.load(partition.id, [key])[0];
+          if (match === undefined) {
             throw new SemanticInventoryError("native shape pair query coverage is unavailable");
           }
           return { program: partition.program, result: match.result };
@@ -775,7 +780,7 @@ function createInventoryReader(
       if (!TsNode.isSourceFile(node)) {
         throw new SemanticInventoryError("native runtime exports require an exporting source file");
       }
-      return [...readInventoryRuntimeExports(db, partition.id, span.file)];
+      return runtimeExportFacts.load(partition.id, [span.file])[0] ?? [];
     },
     programs: partitions.map((partition) => partition.program),
     canonicalPath,
@@ -786,7 +791,7 @@ function createInventoryReader(
       }
       assertCapturedSource(left);
       assertCapturedSource(right);
-      return spanKey(capturedSpan(left)) === spanKey(capturedSpan(right));
+      return inventorySpanKey(capturedSpan(left)) === inventorySpanKey(capturedSpan(right));
     },
     bindingUsage: (source) => {
       assertCapturedSource(source);
@@ -821,7 +826,7 @@ function createInventoryReader(
       const file = canonicalPath(source.getFilePath());
       const selected = worlds(importer ?? source);
       requireFamily(selected, "exports");
-      const sets = selected.map((partition) => [...readInventoryExports(db, partition.id, file)].map(({ name, declarations }) => ({ name, declarations })));
+      const sets = selected.map((partition) => (exportFacts.load(partition.id, [file])[0] ?? []).map(({ name, declarations }) => ({ name, declarations })));
       const exports = agreed(sets, `exports of ${file}`) ?? [];
       const context = selected.map((partition) => partition.program);
       return new Map(exports.map((entry) => [entry.name, entry.declarations.map((span) => nodeOf(span, context))]));
@@ -833,11 +838,11 @@ function createInventoryReader(
       if (importer !== undefined) {
         throw new SemanticInventoryError("native contextual module target requires an explicit program");
       }
-      const key = spanKey(capturedSpan(node));
+      const key = inventorySpanKey(capturedSpan(node));
       const selected = worlds(node);
       requireFamily(selected, "modules");
       const target = agreed(
-        selected.map((partition) => [...readInventoryModules(db, partition.id, capturedSpan(node))].at(-1)?.target ?? null),
+        selected.map((partition) => moduleFacts.load(partition.id, [capturedSpan(node)])[0]?.at(-1)?.target ?? null),
         `module target at ${key}`,
       );
       return target === undefined || target === null
@@ -848,12 +853,12 @@ function createInventoryReader(
           );
     },
     symbols: (node): InventorySymbols => {
-      const key = spanKey(capturedSpan(node));
+      const key = inventorySpanKey(capturedSpan(node));
       const selected = worlds(node);
       requireFamily(selected, "bindings");
       return (
         agreed(
-          selected.map((partition) => [...readInventoryBindings(db, partition.id, capturedSpan(node))].at(-1)?.symbols ?? { lexical: [], origins: [] }),
+          selected.map((partition) => bindingFacts.load(partition.id, [capturedSpan(node)])[0]?.at(-1)?.symbols ?? { lexical: [], origins: [] }),
           `binding at ${key}`,
         ) ?? { lexical: [], origins: [] }
       );
@@ -878,18 +883,18 @@ function createInventoryReader(
       const found = new Map<string, InventorySpan>();
       for (const partition of indexes) {
         for (const { reference } of readInventoryReferences(db, partition.id, origin)) {
-          found.set(spanKey(reference), reference);
+          found.set(inventorySpanKey(reference), reference);
         }
       }
       return [...found.values()].toSorted((a, b) => a.file.localeCompare(b.file) || a.start - b.start).map((span) => nodeOf(span));
     },
     witnessOrigins: (node) => {
-      const key = spanKey(capturedSpan(node));
+      const key = inventorySpanKey(capturedSpan(node));
       const selected = worlds(node);
       requireFamily(selected, "witnesses");
       const spans =
         agreed(
-          selected.map((partition) => [...readInventoryWitnesses(db, partition.id, capturedSpan(node))].at(-1)?.declarations ?? []),
+          selected.map((partition) => witnessFacts.load(partition.id, [capturedSpan(node)])[0]?.at(-1)?.declarations ?? []),
           `witness at ${key}`,
         ) ?? [];
       return spans.map((span) => nodeOf(span));
@@ -905,7 +910,7 @@ function createInventoryReader(
       capturedTexts.clear();
       materializedSources.clear();
       projections.clear();
-      shapes.clear();
+      loader[Symbol.dispose]();
       shapeOwners.clear();
       aliases.clear();
       canonicalPaths.clear();
@@ -951,16 +956,17 @@ function invocationBindings(
   }
   return bindings;
 }
+function invocationComputedKeys(wire: InventoryInvocationEvidence): readonly InventorySpan[] {
+  return [...wire.sources.flatMap((source) => source.computed), ...(wire.observations?.keys ?? [])];
+}
 function invocationComputed(
-  db: DatabaseSync,
-  id: string,
+  facts: readonly (InventoryPartition["computedNames"][number] | undefined)[],
   wire: InventoryInvocationEvidence,
   replay: (span: InventorySpan) => Node,
 ): ReadonlyMap<Node, ReferenceFact<string>> {
   const computed = new Map<Node, ReferenceFact<string>>();
-  const keys = [...wire.sources.flatMap((source) => source.computed), ...(wire.observations?.keys ?? [])];
-  for (const key of keys) {
-    const [fact] = readInventoryComputedNames(db, id, key);
+  invocationComputedKeys(wire).forEach((key, index) => {
+    const fact = facts[index];
     if (fact === undefined) {
       throw new SemanticInventoryError("native invocation computed name is unavailable");
     }
@@ -969,26 +975,25 @@ function invocationComputed(
       replay(key),
       fact.result.kind === "resolved" ? { kind: fact.result.kind, value: fact.result.value, trace } : { ...fact.result, node: replay(fact.result.node), trace },
     );
-  }
+  });
   return computed;
 }
+function invocationGlobalKeys(wire: InventoryInvocationEvidence): readonly InventorySpan[] {
+  return wire.profiles.filter((profile) => profile.global === true).map((profile) => profile.node);
+}
 function invocationGlobals(
-  db: DatabaseSync,
-  id: string,
+  facts: readonly (InventoryPartition["globalOrigins"][number] | undefined)[],
   wire: InventoryInvocationEvidence,
   replay: (span: InventorySpan) => Node,
 ): ReadonlyMap<Node, ReferenceFact<GlobalMemberOrigin>> {
   const globals = new Map<Node, ReferenceFact<GlobalMemberOrigin>>();
-  for (const profile of wire.profiles) {
-    if (profile.global !== true) {
-      continue;
-    }
-    const [fact] = readInventoryGlobalOrigins(db, id, profile.node);
+  invocationGlobalKeys(wire).forEach((node, index) => {
+    const fact = facts[index];
     if (fact === undefined) {
       throw new SemanticInventoryError("native invocation global origin is unavailable");
     }
-    globals.set(replay(profile.node), replayGlobalFact(fact, replay));
-  }
+    globals.set(replay(node), replayGlobalFact(fact, replay));
+  });
   return globals;
 }
 function replayGlobalFact(fact: InventoryPartition["globalOrigins"][number], replay: (span: InventorySpan) => Node): ReferenceFact<GlobalMemberOrigin> {

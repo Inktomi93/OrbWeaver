@@ -1,6 +1,6 @@
 // Indexed queries read one native fact family or origin; no adapter reconstructs a complete partition.
 
-import type { DatabaseSync, SQLInputValue, StatementSync } from "node:sqlite";
+import type { DatabaseSync, SQLInputValue, SQLOutputValue, StatementSync } from "node:sqlite";
 import { isDeepStrictEqual } from "node:util";
 import type { JsonValue } from "@orb/kit/json";
 import { z } from "zod";
@@ -31,7 +31,9 @@ import {
   exportDeclarationsSchema,
   globalOriginSchema,
   INVENTORY_FACTS,
+  INVENTORY_KEY_SEPARATOR,
   inputSchema,
+  inventorySpanKey,
   invocationAtomSchema,
   invocationEvidenceSchema,
   invocationNeedsValueSourceCatalog,
@@ -50,6 +52,8 @@ import {
 } from "./semantic-inventory-contract.ts";
 import { readInventoryGeneration } from "./semantic-inventory-database.ts";
 import { contentVersion } from "./semantic-inventory-inputs.ts";
+import type { InventoryFactFamily, InventoryReadSession } from "./semantic-inventory-loader.ts";
+import { createInventoryReadSession, readInventoryFacts } from "./semantic-inventory-loader.ts";
 import { inventoryString, inventoryStringSchema, inventoryTextVersion } from "./semantic-inventory-records.ts";
 
 const integer = z.number().int();
@@ -147,30 +151,613 @@ function requireInventoryFamily(db: DatabaseSync, id: string, family: InventoryF
   }
 }
 
-function* facts(
-  db: DatabaseSync,
+// Batched reads join one JSON key list to the unique span index; CROSS JOIN keeps the key list as the outer loop.
+const SPAN_REQUESTS =
+  "json_each(?) q CROSS JOIN inventory_span n ON n.partition=? AND n.file=q.value->>0 AND n.start=q.value->>1 AND n.end=q.value->>2 AND n.kind=q.value->>3";
+const requestRow = z.object({ request: integer.nonnegative() });
+
+function spanRequests(nodes: readonly InventorySpan[]): string {
+  return JSON.stringify(nodes.map((node) => [inventoryString(node.file), node.start, node.end, node.kind]));
+}
+
+function stringRequests(values: readonly string[]): string {
+  return JSON.stringify(values.map(inventoryString));
+}
+
+function requestedKey<K>(keys: readonly K[], row: Record<string, SQLOutputValue>): K {
+  const key = keys[requestRow.parse(row).request];
+  if (key === undefined) {
+    throw new SemanticInventoryError("native batched read answered a key it was not asked");
+  }
+  return key;
+}
+
+function requireSessionFamily(session: InventoryReadSession, id: string, family: InventoryFamily): void {
+  if (session.statement("SELECT name FROM inventory_family WHERE partition=? AND name=?").get(id, family) === undefined) {
+    throw new SemanticInventoryError(`native semantic inventory family unavailable: ${family}`);
+  }
+}
+
+/** Ordered declaration spans of many fact owners, grouped by owner and role in stored order. */
+function factDeclarations(
+  session: InventoryReadSession,
   id: string,
   kind: InventoryFactKind,
-  query?: string | InventorySpan | { readonly node: InventorySpan; readonly family: InventoryFamily },
-): Iterable<z.infer<typeof factRow>> {
-  const family = typeof query === "object" && "node" in query ? query.family : kind;
-  const selected = typeof query === "object" && "node" in query ? query.node : query;
-  requireInventoryFamily(db, id, family);
-  const values: SQLInputValue[] = [id, kind];
-  let filter = "";
-  if (typeof selected === "string") {
-    filter += " AND f.file=?";
-    values.push(inventoryString(selected));
+  owners: readonly number[],
+): ReadonlyMap<number, ReadonlyMap<string, InventorySpan[]>> {
+  const grouped = new Map<number, Map<string, InventorySpan[]>>();
+  for (const row of session
+    .statement(`SELECT d.owner,d.role,s.file,s.start,s.end,s.kind FROM inventory_declaration d JOIN inventory_span s ON s.partition=d.partition AND s.ordinal=d.node
+    WHERE d.partition=? AND d.kind=? AND d.owner IN (SELECT value FROM json_each(?)) ORDER BY d.owner,d.role,d.ordinal`)
+    .iterate(id, kind, JSON.stringify(owners))) {
+    const owner = integer.parse(row["owner"]);
+    const role = z.string().parse(row["role"]);
+    const roles = grouped.get(owner) ?? new Map<string, InventorySpan[]>();
+    const spans = roles.get(role) ?? [];
+    spans.push(spanRow.parse(row));
+    roles.set(role, spans);
+    grouped.set(owner, roles);
   }
-  if (typeof selected === "object") {
-    filter += " AND f.node=(SELECT ordinal FROM inventory_span WHERE partition=? AND file=? AND start=? AND end=? AND kind=?)";
-    values.push(id, inventoryString(selected.file), selected.start, selected.end, selected.kind);
+  return grouped;
+}
+
+/** Fact rows keyed by their node span, in stored order, with each row's declaration roles. */
+function nodeFacts(
+  session: InventoryReadSession,
+  id: string,
+  kind: InventoryFactKind,
+  nodes: readonly InventorySpan[],
+): readonly { readonly node: InventorySpan; readonly fact: z.infer<typeof factRow>; readonly roles: ReadonlyMap<string, InventorySpan[]> }[] {
+  requireSessionFamily(session, id, kind);
+  const rows = session
+    .statement(
+      `SELECT q.key AS request,f.kind,f.ordinal,f.file,f.name,f.node,f.target,f.dynamic,f.specifier FROM ${SPAN_REQUESTS} CROSS JOIN inventory_fact f ON f.partition=n.partition AND f.kind=? AND f.node=n.ordinal ORDER BY q.key,f.ordinal`,
+    )
+    .all(spanRequests(nodes), id, kind)
+    .map((row) => ({ node: requestedKey(nodes, row), fact: factRow.parse(row) }));
+  const owned = factDeclarations(
+    session,
+    id,
+    kind,
+    rows.map(({ fact }) => fact.ordinal),
+  );
+  return rows.map((row) => ({ ...row, roles: owned.get(row.fact.ordinal) ?? new Map<string, InventorySpan[]>() }));
+}
+
+/** Captured source rows per requested file; more or fewer than one row is an ownership refusal at the caller. */
+export const inventorySourcesByFile: InventoryFactFamily<string, readonly StoredInventorySource[]> = {
+  key: (file) => file,
+  read: (session, id, files) => {
+    const sources = new Map<string, StoredInventorySource[]>();
+    for (const row of session
+      .statement(
+        "SELECT q.key AS request,s.ordinal,s.file,s.path,s.consumerClass,s.authored,s.textVersion,s.textLength,s.textParts FROM json_each(?) q CROSS JOIN inventory_source s ON s.partition=? AND s.file=q.value ORDER BY q.key,s.ordinal",
+      )
+      .iterate(stringRequests(files), id)) {
+      const file = requestedKey(files, row);
+      const rows = sources.get(file) ?? [];
+      rows.push(sourceRow.parse(row));
+      sources.set(file, rows);
+    }
+    return sources;
+  },
+};
+
+function capturedSources(session: InventoryReadSession, id: string, files: readonly string[], label: string): ReadonlyMap<string, StoredInventorySource> {
+  const found = inventorySourcesByFile.read(session, id, [...new Set(files)]);
+  return new Map(
+    files.map((file) => {
+      const rows = found.get(file) ?? [];
+      const source = rows[0];
+      if (rows.length !== 1 || source === undefined) {
+        throw new SemanticInventoryError(`native ${label} source ownership is unavailable`);
+      }
+      return [file, source];
+    }),
+  );
+}
+
+/** Missing catalog rows are not an object with no fields. */
+export const inventoryShapes: InventoryFactFamily<InventorySpan, InventoryPartition["shapes"][number]> = {
+  key: inventorySpanKey,
+  read: (session, id, nodes) => {
+    requireSessionFamily(session, id, "shape-catalog");
+    const owned = session
+      .statement(
+        `SELECT q.key AS request,s.ordinal,s.copyObject,s.respellObject FROM ${SPAN_REQUESTS} CROSS JOIN inventory_shape s ON s.partition=n.partition AND s.node=n.ordinal`,
+      )
+      .all(spanRequests(nodes), id)
+      .map((row) => ({
+        node: requestedKey(nodes, row),
+        owner: integer.parse(row["ordinal"]),
+        copy: boolean.parse(row["copyObject"]),
+        respell: boolean.parse(row["respellObject"]),
+      }));
+    const owners = JSON.stringify(owned.map(({ owner }) => owner));
+    const fields = new Map<string, string[]>();
+    for (const row of session
+      .statement(
+        "SELECT owner,mode,name FROM inventory_shape_field WHERE partition=? AND owner IN (SELECT value FROM json_each(?)) ORDER BY owner,mode,ordinal",
+      )
+      .iterate(id, owners)) {
+      const key = `${String(row["owner"])}${INVENTORY_KEY_SEPARATOR}${String(row["mode"])}`;
+      fields.set(key, [...(fields.get(key) ?? []), inventoryStringSchema.parse(row["name"])]);
+    }
+    const origins = new Map<string, string[]>();
+    for (const row of session
+      .statement(
+        "SELECT owner,kind,value FROM inventory_shape_origin WHERE partition=? AND owner IN (SELECT value FROM json_each(?)) ORDER BY owner,kind,ordinal",
+      )
+      .iterate(id, owners)) {
+      const key = `${String(row["owner"])}${INVENTORY_KEY_SEPARATOR}${String(row["kind"])}`;
+      origins.set(key, [...(origins.get(key) ?? []), inventoryStringSchema.parse(row["value"])]);
+    }
+    const listed = (map: ReadonlyMap<string, string[]>, owner: number, name: string): string[] =>
+      map.get(`${String(owner)}${INVENTORY_KEY_SEPARATOR}${name}`) ?? [];
+    return new Map(
+      owned.map(({ node, owner, copy, respell }) => [
+        inventorySpanKey(node),
+        frozenFact(
+          shapeCatalogSchema.parse({
+            node,
+            copy: copy ? listed(fields, owner, "copy") : null,
+            respell: respell ? listed(fields, owner, "respell") : null,
+            direct: listed(origins, owner, "direct"),
+            queries: listed(origins, owner, "queries"),
+          }),
+        ),
+      ]),
+    );
+  },
+};
+
+const PAIR_COLUMNS =
+  "l.file AS leftFile,l.start AS leftStart,l.end AS leftEnd,l.kind AS leftKind,r.file AS rightFile,r.start AS rightStart,r.end AS rightEnd,r.kind AS rightKind,p.leftField,p.rightField,p.projection,p.lenient,p.state,p.reason,p.a,p.b,p.c,p.d";
+// LEFT JOIN keeps a dangling node as a parse refusal instead of dropping its pair from coverage.
+const PAIR_SPANS =
+  "LEFT JOIN inventory_span l ON l.partition=p.partition AND l.ordinal=p.leftNode LEFT JOIN inventory_span r ON r.partition=p.partition AND r.ordinal=p.rightNode";
+
+function pairOf(row: Record<string, SQLOutputValue>): InventoryPartition["pairs"][number] {
+  const side = (prefix: "left" | "right"): InventorySpan =>
+    spanRow.parse({ file: row[`${prefix}File`], start: row[`${prefix}Start`], end: row[`${prefix}End`], kind: row[`${prefix}Kind`] });
+  const query = shapePairQuerySchema.parse({
+    left: side("left"),
+    right: side("right"),
+    leftField: row["leftField"] === null ? null : inventoryStringSchema.parse(row["leftField"]),
+    rightField: row["rightField"] === null ? null : inventoryStringSchema.parse(row["rightField"]),
+    projection: row["projection"],
+    lenient: boolean.parse(row["lenient"]),
+  });
+  const result = shapePairResultSchema.parse({
+    kind: row["state"],
+    values: [row["a"], row["b"], row["c"], row["d"]].filter((value) => value !== null).map((value) => boolean.parse(value)),
+    reason: row["reason"],
+  });
+  return shapePairSchema.parse({ query, result });
+}
+
+/** Stored pair answers by normalized query key; coverage is the actual stored key set, not family presence. */
+export const inventoryPairs: InventoryFactFamily<string, InventoryPartition["pairs"][number]> = {
+  key: (queryKey) => queryKey,
+  read: (session, id, keys) => {
+    requireSessionFamily(session, id, "shape-pairs");
+    return new Map(
+      session
+        .statement(`SELECT q.key AS request,${PAIR_COLUMNS} FROM json_each(?) q CROSS JOIN inventory_pair p ON p.partition=? AND p.key=q.value ${PAIR_SPANS}`)
+        .all(stringRequests(keys), id)
+        .map((row) => [requestedKey(keys, row), pairOf(row)]),
+    );
+  },
+};
+
+/** Binding rows per requested node; source ownership and the auxiliary-source refusal hold per node. */
+export const inventoryBindingsAt: InventoryFactFamily<InventorySpan, readonly InventoryPartition["bindings"][number][]> = {
+  key: inventorySpanKey,
+  read: (session, id, nodes) => {
+    const sources = capturedSources(
+      session,
+      id,
+      nodes.map((node) => node.file),
+      "binding",
+    );
+    const bindings = new Map<string, InventoryPartition["bindings"][number][]>();
+    for (const { node, roles } of nodeFacts(session, id, "bindings", nodes)) {
+      if (sources.get(node.file)?.authored !== true) {
+        requireAuxiliaryBindingSource(session.db, id, node.file);
+        if ([...readInventoryGlobalBindings(session.db, id, node)].length !== 1) {
+          throw new SemanticInventoryError("native auxiliary binding lacks closed row coverage");
+        }
+        continue;
+      }
+      const key = inventorySpanKey(node);
+      bindings.set(key, [
+        ...(bindings.get(key) ?? []),
+        frozenFact({ node, symbols: { lexical: roles.get("lexical") ?? [], origins: roles.get("origins") ?? [] } }),
+      ]);
+    }
+    return bindings;
+  },
+};
+
+/** Module rows per requested import, export or dynamic-import node. */
+export const inventoryModulesAt: InventoryFactFamily<InventorySpan, readonly InventoryPartition["modules"][number][]> = {
+  key: inventorySpanKey,
+  read: (session, id, nodes) => {
+    const modules = new Map<string, InventoryPartition["modules"][number][]>();
+    for (const { node, fact, roles } of nodeFacts(session, id, "modules", nodes)) {
+      const key = inventorySpanKey(node);
+      modules.set(key, [
+        ...(modules.get(key) ?? []),
+        partitionSchema.shape.modules.element.parse({
+          node,
+          target: fact.target,
+          dynamic: fact.dynamic,
+          specifier: fact.specifier,
+          declarations: roles.get("declarations") ?? [],
+        }),
+      ]);
+    }
+    return modules;
+  },
+};
+
+/** Witness rows per requested satisfies node. */
+export const inventoryWitnessesAt: InventoryFactFamily<InventorySpan, readonly InventoryPartition["witnesses"][number][]> = {
+  key: inventorySpanKey,
+  read: (session, id, nodes) => {
+    const witnesses = new Map<string, InventoryPartition["witnesses"][number][]>();
+    for (const { node, fact, roles } of nodeFacts(session, id, "witnesses", nodes)) {
+      const key = inventorySpanKey(node);
+      witnesses.set(key, [
+        ...(witnesses.get(key) ?? []),
+        partitionSchema.shape.witnesses.element.parse({ node, name: fact.name, declarations: roles.get("declarations") ?? [] }),
+      ]);
+    }
+    return witnesses;
+  },
+};
+
+/** Export rows per requested exporting file, in stored order. */
+export const inventoryExportsOf: InventoryFactFamily<string, readonly InventoryPartition["exports"][number][]> = {
+  key: (file) => file,
+  read: (session, id, files) => {
+    requireSessionFamily(session, id, "exports");
+    const rows = session
+      .statement(
+        "SELECT q.key AS request,f.kind,f.ordinal,f.file,f.name,f.node,f.target,f.dynamic,f.specifier FROM json_each(?) q CROSS JOIN inventory_fact f ON f.partition=? AND f.kind='exports' AND f.file=q.value ORDER BY q.key,f.ordinal",
+      )
+      .all(stringRequests(files), id)
+      .map((row) => ({ file: requestedKey(files, row), fact: factRow.parse(row) }));
+    const owned = factDeclarations(
+      session,
+      id,
+      "exports",
+      rows.map(({ fact }) => fact.ordinal),
+    );
+    const exports = new Map<string, InventoryPartition["exports"][number][]>();
+    for (const { file, fact } of rows) {
+      exports.set(file, [
+        ...(exports.get(file) ?? []),
+        partitionSchema.shape.exports.element.parse({
+          file: fact.file,
+          name: fact.name,
+          declarations: owned.get(fact.ordinal)?.get("declarations") ?? [],
+        }),
+      ]);
+    }
+    return exports;
+  },
+};
+
+// Retained facts are shared by every caller of a pinned session; freezing turns a consumer mutation into a refusal.
+function frozenFact<T>(value: T): T {
+  if (typeof value === "object" && value !== null && !Object.isFrozen(value)) {
+    Object.freeze(value);
+    for (const child of Object.values(value)) {
+      frozenFact(child);
+    }
   }
+  return value;
+}
+
+function spanColumns(alias: string, prefix: string): string {
+  return `${alias}.file AS ${prefix}File,${alias}.start AS ${prefix}Start,${alias}.end AS ${prefix}End,${alias}.kind AS ${prefix}Kind`;
+}
+
+// LEFT JOIN keeps a dangling span reference as a parse refusal instead of dropping its owning row.
+function spanJoin(alias: string, owner: string, column: string): string {
+  return `LEFT JOIN inventory_span ${alias} ON ${alias}.partition=${owner}.partition AND ${alias}.ordinal=${owner}.${column}`;
+}
+
+function spanColumn(row: Record<string, SQLOutputValue>, prefix: string): InventorySpan {
+  return spanRow.parse({ file: row[`${prefix}File`], start: row[`${prefix}Start`], end: row[`${prefix}End`], kind: row[`${prefix}Kind`] });
+}
+
+const OWNED_SPAN_TABLES = {
+  computedTrace: "inventory_computed_trace",
+  callableTrace: "inventory_callable_trace",
+  globalDeclaration: "inventory_global_declaration",
+  memberDeclaration: "inventory_member_declaration",
+} as const;
+
+/** Child spans of many owners in stored order, keyed by owner and role; a role-less table files every row under "". */
+function ownedSpans(
+  session: InventoryReadSession,
+  id: string,
+  table: keyof typeof OWNED_SPAN_TABLES,
+  owners: readonly number[],
+): ReadonlyMap<string, readonly { readonly ordinal: number; readonly span: InventorySpan }[]> {
+  const roled = table === "globalDeclaration" || table === "memberDeclaration";
+  const grouped = new Map<string, { readonly ordinal: number; readonly span: InventorySpan }[]>();
+  for (const row of session
+    .statement(
+      `SELECT t.owner,${roled ? "t.role" : "'' AS role"},t.ordinal,s.file,s.start,s.end,s.kind FROM ${OWNED_SPAN_TABLES[table]} t JOIN inventory_span s ON s.partition=t.partition AND s.ordinal=t.node WHERE t.partition=? AND t.owner IN (SELECT value FROM json_each(?)) ORDER BY t.owner,${roled ? "t.role," : ""}t.ordinal`,
+    )
+    .iterate(id, JSON.stringify(owners))) {
+    const key = `${String(row["owner"])}${INVENTORY_KEY_SEPARATOR}${String(row["role"])}`;
+    grouped.set(key, [...(grouped.get(key) ?? []), { ordinal: integer.parse(row["ordinal"]), span: spanRow.parse(row) }]);
+  }
+  return grouped;
+}
+
+/** An owner's child sequence must hold exactly its recorded count with contiguous ordinals. */
+function ownedSequence(
+  grouped: ReadonlyMap<string, readonly { readonly ordinal: number; readonly span: InventorySpan }[]>,
+  sequence: { readonly owner: number; readonly role: string; readonly count: number },
+  refusal: string,
+): InventorySpan[] {
+  const rows = grouped.get(`${String(sequence.owner)}${INVENTORY_KEY_SEPARATOR}${sequence.role}`) ?? [];
+  if (rows.length !== sequence.count || rows.some((row, index) => row.ordinal !== index)) {
+    throw new SemanticInventoryError(refusal);
+  }
+  return rows.map(({ span }) => span);
+}
+
+function refusalOf(row: Record<string, SQLOutputValue>): {
+  readonly kind: SQLOutputValue | undefined;
+  readonly reason: SQLOutputValue | undefined;
+  readonly detail: string;
+  readonly node: InventorySpan;
+} {
+  return { kind: row["state"], reason: row["reason"], detail: inventoryStringSchema.parse(row["detail"]), node: spanColumn(row, "refusal") };
+}
+
+/** Ambient origin values and traces retain their complete canonical declaration populations. */
+export const inventoryGlobalOrigins: InventoryFactFamily<InventorySpan, InventoryPartition["globalOrigins"][number]> = {
+  key: inventorySpanKey,
+  read: (session, id, nodes) => {
+    requireSessionFamily(session, id, "global-origins");
+    const rows = session
+      .statement(
+        `SELECT q.key AS request,g.ordinal,g.state,g.name,g.reason,g.detail,g.valueCount,g.traceCount,g.memberCount,${spanColumns("o", "origin")},${spanColumns("r", "refusal")} FROM ${SPAN_REQUESTS} CROSS JOIN inventory_global_origin g ON g.partition=n.partition AND g.node=n.ordinal ${spanJoin("o", "g", "origin")} ${spanJoin("r", "g", "refusalNode")}`,
+      )
+      .all(spanRequests(nodes), id);
+    const owners = rows.map((row) => integer.parse(row["ordinal"]));
+    const children = ownedSpans(session, id, "globalDeclaration", owners);
+    const members = new Map<number, { readonly ordinal: number; readonly name: string }[]>();
+    for (const row of session
+      .statement(
+        "SELECT owner,ordinal,name FROM inventory_global_member WHERE partition=? AND owner IN (SELECT value FROM json_each(?)) ORDER BY owner,ordinal",
+      )
+      .iterate(id, JSON.stringify(owners))) {
+      const owner = integer.parse(row["owner"]);
+      members.set(owner, [...(members.get(owner) ?? []), { ordinal: integer.parse(row["ordinal"]), name: inventoryStringSchema.parse(row["name"]) }]);
+    }
+    return new Map(
+      rows.map((row) => {
+        const node = requestedKey(nodes, row);
+        const owner = integer.parse(row["ordinal"]);
+        const path = members.get(owner) ?? [];
+        if (path.length !== integer.parse(row["memberCount"]) || path.some((value, index) => value.ordinal !== index)) {
+          throw new SemanticInventoryError("native global member path is incomplete");
+        }
+        const refusal = "native global origin declarations are incomplete";
+        const valueDeclarations = ownedSequence(children, { owner, role: "value", count: integer.parse(row["valueCount"]) }, refusal);
+        return [
+          inventorySpanKey(node),
+          globalOriginSchema.parse({
+            node,
+            trace: {
+              origin: spanColumn(row, "origin"),
+              declarations: ownedSequence(children, { owner, role: "trace", count: integer.parse(row["traceCount"]) }, refusal),
+            },
+            result:
+              row["state"] === "resolved"
+                ? {
+                    kind: "resolved",
+                    globalName: inventoryStringSchema.parse(row["name"]),
+                    memberPath: path.map((value) => value.name),
+                    declarations: valueDeclarations,
+                  }
+                : refusalOf(row),
+          }),
+        ];
+      }),
+    );
+  },
+};
+
+/** A present null row is a non-exported declaration, not missing native evidence. */
+export const inventoryDeclarationOutputs: InventoryFactFamily<InventorySpan, InventoryPartition["declarationOutputs"][number]> = {
+  key: inventorySpanKey,
+  read: (session, id, nodes) => {
+    requireSessionFamily(session, id, "declaration-outputs");
+    return new Map(
+      session
+        .statement(
+          `SELECT q.key AS request,o.unknownOutput FROM ${SPAN_REQUESTS} CROSS JOIN inventory_declaration_output o ON o.partition=n.partition AND o.node=n.ordinal`,
+        )
+        .all(spanRequests(nodes), id)
+        .map((row) => {
+          const node = requestedKey(nodes, row);
+          return [inventorySpanKey(node), { node, unknown: row["unknownOutput"] === null ? null : boolean.parse(row["unknownOutput"]) }];
+        }),
+    );
+  },
+};
+
+/** Computed keys retain the canonical scalar/refusal and every ordered binding hop. */
+export const inventoryComputedNames: InventoryFactFamily<InventorySpan, InventoryPartition["computedNames"][number]> = {
+  key: inventorySpanKey,
+  read: (session, id, nodes) => {
+    requireSessionFamily(session, id, "computed-names");
+    const rows = session
+      .statement(
+        `SELECT q.key AS request,c.ordinal,c.state,c.value,c.reason,c.detail,c.traceCount,${spanColumns("o", "origin")},${spanColumns("r", "refusal")} FROM ${SPAN_REQUESTS} CROSS JOIN inventory_computed_name c ON c.partition=n.partition AND c.node=n.ordinal ${spanJoin("o", "c", "origin")} ${spanJoin("r", "c", "refusalNode")}`,
+      )
+      .all(spanRequests(nodes), id);
+    const traces = ownedSpans(
+      session,
+      id,
+      "computedTrace",
+      rows.map((row) => integer.parse(row["ordinal"])),
+    );
+    return new Map(
+      rows.map((row) => {
+        const node = requestedKey(nodes, row);
+        const trace = ownedSequence(
+          traces,
+          { owner: integer.parse(row["ordinal"]), role: "", count: integer.parse(row["traceCount"]) },
+          "native computed-name trace is incomplete",
+        );
+        return [
+          inventorySpanKey(node),
+          computedNameSchema.parse({
+            node,
+            trace: { origin: spanColumn(row, "origin"), declarations: trace },
+            result: row["state"] === "resolved" ? { kind: "resolved", value: inventoryStringSchema.parse(row["value"]) } : refusalOf(row),
+          }),
+        ];
+      }),
+    );
+  },
+};
+
+/** Callable traces retain their full ordered chain; missing tails cannot impersonate a shorter origin. */
+export const inventoryCallableDeclarations: InventoryFactFamily<InventorySpan, InventoryPartition["callableDeclarations"][number]> = {
+  key: inventorySpanKey,
+  read: (session, id, nodes) => {
+    requireSessionFamily(session, id, "callable-declarations");
+    const rows = session
+      .statement(
+        `SELECT q.key AS request,c.ordinal,c.state,c.body,c.reason,c.detail,c.traceCount,${spanColumns("o", "origin")},${spanColumns("d", "declaration")},${spanColumns("b", "body")},${spanColumns("r", "refusal")} FROM ${SPAN_REQUESTS} CROSS JOIN inventory_callable_declaration c ON c.partition=n.partition AND c.node=n.ordinal ${spanJoin("o", "c", "origin")} ${spanJoin("d", "c", "declaration")} ${spanJoin("b", "c", "body")} ${spanJoin("r", "c", "refusalNode")}`,
+      )
+      .all(spanRequests(nodes), id);
+    const traces = ownedSpans(
+      session,
+      id,
+      "callableTrace",
+      rows.map((row) => integer.parse(row["ordinal"])),
+    );
+    return new Map(
+      rows.map((row) => {
+        const node = requestedKey(nodes, row);
+        const trace = ownedSequence(
+          traces,
+          { owner: integer.parse(row["ordinal"]), role: "", count: integer.parse(row["traceCount"]) },
+          "native callable declaration trace is incomplete",
+        );
+        return [
+          inventorySpanKey(node),
+          callableDeclarationSchema.parse({
+            node,
+            trace: { origin: spanColumn(row, "origin"), declarations: trace },
+            result:
+              row["state"] === "resolved"
+                ? { kind: "resolved", declaration: spanColumn(row, "declaration"), body: row["body"] === null ? null : spanColumn(row, "body") }
+                : refusalOf(row),
+          }),
+        ];
+      }),
+    );
+  },
+};
+
+/** Member facts retain every declaration, the original normalization/refusal trace and the leaf binding population. */
+export const inventoryMemberOrigins: InventoryFactFamily<InventorySpan, InventoryPartition["memberOrigins"][number]> = {
+  key: inventorySpanKey,
+  read: (session, id, nodes) => {
+    requireSessionFamily(session, id, "type-member-origins");
+    requireSessionFamily(session, id, "bindings");
+    const rows = session
+      .statement(
+        `SELECT q.key AS request,o.ordinal,o.name,o.leaf,o.state,o.reason,o.detail,o.valueCount,o.traceCount,o.leafCount,${spanColumns("l", "leaf")},${spanColumns("g", "origin")},${spanColumns("r", "refusal")} FROM ${SPAN_REQUESTS} CROSS JOIN inventory_member_origin o ON o.partition=n.partition AND o.node=n.ordinal ${spanJoin("l", "o", "leaf")} ${spanJoin("g", "o", "origin")} ${spanJoin("r", "o", "refusalNode")}`,
+      )
+      .all(spanRequests(nodes), id);
+    const children = ownedSpans(
+      session,
+      id,
+      "memberDeclaration",
+      rows.map((row) => integer.parse(row["ordinal"])),
+    );
+    const leaves = rows.filter((row) => row["leaf"] !== null).map((row) => spanColumn(row, "leaf"));
+    const bindings = leaves.length === 0 ? new Map<string, readonly InventoryPartition["bindings"][number][]>() : inventoryBindingsAt.read(session, id, leaves);
+    const refusal = "native call member declaration population is incomplete";
+    return new Map(
+      rows.map((row) => {
+        const node = requestedKey(nodes, row);
+        const owner = integer.parse(row["ordinal"]);
+        const value = ownedSequence(children, { owner, role: "value", count: integer.parse(row["valueCount"]) }, refusal);
+        const trace = ownedSequence(children, { owner, role: "trace", count: integer.parse(row["traceCount"]) }, refusal);
+        const leaf = row["leaf"] === null ? null : spanColumn(row, "leaf");
+        if (leaf !== null) {
+          const leafBindings = bindings.get(inventorySpanKey(leaf)) ?? [];
+          if (leafBindings.length !== 1) {
+            throw new SemanticInventoryError("native call member leaf binding is unavailable in its native partition");
+          }
+          if (leafBindings[0]?.symbols.lexical.length !== integer.parse(row["leafCount"])) {
+            throw new SemanticInventoryError(refusal);
+          }
+        }
+        return [
+          inventorySpanKey(node),
+          memberOriginSchema.parse({
+            node,
+            name: row["name"] === null ? null : inventoryStringSchema.parse(row["name"]),
+            leaf,
+            trace: { origin: spanColumn(row, "origin"), declarations: trace },
+            result: row["state"] === "resolved" ? { kind: "resolved", declarations: value } : refusalOf(row),
+          }),
+        ];
+      }),
+    );
+  },
+};
+
+/** Runtime export rows per exporting file; declaration spans retain their importing-world identity. */
+export const inventoryRuntimeExportsOf: InventoryFactFamily<string, readonly InventoryPartition["runtimeExports"][number][]> = {
+  key: (file) => file,
+  read: (session, id, files) => {
+    requireSessionFamily(session, id, "runtime-exports");
+    const exports = new Map<string, InventoryPartition["runtimeExports"][number][]>();
+    for (const row of session
+      .statement(`SELECT q.key AS request,r.file AS exportingFile,r.name,r.callable,r.initializerKind,r.initializerCallable,s.file,s.start,s.end,s.kind
+      FROM json_each(?) q CROSS JOIN inventory_runtime_export r ON r.partition=? AND r.file=q.value JOIN inventory_span s ON s.partition=r.partition AND s.ordinal=r.node ORDER BY q.key,r.ordinal`)
+      .iterate(stringRequests(files), id)) {
+      const file = requestedKey(files, row);
+      exports.set(file, [
+        ...(exports.get(file) ?? []),
+        partitionSchema.shape.runtimeExports.element.parse({
+          file: inventoryStringSchema.parse(row["exportingFile"]),
+          name: inventoryStringSchema.parse(row["name"]),
+          declaration: spanRow.parse(row),
+          callable: boolean.parse(row["callable"]),
+          initializer:
+            row["initializerKind"] === null ? null : { kind: integer.parse(row["initializerKind"]), callable: boolean.parse(row["initializerCallable"]) },
+        }),
+      ]);
+    }
+    return exports;
+  },
+};
+
+function* facts(db: DatabaseSync, id: string, kind: InventoryFactKind): Iterable<z.infer<typeof factRow>> {
+  requireInventoryFamily(db, id, kind);
   for (const row of db
     .prepare(
-      `SELECT f.kind,f.ordinal,f.file,f.name,f.node,f.target,f.dynamic,f.specifier FROM inventory_fact f WHERE f.partition=? AND f.kind=?${filter} ORDER BY f.ordinal`,
+      "SELECT f.kind,f.ordinal,f.file,f.name,f.node,f.target,f.dynamic,f.specifier FROM inventory_fact f WHERE f.partition=? AND f.kind=? ORDER BY f.ordinal",
     )
-    .iterate(...values)) {
+    .iterate(id, kind)) {
     yield factRow.parse(row);
   }
 }
@@ -220,7 +807,11 @@ export function* readInventoryExportDeclarations(db: DatabaseSync, id: string, q
 }
 
 export function* readInventoryExports(db: DatabaseSync, id: string, file?: string): Iterable<InventoryPartition["exports"][number]> {
-  for (const row of facts(db, id, "exports", file)) {
+  if (file !== undefined) {
+    yield* inventoryExportsOf.read(createInventoryReadSession(db), id, [file]).get(file) ?? [];
+    return;
+  }
+  for (const row of facts(db, id, "exports")) {
     yield partitionSchema.shape.exports.element.parse({
       file: row.file,
       name: row.name,
@@ -230,7 +821,11 @@ export function* readInventoryExports(db: DatabaseSync, id: string, file?: strin
 }
 
 export function* readInventoryModules(db: DatabaseSync, id: string, node?: InventorySpan): Iterable<InventoryPartition["modules"][number]> {
-  for (const row of facts(db, id, "modules", node)) {
+  if (node !== undefined) {
+    yield* inventoryModulesAt.read(createInventoryReadSession(db), id, [node]).get(inventorySpanKey(node)) ?? [];
+    return;
+  }
+  for (const row of facts(db, id, "modules")) {
     yield partitionSchema.shape.modules.element.parse({
       node: spanOf(db, id, row.node),
       target: row.target,
@@ -243,9 +838,10 @@ export function* readInventoryModules(db: DatabaseSync, id: string, node?: Inven
 
 export function* readInventoryBindings(db: DatabaseSync, id: string, node?: InventorySpan): Iterable<InventoryPartition["bindings"][number]> {
   if (node !== undefined) {
-    capturedInventorySource(db, id, node.file);
+    yield* inventoryBindingsAt.read(createInventoryReadSession(db), id, [node]).get(inventorySpanKey(node)) ?? [];
+    return;
   }
-  for (const row of facts(db, id, "bindings", node)) {
+  for (const row of facts(db, id, "bindings")) {
     const span = spanOf(db, id, row.node);
     const source = capturedInventorySource(db, id, span.file);
     if (!source.authored) {
@@ -316,52 +912,6 @@ export function* readInventoryGlobalBindings(db: DatabaseSync, id: string, node:
       node: selectedSpan,
       symbols: { lexical: read("lexical", integer.parse(row["lexicalCount"])), origins: read("origins", integer.parse(row["originCount"])) },
     };
-  }
-}
-
-/** Ambient origin values and traces retain their complete canonical declaration populations. */
-export function* readInventoryGlobalOrigins(db: DatabaseSync, id: string, node: InventorySpan): Iterable<InventoryPartition["globalOrigins"][number]> {
-  requireInventoryFamily(db, id, "global-origins");
-  for (const row of db
-    .prepare(
-      "SELECT g.ordinal,g.origin,g.state,g.name,g.reason,g.detail,g.refusalNode,g.valueCount,g.traceCount,g.memberCount FROM inventory_global_origin g JOIN inventory_span s ON s.partition=g.partition AND s.ordinal=g.node WHERE g.partition=? AND s.file=? AND s.start=? AND s.end=? AND s.kind=? ORDER BY g.ordinal",
-    )
-    .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
-    const owner = integer.parse(row["ordinal"]);
-    const read = (role: string, count: number): InventorySpan[] => {
-      const rows = db
-        .prepare(
-          "SELECT d.ordinal,s.file,s.start,s.end,s.kind FROM inventory_global_declaration d JOIN inventory_span s ON s.partition=d.partition AND s.ordinal=d.node WHERE d.partition=? AND d.owner=? AND d.role=? ORDER BY d.ordinal",
-        )
-        .all(id, owner, role);
-      if (rows.length !== count || rows.some((value, index) => value["ordinal"] !== index)) {
-        throw new SemanticInventoryError("native global origin declarations are incomplete");
-      }
-      return rows.map((value) => spanRow.parse(value));
-    };
-    const members = db.prepare("SELECT ordinal,name FROM inventory_global_member WHERE partition=? AND owner=? ORDER BY ordinal").all(id, owner);
-    if (members.length !== integer.parse(row["memberCount"]) || members.some((value, index) => value["ordinal"] !== index)) {
-      throw new SemanticInventoryError("native global member path is incomplete");
-    }
-    const valueDeclarations = read("value", integer.parse(row["valueCount"]));
-    yield globalOriginSchema.parse({
-      node,
-      trace: { origin: spanOf(db, id, integer.parse(row["origin"])), declarations: read("trace", integer.parse(row["traceCount"])) },
-      result:
-        row["state"] === "resolved"
-          ? {
-              kind: "resolved",
-              globalName: inventoryStringSchema.parse(row["name"]),
-              memberPath: members.map((value) => inventoryStringSchema.parse(value["name"])),
-              declarations: valueDeclarations,
-            }
-          : {
-              kind: row["state"],
-              reason: row["reason"],
-              detail: inventoryStringSchema.parse(row["detail"]),
-              node: spanOf(db, id, integer.parse(row["refusalNode"])),
-            },
-    });
   }
 }
 
@@ -709,24 +1259,35 @@ function assertInvocationSpan(db: DatabaseSync, id: string, span: InventorySpan,
 }
 
 function assertInvocationChildren(db: DatabaseSync, id: string, fact: InventoryInvocationEvidence, snapshot: InvocationReadSnapshot | undefined): void {
+  const covered = <V>(family: InventoryFactFamily<InventorySpan, V>, nodes: readonly InventorySpan[]): boolean =>
+    readInventoryFacts(db, family, id, nodes).every((value) => value !== undefined);
   for (const source of fact.sources) {
     if (invocationSourceBindings(db, id, source.file, snapshot).length !== source.bindings) {
       throw new SemanticInventoryError("native invocation binding-source coverage is incomplete");
     }
-    if (source.computed.some((node) => [...readInventoryComputedNames(db, id, node)].length !== 1)) {
+    if (!covered(inventoryComputedNames, source.computed)) {
       throw new SemanticInventoryError("native invocation computed-name coverage is incomplete");
     }
   }
-  if (fact.observations?.keys.some((node) => [...readInventoryComputedNames(db, id, node)].length !== 1) === true) {
+  if (fact.observations !== undefined && !covered(inventoryComputedNames, fact.observations.keys)) {
     throw new SemanticInventoryError("native ordinary computed-name coverage is incomplete");
   }
-  if (fact.profiles.some((profile) => profile.global === true && [...readInventoryGlobalOrigins(db, id, profile.node)].length !== 1)) {
+  if (
+    !covered(
+      inventoryGlobalOrigins,
+      fact.profiles.filter((profile) => profile.global === true).map((profile) => profile.node),
+    )
+  ) {
     throw new SemanticInventoryError("native invocation global-origin coverage is incomplete");
   }
 }
 
 export function* readInventoryWitnesses(db: DatabaseSync, id: string, node?: InventorySpan): Iterable<InventoryPartition["witnesses"][number]> {
-  for (const row of facts(db, id, "witnesses", node)) {
+  if (node !== undefined) {
+    yield* inventoryWitnessesAt.read(createInventoryReadSession(db), id, [node]).get(inventorySpanKey(node)) ?? [];
+    return;
+  }
+  for (const row of facts(db, id, "witnesses")) {
     yield partitionSchema.shape.witnesses.element.parse({
       node: spanOf(db, id, row.node),
       name: row.name,
@@ -917,196 +1478,42 @@ function assertReferenceSpans(db: DatabaseSync, id: string, spans: readonly Inve
   }
 }
 
+export function readInventoryShape(db: DatabaseSync, id: string, node: InventorySpan): InventoryPartition["shapes"][number] {
+  const shape = inventoryShapes.read(createInventoryReadSession(db), id, [node]).get(inventorySpanKey(node));
+  if (shape === undefined) {
+    throw new SemanticInventoryError("native shape catalog span is unavailable");
+  }
+  return shape;
+}
+
+/** Coverage is the actual normalized query set, not family presence; one statement joins both spans of every pair. */
+export function* readInventoryPairs(db: DatabaseSync, id: string, queryKey?: string): Iterable<InventoryPartition["pairs"][number]> {
+  if (queryKey !== undefined) {
+    const pair = inventoryPairs.read(createInventoryReadSession(db), id, [queryKey]).get(queryKey);
+    if (pair !== undefined) {
+      yield pair;
+    }
+    return;
+  }
+  requireInventoryFamily(db, id, "shape-pairs");
+  for (const row of db.prepare(`SELECT ${PAIR_COLUMNS} FROM inventory_pair p ${PAIR_SPANS} WHERE p.partition=? ORDER BY p.ordinal`).iterate(id)) {
+    yield pairOf(row);
+  }
+}
+
 /** A present null row is a non-exported declaration, not missing native evidence. */
 export function* readInventoryDeclarationOutputs(
   db: DatabaseSync,
   id: string,
   node: InventorySpan,
 ): Iterable<InventoryPartition["declarationOutputs"][number]> {
-  requireInventoryFamily(db, id, "declaration-outputs");
-  for (const row of db
-    .prepare(
-      "SELECT s.file,s.start,s.end,s.kind,o.unknownOutput FROM inventory_declaration_output o JOIN inventory_span s ON s.partition=o.partition AND s.ordinal=o.node WHERE o.partition=? AND s.file=? AND s.start=? AND s.end=? AND s.kind=? ORDER BY o.ordinal",
-    )
-    .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
-    yield { node: spanRow.parse(row), unknown: row["unknownOutput"] === null ? null : boolean.parse(row["unknownOutput"]) };
-  }
-}
-
-/** Computed keys retain the canonical scalar/refusal and every ordered binding hop. */
-export function* readInventoryComputedNames(db: DatabaseSync, id: string, node: InventorySpan): Iterable<InventoryPartition["computedNames"][number]> {
-  requireInventoryFamily(db, id, "computed-names");
-  for (const row of db
-    .prepare(
-      "SELECT c.ordinal,c.origin,c.state,c.value,c.reason,c.detail,c.refusalNode,c.traceCount FROM inventory_computed_name c JOIN inventory_span s ON s.partition=c.partition AND s.ordinal=c.node WHERE c.partition=? AND s.file=? AND s.start=? AND s.end=? AND s.kind=? ORDER BY c.ordinal",
-    )
-    .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
-    const trace = db
-      .prepare(
-        "SELECT t.ordinal,s.file,s.start,s.end,s.kind FROM inventory_computed_trace t JOIN inventory_span s ON s.partition=t.partition AND s.ordinal=t.node WHERE t.partition=? AND t.owner=? ORDER BY t.ordinal",
-      )
-      .all(id, integer.parse(row["ordinal"]));
-    if (trace.length !== integer.parse(row["traceCount"]) || trace.some((value, index) => value["ordinal"] !== index)) {
-      throw new SemanticInventoryError("native computed-name trace is incomplete");
-    }
-    const span = (column: string): InventorySpan => spanOf(db, id, integer.parse(row[column]));
-    yield computedNameSchema.parse({
-      node,
-      trace: { origin: span("origin"), declarations: trace.map((value) => spanRow.parse(value)) },
-      result:
-        row["state"] === "resolved"
-          ? { kind: "resolved", value: inventoryStringSchema.parse(row["value"]) }
-          : { kind: row["state"], reason: row["reason"], detail: inventoryStringSchema.parse(row["detail"]), node: span("refusalNode") },
-    });
-  }
-}
-
-/** Callable traces retain their full ordered chain; missing tails cannot impersonate a shorter origin. */
-export function* readInventoryCallableDeclarations(
-  db: DatabaseSync,
-  id: string,
-  node: InventorySpan,
-): Iterable<InventoryPartition["callableDeclarations"][number]> {
-  requireInventoryFamily(db, id, "callable-declarations");
-  for (const row of db
-    .prepare(
-      "SELECT c.ordinal,c.origin,c.state,c.declaration,c.body,c.reason,c.detail,c.refusalNode,c.traceCount FROM inventory_callable_declaration c JOIN inventory_span s ON s.partition=c.partition AND s.ordinal=c.node WHERE c.partition=? AND s.file=? AND s.start=? AND s.end=? AND s.kind=? ORDER BY c.ordinal",
-    )
-    .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
-    const trace = db
-      .prepare(
-        "SELECT t.ordinal,s.file,s.start,s.end,s.kind FROM inventory_callable_trace t JOIN inventory_span s ON s.partition=t.partition AND s.ordinal=t.node WHERE t.partition=? AND t.owner=? ORDER BY t.ordinal",
-      )
-      .all(id, integer.parse(row["ordinal"]));
-    if (trace.length !== integer.parse(row["traceCount"]) || trace.some((value, index) => value["ordinal"] !== index)) {
-      throw new SemanticInventoryError("native callable declaration trace is incomplete");
-    }
-    const span = (column: string): InventorySpan => spanOf(db, id, integer.parse(row[column]));
-    yield callableDeclarationSchema.parse({
-      node,
-      trace: { origin: span("origin"), declarations: trace.map((value) => spanRow.parse(value)) },
-      result:
-        row["state"] === "resolved"
-          ? { kind: "resolved", declaration: span("declaration"), body: row["body"] === null ? null : span("body") }
-          : { kind: row["state"], reason: row["reason"], detail: inventoryStringSchema.parse(row["detail"]), node: span("refusalNode") },
-    });
-  }
-}
-
-/** Member facts retain every declaration and the original normalization/refusal trace. */
-export function* readInventoryMemberOrigins(db: DatabaseSync, id: string, node: InventorySpan): Iterable<InventoryPartition["memberOrigins"][number]> {
-  requireInventoryFamily(db, id, "type-member-origins");
-  requireInventoryFamily(db, id, "bindings");
-  const memberDeclarations = (owner: number, role: string, count: number): InventorySpan[] => {
-    const rows = db
-      .prepare(
-        "SELECT d.ordinal,s.file,s.start,s.end,s.kind FROM inventory_member_declaration d JOIN inventory_span s ON s.partition=d.partition AND s.ordinal=d.node WHERE d.partition=? AND d.owner=? AND d.role=? ORDER BY d.ordinal",
-      )
-      .all(id, owner, role);
-    if (rows.length !== count || rows.some((row, index) => row["ordinal"] !== index)) {
-      throw new SemanticInventoryError("native call member declaration population is incomplete");
-    }
-    return rows.map((row) => spanRow.parse(row));
-  };
-  for (const row of db
-    .prepare(
-      "SELECT o.ordinal,o.node,o.name,o.leaf,o.origin,o.state,o.reason,o.detail,o.refusalNode,o.valueCount,o.traceCount,o.leafCount FROM inventory_member_origin o JOIN inventory_span s ON s.partition=o.partition AND s.ordinal=o.node WHERE o.partition=? AND s.file=? AND s.start=? AND s.end=? AND s.kind=? ORDER BY o.ordinal",
-    )
-    .iterate(id, inventoryString(node.file), node.start, node.end, node.kind)) {
-    const owner = integer.parse(row["ordinal"]);
-    const span = (column: string): InventorySpan => spanOf(db, id, integer.parse(row[column]));
-    const value = memberDeclarations(owner, "value", integer.parse(row["valueCount"]));
-    const trace = memberDeclarations(owner, "trace", integer.parse(row["traceCount"]));
-    if (row["leaf"] !== null) {
-      const bindings = [...readInventoryBindings(db, id, span("leaf"))];
-      if (bindings.length !== 1) {
-        throw new SemanticInventoryError("native call member leaf binding is unavailable in its native partition");
-      }
-      if (bindings[0]?.symbols.lexical.length !== integer.parse(row["leafCount"])) {
-        throw new SemanticInventoryError("native call member declaration population is incomplete");
-      }
-    }
-    yield memberOriginSchema.parse({
-      node,
-      name: row["name"] === null ? null : inventoryStringSchema.parse(row["name"]),
-      leaf: row["leaf"] === null ? null : span("leaf"),
-      trace: { origin: span("origin"), declarations: trace },
-      result:
-        row["state"] === "resolved"
-          ? { kind: "resolved", declarations: value }
-          : { kind: row["state"], reason: row["reason"], detail: inventoryStringSchema.parse(row["detail"]), node: span("refusalNode") },
-    });
-  }
-}
-
-/** Missing catalog rows are not an object with no fields. */
-export function readInventoryShape(db: DatabaseSync, id: string, node: InventorySpan): InventoryPartition["shapes"][number] {
-  requireInventoryFamily(db, id, "shape-catalog");
-  const row = db
-    .prepare(
-      "SELECT s.ordinal,s.node,s.copyObject,s.respellObject FROM inventory_shape s JOIN inventory_span n ON n.partition=s.partition AND n.ordinal=s.node WHERE s.partition=? AND n.file=? AND n.start=? AND n.end=? AND n.kind=?",
-    )
-    .get(id, inventoryString(node.file), node.start, node.end, node.kind);
-  if (row === undefined) {
-    throw new SemanticInventoryError("native shape catalog span is unavailable");
-  }
-  const owner = integer.parse(row["ordinal"]);
-  const fields = (mode: "copy" | "respell"): InventoryPartition["shapes"][number]["copy"] =>
-    !boolean.parse(row[mode === "copy" ? "copyObject" : "respellObject"])
-      ? null
-      : db
-          .prepare("SELECT name FROM inventory_shape_field WHERE partition=? AND owner=? AND mode=? ORDER BY ordinal")
-          .all(id, owner, mode)
-          .map((field) => inventoryStringSchema.parse(field["name"]));
-  const origins = (kind: "direct" | "queries"): string[] =>
-    db
-      .prepare("SELECT value FROM inventory_shape_origin WHERE partition=? AND owner=? AND kind=? ORDER BY ordinal")
-      .all(id, owner, kind)
-      .map((value) => inventoryStringSchema.parse(value["value"]));
-  return shapeCatalogSchema.parse({ node, copy: fields("copy"), respell: fields("respell"), direct: origins("direct"), queries: origins("queries") });
-}
-
-/** Coverage is the actual normalized query set, not family presence. */
-export function* readInventoryPairs(db: DatabaseSync, id: string, queryKey?: string): Iterable<InventoryPartition["pairs"][number]> {
-  requireInventoryFamily(db, id, "shape-pairs");
-  const values: SQLInputValue[] = queryKey === undefined ? [id] : [id, inventoryString(queryKey)];
-  for (const row of db
-    .prepare(
-      `SELECT leftNode,rightNode,leftField,rightField,projection,lenient,state,reason,a,b,c,d FROM inventory_pair WHERE partition=?${queryKey === undefined ? "" : " AND key=?"} ORDER BY ordinal`,
-    )
-    .iterate(...values)) {
-    const query = shapePairQuerySchema.parse({
-      left: spanOf(db, id, integer.parse(row["leftNode"])),
-      right: spanOf(db, id, integer.parse(row["rightNode"])),
-      leftField: row["leftField"] === null ? null : inventoryStringSchema.parse(row["leftField"]),
-      rightField: row["rightField"] === null ? null : inventoryStringSchema.parse(row["rightField"]),
-      projection: row["projection"],
-      lenient: boolean.parse(row["lenient"]),
-    });
-    const result = shapePairResultSchema.parse({
-      kind: row["state"],
-      values: [row["a"], row["b"], row["c"], row["d"]].filter((value) => value !== null).map((value) => boolean.parse(value)),
-      reason: row["reason"],
-    });
-    yield shapePairSchema.parse({ query, result });
+  const output = inventoryDeclarationOutputs.read(createInventoryReadSession(db), id, [node]).get(inventorySpanKey(node));
+  if (output !== undefined) {
+    yield output;
   }
 }
 
 /** Read one exporting file; declaration spans retain their importing-world identity. */
 export function* readInventoryRuntimeExports(db: DatabaseSync, id: string, file: string): Iterable<InventoryPartition["runtimeExports"][number]> {
-  requireInventoryFamily(db, id, "runtime-exports");
-  for (const row of db
-    .prepare(`SELECT r.file AS exportingFile,r.name,r.callable,r.initializerKind,r.initializerCallable,s.file,s.start,s.end,s.kind
-    FROM inventory_runtime_export r JOIN inventory_span s ON s.partition=r.partition AND s.ordinal=r.node
-    WHERE r.partition=? AND r.file=? ORDER BY r.ordinal`)
-    .iterate(id, inventoryString(file))) {
-    yield partitionSchema.shape.runtimeExports.element.parse({
-      file: inventoryStringSchema.parse(row["exportingFile"]),
-      name: inventoryStringSchema.parse(row["name"]),
-      declaration: spanRow.parse(row),
-      callable: boolean.parse(row["callable"]),
-      initializer:
-        row["initializerKind"] === null ? null : { kind: integer.parse(row["initializerKind"]), callable: boolean.parse(row["initializerCallable"]) },
-    });
-  }
+  yield* inventoryRuntimeExportsOf.read(createInventoryReadSession(db), id, [file]).get(file) ?? [];
 }

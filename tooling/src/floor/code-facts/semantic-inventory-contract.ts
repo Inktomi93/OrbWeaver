@@ -87,6 +87,10 @@ export type InventoryConsumerClass = (typeof INVENTORY_CONSUMER_CLASSES)[number]
 /** A failed extraction, changed snapshot or ambiguous native interpretation supplies no current verdict. */
 export class SemanticInventoryError extends Error {}
 export const spanSchema = z.object({ file: z.string(), start: z.number().int(), end: z.number().int(), kind: z.number().int() });
+/** Physical span identity for in-memory keys; the separator cannot occur in a canonical path. */
+export function inventorySpanKey(span: z.infer<typeof spanSchema>): string {
+  return `${span.file}${INVENTORY_KEY_SEPARATOR}${String(span.start)}${INVENTORY_KEY_SEPARATOR}${String(span.end)}${INVENTORY_KEY_SEPARATOR}${String(span.kind)}`;
+}
 export const INVENTORY_INPUT_KINDS = ["file", "directory", "exists", "authored"] as const;
 export const inputSchema = z.object({ path: z.string(), kind: z.enum(INVENTORY_INPUT_KINDS), version: z.string() });
 export const symbolSchema = z.object({ lexical: z.array(spanSchema), origins: z.array(spanSchema) });
@@ -907,6 +911,8 @@ export interface InventoryReaderStorage {
   readonly moduleTargetQueries?: readonly InventoryNativeModuleTargetQuery[];
   readonly shapeCohort?: boolean;
   readonly shapeOwners?: ReadonlyMap<SourceFile, string>;
+  /** Refuses once the caller's transaction over these insert-once partitions ends; only a pinned borrowed session retains facts. */
+  readonly pinned?: () => void;
   readonly db: DatabaseSync;
   readonly dispose: () => void;
 }
