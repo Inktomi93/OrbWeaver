@@ -40,6 +40,7 @@ import {
   validateTypedCompilerInputs,
 } from "../lib/typed-native-inputs.ts";
 import { readEslintFileAdmissions } from "./config-snapshot.ts";
+import { lazyRuleCodeIdentity } from "./eslint-code-identity.ts";
 import { hasCompletedProfiles, runProfiles } from "./eslint-profile.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
@@ -49,12 +50,18 @@ function admittedPopulation(root: string, patterns: readonly string[]): Promise<
   return readAdmittedEslintPopulation(root, CONFIG_REL, readDiscoveredPopulation(root, DISCOVERY_MAX_BUFFER_BYTES, patterns));
 }
 
+/** Per-invocation state: receipts of completed profiles and one shared rule-code digest. */
+interface LintSession {
+  readonly completed: Map<string, EslintCompletedProfiles>;
+  readonly codeIdentity: () => string;
+}
+
 export async function runEslint(root: string): Promise<number> {
   return runProfiles(root, await admittedPopulation(root, []), "");
 }
 
 export const ESLINT_SCOPED_USAGE =
-  "usage: node tooling/src/verify/cli.ts eslint-scoped <paths…>\n  Lints the named files or directories in sequential native compiler-owner processes, one TypeScript program per process. A named code file that no config admits is refused with exit 2, except generated output under a typed policy root.";
+  "usage: node tooling/src/verify/cli.ts eslint-scoped <paths…>\n  Lints the named files or directories in sequential native compiler-owner processes, one TypeScript program per process. A named code file that no config admits is refused with exit 2, except built dist output that a typed policy claims.";
 
 export async function runScopedEslint(root: string, paths: readonly string[]): Promise<number> {
   const flag = paths.find((path) => path.startsWith("-"));
@@ -74,7 +81,7 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
     }
     return population;
   };
-  const completed = new Map<string, EslintCompletedProfiles>();
+  const session: LintSession = { completed: new Map(), codeIdentity: lazyRuleCodeIdentity(root) };
   const sources = paths.filter((path) => !isNativeInput(path) || (CODE_FILE.test(path) && existsSync(resolve(root, path))));
   // The named targets lint first and alone; dependency-wide findings follow under their own banner.
   // A named failure still lets the metadata families run: their refusal names the cause (a missing compiler owner or
@@ -82,18 +89,20 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
   let named: number = EXIT.clean;
   let namedFailure: unknown;
   try {
-    named = sources.length === 0 ? EXIT.clean : await lintNamedSources(root, sources, observe, completed);
+    named = sources.length === 0 ? EXIT.clean : await lintNamedSources(root, sources, observe, session);
   } catch (error) {
     namedFailure = error;
     named = EXIT.toolError;
   }
-  const verdict = Math.max(named, await recheckScopedNativeMetadata(root, paths, observe, completed));
+  const verdict = Math.max(named, await recheckScopedNativeMetadata(root, paths, observe, session));
   if (namedFailure !== undefined) {
     throw namedFailure;
   }
   return verdict;
 }
 
+// Built rule code (a patched plugin copy) sits in a dist directory under a typed policy root; authored sources never do.
+const GENERATED_OUTPUT_SEGMENT = "dist";
 const CODE_FILE = /\.[cm]?[jt]sx?$/u;
 
 function isNativeInput(path: string): boolean {
@@ -109,18 +118,14 @@ function isNativeInput(path: string): boolean {
   );
 }
 
-async function lintNamedSources(
-  root: string,
-  sources: readonly string[],
-  observe: typeof admittedPopulation,
-  completed: Map<string, EslintCompletedProfiles>,
-): Promise<number> {
+async function lintNamedSources(root: string, sources: readonly string[], observe: typeof admittedPopulation, session: LintSession): Promise<number> {
   const admitted = await observe(root, [...sources]);
-  // A named source that no config admits has no verdict. Generated or vendored output under a typed policy's dependency
-  // roots is skipped by design and a native input is judged by its metadata family, so neither is refused. Named paths
+  // A named source that no config admits has no verdict, wherever it lives. Only built output (a dist directory) that a
+  // typed policy claims as a dependency, and a native input judged by its metadata family, are not refused. Named paths
   // may be spelled `./x` or absolute, so compare repository-relative identities.
   const relativeToRoot = (path: string): string => relative(root, resolve(root, path)).split(sep).join("/");
   const claimedByTypedPolicy = (path: string): boolean =>
+    path.split("/").includes(GENERATED_OUTPUT_SEGMENT) &&
     affectsTypedNativeLint(path, root) &&
     TYPED_NATIVE_POLICIES.some((entry) => typedNativeDependencySignal(entry, [path], readPolicyRepositoryInventory(root).paths, root));
   const unlinted = sources.filter(
@@ -140,7 +145,7 @@ async function lintNamedSources(
     return EXIT.clean;
   }
   process.stderr.write(`[eslint] named targets: ${sources.join(", ")}\n`);
-  return runProfiles(root, admitted, "scoped-", completed);
+  return runProfiles(root, admitted, "scoped-", session);
 }
 
 function sourceTypeSuppressionMetadata(root: string, paths: readonly string[]): NativeMetadataFamily[] {
@@ -160,12 +165,7 @@ function sourceTypeSuppressionMetadata(root: string, paths: readonly string[]): 
   ];
 }
 
-async function recheckScopedNativeMetadata(
-  root: string,
-  paths: readonly string[],
-  observe: typeof admittedPopulation,
-  completed: Map<string, EslintCompletedProfiles>,
-): Promise<number> {
+async function recheckScopedNativeMetadata(root: string, paths: readonly string[], observe: typeof admittedPopulation, session: LintSession): Promise<number> {
   const baseUi = paths.some(affectsBaseUiLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@ui"]);
   const context = paths.some(affectsContextNativeLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@client"]);
   const map = paths.some(affectsClientMapNativeLint) && !coversNativeRoots(paths, POPULATION_ROOTS["@client"]);
@@ -183,7 +183,7 @@ async function recheckScopedNativeMetadata(
   if (families.length > 0) {
     process.stderr.write("[eslint] dependency-wide checks selected by the named targets; findings below are not limited to them\n");
   }
-  return recheckNativeFamilies(root, families, observe, completed);
+  return recheckNativeFamilies(root, families, observe, session);
 }
 
 async function typedNativeMetadata(root: string, paths: readonly string[], observe: typeof admittedPopulation): Promise<NativeMetadataFamily[]> {
@@ -219,7 +219,7 @@ async function recheckTypedNativeFamilies(
   root: string,
   families: readonly NativeMetadataFamily[],
   observe: typeof admittedPopulation,
-  completed: Map<string, EslintCompletedProfiles>,
+  session: LintSession,
 ): Promise<number> {
   if (families.length === 0) {
     return EXIT.clean;
@@ -246,24 +246,24 @@ async function recheckTypedNativeFamilies(
   const pending: EslintFileAdmission[] = [];
   for (const entry of admitted.filter(({ path }) => selected.has(path))) {
     // The named pass already linted this exact file under the same configuration, source and compiler owner.
-    if (!(completed.has(entry.path) && (await hasCompletedProfiles(root, [entry.path], completed)))) {
+    if (!(session.completed.has(entry.path) && (await hasCompletedProfiles(root, [entry.path], session.completed)))) {
       pending.push(entry);
     }
   }
-  return pending.length === 0 ? EXIT.clean : runProfiles(root, pending, "metadata-typed-", completed);
+  return pending.length === 0 ? EXIT.clean : runProfiles(root, pending, "metadata-typed-", session);
 }
 
 async function recheckNativeFamilies(
   root: string,
   families: readonly NativeMetadataFamily[],
   observe: typeof admittedPopulation,
-  completed: Map<string, EslintCompletedProfiles>,
+  session: LintSession,
 ): Promise<number> {
   const typedVerdict = await recheckTypedNativeFamilies(
     root,
     families.filter((family) => family.requiresTypeInformation === true),
     observe,
-    completed,
+    session,
   );
   if (typedVerdict === EXIT.toolError) {
     return typedVerdict;

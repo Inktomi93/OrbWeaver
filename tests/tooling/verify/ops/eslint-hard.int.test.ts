@@ -183,7 +183,7 @@ test("completed profiles retain violations but refuse changed source, options, e
   const root = await rootFor(plantedTree, repoRoot, "debugger;\n");
   const completed = new Map<string, EslintCompletedProfiles>();
   const admitted = await readEslintFileAdmissions(root, "eslint.config.js", [SOURCE]);
-  expect(await runProfiles(root, admitted, "metadata-proof-", completed)).toBe(1);
+  expect(await runProfiles(root, admitted, "metadata-proof-", { completed })).toBe(1);
   expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(true);
   for (const paths of [[SOURCE, SOURCE], ["."], ["*.js"], ["missing.js"]]) {
     expect(await hasCompletedProfiles(root, paths, completed)).toBe(false);
@@ -208,7 +208,7 @@ test("an ordinary native tool error cannot promote completed HARD work into full
   writeFileSync(join(root, BULK_LEDGER), JSON.stringify({ [SOURCE]: { "no-alert": { count: 1 } } }));
   const completed = new Map<string, EslintCompletedProfiles>();
   const admitted = await readEslintFileAdmissions(root, "eslint.config.js", [SOURCE]);
-  expect(await runProfiles(root, admitted, "metadata-proof-", completed)).toBe(2);
+  expect(await runProfiles(root, admitted, "metadata-proof-", { completed })).toBe(2);
   expect(completed.size).toBe(0);
   expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(false);
 });
@@ -225,7 +225,7 @@ test("an unknown configured compiler context cannot qualify completed native lin
   const completed = new Map<string, EslintCompletedProfiles>();
   const admitted = await readEslintFileAdmissions(root, "eslint.config.js", [SOURCE]);
   expect(admitted).toMatchObject([{ requiresTypeInformation: true, compilerConfigs: null }]);
-  expect(await runProfiles(root, admitted, "metadata-proof-", completed)).toBe(0);
+  expect(await runProfiles(root, admitted, "metadata-proof-", { completed })).toBe(0);
   expect(completed.size).toBe(0);
   expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(false);
 });

@@ -16,7 +16,7 @@ import { eslintScheme } from "../lib/exit-classifiers.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
 import { TYPED_NATIVE_COMPILER_CONTEXT_ENV, typedNativeCompilerConfigs } from "../lib/typed-native-inputs.ts";
 import { readEslintFileAdmissions } from "./config-snapshot.ts";
-import { eslintRuleCodeIdentity } from "./eslint-code-identity.ts";
+import { lazyRuleCodeIdentity } from "./eslint-code-identity.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
 
@@ -30,6 +30,7 @@ interface ProfileDispatch {
   readonly cachePrefix: string;
   readonly hard: boolean;
   readonly receipts: Map<string, string> | undefined;
+  readonly codeIdentity: () => string;
 }
 
 function ownerFor(path: string, owners: readonly string[]): string {
@@ -79,7 +80,11 @@ export async function runProfiles(
   root: string,
   admitted: readonly EslintFileAdmission[],
   cachePrefix: string,
-  completed?: Map<string, EslintCompletedProfiles>,
+  // `codeIdentity` is one digest per lint invocation: callers that run several profile passes share it.
+  {
+    completed,
+    codeIdentity = lazyRuleCodeIdentity(root),
+  }: { readonly completed?: Map<string, EslintCompletedProfiles>; readonly codeIdentity?: () => string } = {},
 ): Promise<number> {
   const configuration = completed === undefined ? undefined : configurationIdentity(root);
   const hardAdmissions = await readEslintFileAdmissions(
@@ -93,11 +98,12 @@ export async function runProfiles(
   const hard = hardAdmissions.filter(({ hasEnabledRules }) => hasEnabledRules);
   const hardReceipts = completed === undefined ? undefined : new Map<string, string>();
   const ordinaryReceipts = completed === undefined ? undefined : new Map<string, string>();
-  const hardVerdict = hard.length === 0 ? EXIT.clean : runPartitions(root, hard, { cachePrefix: `${cachePrefix}hard-`, hard: true, receipts: hardReceipts });
+  const hardVerdict =
+    hard.length === 0 ? EXIT.clean : runPartitions(root, hard, { cachePrefix: `${cachePrefix}hard-`, hard: true, receipts: hardReceipts, codeIdentity });
   if (hardVerdict === EXIT.toolError) {
     return EXIT.toolError;
   }
-  const verdict = Math.max(hardVerdict, runPartitions(root, admitted, { cachePrefix, hard: false, receipts: ordinaryReceipts }));
+  const verdict = Math.max(hardVerdict, runPartitions(root, admitted, { cachePrefix, hard: false, receipts: ordinaryReceipts, codeIdentity }));
   if (completed !== undefined && verdict !== EXIT.toolError && configuration !== undefined && configuration === configurationIdentity(root)) {
     retainCompletedProfiles(completed, admitted, hardAdmissions, { configuration, ordinary: ordinaryReceipts, hard: hardReceipts });
   }
@@ -219,10 +225,9 @@ function runPartitions(root: string, admitted: readonly EslintFileAdmission[], p
   const cacheDir = join(root, ESLINT_CACHE_DIR);
   mkdirSync(cacheDir, { recursive: true });
 
-  const codeIdentity = eslintRuleCodeIdentity(root);
   let verdict: number = EXIT.clean;
   for (const [owner, partition] of [...groups].toSorted(([left], [right]) => left.localeCompare(right))) {
-    const childVerdict = runPartitionChild(root, owner, partition, { ...profile, codeIdentity });
+    const childVerdict = runPartitionChild(root, owner, partition, profile);
     if (childVerdict === EXIT.toolError) {
       return EXIT.toolError;
     }
@@ -248,7 +253,7 @@ function runPartitionChild(
   root: string,
   owner: string,
   partition: readonly EslintFileAdmission[],
-  { hard, cachePrefix, receipts, codeIdentity }: ProfileDispatch & { readonly codeIdentity: string },
+  { hard, cachePrefix, receipts, codeIdentity }: ProfileDispatch,
 ): number {
   if (hard && partition.some((entry) => entry.requiresTypeInformation && (entry.compilerConfigs?.length !== 1 || entry.compilerConfigs[0] !== owner))) {
     throw new Error(`HARD native compiler admission does not match owner ${owner}`);
@@ -256,7 +261,7 @@ function runPartitionChild(
   const paths = partition.map(({ path }) => path);
   process.stderr.write(`[eslint] ${owner}: ${String(paths.length)} file(s)\n`);
   const cacheDir = join(root, ESLINT_CACHE_DIR);
-  const ownerCacheFile = freshCacheFile(cacheDir, `${cachePrefix}${encodeURIComponent(owner)}`, codeIdentity);
+  const ownerCacheFile = freshCacheFile(cacheDir, `${cachePrefix}${encodeURIComponent(owner)}`, codeIdentity());
   const argumentsDir = mkdtempSync(join(cacheDir, "argv-"));
   try {
     const argumentsFile = join(argumentsDir, "arguments.json");

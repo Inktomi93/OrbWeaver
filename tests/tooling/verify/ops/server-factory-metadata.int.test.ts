@@ -145,7 +145,7 @@ test("public boundary implementation and provider signatures invalidate warm nat
     expect(seen.some((args) => args.includes(CONSUMER))).toBe(true);
     seen.length = 0;
     put(scratch, "packages/ui/src/unrelated.ts", "export const unrelated=2;");
-    expect(await runScopedEslint(scratch, ["packages/ui/src/unrelated.ts"])).toBe(0);
+    expect(await runScopedEslint(scratch, ["packages/ui/src/unrelated.ts"])).toBe(2);
     expect(seen.some((args) => args.includes(CONSUMER))).toBe(false);
     expect(contexts).toEqual(contexts.map(() => ({ root: scratch, configs: ["tsconfig.json"] })));
     expect(contexts.length).toBeGreaterThan(0);
@@ -173,7 +173,8 @@ test("unrelated UI edits retain required HARD admission without selecting server
   });
   try {
     put(scratch, "packages/ui/src/unrelated.ts", "export const unrelated=2;");
-    expect(await runScopedEslint(scratch, ["packages/ui/src/unrelated.ts"])).toBe(0);
+    // The server-only fixture config admits no UI file: an authored source under packages/ with no verdict is refused.
+    expect(await runScopedEslint(scratch, ["packages/ui/src/unrelated.ts"])).toBe(2);
     const [ordinaryConfig, hardConfig] = ["eslint.config.js", "eslint-hard.config.js"] as const;
     const discovered = discovery.mock.calls.map(([, , patterns], index) => ({ config: populations.mock.calls[index]?.[1], patterns }));
     const configured = admissions.mock.calls.map(([, config, paths]) => ({ config, serverConsumer: paths.includes(CONSUMER) }));

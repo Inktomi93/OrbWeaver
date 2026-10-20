@@ -103,3 +103,12 @@ export function eslintRuleCodeIdentity(root: string): string {
   }
   return digest.digest("hex");
 }
+
+/** Defers and memoizes the digest so a lint invocation pays for it once, and only when a cache is opened. */
+export function lazyRuleCodeIdentity(root: string): () => string {
+  let identity: string | undefined;
+  return () => {
+    identity ??= eslintRuleCodeIdentity(root);
+    return identity;
+  };
+}
