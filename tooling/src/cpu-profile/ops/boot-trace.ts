@@ -132,7 +132,6 @@ async function stopAndRetainTrace(
 ): Promise<void> {
   const failures = [...earlierFailures];
   let complete = false;
-  // @orb-waive caught-failure-ownership(error): the stop failure is pushed to failures and thrown by the tail of stopAndRetainTrace (the failure itself, or an AggregateError of all of them) after the partial trace is written. Ends if that tail stops throwing failures.
   try {
     await stopping;
     complete = true;
@@ -140,7 +139,6 @@ async function stopAndRetainTrace(
     failures.push(error);
   }
   // A failed stop leaves a partial trace, which is still evidence. Never analyze it as complete.
-  // @orb-waive caught-failure-ownership(error): the trace-write or onRetained failure is pushed to failures and thrown by the tail of stopAndRetainTrace (the failure itself, or an AggregateError of all of them). Ends if that tail stops throwing failures.
   try {
     const eventCount = events.length;
     await writeFile(rawTracePath, JSON.stringify({ traceEvents: events }));
@@ -181,13 +179,11 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
     }
     observerCleaned = true;
     const failures: unknown[] = [];
-    // @orb-waive caught-failure-ownership(error): the removeScriptToEvaluateOnNewDocument failure is pushed to failures and thrown in the AggregateError that ends cleanupObserver; its two callers fold it into startCleanupError or print it through warn. Ends if cleanupObserver stops throwing failures.
     try {
       await cdp.send("Page.removeScriptToEvaluateOnNewDocument", { identifier: observerScript });
     } catch (error) {
       failures.push(error);
     }
-    // @orb-waive caught-failure-ownership(error): the observer-disposal failure is pushed to failures and thrown in the AggregateError that ends cleanupObserver; its two callers fold it into startCleanupError or print it through warn. Ends if cleanupObserver stops throwing failures.
     try {
       const disposed = await cdp.send("Runtime.evaluate", {
         expression: `(() => { const state = globalThis[${JSON.stringify(BOOT_LCP_STATE)}]; state?.dispose(); return delete globalThis[${JSON.stringify(BOOT_LCP_STATE)}]; })()`,

@@ -60,9 +60,6 @@ export function serializeHandWrite<T>(gameId: RpgGameId, run: () => Promise<T>):
   // `previous` is `Promise.resolve()` or a stored `tail`, and `tail` is built from `settled`, which swallows
   // every rejection, so it never rejects and `run` needs no rejection arm.
   const next = previous.then(run);
-  // @orb-waive caught-failure-ownership(next): `settled` only feeds the chain-tail bookkeeping below (deletes the
-  // map entry once this is the live tail). The caller owns the rejection: `return next` at the foot of this function
-  // hands it `run`'s own rejection, and `writeHandState` returns that promise to the hand-edit verbs.
   const settled = next.then(
     () => undefined,
     () => undefined,

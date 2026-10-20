@@ -17,9 +17,11 @@ import {
   originatesFromFactory,
   propertyValueNode,
   referencesBinding,
+  resolvedFunction,
 } from "./caught-failure-core.ts";
-import { isExplicitOwnerCall, isFailureOutcome } from "./caught-failure-outcome.ts";
+import { isFailureOutcome } from "./caught-failure-outcome.ts";
 import { rawFailureDeclarations } from "./caught-failure-read.ts";
+import { isExplicitOwnerCall } from "./caught-failure-sinks.ts";
 
 // ── framework provenance ────────────────────────────────────────────────────────────────────────────────
 const QUERY_FACTORIES: ReadonlySet<string> = new Set(["useInfiniteQuery", "useQuery", "useQueryClient", "useSuspenseInfiniteQuery", "useSuspenseQuery"]);
@@ -192,15 +194,87 @@ function controlFlowVerdict(
   return statement.isKind(SyntaxKind.BreakStatement) || statement.isKind(SyntaxKind.ContinueStatement) ? "escape" : undefined;
 }
 
-function statementOwner(statement: Node, errorBinding: Node | undefined, returnedOutcomeOwns: boolean, reads?: CaughtFailureReadServices): OwnerVerdict {
+/** The value a statement hands its consumer: a `return`'s, or a generator's plain `yield`, which the iterating
+ *  caller reads the same way. */
+function deliveredValue(statement: Node): Node | undefined {
+  if (statement.isKind(SyntaxKind.ReturnStatement)) {
+    return statement.getExpression();
+  }
+  const yielded = statement.asKind(SyntaxKind.ExpressionStatement)?.getExpression().asKind(SyntaxKind.YieldExpression);
+  return yielded?.getAsteriskToken() === undefined ? yielded?.getExpression() : undefined;
+}
+
+/** How one statement is judged: `forwards` is false inside a forwarded helper's body, so a forward is one hop. */
+interface OwnerScan {
+  readonly errorBinding: Node | undefined;
+  readonly returnedOutcomeOwns: boolean;
+  readonly reads: CaughtFailureReadServices | undefined;
+  readonly forwards: boolean;
+}
+
+/** The unreassignable function a call resolves to, and the parameter that receives the caught binding. */
+function forwardTarget(call: CallExpression, errorBinding: Node, reads?: CaughtFailureReadServices): { readonly body: Node; readonly name: Node } | undefined {
+  const callee = unwrapExpression(call.getExpression());
+  const index = call.getArguments().findIndex((argument) => directlyCarriesBinding(argument, errorBinding, reads));
+  const declarations = index < 0 || !callee.isKind(SyntaxKind.Identifier) ? [] : declarationsOf(callee, reads);
+  const declaration = declarations.length === 1 ? declarations[0] : undefined;
+  const reassignable =
+    declaration === undefined ||
+    hasInterveningWrite(callee, declaration, reads) ||
+    (declaration.isKind(SyntaxKind.VariableDeclaration) && declaration.getVariableStatement()?.getDeclarationKind() !== "const");
+  const fn = reassignable ? undefined : resolvedFunction(declaration);
+  if (
+    !(
+      fn?.isKind(SyntaxKind.FunctionDeclaration) === true ||
+      fn?.isKind(SyntaxKind.ArrowFunction) === true ||
+      fn?.isKind(SyntaxKind.FunctionExpression) === true
+    )
+  ) {
+    return;
+  }
+  // A generator runs none of its body until iterated, and an async helper turns a rethrow into a rejection of the
+  // promise this call discards, so neither runs its owner synchronously for the forwarding call.
+  if (fn.isAsync() || (!fn.isKind(SyntaxKind.ArrowFunction) && fn.isGenerator())) {
+    return;
+  }
+  const parameter = fn.getParameters()[index];
+  const name = parameter?.isRestParameter() === false ? parameter.getNameNode() : undefined;
+  const body = fn.getBody();
+  return name?.isKind(SyntaxKind.Identifier) === true && body !== undefined ? { body, name } : undefined;
+}
+
+/** A call that hands the caught binding to a one-statement function whose body owns that parameter. One hop: the
+ *  helper's body is read without forwarding again, and a multi-statement helper stays opaque. */
+export function forwardsToOwner(call: CallExpression, errorBinding: Node | undefined, reads?: CaughtFailureReadServices): boolean {
+  const target = errorBinding === undefined || call.getQuestionDotTokenNode() !== undefined ? undefined : forwardTarget(call, errorBinding, reads);
+  if (target === undefined) {
+    return false;
+  }
+  const { body, name } = target;
+  if (body.isKind(SyntaxKind.Block)) {
+    const [only, ...rest] = body.getStatements();
+    return (
+      only !== undefined && rest.length === 0 && statementOwner(only, { errorBinding: name, returnedOutcomeOwns: false, reads, forwards: false }) === "owner"
+    );
+  }
+  return body.isKind(SyntaxKind.CallExpression) && isExplicitOwnerCall(body, name, reads);
+}
+
+function callOwns(call: CallExpression, { errorBinding, reads, forwards }: OwnerScan): boolean {
+  return isExplicitOwnerCall(call, errorBinding, reads) || (forwards && forwardsToOwner(call, errorBinding, reads));
+}
+
+function statementOwner(statement: Node, scan: OwnerScan): OwnerVerdict {
+  const { errorBinding, returnedOutcomeOwns, reads } = scan;
   const decided = controlFlowVerdict(statement, errorBinding, returnedOutcomeOwns, reads);
   if (decided !== undefined) {
     return decided;
   }
-  const returned = statement.isKind(SyntaxKind.ReturnStatement) ? statement.getExpression() : undefined;
-  if (returnedOutcomeOwns && returned !== undefined && isFailureOutcome(returned, errorBinding, reads)) {
+  const delivered = deliveredValue(statement);
+  if (returnedOutcomeOwns && delivered !== undefined && isFailureOutcome(delivered, errorBinding, reads)) {
     return "owner";
   }
+  const returned = statement.isKind(SyntaxKind.ReturnStatement) ? statement.getExpression() : undefined;
   const rawExpression = statement.isKind(SyntaxKind.ExpressionStatement) ? statement.getExpression() : returned;
   if (rawExpression === undefined) {
     return statement.isKind(SyntaxKind.ReturnStatement) ? "escape" : "none";
@@ -209,7 +283,7 @@ function statementOwner(statement: Node, errorBinding: Node | undefined, returne
   if (assignmentOwns(expression, errorBinding, reads)) {
     return "owner";
   }
-  if (expression.isKind(SyntaxKind.CallExpression) && isExplicitOwnerCall(expression, errorBinding, reads)) {
+  if (expression.isKind(SyntaxKind.CallExpression) && callOwns(expression, scan)) {
     return "owner";
   }
   return statement.isKind(SyntaxKind.ReturnStatement) ? "escape" : "none";
@@ -334,7 +408,7 @@ function rethrowsCaughtBinding(block: Block, errorBinding: Node | undefined, rea
 
 export function hasExplicitOwner(block: Block, errorBinding: Node | undefined, returnedOutcomeOwns = true, reads?: CaughtFailureReadServices): boolean {
   for (const statement of block.getStatements()) {
-    const verdict = statementOwner(statement, errorBinding, returnedOutcomeOwns, reads);
+    const verdict = statementOwner(statement, { errorBinding, returnedOutcomeOwns, reads, forwards: true });
     if (verdict === "owner") {
       return true;
     }
