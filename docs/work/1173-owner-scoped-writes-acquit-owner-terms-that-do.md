@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-19
+status: doing
+updated: 2026-10-20
 priority: P2
 area: security
+lane: wt/agent-a7d2c991bb03fc691
 ---
 
 # owner-scoped writes acquit owner terms that do not scope
