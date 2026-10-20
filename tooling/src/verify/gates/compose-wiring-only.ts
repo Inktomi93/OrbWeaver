@@ -8,7 +8,7 @@ import { referenceResolutionServices } from "../../floor/code-facts/reference-fa
 import { isReferenceWriteTarget } from "../../floor/code-facts/reference-fact-writes.ts";
 import type { ComposeReadDemand, ComposeReads } from "../contract/compose-wiring.ts";
 import { defineGate } from "../contract/policy.ts";
-import { composeNativeReads } from "../lib/compose-native.ts";
+import { composeNativeReads, unsupportedComposeQuestion } from "../lib/compose-native.ts";
 
 const ENTRY_POPULATION = { in: ["@server"], under: ["packages/server/src/entry/**"] } as const;
 const COMPOSE_PREFIX = "packages/server/src/entry/compose/";
@@ -55,6 +55,7 @@ const DISPOSAL_STACKS = new Set(["DisposableStack", "AsyncDisposableStack"]);
 const DISPOSAL_KEYS = new Set(["dispose", "asyncDispose"]);
 const UNDEFINED = "undefined";
 const SNIPPET_LENGTH = 60;
+const UNKNOWN_SITE = "compose cannot establish this site natively";
 
 const DECISION_STATEMENTS = new Set([
   SyntaxKind.IfStatement,
@@ -103,6 +104,20 @@ function unwrap(node: MorphNode): MorphNode {
 /** Does `parent` only wrap `child` under the same rule, so a slot reads through it? */
 function transparentWrapper(parent: MorphNode | undefined, child: MorphNode): parent is MorphNode {
   return parent !== undefined && parent !== child && unwrap(parent) === unwrap(child);
+}
+
+/** The outermost transparent wrapper around `node`: the node a parent's slot actually holds. */
+function outermost(node: MorphNode): MorphNode {
+  let current = node;
+  for (let parent = current.getParent(); transparentWrapper(parent, current); parent = current.getParent()) {
+    current = parent;
+  }
+  return current;
+}
+
+/** The parent of a node's outermost wrapper, so a structural guard never sees a wrapped slot. */
+function slotParent(node: MorphNode): MorphNode | undefined {
+  return outermost(node).getParent();
 }
 
 function isUndefined(node: MorphNode): boolean {
@@ -191,12 +206,12 @@ function computedDispatch(call: CallExpression, reads: ComposeReads): boolean {
     return false;
   }
   const key = callee.getArgumentExpression();
-  return !(key !== undefined && (literalKey(key) || nativeDisposalKey(key, reads)));
+  return !(key !== undefined && (literalKey(unwrap(key)) || nativeDisposalKey(key, reads)));
 }
 
 // A literal key names a string member, never a well-known symbol, so it is never nominated.
 function nativeDisposalKey(node: MorphNode | undefined, reads: ComposeReads): boolean {
-  if (node === undefined || literalKey(node)) {
+  if (node === undefined || literalKey(unwrap(node))) {
     return false;
   }
   const origin = reads.globalOrigin(node);
@@ -232,8 +247,8 @@ function namedCallable(fn: MorphNode): MorphNode | undefined {
   if (!(Node.isArrowFunction(fn) || Node.isFunctionExpression(fn))) {
     return;
   }
-  const parent = fn.getParent();
-  const bound = Node.isVariableDeclaration(parent) && parent.getInitializer() === fn && Node.isIdentifier(parent.getNameNode());
+  const parent = slotParent(fn);
+  const bound = Node.isVariableDeclaration(parent) && parent.getInitializer() === outermost(fn) && Node.isIdentifier(parent.getNameNode());
   return bound ? parent.getNameNode() : undefined;
 }
 
@@ -246,8 +261,8 @@ function handedOutName(fn: MorphNode): MorphNode | undefined {
   if (Node.isMethodDeclaration(fn) || Node.isGetAccessorDeclaration(fn) || Node.isSetAccessorDeclaration(fn)) {
     return fn.getNameNode();
   }
-  const parent = fn.getParent();
-  return Node.isPropertyAssignment(parent) && parent.getInitializer() === fn ? parent.getNameNode() : undefined;
+  const parent = slotParent(fn);
+  return Node.isPropertyAssignment(parent) && parent.getInitializer() === outermost(fn) ? parent.getNameNode() : undefined;
 }
 
 function enclosingFunction(node: MorphNode): MorphNode | undefined {
@@ -295,8 +310,8 @@ function nativeDisposalStack(node: MorphNode, reads: ComposeReads, active: Set<o
 
 /** Language lifetime retention is a separate phase; independent business escapes remain judged. */
 function lifetimeSlot(node: MorphNode, reads: ComposeReads): boolean {
-  const parent = node.getParent();
-  if (Node.isPropertyAssignment(parent) && parent.getInitializer() === node) {
+  const parent = slotParent(node);
+  if (Node.isPropertyAssignment(parent) && parent.getInitializer() === outermost(node)) {
     const key = parent.getNameNode();
     return Node.isComputedPropertyName(key) && nativeDisposalKey(key.getExpression(), reads);
   }
@@ -316,7 +331,7 @@ function lifetimeSlot(node: MorphNode, reads: ComposeReads): boolean {
 
 /** The sanctioned bucket selector is a pure membership projection over its own immutable literal map. */
 function bucketSelector(call: CallExpression, factory: FunctionDeclaration, reads: ComposeReads): boolean {
-  const callee = call.getExpression();
+  const callee = unwrap(call.getExpression());
   // The selector is a named function declaration, so only a reference-position callee can denote it.
   if (!(referencePosition(callee) && (Node.isIdentifier(callee) || Node.isPropertyAccessExpression(callee) || Node.isElementAccessExpression(callee)))) {
     return false;
@@ -330,7 +345,8 @@ function bucketSelector(call: CallExpression, factory: FunctionDeclaration, read
   const body = helper.getBody();
   const statements = Node.isBlock(body) ? body.getStatements() : [];
   const [statement] = statements;
-  const expression = Node.isReturnStatement(statement) ? statement.getExpression() : undefined;
+  const returned = Node.isReturnStatement(statement) ? statement.getExpression() : undefined;
+  const expression = returned === undefined ? undefined : unwrap(returned);
   if (
     helper.getSourceFile() !== factory.getSourceFile() ||
     helper.getParameters().length !== 1 ||
@@ -342,34 +358,38 @@ function bucketSelector(call: CallExpression, factory: FunctionDeclaration, read
   ) {
     return false;
   }
-  const map = expression.getRight();
+  return membershipMap(unwrap(expression.getRight()), reads);
+}
+
+/** An unwritten binding to an object literal whose every member is `true`. */
+function membershipMap(map: MorphNode, reads: ComposeReads): boolean {
   if (!Node.isIdentifier(map) || reads.writes(map).kind !== "resolved") {
     return false;
   }
   const binding = reads.binding(map);
   const initializer = binding.kind === "resolved" && Node.isVariableDeclaration(binding.value) ? binding.value.getInitializer() : undefined;
-  const literal = Node.isAsExpression(initializer) ? initializer.getExpression() : initializer;
+  const literal = initializer === undefined ? undefined : unwrap(initializer);
   return (
     Node.isObjectLiteralExpression(literal) &&
-    literal.getProperties().every((property) => Node.isPropertyAssignment(property) && property.getInitializer()?.getKind() === SyntaxKind.TrueKeyword)
+    literal.getProperties().every((property) => {
+      const value = Node.isPropertyAssignment(property) ? property.getInitializer() : undefined;
+      return value !== undefined && unwrap(value).getKind() === SyntaxKind.TrueKeyword;
+    })
   );
 }
 
 function nativeBucketConsume(call: CallExpression, factory: FunctionDeclaration, reads: ComposeReads): boolean {
   const member = reads.member(call.getExpression());
-  if (
-    member.kind !== "resolved" ||
-    member.value.name !== CONSUME_MEMBER ||
-    !Node.isIdentifier(member.value.receiver) ||
-    reads.writes(member.value.receiver).kind !== "resolved"
-  ) {
+  const limiter = member.kind === "resolved" ? unwrap(member.value.receiver) : undefined;
+  if (member.kind !== "resolved" || member.value.name !== CONSUME_MEMBER || !Node.isIdentifier(limiter) || reads.writes(limiter).kind !== "resolved") {
     return false;
   }
-  const receiver = reads.binding(member.value.receiver);
+  const receiver = reads.binding(limiter);
   if (receiver.kind !== "resolved" || !Node.isVariableDeclaration(receiver.value) || enclosingFunction(receiver.value) !== factory) {
     return false;
   }
-  const initializer = receiver.value.getInitializer();
+  const written = receiver.value.getInitializer();
+  const initializer = written === undefined ? undefined : unwrap(written);
   if (!(Node.isCallExpression(initializer) && canonicalReference(initializer.getExpression(), RATE_LIMITER, "createRateLimiter", reads))) {
     return false;
   }
@@ -386,9 +406,9 @@ function nativeRatePolicy(fn: MorphNode, reads: ComposeReads): boolean {
   if (!Node.isArrowFunction(fn)) {
     return false;
   }
-  const property = fn.getParent();
-  const object = property.getParent();
-  const returned = object?.getParent();
+  const property = slotParent(fn);
+  const object = property?.getParent();
+  const returned = object === undefined ? undefined : slotParent(object);
   const factory = enclosingFunction(fn);
   if (
     !Node.isPropertyAssignment(property) ||
@@ -475,7 +495,7 @@ function nominateElementAccess(demand: ComposeReadDemand, access: MorphNode): vo
     return;
   }
   const key = access.getArgumentExpression();
-  if (key === undefined || literalKey(key)) {
+  if (key === undefined || literalKey(unwrap(key))) {
     return;
   }
   demand.globalOrigin(key);
@@ -553,7 +573,8 @@ function nominateOwnerIdentifier(demand: ComposeReadDemand, node: MorphNode): vo
   if (Node.isFunctionDeclaration(parent) && parent.getNameNode() === node) {
     demand.callable(node);
   }
-  if (Node.isBinaryExpression(parent) && parent.getOperatorToken().getKind() === SyntaxKind.InKeyword && parent.getRight() === node) {
+  const operand = slotParent(node);
+  if (Node.isBinaryExpression(operand) && operand.getOperatorToken().getKind() === SyntaxKind.InKeyword && operand.getRight() === outermost(node)) {
     demand.writes(node);
   }
 }
@@ -571,15 +592,25 @@ interface Classifier {
   readonly judged: (node: MorphNode) => boolean;
 }
 
-function businessReference(at: MorphNode, called: boolean, perCall: (fn: MorphNode) => boolean, reads: ComposeReads): boolean {
-  if (!(called || lifetimeSlot(at, reads))) {
+/** Runs one site's native judgment; an un-nominated question records that site as unknown and yields `fallback`. */
+type Attempt = <T>(site: MorphNode, fallback: T, run: () => T) => T;
+
+/** The sealed native answers and the per-site unknown boundary every typed judgment runs under. */
+interface Judge {
+  readonly reads: ComposeReads;
+  readonly attempt: Attempt;
+}
+
+function businessReference(at: MorphNode, called: boolean, perCall: (fn: MorphNode) => boolean, { reads, attempt }: Judge): boolean {
+  if (!(called || attempt(at, false, () => lifetimeSlot(at, reads)))) {
     return true;
   }
   const fn = enclosingFunction(at);
   return fn !== undefined && perCall(fn);
 }
 
-function classify(named: ReadonlySet<object>, references: readonly Reference[], inCompose: (node: MorphNode) => boolean, reads: ComposeReads): Classifier {
+function classify(named: ReadonlySet<object>, references: readonly Reference[], inCompose: (node: MorphNode) => boolean, judge: Judge): Classifier {
+  const { reads, attempt } = judge;
   const perCallReferenced = new Set<object>();
   const judgedNamed = new Set<object>();
   const nativeOwners = new Map<object, boolean>();
@@ -603,14 +634,14 @@ function classify(named: ReadonlySet<object>, references: readonly Reference[], 
     }
     let owned = nativeOwners.get(fn.compilerNode);
     if (owned === undefined) {
-      owned = nativeRatePolicy(fn, reads);
+      owned = attempt(fn, false, () => nativeRatePolicy(fn, reads));
       nativeOwners.set(fn.compilerNode, owned);
     }
     const outer = enclosingFunction(fn);
-    if (owned || (lifetimeSlot(fn, reads) && (outer === undefined || !perCall(outer)))) {
+    if (owned || (attempt(fn, false, () => lifetimeSlot(fn, reads)) && (outer === undefined || !perCall(outer)))) {
       return false;
     }
-    if (!eagerlyInvoked(fn, reads)) {
+    if (!attempt(fn, false, () => eagerlyInvoked(fn, reads))) {
       return true;
     }
     return outer !== undefined && perCall(outer);
@@ -625,7 +656,7 @@ function classify(named: ReadonlySet<object>, references: readonly Reference[], 
         judgedNamed.add(target.compilerNode);
         changed = true;
       }
-      if (!perCallReferenced.has(target.compilerNode) && businessReference(at, called, perCall, reads)) {
+      if (!perCallReferenced.has(target.compilerNode) && businessReference(at, called, perCall, judge)) {
         perCallReferenced.add(target.compilerNode);
         changed = true;
       }
@@ -644,7 +675,12 @@ function decidesPerCall(decision: MorphNode, classifier: Classifier, canonicalPr
   return fn !== undefined && classifier.perCall(fn) && classifier.judged(decision) && !canonicalProjection(fn);
 }
 
-function canonicalReference(node: MorphNode | undefined, home: string, name: string, reads: ComposeReads): boolean {
+function unwrapped(node: MorphNode | undefined): MorphNode | undefined {
+  return node === undefined ? undefined : unwrap(node);
+}
+
+function canonicalReference(raw: MorphNode | undefined, home: string, name: string, reads: ComposeReads): boolean {
+  const node = unwrapped(raw);
   // Only a named type reference or a named value has a module origin; a keyword, literal or computed node has none to ask about.
   if (
     node === undefined ||
@@ -675,26 +711,29 @@ function referencesParameter(node: MorphNode | undefined, parameter: MorphNode, 
   return binding.kind === "resolved" && binding.value.compilerNode === parameter.compilerNode;
 }
 
-function rowDefault(node: MorphNode | undefined, parameter: MorphNode, field: string, reads: ComposeReads): MorphNode | undefined {
+function rowDefault(raw: MorphNode | undefined, parameter: MorphNode, field: string, reads: ComposeReads): MorphNode | undefined {
+  const node = unwrapped(raw);
   if (!Node.isBinaryExpression(node) || node.getOperatorToken().getKind() !== SyntaxKind.QuestionQuestionToken) {
     return;
   }
-  const read = node.getLeft();
+  const read = unwrap(node.getLeft());
   const member = reads.member(read);
   return read.getFirstChildByKind(SyntaxKind.QuestionDotToken) !== undefined &&
     member.kind === "resolved" &&
     member.value.name === field &&
     referencesParameter(member.value.receiver, parameter, reads)
-    ? node.getRight()
+    ? unwrap(node.getRight())
     : undefined;
 }
 
-function literalString(node: MorphNode | undefined, value: string): boolean {
+function literalString(raw: MorphNode | undefined, value: string): boolean {
+  const node = unwrapped(raw);
   return Node.isStringLiteral(node) && node.getLiteralText() === value;
 }
 
 /** The fields object a `mintPrincipal({ … })` call hands the one Principal constructor. */
-function mintedFields(node: MorphNode | undefined, reads: ComposeReads): MorphNode | undefined {
+function mintedFields(raw: MorphNode | undefined, reads: ComposeReads): MorphNode | undefined {
+  const node = unwrapped(raw);
   if (
     !Node.isCallExpression(node) ||
     node.getTypeArguments().length > 0 ||
@@ -703,11 +742,12 @@ function mintedFields(node: MorphNode | undefined, reads: ComposeReads): MorphNo
   ) {
     return;
   }
-  return node.getArguments()[0];
+  return unwrapped(node.getArguments()[0]);
 }
 
 /** D135's absent-row floor: the role-data primitive's own capture of the literal `"user"` code. */
-function capturedUserFloor(node: MorphNode | undefined, reads: ComposeReads): boolean {
+function capturedUserFloor(raw: MorphNode | undefined, reads: ComposeReads): boolean {
+  const node = unwrapped(raw);
   return (
     Node.isCallExpression(node) &&
     node.getTypeArguments().length === 0 &&
@@ -830,7 +870,7 @@ interface DecisionCandidate {
 }
 
 /** The function a finding belongs to: the outermost per-call function around `node`, else the construction-time function, else `node`. */
-function subjectKey(node: MorphNode, perCall: (fn: MorphNode) => boolean, reads: ComposeReads): MorphNode {
+function subjectKey(node: MorphNode, perCall: (fn: MorphNode) => boolean, { reads, attempt }: Judge): MorphNode {
   let fn = enclosingFunction(node);
   if (fn !== undefined && perCall(fn)) {
     for (let outer = enclosingFunction(fn); outer !== undefined && perCall(outer); outer = enclosingFunction(outer)) {
@@ -838,10 +878,23 @@ function subjectKey(node: MorphNode, perCall: (fn: MorphNode) => boolean, reads:
     }
     return fn;
   }
-  while (fn !== undefined && eagerlyInvoked(fn, reads)) {
-    fn = enclosingFunction(fn);
+  while (fn !== undefined) {
+    const current = fn;
+    if (!attempt(current, false, () => eagerlyInvoked(current, reads))) {
+      break;
+    }
+    fn = enclosingFunction(current);
   }
   return fn ?? node;
+}
+
+/** The first unknown on `node` or the functions around it: a decision there has no established phase. */
+function unknownAround(node: MorphNode, unknowns: ReadonlyMap<object, string>): string | undefined {
+  let current: MorphNode | undefined = node;
+  while (current !== undefined && !unknowns.has(current.compilerNode)) {
+    current = enclosingFunction(current);
+  }
+  return current === undefined ? undefined : unknowns.get(current.compilerNode);
 }
 
 function subjectMessage(subject: Subject): string {
@@ -879,6 +932,14 @@ const PRINCIPAL_MAPPER =
   'function principalFromRow(userId: UserId, fields: UserPrincipalFields | null): Principal {\n  return mintPrincipal({ userId, role: fields?.role ?? captureUserRole("user"), handle: fields?.handle ?? castId<Handle>(userId), externalId: fields?.externalId ?? null, via: "fallback" });\n}\n';
 const PRINCIPAL_BRIDGE = "export function bridge(userId: UserId, fields: UserPrincipalFields | null): Principal { return principalFromRow(userId, fields); }\n";
 const PRINCIPAL_COMPOSE = 'import { bridge } from "../auth/seam.ts";\nexport function build() { return { principal: bridge }; }\n';
+/** Each transparent-wrapper spelling of a canonical mint callee, as `[canonical, wrapped]`. */
+const WRAPPED_MINTS = [
+  ["return mintPrincipal({", "return (mintPrincipal)({"],
+  ["castId<Handle>(userId)", "castId!<Handle>(userId)"],
+  ['captureUserRole("user")', '(captureUserRole)("user")'],
+  ["return mintPrincipal({", "return (mintPrincipal satisfies typeof mintPrincipal)({"],
+] as const;
+const DOMAIN_OWNER = "packages/server/src/domain/x/owner.ts";
 
 export const gate = defineGate({
   id: "compose-wiring-only",
@@ -901,14 +962,32 @@ export const gate = defineGate({
     const functions: MorphNode[] = [];
     const unresolvedMembers: { readonly at: MorphNode; readonly detail: string }[] = [];
     const subjects = new Map<object, Subject>();
+    // D328: an un-nominated question is an explicit unknown at its own site, never a verdict and never a whole-gate refusal.
+    const unknowns = new Map<object, string>();
+    const unknownSites: MorphNode[] = [];
+    const attempt: Attempt = (site, fallback, run) => {
+      try {
+        return run();
+      } catch (error) {
+        const reason = unsupportedComposeQuestion(error);
+        if (reason === undefined) {
+          throw error;
+        }
+        if (!unknowns.has(site.compilerNode)) {
+          unknowns.set(site.compilerNode, reason);
+          unknownSites.push(site);
+        }
+        return fallback;
+      }
+    };
     const reference = (node: MorphNode): void => {
       referenceSites.push(node);
       if (referencePosition(node)) {
         demand.callable(node);
       }
     };
-    const subjectOf = (node: MorphNode, perCall: (fn: MorphNode) => boolean, reads: ComposeReads): Subject => {
-      const key = subjectKey(node, perCall, reads);
+    const subjectOf = (node: MorphNode, perCall: (fn: MorphNode) => boolean, judge: Judge): Subject => {
+      const key = subjectKey(node, perCall, judge);
       const existing = subjects.get(key.compilerNode);
       if (existing !== undefined) {
         return existing;
@@ -932,18 +1011,34 @@ export const gate = defineGate({
       const value = reads.callable(member.value);
       return value.kind === "resolved" ? value.value.declaration : undefined;
     };
-    const references = (tracked: ReadonlySet<object>, reads: ComposeReads): readonly Reference[] =>
+    const references = (tracked: ReadonlySet<object>, { reads }: Judge): readonly Reference[] =>
       referenceSites.flatMap((expression) => {
         if (!referencePosition(expression)) {
           return [];
         }
-        const callable = reads.callable(expression);
-        const target = callable.kind === "resolved" ? callable.value.declaration : lifetimeTarget(expression, reads);
-        return target !== undefined && tracked.has(target.compilerNode) ? [{ target, at: expression, called: calledDirectly(expression) }] : [];
+        return attempt(expression, [], (): readonly Reference[] => {
+          const callable = reads.callable(expression);
+          const target = callable.kind === "resolved" ? callable.value.declaration : lifetimeTarget(expression, reads);
+          return target !== undefined && tracked.has(target.compilerNode) ? [{ target, at: expression, called: calledDirectly(expression) }] : [];
+        });
       });
-    const reportMemberRefusals = ({ perCall, judged }: Classifier, reads: ComposeReads): void => {
+    const reportSubjects = (): void => {
+      for (const subject of subjects.values()) {
+        // A subject whose phase or admission rests on an unknown is reported as that unknown, never as a violation.
+        const unknown = subject.decision === undefined ? undefined : unknownAround(subject.decision, unknowns);
+        if (unknown === undefined) {
+          ctx.report.node(subject.anchor, { message: subjectMessage(subject) });
+        } else {
+          ctx.report.analysis(subject.anchor, { kind: "unknown", reason: `compose cannot establish this operation's phase natively: ${unknown}` });
+        }
+      }
+      for (const site of unknownSites) {
+        ctx.report.analysis(site, { kind: "unknown", reason: unknowns.get(site.compilerNode) ?? UNKNOWN_SITE });
+      }
+    };
+    const reportMemberRefusals = ({ perCall, judged }: Classifier, judge: Judge): void => {
       for (const { at, detail } of unresolvedMembers) {
-        if (judged(at) && businessReference(at, calledDirectly(at), perCall, reads)) {
+        if (judged(at) && businessReference(at, calledDirectly(at), perCall, judge)) {
           ctx.report.node(at, { message: `compose cannot establish the native lifetime member handed to a business operation: ${detail}. ${MESSAGE}` });
         }
       }
@@ -1003,29 +1098,29 @@ export const gate = defineGate({
       prepare: native.prepare,
       evaluate: () => {
         const reads = native.reads();
+        const judge: Judge = { reads, attempt };
         const named = new Set<object>([...callables.values()].flat().map((fn) => fn.compilerNode));
-        const lifetimeMembers = functions.filter((fn) => lifetimeSlot(fn, reads)).map((fn) => fn.compilerNode);
+        const lifetimeMembers = functions.filter((fn) => attempt(fn, false, () => lifetimeSlot(fn, reads))).map((fn) => fn.compilerNode);
         const inCompose = (node: MorphNode): boolean => ctx.relativePath(node.getSourceFile()).startsWith(COMPOSE_PREFIX);
-        const classifier = classify(named, references(new Set([...named, ...lifetimeMembers]), reads), inCompose, reads);
-        reportMemberRefusals(classifier, reads);
+        const classifier = classify(named, references(new Set([...named, ...lifetimeMembers]), judge), inCompose, judge);
+        reportMemberRefusals(classifier, judge);
         const projections = new Map<object, boolean>();
         const canonicalProjection = (fn: MorphNode): boolean => {
           const known = projections.get(fn.compilerNode);
           if (known !== undefined) {
             return known;
           }
-          const admitted = canonicalPrincipalProjection(fn, reads);
+          const admitted = attempt(fn, false, () => canonicalPrincipalProjection(fn, reads));
           projections.set(fn.compilerNode, admitted);
           return admitted;
         };
         for (const { node, typed } of decisions) {
-          if ((!typed || (Node.isCallExpression(node) && typedDecision(node, reads))) && decidesPerCall(node, classifier, canonicalProjection)) {
-            subjectOf(node, classifier.perCall, reads).decision ??= node;
+          const decides = !typed || (Node.isCallExpression(node) && attempt(node, false, () => typedDecision(node, reads)));
+          if (decides && decidesPerCall(node, classifier, canonicalProjection)) {
+            subjectOf(node, classifier.perCall, judge).decision ??= node;
           }
         }
-        for (const subject of subjects.values()) {
-          ctx.report.node(subject.anchor, { message: subjectMessage(subject) });
-        }
+        reportSubjects();
       },
     };
   },
@@ -1366,6 +1461,18 @@ export const gate = defineGate({
       expect: { count: 1, token: "cap", messageIncludes: "Math.min" },
       why: "CLAMP through a non-null assertion: the ambient member under a transparent wrapper still picks between runtime values",
     },
+    {
+      mode: "types",
+      files: {
+        [DOMAIN_OWNER]: '/// <reference lib="esnext.disposable" />\nexport const owner = { [Symbol.asyncDispose]: (): number => (Date.now() > 1 ? 1 : 0) };\n',
+        [COMPOSE_FILE]:
+          '/// <reference lib="esnext.disposable" />\nimport { owner } from "../../domain/x/owner.ts";\nexport function build() { const s = new AsyncDisposableStack(); s.defer(owner[Symbol.asyncDispose]); return s; }\n',
+        "packages/server/src/entry/compose/y.ts":
+          'export function build(load: (id: string) => string) {\n  return { read: (id: string) => (id.length > 0 ? load(id) : "") };\n}\n',
+      },
+      expect: { count: 1, token: "read", messageIncludes: "decides per call" },
+      why: "D328: an unsupported site (a domain-owned stable member source) is an explicit unknown at that site; every other compose file stays judged",
+    },
   ],
   mustPass: [
     {
@@ -1563,18 +1670,14 @@ export const gate = defineGate({
       },
       why: `a transparent wrapper on an eager library callee (${callee}) keeps its callback in the construction phase`,
     })),
-  ],
-  mustRefuse: [
-    {
-      mode: "types",
+    ...WRAPPED_MINTS.map(([from, to]) => ({
+      mode: "types" as const,
       files: {
-        "packages/server/src/domain/x/owner.ts":
-          '/// <reference lib="esnext.disposable" />\nexport const owner = { [Symbol.asyncDispose]: (): number => (Date.now() > 1 ? 1 : 0) };\n',
-        [COMPOSE_FILE]:
-          '/// <reference lib="esnext.disposable" />\nimport { owner } from "../../domain/x/owner.ts";\nexport function build() { return { op: owner[Symbol.asyncDispose] }; }\n',
+        ...PRINCIPAL_TYPE_FILES,
+        [AUTH_SEAM]: `${PRINCIPAL_IMPORTS}${PRINCIPAL_MAPPER.replace(from, to)}${PRINCIPAL_BRIDGE}`,
+        [COMPOSE_FILE]: PRINCIPAL_COMPOSE,
       },
-      expect: { messageIncludes: "native compose demand did not nominate" },
-      why: "a stable member source outside the compose population has no nominated write question; missing native ownership refuses instead of folding into a verdict",
-    },
+      why: `a transparent wrapper on a canonical mint callee (${to}) keeps D1/D135 admission; every guard reads the unwrapped node`,
+    })),
   ],
 });

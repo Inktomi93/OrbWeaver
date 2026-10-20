@@ -41,6 +41,28 @@ test("an absent native world refuses instead of reading the syntax carrier", () 
   expect(result.authority.withheldPolicyIds).toEqual([gate.id]);
 });
 
+test("an un-nominated question is an explicit unknown at its own site and other compose files stay judged", () => {
+  const project = new Project({ useInMemoryFileSystem: true });
+  const disposable = '/// <reference lib="esnext.disposable" />\n';
+  project.createSourceFile(
+    `${ROOT}/packages/server/src/domain/x/owner.ts`,
+    `${disposable}export const owner = { [Symbol.asyncDispose]: (): number => (Date.now() > 1 ? 1 : 0) };\n`,
+  );
+  project.createSourceFile(
+    `${ROOT}/${SUBJECT}`,
+    `${disposable}import { owner } from "../../domain/x/owner.ts";\nexport function build() { const s = new AsyncDisposableStack(); s.defer(owner[Symbol.asyncDispose]); return s; }\n`,
+  );
+  project.createSourceFile(`${ROOT}/packages/server/src/entry/compose/y.ts`, OP.replace("MARKER", ""));
+  const result = judge(project, ROOT);
+  expect(result.authority.withheldPolicyIds).toEqual([]);
+  expect(result.authority.effectiveFindings.map(({ file, token }) => ({ file, token }))).toEqual([
+    { file: "packages/server/src/entry/compose/y.ts", token: "read" },
+  ]);
+  expect(result.policies.flatMap(({ analysis }) => analysis?.unknown ?? [])).toEqual([
+    expect.objectContaining({ file: SUBJECT, reason: expect.stringContaining("native compose demand did not nominate the reference write question") }),
+  ]);
+});
+
 test("every declared row holds through production conformance", { timeout: scaledBudget(30_000) }, () => {
   expect(verifyPolicyProofs([gate])).toEqual([]);
 });
@@ -71,6 +93,26 @@ test("the actual native transport-policy owner is separate from compose-supplied
   project.resolveSourceFileDependencies();
   const run = (): ReturnType<typeof runPolicyPass> => judge(project, repoRoot);
   expect(run().authority.effectiveFindings).toEqual([]);
+  // Each transparent-wrapper spelling of the owned policy keeps its Tier-5 ownership.
+  const wrapped = [
+    ["  return {\n    enforce:", "  return ({\n    enforce:"],
+    ["      await authedGeneral.consume(userId);\n    },\n  };\n}", "      await authedGeneral.consume(userId);\n    },\n  });\n}"],
+    ["enforce: async (decision: RateLimitDecision): Promise<void> => {", "enforce: (async (decision: RateLimitDecision): Promise<void> => {"],
+    ["      await authedGeneral.consume(userId);\n    },\n  };", "      await authedGeneral.consume(userId);\n    }),\n  };"],
+    ["await aiTurn.consume(userId);", "await aiTurn!.consume(userId);"],
+    ["if (isAiTurnPath(decision.path))", "if ((isAiTurnPath)(decision.path))"],
+    ["const restart = createRateLimiter(", "const restart = (createRateLimiter)("],
+  ] as const;
+  const spellings = [[wrapped[0], wrapped[1]], [wrapped[2], wrapped[3]], [wrapped[4]], [wrapped[5]], [wrapped[6]]];
+  for (const edits of spellings) {
+    const text = edits.reduce((current, [from, to]) => {
+      expect(current.split(from)).toHaveLength(2);
+      return current.replace(from, to);
+    }, original);
+    owner.replaceWithText(text);
+    expect.soft(run().authority.effectiveFindings, edits.map(([, to]) => to).join(" / ")).toEqual([]);
+  }
+  owner.replaceWithText(original);
   carrier.replaceWithText(
     'import { createRateLimitGate as createGate } from "../rate-limit-gate.ts";\nexport function build(deps: Parameters<typeof createGate>[0]) { return createGate({ ...deps, resolveRateLimits: () => deps.now() > 1 ? deps.resolveRateLimits() : deps.resolveRateLimits() }); }',
   );

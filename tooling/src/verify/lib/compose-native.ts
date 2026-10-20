@@ -17,18 +17,33 @@ const STRING_PLAN: InventoryInvocationPlan = { mode: "value", facets: ["string"]
 
 type NativeContext = NonNullable<GatePolicyContext["nativeTypes"]>;
 
-// An un-nominated question is missing native ownership, never an answer: it refuses the whole policy.
+const unsupportedQuestions = new WeakSet<Error>();
+
+// An un-nominated question is missing native ownership, never an answer; the gate surfaces it at its own site.
 function unnominated(node: Node, question: string): Error {
-  return new Error(
+  const error = new Error(
     `native compose demand did not nominate the ${question} question at ${node.getSourceFile().getFilePath()}:${String(node.getStartLineNumber())} (${node.getKindName()})`,
   );
+  unsupportedQuestions.add(error);
+  return error;
+}
+
+/** The reason when `error` is an un-nominated compose question; every other error stays a tool failure. */
+export function unsupportedComposeQuestion(error: unknown): string | undefined {
+  return error instanceof Error && unsupportedQuestions.has(error) ? error.message : undefined;
+}
+
+/** The one place a node becomes a question: nomination and asking both see the transparent-wrapper-free node. */
+function questionNode(node: Node): Node {
+  return referenceResolutionServices.unwrapExpression(node);
 }
 
 /** One batched native read per family, acquired on first use after seal. */
 function answers<K extends Node, T>(question: string, nominated: ReadonlySet<K>, read: (nodes: readonly K[]) => ReadonlyMap<Node, T>): (node: Node) => T {
   let cached: ReadonlyMap<Node, T> | undefined;
   const members: ReadonlySet<Node> = nominated;
-  return (node: Node): T => {
+  return (raw: Node): T => {
+    const node = questionNode(raw);
     if (!members.has(node)) {
       throw unnominated(node, question);
     }
@@ -42,7 +57,7 @@ function facet<T>(evidence: NativeInvocationEvidence, select: (evidence: NativeI
   if (values === undefined) {
     throw new Error("native compose facet was not captured for its requested value");
   }
-  return requiredInvocationFact(values, node);
+  return requiredInvocationFact(values, questionNode(node));
 }
 
 /** The compose walk's native demand and its sealed readers; an absent native context refuses the policy. */
@@ -113,21 +128,26 @@ export function composeNativeReads(ctx: Pick<GatePolicyContext, "nativeTypes">):
       assertOpen();
       nominated.add(node);
     };
+  const nominateQuestion =
+    (nominated: Set<Node>) =>
+    (node: Node): void =>
+      nominate(nominated)(questionNode(node));
   return {
     demand: {
-      callable: nominate(callables),
-      globalOrigin: nominate(globals),
-      moduleOrigin: nominate(modules),
+      callable: nominateQuestion(callables),
+      globalOrigin: nominateQuestion(globals),
+      moduleOrigin: nominateQuestion(modules),
+      // Calls and identifiers are never transparent wrappers, so their question node is the node itself.
       calledMember: nominate(members),
       computedName: (key): void => {
         if (computedNameNeedsBindings(key)) {
-          nominate(keys)(key);
+          nominateQuestion(keys)(key);
         }
       },
       binding: nominate(bindings),
       writes: nominate(writes),
-      stable: nominate(stables),
-      staticString: nominate(strings),
+      stable: nominateQuestion(stables),
+      staticString: nominateQuestion(strings),
     },
     prepare: (): void => {
       assertOpen();
