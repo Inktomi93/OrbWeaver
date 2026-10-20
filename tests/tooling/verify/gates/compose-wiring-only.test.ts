@@ -117,6 +117,30 @@ test("the actual native transport-policy owner is separate from compose-supplied
   expect(original.split(userIdLine)).toHaveLength(2);
   owner.replaceWithText(original.replace(userIdLine, `${userIdLine}\n      if (userId.length > 3) {\n        return;\n      }`));
   expect(run().authority.effectiveFindings.map((finding) => finding.token)).toEqual(["isAiTurnPath", "enforce"]);
+  // A debit branch holds only debits and a bare return; a throw in either branch is a per-call rule, not a bucket choice.
+  const aiDebit = "await aiTurn.consume(userId);\n      }";
+  const generalDebit = "await authedGeneral.consume(userId);";
+  const branches = [
+    { from: aiDebit, to: `${aiDebit} else {\n        throw new Error("forbidden");\n      }`, tokens: ["isAiTurnPath", "enforce"] },
+    {
+      from: userIdLine,
+      to: `${userIdLine}\n      if (decision.path === "chat.send") {\n        await restart.consume(userId);\n        throw new Error("no");\n      }`,
+      tokens: ["isAiTurnPath", "enforce"],
+    },
+    { from: aiDebit, to: `${aiDebit} else {\n        return;\n      }`, tokens: [] },
+    { from: generalDebit, to: 'await authedGeneral.consume(userId.length > 8 ? "shared" : userId);', tokens: [] },
+    { from: generalDebit, to: `if (userId !== "root") {\n        ${generalDebit}\n      }`, tokens: [] },
+  ] as const;
+  for (const { from, to, tokens } of branches) {
+    expect(original.split(from)).toHaveLength(2);
+    owner.replaceWithText(original.replace(from, to));
+    expect
+      .soft(
+        run().authority.effectiveFindings.map((finding) => finding.token),
+        to,
+      )
+      .toEqual(tokens);
+  }
   owner.replaceWithText(original);
   carrier.replaceWithText(
     'import { createRateLimitGate as createGate } from "../rate-limit-gate.ts";\nexport function build(deps: Parameters<typeof createGate>[0]) { return createGate({ ...deps, resolveRateLimits: () => deps.now() > 1 ? deps.resolveRateLimits() : deps.resolveRateLimits() }); }',

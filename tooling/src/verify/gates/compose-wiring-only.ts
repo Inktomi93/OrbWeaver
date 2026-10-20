@@ -432,6 +432,28 @@ function nativeRatePolicy(fn: MorphNode, reads: ComposeReads): boolean {
   );
 }
 
+function bareReturn(statement: MorphNode): boolean {
+  return Node.isReturnStatement(statement) && statement.getExpression() === undefined;
+}
+
+function debitStatement(statement: MorphNode, factory: FunctionDeclaration, reads: ComposeReads): boolean {
+  if (!Node.isExpressionStatement(statement)) {
+    return false;
+  }
+  const expression = unwrap(statement.getExpression());
+  const call = Node.isAwaitExpression(expression) ? unwrap(expression.getExpression()) : expression;
+  return Node.isCallExpression(call) && nativeBucketConsume(call, factory, reads);
+}
+
+/** A bucket-choice branch holds only debits, optionally ending in a bare `return`; a throw, value return or other work is a per-call rule.
+ *  An else branch may also be the bare `return` alone; a then-branch must debit. */
+function debitBranch(branch: MorphNode, factory: FunctionDeclaration, reads: ComposeReads, mustDebit: boolean): boolean {
+  const statements = Node.isBlock(branch) ? branch.getStatements() : [branch];
+  const last = statements.at(-1);
+  const debits = last !== undefined && bareReturn(last) ? statements.slice(0, -1) : statements;
+  return (!mustDebit || debits.length > 0) && debits.every((statement) => debitStatement(statement, factory, reads));
+}
+
 // The owned operation may decide only which bucket it debits: a decision is a debiting branch's condition or sits in a debit's own argument.
 function bucketDecision(decision: MorphNode, fn: MorphNode, factory: FunctionDeclaration, reads: ComposeReads): boolean {
   for (let current: MorphNode | undefined = decision; current !== undefined && current !== fn; current = current.getParent()) {
@@ -441,12 +463,11 @@ function bucketDecision(decision: MorphNode, fn: MorphNode, factory: FunctionDec
     if (Node.isIfStatement(current)) {
       const condition = current.getExpression();
       const guards = current === decision || condition === decision || decision.getAncestors().includes(condition);
+      const otherwise = current.getElseStatement();
       return (
         guards &&
-        current
-          .getThenStatement()
-          .getDescendantsOfKind(SyntaxKind.CallExpression)
-          .some((call) => nativeBucketConsume(call, factory, reads))
+        debitBranch(current.getThenStatement(), factory, reads, true) &&
+        (otherwise === undefined || Node.isIfStatement(otherwise) || debitBranch(otherwise, factory, reads, false))
       );
     }
   }
