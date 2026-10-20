@@ -1,12 +1,13 @@
 // orphans + testonly — resolution-based rot over the liveness substrate.
 import type { Node, SourceFile } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { buildLiveness, isReferencedInOwnFile } from "../../floor/code-facts/liveness.ts";
+import type { Liveness } from "../../floor/code-facts/liveness-contract.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
-import type { Flags, Hit, Liveness, OrphanCandidate, TestOnlyClass } from "../contract/types.ts";
+import type { Flags, Hit, OrphanCandidate, TestOnlyClass } from "../contract/types.ts";
 import { dedupe, emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
-import { buildLiveness, isReferencedInOwnFile } from "../lib/liveness.ts";
 import { TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
 
@@ -24,7 +25,7 @@ export function collectOrphanCandidates(project: SourceCorpus, live: Liveness, i
     }
     for (const { name, decl } of ownExports(sf)) {
       const key = declKey(decl);
-      if (live.usedProd.has(key) || live.usedTest.has(key) || isReferencedInOwnFile(sf, name, decl)) {
+      if (live.usedProd.has(key) || live.usedTest.has(key) || isReferencedInOwnFile(sf, decl)) {
         continue;
       }
       out.push({ name, decl, starSuppressed: live.starTargets.has(fp) });
@@ -109,7 +110,7 @@ const TEST_SEAM_PREFIX = "__";
 export function testOnlyClassOf(sf: SourceFile, name: string, decl: Node, live: Liveness): TestOnlyClass {
   const key = declKey(decl);
   // Prod-reached (named import, namespace, dynamic import, or same-file production use) → alive.
-  if (live.usedProd.has(key) || isReferencedInOwnFile(sf, name, decl) || !live.usedTest.has(key)) {
+  if (live.usedProd.has(key) || isReferencedInOwnFile(sf, decl) || !live.usedTest.has(key)) {
     return "alive";
   }
   return name.startsWith(TEST_SEAM_PREFIX) ? "seam" : "hit";

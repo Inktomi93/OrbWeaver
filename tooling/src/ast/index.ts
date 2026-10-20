@@ -14,12 +14,9 @@ export type {
   ContractField,
   DeadEvidence,
   DeadVerdict,
-  ExternalConsumption,
   FieldReadSites,
   Flags,
   Hit,
-  Liveness,
-  LivenessOptions,
   NearPairCandidate,
   OrphanCandidate,
   ProducerlessTableCandidate,
@@ -54,7 +51,6 @@ export {
   finishRun,
   noteToolError,
 } from "./lib/ledger.ts";
-export { buildLiveness } from "./lib/liveness.ts";
 export { isPublicTagged, publicMarkerOf } from "./lib/public-markers.ts";
 export { ownExports } from "./lib/scope.ts";
 export { USAGE } from "./lib/usage.ts";

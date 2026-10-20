@@ -19,6 +19,7 @@ const { print } = await import("../floor/artifacts/artifacts.ts");
 const { EXIT } = await import("../floor/cli/exit-contract.ts");
 const { warn } = await import("../floor/cli/log.ts");
 const { runTool, UsageError } = await import("../floor/cli/run-tool.ts");
+const { LivenessRefusalError } = await import("../floor/code-facts/liveness-contract.ts");
 const { SemanticInventoryError } = await import("../floor/code-facts/semantic-inventory-contract.ts");
 const { semanticInventoryOf } = await import("../floor/code-facts/semantic-inventory-reader.ts");
 const { bindShapeInventory } = await import("../floor/code-facts/shape-inventory-scope.ts");
@@ -112,6 +113,12 @@ function mapKnownError(e: unknown): number {
     finishRun();
     return EXIT.toolError;
   }
+  if (e instanceof LivenessRefusalError) {
+    warn(`ast: ${e.message}`);
+    noteToolError();
+    finishRun();
+    return EXIT.toolError;
+  }
   if (e instanceof AstToolError) {
     // exitToolError already printed the diagnosis + epilogue — the throw only unwinds the verb.
     return EXIT.toolError;
@@ -167,7 +174,7 @@ async function main(): Promise<number> {
   const wide = WIDE_SYNTACTIC_VERBS.has(verb);
   const flags = parseFlags([...invocation.flagTokens]);
   beginRun(verb, corpusOf(typed, wide, verb), flags);
-  // @orb-waive caught-failure-ownership(e): mapKnownError owns every error: SemanticInventoryError and CodemodError get a warn() line and a non-clean exit code, AstToolError was already reported by exitToolError before it was thrown, and any other error is rethrown to runTool. Ends if an arm returns a code without a report or the final rethrow is removed.
+  // @orb-waive caught-failure-ownership(e): mapKnownError owns every error: SemanticInventoryError, LivenessRefusalError and CodemodError get a warn() line and a non-clean exit code, AstToolError was already reported by exitToolError before it was thrown, and any other error is rethrown to runTool. Ends if an arm returns a code without a report or the final rethrow is removed.
   try {
     const corpus = invocationCorpus(verb, typed, wide);
     dispatchCorpus(verb, corpus, invocation.effectiveArg, flags);

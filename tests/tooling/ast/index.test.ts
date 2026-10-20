@@ -19,14 +19,12 @@ import type {
   ChainCandidate,
   DeadEvidence,
   Hit,
-  Liveness,
   NearPairCandidate,
   SwallowedCandidate,
   ViewFieldCandidate,
 } from "../../../tooling/src/ast/index.ts";
 import {
   AstToolError,
-  buildLiveness,
   collectApiSurface,
   collectChainAudit,
   collectChainCandidates,
@@ -71,6 +69,8 @@ import { respellNearCandidatesFor } from "../../../tooling/src/ast/lib/respell-n
 import { assignabilityChecker, respellHitsFor } from "../../../tooling/src/ast/lib/respell-shapes.ts";
 import { REPO_ROOT } from "../../../tooling/src/ast/lib/root.ts";
 import { installOutputSink } from "../../../tooling/src/floor/cli/log.ts";
+import { buildLiveness } from "../../../tooling/src/floor/code-facts/liveness.ts";
+import type { Liveness } from "../../../tooling/src/floor/code-facts/liveness-contract.ts";
 
 const ROOT = "/repo";
 

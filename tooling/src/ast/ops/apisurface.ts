@@ -1,17 +1,14 @@
 // apisurface: exports partitioned by package-boundary consumption.
-import type { ImportDeclaration, Node, SourceFile } from "ts-morph";
-import { SyntaxKind } from "ts-morph";
+import type { Node } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { dynamicModuleTarget } from "../../floor/code-facts/module-target.ts";
-import { inventoryExports, inventoryStaticTarget } from "../../floor/code-facts/semantic-inventory-reader.ts";
+import { buildLiveness, isReferencedInOwnFile, livenessConsumerClass } from "../../floor/code-facts/liveness.ts";
+import type { Liveness, LivenessConsumerClass } from "../../floor/code-facts/liveness-contract.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
-import type { ApiClass, ApiSurfaceEntry, Flags, Hit, Liveness } from "../contract/types.ts";
-import { dynamicImportTargetOf } from "../lib/edges.ts";
+import type { ApiClass, ApiSurfaceEntry, Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
-import { declKey, exposedNames } from "../lib/keys.ts";
+import { declKey } from "../lib/keys.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
-import { buildLiveness, dynamicImportMemberNames, isReferencedInOwnFile } from "../lib/liveness.ts";
-import { isTestPath, TEST_FILE_RE } from "../lib/root.ts";
+import { TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
 import { PACKAGES_PREFIX } from "./chains.ts";
 import { collectOrphanCandidates } from "./orphans.ts";
@@ -42,16 +39,8 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 //     Cross-boundary (tests live outside packages/ and import via `@orb/*`) but NOT prod API — never counted
 //     as PUBLIC, so a PUBLIC count is a real prod-API count.
 //
-// WHY A DEDICATED PER-PACKAGE PASS, not `Liveness.consumers` (the declaration-granular edge map `chains`
-// reads). Two reasons, both correctness: (1) that map only records an edge when the imported local binding is
-// SPELLED in the importing file, so an imported-but-unused cross-package export shows ZERO consumer edges
-// while `usedProd` (import-edge presence) says alive — which would desync the PUBLIC/INTERNAL split from the
-// UNUSED split this verb takes from `orphans`; (2) it carries no type-only bit. So this pass mirrors
-// `markImportConsumption`'s EXACT origin resolution (named specifiers through `getExportedDeclarations().get`,
-// namespace + relative dynamic imports as whole-surface err-alive, and checker-resolved package-alias
-// dynamic imports by their statically named members — the same arms `orphans` trusts) but buckets by the
-// IMPORTING file's package instead of client/server/test, and records the type-only bit. It is the same
-// parallel-arm shape the file already carries (`buildLiveness` vs `recordDeclarationEdges`).
+// The split reads the shared consumption facts (`Liveness.consumptions`), not the declaration edge map: an
+// imported-but-unspelled export has no edge yet is alive, and only the facts carry the type-only bit.
 //
 // KEYED ON `declKey`, NEVER A NAME — same rule as every liveness lens: a renaming barrel hop resolves to the
 // origin declaration through `getExportedDeclarations()`, so an alias cannot fork an export's identity.
@@ -73,9 +62,8 @@ function packageOfSrcFile(fp: string): string | undefined {
  *  a workspace package, so it makes an export PUBLIC while naming that it is not a package boundary. */
 const TOOLING_CONSUMER_LABEL = "scripts/tooling";
 
-/** ONE origin's cross-workspace consumption, bucketed by the IMPORTING file's package. Built by mirroring
- *  `markImportConsumption`'s resolution — so an import EDGE is consumption, matching `usedProd` (and thus the
- *  UNUSED split taken from `orphans`), never the finer "was the binding spelled" question the edge map asks. */
+/** ONE origin's cross-workspace consumption, bucketed by the consuming file's package. An import is
+ *  consumption, matching `usedProd` and so the UNUSED split taken from `orphans`. */
 interface ApiConsumption {
   /** consuming workspace package → the first prod import site (`file:line`) from it. May include the origin's own. */
   readonly prodPkgs: Map<string, string>;
@@ -93,27 +81,28 @@ function nodeSite(node: Node): string {
   return `${relPath(sf.getFilePath())}:${sf.getLineAndColumnAtPos(node.getStart()).line}`;
 }
 
-/** ONE consumer of an origin: the importing file, the import site, and whether the import was a VALUE (not
- *  type-only). Bundled so the record function stays inside the house 4-parameter budget. */
+/** ONE consumer of an origin: its consumer class, its package for application source, the site, and whether
+ *  the import was a VALUE (not type-only). */
 interface ApiConsumer {
-  readonly fp: string;
+  readonly consumer: LivenessConsumerClass;
+  readonly pkg: string | undefined;
   readonly site: string;
   readonly isValue: boolean;
 }
 
-/** Record that `consumer` reaches `originKey`. Buckets exactly as the liveness does: test path → testSite;
- *  a package src file → prodPkgs; anything else (scripts/config) → toolingSite. */
+/** Record that `consumer` reaches `originKey`, bucketed by the liveness consumer class: a test → testSite;
+ *  application source → prodPkgs; a tool, a script or a checked witness → toolingSite. */
 function recordApiConsumer(map: Map<string, ApiConsumption>, originKey: string, consumer: ApiConsumer): void {
   let rec = map.get(originKey);
   if (rec === undefined) {
     rec = { prodPkgs: new Map(), valuePkgs: new Set(), toolingSite: undefined, testSite: undefined };
     map.set(originKey, rec);
   }
-  if (isTestPath(consumer.fp)) {
+  if (consumer.consumer === "test") {
     rec.testSite ??= consumer.site;
     return;
   }
-  const pkg = packageOfSrcFile(consumer.fp);
+  const pkg = consumer.consumer === "tooling" || consumer.consumer === "scripts" ? undefined : consumer.pkg;
   if (pkg === undefined) {
     rec.toolingSite ??= consumer.site;
     return;
@@ -126,97 +115,23 @@ function recordApiConsumer(map: Map<string, ApiConsumption>, originKey: string, 
   }
 }
 
-/** ONE static import's per-package consumption: named specifiers + default resolve to origins (type-only bit
- *  per specifier / per `import type` clause); `import * as ns` marks the target's WHOLE surface (err alive,
- *  value unless `import type * as`). `export { X } from` is a re-export pass-through, never consumption —
- *  which is why only IMPORT declarations are walked, exactly as `markImportConsumption` does. */
-function recordImportApiConsumption(imp: ImportDeclaration, consumerFp: string, map: Map<string, ApiConsumption>): void {
-  const target = inventoryStaticTarget(imp);
-  if (target === undefined) {
-    return;
-  }
-  const site = nodeSite(imp);
-  const typeOnlyImport = imp.isTypeOnly();
-  const ns = imp.getNamespaceImport();
-  if (ns !== undefined) {
-    for (const key of exposedNames(target, imp).keys()) {
-      recordApiConsumer(map, key, { fp: consumerFp, site, isValue: !typeOnlyImport });
-    }
-    return;
-  }
-  const exported = inventoryExports(target, imp);
-  for (const spec of imp.getNamedImports()) {
-    const isValue = !(typeOnlyImport || spec.isTypeOnly());
-    for (const decl of exported.get(spec.getName()) ?? []) {
-      recordApiConsumer(map, declKey(decl), { fp: consumerFp, site, isValue });
-    }
-  }
-  if (imp.getDefaultImport() !== undefined) {
-    for (const decl of exported.get("default") ?? []) {
-      recordApiConsumer(map, declKey(decl), { fp: consumerFp, site, isValue: !typeOnlyImport });
-    }
-  }
-}
-
-function recordWholeDynamicTarget(exported: ReadonlyMap<string, readonly Node[]>, consumer: ApiConsumer, map: Map<string, ApiConsumption>): void {
-  for (const decls of exported.values()) {
-    for (const decl of decls) {
-      recordApiConsumer(map, declKey(decl), consumer);
-    }
-  }
-}
-
-function recordNamedDynamicTarget(
-  exported: ReadonlyMap<string, readonly Node[]>,
-  names: ReadonlySet<string>,
-  consumer: ApiConsumer,
-  map: Map<string, ApiConsumption>,
-): void {
-  for (const name of names) {
-    for (const decl of exported.get(name) ?? []) {
-      recordApiConsumer(map, declKey(decl), consumer);
-    }
-  }
-}
-
-/** ONE file's dynamic `import()` targets. Relative imports retain the conservative whole-module verdict;
- *  package aliases credit only members named by a recognized static access shape. */
-function recordDynamicApiConsumption(sf: SourceFile, project: SourceCorpus, consumerFp: string, map: Map<string, ApiConsumption>): void {
-  for (const call of sf.getDescendantsOfKind(SyntaxKind.CallExpression)) {
-    if (call.getExpression().getKind() !== SyntaxKind.ImportKeyword) {
-      continue;
-    }
-    const specifier = call.getArguments()[0];
-    if (specifier === undefined || specifier.getKind() !== SyntaxKind.StringLiteral) {
-      continue;
-    }
-    const target = dynamicImportTargetOf(call, sf, project);
-    const site = `${relPath(consumerFp)}:${call.getStartLineNumber()}`;
-    const consumer = { fp: consumerFp, site, isValue: true } as const;
-    if (target !== undefined) {
-      recordWholeDynamicTarget(inventoryExports(target, call), consumer, map);
-      continue;
-    }
-    const aliasedTarget = dynamicModuleTarget(call);
-    if (aliasedTarget === undefined) {
-      continue;
-    }
-    recordNamedDynamicTarget(inventoryExports(aliasedTarget, call), dynamicImportMemberNames(call, sf), consumer, map);
-  }
-}
-
-/** origin-key → per-package consumption, over the WHOLE workspace (imports + dynamic imports of every file). */
-function buildApiConsumption(project: SourceCorpus, live: Liveness): Map<string, ApiConsumption> {
+/** origin-key → per-package consumption, from the shared consumption facts plus checked external consumers. */
+function buildApiConsumption(live: Liveness): Map<string, ApiConsumption> {
   const map = new Map<string, ApiConsumption>();
-  for (const sf of project.getSourceFiles()) {
-    const fp = sf.getFilePath();
-    for (const imp of sf.getImportDeclarations()) {
-      recordImportApiConsumption(imp, fp, map);
-    }
-    recordDynamicApiConsumption(sf, project, fp, map);
+  for (const consumption of live.consumptions) {
+    const fp = consumption.consumer.getFilePath();
+    recordApiConsumer(map, consumption.originKey, {
+      consumer: livenessConsumerClass(fp),
+      pkg: packageOfSrcFile(fp),
+      site: nodeSite(consumption.site),
+      isValue: !consumption.typeOnly,
+    });
+  }
+  for (const fact of live.legacyConsumptions) {
+    recordApiConsumer(map, fact.originKey, { consumer: "test", pkg: undefined, site: `${relPath(fact.file)}:${String(fact.line)}`, isValue: true });
   }
   for (const fact of live.externalConsumptions) {
-    recordApiConsumer(map, fact.targetKey, { fp: fact.consumerFile, site: fact.consumerSite, isValue: fact.kind === "value" });
+    recordApiConsumer(map, fact.targetKey, { consumer: fact.consumerClass, pkg: undefined, site: fact.consumerSite, isValue: fact.kind === "value" });
   }
   return map;
 }
@@ -250,7 +165,7 @@ function classifyApiExport(name: string, decl: Node, ctx: ApiScanCtx): ApiSurfac
     return { ...base, klass: "public", consumers, evidence, typeOnly };
   }
   const ownPkgSite = rec?.prodPkgs.get(ownPkg);
-  if (ownPkgSite !== undefined || isReferencedInOwnFile(sf, name, decl)) {
+  if (ownPkgSite !== undefined || isReferencedInOwnFile(sf, decl)) {
     return { ...base, klass: "internal", consumers: [ownPkg], evidence: ownPkgSite ?? `own-file use — ${nodeSite(decl)}` };
   }
   return { ...base, klass: "test-only", evidence: rec?.testSite ?? "a test import" };
@@ -258,13 +173,12 @@ function classifyApiExport(name: string, decl: Node, ctx: ApiScanCtx): ApiSurfac
 
 /** Every own-export whose declaring file is `inScope` (non-test), classified by package-boundary consumption.
  *  Pure enumeration — no printing, no scope policy (the verb owns both) — so the self-test drives the exact
- *  function the CLI does. The UNUSED arm is `collectOrphanCandidates` verbatim; the rest is the per-package pass.
- *  `prebuilt` lets a caller that ALREADY built liveness (the push-tier ratchet, which also needs `isProdConsumed`
- *  for its stale arm) pass it in rather than pay a second whole-workspace liveness pass. */
+ *  function the CLI does. The UNUSED arm is `collectOrphanCandidates` verbatim; the rest reads the shared
+ *  consumption facts. `prebuilt` lets a caller that already built liveness skip a second whole-corpus pass. */
 export function collectApiSurface(project: SourceCorpus, inScope: (filePath: string) => boolean, prebuilt?: Liveness): ApiSurfaceEntry[] {
   const live = prebuilt ?? buildLiveness(project);
   const orphanStar = new Map(collectOrphanCandidates(project, live, inScope).map((candidate) => [declKey(candidate.decl), candidate.starSuppressed]));
-  const ctx: ApiScanCtx = { consumption: buildApiConsumption(project, live), orphanStar };
+  const ctx: ApiScanCtx = { consumption: buildApiConsumption(live), orphanStar };
   const out: ApiSurfaceEntry[] = [];
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();

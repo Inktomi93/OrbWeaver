@@ -1,13 +1,14 @@
 // rot: the five rot collectors over ONE package, ONE load + ONE liveness build.
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { buildLiveness } from "../../floor/code-facts/liveness.ts";
+import type { Liveness } from "../../floor/code-facts/liveness-contract.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
-import type { Flags, Hit, Liveness } from "../contract/types.ts";
+import type { Flags, Hit } from "../contract/types.ts";
 import { emit, narrate } from "../lib/emit.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
-import { buildLiveness } from "../lib/liveness.ts";
-import { TEST_FILE_RE } from "../lib/root.ts";
+import { isPackageSourcePath, TEST_FILE_RE } from "../lib/root.ts";
 import { resolveScope } from "../lib/scope.ts";
-import { chainHit, collectChainAudit, PACKAGE_SRC_RE } from "./chains.ts";
+import { chainHit, collectChainAudit } from "./chains.ts";
 import { candidateHit, collectOrphanCandidates, scanTestOnly } from "./orphans.ts";
 import { collectSwallowedCandidates, isSwallowedExempt, swallowedHit } from "./swallowed.ts";
 import { collectTypeOnlyCandidates, isTypeOnlyExempt, typeOnlyHit } from "./typeonly.ts";
@@ -67,7 +68,7 @@ export function cmdRot(project: SourceCorpus, arg: string, flags: Flags): void {
     scanCorpus(project, {
       scope: scope.prefix,
       label: `path:${scope.prefix}`,
-      skip: [SKIP_TEST_FILES, { reason: "out-of-scope", test: (fp) => !PACKAGE_SRC_RE.test(fp) }],
+      skip: [SKIP_TEST_FILES, { reason: "out-of-scope", test: (fp) => !isPackageSourcePath(fp) }],
     }),
   );
   const live = buildLiveness(project, { edges: true });

@@ -3,6 +3,7 @@ import { readFileSync } from "node:fs";
 import type { NewExpression, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { isPackageRootToolingConfig } from "../../floor/code-facts/liveness-witnesses.ts";
 import { moduleClosure } from "../../floor/code-facts/module-reach.ts";
 import { dynamicModuleTarget, relativeModuleTarget as resolveModule, staticModuleEdges } from "../../floor/code-facts/module-target.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
@@ -11,7 +12,6 @@ import { emit, hitOf } from "../lib/emit.ts";
 import { exitToolError, SKIP_DECLARATION_FILES, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
 import { DOT_SLASH_RE, GLOB_STAR_RE, isTestPath, REPO_ROOT, TS_SUFFIX_RE, WORKSPACE_PACKAGES } from "../lib/root.ts";
 import { resolveScope } from "../lib/scope.ts";
-import { isPackageRootToolingConfig } from "../lib/tooling-entries.ts";
 import { relPath } from "./swallowed.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");

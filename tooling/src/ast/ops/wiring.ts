@@ -1,6 +1,7 @@
 // unwired (tRPC procedures no client consumes) + clientgap (server-only client-facing shapes).
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { buildLiveness, isClientSourcePath } from "../../floor/code-facts/liveness.ts";
 import { literalTypeIndex, staticMemberAccess } from "../../floor/code-facts/reference-fact.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import type { Flags, Hit } from "../contract/types.ts";
@@ -8,8 +9,6 @@ import { collectAppRouterOutputProvenance } from "../lib/app-router-provenance.t
 import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { exitToolError, noteUnits, SKIP_TEST_FILES, scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
-import { buildLiveness, CLIENT_SRC_PREFIX } from "../lib/liveness.ts";
-import { isTestPath } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
@@ -151,7 +150,7 @@ export function collectClientConsumed(project: SourceCorpus, valid: Set<string>)
   const looseProcs = new Set([...valid].filter((f) => !f.includes(".")));
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
-    if (!fp.includes(CLIENT_SRC_PREFIX) || isTestPath(fp)) {
+    if (!isClientSourcePath(fp)) {
       continue;
     }
     for (const kind of [SyntaxKind.PropertyAccessExpression, SyntaxKind.ElementAccessExpression] as const) {

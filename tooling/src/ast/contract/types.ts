@@ -5,13 +5,6 @@ import type { ColumnClass } from "./scan-types.ts";
 
 export type * from "./scan-types.ts";
 
-/** What ONE `buildLiveness` call is asked to produce beyond the liveness sets. `edges` turns on the
- *  DECLARATION-GRANULAR consumption map (`Liveness.consumers`) — off by default so other AST callers
- *  pays neither its cost nor its risk. */
-export interface LivenessOptions {
-  readonly edges: boolean;
-}
-
 /** `pnpm ast antipatterns`' reading of one structure pass: no verdict (a killed, refused or incomplete pass),
  *  or the hits by class with the count of unwaived hits and authority alarms that fail the run. */
 export type AntipatternVerdict =

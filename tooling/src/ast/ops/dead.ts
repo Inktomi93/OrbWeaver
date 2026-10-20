@@ -2,18 +2,19 @@
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { inventoryConsumerClass } from "../../floor/code-facts/inventory-consumers.ts";
+import { buildLiveness } from "../../floor/code-facts/liveness.ts";
+import type { Liveness } from "../../floor/code-facts/liveness-contract.ts";
 import { declarationsNamed } from "../../floor/code-facts/reference-declarations.ts";
 import { isDocumentationLinkReference } from "../../floor/code-facts/reference-fact.ts";
 import { samePhysicalNode } from "../../floor/code-facts/semantic-inventory-reader.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
 import { semanticReferenceNodes } from "../../floor/compiler/ts-workspace.ts";
-import type { DeadEvidence, DeadVerdict, Flags, Hit, Liveness, PublicMarker } from "../contract/types.ts";
+import type { DeadEvidence, DeadVerdict, Flags, Hit, PublicMarker } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { scanCorpus, WHOLE_CORPUS } from "../lib/ledger.ts";
-import { buildLiveness } from "../lib/liveness.ts";
 import { publicMarkerOf } from "../lib/public-markers.ts";
-import { isTestPath } from "../lib/root.ts";
 import { declSite } from "./stringy.ts";
 import { byProdFirst, collectSwallowedCandidates, relPath } from "./swallowed.ts";
 
@@ -23,10 +24,6 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 const DEAD_SITES_SHOWN = 3;
 
 const VENDORED_HEADER_RE = /\bvendored\b/iu;
-
-/** Application/package source is product evidence. Scripts, tooling, and package-root configs are useful
- *  consumers too, but get their own bucket so they cannot make an app-dead export read ALIVE. */
-const PRODUCT_SOURCE_RE = /\/packages\/[^/]+\/src\//u;
 
 /** `<repo-rel file>:<line>`, deduped and sorted prod-first, for a set of reference nodes. */
 function siteListOf(nodes: readonly Node[]): string[] {
@@ -112,13 +109,17 @@ export function deadEvidenceFor(project: SourceCorpus, decl: Node, name: string,
         .filter((r) => nameNode === undefined || !samePhysicalNode(r, nameNode))
         .filter((r) => !(isReexportPassthroughRef(r) || isDocumentationLinkReference(r)))
     : [];
-  const prodNodes = refs.filter((r) => PRODUCT_SOURCE_RE.test(r.getSourceFile().getFilePath()));
-  const toolNodes = refs.filter((r) => {
-    const fp = r.getSourceFile().getFilePath();
-    return !(isTestPath(fp) || PRODUCT_SOURCE_RE.test(fp));
-  });
+  // Tool and script consumers get their own bucket so they cannot make an application-dead export read ALIVE.
+  const refsOf = (consumer: ReturnType<typeof inventoryConsumerClass>): Node[] =>
+    refs.filter((r) => inventoryConsumerClass(r.getSourceFile().getFilePath()) === consumer);
+  const prodNodes = refsOf("product");
+  const toolNodes = refsOf("tooling");
   const externalToolRefs = live.externalConsumptions.filter((fact) => fact.targetKey === declKey(decl)).map((fact) => fact.consumerSite);
-  const testNodes = refs.filter((r) => isTestPath(r.getSourceFile().getFilePath()));
+  const testNodes = refsOf("test");
+  // Legacy tests sit outside the stored references (D320); the liveness legacy scan supplies their reach.
+  const legacyTestRefs = live.legacyConsumptions
+    .filter((fact) => fact.originKey === declKey(decl))
+    .map((fact) => `${relPath(fact.file)}:${fact.line} (legacy import)`);
   const swallowed = collectSwallowedCandidates(project, live, (fp) => fp === sf.getFilePath()).find((c) => declKey(c.decl) === declKey(decl));
   const publicMarker = publicMarkerOf(decl);
   return {
@@ -127,14 +128,14 @@ export function deadEvidenceFor(project: SourceCorpus, decl: Node, name: string,
       swallowed: swallowed !== undefined,
       tagged: publicMarker !== undefined,
       toolCount: toolNodes.length + externalToolRefs.length,
-      testCount: testNodes.length,
+      testCount: testNodes.length + legacyTestRefs.length,
     }),
     prodRefs: siteListOf(prodNodes).slice(0, DEAD_SITES_SHOWN),
     prodCount: prodNodes.length,
     toolRefs: [...siteListOf(toolNodes), ...externalToolRefs].slice(0, DEAD_SITES_SHOWN),
     toolCount: toolNodes.length + externalToolRefs.length,
-    testRefs: siteListOf(testNodes).slice(0, DEAD_SITES_SHOWN),
-    testCount: testNodes.length,
+    testRefs: [...siteListOf(testNodes), ...legacyTestRefs].slice(0, DEAD_SITES_SHOWN),
+    testCount: testNodes.length + legacyTestRefs.length,
     swallowedSites: swallowed?.sites ?? [],
     publicMarker,
     vendored: isVendoredHome(decl),
