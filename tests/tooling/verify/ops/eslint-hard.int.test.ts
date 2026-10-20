@@ -1,5 +1,5 @@
 // Native profiles run through the production partition runner with real CLI caches and directives.
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
@@ -98,6 +98,37 @@ test(
     );
     expect(await runScopedEslint(root, [SOURCE])).toBe(0);
     writeFileSync(join(root, "plugin.js"), rule(true));
+    expect(await runScopedEslint(root, [SOURCE])).toBe(1);
+  },
+  scaledBudget(30_000),
+);
+
+test(
+  "a named file spelled ./relative or absolute lints exactly like its repository-relative spelling",
+  async ({ plantedTree, repoRoot }) => {
+    const root = await rootFor(plantedTree, repoRoot, "alert('named');\n");
+    expect(await runScopedEslint(root, [SOURCE])).toBe(1);
+    expect(await runScopedEslint(root, [`./${SOURCE}`])).toBe(1);
+    expect(await runScopedEslint(root, [join(root, SOURCE)])).toBe(1);
+  },
+  scaledBudget(30_000),
+);
+
+test(
+  "an edit inside an installed plugin drops the cached clean verdict for an unchanged named file",
+  async ({ plantedTree, repoRoot }) => {
+    const root = await rootFor(plantedTree, repoRoot, "void 0;\n");
+    const rule = (reports: boolean): string =>
+      `export default { rules: { named: { create: (context) => ({ Program: (node) => { if (${String(reports)}) context.report({ node, message: "planted" }); } }) } } };`;
+    mkdirSync(join(root, "node_modules/orb-installed-plugin"), { recursive: true });
+    writeFileSync(join(root, "node_modules/orb-installed-plugin/package.json"), '{"name":"orb-installed-plugin","type":"module","main":"index.js"}');
+    writeFileSync(join(root, "node_modules/orb-installed-plugin/index.js"), rule(false));
+    writeFileSync(
+      join(root, "eslint.config.js"),
+      `import plugin from "orb-installed-plugin"; export default [{ files: ["**/*.js"], plugins: { orb: plugin }, rules: { "orb/named": "error" } }];`,
+    );
+    expect(await runScopedEslint(root, [SOURCE])).toBe(0);
+    writeFileSync(join(root, "node_modules/orb-installed-plugin/index.js"), rule(true));
     expect(await runScopedEslint(root, [SOURCE])).toBe(1);
   },
   scaledBudget(30_000),

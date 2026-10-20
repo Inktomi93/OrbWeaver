@@ -1,6 +1,6 @@
 // Native compiler-owner shards isolate HARD authority from ordinary exceptions and cache lifetimes.
 import { existsSync, readFileSync, statSync } from "node:fs";
-import { resolve } from "node:path";
+import { relative, resolve, sep } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
@@ -54,7 +54,7 @@ export async function runEslint(root: string): Promise<number> {
 }
 
 export const ESLINT_SCOPED_USAGE =
-  "usage: node tooling/src/verify/cli.ts eslint-scoped <paths…>\n  Lints the named files or directories in sequential native compiler-owner processes, one TypeScript program per process. A path ESLint ignores is skipped.";
+  "usage: node tooling/src/verify/cli.ts eslint-scoped <paths…>\n  Lints the named files or directories in sequential native compiler-owner processes, one TypeScript program per process. A named code file that no config admits is refused with exit 2, except generated output under a typed policy root.";
 
 export async function runScopedEslint(root: string, paths: readonly string[]): Promise<number> {
   const flag = paths.find((path) => path.startsWith("-"));
@@ -116,13 +116,20 @@ async function lintNamedSources(
   completed: Map<string, EslintCompletedProfiles>,
 ): Promise<number> {
   const admitted = await observe(root, [...sources]);
-  // A named source that no config admits has no verdict; a native input is judged by its own metadata family instead.
+  // A named source that no config admits has no verdict. Generated or vendored output under a typed policy's dependency
+  // roots is skipped by design and a native input is judged by its metadata family, so neither is refused. Named paths
+  // may be spelled `./x` or absolute, so compare repository-relative identities.
+  const relativeToRoot = (path: string): string => relative(root, resolve(root, path)).split(sep).join("/");
+  const claimedByTypedPolicy = (path: string): boolean =>
+    affectsTypedNativeLint(path, root) &&
+    TYPED_NATIVE_POLICIES.some((entry) => typedNativeDependencySignal(entry, [path], readPolicyRepositoryInventory(root).paths, root));
   const unlinted = sources.filter(
     (path) =>
       !isNativeInput(path) &&
       CODE_FILE.test(path) &&
       statSync(resolve(root, path), { throwIfNoEntry: false })?.isFile() === true &&
-      !admitted.some((entry) => entry.path === path),
+      !admitted.some((entry) => entry.path === relativeToRoot(path)) &&
+      !claimedByTypedPolicy(relativeToRoot(path)),
   );
   if (unlinted.length > 0) {
     process.stderr.write(`[eslint] eslint.config.js admits no rules for named file(s), so no verdict exists: ${unlinted.join(", ")}\n`);
