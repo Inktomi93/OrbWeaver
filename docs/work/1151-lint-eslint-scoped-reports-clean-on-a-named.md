@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-19
+status: doing
+updated: 2026-10-20
 priority: P1
+lane: wt/agent-a3bb8971166aeec04
 ---
 
 # lint:eslint-scoped reports clean on a named target the rule flags
@@ -22,3 +23,5 @@ The door always reports the named targets' findings first and in full, or refuse
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Implementation at `f3dcdf9b3f` awaits combined review with the lint branch for items 1101 and 1102. Merge this branch before that branch. No completion verdict is recorded.

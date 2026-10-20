@@ -1,9 +1,8 @@
 ---
 kind: bug
-status: doing
-updated: 2026-10-19
+status: open
+updated: 2026-10-20
 priority: P1
-lane: wt/agent-ab34ba7b0261ff67a
 ---
 
 # schema-data-grants real-corpus run runs out of heap at 16 GB
@@ -31,3 +30,5 @@ The suite completes under 16 GB on main with a measured peak, with no heap incre
 - After the deletion the suite still runs out of heap, at a 21.24 GB peak. A subset breakdown points at the `json-column-writes` ordinary cohort, which roots every call in its population. Narrowing its roots needs a capture-side design.
 - Details and every measurement: `reports/review/1117-verb-coverage-and-schema-heap.md`.
 - Owed: the real-tree judge run on CI shard reports, and the final suite run after item 1133.
+
+The assigned worktree is removed. Its detailed evidence is preserved in `reports/review/salvage/agent-sweep-2026-10-20/agent-ab34ba7b0261ff67a/reports/review/1117-verb-coverage-and-schema-heap.md`. Final suite and CI coverage qualification remain owed.
