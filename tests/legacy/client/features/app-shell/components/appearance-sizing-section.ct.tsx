@@ -5,8 +5,10 @@
 // P1 (SET-SEAMS §9): the `appearance` section-patch carries EXACTLY the five owned keys. Slider bounds are
 // asserted against the section's OWN exported MIN/MAX constants, never hardcoded numbers.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -21,7 +23,11 @@ const SETTINGS_VIEW = { userId: "user_ct_sizing", schemaVersion: 1, config: DEFA
 const OWNED_KEYS = ["chatWidthPct", "density", "elevation", "fontScale", "reducedMotion"];
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
+  return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
+  });
 }
 
 test("renders the sizing sliders AND the absorbed density/elevation/motion controls under one heading", async ({ mount, page }) => {

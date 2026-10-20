@@ -5,9 +5,11 @@
 // version, and clearing an override sends the leaf `null` (reset to the shipped wording). Asserts the fired
 // patch, never the UI reaction (assert-the-mutation-fired).
 
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { PROSE_COUNTER_AT, PROSE_MAX_CHARS, PROSE_SLOTS } from "@orb/contracts/prose";
 import type { UserSettings } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import { resolvedTokenColor } from "@orb/testkit/node/resolved-token-color.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -35,6 +37,8 @@ function settingsView(prose: ProseOverrides = {}): TrpcWireOutput<"settings.getU
 
 function stub(page: Page, prose?: ProseOverrides): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "settings.getUserSettings": () => settingsView(prose),
     [UPDATE_USER_SETTINGS_SECTION]: () => settingsView(prose),
   });

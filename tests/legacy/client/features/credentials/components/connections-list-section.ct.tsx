@@ -1,6 +1,8 @@
 // CT: a saved connection whose provider is absent stays identifiable, editable and removable while every
 // provider-backed list action is unavailable. The badge and disabled switch state the reason at the row.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 // Pure `.ts`, safe in a node-side CT spec; the feature's front door is a barrel that would pull `.tsx` in.
@@ -165,6 +167,8 @@ test("using a chat-only row for everything writes straight through without a pre
 test("independent connections dependencies start while the connection list is held", async ({ mount, page }) => {
   const held = trpcHold<"connection.list">();
   const calls = await routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "connection.list": held,
     "connection.listBindings": [],
     "credentials.list": [],

@@ -2,12 +2,16 @@
 // first-class settings-section contributions in SET-SEAMS stage 3, so each now stamps its own anchor and
 // owns its own verbs — this pins both, which the pane-surface era never covered.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
 import { AdminOpsSectionsStory } from "../_ct-stories.tsx";
 
 test("each ops section stamps its OWN admin anchor (the ids the nav + search jump to)", async ({ mount, page }) => {
-  await routeTrpc(page, {});
+  await routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+  });
   await mount(<AdminOpsSectionsStory />);
 
   await expect(page.locator("#config-anchor-admin-model-catalog")).toBeVisible();
@@ -19,7 +23,10 @@ test("each ops section stamps its OWN admin anchor (the ids the nav + search jum
 // admin-refreshed enriched catalog. The provider id is asserted, not just the call — a refresher that fired
 // against the wrong row would satisfy a count-only pin.
 test("the catalog refresher fires its admin-gated verb for the OpenRouter row", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "connection.refreshCatalog": () => ({ models: 0 }) });
+  const trpc = await routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+    "connection.refreshCatalog": () => ({ models: 0 }),
+  });
   const component = await mount(<AdminOpsSectionsStory />);
 
   await component.getByRole("button", { name: "Refresh OpenRouter catalog" }).click();
@@ -28,7 +35,10 @@ test("the catalog refresher fires its admin-gated verb for the OpenRouter row", 
 });
 
 test("the inline card embed is gated on a non-empty id and sends it verbatim", async ({ mount, page }) => {
-  const trpc = await routeTrpc(page, { "admin.embedCharacterCard": () => ({ ok: true }) });
+  const trpc = await routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+    "admin.embedCharacterCard": () => ({ ok: true }),
+  });
   const component = await mount(<AdminOpsSectionsStory />);
 
   const embed = component.getByRole("button", { name: "Embed card" });

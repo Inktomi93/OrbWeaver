@@ -17,7 +17,9 @@
 // would keep passing for the wrong reason if the key ever lost its measurement — and the tail sentinel is
 // what a reader is actually looking at when the pane jumps.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import type { TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -31,7 +33,10 @@ const SETTINGS = { userId: "user_ct_personas", schemaVersion: 1, config: DEFAULT
 /** The first read answers; the SECOND is parked — the pending arm the reservation exists for. */
 function routeSecondReadHeld(page: Page, hold: ReturnType<typeof trpcHold<"settings.getUserSettings">>): Promise<TrpcRecorder> {
   let reads = 0;
-  return routeTrpc(page, { "settings.getUserSettings": () => (reads++ === 0 ? SETTINGS : hold) });
+  return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+    "settings.getUserSettings": () => (reads++ === 0 ? SETTINGS : hold),
+  });
 }
 
 test("#1098: the notifications section RESERVES its measured box on a second cold read, and nothing under it moves", async ({ mount, page }) => {

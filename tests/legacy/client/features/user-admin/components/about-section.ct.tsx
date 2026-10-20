@@ -10,6 +10,8 @@
 //   2. "COULDN'T CHECK" NEVER PAINTS LIKE "UP TO DATE". The unknown arm renders its own reason; a reader
 //      glancing at a green line on an offline box is the failure this feature exists to avoid.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -28,8 +30,12 @@ const VERSION = {
 } satisfies TrpcWireOutput<"settings.getVersion">;
 const CHECK_BUTTON = "Check for updates";
 
-function stub(page: Page, extra: Partial<TrpcRoutes<"settings.checkForUpdate" | "settings.getVersion">> = {}): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getVersion": () => VERSION, ...extra });
+function stub(page: Page, extra: Partial<TrpcRoutes<"settings.checkForUpdate" | "settings.getVersion" | "sessions.me">> = {}): Promise<TrpcRecorder> {
+  return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+    "settings.getVersion": () => VERSION,
+    ...extra,
+  });
 }
 
 test("renders the version line a bug report quotes, anchored at the About group's version anchor", async ({ mount, page }) => {
@@ -54,7 +60,10 @@ test("a stable release image reports its release tag, and says when it was built
 });
 
 test("NOTHING reaches GitHub until the button is pressed — then exactly one check runs", async ({ mount, page }) => {
-  const trpc = await stub(page, { "settings.checkForUpdate": () => ({ status: "up-to-date", local: LOCAL_COMMIT, remote: null, reason: null }) });
+  const trpc = await stub(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.reads["sessions.me"].find(({ output }) => output.globalRole === "owner")?.output),
+    "settings.checkForUpdate": () => ({ status: "up-to-date", local: LOCAL_COMMIT, remote: null, reason: null }),
+  });
   const component = await mount(<AboutUpdatesSectionStory />);
 
   // Barrier on the SETTLED arm the story produces: the button idle (not "Checking…") and NO verdict slot in
@@ -71,7 +80,10 @@ test("NOTHING reaches GitHub until the button is pressed — then exactly one ch
 });
 
 test("up-to-date renders as up-to-date", async ({ mount, page }) => {
-  await stub(page, { "settings.checkForUpdate": () => ({ status: "up-to-date", local: LOCAL_COMMIT, remote: null, reason: null }) });
+  await stub(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.reads["sessions.me"].find(({ output }) => output.globalRole === "owner")?.output),
+    "settings.checkForUpdate": () => ({ status: "up-to-date", local: LOCAL_COMMIT, remote: null, reason: null }),
+  });
   const component = await mount(<AboutUpdatesSectionStory />);
 
   await component.getByRole("button", { name: CHECK_BUTTON }).click();
@@ -81,6 +93,8 @@ test("up-to-date renders as up-to-date", async ({ mount, page }) => {
 
 test("a main build that is behind NAMES main's newer commit — the reader can go look at it", async ({ mount, page }) => {
   await stub(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.reads["sessions.me"].find(({ output }) => output.globalRole === "owner")?.output),
+
     "settings.checkForUpdate": () => ({
       status: "behind",
       local: LOCAL_COMMIT,
@@ -98,6 +112,8 @@ test("a main build that is behind NAMES main's newer commit — the reader can g
 
 test("a stable build that is behind NAMES the newer release", async ({ mount, page }) => {
   await stub(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.reads["sessions.me"].find(({ output }) => output.globalRole === "owner")?.output),
+
     "settings.getVersion": () => ({ ...VERSION, channel: "stable" }),
     "settings.checkForUpdate": () => ({
       status: "behind",
@@ -116,6 +132,8 @@ test("a stable build that is behind NAMES the newer release", async ({ mount, pa
 
 test("an UNREACHABLE check says so WITH its reason — never a silent up-to-date", async ({ mount, page }) => {
   await stub(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.reads["sessions.me"].find(({ output }) => output.globalRole === "owner")?.output),
+
     "settings.checkForUpdate": () => ({
       status: "unknown",
       local: LOCAL_COMMIT,

@@ -24,7 +24,9 @@
 import { readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import type { TrpcProcedurePath, TrpcRecorder, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -91,6 +93,8 @@ const MOCHA_CURRENT_VIEW = {
 
 function stub(page: Page, extra: Partial<TrpcRoutes<TrpcProcedurePath>> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "settings.listThemes": () => THEMES,
     "settings.getUserSettings": () => SETTINGS_VIEW,
     [APPLY_PROC]: () => SETTINGS_VIEW,
@@ -223,6 +227,8 @@ for (const [name, expected] of [
 test("a RENAMED default look is still the current card, and still applies as NULL", async ({ mount, page }) => {
   const renamedDefault: SeedView = { ...HEARTH, name: "Home fire" };
   const trpc = await routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     // The default row is NOT first: a name predicate that matches nothing falls through to `themes[0]`,
     // so a first-position default would hide the defect behind the fallback.
     "settings.listThemes": () => [MOCHA, renamedDefault, LIGHT],

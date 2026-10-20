@@ -3,6 +3,8 @@
 // pending set (disabled, non-owner), renders each with an Approve button, and the Approve fires the real
 // `admin.setEnabled({enabled:true})` mutation. The empty state renders when nothing is pending.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -35,6 +37,8 @@ const USERS = [
 
 function stub(page: Page, users: readonly AdminUser[], extra: Partial<TrpcRoutes<"admin.setEnabled">> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "admin.listUsers": () => users,
     ...extra,
   });

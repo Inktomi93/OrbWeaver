@@ -9,14 +9,21 @@ import { selectCollectionMember, useCollectionSelection } from "@orb/client/stat
 import type { EntryView } from "@orb/contracts/world-info";
 import type { WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtConfigGroupBody, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { configSections } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { EntryEditor } from "#client/features/world-info/components/entry-editor.tsx";
 import { WorldInfoCollectionRows } from "#client/features/world-info/components/world-info-collection-rows.tsx";
 import { WorldInfoContextBody } from "#client/features/world-info/components/world-info-context-body.tsx";
-import { WorldInfoSettingsSection } from "#client/features/world-info/components/world-info-settings-section.tsx";
 import { WorldInfoMemberSurface } from "#client/features/world-info/surfaces/world-info-member-surface.tsx";
+
+const worldInfoSettingsSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates world-info-settings from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("world-info-settings")],
+);
 
 /** The World-info settings SECTION (Phase B ②) over the real data layer — getUserSettings +
  *  updateUserSettingsSection("worldInfo") stubbed in the `.ct.tsx`. Proves the contributed section's
@@ -25,7 +32,7 @@ export function WorldInfoSettingsSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 640, padding: 16 }}>
-        <WorldInfoSettingsSection sectionId="world-info-settings" />
+        <CtConfigGroupBody anchor="chat-behavior" sections={worldInfoSettingsSectionRegistry} />
       </div>
     </CtDataProviders>
   );

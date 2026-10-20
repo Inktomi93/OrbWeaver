@@ -3,7 +3,9 @@
 // a write is updateUserSettingsSection("memory"), and the backfill opt-in is a workloads.start. Asserts what was
 // written and what the reader can act on (the confirm, the door), never the sentences.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcRoutes } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -33,6 +35,8 @@ type MemoryRoutePath = "connection.listBindings" | "workloads.estimateModelCalls
 
 function stub(page: Page, view: typeof SETTINGS_VIEW = SETTINGS_VIEW, routes: Partial<TrpcRoutes<MemoryRoutePath>> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "settings.getUserSettings": () => view,
     [UPDATE_USER_SETTINGS_SECTION]: () => view,
     "connection.list": [UTILITY_ROW],

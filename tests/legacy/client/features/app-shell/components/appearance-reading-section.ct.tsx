@@ -4,7 +4,9 @@
 //
 // P1 (SET-SEAMS §9): the `appearance` section-patch carries EXACTLY the six owned keys.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -16,7 +18,11 @@ const SETTINGS_VIEW = { userId: "user_ct_reading", schemaVersion: 1, config: DEF
 const OWNED_KEYS = ["justifyBodyText", "readingBodyScale", "readingLetterSpacing", "readingLineHeight", "readingNameScale", "readingParagraphSpacing"];
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
+  return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
+  });
 }
 
 test("mounts with the persisted reading defaults rendered", async ({ mount, page }) => {

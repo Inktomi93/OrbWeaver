@@ -105,11 +105,12 @@ import type { MessageRole } from "@orb/kit/message-role";
 import {
   CtAppDataProviders,
   CtChatContributorSectionRegistry,
+  CtConfigGroupBody,
   CtDataProviders,
   CtRealConfigSectionRegistry,
   CtRealSectionRegistry,
 } from "@orb/testkit/browser/ct-data-providers.tsx";
-import { chatSurfaceContributors, commandPaletteSources, slashCommands, toolRenderers } from "@orb/testkit/browser/ct-door.ts";
+import { chatSurfaceContributors, commandPaletteSources, configSections, slashCommands, toolRenderers } from "@orb/testkit/browser/ct-door.ts";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -131,12 +132,7 @@ import { ChatListAnchor } from "#client/features/chat/anchors/chat-list-anchor.t
 import { MessageThreadAnchor } from "#client/features/chat/anchors/message-thread-anchor.tsx";
 import { AddChatBookDialog } from "#client/features/chat/components/add-chat-book-dialog.tsx";
 import { AddChatDocumentDialog } from "#client/features/chat/components/add-chat-document-dialog.tsx";
-import { AppearanceAvatarsSection } from "#client/features/chat/components/appearance-avatars-section.tsx";
-import { AppearanceMessageDetailsSection } from "#client/features/chat/components/appearance-message-details-section.tsx";
-import { AppearanceMessageStyleSection } from "#client/features/chat/components/appearance-message-style-section.tsx";
 import { AssemblyPreviewPanel } from "#client/features/chat/components/assembly-preview-panel.tsx";
-import { ChatMessageHandlingSection } from "#client/features/chat/components/chat-behavior-message-handling-section.tsx";
-import { ChatStreamingSection } from "#client/features/chat/components/chat-behavior-streaming-section.tsx";
 import { ChatBooksSection } from "#client/features/chat/components/chat-books-section.tsx";
 import { ChatCharacterBar } from "#client/features/chat/components/chat-character-bar.tsx";
 import { DisclosureSection } from "#client/features/chat/components/chat-context-disclosure-section.tsx";
@@ -154,18 +150,15 @@ import { Composer } from "#client/features/chat/components/composer.tsx";
 import { ComposerArgHintStrip } from "#client/features/chat/components/composer-arg-hint-strip.tsx";
 import { ComposerAttachmentStrip } from "#client/features/chat/components/composer-attachment-strip.tsx";
 import { ActiveChatOptionsMenu } from "#client/features/chat/components/composer-chat-options.tsx";
-import { DatabankSettingsSection } from "#client/features/chat/components/databank-settings-section.tsx";
 import { GhostMessageRow } from "#client/features/chat/components/ghost-message-row.tsx";
 import { GreetingSwipeStrip } from "#client/features/chat/components/greeting-swipe-strip.tsx";
 import { CommittedGroupConfigTab, GroupConfigForm } from "#client/features/chat/components/group-config-form.tsx";
-import { ImageryTemplatesSection } from "#client/features/chat/components/imagery-templates-section.tsx";
 import { InjectionsManager, InjectionsSkeleton } from "#client/features/chat/components/injections-manager.tsx";
 import { InviteDialog } from "#client/features/chat/components/invite-dialog.tsx";
 import { MacroPicksSection } from "#client/features/chat/components/macro-picks-section.tsx";
 import { MemberCardViewer } from "#client/features/chat/components/member-card-viewer.tsx";
 import { MembersPanel } from "#client/features/chat/components/members-panel.tsx";
 import { MemoryRecallDetail } from "#client/features/chat/components/memory-recall-detail.tsx";
-import { MemorySettingsSection } from "#client/features/chat/components/memory-settings-section.tsx";
 import { MessageActionsRow } from "#client/features/chat/components/message-actions-row.tsx";
 import { MessageContent } from "#client/features/chat/components/message-content.tsx";
 import { MessageCostReadout } from "#client/features/chat/components/message-cost-readout.tsx";
@@ -176,7 +169,6 @@ import { MessageMetadataRow } from "#client/features/chat/components/message-met
 import { MessageRow } from "#client/features/chat/components/message-row.tsx";
 import { MessageSelectionBar } from "#client/features/chat/components/message-selection-bar.tsx";
 import { MessageToolCalls } from "#client/features/chat/components/message-tool-calls.tsx";
-import { ProseSettingsSection } from "#client/features/chat/components/prose-settings-section.tsx";
 import { ReasoningBlock } from "#client/features/chat/components/reasoning-block.tsx";
 import { RegexSection } from "#client/features/chat/components/regex-section.tsx";
 import { RewriteDialog } from "#client/features/chat/components/rewrite-dialog.tsx";
@@ -210,6 +202,52 @@ import { committedChat } from "#client/state/chat-handle.ts";
 import { requestChatMoment } from "#client/state/chat-moment-store.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CHAT_ID, COMPOSER_CHAT_ID, CT_ATTACH_ASSET_ID, makeChatSummary, makeMessageView } from "./fixtures.ts";
+
+const memorySettingsSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates chat-memory from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("chat-memory")],
+);
+const databankSettingsSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates chat-databank from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("chat-databank")],
+);
+const imageryTemplatesSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates chat-imagery-templates from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("chat-imagery-templates")],
+);
+const proseSettingsSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates chat-prose from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("chat-prose")],
+);
+const appearanceMessageStyleSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates appearance-message-style from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("appearance-message-style")],
+);
+const appearanceAvatarsSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates appearance-avatars from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("appearance-avatars")],
+);
+const appearanceMessageDetailsSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates appearance-message-details from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("appearance-message-details")],
+);
+const chatMessageHandlingSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates chat-message-handling from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("chat-message-handling")],
+);
+const chatStreamingSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates chat-streaming from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("chat-streaming")],
+);
 
 // ── Pure-render stories (no data layer) ─────────────────────────────────────────────────────────
 
@@ -3836,7 +3874,7 @@ export function MemorySettingsSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 640, padding: 16 }}>
-        <MemorySettingsSection sectionId="chat-memory" />
+        <CtConfigGroupBody anchor="chat-behavior" sections={memorySettingsSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -3848,7 +3886,7 @@ export function DatabankSettingsSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 640, padding: 16 }}>
-        <DatabankSettingsSection sectionId="chat-databank" />
+        <CtConfigGroupBody anchor="chat-behavior" sections={databankSettingsSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -3860,7 +3898,7 @@ export function ImageryTemplatesSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
-        <ImageryTemplatesSection sectionId="chat-imagery-templates" />
+        <CtConfigGroupBody anchor="chat-behavior" sections={imageryTemplatesSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -3872,7 +3910,7 @@ export function ProseSettingsSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
-        <ProseSettingsSection sectionId="chat-prose" />
+        <CtConfigGroupBody anchor="chat-behavior" sections={proseSettingsSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -3932,7 +3970,7 @@ export function AppearanceMessageStyleSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
-        <AppearanceMessageStyleSection sectionId="appearance-message-style" />
+        <CtConfigGroupBody anchor="appearance" sections={appearanceMessageStyleSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -3945,7 +3983,7 @@ export function AppearanceMessageStyleNarrowStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 300, padding: 16 }}>
-        <AppearanceMessageStyleSection sectionId="appearance-message-style" />
+        <CtConfigGroupBody anchor="appearance" sections={appearanceMessageStyleSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -3956,7 +3994,7 @@ export function AppearanceAvatarsSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
-        <AppearanceAvatarsSection sectionId="appearance-avatars" />
+        <CtConfigGroupBody anchor="appearance" sections={appearanceAvatarsSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -3967,7 +4005,7 @@ export function AppearanceMessageDetailsSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
-        <AppearanceMessageDetailsSection sectionId="appearance-message-details" />
+        <CtConfigGroupBody anchor="appearance" sections={appearanceMessageDetailsSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -3984,7 +4022,7 @@ export function ChatMessageHandlingSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
-        <ChatMessageHandlingSection sectionId="chat-message-handling" />
+        <CtConfigGroupBody anchor="chat-behavior" sections={chatMessageHandlingSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -3995,7 +4033,7 @@ export function ChatStreamingSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
-        <ChatStreamingSection sectionId="chat-streaming" />
+        <CtConfigGroupBody anchor="chat-behavior" sections={chatStreamingSectionRegistry} />
       </div>
     </CtDataProviders>
   );

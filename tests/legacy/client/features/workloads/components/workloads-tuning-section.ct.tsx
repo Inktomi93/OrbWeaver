@@ -4,6 +4,8 @@
 // fires updateUserSettingsSection("workloads") with the full section patch. Proves the previously-unbound
 // knobs now have a real write path (B:workloads pruned).
 
+import { viewerViewSchema } from "@orb/contracts/identity";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -16,6 +18,8 @@ const SETTINGS_VIEW = userSettingsView();
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "settings.getUserSettings": () => SETTINGS_VIEW,
     [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
   });

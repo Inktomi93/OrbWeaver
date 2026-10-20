@@ -3,7 +3,9 @@
 // The expected key set is re-spelled here on purpose (importing the section's `OWNS` tuple would make the
 // test agree with the code by construction).
 
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -15,7 +17,11 @@ const SETTINGS_VIEW = { userId: "user_ct_avatars", schemaVersion: 1, config: DEF
 const OWNED_KEYS = ["avatarAspect", "avatarRing", "avatarShape", "avatarSize", "showInChatAvatars"];
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
+  return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
+  });
 }
 
 test("mounts with the persisted defaults rendered", async ({ mount, page }) => {

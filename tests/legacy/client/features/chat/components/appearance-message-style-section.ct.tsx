@@ -6,10 +6,12 @@
 // The expected key set is re-spelled here on purpose — importing the section's own `OWNS` tuple would make
 // the test agree with the code by construction and prove nothing.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { pixelContrast } from "@orb/testkit/browser/pixel-contrast.ts";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -24,7 +26,11 @@ const OWNED_KEYS = ["autoFixMarkdown", "chatStyle", "colorQuotedSpeech"];
 const CHAT_STYLE_COUNT = 8;
 
 function stub(page: Page): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
+  return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
+  });
 }
 
 test("mounts with the persisted defaults rendered — the default mode's CARD is the pressed one", async ({ mount, page }) => {

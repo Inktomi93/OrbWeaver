@@ -3,6 +3,8 @@
 // updateAppSettings with the only-moved-fields rateLimits delta, and Reset clears the whole rateLimits
 // override (`{ rateLimits: null }`). Asserts the mutation fired with the right patch shape (route recorder).
 
+import { viewerViewSchema } from "@orb/contracts/identity";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastAppSettingsPartial } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -26,6 +28,8 @@ type AppSettingsOverrides = TrpcWireOutput<"settings.getAppSettingsWithOverrides
 
 function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, overrides),
     [UPDATE_PROC]: () => effectiveAppSettings(RESOLVED),
   });
