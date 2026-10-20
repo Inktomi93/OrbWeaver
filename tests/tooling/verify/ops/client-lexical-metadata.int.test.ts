@@ -1,32 +1,53 @@
-// Lexical helper edits must rejudge both frontend populations without enabling compiler Programs.
+// Lexical helpers keep their native owner; rejudgment of both frontend populations stays Program-free.
 // @subject tooling/src/verify/lib/client-lexical-native.ts
 import { readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
+import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import type { Selection } from "@orb/tooling/verify";
 import { REGISTRY, runScopedEslint } from "@orb/tooling/verify";
 import tseslint from "typescript-eslint";
-import { CLIENT_LEXICAL_NATIVE_INPUT_PATHS } from "../../../../tooling/src/verify/lib/client-lexical-native.ts";
+import { TYPE_HOME_NATIVE_POLICY_ID } from "../../../../tooling/src/floor/code-facts/type-home.ts";
+import { CLIENT_LEXICAL_NATIVE_INPUT_PATHS, CLIENT_LEXICAL_NATIVE_RULES } from "../../../../tooling/src/verify/lib/client-lexical-native.ts";
+import { TYPED_NATIVE_POLICIES } from "../../../../tooling/src/verify/lib/typed-native-inputs.ts";
+import { scaledBudget } from "../../_load-budget.ts";
 
 const HELPER = "tooling/src/verify/lib/tailwind-class-token.ts";
 const CLIENT = "packages/client/src/components/probe.tsx";
 const UI = "packages/ui/src/lib/probe.ts";
 
-function nativeRoot(plantedTree: ToolFixtures["plantedTree"], repoRoot: string, client: string, ui = "export const legal=1;"): Promise<string> {
+async function nativeRoot(plantedTree: ToolFixtures["plantedTree"], repoRoot: string, client: string, ui = "export const legal=1;"): Promise<string> {
   const config = JSON.stringify(pathToFileURL(join(repoRoot, "eslint.config.js")).href);
   const untyped = JSON.stringify(tseslint.configs.disableTypeChecked.rules);
-  return plantedTree({
+  const declaration = TYPED_NATIVE_POLICIES.find(({ id }) => id === TYPE_HOME_NATIVE_POLICY_ID);
+  if (declaration === undefined) {
+    throw new Error("native helper declaration metadata is missing");
+  }
+  const rules = JSON.stringify([...CLIENT_LEXICAL_NATIVE_RULES, declaration.ruleId]);
+  const root = await plantedTree({
+    ".gitignore": "node_modules\n.cache\nreports\n",
+    ...Object.fromEntries(declaration.inputs.map((path) => [path, readFileSync(join(repoRoot, path), "utf8")])),
     ...Object.fromEntries(CLIENT_LEXICAL_NATIVE_INPUT_PATHS.map((path) => [path, readFileSync(join(repoRoot, path), "utf8")])),
-    "package.json": '{"type":"module","private":true}',
-    "eslint.config.js": `import config from ${config};export default [...config,{files:["ordinary.js",${JSON.stringify(HELPER)}],languageOptions:{parserOptions:{project:false,projectService:false,programs:null}},rules:{...${untyped},"no-alert":"error"}}];`,
-    "eslint-hard.config.js": `export {hardConfig as default} from ${config};`,
+    "package.json": '{"name":"native-metadata-fixture","type":"module","private":true}',
+    "pnpm-workspace.yaml": "packages:\n  - packages/*\n",
+    "packages/server/package.json": '{"name":"@orb/server","type":"module","private":true}',
+    "tooling/tsconfig.json": JSON.stringify({
+      compilerOptions: { noLib: true, types: [], module: "ESNext", moduleResolution: "Bundler" },
+      files: ["src/verify/lib/tailwind-class-token.ts"],
+    }),
+    // Metadata stays data; the real D331 rule judges only the named helper through its native owner.
+    "eslint.config.js": `import config,{hardConfig} from ${config};const select=rows=>rows.map(row=>({...row,rules:Object.fromEntries(Object.entries(row.rules??{}).filter(([rule])=>${rules}.includes(rule)))}));export const hard=select(hardConfig);export default [...select(config),{ignores:${JSON.stringify(declaration.inputs.filter((path) => path !== HELPER))}},{files:["ordinary.js",${JSON.stringify(HELPER)}],languageOptions:{parserOptions:{project:false,projectService:false,programs:null}},rules:{...${untyped},"no-alert":"error"}},{files:[${JSON.stringify(HELPER)}],languageOptions:{parserOptions:{project:["tooling/tsconfig.json"],projectService:false,programs:null,tsconfigRootDir:import.meta.dirname}}}];`,
+    "eslint-hard.config.js": 'export {hard as default} from "./eslint.config.js";',
     "scripts/eslint.ts": `await import(${JSON.stringify(pathToFileURL(join(repoRoot, "scripts/eslint.ts")).href)});`,
     [CLIENT]: client,
     [UI]: ui,
     "ordinary.js": "export const legal=1;\n",
   });
+  execFixtureGit(root, ["init", "-q"]);
+  execFixtureGit(root, ["add", "."]);
+  return root;
 }
 
 test("registry retains deleted lexical helper without ordinary source", () => {
@@ -75,13 +96,13 @@ for (const allowed of [false, true]) {
   });
 }
 
-test("missing lexical helper refuses at the actual CLI", async ({ plantedTree, repoRoot, runCli }) => {
+test("missing lexical helper refuses at the actual CLI", { timeout: scaledBudget(30_000) }, async ({ plantedTree, repoRoot, runCli }) => {
   const root = await nativeRoot(plantedTree, repoRoot, "export const legal=1;");
   unlinkSync(join(root, HELPER));
   await expect(await runCli("verify", ["eslint-scoped", HELPER], { cwd: root })).toExitWith(2);
 });
 
-test("zero frontend sources cannot certify the helper alone", async ({ plantedTree, repoRoot }) => {
+test("zero frontend sources cannot certify the helper alone", { timeout: scaledBudget(30_000) }, async ({ plantedTree, repoRoot }) => {
   const root = await nativeRoot(plantedTree, repoRoot, "export const legal=1;");
   unlinkSync(join(root, CLIENT));
   unlinkSync(join(root, UI));
