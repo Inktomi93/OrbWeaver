@@ -45,6 +45,11 @@ test.for([
   ["a const alias of the global", 'const BC = BroadcastChannel;\nexport const c = new BC("chat:sync");\n', 1],
   ["the globalThis receiver", 'export const c = new globalThis.BroadcastChannel("chat:sync");\n', 1],
   ["the window receiver, computed", 'export const c = new window["BroadcastChannel"]("chat:sync");\n', 1],
+  ["a casted ambient receiver", 'export const c = new (globalThis as typeof globalThis).BroadcastChannel("chat:sync");\n', 1],
+  ["a non-null ambient receiver", 'export const c = new self!.BroadcastChannel("chat:sync");\n', 1],
+  ["a satisfies-wrapped ambient receiver", 'export const c = new (window satisfies Window)["BroadcastChannel"]("chat:sync");\n', 1],
+  ["an angle-asserted ambient receiver", 'export const c = new (<typeof globalThis>globalThis).BroadcastChannel("chat:sync");\n', 1],
+  ["an alias of a wrapped ambient constructor", 'const BC = (globalThis as typeof globalThis).BroadcastChannel;\nexport const c = new BC("chat:sync");\n', 1],
   [
     "a written local copied off globalThis",
     'let BroadcastChannel = globalThis.BroadcastChannel;\nBroadcastChannel = self.BroadcastChannel;\nexport const c = new BroadcastChannel("x");\n',
@@ -64,6 +69,20 @@ test.for([
     "an injected port member",
     'export function open(deps: { BroadcastChannel: new (name: string) => unknown }): unknown {\n  return new deps.BroadcastChannel("chat:sync");\n}\n',
   ],
+  [
+    "an injected port named window",
+    'export function open(window: { BroadcastChannel: new (name: string) => unknown }): unknown {\n  return new window.BroadcastChannel("chat:sync");\n}\n',
+  ],
+  [
+    "an injected port named globalThis",
+    'export function open(globalThis: { BroadcastChannel: new (name: string) => unknown }): unknown {\n  return new globalThis["BroadcastChannel"]("chat:sync");\n}\n',
+  ],
+  ["a local object named self", "const self = { BroadcastChannel: Map };\nexport const c = new self.BroadcastChannel();\n"],
+  [
+    "a wrapped injected port named window",
+    'export function open(window: { BroadcastChannel: new (name: string) => unknown }): unknown {\n  return new (window as typeof window).BroadcastChannel("chat:sync");\n}\n',
+  ],
+  ["a type-only reference to the ambient constructor", "export type Channel = BroadcastChannel;\nexport type Constructor = typeof BroadcastChannel;\n"],
   ["an unrelated unresolved class", 'import { Thing } from "./missing.ts";\nexport const t = new Thing();\n'],
 ] as const)("the channel rule passes %s", async ([, source]) => {
   expect(await findings(CHANNEL, source)).toEqual([]);

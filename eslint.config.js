@@ -688,6 +688,7 @@ const SERVER_TRANSPORT = "packages/server/src/transport/**/*.{ts,tsx}";
 const alternation = (names) => `/^(${names.join("|")})$/`;
 const TANSTACK_FORM_MINTS = ["useForm", "createFormHook", "createFormHookContexts"];
 const MATCH_MEDIA = "matchMedia";
+const SESSION_CHANNEL_CONSTRUCTORS = new Set(["BroadcastChannel"]);
 const SESSION_CHANNEL_MESSAGE =
   "A BroadcastChannel outside packages/client/src/lib/session-channel.ts: cross-tab messaging has one typed home that carries session lifecycle and durable-local pokes, never server truth (D138). Add the message kind to SessionMessage and post it through postSessionMessage.";
 const FIREHOSE_SYMBOL = "subscribeAllChatEvents";
@@ -4273,13 +4274,6 @@ const RESTRICTIONS = [
         why: "the one typed cross-tab session channel (D138): session lifecycle and durable-local pokes, never server truth",
       },
     ],
-    globals: [{ name: "BroadcastChannel", message: SESSION_CHANNEL_MESSAGE }],
-    selectors: [
-      {
-        selector: `MemberExpression[object.type='Identifier'][object.name=/^(globalThis|window|self)$/]${memberNamed("BroadcastChannel")}`,
-        message: SESSION_CHANNEL_MESSAGE,
-      },
-    ],
   },
   {
     id: "windowed-infinite-query",
@@ -4392,6 +4386,34 @@ function restrictionRule({ selectors = [], globals = [] }) {
     },
   };
 }
+
+// Erased wrappers preserve the ambient receiver; a same-named parameter or local object does not.
+// Cross-module constructor provenance is outside this per-file native claim (D328).
+const sessionChannelBoundaryRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const { sourceCode } = context;
+    const report = reportOnce(context, SESSION_CHANNEL_MESSAGE);
+    return {
+      MemberExpression: (node) => {
+        const receiver = unwrapValue(node.object);
+        if (
+          receiver.type === "Identifier" &&
+          AMBIENT_GLOBAL_RECEIVERS.has(receiver.name) &&
+          isGlobalBinding(referencedVariable(sourceCode, receiver)) &&
+          SESSION_CHANNEL_CONSTRUCTORS.has(memberKeyName(sourceCode, node))
+        ) {
+          report(node);
+        }
+      },
+      "Program:exit"() {
+        for (const reference of ambientReferences(sourceCode, SESSION_CHANNEL_CONSTRUCTORS)) {
+          report(reference);
+        }
+      },
+    };
+  },
+};
 const RAW_Z_INDEX_REGEX = /\bz-(?:\d+|\[\d+\])/u;
 const Z_CLASS_COMPOSERS = new Set(["cn", "clsx", "cva", "tv"]);
 // The nearest carrier is significant; a descendant selector would reclaim nested foreign calls or attributes.
@@ -8434,6 +8456,7 @@ const restrictionPlugin = {
     "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
     "assumes-single-replica": assumesSingleReplicaRule,
     "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
+    "session-channel-boundary": sessionChannelBoundaryRule,
     "receded-ink-integrity": recededInkRule,
     "detached-work-traced": detachedWorkRule,
     "commented-code": commentedCodeRule,
