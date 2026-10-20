@@ -7,6 +7,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
+import { isDeepStrictEqual } from "node:util";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv, processEnvValue, testProcessEnv, withProcessEnv } from "@orb/tooling/floor/process/process-env";
@@ -20,11 +21,52 @@ test("the test environment preserves explicit overrides and adds the storage opt
     ["NODE_OPTIONS"]: '--max-old-space-size=16384 --import="/a path/preload.js"',
     ["ORB_CT_CACHE_DIR"]: "/owned/ct",
     ["ORB_RUN_MARKER"]: "proof-run",
+    ["AUTH_MODE"]: "synthetic-explicit-auth-mode",
   };
   const environment = testProcessEnv(overrides);
-  expect(environment).toEqual({ ...ambient, ...overrides, ["NODE_OPTIONS"]: `${overrides["NODE_OPTIONS"]} --no-webstorage` });
-  expect(inheritedProcessEnv()).toEqual(ambient);
+  expect(environment).toMatchObject({ ...overrides, ["NODE_OPTIONS"]: `${overrides["NODE_OPTIONS"]} --no-webstorage`, ["ORB_ENV_NO_FILE"]: "1" });
+  // Compare the entire snapshot without serializing private parent values into a failure report.
+  expect(isDeepStrictEqual(inheritedProcessEnv(), ambient)).toBe(true);
   expect(testProcessEnv(environment)).toEqual(environment);
+});
+
+test.for(["AUTH_MODE", "AUTH_FALLBACK", "DEBUG_TOKEN", "OIDC_ALLOWED_GROUPS", "OWNER_HANDLES", "ANTHROPIC_API_KEY", "ORB_UNAPPROVED_TEST_KEY"])(
+  "the worker environment does not inherit %s from its parent",
+  async (key) => {
+    await withProcessEnv(key, "synthetic-parent-only-value", () => {
+      expect(Object.hasOwn(testProcessEnv(), key)).toBe(false);
+      expect(testProcessEnv({ [key]: "synthetic-explicit-override" })[key]).toBe("synthetic-explicit-override");
+      expect(processEnvValue(key)).toBe("synthetic-parent-only-value");
+      return Promise.resolve();
+    });
+  },
+);
+
+test("the worker environment preserves intentional runtime, CI and native fixture protocols", async () => {
+  for (const key of [
+    "PATH",
+    "CI",
+    "GITHUB_ACTIONS",
+    "RUNNER_ENVIRONMENT",
+    "ORB_RUN_MARKER",
+    "ORB_RUN_LEASE",
+    "ORB_VITEST_BIN",
+    "CT_RUN_SLOT_DIR",
+    "ORB_NATIVE_OCCURRENCE_PACKAGES",
+    "ORB_LOCAL_LIGHT_E2E",
+    "PLUGIN_BROKER_PROOF_RECEIPT",
+    "PERSONA_MATRIX_LABEL",
+  ]) {
+    await withProcessEnv(key, "synthetic-runtime-protocol", () => {
+      expect(testProcessEnv()[key], key).toBe("synthetic-runtime-protocol");
+      return Promise.resolve();
+    });
+  }
+});
+
+test("an explicit caller retains authority over the env-file opt-out", () => {
+  expect(testProcessEnv()["ORB_ENV_NO_FILE"]).toBe("1");
+  expect(testProcessEnv({ ["ORB_ENV_NO_FILE"]: undefined })["ORB_ENV_NO_FILE"]).toBeUndefined();
 });
 
 test("the test environment disables storage after an inherited enabling option in an actual Node child", () => {
