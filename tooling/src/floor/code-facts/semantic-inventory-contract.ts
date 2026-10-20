@@ -707,6 +707,8 @@ export const partitionMetadataSchema = partitionSchema.omit({
 });
 export const storedPartitionSchema = partitionMetadataSchema.extend({ id: z.string(), referenceMode: z.enum(INVENTORY_REFERENCE_MODES) });
 export type StoredInventoryPartition = z.infer<typeof storedPartitionSchema>;
+/** The native file set a partition proves for its program, whatever its intent. */
+export type InventoryMembership = Pick<StoredInventoryPartition, "program" | "roots" | "available">;
 export const INVENTORY_LISTS = ["configPaths", "projectReferences", "roots", "nativeRoots", "available"] as const;
 export const INVENTORY_FAMILY_FIELDS = {
   exports: "exports",
@@ -826,7 +828,13 @@ export interface InventoryWorkerRequest extends InventoryBuildRequest {
   readonly controllerImplementation: InventoryRuntime;
 }
 
+/** Canonical authored files whose answers a verb reports; acquisition keeps every world that can change them. */
+export interface InventoryScope {
+  readonly files: readonly string[];
+}
+
 export interface SemanticInventoryOptions {
+  readonly scope?: InventoryScope;
   readonly referenceDemand?: InventoryReferenceDemand<InventoryNativeReferenceQuery>;
   readonly moduleTargetQueries?: readonly InventoryNativeModuleTargetQuery[];
   readonly schemaQuery?: { readonly program: string; readonly sources: readonly InventorySpan[] };

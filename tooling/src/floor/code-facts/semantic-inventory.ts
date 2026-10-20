@@ -70,6 +70,7 @@ import { inventoryReader, ownedInventoryReader, validateInventoryReaderSources }
 import { inventoryStringSchema } from "./semantic-inventory-records.ts";
 import type { InventoryRuntime } from "./semantic-inventory-runtime-contract.ts";
 import { readInventoryRuntime } from "./semantic-inventory-runtime-query.ts";
+import { scopedInventoryPrograms } from "./semantic-inventory-scope.ts";
 import { hasTypeObservationValueDemand } from "./type-observations-contract.ts";
 
 function authoredVersion(root: string): string {
@@ -134,10 +135,12 @@ export function createSemanticInventory(rawOptions: SemanticInventoryOptions): S
     // Holding the writer transaction across extraction makes a racing writer recheck before its first worker.
     beginInventoryWrite(db);
     const initialAuthored = authoredVersion(root);
-    const descriptors = currentDemandDescriptors({ ...options, root });
-    if (descriptors.length === 0) {
+    const population = currentDemandDescriptors({ ...options, root });
+    if (population.length === 0) {
       throw new Error(`native semantic inventory found no runnable TypeScript programs eligible for semantic analysis under ${root}`);
     }
+    const scoped = scopeDemand({ ...options, root }, population, { db, scratch, overlay });
+    const descriptors = scoped.descriptors;
     const families = inventoryFamilies(options.families);
     assertReferenceDemand(options, descriptors, families);
     assertExportDemand(options, descriptors, families);
@@ -152,14 +155,16 @@ export function createSemanticInventory(rawOptions: SemanticInventoryOptions): S
     assertReferenceCohort(db, options, descriptors, partitions);
     assertDrizzleCohort(db, options, partitions);
     assertModuleCohort(db, options, partitions);
-    assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
+    const cohort = [...scoped.membership, ...partitions];
+    assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, population, cohort);
+    publishScopeMembership(db, scoped);
     const samePopulation =
       JSON.stringify(
         readInventoryGeneration(db, latestInventoryGeneration(db))
           .map((partition) => partition.id)
           .toSorted(),
       ) === JSON.stringify(partitions.map((partition) => partition.id).toSorted());
-    const published = rebuilt || !samePopulation;
+    const published = rebuilt || scoped.extracted || !samePopulation;
     const generation = published ? publishInventoryGeneration(db, partitions) : latestInventoryGeneration(db);
     validateInventoryReaderSources(db, partitions);
     shapeReaderContext(options, descriptors, partitions);
@@ -167,7 +172,7 @@ export function createSemanticInventory(rawOptions: SemanticInventoryOptions): S
     // assertSnapshotCurrent check above; its readers still admit every source epoch on read. Only an
     // extraction or publication needs the later rechecks.
     const recheckPublication = publicationRecheck(published, () => {
-      assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, descriptors, partitions);
+      assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, population, cohort);
     });
     recheckPublication();
     db.exec("COMMIT");
@@ -259,6 +264,80 @@ function currentDemandDescriptors(options: SemanticInventoryOptions): readonly I
     return native;
   });
   return options.shapePlan === undefined ? selected : current;
+}
+
+interface ScopedDemand {
+  readonly descriptors: readonly InventoryBuildRequest["descriptor"][];
+  /** One current partition per population program: the native membership the selection was decided from. */
+  readonly membership: readonly StoredInventoryPartition[];
+  readonly extracted: boolean;
+}
+
+interface CurrentnessContext {
+  readonly db: ReturnType<typeof openInventoryDatabase>;
+  readonly authored: ReadonlySet<string>;
+  readonly fileSystem: SemanticInventoryOptions["fileSystem"];
+}
+
+/** A stored partition is reusable only for its exact descriptor, current inputs and current implementation. */
+function partitionCurrent(
+  context: CurrentnessContext,
+  partition: StoredInventoryPartition | undefined,
+  descriptor: InventoryBuildRequest["descriptor"],
+): partition is StoredInventoryPartition {
+  return (
+    partition !== undefined &&
+    partition.descriptorVersion === descriptorVersion(descriptor) &&
+    inputsCurrent(readInventoryInputs(context.db, partition.id), { authored: context.authored, fileSystem: context.fileSystem }) &&
+    partitionImplementationsCurrent(context.db, [partition])
+  );
+}
+
+/** Any current partition answers membership; a world without one gets a membership-only worker, never typed facts. */
+function scopeDemand(
+  options: SemanticInventoryOptions,
+  population: readonly InventoryBuildRequest["descriptor"][],
+  projection: { readonly db: ReturnType<typeof openInventoryDatabase>; readonly scratch: string; readonly overlay: InventoryOverlay | undefined },
+): ScopedDemand {
+  const scope = options.scope;
+  if (scope === undefined) {
+    return { descriptors: population, membership: [], extracted: false };
+  }
+  if (options.shapePlan !== undefined) {
+    throw new SemanticInventoryError("native inventory scope cannot narrow a shape cohort, which demands every containing world");
+  }
+  const { db, scratch, overlay } = projection;
+  const current = { db, authored: inventoryAuthoredFiles(options.root, overlay), fileSystem: options.fileSystem };
+  const previous = latestInventoryPartitions(db);
+  let extracted = false;
+  const membership = population.map((descriptor, index) => {
+    const existing = previous.get(descriptor.id);
+    if (partitionCurrent(current, existing, descriptor)) {
+      return existing;
+    }
+    extracted = true;
+    return buildPartition(
+      db,
+      {
+        root: options.root,
+        descriptor,
+        intent: "membership",
+        families: [],
+        destination: join(scratch, `membership-${String(index)}.sqlite`),
+        ...(overlay === undefined ? {} : { overlay }),
+      },
+      options,
+    );
+  });
+  const selected = scopedInventoryPrograms(membership, scope.files);
+  return { descriptors: population.filter(({ id }) => selected.has(id)), membership, extracted };
+}
+
+function publishScopeMembership(db: ReturnType<typeof openInventoryDatabase>, scoped: ScopedDemand): void {
+  if (scoped.extracted) {
+    // The complete membership cohort publishes before the scoped generation, so the next scoped acquisition reuses it.
+    publishInventoryGeneration(db, scoped.membership);
+  }
 }
 
 function assertBuiltModuleCoverage(
@@ -380,19 +459,13 @@ function demandPartitions(
   }
   const root = options.root;
   const { db, scratch, overlay } = projection;
-  const authored = inventoryAuthoredFiles(root, overlay);
+  const current = { db, authored: inventoryAuthoredFiles(root, overlay), fileSystem: options.fileSystem };
   const partitions: StoredInventoryPartition[] = [];
   let rebuilt = false;
   for (const descriptor of catalogFirst(options, descriptors)) {
     const nativeDemand = withSchemaDependency(db, options, partitions, nativeDemandRequest(options, descriptor.id, inventoryFamilies(options.families)));
     const existing = previous.get(descriptor.id);
-    if (
-      existing !== undefined &&
-      existing.descriptorVersion === descriptorVersion(descriptor) &&
-      inputsCurrent(readInventoryInputs(db, existing.id), { authored, fileSystem: options.fileSystem }) &&
-      partitionImplementationsCurrent(db, [existing]) &&
-      coversNativeDemand(db, existing, nativeDemand)
-    ) {
+    if (partitionCurrent(current, existing, descriptor) && coversNativeDemand(db, existing, nativeDemand)) {
       partitions.push(existing);
       continue;
     }
@@ -473,7 +546,7 @@ function demandShapePartitions(
   if (plan === undefined) {
     throw new Error("native shape demand has no plan");
   }
-  const authored = inventoryAuthoredFiles(options.root, overlay);
+  const current = { db, authored: inventoryAuthoredFiles(options.root, overlay), fileSystem: options.fileSystem };
   const initialAuthored = authoredVersion(options.root);
   const partitions = new Map<string, StoredInventoryPartition>();
   const previous = latestInventoryPartitions(db);
@@ -491,10 +564,7 @@ function demandShapePartitions(
         ? new Set([...readInventoryPairs(db, existing.id)].map(({ query }) => shapePairKey(query)))
         : new Set<string>();
     if (
-      existing !== undefined &&
-      existing.descriptorVersion === descriptorVersion(descriptor) &&
-      inputsCurrent(readInventoryInputs(db, existing.id), { authored, fileSystem: options.fileSystem }) &&
-      partitionImplementationsCurrent(db, [existing]) &&
+      partitionCurrent(current, existing, descriptor) &&
       families.every((family) => existing.families.includes(family)) &&
       pairRequests.every((query) => covered.has(shapePairKey(query))) &&
       coversNativeDemand(db, existing, nativeDemand)

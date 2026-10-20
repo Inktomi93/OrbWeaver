@@ -35,8 +35,10 @@ const {
   CORPUS_WIDE_SYNTACTIC,
   DEPCRUISE_VERBS,
   finishRun,
+  INVENTORY_SCOPED_VERBS,
   INVENTORY_VERB_FAMILIES,
   INVENTORY_VERBS,
+  inventoryScopeFiles,
   loadInventoryProject,
   loadProject,
   noteToolError,
@@ -125,12 +127,18 @@ function mapKnownError(e: unknown): number {
   throw e;
 }
 
-function invocationCorpus(verb: string, typed: boolean, wide: boolean): ReturnType<typeof loadProject> {
+function invocationCorpus(verb: string, arg: string, typed: boolean, wide: boolean): ReturnType<typeof loadProject> {
   if (verb === "respell") {
     return loadProject(false);
   }
   const families = INVENTORY_VERB_FAMILIES.get(verb);
-  return families === undefined ? loadProject(typed, wide) : loadInventoryProject(families);
+  if (families === undefined) {
+    return loadProject(typed, wide);
+  }
+  // A bare argless verb audits every package, so it keeps every world.
+  return INVENTORY_SCOPED_VERBS.has(verb) && arg !== ""
+    ? loadInventoryProject(families, { files: inventoryScopeFiles(arg, verb) })
+    : loadInventoryProject(families);
 }
 
 function dispatchCorpus(verb: string, corpus: ReturnType<typeof loadProject>, arg: string, flags: Flags): void {
@@ -169,7 +177,7 @@ async function main(): Promise<number> {
   beginRun(verb, corpusOf(typed, wide, verb), flags);
   // @orb-waive caught-failure-ownership(e): mapKnownError owns every error: SemanticInventoryError and CodemodError get a warn() line and a non-clean exit code, AstToolError was already reported by exitToolError before it was thrown, and any other error is rethrown to runTool. Ends if an arm returns a code without a report or the final rethrow is removed.
   try {
-    const corpus = invocationCorpus(verb, typed, wide);
+    const corpus = invocationCorpus(verb, invocation.effectiveArg, typed, wide);
     dispatchCorpus(verb, corpus, invocation.effectiveArg, flags);
   } catch (e) {
     return mapKnownError(e);
