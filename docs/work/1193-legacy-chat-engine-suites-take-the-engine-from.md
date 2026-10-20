@@ -23,12 +23,14 @@ Every listed behavior and required scenario consumer runs through the composed g
 
 ## Evidence
 
-Replace private spies with provider requests, durable rows and production recorders. Record narrator and stale-return corrections without compatibility facades.
+Use provider requests, durable rows and production recorders, without compatibility facades.
 
 Warning coverage uses durable append failure through the total publisher, preserving canon, failure reporting and background settlement. Impersonation coverage exercises a non-persisting draft followed by an explicit message commit. Drafting preserves canon, variants, transcript counters and character attribution. Retain its paid generation observation and owner, model and daily spend. Compare live accounting with reconciliation, including retained observations, before and after the explicit commit.
 
-Standalone attachment, variant-parameter and memory-opt-out replacements are integrated at `57a7367dd3`; round and solo replacements at `0da1fbed50`. Their legacy files are removed. Evidence: `reports/review/1193-leg1-review.md` and `reports/review/1193-leg2-review.md`.
+Attachment, variant-parameter and memory-opt-out replacements are integrated at `57a7367dd3`; round and solo replacements at `0da1fbed50`. Evidence: `reports/review/1193-leg1-review.md` and `reports/review/1193-leg2-review.md`.
 
-Lifecycle, statistics, greeting, read-budget and memory-build controls are delivered at `07146d4fd2`. Their standalone legacy replacements are removed; selected memory bodies remain in the wider engine suite. Review, actual metadata-loss control, matching runtime results and native checks: `reports/review/1193-leg3-review.md` and `reports/review/1193-third-leg-worktree-evidence/`.
+Lifecycle, statistics, greeting, read-budget and memory-build controls are delivered at `07146d4fd2`. Evidence: `reports/review/1193-leg3-review.md` and `reports/review/1193-third-leg-worktree-evidence/`.
 
-Compaction, inline-image, fault-outcome, remaining engine and scenario-consumer replacements stay active.
+Compaction, inline-image and fault-outcome replacements are delivered at `8b468edc18`; their standalone legacy suites are removed after qualification. Runtime results, the restored tracing control and independent review: `reports/review/1193-leg4-review.md` and `reports/review/1193-leg4-worktree-evidence/`.
+
+The wider engine, turn verbs and scenario consumers remain open with native legacy errors.
