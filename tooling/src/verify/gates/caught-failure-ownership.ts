@@ -936,6 +936,87 @@ export const gate = defineGate({
       expect: { count: 3, token: "error" },
       why: "a delegated `yield*` hands over another generator's values, a `thrown: null` slot carries no failure, and a helper whose result ignores its parameter does not preserve the caught binding",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/a.ts":
+          "export function early(work: () => Promise<void>, flag: boolean): Promise<void> {\n  const run = work();\n  if (flag) {\n    void run.catch(() => undefined);\n    return Promise.resolve();\n  }\n  return run;\n}\n",
+      },
+      expect: { count: 1, token: "run" },
+      why: "a retained rejection needs the absorber's own statement to reach the final return: an early return beside the absorber leaves that path with no caller",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/c.ts":
+          "export function settle(jobs: Array<() => void>): void {\n  const failures: unknown[] = [];\n  for (const job of jobs) {\n    try { job(); } catch (error) { failures.push(error); }\n  }\n  if (failures.length > 1) {\n    throw new AggregateError(failures, 'jobs failed');\n  }\n}\n",
+      },
+      expect: { count: 1, token: "error" },
+      why: "an AggregateError guarded by `failures.length > 1` drops a lone failure, so the collection owns nothing",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/c2.ts":
+          "export function settle(jobs: Array<() => void>): () => never {\n  const failures: unknown[] = [];\n  for (const job of jobs) {\n    try { job(); } catch (error) { failures.push(error); }\n  }\n  return () => { throw new AggregateError(failures, 'jobs failed'); };\n}\n",
+      },
+      expect: { count: 1, token: "error" },
+      why: "an AggregateError thrown only inside a returned closure need never run, so it does not own the collection",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/c3.ts":
+          "export function settle(jobs: Array<() => void>, prior: unknown[]): void {\n  const failures: unknown[] = [];\n  if (prior.length > 0) {\n    throw new AggregateError(failures, 'prior failed');\n  }\n  for (const job of jobs) {\n    try { job(); } catch (error) { failures.push(error); }\n  }\n}\n",
+      },
+      expect: { count: 1, token: "error" },
+      why: "an AggregateError thrown before the collecting loop never sees the failures pushed after it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/d.ts":
+          "import type pino from 'pino';\nfunction* report(err: unknown, log: pino.Logger): Generator<void> {\n  log.error({ err }, 'work failed');\n}\nexport function f(log: pino.Logger): void {\n  try { run(); } catch (err) { report(err, log); }\n}\n",
+      },
+      expect: { count: 1, token: "err" },
+      why: "a generator helper runs none of its body until iterated, so forwarding to it owns nothing",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/f.ts":
+          "export function* g(work: () => unknown): Generator<unknown, void> {\n  try { yield work(); } catch (error) { yield 0; }\n}\n",
+      },
+      expect: { count: 1, token: "error" },
+      why: "a yield of a success value does not deliver the failure",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/g.ts":
+          "export function h(work: () => Promise<void>): Promise<void> {\n  const run = work();\n  void run.catch(() => undefined);\n  return run.catch(() => undefined);\n}\n",
+      },
+      expect: { count: 2, token: "run" },
+      why: "a returned chain that itself absorbs does not retain the rejection, and it is a finding of its own",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/h.ts":
+          "import { z } from 'zod';\nexport const checked = z.string().superRefine((value, ctx) => {\n  queueMicrotask(() => {\n    try { assertShape(value); } catch (error) { ctx.addIssue({ code: 'custom', message: String(error) }); }\n  });\n});\n",
+      },
+      expect: { count: 1, token: "error" },
+      why: "an issue added from a deferred callback lands after the parse settled, so it fails nothing",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/e.ts":
+          "let deep = false;\nfunction messageOf(error: unknown): string { return deep ? messageOf(error) : String(error); }\nexport function resolve(work: () => unknown): unknown {\n  try { return work(); } catch (error) { return { status: 'unresolved', reason: messageOf(error) }; }\n}\n",
+      },
+      expect: { count: 1, token: "error" },
+      why: "a self-recursive message helper is read one hop deep on every branch: its recursive arm proves nothing, so the site is a finding and never a stack overflow",
+    },
   ],
   mustPass: [
     {
@@ -1288,6 +1369,14 @@ export const gate = defineGate({
           "function messageOf(error: unknown): string { return error instanceof Error ? error.message : String(error); }\nexport function* runs(work: () => unknown): Generator<unknown, void> {\n  try { yield { result: work() }; } catch (error) { yield { thrown: messageOf(error) }; }\n}\nexport function resolve(work: () => unknown): unknown {\n  try { return work(); } catch (error) { return { status: 'unresolved', reason: messageOf(error) }; }\n}\n",
       },
       why: "a generator's plain `yield` delivers its value to the iterating caller as a `return` does, `thrown` names a failure, and a one-expression helper that preserves its parameter preserves the caught binding",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/aggregated-failures.ts":
+          "export async function close(steps: Array<() => Promise<void>>): Promise<void> {\n  const failures: unknown[] = [];\n  for (const step of steps) {\n    try {\n      await step();\n    } catch (error) {\n      failures.push(error instanceof Error ? error : new Error('step failed', { cause: error }));\n    }\n  }\n  if (failures.length > 0) {\n    throw new AggregateError(failures, 'close failed');\n  }\n}\nexport async function closeSingle(first: () => Promise<void>, second: () => Promise<void>): Promise<void> {\n  const failures: unknown[] = [];\n  try {\n    await first();\n  } catch (error) {\n    failures.push(error);\n  }\n  try {\n    await second();\n  } catch (error) {\n    failures.push(error);\n  }\n  if (failures.length === 1) {\n    throw failures[0];\n  }\n  if (failures.length > 1) {\n    throw new AggregateError(failures, 'close failed');\n  }\n}\n",
+      },
+      why: "a RETAINED failure: the declaring function pushes the failure and a later top-level statement throws the collection on every nonempty count, as an AggregateError behind `length > 0`, or as the lone failure then the AggregateError",
     },
     ...HANDLER_SPELLINGS.map((statement) => ({
       mode: "types" as const,

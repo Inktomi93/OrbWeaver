@@ -56,9 +56,10 @@
 // `const` because the write guard reads only the importing file · a try block whose sole statement is one of
 // those framework operations owns its catch whatever the catch returns · `withRequestSpan` · a named handler
 // that itself owns, read through an import alias (a handler imported as a `let` owns nothing) · a FORWARD: the
-// binding handed to a one-statement helper whose body owns that parameter, one hop only · a zod issue on the
-// context parameter of a `superRefine`/`transform` callback, which fails the parse · a RETAINED failure: a
-// `const` collection the binding is pushed into that its declaring scope throws as an `AggregateError` · a
+// binding handed to a one-statement, non-async, non-generator helper whose body owns that parameter, one hop
+// only · a zod issue added directly in a synchronous `superRefine`/`transform` callback on its context
+// parameter, which fails the parse · a RETAINED failure: a `const` collection the binding is pushed into in the
+// function declaring it, which a later top-level statement throws on every nonempty count as an `AggregateError` · a
 // RETAINED rejection: a discarding handler on a top-level `const` promise the function returns, through
 // handler-free links, as its last statement, or a rejection forwarded into a native `Promise.withResolvers()`
 // deferred whose promise is returned that way · an error-as-data outcome that a real consumer reads (a

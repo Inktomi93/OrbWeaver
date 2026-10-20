@@ -89,8 +89,8 @@ function retainedReceiver(receiver: Node, site: Node, reads?: CaughtFailureReadS
   return value === root || !writesMember(body, value.getText()) ? { text: value.getText(), declaration, body } : undefined;
 }
 
-/** Does the function return `retained` (or a handler-free link off it) as its LAST statement, with nothing between
- *  `site`'s statement and that return able to leave first? */
+/** Does the function return `retained` (or a handler-free link off it) as its LAST statement, with nothing from
+ *  `site`'s own statement up to that return able to leave first? */
 function returnedAfter(retained: RetainedReceiver, site: Node): boolean {
   const statements = retained.body.getStatements();
   const returned = statements.at(-1)?.asKind(SyntaxKind.ReturnStatement)?.getExpression();
@@ -99,7 +99,7 @@ function returnedAfter(retained: RetainedReceiver, site: Node): boolean {
   if (returned === undefined || at < 0 || at >= statements.length - 1 || declared < 0 || declared >= at) {
     return false;
   }
-  return !statements.slice(at + 1, -1).some(leavesBefore) && returnsRejectionOf(returned, retained.text);
+  return !statements.slice(at, -1).some(leavesBefore) && returnsRejectionOf(returned, retained.text);
 }
 
 /** `p.catch(noop)` beside `return p` (or `return p.finally(…)`): the rejection still reaches the caller, so the

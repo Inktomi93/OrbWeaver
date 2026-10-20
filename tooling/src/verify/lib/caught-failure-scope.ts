@@ -232,6 +232,11 @@ function forwardTarget(call: CallExpression, errorBinding: Node, reads?: CaughtF
   ) {
     return;
   }
+  // A generator runs none of its body until iterated, and an async helper turns a rethrow into a rejection of the
+  // promise this call discards, so neither runs its owner synchronously for the forwarding call.
+  if (fn.isAsync() || (!fn.isKind(SyntaxKind.ArrowFunction) && fn.isGenerator())) {
+    return;
+  }
   const parameter = fn.getParameters()[index];
   const name = parameter?.isRestParameter() === false ? parameter.getNameNode() : undefined;
   const body = fn.getBody();

@@ -35,7 +35,8 @@ const FAILURE_WORD_RE = /error|fail|invalid|malformed|refus|unavailable|unreacha
 const FAILURE_COPY_RE = /could(?:n['’]t| not)|error|fail|invalid|malformed|refus|unavailable|unreachable|not[- ]?found|not readable/iu;
 
 /** A one-expression helper (`messageOf(err)`) whose returned value preserves its first parameter preserves the
- *  binding it is passed. One hop: the helper's own body may not forward again. */
+ *  binding it is passed. One hop: the helper's own body is read with `helpers` off, on every branch, so a
+ *  self-recursive helper ends there instead of recursing. */
 function preservingHelperCall(call: CallExpression, reads?: CaughtFailureReadServices): boolean {
   const callee = unwrapExpression(call.getExpression());
   const declarations = callee.isKind(SyntaxKind.Identifier) ? declarationsOf(callee, reads) : [];
@@ -48,7 +49,12 @@ function preservingHelperCall(call: CallExpression, reads?: CaughtFailureReadSer
     return false;
   }
   const fn = resolvedFunction(declaration);
-  if (!(fn?.isKind(SyntaxKind.FunctionDeclaration) === true || fn?.isKind(SyntaxKind.ArrowFunction) === true)) {
+  // An async or generator helper returns a promise or an iterator, never the preserved value itself.
+  if (
+    !(fn?.isKind(SyntaxKind.FunctionDeclaration) === true || fn?.isKind(SyntaxKind.ArrowFunction) === true) ||
+    fn.isAsync() ||
+    fn.asKind(SyntaxKind.FunctionDeclaration)?.isGenerator() === true
+  ) {
     return false;
   }
   const parameter = fn.getParameters()[0]?.getNameNode();
@@ -67,7 +73,9 @@ function preservesFailureValue(node: Node, errorBinding: Node, reads?: CaughtFai
     return referencesBinding(value, errorBinding, reads);
   }
   if (value.isKind(SyntaxKind.ConditionalExpression)) {
-    return preservesFailureValue(value.getWhenTrue(), errorBinding, reads) && preservesFailureValue(value.getWhenFalse(), errorBinding, reads);
+    return (
+      preservesFailureValue(value.getWhenTrue(), errorBinding, reads, helpers) && preservesFailureValue(value.getWhenFalse(), errorBinding, reads, helpers)
+    );
   }
   if (value.isKind(SyntaxKind.PropertyAccessExpression)) {
     return directlyCarriesBinding(value.getExpression(), errorBinding, reads) && /^(?:cause|code|message|name|stack)$/u.test(value.getName());

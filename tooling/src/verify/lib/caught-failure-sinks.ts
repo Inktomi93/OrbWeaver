@@ -229,13 +229,13 @@ export function isExplicitOwnerCall(call: CallExpression, errorBinding: Node | u
     return ambientSinkOwns(call, member, errorBinding, reads);
   }
   if (member !== undefined && name === ZOD_ISSUE_METHOD) {
-    return zodIssueOwns(member.receiver, reads);
+    return zodIssueOwns(call, member.receiver, reads);
   }
   if (member !== undefined && COLLECTING_METHODS.has(name)) {
     return (
       errorBinding !== undefined &&
       call.getArguments().some((argument) => carriesFailure(argument, errorBinding, reads)) &&
-      collectionIsAggregated(member.receiver, reads)
+      collectionIsAggregated(call, member.receiver, reads)
     );
   }
   return stateSetterOwns(call, name, errorBinding, reads);
@@ -276,15 +276,23 @@ function namesZodImport(root: Node): boolean {
   return imported && !redeclared;
 }
 
-/** `ctx.addIssue(…)` on the context parameter of a zod `superRefine`/`transform` callback: any issue fails the
- *  parse, so the caller receives the failure as the parse's ZodError whatever the issue says. */
-function zodIssueOwns(receiver: Node, reads?: CaughtFailureReadServices): boolean {
+/** The nearest function around `node`. */
+function enclosingFunction(node: Node): Node | undefined {
+  return node.getFirstAncestor((ancestor) => FUNCTION_KINDS.has(ancestor.getKind()));
+}
+
+/** `ctx.addIssue(…)` on the context parameter of a synchronous zod `superRefine`/`transform` callback that makes the
+ *  call itself: any issue fails the parse, so the caller receives the failure as the parse's ZodError whatever the
+ *  issue says. A call deferred into a nested function runs after the parse has settled. */
+function zodIssueOwns(call: CallExpression, receiver: Node, reads?: CaughtFailureReadServices): boolean {
   const context = unwrapExpression(receiver);
   const declaration = context.isKind(SyntaxKind.Identifier) ? rawFailureDeclarations(context, reads)[0] : undefined;
   const callback = declaration?.isKind(SyntaxKind.Parameter) === true ? declaration.getParent() : undefined;
   if (
     !(callback?.isKind(SyntaxKind.ArrowFunction) === true || callback?.isKind(SyntaxKind.FunctionExpression) === true) ||
-    callback.getParameters()[1] !== declaration
+    callback.getParameters()[1] !== declaration ||
+    callback.isAsync() ||
+    enclosingFunction(call) !== callback
   ) {
     return false;
   }
@@ -300,6 +308,16 @@ function zodIssueOwns(receiver: Node, reads?: CaughtFailureReadServices): boolea
 
 const COLLECTING_METHODS: ReadonlySet<string> = new Set(["add", "push"]);
 const AGGREGATE_ERROR = "AggregateError";
+const COUNT_MEMBERS: ReadonlySet<string> = new Set(["length", "size"]);
+const NONEMPTY_OPERATORS: ReadonlySet<string> = new Set([">", "!==", "!="]);
+const EQUALITY_OPERATORS: ReadonlySet<string> = new Set(["===", "=="]);
+const MANY_OPERATORS: ReadonlySet<string> = new Set([">"]);
+const LEAVING_KINDS: ReadonlySet<SyntaxKind> = new Set([
+  SyntaxKind.ReturnStatement,
+  SyntaxKind.ThrowStatement,
+  SyntaxKind.BreakStatement,
+  SyntaxKind.ContinueStatement,
+]);
 
 /** The caught binding itself, a wrapper chaining it as `cause`, or a conditional whose every arm is one of those. */
 function carriesFailure(node: Node, errorBinding: Node, reads?: CaughtFailureReadServices): boolean {
@@ -320,8 +338,8 @@ function carriesFailure(node: Node, errorBinding: Node, reads?: CaughtFailureRea
   );
 }
 
-/** `throw new AggregateError(failures, …)` or `throw new AggregateError([...failures], …)`. */
-function throwsAggregateOf(thrown: Node | undefined, name: string): boolean {
+/** `new AggregateError(failures, …)` or `new AggregateError([...failures], …)`. */
+function aggregateOf(thrown: Node | undefined, name: string): boolean {
   const value = thrown === undefined ? undefined : unwrapExpression(thrown).asKind(SyntaxKind.NewExpression);
   const first = value?.getArguments()?.[0];
   if (value?.getExpression().getText() !== AGGREGATE_ERROR || first === undefined) {
@@ -332,24 +350,92 @@ function throwsAggregateOf(thrown: Node | undefined, name: string): boolean {
   return collected.getText() === name || spread.some((element) => element.asKind(SyntaxKind.SpreadElement)?.getExpression().getText() === name);
 }
 
-/** A RETAINED failure: a `const` collection that the scope declaring it throws as an `AggregateError`. The throw
- *  sits outside the catch, so it is read by name inside that one scope, where nothing else declares the name. */
-function collectionIsAggregated(receiver: Node, reads?: CaughtFailureReadServices): boolean {
+/** `failures.length` or `failures.size`, compared against `bound` by one of `operators`. */
+function countGuard(condition: Node, name: string, operators: ReadonlySet<string>, bound: string): boolean {
+  const comparison = unwrapExpression(condition).asKind(SyntaxKind.BinaryExpression);
+  const count = comparison === undefined ? undefined : unwrapExpression(comparison.getLeft()).asKind(SyntaxKind.PropertyAccessExpression);
+  return (
+    comparison !== undefined &&
+    count !== undefined &&
+    COUNT_MEMBERS.has(count.getName()) &&
+    unwrapExpression(count.getExpression()).getText() === name &&
+    operators.has(comparison.getOperatorToken().getText()) &&
+    unwrapExpression(comparison.getRight()).getText() === bound
+  );
+}
+
+/** The thrown expression of a branch that is exactly one `throw`. */
+function onlyThrow(branch: Node | undefined): Node | undefined {
+  if (branch === undefined) {
+    return;
+  }
+  const statements = branch.isKind(SyntaxKind.Block) ? branch.getStatements() : [branch];
+  return statements.length === 1 ? statements[0]?.asKind(SyntaxKind.ThrowStatement)?.getExpression() : undefined;
+}
+
+/** `if (<guard>) throw <value>` with no else, as the guard and the thrown value. */
+function guardedThrow(statement: Node | undefined): { readonly guard: Node; readonly thrown: Node } | undefined {
+  const branch = statement?.asKind(SyntaxKind.IfStatement);
+  const thrown = branch === undefined || branch.getElseStatement() !== undefined ? undefined : onlyThrow(branch.getThenStatement());
+  return branch === undefined || thrown === undefined ? undefined : { guard: branch.getExpression(), thrown };
+}
+
+/** Does this statement (with its successor) throw the collection on every nonempty count? `throw new AggregateError`
+ *  outright, behind `.length > 0` / `!== 0` (or `.size`), or the pair `=== 1 → throw c[0]` then `> 1 → aggregate`. */
+function throwsEveryFailure(statement: Node, next: Node | undefined, name: string): boolean {
+  if (aggregateOf(statement.asKind(SyntaxKind.ThrowStatement)?.getExpression(), name)) {
+    return true;
+  }
+  const guarded = guardedThrow(statement);
+  if (guarded !== undefined && countGuard(guarded.guard, name, NONEMPTY_OPERATORS, "0") && aggregateOf(guarded.thrown, name)) {
+    return true;
+  }
+  const single =
+    guarded !== undefined && countGuard(guarded.guard, name, EQUALITY_OPERATORS, "1") && unwrapExpression(guarded.thrown).getText() === `${name}[0]`;
+  const rest = guardedThrow(next);
+  return single && rest !== undefined && countGuard(rest.guard, name, MANY_OPERATORS, "1") && aggregateOf(rest.thrown, name);
+}
+
+/** Can control leave `statement` (outside any nested function) by return, throw, break or continue? */
+function canLeave(statement: Node): boolean {
+  return [statement, ...statement.getDescendants()].some(
+    (node) => LEAVING_KINDS.has(node.getKind()) && (node === statement || enclosingFunction(node) === enclosingFunction(statement)),
+  );
+}
+
+/** A RETAINED failure: a `const` collection, pushed to in the very function that declares it, which a later
+ *  top-level statement of that function throws as an `AggregateError` on every nonempty count, with nothing
+ *  between the push and that throw able to leave. The throw sits outside the catch, so it is read by name inside
+ *  that one function, where nothing else declares the name. */
+function collectionIsAggregated(call: CallExpression, receiver: Node, reads?: CaughtFailureReadServices): boolean {
   const collection = unwrapExpression(receiver);
   const declaration = collection.isKind(SyntaxKind.Identifier) ? rawFailureDeclarations(collection, reads)[0] : undefined;
   if (declaration?.isKind(SyntaxKind.VariableDeclaration) !== true || declaration.getVariableStatement()?.getDeclarationKind() !== "const") {
     return false;
   }
+  const scope = enclosingFunction(declaration);
+  const body = scope?.getChildrenOfKind(SyntaxKind.Block)[0];
+  if (scope === undefined || body === undefined || enclosingFunction(call) !== scope) {
+    return false;
+  }
   const name = collection.getText();
-  const scope = declaration.getFirstAncestor((ancestor) => FUNCTION_KINDS.has(ancestor.getKind())) ?? declaration.getSourceFile();
-  const source = declaration.getSourceFile();
   const shadowed = [...scope.getDescendantsOfKind(SyntaxKind.VariableDeclaration), ...scope.getDescendantsOfKind(SyntaxKind.Parameter)].some(
     (other) => other !== declaration && other.getNameNode().getText() === name,
   );
+  const source = declaration.getSourceFile();
   const localAggregate = [...source.getDescendantsOfKind(SyntaxKind.ClassDeclaration), ...source.getDescendantsOfKind(SyntaxKind.VariableDeclaration)].some(
     (other) => other.getNameNode()?.getText() === AGGREGATE_ERROR,
   );
-  return (
-    !(shadowed || localAggregate) && scope.getDescendantsOfKind(SyntaxKind.ThrowStatement).some((thrown) => throwsAggregateOf(thrown.getExpression(), name))
-  );
+  const statements = body.getStatements();
+  const at = statements.findIndex((statement) => statement.getStart() <= call.getStart() && statement.getEnd() >= call.getEnd());
+  if (shadowed || localAggregate || at < 0) {
+    return false;
+  }
+  for (let index = at + 1; index < statements.length; index += 1) {
+    const statement = statements[index];
+    if (statement !== undefined && throwsEveryFailure(statement, statements[index + 1], name)) {
+      return !statements.slice(at, index).some(canLeave);
+    }
+  }
+  return false;
 }
