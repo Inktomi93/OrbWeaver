@@ -17,7 +17,12 @@ export interface TerminalFrameOptions {
    *  carries the finish reason, rather than trailing it with a separate empty-delta chunk). Pass `{}` for
    *  an explicit empty delta on the terminal chunk. */
   readonly delta?: Record<string, unknown>;
-  readonly usage?: { readonly promptTokens: number; readonly completionTokens: number };
+  readonly usage?: {
+    readonly promptTokens: number;
+    readonly completionTokens: number;
+    readonly cacheReadTokens?: number;
+    readonly cacheWriteTokens?: number;
+  };
 }
 
 const DEFAULT_FINISH_REASON = "stop";
@@ -28,7 +33,15 @@ export function terminalChunkJson(opts: TerminalFrameOptions = {}): string {
   const finishReason = opts.finishReason ?? DEFAULT_FINISH_REASON;
   const deltaField = opts.delta === undefined ? "" : `"delta":${JSON.stringify(opts.delta)},`;
   const choice = `{${deltaField}"finish_reason":${JSON.stringify(finishReason)}}`;
-  const usageField = opts.usage === undefined ? "" : `,"usage":{"prompt_tokens":${opts.usage.promptTokens},"completion_tokens":${opts.usage.completionTokens}}`;
+  const cacheFields =
+    opts.usage === undefined || (opts.usage.cacheReadTokens === undefined && opts.usage.cacheWriteTokens === undefined)
+      ? ""
+      : `,"prompt_tokens_details":{${[
+          ...(opts.usage.cacheReadTokens === undefined ? [] : [`"cached_tokens":${opts.usage.cacheReadTokens}`]),
+          ...(opts.usage.cacheWriteTokens === undefined ? [] : [`"cache_write_tokens":${opts.usage.cacheWriteTokens}`]),
+        ].join(",")}}`;
+  const usageField =
+    opts.usage === undefined ? "" : `,"usage":{"prompt_tokens":${opts.usage.promptTokens},"completion_tokens":${opts.usage.completionTokens}${cacheFields}}`;
   return `{"choices":[${choice}]${usageField}}`;
 }
 
