@@ -120,7 +120,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-handwritten-wire-json-schema` | — | ordinary/error | @server,@contracts,@kit,@inference\* | a hand-authored JSON-Schema literal… |
 | `no-hardcoded-model-prose` | — | ordinary/error | @authored | DEAD catalog prose: authored,… |
 | `no-hardcoded-side-gen-sampling` | — | ordinary/error | @server\* | hardcoded side-gen sampling value — a… |
-| `no-inline-types` | — | ordinary/error | @client,@server,@inference,@tooling,@tests,@ui-authoring\* ∪ @ui\* | exported type/zod-schema outside a… |
+| `no-inline-types` | — | ordinary/error | @client,@server,@inference,@ui-authoring\* ∪ @ui\* | exported type/zod-schema outside a… |
 | `no-inline-union-redecl` | — | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data… |
 | `no-manual-memo` | react-origin | reviewed-grant/error | @client,@ui,@tests | manual React memoization in… |
