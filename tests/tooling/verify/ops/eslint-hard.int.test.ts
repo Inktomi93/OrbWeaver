@@ -1,5 +1,5 @@
 // Native profiles run through the production partition runner with real CLI caches and directives.
-import { readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import type { ToolFixtures } from "@orb/testkit/node/tool-fixtures.ts";
@@ -74,6 +74,66 @@ test.for(RUNNER_MODES)("the real %s runner retains the native stale ordinary bul
   expect(readdirSync(join(root, CACHE_DIR)).filter((name) => name.startsWith("argv-"))).toEqual([]);
 });
 
+test(
+  "the scoped run refuses a named file that no config admits instead of reporting it clean",
+  async ({ plantedTree, repoRoot }) => {
+    const root = await rootFor(plantedTree, repoRoot, "alert('named');\n");
+    writeFileSync(join(root, "named.ts"), "alert('named');\n");
+    expect(await runScopedEslint(root, [SOURCE])).toBe(1);
+    expect(await runScopedEslint(root, ["named.ts"])).toBe(2);
+  },
+  scaledBudget(30_000),
+);
+
+test(
+  "a patched rule module drops the cached clean verdict for an unchanged named file",
+  async ({ plantedTree, repoRoot }) => {
+    const root = await rootFor(plantedTree, repoRoot, "void 0;\n");
+    const rule = (reports: boolean): string =>
+      `export default { rules: { named: { create: (context) => ({ Program: (node) => { if (${String(reports)}) context.report({ node, message: "planted" }); } }) } } };`;
+    writeFileSync(join(root, "plugin.js"), rule(false));
+    writeFileSync(
+      join(root, "eslint.config.js"),
+      `import plugin from "./plugin.js"; export default [{ files: ["**/*.js"], plugins: { orb: plugin }, rules: { "orb/named": "error" } }];`,
+    );
+    expect(await runScopedEslint(root, [SOURCE])).toBe(0);
+    writeFileSync(join(root, "plugin.js"), rule(true));
+    expect(await runScopedEslint(root, [SOURCE])).toBe(1);
+  },
+  scaledBudget(30_000),
+);
+
+test(
+  "a named file spelled ./relative or absolute lints exactly like its repository-relative spelling",
+  async ({ plantedTree, repoRoot }) => {
+    const root = await rootFor(plantedTree, repoRoot, "alert('named');\n");
+    expect(await runScopedEslint(root, [SOURCE])).toBe(1);
+    expect(await runScopedEslint(root, [`./${SOURCE}`])).toBe(1);
+    expect(await runScopedEslint(root, [join(root, SOURCE)])).toBe(1);
+  },
+  scaledBudget(30_000),
+);
+
+test(
+  "an edit inside an installed plugin drops the cached clean verdict for an unchanged named file",
+  async ({ plantedTree, repoRoot }) => {
+    const root = await rootFor(plantedTree, repoRoot, "void 0;\n");
+    const rule = (reports: boolean): string =>
+      `export default { rules: { named: { create: (context) => ({ Program: (node) => { if (${String(reports)}) context.report({ node, message: "planted" }); } }) } } };`;
+    mkdirSync(join(root, "node_modules/orb-installed-plugin"), { recursive: true });
+    writeFileSync(join(root, "node_modules/orb-installed-plugin/package.json"), '{"name":"orb-installed-plugin","type":"module","main":"index.js"}');
+    writeFileSync(join(root, "node_modules/orb-installed-plugin/index.js"), rule(false));
+    writeFileSync(
+      join(root, "eslint.config.js"),
+      `import plugin from "orb-installed-plugin"; export default [{ files: ["**/*.js"], plugins: { orb: plugin }, rules: { "orb/named": "error" } }];`,
+    );
+    expect(await runScopedEslint(root, [SOURCE])).toBe(0);
+    writeFileSync(join(root, "node_modules/orb-installed-plugin/index.js"), rule(true));
+    expect(await runScopedEslint(root, [SOURCE])).toBe(1);
+  },
+  scaledBudget(30_000),
+);
+
 test("the hard child ignores unrelated directives without breaking an actual ordinary exception", async ({ plantedTree, repoRoot }) => {
   const root = await rootFor(plantedTree, repoRoot, ORDINARY_PERMISSION);
   expect(await runScopedEslint(root, [SOURCE])).toBe(0);
@@ -123,7 +183,7 @@ test("completed profiles retain violations but refuse changed source, options, e
   const root = await rootFor(plantedTree, repoRoot, "debugger;\n");
   const completed = new Map<string, EslintCompletedProfiles>();
   const admitted = await readEslintFileAdmissions(root, "eslint.config.js", [SOURCE]);
-  expect(await runProfiles(root, admitted, "metadata-proof-", completed)).toBe(1);
+  expect(await runProfiles(root, admitted, "metadata-proof-", { completed })).toBe(1);
   expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(true);
   for (const paths of [[SOURCE, SOURCE], ["."], ["*.js"], ["missing.js"]]) {
     expect(await hasCompletedProfiles(root, paths, completed)).toBe(false);
@@ -148,7 +208,7 @@ test("an ordinary native tool error cannot promote completed HARD work into full
   writeFileSync(join(root, BULK_LEDGER), JSON.stringify({ [SOURCE]: { "no-alert": { count: 1 } } }));
   const completed = new Map<string, EslintCompletedProfiles>();
   const admitted = await readEslintFileAdmissions(root, "eslint.config.js", [SOURCE]);
-  expect(await runProfiles(root, admitted, "metadata-proof-", completed)).toBe(2);
+  expect(await runProfiles(root, admitted, "metadata-proof-", { completed })).toBe(2);
   expect(completed.size).toBe(0);
   expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(false);
 });
@@ -165,7 +225,7 @@ test("an unknown configured compiler context cannot qualify completed native lin
   const completed = new Map<string, EslintCompletedProfiles>();
   const admitted = await readEslintFileAdmissions(root, "eslint.config.js", [SOURCE]);
   expect(admitted).toMatchObject([{ requiresTypeInformation: true, compilerConfigs: null }]);
-  expect(await runProfiles(root, admitted, "metadata-proof-", completed)).toBe(0);
+  expect(await runProfiles(root, admitted, "metadata-proof-", { completed })).toBe(0);
   expect(completed.size).toBe(0);
   expect(await hasCompletedProfiles(root, [SOURCE], completed)).toBe(false);
 });

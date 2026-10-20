@@ -1,6 +1,6 @@
 // Full native profile dispatch and completed file coverage share the same compiler-owner plan.
 import { createHash } from "node:crypto";
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import process from "node:process";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
@@ -16,6 +16,7 @@ import { eslintScheme } from "../lib/exit-classifiers.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
 import { TYPED_NATIVE_COMPILER_CONTEXT_ENV, typedNativeCompilerConfigs } from "../lib/typed-native-inputs.ts";
 import { readEslintFileAdmissions } from "./config-snapshot.ts";
+import { lazyRuleCode } from "./eslint-code-identity.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
 
@@ -29,6 +30,12 @@ interface ProfileDispatch {
   readonly cachePrefix: string;
   readonly hard: boolean;
   readonly receipts: Map<string, string> | undefined;
+  readonly codeIdentity: () => string;
+}
+
+function lazyDigest(root: string): () => string {
+  const ruleCode = lazyRuleCode(root);
+  return () => ruleCode().identity;
 }
 
 function ownerFor(path: string, owners: readonly string[]): string {
@@ -78,7 +85,8 @@ export async function runProfiles(
   root: string,
   admitted: readonly EslintFileAdmission[],
   cachePrefix: string,
-  completed?: Map<string, EslintCompletedProfiles>,
+  // `codeIdentity` is one digest per lint invocation: callers that run several profile passes share it.
+  { completed, codeIdentity = lazyDigest(root) }: { readonly completed?: Map<string, EslintCompletedProfiles>; readonly codeIdentity?: () => string } = {},
 ): Promise<number> {
   const configuration = completed === undefined ? undefined : configurationIdentity(root);
   const hardAdmissions = await readEslintFileAdmissions(
@@ -92,11 +100,12 @@ export async function runProfiles(
   const hard = hardAdmissions.filter(({ hasEnabledRules }) => hasEnabledRules);
   const hardReceipts = completed === undefined ? undefined : new Map<string, string>();
   const ordinaryReceipts = completed === undefined ? undefined : new Map<string, string>();
-  const hardVerdict = hard.length === 0 ? EXIT.clean : runPartitions(root, hard, { cachePrefix: `${cachePrefix}hard-`, hard: true, receipts: hardReceipts });
+  const hardVerdict =
+    hard.length === 0 ? EXIT.clean : runPartitions(root, hard, { cachePrefix: `${cachePrefix}hard-`, hard: true, receipts: hardReceipts, codeIdentity });
   if (hardVerdict === EXIT.toolError) {
     return EXIT.toolError;
   }
-  const verdict = Math.max(hardVerdict, runPartitions(root, admitted, { cachePrefix, hard: false, receipts: ordinaryReceipts }));
+  const verdict = Math.max(hardVerdict, runPartitions(root, admitted, { cachePrefix, hard: false, receipts: ordinaryReceipts, codeIdentity }));
   if (completed !== undefined && verdict !== EXIT.toolError && configuration !== undefined && configuration === configurationIdentity(root)) {
     retainCompletedProfiles(completed, admitted, hardAdmissions, { configuration, ordinary: ordinaryReceipts, hard: hardReceipts });
   }
@@ -231,14 +240,30 @@ function runPartitions(root: string, admitted: readonly EslintFileAdmission[], p
   return verdict;
 }
 
-function runPartitionChild(root: string, owner: string, partition: readonly EslintFileAdmission[], { hard, cachePrefix, receipts }: ProfileDispatch): number {
+// ESLint cannot see rule code, so a cache written under other rule code is deleted rather than replayed.
+function freshCacheFile(directory: string, name: string, codeIdentity: string): string {
+  const cacheFile = join(directory, `${name}.eslintcache`);
+  const stamp = `${cacheFile}.code`;
+  if (!existsSync(stamp) || readFileSync(stamp, "utf8") !== codeIdentity) {
+    rmSync(cacheFile, { force: true });
+    writeFileSync(stamp, codeIdentity);
+  }
+  return cacheFile;
+}
+
+function runPartitionChild(
+  root: string,
+  owner: string,
+  partition: readonly EslintFileAdmission[],
+  { hard, cachePrefix, receipts, codeIdentity }: ProfileDispatch,
+): number {
   if (hard && partition.some((entry) => entry.requiresTypeInformation && (entry.compilerConfigs?.length !== 1 || entry.compilerConfigs[0] !== owner))) {
     throw new Error(`HARD native compiler admission does not match owner ${owner}`);
   }
   const paths = partition.map(({ path }) => path);
   process.stderr.write(`[eslint] ${owner}: ${String(paths.length)} file(s)\n`);
   const cacheDir = join(root, ESLINT_CACHE_DIR);
-  const ownerCacheFile = join(cacheDir, `${cachePrefix}${encodeURIComponent(owner)}.eslintcache`);
+  const ownerCacheFile = freshCacheFile(cacheDir, `${cachePrefix}${encodeURIComponent(owner)}`, codeIdentity());
   const argumentsDir = mkdtempSync(join(cacheDir, "argv-"));
   try {
     const argumentsFile = join(argumentsDir, "arguments.json");
