@@ -10,7 +10,9 @@
 
 import type { WorkloadProgress } from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createManualTimer } from "@orb/testkit/iso/clock.ts";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
@@ -21,6 +23,8 @@ import { reapOrphanedWorkloads } from "#server/domain/workloads/engine/reaper.ts
 import { runWorkload } from "#server/domain/workloads/index.ts";
 import { loadWorkload, loadWorkloadStatus, markTerminal } from "#server/domain/workloads/persistence/queries.ts";
 import { contributionsWith, fakeContributions, loadRunnableWorkload, makeRunnerDeps, seedWorkloadRow, T0 } from "../_support.ts";
+
+const workloadIds = createSeededIds();
 
 // The row read path narrows params against the contribution registry.
 const CONTRIBUTIONS = fakeContributions();
@@ -60,7 +64,7 @@ describe("runWorkload", () => {
   test("claims, runs, stores the result, and emits started + succeeded", async () => {
     const db = await freshDb();
     const run = vi.fn(async () => ({ deferred: true }) as const);
-    const id = await seedWorkloadRow(db, { id: "wl_ok", kind: KIND, status: "queued" });
+    const id = await seedWorkloadRow(db, { id: mintTypeId(ID_PREFIX.workload, workloadIds.next), kind: KIND, status: "queued" });
     const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
     await runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run)), row, sig());
     expect(await loadWorkloadStatus(db, id)).toBe("succeeded");
@@ -75,7 +79,7 @@ describe("runWorkload", () => {
     const db = await freshDb();
     const run = vi.fn(() => Promise.reject(new Error("boom")));
     const audit = vi.fn<WorkloadRunnerDeps["audit"]>(() => Promise.resolve());
-    const id = await seedWorkloadRow(db, { id: "wl_fail", kind: KIND, status: "queued" });
+    const id = await seedWorkloadRow(db, { id: mintTypeId(ID_PREFIX.workload, workloadIds.next), kind: KIND, status: "queued" });
     const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
     await runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run), { audit }), row, sig());
     expect(await loadWorkloadStatus(db, id)).toBe("failed");
@@ -97,7 +101,7 @@ describe("runWorkload", () => {
   test("the claim loser returns silently (a non-queued row is not re-run)", async () => {
     const db = await freshDb();
     const run = vi.fn(async () => ({ deferred: true }) as const);
-    const id = await seedWorkloadRow(db, { id: "wl_run", kind: KIND, status: "running" });
+    const id = await seedWorkloadRow(db, { id: mintTypeId(ID_PREFIX.workload, workloadIds.next), kind: KIND, status: "running" });
     const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
     await runWorkload(makeRunnerDeps(db, contributionsWith(KIND, run)), row, sig());
     expect(run).not.toHaveBeenCalled();
@@ -108,7 +112,7 @@ describe("runWorkload", () => {
   test("an aborted run is pinned to cancelled, never succeeded", async () => {
     const db = await freshDb();
     const run = vi.fn(async () => ({ deferred: true }) as const);
-    const id = await seedWorkloadRow(db, { id: "wl_cxl", kind: KIND, status: "queued" });
+    const id = await seedWorkloadRow(db, { id: mintTypeId(ID_PREFIX.workload, workloadIds.next), kind: KIND, status: "queued" });
     const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
     const ac = new AbortController();
     ac.abort();
@@ -121,7 +125,7 @@ describe("runWorkload", () => {
 
   test("a row reaped mid-run is not resurrected (zombie guard)", async () => {
     const db = await freshDb();
-    const id = await seedWorkloadRow(db, { id: "wl_zmb", kind: KIND, status: "queued" });
+    const id = await seedWorkloadRow(db, { id: mintTypeId(ID_PREFIX.workload, workloadIds.next), kind: KIND, status: "queued" });
     // Simulate a reaper terminalizing the in-flight row WHILE the body is working.
     const run = vi.fn(async () => {
       await markTerminal(db, { id, status: "worker_died", now: T0 });
@@ -135,7 +139,7 @@ describe("runWorkload", () => {
 
   test("a failed lease write aborts and OWNS the contribution before terminalizing failed", async () => {
     const db = await freshDb();
-    const id = await seedWorkloadRow(db, { id: "wl_lease_fail", kind: KIND, status: "queued" });
+    const id = await seedWorkloadRow(db, { id: mintTypeId(ID_PREFIX.workload, workloadIds.next), kind: KIND, status: "queued" });
     const release = Promise.withResolvers<void>();
     const aborted = Promise.withResolvers<void>();
     const order: string[] = [];
@@ -183,7 +187,7 @@ describe("runWorkload", () => {
 describe("runWorkload progress durability", () => {
   test("report() lands the latest snapshot on the ROW, readable with no subscription at all", async () => {
     const db = await freshDb();
-    const id = await seedWorkloadRow(db, { id: "wl_prog", kind: KIND, status: "queued" });
+    const id = await seedWorkloadRow(db, { id: mintTypeId(ID_PREFIX.workload, workloadIds.next), kind: KIND, status: "queued" });
     const seen: (WorkloadProgress | null)[] = [];
     const run = vi.fn<RunBody>(async (_ctx, _params, report) => {
       report({ message: "step one", current: 1, total: 3 });
@@ -204,7 +208,7 @@ describe("runWorkload progress durability", () => {
 
   test("a run that never reports leaves progress null (no phantom snapshot)", async () => {
     const db = await freshDb();
-    const id = await seedWorkloadRow(db, { id: "wl_quiet", kind: KIND, status: "queued" });
+    const id = await seedWorkloadRow(db, { id: mintTypeId(ID_PREFIX.workload, workloadIds.next), kind: KIND, status: "queued" });
     const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
     await runWorkload(
       makeRunnerDeps(
@@ -219,7 +223,7 @@ describe("runWorkload progress durability", () => {
 
   test("the durable write is THROTTLED to the lease cadence — a chatty run writes one snapshot per period", async () => {
     const db = await freshDb();
-    const id = await seedWorkloadRow(db, { id: "wl_chatty", kind: KIND, status: "queued" });
+    const id = await seedWorkloadRow(db, { id: mintTypeId(ID_PREFIX.workload, workloadIds.next), kind: KIND, status: "queued" });
     let clock = T0;
     const run = vi.fn<RunBody>(async (_ctx, _params, report) => {
       // Three reports inside ONE 5s cadence window: only the first reaches the row.
@@ -269,7 +273,7 @@ describe("runWorkload lease under a slow item", () => {
       return { deferred: true } as const;
     };
     let clock = T0;
-    const id = await seedWorkloadRow(db, { id: "wl_slow", kind: KIND, status: "queued", updatedAt: T0 });
+    const id = await seedWorkloadRow(db, { id: mintTypeId(ID_PREFIX.workload, workloadIds.next), kind: KIND, status: "queued", updatedAt: T0 });
     const row = await loadRunnableWorkload(db, CONTRIBUTIONS, id);
     const timer = createManualTimer();
     const running = runWorkload(

@@ -23,4 +23,6 @@ Each case runs through a composed service or real ids and asserts roles at the w
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Completion covers the named rows, not general migration of their containing files. Preserve unrelated cases. Runner ID repair preserves legacy regression execution, not maintained-rebuild qualification. Keep its state-machine assertions unchanged; replace dead automation assemblies through the real root.
+
+Admin and schedule successors qualify through the real root, with actual privilege and disabled-schedule defect controls. The named chat role projections also qualify. Automation ordering and dispatch successors remain active. Evidence: `reports/review/1198-refused-fixtures-review.md`.

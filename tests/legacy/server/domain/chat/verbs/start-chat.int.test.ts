@@ -289,45 +289,6 @@ describe("startChat — lazy room creation + opening", () => {
       unsubscribe();
     }
   });
-
-  test("first-message (solo): seeds the primary greeting VERBATIM; caller is host; D28 live roster", async () => {
-    const host = await seedUser(db, castId<Handle>("host"));
-    const aria = await seedCharacter(db, host, "aria");
-    const ctx = makeChatContext(db, {
-      getCard: () => Promise.resolve(cardWith("Aria", "Hello, I am {{char}}.")),
-    });
-
-    const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat, opening } = await startChat({
-      principal: await principal(db, host),
-      characterIds: [aria],
-    });
-
-    // The caller is the host; the character is a member referencing the LIVE row (D28 — not a copied card).
-    const hostRow = hostSeatOf(chat.participants);
-    expect(hostRow?.userId).toBe(host);
-    const charRow = chat.participants.find((p) => p.kind === "character");
-    expect(charRow?.characterId).toBe(aria);
-    expect(charRow?.role).toBe("member");
-
-    // The greeting is seeded VERBATIM (the `{{char}}` macro is NOT resolved at seed — FLAG[greeting-macro]).
-    expect(opening?.aborted).toBe(false);
-    expect(opening?.messages).toHaveLength(1);
-    expect(opening?.messages[0]?.content).toBe("Hello, I am {{char}}.");
-    expect(opening?.messages[0]?.role).toBe("assistant");
-    expect(opening?.messages[0]?.characterId).toBe(aria);
-    expect(opening?.messages[0]?.seq).toBe(1);
-
-    // `chatCreated` then a `messageCommitted` for the seeded greeting.
-    expect(emitted[0]).toEqual({ type: "chatCreated", chatId: chat.id });
-    expect(emitted[1]?.type).toBe("messageCommitted");
-
-    // The opening is real canon in the new chat (no `ownerId`; an explicit opening was NOT set → metadata null).
-    const rows = await db.select().from(messages).where(eq(messages.chatId, chat.id));
-    expect(rows).toHaveLength(1);
-    expect(chat.opening).toBeNull();
-  });
-
   test("greet-all (group default): every founding character greets, in roster order (seq 1..N)", async () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const aria = await seedCharacter(db, host, "aria");
