@@ -25,3 +25,5 @@ Each stored input records its stat identity (mtime, size, inode) beside its cont
 Filled at landing: what ran and where its output is.
 
 Prior-art review (`reports/review/semantic-store-prior-art.md`): codegraph stat-gates on size and mtime and hashes only on mismatch; git adds the racy rule. A cache copy shows the tooling partition records 32,599 inputs, most under node_modules, verified at least three times per call. Treat node_modules and .pnpm as a durable tier checked by its lockfile and patch identity, and check the executing-implementation attestation once per process.
+
+Constraint from 1002 (tests/tooling/floor/code-facts/semantic-inventory-native.test.ts): a same-size edit with its mtime restored must rebuild. A size and mtime stat gate misses that edit, so the stat identity must include ctime and inode, which change on any content write, beside size and mtime.
