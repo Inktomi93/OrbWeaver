@@ -209,6 +209,7 @@ function workloadRowBase(id = "workload_ct_pane"): WorkloadRowBase {
     mode: "singular",
     lane: "sweep",
     ownerId: USER_VIEWER.userId,
+    funderUserId: USER_VIEWER.userId,
     dependsOn: null,
     error: null,
     progress: null,

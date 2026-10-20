@@ -30,7 +30,7 @@ describe("getUiBundle", () => {
   test("returns the ui.js source, re-parsed out of the STORED bundle", async () => {
     const db = await freshDb();
     const h = makePluginHarness(db);
-    const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+    const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
     const installed = await h.service.install({
       caller,
       bundle: makeBundle({ id: "scripted", capabilities: ["ui.surface"], uiEntry: true }, "orb.host(1);", UI_SOURCE),
@@ -43,7 +43,7 @@ describe("getUiBundle", () => {
   test("a plugin with NO client half answers null — an absence, not an error", async () => {
     const db = await freshDb();
     const h = makePluginHarness(db);
-    const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+    const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
     const installed = await h.service.install({ caller, bundle: makeBundle({ id: "tier-s" }), grant: [] });
 
     expect(await h.service.getUiBundle({ caller, pluginId: installed.id })).toBeNull();
@@ -52,8 +52,8 @@ describe("getUiBundle", () => {
   test("a missing/foreign plugin is a leak-free NotFound — plugin source is never readable across tenants", async () => {
     const db = await freshDb();
     const h = makePluginHarness(db);
-    const alpha = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("alpha") }));
-    const beta = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("beta") }));
+    const alpha = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("alpha") }));
+    const beta = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("beta") }));
     const alphaPlugin = await h.service.install({
       caller: alpha,
       bundle: makeBundle({ id: "scripted", capabilities: ["ui.surface"], uiEntry: true }, "orb.host(1);", UI_SOURCE),

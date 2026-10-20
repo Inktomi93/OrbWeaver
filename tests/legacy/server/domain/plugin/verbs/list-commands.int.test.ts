@@ -20,7 +20,7 @@ const DRAW: PluginInstance["commands"] = [{ name: "draw", describe: "Draw a card
 test("projects the caller's OWN enabled plugin's commands, carrying the slug + plugin name the surfaces need", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   h.port.script({ ok: true, instance: instanceWithCommands(DRAW) });
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck", name: "Oracle Deck" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
@@ -48,7 +48,7 @@ test("projects the caller's OWN enabled plugin's commands, carrying the slug + p
 test("#791: a command's DECLARED typed args are projected verbatim for the surfaces to render", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const cast: PluginInstance["commands"] = [
     {
       name: "cast",
@@ -80,7 +80,7 @@ test("#791: a command's DECLARED typed args are projected verbatim for the surfa
 test("a DISABLED plugin contributes nothing — no resident, no commands", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   h.port.script({ ok: true, instance: instanceWithCommands(DRAW) });
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
   // Installed but never enabled.
@@ -96,8 +96,8 @@ test("a DISABLED plugin contributes nothing — no resident, no commands", async
 test("THE READ IS THE GATE — a stranger's list never carries another owner's commands", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const alpha = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("alpha") }));
-  const beta = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("beta") }));
+  const alpha = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("alpha") }));
+  const beta = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("beta") }));
   h.port.script({ ok: true, instance: instanceWithCommands(DRAW) });
   const alphaPlugin = await h.service.install({ caller: alpha, bundle: makeBundle({ id: "oracle-deck" }), grant: [] });
   await h.service.setEnabled({ caller: alpha, pluginId: alphaPlugin.id, enabled: true });

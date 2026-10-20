@@ -18,6 +18,8 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { getTraceByRequestId, initTracing } from "@orb/server/foundation/observability";
 import { classifyDomainError, createSocketRegistry } from "@orb/server/transport/trpc";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { SearchSuggestion, SuggestParams } from "#server/domain/search/index.ts";
@@ -27,6 +29,7 @@ import { createApp, rateLimitResponseMeta } from "#server/entry/app.ts";
 import type { AuthSeam, AuthSeamResolution } from "#server/entry/auth/index.ts";
 import { recentRequests } from "#server/foundation/observability/logger.ts";
 import { versionIdentity } from "#server/foundation/version/index.ts";
+import { testLiveBuses } from "../transport/trpc/_support.ts";
 
 /** Build the classifier-mapped `TRPCError` (cause-carrying) that `rateLimitResponseMeta` receives at the
  *  mount — mirrors the real path (`error-mapping.ts` wraps the DomainError as `.cause`). */
@@ -75,13 +78,9 @@ const SERVICE_UNAVAILABLE = 503;
 const INTERNAL_ERROR = 500;
 const TOO_MANY_REQUESTS = 429;
 
-const OWNER: Principal = {
-  userId: castId<UserId>("usr_owner"),
-  role: "owner",
-  handle: castId<Handle>("owner"),
-  externalId: null,
-  via: "fallback",
-};
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+const OWNER: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("usr_owner"), { role: "owner", handle: castId<Handle>("owner") });
 
 /** The same owner reached over a browser session cookie — the arm the pre-existing tRPC CSRF gate keys on. */
 const COOKIE_OWNER: Principal = { ...OWNER, via: "cookie" };
@@ -119,6 +118,7 @@ function deps(overrides: Partial<AppDeps>): AppDeps {
     now: (): number => FROZEN_AT_MS,
     db: databaseHandle({} as unknown as Db),
     oidcProviderName: "your identity provider",
+    liveBuses: testLiveBuses(),
     seam: fakeSeam(null),
     services,
     rateLimit: { enforce: (): Promise<void> => Promise.resolve() },

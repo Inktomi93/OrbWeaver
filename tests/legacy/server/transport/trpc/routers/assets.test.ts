@@ -7,6 +7,7 @@
 import type { AssetListItem } from "@orb/contracts/assets";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { caller, makeContext, principal } from "../_support.ts";
@@ -23,15 +24,17 @@ describe("assets router", () => {
   } satisfies AssetListItem;
 
   test("listOwned preserves the declared asset view", async () => {
+    const db = await freshDb();
     const listOwned = vi.fn<AssetsService["listOwned"]>().mockResolvedValue([asset]);
-    const ctx = makeContext({ auth: principal("user"), services: { assets: { listOwned } } });
+    const ctx = makeContext({ auth: await principal(db, "user"), services: { assets: { listOwned } } });
     await expect(caller(ctx).assets.listOwned({ limit: 20 })).resolves.toEqual([asset]);
   });
 
   test("listOwned refuses a service result widened with private storage data", async () => {
+    const db = await freshDb();
     const widened = { ...asset, storagePath: "/private/asset.png" };
     const listOwned = vi.fn<AssetsService["listOwned"]>().mockResolvedValue([widened]);
-    const ctx = makeContext({ auth: principal("user"), services: { assets: { listOwned } } });
+    const ctx = makeContext({ auth: await principal(db, "user"), services: { assets: { listOwned } } });
     await expect(caller(ctx).assets.listOwned({ limit: 20 })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
   });
   test("rejects an anonymous caller with UNAUTHORIZED", async () => {
@@ -42,30 +45,34 @@ describe("assets router", () => {
   });
 
   test("listOwned delegates to the verb with the Principal + input", async () => {
+    const db = await freshDb();
     const listOwned = vi.fn<AssetsService["listOwned"]>().mockResolvedValue([]);
-    const ctx = makeContext({ auth: principal("user"), services: { assets: { listOwned } } });
+    const ctx = makeContext({ auth: await principal(db, "user"), services: { assets: { listOwned } } });
     await caller(ctx).assets.listOwned({ limit: 20, kind: "gallery" });
     expect(listOwned).toHaveBeenCalledWith({ principal: ctx.auth, limit: 20, kind: "gallery" });
   });
 
   test("listGallery delegates to the verb with the Principal + input", async () => {
+    const db = await freshDb();
     const listGallery = vi.fn<AssetsService["listGallery"]>().mockResolvedValue([]);
-    const ctx = makeContext({ auth: principal("user"), services: { assets: { listGallery } } });
+    const ctx = makeContext({ auth: await principal(db, "user"), services: { assets: { listGallery } } });
     await caller(ctx).assets.listGallery({ limit: 20 });
     expect(listGallery).toHaveBeenCalledWith({ principal: ctx.auth, limit: 20 });
   });
 
   test("listGallery passes the date order and the one-object keyset cursor through", async () => {
+    const db = await freshDb();
     const listGallery = vi.fn<AssetsService["listGallery"]>().mockResolvedValue([]);
-    const ctx = makeContext({ auth: principal("user"), services: { assets: { listGallery } } });
+    const ctx = makeContext({ auth: await principal(db, "user"), services: { assets: { listGallery } } });
     const cursor = { createdAt: 5, galleryItemId: mintTypeId(ID_PREFIX.galleryItem) };
     await caller(ctx).assets.listGallery({ limit: 20, sort: "oldest", cursor });
     expect(listGallery).toHaveBeenCalledWith({ principal: ctx.auth, limit: 20, sort: "oldest", cursor });
   });
 
   test("listGallery refuses a sort outside the date orders", async () => {
+    const db = await freshDb();
     const listGallery = vi.fn<AssetsService["listGallery"]>().mockResolvedValue([]);
-    const ctx = makeContext({ auth: principal("user"), services: { assets: { listGallery } } });
+    const ctx = makeContext({ auth: await principal(db, "user"), services: { assets: { listGallery } } });
     // @ts-expect-error — `name` is not a gallery sort: no name is stored, so the wire refuses it.
     await expect(caller(ctx).assets.listGallery({ limit: 20, sort: "name" })).rejects.toThrow();
     expect(listGallery).not.toHaveBeenCalled();

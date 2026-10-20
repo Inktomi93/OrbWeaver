@@ -16,15 +16,15 @@ describe("updateEntry", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     const entry = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "E", content: "old", keys: ["x"] },
     });
 
     const updated = await svc.updateEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       entryId: entry.id,
       input: { content: "new", keys: ["y", "z"] },
     });
@@ -41,12 +41,12 @@ describe("updateEntry", () => {
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
-    const entry = await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "E", content: "old" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
+    const entry = await svc.createEntry({ principal: await principal(db, owner), bookId: book.id, input: { title: "E", content: "old" } });
     h.domainEvents.length = 0;
     h.wiEvents.length = 0;
 
-    await svc.updateEntry({ principal: principal(owner), entryId: entry.id, input: { content: "new" } });
+    await svc.updateEntry({ principal: await principal(db, owner), entryId: entry.id, input: { content: "new" } });
 
     expect(h.domainEvents).toEqual([{ type: "world-info.updated", bookId: book.id }]);
     // The scope fan is silent — content is not a scope-affecting field. That asymmetry is the point.
@@ -58,11 +58,11 @@ describe("updateEntry", () => {
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
-    const entry = await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "E", content: "c" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
+    const entry = await svc.createEntry({ principal: await principal(db, owner), bookId: book.id, input: { title: "E", content: "c" } });
     h.domainEvents.length = 0;
 
-    await svc.updateEntry({ principal: principal(owner), entryId: entry.id, input: {} });
+    await svc.updateEntry({ principal: await principal(db, owner), entryId: entry.id, input: {} });
 
     expect(h.domainEvents).toEqual([]);
   });
@@ -71,15 +71,15 @@ describe("updateEntry", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     const entry = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "E", content: "c", metadata: { scopeMode: "always" } },
     });
 
     const cleared = await svc.updateEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       entryId: entry.id,
       input: { metadata: null },
     });
@@ -91,21 +91,21 @@ describe("updateEntry", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirBook = await svc.createBook({ principal: principal(other), input: { name: "T" } });
+    const theirBook = await svc.createBook({ principal: await principal(db, other), input: { name: "T" } });
     const theirEntry = await svc.createEntry({
-      principal: principal(other),
+      principal: await principal(db, other),
       bookId: theirBook.id,
       input: { title: "E", content: "secret" },
     });
 
     await expect(
       svc.updateEntry({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         entryId: theirEntry.id,
         input: { content: "hijack" },
       }),
     ).rejects.toBeInstanceOf(WorldInfoNotFoundError);
-    const still = await svc.getEntry({ principal: principal(other), entryId: theirEntry.id });
+    const still = await svc.getEntry({ principal: await principal(db, other), entryId: theirEntry.id });
     expect(still.content).toBe("secret");
   });
 });

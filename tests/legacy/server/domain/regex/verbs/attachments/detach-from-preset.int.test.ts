@@ -18,11 +18,11 @@ describe("detachFromPreset", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const presetId = await seedPreset(db, owner);
     const scriptId = await seedScript(db, { ownerId: owner, name: "s" });
-    await svc.attachToPreset({ principal: principal(owner), presetId, scriptId });
+    await svc.attachToPreset({ principal: await principal(db, owner), presetId, scriptId });
 
-    expect(await svc.detachFromPreset({ principal: principal(owner), presetId, scriptId })).toEqual({ detached: true });
-    expect(await svc.detachFromPreset({ principal: principal(owner), presetId, scriptId })).toEqual({ detached: false });
-    expect(await svc.listForPreset({ principal: principal(owner), presetId })).toEqual([]);
+    expect(await svc.detachFromPreset({ principal: await principal(db, owner), presetId, scriptId })).toEqual({ detached: true });
+    expect(await svc.detachFromPreset({ principal: await principal(db, owner), presetId, scriptId })).toEqual({ detached: false });
+    expect(await svc.listForPreset({ principal: await principal(db, owner), presetId })).toEqual([]);
   });
 
   test("refuses a foreign script", async () => {
@@ -34,6 +34,6 @@ describe("detachFromPreset", () => {
     const presetId = await seedPreset(db, owner);
     const scriptId = await seedScript(db, { ownerId: stranger, name: "theirs" });
 
-    await expect(svc.detachFromPreset({ principal: principal(owner), presetId, scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.detachFromPreset({ principal: await principal(db, owner), presetId, scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
   });
 });

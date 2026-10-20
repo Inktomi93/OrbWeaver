@@ -15,13 +15,13 @@ describe("workloads.listSchedules", () => {
     const s = makeService(db);
     await s.createSchedule({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       cadence: "daily",
       mode: "singular",
       ownerId: alice,
     });
-    expect(await s.listSchedules({ caller: principal("user_alice") })).toHaveLength(1);
-    expect(await s.listSchedules({ caller: principal("user_bob") })).toHaveLength(0);
+    expect(await s.listSchedules({ caller: await principal(db, "user_alice") })).toHaveLength(1);
+    expect(await s.listSchedules({ caller: await principal(db, "user_bob") })).toHaveLength(0);
   });
 
   // TOTAL ORDER (test-determinism): schedules created in one instant tie on `createdAt`, so without the id
@@ -35,14 +35,14 @@ describe("workloads.listSchedules", () => {
     for (const cadence of ["daily", "weekly", "hourly"] as const) {
       await s.createSchedule({
         input: { kind: "compute-themes", params: {} },
-        caller: principal("user_alice"),
+        caller: await principal(db, "user_alice"),
         cadence,
         mode: "singular",
         ownerId: alice,
       });
     }
 
-    const listed = await s.listSchedules({ caller: principal("user_alice") });
+    const listed = await s.listSchedules({ caller: await principal(db, "user_alice") });
     expect(listed.map((row) => row.id)).toEqual(["workload_schedule_3", "workload_schedule_2", "workload_schedule_1"]);
   });
 
@@ -54,18 +54,18 @@ describe("workloads.listSchedules", () => {
     const s = makeService(db);
     await s.createSchedule({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       cadence: "daily",
       mode: "singular",
       ownerId: alice,
     });
     await s.createSchedule({
       input: { kind: "compute-themes", params: {} },
-      caller: principal("user_bob"),
+      caller: await principal(db, "user_bob"),
       cadence: "weekly",
       mode: "singular",
       ownerId: bob,
     });
-    expect(await s.listSchedules({ caller: principal("user_admin", "admin") })).toHaveLength(2);
+    expect(await s.listSchedules({ caller: await principal(db, "user_admin", "admin") })).toHaveLength(2);
   });
 });

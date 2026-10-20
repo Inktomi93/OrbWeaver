@@ -1,11 +1,13 @@
 import type { Principal } from "@orb/contracts/identity";
-import type { Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { Db } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import type { ExportDeps, ImportBundleDeps } from "#server/entry/http/index.ts";
 import { registerExport, registerImportBundle } from "#server/entry/http/index.ts";
 
-export function principalOf(userId: UserId): Principal {
-  return { userId, role: "owner", handle: castId<Handle>(userId), externalId: null, via: "header" };
+/** The importing owner's Principal; owner is written onto the row before it resolves. */
+export async function principalOf(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role: "owner" });
 }
 
 // ── The minimal Hono-shape mock the registrars capture onto (same pattern as the route tests). ────────────

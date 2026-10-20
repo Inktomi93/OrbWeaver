@@ -39,7 +39,7 @@ test("the host's dismiss TAKES the ask — it is gone from the store, not merely
   const fx = await ruleFixture();
   const ask = raise(fx);
 
-  await fx.svc.dismissSuggestion({ principal: principal(fx.host), suggestionId: ask.id });
+  await fx.svc.dismissSuggestion({ principal: await principal(fx.db, fx.host), suggestionId: ask.id });
 
   expect(fx.ctx.suggestions.peek(ask.id, FIXED_NOW_MS)).toBeNull();
   expect(fx.ctx.suggestions.countForChat(fx.chatId)).toBe(0);
@@ -51,14 +51,16 @@ test("the host's dismiss TAKES the ask — it is gone from the store, not merely
 test("a second dismiss refuses leak-free (idempotent by collapse, exactly like a double confirm)", async () => {
   const fx = await ruleFixture();
   const ask = raise(fx);
-  await fx.svc.dismissSuggestion({ principal: principal(fx.host), suggestionId: ask.id });
+  await fx.svc.dismissSuggestion({ principal: await principal(fx.db, fx.host), suggestionId: ask.id });
 
-  await expect(fx.svc.dismissSuggestion({ principal: principal(fx.host), suggestionId: ask.id })).rejects.toThrow(GONE);
+  await expect(fx.svc.dismissSuggestion({ principal: await principal(fx.db, fx.host), suggestionId: ask.id })).rejects.toThrow(GONE);
 });
 
 test("an unknown id refuses the same way a taken one does — the caller learns nothing either way", async () => {
   const fx = await ruleFixture();
-  await expect(fx.svc.dismissSuggestion({ principal: principal(fx.host), suggestionId: mintTypeId(ID_PREFIX.automationSuggestion) })).rejects.toThrow(GONE);
+  await expect(
+    fx.svc.dismissSuggestion({ principal: await principal(fx.db, fx.host), suggestionId: mintTypeId(ID_PREFIX.automationSuggestion) }),
+  ).rejects.toThrow(GONE);
 });
 
 test("a MEMBER who is not host cannot dismiss the host's card, and the ask survives their click", async () => {
@@ -67,7 +69,7 @@ test("a MEMBER who is not host cannot dismiss the host's card, and the ask survi
   const member = await seedUser(fx.db, "user_member");
   await seedParticipant(fx.db, { chatId: fx.chatId, key: "member", userId: member, role: "member" });
 
-  await expect(fx.svc.dismissSuggestion({ principal: principal(member), suggestionId: ask.id })).rejects.toThrow();
+  await expect(fx.svc.dismissSuggestion({ principal: await principal(fx.db, member), suggestionId: ask.id })).rejects.toThrow();
   expect(fx.ctx.suggestions.peek(ask.id, FIXED_NOW_MS)?.id).toBe(ask.id);
 });
 
@@ -76,7 +78,7 @@ test("a NON-MEMBER gets the ask's own leak-free not-found (never the chat id the
   const ask = raise(fx);
   const stranger = await seedUser(fx.db, "user_stranger");
 
-  await expect(fx.svc.dismissSuggestion({ principal: principal(stranger), suggestionId: ask.id })).rejects.toThrow(GONE);
+  await expect(fx.svc.dismissSuggestion({ principal: await principal(fx.db, stranger), suggestionId: ask.id })).rejects.toThrow(GONE);
 });
 
 test("an EXPIRED ask is already gone — a stale card's dismiss refuses instead of pretending", async () => {
@@ -84,5 +86,5 @@ test("an EXPIRED ask is already gone — a stale card's dismiss refuses instead 
   const ask = raise(fx);
   // The store sweeps against the INJECTED clock, so this is the same edge the client's own timer uses.
   expect(fx.ctx.suggestions.peek(ask.id, ask.expiresAt)).toBeNull();
-  await expect(fx.svc.dismissSuggestion({ principal: principal(fx.host), suggestionId: ask.id })).rejects.toThrow(GONE);
+  await expect(fx.svc.dismissSuggestion({ principal: await principal(fx.db, fx.host), suggestionId: ask.id })).rejects.toThrow(GONE);
 });

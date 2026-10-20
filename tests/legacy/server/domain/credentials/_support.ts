@@ -6,9 +6,12 @@
 // credential is a sealed secret with a label: the probes/inspect/fetch-models ops LEFT this domain for the
 // connection router (inference program §5.3), so there is nothing left here to fake but the audit recorder.
 
+import type { CredentialExecutionEvidence } from "@orb/contracts/credentials";
+import type { ProviderId } from "@orb/contracts/inference";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { handleKey } from "@orb/kit/handle-key";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import type { Principal, UserRole } from "#contracts/identity/index.ts";
 import { builtinProvider } from "#contracts/inference/index.ts";
 import type { Db } from "#db/client/index.ts";
@@ -70,9 +73,9 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
   return id;
 }
 
-/** Build a Principal for a user id + role (cookie-resolved by default). */
-export function principal(userId: UserId, role: UserRole = "user"): Principal {
-  return { userId, role, handle: castId<Handle>(userId), externalId: null, via: "cookie" };
+/** Resolve a caller's Principal through the production row resolver; a passed role is first written onto the user's row. */
+export async function principal(db: Db, userId: UserId, role?: UserRole): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role });
 }
 
 /** Build the CredentialContext over a real db with the real SecretBox/guard + recording fake ops. */
@@ -110,6 +113,20 @@ interface SeedCredentialOverrides {
   readonly label?: string;
 }
 
+/** The evidence a real keyed resolve hands the auth-failure path: the credential it admitted and its witness. */
+export async function executionEvidence(
+  svc: CredentialsService,
+  ownerId: UserId,
+  credentialId: UserCredentialId,
+  providerId: ProviderId,
+): Promise<Extract<CredentialExecutionEvidence, { readonly credentialId: UserCredentialId }>> {
+  const resolved = await svc.resolve({ ownerId, credentialId, providerId });
+  if (resolved.credentialId === null) {
+    throw new Error("a keyed resolve admitted no credential");
+  }
+  return { credentialId: resolved.credentialId, executionWitness: resolved.executionWitness };
+}
+
 /** The repeated "seed an owner, add one credential" arrange block (~15 call sites): builds the service
  *  over `h`, seeds a `user` owner, and adds one `openrouter` credential for it. */
 export async function seedCredential(
@@ -123,7 +140,7 @@ export async function seedCredential(
     role: overrides.role ?? "user",
   });
   const cred = await svc.add({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     provider: overrides.provider ?? "openrouter",
     key: overrides.key ?? "k",
     ...(overrides.label !== undefined ? { label: overrides.label } : {}),

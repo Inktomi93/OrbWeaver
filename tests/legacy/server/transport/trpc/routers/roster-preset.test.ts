@@ -1,5 +1,6 @@
 import type { RosterPresetView } from "@orb/contracts/roster-preset";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 import type { RosterPresetService } from "#server/domain/roster-preset/index.ts";
@@ -19,15 +20,17 @@ const view = {
 } satisfies RosterPresetView;
 
 test("roster get preserves a sparse stored group-config input without filling room defaults", async () => {
+  const db = await freshDb();
   const get = vi.fn<RosterPresetService["get"]>().mockResolvedValue(view);
-  const ctx = makeContext({ auth: principal("user"), services: { rosterPreset: { get } } });
+  const ctx = makeContext({ auth: await principal(db, "user"), services: { rosterPreset: { get } } });
   await expect(caller(ctx).rosterPreset.get({ presetId: view.id })).resolves.toEqual(view);
 });
 
 test("roster get refuses a malformed stored field instead of healing and rewriting its reply", async () => {
+  const db = await freshDb();
   const get = vi.fn<RosterPresetService["get"]>();
   // @ts-expect-error — the output boundary must refuse an untyped stored value that violates the declared boolean.
   get.mockResolvedValue({ ...view, groupConfig: { output: "per-speaker", autoMode: "bad" } });
-  const ctx = makeContext({ auth: principal("user"), services: { rosterPreset: { get } } });
+  const ctx = makeContext({ auth: await principal(db, "user"), services: { rosterPreset: { get } } });
   await expect(caller(ctx).rosterPreset.get({ presetId: view.id })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
 });

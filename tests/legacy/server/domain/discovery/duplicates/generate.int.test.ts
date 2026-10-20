@@ -9,7 +9,11 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createDiscoveryService } from "#server/domain/discovery/index.ts";
+import { everyOwnerAuthority } from "../../workloads/_support.ts";
 import { makeDiscoveryHarness, seedCharacter, seedCharacterEmbedding, seedChatSegment, seedHostedChat, seedUser, vec } from "../_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 describe("computeDuplicatePairs", () => {
   test("records a near-duplicate pair above the cosine threshold, canonical A<B", async () => {
@@ -26,7 +30,7 @@ describe("computeDuplicatePairs", () => {
     });
 
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    const stats = await svc.computeDuplicatePairs();
+    const stats = await svc.computeDuplicatePairs(EVERY_OWNER.runScope);
     expect(stats).toMatchObject({ ownersProcessed: 1, charactersScanned: 2, pairsWritten: 1 });
 
     const rows = await db.select().from(duplicateCharacterPairs);
@@ -50,7 +54,7 @@ describe("computeDuplicatePairs", () => {
     });
 
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    expect((await svc.computeDuplicatePairs()).pairsWritten).toBe(0);
+    expect((await svc.computeDuplicatePairs(EVERY_OWNER.runScope)).pairsWritten).toBe(0);
   });
 
   test("never pairs across owners", async () => {
@@ -63,7 +67,7 @@ describe("computeDuplicatePairs", () => {
     await seedCharacterEmbedding(db, { characterId: cb, embedding: vec(1, 0), contentHash: "h2" });
 
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    expect((await svc.computeDuplicatePairs()).pairsWritten).toBe(0);
+    expect((await svc.computeDuplicatePairs(EVERY_OWNER.runScope)).pairsWritten).toBe(0);
   });
 
   test("never pairs across embedding spaces", async () => {
@@ -85,7 +89,7 @@ describe("computeDuplicatePairs", () => {
     });
 
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    expect((await svc.computeDuplicatePairs()).pairsWritten).toBe(0);
+    expect((await svc.computeDuplicatePairs(EVERY_OWNER.runScope)).pairsWritten).toBe(0);
   });
 
   test("excludes synthetic characters from pairing (esoteric #12)", async () => {
@@ -107,7 +111,7 @@ describe("computeDuplicatePairs", () => {
     });
 
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    await svc.computeDuplicatePairs();
+    await svc.computeDuplicatePairs(EVERY_OWNER.runScope);
     const rows = await db.select().from(duplicateCharacterPairs);
     const ids = rows.flatMap((r) => [r.characterIdA, r.characterIdB]);
     expect(ids).not.toContain(synth);
@@ -120,7 +124,7 @@ describe("computeDuplicatePairs", () => {
     const ids = await Promise.all([1, 2, 3].map((n) => seedCharacter(db, { id: `character_${n}`, ownerId: owner })));
     await Promise.all(ids.map((c) => seedCharacterEmbedding(db, { characterId: c, embedding: vec(1, 0), contentHash: "same" })));
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    expect((await svc.computeDuplicatePairs()).pairsWritten).toBe(0);
+    expect((await svc.computeDuplicatePairs(EVERY_OWNER.runScope)).pairsWritten).toBe(0);
   });
 
   // The SINGULAR-mode security invariant: a per-owner recompute reads + REPLACES only that owner's pairs (the
@@ -148,7 +152,7 @@ describe("computeDuplicatePairs", () => {
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
 
     // A global (bulk) recompute records BOTH owners' pairs.
-    await svc.computeDuplicatePairs();
+    await svc.computeDuplicatePairs(EVERY_OWNER.runScope);
     expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(2);
 
     // Recompute ONLY owner A (singular) — B's pair must survive.
@@ -171,7 +175,7 @@ describe("computeDuplicatePairs", () => {
       contentHash: "h2",
     });
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    await svc.computeDuplicatePairs();
+    await svc.computeDuplicatePairs(EVERY_OWNER.runScope);
     expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(1);
 
     const { characters } = await import("@orb/db");
@@ -187,7 +191,7 @@ describe("computeDuplicatePairs", () => {
     await seedCharacterEmbedding(db, { characterId: first, embedding: vec(1), contentHash: "bound-hash-0" });
     await seedCharacterEmbedding(db, { characterId: second, embedding: vec(1), contentHash: "bound-hash-1" });
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    await svc.computeDuplicatePairs();
+    await svc.computeDuplicatePairs(EVERY_OWNER.runScope);
     expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(1);
 
     // 143 representatives produce 10,153 qualifying pairs. The production ceiling is 10,000, so this
@@ -196,7 +200,7 @@ describe("computeDuplicatePairs", () => {
     const ids = await Promise.all(remaining.map((i) => seedCharacter(db, { id: `character_bound_${i}`, ownerId: owner })));
     await Promise.all(ids.map((characterId, i) => seedCharacterEmbedding(db, { characterId, embedding: vec(1), contentHash: `bound-hash-${i + 2}` })));
 
-    await expect(svc.computeDuplicatePairs()).rejects.toThrow("pair scan output limit exceeded: more than 10000 pairs");
+    await expect(svc.computeDuplicatePairs(EVERY_OWNER.runScope)).rejects.toThrow("pair scan output limit exceeded: more than 10000 pairs");
     expect(await db.select().from(duplicateCharacterPairs)).toHaveLength(1);
   });
 });
@@ -228,7 +232,7 @@ describe("computeChatDuplicatePairs", () => {
     await seedChatWithHashes(db, "chat_b", owner, ["h1", "h2", "h4"]);
 
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    const stats = await svc.computeChatDuplicatePairs();
+    const stats = await svc.computeChatDuplicatePairs(EVERY_OWNER.runScope);
     expect(stats).toMatchObject({ ownersProcessed: 1, chatsScanned: 2, pairsWritten: 1 });
 
     const rows = await db.select().from(duplicateChatPairs);
@@ -250,7 +254,7 @@ describe("computeChatDuplicatePairs", () => {
       .where(eq(chats.id, "chat_b" as ChatId));
 
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    await svc.computeChatDuplicatePairs();
+    await svc.computeChatDuplicatePairs(EVERY_OWNER.runScope);
     const rows = await db.select().from(duplicateChatPairs);
     expect(rows).toHaveLength(1);
     expect(rows[0]?.relation).toBe("forked");
@@ -268,7 +272,7 @@ describe("computeChatDuplicatePairs", () => {
     await seedChatWithHashes(db, "chat_c", other, ["h1", "h2", "h3"]);
 
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    const stats = await svc.computeChatDuplicatePairs();
+    const stats = await svc.computeChatDuplicatePairs(EVERY_OWNER.runScope);
     expect(stats.pairsWritten).toBe(0);
   });
 });

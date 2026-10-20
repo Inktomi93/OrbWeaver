@@ -26,20 +26,20 @@ describe("bulk add card tag", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const a = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     const b = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" },
     });
     const foreign = await svc.create({
-      principal: principal(other),
+      principal: await principal(db, other),
       input: { handle: castId<CharacterHandle>("c"), name: "C", description: "d" },
     });
 
     await svc.bulkAddCardTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagName: "  hero  ",
       characterIds: [a.id, b.id, foreign.id],
     });
@@ -61,16 +61,16 @@ describe("bulk add card tag", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const a = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     const foreign = await svc.create({
-      principal: principal(other),
+      principal: await principal(db, other),
       input: { handle: castId<CharacterHandle>("c"), name: "C", description: "d" },
     });
 
     await svc.bulkAddCardTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagName: "  Hero  ",
       characterIds: [a.id, foreign.id],
     });
@@ -105,10 +105,10 @@ describe("bulk add card tag", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
-    await svc.bulkAddCardTag({ principal: principal(owner), tagName: "   ", characterIds: [a.id] });
+    await svc.bulkAddCardTag({ principal: await principal(db, owner), tagName: "   ", characterIds: [a.id] });
     expect(h.tagAttaches).toEqual([]);
   });
 
@@ -117,8 +117,8 @@ describe("bulk add card tag", () => {
     const h = makeHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const base = createCharacterService(h.ctx);
-    const a = await base.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" } });
-    const b = await base.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" } });
+    const a = await base.create({ principal: await principal(db, owner), input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" } });
+    const b = await base.create({ principal: await principal(db, owner), input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" } });
     h.audits.length = 0;
     h.userEvents.length = 0;
 
@@ -132,7 +132,7 @@ describe("bulk add card tag", () => {
       attachCardTag: async (args): Promise<boolean> => (args.characterId === a.id ? await Promise.reject(new Error("the tag store is down")) : true),
     });
 
-    const result = await svc.bulkAddCardTag({ principal: principal(owner), tagName: "hero", characterIds: [a.id, b.id] });
+    const result = await svc.bulkAddCardTag({ principal: await principal(db, owner), tagName: "hero", characterIds: [a.id, b.id] });
 
     expect(result.applied).toEqual([b.id]);
     expect(result.failed).toEqual([{ id: a.id, error: { code: "unexpected", message: "the tag store is down" } }]);
@@ -146,7 +146,7 @@ describe("bulk add card tag", () => {
     const h = makeHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const base = createCharacterService(h.ctx);
-    const a = await base.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" } });
+    const a = await base.create({ principal: await principal(db, owner), input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" } });
 
     const svc = createCharacterService({
       ...h.ctx,
@@ -154,7 +154,7 @@ describe("bulk add card tag", () => {
         Promise.reject(new DomainOperationError("tag_resolve_failed", 'resolve-or-create tag "hero" found no row after a unique conflict')),
     });
 
-    const result = await svc.bulkAddCardTag({ principal: principal(owner), tagName: "hero", characterIds: [a.id] });
+    const result = await svc.bulkAddCardTag({ principal: await principal(db, owner), tagName: "hero", characterIds: [a.id] });
 
     expect(result.applied).toEqual([]);
     expect(result.failed).toEqual([

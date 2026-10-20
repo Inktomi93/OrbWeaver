@@ -33,7 +33,7 @@ describe("importCharacter — plugin-funnel provenance (#1702)", () => {
     const db = await freshDb();
     const character = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const principal = makePrincipal(owner);
+    const principal = await makePrincipal({ db }, owner);
     const importCtx = buildImportContext({
       principal,
       characterOps: createCharacterImportOps(principal, character),
@@ -60,7 +60,7 @@ describe("importCharacter — plugin-funnel provenance (#1702)", () => {
     const db = await freshDb();
     const character = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const principal = makePrincipal(owner);
+    const principal = await makePrincipal({ db }, owner);
     const importCtx = buildImportContext({
       principal,
       characterOps: createCharacterImportOps(principal, character),

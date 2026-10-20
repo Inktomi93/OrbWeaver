@@ -3,9 +3,11 @@
 // it. `listSurfaces` extends the refined registration meta, so its per-anchor refinements must still run.
 
 import { PLUGIN_TEXT_MAX_CHARS } from "@orb/contracts/plugin";
+import type { Db } from "@orb/db";
 import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { PluginService, PluginSurfaceView, PluginView } from "#server/domain/plugin/index.ts";
@@ -37,45 +39,50 @@ const VIEW: PluginView = {
 
 const SURFACE: PluginSurfaceView = { id: "clocks", anchor: "settings", title: "Clocks", tier: "static", pluginId: PLUGIN_ID };
 
-function pluginApi(services: Partial<PluginService>): ReturnType<typeof caller>["plugin"] {
-  return caller(makeContext({ auth: principal("user"), services: { plugin: services } })).plugin;
+async function pluginApi(db: Db, services: Partial<PluginService>): Promise<ReturnType<typeof caller>["plugin"]> {
+  return caller(makeContext({ auth: await principal(db, "user"), services: { plugin: services } })).plugin;
 }
 
 describe("plugin — the strict output boundary", () => {
   test("control: well-formed rows and surfaces pass through unchanged", async () => {
+    const db = await freshDb();
     const list = vi.fn<PluginService["list"]>(async () => [VIEW]);
     const listSurfaces = vi.fn<PluginService["listSurfaces"]>(async () => [
       SURFACE,
       { ...SURFACE, id: "tool", anchor: "tool-card", toolName: "tick", toolWireName: "plugin_story_clocks_tick" },
     ]);
-    const api = pluginApi({ list, listSurfaces });
+    const api = await pluginApi(db, { list, listSurfaces });
 
     await expect(api.list()).resolves.toEqual([VIEW]);
     await expect(api.listSurfaces()).resolves.toHaveLength(2);
   });
 
   test("list refuses a row carrying the bundle bytes", async () => {
+    const db = await freshDb();
     const list = vi.fn<PluginService["list"]>(async () => [{ ...VIEW, bundle: "UEsDBBQ-planted" }]);
 
-    await expect(pluginApi({ list }).list()).rejects.toThrow("Output validation failed");
+    await expect((await pluginApi(db, { list })).list()).rejects.toThrow("Output validation failed");
   });
 
   test("listSurfaces refuses a surface carrying an extra key", async () => {
+    const db = await freshDb();
     const listSurfaces = vi.fn<PluginService["listSurfaces"]>(async () => [{ ...SURFACE, ownerId: "user_planted" }]);
 
-    await expect(pluginApi({ listSurfaces }).listSurfaces()).rejects.toThrow("Output validation failed");
+    await expect((await pluginApi(db, { listSurfaces })).listSurfaces()).rejects.toThrow("Output validation failed");
   });
 
   test("listSurfaces still runs the registration refinements: a tool-card surface without its toolName is refused", async () => {
+    const db = await freshDb();
     const listSurfaces = vi.fn<PluginService["listSurfaces"]>(async () => [{ ...SURFACE, anchor: "tool-card" }]);
 
-    await expect(pluginApi({ listSurfaces }).listSurfaces()).rejects.toThrow("Output validation failed");
+    await expect((await pluginApi(db, { listSurfaces })).listSurfaces()).rejects.toThrow("Output validation failed");
   });
 });
 
 test("display text reaches only its caller at the shared cap; larger text is refused before the service", async ({ ids }) => {
+  const db = await freshDb();
   const transformForDisplay = vi.fn<PluginService["transformForDisplay"]>(async ({ text: renderedText }) => ({ text: renderedText }));
-  const api = pluginApi({ transformForDisplay });
+  const api = await pluginApi(db, { transformForDisplay });
   const chatId = castId<ChatId>(ids.next(ID_PREFIX.chat));
   const messageId = castId<MessageId>(ids.next(ID_PREFIX.message));
   const text = "x".repeat(PLUGIN_TEXT_MAX_CHARS);

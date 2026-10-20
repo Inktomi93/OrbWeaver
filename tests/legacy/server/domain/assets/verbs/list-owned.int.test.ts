@@ -27,14 +27,14 @@ describe("listOwned", () => {
     const b = await seedUser(db, { handle: castId<Handle>("b") });
 
     const aStored = await svc.store({
-      principal: principal(a),
+      principal: await principal(db, a),
       bytes: pngBytes(1),
       kind: "avatar",
       mime: PNG,
     });
-    await svc.store({ principal: principal(b), bytes: pngBytes(2), kind: "avatar", mime: PNG });
+    await svc.store({ principal: await principal(db, b), bytes: pngBytes(2), kind: "avatar", mime: PNG });
 
-    const aList = await svc.listOwned({ principal: principal(a), limit: ALL });
+    const aList = await svc.listOwned({ principal: await principal(db, a), limit: ALL });
     expect(aList.map((r) => r.assetId)).toEqual([aStored.assetId]);
   });
 
@@ -46,26 +46,26 @@ describe("listOwned", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const avatar = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1),
       kind: "avatar",
       mime: PNG,
     });
     const card = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(2),
       kind: "card",
       mime: PNG,
     });
 
     const avatarsOnly = await svc.listOwned({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       kind: "avatar",
       limit: ALL,
     });
     expect(avatarsOnly.map((r) => r.assetId)).toEqual([avatar.assetId]);
 
-    const all = await svc.listOwned({ principal: principal(owner), limit: ALL });
+    const all = await svc.listOwned({ principal: await principal(db, owner), limit: ALL });
     expect(new Set(all.map((r) => r.assetId))).toEqual(new Set([avatar.assetId, card.assetId]));
   });
 
@@ -77,19 +77,19 @@ describe("listOwned", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const gif = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: gifBytes(1),
       kind: "gallery",
       mime: "image/gif",
     });
     const png = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1),
       kind: "gallery",
       mime: PNG,
     });
 
-    const list = await svc.listOwned({ principal: principal(owner), limit: ALL });
+    const list = await svc.listOwned({ principal: await principal(db, owner), limit: ALL });
     const byId = new Map(list.map((r) => [r.assetId, r.animated]));
     expect(byId.get(gif.assetId)).toBe(true); // every GIF ⇒ animated
     expect(byId.get(png.assetId)).toBe(false); // a static PNG ⇒ not
@@ -107,7 +107,7 @@ describe("listOwned", () => {
     const stored: StoredAsset[] = [];
     for (let i = 0; i < 5; i++) {
       const s = await svc.store({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         bytes: pngBytes(i),
         kind: "avatar",
         mime: PNG,
@@ -117,16 +117,16 @@ describe("listOwned", () => {
     const expectedIds = new Set(stored.map((s) => s.assetId));
 
     // Walk pages of 2 via the (uploadedAt, id) cursor from each page's last row.
-    const p1 = await svc.listOwned({ principal: principal(owner), limit: PAGE });
+    const p1 = await svc.listOwned({ principal: await principal(db, owner), limit: PAGE });
     const c1 = row(p1, 1);
     const p2 = await svc.listOwned({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       limit: PAGE,
       cursor: { uploadedAt: c1.uploadedAt, assetId: c1.assetId },
     });
     const c2 = row(p2, 1);
     const p3 = await svc.listOwned({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       limit: PAGE,
       cursor: { uploadedAt: c2.uploadedAt, assetId: c2.assetId },
     });
@@ -151,14 +151,14 @@ describe("listOwned — galleryCandidatesFor", () => {
     const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const other = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("other") });
 
-    const inHero = await svc.store({ principal: principal(owner), bytes: pngBytes(1), kind: "gallery", mime: PNG });
-    const inOther = await svc.store({ principal: principal(owner), bytes: pngBytes(2), kind: "gallery", mime: PNG });
-    const loose = await svc.store({ principal: principal(owner), bytes: gifBytes(3), kind: "avatar", mime: "image/gif" });
-    const notImage = await svc.store({ principal: principal(owner), bytes: new TextEncoder().encode("notes"), kind: "document", mime: "text/plain" });
-    await svc.addToGallery({ principal: principal(owner), assetId: inHero.assetId, subjectCharacterId: hero });
-    await svc.addToGallery({ principal: principal(owner), assetId: inOther.assetId, subjectCharacterId: other });
+    const inHero = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(1), kind: "gallery", mime: PNG });
+    const inOther = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(2), kind: "gallery", mime: PNG });
+    const loose = await svc.store({ principal: await principal(db, owner), bytes: gifBytes(3), kind: "avatar", mime: "image/gif" });
+    const notImage = await svc.store({ principal: await principal(db, owner), bytes: new TextEncoder().encode("notes"), kind: "document", mime: "text/plain" });
+    await svc.addToGallery({ principal: await principal(db, owner), assetId: inHero.assetId, subjectCharacterId: hero });
+    await svc.addToGallery({ principal: await principal(db, owner), assetId: inOther.assetId, subjectCharacterId: other });
 
-    const candidates = await svc.listOwned({ principal: principal(owner), limit: ALL, galleryCandidatesFor: hero });
+    const candidates = await svc.listOwned({ principal: await principal(db, owner), limit: ALL, galleryCandidatesFor: hero });
     expect(new Set(candidates.map((r) => r.assetId))).toEqual(new Set([inOther.assetId, loose.assetId]));
     expect(candidates.map((r) => r.assetId)).not.toContain(notImage.assetId);
   });
@@ -171,10 +171,10 @@ describe("listOwned — galleryCandidatesFor", () => {
     const a = await seedUser(db, { handle: castId<Handle>("a") });
     const b = await seedUser(db, { handle: castId<Handle>("b") });
     const bHero = await seedCharacter(db, b, { handle: castId<CharacterHandle>("bhero") });
-    const aImage = await svc.store({ principal: principal(a), bytes: pngBytes(1), kind: "gallery", mime: PNG });
-    await svc.store({ principal: principal(b), bytes: pngBytes(2), kind: "gallery", mime: PNG });
+    const aImage = await svc.store({ principal: await principal(db, a), bytes: pngBytes(1), kind: "gallery", mime: PNG });
+    await svc.store({ principal: await principal(db, b), bytes: pngBytes(2), kind: "gallery", mime: PNG });
 
-    const aView = await svc.listOwned({ principal: principal(a), limit: ALL, galleryCandidatesFor: bHero });
+    const aView = await svc.listOwned({ principal: await principal(db, a), limit: ALL, galleryCandidatesFor: bHero });
     expect(aView.map((r) => r.assetId)).toEqual([aImage.assetId]);
   });
 
@@ -188,19 +188,19 @@ describe("listOwned — galleryCandidatesFor", () => {
     const candidates: StoredAsset[] = [];
     for (let i = 0; i < 5; i++) {
       h.advance(1);
-      const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(i), kind: "gallery", mime: PNG });
+      const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(i), kind: "gallery", mime: PNG });
       // Every other image is already in the gallery: a client-side filter would leave short, uneven pages.
       if (i % 2 === 0) {
         candidates.push(stored);
       } else {
-        await svc.addToGallery({ principal: principal(owner), assetId: stored.assetId, subjectCharacterId: hero });
+        await svc.addToGallery({ principal: await principal(db, owner), assetId: stored.assetId, subjectCharacterId: hero });
       }
     }
 
-    const p1 = await svc.listOwned({ principal: principal(owner), limit: PAGE, galleryCandidatesFor: hero });
+    const p1 = await svc.listOwned({ principal: await principal(db, owner), limit: PAGE, galleryCandidatesFor: hero });
     const c1 = row(p1, 1);
     const p2 = await svc.listOwned({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       limit: PAGE,
       galleryCandidatesFor: hero,
       cursor: { uploadedAt: c1.uploadedAt, assetId: c1.assetId },

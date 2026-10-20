@@ -96,7 +96,7 @@ async function seedCase(c: Case, seat: CallerSeat): Promise<Seeded> {
   onTestFinished(h.cleanup);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const caller = await seedUser(db, { handle: castId<Handle>("caller") });
-  const asset = await createAssetsService(h.ctx).store({ principal: principal(owner), bytes: pngBytes(1, 2, 3), kind: "avatar", mime: PNG });
+  const asset = await createAssetsService(h.ctx).store({ principal: await principal(db, owner), bytes: pngBytes(1, 2, 3), kind: "avatar", mime: PNG });
   const chat = await seedChatRow(db, "chat_shared");
   await c.link(db, chat, owner, asset.assetId);
   if (seat?.room === "shared") {
@@ -205,8 +205,8 @@ describe("the owner side of every arm", () => {
     const personaOwner = await seedUser(db, { handle: castId<Handle>("persona_owner") });
     const caller = await seedUser(db, { handle: castId<Handle>("caller") });
     const assets = createAssetsService(h.ctx);
-    const characterArt = await assets.store({ principal: principal(characterOwner), bytes: pngBytes(1, 2, 3), kind: "avatar", mime: PNG });
-    const personaArt = await assets.store({ principal: principal(personaOwner), bytes: pngBytes(1, 2, 3), kind: "avatar", mime: PNG });
+    const characterArt = await assets.store({ principal: await principal(db, characterOwner), bytes: pngBytes(1, 2, 3), kind: "avatar", mime: PNG });
+    const personaArt = await assets.store({ principal: await principal(db, personaOwner), bytes: pngBytes(1, 2, 3), kind: "avatar", mime: PNG });
     expect(personaArt.hash).toBe(characterArt.hash);
     const chat = await seedChatRow(db, "chat_shared");
     const character = await seedCharacter(db, characterOwner, { handle: castId<CharacterHandle>("hero") });

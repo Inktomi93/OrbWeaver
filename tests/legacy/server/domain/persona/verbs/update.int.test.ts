@@ -23,13 +23,13 @@ describe("update", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Old", description: "d", avatarAssetId: avatar },
     });
 
     h.advance(ONE_MINUTE);
     const updated = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       personaId: created.id,
       input: { name: "New", avatarAssetId: null },
     });
@@ -50,11 +50,11 @@ describe("update", () => {
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const created = await svc.create({ principal: principal(owner), input: { name: "Old", description: "d" } });
+    const created = await svc.create({ principal: await principal(db, owner), input: { name: "Old", description: "d" } });
     h.userEvents.length = 0;
     h.domainEvents.length = 0;
 
-    await svc.update({ principal: principal(owner), personaId: created.id, input: { name: "New" } });
+    await svc.update({ principal: await principal(db, owner), personaId: created.id, input: { name: "New" } });
 
     expect(h.userEvents).toEqual([{ userId: owner, event: { type: "personasChanged", personaId: created.id } }]);
     expect(h.domainEvents).toEqual([{ type: "persona.updated", personaId: created.id }]);
@@ -65,10 +65,10 @@ describe("update", () => {
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const created = await svc.create({ principal: principal(owner), input: { name: "Same", description: "d" } });
+    const created = await svc.create({ principal: await principal(db, owner), input: { name: "Same", description: "d" } });
     h.domainEvents.length = 0;
 
-    await svc.update({ principal: principal(owner), personaId: created.id, input: {} });
+    await svc.update({ principal: await principal(db, owner), personaId: created.id, input: {} });
 
     expect(h.domainEvents).toEqual([]);
   });
@@ -79,13 +79,13 @@ describe("update", () => {
     const svc = createPersonaService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Same", description: "d" },
     });
     h.advance(ONE_MINUTE);
 
     const result = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       personaId: created.id,
       input: {},
     });
@@ -101,10 +101,10 @@ describe("update", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Mine", description: "d" },
     });
-    await expect(svc.update({ principal: principal(other), personaId: created.id, input: { name: "Hijack" } })).rejects.toThrow(PersonaNotFoundError);
+    await expect(svc.update({ principal: await principal(db, other), personaId: created.id, input: { name: "Hijack" } })).rejects.toThrow(PersonaNotFoundError);
     const rows = await db.select().from(personas).where(eq(personas.id, created.id));
     expect(rows[0]?.name).toBe("Mine");
   });
@@ -115,7 +115,7 @@ describe("update", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await expect(
       svc.update({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         personaId: castId<PersonaId>("persona_ghost"),
         input: { name: "x" },
       }),
@@ -127,12 +127,12 @@ describe("update", () => {
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Wren", title: "Old Title", description: "d" },
     });
 
     const starred = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       personaId: created.id,
       input: { starred: true, title: "New Title" },
     });
@@ -140,7 +140,7 @@ describe("update", () => {
     expect(starred.title).toBe("New Title");
 
     const cleared = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       personaId: created.id,
       input: { title: null },
     });
@@ -155,13 +155,13 @@ describe("update", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await seedAsset(db, { id: "asset_foreign", ownerId: other });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Mine", description: "d" },
     });
 
     await expect(
       svc.update({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         personaId: created.id,
         input: { avatarAssetId: foreign },
       }),

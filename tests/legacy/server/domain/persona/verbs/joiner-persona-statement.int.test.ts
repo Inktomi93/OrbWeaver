@@ -7,6 +7,7 @@ import { personas, users } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import type { PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -48,7 +49,7 @@ describe("verbs/joiner-persona-statement — createJoinerPersonaStatement", () =
     const { personaId, statement } = op({ ownerId: owner, persona: { name: "Mira", description: "" }, at: AT });
 
     expect(personaId).toBe(MINTED[0]);
-    await db.batch(batchMany([ownerTouch(), statement]));
+    await db.batch(batchMany([ownerTouch(), statementForOwner(statement)]));
     const rows = await db.select({ id: personas.id, ownerId: personas.ownerId, name: personas.name }).from(personas).where(eq(personas.ownerId, owner));
     expect(rows).toEqual([{ id: personaId, ownerId: owner, name: "Mira" }]);
   });

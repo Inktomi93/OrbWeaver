@@ -27,6 +27,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Tape } from "@orb/testkit/node/chat/tape.ts";
 import { scriptedRunner } from "@orb/testkit/node/chat/tape.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { onTestFinished } from "vitest";
 import { createActiveTurns } from "#server/domain/chat/active-turns.ts";
 import type { ActiveTurns, OwnedActiveTurns } from "#server/domain/chat/contract/active-turns.ts";
@@ -161,15 +162,15 @@ export interface ChatScenario {
   readonly requestTurn: RequestTurnOp;
   readonly activeTurns: ActiveTurns;
   /** A `Principal` for a seeded user (default the host) — for member/stranger arms. */
-  readonly principal: (userId?: UserId) => Principal;
+  readonly principal: (userId?: UserId) => Promise<Principal>;
   /** Convenience: `turn.send` as the host by default (the single-turn proof shape). */
   readonly send: (content: string, options?: SendOptions) => Promise<TurnOutcome>;
   /** The persisted canon, re-read from the real db (never the in-memory return value). */
   readonly loadCanon: () => Promise<readonly MessageView[]>;
 }
 
-function principalOf(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+async function principalOf(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId);
 }
 
 /** Seed a host + a `policy`/`output` room with N characters; returns the ids + the name map. */
@@ -301,10 +302,10 @@ async function buildChatScenario(script: Tape, options: ChatScenarioOptions): Pr
     turn,
     requestTurn: createRequestTurn(ctx, turnDeps),
     activeTurns: turnDeps.activeTurns,
-    principal: (userId = host) => principalOf(userId),
-    send: (content, sendOptions = {}) =>
+    principal: async (userId = host) => await principalOf(db, userId),
+    send: async (content, sendOptions = {}) =>
       turn.send({
-        principal: sendOptions.principal ?? principalOf(host),
+        principal: sendOptions.principal ?? (await principalOf(db, host)),
         chatId,
         content,
         ...(sendOptions.personaId !== undefined ? { personaId: sendOptions.personaId } : {}),

@@ -8,6 +8,7 @@ import type { Db } from "@orb/db";
 import { chatEvents, chatHandoffResumptions, chats } from "@orb/db";
 import { batchMany, batchStmt, isConstraintViolation } from "@orb/db/query";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { ChatEventId, ChatId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
@@ -32,7 +33,7 @@ describe("createChatBus.emit — durable-first + the replay ring", () => {
     const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db) });
     const prepared = bus.prepareCreation({ type: "chatCreated", chatId });
 
-    await db.batch(batchMany([batchStmt(db.insert(chats).values({ id: chatId })), prepared.statement]));
+    await db.batch(batchMany([batchStmt(db.insert(chats).values({ id: chatId })), statementForOwner(prepared.statement)]));
     expect(bus.readRing(chatId)).toEqual([]);
     expect((await db.select().from(chatEvents).where(eq(chatEvents.chatId, chatId))).map((row) => [row.seq, row.type])).toEqual([[1, "chatCreated"]]);
 
@@ -349,7 +350,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
       actorRekeys: [],
       createdAt: FROZEN_AT_MS,
     });
-    const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
+    const claim = statementToken(batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId))));
 
     await expect(bus.emitAfterClaim({ type: "chatUpdated", chatId }, claim)).resolves.toBeNull();
 
@@ -378,7 +379,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
       actorRekeys: [],
       createdAt: FROZEN_AT_MS,
     });
-    const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
+    const claim = statementToken(batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId))));
     const errorSpy = vi.spyOn(getLog(), "error").mockImplementation(() => undefined);
     const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(afterCommitBatchDb(db)) });
 
@@ -405,7 +406,7 @@ describe("createChatBus.emit — a failed durable append never rejects (the proc
       actorRekeys: [],
       createdAt: FROZEN_AT_MS,
     });
-    const claim = batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId)));
+    const claim = statementToken(batchStmt(db.delete(chatHandoffResumptions).where(eq(chatHandoffResumptions.chatId, chatId))));
     const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db) });
 
     const first = await bus.emitAfterClaim({ type: "chatUpdated", chatId }, claim);

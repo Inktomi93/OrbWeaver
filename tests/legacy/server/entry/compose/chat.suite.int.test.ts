@@ -54,8 +54,8 @@ test("a fresh paid turn after no-copy handoff and its signed inverse retain ever
 }) => {
   const a = await seedUser(db, { handle: castId("departing_owner") });
   const b = await seedUser(db, { handle: castId("incoming_owner") });
-  const pa = principal(a.id, { handle: a.handle });
-  const pb = principal(b.id, { handle: b.handle });
+  const pa = await principal({ db }, a.id, { handle: a.handle });
+  const pb = await principal({ db }, b.id, { handle: b.handle });
   const chatId = await seedChat(db, "fresh_cohort", { id: mintTypeId(ID_PREFIX.chat) });
   const oldVoice = await seedCharacter(db, a.id, "Old Voice", { id: mintTypeId(ID_PREFIX.character) });
   const newVoice = await seedCharacter(db, b.id, "New Voice", { id: mintTypeId(ID_PREFIX.character) });

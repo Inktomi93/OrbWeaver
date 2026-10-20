@@ -14,11 +14,17 @@ describe("listTagsWithUsage", () => {
     const svc = createTagService(makeTagHarness(db).ctx);
     const characterId = await seedCharacter(db, owner);
     const tagId = await seedTag(db, owner);
-    await svc.attachTag({ principal: principal(owner), tagId, targetType: "character", targetId: characterId, status: "pending" });
-    expect((await svc.listTagsWithUsage({ principal: principal(owner) }))[0]).toMatchObject({ usage: { characters: 0, total: 0 }, pendingSuggestions: 1 });
-    expect(await svc.pruneUnusedTags({ principal: principal(owner) })).toEqual({ removed: 0 });
-    await svc.attachTag({ principal: principal(owner), tagId, targetType: "character", targetId: characterId, status: "accepted" });
-    expect((await svc.listTagsWithUsage({ principal: principal(owner) }))[0]).toMatchObject({ usage: { characters: 1, total: 1 }, pendingSuggestions: 0 });
+    await svc.attachTag({ principal: await principal(db, owner), tagId, targetType: "character", targetId: characterId, status: "pending" });
+    expect((await svc.listTagsWithUsage({ principal: await principal(db, owner) }))[0]).toMatchObject({
+      usage: { characters: 0, total: 0 },
+      pendingSuggestions: 1,
+    });
+    expect(await svc.pruneUnusedTags({ principal: await principal(db, owner) })).toEqual({ removed: 0 });
+    await svc.attachTag({ principal: await principal(db, owner), tagId, targetType: "character", targetId: characterId, status: "accepted" });
+    expect((await svc.listTagsWithUsage({ principal: await principal(db, owner) }))[0]).toMatchObject({
+      usage: { characters: 1, total: 1 },
+      pendingSuggestions: 0,
+    });
   });
 
   test("a seed tag with only a pending row is not unused, and prune leaves it", async () => {
@@ -27,10 +33,10 @@ describe("listTagsWithUsage", () => {
     const svc = createTagService(makeTagHarness(db).ctx);
     const characterId = await seedCharacter(db, owner);
     const seedId = await seedTag(db, owner, { id: "tag_seed", name: "default" });
-    await svc.attachTag({ principal: principal(owner), tagId: seedId, targetType: "character", targetId: characterId, status: "pending" });
-    expect((await svc.listTagsWithUsage({ principal: principal(owner) })).find((t) => t.id === seedId)).toMatchObject({ pendingSuggestions: 1 });
-    expect(await svc.pruneUnusedTags({ principal: principal(owner) })).toEqual({ removed: 0 });
-    expect((await svc.listTagsWithUsage({ principal: principal(owner) })).some((t) => t.id === seedId)).toBe(true);
+    await svc.attachTag({ principal: await principal(db, owner), tagId: seedId, targetType: "character", targetId: characterId, status: "pending" });
+    expect((await svc.listTagsWithUsage({ principal: await principal(db, owner) })).find((t) => t.id === seedId)).toMatchObject({ pendingSuggestions: 1 });
+    expect(await svc.pruneUnusedTags({ principal: await principal(db, owner) })).toEqual({ removed: 0 });
+    expect((await svc.listTagsWithUsage({ principal: await principal(db, owner) })).some((t) => t.id === seedId)).toBe(true);
   });
 
   test("rolls up per-junction counts and the total", async () => {
@@ -42,19 +48,19 @@ describe("listTagsWithUsage", () => {
     const personaId = await seedPersona(db, owner);
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
     await svc.attachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       targetType: "character",
       targetId: characterId,
     });
     await svc.attachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       targetType: "persona",
       targetId: personaId,
     });
 
-    const rollup = await svc.listTagsWithUsage({ principal: principal(owner) });
+    const rollup = await svc.listTagsWithUsage({ principal: await principal(db, owner) });
     const row = rollup.find((t) => t.id === tagId);
     expect(row?.usage).toMatchObject({ characters: 1, personas: 1, chats: 0, total: 2 });
   });

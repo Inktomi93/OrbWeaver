@@ -1,5 +1,5 @@
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import "@orb/testkit/node/composed-real.ts";
-import type { Principal } from "@orb/contracts/identity";
 import { IMAGE_DETAILS, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { chatParticipants, connectionBindings, messages, messageVariants, userConnections } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
@@ -50,9 +50,8 @@ test("member quality and historical attachment refusals use the actual room-scop
   const turns = (): RecordedRequest[] => requests.filter((request) => request.url === CHAT_COMPLETIONS_URL);
   const host = await seedUser(db, { id: newId<UserId>(), handle: castId("qualityhost") });
   const member = await seedUser(db, { id: newId<UserId>(), handle: castId("qualitymember") });
-  const principal = (user: typeof host): Principal => ({ userId: user.id, handle: user.handle, role: user.role, externalId: null, via: "header" });
-  const hostPrincipal = principal(host);
-  const memberPrincipal = principal(member);
+  const hostPrincipal = await makePrincipal({ db }, host.id);
+  const memberPrincipal = await makePrincipal({ db }, member.id);
   await services.settings.updateUserSettingsSection({
     principal: hostPrincipal,
     input: { section: "chat", patch: { attachmentQuality: { imageDetail: "high", videoMaxResolution: "original" } } },
@@ -147,8 +146,20 @@ test("member quality and historical attachment refusals use the actual room-scop
           joinSeq: 0,
         },
       ]);
-      const departedAsset = await services.assets.store({ principal: principal(departed), kind: "attachment", mime: "image/png", bytes, enforceMagic: true });
-      const foreignAsset = await services.assets.store({ principal: principal(foreign), kind: "attachment", mime: "image/png", bytes, enforceMagic: true });
+      const departedAsset = await services.assets.store({
+        principal: await makePrincipal({ db }, departed.id),
+        kind: "attachment",
+        mime: "image/png",
+        bytes,
+        enforceMagic: true,
+      });
+      const foreignAsset = await services.assets.store({
+        principal: await makePrincipal({ db }, foreign.id),
+        kind: "attachment",
+        mime: "image/png",
+        bytes,
+        enforceMagic: true,
+      });
       const goneAssetId = mintTypeId(ID_PREFIX.asset);
       const [slot] = await db
         .select({ selectedVariantId: messages.selectedVariantId })

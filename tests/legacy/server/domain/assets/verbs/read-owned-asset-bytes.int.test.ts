@@ -23,8 +23,8 @@ describe("readOwnedAssetBytes", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(9, 8, 7, 6);
 
-    const stored = await svc.store({ principal: principal(owner), bytes, kind: "generated", mime: PNG });
-    const read = await svc.readOwnedAssetBytes(principal(owner), stored.assetId);
+    const stored = await svc.store({ principal: await principal(db, owner), bytes, kind: "generated", mime: PNG });
+    const read = await svc.readOwnedAssetBytes(await principal(db, owner), stored.assetId);
 
     expect(Array.from(read.bytes)).toEqual(Array.from(bytes));
     expect(read.mime).toBe(PNG);
@@ -38,9 +38,9 @@ describe("readOwnedAssetBytes", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
 
-    const stored = await svc.store({ principal: principal(owner), bytes: pngBytes(1, 2, 3, 4), kind: "generated", mime: PNG });
+    const stored = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(1, 2, 3, 4), kind: "generated", mime: PNG });
 
-    await expect(svc.readOwnedAssetBytes(principal(stranger), stored.assetId)).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(svc.readOwnedAssetBytes(await principal(db, stranger), stored.assetId)).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 
   test("a missing asset id collapses to AssetNotFoundError", async () => {
@@ -49,6 +49,6 @@ describe("readOwnedAssetBytes", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await expect(svc.readOwnedAssetBytes(principal(owner), castId<AssetId>("asset_ghost"))).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(svc.readOwnedAssetBytes(await principal(db, owner), castId<AssetId>("asset_ghost"))).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 });

@@ -6,6 +6,7 @@ import type { Capability, GenerationCapability } from "@orb/contracts/inference"
 import { GENERATION_FLOOR, requireGenerationCapability, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, NoConnectionError } from "@orb/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { openRouterCatalogFetch } from "../_openrouter-catalog.ts";
@@ -13,6 +14,7 @@ import { FROZEN_NOW, fakeApiKeySecret, fakeConnection, fakeDeps, memoryStores, n
 import { localServerFetch } from "../catalog/_local-servers-fetch.ts";
 
 test("structured resolves through the actor's summarize binding before the funder's summarize binding", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const actorRow = fakeConnection({ ownerId, providerId: "custom-openai", model: "actor-model", baseUrl: "http://actor.test/v1", allowBackground: true });
@@ -24,13 +26,14 @@ test("structured resolves through the actor's summarize binding before the funde
   stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "summarize", connectionId: ownerRow.id });
   const runtime = await createInferenceRuntime(fakeDeps({ stores }));
 
-  const resolved = await runtime.resolve({ task: "structured", principal: principal(ownerId), actor: { kind: "automation-rule", ruleId } });
+  const resolved = await runtime.resolve({ task: "structured", principal: await principal({ db }, ownerId), actor: { kind: "automation-rule", ruleId } });
   expect(resolved.resolved.connectionId).toBe(actorRow.id);
   expect(resolved.resolved.model).toBe("actor-model");
   expect(resolved.resolved.task).toBe("structured");
 });
 
 test("an explicit owned connection bypasses the binding and carries its declared embedding capability", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const bound = fakeConnection({ ownerId, providerId: "local-light", model: DEFAULT_EMBED_MODEL, allowBackground: true });
@@ -46,23 +49,25 @@ test("an explicit owned connection bypasses the binding and carries its declared
   stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "embed", connectionId: bound.id });
   const runtime = await createInferenceRuntime(fakeDeps({ stores }));
 
-  const outcome = await runtime.resolve({ task: "embed", principal: principal(ownerId), connectionId: explicit.id });
+  const outcome = await runtime.resolve({ task: "embed", principal: await principal({ db }, ownerId), connectionId: explicit.id });
   expect(outcome.resolved.connectionId).toBe(explicit.id);
   expect(outcome.resolved.model).toBe("acme/other-encoder");
   expect(outcome.resolved.capability).toMatchObject({ kind: "embedding", embedding: { dims: 1024, dtype: "q8", input: ["text"] } });
 });
 
 test("a connection whose provider is absent refuses as no-connection", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "plugin:gone/relay", model: "model", allowBackground: true });
   stores.connections.rows.set(row.id, row);
   stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "chat", connectionId: row.id });
   const runtime = await createInferenceRuntime(fakeDeps({ stores }));
-  await expect(runtime.resolve({ task: "chat", principal: principal(ownerId) })).rejects.toBeInstanceOf(NoConnectionError);
+  await expect(runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId) })).rejects.toBeInstanceOf(NoConnectionError);
 });
 
 test("the row's prompt-cache settings ride the resolve, and a row that stored none resolves to the shipped behavior", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const settings = { enabled: true, cacheSystem: false, historyDepth: 4, ttl: "5m" } as const;
@@ -72,8 +77,10 @@ test("the row's prompt-cache settings ride the resolve, and a row that stored no
   stores.connections.rows.set(unset.id, unset);
   const runtime = await createInferenceRuntime(fakeDeps({ stores }));
 
-  expect((await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: set.id })).resolved.promptCache).toEqual(settings);
-  expect((await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: unset.id })).resolved.promptCache).toEqual(SHIPPED_PROMPT_CACHE);
+  expect((await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: set.id })).resolved.promptCache).toEqual(settings);
+  expect((await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: unset.id })).resolved.promptCache).toEqual(
+    SHIPPED_PROMPT_CACHE,
+  );
 });
 
 // ── #2575: capability facts must survive the OpenRouter route ────────────────────────────────────────────
@@ -81,13 +88,14 @@ test("the row's prompt-cache settings ride the resolve, and a row that stored no
 // so the advertised tier, the curated rows and the family floor fold exactly as they do in production.
 
 async function openRouterCapability(model: string): Promise<unknown> {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "openrouter", model, allowBackground: true });
   stores.connections.rows.set(row.id, row);
   stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "chat", connectionId: row.id });
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: openRouterCatalogFetch() }));
-  const outcome = await runtime.resolve({ task: "chat", principal: principal(ownerId) });
+  const outcome = await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId) });
   return outcome.resolved.capability;
 }
 
@@ -136,12 +144,13 @@ function idOnlyModelList(): typeof fetch {
 }
 
 async function directGeneration(route: { readonly providerId: string; readonly baseUrl: string | null }, model: string): Promise<GenerationCapability> {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: route.providerId, model, baseUrl: route.baseUrl });
   stores.connections.rows.set(row.id, row);
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: idOnlyModelList() }));
-  const { capability } = (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved;
+  const { capability } = (await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id })).resolved;
   if (capability.kind !== "generation") {
     throw new Error(`${model} resolved a ${capability.kind} capability`);
   }
@@ -316,6 +325,7 @@ test("a models/gemini id on the direct route resolves to the Google family facts
 });
 
 test("Gemini explicit caching defaults off and a saved opt-in survives the real resolve", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const unset = fakeConnection({ ownerId, providerId: "openrouter", model: "google/gemini-3.1-pro-preview" });
@@ -323,8 +333,8 @@ test("Gemini explicit caching defaults off and a saved opt-in survives the real 
   stores.connections.rows.set(unset.id, unset);
   stores.connections.rows.set(optedIn.id, optedIn);
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: openRouterCatalogFetch() }));
-  const implicit = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: unset.id });
-  const explicit = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: optedIn.id });
+  const implicit = await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: unset.id });
+  const explicit = await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: optedIn.id });
   expect(implicit.resolved.promptCache).toMatchObject({ enabled: false, ttl: "5m" });
   expect(implicit.resolved.capability).toMatchObject({ generation: { turns: { fixedCacheTtl: "5m", assistantPrefill: true } } });
   expect(explicit.resolved.promptCache.enabled).toBe(true);
@@ -335,12 +345,13 @@ test("Gemini explicit caching defaults off and a saved opt-in survives the real 
 // so the kind, the modalities and the tools fold exactly as they do against a live box.
 
 async function ollamaResolved(model: string, task: "chat" | "embed"): Promise<Capability> {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "ollama", model, baseUrl: "http://127.0.0.1:1/v1", allowBackground: true });
   stores.connections.rows.set(row.id, row);
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: localServerFetch("ollama") }));
-  return (await runtime.resolve({ task, principal: principal(ownerId), connectionId: row.id })).resolved.capability;
+  return (await runtime.resolve({ task, principal: await principal({ db }, ownerId), connectionId: row.id })).resolved.capability;
 }
 
 test("an Ollama tool model folds tools and text-only input from `/api/show`, and the posture keeps the stated list", async () => {
@@ -368,12 +379,13 @@ test("an Ollama embedder resolves as an embedder from `/api/show` alone, with th
 
 // PLANTED CONTROL: a server that states no modalities still gets the permissive posture (D143(c) as amended).
 test("an id-only list states no modalities, so the posture still widens the row with modalitiesEstimated", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "custom-openai", model: "listed-model", baseUrl: "http://silent.test/v1" });
   stores.connections.rows.set(row.id, row);
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: idOnlyModelList() }));
-  const { capability } = (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved;
+  const { capability } = (await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id })).resolved;
   expect(requireGenerationCapability(capability)).toMatchObject({ input: ["text", "image", "video"], modalitiesEstimated: true });
 });
 
@@ -386,6 +398,7 @@ test("an id-only list states no modalities, so the posture still widens the row 
 const LIST_ONLY = { features: { detectServer: false } };
 
 async function sharedServer(order: readonly ("ollama" | "custom-openai")[]): Promise<Record<string, GenerationCapability>> {
+  const db = await freshDb();
   const stores = memoryStores();
   const rows = order.map((providerId) => {
     const ownerId = newUserId();
@@ -406,7 +419,7 @@ async function sharedServer(order: readonly ("ollama" | "custom-openai")[]): Pro
   const out: Record<string, GenerationCapability> = {};
   for (const { providerId, ownerId, row } of rows) {
     out[providerId] = requireGenerationCapability(
-      (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved.capability,
+      (await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id })).resolved.capability,
     );
   }
   expect([...stores.snapshotStore.entries.keys()].filter((key) => key.startsWith("catalog:endpoint:")).sort()).toEqual(
@@ -431,6 +444,7 @@ for (const order of [
 }
 
 test("a snapshot written under the old URL-only key carries no native facts and is never read again", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "ollama", model: "qwen2.5:0.5b", baseUrl: "http://127.0.0.1:1/v1" });
@@ -443,7 +457,7 @@ test("a snapshot written under the old URL-only key carries no native facts and 
   const seen: string[] = [];
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: localServerFetch("ollama", {}, seen) }));
   const capability = requireGenerationCapability(
-    (await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id })).resolved.capability,
+    (await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id })).resolved.capability,
   );
   expect(
     seen.some((url) => url.endsWith("/api/show")),
@@ -465,31 +479,33 @@ function showDials(seen: readonly string[]): number {
 }
 
 test("a catalog refresh in one runtime drops the persisted snapshot, so a later runtime on the same store dials the server", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "ollama", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
   stores.connections.rows.set(row.id, row);
   const seenA: string[] = [];
   const runtimeA = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seenA) }));
-  await runtimeA.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  await runtimeA.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id });
   expect(showDials(seenA)).toBeGreaterThan(0);
   expect([...stores.snapshotStore.entries.keys()]).toContain("catalog:endpoint:http://127.0.0.1:1/v1#ollama");
 
   // PLANTED CONTROL: a fresh runtime on the same store answers from the snapshot with zero dials.
   const seenB: string[] = [];
   const runtimeB = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seenB) }));
-  await runtimeB.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  await runtimeB.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id });
   expect(showDials(seenB)).toBe(0);
 
   await runtimeB.catalogs.refresh("ollama");
   expect([...stores.snapshotStore.entries.keys()].filter((key) => key.startsWith("catalog:endpoint:"))).toEqual([]);
   const seenC: string[] = [];
   const runtimeC = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seenC) }));
-  await runtimeC.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  await runtimeC.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id });
   expect(showDials(seenC)).toBeGreaterThan(0);
 });
 
 test("invalidateEndpoint forgets ONE connection's (URL × reader) mirror in memory and in the store, and leaves a sibling reader's", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const ollama = fakeConnection({ ownerId, providerId: "ollama", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
@@ -498,23 +514,24 @@ test("invalidateEndpoint forgets ONE connection's (URL × reader) mirror in memo
   stores.connections.rows.set(custom.id, custom);
   const seen: string[] = [];
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seen) }));
-  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: ollama.id });
-  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: custom.id });
+  await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: ollama.id });
+  await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: custom.id });
   const listDials = seen.filter((url) => url.endsWith("/v1/models")).length;
   const before = showDials(seen);
-  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: ollama.id });
+  await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: ollama.id });
   expect(showDials(seen), "a warm mirror answers without a dial").toBe(before);
 
   await runtime.catalogs.invalidateEndpoint(ollama);
   expect(stores.snapshotStore.entries.has("catalog:endpoint:http://127.0.0.1:1/v1#ollama")).toBe(false);
   expect(stores.snapshotStore.entries.has("catalog:endpoint:http://127.0.0.1:1/v1#list"), "the sibling reader's row stays").toBe(true);
-  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: ollama.id });
+  await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: ollama.id });
   expect(showDials(seen), "the forgotten mirror dials again").toBeGreaterThan(before);
-  await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: custom.id });
+  await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: custom.id });
   expect(seen.filter((url) => url.endsWith("/v1/models")).length - listDials, "the sibling's mirror was not touched: only the ollama re-warm listed").toBe(1);
 });
 
 test("two credentials on one authenticated gateway keep their own model lists, and one save forgets only its own", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const credA = mintTypeId(ID_PREFIX.userCredential);
   const credB = mintTypeId(ID_PREFIX.userCredential);
@@ -531,8 +548,8 @@ test("two credentials on one authenticated gateway keep their own model lists, a
   ]);
   const runtime = await createInferenceRuntime(fakeDeps({ stores, secrets, fetch: idOnlyModelList() }));
 
-  await runtime.resolve({ task: "chat", principal: principal(ownerA), connectionId: rowA.id });
-  await runtime.resolve({ task: "chat", principal: principal(ownerB), connectionId: rowB.id });
+  await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerA), connectionId: rowA.id });
+  await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerB), connectionId: rowB.id });
 
   const gatewayKeys = (): string[] => [...stores.snapshotStore.entries.keys()].filter((key) => key.includes("#@")).sort();
   expect(gatewayKeys()).toEqual([`catalog:endpoint:http://gateway.test/v1#@${credA}#list`, `catalog:endpoint:http://gateway.test/v1#@${credB}#list`].sort());
@@ -541,6 +558,7 @@ test("two credentials on one authenticated gateway keep their own model lists, a
 });
 
 test("the runtime's tokenize read fills the token cache once, and invalidateEndpoint forgets it with the endpoint facts", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const model = "/models/qwen2.5-0.5b-instruct-q4_k_m.gguf";
@@ -551,7 +569,7 @@ test("the runtime's tokenize read fills the token cache once, and invalidateEndp
     fakeDeps({ stores, fetch: localServerFetch("llamacpp-chat", { tokenize: { tokens: [{ id: 42, piece: "Elara" }] } }, seen) }),
   );
   const tokenizeCalls = (): number => seen.filter((url) => url.endsWith("/tokenize")).length;
-  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  const { resolved } = await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id });
 
   expect(await runtime.catalogs.tokenize(resolved, ["Elara"])).toEqual({ available: true, words: [{ ok: true, word: "Elara", ids: [42], pieces: ["Elara"] }] });
   await runtime.catalogs.tokenize(resolved, ["Elara"]);
@@ -568,13 +586,14 @@ test("the runtime's tokenize read fills the token cache once, and invalidateEndp
 });
 
 test("a connection whose server has no tokenize endpoint answers unavailable and asks nothing", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "ollama", model: "moondream:latest", baseUrl: "http://127.0.0.1:1/v1" });
   stores.connections.rows.set(row.id, row);
   const seen: string[] = [];
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: countingFetch(seen) }));
-  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  const { resolved } = await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id });
   const before = seen.length;
   expect(await runtime.catalogs.tokenize(resolved, ["Elara"])).toEqual({ available: false, words: [] });
   expect(seen).toHaveLength(before);

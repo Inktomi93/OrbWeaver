@@ -50,7 +50,9 @@ import {
 } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
+import type { StatementToken } from "@orb/db/wiring";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import type {
   CharacterHandle,
   CharacterId,
@@ -76,10 +78,13 @@ import { createCopyHandoffCards } from "#server/domain/character/index.ts";
 import { createParticipants } from "#server/domain/chat/verbs/participants.ts";
 import { createHandoffRestampStatements } from "#server/domain/embeddings/index.ts";
 import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#server/domain/regex/index.ts";
-import { reconcileStats } from "#server/domain/stats/index.ts";
-import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
+import { createStatsBatchWiring, reconcileStats } from "#server/domain/stats/index.ts";
+import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#server/domain/world-info/index.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+
+// The stats seam as the composition root wires it: the production writers behind the batch and database handles.
+const STATS_WIRING = createStatsBatchWiring();
 
 let db: Db;
 let emitted: ChatBusEvent[];
@@ -94,8 +99,8 @@ const emit = (event: ChatBusEvent): Promise<void> => {
   return Promise.resolve();
 };
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 /** The emit-op contract: record the event AND commit the producer's unexecuted co-statements. */
@@ -160,8 +165,8 @@ function copyContext(
     emitNotification: recordingEmit(notes),
     copyHandoffCards: createCopyHandoffCards({
       db: databaseHandle(db),
-      bumpStatsCanonVersion,
-      applyStatsDelta,
+      bumpStatsCanonVersion: STATS_WIRING.bumpStatsCanonVersion,
+      applyStatsDelta: STATS_WIRING.applyStatsDelta,
       now: () => 1,
       newCharacterId: mint.newCharacterId,
       copyAsset: () => Promise.resolve(null),
@@ -194,8 +199,8 @@ describe("no offer — the built D64 behavior stays byte-identical", () => {
     const { host, member, chatId, aria } = await seedTransferRoom();
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     // Nothing minted: the nominee's library is empty, the host still owns exactly their one card.
     const cards = await db.select().from(characters);
@@ -210,8 +215,8 @@ describe("no offer — the built D64 behavior stays byte-identical", () => {
     const { host, member, chatId, aria } = await seedTransferRoom();
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: false, copyGmPreset: false } });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: false, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     expect(await db.select().from(characters)).toHaveLength(1);
     const seats = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chatId));
@@ -231,13 +236,13 @@ describe("the accepted offer — the room moves onto the copies", () => {
       },
     } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
     let eventAttempts = 0;
-    const resumableEmit = async (event: ChatBusEvent, claimStatement?: BatchStmt): Promise<boolean> => {
+    const resumableEmit = async (event: ChatBusEvent, claimStatement?: StatementToken): Promise<boolean> => {
       eventAttempts += 1;
       if (eventAttempts === 1) {
         return false;
       }
       if (claimStatement !== undefined) {
-        const [claim] = await db.batch(batchMany([claimStatement]));
+        const [claim] = await db.batch(batchMany([statementForOwner(claimStatement)]));
         if (claim.rowsAffected === 0) {
           return true;
         }
@@ -247,10 +252,10 @@ describe("the accepted offer — the room moves onto the copies", () => {
     };
     const roster = createParticipants(copyContext({ rpg }), { claimChat: (): Promise<void> => Promise.resolve(), emit: resumableEmit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     emitted.length = 0;
     eventAttempts = 0;
-    await expect(roster.acceptHostHandoff({ principal: principal(member), chatId })).rejects.toThrow("injected actor rekey failure");
+    await expect(roster.acceptHostHandoff({ principal: await principal(db, member), chatId })).rejects.toThrow("injected actor rekey failure");
 
     expect(await db.select().from(chatHandoffResumptions)).toHaveLength(1);
     expect((await db.select().from(chatParticipants).where(eq(chatParticipants.userId, member)))[0]?.role).toBe("host");
@@ -258,10 +263,10 @@ describe("the accepted offer — the room moves onto the copies", () => {
 
     // The nomination is already clear, so this call reaches the durable marker rather than the nomination
     // gate. A total-bus false verdict must keep the marker too — awaiting a resolved emit is not evidence.
-    await expect(roster.acceptHostHandoff({ principal: principal(member), chatId })).rejects.toThrow("was not durably appended");
+    await expect(roster.acceptHostHandoff({ principal: await principal(db, member), chatId })).rejects.toThrow("was not durably appended");
     expect(await db.select().from(chatHandoffResumptions)).toHaveLength(1);
 
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     expect(attempts).toBe(3);
     expect(eventAttempts).toBe(2);
@@ -274,8 +279,8 @@ describe("the accepted offer — the room moves onto the copies", () => {
     const { host, member, chatId, aria } = await seedTransferRoom();
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     // The copy exists under the NOMINEE, provenance-stamped (the idempotency key).
     const copy = (await db.select().from(characters).where(eq(characters.ownerId, member)))[0];
@@ -307,8 +312,8 @@ describe("the accepted offer — the room moves onto the copies", () => {
     await seedMessage(db, otherChatId, 1, { characterId: aria });
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     const copyId = (await db.select().from(characters).where(eq(characters.ownerId, member)))[0]?.id;
     expect((await db.select().from(messages).where(eq(messages.chatId, chatId)))[0]?.characterId).toBe(copyId);
@@ -358,8 +363,8 @@ describe("the accepted offer — the room moves onto the copies", () => {
     }
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     const copyId = (await db.select().from(characters).where(eq(characters.ownerId, member)))[0]?.id;
     // THIS room's digest + its speakers join now name the copy — so the old host deleting their card can no
@@ -381,8 +386,8 @@ describe("cross-tenant — the offer gives only what the departing host owns", (
     await seedParticipant(db, { chatId, key: "cf", characterId: foreign, role: "member" });
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     // Exactly ONE copy landed — aria's. The stranger's card was not gifted by anybody.
     const minted = await db.select().from(characters).where(eq(characters.ownerId, member));
@@ -409,8 +414,8 @@ describe("cross-tenant — the offer gives only what the departing host owns", (
     await seedParticipant(db, { chatId, key: "cb", characterId: bella, role: "member" });
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     // The nominee's library gained exactly one row (aria's copy) — bella was not duplicated onto herself.
     expect(await db.select().from(characters).where(eq(characters.ownerId, member))).toHaveLength(2);
@@ -428,13 +433,13 @@ describe("the crash arm — mints land first, and a retry converges", () => {
     const ctx = copyContext();
     const roster = createParticipants(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit });
     await reconcileStats(databaseHandle(db), { ownerId: member, now: () => 1 });
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await db.run(
       sql.raw(
         "create trigger refuse_fixture_room_swap before update of pending_host_user_id on chats when old.pending_host_user_id is not null and new.pending_host_user_id is null begin select raise(abort, 'fixture room swap failure'); end",
       ),
     );
-    await expect(roster.acceptHostHandoff({ principal: principal(member), chatId })).rejects.toThrow("fixture room swap failure");
+    await expect(roster.acceptHostHandoff({ principal: await principal(db, member), chatId })).rejects.toThrow("fixture room swap failure");
     expect(await db.select().from(characters).where(eq(characters.ownerId, member))).toHaveLength(1);
     const live = (await db.select().from(ownerStats).where(eq(ownerStats.ownerId, member)))[0];
     expect(live?.characters).toBe(1);
@@ -445,7 +450,7 @@ describe("the crash arm — mints land first, and a retry converges", () => {
     await reconcileStats(databaseHandle(db), { ownerId: member, now: () => 1 });
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, member)))[0]).toEqual(live);
     await db.run(sql.raw("drop trigger refuse_fixture_room_swap"));
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
     expect(await db.select().from(characters).where(eq(characters.ownerId, member))).toHaveLength(1);
     expect((await db.select().from(ownerStats).where(eq(ownerStats.ownerId, member)))[0]).toMatchObject({
       characters: 1,
@@ -470,13 +475,13 @@ describe("the crash arm — mints land first, and a retry converges", () => {
 
     // Simulate the crash window: the LIBRARY half ran and the swap did not. The nomination is intact, so the
     // accept is simply re-tried — which is the whole point of running the mints first.
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     const first = await ctx.copyHandoffCards({ fromOwnerId: host, toOwnerId: member, chatId, characterIds: [aria] });
     expect(first).toEqual([{ sourceCharacterId: aria, characterId: castId<CharacterId>("character_copy_1"), minted: true }]);
     // The strays are the NOMINEE's own ordinary library rows at this point — inert, not corruption.
     expect(await db.select().from(characters).where(eq(characters.ownerId, member))).toHaveLength(1);
 
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     // Still ONE copy: the provenance key found the existing row instead of minting a second library.
     const minted = await db.select().from(characters).where(eq(characters.ownerId, member));
@@ -496,7 +501,7 @@ describe("the crash arm — mints land first, and a retry converges", () => {
     const { host, member, chatId, aria } = await seedTransferRoom();
     const ctx = copyContext();
     const roster = createParticipants(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit });
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
     await ctx.copyHandoffCards({ fromOwnerId: host, toOwnerId: member, chatId, characterIds: [aria] });
 
     // The nominee never accepts. Nothing else happens — no sweep, no cleanup job, no half-state.
@@ -519,8 +524,8 @@ describe("lore — the books are copied BY VALUE, and the room's license is seve
     await db.insert(characterBooks).values({ characterId: aria, worldBookId: bookId, role: "primary", createdAt: 1 });
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     const copyId = (await db.select().from(characters).where(eq(characters.ownerId, member)))[0]?.id ?? aria;
     // A fresh BOOK under the nominee (not a reference to the host's — that would lose the lore silently, since
@@ -549,8 +554,8 @@ describe("lore — the books are copied BY VALUE, and the room's license is seve
     await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: 1 });
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     const attached = await db.select().from(chatBooks).where(eq(chatBooks.chatId, chatId));
     expect(attached).toHaveLength(1);
@@ -584,8 +589,8 @@ describe("lore — the books are copied BY VALUE, and the room's license is seve
     await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: 1 });
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     const attached = await db.select().from(chatBooks).where(eq(chatBooks.chatId, chatId));
     expect(attached).toHaveLength(1);
@@ -623,8 +628,8 @@ describe("lore — the books are copied BY VALUE, and the room's license is seve
     await db.insert(chatBooks).values({ chatId, worldBookId: bookId, createdAt: 1 });
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     const copies = await db.select().from(worldBooks).where(eq(worldBooks.ownerId, member));
     expect(copies).toHaveLength(1);
@@ -674,8 +679,8 @@ describe("regex — the room's chat-tier scripts move with the room", () => {
     const scriptId = await seedChatScript(chatId, host, { id: "regex_script_room", name: "Room quirk", find: "secret", position: 3 });
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     const attached = await db.select().from(chatRegexScripts).where(eq(chatRegexScripts.chatId, chatId));
     expect(attached).toHaveLength(1);
@@ -701,8 +706,8 @@ describe("regex — the room's chat-tier scripts move with the room", () => {
     const foreign = await seedChatScript(chatId, stranger, { id: "regex_script_foreign", name: "Not theirs", find: "x" });
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     // Nothing was minted for the nominee, and the room still names the stranger's row — which the new host
     // can now DETACH (the room gate), but which nobody gets to give away on the stranger's behalf.
@@ -716,8 +721,8 @@ describe("regex — the room's chat-tier scripts move with the room", () => {
     const scriptId = await seedChatScript(chatId, host, { id: "regex_script_room", name: "Room quirk", find: "secret" });
     const roster = createParticipants(copyContext(), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member });
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
 
     expect(await db.select().from(regexScripts).where(eq(regexScripts.ownerId, member))).toHaveLength(0);
     const attached = await db.select().from(chatRegexScripts).where(eq(chatRegexScripts.chatId, chatId));
@@ -753,14 +758,14 @@ describe("the nomination discloses what an accepted offer would copy", () => {
     const notes: NotificationEvent[] = [];
     const roster = createParticipants(copyContext({ rpg }, notes), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: true } });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: true } });
 
     const nomination = notes.find((n) => n.type === "handoff-nominated");
     expect(nomination).toBeDefined();
     expect(nomination).toMatchObject({ offer: { characters: 2, worldBooks: 2, regexScripts: 1, gmPreset: true } });
 
     // …and that IS what lands: the disclosure is the copy plan's own resolution, not a parallel count.
-    await roster.acceptHostHandoff({ principal: principal(member), chatId });
+    await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
     expect(await db.select().from(characters).where(eq(characters.ownerId, member))).toHaveLength(2);
     expect(await db.select().from(worldBooks).where(eq(worldBooks.ownerId, member))).toHaveLength(2);
     expect(await db.select().from(regexScripts).where(eq(regexScripts.ownerId, member))).toHaveLength(1);
@@ -772,7 +777,7 @@ describe("the nomination discloses what an accepted offer would copy", () => {
     const notes: NotificationEvent[] = [];
     const roster = createParticipants(copyContext({}, notes), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: false, copyGmPreset: false } });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: false, copyGmPreset: false } });
 
     expect(notes.find((n) => n.type === "handoff-nominated")).toMatchObject({
       offer: { characters: 0, worldBooks: 0, regexScripts: 0, gmPreset: false },
@@ -789,7 +794,7 @@ describe("the nomination discloses what an accepted offer would copy", () => {
     const notes: NotificationEvent[] = [];
     const roster = createParticipants(copyContext({}, notes), { claimChat: (): Promise<void> => Promise.resolve(), emit });
 
-    await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+    await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
 
     // Only the host's own `aria` seat is giftable; the stranger's chat script is not the host's to give.
     expect(notes.find((n) => n.type === "handoff-nominated")).toMatchObject({
@@ -826,13 +831,13 @@ test.for([false, true])("copied retained room has whole-row live/rebuild parity 
   }
   const ctx = copyContext({ now: () => 30 });
   const roster = createParticipants(ctx, { claimChat: (): Promise<void> => Promise.resolve(), emit });
-  await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+  await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
   // Minting is a separate durable library operation; isolate the subsequent room-only cohort movement.
   await ctx.copyHandoffCards({ fromOwnerId: host, toOwnerId: member, chatId, characterIds: [aria] });
   const beforeOwners = await db.select().from(ownerStats).orderBy(ownerStats.ownerId);
   const beforeDaily = await db.select().from(dailyStats).orderBy(dailyStats.ownerId, dailyStats.bucketStart);
   const beforeModels = await db.select().from(modelStats).orderBy(modelStats.ownerId, modelStats.model);
-  await roster.acceptHostHandoff({ principal: principal(member), chatId });
+  await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
   const liveOwners = await db.select().from(ownerStats).orderBy(ownerStats.ownerId);
   const liveDaily = await db.select().from(dailyStats).orderBy(dailyStats.ownerId, dailyStats.bucketStart);
   const liveModels = await db.select().from(modelStats).orderBy(modelStats.ownerId, modelStats.model);
@@ -881,12 +886,12 @@ test.for(["variant", "cohort", "voice-owner"] as const)("copied handoff refuses 
     { ...ctx, resolveRetainedChatRebase, emitNotification: recordingEmit(notes) },
     { claimChat: (): Promise<void> => Promise.resolve(), emit },
   );
-  await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+  await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
   await ctx.copyHandoffCards({ fromOwnerId: host, toOwnerId: member, chatId, characterIds: [aria] });
   const before = await db.select().from(ownerStats).orderBy(ownerStats.ownerId);
   emitted.length = 0;
   notes.length = 0;
-  await expect(roster.acceptHostHandoff({ principal: principal(member), chatId })).rejects.toMatchObject({ code: "aborted" });
+  await expect(roster.acceptHostHandoff({ principal: await principal(db, member), chatId })).rejects.toMatchObject({ code: "aborted" });
   expect(await db.select().from(ownerStats).orderBy(ownerStats.ownerId)).toEqual(before);
   expect((await db.select().from(chatParticipants).where(eq(chatParticipants.userId, host)))[0]?.role).toBe("host");
   expect((await db.select().from(chats).where(eq(chats.id, chatId)))[0]?.pendingHostUserId).toBe(member);
@@ -902,8 +907,8 @@ test("copy prunes only the unsupported original voice row and keeps the copied r
     await reconcileStats(databaseHandle(db), { ownerId, now: () => 1 });
   }
   const roster = createParticipants(copyContext({ now: () => 1 }), { claimChat: (): Promise<void> => Promise.resolve(), emit });
-  await roster.nominateHostHandoff({ principal: principal(host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
-  await roster.acceptHostHandoff({ principal: principal(member), chatId });
+  await roster.nominateHostHandoff({ principal: await principal(db, host), chatId, userId: member, offer: { copyCharacters: true, copyGmPreset: false } });
+  await roster.acceptHostHandoff({ principal: await principal(db, member), chatId });
   expect(await db.select().from(characterStats).where(eq(characterStats.characterId, aria))).toEqual([]);
   const live = (await db.select().from(characterStats)).map(({ id, computedAt, ...row }) => row);
   expect(live).toMatchObject([{ characterId: "character_copy_1", chats: 1, assistantTurns: 1, costUsd: 0, costSamples: 0 }]);

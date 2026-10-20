@@ -16,10 +16,10 @@ describe("getCard", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "a card" },
     });
-    const card = await svc.getCard({ principal: principal(owner), characterId: created.id });
+    const card = await svc.getCard({ principal: await principal(db, owner), characterId: created.id });
     expect(card?.name).toBe("Nyx");
     expect(card?.description).toBe("a card");
   });
@@ -30,10 +30,10 @@ describe("getCard", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
-    expect(await svc.getCard({ principal: principal(other), characterId: created.id })).toBeNull();
+    expect(await svc.getCard({ principal: await principal(db, other), characterId: created.id })).toBeNull();
   });
 
   test("returns null for a missing id", async () => {
@@ -42,7 +42,7 @@ describe("getCard", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     expect(
       await svc.getCard({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         characterId: castId<CharacterId>("character_ghost"),
       }),
     ).toBeNull();

@@ -44,7 +44,7 @@ function portFor(instance: PluginInstance): PluginHostPort {
 test("lists the caller's OWN enabled plugin's display transforms, tagged with the pluginId", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: portFor(instanceWith(["furigana", "ruby"])) });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood", capabilities: ["chat.transform"] }), grant: ["chat.transform"] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -57,7 +57,7 @@ test("lists the caller's OWN enabled plugin's display transforms, tagged with th
 test("a plugin that registered NONE contributes none — the gate's empty answer is the common case", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: portFor(instanceWith([])) });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -67,7 +67,7 @@ test("a plugin that registered NONE contributes none — the gate's empty answer
 test("a DISABLED plugin (no resident instance) contributes none", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: portFor(instanceWith(["furigana"])) });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   // Installed but never enabled ⇒ no resident ⇒ nothing collected.
   await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
 
@@ -77,8 +77,8 @@ test("a DISABLED plugin (no resident instance) contributes none", async () => {
 test("owner-scoped: a caller NEVER sees another owner's display transforms (the read is the gate)", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: portFor(instanceWith(["alpha_only"])) });
-  const alpha = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("alpha") }));
-  const beta = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("beta") }));
+  const alpha = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("alpha") }));
+  const beta = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("beta") }));
   const alphaPlugin = await h.service.install({ caller: alpha, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller: alpha, pluginId: alphaPlugin.id, enabled: true });
 

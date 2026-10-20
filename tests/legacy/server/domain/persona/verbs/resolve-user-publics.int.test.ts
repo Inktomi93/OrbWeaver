@@ -29,7 +29,7 @@ describe("resolveUserPublics", () => {
     const alice = await seedUser(db, { handle: castId<Handle>("alice") });
     const bob = await seedUser(db, { handle: castId<Handle>("bob") });
     const face = await seedAsset(db, { ownerId: alice, id: "asset_face" });
-    const zara = await svc.create({ principal: principal(alice), input: { name: "Zara", description: "a cartographer" } });
+    const zara = await svc.create({ principal: await principal(db, alice), input: { name: "Zara", description: "a cartographer" } });
     await db.update(personas).set({ avatarAssetId: face }).where(eq(personas.id, zara.id));
     const resolve = createResolveUserPublics(
       { db: databaseHandle(db) },

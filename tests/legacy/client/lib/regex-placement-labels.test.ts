@@ -50,7 +50,7 @@ describe("regexScriptScent", () => {
   });
 
   test("X-16: two just-added rows differ ONLY by their stamp — which is why the stamp is on the line", () => {
-    const blank = { findRegex: "", placement: [] } as const;
+    const blank = { findRegex: "", placement: [] } satisfies Parameters<typeof script>[0];
     const first = regexScriptScent(script({ ...blank, updatedAt: BORN }), relative);
     const second = regexScriptScent(script({ ...blank, updatedAt: BORN + 1 }), relative);
     // Every authored datum is identical (this IS the reported defect) and the subtitles are still distinct.
@@ -114,7 +114,7 @@ describe("regexRowScent", () => {
   });
 
   test("X-16 survives the split: two just-added rows still differ ONLY by their stamp", () => {
-    const blank = { findRegex: "", placement: [] } as const;
+    const blank = { findRegex: "", placement: [] } satisfies Parameters<typeof script>[0];
     const first = regexRowScent(script({ ...blank, updatedAt: BORN }), relative);
     const second = regexRowScent(script({ ...blank, updatedAt: BORN + 1 }), relative);
     expect(first.replace(`T${String(BORN)}`, "")).toBe(second.replace(`T${String(BORN + 1)}`, ""));

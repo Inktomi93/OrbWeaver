@@ -10,7 +10,7 @@
 
 import type { RulePresetId, RulePresetKnobValues, RuleView } from "@orb/contracts/automation";
 import { automationTriggerFor } from "@orb/contracts/automation";
-import type { GroupConfig, ParticipantView } from "@orb/contracts/chat";
+import type { GroupConfig } from "@orb/contracts/chat";
 import { groupConfigSchema, TALKATIVENESS_DEFAULT } from "@orb/contracts/chat";
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
@@ -24,12 +24,18 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createOwnedCharacterIds } from "@orb/server/domain/character";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { RuleValidationError } from "#server/domain/automation/contract/errors.ts";
 import { RULE_PRESETS } from "#server/domain/automation/contract/presets.ts";
 import { resolveChatRulePresetKnobs, toRulePresetView } from "#server/domain/automation/substrate/presets.ts";
+import type { ParticipantData } from "#server/domain/chat/contract/views.ts";
 import { createPersonaOwned } from "#server/domain/persona/index.ts";
 import type { PresentCharacterSeat, RosterPresetContext } from "#server/domain/roster-preset/contract/service.ts";
+import { seatRoles } from "../chat/_support.ts";
+
+// Seat roles are captured row data: one in-memory room supplies the host and member roles these checks read.
+const SEAT_ROLES = await seatRoles(await freshDb());
 
 interface AuditCall {
   readonly entry: Parameters<RosterPresetContext["audit"]>[0];
@@ -144,15 +150,15 @@ export function seededRuleView(args: {
   };
 }
 
-/** A minimal fully-typed ParticipantView for a character seat the fake add returns. */
-function fakeSeatView(chatId: ChatId, characterId: CharacterId, participantId: ChatParticipantId): ParticipantView {
+/** A minimal fully-typed ParticipantData for a character seat the fake add returns. */
+function fakeSeatView(chatId: ChatId, characterId: CharacterId, participantId: ChatParticipantId): ParticipantData {
   return {
     id: participantId,
     chatId,
     kind: "character",
     userId: null,
     characterId,
-    role: "member",
+    role: SEAT_ROLES.member,
     activePersonaId: null,
     talkativeness: TALKATIVENESS_DEFAULT,
     disabled: false,
@@ -206,7 +212,7 @@ export function makeHarness(db: Db, overrides: Partial<DbAssemblyInput<RosterPre
         return Promise.resolve();
       },
       listPresentCharacterSeats: (): Promise<readonly PresentCharacterSeat[]> => Promise.resolve([...presentSeats]),
-      addCharacterToChat: ({ chatId, characterId }): Promise<ParticipantView> => {
+      addCharacterToChat: ({ chatId, characterId }): Promise<ParticipantData> => {
         adds.push({ chatId, characterId });
         // Chat's present-seat idempotency floor, modeled: a present character returns its live seat.
         const existing = presentSeats.find((seat) => seat.characterId === characterId);
@@ -217,7 +223,7 @@ export function makeHarness(db: Db, overrides: Partial<DbAssemblyInput<RosterPre
         presentSeats.push({ characterId, participantId });
         return Promise.resolve(fakeSeatView(chatId, characterId, participantId));
       },
-      setSeatKnobs: ({ chatId, participantId, patch }): Promise<ParticipantView> => {
+      setSeatKnobs: ({ chatId, participantId, patch }): Promise<ParticipantData> => {
         knobs.push({ chatId, participantId, patch });
         const seat = presentSeats.find((s) => s.participantId === participantId);
         return Promise.resolve(fakeSeatView(chatId, seat?.characterId ?? castId<CharacterId>("character_unknown"), participantId));
@@ -305,9 +311,9 @@ export function makeHarness(db: Db, overrides: Partial<DbAssemblyInput<RosterPre
   };
 }
 
-/** Build a Principal for a given user id + role (cookie-resolved by default). */
-export function principal(userId: UserId, role: UserRole = "user"): Principal {
-  return makePrincipal(userId, { role });
+/** Resolve a caller's Principal through the production row resolver; a passed role is first written onto the user's row. */
+export async function principal(db: Db, userId: UserId, role?: UserRole): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role });
 }
 
 /** A wire member spec (chat's D80 character arm) with knob defaults omitted unless given. */

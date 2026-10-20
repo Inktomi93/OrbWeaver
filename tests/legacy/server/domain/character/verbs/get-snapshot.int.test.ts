@@ -21,21 +21,24 @@ test("returns the snapshot with its blob for the owner; foreign/cross-character 
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const other = await seedUser(db, { handle: castId<Handle>("other") });
   const a = await svc.create({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     input: { handle: castId<CharacterHandle>("gs-a"), name: "Aria", description: "keeper of records" },
   });
-  const b = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("gs-b"), name: "Kestrel", description: "other card" } });
-  const ref = await svc.snapshot({ principal: principal(owner), characterId: a.id, label: "before polish" });
+  const b = await svc.create({
+    principal: await principal(db, owner),
+    input: { handle: castId<CharacterHandle>("gs-b"), name: "Kestrel", description: "other card" },
+  });
+  const ref = await svc.snapshot({ principal: await principal(db, owner), characterId: a.id, label: "before polish" });
 
-  const view = await svc.getSnapshot({ principal: principal(owner), characterId: a.id, snapshotId: ref.id });
+  const view = await svc.getSnapshot({ principal: await principal(db, owner), characterId: a.id, snapshotId: ref.id });
   expect(view.id).toBe(ref.id);
   expect(view.label).toBe("before polish");
   expect(view.content.description).toBe("keeper of records");
 
   // Foreign owner — the same NOT_FOUND as an absent character (no existence oracle).
-  await expect(svc.getSnapshot({ principal: principal(other), characterId: a.id, snapshotId: ref.id })).rejects.toThrow(CharacterNotFoundError);
+  await expect(svc.getSnapshot({ principal: await principal(db, other), characterId: a.id, snapshotId: ref.id })).rejects.toThrow(CharacterNotFoundError);
   // A snapshot under a DIFFERENT character of the same owner — the pair predicate collapses it too.
-  await expect(svc.getSnapshot({ principal: principal(owner), characterId: b.id, snapshotId: ref.id })).rejects.toThrow(CharacterNotFoundError);
+  await expect(svc.getSnapshot({ principal: await principal(db, owner), characterId: b.id, snapshotId: ref.id })).rejects.toThrow(CharacterNotFoundError);
 });
 
 test("an OLDER-shaped stored blob is projected through the same parse seam `restore` reads it through", async () => {
@@ -44,7 +47,7 @@ test("an OLDER-shaped stored blob is projected through the same parse seam `rest
   const svc = createCharacterService(h.ctx);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const card = await svc.create({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     input: { handle: castId<CharacterHandle>("gs-old"), name: "Aria", description: "keeper of records" },
   });
 
@@ -60,7 +63,7 @@ test("an OLDER-shaped stored blob is projected through the same parse seam `rest
   const snapshotId = castId<CharacterSnapshotId>("character_snapshot_legacy");
   await db.insert(characterSnapshots).values({ id: snapshotId, characterId: card.id, content: legacyContent, label: "legacy", createdAt: FROZEN_AT_MS });
 
-  const view = await svc.getSnapshot({ principal: principal(owner), characterId: card.id, snapshotId });
+  const view = await svc.getSnapshot({ principal: await principal(db, owner), characterId: card.id, snapshotId });
 
   // The projection heals the JSON sub-columns exactly as `cardOf` does everywhere else, so `content` is an
   // honest CharacterCard and the compare view shows what restoring this version would actually give you.

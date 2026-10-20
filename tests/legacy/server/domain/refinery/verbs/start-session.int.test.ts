@@ -18,7 +18,7 @@ test("a session is born on the owned card: anchor snapshot, populated-field sele
   const owner = await seedUser(db, { id: "user_ss_a" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "ss-card-a");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId, name: "First polish" });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId, name: "First polish" });
 
   expect(session.characterId).toBe(characterId);
   expect(session.name).toBe("First polish");
@@ -46,8 +46,10 @@ test("a foreign character and an absent character collapse to the same NOT_FOUND
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "ss-card-b");
 
-  const foreign = await h.svc.startSession({ principal: principal(stranger), characterId }).catch((e: unknown) => e);
-  const absent = await h.svc.startSession({ principal: principal(stranger), characterId: castId<CharacterId>("character_phantom") }).catch((e: unknown) => e);
+  const foreign = await h.svc.startSession({ principal: await principal(db, stranger), characterId }).catch((e: unknown) => e);
+  const absent = await h.svc
+    .startSession({ principal: await principal(db, stranger), characterId: castId<CharacterId>("character_phantom") })
+    .catch((e: unknown) => e);
   expect(foreign).toBeInstanceOf(DomainNotFoundError);
   expect(absent).toBeInstanceOf(DomainNotFoundError);
 });
@@ -57,5 +59,5 @@ test("the name belt bites at the verb (the internal-boundary parse, not just the
   const owner = await seedUser(db, { id: "user_ss_d" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "ss-card-d");
-  await expect(h.svc.startSession({ principal: principal(owner), characterId, name: "x".repeat(NAME_MAX + 1) })).rejects.toBeInstanceOf(ZodError);
+  await expect(h.svc.startSession({ principal: await principal(db, owner), characterId, name: "x".repeat(NAME_MAX + 1) })).rejects.toBeInstanceOf(ZodError);
 });

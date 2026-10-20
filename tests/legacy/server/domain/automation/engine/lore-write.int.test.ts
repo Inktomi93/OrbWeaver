@@ -7,12 +7,16 @@ import type { Db } from "@orb/db";
 import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { AutomationRuleId, UserId, WorldBookId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
+import { createSerialLanes } from "@orb/kit/serial-lanes";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { applyRuleLoreWrite } from "#server/domain/automation/engine/lore-write.ts";
 import type { AutomationOps } from "#server/domain/automation/index.ts";
 import { listRuleEntryTitles } from "#server/domain/automation/persistence/canon-reads.ts";
 import { ruleFixture, seedUser } from "../_support.ts";
+
+// One lane set per suite, the way the automation service owns one for its dispatcher and arms.
+const SERIAL_LANES = createSerialLanes();
 
 async function seedBook(db: Db, ownerId: UserId): Promise<WorldBookId> {
   const id = mintTypeId("world_book");
@@ -47,7 +51,7 @@ describe("chat-scoped consent (the attachment IS the room's consent)", () => {
     const { ops, calls } = capturingOps(fixture.ctx.ops);
 
     const result = await applyRuleLoreWrite(
-      { db: fixture.db, ops },
+      { db: fixture.db, ops, serialLanes: SERIAL_LANES },
       { authorUserId: fixture.host, chatId: fixture.chatId, ruleId, bookId, entries: [{ entryKey: "k1", keys: ["trigger"], content: "text" }] },
     );
 
@@ -63,7 +67,7 @@ describe("chat-scoped consent (the attachment IS the room's consent)", () => {
     const { ops, calls } = capturingOps(fixture.ctx.ops);
 
     const result = await applyRuleLoreWrite(
-      { db: fixture.db, ops },
+      { db: fixture.db, ops, serialLanes: SERIAL_LANES },
       { authorUserId: fixture.host, chatId: fixture.chatId, ruleId, bookId, entries: [{ entryKey: "k1", keys: [], content: "text" }] },
     );
 
@@ -80,7 +84,7 @@ describe("owner-global consent (a library write into the author's OWN book — D
     const { ops, calls } = capturingOps(fixture.ctx.ops);
 
     const result = await applyRuleLoreWrite(
-      { db: fixture.db, ops },
+      { db: fixture.db, ops, serialLanes: SERIAL_LANES },
       { authorUserId: fixture.host, chatId: null, ruleId, bookId, entries: [{ entryKey: "k1", keys: [], content: "text" }] },
     );
 
@@ -98,7 +102,7 @@ describe("owner-global consent (a library write into the author's OWN book — D
 
     // Attachment is the CHAT gate, not the owner-global one — a null chatId must still refuse.
     const result = await applyRuleLoreWrite(
-      { db: fixture.db, ops },
+      { db: fixture.db, ops, serialLanes: SERIAL_LANES },
       { authorUserId: fixture.host, chatId: null, ruleId, bookId, entries: [{ entryKey: "k1", keys: [], content: "text" }] },
     );
 
@@ -125,7 +129,7 @@ test("the per-rule ≤64-entries cap counts only NET-NEW titles — an update of
 
   // Re-upserting an EXISTING title stays within the cap.
   const update = await applyRuleLoreWrite(
-    { db: fixture.db, ops: opsA },
+    { db: fixture.db, ops: opsA, serialLanes: SERIAL_LANES },
     { authorUserId: fixture.host, chatId: fixture.chatId, ruleId, bookId, entries: [{ entryKey: "seed0", keys: [], content: "y" }] },
   );
   expect(update).toEqual({ ok: true });
@@ -134,7 +138,7 @@ test("the per-rule ≤64-entries cap counts only NET-NEW titles — an update of
   const { ops: opsB, calls: callsB } = capturingOps(fixture.ctx.ops);
   // A genuinely NEW title breaches the cap and is refused.
   const overflow = await applyRuleLoreWrite(
-    { db: fixture.db, ops: opsB },
+    { db: fixture.db, ops: opsB, serialLanes: SERIAL_LANES },
     { authorUserId: fixture.host, chatId: fixture.chatId, ruleId, bookId, entries: [{ entryKey: "brand-new", keys: [], content: "y" }] },
   );
   expect(overflow).toMatchObject({ ok: false, refused: expect.stringContaining("64") });
@@ -191,7 +195,7 @@ describe("#1421 the per-rule ceiling holds against a concurrent writer", () => {
     const { ops, calls } = heldWritingOps(fixture.db, fixture.ctx.ops, held);
     const write = (entryKey: string): Promise<{ ok: boolean }> =>
       applyRuleLoreWrite(
-        { db: fixture.db, ops },
+        { db: fixture.db, ops, serialLanes: SERIAL_LANES },
         { authorUserId: fixture.host, chatId: fixture.chatId, ruleId, bookId, entries: [{ entryKey, keys: [], content: "y" }] },
       );
 

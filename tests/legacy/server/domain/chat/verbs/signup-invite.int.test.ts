@@ -5,6 +5,7 @@
 import type { Db } from "@orb/db";
 import { auditLogs, chatInvites, chatParticipants, personas, userSettings, users } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { awaitableStatementToken } from "@orb/db/wiring-owner";
 import type { ChatId, ChatInviteId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
@@ -23,7 +24,7 @@ import { createSessionsService } from "#server/domain/sessions/service.ts";
 import { createJoinerSettingsStatement } from "#server/domain/settings/verbs/joiner-settings-statement.ts";
 import { createHostPrincipalResolver } from "#server/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "#server/entry/compose/chat.ts";
-import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
+import { createAuditWiring } from "#server/foundation/observability/index.ts";
 import { makeChatContext, makeLoadParticipantViews, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 const DAY_MS = 86_400_000;
@@ -73,7 +74,7 @@ function ops(capability: SignupInviteCapability = LOCAL, failPointers = false): 
     }),
     signupPersonaPointersStatement: failPointers ? failingPointers : createJoinerSettingsStatement({ db: databaseHandle(db) }),
     minterMayMintSignup: createSignupMinterCheck(sessions, createHostPrincipalResolver(sessions)),
-    auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
+    auditStatementAfterWrite: createAuditWiring(databaseHandle(db)).statementAfterWrite,
     assemblePreview: createInvitePreview({ db }, { loadParticipantViews: makeLoadParticipantViews(db) }),
     emit: (event) => {
       announced.push(event.chatId);
@@ -86,7 +87,9 @@ const PERSONA = { name: "Mira", description: "A cartographer." } as const;
 
 // A pointer write that fails inside the batch: its row names no user, so the foreign key refuses it.
 function failingPointers(): ReturnType<ReturnType<typeof createJoinerSettingsStatement>> {
-  return db.insert(userSettings).select(sql`select 'user_absent', 1, '{}', 0 where changes() > 0`).returning({ userId: userSettings.userId });
+  return awaitableStatementToken(
+    db.insert(userSettings).select(sql`select 'user_absent', 1, '{}', 0 where changes() > 0`).returning({ userId: userSettings.userId }),
+  );
 }
 
 async function seedsOf(userId: UserId): Promise<unknown> {

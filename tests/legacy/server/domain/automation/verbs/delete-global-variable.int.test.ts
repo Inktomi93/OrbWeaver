@@ -13,10 +13,10 @@ describe("deleteGlobalVariable", () => {
     const owner = await seedUser(db);
     const svc = createAutomationService(makeAutomationHarness(db));
 
-    await svc.setGlobalVariable({ principal: principal(owner), key: "k", value: "v" });
-    await svc.deleteGlobalVariable({ principal: principal(owner), key: "k" });
+    await svc.setGlobalVariable({ principal: await principal(db, owner), key: "k", value: "v" });
+    await svc.deleteGlobalVariable({ principal: await principal(db, owner), key: "k" });
 
-    await expect(svc.getGlobalVariable({ principal: principal(owner), key: "k" })).resolves.toBeNull();
+    await expect(svc.getGlobalVariable({ principal: await principal(db, owner), key: "k" })).resolves.toBeNull();
   });
 
   test("is idempotent on an absent key", async () => {
@@ -24,7 +24,7 @@ describe("deleteGlobalVariable", () => {
     const owner = await seedUser(db);
     const svc = createAutomationService(makeAutomationHarness(db));
 
-    await expect(svc.deleteGlobalVariable({ principal: principal(owner), key: "ghost" })).resolves.toBeUndefined();
+    await expect(svc.deleteGlobalVariable({ principal: await principal(db, owner), key: "ghost" })).resolves.toBeUndefined();
   });
 
   test("a foreign owner cannot delete another user's key", async () => {
@@ -33,10 +33,10 @@ describe("deleteGlobalVariable", () => {
     const other = await seedUser(db, "user_other");
     const svc = createAutomationService(makeAutomationHarness(db));
 
-    await svc.setGlobalVariable({ principal: principal(owner), key: "k", value: "v" });
-    await svc.deleteGlobalVariable({ principal: principal(other), key: "k" });
+    await svc.setGlobalVariable({ principal: await principal(db, owner), key: "k", value: "v" });
+    await svc.deleteGlobalVariable({ principal: await principal(db, other), key: "k" });
 
     // owner's key survives — the delete was owner-scoped
-    await expect(svc.getGlobalVariable({ principal: principal(owner), key: "k" })).resolves.toBe("v");
+    await expect(svc.getGlobalVariable({ principal: await principal(db, owner), key: "k" })).resolves.toBe("v");
   });
 });

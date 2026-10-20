@@ -47,10 +47,10 @@ import { seedUser, vectorConnectionOf } from "../../embeddings/_support.ts";
 const NOW = 1_700_000_000_000;
 
 /** Compose's own resolve over the scripted encoders: the owner's bound row, snapshotted as production snapshots it. */
-function connectionOf(clients: RoleClients, ownerId: UserId, task: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
+function connectionOf(db: Db, clients: RoleClients, ownerId: UserId, task: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
   return createResolveEmbeddingConnection(
     makeEmbeddingRuntime(clients, () => Promise.resolve(makeResolvedSecret()), vectorConnectionOf),
-    (userId) => Promise.resolve(principal(userId)),
+    (userId) => principal({ db }, userId),
   )(ownerId, task);
 }
 
@@ -76,7 +76,7 @@ async function drive(controls: FakeRoleClientControls = {}): Promise<{
     ctx: {
       db,
       roleClientsFor: (): Promise<RoleClients> => Promise.resolve(clients),
-      resolveEmbeddingConnection: (owner, task) => connectionOf(clients, owner, task),
+      resolveEmbeddingConnection: (owner, task) => connectionOf(db, clients, owner, task),
     },
   };
 }
@@ -86,7 +86,7 @@ async function target(db: Db, ownerId: UserId, clients: RoleClients, task: Embed
     {
       db,
       now: () => NOW,
-      resolveEmbeddingConnection: (owner, resolvedTask) => connectionOf(clients, owner, resolvedTask),
+      resolveEmbeddingConnection: (owner, resolvedTask) => connectionOf(db, clients, owner, resolvedTask),
       withStableEmbeddingBinding: (_ownerId, read) => read(),
       onTargetGenerationMoved: () => undefined,
     },
@@ -212,7 +212,7 @@ test.each([
   { providerId: "openai", model: "text-embedding-3-small", legacy: LEGACY_TEXT_CAPABILITY },
 ])("$providerId pre-change generation remains queryable without rebuilding", async ({ providerId, model, legacy }) => {
   const { db, ownerId, clients } = await drive();
-  const base = await connectionOf(clients, ownerId, "embed");
+  const base = await connectionOf(db, clients, ownerId, "embed");
   if (base === null) {
     throw new Error("the fixture embedding connection must resolve");
   }

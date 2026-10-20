@@ -30,6 +30,7 @@ import type { ChatId, ChatTurnId, MessageVariantId, RpgGameId } from "@orb/kit/i
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { buildTrackerView } from "#server/domain/rpg/chat-ops/tracker-view.ts";
+import { createRpgContext } from "#server/domain/rpg/context.ts";
 import type { RpgContext, RpgGameRow } from "#server/domain/rpg/contract/service.ts";
 import { snapshotRowToState } from "#server/domain/rpg/contract/service.ts";
 import { findGameByChat } from "#server/domain/rpg/persistence/games.ts";
@@ -93,7 +94,7 @@ async function seedGameWithSnapshot(key: string): Promise<Seeded> {
   }
   const written = await writeStagedSnapshot(db, flush.state, target({ gameId, chatId, seq: 1, variantId, key }));
   expect(written.ok).toBe(true);
-  return { db, chatId, gameId, variantId, ctx: h.ctx };
+  return { db, chatId, gameId, variantId, ctx: createRpgContext(h.ctx) };
 }
 
 /** Overwrite JSON columns on the seeded row with RAW shapes — the only way to land a spelling the live

@@ -11,6 +11,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { builtinProvider, LOCAL_TEXT_ENCODING, modelIdSchema } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, NoConnectionError, ProviderError } from "@orb/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { fakeApiKeySecret, fakeConnection, fakeDeps, memoryClaimKey, memoryStores, newPluginId, newRuleId, newUserId } from "./_support.ts";
@@ -51,13 +52,16 @@ interface Scene {
   readonly securityEvents: { kind: string; fields: Record<string, unknown> }[];
 }
 
-function scene(options: { claudeExecutable?: string } = {}): Scene {
+// The runtime reads no user rows; the scene's callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+
+async function scene(options: { claudeExecutable?: string } = {}): Promise<Scene> {
   const stores = memoryStores();
   const securityEvents: Scene["securityEvents"] = [];
   const deps = fakeDeps({ stores, securityEvents, ...options });
   const aliceId = newUserId();
   const bobId = newUserId();
-  return { deps, stores, alice: principal(aliceId), bob: principal(bobId), aliceId, bobId, securityEvents };
+  return { deps, stores, alice: await principal({ db: callersDb }, aliceId), bob: await principal({ db: callersDb }, bobId), aliceId, bobId, securityEvents };
 }
 
 function seedLocalLight(s: Scene, ownerId: UserId, opts: { allowBackground?: boolean } = {}): { embed: UserConnectionId; rerank: UserConnectionId } {
@@ -83,20 +87,20 @@ function seedLocalLight(s: Scene, ownerId: UserId, opts: { allowBackground?: boo
 }
 
 test("retirement: runtime exposes only live local-light lifecycle handles", async () => {
-  const runtime = await createInferenceRuntime(scene().deps);
+  const runtime = await createInferenceRuntime((await scene()).deps);
   expect(Object.keys(runtime.localLight).toSorted()).toEqual(["close", "embedSpace", "prefetch"]);
   await runtime.localLight.close();
 });
 
 test("no binding ⇒ NoConnectionError on resolve and `no-connection` on availability — never a born default", async () => {
-  const s = scene();
+  const s = await scene();
   const runtime = await createInferenceRuntime(s.deps);
   await expect(runtime.resolve({ task: "chat", principal: s.alice })).rejects.toBeInstanceOf(NoConnectionError);
   expect(await runtime.availability({ task: "chat", principal: s.alice })).toEqual({ available: false, cause: "no-connection" });
 });
 
 test("the user binding resolves the funder's own row with the curated capability, and reads available", async () => {
-  const s = scene();
+  const s = await scene();
   const ids = seedLocalLight(s, s.aliceId);
   const runtime = await createInferenceRuntime(s.deps);
   const { resolved, warnings } = await runtime.resolve({ task: "embed", principal: s.alice });
@@ -113,7 +117,7 @@ test("the user binding resolves the funder's own row with the curated capability
 });
 
 test("a plugin's local-light wire serves the Jina text recipe without inheriting the built-in catalog", async () => {
-  const s = scene();
+  const s = await scene();
   const runtime = await createInferenceRuntime(s.deps);
   const pluginId = newPluginId();
   s.stores.providerStore.state.pluginOwners.set(pluginId, s.aliceId);
@@ -159,7 +163,7 @@ test("a plugin's local-light wire serves the Jina text recipe without inheriting
 });
 
 test("a declared compatible fork on a plugin local-light wire inherits execution truth without canonical model facts", async () => {
-  const s = scene();
+  const s = await scene();
   const runtime = await createInferenceRuntime(s.deps);
   const pluginId = newPluginId();
   s.stores.providerStore.state.pluginOwners.set(pluginId, s.aliceId);
@@ -206,7 +210,7 @@ test("a declared compatible fork on a plugin local-light wire inherits execution
 });
 
 test("a binding that names a stranger's row is refused and recorded as a security event", async () => {
-  const s = scene();
+  const s = await scene();
   const bobRows = seedLocalLight(s, s.bobId);
   // Alice's binding points at Bob's connection — a domain bug the resolver must never serve.
   s.stores.bindings.bind({ actorKind: "user", actorId: s.aliceId, task: "embed", connectionId: bobRows.embed });
@@ -224,7 +228,7 @@ function seedEndpointRow(s: Scene, ownerId: UserId, label: string): UserConnecti
 }
 
 test("the actor hop wins over the funder's user binding for an actor-scoped task; an unbound rule falls through to the author", async () => {
-  const s = scene();
+  const s = await scene();
   const userRow = seedEndpointRow(s, s.aliceId, "alice's box");
   const ruleRow = seedEndpointRow(s, s.aliceId, "the rule's box");
   s.stores.bindings.bind({ actorKind: "user", actorId: s.aliceId, task: "summarize", connectionId: userRow });
@@ -241,7 +245,7 @@ test("the actor hop wins over the funder's user binding for an actor-scoped task
 });
 
 test("an owner-scoped task (the vector space) ignores the actor hop — one space per owner", async () => {
-  const s = scene();
+  const s = await scene();
   const ids = seedLocalLight(s, s.aliceId);
   const ruleRow = fakeConnection({ ownerId: s.aliceId, providerId: "local-light", model: DEFAULT_EMBED_MODEL, label: "rule's encoder", allowBackground: true });
   s.stores.connections.rows.set(ruleRow.id, ruleRow);
@@ -253,7 +257,7 @@ test("an owner-scoped task (the vector space) ignores the actor hop — one spac
 });
 
 test("a background task on a row without allowBackground warns at resolve and reads background-refused", async () => {
-  const s = scene();
+  const s = await scene();
   seedLocalLight(s, s.aliceId, { allowBackground: false });
   const runtime = await createInferenceRuntime(s.deps);
   const { warnings } = await runtime.resolve({ task: "embed", principal: s.alice });
@@ -262,7 +266,7 @@ test("a background task on a row without allowBackground warns at resolve and re
 });
 
 test("a row whose model kind cannot serve the task is refused at resolve and reads requirement-unmet", async () => {
-  const s = scene();
+  const s = await scene();
   const ids = seedLocalLight(s, s.aliceId);
   // Bind the ENCODER row to rerank: an embedding model cannot serve a rerank task.
   s.stores.bindings.bind({ actorKind: "user", actorId: s.aliceId, task: "rerank", connectionId: ids.embed });
@@ -272,7 +276,7 @@ test("a row whose model kind cannot serve the task is refused at resolve and rea
 });
 
 test("rerank on an endpoint row with no declared rerankPath reads requirement-unmet; a declared path clears it", async () => {
-  const s = scene();
+  const s = await scene();
   const bare = fakeConnection({
     ownerId: s.aliceId,
     providerId: "custom-openai",
@@ -295,7 +299,7 @@ test("rerank on an endpoint row with no declared rerankPath reads requirement-un
 });
 
 test("provider availability picks up a Claude installation through the existing runtime", async () => {
-  const s = scene();
+  const s = await scene();
   let executable: string | undefined;
   const runtime = await createInferenceRuntime({
     ...s.deps,
@@ -314,8 +318,9 @@ test("provider availability picks up a Claude installation through the existing 
 });
 
 test("providers.available lists every row the caller may use; claude-sub reads runtime-missing without the claude executable", async () => {
-  const withoutClaude = await createInferenceRuntime(scene().deps);
-  const caller = principal(newUserId());
+  const db = await freshDb();
+  const withoutClaude = await createInferenceRuntime((await scene()).deps);
+  const caller = await principal({ db }, newUserId());
   const rows = withoutClaude.providers.available(caller);
   expect(rows.map((r) => r.provider.id).toSorted()).toEqual(
     withoutClaude.providers.registry
@@ -327,12 +332,12 @@ test("providers.available lists every row the caller may use; claude-sub reads r
   expect(claudeSub).toMatchObject({ available: false, cause: "runtime-missing" });
   expect(rows.filter((r) => r.provider.id !== "claude-sub").every((r) => r.available)).toBe(true);
 
-  const withClaude = await createInferenceRuntime(scene({ claudeExecutable: "/usr/bin/claude" }).deps);
-  expect(withClaude.providers.available(principal(newUserId())).every((r) => r.available)).toBe(true);
+  const withClaude = await createInferenceRuntime((await scene({ claudeExecutable: "/usr/bin/claude" })).deps);
+  expect(withClaude.providers.available(await principal({ db }, newUserId())).every((r) => r.available)).toBe(true);
 });
 
 test("a claude-sub binding without the runtime reads runtime-missing, not no-connection", async () => {
-  const s = scene();
+  const s = await scene();
   const row = fakeConnection({ ownerId: s.aliceId, providerId: "claude-sub", model: "sonnet", label: "sub" });
   s.stores.connections.rows.set(row.id, row);
   s.stores.bindings.bind({ actorKind: "user", actorId: s.aliceId, task: "chat", connectionId: row.id });
@@ -341,7 +346,7 @@ test("a claude-sub binding without the runtime reads runtime-missing, not no-con
 });
 
 test("catalogs.builtin: a builtin provider answers the same closed set its rows list; a url provider has none", async () => {
-  const s = scene();
+  const s = await scene();
   const runtime = await createInferenceRuntime(s.deps);
   const closed = runtime.catalogs.builtin("local-light", s.aliceId);
   expect(closed?.map((m) => m.id)).toContain(DEFAULT_EMBED_MODEL);
@@ -351,7 +356,7 @@ test("catalogs.builtin: a builtin provider answers the same closed set its rows 
 });
 
 test("capabilities.for reads one descriptor + the tasks a row serves, for the owner only", async () => {
-  const s = scene();
+  const s = await scene();
   const ids = seedLocalLight(s, s.aliceId);
   const runtime = await createInferenceRuntime(s.deps);
   const read = await runtime.capabilities.for({ connectionId: ids.rerank, principal: s.alice });
@@ -362,7 +367,7 @@ test("capabilities.for reads one descriptor + the tasks a row serves, for the ow
 });
 
 test("capabilities.for separates a row's declared override from its evidence baseline", async () => {
-  const s = scene();
+  const s = await scene();
   const row = fakeConnection({
     ownerId: s.aliceId,
     providerId: "local-light",
@@ -388,7 +393,7 @@ test("capabilities.for separates a row's declared override from its evidence bas
 // longer exists" — two tRPC codes and, on the second, the raw text (`error-mapping.ts` lets `invalid` carry its
 // own message), so this pair failed on all three counts.
 test("the owner fence answers a STRANGER'S row exactly as it answers NO row — same id, same refusal", async () => {
-  const s = scene();
+  const s = await scene();
   const ids = seedLocalLight(s, s.aliceId);
   const runtime = await createInferenceRuntime(s.deps);
 
@@ -402,7 +407,7 @@ test("the owner fence answers a STRANGER'S row exactly as it answers NO row — 
 });
 
 test("POSITIVE CONTROL — the collapse did not blunt the fence: the owner still reads, and an unservable row is still `forbidden`", async () => {
-  const s = scene();
+  const s = await scene();
   const ids = seedLocalLight(s, s.aliceId);
   const runtime = await createInferenceRuntime(s.deps);
   // The owner resolves through the id-taking belt.
@@ -417,7 +422,7 @@ test("POSITIVE CONTROL — the collapse did not blunt the fence: the owner still
 // with a caller-supplied `connectionId`. Its kinds were already collapsed (both `NoConnectionError`); its
 // MESSAGES were not. Same property, same probe.
 test("the resolver's funder fence answers a stranger's row exactly as it answers no row, and records only the former", async () => {
-  const s = scene();
+  const s = await scene();
   const bobRows = seedLocalLight(s, s.bobId);
   const runtime = await createInferenceRuntime(s.deps);
 
@@ -435,7 +440,7 @@ test("the resolver's funder fence answers a stranger's row exactly as it answers
 });
 
 test("providers.register refuses a built-in id and a mis-namespaced plugin row; dropPlugin removes its runtime row", async () => {
-  const s = scene();
+  const s = await scene();
   const runtime = await createInferenceRuntime(s.deps);
   const adminId = newUserId();
   await expect(runtime.providers.register({ ...builtinProvider("openai"), label: "shadow" }, { admin: adminId })).rejects.toMatchObject({ kind: "invalid" });
@@ -466,7 +471,7 @@ test("providers.register refuses a built-in id and a mis-namespaced plugin row; 
 });
 
 test("a registry refresh failure compensates the durable plugin contribution before activation fails", async () => {
-  const s = scene();
+  const s = await scene();
   const durable = s.stores.providerStore;
   const listFailures: Error[] = [];
   const providerStore = {
@@ -504,6 +509,7 @@ test("a registry refresh failure compensates the durable plugin contribution bef
 });
 
 test("native Google cold catalog facts resolve through the shared runtime before task admission", async () => {
+  const db = await freshDb();
   const ownerId = newUserId();
   const stores = memoryStores();
   const row = fakeConnection({ ownerId, providerId: "google", model: "models/gemini-3-flash-preview" });
@@ -534,11 +540,13 @@ test("native Google cold catalog facts resolve through the shared runtime before
     },
   });
   const runtime = await createInferenceRuntime({ ...deps, resolveCredential: () => Promise.resolve(fakeApiKeySecret("native-runtime-key")) });
-  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  const { resolved } = await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id });
   expect(resolved.api).toBe("google-generative-ai");
   expect(resolved.capability).toMatchObject({
     generation: { context: { window: 90_000 }, output: { maxTokens: { max: 1000 } }, reasoning: { enabled: false } },
   });
-  await expect(runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: nativeEmbedder.id })).rejects.toMatchObject({ kind: "forbidden" });
+  await expect(runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: nativeEmbedder.id })).rejects.toMatchObject({
+    kind: "forbidden",
+  });
   expect(urls).toEqual(["https://generativelanguage.googleapis.com/v1beta/models"]);
 });

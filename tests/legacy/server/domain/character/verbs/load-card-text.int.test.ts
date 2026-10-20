@@ -20,7 +20,7 @@ describe("loadCardText", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: {
         handle: castId<CharacterHandle>("bryn"),
         name: "Bryn",

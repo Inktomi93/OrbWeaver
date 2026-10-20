@@ -40,7 +40,7 @@ describe("admin.linkSsoIdentity (B5)", () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
     const u = await seedUser(db, { id: "user_u", role: "user", handle: castId<Handle>("u") });
-    await expect(svc.linkSsoIdentity({ principal: principal(u, "user"), userId: u, externalId: EXT })).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.linkSsoIdentity({ principal: await principal(db, u, "user"), userId: u, externalId: EXT })).rejects.toThrow(DomainForbiddenError);
     expect(await externalIdOf(db, u)).toBeNull();
   });
 
@@ -51,7 +51,7 @@ describe("admin.linkSsoIdentity (B5)", () => {
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
 
-    const view = await svc.linkSsoIdentity({ principal: principal(admin, "admin"), userId: target, externalId: EXT });
+    const view = await svc.linkSsoIdentity({ principal: await principal(db, admin, "admin"), userId: target, externalId: EXT });
     expect(view.externalId).toBe(EXT);
     expect(await externalIdOf(db, target)).toBe(EXT);
     // #1707 — the record is a durable `audit_logs` ROW, not a call on the best-effort channel: an SSO bind
@@ -67,7 +67,7 @@ describe("admin.linkSsoIdentity (B5)", () => {
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
 
-    await expect(svc.linkSsoIdentity({ principal: principal(admin, "admin"), userId: owner, externalId: EXT })).rejects.toMatchObject({
+    await expect(svc.linkSsoIdentity({ principal: await principal(db, admin, "admin"), userId: owner, externalId: EXT })).rejects.toMatchObject({
       code: ADMIN_OP_CODES.cannotModifyOwner,
     });
     expect(await externalIdOf(db, owner)).toBeNull();
@@ -79,9 +79,9 @@ describe("admin.linkSsoIdentity (B5)", () => {
     const { ctx } = makeHarness(db);
     const svc = createAdminService(ctx);
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
-    await expect(svc.linkSsoIdentity({ principal: principal(admin, "admin"), userId: castId<UserId>("user_ghost"), externalId: EXT })).rejects.toThrow(
-      DomainNotFoundError,
-    );
+    await expect(
+      svc.linkSsoIdentity({ principal: await principal(db, admin, "admin"), userId: castId<UserId>("user_ghost"), externalId: EXT }),
+    ).rejects.toThrow(DomainNotFoundError);
   });
 
   test("a subject already bound to ANOTHER row maps to ssoSubjectTaken — nothing written, nothing audited", async () => {
@@ -93,7 +93,7 @@ describe("admin.linkSsoIdentity (B5)", () => {
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     await seedBound(db, holder, EXT);
 
-    await expect(svc.linkSsoIdentity({ principal: principal(admin, "admin"), userId: target, externalId: EXT })).rejects.toMatchObject({
+    await expect(svc.linkSsoIdentity({ principal: await principal(db, admin, "admin"), userId: target, externalId: EXT })).rejects.toMatchObject({
       code: ADMIN_OP_CODES.ssoSubjectTaken,
     });
     // THE BICONDITIONAL: the claim bound nothing (the unique index arbitrated), so no audit row claims it did.
@@ -111,7 +111,7 @@ describe("admin.linkSsoIdentity (B5)", () => {
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     await seedBound(db, target, OTHER_EXT);
 
-    await expect(svc.linkSsoIdentity({ principal: principal(admin, "admin"), userId: target, externalId: EXT })).rejects.toMatchObject({
+    await expect(svc.linkSsoIdentity({ principal: await principal(db, admin, "admin"), userId: target, externalId: EXT })).rejects.toMatchObject({
       code: ADMIN_OP_CODES.ssoRowBound,
     });
     expect(await externalIdOf(db, target)).toBe(OTHER_EXT);
@@ -127,7 +127,7 @@ describe("admin.linkSsoIdentity (B5)", () => {
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     await seedBound(db, target, EXT);
 
-    const view = await svc.linkSsoIdentity({ principal: principal(admin, "admin"), userId: target, externalId: EXT });
+    const view = await svc.linkSsoIdentity({ principal: await principal(db, admin, "admin"), userId: target, externalId: EXT });
     expect(view.externalId).toBe(EXT);
     // The audit row is a biconditional with the WRITE and this re-link wrote nothing — the same rule
     // `setRole`'s owner→owner no-op follows. The best-effort channel is not used as a consolation prize.
@@ -145,7 +145,7 @@ describe("admin.linkSsoIdentity (B5)", () => {
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
 
-    await expect(svc.linkSsoIdentity({ principal: principal(admin, "admin"), userId: target, externalId: EXT })).rejects.toThrow();
+    await expect(svc.linkSsoIdentity({ principal: await principal(db, admin, "admin"), userId: target, externalId: EXT })).rejects.toThrow();
 
     expect(await externalIdOf(db, target)).toBeNull();
     expect(await auditActions(db)).toHaveLength(0);
@@ -159,7 +159,7 @@ describe("admin.linkSsoIdentity (B5)", () => {
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
 
-    await expect(svc.linkSsoIdentity({ principal: principal(admin, "admin"), userId: target, externalId: EXT })).rejects.toThrow();
+    await expect(svc.linkSsoIdentity({ principal: await principal(db, admin, "admin"), userId: target, externalId: EXT })).rejects.toThrow();
 
     expect(await externalIdOf(db, target)).toBeNull();
     expect(await auditActions(db)).toHaveLength(0);

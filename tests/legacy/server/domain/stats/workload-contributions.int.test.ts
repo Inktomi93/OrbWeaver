@@ -11,7 +11,11 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe, vi } from "vitest";
 import { createStatsWorkloadContributions } from "#server/domain/stats/workload-contributions.ts";
+import { everyOwnerAuthority } from "../workloads/_support.ts";
 import { seedCharacter, seedChat, seedMessage, seedUser, T0 } from "./_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 let db: Db;
 let ownerId: UserId;
@@ -25,7 +29,9 @@ function contribution(database: Db): ReturnType<typeof createStatsWorkloadContri
 }
 
 function ctxFor(owner: UserId | null): WorkloadRunContext {
-  return { userId: ownerId, ownerId: owner, now: () => T0 };
+  return owner === null
+    ? { ...EVERY_OWNER.run, userId: ownerId, funderUserId: ownerId, now: () => T0 }
+    : { userId: ownerId, ownerId: owner, funderUserId: ownerId, now: () => T0 };
 }
 
 beforeEach(async () => {

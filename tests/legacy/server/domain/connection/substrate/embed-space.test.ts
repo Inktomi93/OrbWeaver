@@ -14,12 +14,15 @@ import type { Capability, Task } from "@orb/contracts/inference";
 import type { ResolveArgs, ResolveOutcome } from "@orb/inference";
 import type { ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { settleEmbedSpace, VECTOR_TASKS, vectorSpacesOf } from "#server/domain/connection/substrate/embed-space.ts";
 import { makeResolved } from "../../../../inference/_support.ts";
 
-const CALLER = principal(castId<UserId>("user_space_owner"));
+// These callers resolve from rows in one in-memory database; the subject under test reads no database of its own.
+const callersDb = await freshDb();
+const CALLER = await principal({ db: callersDb }, castId<UserId>("user_space_owner"));
 
 function embedding(dtype?: string, dims = 1024, mrl = false): Capability {
   return {

@@ -8,22 +8,22 @@
 import { createHash } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDef } from "@orb/contracts/inference";
-import type { PluginBundleHash, PluginCapability, PluginInstance } from "@orb/contracts/plugin";
+import type { PluginBundleHash, PluginCapability, PluginInstance, PluginLogView } from "@orb/contracts/plugin";
 import { pluginBundleHashSchema } from "@orb/contracts/plugin";
 import type { Db } from "@orb/db";
 import { assets, pluginAssets, plugins } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
+import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { Sandbox } from "@orb/server/infra/plugin-host";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { and, eq, inArray } from "drizzle-orm";
 import { zipSync } from "fflate";
 import { can } from "#server/domain/admin/index.ts";
 import type { PluginHostOps } from "#server/domain/plugin/contract/ops.ts";
-import type { PluginLogView } from "#server/domain/plugin/contract/results.ts";
 import type {
   CreateInstanceInput,
   CreateInstanceOutcome,
@@ -57,18 +57,15 @@ export function hashBundle(bytes: Uint8Array): PluginBundleHash {
 /** Parse a `[level] message` host.log line back into a structured `PluginLogView`. */
 const LOG_LINE_RE = /^\[(info|warn|error)\]\s(.*)$/su;
 
-/** A resolved `Principal` for `userId` — role `user`. Under D147 this is the COMMON plugin caller: a plain
- *  user installs for themselves and manages their own rows exactly like anyone else. (It used to be the
- *  refused case — every management verb was admin-gated; that gate is gone.) */
-export function principalFor(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>(userId), externalId: null, via: "fallback" };
+/** The common plugin caller (D147: a plain user manages their own rows), resolved from its stored row. */
+export async function principalFor(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId);
 }
 
-/** The box-owner `Principal` for `userId` — the APEX global role. It buys nothing extra on the plugin
- *  surface (D147: authority is the owner-scoped row load, not a role), which is exactly why the cross-user
- *  refusal tests aim it at ANOTHER user's row: the apex role must be refused there too. */
-export function ownerPrincipalFor(userId: UserId): Principal {
-  return { userId, role: "owner", handle: castId<Handle>(userId), externalId: null, via: "fallback" };
+/** The box-owner Principal, the apex global role: owner is written onto the row before it resolves. It buys
+ *  nothing extra on the plugin surface (D147), which is why cross-user refusal tests aim it at another user's row. */
+export async function ownerPrincipalFor(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role: "owner" });
 }
 
 /** A scriptable `PluginHostPort` fake: records every createInstance/invoke/dispose/readLog + serves scripted

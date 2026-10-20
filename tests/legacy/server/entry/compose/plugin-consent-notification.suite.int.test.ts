@@ -5,6 +5,7 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import type { SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { publishNotification } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import type { PluginView } from "#server/domain/plugin/index.ts";
 import { makeBundle, ownerPrincipalFor } from "../../domain/plugin/_support.ts";
@@ -19,7 +20,8 @@ function notificationFrame(result: IteratorResult<unknown>): Extract<StreamFrame
 }
 
 test("approval corrections and final settlement reach the live room behind a newer notification", async ({ services, ownerCaller, otherCaller }) => {
-  const caller = ownerPrincipalFor(OWNER_USER_ID);
+  const db = await freshDb();
+  const caller = await ownerPrincipalFor(db, OWNER_USER_ID);
   await otherCaller.notifications.list({});
   const rows: PluginView[] = [];
   for (const slug of ["first", "second", "third"]) {

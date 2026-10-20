@@ -11,13 +11,14 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Users } from "@orb/ui/icons";
 
 function entry(id: string, zone: ChromeEntry["zone"], mobile?: ChromeEntry["mobile"]): ChromeEntry {
-  return {
-    id,
-    label: id,
-    zone,
-    ...(mobile === undefined ? {} : { mobile }),
-    behavior: { kind: "widget", body: (): null => null },
-  };
+  const behavior = { kind: "widget" as const, body: (): null => null };
+  if (zone === "topbar.trail") {
+    return { id, label: id, zone, ...(mobile === undefined ? {} : { mobile }), behavior };
+  }
+  if (mobile === undefined) {
+    throw new Error(`a rail action declares its phone fate: ${id} has none`);
+  }
+  return { id, label: id, zone, mobile, behavior };
 }
 
 /** A rail SECTION entry — the only kind the bar's swap moves. `id` doubles as the section id, exactly as

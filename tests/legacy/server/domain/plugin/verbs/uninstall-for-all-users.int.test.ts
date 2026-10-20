@@ -27,14 +27,14 @@ test("withdrawing removes every distributed copy and the record itself", async (
   const db = await freshDb();
   const { boss, members } = await cast(db);
   const [ann, bo] = members;
-  const h = makePluginHarness(db, { listRecipients: () => Promise.resolve(members.map((id) => principalFor(id))) });
-  await h.service.installForAllUsers({ caller: ownerPrincipalFor(boss), bundle: makeBundle({ id: "house-style" }) });
+  const h = makePluginHarness(db, { listRecipients: async () => await Promise.all(members.map(async (id) => await principalFor(db, id))) });
+  await h.service.installForAllUsers({ caller: await ownerPrincipalFor(db, boss), bundle: makeBundle({ id: "house-style" }) });
 
-  const result = await h.service.uninstallForAllUsers({ caller: ownerPrincipalFor(boss), slug: "house-style" });
+  const result = await h.service.uninstallForAllUsers({ caller: await ownerPrincipalFor(db, boss), slug: "house-style" });
 
   expect(result).toMatchObject({ slug: "house-style", version: "1.0.0", applied: 2, skipped: [] });
-  expect(await h.service.list({ caller: principalFor(ann as UserId) })).toEqual([]);
-  expect(await h.service.list({ caller: principalFor(bo as UserId) })).toEqual([]);
+  expect(await h.service.list({ caller: await principalFor(db, ann as UserId) })).toEqual([]);
+  expect(await h.service.list({ caller: await principalFor(db, bo as UserId) })).toEqual([]);
   expect(await listDistributions(db)).toEqual([]);
   // The real uninstall ran, so the per-user bundle copies were reaped too.
   expect(h.storedBytes.size).toBe(1); // only the ADMIN's published copy survives — it is their own upload
@@ -44,35 +44,35 @@ test("a recipient who UPGRADED their copy is skipped and reported, with their gr
   const db = await freshDb();
   const { boss, members } = await cast(db);
   const [ann, bo] = members;
-  const h = makePluginHarness(db, { listRecipients: () => Promise.resolve(members.map((id) => principalFor(id))) });
+  const h = makePluginHarness(db, { listRecipients: async () => await Promise.all(members.map(async (id) => await principalFor(db, id))) });
   await h.service.installForAllUsers({
-    caller: ownerPrincipalFor(boss),
+    caller: await ownerPrincipalFor(db, boss),
     bundle: makeBundle({ id: "house-style", capabilities: ["chat.transform"] }),
   });
 
   // Ann consents, then upgrades her own copy to a version the deployment never published.
-  const [hers] = await h.service.list({ caller: principalFor(ann as UserId) });
+  const [hers] = await h.service.list({ caller: await principalFor(db, ann as UserId) });
   const hersId = hers?.id ?? castId("plugin_missing");
-  await h.service.setGrant({ caller: principalFor(ann as UserId), pluginId: hersId, grant: ["chat.transform"], acknowledgedNetHosts: [] });
+  await h.service.setGrant({ caller: await principalFor(db, ann as UserId), pluginId: hersId, grant: ["chat.transform"], acknowledgedNetHosts: [] });
   await h.service.upgrade({
-    caller: principalFor(ann as UserId),
+    caller: await principalFor(db, ann as UserId),
     pluginId: hersId,
     bundle: makeBundle({ id: "house-style", version: "1.4.0", capabilities: ["chat.transform"] }),
   });
 
-  const result = await h.service.uninstallForAllUsers({ caller: ownerPrincipalFor(boss), slug: "house-style" });
+  const result = await h.service.uninstallForAllUsers({ caller: await ownerPrincipalFor(db, boss), slug: "house-style" });
 
   expect(result.applied).toBe(1);
   // The skip NAMES the diverged user (`userHandle` is their PRINCIPAL's handle; this harness mints it from
   // the user id) — an admin who just withdrew a plugin needs to know WHO still has it.
-  expect(result.skipped).toEqual([{ userId: ann, userHandle: principalFor(ann as UserId).handle, reason: "version-diverged" }]);
+  expect(result.skipped).toEqual([{ userId: ann, userHandle: (await principalFor(db, ann as UserId)).handle, reason: "version-diverged" }]);
   // HERS SURVIVES, at her version, with the grant she gave — the withdrawal touched neither.
-  const [survivor] = await h.service.list({ caller: principalFor(ann as UserId) });
+  const [survivor] = await h.service.list({ caller: await principalFor(db, ann as UserId) });
   expect(survivor?.id).toBe(hersId);
   expect(survivor?.version).toBe("1.4.0");
   expect(survivor?.grantedCapabilities).toEqual(["chat.transform"]);
   // Bo, still on the distributed version, lost his.
-  expect(await h.service.list({ caller: principalFor(bo as UserId) })).toEqual([]);
+  expect(await h.service.list({ caller: await principalFor(db, bo as UserId) })).toEqual([]);
   // The record is gone either way: no FUTURE user receives a withdrawn plugin.
   expect(await listDistributions(db)).toEqual([]);
 });
@@ -81,44 +81,48 @@ test("a user who never held the slug is neither a skip nor an error", async () =
   const db = await freshDb();
   const { boss, members } = await cast(db);
   const [ann, bo] = members;
-  const h = makePluginHarness(db, { listRecipients: () => Promise.resolve(members.map((id) => principalFor(id))) });
-  await h.service.installForAllUsers({ caller: ownerPrincipalFor(boss), bundle: makeBundle({ id: "house-style" }) });
+  const h = makePluginHarness(db, { listRecipients: async () => await Promise.all(members.map(async (id) => await principalFor(db, id))) });
+  await h.service.installForAllUsers({ caller: await ownerPrincipalFor(db, boss), bundle: makeBundle({ id: "house-style" }) });
   // Bo removes his own copy first — his own act, his own row.
-  const [his] = await h.service.list({ caller: principalFor(bo as UserId) });
-  await h.service.uninstall({ caller: principalFor(bo as UserId), pluginId: his?.id ?? castId("plugin_missing") });
+  const [his] = await h.service.list({ caller: await principalFor(db, bo as UserId) });
+  await h.service.uninstall({ caller: await principalFor(db, bo as UserId), pluginId: his?.id ?? castId("plugin_missing") });
 
-  const result = await h.service.uninstallForAllUsers({ caller: ownerPrincipalFor(boss), slug: "house-style" });
+  const result = await h.service.uninstallForAllUsers({ caller: await ownerPrincipalFor(db, boss), slug: "house-style" });
 
   // Only Ann was served; Bo is absent from BOTH counts (`skipped` is a list of decisions, not of non-events).
   expect(result.applied).toBe(1);
   expect(result.skipped).toEqual([]);
-  expect(await h.service.list({ caller: principalFor(ann as UserId) })).toEqual([]);
+  expect(await h.service.list({ caller: await principalFor(db, ann as UserId) })).toEqual([]);
 });
 
 test("a NON-ADMIN cannot withdraw — the record and every copy survive", async () => {
   const db = await freshDb();
   const { boss, members } = await cast(db);
   const [ann] = members;
-  const h = makePluginHarness(db, { listRecipients: () => Promise.resolve(members.map((id) => principalFor(id))) });
-  await h.service.installForAllUsers({ caller: ownerPrincipalFor(boss), bundle: makeBundle({ id: "house-style" }) });
+  const h = makePluginHarness(db, { listRecipients: async () => await Promise.all(members.map(async (id) => await principalFor(db, id))) });
+  await h.service.installForAllUsers({ caller: await ownerPrincipalFor(db, boss), bundle: makeBundle({ id: "house-style" }) });
 
-  await expect(h.service.uninstallForAllUsers({ caller: principalFor(ann as UserId), slug: "house-style" })).rejects.toBeInstanceOf(DomainForbiddenError);
+  await expect(h.service.uninstallForAllUsers({ caller: await principalFor(db, ann as UserId), slug: "house-style" })).rejects.toBeInstanceOf(
+    DomainForbiddenError,
+  );
 
   expect(await listDistributions(db)).toHaveLength(1);
-  expect((await h.service.list({ caller: principalFor(ann as UserId) })).map((r) => r.slug)).toEqual(["house-style"]);
+  expect((await h.service.list({ caller: await principalFor(db, ann as UserId) })).map((r) => r.slug)).toEqual(["house-style"]);
 });
 
 test("withdrawing a slug the server never published is a typed refusal, not a silent no-op", async () => {
   const db = await freshDb();
   const { boss, members } = await cast(db);
   const [ann] = members;
-  const h = makePluginHarness(db, { listRecipients: () => Promise.resolve(members.map((id) => principalFor(id))) });
+  const h = makePluginHarness(db, { listRecipients: async () => await Promise.all(members.map(async (id) => await principalFor(db, id))) });
   // Ann has her OWN install at that slug — which must not be reachable through the distribution path.
-  await h.service.install({ caller: principalFor(ann as UserId), bundle: makeBundle({ id: "house-style" }), grant: [] });
+  await h.service.install({ caller: await principalFor(db, ann as UserId), bundle: makeBundle({ id: "house-style" }), grant: [] });
 
-  await expect(h.service.uninstallForAllUsers({ caller: ownerPrincipalFor(boss), slug: "house-style" })).rejects.toBeInstanceOf(PluginNotDistributedError);
+  await expect(h.service.uninstallForAllUsers({ caller: await ownerPrincipalFor(db, boss), slug: "house-style" })).rejects.toBeInstanceOf(
+    PluginNotDistributedError,
+  );
 
   // The refusal is the point: an admin cannot delete a plugin off users' accounts by naming a slug nobody
   // published. Ann keeps hers.
-  expect((await h.service.list({ caller: principalFor(ann as UserId) })).map((r) => r.slug)).toEqual(["house-style"]);
+  expect((await h.service.list({ caller: await principalFor(db, ann as UserId) })).map((r) => r.slug)).toEqual(["house-style"]);
 });

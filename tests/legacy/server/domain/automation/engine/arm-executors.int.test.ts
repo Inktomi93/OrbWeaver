@@ -16,6 +16,7 @@ import { chatBooks, worldBooks, worldEntries } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { createSerialLanes } from "@orb/kit/serial-lanes";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { parseIanaTimeZone, UTC_TIME_ZONE } from "@orb/kit/time";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -37,6 +38,9 @@ import { selectGlobalVariable } from "#server/domain/automation/persistence/quer
 import { createSuggestionStore } from "#server/domain/automation/substrate/suggestions.ts";
 import { seedChat, seedParticipant } from "../../chat/_support.ts";
 import { arm, NO_TOOLS, seedUser } from "../_support.ts";
+
+// One lane set per suite, the way the automation service owns one for its dispatcher and arms.
+const SERIAL_LANES = createSerialLanes();
 
 /** A stable sort for branded-string ids (biome `useArraySortCompare`). */
 function byId(a: string, b: string): number {
@@ -157,6 +161,7 @@ function makeHarness(db: Db, opts: HarnessOptions = {}): { dispatch: ArmDispatch
     },
   };
   const deps: ArmExecutorDeps = {
+    serialLanes: SERIAL_LANES,
     db,
     ops,
     prng: FIXED_PRNG,

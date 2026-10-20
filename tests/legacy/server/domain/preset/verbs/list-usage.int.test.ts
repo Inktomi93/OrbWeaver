@@ -33,7 +33,7 @@ describe("listUsage", () => {
     );
     const id = await seedPreset(db, { id: castId<PresetId>("preset_own"), ownerId: owner });
 
-    expect(await svc.listUsage({ principal: principal(owner), id })).toEqual(USAGE);
+    expect(await svc.listUsage({ principal: await principal({ db }, owner), id })).toEqual(USAGE);
     expect(asked).toEqual([`${owner}:${id}`]);
   });
 
@@ -43,7 +43,7 @@ describe("listUsage", () => {
     const svc = createPresetService(makeHarness(db, { resolvePresetUsage: () => Promise.resolve(USAGE) }).ctx);
     await seedPreset(db, { id: SYSTEM_DEFAULT_PRESET_ID, ownerId: null, name: "Default" });
 
-    expect(await svc.listUsage({ principal: principal(owner), id: SYSTEM_DEFAULT_PRESET_ID })).toEqual(USAGE);
+    expect(await svc.listUsage({ principal: await principal({ db }, owner), id: SYSTEM_DEFAULT_PRESET_ID })).toEqual(USAGE);
   });
 
   // The harness's `resolvePresetUsage` default THROWS "not stubbed", so this also pins that the gate runs
@@ -55,6 +55,6 @@ describe("listUsage", () => {
     const svc = createPresetService(makeHarness(db).ctx);
     const id = await seedPreset(db, { id: castId<PresetId>("preset_a"), ownerId: a });
 
-    await expect(svc.listUsage({ principal: principal(b), id })).rejects.toBeInstanceOf(PresetNotFoundError);
+    await expect(svc.listUsage({ principal: await principal({ db }, b), id })).rejects.toBeInstanceOf(PresetNotFoundError);
   });
 });

@@ -33,7 +33,7 @@ describe("create", () => {
     const b = (await seedCharacter(db, { ownerId: owner, name: "Brook" })).id;
 
     const view = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       // Sparse, out-of-order wire positions (10 before 3) — the verb sorts then re-stamps dense.
       input: { name: "Duo", description: "two of them", members: [memberSpec(a, 10, { talkativeness: 0.9 }), memberSpec(b, 3)] },
     });
@@ -62,7 +62,7 @@ describe("create", () => {
     const foreign = (await seedCharacter(db, { ownerId: other })).id;
 
     await expect(
-      svc.create({ principal: principal(owner), input: { name: "Theft", description: "", members: [memberSpec(mine, 0), memberSpec(foreign, 1)] } }),
+      svc.create({ principal: await principal(db, owner), input: { name: "Theft", description: "", members: [memberSpec(mine, 0), memberSpec(foreign, 1)] } }),
     ).rejects.toBeInstanceOf(RosterPresetCharacterNotFoundError);
 
     expect(await db.select().from(rosterPresets).where(eq(rosterPresets.ownerId, owner))).toHaveLength(0);
@@ -81,19 +81,19 @@ describe("create", () => {
 
     await expect(
       svc.create({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         input: { name: "P1", description: "", anchorPersonaId: foreignPersona, members: [memberSpec(c, 0)] },
       }),
     ).rejects.toBeInstanceOf(RosterPresetPersonaNotFoundError);
     await expect(
       svc.create({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         input: { name: "P2", description: "", anchorPersonaId: castId<PersonaId>("persona_dangling"), members: [memberSpec(c, 0)] },
       }),
     ).rejects.toBeInstanceOf(RosterPresetPersonaNotFoundError);
 
     const view = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "P3", description: "", anchorPersonaId: ownedPersona, members: [memberSpec(c, 0)] },
     });
     expect(view.anchorPersonaId).toBe(ownedPersona);
@@ -107,12 +107,12 @@ describe("create", () => {
     const mine = (await seedCharacter(db, { ownerId: owner })).id;
     const theirs = (await seedCharacter(db, { ownerId: other })).id;
 
-    await svc.create({ principal: principal(owner), input: { name: "Party", description: "", members: [memberSpec(mine, 0)] } });
-    await expect(svc.create({ principal: principal(owner), input: { name: "Party", description: "", members: [memberSpec(mine, 0)] } })).rejects.toBeInstanceOf(
-      RosterPresetNameConflictError,
-    );
+    await svc.create({ principal: await principal(db, owner), input: { name: "Party", description: "", members: [memberSpec(mine, 0)] } });
+    await expect(
+      svc.create({ principal: await principal(db, owner), input: { name: "Party", description: "", members: [memberSpec(mine, 0)] } }),
+    ).rejects.toBeInstanceOf(RosterPresetNameConflictError);
     // Same name, different owner — allowed (the UNIQUE is per-owner).
-    const view = await svc.create({ principal: principal(other), input: { name: "Party", description: "", members: [memberSpec(theirs, 0)] } });
+    const view = await svc.create({ principal: await principal(db, other), input: { name: "Party", description: "", members: [memberSpec(theirs, 0)] } });
     expect(view.name).toBe("Party");
   });
 
@@ -125,7 +125,7 @@ describe("create", () => {
     // A stray key on chat's STRICT arms — refused loudly at the verb's own parse, never stored-and-healed.
     await expect(
       svc.create({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         input: {
           name: "Garbage",
           description: "",
@@ -145,7 +145,7 @@ describe("create", () => {
     const c = (await seedCharacter(db, { ownerId: owner })).id;
 
     const view = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: {
         name: "Narrated",
         description: "",
@@ -167,7 +167,10 @@ describe("create", () => {
     const a = (await seedCharacter(db, { ownerId: owner })).id;
     const b = (await seedCharacter(db, { ownerId: owner })).id;
 
-    const view = await svc.create({ principal: principal(owner), input: { name: "Pair", description: "", members: [memberSpec(a, 0), memberSpec(b, 1)] } });
+    const view = await svc.create({
+      principal: await principal(db, owner),
+      input: { name: "Pair", description: "", members: [memberSpec(a, 0), memberSpec(b, 1)] },
+    });
     const seats = await db.select().from(rosterPresetMembers).where(eq(rosterPresetMembers.presetId, view.id));
     expect(seats).toHaveLength(2);
   });
@@ -182,7 +185,7 @@ describe("create — the rules rider (B10)", () => {
     const a = (await seedCharacter(db, { ownerId: owner })).id;
 
     const view = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: {
         name: "Ruled",
         description: "",
@@ -203,7 +206,7 @@ describe("create — the rules rider (B10)", () => {
     });
     expect(view.rules[1]?.knobs).toMatchObject({ everyN: 4 });
     // A rules-free create stays rules-free (the summary's badge premise).
-    const plain = await svc.create({ principal: principal(owner), input: { name: "Plain", description: "", members: [memberSpec(a, 0)] } });
+    const plain = await svc.create({ principal: await principal(db, owner), input: { name: "Plain", description: "", members: [memberSpec(a, 0)] } });
     expect(plain.rules).toEqual([]);
   });
 
@@ -216,7 +219,7 @@ describe("create — the rules rider (B10)", () => {
 
     await expect(
       svc.create({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         input: { name: "Bad", description: "", members: [memberSpec(a, 0)], rules: [{ rulePresetId: "pacingNudge", knobs: { everyN: 5000 } }] },
       }),
     ).rejects.toThrow(/between 2 and 200/);
@@ -232,7 +235,7 @@ describe("create — the rules rider (B10)", () => {
 
     await expect(
       svc.create({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         input: { name: "Global", description: "", members: [memberSpec(a, 0)], rules: [{ rulePresetId: "livingLibrary", knobs: {} }] },
       }),
     ).rejects.toThrow(/cannot ride a saved cast/);
@@ -247,15 +250,15 @@ describe("create — the game template", () => {
     const c = (await seedCharacter(db, { ownerId: owner })).id;
 
     const campaign = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Campaign", description: "", game: { ruleset: "d20" }, members: [memberSpec(c, 0)] },
     });
-    const plain = await svc.create({ principal: principal(owner), input: { name: "Plain", description: "", members: [memberSpec(c, 0)] } });
+    const plain = await svc.create({ principal: await principal(db, owner), input: { name: "Plain", description: "", members: [memberSpec(c, 0)] } });
 
     expect(campaign.game).toEqual({ ruleset: "d20" });
     expect(plain.game).toBeNull();
-    expect((await svc.get({ principal: principal(owner), presetId: campaign.id })).game).toEqual({ ruleset: "d20" });
-    const listed = await svc.list({ principal: principal(owner) });
+    expect((await svc.get({ principal: await principal(db, owner), presetId: campaign.id })).game).toEqual({ ruleset: "d20" });
+    const listed = await svc.list({ principal: await principal(db, owner) });
     expect(listed.map((row) => [row.name, row.game])).toEqual([
       ["Campaign", { ruleset: "d20" }],
       ["Plain", null],
@@ -272,7 +275,7 @@ describe("create — the game template", () => {
 
     await expect(
       svc.create({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         input: {
           name: "Bad game",
           description: "",

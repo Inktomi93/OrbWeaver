@@ -15,7 +15,7 @@ describe("getUserSettings", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_u" });
-    const view = await h.svc.getUserSettings({ principal: principal(u, "user") });
+    const view = await h.svc.getUserSettings({ principal: await principal(db, u, "user") });
     expect(view.userId).toBe(u);
     expect(view.updatedAt).toBe(0);
     expect(view.config.memory.enabled).toBe(false);
@@ -30,8 +30,8 @@ describe("getUserSettings", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_future" });
-    await h.svc.updateUserSettingsSection({ principal: principal(u, "user"), input: { section: "memory", patch: { enabled: true } } });
-    expect((await h.svc.getUserSettings({ principal: principal(u, "user") })).configUnreadable).toBe(null);
+    await h.svc.updateUserSettingsSection({ principal: await principal(db, u, "user"), input: { section: "memory", patch: { enabled: true } } });
+    expect((await h.svc.getUserSettings({ principal: await principal(db, u, "user") })).configUnreadable).toBe(null);
 
     // Bump the row's schemaVersion COLUMN past this build: no lift exists above it, so the current schema
     // would silently strip anything it has never heard of. The row is fine on the build that wrote it.
@@ -39,7 +39,7 @@ describe("getUserSettings", () => {
       .update(userSettings)
       .set({ schemaVersion: USER_SETTINGS_SCHEMA_VERSION + 900 })
       .where(eq(userSettings.userId, u));
-    const view = await h.svc.getUserSettings({ principal: principal(u, "user") });
+    const view = await h.svc.getUserSettings({ principal: await principal(db, u, "user") });
     expect(view.configUnreadable).toBe("version-from-future");
     // The VALUE is still served — the session stays usable; it is the WRITE that stands down.
     expect(view.config.memory.enabled).toBe(true);
@@ -53,7 +53,7 @@ describe("getUserSettings", () => {
     // the situation: there is nothing to read, and the first write is legitimate (the same arm
     // `writeUserConfig` takes). A "your settings couldn't be read" banner on a fresh account is the defect
     // this pin exists to prevent.
-    expect((await h.svc.getUserSettings({ principal: principal(u, "user") })).configUnreadable).toBe(null);
+    expect((await h.svc.getUserSettings({ principal: await principal(db, u, "user") })).configUnreadable).toBe(null);
   });
 
   test("reads back a written config (scoped to the principal's userId)", async () => {
@@ -61,10 +61,10 @@ describe("getUserSettings", () => {
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_u" });
     await h.svc.updateUserSettingsSection({
-      principal: principal(u, "user"),
+      principal: await principal(db, u, "user"),
       input: { section: "memory", patch: { enabled: true } },
     });
-    const view = await h.svc.getUserSettings({ principal: principal(u, "user") });
+    const view = await h.svc.getUserSettings({ principal: await principal(db, u, "user") });
     expect(view.config.memory.enabled).toBe(true);
     expect(view.updatedAt).toBeGreaterThan(0);
   });

@@ -182,7 +182,7 @@ export async function seedPlugin(db: Db, ownerId: UserId, id = "plugin_provider_
 /** A seeded owner + its `Principal` (the pair every scenario opens with). */
 export async function seedOwner(db: Db, id = "user_o"): Promise<{ readonly userId: UserId; readonly principal: Principal }> {
   const userId = await seedUser(db, id);
-  return { userId, principal: principal(userId) };
+  return { userId, principal: await principal({ db }, userId) };
 }
 
 function defaultAdmission(baseUrl: string): EndpointAdmission {

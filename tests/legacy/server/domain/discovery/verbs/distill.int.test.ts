@@ -25,7 +25,11 @@ import { describe } from "vitest";
 import { createDiscoveryService, DistillFailedError } from "#server/domain/discovery/index.ts";
 import { createTagService } from "#server/domain/tag/index.ts";
 import { makeTagHarness } from "../../tag/_support.ts";
+import { everyOwnerAuthority } from "../../workloads/_support.ts";
 import { makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 // A canned distillation reply (the FAKE summarize returns this per input) — the tags here are what must land
 // as pending suggestions, proving the INJECTED role drives the output.
@@ -130,7 +134,7 @@ describe("distillCharacters", () => {
       roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: summarize.op })),
     });
 
-    const stats = await svc.distillCharacters({ funderUserId: owner });
+    const stats = await svc.distillCharacters({ ...EVERY_OWNER.runScope, funderUserId: owner });
 
     // ONE non-synthetic card distilled (the synthetic group char was skipped).
     expect(stats).toMatchObject({ scanned: 1, distilled: 1, failed: 0, tagsStaged: 3 });
@@ -256,7 +260,7 @@ describe("distillCharacters", () => {
       roleClientsFor: () => Promise.resolve(makeFakeRoleClients({ structured: probe.op })),
     });
 
-    await svc.distillCharacters({ funderUserId: owner });
+    await svc.distillCharacters({ ...EVERY_OWNER.runScope, funderUserId: owner });
 
     expect(proseReads).toBe(0);
     expect([...new Set(probe.systems)]).toStrictEqual([PROSE_SLOTS["discovery.distill.system"].text]);
@@ -505,7 +509,7 @@ describe("distillCharacters", () => {
 
     expect(estimate).toBe(probe.batchInputs.length);
     expect(estimate).toBe(1);
-    expect(await svc.countDistillCalls(null)).toBe(2);
+    expect(await svc.countDistillCalls(EVERY_OWNER.estimate)).toBe(2);
   });
 
   test("the whole-library BATCH still returns counts and never throws (the narrow arm must not creep here)", async () => {
@@ -521,7 +525,7 @@ describe("distillCharacters", () => {
     });
 
     // Both batch shapes: the global sweep and the owner-narrowed (still multi-card) sweep.
-    await expect(svc.distillCharacters({ funderUserId: owner })).resolves.toMatchObject({ scanned: 2, distilled: 0, failed: 2 });
+    await expect(svc.distillCharacters({ ...EVERY_OWNER.runScope, funderUserId: owner })).resolves.toMatchObject({ scanned: 2, distilled: 0, failed: 2 });
     await expect(svc.distillCharacters({ ownerId: owner, funderUserId: owner })).resolves.toMatchObject({ scanned: 2, distilled: 0, failed: 2 });
   });
 

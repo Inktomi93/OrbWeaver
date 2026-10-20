@@ -4,6 +4,7 @@
 import type { EmbeddingBatchObservation } from "@orb/contracts/embeddings";
 import { providerIdSchema } from "@orb/contracts/inference";
 import { createInferenceRuntime } from "@orb/inference";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { runOpenAiCompatEmbed } from "#inference/backends/openai-compat/embed.ts";
@@ -229,6 +230,7 @@ function windowedEmbedServer(window: number): { readonly fetch: typeof fetch; re
 async function resolvedPrivateEmbedder(
   server: ReturnType<typeof windowedEmbedServer>,
 ): Promise<{ readonly connection: Resolved<"embed">; readonly deps: ReturnType<typeof fakeDeps> }> {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({
@@ -241,7 +243,7 @@ async function resolvedPrivateEmbedder(
   stores.connections.rows.set(row.id, row);
   const deps = fakeDeps({ stores, fetch: server.fetch });
   const runtime = await createInferenceRuntime(deps);
-  const { resolved } = await runtime.resolve({ task: "embed", principal: principal(ownerId), connectionId: row.id });
+  const { resolved } = await runtime.resolve({ task: "embed", principal: await principal({ db }, ownerId), connectionId: row.id });
   if (!isEmbedTask(resolved)) {
     throw new Error(`resolved for ${resolved.task}, not embed`);
   }

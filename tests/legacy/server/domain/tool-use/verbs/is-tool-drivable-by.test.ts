@@ -12,6 +12,7 @@
 import type { Can } from "@orb/contracts/identity";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
@@ -21,8 +22,10 @@ import { defOf } from "../_support.ts";
 
 type Service = ReturnType<typeof createToolUseService>;
 
-const ALICE = principal(castId("user_alice"), { handle: castId("alice") });
-const BOB = principal(castId("user_bob"), { handle: castId("bob") });
+// These callers resolve from rows in one in-memory database; the subject under test reads no database of its own.
+const callersDb = await freshDb();
+const ALICE = await principal({ db: callersDb }, castId("user_alice"), { handle: castId("alice") });
+const BOB = await principal({ db: callersDb }, castId("user_bob"), { handle: castId("bob") });
 
 const allowAll: Can = (() => undefined) as Can;
 

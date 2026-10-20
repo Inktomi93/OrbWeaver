@@ -17,14 +17,14 @@ describe("listUsers", () => {
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
     await seedUser(db, { id: "user_a", role: "user", handle: castId<Handle>("a"), passwordHash: "scrypt$x$y" });
 
-    const asOwner = await svc.listUsers({ principal: principal(owner, "owner") });
+    const asOwner = await svc.listUsers({ principal: await principal(db, owner, "owner") });
     expect(asOwner.length).toBe(2);
     for (const row of asOwner) {
       expect(Object.keys(row)).not.toContain("passwordHash");
     }
 
     const admin = await seedUser(db, { id: "user_admin", role: "admin", handle: castId<Handle>("adm") });
-    const asAdmin = await svc.listUsers({ principal: principal(admin, "admin") });
+    const asAdmin = await svc.listUsers({ principal: await principal(db, admin, "admin") });
     expect(asAdmin.length).toBe(3);
   });
 
@@ -32,14 +32,14 @@ describe("listUsers", () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
     const u = await seedUser(db, { id: "user_u", role: "user", handle: castId<Handle>("u") });
-    await expect(svc.listUsers({ principal: principal(u, "user") })).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.listUsers({ principal: await principal(db, u, "user") })).rejects.toThrow(DomainForbiddenError);
   });
 
   test("the kind:human filter returns humans with a null ownerHandle", async () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
-    const humans = await svc.listUsers({ principal: principal(owner, "owner"), kind: "human" });
+    const humans = await svc.listUsers({ principal: await principal(db, owner, "owner"), kind: "human" });
     expect(humans.map((u) => u.id)).toEqual([owner]);
     expect(humans[0]?.ownerHandle).toBeNull();
   });

@@ -127,8 +127,8 @@ test("lost mounted HTTP response after real commit recovers one unchanged birth 
     now: () => clock.now(),
     db: databaseHandle(db),
     seam: {
-      resolvePrincipal: () =>
-        Promise.resolve({ principal: { ...principal(OWNER_USER_ID), role: "owner", via: "header" }, sessionId: null, csrfHeaderPresent: false }),
+      resolvePrincipal: async () =>
+        Promise.resolve({ principal: { ...(await principal(db, OWNER_USER_ID)), role: "owner", via: "header" }, sessionId: null, csrfHeaderPresent: false }),
       debugGateAdmits: () => false,
     },
     services: app.services,

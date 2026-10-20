@@ -32,6 +32,7 @@ import { connectionBindings, embedGenerations, embedGenerationTargets, userConne
 import type { ChatId, ConnectionBindingId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
@@ -39,8 +40,8 @@ import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from 
 
 const FROZEN_AT = 1_700_000_000_000;
 
-function hostPrincipal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("host"), externalId: null, via: "header" };
+async function hostPrincipal(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId);
 }
 
 /** Insert one `user_connections` row plus a binding for `task`. The two arms below bind the SAME owner to
@@ -105,7 +106,7 @@ describe("in-turn retrieval degrades instead of killing the turn (#2510)", () =>
     const chatId = await seedRoom(db, "movingroom", host);
     await seedMovingEmbedSpace(db, host);
 
-    const preview = await services.chat.previewAssembly({ principal: hostPrincipal(host), chatId });
+    const preview = await services.chat.previewAssembly({ principal: await hostPrincipal(db, host), chatId });
     expect(typeof preview.prompt.static).toBe("string");
   });
 
@@ -113,7 +114,7 @@ describe("in-turn retrieval degrades instead of killing the turn (#2510)", () =>
     const host = await seedUser(db, castId<Handle>("spacelesshost"));
     const chatId = await seedRoom(db, "spacelessroom", host);
 
-    const preview = await services.chat.previewAssembly({ principal: hostPrincipal(host), chatId });
+    const preview = await services.chat.previewAssembly({ principal: await hostPrincipal(db, host), chatId });
     expect(typeof preview.prompt.static).toBe("string");
   });
 });

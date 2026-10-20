@@ -28,12 +28,12 @@ test("reports the document's global flag and NAMES the rooms chat says the calle
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const chatId = await seedChat(db, "chat_room");
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
 
-  await h.service.attachGlobal({ principal: principalFor(owner), documentId: document.id });
-  await h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId });
+  await h.service.attachGlobal({ principal: await principalFor(db, owner), documentId: document.id });
+  await h.service.attachToChat({ principal: await principalFor(db, owner), documentId: document.id, chatId });
 
-  const view = await h.service.listAttachments({ principal: principalFor(owner), id: document.id });
+  const view = await h.service.listAttachments({ principal: await principalFor(db, owner), id: document.id });
   expect(view.global).toBe(true);
   expect(view.chats).toEqual([{ id: chatId, title: "The Long Dark", participantNames: ["Aveline"], at: ROOM_AT }]);
   expect(view.characters).toEqual([]);
@@ -53,10 +53,10 @@ test("a room the caller may no longer see is ABSENT, with no residue", async () 
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const chatId = await seedChat(db, "chat_room");
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
-  await h.service.attachToChat({ principal: principalFor(owner), documentId: document.id, chatId });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
+  await h.service.attachToChat({ principal: await principalFor(db, owner), documentId: document.id, chatId });
 
-  const view = await h.service.listAttachments({ principal: principalFor(owner), id: document.id });
+  const view = await h.service.listAttachments({ principal: await principalFor(db, owner), id: document.id });
   expect(view.chats).toEqual([]);
   // Nothing anywhere in the payload counts, ids or otherwise, what was withheld.
   expect(JSON.stringify(view)).not.toContain(chatId);
@@ -68,9 +68,9 @@ test("a document attached to no room never consults chat at all", async () => {
   const db = await freshDb();
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
 
-  const view = await h.service.listAttachments({ principal: principalFor(owner), id: document.id });
+  const view = await h.service.listAttachments({ principal: await principalFor(db, owner), id: document.id });
   expect(view).toEqual({ global: false, chats: [], characters: [] });
 });
 
@@ -79,7 +79,7 @@ test("a non-owner cannot list a foreign document's attachments", async () => {
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const other = await seedUser(db, { handle: castId<Handle>("other") });
-  const { document } = await h.service.createFromText({ principal: principalFor(owner), name: "d.md", text: "canon" });
+  const { document } = await h.service.createFromText({ principal: await principalFor(db, owner), name: "d.md", text: "canon" });
 
-  await expect(h.service.listAttachments({ principal: principalFor(other), id: document.id })).rejects.toBeInstanceOf(DocumentNotFoundError);
+  await expect(h.service.listAttachments({ principal: await principalFor(db, other), id: document.id })).rejects.toBeInstanceOf(DocumentNotFoundError);
 });

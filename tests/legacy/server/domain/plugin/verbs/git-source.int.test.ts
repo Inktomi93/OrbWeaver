@@ -34,7 +34,7 @@ test("Git install records the exact commit and update-check compares the remote 
     },
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
 
   const installed = await h.service.installFromGit({ caller, url: REPOSITORY, expectedCommit: COMMIT_A, grant: [] });
   expect(installed).toMatchObject({ origin: "git", sourceUrl: REPOSITORY, sourceCommit: COMMIT_A, updateSource: "git" });
@@ -62,16 +62,16 @@ test("stored Git upgrade owner-scopes before egress and advances provenance atom
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
-  const installed = await h.service.installFromGit({ caller: ownerPrincipalFor(owner), url: REPOSITORY, expectedCommit: COMMIT_A, grant: [] });
+  const installed = await h.service.installFromGit({ caller: await ownerPrincipalFor(db, owner), url: REPOSITORY, expectedCommit: COMMIT_A, grant: [] });
 
   await expect(
-    h.service.upgradeFromStoredGit({ caller: ownerPrincipalFor(stranger), pluginId: installed.id, expectedCommit: COMMIT_B }),
+    h.service.upgradeFromStoredGit({ caller: await ownerPrincipalFor(db, stranger), pluginId: installed.id, expectedCommit: COMMIT_B }),
   ).rejects.toBeInstanceOf(PluginNotFoundError);
   expect(clones).toBe(1);
 
   commit = COMMIT_B;
   version = "1.1.0";
-  const upgraded = await h.service.upgradeFromStoredGit({ caller: ownerPrincipalFor(owner), pluginId: installed.id, expectedCommit: COMMIT_B });
+  const upgraded = await h.service.upgradeFromStoredGit({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, expectedCommit: COMMIT_B });
   expect(upgraded).toMatchObject({ version: "1.1.0", sourceCommit: COMMIT_B, origin: "git" });
   expect(clones).toBe(2);
 });
@@ -97,7 +97,7 @@ test("stored Git upgrade refuses when remote HEAD moves after update-check witho
     },
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const installed = await h.service.installFromGit({ caller, url: REPOSITORY, expectedCommit: COMMIT_A, grant: ["net.fetch"] });
 
   const [verdict] = await h.service.checkForUpdates({ caller });
@@ -139,7 +139,7 @@ test("Git install refuses when HEAD moved after preview, even when the capabilit
     },
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
 
   await expect(h.service.previewFromGit({ caller, url: REPOSITORY })).resolves.toMatchObject({
     manifest: { netHosts: ["preview.example"] },
@@ -173,7 +173,7 @@ test("Git URL credentials are redacted and refuse before transport or persistenc
   const credentialUrl = "https://owner:do-not-log@git.example/plugin.git";
 
   const refusal = await h.service
-    .installFromGit({ caller: ownerPrincipalFor(owner), url: credentialUrl, expectedCommit: COMMIT_A, grant: [] })
+    .installFromGit({ caller: await ownerPrincipalFor(db, owner), url: credentialUrl, expectedCommit: COMMIT_A, grant: [] })
     .catch((error: unknown) => error);
   expect(refusal).toBeInstanceOf(PluginGitSourceError);
   expect(String(refusal)).not.toContain("do-not-log");
@@ -202,7 +202,7 @@ test("stored Git URL credentials refuse remote-HEAD transport without mutating t
     },
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const installed = await h.service.installFromGit({ caller, url: REPOSITORY, expectedCommit: COMMIT_A, grant: [] });
   const credentialUrl = "https://owner:do-not-log@git.example/plugin.git";
   await db.update(plugins).set({ sourceUrl: credentialUrl }).where(eq(plugins.id, installed.id));

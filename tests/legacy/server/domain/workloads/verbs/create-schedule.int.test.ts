@@ -16,12 +16,12 @@ describe("workloads.createSchedule", () => {
     const s = makeService(db);
     const { id } = await s.createSchedule({
       input: { kind: "index", params: { source: "text" } },
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       cadence: "daily",
       mode: "singular",
       ownerId: alice,
     });
-    const [row] = await s.listSchedules({ caller: principal("user_alice") });
+    const [row] = await s.listSchedules({ caller: await principal(db, "user_alice") });
     expect(row?.id).toBe(id);
     expect(row?.ownerId).toBe(alice);
     expect(row?.kind).toBe("index");
@@ -38,10 +38,10 @@ describe("workloads.createSchedule", () => {
     await expect(
       s.createSchedule({
         input: { kind: "index", params: { source: "text" } },
-        caller: principal("user_alice"),
+        caller: await principal(db, "user_alice"),
         cadence: "weekly",
         mode: "bulk",
-        ownerId: principal("user_alice").userId,
+        ownerId: (await principal(db, "user_alice")).userId,
       }),
     ).rejects.toBeInstanceOf(DomainForbiddenError);
   });
@@ -52,12 +52,12 @@ describe("workloads.createSchedule", () => {
     const s = makeService(db);
     const { id } = await s.createSchedule({
       input: { kind: "reconcile-stats", params: {} },
-      caller: principal("user_owner_box", "owner"),
+      caller: await principal(db, "user_owner_box", "owner"),
       cadence: "weekly",
       mode: "bulk",
       ownerId: owner,
     });
-    const [row] = await s.listSchedules({ caller: principal("user_owner_box", "owner") });
+    const [row] = await s.listSchedules({ caller: await principal(db, "user_owner_box", "owner") });
     expect(row?.id).toBe(id);
     expect(row?.mode).toBe("bulk");
   });
@@ -69,7 +69,7 @@ describe("workloads.createSchedule", () => {
     await expect(
       s.createSchedule({
         input: { kind: "refresh-model-catalog", params: {} },
-        caller: principal("user_alice"),
+        caller: await principal(db, "user_alice"),
         cadence: "daily",
         mode: "singular",
         ownerId: alice,

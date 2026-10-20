@@ -7,6 +7,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createDiscoveryService } from "#server/domain/discovery/index.ts";
+import { everyOwnerAuthority } from "../../workloads/_support.ts";
 import type { HubScoreRecorder } from "../_support.ts";
 import {
   makeDiscoveryHarness,
@@ -21,6 +22,9 @@ import {
   seedUser,
   vec,
 } from "../_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 function hubById(recorder: HubScoreRecorder): Map<string, number> {
   const m = new Map<string, number>();
@@ -45,7 +49,7 @@ describe("computeCharacterHubScores", () => {
 
     const hubScores = makeHubScoreRecorder();
     const svc = createDiscoveryService(makeDiscoveryHarness(db, { hubScores }).ctx);
-    const stats = await svc.computeCharacterHubScores();
+    const stats = await svc.computeCharacterHubScores(EVERY_OWNER.runScope);
 
     expect(stats).toMatchObject({ rowsScored: 3, groupsProcessed: 1 });
     expect(hubScores.calls[0]?.table).toBe("character_embeddings");
@@ -72,7 +76,7 @@ describe("computeCharacterHubScores", () => {
 
     const hubScores = makeHubScoreRecorder();
     const svc = createDiscoveryService(makeDiscoveryHarness(db, { hubScores }).ctx);
-    await svc.computeCharacterHubScores();
+    await svc.computeCharacterHubScores(EVERY_OWNER.runScope);
 
     const byId = hubById(hubScores);
     expect(byId.get("character_embedding_character_a")).toBe(byId.get("character_embedding_character_b"));
@@ -112,7 +116,7 @@ describe("computeCharacterHubScores", () => {
 
     const hubScores = makeHubScoreRecorder();
     const svc = createDiscoveryService(makeDiscoveryHarness(db, { hubScores }).ctx);
-    const stats = await svc.computeCharacterHubScores(); // no ownerId → fan-out
+    const stats = await svc.computeCharacterHubScores(EVERY_OWNER.runScope); // no ownerId → fan-out
 
     // Both owners scored, but in SEPARATE per-owner passes (one writeHubScores call each — never a single
     // cross-tenant read/write).
@@ -152,7 +156,7 @@ describe("computeDigestHubScores", () => {
 
     const hubScores = makeHubScoreRecorder();
     const svc = createDiscoveryService(makeDiscoveryHarness(db, { hubScores }).ctx);
-    const rows = await svc.computeDigestHubScores();
+    const rows = await svc.computeDigestHubScores(EVERY_OWNER.runScope);
     expect(rows).toBe(3);
     expect(hubScores.calls[0]?.table).toBe("chat_digests");
   });
@@ -171,11 +175,11 @@ describe("computeSegmentHubScores / computeImageHubScores", () => {
     const segRec = makeHubScoreRecorder();
     const imgRec = makeHubScoreRecorder();
     const segSvc = createDiscoveryService(makeDiscoveryHarness(db, { hubScores: segRec }).ctx);
-    expect(await segSvc.computeSegmentHubScores()).toBe(2);
+    expect(await segSvc.computeSegmentHubScores(EVERY_OWNER.runScope)).toBe(2);
     expect(segRec.calls[0]?.table).toBe("chat_segments");
 
     const imgSvc = createDiscoveryService(makeDiscoveryHarness(db, { hubScores: imgRec }).ctx);
-    expect(await imgSvc.computeImageHubScores()).toBe(1);
+    expect(await imgSvc.computeImageHubScores(EVERY_OWNER.runScope)).toBe(1);
     expect(imgRec.calls[0]?.table).toBe("image_embeddings");
   });
 });

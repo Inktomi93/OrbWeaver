@@ -3,6 +3,7 @@
 // @subject packages/server/src/domain/share/verbs/enable-ip-certificate.ts
 
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { caller, shareHarness } from "../_support.ts";
@@ -11,13 +12,14 @@ const SETTING = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 }
 
 describe("share.enableIpCertificate", () => {
   test("the owner's choice is stored as the owner, the certificate starts, and the status carries it", async () => {
+    const db = await freshDb();
     const h = shareHarness({ authMode: "local" });
-    const status = await h.share.enableIpCertificate({ principal: caller("owner"), setting: SETTING });
+    const status = await h.share.enableIpCertificate({ principal: await caller(db, "owner"), setting: SETTING });
     expect(status.certificate).toEqual({ state: "obtaining", setting: SETTING });
-    expect(h.savedSettings).toEqual([{ by: caller("owner"), setting: SETTING }]);
+    expect(h.savedSettings).toEqual([{ by: await caller(db, "owner"), setting: SETTING }]);
     expect(h.calls).toEqual(["ownerNeedsPassword", "saveCertificateSetting 81.2.69.160", "certificate.enable 81.2.69.160"]);
     expect(h.audits.at(-1)).toEqual({
-      actorUserId: caller("owner").userId,
+      actorUserId: (await caller(db, "owner")).userId,
       action: "share.enableIpCertificate",
       entityType: "server",
       metadata: { address: SETTING.address, httpsPort: SETTING.httpsPort, challengePort: SETTING.challengePort, state: "obtaining" },
@@ -25,9 +27,10 @@ describe("share.enableIpCertificate", () => {
   });
 
   test("a LAN or CGNAT address is refused with a coded error, and nothing is stored or ordered", async () => {
+    const db = await freshDb();
     for (const address of ["192.168.1.20", "100.64.3.4", "10.0.0.8"]) {
       const h = shareHarness({ authMode: "local" });
-      const refusal = h.share.enableIpCertificate({ principal: caller("owner"), setting: { ...SETTING, address } });
+      const refusal = h.share.enableIpCertificate({ principal: await caller(db, "owner"), setting: { ...SETTING, address } });
       await expect(refusal).rejects.toBeInstanceOf(DomainOperationError);
       await expect(refusal).rejects.toMatchObject({ code: "ip_certificate_not_public" });
       expect(h.savedSettings).toEqual([]);
@@ -37,22 +40,27 @@ describe("share.enableIpCertificate", () => {
   });
 
   test("under forward-header the choice is refused, because the https hop would be trusted to name the user", async () => {
+    const db = await freshDb();
     const h = shareHarness({ authMode: "forward-header" });
-    await expect(h.share.enableIpCertificate({ principal: caller("owner"), setting: SETTING })).rejects.toMatchObject({ code: "ip_certificate_mode" });
+    await expect(h.share.enableIpCertificate({ principal: await caller(db, "owner"), setting: SETTING })).rejects.toMatchObject({
+      code: "ip_certificate_mode",
+    });
     expect(h.savedSettings).toEqual([]);
   });
 
   test("an admin and a user are refused before any precondition runs", async () => {
+    const db = await freshDb();
     for (const role of ["admin", "user"] as const) {
       const h = shareHarness({ authMode: "local" });
-      await expect(h.share.enableIpCertificate({ principal: caller(role), setting: SETTING })).rejects.toBeInstanceOf(DomainForbiddenError);
+      await expect(h.share.enableIpCertificate({ principal: await caller(db, role), setting: SETTING })).rejects.toBeInstanceOf(DomainForbiddenError);
       expect(h.calls, role).toEqual([]);
     }
   });
 
   test("control: an IPv6 address is stored in its canonical spelling", async () => {
+    const db = await freshDb();
     const h = shareHarness({ authMode: "local" });
-    await h.share.enableIpCertificate({ principal: caller("owner"), setting: { ...SETTING, address: "2A00:1450:4001:080B::200E" } });
+    await h.share.enableIpCertificate({ principal: await caller(db, "owner"), setting: { ...SETTING, address: "2A00:1450:4001:080B::200E" } });
     expect(h.savedSettings[0]?.setting?.address).toBe("2a00:1450:4001:80b::200e");
   });
 });

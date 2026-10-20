@@ -17,12 +17,14 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { STREAM_CHANNELS } from "@orb/contracts/stream";
+import type { Db } from "@orb/db";
 import { DomainNotFoundError, DomainUnavailableError } from "@orb/kit/errors";
 import type { SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import type { Context, PresenceRegistry, SocketRegistry } from "@orb/server/transport/trpc";
 import { createPresenceRegistry, createSocketRegistry, publishUserEvent } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { publishRpgEvent } from "#server/domain/rpg/bus.ts";
@@ -52,9 +54,9 @@ function nextSocket(): SocketId {
 const seated: ChatService["chatEventBounds"] = () =>
   Promise.resolve({ minSeq: 0, maxSeq: 0, historyFloorSeq: 0, viewerIsHost: true, reasoningHostOnly: false });
 
-function ctxWith(chatEventBounds: ChatService["chatEventBounds"], userId: UserId = MEMBER, sockets?: SocketRegistry): Context {
+async function ctxWith(db: Db, chatEventBounds: ChatService["chatEventBounds"], userId: UserId = MEMBER, sockets?: SocketRegistry): Promise<Context> {
   return makeContext({
-    auth: principal("user", { userId }),
+    auth: await principal(db, "user", { userId }),
     services: { chat: { chatEventBounds } },
     ...(sockets === undefined ? {} : { sockets }),
   });
@@ -89,6 +91,7 @@ async function collect(socket: AsyncIterable<unknown>, count: number, drive: () 
 
 describe("one socket, N rooms", () => {
   test("server process identity is present without rooms and stable across connections and registries", async () => {
+    const db = await freshDb();
     const open = async (connectionContext: Context): Promise<string> => {
       const socket = await caller(connectionContext).stream.connect({ socketId: nextSocket() });
       const iterator = (socket as AsyncIterable<unknown>)[Symbol.asyncIterator]();
@@ -96,15 +99,16 @@ describe("one socket, N rooms", () => {
       await iterator.return?.(undefined);
       return id;
     };
-    const ctx = ctxWith(seated);
+    const ctx = await ctxWith(db, seated);
     const before = await open(ctx);
     expect(await open(ctx)).toBe(before);
-    expect(await open(ctxWith(seated))).toBe(before);
+    expect(await open(await ctxWith(db, seated))).toBe(before);
   });
 
   test("attach-before-connect: the socket re-hydrates the room and relays its events", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
-    const call = caller(ctxWith(seated));
+    const call = caller(await ctxWith(db, seated));
     await call.stream.attach({ socketId, ref: { channel: "user" } });
 
     const socket = await call.stream.connect({ socketId });
@@ -115,8 +119,9 @@ describe("one socket, N rooms", () => {
   });
 
   test("attach AFTER connect reaches the live socket, and its frames ride the same connection", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
-    const call = caller(ctxWith(seated));
+    const call = caller(await ctxWith(db, seated));
     const socket = await call.stream.connect({ socketId });
 
     const frames = await collect(socket as AsyncIterable<unknown>, 2, async () => {
@@ -129,8 +134,9 @@ describe("one socket, N rooms", () => {
   });
 
   test("TWO rooms multiplex over ONE socket — this is the whole point", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
-    const call = caller(ctxWith(seated));
+    const call = caller(await ctxWith(db, seated));
     await call.stream.attach({ socketId, ref: { channel: "user" } });
     await call.stream.attach({ socketId, ref: { channel: "rpg", chatId: CHAT } });
 
@@ -145,8 +151,9 @@ describe("one socket, N rooms", () => {
   });
 
   test("the wire id is a per-socket ORDINAL, never a cursor", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
-    const call = caller(ctxWith(seated));
+    const call = caller(await ctxWith(db, seated));
     await call.stream.attach({ socketId, ref: { channel: "user" } });
 
     const socket = await call.stream.connect({ socketId });
@@ -165,9 +172,10 @@ describe("one socket, N rooms", () => {
 
 describe("the rpg room's authority is the relay's, verbatim", () => {
   test("the per-yield membership probe runs for THIS caller on THIS chat before anything is relayed", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(seated);
-    const call = caller(ctxWith(chatEventBounds));
+    const call = caller(await ctxWith(db, chatEventBounds));
     await call.stream.attach({ socketId, ref: { channel: "rpg", chatId: CHAT } });
 
     const socket = await call.stream.connect({ socketId });
@@ -177,9 +185,10 @@ describe("the rpg room's authority is the relay's, verbatim", () => {
   });
 
   test("a NON-MEMBER attaches successfully and simply receives nothing (withhold, never a refusal)", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
     const notSeated = (): Promise<never> => Promise.reject(new DomainNotFoundError("chat", CHAT));
-    const call = caller(ctxWith(notSeated, STRANGER));
+    const call = caller(await ctxWith(db, notSeated, STRANGER));
 
     // Accept-always at attach is DELIBERATE: a game may be born while a client is attached, and refusing
     // here would be an existence oracle.
@@ -194,10 +203,11 @@ describe("the rpg room's authority is the relay's, verbatim", () => {
 
 describe("per-room fault isolation (the property that did not exist before)", () => {
   test("a throwing pump becomes roomFailed and the SOCKET keeps delivering its other room", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
     // Not the leak-free NOT_FOUND (that one withholds) — any OTHER domain failure of the probe.
     const broken = (): Promise<never> => Promise.reject(new DomainUnavailableError("chat read unavailable"));
-    const call = caller(ctxWith(broken));
+    const call = caller(await ctxWith(db, broken));
     await call.stream.attach({ socketId, ref: { channel: "rpg", chatId: CHAT } });
     await call.stream.attach({ socketId, ref: { channel: "user" } });
 
@@ -233,6 +243,7 @@ describe("the staged fold leaves no dual transport", () => {
   ];
 
   test("EVERY channel is a real room now — S5 closed the fold, and no placeholder refusal is left", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
     // An authorized caller for each room's own gate: a seated chat member (chat/rpg), a multi-human
     // deployment (notifications), a present automation member, the OWNER of the workload row. Each room's
@@ -240,7 +251,7 @@ describe("the staged fold leaves no dual transport", () => {
     // because it has not folded.
     const call = caller(
       makeContext({
-        auth: principal("user", { userId: MEMBER }),
+        auth: await principal(db, "user", { userId: MEMBER }),
         services: {
           chat: { chatEventBounds: seated },
           automation: { resolveStreamAuthority: () => Promise.resolve("member") },
@@ -258,8 +269,9 @@ describe("the staged fold leaves no dual transport", () => {
   });
 
   test("detach is idempotent — tearing down a room the server already dropped is not an error", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
-    const call = caller(ctxWith(seated));
+    const call = caller(await ctxWith(db, seated));
 
     await expect(call.stream.detach({ socketId, ref: { channel: "user" } })).resolves.toBeUndefined();
   });
@@ -267,12 +279,13 @@ describe("the staged fold leaves no dual transport", () => {
 
 describe("the socket is bound to one principal", () => {
   test("connecting with another user's socketId is a leak-free NOT_FOUND, not a hijack", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
     // ONE registry, two principals — the only shape in which a hijack is even expressible.
     const sockets = createSocketRegistry(() => 0);
-    await caller(ctxWith(seated, MEMBER, sockets)).stream.attach({ socketId, ref: { channel: "user" } });
+    await caller(await ctxWith(db, seated, MEMBER, sockets)).stream.attach({ socketId, ref: { channel: "user" } });
 
-    await expect(caller(ctxWith(seated, STRANGER, sockets)).stream.connect({ socketId })).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(caller(await ctxWith(db, seated, STRANGER, sockets)).stream.connect({ socketId })).rejects.toMatchObject({ code: "NOT_FOUND" });
     // …and the refusal is a refusal, not a silently-forked second cell: nothing of Alice's went live.
     expect(sockets.liveSocketCount()).toBe(0);
   });
@@ -287,10 +300,14 @@ describe("the socket is bound to one principal", () => {
 describe("the socket owns presence (S3)", () => {
   /** A context with a REAL presence registry (a fixed clock — the grace window has its own slice test) plus
    *  the chat verb the host-return edge fires. */
-  function presenceCtx(drainDeferredTurns: ChatService["drainDeferredTurns"], multiHumanCapable = true): { ctx: Context; presence: PresenceRegistry } {
+  async function presenceCtx(
+    db: Db,
+    drainDeferredTurns: ChatService["drainDeferredTurns"],
+    multiHumanCapable = true,
+  ): Promise<{ ctx: Context; presence: PresenceRegistry }> {
     const presence = createPresenceRegistry(() => 0);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { chatEventBounds: seated, drainDeferredTurns } },
       presence,
       multiHumanCapable,
@@ -301,7 +318,8 @@ describe("the socket owns presence (S3)", () => {
   const emptyDrain: ChatService["drainDeferredTurns"] = () => Promise.resolve({ ran: 0, dropped: 0 });
 
   test("connecting ref-counts the caller's device liveness", async () => {
-    const { ctx, presence } = presenceCtx(emptyDrain);
+    const db = await freshDb();
+    const { ctx, presence } = await presenceCtx(db, emptyDrain);
     expect(presence.read(MEMBER).online).toBe(false);
 
     await caller(ctx).stream.connect({ socketId: nextSocket() });
@@ -310,9 +328,10 @@ describe("the socket owns presence (S3)", () => {
   });
 
   test("presence is NOT gated by the multi-human belt any more — the behavior change the owner took", async () => {
+    const db = await freshDb();
     // The point of the move: on a single-user deployment the notifications router was refused wholesale, so
     // nothing ever called `presence.connect` and cast-gating saw the host as offline forever.
-    const { ctx, presence } = presenceCtx(emptyDrain, false);
+    const { ctx, presence } = await presenceCtx(db, emptyDrain, false);
 
     await caller(ctx).stream.connect({ socketId: nextSocket() });
 
@@ -320,8 +339,9 @@ describe("the socket owns presence (S3)", () => {
   });
 
   test("the offline→online edge drains the turns that deferred while the host was dark", async () => {
+    const db = await freshDb();
     const drain = vi.fn<ChatService["drainDeferredTurns"]>(emptyDrain);
-    const { ctx } = presenceCtx(drain);
+    const { ctx } = await presenceCtx(db, drain);
 
     await caller(ctx).stream.connect({ socketId: nextSocket() });
 
@@ -329,8 +349,9 @@ describe("the socket owns presence (S3)", () => {
   });
 
   test("a SECOND live socket does not re-drain — the edge is offline→online, not per-connection", async () => {
+    const db = await freshDb();
     const drain = vi.fn<ChatService["drainDeferredTurns"]>(emptyDrain);
-    const { ctx } = presenceCtx(drain);
+    const { ctx } = await presenceCtx(db, drain);
 
     await caller(ctx).stream.connect({ socketId: nextSocket() });
     await caller(ctx).stream.connect({ socketId: nextSocket() });

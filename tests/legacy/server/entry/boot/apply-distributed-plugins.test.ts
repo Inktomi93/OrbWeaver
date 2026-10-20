@@ -14,20 +14,25 @@
 // concurrency, the never-throw contract, retry-after-failure, and per-user isolation.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { Db } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { DistributedPluginApplierDeps } from "@orb/server/domain/plugin";
 import { createDistributedPluginApplier } from "@orb/server/domain/plugin";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 
-function user(id: string): Principal {
-  return { userId: castId<UserId>(id), role: "user", handle: castId<Handle>(id), externalId: null, via: "cookie" };
+async function user(database: Db, id: string): Promise<Principal> {
+  return await makePrincipal({ db: database }, castId<UserId>(id));
 }
 
-const ALICE = user("usr_alice");
-const BOB = user("usr_bob");
+// The applier is pure over its ports; the two callers resolve from rows in one in-memory database.
+const db = await freshDb();
+const ALICE = await user(db, "usr_alice");
+const BOB = await user(db, "usr_bob");
 
 interface Harness {
   readonly deps: DistributedPluginApplierDeps;

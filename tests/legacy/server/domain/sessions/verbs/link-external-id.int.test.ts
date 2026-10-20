@@ -10,6 +10,7 @@
 
 import type { Db } from "@orb/db";
 import { users } from "@orb/db";
+import { awaitableStatementForOwner } from "@orb/db/wiring-owner";
 import { handleKey } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -56,7 +57,7 @@ async function externalIdOf(id: UserId): Promise<string | null> {
  *  durable state why. Spelled out here rather than hidden in a helper because the ORDER is the contract —
  *  the claim first, the explanation only after it settled. */
 async function claimThenSettle(userId: UserId, externalId: ExternalId): Promise<{ readonly outcome: string; readonly userId?: UserId }> {
-  const bound = await svc.linkExternalIdStatement(userId, externalId, T);
+  const bound = await awaitableStatementForOwner(svc.linkExternalIdStatement(userId, externalId, T));
   const first = bound[0];
   if (first !== undefined) {
     return { outcome: "linked", userId: first.id };
@@ -67,7 +68,7 @@ async function claimThenSettle(userId: UserId, externalId: ExternalId): Promise<
 describe("sessions link capability — the bind-once claim + its settlement (B5, #1707)", () => {
   test("BINDS an unbound row: the claim RETURNS the row and externalId is stamped", async () => {
     const id = await seedRow("user_a", castId<Handle>("alice"), null);
-    const bound = await svc.linkExternalIdStatement(id, EXT_A, T);
+    const bound = await awaitableStatementForOwner(svc.linkExternalIdStatement(id, EXT_A, T));
     expect(bound).toEqual([{ id }]);
     expect(await externalIdOf(id)).toBe(EXT_A);
   });
@@ -102,7 +103,7 @@ describe("sessions link capability — the bind-once claim + its settlement (B5,
     const b = await seedRow("user_b", castId<Handle>("bob"), null);
     // The claim REJECTS here (`users_external_id_unique` is the arbiter, not a pre-read), and the settlement
     // converts that rejection into the typed refusal.
-    await expect(svc.linkExternalIdStatement(b, EXT_A, T)).rejects.toThrow();
+    await expect(awaitableStatementForOwner(svc.linkExternalIdStatement(b, EXT_A, T))).rejects.toThrow();
     expect(await svc.settleUnclaimedLink(b, EXT_A, new Error("unique violation"))).toEqual({ outcome: "subject-taken" });
     expect(await externalIdOf(b)).toBeNull();
   });
@@ -121,7 +122,10 @@ describe("sessions link capability — the bind-once claim + its settlement (B5,
     const b = await seedRow("user_b", castId<Handle>("bob"), null);
 
     // Both claims are issued before either is settled — the database arbitrates, no read holds a row unbound.
-    const claims = await Promise.allSettled([svc.linkExternalIdStatement(a, EXT_A, T), svc.linkExternalIdStatement(b, EXT_A, T)]);
+    const claims = await Promise.allSettled([
+      awaitableStatementForOwner(svc.linkExternalIdStatement(a, EXT_A, T)),
+      awaitableStatementForOwner(svc.linkExternalIdStatement(b, EXT_A, T)),
+    ]);
     const outcomes = await Promise.all(
       claims.map(async (claim, index) => {
         const target = index === 0 ? a : b;

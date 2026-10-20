@@ -21,38 +21,38 @@ describe("listConstantCanon", () => {
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     const chatId = await seedChat(db);
 
-    const attached = await svc.createBook({ principal: principal(host), input: { name: "Attached" } });
-    await svc.attachToChat({ principal: principal(host), chatId, bookId: attached.id });
+    const attached = await svc.createBook({ principal: await principal(db, host), input: { name: "Attached" } });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, bookId: attached.id });
 
     // Constant (keyless => always by the keys-presence heuristic), two priorities to pin the ordering.
     await svc.createEntry({
-      principal: principal(host),
+      principal: await principal(db, host),
       bookId: attached.id,
       input: { title: "Low canon", content: "low", priority: 1 },
     });
     await svc.createEntry({
-      principal: principal(host),
+      principal: await principal(db, host),
       bookId: attached.id,
       input: { title: "High canon", content: "high", priority: 10 },
     });
     // Keyword-scoped (keys present) — excluded from constant canon.
     await svc.createEntry({
-      principal: principal(host),
+      principal: await principal(db, host),
       bookId: attached.id,
       input: { title: "Keyed", content: "keyed", keys: ["dragon"], priority: 99 },
     });
     // Disabled always-scope — excluded.
     const disabled = await svc.createEntry({
-      principal: principal(host),
+      principal: await principal(db, host),
       bookId: attached.id,
       input: { title: "Disabled", content: "off", priority: 50 },
     });
-    await svc.updateEntry({ principal: principal(host), entryId: disabled.id, input: { enabled: false } });
+    await svc.updateEntry({ principal: await principal(db, host), entryId: disabled.id, input: { enabled: false } });
 
     // An UNATTACHED book's constant entry must not leak into this chat's canon.
-    const unattached = await svc.createBook({ principal: principal(host), input: { name: "Unattached" } });
+    const unattached = await svc.createBook({ principal: await principal(db, host), input: { name: "Unattached" } });
     await svc.createEntry({
-      principal: principal(host),
+      principal: await principal(db, host),
       bookId: unattached.id,
       input: { title: "Elsewhere", content: "no", priority: 100 },
     });

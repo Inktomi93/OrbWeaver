@@ -20,7 +20,7 @@ import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { auditLogs, sessions, users } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import { awaitableStatementToken, statementToken } from "@orb/db/wiring-owner";
+import { awaitableStatementForOwner, awaitableStatementToken, databaseForOwner, statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import { handleKey } from "@orb/kit/handle-key";
 import type { CharacterId, ExternalId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -35,7 +35,7 @@ import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { UnclaimedLinkOutcome } from "#server/domain/admin/contract/results.ts";
-import type { AdminAssemblyContext as AdminContext } from "#server/domain/admin/contract/service.ts";
+import type { AdminAssemblyContext as AdminContext, AdminContext as AdminVerbContext } from "#server/domain/admin/contract/service.ts";
 import type { SessionAdminView } from "#server/domain/admin/contract/views.ts";
 import type { AdminService } from "#server/domain/admin/index.ts";
 import { createAdminService } from "#server/domain/admin/index.ts";
@@ -85,6 +85,22 @@ export async function liveSessionIds(db: Db, userId: UserId): Promise<SessionId[
  *  `audit_logs.actor_user_id`'s FK. Not a mock — a genuinely rejecting audit write, which is exactly what
  *  `logAudit`'s suppress-and-drop posture exists to absorb for the NON-privileged callers. A privileged verb
  *  built over this ctx must leave NO trace of its write. */
+/** The context a substrate below the admin service takes: the harness's assembly input behind its db and statement
+ *  tokens, recovered as the admin composition root recovers it. */
+export function adminVerbContext(input: AdminContext): AdminVerbContext {
+  return {
+    ...input,
+    db: databaseForOwner(input.db),
+    auditStatementAfterWrite: (entry, at) => statementForOwner(input.auditStatementAfterWrite(entry, at)),
+    sessions: {
+      ...input.sessions,
+      revokeAllForUserStatement: (...args) => statementForOwner(input.sessions.revokeAllForUserStatement(...args)),
+      linkExternalIdStatement: (...args) => awaitableStatementForOwner(input.sessions.linkExternalIdStatement(...args)),
+      localUserInsertStatement: (...args) => awaitableStatementForOwner(input.sessions.localUserInsertStatement(...args)),
+    },
+  };
+}
+
 export function withBrokenAudit(ctx: AdminContext, db: Db): AdminContext {
   return {
     ...ctx,
@@ -177,11 +193,9 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
   return id;
 }
 
-/** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
- *  `support/factories/principal` — admin keeps the positional `(id, role, handle?)` convention its ~40
- *  call sites use; the shared home owns the literal (role/handle over the `overrides` axis). */
-export function principal(userId: UserId, role: UserRole, handle: Handle = castId<Handle>(userId)): Principal {
-  return makePrincipal(userId, { role, handle });
+/** Resolve a caller's Principal through the production row resolver; a passed role or handle is first written onto the user's row. */
+export async function principal(db: Db, userId: UserId, role: UserRole, handle?: Handle): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role, handle });
 }
 
 /** The repeated "wire the service, seed the admin caller" prologue (~7 call sites): builds a real

@@ -4,6 +4,7 @@
 // ToolDefinition factory over a recording handler.
 
 import type { Can, Principal } from "@orb/contracts/identity";
+import type { Db } from "@orb/db";
 import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -44,13 +45,13 @@ export function makeHarness(): ToolUseHarness {
   };
 }
 
-function principalOf(handle: Handle): Principal {
-  return makePrincipal(castId(`user_${handle}`), { handle: castId(handle) });
+async function principalOf(db: Db, handle: Handle): Promise<Principal> {
+  return await makePrincipal({ db }, castId(`user_${handle}`));
 }
 
-export function execOf(over: Partial<ToolExecutionContext> = {}): ToolExecutionContext {
+export async function execOf(db: Db, over: Partial<ToolExecutionContext> = {}): Promise<ToolExecutionContext> {
   return {
-    principal: principalOf(castId<Handle>("host")),
+    principal: await principalOf(db, castId<Handle>("host")),
     triggeredBy: castId("user_trigger"),
     chatId: null,
     membership: null,

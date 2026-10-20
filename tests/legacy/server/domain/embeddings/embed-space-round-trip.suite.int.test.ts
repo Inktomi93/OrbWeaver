@@ -154,6 +154,7 @@ async function driveOwnerWithBoundEncoder(
   const store = makeStoreHarness(db, sources);
   const ctx: EmbeddingsContext = {
     ...store.ctx,
+    db,
     roleClientsFor: roleClients,
     // Compose's own resolve over the real runtime: the snapshot the generation is minted from is production's.
     resolveEmbeddingConnection: createResolveEmbeddingConnection(harness.runtime, () => Promise.resolve(principal)),

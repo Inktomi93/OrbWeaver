@@ -18,19 +18,19 @@ describe("duplicateBook", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Source" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Source" } });
     await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "Lore A", content: "alpha", keys: ["a"], priority: 5 },
     });
 
-    const copy = await svc.duplicateBook({ principal: principal(owner), bookId: book.id });
+    const copy = await svc.duplicateBook({ principal: await principal(db, owner), bookId: book.id });
 
     expect(copy.id).not.toBe(book.id);
     expect(copy.name).toBe("Source (copy)");
-    const sourceEntries = await svc.listEntries({ principal: principal(owner), bookId: book.id });
-    const copyEntries = await svc.listEntries({ principal: principal(owner), bookId: copy.id });
+    const sourceEntries = await svc.listEntries({ principal: await principal(db, owner), bookId: book.id });
+    const copyEntries = await svc.listEntries({ principal: await principal(db, owner), bookId: copy.id });
     expect(copyEntries).toHaveLength(1);
     expect(copyEntries[0]?.id).not.toBe(sourceEntries[0]?.id);
     expect(copyEntries[0]?.title).toBe("Lore A");
@@ -43,11 +43,11 @@ describe("duplicateBook", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Src" } });
-    await svc.attachGlobal({ principal: principal(owner), bookId: book.id });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Src" } });
+    await svc.attachGlobal({ principal: await principal(db, owner), bookId: book.id });
 
-    const copy = await svc.duplicateBook({ principal: principal(owner), bookId: book.id });
-    const globals = await svc.listGlobal({ principal: principal(owner) });
+    const copy = await svc.duplicateBook({ principal: await principal(db, owner), bookId: book.id });
+    const globals = await svc.listGlobal({ principal: await principal(db, owner) });
     expect(globals.map((b) => b.id)).toEqual([book.id]);
     expect(globals.map((b) => b.id)).not.toContain(copy.id);
   });
@@ -61,14 +61,14 @@ describe("duplicateBook", () => {
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Source" } });
-    const entry = await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "Lore A", content: "alpha" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Source" } });
+    const entry = await svc.createEntry({ principal: await principal(db, owner), bookId: book.id, input: { title: "Lore A", content: "alpha" } });
     // An EDIT is what puts a deterministic (and, by the time of the copy, stale) stamp on the source row —
     // only the update verbs stamp `updatedAt` from the injected clock; an insert takes the column default.
-    await svc.updateEntry({ principal: principal(owner), entryId: entry.id, input: { content: "beta" } });
+    await svc.updateEntry({ principal: await principal(db, owner), entryId: entry.id, input: { content: "beta" } });
     h.advance(5000);
 
-    const copy = await svc.duplicateBook({ principal: principal(owner), bookId: book.id });
+    const copy = await svc.duplicateBook({ principal: await principal(db, owner), bookId: book.id });
 
     const copied = await db
       .select({ createdAt: worldEntries.createdAt, updatedAt: worldEntries.updatedAt })
@@ -85,8 +85,8 @@ describe("duplicateBook", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "Theirs" } });
 
-    await expect(svc.duplicateBook({ principal: principal(owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.duplicateBook({ principal: await principal(db, owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

@@ -37,23 +37,23 @@ describe("exportGallery", () => {
     const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
 
     const assetA = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1),
       kind: "gallery",
       mime: PNG,
     });
     const assetB = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(2),
       kind: "gallery",
       mime: PNG,
     });
     await svc.addToGallery({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       assetId: assetA.assetId,
       subjectCharacterId: hero,
     });
-    await svc.addToGallery({ principal: principal(owner), assetId: assetB.assetId });
+    await svc.addToGallery({ principal: await principal(db, owner), assetId: assetB.assetId });
 
     const file = await createExportGallery(ctx)(owner);
     expect(file.filename).toBe("gallery.json");
@@ -73,19 +73,19 @@ describe("exportGallery", () => {
     const a = await seedUser(db, { handle: castId<Handle>("a") });
     const b = await seedUser(db, { handle: castId<Handle>("b") });
     const assetA = await svc.store({
-      principal: principal(a),
+      principal: await principal(db, a),
       bytes: pngBytes(1),
       kind: "gallery",
       mime: PNG,
     });
     const assetB = await svc.store({
-      principal: principal(b),
+      principal: await principal(db, b),
       bytes: pngBytes(2),
       kind: "gallery",
       mime: PNG,
     });
-    await svc.addToGallery({ principal: principal(a), assetId: assetA.assetId });
-    await svc.addToGallery({ principal: principal(b), assetId: assetB.assetId });
+    await svc.addToGallery({ principal: await principal(db, a), assetId: assetA.assetId });
+    await svc.addToGallery({ principal: await principal(db, b), assetId: assetB.assetId });
 
     const file = await createExportGallery(ctx)(a);
     const parsed = must(parseGallery(file.bytes));
@@ -101,13 +101,13 @@ describe("exportGallery", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const asset = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1),
       kind: "gallery",
       mime: PNG,
     });
     await svc.addToGallery({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       assetId: asset.assetId,
       subjectCharacterId: hero,
     });

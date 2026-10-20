@@ -40,7 +40,7 @@ test("a complete library bundle restores uncurated image calls and rebuilds spen
 }) => {
   const source = await seedUser(db);
   const foreign = await seedUser(db);
-  const owner = principal(source.id, { handle: source.handle, via: "header" });
+  const owner = await principal({ db }, source.id);
   const call = makeImageryCall();
   const character = await seedCharacter(db, { ownerId: source.id, id: mintTypeId(ID_PREFIX.character), name: "Hero", handle: castId("hero") });
   const chatId = mintTypeId(ID_PREFIX.chat);
@@ -76,7 +76,7 @@ test("a complete library bundle restores uncurated image calls and rebuilds spen
     });
   }
   const foreignBlob = await app.services.assets.store({
-    principal: principal(foreign.id),
+    principal: await principal({ db }, foreign.id),
     bytes: new TextEncoder().encode("foreign image must stay home"),
     kind: "generated",
     mime: "image/png",
@@ -100,7 +100,7 @@ test("a complete library bundle restores uncurated image calls and rebuilds spen
 
   const restoredDb = await freshDb();
   const targetUser = await seedUser(restoredDb);
-  const target = principal(targetUser.id, { handle: targetUser.handle, via: "header" });
+  const target = await principal({ db: restoredDb }, targetUser.id);
   const casDir = await mkdtemp(join(tmpdir(), "orb-imagery-restore-cas-"));
   const variantDir = await mkdtemp(join(tmpdir(), "orb-imagery-restore-var-"));
   onTestFinished(async () => {

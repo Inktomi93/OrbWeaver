@@ -30,7 +30,7 @@ describe("createRuleFromPreset — the mint", () => {
     const f = await setup();
     const [view] = await f.svc.createRuleFromPreset({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: f.chatId,
       presetId: "pacingNudge",
       knobs: { everyN: 4, steer: "Shift the pacing." },
@@ -47,7 +47,12 @@ describe("createRuleFromPreset — the mint", () => {
 
   test("mints a two-rule preset as an ORDERED, (i/n)-titled set at ascending positions", async () => {
     const f = await setup();
-    const views = await f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
+    const views = await f.svc.createRuleFromPreset({
+      timeZone: UTC_TIME_ZONE,
+      principal: await principal(f.db, f.host),
+      chatId: f.chatId,
+      presetId: "clockFires",
+    });
 
     expect(views.map((v) => v.name)).toEqual(["Clock fires when full (1/2)", "Clock fires when full (2/2)"]);
     // Position order IS the same-batch mechanism: the counter must dispatch before the threshold.
@@ -64,7 +69,7 @@ describe("createRuleFromPreset — the mint", () => {
     if (kathmandu === null) {
       throw new Error("the platform must know Asia/Kathmandu");
     }
-    const views = await f.svc.createRuleFromPreset({ timeZone: kathmandu, principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
+    const views = await f.svc.createRuleFromPreset({ timeZone: kathmandu, principal: await principal(f.db, f.host), chatId: f.chatId, presetId: "clockFires" });
 
     expect(views.map((view) => view.timeZone)).toEqual(["Asia/Kathmandu", "Asia/Kathmandu"]);
   });
@@ -76,7 +81,12 @@ describe("createRuleFromPreset — the mint", () => {
     const f = await setup();
     f.bus.length = 0;
 
-    const views = await f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
+    const views = await f.svc.createRuleFromPreset({
+      timeZone: UTC_TIME_ZONE,
+      principal: await principal(f.db, f.host),
+      chatId: f.chatId,
+      presetId: "clockFires",
+    });
 
     expect(views).toHaveLength(2);
     expect(f.bus.filter((event) => event.type === "rulesChanged")).toEqual([{ type: "rulesChanged", chatId: f.chatId }]);
@@ -87,36 +97,47 @@ describe("createRuleFromPreset — the mint", () => {
     // A hand-authored rule already holds position 0 in this scope.
     await f.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: f.chatId,
       name: "hand-authored",
       trigger: MSG_COMMITTED,
       actions: [SET_VAR],
     });
 
-    const views = await f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
+    const views = await f.svc.createRuleFromPreset({
+      timeZone: UTC_TIME_ZONE,
+      principal: await principal(f.db, f.host),
+      chatId: f.chatId,
+      presetId: "clockFires",
+    });
 
     // Allocated inside the batch, off one snapshot: 1 then 2, with no gap and no collision with the 0.
     expect(views.map((v) => v.position)).toEqual([1, 2]);
-    const listed = await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId });
+    const listed = await f.svc.listRules({ principal: await principal(f.db, f.host), chatId: f.chatId });
     expect(listed.map((r) => r.position)).toEqual([0, 1, 2]);
   });
 
   test("refuses a bad knob with a typed validation error and stores NOTHING", async () => {
     const f = await setup();
     await expect(
-      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "pacingNudge", knobs: { everyN: 5000 } }),
+      f.svc.createRuleFromPreset({
+        timeZone: UTC_TIME_ZONE,
+        principal: await principal(f.db, f.host),
+        chatId: f.chatId,
+        presetId: "pacingNudge",
+        knobs: { everyN: 5000 },
+      }),
     ).rejects.toThrow(BAD_KNOB);
-    expect(await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).toEqual([]);
+    expect(await f.svc.listRules({ principal: await principal(f.db, f.host), chatId: f.chatId })).toEqual([]);
   });
 
   test("is HOST-gated through the same guard as createRule — a non-member never learns the chat exists", async () => {
     const f = await setup();
     const stranger = await seedUser(f.db, "user_stranger");
     await expect(
-      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(stranger), chatId: f.chatId, presetId: "cutaways" }),
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: await principal(f.db, stranger), chatId: f.chatId, presetId: "cutaways" }),
     ).rejects.toThrow();
-    expect(await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).toEqual([]);
+    expect(await f.svc.listRules({ principal: await principal(f.db, f.host), chatId: f.chatId })).toEqual([]);
   });
 
   test("stamps MINT PROVENANCE on every rule of the set — the id + the COMPLETE resolved bag, not the partial overrides (§3-S3 flip shape)", async () => {
@@ -124,7 +145,7 @@ describe("createRuleFromPreset — the mint", () => {
     // Partial overrides: `steer` rides its descriptor default, so the stored bag must carry BOTH keys.
     const views = await f.svc.createRuleFromPreset({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: f.chatId,
       presetId: "clockFires",
       knobs: { n: 6 },
@@ -139,7 +160,7 @@ describe("createRuleFromPreset — the mint", () => {
       });
     }
     // The projection survives the round trip — listRules serves the same provenance.
-    const listed = await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId });
+    const listed = await f.svc.listRules({ principal: await principal(f.db, f.host), chatId: f.chatId });
     expect(listed.map((rule) => rule.rulePresetId)).toEqual(["clockFires", "clockFires"]);
   });
 
@@ -147,7 +168,7 @@ describe("createRuleFromPreset — the mint", () => {
     const f = await setup();
     const view = await f.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: f.chatId,
       name: "hand-made",
       trigger: { bus: "chat", type: "messageCommitted" },
@@ -167,7 +188,12 @@ test("listRulePresets projects every committed preset in catalogue order and car
 
   expect(views.map((v) => v.id)).toEqual([...RULE_PRESET_IDS]);
   // Each declared ruleCount is the count the MINT actually produces — the picker's "(i/n)" promise.
-  const clock = await f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "clockFires" });
+  const clock = await f.svc.createRuleFromPreset({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(f.db, f.host),
+    chatId: f.chatId,
+    presetId: "clockFires",
+  });
   expect(clock).toHaveLength(views.find((v) => v.id === "clockFires")?.ruleCount ?? 0);
   expect(JSON.stringify(views)).not.toContain("vars.");
 });

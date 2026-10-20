@@ -9,11 +9,13 @@ import type { ResponseFormat, RoleClients, SummarizeInput, SummarizeOptions } fr
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { CharacterHandle, CharacterId, RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CharacterService } from "@orb/server/domain/character";
 import {
   createCharacterService,
+  createCountRefineryScoreTargets,
   createDeleteSnapshot,
   createListRefineryScoreTargets,
   createLoadOwnedCard,
@@ -22,7 +24,7 @@ import {
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { FAKE_SUMMARIZE_MODEL, makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import type { RefineryContext, RefineryService, RefineryWorkloadDeps } from "#server/domain/refinery/index.ts";
-import { createRefineryService } from "#server/domain/refinery/index.ts";
+import { createRefineryService, isScoreSweepReady } from "#server/domain/refinery/index.ts";
 import { makeHarness, principal } from "../character/_support.ts";
 
 export { principal, seedUser } from "../character/_support.ts";
@@ -136,6 +138,7 @@ export function refineryWorkloadDepsOf(db: Db, h: RefineryHarness): RefineryWork
     resolveUtilityPresetParams: h.ctx.resolveUtilityPresetParams,
     resolveUserProse: h.ctx.resolveUserProse,
     listRefineryScoreTargets: createListRefineryScoreTargets({ db: databaseHandle(db) }),
+    countRefineryScoreTargets: createCountRefineryScoreTargets({ db: databaseHandle(db), isReady: isScoreSweepReady }),
     stampRefinerySignals: h.ctx.stampRefinerySignals,
     emitUserEvent: h.ctx.emitUserEvent,
   };
@@ -145,7 +148,7 @@ export function refineryWorkloadDepsOf(db: Db, h: RefineryHarness): RefineryWork
  *  the card handle (cast inside — the handoff seedCard naming precedent). */
 export async function seedOwnedCharacter(h: RefineryHarness, ownerId: UserId, key: string): Promise<CharacterId> {
   const detail = await h.character.create({
-    principal: principal(ownerId),
+    principal: await principal(databaseForOwner(h.ctx.db), ownerId),
     input: {
       handle: castId<CharacterHandle>(key),
       name: "Aria the Archivist",

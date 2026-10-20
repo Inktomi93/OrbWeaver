@@ -1,3 +1,4 @@
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import "@orb/testkit/node/composed-real.ts";
 import { join } from "node:path";
 import type { Principal } from "@orb/contracts/identity";
@@ -11,7 +12,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
 test("a plain user's visible Polish replacement reaches persisted canon byte-for-byte through the normal commit path", async ({ db, services, clock }) => {
   const user = await seedUser(db);
-  const caller: Principal = { userId: user.id, handle: user.handle, role: user.role, externalId: user.externalId, via: "header" };
+  const caller: Principal = await makePrincipal({ db }, user.id);
   const connectionId = mintTypeId(ID_PREFIX.userConnection);
   await db.insert(userConnections).values({
     id: connectionId,

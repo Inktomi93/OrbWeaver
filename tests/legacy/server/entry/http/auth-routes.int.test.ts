@@ -29,7 +29,7 @@ import { createHostPrincipalResolver } from "#server/entry/auth/seam.ts";
 import { createSignupMinterCheck } from "#server/entry/compose/chat.ts";
 import type { AuthRoutesDeps, AuthSessionsPort, FirstRunRouteDeps, LocalAuthenticator, SignupRouteDeps } from "#server/entry/http/index.ts";
 import { registerAuthRoutes } from "#server/entry/http/index.ts";
-import { buildAuditStatementIfPrecedingWrote } from "#server/foundation/observability/audit.ts";
+import { createAuditWiring } from "#server/foundation/observability/index.ts";
 import { createPublicHttpMintNotice, ownerFallbackAllowed } from "#server/infra/auth/index.ts";
 
 const NOW = 1_700_000_000_000;
@@ -846,7 +846,7 @@ describe("local signup route (D259)", () => {
         signupPersonaStatement: createJoinerPersonaStatement({ db: databaseHandle(db), newPersonaId: () => castId<PersonaId>("persona_signup_route") }),
         signupPersonaPointersStatement: createJoinerSettingsStatement({ db: databaseHandle(db) }),
         minterMayMintSignup: createSignupMinterCheck(sessionsSvc, createHostPrincipalResolver(sessionsSvc)),
-        auditStatementAfterWrite: (entry, at) => buildAuditStatementIfPrecedingWrote(db, entry, at),
+        auditStatementAfterWrite: createAuditWiring(databaseHandle(db)).statementAfterWrite,
         // The local route never previews; any reach fails loudly.
         assemblePreview: () => Promise.reject(new Error("assemblePreview not reached by the local route")),
         emit: (event) => {

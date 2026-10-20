@@ -15,7 +15,11 @@ import { describe } from "vitest";
 import { resolveTier0Range } from "#server/domain/chat/index.ts";
 import { createDiscoveryService } from "#server/domain/discovery/index.ts";
 import { backfillMsgMidAt } from "#server/domain/discovery/themes/backfill.ts";
+import { everyOwnerAuthority } from "../../workloads/_support.ts";
 import { makeDiscoveryHarness, seedChatDigest, seedChatSegment, seedHostedChat, seedMessage, seedUser, vec } from "../_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 // The same grid the composition root binds — the grounded floor config (fanOut 4).
 const tier0RangeOf = (tier: number, blockIdx: number): ReturnType<typeof resolveTier0Range> => resolveTier0Range(undefined, tier, blockIdx);
@@ -90,12 +94,12 @@ describe("backfillMsgMidAt", () => {
     await seedMessage(db, { id: "m3", chatId: chat, seq: 3, createdAt: 2500 });
     await seedMessage(db, { id: "m4", chatId: chat, seq: 4, createdAt: 3000 });
 
-    const stats = await backfillMsgMidAt(db, tier0RangeOf);
+    const stats = await backfillMsgMidAt(db, tier0RangeOf, EVERY_OWNER.runScope);
     expect(stats.stamped).toBe(1);
     expect(await msgMidAtOf(db, "digest_1")).toBe(2000);
 
     // Idempotent — a re-run yields the same stamp.
-    await backfillMsgMidAt(db, tier0RangeOf);
+    await backfillMsgMidAt(db, tier0RangeOf, EVERY_OWNER.runScope);
     expect(await msgMidAtOf(db, "digest_1")).toBe(2000);
   });
 
@@ -134,7 +138,7 @@ describe("backfillMsgMidAt", () => {
     });
     await Promise.all(Array.from({ length: 16 }, (_, seq) => seedMessage(db, { id: `m${seq}`, chatId: chat, seq, createdAt: 1000 + seq * 100 })));
 
-    const stats = await backfillMsgMidAt(db, tier0RangeOf);
+    const stats = await backfillMsgMidAt(db, tier0RangeOf, EVERY_OWNER.runScope);
     expect(stats.stamped).toBe(1);
     expect(await msgMidAtOf(db, "arc_1")).toBe(1700); // seq 7 — the arc-wide position-median
   });
@@ -178,7 +182,7 @@ describe("backfillMsgMidAt", () => {
     await seedAssignedCluster(db, { clusterId: "cluster_arc_c", ownerId: owner, digestId: "arc_c", level: "arc" });
     await Promise.all(Array.from({ length: 16 }, (_, seq) => seedMessage(db, { id: `m${seq}`, chatId: chat, seq, createdAt: 1000 + seq * 100 })));
 
-    const stats = await backfillMsgMidAt(db, tier0RangeOf);
+    const stats = await backfillMsgMidAt(db, tier0RangeOf, EVERY_OWNER.runScope);
     expect(stats.stamped).toBe(1);
     // The arc still spans seq 0..15 (block 3's whole chunk set), so the median is seq 7 — identical to the
     // unchunked case above. A per-chunk grid would have ended the arc at seq 13 or 14 and moved the stamp.
@@ -229,7 +233,7 @@ describe("backfillMsgMidAt", () => {
       }),
     );
 
-    const stats = await backfillMsgMidAt(db, tier0RangeOf);
+    const stats = await backfillMsgMidAt(db, tier0RangeOf, EVERY_OWNER.runScope);
     expect(stats.stamped).toBe(1);
     // Span [20, 27] → 8 messages → position-median index 3 → seq 23.
     expect(await msgMidAtOf(db, "arc_2")).toBe(3300);
@@ -256,7 +260,7 @@ describe("backfillMsgMidAt", () => {
     });
     await seedMessage(db, { id: "m0", chatId: chat, seq: 0, createdAt: 1000 });
 
-    const stats = await backfillMsgMidAt(db, tier0RangeOf);
+    const stats = await backfillMsgMidAt(db, tier0RangeOf, EVERY_OWNER.runScope);
     expect(stats.stamped).toBe(0);
     expect(await msgMidAtOf(db, "arc_1")).toBeNull();
   });
@@ -278,7 +282,7 @@ describe("backfillMsgMidAt", () => {
     await seedMessage(db, { id: "m2", chatId: chat, seq: 2, createdAt: 3000 });
 
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    const stats = await svc.backfillDigestStoryTime();
+    const stats = await svc.backfillDigestStoryTime(EVERY_OWNER.runScope);
     expect(stats.stamped).toBe(1);
     expect(await msgMidAtOf(db, "digest_1")).toBe(2000);
   });
@@ -296,7 +300,7 @@ describe("backfillMsgMidAt", () => {
     await seedMessage(db, { id: "ma", chatId: chatA, seq: 0, createdAt: 5000 });
     await seedMessage(db, { id: "mb", chatId: chatB, seq: 0, createdAt: 9000 });
 
-    await backfillMsgMidAt(db, tier0RangeOf, owner);
+    await backfillMsgMidAt(db, tier0RangeOf, { ownerId: owner });
     expect(await msgMidAtOf(db, "d_a")).toBe(5000);
     expect(await msgMidAtOf(db, "d_b")).toBeNull(); // other owner untouched
   });
@@ -322,7 +326,7 @@ describe("a CHUNKED tier-0 block", () => {
     }
     await seedAssignedCluster(db, { clusterId: "theme_cluster_1", ownerId: owner, digestId: "digest_1" });
 
-    const { stamped } = await backfillMsgMidAt(db, tier0RangeOf, owner);
+    const { stamped } = await backfillMsgMidAt(db, tier0RangeOf, { ownerId: owner });
 
     expect(stamped).toBe(1);
     // The whole block is seq 0..8 — nine messages, lower median at index 4 (seq 4). A per-chunk span would

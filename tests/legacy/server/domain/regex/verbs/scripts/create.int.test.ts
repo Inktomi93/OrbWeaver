@@ -21,7 +21,7 @@ describe("createScript", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const row = await svc.createScript({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "strip ooc", enabled: true, ...behavior({ findRegex: "\\(ooc\\)", replaceString: "" }) },
     });
 
@@ -41,7 +41,7 @@ describe("createScript", () => {
     const svc = createRegexService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const row = await svc.createScript({ principal: principal(owner), input: { name: "n", enabled: true, ...behavior() } });
+    const row = await svc.createScript({ principal: await principal(db, owner), input: { name: "n", enabled: true, ...behavior() } });
 
     expect(h.audits.map((a) => a.entry.action)).toEqual(["regex.createScript"]);
     expect(h.userEvents).toEqual([{ userId: owner, event: { type: "regexChanged", scriptId: row.id } }]);

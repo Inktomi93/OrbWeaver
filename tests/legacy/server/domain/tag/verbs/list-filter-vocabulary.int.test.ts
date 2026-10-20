@@ -28,10 +28,10 @@ describe("listTagFilterVocabulary", () => {
           [tiedB, one],
           [tiedA, one],
         ] as const
-      ).map(([tagId, targetId]) => svc.attachTag({ principal: principal(owner), tagId, targetType: "character", targetId })),
+      ).map(async ([tagId, targetId]) => svc.attachTag({ principal: await principal(db, owner), tagId, targetType: "character", targetId })),
     );
 
-    const vocabulary = await svc.listTagFilterVocabulary({ principal: principal(owner) });
+    const vocabulary = await svc.listTagFilterVocabulary({ principal: await principal(db, owner) });
     // "zulu" is alphabetically last and ranks FIRST — the cap keeps the filters that can do the most, and
     // the alphabetical fallback only separates equal counts.
     expect(vocabulary.map((entry) => entry.name)).toEqual(["zulu", "alpha", "beta"]);
@@ -47,11 +47,11 @@ describe("listTagFilterVocabulary", () => {
     const used = await seedTag(db, owner, { id: "tag_used", name: "used" });
     await seedTag(db, owner, { id: "tag_unused", name: "unused" });
     const hidden = await seedTag(db, owner, { id: "tag_hidden", name: "hidden" });
-    await svc.attachTag({ principal: principal(owner), tagId: used, targetType: "character", targetId: characterId });
-    await svc.attachTag({ principal: principal(owner), tagId: hidden, targetType: "character", targetId: characterId });
-    await svc.updateTag({ principal: principal(owner), tagId: hidden, patch: { isHiddenOnCard: true } });
+    await svc.attachTag({ principal: await principal(db, owner), tagId: used, targetType: "character", targetId: characterId });
+    await svc.attachTag({ principal: await principal(db, owner), tagId: hidden, targetType: "character", targetId: characterId });
+    await svc.updateTag({ principal: await principal(db, owner), tagId: hidden, patch: { isHiddenOnCard: true } });
 
-    const vocabulary = await svc.listTagFilterVocabulary({ principal: principal(owner) });
+    const vocabulary = await svc.listTagFilterVocabulary({ principal: await principal(db, owner) });
     // The RAIL drops the last two (`tagVocabulary`); the READ must not, or a persisted filter on either id
     // is dropped from the wire as unknown and the user's library silently loses its lens.
     expect([...vocabulary].map((entry) => entry.name).toSorted((a, b) => a.localeCompare(b))).toEqual(["hidden", "unused", "used"]);
@@ -81,10 +81,10 @@ describe("listTagFilterVocabulary", () => {
     const characterId = await seedCharacter(db, owner);
     const staged = await seedTag(db, owner, { id: "tag_staged", name: "fantasy" });
     const applied = await seedTag(db, owner, { id: "tag_applied", name: "rpg" });
-    await svc.attachTag({ principal: principal(owner), tagId: staged, targetType: "character", targetId: characterId, status: "pending" });
-    await svc.attachTag({ principal: principal(owner), tagId: applied, targetType: "character", targetId: characterId, status: "accepted" });
+    await svc.attachTag({ principal: await principal(db, owner), tagId: staged, targetType: "character", targetId: characterId, status: "pending" });
+    await svc.attachTag({ principal: await principal(db, owner), tagId: applied, targetType: "character", targetId: characterId, status: "accepted" });
 
-    const vocabulary = await svc.listTagFilterVocabulary({ principal: principal(owner) });
+    const vocabulary = await svc.listTagFilterVocabulary({ principal: await principal(db, owner) });
     // The row SURVIVES — the answer is still the referential authority (the test above), and a suggestion
     // is a real row. What it may not do is CLAIM a character the filter cannot return.
     expect(vocabulary.find((entry) => entry.name === "fantasy")?.characters).toBe(0);
@@ -99,14 +99,14 @@ describe("listTagFilterVocabulary", () => {
     const svc = createTagService(h.ctx);
     const characterId = await seedCharacter(db, owner);
     const tagId = await seedTag(db, owner, { id: "tag_flip", name: "gothic" });
-    await svc.attachTag({ principal: principal(owner), tagId, targetType: "character", targetId: characterId, status: "pending" });
-    const staged = await svc.listTagFilterVocabulary({ principal: principal(owner) });
+    await svc.attachTag({ principal: await principal(db, owner), tagId, targetType: "character", targetId: characterId, status: "pending" });
+    const staged = await svc.listTagFilterVocabulary({ principal: await principal(db, owner) });
     expect(staged.find((entry) => entry.name === "gothic")?.characters).toBe(0);
 
     // The editor's Accept — re-attaching with `accepted` flips the pending row.
-    await svc.attachTag({ principal: principal(owner), tagId, targetType: "character", targetId: characterId, status: "accepted" });
+    await svc.attachTag({ principal: await principal(db, owner), tagId, targetType: "character", targetId: characterId, status: "accepted" });
 
-    const accepted = await svc.listTagFilterVocabulary({ principal: principal(owner) });
+    const accepted = await svc.listTagFilterVocabulary({ principal: await principal(db, owner) });
     expect(accepted.find((entry) => entry.name === "gothic")?.characters).toBe(1);
   });
 
@@ -119,7 +119,7 @@ describe("listTagFilterVocabulary", () => {
     await seedTag(db, owner, { id: "tag_mine", name: "mine" });
     await seedTag(db, stranger, { id: "tag_theirs", name: "theirs" });
 
-    const vocabulary = await svc.listTagFilterVocabulary({ principal: principal(owner) });
+    const vocabulary = await svc.listTagFilterVocabulary({ principal: await principal(db, owner) });
     expect(vocabulary.map((entry) => entry.name)).toEqual(["mine"]);
   });
 });

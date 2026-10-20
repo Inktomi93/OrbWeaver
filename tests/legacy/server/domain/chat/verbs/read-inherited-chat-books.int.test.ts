@@ -90,7 +90,7 @@ async function setup(suppliedDb?: Db): Promise<WorldBookFixture> {
   };
   const character = createCharacterService({ ...characterHarness(db).ctx, emit });
   const card = await character.create({
-    principal: principal(host),
+    principal: await principal(db, host),
     input: createCharacterSchema.parse({ name: "Aveline", handle: "aveline", description: "Warden" }),
   });
   await db
@@ -127,7 +127,7 @@ test("owned global/character and consented member-persona sources precede attach
   await f.db.insert(characterBooks).values({ characterId: f.card.id, worldBookId: character, role: "primary", createdAt: FROZEN_AT_MS });
   await f.db.insert(personaBooks).values({ personaId: f.personaId, worldBookId: persona, createdAt: FROZEN_AT_MS });
   await f.db.insert(chatBooks).values({ chatId: f.chatId, worldBookId: attached, createdAt: FROZEN_AT_MS });
-  const hostView = await f.svc.listForChat({ principal: principal(f.host), chatId: f.chatId, includeInherited: true });
+  const hostView = await f.svc.listForChat({ principal: await principal(f.db, f.host), chatId: f.chatId, includeInherited: true });
   expect(hostView.map((row) => row.id)).toEqual([global, character, persona, attached]);
   expect(hostView.map((row) => row.inherited)).toEqual([
     { source: "global", name: null },
@@ -139,12 +139,14 @@ test("owned global/character and consented member-persona sources precede attach
   for (const row of hostView) {
     expect(chatBookViewSchema.parse(row)).toEqual(row);
   }
-  expect((await f.svc.listForChat({ principal: principal(f.member), chatId: f.chatId, includeInherited: true })).map((row) => row.id)).toEqual([attached]);
-  await expect(f.svc.listForChat({ principal: principal(f.stranger), chatId: f.chatId, includeInherited: true })).rejects.toThrow();
+  expect((await f.svc.listForChat({ principal: await principal(f.db, f.member), chatId: f.chatId, includeInherited: true })).map((row) => row.id)).toEqual([
+    attached,
+  ]);
+  await expect(f.svc.listForChat({ principal: await principal(f.db, f.stranger), chatId: f.chatId, includeInherited: true })).rejects.toThrow();
   // Inherited is not chat consent. The canonical host attach still creates the chat junction.
-  await f.svc.attachToChat({ principal: principal(f.host), chatId: f.chatId, bookId: global });
+  await f.svc.attachToChat({ principal: await principal(f.db, f.host), chatId: f.chatId, bookId: global });
   expect(
-    (await f.svc.listForChat({ principal: principal(f.host), chatId: f.chatId, includeInherited: true }))
+    (await f.svc.listForChat({ principal: await principal(f.db, f.host), chatId: f.chatId, includeInherited: true }))
       .filter((row) => row.id === global)
       .map((row) => row.inherited?.source ?? "chat"),
   ).toEqual(["global", "chat"]);
@@ -160,48 +162,50 @@ test("foreign scope books, absent/disabled persona owners and the memberPersonaL
     { personaId: f.personaId, worldBookId: foreign, createdAt: FROZEN_AT_MS },
     { personaId: f.personaId, worldBookId: ownedPersona, createdAt: FROZEN_AT_MS },
   ]);
-  expect((await f.readInheritedChatBooks(principal(f.host), f.chatId)).map((row) => row.id)).toEqual([ownedPersona]);
+  expect((await f.readInheritedChatBooks(await principal(f.db, f.host), f.chatId)).map((row) => row.id)).toEqual([ownedPersona]);
   await f.db.update(users).set({ enabled: false }).where(eq(users.id, f.member));
-  expect(await f.readInheritedChatBooks(principal(f.host), f.chatId)).toEqual([]);
+  expect(await f.readInheritedChatBooks(await principal(f.db, f.host), f.chatId)).toEqual([]);
   await f.db.update(users).set({ enabled: true }).where(eq(users.id, f.member));
   await f.db.update(chatParticipants).set({ leftSeq: 3 }).where(eq(chatParticipants.userId, f.member));
-  expect(await f.readInheritedChatBooks(principal(f.host), f.chatId)).toEqual([]);
+  expect(await f.readInheritedChatBooks(await principal(f.db, f.host), f.chatId)).toEqual([]);
   await f.db.update(chatParticipants).set({ leftSeq: null }).where(eq(chatParticipants.userId, f.member));
-  await f.svc.listForChat({ principal: principal(f.host), chatId: f.chatId });
+  await f.svc.listForChat({ principal: await principal(f.db, f.host), chatId: f.chatId });
   await f.db
     .update(chats)
     .set({ metadata: { memberPersonaLore: false } })
     .where(eq(chats.id, f.chatId));
-  expect(await f.readInheritedChatBooks(principal(f.host), f.chatId)).toEqual([]);
+  expect(await f.readInheritedChatBooks(await principal(f.db, f.host), f.chatId)).toEqual([]);
 });
 
 test("member persona scope changes fan the host's rack on both attach and removal", async () => {
   const f = await setup();
   const id = await book(f.db, f.member, "Changing member book");
   f.queryClient.setQueryData(f.rackKey, []);
-  await f.svc.attachToPersona({ principal: principal(f.member), personaId: f.personaId, bookId: id });
+  await f.svc.attachToPersona({ principal: await principal(f.db, f.member), personaId: f.personaId, bookId: id });
   await Promise.all(f.pendingFans);
   expect(f.fans).toEqual([{ type: "roomEntityChanged", chatId: f.chatId, entity: "world-info" }]);
   expect(f.queryClient.getQueryCache().find({ queryKey: f.rackKey })?.state.isInvalidated).toBe(true);
-  expect((await f.readInheritedChatBooks(principal(f.host), f.chatId)).map((row) => row.id)).toEqual([id]);
+  expect((await f.readInheritedChatBooks(await principal(f.db, f.host), f.chatId)).map((row) => row.id)).toEqual([id]);
   f.fans.length = 0;
   f.queryClient.setQueryData(f.rackKey, []);
-  await f.svc.detachFromPersona({ principal: principal(f.member), personaId: f.personaId, bookId: id });
+  await f.svc.detachFromPersona({ principal: await principal(f.db, f.member), personaId: f.personaId, bookId: id });
   expect(f.fans).toEqual([{ type: "roomEntityChanged", chatId: f.chatId, entity: "world-info" }]);
   expect(f.queryClient.getQueryCache().find({ queryKey: f.rackKey })?.state.isInvalidated).toBe(true);
-  expect(await f.readInheritedChatBooks(principal(f.host), f.chatId)).toEqual([]);
+  expect(await f.readInheritedChatBooks(await principal(f.db, f.host), f.chatId)).toEqual([]);
 });
 
 test("actual character/persona rename events invalidate the host's inherited source labels", async () => {
   const f = await setup();
   const charBook = await book(f.db, f.host, "Card book");
   const personaBook = await book(f.db, f.member, "Persona book");
-  await f.svc.attachToCharacter({ principal: principal(f.host), characterId: f.card.id, bookId: charBook, role: "auxiliary" });
-  await f.svc.attachToPersona({ principal: principal(f.member), personaId: f.personaId, bookId: personaBook });
+  await f.svc.attachToCharacter({ principal: await principal(f.db, f.host), characterId: f.card.id, bookId: charBook, role: "auxiliary" });
+  await f.svc.attachToPersona({ principal: await principal(f.db, f.member), personaId: f.personaId, bookId: personaBook });
   await Promise.all(f.pendingFans);
   for (const rename of [
-    (): ReturnType<typeof f.character.update> => f.character.update({ principal: principal(f.host), characterId: f.card.id, input: { name: "Renamed card" } }),
-    (): ReturnType<typeof f.persona.update> => f.persona.update({ principal: principal(f.member), personaId: f.personaId, input: { name: "Renamed persona" } }),
+    async (): ReturnType<typeof f.character.update> =>
+      f.character.update({ principal: await principal(f.db, f.host), characterId: f.card.id, input: { name: "Renamed card" } }),
+    async (): ReturnType<typeof f.persona.update> =>
+      f.persona.update({ principal: await principal(f.db, f.member), personaId: f.personaId, input: { name: "Renamed persona" } }),
   ]) {
     __resetBusDupBursts();
     f.queryClient.setQueryData(f.rackKey, []);
@@ -209,7 +213,10 @@ test("actual character/persona rename events invalidate the host's inherited sou
     await Promise.all(f.pendingFans);
     expect(f.queryClient.getQueryCache().find({ queryKey: f.rackKey })?.state.isInvalidated).toBe(true);
   }
-  expect((await f.readInheritedChatBooks(principal(f.host), f.chatId)).map((row) => row.inherited?.name)).toEqual(["Renamed card", "Renamed persona"]);
+  expect((await f.readInheritedChatBooks(await principal(f.db, f.host), f.chatId)).map((row) => row.inherited?.name)).toEqual([
+    "Renamed card",
+    "Renamed persona",
+  ]);
 });
 
 test("host standing lost while owned-card resolution awaits strips inherited headers before returning", async () => {
@@ -218,7 +225,7 @@ test("host standing lost while owned-card resolution awaits strips inherited hea
   const id = await book(f.db, f.host, "Former host private library");
   await f.db.insert(globalBooks).values({ worldBookId: id, createdAt: FROZEN_AT_MS });
   const gate = held.hold(/from "characters"/u);
-  const pending = f.readInheritedChatBooks(principal(f.host), f.chatId);
+  const pending = f.readInheritedChatBooks(await principal(f.db, f.host), f.chatId);
   await gate.reached;
   await f.db.update(chatParticipants).set({ role: "member" }).where(eq(chatParticipants.userId, f.host));
   gate.release();

@@ -29,7 +29,11 @@ describe("workloads.estimateModelCalls", () => {
     const { contributions, modelCalls } = withDistillEstimate();
     const s = makeService(db, contributions);
 
-    const estimate = await s.estimateModelCalls({ input: { kind: "distill-characters", params: {} }, caller: principal("user_alice"), mode: "singular" });
+    const estimate = await s.estimateModelCalls({
+      input: { kind: "distill-characters", params: {} },
+      caller: await principal(db, "user_alice"),
+      mode: "singular",
+    });
 
     expect(estimate).toEqual({ calls: SINGULAR_CALLS });
     expect(modelCalls).toHaveBeenCalledWith({ ownerId: castId<UserId>("user_alice"), funderUserId: castId<UserId>("user_alice"), params: {} });
@@ -40,7 +44,9 @@ describe("workloads.estimateModelCalls", () => {
     await seedUser(db, "user_alice");
     const s = makeService(db, withDistillEstimate().contributions);
 
-    await expect(s.estimateModelCalls({ input: { kind: "reconcile-stats", params: {} }, caller: principal("user_alice"), mode: "singular" })).resolves.toEqual({
+    await expect(
+      s.estimateModelCalls({ input: { kind: "reconcile-stats", params: {} }, caller: await principal(db, "user_alice"), mode: "singular" }),
+    ).resolves.toEqual({
       calls: null,
     });
   });
@@ -53,9 +59,9 @@ describe("workloads.estimateModelCalls", () => {
     const s = makeService(db, contributions);
     const input = { kind: "distill-characters", params: {} } as const;
 
-    await expect(s.estimateModelCalls({ input, caller: principal("user_alice"), mode: "bulk" })).rejects.toBeInstanceOf(DomainForbiddenError);
+    await expect(s.estimateModelCalls({ input, caller: await principal(db, "user_alice"), mode: "bulk" })).rejects.toBeInstanceOf(DomainForbiddenError);
     expect(modelCalls).not.toHaveBeenCalled();
-    await expect(s.estimateModelCalls({ input, caller: principal("user_box", "owner"), mode: "bulk" })).resolves.toEqual({ calls: BULK_CALLS });
+    await expect(s.estimateModelCalls({ input, caller: await principal(db, "user_box", "owner"), mode: "bulk" })).resolves.toEqual({ calls: BULK_CALLS });
   });
 
   test("a retry estimate counts the ROW's owner and params, not the caller's scope", async () => {
@@ -68,7 +74,7 @@ describe("workloads.estimateModelCalls", () => {
     const id = await seedWorkloadRow(db, { id: "workload_alice", kind: "distill-characters", status: "failed", ownerId: alice });
 
     // The box owner retries Alice's run: the clone re-runs Alice's library on Alice's model.
-    await expect(s.estimateRetryModelCalls({ id, caller: principal("user_box", "owner") })).resolves.toEqual({ calls: SINGULAR_CALLS });
+    await expect(s.estimateRetryModelCalls({ id, caller: await principal(db, "user_box", "owner") })).resolves.toEqual({ calls: SINGULAR_CALLS });
     expect(modelCalls).toHaveBeenCalledWith({ ownerId: alice, funderUserId: alice, params: {} });
   });
 
@@ -82,11 +88,11 @@ describe("workloads.estimateModelCalls", () => {
     const mine = await seedWorkloadRow(db, { id: "workload_alice", kind: "distill-characters", status: "failed", ownerId: castId<UserId>("user_alice") });
     const bulk = await seedWorkloadRow(db, { id: "workload_bulk", kind: "distill-characters", status: "failed", mode: "bulk" });
 
-    await expect(s.estimateRetryModelCalls({ id: mine, caller: principal("user_bob") })).rejects.toBeInstanceOf(DomainNotFoundError);
-    await expect(s.estimateRetryModelCalls({ id: bulk, caller: principal("user_alice") })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(s.estimateRetryModelCalls({ id: mine, caller: await principal(db, "user_bob") })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(s.estimateRetryModelCalls({ id: bulk, caller: await principal(db, "user_alice") })).rejects.toBeInstanceOf(DomainNotFoundError);
     expect(modelCalls).not.toHaveBeenCalled();
     // The bulk sweep has no owner, so the box owner retrying it is the funder, as `start` counts a bulk run.
-    await expect(s.estimateRetryModelCalls({ id: bulk, caller: principal("user_box", "owner") })).resolves.toEqual({ calls: BULK_CALLS });
+    await expect(s.estimateRetryModelCalls({ id: bulk, caller: await principal(db, "user_box", "owner") })).resolves.toEqual({ calls: BULK_CALLS });
     expect(modelCalls).toHaveBeenCalledWith({ ownerId: null, funderUserId: castId<UserId>("user_box"), params: {} });
   });
 
@@ -105,7 +111,7 @@ describe("workloads.estimateModelCalls", () => {
       params: { k: -5 },
     });
 
-    await expect(s.estimateRetryModelCalls({ id, caller: principal("user_alice") })).resolves.toEqual({ calls: null });
+    await expect(s.estimateRetryModelCalls({ id, caller: await principal(db, "user_alice") })).resolves.toEqual({ calls: null });
     expect(modelCalls).not.toHaveBeenCalled();
   });
 
@@ -116,7 +122,7 @@ describe("workloads.estimateModelCalls", () => {
     const admit = vi.fn(() => Promise.resolve("Memory is turned off"));
     const s = makeService(db, { ...contributions, "distill-characters": { ...contributions["distill-characters"], admit } });
     const input = { kind: "distill-characters", params: {} } as const;
-    const caller = principal("user_alice");
+    const caller = await principal(db, "user_alice");
 
     await expect(s.estimateModelCalls({ input, caller, mode: "singular" })).resolves.toEqual({ calls: 0 });
     expect(modelCalls).not.toHaveBeenCalled();
@@ -134,7 +140,7 @@ describe("workloads.estimateModelCalls", () => {
     });
     const id = await seedWorkloadRow(db, { id: "workload_alice", kind: "distill-characters", status: "failed", ownerId: castId<UserId>("user_alice") });
 
-    await expect(s.estimateRetryModelCalls({ id, caller: principal("user_alice") })).resolves.toEqual({ calls: 0 });
+    await expect(s.estimateRetryModelCalls({ id, caller: await principal(db, "user_alice") })).resolves.toEqual({ calls: 0 });
     expect(modelCalls).not.toHaveBeenCalled();
   });
 
@@ -144,7 +150,7 @@ describe("workloads.estimateModelCalls", () => {
     const { contributions } = withDistillEstimate();
     const s = makeService(db, contributions);
     const bulk = await seedWorkloadRow(db, { id: "workload_bulk", kind: "distill-characters", status: "failed", mode: "bulk" });
-    const admin = principal("user_admin", "admin");
+    const admin = await principal(db, "user_admin", "admin");
 
     await expect(s.estimateRetryModelCalls({ id: bulk, caller: admin })).rejects.toBeInstanceOf(DomainNotFoundError);
     await expect(s.estimateRetryModelCalls({ id: castId<WorkloadId>("workload_missing"), caller: admin })).rejects.toBeInstanceOf(DomainNotFoundError);
@@ -157,7 +163,7 @@ describe("workloads.estimateModelCalls", () => {
     const s = makeService(db, contributions);
 
     await expect(
-      s.estimateModelCalls({ input: { kind: "refresh-model-catalog", params: {} }, caller: principal("user_alice"), mode: "singular" }),
+      s.estimateModelCalls({ input: { kind: "refresh-model-catalog", params: {} }, caller: await principal(db, "user_alice"), mode: "singular" }),
     ).rejects.toBeInstanceOf(DomainOperationError);
     expect(modelCalls).not.toHaveBeenCalled();
   });

@@ -32,11 +32,11 @@ describe("update", () => {
     const c = (await seedCharacter(db, { ownerId: owner, name: "Cinder" })).id;
 
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Trio", description: "", members: [memberSpec(a, 0), memberSpec(b, 1)] },
     });
     const view = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       presetId: created.id,
       input: { name: "Trio v2", description: "re-cast", members: [memberSpec(c, 0, { disabled: true }), memberSpec(a, 1)] },
     });
@@ -56,15 +56,19 @@ describe("update", () => {
     const svc = createRosterPresetService(makeHarness(db).ctx);
     const owner = (await seedUser(db)).id;
     const ch = (await seedCharacter(db, { ownerId: owner })).id;
-    const one = await svc.create({ principal: principal(owner), input: { name: "One", description: "", members: [memberSpec(ch, 0)] } });
-    await svc.create({ principal: principal(owner), input: { name: "Two", description: "", members: [memberSpec(ch, 0)] } });
+    const one = await svc.create({ principal: await principal(db, owner), input: { name: "One", description: "", members: [memberSpec(ch, 0)] } });
+    await svc.create({ principal: await principal(db, owner), input: { name: "Two", description: "", members: [memberSpec(ch, 0)] } });
 
     // Same name, same row — a no-op rename passes.
-    const kept = await svc.update({ principal: principal(owner), presetId: one.id, input: { name: "One", description: "d", members: [memberSpec(ch, 0)] } });
+    const kept = await svc.update({
+      principal: await principal(db, owner),
+      presetId: one.id,
+      input: { name: "One", description: "d", members: [memberSpec(ch, 0)] },
+    });
     expect(kept.description).toBe("d");
     // The sibling's name — refused typed.
     await expect(
-      svc.update({ principal: principal(owner), presetId: one.id, input: { name: "Two", description: "", members: [memberSpec(ch, 0)] } }),
+      svc.update({ principal: await principal(db, owner), presetId: one.id, input: { name: "Two", description: "", members: [memberSpec(ch, 0)] } }),
     ).rejects.toBeInstanceOf(RosterPresetNameConflictError);
   });
 
@@ -75,10 +79,10 @@ describe("update", () => {
     const other = (await seedUser(db)).id;
     const mine = (await seedCharacter(db, { ownerId: owner })).id;
     const foreign = (await seedCharacter(db, { ownerId: other })).id;
-    const created = await svc.create({ principal: principal(owner), input: { name: "Solo", description: "", members: [memberSpec(mine, 0)] } });
+    const created = await svc.create({ principal: await principal(db, owner), input: { name: "Solo", description: "", members: [memberSpec(mine, 0)] } });
 
     await expect(
-      svc.update({ principal: principal(owner), presetId: created.id, input: { name: "Solo", description: "", members: [memberSpec(foreign, 0)] } }),
+      svc.update({ principal: await principal(db, owner), presetId: created.id, input: { name: "Solo", description: "", members: [memberSpec(foreign, 0)] } }),
     ).rejects.toBeInstanceOf(RosterPresetCharacterNotFoundError);
 
     const seats = await db.select().from(rosterPresetMembers).where(eq(rosterPresetMembers.presetId, created.id));
@@ -92,14 +96,18 @@ describe("update", () => {
     const stranger = (await seedUser(db)).id;
     const mine = (await seedCharacter(db, { ownerId: owner })).id;
     const strangers = (await seedCharacter(db, { ownerId: stranger })).id;
-    const created = await svc.create({ principal: principal(owner), input: { name: "Mine", description: "", members: [memberSpec(mine, 0)] } });
+    const created = await svc.create({ principal: await principal(db, owner), input: { name: "Mine", description: "", members: [memberSpec(mine, 0)] } });
 
     await expect(
-      svc.update({ principal: principal(stranger), presetId: created.id, input: { name: "Stolen", description: "", members: [memberSpec(strangers, 0)] } }),
+      svc.update({
+        principal: await principal(db, stranger),
+        presetId: created.id,
+        input: { name: "Stolen", description: "", members: [memberSpec(strangers, 0)] },
+      }),
     ).rejects.toBeInstanceOf(RosterPresetNotFoundError);
     await expect(
       svc.update({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         presetId: castId<RosterPresetId>("roster_preset_missing"),
         input: { name: "X", description: "", members: [memberSpec(mine, 0)] },
       }),
@@ -113,14 +121,14 @@ describe("update", () => {
     const owner = (await seedUser(db)).id;
     const a = (await seedCharacter(db, { ownerId: owner })).id;
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Ruled", description: "", members: [memberSpec(a, 0)], rules: [{ rulePresetId: "sceneVeil", knobs: {} }] },
     });
     expect(created.rules.map((rule) => rule.rulePresetId)).toEqual(["sceneVeil"]);
 
     // Replace with a DIFFERENT rule list — the old junction rows swap out wholesale.
     const swapped = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       presetId: created.id,
       input: { name: "Ruled", description: "", members: [memberSpec(a, 0)], rules: [{ rulePresetId: "pacingNudge", knobs: { everyN: 3 } }] },
     });
@@ -130,7 +138,7 @@ describe("update", () => {
     // Omitting `rules` is the FULL-REPLACE semantics saying "none" — the library editor echoes the
     // stored list back on a rename precisely because of this.
     const cleared = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       presetId: created.id,
       input: { name: "Ruled", description: "", members: [memberSpec(a, 0)] },
     });
@@ -144,17 +152,20 @@ describe("update — the game template", () => {
     const svc = createRosterPresetService(makeHarness(db).ctx);
     const owner = (await seedUser(db)).id;
     const c = (await seedCharacter(db, { ownerId: owner })).id;
-    const created = await svc.create({ principal: principal(owner), input: { name: "Campaign", description: "", game: {}, members: [memberSpec(c, 0)] } });
+    const created = await svc.create({
+      principal: await principal(db, owner),
+      input: { name: "Campaign", description: "", game: {}, members: [memberSpec(c, 0)] },
+    });
 
     const renamed = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       presetId: created.id,
       input: { name: "Campaign II", description: "", game: created.game, members: [memberSpec(c, 0)] },
     });
     expect(renamed.game).toEqual({});
 
     const cleared = await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       presetId: created.id,
       input: { name: "Campaign II", description: "", members: [memberSpec(c, 0)] },
     });

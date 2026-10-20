@@ -17,7 +17,7 @@ beforeEach(async () => {
 describe("getGame", () => {
   test("returns the mode/status + the honest-arms trackersReadOnly verdict + the default folded extractionMode", async () => {
     const { chatId, h } = await seedLiteGame(db, { trackersReadOnly: true });
-    const view = await h.service.getGame({ principal: principal(castId<Handle>("host")), chatId });
+    const view = await h.service.getGame({ principal: await principal(db, castId<Handle>("host")), chatId });
     expect(view.mode).toBe("lite");
     expect(view.status).toBe("active");
     expect(view.trackersReadOnly).toBe(true);
@@ -29,14 +29,14 @@ describe("getGame", () => {
 
   test("surfaces the cheap extractionMode after a host flips the delivery-model knob", async () => {
     const { chatId, h } = await seedLiteGame(db);
-    await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, extractionMode: "cheap" });
-    const view = await h.service.getGame({ principal: principal(castId<Handle>("host")), chatId });
+    await h.service.updateConfig({ principal: await principal(db, castId<Handle>("host")), chatId, extractionMode: "cheap" });
+    const view = await h.service.getGame({ principal: await principal(db, castId<Handle>("host")), chatId });
     expect(view.extractionMode).toBe("cheap");
   });
 
   test("EFF-3: a folded game on a wire that CAN fold reports the fold — knob and reality agree", async () => {
     const { chatId, h } = await seedLiteGame(db);
-    const view = await h.service.getGame({ principal: principal(castId<Handle>("host")), chatId });
+    const view = await h.service.getGame({ principal: await principal(db, castId<Handle>("host")), chatId });
     expect(view.extractionMode).toBe("folded");
     expect(view.effectiveDelivery).toEqual({ path: "folded", fallbackReason: null, structuredUnavailable: false, stateRoundOverflow: null });
   });
@@ -46,7 +46,7 @@ describe("getGame", () => {
     // rewritten), but the view now carries what this room's wire actually does with it — so the panel can stop
     // claiming "Live" on a room that is a beat behind.
     const { chatId, h } = await seedLiteGame(db, { foldGuarded: true });
-    const view = await h.service.getGame({ principal: principal(castId<Handle>("host")), chatId });
+    const view = await h.service.getGame({ principal: await principal(db, castId<Handle>("host")), chatId });
     expect(view.extractionMode).toBe("folded");
     expect(view.effectiveDelivery).toEqual({
       path: "tool-round",
@@ -58,7 +58,7 @@ describe("getGame", () => {
 
   test("EFF-3: a readonly room delivers nothing — `none`, never a lag label the flush's F2 gate makes false", async () => {
     const { chatId, h } = await seedLiteGame(db, { trackersReadOnly: true });
-    expect((await h.service.getGame({ principal: principal(castId<Handle>("host")), chatId })).effectiveDelivery).toEqual({
+    expect((await h.service.getGame({ principal: await principal(db, castId<Handle>("host")), chatId })).effectiveDelivery).toEqual({
       path: "none",
       fallbackReason: null,
       structuredUnavailable: false,

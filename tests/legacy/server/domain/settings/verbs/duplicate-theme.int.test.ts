@@ -16,7 +16,7 @@ describe("duplicateTheme", () => {
     await ensureSeedThemes(db, () => h.clock.now());
     const a = await seedUser(db, { id: "user_a" });
     const hearth = await findSeedTheme(h, a, "Hearth");
-    const copy = await h.svc.duplicateTheme({ principal: principal(a, "user"), id: hearth.id });
+    const copy = await h.svc.duplicateTheme({ principal: await principal(db, a, "user"), id: hearth.id });
     expect(copy.id).not.toBe(hearth.id);
     expect(copy.name).toBe("Hearth copy");
     expect(copy.isSeed).toBe(false);
@@ -28,11 +28,11 @@ describe("duplicateTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const source = await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Mine", override: {} },
     });
-    const first = await h.svc.duplicateTheme({ principal: principal(a, "user"), id: source.id });
-    const second = await h.svc.duplicateTheme({ principal: principal(a, "user"), id: source.id });
+    const first = await h.svc.duplicateTheme({ principal: await principal(db, a, "user"), id: source.id });
+    const second = await h.svc.duplicateTheme({ principal: await principal(db, a, "user"), id: source.id });
     expect(first.name).toBe("Mine copy");
     expect(second.name).toBe("Mine copy 2");
   });
@@ -42,11 +42,11 @@ describe("duplicateTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const source = await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Mine", override: {} },
     });
     const copy = await h.svc.duplicateTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       id: source.id,
       name: "Custom Name",
     });
@@ -59,9 +59,9 @@ describe("duplicateTheme", () => {
     const a = await seedUser(db, { id: "user_a" });
     const b = await seedUser(db, { id: "user_b" });
     const theirs = await h.svc.createTheme({
-      principal: principal(b, "user"),
+      principal: await principal(db, b, "user"),
       input: { name: "Theirs", override: {} },
     });
-    await expect(h.svc.duplicateTheme({ principal: principal(a, "user"), id: theirs.id })).rejects.toThrow(ThemeNotFoundError);
+    await expect(h.svc.duplicateTheme({ principal: await principal(db, a, "user"), id: theirs.id })).rejects.toThrow(ThemeNotFoundError);
   });
 });

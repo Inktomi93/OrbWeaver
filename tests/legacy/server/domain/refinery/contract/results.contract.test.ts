@@ -6,7 +6,7 @@ test("a real born session round-trips its anchor and closes typed stage configur
   const owner = await seedUser(db, { id: "contract-refinery-owner" });
   const harness = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(harness, owner, "contract-refinery-card");
-  const session = await harness.svc.startSession({ principal: principal(owner), characterId });
+  const session = await harness.svc.startSession({ principal: await principal(db, owner), characterId });
   expect(refinerySessionViewSchema.parse(session)).toEqual(session);
   expect(
     refinerySessionViewSchema.safeParse({ ...session, stageConfig: { ...session.stageConfig, score: { ...session.stageConfig.score, privateStage: true } } })

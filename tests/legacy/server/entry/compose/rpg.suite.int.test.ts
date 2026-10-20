@@ -1,4 +1,5 @@
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { publishRpgEvent } from "#server/domain/rpg/bus.ts";
 import "@orb/testkit/node/composed-real.ts";
 import assert from "node:assert/strict";
 import type { Principal } from "@orb/contracts/identity";
@@ -14,6 +15,7 @@ import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -24,8 +26,8 @@ import { buildRpg } from "#server/entry/compose/rpg.ts";
 import { makeResolved } from "../../../inference/_support.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
-function principalOf(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId("host"), externalId: null, via: "header" };
+async function principalOf(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId);
 }
 
 function connectionFor(api: ChatApi, ownerId: UserId): Resolved<"chat"> {
@@ -54,6 +56,7 @@ function failingRound(args: {
   return buildRpg({
     db: databaseHandle(args.db),
     now: () => FROZEN_AT_MS,
+    emitRpgEvent: publishRpgEvent,
     rpgChatOps: args.app.chatRpgOps,
     resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(args.db) }),
     connection: { resolve: () => Promise.resolve({ resolved: connectionFor(args.api, args.hostId), warnings: [] }) },
@@ -63,7 +66,7 @@ function failingRound(args: {
         return args.run === undefined ? Promise.reject(args.failure) : args.run(request);
       },
     },
-    resolveHostPrincipal: (userId) => Promise.resolve(principalOf(userId)),
+    resolveHostPrincipal: async (userId) => Promise.resolve(await principalOf(args.db, userId)),
     resolvePresetOwned: () => Promise.resolve(false),
     copyPresetToUser: () => Promise.resolve(null),
     toolUse: { register: () => undefined },
@@ -95,8 +98,8 @@ test.for(["agent-sdk", "chat-completions"] as const)(
         calls++;
       },
     });
-    await rpg.service.createGame({ principal: principalOf(hostId), chatId, mode: "lite" });
-    await rpg.service.updateConfig({ principal: principalOf(hostId), chatId, extractionMode: "cheap" });
+    await rpg.service.createGame({ principal: await principalOf(db, hostId), chatId, mode: "lite" });
+    await rpg.service.updateConfig({ principal: await principalOf(db, hostId), chatId, extractionMode: "cheap" });
     const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They reach the tower." });
     await expect(
       rpg.chatOps.onTurnCompleted(chatId, messageId, variantId, mintTypeId(ID_PREFIX.chatTurn), {
@@ -159,9 +162,9 @@ test("resync completed usage reaches the actual chat-owned sink without inventin
       return result;
     },
   });
-  await rpg.service.createGame({ principal: principalOf(hostId), chatId, mode: "lite" });
+  await rpg.service.createGame({ principal: await principalOf(db, hostId), chatId, mode: "lite" });
   await reconcileStats(databaseHandle(db), { ownerId: hostId, now: () => FROZEN_AT_MS });
-  await expect(rpg.service.resyncFromStory({ principal: principalOf(hostId), chatId })).resolves.toEqual({ ok: true, rebuilt: false });
+  await expect(rpg.service.resyncFromStory({ principal: await principalOf(db, hostId), chatId })).resolves.toEqual({ ok: true, rebuilt: false });
   expect(calls).toBe(1);
   const facts = await db.select().from(chatGenerationObservations).where(eq(chatGenerationObservations.chatId, chatId));
   expect(facts).toHaveLength(1);
@@ -276,8 +279,8 @@ test.for([
         return result;
       },
     });
-    await rpg.service.createGame({ principal: principalOf(hostId), chatId, mode: "lite" });
-    await rpg.service.updateConfig({ principal: principalOf(hostId), chatId, extractionMode: "cheap" });
+    await rpg.service.createGame({ principal: await principalOf(db, hostId), chatId, mode: "lite" });
+    await rpg.service.updateConfig({ principal: await principalOf(db, hostId), chatId, extractionMode: "cheap" });
     await reconcileStats(databaseHandle(db), { ownerId: hostId, now: () => FROZEN_AT_MS });
     if (multiOwner) {
       await reconcileStats(databaseHandle(db), { ownerId: incomingId, now: () => FROZEN_AT_MS });
@@ -296,12 +299,12 @@ test.for([
     try {
       if (handoff) {
         await app.services.chat.nominateHostHandoff({
-          principal: principalOf(hostId),
+          principal: await principalOf(db, hostId),
           chatId,
           userId: incomingId,
           offer: { copyCharacters: copy, copyGmPreset: false },
         });
-        await app.services.chat.acceptHostHandoff({ principal: principalOf(incomingId), chatId });
+        await app.services.chat.acceptHostHandoff({ principal: await principalOf(db, incomingId), chatId });
       }
       const beforeCompletion = await db.select().from(ownerStats);
       expect(beforeCompletion.find((row) => row.ownerId === hostId)?.costUsd ?? 0).toBe(copy ? 0 : 0.25);
@@ -374,9 +377,9 @@ test.for(["agent-sdk", "chat-completions"] as const)("resync %s still returns an
       calls++;
     },
   });
-  await rpg.service.createGame({ principal: principalOf(hostId), chatId, mode: "lite" });
+  await rpg.service.createGame({ principal: await principalOf(db, hostId), chatId, mode: "lite" });
   await seedMessage(db, chatId, 1, { role: "assistant", content: "They reach the tower." });
-  await expect(rpg.service.resyncFromStory({ principal: principalOf(hostId), chatId })).resolves.toEqual({
+  await expect(rpg.service.resyncFromStory({ principal: await principalOf(db, hostId), chatId })).resolves.toEqual({
     ok: false,
     reason: "the model call failed, so nothing was rebuilt: fixture provider refusal",
   });
@@ -402,9 +405,9 @@ test.for(["agent-sdk", "chat-completions"] as const)(
         calls++;
       },
     });
-    await rpg.service.createGame({ principal: principalOf(hostId), chatId, mode: "lite" });
+    await rpg.service.createGame({ principal: await principalOf(db, hostId), chatId, mode: "lite" });
     await seedMessage(db, chatId, 1, { role: "assistant", content: "They reach the tower." });
-    await expect(rpg.service.resyncFromStory({ principal: principalOf(hostId), chatId })).rejects.toBe(failure);
+    await expect(rpg.service.resyncFromStory({ principal: await principalOf(db, hostId), chatId })).rejects.toBe(failure);
     expect(failure.cause).toBe(cause);
     expect(calls).toBe(1);
   },
@@ -464,8 +467,8 @@ test.for(["agent-sdk", "chat-completions"] as const)(
         return result;
       },
     });
-    await rpg.service.createGame({ principal: principalOf(hostId), chatId, mode: "lite" });
-    await rpg.service.updateConfig({ principal: principalOf(hostId), chatId, extractionMode: "cheap" });
+    await rpg.service.createGame({ principal: await principalOf(db, hostId), chatId, mode: "lite" });
+    await rpg.service.updateConfig({ principal: await principalOf(db, hostId), chatId, extractionMode: "cheap" });
     const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They reach the tower." });
     const attempt = rpg.chatOps.onTurnCompleted(chatId, messageId, variantId, mintTypeId(ID_PREFIX.chatTurn), {
       kind: "send",

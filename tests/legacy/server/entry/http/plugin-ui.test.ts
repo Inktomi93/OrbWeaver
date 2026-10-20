@@ -16,6 +16,8 @@ import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
 import type { Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
@@ -34,13 +36,12 @@ const UNAUTHORIZED = 401;
 /** A REAL `Principal`, spelled out (the `blob.test.ts` sibling's shape) rather than double-cast: the route only
  *  passes it through to the domain verb, but a fabricated one would survive `Principal` gaining a field and
  *  quietly stop representing what the route actually receives. */
-const PRINCIPAL: Principal = {
-  userId: castId<UserId>("usr_plugin_owner"),
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+const PRINCIPAL: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("usr_plugin_owner"), {
   role: "owner",
   handle: castId<Handle>("plugin_user"),
-  externalId: null,
-  via: "fallback",
-};
+});
 
 interface AppOpts {
   readonly principal?: Principal | null;

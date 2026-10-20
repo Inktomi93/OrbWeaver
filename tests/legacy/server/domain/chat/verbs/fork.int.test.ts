@@ -24,6 +24,7 @@ import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contr
 import type { ChatContext, ForkGameArgs } from "#server/domain/chat/index.ts";
 import { setVariantContentStatement } from "#server/domain/chat/persistence/canon-write.ts";
 import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
+import { hostSeatOf } from "#server/domain/chat/substrate/participants-host.ts";
 import { buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts";
 import { createFork } from "#server/domain/chat/verbs/fork.ts";
 import { createExportChatBundle } from "#server/domain/export/verbs/export-chat-bundle.ts";
@@ -57,8 +58,8 @@ const emit = (event: ChatBusEvent): Promise<void> => {
   return Promise.resolve();
 };
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 /** An owner-scoped `getCard` fake mirroring the REAL one (D28 — `loadOwnedCharacterRow`): the card resolves
@@ -201,7 +202,7 @@ describe("forkChat — canon-mutator stats push (stats.md)", () => {
     });
     const fork = createFork(ctx, { emit, loadParticipantViews });
 
-    await fork.forkChat({ principal: principal(host), chatId });
+    await fork.forkChat({ principal: await principal(db, host), chatId });
 
     // chat-created (+fork lineage) + 2 copied slots + 1 copied swipe = 4 deltas, all positive.
     expect(deltas).toHaveLength(4);
@@ -235,7 +236,7 @@ describe("forkChat — canon-mutator stats push (stats.md)", () => {
     });
     const fork = createFork(ctx, { emit, loadParticipantViews });
 
-    await fork.forkChat({ principal: principal(host), chatId });
+    await fork.forkChat({ principal: await principal(db, host), chatId });
 
     // Each seat is credited the room exactly once…
     expect(deltas.filter((d) => d.characterChats === 1).map((d) => d.characterId)).toEqual([charA, charB]);
@@ -266,7 +267,7 @@ describe("forkChat — D27 deep copy", () => {
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
 
-    const err = await fork.forkChat({ principal: principal(host), chatId }).catch((e: unknown) => e);
+    const err = await fork.forkChat({ principal: await principal(db, host), chatId }).catch((e: unknown) => e);
 
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("background_unavailable");
@@ -304,14 +305,14 @@ describe("forkChat — D27 deep copy", () => {
       emit,
       loadParticipantViews,
     });
-    const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+    const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId });
 
     expect(chat.parentChatId).toBe(chatId);
     expect(chat.id).not.toBe(chatId);
     expect(emitted).toEqual([{ type: "chatCreated", chatId: chat.id }]);
 
     // The forker is HOST of the fork; the characters copied as members; the OTHER human is NOT copied (FLAG[fork-humans]).
-    const host2 = chat.participants.find((p) => p.role === "host");
+    const host2 = hostSeatOf(chat.participants);
     expect(host2?.userId).toBe(host);
     expect(chat.participants.some((p) => p.characterId === charA)).toBe(true);
     expect(chat.participants.some((p) => p.userId === member)).toBe(false);
@@ -348,7 +349,7 @@ describe("forkChat — D27 deep copy", () => {
       emit,
       loadParticipantViews,
     });
-    const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+    const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId });
 
     // Edit the fork's copied variant directly; the source's variant must NOT change.
     const [forkMsg] = await db.select().from(messages).where(eq(messages.chatId, chat.id));
@@ -374,7 +375,7 @@ describe("forkChat — D27 deep copy", () => {
       emit,
       loadParticipantViews,
     });
-    const { chat } = await fork.forkChat({ principal: principal(host), chatId, throughSeq: 1 });
+    const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId, throughSeq: 1 });
 
     const forkMsgs = await db
       .select({ content: messageVariants.content })
@@ -412,7 +413,7 @@ describe("forkChat — D27 deep copy", () => {
       emit,
       loadParticipantViews,
     });
-    const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+    const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId });
 
     const [forkRow] = await db
       .select({ variableValues: chats.variableValues, runtimeVariables: chats.runtimeVariables })
@@ -435,7 +436,7 @@ describe("forkChat — D27 deep copy", () => {
       emit,
       loadParticipantViews,
     });
-    const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+    const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId });
 
     const [srcRow] = await db.select({ userMacroValues: chats.userMacroValues }).from(chats).where(eq(chats.id, chatId));
     const [forkRow] = await db
@@ -472,7 +473,7 @@ describe("forkChat — D27 deep copy", () => {
       emit,
       loadParticipantViews,
     });
-    const { chat } = await fork.forkChat({ principal: principal(host), chatId, throughSeq: 1 });
+    const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId, throughSeq: 1 });
 
     const [forkRow] = await db
       .select({ runtimeVariables: chats.runtimeVariables })
@@ -511,12 +512,12 @@ describe("forkChat — D64 character-drop on a non-owner fork (F4 ruling)", () =
       emit,
       loadParticipantViews,
     });
-    const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+    const { chat } = await fork.forkChat({ principal: await principal(db, member), chatId });
 
     // The fork exists (the ruling: succeed, don't refuse), the forker is host.
     expect(chat.parentChatId).toBe(chatId);
     expect(emitted).toContainEqual({ type: "chatCreated", chatId: chat.id });
-    expect(chat.participants.find((p) => p.role === "host")?.userId).toBe(member);
+    expect(hostSeatOf(chat.participants)?.userId).toBe(member);
     // The forker's own character seat is KEPT; the un-owned seat is DROPPED from the fork roster.
     expect(chat.participants.some((p) => p.characterId === bella)).toBe(true);
     expect(chat.participants.some((p) => p.characterId === aria)).toBe(false);
@@ -544,7 +545,7 @@ describe("forkChat — D64 character-drop on a non-owner fork (F4 ruling)", () =
       loadParticipantViews,
     });
 
-    const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+    const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId });
     expect(chat.parentChatId).toBe(chatId);
     expect(chat.participants.some((p) => p.characterId === charA)).toBe(true);
     expect(emitted).toContainEqual({ type: "chatCreated", chatId: chat.id });
@@ -563,8 +564,8 @@ describe("forkChat — D64 character-drop on a non-owner fork (F4 ruling)", () =
     await seedParticipant(db, { chatId: ownSrc, key: "om", userId: member, role: "member" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-    const foreignFork = await fork.forkChat({ principal: principal(member), chatId: foreignSrc });
-    const ownFork = await fork.forkChat({ principal: principal(member), chatId: ownSrc });
+    const foreignFork = await fork.forkChat({ principal: await principal(db, member), chatId: foreignSrc });
+    const ownFork = await fork.forkChat({ principal: await principal(db, member), chatId: ownSrc });
 
     const [foreignRow] = await db
       .select()
@@ -600,7 +601,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
     await seedParticipant(db, { chatId, key: "jhf_m", userId: member, role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-    const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+    const { chat } = await fork.forkChat({ principal: await principal(db, member), chatId });
 
     const forkMsgs = await db
       .select({ content: messageVariants.content })
@@ -627,7 +628,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
     await seedParticipant(db, { chatId, key: "jhk_m", userId: member, role: "member", joinSeq: 2, joinHistoryVisibility: "from-join" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-    const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+    const { chat } = await fork.forkChat({ principal: await principal(db, member), chatId });
 
     const [forkRow] = await db
       .select({ summary: chats.compactSummary, at: chats.compactedAtSeq })
@@ -648,7 +649,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
     await seedParticipant(db, { chatId, key: "jhu_m", userId: member, role: "member", joinSeq: 2, joinHistoryVisibility: "full" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-    const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+    const { chat } = await fork.forkChat({ principal: await principal(db, member), chatId });
 
     const forkMsgs = await db
       .select({ content: messageVariants.content })
@@ -721,7 +722,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await seedVariableChain(chatId);
 
       const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-      const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+      const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId });
 
       const row = await forkRow(chat.id);
       // Byte-identical log (no baseline row, original seq stamps intact) and the source's true fold.
@@ -741,7 +742,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await seedVariableChain(chatId);
 
       const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-      const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+      const { chat } = await fork.forkChat({ principal: await principal(db, member), chatId });
 
       const [srcRow] = await db.select({ runtime: chats.runtimeVariables, standalone: chats.standaloneVariableDeltas }).from(chats).where(eq(chats.id, chatId));
       const row = await forkRow(chat.id);
@@ -758,7 +759,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await seedParticipant(db, { chatId, key: "vb_c", userId: member, role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" });
 
       const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-      const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+      const { chat } = await fork.forkChat({ principal: await principal(db, member), chatId });
 
       const [srcRow] = await db.select({ runtime: chats.runtimeVariables }).from(chats).where(eq(chats.id, chatId));
       const row = await forkRow(chat.id);
@@ -797,7 +798,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await seedParticipant(db, { chatId, key: "vb_t", userId: member, role: "member", joinSeq: 3, joinHistoryVisibility: "from-join" });
 
       const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-      const { chat } = await fork.forkChat({ principal: principal(member), chatId, throughSeq: 2 });
+      const { chat } = await fork.forkChat({ principal: await principal(db, member), chatId, throughSeq: 2 });
 
       // No canon is visible at that horizon, so state as-of seq 2 would be state the forker may not read.
       const forkMsgs = await db
@@ -844,7 +845,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
           metadata: { continuationTools: { beforeContent: "Before.", before: [], after: [call] } },
         })
         .where(eq(messageVariants.id, variantId));
-      const { chat } = await createFork(makeChatContext(db), { emit, loadParticipantViews }).forkChat({ principal: principal(forker), chatId });
+      const { chat } = await createFork(makeChatContext(db), { emit, loadParticipantViews }).forkChat({ principal: await principal(db, forker), chatId });
       const readAndReplay = async (count: number): Promise<void> => {
         const canon = await loadCanonHistory(db, chat.id);
         expect(canon[0]?.content).toBe("Before.");
@@ -909,7 +910,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
         .set({ toolCalls: [first, second], preContinueContent: beforeContent, lastContinuationContent: "After.Done.", metadata })
         .where(eq(messageVariants.id, variantId));
       const fork = createFork(makeChatContext(db), { emit, loadParticipantViews });
-      const { chat } = await fork.forkChat({ principal: principal(forker), chatId });
+      const { chat } = await fork.forkChat({ principal: await principal(db, forker), chatId });
       const [copied] = await db
         .select()
         .from(messages)
@@ -951,7 +952,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
         ]),
       );
       expect((await loadCanonHistory(db, chat.id))[0]?.toolCalls).toEqual([expectedFirst, expectedSecond]);
-      const exported = await createExportChatBundle(makeHarness(db).ctx)({ principal: principal(forker), chatId: chat.id });
+      const exported = await createExportChatBundle(makeHarness(db).ctx)({ principal: await principal(db, forker), chatId: chat.id });
       if (exported === null) {
         throw new Error("fork host export was refused");
       }
@@ -974,7 +975,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: `He smiles. ${lie} "Nothing," he says.` });
 
       const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-      const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+      const { chat } = await fork.forkChat({ principal: await principal(db, member), chatId });
 
       const [row] = await db
         .select({ content: messageVariants.content })
@@ -1000,7 +1001,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
         .where(eq(messageVariants.id, castId(m.variantId)));
 
       const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-      const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+      const { chat } = await fork.forkChat({ principal: await principal(db, member), chatId });
 
       const [row] = await db
         .select({ pre: messageVariants.preContinueContent, cont: messageVariants.lastContinuationContent })
@@ -1043,7 +1044,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
         .where(eq(messageVariants.id, castId(m.variantId)));
 
       const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-      const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+      const { chat } = await fork.forkChat({ principal: await principal(db, member), chatId });
 
       const [row] = await db
         .select({ snapshot: messageVariants.promptSnapshot })
@@ -1075,7 +1076,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
         .where(eq(messageVariants.id, castId(m.variantId)));
 
       const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-      const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+      const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId });
 
       const [row] = await db
         .select({ snapshot: messageVariants.promptSnapshot })
@@ -1095,7 +1096,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: body });
 
       const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-      const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+      const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId });
 
       const [row] = await db
         .select({ content: messageVariants.content })
@@ -1134,7 +1135,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
 
       async function forkedReasoning(chatId: ChatId, forker: UserId): Promise<{ reasoning: string | null; pre: string | null; cont: string | null }> {
         const fork = createFork(makeChatContext(db, { getCard: ownedCard(), rpg: deceptionRpg() }), { emit, loadParticipantViews });
-        const { chat } = await fork.forkChat({ principal: principal(forker), chatId: castId(chatId) });
+        const { chat } = await fork.forkChat({ principal: await principal(db, forker), chatId: castId(chatId) });
         const [row] = await db
           .select({
             reasoning: messageVariants.reasoning,
@@ -1278,7 +1279,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
     ): Promise<{ src: typeof messageVariants.$inferSelect; copy: typeof messageVariants.$inferSelect }> {
       const src = await tailVariantRow(chatId);
       const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-      const { chat } = await fork.forkChat({ principal: principal(forker), chatId });
+      const { chat } = await fork.forkChat({ principal: await principal(db, forker), chatId });
       const copy = await tailVariantRow(castId(chat.id));
       if (src === undefined || copy === undefined) {
         throw new Error("census: the seeded tail variant did not survive the fork");
@@ -1380,7 +1381,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
 
       const { calls, rpg } = captureRpg();
       const fork = createFork(makeChatContext(db, { getCard: ownedCard(), rpg }), { emit, loadParticipantViews });
-      const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+      const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId });
 
       expect(calls).toHaveLength(1);
       const args = calls[0];
@@ -1407,7 +1408,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
 
       const { calls, rpg } = captureRpg();
       const fork = createFork(makeChatContext(db, { getCard: ownedCard(), rpg }), { emit, loadParticipantViews });
-      await fork.forkChat({ principal: principal(member), chatId });
+      await fork.forkChat({ principal: await principal(db, member), chatId });
 
       expect(calls[0]?.forker).toEqual({ userId: member, readsHidden: false });
     });
@@ -1421,7 +1422,7 @@ describe("forkChat — the D16 join-history floor (a fork must not launder pre-j
       const { rpg } = captureRpg({ throwOnFork: true });
       const fork = createFork(makeChatContext(db, { getCard: ownedCard(), rpg }), { emit, loadParticipantViews });
       // The clone throws, but the fork still resolves (degraded-not-broken) with a real forked chat row.
-      const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+      const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId });
       const [row] = await db
         .select({ id: chats.id })
         .from(chats)
@@ -1443,7 +1444,7 @@ describe("forkChat — the host-or-sole-human fork gate", () => {
     await seedMessage(db, chatId, 1, { role: "assistant", content: "beat" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-    const { chat } = await fork.forkChat({ principal: principal(host), chatId });
+    const { chat } = await fork.forkChat({ principal: await principal(db, host), chatId });
     expect(chat.parentChatId).toBe(chatId);
   });
 
@@ -1457,10 +1458,10 @@ describe("forkChat — the host-or-sole-human fork gate", () => {
     await seedMessage(db, chatId, 1, { role: "assistant", characterId: charA, content: "beat" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-    const { chat } = await fork.forkChat({ principal: principal(member), chatId });
+    const { chat } = await fork.forkChat({ principal: await principal(db, member), chatId });
     expect(chat.parentChatId).toBe(chatId);
     // The lone forker becomes the fork's host.
-    expect(chat.participants.find((p) => p.role === "host")?.userId).toBe(member);
+    expect(hostSeatOf(chat.participants)?.userId).toBe(member);
   });
 
   test("NON-HOST member in a MULTI-HUMAN room — REFUSED with not_host (a known-existence authority refusal)", async () => {
@@ -1472,7 +1473,7 @@ describe("forkChat — the host-or-sole-human fork gate", () => {
     await seedMessage(db, chatId, 1, { role: "assistant", content: "beat" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-    const err = await fork.forkChat({ principal: principal(member), chatId }).catch((e: unknown) => e);
+    const err = await fork.forkChat({ principal: await principal(db, member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
     // No fork chat row was created (the refusal is before any write).
@@ -1488,7 +1489,7 @@ describe("forkChat — the host-or-sole-human fork gate", () => {
     await seedMessage(db, chatId, 1, { role: "assistant", content: "beat" });
 
     const fork = createFork(makeChatContext(db, { getCard: ownedCard() }), { emit, loadParticipantViews });
-    const err = await fork.forkChat({ principal: principal(stranger), chatId }).catch((e: unknown) => e);
+    const err = await fork.forkChat({ principal: await principal(db, stranger), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatNotFoundError);
     expect(await db.select({ id: chats.id }).from(chats).where(eq(chats.parentChatId, chatId))).toEqual([]);
   });

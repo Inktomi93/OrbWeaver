@@ -25,7 +25,7 @@ describe("createUser", () => {
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
 
     const view = await svc.createUser({
-      principal: principal(admin, "admin"),
+      principal: await principal(db, admin, "admin"),
       handle: castId<Handle>("newbie"),
       password: GOOD_PASSWORD,
     });
@@ -44,7 +44,7 @@ describe("createUser", () => {
   test("the minted account carries its local-light vector floor (#2481)", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
-    const view = await svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("newbie"), password: GOOD_PASSWORD });
+    const view = await svc.createUser({ principal: await principal(db, admin, "admin"), handle: castId<Handle>("newbie"), password: GOOD_PASSWORD });
     expect(await db.select().from(userConnections).where(eq(userConnections.ownerId, view.id))).toHaveLength(2);
   });
 
@@ -53,7 +53,7 @@ describe("createUser", () => {
     const { svc, admin } = await seedAdminCaller(db);
     await expect(
       svc.createUser({
-        principal: principal(admin, "admin"),
+        principal: await principal(db, admin, "admin"),
         handle: castId<Handle>("   "),
         password: GOOD_PASSWORD,
       }),
@@ -63,7 +63,7 @@ describe("createUser", () => {
   test("a short password is rejected (weak_password)", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
-    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("x"), password: "short" })).rejects.toMatchObject({
+    await expect(svc.createUser({ principal: await principal(db, admin, "admin"), handle: castId<Handle>("x"), password: "short" })).rejects.toMatchObject({
       code: "weak_password",
     });
   });
@@ -76,7 +76,7 @@ describe("createUser", () => {
     // owner can never be minted here (D40 single-owner; ownership transfer is out of scope).
     await expect(
       svc.createUser({
-        principal: principal(owner, "owner"),
+        principal: await principal(db, owner, "owner"),
         handle: castId<Handle>("x"),
         password: GOOD_PASSWORD,
         role: "owner",
@@ -91,7 +91,7 @@ describe("createUser", () => {
     // would bypass it. `createUser` now gates `role:"admin"` on requireOwner — the admin is refused.
     await expect(
       svc.createUser({
-        principal: principal(admin, "admin"),
+        principal: await principal(db, admin, "admin"),
         handle: castId<Handle>("shadow-admin"),
         password: GOOD_PASSWORD,
         role: "admin",
@@ -110,7 +110,7 @@ describe("createUser", () => {
     const { svc, admin } = await seedAdminCaller(db);
     await expect(
       svc.createUser({
-        principal: principal(admin, "admin"),
+        principal: await principal(db, admin, "admin"),
         handle: castId<Handle>("x"),
         password: GOOD_PASSWORD,
         role: "owner",
@@ -125,7 +125,7 @@ describe("createUser", () => {
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
 
     const view = await svc.createUser({
-      principal: principal(owner, "owner"),
+      principal: await principal(db, owner, "owner"),
       handle: castId<Handle>("trusted"),
       password: GOOD_PASSWORD,
       role: "admin",
@@ -144,7 +144,7 @@ describe("createUser", () => {
     await seedUser(db, { id: "user_dup", role: "user", handle: castId<Handle>("taken") });
     await expect(
       svc.createUser({
-        principal: principal(admin, "admin"),
+        principal: await principal(db, admin, "admin"),
         handle: castId<Handle>("taken"),
         password: GOOD_PASSWORD,
       }),
@@ -155,10 +155,14 @@ describe("createUser", () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
     await seedUser(db, { id: "user_host", role: "user", handle: castId<Handle>("host") });
-    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("h0st"), password: GOOD_PASSWORD })).rejects.toMatchObject({
+    await expect(
+      svc.createUser({ principal: await principal(db, admin, "admin"), handle: castId<Handle>("h0st"), password: GOOD_PASSWORD }),
+    ).rejects.toMatchObject({
       code: "user_exists",
     });
-    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("hosts"), password: GOOD_PASSWORD })).resolves.toMatchObject({
+    await expect(
+      svc.createUser({ principal: await principal(db, admin, "admin"), handle: castId<Handle>("hosts"), password: GOOD_PASSWORD }),
+    ).resolves.toMatchObject({
       handle: "hosts",
     });
   });
@@ -166,10 +170,14 @@ describe("createUser", () => {
   test("a mixed-script handle is rejected (invalid_handle); a single-script non-Latin one is minted", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
-    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("hσst"), password: GOOD_PASSWORD })).rejects.toMatchObject({
+    await expect(
+      svc.createUser({ principal: await principal(db, admin, "admin"), handle: castId<Handle>("hσst"), password: GOOD_PASSWORD }),
+    ).rejects.toMatchObject({
       code: "invalid_handle",
     });
-    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("Дмитрий"), password: GOOD_PASSWORD })).resolves.toMatchObject({
+    await expect(
+      svc.createUser({ principal: await principal(db, admin, "admin"), handle: castId<Handle>("Дмитрий"), password: GOOD_PASSWORD }),
+    ).resolves.toMatchObject({
       handle: "Дмитрий",
     });
   });
@@ -179,7 +187,7 @@ describe("createUser", () => {
     const { svc, admin } = await seedAdminCaller(db);
     for (const blank of ["​​", "⁠", "　"]) {
       await expect(
-        svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>(blank), password: GOOD_PASSWORD }),
+        svc.createUser({ principal: await principal(db, admin, "admin"), handle: castId<Handle>(blank), password: GOOD_PASSWORD }),
         JSON.stringify(blank),
       ).rejects.toMatchObject({
         code: "invalid_handle",
@@ -192,7 +200,9 @@ describe("createUser", () => {
   test.each(["owner", "0wner"])("the owner seed key and its look-alikes are refused (invalid_handle): %j", async (reserved) => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db, { ...env, ["OWNER_HANDLES"]: "owner" });
-    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>(reserved), password: GOOD_PASSWORD })).rejects.toMatchObject({
+    await expect(
+      svc.createUser({ principal: await principal(db, admin, "admin"), handle: castId<Handle>(reserved), password: GOOD_PASSWORD }),
+    ).rejects.toMatchObject({
       code: "invalid_handle",
     });
     expect((await db.select().from(users)).map((row) => row.handle)).toEqual(["adm"]);
@@ -201,7 +211,9 @@ describe("createUser", () => {
   test("control: a handle that only contains the seed key is minted", async () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db, { ...env, ["OWNER_HANDLES"]: "owner" });
-    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("owners"), password: GOOD_PASSWORD })).resolves.toMatchObject({
+    await expect(
+      svc.createUser({ principal: await principal(db, admin, "admin"), handle: castId<Handle>("owners"), password: GOOD_PASSWORD }),
+    ).resolves.toMatchObject({
       handle: "owners",
     });
   });
@@ -210,7 +222,7 @@ describe("createUser", () => {
     const db = await freshDb();
     const svc = createAdminService(makeHarness(db).ctx);
     const u = await seedUser(db, { id: "user_u", role: "user", handle: castId<Handle>("u") });
-    await expect(svc.createUser({ principal: principal(u, "user"), handle: castId<Handle>("x"), password: GOOD_PASSWORD })).rejects.toThrow(
+    await expect(svc.createUser({ principal: await principal(db, u, "user"), handle: castId<Handle>("x"), password: GOOD_PASSWORD })).rejects.toThrow(
       DomainForbiddenError,
     );
   });
@@ -223,7 +235,9 @@ describe("createUser", () => {
     const svc = createAdminService(withBrokenAudit(h.ctx, db));
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
 
-    await expect(svc.createUser({ principal: principal(admin, "admin"), handle: castId<Handle>("newbie"), password: GOOD_PASSWORD })).rejects.toThrow();
+    await expect(
+      svc.createUser({ principal: await principal(db, admin, "admin"), handle: castId<Handle>("newbie"), password: GOOD_PASSWORD }),
+    ).rejects.toThrow();
 
     expect(
       await db

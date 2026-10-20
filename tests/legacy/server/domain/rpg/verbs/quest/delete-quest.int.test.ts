@@ -21,10 +21,10 @@ beforeEach(async () => {
 describe("deleteQuest", () => {
   test("removes the quest AND clears its lock (no ghost lock accumulates)", async () => {
     const { chatId, gameId, h } = await seedLiteGame(db);
-    const questId = await h.service.upsertQuest({ principal: principal(castId<Handle>("host")), chatId, name: "Slay the dragon" });
+    const questId = await h.service.upsertQuest({ principal: await principal(db, castId<Handle>("host")), chatId, name: "Slay the dragon" });
     expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.fieldLocks?.[`quests.${questId}`]).toBe(true);
 
-    await h.service.deleteQuest({ principal: principal(castId<Handle>("host")), chatId, questId });
+    await h.service.deleteQuest({ principal: await principal(db, castId<Handle>("host")), chatId, questId });
     const snap = await resolveSnapshotForTurn(db, { id: gameId, chatId });
     expect(snap?.quests).toHaveLength(0);
     // The delete CLEARED the per-quest lock — no ghost lock accumulates (the symmetric grammar).
@@ -33,8 +33,8 @@ describe("deleteQuest", () => {
 
   test("deleting a nonexistent quest is a not-found", async () => {
     const { chatId, h } = await seedLiteGame(db);
-    await expect(h.service.deleteQuest({ principal: principal(castId<Handle>("host")), chatId, questId: castId<RpgQuestId>("q_ghost") })).rejects.toThrow(
-      NOT_FOUND_RE,
-    );
+    await expect(
+      h.service.deleteQuest({ principal: await principal(db, castId<Handle>("host")), chatId, questId: castId<RpgQuestId>("q_ghost") }),
+    ).rejects.toThrow(NOT_FOUND_RE);
   });
 });

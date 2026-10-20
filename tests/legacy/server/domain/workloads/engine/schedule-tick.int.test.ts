@@ -48,13 +48,13 @@ describe("schedule tick — due schedules enqueue + advance", () => {
     await tickWorkloadSchedules({ db, now: () => nowMs, start: service.start });
 
     // A workload was enqueued for alice (through the normal start path → owner-stamped, queued).
-    const workloads = await service.list({ caller: principal("user_alice") });
+    const workloads = await service.list({ caller: await principal(db, "user_alice") });
     expect(workloads).toHaveLength(1);
     expect(workloads[0]?.kind).toBe("reconcile-stats");
     expect(workloads[0]?.status).toBe("queued");
 
     // The schedule advanced one interval out from nowMs + stamped lastRunAt.
-    const [row] = await service.listSchedules({ caller: principal("user_alice") });
+    const [row] = await service.listSchedules({ caller: await principal(db, "user_alice") });
     expect(row?.nextRunAt).toBe(nowMs + CADENCE_INTERVAL_MS.daily);
     expect(row?.lastRunAt).toBe(nowMs);
   });
@@ -67,8 +67,8 @@ describe("schedule tick — due schedules enqueue + advance", () => {
 
     await tickWorkloadSchedules({ db, now: () => T0 + 5, start: service.start });
 
-    expect(await service.list({ caller: principal("user_alice") })).toHaveLength(0);
-    const [row] = await service.listSchedules({ caller: principal("user_alice") });
+    expect(await service.list({ caller: await principal(db, "user_alice") })).toHaveLength(0);
+    const [row] = await service.listSchedules({ caller: await principal(db, "user_alice") });
     expect(row?.nextRunAt).toBe(T0); // unchanged — the tick never saw it
     expect(row?.lastRunAt).toBeNull();
   });
@@ -81,7 +81,7 @@ describe("schedule tick — due schedules enqueue + advance", () => {
 
     await tickWorkloadSchedules({ db, now: () => T0, start: service.start });
 
-    expect(await service.list({ caller: principal("user_alice") })).toHaveLength(0);
+    expect(await service.list({ caller: await principal(db, "user_alice") })).toHaveLength(0);
   });
 
   test("a single-active collision is a benign skip that STILL advances the schedule", async () => {
@@ -102,11 +102,11 @@ describe("schedule tick — due schedules enqueue + advance", () => {
     await tickWorkloadSchedules({ db, now: () => nowMs, start: service.start });
 
     // No SECOND run was enqueued (the lock rejected it → DomainConflictError → benign skip).
-    const workloads = await service.list({ caller: principal("user_alice") });
+    const workloads = await service.list({ caller: await principal(db, "user_alice") });
     expect(workloads).toHaveLength(1);
     expect(workloads[0]?.id).toBe(castId("workload_active"));
     // But the schedule STILL advanced (the desired "one active run" already holds).
-    const [row] = await service.listSchedules({ caller: principal("user_alice") });
+    const [row] = await service.listSchedules({ caller: await principal(db, "user_alice") });
     expect(row?.nextRunAt).toBe(nowMs + CADENCE_INTERVAL_MS.daily);
     expect(row?.lastRunAt).toBe(nowMs);
   });

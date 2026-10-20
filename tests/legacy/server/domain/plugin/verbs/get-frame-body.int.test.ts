@@ -47,7 +47,7 @@ async function seedFramePlugin(grant: readonly ("ui.frame" | "ui.surface")[]): P
 }> {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   h.port.script({ ok: true, instance: residentWithFrame() });
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "chess", capabilities: [...grant] }), grant: [...grant] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
@@ -100,8 +100,8 @@ test("a plugin that never held ui.frame serves no bytes, even though its residen
 test("a FOREIGN pluginId is refused exactly like a fabricated one — no existence oracle", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const alpha = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("alpha") }));
-  const mallory = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("mallory") }));
+  const alpha = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("alpha") }));
+  const mallory = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("mallory") }));
   h.port.script({ ok: true, instance: residentWithFrame() });
   const installed = await h.service.install({ caller: alpha, bundle: makeBundle({ id: "chess", capabilities: ["ui.frame"] }), grant: ["ui.frame"] });
   await h.service.setEnabled({ caller: alpha, pluginId: installed.id, enabled: true });

@@ -7,8 +7,9 @@
 
 import { mkdir, writeFile } from "node:fs/promises";
 import { dirname, join } from "node:path";
+import type { Principal } from "@orb/contracts/identity";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
-import type { CharacterId, UserId } from "@orb/kit/ids";
+import type { CharacterId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { describe } from "vitest";
@@ -90,7 +91,7 @@ async function importStaged(
     await writeFile(target, file.bytes);
   }
   const result = await ctx.app.workloadContributions["import-st"].run(
-    { userId: OWNER_USER_ID, ownerId: OWNER_USER_ID, now: ctx.now },
+    { userId: OWNER_USER_ID, ownerId: OWNER_USER_ID, funderUserId: OWNER_USER_ID, now: ctx.now },
     { stagedDir: token },
     () => undefined,
     new AbortController().signal,
@@ -108,9 +109,9 @@ async function characterNamed(app: ServicesResult, name: string): Promise<Charac
 }
 
 /** The Characters dialog door over one file. */
-function dialogDoor(app: ServicesResult, userId: UserId, bytes: Uint8Array, filename: string): ReturnType<typeof runProfileImport> {
+function dialogDoor(app: ServicesResult, caller: Principal, bytes: Uint8Array, filename: string): ReturnType<typeof runProfileImport> {
   return runProfileImport({
-    principal: makePrincipal(userId),
+    principal: caller,
     character: app.services.character,
     assets: app.assets,
     tag: app.services.tag,
@@ -123,12 +124,13 @@ function dialogDoor(app: ServicesResult, userId: UserId, bytes: Uint8Array, file
 describe("import identity across doors and split uploads", () => {
   test("card tags are immediately applied across both import doors while model suggestions remain pending", async ({
     app,
+    db,
     clock,
     ownerCaller,
     importStagingDir,
   }) => {
     const card = v2Card("Tagged Keeper").replace('"first_mes":"The lamp is lit."', '"first_mes":"The lamp is lit.","tags":["harbor","keeper"]');
-    const imported = await dialogDoor(app, OWNER_USER_ID, ENC.encode(card), "tagged-keeper.json");
+    const imported = await dialogDoor(app, await makePrincipal({ db }, OWNER_USER_ID), ENC.encode(card), "tagged-keeper.json");
     expect(imported.failed).toEqual([]);
     const characterId = await characterNamed(app, "Tagged Keeper");
     const appliedTags = async (): Promise<string[]> => (await ownerCaller.character.get({ characterId })).tags.map((tag) => tag.name).toSorted();
@@ -188,10 +190,11 @@ describe("import identity across doors and split uploads", () => {
     }
   });
 
-  test("a JSON card, then its PNG, then the JSON again is one character; the same text under other art is a second", async ({ app, ownerCaller }) => {
+  test("a JSON card, then its PNG, then the JSON again is one character; the same text under other art is a second", async ({ app, db, ownerCaller }) => {
     void ownerCaller; // seeds the owner account the door imports into
     const json = v2Card("Lantern Keeper");
-    const door = (bytes: Uint8Array, filename: string): ReturnType<typeof runProfileImport> => dialogDoor(app, OWNER_USER_ID, bytes, filename);
+    const door = async (bytes: Uint8Array, filename: string): ReturnType<typeof runProfileImport> =>
+      await dialogDoor(app, await makePrincipal({ db }, OWNER_USER_ID), bytes, filename);
 
     const first = await door(ENC.encode(json), "lantern-keeper.json");
     expect(first.failed).toEqual([]);
@@ -209,12 +212,12 @@ describe("import identity across doors and split uploads", () => {
     expect(await app.services.character.findByName({ ownerId: OWNER_USER_ID, name: "Lantern Keeper" })).toHaveLength(2);
   });
 
-  test("two different embedded books under one name land as the name and its numbered twin", async ({ app, ownerCaller }) => {
+  test("two different embedded books under one name land as the name and its numbered twin", async ({ app, db, ownerCaller }) => {
     const book = (content: string): string =>
       `{"name":"Shared Lore","entries":[{"keys":["lore"],"content":${JSON.stringify(content)},"comment":"Lore","insertion_order":1}]}`;
 
-    await dialogDoor(app, OWNER_USER_ID, ENC.encode(v2Card("Aria", { book: book("The harbor floods at dusk.") })), "aria.json");
-    await dialogDoor(app, OWNER_USER_ID, ENC.encode(v2Card("Bram", { book: book("The mountain never sleeps.") })), "bram.json");
+    await dialogDoor(app, await makePrincipal({ db }, OWNER_USER_ID), ENC.encode(v2Card("Aria", { book: book("The harbor floods at dusk.") })), "aria.json");
+    await dialogDoor(app, await makePrincipal({ db }, OWNER_USER_ID), ENC.encode(v2Card("Bram", { book: book("The mountain never sleeps.") })), "bram.json");
 
     const books = await ownerCaller.worldInfo.listBooks();
     expect(books.map((b) => b.name).toSorted()).toEqual(["Shared Lore", "Shared Lore (2)"]);

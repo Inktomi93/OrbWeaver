@@ -121,10 +121,10 @@ describe("exportChat — D29 host gate", () => {
     await seedMember(chatId, "m", { userId: member, role: "member" });
     const exportChat = createExportChat(ctx);
 
-    expect(await exportChat({ principal: principal(member), chatId })).toBeNull();
-    expect(await exportChat({ principal: principal(outsider), chatId })).toBeNull();
-    expect(await exportChat({ principal: principal(host), chatId: castId<ChatId>("chat_missing") })).toBeNull();
-    expect(await exportChat({ principal: principal(host), chatId })).not.toBeNull();
+    expect(await exportChat({ principal: await principal(db, member), chatId })).toBeNull();
+    expect(await exportChat({ principal: await principal(db, outsider), chatId })).toBeNull();
+    expect(await exportChat({ principal: await principal(db, host), chatId: castId<ChatId>("chat_missing") })).toBeNull();
+    expect(await exportChat({ principal: await principal(db, host), chatId })).not.toBeNull();
   });
 
   test("a DEPARTED ex-host (leftSeq set) is refused; the PRESENT host still exports", async () => {
@@ -142,9 +142,9 @@ describe("exportChat — D29 host gate", () => {
     const exportChat = createExportChat(ctx);
 
     // The departed ex-host is refused (leak-free null), even though a role='host' row bearing their id exists.
-    expect(await exportChat({ principal: principal(exHost), chatId })).toBeNull();
+    expect(await exportChat({ principal: await principal(db, exHost), chatId })).toBeNull();
     // The present host is unaffected.
-    expect(await exportChat({ principal: principal(newHost), chatId })).not.toBeNull();
+    expect(await exportChat({ principal: await principal(db, newHost), chatId })).not.toBeNull();
   });
 });
 
@@ -181,7 +181,7 @@ describe("exportChat — the D26/D28 assembly", () => {
       selectedIdx: 1,
     });
 
-    const out = await createExportChat(ctx)({ principal: principal(host), chatId });
+    const out = await createExportChat(ctx)({ principal: await principal(db, host), chatId });
     expect(out).not.toBeNull();
     expect(out?.filename).toBe("Aria-Noir_Night.jsonl");
     const lines = (out?.text ?? "").trim().split("\n");
@@ -225,7 +225,7 @@ describe("exportChat — the D26/D28 assembly", () => {
     });
 
     const out = await createExportChat(ctx)({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       format: "txt",
     });
@@ -279,14 +279,14 @@ describe("exportChat — the D26/D28 assembly", () => {
       characterId: cara,
     });
 
-    const out = await createExportChat(ctx)({ principal: principal(host), chatId });
+    const out = await createExportChat(ctx)({ principal: await principal(db, host), chatId });
     const lines = (out?.text ?? "").trim().split("\n");
     const header = JSON.parse(lines[0] ?? "") as Record<string, unknown>;
     expect(header["character_name"]).toBe("Aria"); // header stays the ST primary
     // …but each message LINE carries its actual speaker — the multi-speaker fix.
     expect((JSON.parse(lines[2] ?? "") as Record<string, unknown>)["name"]).toBe("Bran");
     expect((JSON.parse(lines[3] ?? "") as Record<string, unknown>)["name"]).toBe("Cara");
-    const txt = await createExportChat(ctx)({ principal: principal(host), chatId, format: "txt" });
+    const txt = await createExportChat(ctx)({ principal: await principal(db, host), chatId, format: "txt" });
     expect(txt?.text).toBe("User: hey all\n\nBran: Bran speaks\n\nCara: Cara speaks\n");
   });
 });
@@ -305,7 +305,7 @@ describe("exportChat — the declared KIND rides out with the row", () => {
     await seedSlot({ chatId, key: "ku1", seq: 1, role: "user", variantContents: ["hi"] });
     await seedSlot({ chatId, key: "kn1", seq: 2, role: "assistant", variantContents: ["the door opens"], characterId: group, kind: "narrator" });
 
-    const out = await createExportChat(ctx)({ principal: principal(host), chatId });
+    const out = await createExportChat(ctx)({ principal: await principal(db, host), chatId });
     const lines = (out?.text ?? "").trim().split("\n");
     const userLine = JSON.parse(lines[1] ?? "") as { extra: Record<string, unknown> };
     const narratorLine = JSON.parse(lines[2] ?? "") as { extra: Record<string, unknown> };
@@ -325,7 +325,7 @@ describe("exportChat — agent-author provenance (D60)", () => {
     await seedSlot({ chatId, key: "u1", seq: 1, role: "user", variantContents: ["hi"] });
     await seedSlot({ chatId, key: "a1", seq: 2, role: "assistant", variantContents: ["hello"], characterId: aria });
 
-    const out = await createExportChat(ctx)({ principal: principal(host), chatId });
+    const out = await createExportChat(ctx)({ principal: await principal(db, host), chatId });
     expect(out?.text ?? "").not.toContain("agent_author");
   });
 });

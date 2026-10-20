@@ -19,20 +19,20 @@ describe("bulk remove card tag", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const a = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     const b = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" },
     });
     const foreign = await svc.create({
-      principal: principal(other),
+      principal: await principal(db, other),
       input: { handle: castId<CharacterHandle>("c"), name: "C", description: "d" },
     });
 
     await svc.bulkRemoveCardTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagName: "  hero  ",
       characterIds: [a.id, b.id, foreign.id],
     });
@@ -49,11 +49,11 @@ describe("bulk remove card tag", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     await svc.bulkRemoveCardTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagName: "   ",
       characterIds: [a.id],
     });
@@ -66,7 +66,7 @@ describe("bulk remove card tag", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
 
@@ -77,7 +77,7 @@ describe("bulk remove card tag", () => {
     // The port reports "nothing removed" → no NEW emit, no NEW audit.
     h.setTagDetachResult(false);
     await svc.bulkRemoveCardTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagName: "hero",
       characterIds: [a.id],
     });
@@ -87,7 +87,7 @@ describe("bulk remove card tag", () => {
     // The port reports a removal → charactersChanged fires (owner-scoped) + one audit lands.
     h.setTagDetachResult(true);
     await svc.bulkRemoveCardTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagName: "hero",
       characterIds: [a.id],
     });
@@ -106,8 +106,8 @@ describe("bulk remove card tag", () => {
     const h = makeHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const base = createCharacterService(h.ctx);
-    const a = await base.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" } });
-    const b = await base.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" } });
+    const a = await base.create({ principal: await principal(db, owner), input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" } });
+    const b = await base.create({ principal: await principal(db, owner), input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" } });
     h.audits.length = 0;
     h.userEvents.length = 0;
 
@@ -118,7 +118,7 @@ describe("bulk remove card tag", () => {
       detachCardTag: async (args): Promise<boolean> => (args.characterId === a.id ? await Promise.reject(new Error("the tag store is down")) : true),
     });
 
-    const result = await svc.bulkRemoveCardTag({ principal: principal(owner), tagName: "hero", characterIds: [a.id, b.id] });
+    const result = await svc.bulkRemoveCardTag({ principal: await principal(db, owner), tagName: "hero", characterIds: [a.id, b.id] });
 
     expect(result.applied).toEqual([b.id]);
     expect(result.failed).toEqual([{ id: a.id, error: { code: "unexpected", message: "the tag store is down" } }]);

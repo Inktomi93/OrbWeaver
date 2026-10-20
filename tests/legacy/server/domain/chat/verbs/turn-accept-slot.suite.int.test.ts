@@ -93,7 +93,7 @@ describe("accepted-slot totality — swipe", () => {
   test("HAPPY: accepts with the REAL targetMessageId + the slot's speaker, before turnStarted", async () => {
     const { chat, assistantId, speaker, since } = await roomWithReply();
 
-    await chat.turn.swipe({ principal: chat.principal(), chatId: chat.chatId, messageId: assistantId });
+    await chat.turn.swipe({ principal: await chat.principal(), chatId: chat.chatId, messageId: assistantId });
 
     expect(types(since())).toEqual(["turnAccepted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
     // The ghost-slot payload: the client renders its pending ghost OVER this message id.
@@ -104,7 +104,7 @@ describe("accepted-slot totality — swipe", () => {
     const { chat, since } = await roomWithReply();
 
     await expect(
-      chat.turn.swipe({ principal: chat.principal(), chatId: chat.chatId, messageId: mintTypeId(ID_PREFIX.message) as MessageId }),
+      chat.turn.swipe({ principal: await chat.principal(), chatId: chat.chatId, messageId: mintTypeId(ID_PREFIX.message) as MessageId }),
     ).rejects.toThrow();
 
     expect(types(since())).toEqual([]);
@@ -115,7 +115,7 @@ describe("accepted-slot totality — swipe", () => {
     const { chat, assistantId, since } = await roomWithReply({ resolveForeignInputs: faultingForeign(fail) });
     fail.now = true;
 
-    await expect(chat.turn.swipe({ principal: chat.principal(), chatId: chat.chatId, messageId: assistantId })).rejects.toThrow();
+    await expect(chat.turn.swipe({ principal: await chat.principal(), chatId: chat.chatId, messageId: assistantId })).rejects.toThrow();
 
     expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
     expect(since()[0]).toMatchObject({ targetMessageId: assistantId });
@@ -126,7 +126,7 @@ describe("accepted-slot totality — swipe", () => {
     const { chat, assistantId, since } = await roomWithReply();
     await holdLock(chat);
 
-    await expect(chat.turn.swipe({ principal: chat.principal(), chatId: chat.chatId, messageId: assistantId })).rejects.toMatchObject({ code: "locked" });
+    await expect(chat.turn.swipe({ principal: await chat.principal(), chatId: chat.chatId, messageId: assistantId })).rejects.toMatchObject({ code: "locked" });
 
     expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
     expect(since()[1]).toMatchObject({ reason: "error" });
@@ -137,7 +137,7 @@ describe("accepted-slot totality — continueTurn", () => {
   test("HAPPY: accepts with the REAL targetMessageId before turnStarted", async () => {
     const { chat, assistantId, speaker, since } = await roomWithReply();
 
-    await chat.turn.continueTurn({ principal: chat.principal(), chatId: chat.chatId, messageId: assistantId });
+    await chat.turn.continueTurn({ principal: await chat.principal(), chatId: chat.chatId, messageId: assistantId });
 
     expect(types(since())).toEqual(["turnAccepted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
     expect(since()[0]).toMatchObject({ type: "turnAccepted", intent: "continue", targetMessageId: assistantId, speakerCharacterId: speaker });
@@ -147,7 +147,7 @@ describe("accepted-slot totality — continueTurn", () => {
     const { chat, since } = await roomWithReply();
 
     await expect(
-      chat.turn.continueTurn({ principal: chat.principal(), chatId: chat.chatId, messageId: mintTypeId(ID_PREFIX.message) as MessageId }),
+      chat.turn.continueTurn({ principal: await chat.principal(), chatId: chat.chatId, messageId: mintTypeId(ID_PREFIX.message) as MessageId }),
     ).rejects.toThrow();
 
     expect(types(since())).toEqual([]);
@@ -158,7 +158,7 @@ describe("accepted-slot totality — continueTurn", () => {
     const { chat, assistantId, since } = await roomWithReply({ resolveForeignInputs: faultingForeign(fail) });
     fail.now = true;
 
-    await expect(chat.turn.continueTurn({ principal: chat.principal(), chatId: chat.chatId, messageId: assistantId })).rejects.toThrow();
+    await expect(chat.turn.continueTurn({ principal: await chat.principal(), chatId: chat.chatId, messageId: assistantId })).rejects.toThrow();
 
     expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
     expect(since()[1]).toMatchObject({ intent: "continue", reason: "error" });
@@ -168,7 +168,7 @@ describe("accepted-slot totality — continueTurn", () => {
     const { chat, assistantId, since } = await roomWithReply();
     await holdLock(chat);
 
-    await expect(chat.turn.continueTurn({ principal: chat.principal(), chatId: chat.chatId, messageId: assistantId })).rejects.toMatchObject({
+    await expect(chat.turn.continueTurn({ principal: await chat.principal(), chatId: chat.chatId, messageId: assistantId })).rejects.toMatchObject({
       code: "locked",
     });
 
@@ -180,7 +180,7 @@ describe("accepted-slot totality — generate", () => {
   test("HAPPY: accepts a FRESH slot (no ghost target, no speaker yet) before turnStarted", async () => {
     const { chat, since } = await roomWithReply();
 
-    await chat.turn.generate({ principal: chat.principal(), chatId: chat.chatId });
+    await chat.turn.generate({ principal: await chat.principal(), chatId: chat.chatId });
 
     expect(types(since())).toEqual(["turnAccepted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
     // A fresh reply has nothing to ghost over, and the requested speaker is still UNVALIDATED at accept —
@@ -192,7 +192,7 @@ describe("accepted-slot totality — generate", () => {
     const { chat, since } = await roomWithReply();
 
     await expect(
-      chat.turn.generate({ principal: chat.principal(), chatId: chat.chatId, speakerCharacterId: mintTypeId(ID_PREFIX.character) as CharacterId }),
+      chat.turn.generate({ principal: await chat.principal(), chatId: chat.chatId, speakerCharacterId: mintTypeId(ID_PREFIX.character) as CharacterId }),
     ).rejects.toThrow();
 
     // The validation is INSIDE the accepted region (it needs the resolved room), so unlike swipe's target
@@ -206,7 +206,7 @@ describe("accepted-slot totality — generate", () => {
     const { chat, since } = await roomWithReply({ resolveForeignInputs: faultingForeign(fail) });
     fail.now = true;
 
-    await expect(chat.turn.generate({ principal: chat.principal(), chatId: chat.chatId })).rejects.toThrow();
+    await expect(chat.turn.generate({ principal: await chat.principal(), chatId: chat.chatId })).rejects.toThrow();
 
     expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
   });
@@ -222,7 +222,7 @@ describe("accepted-slot totality — forceCharacterTurn", () => {
   test("HAPPY: accepts with the FORCED speaker and no ghost target, before turnStarted", async () => {
     const { chat, since } = await roomWithReply();
 
-    await chat.turn.forceCharacterTurn({ principal: chat.principal(), chatId: chat.chatId, characterId: chat.chars[0] as CharacterId });
+    await chat.turn.forceCharacterTurn({ principal: await chat.principal(), chatId: chat.chatId, characterId: chat.chars[0] as CharacterId });
 
     expect(types(since())).toEqual(["turnAccepted", "turnStarted", "delta", "messageCommitted", "turnCompleted"]);
     expect(since()[0]).toMatchObject({
@@ -238,7 +238,7 @@ describe("accepted-slot totality — forceCharacterTurn", () => {
     const { chat, since } = await roomWithReply();
 
     await expect(
-      chat.turn.forceCharacterTurn({ principal: chat.principal(), chatId: chat.chatId, characterId: mintTypeId(ID_PREFIX.character) as CharacterId }),
+      chat.turn.forceCharacterTurn({ principal: await chat.principal(), chatId: chat.chatId, characterId: mintTypeId(ID_PREFIX.character) as CharacterId }),
     ).rejects.toThrow();
 
     // Same ORDERING decision as swipe's: the roster/presence check runs BEFORE the accept.
@@ -251,7 +251,7 @@ describe("accepted-slot totality — forceCharacterTurn", () => {
     fail.now = true;
 
     await expect(
-      chat.turn.forceCharacterTurn({ principal: chat.principal(), chatId: chat.chatId, characterId: chat.chars[0] as CharacterId }),
+      chat.turn.forceCharacterTurn({ principal: await chat.principal(), chatId: chat.chatId, characterId: chat.chars[0] as CharacterId }),
     ).rejects.toThrow();
 
     expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);
@@ -264,7 +264,7 @@ describe("accepted-slot totality — forceCharacterTurn", () => {
 
     // Unlike the aux verbs, a forced turn rides `driveRound`, which treats `locked` as "yield the round" — so
     // the verb RESOLVES with zero messages and the accept was the last event the room ever saw.
-    const outcome = await chat.turn.forceCharacterTurn({ principal: chat.principal(), chatId: chat.chatId, characterId: chat.chars[0] as CharacterId });
+    const outcome = await chat.turn.forceCharacterTurn({ principal: await chat.principal(), chatId: chat.chatId, characterId: chat.chars[0] as CharacterId });
 
     expect(outcome.messages).toEqual([]);
     expect(types(since())).toEqual(["turnAccepted", "turnAborted"]);

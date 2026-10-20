@@ -25,13 +25,13 @@ describe("bulkSetScriptsGlobal", () => {
     const first = await seedScript(db, { ownerId: owner, id: "regex_script_1", name: "first" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_2", name: "b" });
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_3", name: "a" });
-    await svc.attachGlobal({ principal: principal(owner), scriptId: first });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId: first });
 
     // Named b-then-a: the tier must take THAT order, not the table's and not alphabetical.
-    const result = await svc.bulkSetScriptsGlobal({ principal: principal(owner), scriptIds: [b, a], global: true });
+    const result = await svc.bulkSetScriptsGlobal({ principal: await principal(db, owner), scriptIds: [b, a], global: true });
 
     expect(result).toEqual({ affected: 2 });
-    expect((await svc.listGlobal({ principal: principal(owner) })).map((r) => r.name)).toEqual(["first", "b", "a"]);
+    expect((await svc.listGlobal({ principal: await principal(db, owner) })).map((r) => r.name)).toEqual(["first", "b", "a"]);
   });
 
   test("an ALREADY-global script keeps its position and is not counted twice", async () => {
@@ -41,13 +41,13 @@ describe("bulkSetScriptsGlobal", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const first = await seedScript(db, { ownerId: owner, id: "regex_script_1", name: "first" });
     const second = await seedScript(db, { ownerId: owner, id: "regex_script_2", name: "second" });
-    await svc.attachGlobal({ principal: principal(owner), scriptId: first });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId: first });
 
-    const result = await svc.bulkSetScriptsGlobal({ principal: principal(owner), scriptIds: [first, second], global: true });
+    const result = await svc.bulkSetScriptsGlobal({ principal: await principal(db, owner), scriptIds: [first, second], global: true });
 
     // Only `second` changed — and `first` did not get pushed to the back of its own tier.
     expect(result).toEqual({ affected: 1 });
-    expect((await svc.listGlobal({ principal: principal(owner) })).map((r) => r.name)).toEqual(["first", "second"]);
+    expect((await svc.listGlobal({ principal: await principal(db, owner) })).map((r) => r.name)).toEqual(["first", "second"]);
   });
 
   test("clearing detaches every named owned script, and leaves the rest of the tier alone", async () => {
@@ -57,12 +57,12 @@ describe("bulkSetScriptsGlobal", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const keep = await seedScript(db, { ownerId: owner, id: "regex_script_1", name: "keep" });
     const drop = await seedScript(db, { ownerId: owner, id: "regex_script_2", name: "drop" });
-    await svc.bulkSetScriptsGlobal({ principal: principal(owner), scriptIds: [keep, drop], global: true });
+    await svc.bulkSetScriptsGlobal({ principal: await principal(db, owner), scriptIds: [keep, drop], global: true });
 
-    const result = await svc.bulkSetScriptsGlobal({ principal: principal(owner), scriptIds: [drop], global: false });
+    const result = await svc.bulkSetScriptsGlobal({ principal: await principal(db, owner), scriptIds: [drop], global: false });
 
     expect(result).toEqual({ affected: 1 });
-    expect((await svc.listGlobal({ principal: principal(owner) })).map((r) => r.name)).toEqual(["keep"]);
+    expect((await svc.listGlobal({ principal: await principal(db, owner) })).map((r) => r.name)).toEqual(["keep"]);
   });
 
   test("a FOREIGN script cannot be attached to the caller's global tier", async () => {
@@ -73,7 +73,7 @@ describe("bulkSetScriptsGlobal", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
 
-    const result = await svc.bulkSetScriptsGlobal({ principal: principal(owner), scriptIds: [theirs], global: true });
+    const result = await svc.bulkSetScriptsGlobal({ principal: await principal(db, owner), scriptIds: [theirs], global: true });
 
     expect(result).toEqual({ affected: 0 });
     expect(await db.select().from(globalRegexScripts)).toHaveLength(0);
@@ -90,9 +90,9 @@ describe("bulkSetScriptsGlobal", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
-    await svc.attachGlobal({ principal: principal(stranger), scriptId: theirs });
+    await svc.attachGlobal({ principal: await principal(db, stranger), scriptId: theirs });
 
-    const result = await svc.bulkSetScriptsGlobal({ principal: principal(owner), scriptIds: [theirs], global: false });
+    const result = await svc.bulkSetScriptsGlobal({ principal: await principal(db, owner), scriptIds: [theirs], global: false });
 
     expect(result).toEqual({ affected: 0 });
     expect(await db.select().from(globalRegexScripts)).toHaveLength(1);

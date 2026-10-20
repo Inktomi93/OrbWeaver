@@ -24,7 +24,7 @@ describe("exportUserSettings", () => {
     const h = makeHarness(db);
     const ctx = createSettingsContext(h.deps);
     const owner = await seedUser(db, { id: "user_owner" });
-    const p = principal(owner, "user");
+    const p = await principal(db, owner, "user");
 
     // Store a SHARE-SAFE pref (appearance). Connection config left the settings blob with the inference program
     // (per-task picks are `connection_bindings` rows), so the export can no longer carry it by construction —

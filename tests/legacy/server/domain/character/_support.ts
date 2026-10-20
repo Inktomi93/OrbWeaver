@@ -333,10 +333,9 @@ export async function seedCharacterSummary(db: Db, args: { readonly characterId:
   });
 }
 
-/** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
- *  `support/factories/principal` — character keeps its existing positional `(id, role, handle?)` convention. */
-export function principal(userId: UserId, role: UserRole = "user", handle: Handle = castId<Handle>(userId)): Principal {
-  return makePrincipal(userId, { role, handle });
+/** Resolve a caller's Principal through the production row resolver; a passed role or handle is first written onto the user's row. */
+export async function principal(db: Db, userId: UserId, role?: UserRole, handle?: Handle): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role, handle });
 }
 
 /** World-info's REAL lorebook import pair over the same db — the default-card seeder's lore step writes through

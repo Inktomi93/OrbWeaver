@@ -244,6 +244,7 @@ export async function seedCharacterTag(db: Db, characterId: CharacterId, tagId: 
   await db.insert(characterTags).values({ characterId, tagId, status, createdAt: FROZEN_AT_MS });
 }
 
-export function principal(userId: UserId, role: UserRole = "user"): Principal {
-  return makePrincipal(userId, { role });
+/** Resolve a caller's Principal through the production row resolver; a passed role is first written onto the user's row. */
+export async function principal(db: Db, userId: UserId, role?: UserRole): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role });
 }

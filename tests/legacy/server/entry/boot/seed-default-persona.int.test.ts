@@ -67,7 +67,7 @@ async function makeHarness(autoSeedEnabled = true): Promise<{
   const assets = createAssetsService(assetsHarness.ctx);
   const persona = createPersonaService(makePersonaHarness(db).ctx);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const actor = principal(owner);
+  const actor = await principal(db, owner);
   const latch = fakeLatch();
 
   const makeSeeder = (): ReturnType<typeof createDefaultPersonaSeeder> =>
@@ -125,7 +125,7 @@ describe("createDefaultPersonaSeeder", () => {
       findSeededDefault: (): Promise<PersonaId | null> => Promise.resolve(null),
       ...latch,
     });
-    const actor = principal("user_fresh" as UserId);
+    const actor = await principal(await freshDb(), "user_fresh" as UserId);
 
     await expect(seeder.ensureSeeded(actor)).resolves.toBeUndefined();
     expect(latch.marks).toHaveLength(0);
@@ -145,7 +145,7 @@ describe("createDefaultPersonaSeeder", () => {
       findSeededDefault: (): Promise<PersonaId | null> => Promise.resolve(null),
       ...latch,
     });
-    await seeder.ensureSeeded(principal("user_x" as UserId));
+    await seeder.ensureSeeded(await principal(await freshDb(), "user_x" as UserId));
 
     expect(captured).toHaveLength(1);
     const seededInput = captured[0];

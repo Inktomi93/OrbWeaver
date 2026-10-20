@@ -112,9 +112,9 @@ describe("F3 — a multi-human room's history labels do not depend on who presse
   test("Alice → Bob → Alice: the rows above each call's marker are byte-identical in the next call", async () => {
     const { scn, alice, bob } = await twoHumanRoom({ namesBehavior: "default" });
 
-    await scn.send("hello", { principal: scn.principal(alice) });
-    await scn.send("hey", { principal: scn.principal(bob) });
-    await scn.send("again", { principal: scn.principal(alice) });
+    await scn.send("hello", { principal: await scn.principal(alice) });
+    await scn.send("hey", { principal: await scn.principal(bob) });
+    await scn.send("again", { principal: await scn.principal(alice) });
 
     expect(scn.requests).toHaveLength(3);
     expectHistoryPrefixKept(scn.requests[1], scn.requests[2]);
@@ -129,10 +129,10 @@ describe("F3 — a multi-human room's history labels do not depend on who presse
   test("a scoped room's folded character line is never relabelled with a human's name", async () => {
     const { scn, alice, bob } = await twoHumanRoom({ namesBehavior: "default", characters: ["aria", "kai"], cardScope: "scoped" });
 
-    await scn.send("hello", { principal: scn.principal(alice) });
+    await scn.send("hello", { principal: await scn.principal(alice) });
     // A natural round answering a human send bans no one, so the seeded pick can re-pick the last speaker, whose
     // own reply never folds. Naming both seats makes both speak, so the second one's turn always folds the first.
-    await scn.send("hey aria, kai", { principal: scn.principal(bob) });
+    await scn.send("hey aria, kai", { principal: await scn.principal(bob) });
 
     const allUserText = scn.requests.flatMap((req) => userTexts(req)).join("\n\n");
     // Positive control: the fold happened (another character's reply rides a user row, its speaker inline).
@@ -143,8 +143,8 @@ describe("F3 — a multi-human room's history labels do not depend on who presse
   test('names "none" in a two-human narrator room: user rows are labelled, the narrator row is not', async () => {
     const { scn, alice, bob } = await twoHumanRoom({ namesBehavior: "none", output: "narrator", characters: ["aria", "kai"] });
 
-    await scn.send("hello", { principal: scn.principal(alice) });
-    await scn.send("hey", { principal: scn.principal(bob) });
+    await scn.send("hello", { principal: await scn.principal(alice) });
+    await scn.send("hey", { principal: await scn.principal(bob) });
 
     const last = scn.requests.at(-1);
     const labels = userTexts(last);
@@ -201,8 +201,8 @@ describe("F8 — an off-roster or unattributed reply keeps its label whoever spe
     if (aria === undefined || kai === undefined) {
       throw new Error("expected two seated characters");
     }
-    await scn.turn.forceCharacterTurn({ principal: scn.principal(), chatId: scn.chatId, characterId: aria });
-    await scn.turn.forceCharacterTurn({ principal: scn.principal(), chatId: scn.chatId, characterId: kai });
+    await scn.turn.forceCharacterTurn({ principal: await scn.principal(), chatId: scn.chatId, characterId: aria });
+    await scn.turn.forceCharacterTurn({ principal: await scn.principal(), chatId: scn.chatId, characterId: kai });
 
     const texts = (req: TurnRequest | undefined): readonly string[] =>
       (req?.history ?? []).map((m) => m.content.map((p) => (p.type === "text" ? p.text : "")).join(""));
@@ -304,11 +304,11 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
     await seedParticipant(scn.db, { chatId: scn.chatId, key: "bob", userId: bob, role: "member", joinSeq: 9, activePersonaId: bobPersona });
     await setAnchor(scn, alicePersona);
 
-    await scn.send("hello", { principal: scn.principal(alice) });
-    await scn.send("hey", { principal: scn.principal(bob) });
-    await scn.send("again", { principal: scn.principal(alice) });
+    await scn.send("hello", { principal: await scn.principal(alice) });
+    await scn.send("hey", { principal: await scn.principal(bob) });
+    await scn.send("again", { principal: await scn.principal(alice) });
     await setAnchor(scn, bobPersona);
-    await scn.send("last", { principal: scn.principal(bob) });
+    await scn.send("last", { principal: await scn.principal(bob) });
 
     const [first, second, third, fourth] = [0, 1, 2, 3].map((i) => requestAt(scn, i));
     if (first === undefined || second === undefined || third === undefined || fourth === undefined) {
@@ -341,7 +341,7 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
     await setAnchor(scn, alex);
     await setSeatPersona(scn, scn.host, steve);
 
-    await scn.send("hi", { principal: scn.principal() });
+    await scn.send("hi", { principal: await scn.principal() });
     await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: scn.host, automationDepth: 1, timeZone: UTC_TIME_ZONE });
 
     const human = requestAt(scn, 0);
@@ -360,7 +360,7 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
     await seedMessage(scn.db, scn.chatId, 1, { role: "user", authorUserId: scn.host, personaId: null, content: "an old line" });
     await seedMessage(scn.db, scn.chatId, 2, { role: "assistant", characterId: scn.chars[0] ?? null, content: "a reply" });
 
-    await scn.send("hi", { principal: scn.principal() });
+    await scn.send("hi", { principal: await scn.principal() });
     await scn.requestTurn({ chatId: scn.chatId, initiator: "automation", triggeredBy: scn.host, automationDepth: 1, timeZone: UTC_TIME_ZONE });
 
     expect(userTexts(requestAt(scn, 1))[0]).toBe(userTexts(requestAt(scn, 0))[0]);
@@ -377,8 +377,8 @@ describe("F3 — the system block speaks for the anchor human, whoever presses s
     await seedParticipant(scn.db, { chatId: scn.chatId, key: "bob", userId: bob, role: "member", joinSeq: 9, activePersonaId: bobPersona });
     await setAnchor(scn, alicePersona);
 
-    await scn.send("hello", { principal: scn.principal(bob) });
-    for await (const _delta of scn.turn.impersonateStream({ principal: scn.principal(bob), chatId: scn.chatId })) {
+    await scn.send("hello", { principal: await scn.principal(bob) });
+    for await (const _delta of scn.turn.impersonateStream({ principal: await scn.principal(bob), chatId: scn.chatId })) {
       // Drained for the captured request; the draft text is not under test.
     }
 
@@ -405,12 +405,12 @@ describe("the people block follows membership, never presence", () => {
   test("Bob leaves: his entry is gone and nothing else in the static half moves", async () => {
     const { scn, alice, bob } = await aliceAndBob(new Set());
 
-    await scn.send("hello", { principal: scn.principal(alice) });
+    await scn.send("hello", { principal: await scn.principal(alice) });
     await scn.db
       .update(chatParticipants)
       .set({ leftSeq: 1 })
       .where(and(eq(chatParticipants.chatId, scn.chatId), eq(chatParticipants.userId, bob)));
-    await scn.send("alone now", { principal: scn.principal(alice) });
+    await scn.send("alone now", { principal: await scn.principal(alice) });
 
     const [before, after] = [requestAt(scn, 0), requestAt(scn, 1)];
     expect(before.prompt.static).toContain(personEntry("Bob", "BOB-DESC"));
@@ -421,9 +421,9 @@ describe("the people block follows membership, never presence", () => {
     const offline = new Set<UserId>();
     const { scn, alice, bob } = await aliceAndBob(offline);
 
-    await scn.send("hello", { principal: scn.principal(alice) });
+    await scn.send("hello", { principal: await scn.principal(alice) });
     offline.add(bob);
-    await scn.send("still here?", { principal: scn.principal(alice) });
+    await scn.send("still here?", { principal: await scn.principal(alice) });
 
     expect(requestAt(scn, 0).prompt.static).toContain(personEntry("Bob", "BOB-DESC"));
     expect(requestAt(scn, 1).prompt.static).toBe(requestAt(scn, 0).prompt.static);
@@ -469,8 +469,8 @@ describe("persona-book lore follows membership and speaks for its own persona", 
   test("each member's book resolves {{user}} and {{persona}} against its own persona", async () => {
     const { scn, alice, bob } = await aliceAndBobWithLore(new Set());
 
-    await scn.send("hello", { principal: scn.principal(alice) });
-    await scn.send("hey", { principal: scn.principal(bob) });
+    await scn.send("hello", { principal: await scn.principal(alice) });
+    await scn.send("hey", { principal: await scn.principal(bob) });
 
     const first = requestAt(scn, 0).prompt.static;
     expect(first).toContain("Alice likes tea (ALICE-DESC)");
@@ -484,9 +484,9 @@ describe("persona-book lore follows membership and speaks for its own persona", 
     const offline = new Set<UserId>();
     const { scn, alice, bob } = await aliceAndBobWithLore(offline);
 
-    await scn.send("hello", { principal: scn.principal(alice) });
+    await scn.send("hello", { principal: await scn.principal(alice) });
     offline.add(bob);
-    await scn.send("still here?", { principal: scn.principal(alice) });
+    await scn.send("still here?", { principal: await scn.principal(alice) });
 
     expect(requestAt(scn, 0).prompt.static).toContain("Bob hates spiders");
     expect(requestAt(scn, 1).prompt.static).toBe(requestAt(scn, 0).prompt.static);
@@ -495,12 +495,12 @@ describe("persona-book lore follows membership and speaks for its own persona", 
   test("Bob leaves: his lore leaves with him, Alice's stays", async () => {
     const { scn, alice, bob } = await aliceAndBobWithLore(new Set());
 
-    await scn.send("hello", { principal: scn.principal(alice) });
+    await scn.send("hello", { principal: await scn.principal(alice) });
     await scn.db
       .update(chatParticipants)
       .set({ leftSeq: 1 })
       .where(and(eq(chatParticipants.chatId, scn.chatId), eq(chatParticipants.userId, bob)));
-    await scn.send("alone now", { principal: scn.principal(alice) });
+    await scn.send("alone now", { principal: await scn.principal(alice) });
 
     expect(requestAt(scn, 0).prompt.static).toContain("Bob hates spiders");
     expect(requestAt(scn, 1).prompt.static).not.toContain("hates spiders");

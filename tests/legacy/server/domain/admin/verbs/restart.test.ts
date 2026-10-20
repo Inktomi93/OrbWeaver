@@ -3,11 +3,13 @@
 // test owns its refusal (`tests/legacy/server/transport/trpc/routers/admin.test.ts`).
 
 import type { UserRole } from "@orb/contracts/identity";
+import type { Db } from "@orb/db";
 import { DomainConflictError, DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createRestart } from "#server/domain/admin/verbs/restart.ts";
@@ -40,34 +42,37 @@ function harness(supervised: boolean): {
   return { restart, restarts: () => restarts, audits };
 }
 
-function caller(role: UserRole): ReturnType<typeof principal> {
-  return principal(castId<UserId>(`user_${role}`), role);
+async function caller(db: Db, role: UserRole): ReturnType<typeof principal> {
+  return await principal(db, castId<UserId>(`user_${role}`), role);
 }
 
 describe("admin.restart", () => {
   test("control: the owner of a supervised server restarts it once, audited", async () => {
+    const db = await freshDb();
     const h = harness(true);
-    await h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE });
+    await h.restart({ principal: await caller(db, "owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE });
     expect(h.restarts()).toBe(1);
     expect(h.audits.map((a) => a.action)).toEqual(["admin.restart"]);
   });
 
   test("an expected old process is refused before audit or latch, then a fresh explicit request can restart", async () => {
+    const db = await freshDb();
     const h = harness(true);
-    await expect(h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: PREVIOUS_INSTANCE })).rejects.toMatchObject({
+    await expect(h.restart({ principal: await caller(db, "owner"), confirm: true, expectedServerInstanceId: PREVIOUS_INSTANCE })).rejects.toMatchObject({
       code: "restart_instance_changed",
     });
     expect(h.restarts()).toBe(0);
     expect(h.audits).toEqual([]);
-    await h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE });
+    await h.restart({ principal: await caller(db, "owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE });
     expect(h.restarts()).toBe(1);
     expect(h.audits.map((a) => a.action)).toEqual(["admin.restart"]);
   });
 
   test("an admin or a user is refused and nothing restarts", async () => {
+    const db = await freshDb();
     const h = harness(true);
     for (const role of ["admin", "user"] as const) {
-      await expect(h.restart({ principal: caller(role), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE }), role).rejects.toBeInstanceOf(
+      await expect(h.restart({ principal: await caller(db, role), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE }), role).rejects.toBeInstanceOf(
         DomainForbiddenError,
       );
     }
@@ -75,8 +80,9 @@ describe("admin.restart", () => {
   });
 
   test("without a supervisor the owner is refused with a coded error and nothing restarts", async () => {
+    const db = await freshDb();
     const h = harness(false);
-    const refusal = h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE });
+    const refusal = h.restart({ principal: await caller(db, "owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE });
     await expect(refusal).rejects.toBeInstanceOf(DomainOperationError);
     await expect(refusal).rejects.toMatchObject({ code: "restart_unsupervised" });
     expect(h.restarts()).toBe(0);
@@ -84,14 +90,15 @@ describe("admin.restart", () => {
   });
 
   test("a second call while one is in flight is refused, even when both start together", async () => {
+    const db = await freshDb();
     const h = harness(true);
     const [first, second] = await Promise.allSettled([
-      h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE }),
-      h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE }),
+      h.restart({ principal: await caller(db, "owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE }),
+      h.restart({ principal: await caller(db, "owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE }),
     ]);
     expect(first.status).toBe("fulfilled");
     expect(second.status === "rejected" ? second.reason : second).toBeInstanceOf(DomainConflictError);
-    await expect(h.restart({ principal: caller("owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE })).rejects.toBeInstanceOf(
+    await expect(h.restart({ principal: await caller(db, "owner"), confirm: true, expectedServerInstanceId: CURRENT_INSTANCE })).rejects.toBeInstanceOf(
       DomainConflictError,
     );
     expect(h.restarts()).toBe(1);

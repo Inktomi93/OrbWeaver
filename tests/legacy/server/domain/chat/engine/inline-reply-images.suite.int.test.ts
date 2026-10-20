@@ -20,7 +20,6 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, messageAssets } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import type { GeneratedImage } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
@@ -45,7 +44,7 @@ import { loadCanonContentSignatures, loadCanonHistory } from "#server/domain/cha
 import { createPostNarratorMessage } from "#server/domain/chat/verbs/post-narrator-message.ts";
 import { makeResolved } from "../../../../inference/_support.ts";
 import { pngBytesWithDims } from "../../assets/_support.ts";
-import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction } from "../_support.ts";
+import { chatAssembly, makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction } from "../_support.ts";
 
 const HOST = castId<UserId>("user_host");
 
@@ -283,10 +282,7 @@ describe("§6.7 inline reply images — the round trip", () => {
 
     const sink: TurnRequest[] = [];
     const h = harness(db, { runChatTurn: pictureTurn(sink, "A quiet beat.", []) });
-    const postNarrator = createPostNarratorMessage(
-      { ...h.ctx, db: databaseHandle(h.ctx.db) },
-      { emit: () => Promise.resolve(), claimChat: () => Promise.resolve() },
-    );
+    const postNarrator = createPostNarratorMessage(chatAssembly(h.ctx), { emit: () => Promise.resolve(), claimChat: () => Promise.resolve() });
     await postNarrator(chatId, "", [illustrationAssetId], undefined);
 
     await h.engine.runTurn(prepOf(chatId));

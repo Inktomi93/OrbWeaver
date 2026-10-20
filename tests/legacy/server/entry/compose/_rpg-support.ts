@@ -1,5 +1,8 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { publishRpgEvent } from "#server/domain/rpg/bus.ts";
 import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChatApi, ProviderId } from "@orb/contracts/inference";
@@ -75,8 +78,9 @@ export function transcript(
   return rows.map((r) => ({ role: r.role ?? "assistant", speakerName: r.speaker, content: r.text, tokens: Math.ceil(r.text.length / 4) }));
 }
 
-export function hostPrincipal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId("host"), externalId: null, via: "header" };
+/** Resolve the host's Principal through the production row resolver; the stored row decides the role. */
+export async function hostPrincipal(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId);
 }
 
 /** Seed a real chat with a host participant — the membership rpg's createGame gates on (through the REAL
@@ -255,6 +259,7 @@ export function buildCannedRpgWithText(args: {
     db: handle,
     now: () => FROZEN_AT_MS,
     ...(args.trace === undefined ? {} : { trace: args.trace }),
+    emitRpgEvent: publishRpgEvent,
     rpgChatOps:
       args.presetMaxContext === undefined
         ? app.chatRpgOps
@@ -290,7 +295,7 @@ export function buildCannedRpgWithText(args: {
           : (args.chatArm ?? (chatThrows !== undefined ? (): Promise<ChatResult> => Promise.reject(chatThrows) : chatTurn))(req);
       },
     },
-    resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
+    resolveHostPrincipal: async (userId) => Promise.resolve(await hostPrincipal(db, userId)),
     // The fork preset-ownership gate is unreached on the extraction path; a benign stub.
     resolvePresetOwned: () => Promise.resolve(false),
     copyPresetToUser: () => Promise.resolve(null),
@@ -336,11 +341,12 @@ export function foldedTurn(calls: readonly { name: string; args: unknown }[]): R
 
 /** The panel state a game currently projects — the two planes the accumulation bug grew. */
 export async function panelState(
+  db: Db,
   compose: ReturnType<typeof buildRpg>,
   hostId: UserId,
   chatId: ChatId,
 ): Promise<{ location: string | undefined; beats: readonly string[]; journal: readonly string[] }> {
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const view = await compose.service.getTrackerView({ principal, chatId });
   const journal = await compose.service.listJournal({ principal, chatId, limit: 50 });
   return { location: view.ambient?.location, beats: view.recentBeats, journal: journal.map((j) => j.title) };
@@ -412,9 +418,9 @@ export async function cheapGame(
   vehicle?: RpgStateCaptureVehicle,
 ): Promise<{ readonly chatId: ChatId; readonly hostId: UserId; readonly messageId: MessageId; readonly variantId: MessageVariantId }> {
   const { chatId, hostId } = await seedHostGameChat(db, key);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
   await rpgCompose.service.updateConfig({
-    principal: hostPrincipal(hostId),
+    principal: await hostPrincipal(db, hostId),
     chatId,
     extractionMode: "cheap",
     ...(vehicle === undefined ? {} : { patch: { stateCaptureVehicle: vehicle } }),

@@ -19,10 +19,10 @@ describe("listForPreset", () => {
     const presetId = await seedPreset(db, owner);
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
-    await svc.attachToPreset({ principal: principal(owner), presetId, scriptId: a });
-    await svc.attachToPreset({ principal: principal(owner), presetId, scriptId: b });
+    await svc.attachToPreset({ principal: await principal(db, owner), presetId, scriptId: a });
+    await svc.attachToPreset({ principal: await principal(db, owner), presetId, scriptId: b });
 
-    expect((await svc.listForPreset({ principal: principal(owner), presetId })).map((r) => r.name)).toEqual(["a", "b"]);
+    expect((await svc.listForPreset({ principal: await principal(db, owner), presetId })).map((r) => r.name)).toEqual(["a", "b"]);
   });
 
   test("refuses a FOREIGN preset rather than returning an empty list", async () => {
@@ -33,6 +33,6 @@ describe("listForPreset", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const presetId = await seedPreset(db, owner);
 
-    await expect(svc.listForPreset({ principal: principal(stranger), presetId })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.listForPreset({ principal: await principal(db, stranger), presetId })).rejects.toBeInstanceOf(RegexNotFoundError);
   });
 });

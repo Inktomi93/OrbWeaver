@@ -6,7 +6,11 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createDiscoveryService } from "#server/domain/discovery/index.ts";
+import { everyOwnerAuthority } from "../../workloads/_support.ts";
 import { makeDiscoveryHarness, seedCharacter, seedUser } from "../_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 describe("countDistillCalls", () => {
   test("counts only content-bearing, non-synthetic cards: a name-only card and a group character cost no call", async () => {
@@ -34,6 +38,6 @@ describe("countDistillCalls", () => {
     expect(await svc.countDistillCalls(owner)).toBe(1);
     expect(await svc.countDistillCalls(other)).toBe(2);
     expect(await svc.countDistillCalls(empty)).toBe(0);
-    expect(await svc.countDistillCalls(null)).toBe(3);
+    expect(await svc.countDistillCalls(EVERY_OWNER.estimate)).toBe(3);
   });
 });

@@ -72,15 +72,15 @@ async function driveReroll(args: {
   const rerolled = await addVariant(db, slot.messageId, 1, "They arrive at the tower, rain-soaked.");
   await selectVariant(db, slot.messageId, rerolled);
   await compose.chatOps.onTurnCompleted(chatId, slot.messageId, rerolled, TURN, turn(REROLL_CALLS));
-  return panelState(compose, hostId, chatId);
+  return panelState(db, compose, hostId, chatId);
 }
 
 test("VER-1a: a REROLL supersedes the rejected variant's extraction — ONE beat set, on all three vehicles", async ({ app, db }) => {
   // (1) STRUCTURED — the schema round (the agent-sdk degrade).
   const rel = await seedHostGameChat(db, "ver1a-structured");
   const relCompose = buildCannedRpgWithText({ app, db, api: "agent-sdk", spy: emptySpy(), cannedText: rerollExtractionText() });
-  await relCompose.service.createGame({ principal: hostPrincipal(rel.hostId), chatId: rel.chatId, mode: "lite" });
-  await relCompose.service.updateConfig({ principal: hostPrincipal(rel.hostId), chatId: rel.chatId, extractionMode: "cheap" });
+  await relCompose.service.createGame({ principal: await hostPrincipal(db, rel.hostId), chatId: rel.chatId, mode: "lite" });
+  await relCompose.service.updateConfig({ principal: await hostPrincipal(db, rel.hostId), chatId: rel.chatId, extractionMode: "cheap" });
   const relState = await driveReroll({ compose: relCompose, db, hostId: rel.hostId, chatId: rel.chatId, turn: () => tc("agent-sdk") });
 
   // (2) CHEAP — the dedicated tool round, answered with the same writes as parallel calls.
@@ -93,14 +93,14 @@ test("VER-1a: a REROLL supersedes the rejected variant's extraction — ONE beat
     cannedText: "{}",
     cannedToolCalls: REROLL_CALLS.map((c) => ({ name: c.name, arguments: JSON.stringify(c.args) })),
   });
-  await cheapCompose.service.createGame({ principal: hostPrincipal(cheap.hostId), chatId: cheap.chatId, mode: "lite" });
-  await cheapCompose.service.updateConfig({ principal: hostPrincipal(cheap.hostId), chatId: cheap.chatId, extractionMode: "cheap" });
+  await cheapCompose.service.createGame({ principal: await hostPrincipal(db, cheap.hostId), chatId: cheap.chatId, mode: "lite" });
+  await cheapCompose.service.updateConfig({ principal: await hostPrincipal(db, cheap.hostId), chatId: cheap.chatId, extractionMode: "cheap" });
   const cheapState = await driveReroll({ compose: cheapCompose, db, hostId: cheap.hostId, chatId: cheap.chatId, turn: () => tc("chat-completions") });
 
   // (3) FOLDED — the character turn's own co-emitted calls, on the first pass AND the reroll.
   const fold = await seedHostGameChat(db, "ver1a-folded");
   const foldCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
-  await foldCompose.service.createGame({ principal: hostPrincipal(fold.hostId), chatId: fold.chatId, mode: "lite" }); // born folded
+  await foldCompose.service.createGame({ principal: await hostPrincipal(db, fold.hostId), chatId: fold.chatId, mode: "lite" }); // born folded
   const foldState = await driveReroll({ compose: foldCompose, db, hostId: fold.hostId, chatId: fold.chatId, turn: (calls) => foldedTurn(calls) });
 
   // THE REGRESSION: the rerolled variant REPLACED the rejected one's contribution. Pre-fix the beat window read
@@ -133,8 +133,8 @@ test("VER-1a: SWIPING between variants surfaces the SELECTED variant's own conse
       journal: [{ type: "location", label: "", title: "The crossing", content: "They waded the ford." }],
     }),
   });
-  await towerCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await towerCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await towerCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await towerCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
 
   const slot = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
   await towerCompose.chatOps.onTurnCompleted(chatId, slot.messageId, slot.variantId, TURN, tc("agent-sdk"));
@@ -144,12 +144,12 @@ test("VER-1a: SWIPING between variants surfaces the SELECTED variant's own conse
 
   // The REROLLED variant is selected: its own consequences, and ONLY its own (pre-fix the ford's snapshot was
   // built on the tower's, so the panel read "the ford" with BOTH beats).
-  expect(await panelState(fordCompose, hostId, chatId)).toEqual({ location: "the ford", beats: ["waded the ford"], journal: ["The crossing"] });
+  expect(await panelState(db, fordCompose, hostId, chatId)).toEqual({ location: "the ford", beats: ["waded the ford"], journal: ["The crossing"] });
 
   // Swipe BACK — a pure pointer move, zero writes: the first variant's state + beat + journal entry return
   // whole, and nothing was re-applied (each variant's snapshot is absolute over the same pre-slot base).
   await selectVariant(db, slot.messageId, slot.variantId);
-  expect(await panelState(towerCompose, hostId, chatId)).toEqual({ location: "the obsidian tower", beats: ["arrived at the tower"], journal: ["Arrival"] });
+  expect(await panelState(db, towerCompose, hostId, chatId)).toEqual({ location: "the obsidian tower", beats: ["arrived at the tower"], journal: ["Arrival"] });
 });
 
 // ── PROSE-1 S4: a host's EXTRACTION template edit reaches the write surface ───────────────────────────
@@ -162,7 +162,7 @@ test("VER-1a: SWIPING between variants surfaces the SELECTED variant's own conse
 // place where "the host edited it" and "the model was told it" are the same fact.
 test("PROSE-1: a GM-preset extraction override rides the RESYNC's system prompt, replacing the shipped default", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "prose-extract-resync");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const spy = emptySpy();
   // The AGENT-SDK wire carries no `tools[]`, so the resync takes its STRUCTURED degrade — the arm whose
   // request has a system prompt the harness records. Same composition either way (the shared-plane proof);
@@ -210,7 +210,7 @@ test("PROSE-1: a GM-preset extraction override rides the RESYNC's system prompt,
 
 test("VER-1a: resyncFromStory is IDEMPOTENT — two consecutive resyncs leave byte-identical state", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "ver1a-resync");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const spy = emptySpy();
   const compose = buildCannedRpgWithText({
     app,
@@ -231,9 +231,9 @@ test("VER-1a: resyncFromStory is IDEMPOTENT — two consecutive resyncs leave by
   // asks for several SMALL per-plane calls instead of one 46-optional structured monolith — the shape both
   // hosted grammar walls are made of. The `structured` dispatcher is untouched on this wire.
   expect(spy.summarizeModels).toEqual([]);
-  const first = await panelState(compose, hostId, chatId);
+  const first = await panelState(db, compose, hostId, chatId);
   await compose.service.resyncFromStory({ principal, chatId });
-  const second = await panelState(compose, hostId, chatId);
+  const second = await panelState(db, compose, hostId, chatId);
 
   // IDEMPOTENT: the second pass landed the same truth, it did not append onto the first's.
   expect(second).toEqual(first);
@@ -247,7 +247,7 @@ test("VER-1a: resyncFromStory is IDEMPOTENT — two consecutive resyncs leave by
 // the default hosted model); the op swallowed it into an empty delta and the verb reported "nothing to resync".
 test("RESYNC-OR: a provider refusal reaches the HOST as a reason — never a silent 'nothing changed'", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "resync-or-loud");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const compose = buildCannedRpgWithText({
     app,
     db,
@@ -265,7 +265,7 @@ test("RESYNC-OR: a provider refusal reaches the HOST as a reason — never a sil
   // The provider's own sentence rides out — the host learns the MODEL CALL died, not that their story was clean.
   expect(verdict).toMatchObject({ ok: false, reason: expect.stringContaining("openrouter item 0 failed") });
   // …and the failed round still writes nothing (the no-op tail is unchanged; only the silence is gone).
-  expect(await panelState(compose, hostId, chatId)).toMatchObject({ beats: [], journal: [] });
+  expect(await panelState(db, compose, hostId, chatId)).toMatchObject({ beats: [], journal: [] });
 });
 
 // The STRUCTURED degrade survives whole — a wire with no `tools[]` (the agent-sdk host, or a structured-only
@@ -273,7 +273,7 @@ test("RESYNC-OR: a provider refusal reaches the HOST as a reason — never a sil
 // resync's write-path gate are proven: this one, and the tool round above.
 test("RESYNC-OR: the STRUCTURED degrade still runs (and still reports its refusal) on a tools-less wire", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "resync-structured-degrade");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const structuredOnly = makeGenerationCapability({ output: { maxTokens: { min: 1, max: 4096 }, structured: true, modalities: ["text"] } });
   const compose = buildCannedRpgWithText({
     app,
@@ -295,7 +295,7 @@ test("RESYNC-OR: the STRUCTURED degrade still runs (and still reports its refusa
 // tools-only connection).
 test("RESYNC: a connection with no write path at all refuses legibly and calls no model", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "resync-no-writer");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const spy = emptySpy();
   const compose = buildCannedRpgWithText({
     app,
@@ -317,7 +317,7 @@ test("RESYNC: a connection with no write path at all refuses legibly and calls n
 // vehicles mount) + `tool_choice:"required"` + NO response_format, and the host's own consent.
 test("RESYNC: the catch-up round sends the per-plane TOOLS (not a monolithic schema) and folds their calls", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "resync-tool-round");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const spy = emptySpy();
   const compose = buildCannedRpgWithText({
     app,
@@ -351,7 +351,7 @@ test("RESYNC: the catch-up round sends the per-plane TOOLS (not a monolithic sch
   // …and the calls folded through the SAME tail the in-turn vehicles use: the state plane landed. (The
   // JOURNAL stays empty by design — a rebuild re-derives the state window and never appends archive rows,
   // VER-1a; that is unchanged by the vehicle swap.)
-  expect(await panelState(compose, hostId, chatId)).toEqual({
+  expect(await panelState(db, compose, hostId, chatId)).toEqual({
     location: "the obsidian tower",
     beats: ["arrived at the tower"],
     journal: [],
@@ -360,7 +360,7 @@ test("RESYNC: the catch-up round sends the per-plane TOOLS (not a monolithic sch
 
 test("VER-1a: resyncFromStory COLLAPSES an already-accumulated beat window (the owner's one-click cleanup)", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "ver1a-resync-cleanup");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const compose = buildCannedRpgWithText({
     app,
     db,
@@ -389,7 +389,7 @@ test("VER-1a: resyncFromStory COLLAPSES an already-accumulated beat window (the 
   // ONE click re-derives the window from the story — the three duplicates are gone (no migration code needed;
   // the reconciler IS the cleanup). The journal rows the same bug left are NOT the resync's to remove: they are
   // durable archive rows on live anchor slots, and the host clears those with `deleteJournalEntry`.
-  expect(await panelState(compose, hostId, chatId)).toEqual({ location: "the obsidian tower", beats: ["arrived at the tower"], journal: [] });
+  expect(await panelState(db, compose, hostId, chatId)).toEqual({ location: "the obsidian tower", beats: ["arrived at the tower"], journal: [] });
 });
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
@@ -432,7 +432,7 @@ function reminderText(gathered: { readonly injections: readonly { readonly conte
 test("VER-1b: a REGEN's reminder + delta read the state BEFORE the slot, never the abandoned variant's", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "ver1b-regen");
   const compose = buildCannedRpg(app, db, "chat-completions", emptySpy());
-  await compose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" }); // born folded
+  await compose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" }); // born folded
 
   // Three beats. The third is the slot a swipe will re-generate; its variant A is the one being abandoned.
   await driveBeat({ compose, db, chatId, seq: 1, location: "the crossroads", beat: "met the peddler at the crossroads" });
@@ -472,7 +472,7 @@ test("VER-1b: a REGEN's reminder + delta read the state BEFORE the slot, never t
 test("VER-1b: the regen read is the SAME state the flush applies onto (read base == write base)", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "ver1b-base-parity");
   const compose = buildCannedRpg(app, db, "chat-completions", emptySpy());
-  await compose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await compose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
 
   await driveBeat({ compose, db, chatId, seq: 1, location: "the rope bridge", beat: "crossed the rope bridge" });
   const slot = await driveBeat({ compose, db, chatId, seq: 2, location: "the obsidian tower", beat: "confessed to Niko at the tower" });
@@ -502,7 +502,7 @@ test("VER-1b: the regen read is the SAME state the flush applies onto (read base
 
   // The rerolled variant SUPERSEDES: one beat per moment, and the abandoned variant's beat/location are gone
   // from the panel — the read the model got and the state its writes landed on describe the same world.
-  expect(await panelState(compose, hostId, chatId)).toEqual({
+  expect(await panelState(db, compose, hostId, chatId)).toEqual({
     location: "the tower stair",
     beats: ["crossed the rope bridge", "turned away on the stair"],
     journal: [],
@@ -512,14 +512,14 @@ test("VER-1b: the regen read is the SAME state the flush applies onto (read base
 test("VER-1b: the regen read is mode-INDEPENDENT — one gather, identical reminder on both vehicles", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "ver1b-modes");
   const compose = buildCannedRpg(app, db, "chat-completions", emptySpy());
-  await compose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" }); // born folded
+  await compose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" }); // born folded
   // ONE game, ONE state history (landed through the fold), then the host flips the delivery mode under it.
   await driveBeat({ compose, db, chatId, seq: 1, location: "the rope bridge", beat: "crossed the rope bridge" });
   const slot = await driveBeat({ compose, db, chatId, seq: 2, location: "the obsidian tower", beat: "confessed to Niko at the tower" });
 
   const reminders: string[] = [];
   for (const mode of ["folded", "cheap"] as const) {
-    await compose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: mode });
+    await compose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: mode });
     reminders.push(
       reminderText(
         await compose.chatOps.gatherTurnContext({

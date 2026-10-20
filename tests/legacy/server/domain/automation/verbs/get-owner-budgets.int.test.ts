@@ -15,16 +15,16 @@ import { principal, ruleFixture, seedUser } from "../_support.ts";
 describe("getOwnerBudgets", () => {
   test("an ABSENT row projects to the DDL default — the value the dispatch gate uses for it", async () => {
     const f = await ruleFixture();
-    await expect(f.svc.getOwnerBudgets({ principal: principal(f.host) })).resolves.toEqual({ ...AUTOMATION_OWNER_BUDGET_DEFAULTS });
+    await expect(f.svc.getOwnerBudgets({ principal: await principal(f.db, f.host) })).resolves.toEqual({ ...AUTOMATION_OWNER_BUDGET_DEFAULTS });
   });
 
   test("reads the caller's OWN row — the plane is single-owned, so there is no other to read", async () => {
     const f = await ruleFixture();
     const other = await seedUser(f.db, "user_other");
-    await f.svc.setOwnerBudgets({ principal: principal(f.host), maxFiresPerHour: 7 });
+    await f.svc.setOwnerBudgets({ principal: await principal(f.db, f.host), maxFiresPerHour: 7 });
 
-    await expect(f.svc.getOwnerBudgets({ principal: principal(f.host) })).resolves.toEqual({ maxFiresPerHour: 7 });
+    await expect(f.svc.getOwnerBudgets({ principal: await principal(f.db, f.host) })).resolves.toEqual({ maxFiresPerHour: 7 });
     // The second user's read is UNAFFECTED — it is not "empty because nothing exists", it is their own row.
-    await expect(f.svc.getOwnerBudgets({ principal: principal(other) })).resolves.toEqual({ ...AUTOMATION_OWNER_BUDGET_DEFAULTS });
+    await expect(f.svc.getOwnerBudgets({ principal: await principal(f.db, other) })).resolves.toEqual({ ...AUTOMATION_OWNER_BUDGET_DEFAULTS });
   });
 });

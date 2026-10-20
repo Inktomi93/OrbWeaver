@@ -38,8 +38,8 @@ const emit = (event: ChatBusEvent): Promise<void> => {
   return Promise.resolve();
 };
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 const CONNECTION = testConnection("vllm", "agent-sdk");
@@ -75,7 +75,7 @@ describe("compact — the manual lever (host)", () => {
     await seedMessage(db, chatId, 2, { role: "assistant", content: "hi there" });
     const compaction = compactionWith("THE MARKER");
 
-    const result = await compaction.compact({ principal: principal(host), chatId });
+    const result = await compaction.compact({ principal: await principal(db, host), chatId });
 
     expect(result).toEqual({ summary: "THE MARKER", compactedAtSeq: 2, updated: true });
     const [row] = await db.select().from(chats).where(eq(chats.id, chatId));
@@ -95,7 +95,7 @@ describe("compact — the manual lever (host)", () => {
     const { host, chatId } = await seedRoom();
     await seedMessage(db, chatId, 1, { role: "user", authorUserId: host, content: "hello" });
     const shipped = createCompaction(makeChatContext(db), { emit, quietGenerate: quietStub("M"), resolveConnection });
-    await shipped.compact({ principal: principal(host), chatId });
+    await shipped.compact({ principal: await principal(db, host), chatId });
     expect(quietCalls.at(0)?.systemPrompt).toBe(PROSE_SLOTS["chat.compaction.system"].text);
 
     // A fresh prompt-eligible turn so the second pass has a non-empty span (an already-covered span no-ops).
@@ -104,14 +104,14 @@ describe("compact — the manual lever (host)", () => {
       makeChatContext(db, { resolveChatProse: () => Promise.resolve({ "chat.compaction.system": { text: "Summarize like a ship's log.", baseVersion: 1 } }) }),
       { emit, quietGenerate: quietStub("M"), resolveConnection },
     );
-    await overridden.compact({ principal: principal(host), chatId });
+    await overridden.compact({ principal: await principal(db, host), chatId });
     expect(quietCalls.at(1)?.systemPrompt).toBe("Summarize like a ship's log.");
   });
 
   test("a member is refused (not_host)", async () => {
     const { member, chatId } = await seedRoom();
     const compaction = compactionWith("x");
-    const err = await compaction.compact({ principal: principal(member), chatId }).catch((e: unknown) => e);
+    const err = await compaction.compact({ principal: await principal(db, member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
     expect(quietCalls).toHaveLength(0);

@@ -5,15 +5,17 @@
 // default-applying accessors. Plus a few
 // compile-time shape pins for representative param/result/view types.
 
+import type { ChatSummary } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { getGroupConfig, getRoomOverrides, parseChatMetadata } from "#server/domain/chat/contract/metadata.ts";
 import type { CreateInviteParams, RedeemInviteParams, SendParams } from "#server/domain/chat/contract/params.ts";
 import type { CreateInviteResult, TurnOutcome } from "#server/domain/chat/contract/results.ts";
-import type { ChatSummary } from "#server/domain/chat/contract/views.ts";
 
 describe("parseChatMetadata", () => {
   test("round-trips a full metadata blob (group + roomOverrides + opening)", () => {
@@ -172,15 +174,9 @@ describe("getGroupConfig / getRoomOverrides", () => {
 // These never run a meaningful assertion — they exist so a drift in a representative contract shape is a
 // `tsc` error in the test build (the contract is the API verb-impl chunks build against).
 describe("representative contract shapes", () => {
-  test("param / result / view literals satisfy their contracts", () => {
+  test("param / result / view literals satisfy their contracts", async () => {
     const sendParams = {
-      principal: {
-        userId: "u_1" as UserId,
-        role: "user",
-        handle: castId<Handle>("alex"),
-        externalId: null,
-        via: "cookie",
-      },
+      principal: await makePrincipal({ db: await freshDb() }, "u_1" as UserId, { handle: castId<Handle>("alex") }),
       chatId: "chat_1" as ChatId,
       content: "hello",
     } satisfies SendParams;

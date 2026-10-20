@@ -16,6 +16,8 @@ import type { ReactElement } from "react";
 import { ActionsView } from "#client/features/preset/components/actions-view.tsx";
 import { PresetStructureTabs } from "#client/features/preset/components/preset-structure-tabs.tsx";
 import { UserMacrosTab } from "#client/features/preset/components/user-macros-tab.tsx";
+import type { PresetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
+import { admitPresetValues, canonicalPresetValues, presetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
 import type { AppFormInstance, AutosaveSession } from "#client/forms/editor/index.ts";
 import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
@@ -34,16 +36,20 @@ const SECTIONS: PromptSection[] = [{ type: "literal", id: "sec_a", name: "Alpha"
 
 const SERVER_VALUES: PromptConfig = { ...DEFAULT_PROMPT_CONFIG, sections: SECTIONS, userMacros: [SCENE_TONE] };
 
-const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
+const StoryForm = createAutosaveEntityForm<PresetEditorValues>({
+  defaultValues: presetEditorValues(DEFAULT_PROMPT_CONFIG),
+  canonicalValues: canonicalPresetValues,
+  admitValues: admitPresetValues,
+});
 
 const noSave = (): Promise<void> => Promise.resolve();
 
 /** One mount of the boundary over the shared fixture — every story differs only in the body it renders. */
-function MacroPlaneStory({ children }: { readonly children: (form: AppFormInstance<PromptConfig>) => ReactElement }): ReactElement {
+function MacroPlaneStory({ children }: { readonly children: (form: AppFormInstance<PresetEditorValues>) => ReactElement }): ReactElement {
   return (
     <ToastProvider>
-      <StoryForm entityId={STORY_PRESET} save={noSave} serverValues={SERVER_VALUES}>
-        {(session: AutosaveSession<PromptConfig>): ReactElement => children(session.form as AppFormInstance<PromptConfig>)}
+      <StoryForm entityId={STORY_PRESET} save={noSave} serverValues={presetEditorValues(SERVER_VALUES)}>
+        {(session: AutosaveSession<PresetEditorValues>): ReactElement => children(session.form as AppFormInstance<PresetEditorValues>)}
       </StoryForm>
       <Toaster />
     </ToastProvider>

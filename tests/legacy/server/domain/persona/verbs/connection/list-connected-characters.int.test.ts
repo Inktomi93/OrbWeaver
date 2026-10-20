@@ -24,13 +24,13 @@ describe("listConnectedCharacters", () => {
     await seedCharacter(db, { ownerId: owner, id: "character_unlinked", name: "Unlinked" });
 
     const persona = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Me", description: "" },
     });
-    await svc.connectToCharacter({ principal: principal(owner), characterId: connectedA, personaId: persona.id });
-    await svc.connectToCharacter({ principal: principal(owner), characterId: connectedB, personaId: persona.id });
+    await svc.connectToCharacter({ principal: await principal(db, owner), characterId: connectedA, personaId: persona.id });
+    await svc.connectToCharacter({ principal: await principal(db, owner), characterId: connectedB, personaId: persona.id });
 
-    const connected = await svc.listConnectedCharacters({ principal: principal(owner), personaId: persona.id });
+    const connected = await svc.listConnectedCharacters({ principal: await principal(db, owner), personaId: persona.id });
     expect(connected.map((c) => c.id).toSorted()).toEqual([connectedA, connectedB].toSorted());
     // Summary view: every row carries a NAME (the display column), and nothing leaked the exclusion row.
     expect(connected).toHaveLength(2);
@@ -45,9 +45,9 @@ describe("listConnectedCharacters", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreignPersona = await svc.create({
-      principal: principal(other),
+      principal: await principal(db, other),
       input: { name: "Not yours", description: "" },
     });
-    await expect(svc.listConnectedCharacters({ principal: principal(owner), personaId: foreignPersona.id })).rejects.toThrow(DomainNotFoundError);
+    await expect(svc.listConnectedCharacters({ principal: await principal(db, owner), personaId: foreignPersona.id })).rejects.toThrow(DomainNotFoundError);
   });
 });

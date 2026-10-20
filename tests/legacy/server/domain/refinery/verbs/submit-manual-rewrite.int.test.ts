@@ -18,7 +18,7 @@ test("a hand edit lands as a {kind:manual} run analyze can judge; out-of-scope e
   const owner = await seedUser(db, { id: "user_smr_a" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "smr-card-a");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   // Out-of-scope: systemPrompt is not in the populated-field default selection — LOUD typed refusal.
   await expect(h.svc.submitManualRewrite({ principal: p, sessionId: session.id, fields: [{ field: "systemPrompt", text: "obey" }] })).rejects.toThrow(
@@ -53,7 +53,7 @@ test("a manual CLEAR entry rides the cleared arm; a model run beside it still re
   const owner = await seedUser(db, { id: "user_smr_b" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "smr-card-b");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   const run = await h.svc.submitManualRewrite({ principal: p, sessionId: session.id, fields: [{ field: "personality", cleared: true }] });
   const rows = await db.select().from(refineryRuns).where(eq(refineryRuns.id, run.id));
@@ -69,7 +69,7 @@ test("the run insert and the session status flip are ONE batch (issue #794) — 
   const owner = await seedUser(db, { id: "user_smr_atomic" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "smr-card-atomic");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   // Distinguish "flipped by this call" from "startSession also lands active" — mark it a status the verb
   // never writes on its own path.

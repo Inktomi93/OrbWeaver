@@ -10,10 +10,14 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { EmbeddingsWorkloadDeps } from "#server/domain/embeddings/contract/service.ts";
 import { createEmbeddingsWorkloadContributions } from "#server/domain/embeddings/workload-contributions.ts";
+import { everyOwnerAuthority } from "../workloads/_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 const OWNER_ID = castId<UserId>("user_owner");
 const T0 = 1_700_000_000_000;
-const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, now: () => T0 };
+const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, funderUserId: OWNER_ID, now: () => T0 };
 const sig = (): AbortSignal => new AbortController().signal;
 
 /** One recorded terminal-fan emit (the `corpusRecomputed` freshness plane). */
@@ -58,7 +62,7 @@ describe("index contribution: the model-call estimate", () => {
 
   test("an image or full reindex counts the avatar analyses over the run's own scope and force", async () => {
     const { embeddings, index } = build();
-    await expect(index.modelCalls?.({ ownerId: null, funderUserId: OWNER_ID, params: { source: "all", force: true } })).resolves.toBe(ANALYSIS_CALLS);
+    await expect(index.modelCalls?.({ ...EVERY_OWNER.estimate, funderUserId: OWNER_ID, params: { source: "all", force: true } })).resolves.toBe(ANALYSIS_CALLS);
     expect(embeddings.countAssetAnalysisCalls).toHaveBeenCalledWith({ ownerId: null, force: true });
     await index.modelCalls?.({ ownerId: OWNER_ID, funderUserId: OWNER_ID, params: { source: "image" } });
     expect(embeddings.countAssetAnalysisCalls).toHaveBeenLastCalledWith({ ownerId: OWNER_ID, force: false });
@@ -120,7 +124,7 @@ describe("index contribution", () => {
 
   test("a BULK row threads ownerId: null (the all-owners enumeration scope)", async () => {
     const { embeddings, index } = build();
-    await index.run({ ...ctx, ownerId: null }, { source: "text" }, vi.fn(), sig());
+    await index.run({ ...ctx, ...EVERY_OWNER.runScope }, { source: "text" }, vi.fn(), sig());
     expect(embeddings.embedCorpus).toHaveBeenCalledWith(expect.objectContaining({ ownerId: null }));
   });
 
@@ -136,7 +140,7 @@ describe("index contribution", () => {
 
   test("a BULK sweep fans PER OWNER — a user-bus event reaches exactly one channel", async () => {
     const { index, userEvents } = build();
-    await index.run({ ...ctx, ownerId: null }, { source: "text" }, vi.fn(), sig());
+    await index.run({ ...ctx, ...EVERY_OWNER.runScope }, { source: "text" }, vi.fn(), sig());
     expect(userEvents).toEqual(BULK_OWNERS.map((userId) => ({ userId, event: { type: "corpusRecomputed" } })));
   });
 

@@ -13,10 +13,10 @@ describe("list", () => {
     const svc = createCredentialsService(makeHarness(db).ctx);
     const alice = await seedUser(db, { id: "user_a", role: "user" });
     const bob = await seedUser(db, { id: "user_b", role: "user" });
-    await svc.add({ principal: principal(alice), provider: "openrouter", key: "ka" });
-    await svc.add({ principal: principal(bob), provider: "openrouter", key: "kb" });
+    await svc.add({ principal: await principal(db, alice), provider: "openrouter", key: "ka" });
+    await svc.add({ principal: await principal(db, bob), provider: "openrouter", key: "kb" });
 
-    const rows = await svc.list({ principal: principal(alice) });
+    const rows = await svc.list({ principal: await principal(db, alice) });
     expect(rows).toHaveLength(1);
     const view = rows[0];
     expect(view).not.toHaveProperty("ciphertext");
@@ -27,6 +27,6 @@ describe("list", () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    expect(await svc.list({ principal: principal(owner) })).toEqual([]);
+    expect(await svc.list({ principal: await principal(db, owner) })).toEqual([]);
   });
 });

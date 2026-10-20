@@ -48,7 +48,7 @@ test("re-enters the surface's onAction with one {actionId, values, chat:null} ob
   const db = await freshDb();
   const invokes: { argsJson: string; chat: InvocationChat | null }[] = [];
   const h = makePluginHarness(db, { port: makeRecordingPort(invokes, "TOKEN") });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -73,7 +73,7 @@ test("row 777: a chatId scopes the invocation and the guest receives that room's
     port: makeRecordingPort(invokes, "TOKEN"),
     resolveChatAuthority: () => Promise.resolve({ canRead: true, canWrite: true }),
   });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -98,7 +98,7 @@ test("row 777: a MEMBER (not host) gets canWrite:false — the write ceiling is 
     port: makeRecordingPort(invokes, "TOKEN"),
     resolveChatAuthority: () => Promise.resolve({ canRead: true, canWrite: false }),
   });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -114,7 +114,7 @@ test("row 777: a chatId the caller cannot READ is refused BEFORE any guest re-en
     port: makeRecordingPort(invokes, "TOKEN"),
     resolveChatAuthority: () => Promise.resolve({ canRead: false, canWrite: false }),
   });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -129,8 +129,8 @@ test("row 777: a chatId the caller cannot READ is refused BEFORE any guest re-en
 test("a missing/foreign plugin is a leak-free NotFound BEFORE any guest re-entry", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const alpha = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("alpha") }));
-  const beta = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("beta") }));
+  const alpha = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("alpha") }));
+  const beta = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("beta") }));
   const alphaPlugin = await h.service.install({ caller: alpha, bundle: makeBundle({ id: "mood" }), grant: [] });
   // Beta holding alpha's REAL pluginId is refused NOT_FOUND — never re-enters alpha's guest under beta.
   await expect(h.service.invokeUiAction({ caller: beta, pluginId: alphaPlugin.id, surfaceId: "panel", actionId: "save", values: {} })).rejects.toBeInstanceOf(
@@ -144,7 +144,7 @@ test("a missing/foreign plugin is a leak-free NotFound BEFORE any guest re-entry
 test("a DISABLED plugin (no resident) is refused — no surface to act on", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   // Installed but never enabled ⇒ no resident.
   await expect(h.service.invokeUiAction({ caller, pluginId: installed.id, surfaceId: "panel", actionId: "save", values: {} })).rejects.toThrow(NOT_ENABLED_RE);
@@ -153,7 +153,7 @@ test("a DISABLED plugin (no resident) is refused — no surface to act on", asyn
 test("an unknown surface id (or a surface with no onAction) is refused", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   // A resident carrying a DISPLAY-ONLY surface (no onAction) and none named "ghost".
   h.port.script({ ok: true, instance: instanceWith([{ id: "readout", anchor: "settings", title: "Readout", tier: "static" }]) });
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
@@ -172,7 +172,7 @@ test("a guest handler that throws is a typed plugin error, not a bare Error", as
   const h = makePluginHarness(db, {
     port: { ...makeRecordingPort([], "TOKEN"), invoke: () => Promise.reject(new Error("plugin host: ui.toast is limited to one notice")) },
   });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -185,7 +185,7 @@ test("a host DomainError from a UI action passes through unchanged", async () =>
   const db = await freshDb();
   const refusal = new DomainConflictError("turn budget spent");
   const h = makePluginHarness(db, { port: { ...makeRecordingPort([], "TOKEN"), invoke: () => Promise.reject(refusal) } });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -195,7 +195,7 @@ test("a host DomainError from a UI action passes through unchanged", async () =>
 test("the outbox drains after a mapped guest throw", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: { ...makeRecordingPort([], "TOKEN"), invoke: () => Promise.reject(new Error("the guest threw")) } });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood", name: "Mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   h.ctx.uiOutbox.pushToast({ id: installed.id, name: "Mood", slug: "mood" }, "warn", "queued before the throw");

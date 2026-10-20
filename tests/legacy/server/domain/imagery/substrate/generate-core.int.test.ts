@@ -18,9 +18,12 @@ import { runOpenAiCompatGenerateImage } from "#inference/backends/openai-compat/
 import { passthroughImageNormalizer } from "#inference/backends/wire/image-normalize.ts";
 import { GenerationFailedError } from "#server/domain/imagery/index.ts";
 import { runGeneration, sumCost } from "#server/domain/imagery/substrate/generate-core.ts";
-import { applyStatsDelta, reconcileStats } from "#server/domain/stats/index.ts";
+import { createStatsBatchWiring, reconcileStats } from "#server/domain/stats/index.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved, makeResolved } from "../../../../inference/_support.ts";
-import { makeHarness, PNG_BYTES, principal, seedGenerationOwner } from "../_support.ts";
+import { imageryVerbContext, makeHarness, PNG_BYTES, principal, seedGenerationOwner } from "../_support.ts";
+
+// The stats seam as the composition root wires it: the production writers behind the batch and database handles.
+const STATS_WIRING = createStatsBatchWiring();
 
 /** The request shape `runGeneration` takes, named so the deliberate fabrication below has a ONE-LINE
  *  assertion position the waiver can anchor on (a multi-line `Parameters<…>` slice cannot be a marker). */
@@ -75,7 +78,7 @@ describe("runGeneration", () => {
     const deps = fakeDeps();
     const paths: string[] = [];
     const { ctx } = makeHarness(db, {
-      applyStatsDelta,
+      applyStatsDelta: STATS_WIRING.applyStatsDelta,
       generateImage: async (request) => {
         const result = await runOpenAiCompatGenerateImage(request, {
           normalize: passthroughImageNormalizer,
@@ -114,7 +117,11 @@ describe("runGeneration", () => {
         };
       },
     });
-    const outcome = await runGeneration({ ...ctx, db }, { ...REQ, connection, model: connection.model }, { ...PROV, owner: principal(owner) });
+    const outcome = await runGeneration(
+      imageryVerbContext(ctx),
+      { ...REQ, connection, model: connection.model },
+      { ...PROV, owner: await principal(db, owner) },
+    );
     expect(paths).toEqual(["/api/v1/images"]);
     expect(outcome.costUsd).toBe(0.125);
     const rows = await db.select().from(imageryGenerations);
@@ -149,7 +156,7 @@ describe("runGeneration", () => {
         Promise.resolve({ images: [{ base64, mediaType: "image/png", url: undefined }], model: "   ", usage: makeGenerationUsage(null), warnings: [] }),
     });
 
-    await expect(runGeneration({ ...ctx, db }, REQ, { ...PROV, owner: principal(owner) })).rejects.toThrow();
+    await expect(runGeneration(imageryVerbContext(ctx), REQ, { ...PROV, owner: await principal(db, owner) })).rejects.toThrow();
     expect(await db.select().from(imageryGenerations)).toEqual([]);
   });
 
@@ -167,7 +174,7 @@ describe("runGeneration", () => {
       fetchImage: () => Promise.resolve(null),
     });
 
-    await expect(runGeneration({ ...ctx, db }, REQ, { ...PROV, owner: principal(owner) })).rejects.toThrow(GenerationFailedError);
+    await expect(runGeneration(imageryVerbContext(ctx), REQ, { ...PROV, owner: await principal(db, owner) })).rejects.toThrow(GenerationFailedError);
   });
 
   test("a fanned-out (n>1) generation shares ONE createdAt and ONE call id across every provenance row", async () => {
@@ -187,7 +194,7 @@ describe("runGeneration", () => {
         }),
     });
 
-    const outcome = await runGeneration({ ...ctx, db }, REQ, { ...PROV, owner: principal(owner) });
+    const outcome = await runGeneration(imageryVerbContext(ctx), REQ, { ...PROV, owner: await principal(db, owner) });
 
     expect(outcome.images).toHaveLength(2);
     const rows = await db

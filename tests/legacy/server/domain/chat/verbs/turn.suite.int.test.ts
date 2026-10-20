@@ -17,7 +17,7 @@ describe("interactive read bounds", () => {
     }
     queries.reset();
 
-    const committed = await chat.turn.commitMessage({ principal: chat.principal(), chatId: chat.chatId, content: "next" });
+    const committed = await chat.turn.commitMessage({ principal: await chat.principal(), chatId: chat.chatId, content: "next" });
 
     const fullTranscriptReads = queries
       .statements()

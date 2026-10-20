@@ -26,7 +26,7 @@ test("production chat collection resolves shared seats without fetching full car
   }
   observed.queries.reset();
   const fullCards = vi.spyOn(services.character, "get");
-  const page = await services.chat.listChats({ principal: principal(owner), limit: 12 });
+  const page = await services.chat.listChats({ principal: await principal({ db }, owner), limit: 12 });
   expect(page.totalCount).toBe(12);
   expect(page.items).toHaveLength(12);
   expect(page.items.every((room) => room.participantPortraits.some((seat) => seat.characterId === characterId))).toBe(true);

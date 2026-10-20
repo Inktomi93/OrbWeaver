@@ -20,7 +20,7 @@ test("installs a valid bundle: disabled row, granted subset, origin upload, byte
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const bundle = makeBundle({ id: "mood", name: "Mood", capabilities: ["chat.read", "storage.kv"], builtAgainst: { engineVersion: "0.32.0" } });
 
-  const view = await h.service.install({ caller: ownerPrincipalFor(owner), bundle, grant: ["chat.read"] });
+  const view = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle, grant: ["chat.read"] });
 
   expect(view.slug).toBe("mood");
   expect(view.status).toBe("disabled");
@@ -41,7 +41,7 @@ test("the view is ASKED-VS-ALLOWED renderable: declared ⊋ granted, and net.fet
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const view = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "reach", capabilities: ["chat.read", "net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: ["chat.read"],
   });
@@ -60,7 +60,7 @@ test("a plain user (role:'user') installs FOR THEMSELVES, and the row is stamped
   const h = makePluginHarness(db);
   const user = await seedUser(db, { handle: castId<Handle>("user") });
 
-  const view = await h.service.install({ caller: principalFor(user), bundle: makeBundle({ id: "mine" }), grant: [] });
+  const view = await h.service.install({ caller: await principalFor(db, user), bundle: makeBundle({ id: "mine" }), grant: [] });
 
   expect(view.slug).toBe("mine");
   expect(view.status).toBe("disabled");
@@ -69,7 +69,7 @@ test("a plain user (role:'user') installs FOR THEMSELVES, and the row is stamped
   const [row] = await db.select({ ownerId: plugins.ownerId }).from(plugins).where(eq(plugins.id, view.id));
   expect(row?.ownerId).toBe(user);
   // …and it is the caller's OWN list, not a deployment-wide one.
-  expect((await h.service.list({ caller: principalFor(user) })).map((p) => p.id)).toEqual([view.id]);
+  expect((await h.service.list({ caller: await principalFor(db, user) })).map((p) => p.id)).toEqual([view.id]);
 });
 
 test("two different users install the SAME slug — both rows exist, neither collides (the per-owner partition)", async () => {
@@ -81,12 +81,12 @@ test("two different users install the SAME slug — both rows exist, neither col
   const alice = await seedUser(db, { handle: castId<Handle>("alice") });
   const bob = await seedUser(db, { handle: castId<Handle>("bob") });
 
-  const hers = await h.service.install({ caller: principalFor(alice), bundle: makeBundle({ id: "shared" }), grant: [] });
-  const his = await h.service.install({ caller: principalFor(bob), bundle: makeBundle({ id: "shared" }), grant: [] });
+  const hers = await h.service.install({ caller: await principalFor(db, alice), bundle: makeBundle({ id: "shared" }), grant: [] });
+  const his = await h.service.install({ caller: await principalFor(db, bob), bundle: makeBundle({ id: "shared" }), grant: [] });
 
   expect(hers.id).not.toBe(his.id);
-  expect((await h.service.list({ caller: principalFor(alice) })).map((p) => p.id)).toEqual([hers.id]);
-  expect((await h.service.list({ caller: principalFor(bob) })).map((p) => p.id)).toEqual([his.id]);
+  expect((await h.service.list({ caller: await principalFor(db, alice) })).map((p) => p.id)).toEqual([hers.id]);
+  expect((await h.service.list({ caller: await principalFor(db, bob) })).map((p) => p.id)).toEqual([his.id]);
 });
 
 test("a grant the manifest never declared is refused", async () => {
@@ -94,7 +94,7 @@ test("a grant the manifest never declared is refused", async () => {
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const bundle = makeBundle({ capabilities: ["chat.read"] });
-  await expect(h.service.install({ caller: ownerPrincipalFor(owner), bundle, grant: ["notify"] })).rejects.toBeInstanceOf(CapabilityNotGrantedError);
+  await expect(h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle, grant: ["notify"] })).rejects.toBeInstanceOf(CapabilityNotGrantedError);
 });
 
 test("re-installing an already-installed slug is a conflict (use upgrade)", async () => {
@@ -102,8 +102,8 @@ test("re-installing an already-installed slug is a conflict (use upgrade)", asyn
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const bundle = makeBundle({ id: "dup" });
-  await h.service.install({ caller: ownerPrincipalFor(owner), bundle, grant: [] });
-  await expect(h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "dup" }), grant: [] })).rejects.toBeInstanceOf(
+  await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle, grant: [] });
+  await expect(h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "dup" }), grant: [] })).rejects.toBeInstanceOf(
     PluginAlreadyInstalledError,
   );
 });
@@ -112,11 +112,11 @@ test("a corrupt bundle is refused before anything persists", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  await expect(h.service.install({ caller: ownerPrincipalFor(owner), bundle: new Uint8Array([1, 2, 3]), grant: [] })).rejects.toBeInstanceOf(
+  await expect(h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: new Uint8Array([1, 2, 3]), grant: [] })).rejects.toBeInstanceOf(
     ManifestInvalidError,
   );
   expect(h.storedBytes.size).toBe(0); // nothing stored on a validation failure
-  expect((await h.service.list({ caller: ownerPrincipalFor(owner) })).length).toBe(0);
+  expect((await h.service.list({ caller: await ownerPrincipalFor(db, owner) })).length).toBe(0);
 });
 
 test("an unsupported host major is a distinct lifecycle refusal before anything persists", async () => {
@@ -124,14 +124,14 @@ test("an unsupported host major is a distinct lifecycle refusal before anything 
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  await expect(h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ hostVersion: 2 }), grant: [] })).rejects.toMatchObject({
+  await expect(h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ hostVersion: 2 }), grant: [] })).rejects.toMatchObject({
     name: "HostVersionUnservedError",
     code: "plugin_host_version_unserved",
     requested: 2,
     served: [1],
   } satisfies Partial<HostVersionUnservedError>);
   expect(h.storedBytes.size).toBe(0);
-  expect(await h.service.list({ caller: ownerPrincipalFor(owner) })).toEqual([]);
+  expect(await h.service.list({ caller: await ownerPrincipalFor(db, owner) })).toEqual([]);
 });
 
 // ── #820 seam 11: the bundle's own `ui/assets/` images become CAS assets under the INSTALLER, linked through
@@ -142,7 +142,7 @@ test("install unpacks ui/assets/ images into the installer's CAS and links each 
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   const view = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "sprites" }, undefined, undefined, {
       "ui/assets/happy.png": magicBytes("png"),
       "ui/assets/sad.webp": magicBytes("webp"),
@@ -169,7 +169,7 @@ test("install unpacks ui/assets/ images into the installer's CAS and links each 
   expect(rows.map((row) => row.mime).sort()).toEqual(["image/png", "image/webp"]);
 
   // The verb's read side agrees: the path → id map is what a UI node resolves through.
-  const map = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: view.id });
+  const map = await h.service.listBundleAssets({ caller: await ownerPrincipalFor(db, owner), pluginId: view.id });
   expect(map.map((entry) => entry.path)).toEqual(["ui/assets/happy.png", "ui/assets/sad.webp"]);
 });
 
@@ -182,14 +182,14 @@ test("a REFUSED bundle asset aborts the whole install — no row, no bytes, noth
 
   await expect(
     h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "evil" }, undefined, undefined, { "ui/assets/x.svg": magicBytes("svg") }),
       grant: [],
     }),
   ).rejects.toBeInstanceOf(ManifestInvalidError);
 
   expect(h.storedBytes.size).toBe(0);
-  expect(await h.service.list({ caller: ownerPrincipalFor(owner) })).toEqual([]);
+  expect(await h.service.list({ caller: await ownerPrincipalFor(db, owner) })).toEqual([]);
   expect(await db.select().from(pluginAssets)).toEqual([]);
 });
 
@@ -207,7 +207,7 @@ test("a CAS failure mid-image-wave reaps what it already wrote instead of leavin
 
   await expect(
     h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "sprites" }, undefined, undefined, {
         "ui/assets/a.png": magicBytes("png"),
         "ui/assets/b.webp": magicBytes("webp"),
@@ -217,7 +217,7 @@ test("a CAS failure mid-image-wave reaps what it already wrote instead of leavin
   ).rejects.toThrow(/CAS write failed/u);
 
   // Nothing landed, and nothing was left orphaned: no row, no links, and no unreferenced blobs.
-  expect(await h.service.list({ caller: ownerPrincipalFor(owner) })).toEqual([]);
+  expect(await h.service.list({ caller: await ownerPrincipalFor(db, owner) })).toEqual([]);
   expect(await db.select().from(pluginAssets)).toEqual([]);
   expect(await db.select().from(assets)).toEqual([]);
   expect(h.storedBytes.size).toBe(0);
@@ -232,7 +232,7 @@ test("two paths carrying IDENTICAL bytes both resolve — the widened PK keeps b
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   const view = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "twins" }, undefined, undefined, {
       "ui/assets/a.png": magicBytes("png"),
       "ui/assets/b.png": magicBytes("png"),
@@ -240,7 +240,7 @@ test("two paths carrying IDENTICAL bytes both resolve — the widened PK keeps b
     grant: [],
   });
 
-  const map = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: view.id });
+  const map = await h.service.listBundleAssets({ caller: await ownerPrincipalFor(db, owner), pluginId: view.id });
   expect(map.map((entry) => entry.path)).toEqual(["ui/assets/a.png", "ui/assets/b.png"]);
   expect(map).toHaveLength(2);
 });
@@ -251,13 +251,13 @@ test("listBundleAssets is owner-scoped — a stranger holding the real pluginId 
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
   const view = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "private-sprites" }, undefined, undefined, { "ui/assets/a.png": magicBytes("png") }),
     grant: [],
   });
 
   // The apex global role buys nothing here (D147: authority is the owner-scoped row load, not a role), so the
   // stranger is aimed at the row as an OWNER-roled principal too — the strongest caller that must still be refused.
-  await expect(h.service.listBundleAssets({ caller: ownerPrincipalFor(stranger), pluginId: view.id })).rejects.toBeInstanceOf(PluginNotFoundError);
-  await expect(h.service.listBundleAssets({ caller: principalFor(stranger), pluginId: view.id })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.listBundleAssets({ caller: await ownerPrincipalFor(db, stranger), pluginId: view.id })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.listBundleAssets({ caller: await principalFor(db, stranger), pluginId: view.id })).rejects.toBeInstanceOf(PluginNotFoundError);
 });

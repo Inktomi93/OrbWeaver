@@ -331,7 +331,7 @@ test("a later room database failure preserves its paid facts while the earlier c
       claimChat: noClaim,
     },
   );
-  await expect(life.reapTemporaryChats({ principal: principal(hostId) })).rejects.toThrow(/FOREIGN KEY constraint failed/);
+  await expect(life.reapTemporaryChats({ principal: await principal({ db }, hostId) })).rejects.toThrow(/FOREIGN KEY constraint failed/);
   expect(deaths).toEqual([first.id]);
   expect((await db.select().from(chats)).map((room) => room.id)).toEqual([second.id]);
   expect((await db.select().from(chatGenerationObservations)).map((fact) => fact.chatId)).toEqual([second.id]);
@@ -396,7 +396,7 @@ test("paid TTL cleanup skips a claimed room, deletes another independently and e
     },
   );
   const gate = held.hold(/delete from "chats"/i);
-  const sweeping = life.reapTemporaryChats({ principal: principal(hostId) });
+  const sweeping = life.reapTemporaryChats({ principal: await principal({ db }, hostId) });
   await gate.reached;
   await createClaimChat(makeChatContext(db))(rescued.id);
   await db.update(chats).set({ temporary: true }).where(eq(chats.id, newEligible.id));
@@ -431,7 +431,7 @@ test("a completion appended after the deletion read refuses the stale empty snap
     claimChat: noClaim,
   });
   const gate = held.hold(/delete from "chats"/i);
-  const deleting = life.delete({ principal: principal(hostId), chatId: room.id }).catch((error: unknown) => error);
+  const deleting = life.delete({ principal: await principal({ db }, hostId), chatId: room.id }).catch((error: unknown) => error);
   await gate.reached;
   const parent: GenerationObservationParent = {
     chatId: room.id,
@@ -520,7 +520,7 @@ test("actual chat deletion reverses every pending funder in its original bucket 
       claimChat: noClaim,
     },
   );
-  await life.delete({ principal: principal(hostId), chatId: room.id });
+  await life.delete({ principal: await principal({ db }, hostId), chatId: room.id });
   expect(liveEvents).toEqual(["chatDeleted"]);
   expect(await db.select().from(chatGenerationObservations)).toEqual([]);
   expect(await db.select().from(ownerStats).where(eq(ownerStats.ownerId, funder.id))).toMatchObject([

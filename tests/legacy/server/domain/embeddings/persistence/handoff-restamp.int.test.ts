@@ -11,6 +11,7 @@ import type { Db } from "@orb/db";
 import { characters, chatDigestSpeakers, chatDigests, embedGenerations, userConnections } from "@orb/db";
 import { batchMany } from "@orb/db/query";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import type { CharacterHandle, CharacterId, ChatDigestId, ChatId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
@@ -26,7 +27,7 @@ const AT = 1_700_000_000_000;
 
 async function seedCard(db: Db, ownerId: UserId, key: string): Promise<CharacterId> {
   const id = castId<CharacterId>(`character_${key}`);
-  await db.insert(characters).values(makeCharacter({ id, ownerId, handle: castId<CharacterHandle>(key), name: key, tokenSize: 0, createdAt: AT }));
+  await db.insert(characters).values(makeCharacter({ id, ownerId, handle: castId<CharacterHandle>(key), name: key, createdAt: AT }));
   return id;
 }
 
@@ -94,7 +95,7 @@ test("both digest columns move onto the copy — and ONLY inside the transferred
   // A pure producer: nothing moves until chat's swap batch runs (the atomicity property — the re-key is a
   // property of the authority move, never a second write a crash could skip).
   expect((await db.select().from(chatDigests).where(eq(chatDigests.id, mine)))[0]?.scopedCharacterId).toBe(source);
-  await db.batch(batchMany(stmts));
+  await db.batch(batchMany(stmts.map(statementForOwner)));
 
   expect((await db.select().from(chatDigests).where(eq(chatDigests.id, mine)))[0]?.scopedCharacterId).toBe(copy);
   expect((await db.select().from(chatDigestSpeakers).where(eq(chatDigestSpeakers.digestId, mine)))[0]?.characterId).toBe(copy);

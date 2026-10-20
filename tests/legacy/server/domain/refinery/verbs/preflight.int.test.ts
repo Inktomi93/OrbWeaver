@@ -19,7 +19,7 @@ test("preflight resolves posture per call, measures the real prompt, and scales 
   const owner = await seedUser(db, { id: "user_pf_a" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "pf-card-a");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
 
   const result = await h.svc.preflight({ principal: p, sessionId: session.id });
@@ -65,10 +65,10 @@ test("a foreign owner's preflight collapses to NOT_FOUND — no card mass, no po
   const stranger = await seedUser(db, { id: "user_pf_d" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "pf-card-c");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
-  await expect(h.svc.preflight({ principal: principal(stranger), sessionId: session.id })).rejects.toThrow(DomainNotFoundError);
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
+  await expect(h.svc.preflight({ principal: await principal(db, stranger), sessionId: session.id })).rejects.toThrow(DomainNotFoundError);
   // An id that exists for NOBODY takes the identical path — so the refusal is not an existence oracle.
-  await expect(h.svc.preflight({ principal: principal(stranger), sessionId: castId<RefinerySessionId>("refinery_session_gone") })).rejects.toThrow(
+  await expect(h.svc.preflight({ principal: await principal(db, stranger), sessionId: castId<RefinerySessionId>("refinery_session_gone") })).rejects.toThrow(
     DomainNotFoundError,
   );
 });
@@ -78,7 +78,7 @@ test("a preset-params edit reaches the NEXT preflight read (resolved per call, n
   const owner = await seedUser(db, { id: "user_pf_b" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "pf-card-b");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   // The harness's resolver is swappable through the context object — simulate a preset edit between reads.
   const ctx = h.ctx as { resolveUtilityPresetParams: (userId: unknown) => Promise<SideGenSampling> };

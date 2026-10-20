@@ -10,6 +10,8 @@ import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createMaterializeBackground } from "@orb/server/domain/assets";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { SafeFetchResult } from "#server/infra/network/index.ts";
@@ -22,7 +24,9 @@ const PNG_ONE_BY_ONE = Uint8Array.from([
   0x00, 0x00, 0x00,
 ]);
 
-const PRINCIPAL: Principal = { userId: castId<UserId>("user_u"), role: "user", handle: castId<Handle>("user_u"), externalId: null, via: "cookie" };
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+const PRINCIPAL: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("user_u"), { handle: castId<Handle>("user_u") });
 
 function fetchResult(over: { status?: number; contentType?: string; dispose?: () => void; bytes: () => Promise<Uint8Array> }): SafeFetchResult {
   return {

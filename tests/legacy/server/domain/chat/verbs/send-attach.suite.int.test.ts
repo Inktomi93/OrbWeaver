@@ -34,8 +34,8 @@ import { createTurn } from "#server/domain/chat/verbs/turn.ts";
 import { makeHarness } from "../../assets/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 /** A scripted assistant turn so `send` completes a real round (the attach lands on the USER row regardless). */
@@ -159,7 +159,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
     const h = await harness(db, {});
 
     const outcome = await h.turn.send({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       content: "look at this",
       attachmentAssetIds: [assetId],
@@ -183,7 +183,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
     const { host, chatId } = await seedSolo(db);
     const h = await harness(db, {});
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "plain" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "plain" });
 
     expect(outcome.messages.find((m) => m.role === "user")?.content).toBe("plain");
     const rows = await db.select({ id: messageAssets.id }).from(messageAssets);
@@ -198,7 +198,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
 
     await expect(
       h.turn.send({
-        principal: principal(host),
+        principal: await principal(db, host),
         chatId,
         content: "steal this",
         attachmentAssetIds: [foreignAsset],
@@ -219,7 +219,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
 
     await expect(
       h.turn.send({
-        principal: principal(outsider),
+        principal: await principal(db, outsider),
         chatId,
         content: "intrude",
         attachmentAssetIds: [outsiderAsset],

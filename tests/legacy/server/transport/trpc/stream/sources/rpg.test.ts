@@ -19,12 +19,14 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { StreamFrame } from "@orb/contracts/stream";
+import type { Db } from "@orb/db";
 import type { SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { ChatNotFoundError } from "@orb/server/domain/chat";
 import type { Context } from "@orb/server/transport/trpc";
 import { createSocketRegistry } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { publishRpgEvent } from "#server/domain/rpg/bus.ts";
@@ -66,8 +68,8 @@ function eventOf(result: IteratorResult<unknown>): RpgBusEvent {
   return frame.event;
 }
 
-function ctxWith(chatEventBounds: ChatService["chatEventBounds"]): Context {
-  return makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { chatEventBounds } } });
+async function ctxWith(db: Db, chatEventBounds: ChatService["chatEventBounds"]): Promise<Context> {
+  return makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { chatEventBounds } } });
 }
 
 /** Attach the rpg room, connect, and drain the `attached` ack — the iterator is then parked exactly where the
@@ -86,11 +88,12 @@ async function openRpgRoom(ctx: Context): Promise<AsyncIterator<unknown>> {
 
 describe("the rpg room accepts every attach — uniformly, so the accept carries no information", () => {
   test("a NON-member's attach is accepted exactly like a member's, and it asks the membership question at all", async () => {
+    const db = await freshDb();
     const sockets = createSocketRegistry(() => 0);
     // The probe REFUSES this caller for this chat — a stranger, or a chatId that names nothing at all.
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(() => Promise.reject(new ChatNotFoundError(CHAT)));
     const socketId = nextSocket();
-    const call = caller(makeContext({ auth: principal("user", { userId: MEMBER }), services: { chat: { chatEventBounds } }, sockets }));
+    const call = caller(makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { chat: { chatEventBounds } }, sockets }));
 
     await expect(call.stream.attach({ socketId, ref: { channel: "rpg", chatId: CHAT } })).resolves.toBeUndefined();
     expect(sockets.adopt(MEMBER, socketId, null).rooms.size).toBe(1);
@@ -102,6 +105,7 @@ describe("the rpg room accepts every attach — uniformly, so the accept carries
 
 describe("the per-yield membership probe is what protects the game's events", () => {
   test("an event is WITHHELD while the probe refuses and DELIVERED while it admits — per event, so a kick cuts the stream mid-flight", async () => {
+    const db = await freshDb();
     // The verdicts, in probe order: not-a-member → member → kicked → re-admitted. Each maps to ONE published
     // event, so the frames that arrive are exactly the admitted ones.
     const verdicts = [false, true, false, true];
@@ -111,7 +115,7 @@ describe("the per-yield membership probe is what protects the game's events", ()
       call += 1;
       return allowed ? Promise.resolve(BOUNDS) : Promise.reject(new ChatNotFoundError(CHAT));
     });
-    const iterator = await openRpgRoom(ctxWith(chatEventBounds));
+    const iterator = await openRpgRoom(await ctxWith(db, chatEventBounds));
 
     // Park the pump in its live loop before publishing (the bus tail attaches inside the pump — publishing
     // ahead of the park is the same race the real feed has).

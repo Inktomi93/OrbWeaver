@@ -31,10 +31,10 @@ describe("the single-entity doors on the service", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const mine = await seedScript(db, { ownerId: owner, id: "regex_script_mine", name: "mine" });
 
-    const file = await svc.exportScript({ principal: principal(owner), scriptId: mine });
+    const file = await svc.exportScript({ principal: await principal(db, owner), scriptId: mine });
     expect(file?.filename).toBe("mine-regex_script_mine.json");
     // The same id, a different caller: one answer, and it is not an oracle.
-    expect(await svc.exportScript({ principal: principal(stranger), scriptId: mine })).toBeNull();
+    expect(await svc.exportScript({ principal: await principal(db, stranger), scriptId: mine })).toBeNull();
   });
 
   test("importScriptFile lands the script under the CALLER, from the file's text", async () => {
@@ -43,12 +43,12 @@ describe("the single-entity doors on the service", () => {
     const svc = createRegexService(h.ctx);
     const author = await seedUser(db, { handle: castId<Handle>("author") });
     const scriptId = await seedScript(db, { ownerId: author, id: "regex_script_x", name: "shared", behavior: behavior({ findRegex: "q" }) });
-    const file = await svc.exportScript({ principal: principal(author), scriptId });
+    const file = await svc.exportScript({ principal: await principal(db, author), scriptId });
     expect(file).not.toBeNull();
 
     const receiver = await seedUser(db, { handle: castId<Handle>("receiver") });
     const outcome = await svc.importScriptFile({
-      principal: principal(receiver),
+      principal: await principal(db, receiver),
       fileText: new TextDecoder().decode((file as NonNullable<typeof file>).bytes),
     });
 
@@ -66,7 +66,7 @@ describe("the single-entity doors on the service", () => {
     const stExport =
       '{"id":"1a2b","scriptName":"Trim ellipsis","findRegex":"/\\\\.{3}/g","replaceString":"…","placement":[2],"disabled":true,"substituteRegex":true}';
 
-    const outcome = await svc.importScriptFile({ principal: principal(owner), fileText: stExport });
+    const outcome = await svc.importScriptFile({ principal: await principal(db, owner), fileText: stExport });
 
     expect(outcome).toEqual({ created: true });
     const [landed] = await db.select().from(regexScripts).where(eq(regexScripts.ownerId, owner));
@@ -83,7 +83,7 @@ describe("the single-entity doors on the service", () => {
 
     // The refusal has to be actionable: "written by a newer orbweaver" and "that isn't a regex script" are
     // different problems, and the import chrome renders whichever the domain says.
-    await expect(svc.importScriptFile({ principal: principal(owner), fileText: "{}" })).rejects.toThrow(REFUSAL_NAMES_REGEX);
+    await expect(svc.importScriptFile({ principal: await principal(db, owner), fileText: "{}" })).rejects.toThrow(REFUSAL_NAMES_REGEX);
     expect(await db.select().from(regexScripts)).toHaveLength(0);
   });
 });

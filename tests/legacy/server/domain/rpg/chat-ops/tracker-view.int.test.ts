@@ -13,6 +13,7 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { buildTrackerView } from "#server/domain/rpg/chat-ops/tracker-view.ts";
+import { createRpgContext } from "#server/domain/rpg/context.ts";
 import type { RpgContext, RpgGameRow } from "#server/domain/rpg/contract/service.ts";
 import { findGameByChat, updateGame } from "#server/domain/rpg/persistence/games.ts";
 import { upsertSheet } from "#server/domain/rpg/persistence/sheets.ts";
@@ -82,7 +83,7 @@ async function seedGameWithBeats(db: Db, key: string, beats: readonly string[], 
   if (game === undefined) {
     throw new Error("game not found");
   }
-  return { game, ctx: makeRpgService(db, { participants: [] }).ctx };
+  return { game, ctx: createRpgContext(makeRpgService(db, { participants: [] }).ctx) };
 }
 
 test("recentBeats is SLICED to config.features.recentBeatsKeepLast (P3 fold — the durable log stays append-only)", async () => {
@@ -135,7 +136,7 @@ async function seedGameWithTrackers(
   }
   // The participants fake carries the SAME real character id (its ref keys the volatile the projection joins).
   const participants = [{ actorRef: { kind: "character" as const, characterId }, name: "Kael" }];
-  return { game, ctx: makeRpgService(db, { participants }).ctx };
+  return { game, ctx: createRpgContext(makeRpgService(db, { participants }).ctx) };
 }
 
 /** A tracker def with the axes a case cares about; everything else takes its schema default. */

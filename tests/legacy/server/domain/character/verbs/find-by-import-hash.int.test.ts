@@ -65,7 +65,7 @@ describe("findByImportHash", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const importHash = "1".repeat(64);
     const detail = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("aria"), name: "Aria", description: "imported" },
       provenance: { importedFrom: "Aria.png", importHash },
     });

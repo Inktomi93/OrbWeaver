@@ -14,12 +14,12 @@ describe("setGlobalVariable", () => {
     const owner = await seedUser(db);
     const svc = createAutomationService(makeAutomationHarness(db));
 
-    await svc.setGlobalVariable({ principal: principal(owner), key: "k", value: "1" });
-    await svc.setGlobalVariable({ principal: principal(owner), key: "k", value: "2" });
+    await svc.setGlobalVariable({ principal: await principal(db, owner), key: "k", value: "1" });
+    await svc.setGlobalVariable({ principal: await principal(db, owner), key: "k", value: "2" });
 
-    await expect(svc.getGlobalVariable({ principal: principal(owner), key: "k" })).resolves.toBe("2");
+    await expect(svc.getGlobalVariable({ principal: await principal(db, owner), key: "k" })).resolves.toBe("2");
     // exactly one row (upsert, not insert-twice)
-    await expect(svc.listGlobalVariables({ principal: principal(owner) })).resolves.toHaveLength(1);
+    await expect(svc.listGlobalVariables({ principal: await principal(db, owner) })).resolves.toHaveLength(1);
   });
 
   test("stamps the injected clock onto updated_at", async () => {
@@ -27,9 +27,9 @@ describe("setGlobalVariable", () => {
     const owner = await seedUser(db);
     const svc = createAutomationService(makeAutomationHarness(db));
 
-    await svc.setGlobalVariable({ principal: principal(owner), key: "k", value: "v" });
+    await svc.setGlobalVariable({ principal: await principal(db, owner), key: "k", value: "v" });
 
-    const [row] = await svc.listGlobalVariables({ principal: principal(owner) });
+    const [row] = await svc.listGlobalVariables({ principal: await principal(db, owner) });
     expect(row?.updatedAt).toBe(1_700_000_000_000);
   });
 
@@ -38,7 +38,7 @@ describe("setGlobalVariable", () => {
     const owner = await seedUser(db);
     const svc = createAutomationService(makeAutomationHarness(db));
 
-    await expect(svc.setGlobalVariable({ principal: principal(owner), key: "", value: "v" })).rejects.toThrow(GlobalVariableInvalidError);
+    await expect(svc.setGlobalVariable({ principal: await principal(db, owner), key: "", value: "v" })).rejects.toThrow(GlobalVariableInvalidError);
   });
 
   test("refuses a key over the char cap", async () => {
@@ -47,7 +47,7 @@ describe("setGlobalVariable", () => {
     const svc = createAutomationService(makeAutomationHarness(db));
 
     const longKey = "k".repeat(GLOBAL_VARIABLE_KEY_MAX_CHARS + 1);
-    await expect(svc.setGlobalVariable({ principal: principal(owner), key: longKey, value: "v" })).rejects.toThrow(GlobalVariableInvalidError);
+    await expect(svc.setGlobalVariable({ principal: await principal(db, owner), key: longKey, value: "v" })).rejects.toThrow(GlobalVariableInvalidError);
   });
 
   test("refuses a value over the 64 KiB byte cap", async () => {
@@ -56,7 +56,7 @@ describe("setGlobalVariable", () => {
     const svc = createAutomationService(makeAutomationHarness(db));
 
     const bigValue = "x".repeat(GLOBAL_VARIABLE_VALUE_MAX_BYTES + 1);
-    await expect(svc.setGlobalVariable({ principal: principal(owner), key: "k", value: bigValue })).rejects.toThrow(GlobalVariableInvalidError);
+    await expect(svc.setGlobalVariable({ principal: await principal(db, owner), key: "k", value: bigValue })).rejects.toThrow(GlobalVariableInvalidError);
   });
 
   test("accepts a value exactly at the byte cap", async () => {
@@ -65,6 +65,6 @@ describe("setGlobalVariable", () => {
     const svc = createAutomationService(makeAutomationHarness(db));
 
     const atCap = "x".repeat(GLOBAL_VARIABLE_VALUE_MAX_BYTES);
-    await expect(svc.setGlobalVariable({ principal: principal(owner), key: "k", value: atCap })).resolves.toBeUndefined();
+    await expect(svc.setGlobalVariable({ principal: await principal(db, owner), key: "k", value: atCap })).resolves.toBeUndefined();
   });
 });

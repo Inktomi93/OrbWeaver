@@ -25,7 +25,7 @@ test("counts the WHOLE bank by phase — including the documents past the first 
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const other = await seedUser(db, { handle: castId<Handle>("other") });
-  const principal = principalFor(owner);
+  const principal = await principalFor(db, owner);
 
   // The two documents the page-derived version lied about: written FIRST, so they sort to the bottom of a
   // bank that is about to grow past one page.
@@ -39,7 +39,7 @@ test("counts the WHOLE bank by phase — including the documents past the first 
     await h.service.createFromText({ principal, name: `filler-${String(i)}.md`, text: `note ${String(i)}` });
   }
   // A foreign bank that must not appear in any number below.
-  await h.service.createFromText({ principal: principalFor(other), name: "foreign.md", text: "not yours" });
+  await h.service.createFromText({ principal: await principalFor(db, other), name: "foreign.md", text: "not yours" });
 
   const health = await h.service.bankHealth({ principal });
   const seeded = DATABANK_LIST_DEFAULT_LIMIT + 3;
@@ -69,7 +69,7 @@ test("an empty bank is all zeros, not an absent census", async () => {
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  const health = await h.service.bankHealth({ principal: principalFor(owner) });
+  const health = await h.service.bankHealth({ principal: await principalFor(db, owner) });
   expect(health).toEqual({ byPhase: { embedding: 0, empty: 0, indexing: 0, ready: 0, stalled: 0 }, chunks: 0, passages: 0, staleExtraction: 0, total: 0 });
 });
 
@@ -81,12 +81,12 @@ test("staleExtraction counts the caller's re-extractable documents from an older
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const other = await seedUser(db, { handle: castId<Handle>("other") });
-  const principal = principalFor(owner);
+  const principal = await principalFor(db, owner);
   const bytes = new TextEncoder().encode("# Field notes\n\nThe tide came in twice.");
 
   const upload = await h.service.upload({ principal, bytes, mime: "text/markdown", name: "notes.md" });
   const pasted = await h.service.createFromText({ principal, name: "pasted.md", text: "no source file behind this" });
-  const foreign = await h.service.upload({ principal: principalFor(other), bytes, mime: "text/markdown", name: "theirs.md" });
+  const foreign = await h.service.upload({ principal: await principalFor(db, other), bytes, mime: "text/markdown", name: "theirs.md" });
   expect((await h.service.bankHealth({ principal })).staleExtraction).toBe(0);
 
   // An older extractor's stamp on every row. Only the caller's uploaded row is re-extractable: pasted text

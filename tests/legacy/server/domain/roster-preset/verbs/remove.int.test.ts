@@ -19,10 +19,10 @@ describe("remove", () => {
     const svc = createRosterPresetService(h.ctx);
     const owner = (await seedUser(db)).id;
     const a = (await seedCharacter(db, { ownerId: owner })).id;
-    const doomed = await svc.create({ principal: principal(owner), input: { name: "Doomed", description: "", members: [memberSpec(a, 0)] } });
-    const kept = await svc.create({ principal: principal(owner), input: { name: "Kept", description: "", members: [memberSpec(a, 0)] } });
+    const doomed = await svc.create({ principal: await principal(db, owner), input: { name: "Doomed", description: "", members: [memberSpec(a, 0)] } });
+    const kept = await svc.create({ principal: await principal(db, owner), input: { name: "Kept", description: "", members: [memberSpec(a, 0)] } });
 
-    await svc.remove({ principal: principal(owner), presetId: doomed.id });
+    await svc.remove({ principal: await principal(db, owner), presetId: doomed.id });
 
     expect(await db.select().from(rosterPresets).where(eq(rosterPresets.id, doomed.id))).toHaveLength(0);
     expect(await db.select().from(rosterPresetMembers).where(eq(rosterPresetMembers.presetId, doomed.id))).toHaveLength(0);
@@ -38,10 +38,10 @@ describe("remove", () => {
     const owner = (await seedUser(db)).id;
     const stranger = (await seedUser(db)).id;
     const a = (await seedCharacter(db, { ownerId: owner })).id;
-    const mine = await svc.create({ principal: principal(owner), input: { name: "Mine", description: "", members: [memberSpec(a, 0)] } });
+    const mine = await svc.create({ principal: await principal(db, owner), input: { name: "Mine", description: "", members: [memberSpec(a, 0)] } });
     const auditsBefore = h.audits.length;
 
-    await expect(svc.remove({ principal: principal(stranger), presetId: mine.id })).rejects.toBeInstanceOf(RosterPresetNotFoundError);
+    await expect(svc.remove({ principal: await principal(db, stranger), presetId: mine.id })).rejects.toBeInstanceOf(RosterPresetNotFoundError);
     expect(await db.select().from(rosterPresets).where(eq(rosterPresets.id, mine.id))).toHaveLength(1);
     expect(h.audits).toHaveLength(auditsBefore);
   });

@@ -16,22 +16,22 @@ describe("listSnapshots", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     const first = await svc.snapshot({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       label: "a",
     });
     h.advance(1000);
     const second = await svc.snapshot({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       label: "b",
     });
 
-    const snaps = await svc.listSnapshots({ principal: principal(owner), characterId: created.id });
+    const snaps = await svc.listSnapshots({ principal: await principal(db, owner), characterId: created.id });
     expect(snaps.map((s) => s.id)).toEqual([second.id, first.id]);
   });
 
@@ -41,9 +41,9 @@ describe("listSnapshots", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
-    await expect(svc.listSnapshots({ principal: principal(other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.listSnapshots({ principal: await principal(db, other), characterId: created.id })).rejects.toBeInstanceOf(CharacterNotFoundError);
   });
 });

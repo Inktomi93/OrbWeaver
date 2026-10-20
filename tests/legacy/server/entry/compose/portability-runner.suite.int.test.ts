@@ -55,7 +55,7 @@ test("completed real profile import refreshes planner stats before its terminal 
 }) => {
   void ownerCaller;
   await app.services.character.create({
-    principal: principal(OWNER_USER_ID),
+    principal: await principal({ db }, OWNER_USER_ID),
     input: { handle: castId<CharacterHandle>("planner-seed"), name: "Planner seed", description: "Seed" },
   });
   await db.run(sql`ANALYZE`);
@@ -65,14 +65,14 @@ test("completed real profile import refreshes planner stats before its terminal 
   const token = await stageProfile(importStagingDir);
   observed.queries.reset();
   const result = await app.workloadContributions["import-st"].run(
-    { userId: OWNER_USER_ID, ownerId: OWNER_USER_ID, now: () => clock.now() },
+    { userId: OWNER_USER_ID, ownerId: OWNER_USER_ID, funderUserId: OWNER_USER_ID, now: () => clock.now() },
     { stagedDir: token },
     () => undefined,
     new AbortController().signal,
   );
   expect(result.failed).toBe(0);
   expect(observed.queries.statements().filter((statement) => statement.trim() === "ANALYZE")).toHaveLength(1);
-  expect(await app.services.character.count({ principal: principal(OWNER_USER_ID) })).toBe(21);
+  expect(await app.services.character.count({ principal: await principal({ db }, OWNER_USER_ID) })).toBe(21);
   expect((await stats()).every((total) => total === "21")).toBe(true);
 });
 
@@ -116,13 +116,13 @@ test("a post-commit ANALYZE failure preserves real imported cards and the termin
   observed.queries.reset();
   try {
     const result = await app.workloadContributions["import-st"].run(
-      { userId: OWNER_USER_ID, ownerId: OWNER_USER_ID, now: () => clock.now() },
+      { userId: OWNER_USER_ID, ownerId: OWNER_USER_ID, funderUserId: OWNER_USER_ID, now: () => clock.now() },
       { stagedDir: token },
       progress,
       new AbortController().signal,
     );
     expect(result).toMatchObject({ changed: 20, failed: 0, dryRun: false });
-    expect(await app.services.character.count({ principal: principal(OWNER_USER_ID) })).toBe(20);
+    expect(await app.services.character.count({ principal: await principal({ db }, OWNER_USER_ID) })).toBe(20);
     expect(progress).toHaveBeenCalledWith({ message: "Import committed; planner refresh deferred to daily maintenance retry." });
   } finally {
     maintenance.mockRestore();
@@ -160,7 +160,7 @@ test("a completed profile import re-plans the chat recency subquery over a libra
   expect((await recencyPlan(db)).join("\n")).not.toContain(STALE_STATS_INDEX);
   const token = await stageProfile(importStagingDir);
   const result = await app.workloadContributions["import-st"].run(
-    { userId: OWNER_USER_ID, ownerId: OWNER_USER_ID, now: () => clock.now() },
+    { userId: OWNER_USER_ID, ownerId: OWNER_USER_ID, funderUserId: OWNER_USER_ID, now: () => clock.now() },
     { stagedDir: token },
     () => undefined,
     new AbortController().signal,

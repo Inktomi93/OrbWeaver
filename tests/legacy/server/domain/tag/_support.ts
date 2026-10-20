@@ -67,10 +67,9 @@ export function makeTagHarness(db: Db): TagHarness {
   };
 }
 
-/** A cookie-resolved Principal for a user id (role defaults to `user` — tags are role-agnostic). Delegates
- *  to the shared `support/factories/principal` — tag keeps its existing positional `(id, role)` convention. */
-export function principal(userId: UserId, role: UserRole = "user"): Principal {
-  return makePrincipal(userId, { role });
+/** Resolve a caller's Principal through the production row resolver; a passed role is first written onto the user's row. */
+export async function principal(db: Db, userId: UserId, role?: UserRole): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role });
 }
 
 /** Thin delegate over the canonical factory — tag's call sites pass a bare-string `id` (the punchlist's

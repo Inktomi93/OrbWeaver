@@ -27,21 +27,21 @@ describe("the single-book doors", () => {
     const author = await seedUser(db, { handle: castId<Handle>("author") });
     const friend = await seedUser(db, { handle: castId<Handle>("friend") });
 
-    const book = await svc.createBook({ principal: principal(author), input: { name: "Aria's World", description: "the lore" } });
+    const book = await svc.createBook({ principal: await principal(db, author), input: { name: "Aria's World", description: "the lore" } });
     await svc.createEntry({
-      principal: principal(author),
+      principal: await principal(db, author),
       bookId: book.id,
       input: { title: "The Kingdom", content: "A realm of eternal dusk.", keys: ["kingdom"] },
     });
 
-    const file = await svc.exportBook({ principal: principal(author), bookId: book.id });
+    const file = await svc.exportBook({ principal: await principal(db, author), bookId: book.id });
     if (file === null) {
       throw new Error("exportBook returned null for an owned book");
     }
     expect(file.filename).toBe("aria-s-world.json");
     expect(DEC.decode(file.bytes)).toContain(WORLD_INFO_SCHEMA_KIND);
 
-    const outcome = await svc.importFile({ principal: principal(friend), fileText: DEC.decode(file.bytes) });
+    const outcome = await svc.importFile({ principal: await principal(db, friend), fileText: DEC.decode(file.bytes) });
 
     expect(outcome.ok).toBe(true);
     expect(outcome.created).toBe(true);
@@ -49,7 +49,7 @@ describe("the single-book doors", () => {
     expect(landed.map((r) => r.name)).toEqual(["Aria's World"]);
     // …and the entries came with it (the whole point of sharing a lorebook).
     const restored = landed[0]?.id;
-    const entries = restored === undefined ? [] : await svc.listEntries({ principal: principal(friend), bookId: restored });
+    const entries = restored === undefined ? [] : await svc.listEntries({ principal: await principal(db, friend), bookId: restored });
     expect(entries.map((e) => e.title)).toEqual(["The Kingdom"]);
   });
 
@@ -57,13 +57,13 @@ describe("the single-book doors", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Solo" } });
-    const file = await svc.exportBook({ principal: principal(owner), bookId: book.id });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Solo" } });
+    const file = await svc.exportBook({ principal: await principal(db, owner), bookId: book.id });
     if (file === null) {
       throw new Error("exportBook returned null");
     }
 
-    const again = await svc.importFile({ principal: principal(owner), fileText: DEC.decode(file.bytes) });
+    const again = await svc.importFile({ principal: await principal(db, owner), fileText: DEC.decode(file.bytes) });
 
     expect(again.ok).toBe(true);
     expect(again.created).toBe(false);
@@ -75,9 +75,9 @@ describe("the single-book doors", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
-    const theirs = await svc.createBook({ principal: principal(stranger), input: { name: "Theirs" } });
+    const theirs = await svc.createBook({ principal: await principal(db, stranger), input: { name: "Theirs" } });
 
-    expect(await svc.exportBook({ principal: principal(owner), bookId: theirs.id })).toBeNull();
+    expect(await svc.exportBook({ principal: await principal(db, owner), bookId: theirs.id })).toBeNull();
   });
 
   test("a refused file carries the REASON as words — a newer-orbweaver book is not 'not a valid file'", async () => {
@@ -85,12 +85,12 @@ describe("the single-book doors", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const garbage = await svc.importFile({ principal: principal(owner), fileText: "{not json" });
+    const garbage = await svc.importFile({ principal: await principal(db, owner), fileText: "{not json" });
     expect(garbage.ok).toBe(false);
     expect(garbage.error).toContain("not JSON");
 
     const future = JSON.stringify({ schemaKind: WORLD_INFO_SCHEMA_KIND, schemaVersion: 99, name: "Future", description: null, entries: [] });
-    const newer = await svc.importFile({ principal: principal(owner), fileText: future });
+    const newer = await svc.importFile({ principal: await principal(db, owner), fileText: future });
     expect(newer.error).toContain("newer version of orbweaver");
 
     expect(await db.select().from(worldBooks).where(eq(worldBooks.ownerId, owner))).toHaveLength(0);

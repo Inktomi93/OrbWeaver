@@ -3,6 +3,7 @@
 
 import { setTimeout as sleep } from "node:timers/promises";
 import { createInferenceRuntime } from "@orb/inference";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { fakeConnection, fakeDeps, memoryStores, newUserId } from "../_support.ts";
@@ -43,6 +44,7 @@ function ollamaServer(
 
 // Ollama serves `alpha` as `alpha:latest`, and its list names the tag; the row typed without it is the same model.
 test("a model named without its implicit :latest tag still gets its own probe", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "ollama", model: "alpha", baseUrl: OLLAMA_URL });
@@ -50,7 +52,7 @@ test("a model named without its implicit :latest tag still gets its own probe", 
   const server = ollamaServer({ "alpha:latest": ["completion"] });
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: server.fetch }));
 
-  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  const { resolved } = await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id });
 
   expect(server.rendered).toEqual(["alpha:latest"]);
   expect(resolved.capability.kind === "generation" && resolved.capability.generation.turns?.assistantPrefill).toBe(true);
@@ -58,6 +60,7 @@ test("a model named without its implicit :latest tag still gets its own probe", 
 
 // A probe still running when the server's facts are refreshed answers for the list it started on, never the new one.
 test("a model probe that outlives a refresh of the server's facts does not overwrite the refreshed row", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const alpha = fakeConnection({ ownerId, providerId: "ollama", model: "alpha:7b", baseUrl: OLLAMA_URL });
@@ -68,7 +71,7 @@ test("a model probe that outlives a refresh of the server's facts does not overw
   const { promise: released, resolve: release } = Promise.withResolvers<undefined>();
   const server = ollamaServer(models, (model) => (model === "beta:7b" ? released : undefined));
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: server.fetch }));
-  const asker = principal(ownerId);
+  const asker = await principal({ db }, ownerId);
   await runtime.resolve({ task: "chat", principal: asker, connectionId: alpha.id });
 
   // beta's render probe starts on the list alpha warmed, and stalls.
@@ -88,6 +91,7 @@ test("a model probe that outlives a refresh of the server's facts does not overw
 });
 
 test("an uncurated Ollama embedder reads as an embedder on the first capability read and every one after", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "ollama", model: "house-embedder:latest", baseUrl: OLLAMA_URL });
@@ -96,7 +100,7 @@ test("an uncurated Ollama embedder reads as an embedder on the first capability 
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: server.fetch }));
 
   for (let read = 0; read < 2; read += 1) {
-    const facts = await runtime.capabilities.for({ connectionId: row.id, principal: principal(ownerId) });
+    const facts = await runtime.capabilities.for({ connectionId: row.id, principal: await principal({ db }, ownerId) });
     expect(facts.capability.kind).toBe("embedding");
     expect(facts.tasks).toContain("embed");
     expect(facts.tasks).not.toContain("chat");
@@ -134,6 +138,7 @@ test("a model whose /api/show answered too late is asked again, not cached as a 
 }, 30_000);
 
 test("two models on one Ollama server each get their own render probe, so the second does not run on guessed facts", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const first = fakeConnection({ ownerId, providerId: "ollama", model: "alpha:7b", baseUrl: OLLAMA_URL });
@@ -142,7 +147,7 @@ test("two models on one Ollama server each get their own render probe, so the se
   stores.connections.rows.set(second.id, second);
   const server = ollamaServer({ "alpha:7b": ["completion"], "beta:7b": ["completion"] });
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: server.fetch }));
-  const asker = principal(ownerId);
+  const asker = await principal({ db }, ownerId);
 
   await runtime.resolve({ task: "chat", principal: asker, connectionId: first.id });
   const { resolved } = await runtime.resolve({ task: "chat", principal: asker, connectionId: second.id });

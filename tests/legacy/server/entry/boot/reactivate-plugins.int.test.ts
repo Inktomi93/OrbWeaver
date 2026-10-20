@@ -64,17 +64,17 @@ function restart(db: Db, previous: PluginHarness): PluginHarness {
 
 /** The boot resolver seam, standing in for `createHostPrincipalResolver` — the step must resolve the ROW's
  *  owner, never a caller it was handed. */
-function resolverFor(...owners: readonly UserId[]): (userId: UserId) => Promise<Principal> {
+function resolverFor(db: Db, ...owners: readonly UserId[]): (userId: UserId) => Promise<Principal> {
   const known = new Set(owners);
   return (userId: UserId): Promise<Principal> =>
-    known.has(userId) ? Promise.resolve(ownerPrincipalFor(userId)) : Promise.reject(new Error(`test: no principal for ${userId}`));
+    known.has(userId) ? ownerPrincipalFor(db, userId) : Promise.reject(new Error(`test: no principal for ${userId}`));
 }
 
 test("a restart empties the registry, and the boot step brings every enabled plugin's surfaces back", async () => {
   const db = await freshDb();
   const first = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
 
   first.port.script({ ok: true, instance: instanceWithPage("atlas") });
   const installed = await first.service.install({ caller, bundle: makeBundle({ id: "card-atlas", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
@@ -88,7 +88,7 @@ test("a restart empties the registry, and the boot step brings every enabled plu
   expect(await second.service.listSurfaces({ caller })).toEqual([]);
 
   second.port.script({ ok: true, instance: instanceWithPage("atlas") });
-  const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(owner) });
+  const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(db, owner) });
 
   expect(report).toEqual({ restored: 1, failed: 0 });
   expect((await second.service.listSurfaces({ caller })).map((s) => s.id)).toEqual(["atlas"]);
@@ -98,13 +98,13 @@ test("a DISABLED row is left alone — the step restores the record, it does not
   const db = await freshDb();
   const first = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
 
   // Installed and never enabled: the seeded-example posture.
   await first.service.install({ caller, bundle: makeBundle({ id: "dormant" }), grant: [] });
 
   const second = restart(db, first);
-  const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(owner) });
+  const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(db, owner) });
 
   expect(report).toEqual({ restored: 0, failed: 0 });
   expect(second.port.created).toEqual([]); // no guest code ran
@@ -115,7 +115,7 @@ test("one plugin's failed activation is counted and left `errored` — it never 
   const db = await freshDb();
   const first = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
 
   first.port.script({ ok: true, instance: instanceWithPage("bad") });
   const broken = await first.service.install({ caller, bundle: makeBundle({ id: "broken" }), grant: [] });
@@ -135,7 +135,7 @@ test("one plugin's failed activation is counted and left `errored` — it never 
   second.port.script({ ok: true, instance: instanceWithPage("good") });
   second.port.script({ ok: false, error: "the stored bundle is corrupt", log: [] });
 
-  const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(owner) });
+  const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(db, owner) });
 
   expect(report).toEqual({ restored: 1, failed: 1 });
   // The healthy one still came resident…
@@ -166,7 +166,7 @@ test("a failed activation's host writes land once per owner action — no restar
   const port = createPluginHost({ nowEpochMs: () => FROZEN_AT_MS, nextRandom: () => 0.5, mintId: () => "retry-id" });
   const first = makePluginHarness(db, { ops, port });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const bundle = makeBundle(
     { id: "writes-then-throws", capabilities: ["storage.kv"] },
     `(async () => { await orb.host(1).storage.set("activation-write", "1"); throw new Error("activation refused"); })()`,
@@ -180,7 +180,7 @@ test("a failed activation's host writes land once per owner action — no restar
   for (const [assetId, bytes] of first.storedBytes) {
     second.storedBytes.set(assetId, bytes);
   }
-  const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(owner) });
+  const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(db, owner) });
   expect(report).toEqual({ restored: 0, failed: 0 });
   expect(writes).toEqual(["activation-write"]);
 
@@ -192,7 +192,7 @@ test("an unresolvable owner fails only its own rows — the step never throws ou
   const db = await freshDb();
   const first = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
 
   first.port.script({ ok: true, instance: instanceWithPage("atlas") });
   const installed = await first.service.install({ caller, bundle: makeBundle({ id: "card-atlas" }), grant: [] });
@@ -200,7 +200,7 @@ test("an unresolvable owner fails only its own rows — the step never throws ou
 
   const second = restart(db, first);
   // The resolver rejects for every id — a users-row read that failed at boot.
-  const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor() });
+  const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(db) });
 
   expect(report).toEqual({ restored: 0, failed: 1 });
   expect(second.port.created).toEqual([]);
@@ -211,7 +211,7 @@ test("a missing bundle asset lands the row errored with one log line; a non-acti
   const db = await freshDb();
   const first = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   first.port.script({ ok: true, instance: instanceWithPage("atlas") });
   const installed = await first.service.install({ caller, bundle: makeBundle({ id: "card-atlas", capabilities: ["ui.surface"] }), grant: ["ui.surface"] });
   await first.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
@@ -222,7 +222,7 @@ test("a missing bundle asset lands the row errored with one log line; a non-acti
   const errorSpy = vi.spyOn(logger, "error");
   const lineCount = (): number => warnSpy.mock.calls.length + errorSpy.mock.calls.length;
   try {
-    const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(owner) });
+    const report = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(db, owner) });
     expect(report).toEqual({ restored: 0, failed: 1 });
     const row = (await db.select().from(plugins).where(eq(plugins.id, installed.id)))[0];
     expect(row?.status).toBe("errored");
@@ -233,7 +233,7 @@ test("a missing bundle asset lands the row errored with one log line; a non-acti
     // A throw outside activation (the principal cannot be resolved) is logged once, by boot.
     await db.update(plugins).set({ status: "enabled" }).where(eq(plugins.id, installed.id));
     const before = lineCount();
-    const refused = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor() });
+    const refused = await reactivatePluginsOnBoot({ db, setEnabled: second.service.setEnabled, resolvePrincipal: resolverFor(db) });
     expect(refused).toEqual({ restored: 0, failed: 1 });
     expect(lineCount() - before).toBe(1);
   } finally {

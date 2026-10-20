@@ -7,7 +7,11 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { readCardDistillTargets, readOwnedCardDisplay } from "#server/domain/discovery/persistence/card-reads.ts";
+import { everyOwnerAuthority } from "../../workloads/_support.ts";
 import { seedAsset, seedCharacter, seedUser } from "../_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 describe("readCardDistillTargets", () => {
   test("reads non-synthetic cards, composes the card text, and excludes synthetic group characters", async () => {
@@ -21,7 +25,7 @@ describe("readCardDistillTargets", () => {
     });
     await seedCharacter(db, { id: "character_group", ownerId: owner, synthetic: true });
 
-    const targets = await readCardDistillTargets(db);
+    const targets = await readCardDistillTargets(db, EVERY_OWNER.runScope);
     expect(targets).toHaveLength(1);
     expect(targets[0]?.characterId).toBe(real);
     expect(targets[0]?.ownerId).toBe(owner);

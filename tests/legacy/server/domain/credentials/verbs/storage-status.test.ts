@@ -59,7 +59,8 @@ describe("credentials/storageStatus", () => {
     const ctx = ctxWithBox(false);
     expect(await createStorageStatus(ctx)()).toEqual({ enabled: false });
     const { createAdd } = await import("#server/domain/credentials/verbs/add.ts");
-    const attempt = (): Promise<unknown> => createAdd(ctx)({ principal: makePrincipal(castId<UserId>("user_probe")), provider: "openrouter", key: "sk-probe" });
+    const attempt = async (): Promise<unknown> =>
+      createAdd(ctx)({ principal: await makePrincipal({ db: ctx.db }, castId<UserId>("user_probe")), provider: "openrouter", key: "sk-probe" });
     await expect(attempt()).rejects.toBeInstanceOf(DomainOperationError);
     await expect(attempt()).rejects.toMatchObject({ code: CREDENTIALS_OP_CODES.disabled });
   });

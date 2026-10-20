@@ -14,15 +14,15 @@ test("a disabled plugin (no resident instance) has an empty log", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
-  expect(await h.service.getLog({ caller: ownerPrincipalFor(owner), pluginId: installed.id })).toEqual([]);
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "mood" }), grant: [] });
+  expect(await h.service.getLog({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id })).toEqual([]);
 });
 
 test("a missing/foreign plugin is a leak-free NotFound", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  await expect(h.service.getLog({ caller: ownerPrincipalFor(owner), pluginId: castId<PluginId>("plugin_missing") })).rejects.toBeInstanceOf(
+  await expect(h.service.getLog({ caller: await ownerPrincipalFor(db, owner), pluginId: castId<PluginId>("plugin_missing") })).rejects.toBeInstanceOf(
     PluginNotFoundError,
   );
 });

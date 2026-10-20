@@ -28,8 +28,8 @@ test("R1: the extraction schema carries the roster-ref enum + the system prompt 
   const { chatId, hostId } = await seedHostGameChat(db, "r1-enum-summ");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
@@ -50,8 +50,8 @@ test("R1: the ref enum reaches the agent-sdk chat arm too (portable — same sha
   const { chatId, hostId } = await seedHostGameChat(db, "r1-enum-agent");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
@@ -72,8 +72,8 @@ test("row 27: the BE THOROUGH guide rides the STRUCTURED extraction's system pro
   const { chatId, hostId } = await seedHostGameChat(db, "row27-structured");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this drives the DEDICATED round (structured on the agent-sdk wire)
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" }); // born folded — this drives the DEDICATED round (structured on the agent-sdk wire)
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
@@ -93,8 +93,8 @@ test("row 27: the guide rides the CHEAP TOOL ROUND's system prompt too — the s
     cannedText: "{}",
     cannedToolCalls: [{ name: "update_scene", arguments: JSON.stringify({ recentEvent: "arrived at the tower" }) }],
   });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
@@ -113,8 +113,8 @@ test("RPG-SIGNAL: the state round threads its cancellation onto the STRUCTURED d
   const { chatId, hostId } = await seedHostGameChat(db, "sig-structured");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
 
   // A `chat-completions` turn connection takes the `structured` dispatcher arm.
@@ -129,8 +129,8 @@ test("RPG-SIGNAL: the agent-sdk chat arm carries it too (the degrade is cancelab
   const { chatId, hostId } = await seedHostGameChat(db, "sig-agentsdk");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
@@ -142,8 +142,8 @@ test("RPG-SIGNAL: a round entered ALREADY CANCELLED makes ZERO provider calls (n
   const { chatId, hostId } = await seedHostGameChat(db, "sig-preflight");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
 
   const turn = new AbortController();
@@ -206,8 +206,8 @@ test("the extraction format states its schema AS PROJECTED and nothing else — 
   const { chatId, hostId } = await seedHostGameChat(db, "d126-floor");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
@@ -227,8 +227,8 @@ test("the extraction rail states only the schema on either arm — no strict, no
   const chatSpy = emptySpy();
   const { chatId, hostId } = await seedHostGameChat(db, "vehicle-chat");
   const chatCompose = buildCannedRpg(app, db, "agent-sdk", chatSpy);
-  await chatCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await chatCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await chatCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await chatCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The host acts." });
   await chatCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
   expect(chatSpy.formatKeys).toEqual([["name", "schema"]]);
@@ -239,9 +239,9 @@ test("the extraction rail states only the schema on either arm — no strict, no
   await seedParticipant(db, { chatId: populate.chatId, key: "vehicle_char", characterId, joinSeq: 1 });
   await seedMessage(db, populate.chatId, 1, { role: "assistant", content: "You meet Mira at the ford." });
   const structuredCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: structuredSpy, cannedText: JSON.stringify(CANNED_POPULATE) });
-  await structuredCompose.service.createGame({ principal: hostPrincipal(populate.hostId), chatId: populate.chatId, mode: "lite" });
+  await structuredCompose.service.createGame({ principal: await hostPrincipal(db, populate.hostId), chatId: populate.chatId, mode: "lite" });
   await structuredCompose.service.populateFromCharacter({
-    principal: hostPrincipal(populate.hostId),
+    principal: await hostPrincipal(db, populate.hostId),
     chatId: populate.chatId,
     actorRef: { kind: "character", characterId },
   });
@@ -257,8 +257,8 @@ test("F1 (room connection): the round runs on the TURN's connection (vllm), neve
   const { chatId, hostId } = await seedHostGameChat(db, "f1-room-conn");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // the fold is the BORN default — this test drives the dedicated round
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" }); // the fold is the BORN default — this test drives the dedicated round
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They cross the bridge." });
 
   const vllmTurn = tc("chat-completions", {
@@ -281,8 +281,8 @@ test("F2 (readonly gate): a turn connection with no writer capability fires NO s
   const { chatId, hostId } = await seedHostGameChat(db, "f2-readonly");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" }); // every mode needs `tools`
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" }); // every mode needs `tools`
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Nothing writable here." });
 
   // A connection that carries NO tools → every surviving mode is readonly (manual-steering). The flush must
@@ -312,8 +312,8 @@ test("§1.3 (window arm): the RECENT STORY block carries the turn's transcript, 
   const { chatId, hostId } = await seedHostGameChat(db, "wb-window");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" }); // born window (default)
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" }); // born window (default)
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "The dragon lunges." });
 
   const turn = tc("agent-sdk", {
@@ -342,9 +342,9 @@ test("§1.3 (beat arm): the request is BYTE-IDENTICAL to the pre-redesign shape 
   const { chatId, hostId } = await seedHostGameChat(db, "wb-beat");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, patch: { extractionContext: "beat" } });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, patch: { extractionContext: "beat" } });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They cross the bridge." });
 
   const turn = tc("agent-sdk", {
@@ -370,8 +370,8 @@ test("§1.6 (plane registry): the extraction system prompt teaches the newly-cov
   const { chatId, hostId } = await seedHostGameChat(db, "wb-registry");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A new act dawns." });
   await rpgCompose.chatOps.onTurnCompleted(
     chatId,

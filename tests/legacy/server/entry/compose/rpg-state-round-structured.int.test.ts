@@ -44,8 +44,8 @@ test("0511: a no-force structured row asks for the changes schema, and the recor
   const { chatId, hostId } = await seedHostGameChat(db, "sr-local");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: RECORDED_STATE_ROUND_REPLY });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Corvin's blade catches Mira's arm." });
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.local));
@@ -66,7 +66,7 @@ test("0511: a no-force structured row asks for the changes schema, and the recor
   const [record] = await findTurnToolCallsByVariant(db, variantId);
   expect(record?.calls.map((call) => call.name)).toEqual(["update_party", "update_inventory"]);
   expect(record?.failure).toBeNull();
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(JSON.stringify(view.actors)).toContain("Bleeding");
 });
 
@@ -79,8 +79,8 @@ test("0511: a structured `no_changes` reply writes nothing and records the quiet
     spy: emptySpy(),
     cannedText: JSON.stringify({ changes: [{ tool: "no_changes", args: {} }] }),
   });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They wait." });
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.local));
@@ -95,8 +95,8 @@ test("0511: a structured reply outside the schema fails LOUDLY — a durable fai
   const { chatId, hostId } = await seedHostGameChat(db, "sr-bad");
   const warn = vi.spyOn(logger, "warn");
   const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy: emptySpy(), cannedText: '{"changes": []}' });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Static." });
 
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, stateRoundTurn(STATE_ROUND_ROWS.local));
@@ -135,8 +135,8 @@ test("0511: Claude (5.5 and 4.x), OpenAI and plain tool rows send the forced too
       } as unknown as ChatResult);
     },
   });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   let seq = 1;
   for (const row of [STATE_ROUND_ROWS.claudeNoForce, STATE_ROUND_ROWS.claudeForced, STATE_ROUND_ROWS.openai]) {
     const { messageId, variantId } = await seedMessage(db, chatId, seq, { role: "assistant", content: "They arrive." });
@@ -162,8 +162,8 @@ test("0511: the folded mount on a Claude 5.5 row is byte-identical to main", asy
     cannedText: "{}",
     capability: STATE_ROUND_ROWS.claudeNoForce,
   });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "folded" });
 
   const folded = await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: hostId });
 
@@ -189,7 +189,7 @@ test("0511: a downgraded Claude 5.5 round that comes back EMPTY is retried once 
   expect(JSON.stringify(spy.schemas[0])).toContain('"plane"');
   expect(spy.systemPrompts[1]).toContain(resolveProseText("rpg.extract.patchRoundFrame", {}));
   expect(spy.systemPrompts[1]).toContain("fields: location");
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient?.location).toBe("cave by the river");
   const [record] = await findTurnToolCallsByVariant(db, variantId);
   expect(record?.calls.map((call) => call.name)).toEqual(["update_party", "update_scene", "add_journal_entry"]);
@@ -264,7 +264,7 @@ test("0511: the `tools` knob keeps a no-force local row on its tool round; `stru
 
 test("0511: a host resync on a downgraded Claude 5.5 row that comes back empty takes the same patch-list retry", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "fb-resync");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const spy = emptySpy();
   const compose = buildCannedRpgWithText({
     app,
@@ -282,5 +282,5 @@ test("0511: a host resync on a downgraded Claude 5.5 row that comes back empty t
   expect(verdict.ok).toBe(true);
   expect(spy.chatTurns).toHaveLength(1);
   expect(spy.formatKeys).toEqual([["name", "schema"]]);
-  expect((await panelState(compose, hostId, chatId)).location).toBe("cave by the river");
+  expect((await panelState(db, compose, hostId, chatId)).location).toBe("cave by the river");
 });

@@ -28,7 +28,6 @@ beforeEach(async () => {
 });
 
 const MIRA = { kind: "npc", npcKey: "mira" } as const;
-const HOST = principal(castId<Handle>("host"));
 
 interface Seeded {
   chatId: ChatId;
@@ -41,7 +40,7 @@ async function seedGame(over: Parameters<typeof makeRpgService>[1] = {}): Promis
   const chatId = await seedChat(db, "a");
   const h = makeRpgService(db, over);
   h.fakes.membership.set("user_host", "host");
-  await h.service.createGame({ principal: HOST, chatId, mode: "lite" });
+  await h.service.createGame({ principal: await principal(db, castId<Handle>("host")), chatId, mode: "lite" });
   const game = await findGameByChat(db, chatId);
   if (!game) {
     throw new Error("no game");
@@ -58,7 +57,7 @@ async function miraRow(game: RpgGameRow, chatId: ChatId): Promise<RpgSnapshotSta
 test("the ops land on a MINTED row — a first hand edit on an actor with no state row is a real write", async () => {
   const { chatId, game, service } = await seedGame();
   const written = await service.patchActor({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     targetRef: MIRA,
     ops: [
@@ -85,7 +84,7 @@ test("the ops land on a MINTED row — a first hand edit on an actor with no sta
 test("each op stamps its OWN fine lock path — never the coarse `actorState` plane key", async () => {
   const { chatId, game, service } = await seedGame();
   await service.patchActor({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     targetRef: MIRA,
     ops: [
@@ -122,7 +121,12 @@ async function packIds(game: RpgGameRow, chatId: ChatId): Promise<readonly strin
 
 test("#78: a hand ADD pins ONLY the fields it claimed, on the item it added — never the whole pack", async () => {
   const { chatId, game, service } = await seedGame();
-  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "addItem", item: { name: "Bone key", location: "belt pouch" } }] });
+  await service.patchActor({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    targetRef: MIRA,
+    ops: [{ op: "addItem", item: { name: "Bone key", location: "belt pouch" } }],
+  });
 
   const [itemId] = await packIds(game, chatId);
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
@@ -138,7 +142,7 @@ test("#78: a hand ADD pins ONLY the fields it claimed, on the item it added — 
 test("#78: a hand PATCH pins the patched fields of THAT item — a sibling item earns no pin at all", async () => {
   const { chatId, game, service } = await seedGame();
   await service.patchActor({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     targetRef: MIRA,
     ops: [
@@ -148,7 +152,12 @@ test("#78: a hand PATCH pins the patched fields of THAT item — a sibling item 
     autoLock: false,
   });
   const [keyId, ropeId] = await packIds(game, chatId);
-  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "patchItem", id: keyId ?? "", patch: { quantity: 3 } }] });
+  await service.patchActor({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    targetRef: MIRA,
+    ops: [{ op: "patchItem", id: keyId ?? "", patch: { quantity: 3 } }],
+  });
 
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   expect(snap?.fieldLocks).toStrictEqual({ [`actorState.npc:mira.volatile.inventory.${keyId}.quantity`]: true });
@@ -158,7 +167,7 @@ test("#78: a hand PATCH pins the patched fields of THAT item — a sibling item 
 test("#78: dropping an item RELEASES its pins — a removed element leaves no ghost lock (the symmetric grammar)", async () => {
   const { chatId, game, service } = await seedGame();
   await service.patchActor({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     targetRef: MIRA,
     ops: [
@@ -167,7 +176,7 @@ test("#78: dropping an item RELEASES its pins — a removed element leaves no gh
     ],
   });
   const [keyId, ropeId] = await packIds(game, chatId);
-  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "removeItem", id: keyId ?? "" }] });
+  await service.patchActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: MIRA, ops: [{ op: "removeItem", id: keyId ?? "" }] });
 
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   // The dropped item's pins are gone; the surviving item keeps its own (the `deleteQuest`/`dismissActor`
@@ -177,10 +186,22 @@ test("#78: dropping an item RELEASES its pins — a removed element leaves no gh
 
 test("`autoLock:false` stamps NOTHING — the model-unreachable field (an item icon) pins no story write", async () => {
   const { chatId, game, service } = await seedGame();
-  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "addItem", item: { name: "Bone key" } }], autoLock: false });
+  await service.patchActor({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    targetRef: MIRA,
+    ops: [{ op: "addItem", item: { name: "Bone key" } }],
+    autoLock: false,
+  });
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   const itemId = (snap?.actorState ?? [])[0]?.volatile.inventory[0]?.id ?? "";
-  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "patchItem", id: itemId, patch: { icon: "key" } }], autoLock: false });
+  await service.patchActor({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    targetRef: MIRA,
+    ops: [{ op: "patchItem", id: itemId, patch: { icon: "key" } }],
+    autoLock: false,
+  });
 
   const after = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   expect((after?.actorState ?? [])[0]?.volatile.inventory[0]?.icon).toBe("key");
@@ -190,7 +211,7 @@ test("`autoLock:false` stamps NOTHING — the model-unreachable field (an item i
 test("ops apply IN ORDER against one another (the batch is a sequence, not a set)", async () => {
   const { chatId, game, service } = await seedGame();
   await service.patchActor({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     targetRef: MIRA,
     ops: [
@@ -209,12 +230,17 @@ test("ops apply IN ORDER against one another (the batch is a sequence, not a set
 test("a write on ONE actor leaves every other actor's row untouched (the additive plane, through the op door)", async () => {
   const { chatId, game, service } = await seedGame();
   await service.patchActor({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     targetRef: { kind: "npc", npcKey: "thorn" },
     ops: [{ op: "setWalletAmount", name: "gold", amount: 45 }],
   });
-  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "setTracker", key: "trust", value: { value: 4 } }] });
+  await service.patchActor({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    targetRef: MIRA,
+    ops: [{ op: "setTracker", key: "trust", value: { value: 4 } }],
+  });
 
   const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
   const byKey = new Map((snap?.actorState ?? []).map((a) => [a.actorRef.kind === "npc" ? a.actorRef.npcKey : "", a]));
@@ -224,11 +250,16 @@ test("a write on ONE actor leaves every other actor's row untouched (the additiv
 
 test("an op naming a datum the actor does not carry is ERRORS-AS-DATA — no write, no slot, no bus event", async () => {
   const { chatId, game, service, fakes } = await seedGame();
-  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "setStatus", status: "wary" }] });
+  await service.patchActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: MIRA, ops: [{ op: "setStatus", status: "wary" }] });
   const slotsBefore = fakes.narratorPosts.length;
   const eventsBefore = fakes.busEvents.length;
 
-  const refused = await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "removeItem", id: "itm-ghost" }] });
+  const refused = await service.patchActor({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    targetRef: MIRA,
+    ops: [{ op: "removeItem", id: "itm-ghost" }],
+  });
   expect(refused.ok).toBe(false);
   expect(refused.ok === false && refused.reason).toContain("itm-ghost");
 
@@ -240,10 +271,10 @@ test("an op naming a datum the actor does not carry is ERRORS-AS-DATA — no wri
 
 test("a refused op in the MIDDLE of a batch rolls the whole batch back (all of it or none of it)", async () => {
   const { chatId, game, service } = await seedGame();
-  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "setStatus", status: "wary" }] });
+  await service.patchActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: MIRA, ops: [{ op: "setStatus", status: "wary" }] });
 
   const refused = await service.patchActor({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     targetRef: MIRA,
     ops: [
@@ -290,7 +321,7 @@ test("a model flush landing between the panel's READ and the hand's WRITE surviv
   // under test stamps are the only ones in play (a `…status` pin would legitimately block the flush's status
   // write — that is manual-edit-wins doing its job, and it is not the race this test is about).
   await service.patchActor({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     targetRef: MIRA,
     ops: [
@@ -310,7 +341,12 @@ test("a model flush landing between the panel's READ and the hand's WRITE surviv
   expect((await miraRow(game, chatId))?.volatile.status).toBe("bleeding badly");
 
   // t2 — the host, still looking at the t0 panel, edits the ONE datum they touched: trust 4 → 7.
-  await service.patchActor({ principal: HOST, chatId, targetRef: MIRA, ops: [{ op: "setTracker", key: "trust", value: { value: 7 } }] });
+  await service.patchActor({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    targetRef: MIRA,
+    ops: [{ op: "setTracker", key: "trust", value: { value: 7 } }],
+  });
 
   const after = await miraRow(game, chatId);
   expect(after?.volatile.trackerValues["trust"]?.value).toBe(7); // the human's datum landed

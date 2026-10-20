@@ -19,7 +19,7 @@ describe("importTheme", () => {
     const h = makeHarness(db);
     const ctx = createSettingsContext(h.deps);
     const owner = await seedUser(db, { id: "user_owner" });
-    const p = principal(owner, "user");
+    const p = await principal(db, owner, "user");
 
     const bytes = buildThemeBackup({
       themes: [
@@ -61,7 +61,7 @@ describe("importTheme", () => {
     const h = makeHarness(db);
     const ctx = createSettingsContext(h.deps);
     const owner = await seedUser(db, { id: "user_owner" });
-    const p = principal(owner, "user");
+    const p = await principal(db, owner, "user");
 
     await createImportTheme(ctx)(owner, buildThemeBackup({ themes: [{ name: "Mine", override: { accent: "#111111" }, css: null }] }));
     const outcome = await createImportTheme(ctx)(owner, buildThemeBackup({ themes: [{ name: "Mine", override: { accent: "#222222" }, css: null }] }));
@@ -88,7 +88,7 @@ describe("importTheme", () => {
     expect(result.ok).toBe(true);
     expect(result.created).toBe(true);
 
-    const view = (await h.svc.listThemes({ principal: principal(owner, "user") })).find((v) => v.name === "Risky");
+    const view = (await h.svc.listThemes({ principal: await principal(db, owner, "user") })).find((v) => v.name === "Risky");
     expect(view?.css).toBeNull(); // unsafe CSS dropped
     expect(view?.override).toEqual({ accent: "#123456" }); // palette preserved
   });
@@ -103,7 +103,7 @@ describe("importTheme", () => {
     const result = await createImportTheme(ctx)(owner, ENC.encode(stTheme), "Night Dock");
 
     expect(result).toEqual({ ok: true, created: true, landed: [{ name: "Night Dock (SillyTavern)", renamedFrom: null, created: true }] });
-    const view = (await h.svc.listThemes({ principal: principal(owner, "user") })).find((v) => v.name === "Night Dock (SillyTavern)");
+    const view = (await h.svc.listThemes({ principal: await principal(db, owner, "user") })).find((v) => v.name === "Night Dock (SillyTavern)");
     expect(view?.override.background).toMatch(/^oklch\(/u);
     expect(view?.override.bodyColor).toMatch(/^oklch\(/u);
   });
@@ -121,6 +121,6 @@ describe("importTheme", () => {
     const blank = await createImportTheme(ctx)(owner, ENC.encode('{"name":"Nothing","chat_width":50}'));
     expect(blank.ok).toBe(false);
     expect(blank.error).toContain("no base surface colour");
-    expect((await h.svc.listThemes({ principal: principal(owner, "user") })).filter((v) => !v.isSeed)).toHaveLength(0);
+    expect((await h.svc.listThemes({ principal: await principal(db, owner, "user") })).filter((v) => !v.isSeed)).toHaveLength(0);
   });
 });

@@ -11,10 +11,12 @@ import type {
   RelayStatus,
   UserRole,
 } from "@orb/contracts/identity";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { Db } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { requireAdmin, requireOwner } from "#server/domain/admin/index.ts";
 import type { ShareService } from "#server/domain/share/index.ts";
 import { createShareService } from "#server/domain/share/index.ts";
@@ -27,16 +29,20 @@ export const LIVE_SOCKETS = 3;
 // The owner's own tabs, which the box-wide count includes and the card must not.
 const OWNER_SOCKETS = 2;
 
-export function caller(role: UserRole): Principal {
-  const userId = castId<UserId>(`user_${role}`);
-  return { userId, role, handle: castId<Handle>(`${role}`), externalId: null, via: "cookie" };
+function callerId(role: UserRole): UserId {
+  return castId<UserId>(`user_${role}`);
+}
+
+/** The Principal of the account holding `role`; the role is written onto its row before it resolves. */
+export async function caller(db: Db, role: UserRole): Promise<Principal> {
+  return await makePrincipal({ db }, callerId(role), { role });
 }
 
 function liveSocketCount(userId?: UserId): number {
   if (userId === undefined) {
     return LIVE_SOCKETS + OWNER_SOCKETS;
   }
-  return userId === caller("owner").userId ? OWNER_SOCKETS : 0;
+  return userId === callerId("owner") ? OWNER_SOCKETS : 0;
 }
 
 export interface ShareHarness {

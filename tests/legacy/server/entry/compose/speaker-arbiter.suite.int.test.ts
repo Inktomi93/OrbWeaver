@@ -43,7 +43,7 @@ async function runSmart(
   { app, db, services, requests, clock }: Pick<Fixtures, "app" | "db" | "services" | "clock"> & { readonly requests: RecordedRequest[] },
 ): Promise<SmartExecution> {
   const owner = await seedUser(db, { handle: castId("smart_accounting") });
-  const who = principal(owner.id, { handle: owner.handle });
+  const who = await principal({ db }, owner.id, { handle: owner.handle });
   await services.settings.updateUserSettingsSection({ principal: who, input: { section: "memory", patch: { enabled: false } } });
   const connectionId = mintTypeId(ID_PREFIX.userConnection);
   await db.insert(userConnections).values({

@@ -4,6 +4,7 @@
 import type { ChatResult, Resolved } from "@orb/inference";
 import { createInferenceRuntime } from "@orb/inference";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createReachabilityProber } from "#inference/backends/openai-compat/reachability.ts";
@@ -81,7 +82,7 @@ function engine(sleeping: boolean): Engine {
 
 interface BoundEngine {
   readonly runtime: Awaited<ReturnType<typeof createInferenceRuntime>>;
-  readonly asker: ReturnType<typeof principal>;
+  readonly asker: Awaited<ReturnType<typeof principal>>;
   readonly turn: (signal?: AbortSignal) => Promise<ChatResult>;
   readonly resolved: Resolved<"chat">;
 }
@@ -93,6 +94,7 @@ interface BindOptions {
 }
 
 async function boundEngine(eng: Engine, options: BindOptions = {}): Promise<BoundEngine> {
+  const db = await freshDb();
   const { now, providerId = "vllm", baseUrl = BASE_URL } = options;
   const stores = memoryStores();
   const ownerId = newUserId();
@@ -100,7 +102,7 @@ async function boundEngine(eng: Engine, options: BindOptions = {}): Promise<Boun
   stores.connections.rows.set(row.id, row);
   stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "chat", connectionId: row.id });
   const runtime = await createInferenceRuntime({ ...fakeDeps({ stores, fetch: eng.fetch }), ...(now === undefined ? {} : { now }) });
-  const asker = principal(ownerId);
+  const asker = await principal({ db }, ownerId);
   const { resolved } = await runtime.resolve({ task: "chat", principal: asker });
   if (!isChat(resolved)) {
     throw new Error("expected a chat resolve");

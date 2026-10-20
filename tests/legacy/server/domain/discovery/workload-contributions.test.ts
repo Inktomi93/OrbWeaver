@@ -13,11 +13,15 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { DiscoveryWorkloadDeps } from "#server/domain/discovery/contract/service.ts";
 import { createDiscoveryWorkloadContributions } from "#server/domain/discovery/workload-contributions.ts";
+import { everyOwnerAuthority } from "../workloads/_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 const OWNER_ID = castId<UserId>("user_owner");
 const T0 = 1_700_000_000_000;
 
-const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, now: () => T0 };
+const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, funderUserId: OWNER_ID, now: () => T0 };
 const sig = (): AbortSignal => new AbortController().signal;
 
 type Discovery = DiscoveryWorkloadDeps["discovery"];
@@ -146,7 +150,7 @@ describe("compute-themes", () => {
     const { discovery, contributions } = build(withKnobs({ computeThemesK: 7 }));
     await expect(contributions[0].modelCalls?.({ ownerId: OWNER_ID, funderUserId: OWNER_ID, params: {} })).resolves.toBe(THEME_NAME_CALLS);
     expect(discovery.countThemeNameCalls).toHaveBeenLastCalledWith({ ownerId: OWNER_ID, k: 7 });
-    await contributions[0].modelCalls?.({ ownerId: null, funderUserId: OWNER_ID, params: { k: 3 } });
+    await contributions[0].modelCalls?.({ ...EVERY_OWNER.estimate, funderUserId: OWNER_ID, params: { k: 3 } });
     expect(discovery.countThemeNameCalls).toHaveBeenLastCalledWith({ ownerId: null, k: 3 });
     expect(discovery.computeThemes).not.toHaveBeenCalled();
   });
@@ -196,7 +200,7 @@ describe("compute-themes", () => {
 describe("distill-characters", () => {
   test("the call estimate counts the run's own scope and never runs the pass", async () => {
     const { discovery, contributions } = build();
-    await expect(contributions[1].modelCalls?.({ ownerId: null, funderUserId: OWNER_ID, params: {} })).resolves.toBe(DISTILL_CALLS);
+    await expect(contributions[1].modelCalls?.({ ...EVERY_OWNER.estimate, funderUserId: OWNER_ID, params: {} })).resolves.toBe(DISTILL_CALLS);
     expect(discovery.countDistillCalls).toHaveBeenCalledWith(null);
     expect(discovery.distillCharacters).not.toHaveBeenCalled();
   });
@@ -210,7 +214,7 @@ describe("distill-characters", () => {
 
   test("a BULK row (ownerId null) OMITS ownerId so the verb sweeps every owner", async () => {
     const { discovery, contributions } = build();
-    await contributions[1].run({ ...ctx, ownerId: null }, {}, vi.fn(), sig());
+    await contributions[1].run({ ...ctx, ...EVERY_OWNER.runScope }, {}, vi.fn(), sig());
     const arg = vi.mocked(discovery.distillCharacters).mock.calls[0]?.[0];
     expect(arg).not.toHaveProperty("ownerId");
   });
@@ -395,7 +399,7 @@ describe("the corpusRecomputed terminal fan", () => {
 
   test("a BULK pass (ownerId null) fans PER OWNER — a user-bus event reaches exactly one channel", async () => {
     const { contributions, userEvents } = build();
-    await contributions[0].run({ ...ctx, ownerId: null }, {}, vi.fn(), sig());
+    await contributions[0].run({ ...ctx, ...EVERY_OWNER.runScope }, {}, vi.fn(), sig());
     // Not one event for the pass, and NOT to `ctx.userId` (the triggering admin): a box-wide recompute
     // rewrites every owner's analytics, and anyone not told stays frozen until gcTime evicts.
     expect(userEvents).toEqual(BULK_OWNERS.map((userId) => ({ userId, event: { type: "corpusRecomputed" } })));
@@ -442,7 +446,7 @@ describe("compute-cooccurrence — the owner belt (#1397)", () => {
 
   test("a BULK row (ownerId null) forwards NULL — the all-owners mode stays reachable, on purpose only", async () => {
     const { discovery, contributions } = build();
-    await contributions[2].run({ ...ctx, ownerId: null }, {}, vi.fn(), sig());
+    await contributions[2].run({ ...ctx, ...EVERY_OWNER.runScope }, {}, vi.fn(), sig());
     expect(discovery.computeCooccurrence).toHaveBeenCalledWith(expect.objectContaining({ ownerId: null }));
   });
 });

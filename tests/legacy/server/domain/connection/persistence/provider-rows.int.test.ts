@@ -43,7 +43,7 @@ async function installedPlugin(
   userName: string,
 ): Promise<{ readonly pluginId: PluginId; readonly ownerId: UserId }> {
   const ownerId = await seedUser(db, { handle: castId<Handle>(userName) });
-  const caller = principalFor(ownerId);
+  const caller = await principalFor(db, ownerId);
   const installed = await harness.service.install({ caller, bundle: makeBundle({ id: "test-plugin", providers: [PLUGIN_ACME] }), grant: [] });
   await harness.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
   return { pluginId: installed.id, ownerId };
@@ -118,10 +118,10 @@ describe("plugin claims", () => {
     expect(await listProviderRows(db)).toEqual({ rows: [], installs: [{ ownerId, row: PLUGIN_ACME }] });
     expect(await db.select().from(providerRows)).toHaveLength(1);
 
-    await harness.service.uninstall({ caller: principalFor(ownerId), pluginId });
+    await harness.service.uninstall({ caller: await principalFor(db, ownerId), pluginId });
     const [tombstone] = await db.select().from(pluginProviderClaims).where(eq(pluginProviderClaims.ownerId, ownerId));
     expect(tombstone?.pluginId).toBeNull();
-    const reinstalled = await harness.service.install({ caller: principalFor(ownerId), bundle: makeBundle({ id: "test-plugin" }), grant: [] });
+    const reinstalled = await harness.service.install({ caller: await principalFor(db, ownerId), bundle: makeBundle({ id: "test-plugin" }), grant: [] });
     expect(await replacePluginProviderRows(db, [OTHER_ACME], reinstalled.id, FROZEN_AT_MS + 2)).toEqual({ ok: false, conflictingId: PLUGIN_PROVIDER_ID });
   });
 
@@ -129,8 +129,8 @@ describe("plugin claims", () => {
     const db = await freshDb();
     const harness = makePluginHarness(db);
     const { pluginId, ownerId } = await installedPlugin(db, harness, "user_owner");
-    const second = await harness.service.install({ caller: principalFor(ownerId), bundle: makeBundle({ id: "second-plugin" }), grant: [] });
-    await harness.service.setEnabled({ caller: principalFor(ownerId), pluginId: second.id, enabled: true });
+    const second = await harness.service.install({ caller: await principalFor(db, ownerId), bundle: makeBundle({ id: "second-plugin" }), grant: [] });
+    await harness.service.setEnabled({ caller: await principalFor(db, ownerId), pluginId: second.id, enabled: true });
 
     const outcomes = await Promise.all([
       replacePluginProviderRows(db, [PLUGIN_ACME], pluginId, FROZEN_AT_MS),
@@ -146,7 +146,7 @@ describe("plugin claims", () => {
     const harness = makePluginHarness(db);
     const { pluginId, ownerId } = await installedPlugin(db, harness, "user_owner");
     await replacePluginProviderRows(db, [PLUGIN_ACME], pluginId, FROZEN_AT_MS);
-    await harness.service.setEnabled({ caller: principalFor(ownerId), pluginId, enabled: false });
+    await harness.service.setEnabled({ caller: await principalFor(db, ownerId), pluginId, enabled: false });
     expect(await listProviderRows(db)).toEqual({ rows: [], installs: [] });
     const [claim] = await db.select().from(pluginProviderClaims);
     expect(claim?.pluginId).toBeNull();

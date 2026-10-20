@@ -2,11 +2,13 @@
 // provider's original failure while the credential strike-out runs.
 
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, ProviderError } from "@orb/inference";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { fakeConnection, fakeDeps, fakeModelCache, memoryStores, newUserId } from "../_support.ts";
 
 test("one role-client bundle re-reads a changed binding on the next call", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const first = fakeConnection({ ownerId, providerId: "local-light", model: DEFAULT_EMBED_MODEL, allowBackground: true });
@@ -22,7 +24,7 @@ test("one role-client bundle re-reads a changed binding on the next call", async
   stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "embed", connectionId: first.id });
   const cache = fakeModelCache();
   const runtime = await createInferenceRuntime({ ...fakeDeps({ stores }), localLight: { cache } });
-  const clients = runtime.roleClientsFor(principal(ownerId));
+  const clients = runtime.roleClientsFor(await principal({ db }, ownerId));
 
   expect((await clients.embed("first")).model).toBe(`${DEFAULT_EMBED_MODEL}@q8`);
   stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "embed", connectionId: second.id });
@@ -31,6 +33,7 @@ test("one role-client bundle re-reads a changed binding on the next call", async
 });
 
 test("rerank forwards the instruction and preserves caller ids through the real backend", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "local-light", model: DEFAULT_RERANK_MODEL, allowBackground: true });
@@ -47,7 +50,7 @@ test("rerank forwards the instruction and preserves caller ids through the real 
   };
   const runtime = await createInferenceRuntime({ ...fakeDeps({ stores }), localLight: { cache } });
 
-  const result = await runtime.roleClientsFor(principal(ownerId)).rerank(
+  const result = await runtime.roleClientsFor(await principal({ db }, ownerId)).rerank(
     "needle",
     [
       { id: "a", text: "short" },
@@ -62,6 +65,7 @@ test("rerank forwards the instruction and preserves caller ids through the real 
 });
 
 test("a wrapped provider failure is rethrown unchanged after strike-out", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "local-light", model: DEFAULT_EMBED_MODEL, allowBackground: true });
@@ -82,7 +86,7 @@ test("a wrapped provider failure is rethrown unchanged after strike-out", async 
   };
   const runtime = await createInferenceRuntime(deps);
 
-  await expect(runtime.roleClientsFor(principal(ownerId)).embed("hello")).rejects.toBe(wrapper);
+  await expect(runtime.roleClientsFor(await principal({ db }, ownerId)).embed("hello")).rejects.toBe(wrapper);
   expect(strikes).toEqual([{ ownerId, credentialId: null, errorKind: "auth_failed", errorMessage: "bad credential" }]);
 });
 
@@ -90,6 +94,7 @@ test("a wrapped provider failure is rethrown unchanged after strike-out", async 
 // are the background path, so a row with `allowBackground` off is refused BEFORE any provider call, in the
 // same "nothing ran" class as no binding at all — never silently spent.
 test("a background role call on a row that disallows background work runs nothing and reads as no connection", async () => {
+  const db = await freshDb();
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "local-light", model: DEFAULT_EMBED_MODEL, allowBackground: false });
@@ -97,7 +102,7 @@ test("a background role call on a row that disallows background work runs nothin
   stores.bindings.bind({ actorKind: "user", actorId: ownerId, task: "embed", connectionId: row.id });
   const cache = fakeModelCache();
   const runtime = await createInferenceRuntime({ ...fakeDeps({ stores }), localLight: { cache } });
-  const clients = runtime.roleClientsFor(principal(ownerId));
+  const clients = runtime.roleClientsFor(await principal({ db }, ownerId));
 
   await expect(clients.embed("text")).rejects.toMatchObject({ name: "NoConnectionError", message: expect.stringContaining("background") });
   expect(

@@ -8,12 +8,23 @@
 import type { Principal, UserRole } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
-import type { WorkloadKind, WorkloadLane, WorkloadMode, WorkloadStatus } from "@orb/contracts/workloads";
+import type {
+  StartWorkloadInput,
+  WorkloadEstimateScope,
+  WorkloadKind,
+  WorkloadLane,
+  WorkloadMode,
+  WorkloadRunContext,
+  WorkloadRunScope,
+  WorkloadStatus,
+} from "@orb/contracts/workloads";
 import type { Db } from "@orb/db";
 import { workloads } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { vi } from "vitest";
@@ -21,6 +32,7 @@ import { isAdmin, isOwner, requireOwner } from "#server/domain/admin/guard.ts";
 import type { WorkloadContribution, WorkloadContributions } from "#server/domain/workloads/contract/contribution.ts";
 import type { WorkloadRunnerAssemblyDeps, WorkloadService } from "#server/domain/workloads/contract/service.ts";
 import type { WorkloadRunnableRow } from "#server/domain/workloads/contract/workload-row.ts";
+import { runWorkload } from "#server/domain/workloads/index.ts";
 import { loadWorkload } from "#server/domain/workloads/persistence/queries.ts";
 import { createWorkloadService } from "#server/domain/workloads/service.ts";
 import { buildWorkloadContributions } from "#server/entry/compose/workload-contributions.ts";
@@ -99,6 +111,7 @@ export function fakeContributions(opts: { readonly memoryEnabled?: boolean } = {
       resolveUtilityPresetParams: stub(undefined),
       resolveUserProse: stub({}),
       listRefineryScoreTargets: stub({ targets: [], inScope: 0 }),
+      countRefineryScoreTargets: stub(0),
       stampRefinerySignals: stub(undefined),
       emitUserEvent: () => undefined,
     },
@@ -151,16 +164,10 @@ export async function seedUser(db: Db, id = "user_owner", role: UserRole = "user
   return seeded.id;
 }
 
-/** A test `Principal` — the F3 authz subject the verbs gate on. `role` picks the global-role axis
+/** The F3 authz subject the verbs gate on, resolved from its row. A passed `role` is first written onto that row
  *  (`user` = a plain caller scoped to its own workloads; `admin`/`owner` = the deployment-wide apex). */
-export function principal(id: string, role: UserRole = "user"): Principal {
-  return {
-    userId: castId<UserId>(id),
-    role,
-    handle: castId<Handle>(id),
-    externalId: null,
-    via: "header",
-  };
+export async function principal(db: Db, id: string, role?: UserRole): Promise<Principal> {
+  return await makePrincipal({ db }, castId<UserId>(id), { role });
 }
 
 /** The base runner deps the engine builds a per-dispatch context from. Timers DISABLED (`*Ms: 0`) so the
@@ -229,4 +236,71 @@ export async function seedWorkloadRow(
     updatedAt: overrides.updatedAt ?? T0,
   });
   return id;
+}
+
+/** The every-owner authority a NULL-owner run carries, as the production doors hand it out. */
+export interface EveryOwnerAuthority {
+  /** The context the runner hands a claimed NULL-owner row: `ownerId` null with its run authority. */
+  readonly run: Extract<WorkloadRunContext, { readonly ownerId: null }>;
+  /** The same authority as a bare run scope, for a pass that takes only the scope. */
+  readonly runScope: Extract<WorkloadRunScope, { readonly ownerId: null }>;
+  /** The scope the estimate door hands a bulk count. */
+  readonly estimate: Extract<WorkloadEstimateScope, { readonly ownerId: null }>;
+}
+
+let everyOwner: Promise<EveryOwnerAuthority> | undefined;
+
+/**
+ * Every-owner authority captured from the production doors, never built: the box owner admits a bulk run, the real
+ * runner claims and executes that NULL-owner row, and the estimate verb counts the same bulk run. The capture rides
+ * the kind's own contribution, so the authority is exactly what a contribution receives. Shared across callers:
+ * the authority carries no row or database identity.
+ */
+export async function everyOwnerAuthority(): Promise<EveryOwnerAuthority> {
+  everyOwner ??= (async (): Promise<EveryOwnerAuthority> => {
+    const db = await freshDb();
+    const ownerId = await seedUser(db, "user_every_owner_admitter", "owner");
+    const owner = await principal(db, ownerId);
+    const base = fakeContributions();
+    const seen: { run?: EveryOwnerAuthority["run"]; estimate?: EveryOwnerAuthority["estimate"] } = {};
+    const contributions: WorkloadContributions = {
+      ...base,
+      csls: {
+        ...base.csls,
+        run: (ctx, params, report, signal) => {
+          if (ctx.ownerId === null) {
+            seen.run = ctx;
+          }
+          return base.csls.run(ctx, params, report, signal);
+        },
+        modelCalls: (scope) => {
+          if (scope.ownerId === null) {
+            seen.estimate = { ownerId: null, everyOwnerEstimate: scope.everyOwnerEstimate };
+          }
+          return Promise.resolve(0);
+        },
+      },
+    };
+    // The row read path validates TypeIDs, so this service mints real ones rather than makeService's sequential ids.
+    const service = createWorkloadService({
+      db: databaseHandle(db),
+      getContributions: () => contributions,
+      now: () => T0,
+      newWorkloadId: () => mintTypeId(ID_PREFIX.workload),
+      newScheduleId: () => mintTypeId(ID_PREFIX.workloadSchedule),
+      requireOwner,
+      isAdmin,
+      isOwner,
+      emitUserEvent: () => undefined,
+    });
+    const input = { kind: "csls", params: {} } satisfies StartWorkloadInput;
+    await service.estimateModelCalls({ caller: owner, mode: "bulk", input, assumeAdmitted: true });
+    const bulk = await service.start({ caller: owner, mode: "bulk", ownerId, input });
+    await runWorkload(makeRunnerDeps(db, contributions), await loadRunnableWorkload(db, contributions, bulk.id), new AbortController().signal);
+    if (seen.run === undefined || seen.estimate === undefined) {
+      throw new Error("the production doors handed out no every-owner authority for an admitted bulk run");
+    }
+    return { run: seen.run, runScope: { ownerId: null, everyOwnerRun: seen.run.everyOwnerRun }, estimate: seen.estimate };
+  })();
+  return await everyOwner;
 }

@@ -12,8 +12,11 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#server/domain/chat/persistence/token-usage-backfill.ts";
-import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
+import { createStatsBatchWiring } from "#server/domain/stats/index.ts";
 import { seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+
+// The stats seam as the composition root wires it: the production writers behind the batch and database handles.
+const STATS_WIRING = createStatsBatchWiring();
 
 let db: Db;
 
@@ -111,7 +114,7 @@ describe("imported token-usage persistence", () => {
     ) {
       throw new Error("seeded candidate missing");
     }
-    const compareAndSet = createCompareAndSetImportedTokenUsage(databaseHandle(db), bumpStatsCanonVersion);
+    const compareAndSet = createCompareAndSetImportedTokenUsage(databaseHandle(db), STATS_WIRING.bumpStatsCanonVersion);
 
     expect(await compareAndSet({ candidate: exactCandidate, resolution: { tokensIn: null, tokensOut: 4, tokenProvenance: "measured" } })).toBe(true);
     expect(await compareAndSet({ candidate: exactCandidate, resolution: { tokensIn: null, tokensOut: 4, tokenProvenance: "measured" } })).toBe(false);

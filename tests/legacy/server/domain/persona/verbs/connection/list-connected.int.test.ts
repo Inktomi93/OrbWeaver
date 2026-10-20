@@ -22,32 +22,32 @@ describe("listConnectedToCharacter", () => {
     const character = await seedCharacter(db, { ownerId: owner });
 
     const a = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "A", description: "" },
     });
     h.advance(ONE_MINUTE);
     const b = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "B", description: "" },
     });
     await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Unconnected", description: "" },
     });
 
     await svc.connectToCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       personaId: a.id,
     });
     await svc.connectToCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       personaId: b.id,
     });
 
     const connected = await svc.listConnectedToCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
     });
     expect(connected.map((p) => p.name)).toEqual(["B", "A"]);
@@ -61,7 +61,7 @@ describe("listConnectedToCharacter", () => {
     const foreignCharacter = await seedCharacter(db, { ownerId: other });
     await expect(
       svc.listConnectedToCharacter({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         characterId: foreignCharacter,
       }),
     ).rejects.toThrow(DomainNotFoundError);

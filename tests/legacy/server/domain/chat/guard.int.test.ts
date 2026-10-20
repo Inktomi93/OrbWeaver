@@ -20,8 +20,8 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 // The guard's deps: the real db + the REAL admin `can()` (the unified seam, injected as the root will
@@ -34,7 +34,7 @@ describe("requireParticipant — present membership", () => {
     const chatId = await seedChat(db, "a", { title: "Room" });
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
 
-    const m = await requireParticipant(ctx(), principal(host), chatId);
+    const m = await requireParticipant(ctx(), await principal(db, host), chatId);
     expect(m.role).toBe("host");
     expect(m.chat.id).toBe(chatId);
   });
@@ -42,14 +42,14 @@ describe("requireParticipant — present membership", () => {
   test("a non-member is denied with a leak-free not-found", async () => {
     const outsider = await seedUser(db, castId<Handle>("outsider"));
     const chatId = await seedChat(db, "a");
-    await expect(requireParticipant(ctx(), principal(outsider), chatId)).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(requireParticipant(ctx(), await principal(db, outsider), chatId)).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 
   test("a LEFT member (leftSeq set) is no longer present → denied", async () => {
     const gone = await seedUser(db, castId<Handle>("gone"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "g", userId: gone, role: "member", leftSeq: 5 });
-    await expect(requireParticipant(ctx(), principal(gone), chatId)).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(requireParticipant(ctx(), await principal(db, gone), chatId)).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 });
 
@@ -58,7 +58,7 @@ describe("requireHost — host authority", () => {
     const host = await seedUser(db, castId<Handle>("host"));
     const chatId = await seedChat(db, "a");
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
-    await expect(requireHost(ctx(), principal(host), chatId)).resolves.toBeDefined();
+    await expect(requireHost(ctx(), await principal(db, host), chatId)).resolves.toBeDefined();
   });
 
   test("a plain member is refused with not_host (NOT not-found — existence is known to a member)", async () => {
@@ -68,7 +68,7 @@ describe("requireHost — host authority", () => {
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
 
-    const err = await requireHost(ctx(), principal(member), chatId).catch((e: unknown) => e);
+    const err = await requireHost(ctx(), await principal(db, member), chatId).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
   });
@@ -76,7 +76,7 @@ describe("requireHost — host authority", () => {
   test("a non-member hitting a host-only surface still leaks nothing (not-found)", async () => {
     const outsider = await seedUser(db, castId<Handle>("outsider"));
     const chatId = await seedChat(db, "a");
-    await expect(requireHost(ctx(), principal(outsider), chatId)).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(requireHost(ctx(), await principal(db, outsider), chatId)).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 });
 
@@ -94,15 +94,15 @@ describe("requireAuthorOrHost — edit/delete", () => {
   });
 
   test("the host may act on a foreign slot", async () => {
-    await expect(requireAuthorOrHost(ctx(), principal(host), chatId, member)).resolves.toBeDefined();
+    await expect(requireAuthorOrHost(ctx(), await principal(db, host), chatId, member)).resolves.toBeDefined();
   });
 
   test("a member may act on their own slot", async () => {
-    await expect(requireAuthorOrHost(ctx(), principal(member), chatId, member)).resolves.toBeDefined();
+    await expect(requireAuthorOrHost(ctx(), await principal(db, member), chatId, member)).resolves.toBeDefined();
   });
 
   test("a member is refused a foreign slot with not_author (no longer collapsed onto not_host)", async () => {
-    const err = await requireAuthorOrHost(ctx(), principal(member), chatId, host).catch((e: unknown) => e);
+    const err = await requireAuthorOrHost(ctx(), await principal(db, member), chatId, host).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_author");
   });
@@ -116,7 +116,7 @@ describe("gateLineagePerAncestor — each ancestor gated independently (a fork g
     // The caller is a member of the parent only — NOT the grandparent.
     await seedParticipant(db, { chatId: parent, key: "p", userId: user, role: "member" });
 
-    const visible = await gateLineagePerAncestor(ctx(), principal(user), [parent, grandparent]);
+    const visible = await gateLineagePerAncestor(ctx(), await principal(db, user), [parent, grandparent]);
     expect(visible).toEqual([parent]);
   });
 });

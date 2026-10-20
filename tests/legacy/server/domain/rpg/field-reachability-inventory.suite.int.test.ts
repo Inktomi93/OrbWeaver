@@ -4,7 +4,7 @@ import type { RpgTrackerDef } from "@orb/contracts/rpg";
 import { rpgSheetSchema, rpgSnapshotStateSchema, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import { zodLeafPaths } from "@orb/testkit/iso/zod-leaf-paths.ts";
 import type { Carrier, Fixture, RPG_MACRO_KEYS } from "./_field-reachability-support.ts";
-import { ACTOR_CARRIERS, CARRIERS, HOST, MANA, openGame, openingBeat, RPG_SCENE_OPENS_HEADING, stageCast } from "./_field-reachability-support.ts";
+import { ACTOR_CARRIERS, CARRIERS, MANA, openGame, openingBeat, RPG_SCENE_OPENS_HEADING, stageCast } from "./_field-reachability-support.ts";
 import { expect, test } from "./_support.ts";
 
 type CarrierKind = Carrier["kind"];
@@ -550,7 +550,7 @@ const PROBES: readonly FieldProbe[] = [
     deltaPaths: ["state.actorState[].identity.relationship.kind", "state.actorState[].identity.relationship.label"],
     macroPaths: ["state.actorState[].identity.relationship.kind", "state.actorState[].identity.relationship.label"],
     drive: async (f) => {
-      await f.h.service.updateConfig({ principal: HOST, chatId: f.chatId, patch: { relationshipHints: { vassal: "sworn to serve but resentful" } } });
+      await f.h.service.updateConfig({ principal: f.host, chatId: f.chatId, patch: { relationshipHints: { vassal: "sworn to serve but resentful" } } });
       await f.beat({ scene: { presentUpsert: [{ name: "Mari", relationship: { kind: "friend" } }] } });
       await f.beat({ scene: { presentUpsert: [{ name: "Mari", relationship: { kind: "custom", label: "vassal" } }] } });
     },
@@ -731,7 +731,7 @@ const PROBES: readonly FieldProbe[] = [
     drive: async (f) => {
       await f.beat(stageCast(f.carrier));
       await f.h.service.patchSheet({
-        principal: HOST,
+        principal: f.host,
         chatId: f.chatId,
         actorRef: f.carrier.actorRef,
         patch: { className: "Warden", level: 3, attributes: { str: 14, wis: 9 }, flavor: "Sworn to a house that no longer exists." },
@@ -762,12 +762,12 @@ const PROBES: readonly FieldProbe[] = [
       // `Mana` is party-wide, `Trust` is npc-only: this actor REVOKES the one it would carry and is GRANTED
       // the one its class misses — the carriage exception the reminder must read off the carrier set.
       await f.h.service.updateConfig({
-        principal: HOST,
+        principal: f.host,
         chatId: f.chatId,
         patch: { trackers: [MANA, { ...TRUST, appliesTo: "npcs" }] },
       });
       await f.h.service.patchSheet({
-        principal: HOST,
+        principal: f.host,
         chatId: f.chatId,
         actorRef: f.carrier.actorRef,
         patch: { trackerGrants: ["trust"], trackerRevokes: ["mana"] },

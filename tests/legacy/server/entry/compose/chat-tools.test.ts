@@ -11,6 +11,7 @@
 
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
@@ -21,10 +22,12 @@ import { createReactToolDefinition } from "#server/entry/compose/chat-tools.ts";
 const HEART = "\u2764\ufe0f";
 const USER = castId<UserId>("user_host");
 const CHAT = castId<ChatId>("chat_react");
+// The definition reads no user rows; the executing host resolves from a row in one in-memory database.
+const HOST = await principal({ db: await freshDb() }, USER);
 
 function execContext(overrides: Partial<ToolExecutionContext> = {}): ToolExecutionContext {
   return {
-    principal: principal(USER),
+    principal: HOST,
     triggeredBy: USER,
     chatId: CHAT,
     turnId: null,
@@ -71,13 +74,14 @@ describe("chat-tools — the handler is a projection, never a second gate", () =
   });
 
   test("threads the principal, the chat and the parsed names into the injected op", async () => {
+    const db = await freshDb();
     const op = vi.fn(okOp);
     const def = definition(op);
 
     await def.handler({ character: "Aria", emoji: HEART, toSpeaker: "Bo" }, execContext());
 
     expect(op).toHaveBeenCalledWith({
-      principal: principal(USER),
+      principal: await principal({ db }, USER),
       chatId: CHAT,
       characterName: "Aria",
       emoji: HEART,

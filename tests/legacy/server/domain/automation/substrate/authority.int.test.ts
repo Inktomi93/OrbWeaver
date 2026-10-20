@@ -11,30 +11,30 @@ import { and, eq, isNull } from "drizzle-orm";
 import { describe } from "vitest";
 import { holdsChatHostAuthority, holdsOwnerAuthority } from "#server/domain/automation/substrate/authority.ts";
 import { seedParticipant } from "../../chat/_support.ts";
-import { ruleFixture, seedUser } from "../_support.ts";
+import { automationContext, ruleFixture, seedUser } from "../_support.ts";
 
 describe("holdsChatHostAuthority", () => {
   test("the host holds authority", async () => {
     const fixture = await ruleFixture();
-    await expect(holdsChatHostAuthority(fixture.ctx, fixture.chatId, fixture.host)).resolves.toBe(true);
+    await expect(holdsChatHostAuthority(automationContext(fixture.ctx), fixture.chatId, fixture.host)).resolves.toBe(true);
   });
 
   test("a present member who is not host does NOT hold authority (fail-closed on can()'s denial)", async () => {
     const fixture = await ruleFixture();
     const member = await seedUser(fixture.db, "user_member");
     await seedParticipant(fixture.db, { chatId: fixture.chatId, key: "member", userId: member, role: "member" });
-    await expect(holdsChatHostAuthority(fixture.ctx, fixture.chatId, member)).resolves.toBe(false);
+    await expect(holdsChatHostAuthority(automationContext(fixture.ctx), fixture.chatId, member)).resolves.toBe(false);
   });
 
   test("a non-member (no role) does NOT hold authority", async () => {
     const fixture = await ruleFixture();
     const outsider = await seedUser(fixture.db, "user_outsider");
-    await expect(holdsChatHostAuthority(fixture.ctx, fixture.chatId, outsider)).resolves.toBe(false);
+    await expect(holdsChatHostAuthority(automationContext(fixture.ctx), fixture.chatId, outsider)).resolves.toBe(false);
   });
 
   test("an unknown userId (no resolvable principal) does NOT hold authority", async () => {
     const fixture = await ruleFixture();
-    await expect(holdsChatHostAuthority(fixture.ctx, fixture.chatId, castId<UserId>("user_ghost"))).resolves.toBe(false);
+    await expect(holdsChatHostAuthority(automationContext(fixture.ctx), fixture.chatId, castId<UserId>("user_ghost"))).resolves.toBe(false);
   });
 
   test("a demoted ex-host LOSES authority — the re-check reads live state, never the mint", async () => {
@@ -43,7 +43,7 @@ describe("holdsChatHostAuthority", () => {
       .update(chatParticipants)
       .set({ role: "member" })
       .where(and(eq(chatParticipants.chatId, fixture.chatId), eq(chatParticipants.userId, fixture.host), isNull(chatParticipants.leftSeq)));
-    await expect(holdsChatHostAuthority(fixture.ctx, fixture.chatId, fixture.host)).resolves.toBe(false);
+    await expect(holdsChatHostAuthority(automationContext(fixture.ctx), fixture.chatId, fixture.host)).resolves.toBe(false);
   });
 });
 

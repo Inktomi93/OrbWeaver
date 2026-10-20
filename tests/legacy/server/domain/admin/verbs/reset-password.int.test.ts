@@ -48,7 +48,7 @@ describe("resetPassword", () => {
     await seedLiveSession(db, target);
 
     await svc.resetPassword({
-      principal: principal(admin, "admin"),
+      principal: await principal(db, admin, "admin"),
       userId: target,
       password: NEW_PASSWORD,
     });
@@ -66,7 +66,7 @@ describe("resetPassword", () => {
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     await expect(
       svc.resetPassword({
-        principal: principal(admin, "admin"),
+        principal: await principal(db, admin, "admin"),
         userId: target,
         password: "short",
       }),
@@ -80,7 +80,7 @@ describe("resetPassword", () => {
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     await expect(
       svc.resetPassword({
-        principal: principal(admin, "admin"),
+        principal: await principal(db, admin, "admin"),
         userId: castId<UserId>("user_ghost"),
         password: NEW_PASSWORD,
       }),
@@ -94,7 +94,7 @@ describe("resetPassword", () => {
     const svc = createAdminService(makeHarness(db).ctx);
     const u = await seedUser(db, { id: "user_u", role: "user", handle: castId<Handle>("u") });
     const t = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
-    await expect(svc.resetPassword({ principal: principal(u, "user"), userId: t, password: NEW_PASSWORD })).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.resetPassword({ principal: await principal(db, u, "user"), userId: t, password: NEW_PASSWORD })).rejects.toThrow(DomainForbiddenError);
   });
 
   // D17 takeover close: a delegated (non-owner) admin resetting the owner's password would be owner-account
@@ -106,7 +106,7 @@ describe("resetPassword", () => {
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const owner = await seedUser(db, { id: "user_own", role: "owner", handle: castId<Handle>("own"), passwordHash: "owner-hash" });
 
-    await expect(svc.resetPassword({ principal: principal(admin, "admin"), userId: owner, password: NEW_PASSWORD })).rejects.toMatchObject({
+    await expect(svc.resetPassword({ principal: await principal(db, admin, "admin"), userId: owner, password: NEW_PASSWORD })).rejects.toMatchObject({
       code: "cannot_modify_owner",
     });
     // The owner's hash is untouched, no session kick, no audit row.
@@ -126,7 +126,7 @@ describe("resetPassword", () => {
 
     await seedLiveSession(db, owner);
 
-    await svc.resetPassword({ principal: principal(owner, "owner"), userId: owner, password: NEW_PASSWORD });
+    await svc.resetPassword({ principal: await principal(db, owner, "owner"), userId: owner, password: NEW_PASSWORD });
 
     const rows = await db.select().from(users).where(eq(users.id, owner));
     expect(rows[0]?.passwordHash).toBe(`scrypt$test$${NEW_PASSWORD}`);
@@ -144,7 +144,7 @@ describe("resetPassword", () => {
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t"), passwordHash: "old" });
     const live = await seedLiveSession(db, target);
 
-    await expect(svc.resetPassword({ principal: principal(admin, "admin"), userId: target, password: NEW_PASSWORD })).rejects.toThrow();
+    await expect(svc.resetPassword({ principal: await principal(db, admin, "admin"), userId: target, password: NEW_PASSWORD })).rejects.toThrow();
 
     const rows = await db.select().from(users).where(eq(users.id, target));
     expect(rows[0]?.passwordHash).toBe("old");
@@ -163,7 +163,7 @@ describe("resetPassword", () => {
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t"), passwordHash: "old" });
     const live = await seedLiveSession(db, target);
 
-    await expect(svc.resetPassword({ principal: principal(admin, "admin"), userId: target, password: NEW_PASSWORD })).rejects.toThrow();
+    await expect(svc.resetPassword({ principal: await principal(db, admin, "admin"), userId: target, password: NEW_PASSWORD })).rejects.toThrow();
 
     const rows = await db.select().from(users).where(eq(users.id, target));
     expect(rows[0]?.passwordHash).toBe("old");
@@ -181,7 +181,7 @@ describe("resetPassword", () => {
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t"), passwordHash: "old" });
 
-    await svc.resetPassword({ principal: principal(admin, "admin"), userId: target, password: NEW_PASSWORD });
+    await svc.resetPassword({ principal: await principal(db, admin, "admin"), userId: target, password: NEW_PASSWORD });
 
     expect(await auditActions(db)).toEqual(["admin.resetPassword"]);
     const rows = await db.select().from(users).where(eq(users.id, target));

@@ -43,7 +43,7 @@ describe("import", () => {
 
     const detail = imported(
       await svc.import({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         bytes: fileFor({
           name: "Restored",
           description: "brought back",
@@ -66,7 +66,7 @@ describe("import", () => {
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const detail = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Bare", description: "d" }) }));
+    const detail = imported(await svc.import({ principal: await principal(db, owner), bytes: fileFor({ name: "Bare", description: "d" }) }));
 
     expect(detail.title).toBeNull();
     expect(detail.starred).toBe(false);
@@ -77,13 +77,13 @@ describe("import", () => {
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Nyx", description: "a wandering scholar", starred: true },
     });
 
     // The EXPORT door's own bytes go straight back in — the round-trip closes through the real file.
-    const file = await svc.export({ principal: principal(owner), personaId: source.id });
-    const restored = imported(await svc.import({ principal: principal(owner), bytes: file.bytes }));
+    const file = await svc.export({ principal: await principal(db, owner), personaId: source.id });
+    const restored = imported(await svc.import({ principal: await principal(db, owner), bytes: file.bytes }));
 
     // Equal content: the backup IS the source persona, so the import reuses it untouched.
     expect(restored.id).toBe(source.id);
@@ -99,10 +99,10 @@ describe("import", () => {
 
     const backup = fileFor({ name: "Restored", description: "brought back", starred: true });
 
-    const first = imported(await svc.import({ principal: principal(owner), bytes: backup }));
-    const second = imported(await svc.import({ principal: principal(owner), bytes: backup }));
+    const first = imported(await svc.import({ principal: await principal(db, owner), bytes: backup }));
+    const second = imported(await svc.import({ principal: await principal(db, owner), bytes: backup }));
     const third = imported(
-      await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Restored", description: "edited on re-import", starred: true }) }),
+      await svc.import({ principal: await principal(db, owner), bytes: fileFor({ name: "Restored", description: "edited on re-import", starred: true }) }),
     );
 
     // The equal backup reuses the owned row; the edited one is a second persona under the next free name.
@@ -124,8 +124,8 @@ describe("import", () => {
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const a = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Alpha", description: "a" }) }));
-    const b = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Beta", description: "b" }) }));
+    const a = imported(await svc.import({ principal: await principal(db, owner), bytes: fileFor({ name: "Alpha", description: "a" }) }));
+    const b = imported(await svc.import({ principal: await principal(db, owner), bytes: fileFor({ name: "Beta", description: "b" }) }));
 
     expect(b.id).not.toBe(a.id);
     const rows = await db.select().from(personas).where(eq(personas.ownerId, owner));
@@ -137,13 +137,13 @@ describe("import", () => {
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const garbage = await svc.import({ principal: principal(owner), bytes: new TextEncoder().encode("{not json") });
+    const garbage = await svc.import({ principal: await principal(db, owner), bytes: new TextEncoder().encode("{not json") });
     expect(garbage.ok).toBe(false);
     expect(garbage.ok ? "" : garbage.error).toContain("not JSON");
 
     // The case the OLD uniform "not a valid file" copy hid: a backup from a NEWER orbweaver.
     const future = new TextEncoder().encode(JSON.stringify({ schemaKind: "orb.persona", schemaVersion: 99, name: "x", description: "y" }));
-    const newer = await svc.import({ principal: principal(owner), bytes: future });
+    const newer = await svc.import({ principal: await principal(db, owner), bytes: future });
     expect(newer.ok ? "" : newer.error).toContain("newer version of orbweaver");
 
     // Nothing was written by either refusal.
@@ -156,8 +156,8 @@ describe("import", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const bytes = fileFor({ name: "Once", description: "d" });
 
-    const first = await svc.import({ principal: principal(owner), bytes });
-    const second = await svc.import({ principal: principal(owner), bytes });
+    const first = await svc.import({ principal: await principal(db, owner), bytes });
+    const second = await svc.import({ principal: await principal(db, owner), bytes });
     expect(first.ok && first.created).toBe(true);
     expect(second.ok && second.created).toBe(false);
   });
@@ -171,14 +171,14 @@ describe("import", () => {
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const first = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Alice", description: "a" }) }));
+    const first = imported(await svc.import({ principal: await principal(db, owner), bytes: fileFor({ name: "Alice", description: "a" }) }));
     // The SAME person, spelled the way an export from another tool (or a hand-edited file) spells it.
-    const second = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: " alice ", description: "a" }) }));
+    const second = imported(await svc.import({ principal: await principal(db, owner), bytes: fileFor({ name: " alice ", description: "a" }) }));
     expect(second.id).toBe(first.id);
     expect(await db.select().from(personas).where(eq(personas.ownerId, owner))).toHaveLength(1);
 
     // A different description under the same name is a second persona, named apart.
-    const third = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: "Alice", description: "b" }) }));
+    const third = imported(await svc.import({ principal: await principal(db, owner), bytes: fileFor({ name: "Alice", description: "b" }) }));
     expect(third.id).not.toBe(first.id);
     expect(third.name).toBe("Alice 2");
     expect(await db.select().from(personas).where(eq(personas.ownerId, owner))).toHaveLength(2);
@@ -190,7 +190,7 @@ describe("import", () => {
     const svc = createPersonaService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const single = imported(await svc.import({ principal: principal(owner), bytes: fileFor({ name: " Alice ", description: "a" }) }));
+    const single = imported(await svc.import({ principal: await principal(db, owner), bytes: fileFor({ name: " Alice ", description: "a" }) }));
     const bulk = createBulkImportPersonas({ db: databaseHandle(db), now: h.ctx.now, newPersonaId: h.ctx.newPersonaId });
     const result = await bulk({
       ownerId: owner,

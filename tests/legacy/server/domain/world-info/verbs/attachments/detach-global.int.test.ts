@@ -15,14 +15,14 @@ describe("detachGlobal", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "G" } });
-    await svc.attachGlobal({ principal: principal(owner), bookId: book.id });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "G" } });
+    await svc.attachGlobal({ principal: await principal(db, owner), bookId: book.id });
 
-    const first = await svc.detachGlobal({ principal: principal(owner), bookId: book.id });
-    const second = await svc.detachGlobal({ principal: principal(owner), bookId: book.id });
+    const first = await svc.detachGlobal({ principal: await principal(db, owner), bookId: book.id });
+    const second = await svc.detachGlobal({ principal: await principal(db, owner), bookId: book.id });
     expect(first.detached).toBe(true);
     expect(second.detached).toBe(false);
-    expect(await svc.listGlobal({ principal: principal(owner) })).toEqual([]);
+    expect(await svc.listGlobal({ principal: await principal(db, owner) })).toEqual([]);
   });
 
   test("a foreign book is NotFound", async () => {
@@ -30,8 +30,8 @@ describe("detachGlobal", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "T" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "T" } });
 
-    await expect(svc.detachGlobal({ principal: principal(owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.detachGlobal({ principal: await principal(db, owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 });

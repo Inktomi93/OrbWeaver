@@ -33,7 +33,7 @@ test("two-box native workload preserves retained legs and pending positional fac
 }) => {
   const source = await seedUser(db);
   const originalFunder = await seedUser(db);
-  const owner = principal(source.id, { handle: source.handle, via: "header" });
+  const owner = await principal({ db }, source.id);
   const character = await seedCharacter(db, { ownerId: source.id, id: mintTypeId(ID_PREFIX.character), name: "Hero", handle: castId("hero") });
   const chatId = mintTypeId(ID_PREFIX.chat);
   const messageId = mintTypeId(ID_PREFIX.message);
@@ -129,7 +129,7 @@ test("two-box native workload preserves retained legs and pending positional fac
   const archive = new Uint8Array(await archiveResponse.arrayBuffer());
   const restoredDb = await freshDb();
   const targetUser = await seedUser(restoredDb);
-  const target = principal(targetUser.id, { handle: targetUser.handle, via: "header" });
+  const target = await principal({ db: restoredDb }, targetUser.id);
   const casDir = await mkdtemp(join(tmpdir(), "orb-chat-accounting-cas-"));
   const variantDir = await mkdtemp(join(tmpdir(), "orb-chat-accounting-var-"));
   onTestFinished(async () => {

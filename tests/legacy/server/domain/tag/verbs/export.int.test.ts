@@ -26,11 +26,11 @@ describe("tag-library export", () => {
     const svc = createTagService(harness.ctx);
 
     await svc.createTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "fantasy", color: "#abcdef" },
     });
-    await svc.createTag({ principal: principal(owner), input: { name: "sci-fi" } });
-    await svc.createTag({ principal: principal(other), input: { name: "theirs" } });
+    await svc.createTag({ principal: await principal(db, owner), input: { name: "sci-fi" } });
+    await svc.createTag({ principal: await principal(db, other), input: { name: "theirs" } });
 
     const bytes = await createTagLibraryExport(harness.ctx)(owner);
     const lib = must(parseTagLibrary(bytes));

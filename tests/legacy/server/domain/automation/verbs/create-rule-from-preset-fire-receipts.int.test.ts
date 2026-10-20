@@ -245,7 +245,7 @@ describe("§4 #3 auto-add lore entries (confirm-first BY DEFAULT)", () => {
   test("REFUSES at mint without a book — the knob has no usable default and the refusal is typed", async () => {
     const f = await setup();
     await expect(
-      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "autoAddLore", knobs: {} }),
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: await principal(f.db, f.host), chatId: f.chatId, presetId: "autoAddLore", knobs: {} }),
     ).rejects.toThrow(NO_BOOK);
   });
 
@@ -258,7 +258,13 @@ describe("§4 #3 auto-add lore entries (confirm-first BY DEFAULT)", () => {
     await f.db.insert(worldBooks).values({ id: bookId, ownerId: f.host, name: "detached lore" });
 
     await expect(
-      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "autoAddLore", knobs: { bookId } }),
+      f.svc.createRuleFromPreset({
+        timeZone: UTC_TIME_ZONE,
+        principal: await principal(f.db, f.host),
+        chatId: f.chatId,
+        presetId: "autoAddLore",
+        knobs: { bookId },
+      }),
     ).rejects.toThrow(UNATTACHED_BOOK);
   });
 });
@@ -287,7 +293,7 @@ describe("§4 #10 call a vote (send-mode chips, R7-invoked)", () => {
     await f.svc.handleEvent({ type: "chatOpened", chatId: f.chatId });
     expect(f.bus.filter((e) => e.type === "quickReplySurfaced")).toEqual([]);
 
-    const result = await f.svc.runRuleNow({ principal: principal(f.host), ruleId: nth(views, 0).id });
+    const result = await f.svc.runRuleNow({ principal: await principal(f.db, f.host), ruleId: nth(views, 0).id });
 
     expect(result).toEqual({ outcome: "fired" });
     const [surfaced] = f.bus.filter((e) => e.type === "quickReplySurfaced");

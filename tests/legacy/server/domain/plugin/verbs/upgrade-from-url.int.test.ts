@@ -30,14 +30,14 @@ test("upgradeFromUrl with a reach-WIDENING bundle lands the row DISABLED pending
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   // Install + enable v1 (granting only chat.read), so a widening upgrade has something to DISABLE.
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "scraper", capabilities: ["chat.read"] }),
     grant: ["chat.read"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   const upgraded = await h.service.upgradeFromUrl({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     url: URL,
     expectedBundleHash: hashBundle(v2),
@@ -56,14 +56,14 @@ test("upgradeFromUrl with a strict NARROWING bundle carries the enabled state fo
   const h = makePluginHarness(db, { fetchBundle: returns(v2) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "scraper", capabilities: ["chat.read"] }),
     grant: ["chat.read"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   const upgraded = await h.service.upgradeFromUrl({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     url: URL,
     expectedBundleHash: hashBundle(v2),
@@ -79,7 +79,7 @@ test("upgradeFromUrl refuses bytes that changed after review and preserves the e
   const changed = makeBundle({ id: "scraper", version: "1.1.0", capabilities: ["chat.read"] }, "orb.host(1).log.info('changed');");
   const h = makePluginHarness(db, { fetchBundle: returns(changed) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "scraper", capabilities: ["chat.read"] }), grant: ["chat.read"] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -104,7 +104,7 @@ test("upgradeFromUrl on a FOREIGN / missing pluginId is NOT_FOUND — and the se
 
   await expect(
     h.service.upgradeFromUrl({
-      caller: ownerPrincipalFor(stranger),
+      caller: await ownerPrincipalFor(db, stranger),
       pluginId: foreignId,
       url: URL,
       expectedBundleHash: hashBundle(new Uint8Array()),

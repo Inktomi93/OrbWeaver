@@ -14,6 +14,8 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ActionsView } from "#client/features/preset/components/actions-view.tsx";
 import { mergeOnSubmit } from "#client/features/preset/lib/preset-editor-model.ts";
+import type { PresetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
+import { admitPresetValues, canonicalPresetValues, presetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
 import type { AppFormInstance, AutosaveSession } from "#client/forms/editor/index.ts";
 import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
@@ -27,18 +29,22 @@ const SERVER_VALUES: PromptConfig = {
   },
 };
 
-const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
+const StoryForm = createAutosaveEntityForm<PresetEditorValues>({
+  defaultValues: presetEditorValues(DEFAULT_PROMPT_CONFIG),
+  canonicalValues: canonicalPresetValues,
+  admitValues: admitPresetValues,
+});
 
 function ActionsBody({
   session,
   saved,
   savedFraming,
 }: {
-  readonly session: AutosaveSession<PromptConfig>;
+  readonly session: AutosaveSession<PresetEditorValues>;
   readonly saved: string;
   readonly savedFraming: string;
 }): ReactElement {
-  const form = session.form as AppFormInstance<PromptConfig>;
+  const form = session.form as AppFormInstance<PresetEditorValues>;
   return (
     <>
       {/* Both spies carry an accessible NAME: a second bare `<output>` turned every `locator("output")` in
@@ -71,7 +77,7 @@ export function ActionsForkStory(): ReactElement {
         simulate fork retarget
       </button>
       <output>{`entity=${entity}`}</output>
-      <StoryForm entityId={entity} save={(): Promise<void> => Promise.resolve()} serverValues={SERVER_VALUES}>
+      <StoryForm entityId={entity} save={(): Promise<void> => Promise.resolve()} serverValues={presetEditorValues(SERVER_VALUES)}>
         {(session): ReactElement => <ActionsBody saved="—" savedFraming="—" session={session} />}
       </StoryForm>
       <Toaster />
@@ -99,7 +105,7 @@ export function ActionsStory(): ReactElement {
   };
   return (
     <ToastProvider>
-      <StoryForm entityId={STORY_PRESET} save={save} serverValues={SERVER_VALUES}>
+      <StoryForm entityId={STORY_PRESET} save={save} serverValues={presetEditorValues(SERVER_VALUES)}>
         {(session): ReactElement => <ActionsBody saved={saved} savedFraming={savedFraming} session={session} />}
       </StoryForm>
       <Toaster />

@@ -78,7 +78,7 @@ test("collected registrations are handed to the registrar; disable unregisters e
   const h = makePluginHarness(db, { ops: rec.ops });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "mood", capabilities: ["tools.register", "chat.transform"] }),
     grant: ["tools.register", "chat.transform"],
   });
@@ -100,10 +100,10 @@ test("collected registrations are handed to the registrar; disable unregisters e
     },
   });
 
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
   expect(rec.registered).toEqual(["t1", "t2", "x1"]);
 
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: false });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: false });
   expect(rec.unregistered.toSorted((a, b) => a.localeCompare(b))).toEqual(["t1", "t2", "x1"]);
 });
 
@@ -112,12 +112,12 @@ test("the manifest netHosts allowlist is forwarded to createInstance (net.fetch 
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "fetcher", capabilities: ["net.fetch"], netHosts: ["api.example.com", "cdn.example.com"] }),
     grant: ["net.fetch"],
   });
 
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   // The re-validated manifest's allowlist crossed the seam verbatim (the infra host-fn pins safeFetch to it).
   expect(h.port.created.at(-1)?.netHosts).toEqual(["api.example.com", "cdn.example.com"]);
@@ -127,9 +127,9 @@ test("a bundle with no netHosts forwards no allowlist (fail-closed [] infra-side
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "plain" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "plain" }), grant: [] });
 
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   expect(h.port.created.at(-1)?.netHosts).toBeUndefined();
 });
@@ -139,11 +139,11 @@ test("the cold-wake loader rereads and revalidates the durable bundle instead of
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "durable" }, "'activation-source';"),
     grant: [],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
   const row = await getById(h.ctx.db, owner, installed.id);
   const loader = h.port.created.at(-1)?.reloadMainJs;
   if (row === undefined || loader === undefined) {
@@ -192,11 +192,11 @@ test("typed host admission pressure does not count as a crash, but a guest-named
   const h = makePluginHarness(db, { ops, port });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "busy", capabilities: ["tools.register"] }),
     grant: ["tools.register"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
   if (invoke === undefined) {
     throw new Error("test: activation did not register its invoker");
   }
@@ -216,7 +216,7 @@ test("a registrar refusal discards the whole activation atomically (rollback + e
   const h = makePluginHarness(db, { ops: rec.ops });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "mood", capabilities: ["tools.register"] }),
     grant: ["tools.register"],
   });
@@ -237,7 +237,9 @@ test("a registrar refusal discards the whole activation atomically (rollback + e
     },
   });
 
-  await expect(h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true })).rejects.toBeInstanceOf(PluginCrashedError);
+  await expect(h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true })).rejects.toBeInstanceOf(
+    PluginCrashedError,
+  );
 
   // The first tool's registration was rolled back; the instance was disposed; the row is errored.
   expect(rec.unregistered).toEqual(["t1"]);
@@ -275,7 +277,7 @@ test("a failed `enabled` write discards the activation — no resident is publis
   const h = makePluginHarness(db, { ops: rec.ops });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "mood", capabilities: ["tools.register"] }),
     grant: ["tools.register"],
   });
@@ -307,7 +309,7 @@ test("a failed `enabled` write discards the activation — no resident is publis
     createCrashPolicy(brokenCtx, () => Promise.resolve(), createPluginLifecycleLanes()),
     { activate: () => Promise.resolve(), deactivate: () => Promise.resolve() },
   );
-  const input = { caller: ownerPrincipalFor(owner), pluginId: installed.id, bundleAssetId: row.bundleAssetId, grants: [], withheldNetHosts: [] };
+  const input = { caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, bundleAssetId: row.bundleAssetId, grants: [], withheldNetHosts: [] };
 
   await expect(activate(input)).rejects.toThrow(DB_UNAVAILABLE_RE);
 
@@ -350,11 +352,11 @@ test("a HUNG guest handler is a COUNTED crash (the settlement deadline feeds the
     h.tools.register({ name: "hang", description: "never settles", parameters: { type: "object", properties: {} }, handler: () => new Promise(() => {}) });
     'ok';`;
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "hanger", capabilities: ["tools.register"] }, hangMain),
     grant: ["tools.register"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
   expect((await getById(h.ctx.db, owner, installed.id))?.consecutiveCrashes).toBe(0);
   if (invoke === undefined || handlerRef === undefined) {
     throw new Error("the tool registrar was never reached");
@@ -407,7 +409,7 @@ test("enabled installations across owners retain their catalogs and owner bridge
       if (owner === undefined) {
         throw new Error("test: missing owner");
       }
-      const caller = principalFor(owner);
+      const caller = await principalFor(db, owner);
       const slug = `resident-${index}`;
       const source = `const h=orb.host(1); h.tools.register({name:"read_owner",description:"read this installer's marker",parameters:{type:"object",properties:{}},handler:async()=>await h.variables.get("owner-marker")});`;
       const installed = await h.service.install({
@@ -420,7 +422,7 @@ test("enabled installations across owners retain their catalogs and owner bridge
     }
     expect(retained.size).toBe(100);
     for (const owner of owners) {
-      const rows = await h.service.list({ caller: principalFor(owner) });
+      const rows = await h.service.list({ caller: await principalFor(db, owner) });
       expect(rows.map((row) => row.id).toSorted((left, right) => left.localeCompare(right))).toEqual(
         enabled
           .filter((installed) => installed.owner === owner)
@@ -435,11 +437,11 @@ test("enabled installations across owners retain their catalogs and owner bridge
     }
     expect(retained.size).toBe(100);
     for (const owner of owners) {
-      expect((await h.service.list({ caller: principalFor(owner) })).every((row) => row.status === "enabled")).toBe(true);
+      expect((await h.service.list({ caller: await principalFor(db, owner) })).every((row) => row.status === "enabled")).toBe(true);
     }
   } finally {
     for (const installed of enabled) {
-      await h.service.setEnabled({ caller: principalFor(installed.owner), pluginId: installed.id, enabled: false });
+      await h.service.setEnabled({ caller: await principalFor(db, installed.owner), pluginId: installed.id, enabled: false });
     }
     await hostResources.disposeAsync();
   }

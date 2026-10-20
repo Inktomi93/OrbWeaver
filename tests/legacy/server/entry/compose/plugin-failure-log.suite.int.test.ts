@@ -3,6 +3,7 @@
 // Every way a plugin can fail reaches the server log once, naming the plugin, the kind of failure and the cause.
 // Each case drives a scratch plugin through the real broker and compose and counts ALL warn/error lines the
 // failure produced, so a second line from anywhere up the stack fails the case.
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -66,7 +67,7 @@ const commandThrowing = (message: string): string =>
 
 test("each plugin failure path logs exactly one line naming its plugin, kind and cause", { timeout: 180_000 }, async ({ app, db, services, clock }) => {
   const user = await seedUser(db);
-  const caller: Principal = { userId: user.id, handle: user.handle, role: user.role, externalId: user.externalId, via: "header" };
+  const caller: Principal = await makePrincipal({ db }, user.id);
   const connectionId = mintTypeId(ID_PREFIX.userConnection);
   await db.insert(userConnections).values({
     id: connectionId,
@@ -83,7 +84,9 @@ test("each plugin failure path logs exactly one line naming its plugin, kind and
   await db.insert(connectionBindings).values({ id: mintTypeId(ID_PREFIX.connectionBinding), actorKind: "user", userId: user.id, task: "chat", connectionId });
   await services.settings.updateUserSettingsSection({ principal: caller, input: { section: "memory", patch: { enabled: false } } });
   const { chat } = await services.chat.startChat({ principal: caller, characterIds: [], opening: "none" });
-  const watcher = startAutomationWatcher(createAutomationWatcherEnv({ automation: app.automation, eventBus: app.eventBus }));
+  const watcher = startAutomationWatcher(
+    createAutomationWatcherEnv({ automation: app.automation, eventBus: app.eventBus, chatEvents: app.liveBuses.chat, supervise: app.supervise }),
+  );
   const lines: LogLine[] = [];
   const spies = (["warn", "error"] as const).map((level) =>
     vi.spyOn(logger, level).mockImplementation((fields: unknown, message?: string): void => {

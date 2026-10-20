@@ -27,33 +27,33 @@ describe("importGallery", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const assetA = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1),
       kind: "gallery",
       mime: PNG,
     });
     const assetB = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(2),
       kind: "gallery",
       mime: PNG,
     });
     await svc.addToGallery({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       assetId: assetA.assetId,
       subjectCharacterId: hero,
     });
-    await svc.addToGallery({ principal: principal(owner), assetId: assetB.assetId });
+    await svc.addToGallery({ principal: await principal(db, owner), assetId: assetB.assetId });
 
     const file = await createExportGallery(ctx)(owner);
     // Wipe the live curation, then restore from the file (the subject travels as the handle "hero", not the id).
-    const live = await svc.listGallery({ principal: principal(owner), limit: 100 });
-    await Promise.all(live.map((item) => svc.removeFromGallery({ principal: principal(owner), galleryItemId: item.galleryItemId })));
-    expect(await svc.listGallery({ principal: principal(owner), limit: 100 })).toHaveLength(0);
+    const live = await svc.listGallery({ principal: await principal(db, owner), limit: 100 });
+    await Promise.all(live.map(async (item) => svc.removeFromGallery({ principal: await principal(db, owner), galleryItemId: item.galleryItemId })));
+    expect(await svc.listGallery({ principal: await principal(db, owner), limit: 100 })).toHaveLength(0);
 
     const outcome = await createImportGallery(ctx)(owner, file);
     expect(outcome).toEqual({ ok: true, created: true });
-    const restored = await svc.listGallery({ principal: principal(owner), limit: 100 });
+    const restored = await svc.listGallery({ principal: await principal(db, owner), limit: 100 });
     const subjectByAsset = new Map(restored.map((r) => [r.assetId, r.subjectCharacterId]));
     expect(subjectByAsset.get(assetA.assetId)).toBe(hero);
     expect(subjectByAsset.get(assetB.assetId)).toBeNull();
@@ -67,7 +67,7 @@ describe("importGallery", () => {
     const svc = createAssetsService(ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const asset = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1),
       kind: "gallery",
       mime: PNG,
@@ -80,7 +80,7 @@ describe("importGallery", () => {
     };
 
     expect(await createImportGallery(ctx)(owner, file)).toEqual({ ok: true, created: true });
-    const rows = await svc.listGallery({ principal: principal(owner), limit: 100 });
+    const rows = await svc.listGallery({ principal: await principal(db, owner), limit: 100 });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.subjectCharacterId).toBeNull();
   });
@@ -94,14 +94,14 @@ describe("importGallery", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     await seedCharacter(db, stranger, { id: "character_strangers_hero", handle: castId<CharacterHandle>("hero") });
-    const asset = await svc.store({ principal: principal(owner), bytes: pngBytes(1), kind: "gallery", mime: PNG });
+    const asset = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(1), kind: "gallery", mime: PNG });
     const file = {
       filename: "gallery.json",
       bytes: buildGallery({ items: [{ assetId: asset.assetId, subjectCharacterHandle: "hero", createdAt: 100 }] }),
     };
 
     expect(await createImportGallery(ctx)(owner, file)).toEqual({ ok: true, created: true });
-    const rows = await svc.listGallery({ principal: principal(owner), limit: 100 });
+    const rows = await svc.listGallery({ principal: await principal(db, owner), limit: 100 });
     expect(rows).toHaveLength(1);
     expect(rows[0]?.subjectCharacterId).toBeNull();
   });
@@ -115,7 +115,7 @@ describe("importGallery", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const asset = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1),
       kind: "gallery",
       mime: PNG,
@@ -131,10 +131,10 @@ describe("importGallery", () => {
     };
 
     expect(await createImportGallery(ctx)(owner, file)).toEqual({ ok: true, created: true });
-    expect(await svc.listGallery({ principal: principal(owner), limit: 100 })).toHaveLength(2);
+    expect(await svc.listGallery({ principal: await principal(db, owner), limit: 100 })).toHaveLength(2);
     // Re-import: both rows dedup on (assetId, subjectCharacterId) — the null-subject row too.
     expect(await createImportGallery(ctx)(owner, file)).toEqual({ ok: true, created: false });
-    expect(await svc.listGallery({ principal: principal(owner), limit: 100 })).toHaveLength(2);
+    expect(await svc.listGallery({ principal: await principal(db, owner), limit: 100 })).toHaveLength(2);
   });
 
   test("skips a row whose asset was not restored (never violates the FK)", async () => {
@@ -154,7 +154,7 @@ describe("importGallery", () => {
     };
 
     expect(await createImportGallery(ctx)(owner, file)).toEqual({ ok: true, created: false });
-    expect(await svc.listGallery({ principal: principal(owner), limit: 100 })).toHaveLength(0);
+    expect(await svc.listGallery({ principal: await principal(db, owner), limit: 100 })).toHaveLength(0);
   });
 
   test("a non-gallery file returns ok:false, never throwing", async () => {

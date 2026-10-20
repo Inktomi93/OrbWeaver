@@ -21,7 +21,7 @@ describe("create", () => {
     const avatar = await seedAsset(db, { ownerId: owner, hash: "sha_avatar" });
 
     const detail = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Nyx", description: "a wanderer", avatarAssetId: avatar },
     });
 
@@ -42,7 +42,7 @@ describe("create", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const detail = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Nyx", description: "a wanderer" },
     });
 
@@ -57,7 +57,7 @@ describe("create", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const detail = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: {
         name: "Echo",
         description: "voiceless",
@@ -77,14 +77,14 @@ describe("create", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const titled = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Wren", title: "The Cartographer", description: "d", starred: true },
     });
     expect(titled.title).toBe("The Cartographer");
     expect(titled.starred).toBe(true);
 
     const bare = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Mott", description: "d" },
     });
     expect(bare.title).toBeNull();
@@ -101,7 +101,7 @@ describe("create", () => {
 
     await expect(
       svc.create({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         input: { name: "Thief", description: "d", avatarAssetId: foreign },
       }),
     ).rejects.toBeInstanceOf(AssetNotFoundError);

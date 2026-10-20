@@ -10,11 +10,11 @@ test("lists only the caller's schemas, newest-updated first", async () => {
   const owner = await seedUser(db, { id: "user_lsch_a" });
   const other = await seedUser(db, { id: "user_lsch_b" });
   const h = makeRefineryHarness(db);
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const first = await h.svc.createSchema({ principal: p, name: "first_scorer", description: "", stage: "score", schema: validScoreSchema() });
   h.advance(1000);
   await h.svc.createSchema({ principal: p, name: "second_scorer", description: "", stage: "score", schema: validScoreSchema() });
-  await h.svc.createSchema({ principal: principal(other), name: "foreign_scorer", description: "", stage: "score", schema: validScoreSchema() });
+  await h.svc.createSchema({ principal: await principal(db, other), name: "foreign_scorer", description: "", stage: "score", schema: validScoreSchema() });
 
   const rows = await h.svc.listSchemas({ principal: p });
   expect(rows.map((r) => r.name)).toEqual(["second_scorer", "first_scorer"]);

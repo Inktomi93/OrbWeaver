@@ -21,7 +21,7 @@ describe("reportUiCrash", () => {
   test("THREE client-reported crashes auto-disable the plugin — one counter for both halves", async () => {
     const db = await freshDb();
     const h = makePluginHarness(db);
-    const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+    const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
     const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
     await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -41,7 +41,7 @@ describe("reportUiCrash", () => {
   test("fewer than three does NOT disable — a flaky mount is not a broken plugin", async () => {
     const db = await freshDb();
     const h = makePluginHarness(db);
-    const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+    const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
     const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
     await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -55,8 +55,8 @@ describe("reportUiCrash", () => {
   test("a foreign REAL pluginId is a leak-free NotFound — nobody can three-strike someone else's plugin", async () => {
     const db = await freshDb();
     const h = makePluginHarness(db);
-    const alpha = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("alpha") }));
-    const beta = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("beta") }));
+    const alpha = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("alpha") }));
+    const beta = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("beta") }));
     const alphaPlugin = await h.service.install({ caller: alpha, bundle: makeBundle({ id: "mood" }), grant: [] });
     await h.service.setEnabled({ caller: alpha, pluginId: alphaPlugin.id, enabled: true });
 

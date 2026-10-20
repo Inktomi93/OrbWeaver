@@ -12,9 +12,10 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { AgentSdkModel, GenerationCapability, ModelCatalogEntry, ProviderId } from "@orb/contracts/inference";
 import type { SummarizeResult } from "@orb/contracts/providers";
-
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { curatedRows } from "#inference/capability/sources/curated/loader.ts";
 import { synthesizeCapability } from "#inference/capability/synthesize.ts";
@@ -114,9 +115,9 @@ async function plannedStructuredVehicles(
     detectedServer: () => emptyMirror<DetectedServer>(),
     warmDetect: () => Promise.resolve(true),
   };
-  const principal: Principal = { userId: ownerId, role: "owner", handle: castId<Handle>("owner"), externalId: null, via: "fallback" };
+  const principal: Principal = await makePrincipal({ db: await freshDb() }, ownerId, { role: "owner", handle: castId<Handle>("owner") });
   const calls: StructuredRequest[] = [];
-  const clients = createRoleClientsFor({ deps, ctx, executor: capturingExecutor(calls) })(principal);
+  const clients = createRoleClientsFor({ ctx, executor: capturingExecutor(calls) })(principal);
   const responseFormat = { name: "row", schema: wireSchema({ type: "object", properties: {}, additionalProperties: false }) };
   await clients.structured([{ systemPrompt: "Return the payload.", userPrompt: "One row." }], { responseFormat });
   expect(calls, `${providerId} · ${model}`).toHaveLength(1);

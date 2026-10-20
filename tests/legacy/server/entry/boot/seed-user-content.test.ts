@@ -3,22 +3,19 @@
 // kept per account. The fake keeps one ledger and one card store per account.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { RpgGameTemplate } from "@orb/contracts/rpg";
 import type { SeedManifestItem } from "@orb/default-content";
 import type { CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { UserContentSeederDeps } from "@orb/server/entry/boot";
 import { createUserContentSeeder } from "@orb/server/entry/boot";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 
-const ACTOR = { userId: castId<UserId>("user_seed"), role: "owner", handle: castId<Handle>("seed-owner"), externalId: null, via: "header" } satisfies Principal;
-const FRIEND = {
-  userId: castId<UserId>("user_friend"),
-  role: "user",
-  handle: castId<Handle>("seed-friend"),
-  externalId: null,
-  via: "header",
-} satisfies Principal;
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+const ACTOR: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("user_seed"), { role: "owner", handle: castId<Handle>("seed-owner") });
+const FRIEND: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("user_friend"), { handle: castId<Handle>("seed-friend") });
 
 const CHARLOTTE: SeedManifestItem = { kind: "character", key: "character:assistant", handle: castId<CharacterHandle>("assistant") };
 const NIKO: SeedManifestItem = { kind: "character", key: "character:niko", handle: castId<CharacterHandle>("niko") };
@@ -41,7 +38,11 @@ interface Fake {
   readonly seededCharacters: CharacterHandle[];
   /** Every `seededKeys` read, by account: a skipped account is never read. */
   readonly ledgerReads: UserId[];
-  readonly rosters: { readonly name: string; readonly characterIds: readonly CharacterId[]; readonly game: RpgGameTemplate | null }[];
+  readonly rosters: {
+    readonly name: string;
+    readonly characterIds: readonly CharacterId[];
+    readonly game: Parameters<UserContentSeederDeps["createRosterPreset"]>[1]["game"];
+  }[];
 }
 
 function fake(

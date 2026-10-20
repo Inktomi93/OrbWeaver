@@ -18,7 +18,10 @@ import { eq } from "drizzle-orm";
 import { handoffProvenance } from "#server/domain/character/contract/handoff-copy.ts";
 import type { CopyAssetToOwner } from "#server/domain/character/index.ts";
 import { createCopyHandoffCards } from "#server/domain/character/index.ts";
-import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
+import { createStatsBatchWiring } from "#server/domain/stats/index.ts";
+
+// The stats seam as the composition root wires it: the production writers behind the batch and database handles.
+const STATS_WIRING = createStatsBatchWiring();
 
 const AT = 1_700_000_000_000;
 const CHAT = castId<ChatId>("chat_transfer");
@@ -47,7 +50,6 @@ async function seedCard(
       handle: over.handle ?? castId<CharacterHandle>(key),
       name: key,
       description: `${key} body`,
-      tokenSize: 0,
       trustHtml: over.trustHtml ?? false,
       interactiveHtml: over.interactiveHtml ?? false,
       avatarAssetId: over.avatarAssetId ?? null,
@@ -75,8 +77,8 @@ function copier(db: Db, copyAsset: CopyAssetToOwner = () => Promise.resolve(null
   let n = 0;
   return createCopyHandoffCards({
     db: databaseHandle(db),
-    bumpStatsCanonVersion,
-    applyStatsDelta,
+    bumpStatsCanonVersion: STATS_WIRING.bumpStatsCanonVersion,
+    applyStatsDelta: STATS_WIRING.applyStatsDelta,
     now: () => AT,
     newCharacterId: (): CharacterId => {
       n += 1;

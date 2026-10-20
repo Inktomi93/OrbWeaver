@@ -24,13 +24,13 @@ describe("resolveOwnedAssetRefs", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const one = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1),
       kind: "attachment",
       mime: PNG,
     });
     const two = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(2),
       kind: "attachment",
       mime: PNG,
@@ -55,8 +55,8 @@ describe("resolveOwnedAssetRefs", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const sized = await svc.store({ principal: principal(owner), bytes: pngBytesWithDims(1024, 1536, 7), kind: "attachment", mime: PNG });
-    const headerless = await svc.store({ principal: principal(owner), bytes: pngBytes(9), kind: "attachment", mime: PNG });
+    const sized = await svc.store({ principal: await principal(db, owner), bytes: pngBytesWithDims(1024, 1536, 7), kind: "attachment", mime: PNG });
+    const headerless = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(9), kind: "attachment", mime: PNG });
 
     const refs = await svc.resolveOwnedAssetRefs(owner, [sized.assetId, headerless.assetId]);
     const byId = new Map(refs.map((r) => [r.assetId, { width: r.width, height: r.height }]));
@@ -73,13 +73,13 @@ describe("resolveOwnedAssetRefs", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     const mine = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1),
       kind: "attachment",
       mime: PNG,
     });
     const theirs = await svc.store({
-      principal: principal(other),
+      principal: await principal(db, other),
       bytes: pngBytes(2),
       kind: "attachment",
       mime: PNG,

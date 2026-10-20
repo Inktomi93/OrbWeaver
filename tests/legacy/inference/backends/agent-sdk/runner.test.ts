@@ -7,8 +7,10 @@
 // runtime will never serve.
 
 import { modelIdSchema } from "@orb/contracts/inference";
+import type { AgentSdkQuery } from "@orb/inference";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { createAgentSdkExecution } from "#inference/backends/agent-sdk/execution.ts";
 import { createAgentSdkLog } from "#inference/backends/agent-sdk/log.ts";
 import { consumeTurnStream, runChatTurn } from "#inference/backends/agent-sdk/runner.ts";
 import { NO_SAVED_TOTALS } from "#inference/backends/agent-sdk/session/frames.ts";
@@ -303,7 +305,7 @@ test("a resumed turn records its own cost: the session total less what the trans
   const deps: AgentSdkDeps = {
     now: () => 0,
     log: quietLog,
-    query: (() => resumedTurn()) as unknown as AgentSdkDeps["query"],
+    execution: createAgentSdkExecution({ query: (() => resumedTurn()) as unknown as AgentSdkQuery, log: quietLog }),
     sessionStore: sessions.store,
     normalizeImageBytes: passthroughImageNormalizer,
     scheduleTimeout: () => () => undefined,
@@ -475,11 +477,14 @@ async function capturedBody(tailSystem: string | undefined): Promise<Record<stri
   const deps: AgentSdkDeps = {
     now: () => 0,
     log: quietLog,
-    query: (() =>
-      (async function* stream(): AsyncGenerator<unknown> {
-        await Promise.resolve();
-        yield* frames;
-      })()) as unknown as AgentSdkDeps["query"],
+    execution: createAgentSdkExecution({
+      query: (() =>
+        (async function* stream(): AsyncGenerator<unknown> {
+          await Promise.resolve();
+          yield* frames;
+        })()) as unknown as AgentSdkQuery,
+      log: quietLog,
+    }),
     sessionStore: sessions.store,
     normalizeImageBytes: passthroughImageNormalizer,
     scheduleTimeout: () => () => undefined,
@@ -533,13 +538,16 @@ async function outputFormatOf(schema: Record<string, unknown>): Promise<unknown>
   const deps: AgentSdkDeps = {
     now: () => 0,
     log: quietLog,
-    query: ((input: { readonly options: Record<string, unknown> }) => {
-      options.push(input.options);
-      return (async function* stream(): AsyncGenerator<unknown> {
-        await Promise.resolve();
-        yield* frames;
-      })();
-    }) as unknown as AgentSdkDeps["query"],
+    execution: createAgentSdkExecution({
+      query: ((input: { readonly options: Record<string, unknown> }) => {
+        options.push(input.options);
+        return (async function* stream(): AsyncGenerator<unknown> {
+          await Promise.resolve();
+          yield* frames;
+        })();
+      }) as unknown as AgentSdkQuery,
+      log: quietLog,
+    }),
     sessionStore: sessions.store,
     normalizeImageBytes: passthroughImageNormalizer,
     scheduleTimeout: () => () => undefined,

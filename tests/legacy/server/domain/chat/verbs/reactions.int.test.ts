@@ -18,7 +18,6 @@ import type { DurableChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { messageReactions, messageVariants } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -28,7 +27,7 @@ import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { createReactAsCharacter, createReactions } from "#server/domain/chat/verbs/reactions.ts";
-import { addVariant, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
+import { addVariant, chatAssembly, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
 let emitted: DurableChatBusEvent[];
@@ -38,8 +37,8 @@ beforeEach(async () => {
   emitted = [];
 });
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 /** The verb pair over the test db. `hostDefaults` overrides the injected `readReactionDefaults` op (the
@@ -92,9 +91,9 @@ describe("toggleReaction — the write path", () => {
     const { host, chatId, messageId, variantId } = await seedRoom();
     const verb = reactions();
 
-    expect(await verb.toggleReaction({ principal: principal(host), chatId, variantId, emoji: "👍" })).toBe(true);
+    expect(await verb.toggleReaction({ principal: await principal(db, host), chatId, variantId, emoji: "👍" })).toBe(true);
     expect(await db.select().from(messageReactions)).toHaveLength(1);
-    expect(await verb.toggleReaction({ principal: principal(host), chatId, variantId, emoji: "👍" })).toBe(false);
+    expect(await verb.toggleReaction({ principal: await principal(db, host), chatId, variantId, emoji: "👍" })).toBe(false);
     expect(await db.select().from(messageReactions)).toHaveLength(0);
 
     // The emit carries the DIRECTION and the reacted slot — what the `reactionsChanged` trigger fact projects.
@@ -108,17 +107,17 @@ describe("toggleReaction — the write path", () => {
     const { host, member, chatId, variantId } = await seedRoom();
     const verb = reactions();
 
-    await verb.toggleReaction({ principal: principal(host), chatId, variantId, emoji: "😂" });
-    await verb.toggleReaction({ principal: principal(member), chatId, variantId, emoji: "😂" });
+    await verb.toggleReaction({ principal: await principal(db, host), chatId, variantId, emoji: "😂" });
+    await verb.toggleReaction({ principal: await principal(db, member), chatId, variantId, emoji: "😂" });
 
     expect(await db.select().from(messageReactions)).toHaveLength(2);
-    const { groups } = await verb.listReactions({ principal: principal(host), chatId });
+    const { groups } = await verb.listReactions({ principal: await principal(db, host), chatId });
     expect(groups).toHaveLength(1);
     expect(groups[0]?.emoji).toBe("😂");
     expect(groups[0]?.reactorParticipantIds).toHaveLength(2);
     // Each seat removes only its OWN row — the keyed DELETE, not the chip.
-    await verb.toggleReaction({ principal: principal(member), chatId, variantId, emoji: "😂" });
-    expect((await verb.listReactions({ principal: principal(host), chatId })).groups[0]?.reactorParticipantIds).toHaveLength(1);
+    await verb.toggleReaction({ principal: await principal(db, member), chatId, variantId, emoji: "😂" });
+    expect((await verb.listReactions({ principal: await principal(db, host), chatId })).groups[0]?.reactorParticipantIds).toHaveLength(1);
   });
 
   test("a NON-MEMBER's toggle is a leak-free NOT_FOUND and writes nothing", async () => {
@@ -126,7 +125,7 @@ describe("toggleReaction — the write path", () => {
     const stranger = await seedUser(db, castId<Handle>("stranger"));
     const verb = reactions();
 
-    const err = await verb.toggleReaction({ principal: principal(stranger), chatId, variantId, emoji: "🔥" }).catch((e: unknown) => e);
+    const err = await verb.toggleReaction({ principal: await principal(db, stranger), chatId, variantId, emoji: "🔥" }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(Error);
     expect((err as Error).name).toBe("ChatNotFoundError");
     expect(await db.select().from(messageReactions)).toHaveLength(0);
@@ -140,7 +139,9 @@ describe("toggleReaction — the write path", () => {
 
     // `a.host` is a real member of chat A, and `b.variantId` is a REAL variant — of somebody else's room.
     // The chatId gate passes; the belt this test exists for is what refuses.
-    const err = await verb.toggleReaction({ principal: principal(a.host), chatId: a.chatId, variantId: b.variantId, emoji: "👀" }).catch((e: unknown) => e);
+    const err = await verb
+      .toggleReaction({ principal: await principal(db, a.host), chatId: a.chatId, variantId: b.variantId, emoji: "👀" })
+      .catch((e: unknown) => e);
     expect((err as Error).name).toBe("ChatNotFoundError");
     expect(await db.select().from(messageReactions)).toHaveLength(0);
   });
@@ -156,10 +157,10 @@ describe("toggleReaction — the write path", () => {
     const fresh = await seedMessage(db, chatId, 5);
     const verb = reactions();
 
-    const err = await verb.toggleReaction({ principal: principal(late), chatId, variantId: old.variantId, emoji: "🎉" }).catch((e: unknown) => e);
+    const err = await verb.toggleReaction({ principal: await principal(db, late), chatId, variantId: old.variantId, emoji: "🎉" }).catch((e: unknown) => e);
     expect((err as Error).name).toBe("ChatNotFoundError");
     // …and the SAME member reacts freely at/above their floor (the floor is a clamp, never a block).
-    expect(await verb.toggleReaction({ principal: principal(late), chatId, variantId: fresh.variantId, emoji: "🎉" })).toBe(true);
+    expect(await verb.toggleReaction({ principal: await principal(db, late), chatId, variantId: fresh.variantId, emoji: "🎉" })).toBe(true);
   });
 });
 
@@ -169,7 +170,7 @@ describe("the reactions-enabled posture gate", () => {
     const { host, chatId, variantId } = await seedRoom("off", { reactionsEnabled: false });
     const verb = reactions();
 
-    const err = await verb.toggleReaction({ principal: principal(host), chatId, variantId, emoji: "👍" }).catch((e: unknown) => e);
+    const err = await verb.toggleReaction({ principal: await principal(db, host), chatId, variantId, emoji: "👍" }).catch((e: unknown) => e);
     // A coded posture refusal, NOT a NOT_FOUND collapse: the caller IS a member — they may know the host
     // turned the plane off (their own client hides the doors off this same verdict).
     expect(err).toBeInstanceOf(ChatOperationError);
@@ -178,7 +179,7 @@ describe("the reactions-enabled posture gate", () => {
     expect(emitted).toHaveLength(0);
 
     // The read is the verdict CARRIER, not a throw — it is how every member's client learns the posture.
-    expect(await verb.listReactions({ principal: principal(host), chatId })).toEqual({ reactionsEnabled: false, groups: [] });
+    expect(await verb.listReactions({ principal: await principal(db, host), chatId })).toEqual({ reactionsEnabled: false, groups: [] });
   });
 
   test("a never-pinned room INHERITS the host's per-user default — OFF refuses, and the room's own ON beats it", async () => {
@@ -187,7 +188,7 @@ describe("the reactions-enabled posture gate", () => {
     const inheritRoom = await seedRoom("inh");
     const hostOff = reactions({ charactersCanReact: false, reactionsEnabled: false });
     const err = await hostOff
-      .toggleReaction({ principal: principal(inheritRoom.member), chatId: inheritRoom.chatId, variantId: inheritRoom.variantId, emoji: "👍" })
+      .toggleReaction({ principal: await principal(db, inheritRoom.member), chatId: inheritRoom.chatId, variantId: inheritRoom.variantId, emoji: "👍" })
       .catch((e: unknown) => e);
     expect((err as ChatOperationError).code).toBe("reactions_disabled");
 
@@ -196,7 +197,12 @@ describe("the reactions-enabled posture gate", () => {
     const pinnedRoom = await seedRoom("pin", { reactionsEnabled: true });
     const stillOff = reactions({ charactersCanReact: false, reactionsEnabled: false });
     expect(
-      await stillOff.toggleReaction({ principal: principal(pinnedRoom.host), chatId: pinnedRoom.chatId, variantId: pinnedRoom.variantId, emoji: "👍" }),
+      await stillOff.toggleReaction({
+        principal: await principal(db, pinnedRoom.host),
+        chatId: pinnedRoom.chatId,
+        variantId: pinnedRoom.variantId,
+        emoji: "👍",
+      }),
     ).toBe(true);
   });
 
@@ -210,7 +216,7 @@ describe("the reactions-enabled posture gate", () => {
     // resolve under), which is exactly what pins the DEFAULT_CHAT_BEHAVIOR floor as the fallback.
     const verb = reactions({ charactersCanReact: false, reactionsEnabled: false });
 
-    expect(await verb.toggleReaction({ principal: principal(solo), chatId, variantId, emoji: "👍" })).toBe(true);
+    expect(await verb.toggleReaction({ principal: await principal(db, solo), chatId, variantId, emoji: "👍" })).toBe(true);
   });
 });
 
@@ -220,7 +226,9 @@ describe("toggleReaction — the segment anchor", () => {
     const { host, chatId, variantId } = await seedNarratorRoom("seg");
     const verb = reactions();
 
-    expect(await verb.toggleReaction({ principal: principal(host), chatId, variantId, emoji: "😂", segmentIndex: 1, segmentSpeaker: "Bob" })).toBe(true);
+    expect(await verb.toggleReaction({ principal: await principal(db, host), chatId, variantId, emoji: "😂", segmentIndex: 1, segmentSpeaker: "Bob" })).toBe(
+      true,
+    );
 
     const [row] = await db.select().from(messageReactions);
     // The stored trio is the SERVER's derivation: the span's own label and its trimmed-head snippet —
@@ -229,7 +237,9 @@ describe("toggleReaction — the segment anchor", () => {
     expect(row?.segmentSpeaker).toBe("Bob");
     expect(row?.segmentSnippet).toBe("Bob: Fine day.");
     // The same claim toggles the same anchor OFF — the segment arm is a full toggle, not add-only.
-    expect(await verb.toggleReaction({ principal: principal(host), chatId, variantId, emoji: "😂", segmentIndex: 1, segmentSpeaker: "Bob" })).toBe(false);
+    expect(await verb.toggleReaction({ principal: await principal(db, host), chatId, variantId, emoji: "😂", segmentIndex: 1, segmentSpeaker: "Bob" })).toBe(
+      false,
+    );
     expect(await db.select().from(messageReactions)).toHaveLength(0);
   });
 
@@ -237,10 +247,10 @@ describe("toggleReaction — the segment anchor", () => {
     const { host, chatId, variantId } = await seedNarratorRoom("ind");
     const verb = reactions();
 
-    await verb.toggleReaction({ principal: principal(host), chatId, variantId, emoji: "😂" });
-    await verb.toggleReaction({ principal: principal(host), chatId, variantId, emoji: "😂", segmentIndex: 1, segmentSpeaker: "Bob" });
+    await verb.toggleReaction({ principal: await principal(db, host), chatId, variantId, emoji: "😂" });
+    await verb.toggleReaction({ principal: await principal(db, host), chatId, variantId, emoji: "😂", segmentIndex: 1, segmentSpeaker: "Bob" });
 
-    const { groups } = await verb.listReactions({ principal: principal(host), chatId });
+    const { groups } = await verb.listReactions({ principal: await principal(db, host), chatId });
     // Same emoji, same seat, same variant — TWO chips, because the TARGET differs (MA-2 §4).
     expect(groups).toHaveLength(2);
     expect(groups.map((g) => [g.emoji, g.segmentIndex, g.segmentSpeaker, g.segmentSnippet])).toEqual([
@@ -255,13 +265,13 @@ describe("toggleReaction — the segment anchor", () => {
 
     // Out of range: the body has two spans.
     const range = await verb
-      .toggleReaction({ principal: principal(host), chatId, variantId, emoji: "👍", segmentIndex: 5, segmentSpeaker: "Bob" })
+      .toggleReaction({ principal: await principal(db, host), chatId, variantId, emoji: "👍", segmentIndex: 5, segmentSpeaker: "Bob" })
       .catch((e: unknown) => e);
     expect((range as ChatOperationError).code).toBe("invalid_segment");
     // Wrong speaker at a real index: span 0 is Alice's — a content/speaker race must REFUSE, never silently
     // land the click on somebody else's line.
     const wrong = await verb
-      .toggleReaction({ principal: principal(host), chatId, variantId, emoji: "👍", segmentIndex: 0, segmentSpeaker: "Bob" })
+      .toggleReaction({ principal: await principal(db, host), chatId, variantId, emoji: "👍", segmentIndex: 0, segmentSpeaker: "Bob" })
       .catch((e: unknown) => e);
     expect((wrong as ChatOperationError).code).toBe("invalid_segment");
     expect(await db.select().from(messageReactions)).toHaveLength(0);
@@ -275,7 +285,7 @@ describe("toggleReaction — the segment anchor", () => {
     const standard = await seedMessage(db, chatId, 3, { content: NARRATOR_BODY });
     const verb = reactions();
     const err = await verb
-      .toggleReaction({ principal: principal(host), chatId, variantId: standard.variantId, emoji: "👍", segmentIndex: 1, segmentSpeaker: "Bob" })
+      .toggleReaction({ principal: await principal(db, host), chatId, variantId: standard.variantId, emoji: "👍", segmentIndex: 1, segmentSpeaker: "Bob" })
       .catch((e: unknown) => e);
     expect((err as ChatOperationError).code).toBe("invalid_segment");
 
@@ -283,7 +293,14 @@ describe("toggleReaction — the segment anchor", () => {
     // (the client parses tags on every kind too), so a tagged standard row accepts the claim.
     const tagged = await seedMessage(db, chatId, 4, { content: "<speaker>Alice</speaker>Well met." });
     expect(
-      await verb.toggleReaction({ principal: principal(host), chatId, variantId: tagged.variantId, emoji: "👍", segmentIndex: 0, segmentSpeaker: "Alice" }),
+      await verb.toggleReaction({
+        principal: await principal(db, host),
+        chatId,
+        variantId: tagged.variantId,
+        emoji: "👍",
+        segmentIndex: 0,
+        segmentSpeaker: "Alice",
+      }),
     ).toBe(true);
     const [row] = await db.select().from(messageReactions);
     expect(row?.segmentSnippet).toBe("Well met.");
@@ -294,15 +311,12 @@ describe("toggleReaction — the segment anchor", () => {
 describe("createReactAsCharacter", () => {
   /** The op over the test db, with the room's react-tool opt-in ON via metadata (the plane defaults ON). */
   function reactOp(): ReturnType<typeof createReactAsCharacter> {
-    return createReactAsCharacter(
-      { ...makeChatContext(db), db: databaseHandle(db) },
-      {
-        emit: (event) => {
-          emitted.push(event);
-          return Promise.resolve();
-        },
+    return createReactAsCharacter(chatAssembly(makeChatContext(db)), {
+      emit: (event) => {
+        emitted.push(event);
+        return Promise.resolve();
       },
-    );
+    });
   }
 
   test("attributes the reaction to the CHARACTER's seat on the newest slot, and narrates the target", async () => {
@@ -313,7 +327,7 @@ describe("createReactAsCharacter", () => {
     const newest = await seedMessage(db, chatId, 2, { content: "The last word." });
     const op = reactOp();
 
-    const out = await op({ principal: principal(host), chatId, characterName: "Alice-rc2", emoji: "🔥" });
+    const out = await op({ principal: await principal(db, host), chatId, characterName: "Alice-rc2", emoji: "🔥" });
     expect(out).toEqual({ ok: true, alreadyReacted: false, character: "Alice-rc2", emoji: "🔥", target: "the whole message" });
     const rows = await db.select().from(messageReactions);
     expect(rows).toHaveLength(1);
@@ -324,7 +338,7 @@ describe("createReactAsCharacter", () => {
 
     // ADD-ONLY: the model's retry must never un-react — the repeat lands on the partial unique and says so.
     const emitCount = emitted.length;
-    const again = await op({ principal: principal(host), chatId, characterName: "Alice-rc2", emoji: "🔥" });
+    const again = await op({ principal: await principal(db, host), chatId, characterName: "Alice-rc2", emoji: "🔥" });
     expect(again).toMatchObject({ ok: true, alreadyReacted: true });
     expect(await db.select().from(messageReactions)).toHaveLength(1);
     expect(emitted).toHaveLength(emitCount);
@@ -341,7 +355,7 @@ describe("createReactAsCharacter", () => {
     await seedMessage(db, optIn, 1, { kind: "narrator", content: "Alice-ts2: One.\nBob-ts2: Two.\nAlice-ts2: Three." });
     const op = reactOp();
 
-    const anchored = await op({ principal: principal(host), chatId: optIn, characterName: "Bob-ts2", emoji: "😮", toSpeaker: "Alice-ts2" });
+    const anchored = await op({ principal: await principal(db, host), chatId: optIn, characterName: "Bob-ts2", emoji: "😮", toSpeaker: "Alice-ts2" });
     // The LAST of Alice's spans (index 2) — "react to what they just said".
     expect(anchored).toMatchObject({ ok: true, target: "Alice-ts2's line" });
     const [row] = await db.select().from(messageReactions);
@@ -350,7 +364,7 @@ describe("createReactAsCharacter", () => {
     expect(row?.segmentSnippet).toBe("Alice-ts2: Three.");
 
     // An unmatched name: the intent to react is clear, the spelling is not — whole-message, and SAY so.
-    const degraded = await op({ principal: principal(host), chatId: optIn, characterName: "Bob-ts2", emoji: "😢", toSpeaker: "Zed" });
+    const degraded = await op({ principal: await principal(db, host), chatId: optIn, characterName: "Bob-ts2", emoji: "😢", toSpeaker: "Zed" });
     expect(degraded).toMatchObject({ ok: true, target: 'the whole message (no line by "Zed" found in it)' });
   });
 
@@ -360,17 +374,17 @@ describe("createReactAsCharacter", () => {
     // The SHIPPED posture: charactersCanReact resolves OFF (no metadata, host default off) — the
     // write-side belt for a knob flipped mid-turn (the attach gate already keeps the tool off the wire).
     const shipped = await seedNarratorRoom("ref1");
-    const off = await op({ principal: principal(shipped.host), chatId: shipped.chatId, characterName: "Alice", emoji: "👍" });
+    const off = await op({ principal: await principal(db, shipped.host), chatId: shipped.chatId, characterName: "Alice", emoji: "👍" });
     expect(off).toEqual({ ok: false, reason: "Reactions by characters are turned off in this chat." });
 
     // The master switch outranks the opt-in: plane OFF + tool ON still refuses.
     const master = await seedRoom("ref2", { charactersCanReact: true, reactionsEnabled: false });
-    const masterOut = await op({ principal: principal(master.host), chatId: master.chatId, characterName: "Alice", emoji: "👍" });
+    const masterOut = await op({ principal: await principal(db, master.host), chatId: master.chatId, characterName: "Alice", emoji: "👍" });
     expect(masterOut).toEqual({ ok: false, reason: "Reactions by characters are turned off in this chat." });
 
     // Unknown character: a legality answer, not a platform fault.
     const noChar = await seedRoom("ref3", { charactersCanReact: true });
-    const noCharOut = await op({ principal: principal(noChar.host), chatId: noChar.chatId, characterName: "Nobody", emoji: "👍" });
+    const noCharOut = await op({ principal: await principal(db, noChar.host), chatId: noChar.chatId, characterName: "Nobody", emoji: "👍" });
     expect(noCharOut).toEqual({ ok: false, reason: 'No present character named "Nobody" in this chat — use a present character\'s exact name.' });
 
     // An empty room (a character seat exists; no message yet).
@@ -379,7 +393,7 @@ describe("createReactAsCharacter", () => {
     const emptyAlice = await seedCharacter(db, empty, "Alice-ref4");
     await seedParticipant(db, { chatId: emptyChat, key: "ref4-h", userId: empty, role: "host" });
     await seedParticipant(db, { chatId: emptyChat, key: "ref4-alice", characterId: emptyAlice });
-    const emptyOut = await op({ principal: principal(empty), chatId: emptyChat, characterName: "Alice-ref4", emoji: "👍" });
+    const emptyOut = await op({ principal: await principal(db, empty), chatId: emptyChat, characterName: "Alice-ref4", emoji: "👍" });
     expect(emptyOut).toEqual({ ok: false, reason: "There is no message to react to yet." });
 
     expect(await db.select().from(messageReactions)).toHaveLength(0);
@@ -406,7 +420,7 @@ describe("createReactAsCharacter", () => {
     const op = reactOp();
 
     // The clamped caller: the room's newest slot is BELOW their floor, so there is nothing they may target.
-    expect(await op({ principal: principal(late), chatId, characterName: "Alice-fl", emoji: "🔥" })).toEqual({
+    expect(await op({ principal: await principal(db, late), chatId, characterName: "Alice-fl", emoji: "🔥" })).toEqual({
       ok: false,
       reason: "There is no message to react to yet.",
     });
@@ -414,12 +428,12 @@ describe("createReactAsCharacter", () => {
     expect(emitted).toEqual([]);
 
     // POSITIVE CONTROL 1 — the HOST is unclamped, so the same call on the same slot lands.
-    expect(await op({ principal: principal(host), chatId, characterName: "Alice-fl", emoji: "🔥" })).toMatchObject({ ok: true });
+    expect(await op({ principal: await principal(db, host), chatId, characterName: "Alice-fl", emoji: "🔥" })).toMatchObject({ ok: true });
     expect((await db.select().from(messageReactions))[0]?.variantId).toBe(pre.variantId);
 
     // POSITIVE CONTROL 2 — a slot AT the clamped caller's own floor is theirs, and the tool works for them.
     const post = await seedMessage(db, chatId, 5, { content: "after they walked in" });
-    expect(await op({ principal: principal(late), chatId, characterName: "Alice-fl", emoji: "😂" })).toMatchObject({ ok: true });
+    expect(await op({ principal: await principal(db, late), chatId, characterName: "Alice-fl", emoji: "😂" })).toMatchObject({ ok: true });
     expect(emitted.at(-1)).toMatchObject({ type: "reactionsChanged", messageId: post.messageId, variantId: post.variantId, emoji: "😂" });
   });
 
@@ -439,7 +453,7 @@ describe("createReactAsCharacter", () => {
     await seedMessage(db, chatId, 1, { content: "the last word" });
     const op = reactOp();
 
-    expect(await op({ principal: principal(host), chatId, characterName: "Muted-mu", emoji: "🔥" })).toEqual({
+    expect(await op({ principal: await principal(db, host), chatId, characterName: "Muted-mu", emoji: "🔥" })).toEqual({
       ok: false,
       reason: 'The character "Muted-mu" is muted in this chat and cannot react.',
     });
@@ -447,7 +461,7 @@ describe("createReactAsCharacter", () => {
     expect(emitted).toEqual([]);
 
     // POSITIVE CONTROL — the un-muted seat in the same room, same call shape, still reacts.
-    expect(await op({ principal: principal(host), chatId, characterName: "Live-mu", emoji: "🔥" })).toMatchObject({ ok: true });
+    expect(await op({ principal: await principal(db, host), chatId, characterName: "Live-mu", emoji: "🔥" })).toMatchObject({ ok: true });
     expect(await db.select().from(messageReactions)).toHaveLength(1);
   });
 });
@@ -458,10 +472,10 @@ describe("the VARIANT anchor (D26)", () => {
     const sibling = await addVariant(db, messageId, 1, "a reroll");
     const verb = reactions();
 
-    await verb.toggleReaction({ principal: principal(host), chatId, variantId, emoji: "❤️" });
+    await verb.toggleReaction({ principal: await principal(db, host), chatId, variantId, emoji: "❤️" });
     // The sibling swipe is a DIFFERENT generation — its own (empty) set, which is the whole reason the
     // anchor is the variant rather than the slot.
-    const { groups } = await verb.listReactions({ principal: principal(host), chatId });
+    const { groups } = await verb.listReactions({ principal: await principal(db, host), chatId });
     expect(groups.filter((g) => g.variantId === sibling)).toHaveLength(0);
     expect(groups.filter((g) => g.variantId === variantId)).toHaveLength(1);
 
@@ -483,14 +497,14 @@ describe("listReactions — the read", () => {
     const verb = reactions();
 
     // The HOST reacts to a pre-join message — real canon the clamped member may not read.
-    await verb.toggleReaction({ principal: principal(host), chatId, variantId: old.variantId, emoji: "🤔" });
+    await verb.toggleReaction({ principal: await principal(db, host), chatId, variantId: old.variantId, emoji: "🤔" });
 
-    expect((await verb.listReactions({ principal: principal(host), chatId })).groups).toHaveLength(1);
+    expect((await verb.listReactions({ principal: await principal(db, host), chatId })).groups).toHaveLength(1);
     // The clamped member's window is EMPTY — a pill row naming who reacted to a message they cannot see is
     // the same leak one seq lower. The VERDICT still answers true: the plane is on, their window is empty.
-    expect(await verb.listReactions({ principal: principal(late), chatId })).toEqual({ reactionsEnabled: true, groups: [] });
+    expect(await verb.listReactions({ principal: await principal(db, late), chatId })).toEqual({ reactionsEnabled: true, groups: [] });
 
-    const err = await verb.listReactions({ principal: principal(stranger), chatId }).catch((e: unknown) => e);
+    const err = await verb.listReactions({ principal: await principal(db, stranger), chatId }).catch((e: unknown) => e);
     expect((err as Error).name).toBe("ChatNotFoundError");
   });
 });

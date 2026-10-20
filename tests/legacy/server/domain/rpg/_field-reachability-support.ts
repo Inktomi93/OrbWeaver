@@ -1,3 +1,4 @@
+import type { Principal } from "@orb/contracts/identity";
 import type { RpgActorOp, RpgActorRef, RpgExtraction, RpgTrackerDef } from "@orb/contracts/rpg";
 import { RPG_PROFILE_D20, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId, ChatTurnId, Handle, RpgGameId, UserId } from "@orb/kit/ids";
@@ -14,8 +15,6 @@ export { RPG_DELTA_HEADING, RPG_SCENE_OPENS_HEADING } from "#server/domain/rpg/s
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE HARNESS — one game, real verbs, real turns, the real gather.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
-
-export const HOST = principal(castId<Handle>("host"));
 
 /** The absolute state block's heading (`buildLiteReminder`) — the block boundary the probes read against. */
 const STATE_HEADING = "# Game state";
@@ -74,6 +73,8 @@ export interface Fixture {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
   readonly h: RpgHarness;
+  /** The host's Principal, resolved from the game's own `user_host` row. */
+  readonly host: Principal;
   readonly carrier: Carrier;
   /** Drive ONE beat: the model's extraction folded through the real applier onto a fresh assistant slot. */
   readonly beat: (extraction: Partial<RpgExtraction>) => Promise<void>;
@@ -110,10 +111,11 @@ export async function openGame(opts: { carrier: Carrier; trackers?: readonly Rpg
   const db = await freshDb();
   // `rpg_sheets` FKs both actor identities, so a `patchSheet` on either participant carrier needs the real row.
   const ownerId = await seedUser(db, castId<Handle>("host"));
+  const host = await principal(db, castId<Handle>("host"));
   await seedCharacter(db, ownerId, "kael", { id: CHARACTER_ID });
   const { chatId, gameId, h } = await seedLiteGame(db, { participants: [...opts.carrier.participants] });
   await h.service.updateConfig({
-    principal: HOST,
+    principal: host,
     chatId,
     extractionMode: "cheap",
     patch: {
@@ -123,12 +125,13 @@ export async function openGame(opts: { carrier: Carrier; trackers?: readonly Rpg
   });
   let seq = 0;
   const gather = async (): Promise<RpgGatherResult | null> =>
-    h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST.userId });
+    h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: host.userId });
   const reminder = async (): Promise<string> => (await gather())?.injections[0]?.content ?? "";
   return {
     chatId,
     gameId,
     h,
+    host,
     carrier: opts.carrier,
     beat: async (over: Partial<RpgExtraction>): Promise<void> => {
       seq += 1;
@@ -142,10 +145,10 @@ export async function openGame(opts: { carrier: Carrier; trackers?: readonly Rpg
     // reads a world the edit never touched. `toEqual` over `expect(result.ok).toBe(true)` because the refusal
     // arm carries the `reason` sentence, and the diff prints it instead of "expected false to be true".
     handEdit: async (patch: Record<string, unknown>): Promise<void> => {
-      await expect(h.service.editSnapshot({ principal: HOST, chatId, patch, lockPaths: [] })).resolves.toEqual({ ok: true });
+      await expect(h.service.editSnapshot({ principal: host, chatId, patch, lockPaths: [] })).resolves.toEqual({ ok: true });
     },
     handActorOps: async (ops: readonly RpgActorOp[]): Promise<void> => {
-      await expect(h.service.patchActor({ principal: HOST, chatId, targetRef: opts.carrier.actorRef, ops, autoLock: false })).resolves.toEqual({ ok: true });
+      await expect(h.service.patchActor({ principal: host, chatId, targetRef: opts.carrier.actorRef, ops, autoLock: false })).resolves.toEqual({ ok: true });
     },
     reminder,
     stateBlock: async (): Promise<string> => {

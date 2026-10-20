@@ -16,6 +16,6 @@ test("census counts only owned library rows without entering full-list enrichmen
   for (const [index, ownerId] of [owner, other, other].entries()) {
     await db.insert(rosterPresets).values({ id: mintTypeId(ID_PREFIX.rosterPreset), ownerId, name: `Roster ${index}` });
   }
-  expect(await service.count({ principal: principal(owner) })).toBe(1);
-  expect(await service.count({ principal: principal(other) })).toBe(2);
+  expect(await service.count({ principal: await principal({ db }, owner) })).toBe(1);
+  expect(await service.count({ principal: await principal({ db }, other) })).toBe(2);
 });

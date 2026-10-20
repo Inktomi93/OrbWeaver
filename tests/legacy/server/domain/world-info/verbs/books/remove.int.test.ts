@@ -21,14 +21,14 @@ describe("removeBook", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Doomed" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Doomed" } });
     const entry = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "E", content: "c" },
     });
 
-    const res = await svc.removeBook({ principal: principal(owner), bookId: book.id });
+    const res = await svc.removeBook({ principal: await principal(db, owner), bookId: book.id });
     expect(res.deleted).toBe(true);
     const orphans = await db.select().from(worldEntries).where(eq(worldEntries.id, entry.id));
     expect(orphans).toHaveLength(0);
@@ -39,9 +39,9 @@ describe("removeBook", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "Theirs" } });
 
-    await expect(svc.removeBook({ principal: principal(owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.removeBook({ principal: await principal(db, owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 
   // The entity→room bridge's DELETE residual (design §3.6): deleting a book CASCADEs its scope junctions, so a
@@ -53,11 +53,11 @@ describe("removeBook", () => {
     const capture = createDeleteReachCapture(databaseHandle(db), (event) => captured.push(event));
     const svc = createWorldInfoService(makeHarness(db, { captureRoomReachForDelete: capture["world-info"] }).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Doomed" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Doomed" } });
     const room = await seedChat(db, "attached");
     await db.insert(chatBooks).values({ chatId: room, worldBookId: book.id, createdAt: FROZEN_AT_MS });
 
-    await svc.removeBook({ principal: principal(owner), bookId: book.id });
+    await svc.removeBook({ principal: await principal(db, owner), bookId: book.id });
 
     const fanned = captured.filter((e) => e.type === "roomEntityChanged" && e.entity === "world-info").map((e) => e.chatId);
     expect(fanned).toEqual([room]);
@@ -70,11 +70,11 @@ describe("removeBook", () => {
     const svc = createWorldInfoService(makeHarness(db, { captureRoomReachForDelete: capture["world-info"] }).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "Theirs" } });
     const room = await seedChat(db, "attached");
     await db.insert(chatBooks).values({ chatId: room, worldBookId: theirs.id, createdAt: FROZEN_AT_MS });
 
-    await expect(svc.removeBook({ principal: principal(owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.removeBook({ principal: await principal(db, owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
     expect(captured).toEqual([]);
   });
 });

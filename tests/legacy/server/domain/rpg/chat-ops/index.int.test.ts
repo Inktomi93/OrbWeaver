@@ -3,6 +3,7 @@
 // read. The gather + flush have their own mirrors (`./gather`, `./flush`).
 
 import { batchMany } from "@orb/db/query";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import type { ChatTurnId, Handle, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -21,7 +22,7 @@ test("planGameBirth contributes an unexecuted RPG row and emits only after the c
   expect(await findGameByChat(db, chatId)).toBeUndefined();
   expect(h.fakes.busEvents).toEqual([]);
 
-  await db.batch(batchMany([...plan.statements]));
+  await db.batch(batchMany(plan.statements.map(statementForOwner)));
   h.chatOps.gameBirthCommitted(chatId);
 
   expect((await findGameByChat(db, chatId))?.id).toBe(plan.gameId);
@@ -34,7 +35,7 @@ test("resolvePresetOverride is MODE-BLIND: born NULL (augment) until the knob is
   expect(await h.chatOps.resolvePresetOverride(chatId)).toBeNull();
 
   const presetId = await seedPreset(db, "gm", "host");
-  await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, gmPresetId: presetId });
+  await h.service.updateConfig({ principal: await principal(db, castId<Handle>("host")), chatId, gmPresetId: presetId });
   expect(await h.chatOps.resolvePresetOverride(chatId)).toBe(presetId);
 });
 

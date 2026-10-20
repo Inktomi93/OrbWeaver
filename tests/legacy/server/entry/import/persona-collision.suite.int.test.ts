@@ -33,6 +33,7 @@ import type { ImportContext } from "#server/domain/import/context.ts";
 import { createImportChats } from "#server/domain/import/verbs/import-chats.ts";
 import { createImportPersonas } from "#server/domain/import/verbs/import-personas.ts";
 import { createBulkImportPersonas } from "#server/domain/persona/persistence/import-write.ts";
+import { createStatsBatchWiring } from "#server/domain/stats/index.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { parseChatJsonl } from "#server/primitives/serde/chat/index.ts";
 
@@ -84,7 +85,11 @@ function runContext(db: Db, ownerId: UserId): ImportContext {
     profile: {
       now: (): number => NOW,
       personaByUserName: new Map(),
-      bulkImportChats: createBulkImportChats({ ...chatImportCtx(db), db: databaseHandle(db) }),
+      bulkImportChats: createBulkImportChats({
+        ...chatImportCtx(db),
+        db: databaseHandle(db),
+        bumpStatsCanonVersion: createStatsBatchWiring().bumpStatsCanonVersion,
+      }),
       bulkImportPersonas: createBulkImportPersonas({
         db: databaseHandle(db),
         now: (): number => NOW,

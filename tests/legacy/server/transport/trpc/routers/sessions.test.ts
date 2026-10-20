@@ -14,6 +14,7 @@ import { viewerViewSchema } from "@orb/contracts/identity";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { appRouter } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { caller, makeContext, principal } from "../_support.ts";
@@ -23,23 +24,26 @@ const HANDLE = castId<Handle>("alex");
 
 describe("sessions.me — viewer identity projection", () => {
   test("projects the caller's Principal into { userId, handle, globalRole }", async () => {
-    const view = await caller(makeContext({ auth: principal("admin", { userId: USER, handle: HANDLE }) })).sessions.me();
+    const db = await freshDb();
+    const view = await caller(makeContext({ auth: await principal(db, "admin", { userId: USER, handle: HANDLE }) })).sessions.me();
 
     expect(view).toEqual({ userId: USER, handle: HANDLE, globalRole: "admin" });
   });
 
   test("maps role verbatim to globalRole (owner/user, not just admin)", async () => {
-    const owner = await caller(makeContext({ auth: principal("owner") })).sessions.me();
+    const db = await freshDb();
+    const owner = await caller(makeContext({ auth: await principal(db, "owner") })).sessions.me();
     expect(owner.globalRole).toBe("owner");
 
-    const user = await caller(makeContext({ auth: principal("user") })).sessions.me();
+    const user = await caller(makeContext({ auth: await principal(db, "user") })).sessions.me();
     expect(user.globalRole).toBe("user");
   });
 
   test("leaks no other Principal field (externalId / via stay off the wire)", async () => {
+    const db = await freshDb();
     const view = await caller(
       makeContext({
-        auth: principal("user", {
+        auth: await principal(db, "user", {
           userId: USER,
           handle: HANDLE,
           externalId: castId<ExternalId>("authentik-sub-123"),
@@ -61,7 +65,8 @@ describe("sessions.me — the strict output parser", () => {
   });
 
   test("a malformed known field is refused at runtime instead of reaching the wire", async () => {
-    const ctx = makeContext({ auth: principal("user", { userId: USER, handle: castId<Handle>("") }) });
+    const db = await freshDb();
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: USER, handle: castId<Handle>("") }) });
 
     await expect(caller(ctx).sessions.me()).toThrowTRPCError("INTERNAL_SERVER_ERROR");
   });

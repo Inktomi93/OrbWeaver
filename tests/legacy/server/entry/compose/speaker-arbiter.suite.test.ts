@@ -8,6 +8,8 @@ import type { AgentSdkModel, DeclaredCapability, ModelCatalogEntry } from "@orb/
 import type { SummarizeResult } from "@orb/contracts/providers";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { Mirror } from "#inference/catalog/mirror.ts";
@@ -81,9 +83,9 @@ async function arbiterFor(
     detectedServer: () => emptyMirror<DetectedServer>(),
     warmDetect: () => Promise.resolve(true),
   };
-  const principal: Principal = { userId: ownerId, role: "owner", handle: castId<Handle>("owner"), externalId: null, via: "fallback" };
+  const principal: Principal = await makePrincipal({ db: await freshDb() }, ownerId, { role: "owner", handle: castId<Handle>("owner") });
   const calls: StructuredRequest[] = [];
-  const arbiter = await speakerArbiterFor(createRoleClientsFor({ deps, ctx, executor: capturingExecutor(calls) })(principal));
+  const arbiter = await speakerArbiterFor(createRoleClientsFor({ ctx, executor: capturingExecutor(calls) })(principal));
   await arbiter?.structured([{ systemPrompt: "Pick.", userPrompt: "Who?" }], {
     responseFormat: { name: "speaker_pick", schema: wireSchema({ type: "object", properties: {}, additionalProperties: false }) },
   });

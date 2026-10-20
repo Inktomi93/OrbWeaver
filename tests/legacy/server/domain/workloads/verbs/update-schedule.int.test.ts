@@ -15,7 +15,7 @@ async function seedAliceSchedule(db: Parameters<typeof makeService>[0]): Promise
   const s = makeService(db);
   const { id } = await s.createSchedule({
     input: { kind: "index", params: { source: "text" } },
-    caller: principal("user_alice"),
+    caller: await principal(db, "user_alice"),
     cadence: "daily",
     mode: "singular",
     ownerId: alice,
@@ -30,7 +30,7 @@ describe("workloads.updateSchedule", () => {
     const s = makeService(db);
     const updated = await s.updateSchedule({
       id,
-      caller: principal("user_alice"),
+      caller: await principal(db, "user_alice"),
       cadence: "weekly",
     });
     expect(updated.cadence).toBe("weekly");
@@ -42,8 +42,8 @@ describe("workloads.updateSchedule", () => {
     const id = await seedAliceSchedule(db);
     await seedUser(db, "user_bob");
     const s = makeService(db);
-    await expect(s.updateSchedule({ id, caller: principal("user_bob"), cadence: "weekly" })).rejects.toBeInstanceOf(DomainNotFoundError);
-    const [still] = await s.listSchedules({ caller: principal("user_alice") });
+    await expect(s.updateSchedule({ id, caller: await principal(db, "user_bob"), cadence: "weekly" })).rejects.toBeInstanceOf(DomainNotFoundError);
+    const [still] = await s.listSchedules({ caller: await principal(db, "user_alice") });
     expect(still?.cadence).toBe("daily"); // untouched
   });
 
@@ -54,7 +54,7 @@ describe("workloads.updateSchedule", () => {
     const s = makeService(db);
     const updated = await s.updateSchedule({
       id,
-      caller: principal("user_admin", "admin"),
+      caller: await principal(db, "user_admin", "admin"),
       cadence: "monthly",
     });
     expect(updated.cadence).toBe("monthly");

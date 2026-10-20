@@ -38,7 +38,7 @@ describe("mergeTags", () => {
     const chatId = await seedChat(db);
     h.allowChat(chatId);
 
-    const p = principal(owner);
+    const p = await principal(db, owner);
     const attach = (tagId: TagId, targetType: TagTargetType, targetId: string): Promise<void> => svc.attachTag({ principal: p, tagId, targetType, targetId });
     await attach(source, "character", characterId);
     await attach(source, "worldBook", worldBookId);
@@ -67,7 +67,7 @@ describe("mergeTags", () => {
     const source = await seedTag(db, owner, { id: "tag_src", name: "src" });
     const target = await seedTag(db, owner, { id: "tag_dst", name: "dst" });
     const characterId = await seedCharacter(db, owner);
-    const p = principal(owner);
+    const p = await principal(db, owner);
 
     // Source tags the character ACCEPTED; the target already tags it as a PENDING suggestion.
     await svc.attachTag({
@@ -104,7 +104,7 @@ describe("mergeTags", () => {
     const source = await seedTag(db, owner, { id: "tag_src", name: "src" });
     const target = await seedTag(db, owner, { id: "tag_dst", name: "dst" });
     const worldBookId = await seedWorldBook(db, owner);
-    const p = principal(owner);
+    const p = await principal(db, owner);
 
     const attach = (tagId: TagId): Promise<void> => svc.attachTag({ principal: p, tagId, targetType: "worldBook", targetId: worldBookId });
     await attach(source);
@@ -121,7 +121,7 @@ describe("mergeTags", () => {
     const owner = await seedUser(db);
     const svc = createTagService(makeTagHarness(db).ctx);
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
-    await expect(svc.mergeTags({ principal: principal(owner), sourceTagId: tagId, targetTagId: tagId })).rejects.toThrow(DomainOperationError);
+    await expect(svc.mergeTags({ principal: await principal(db, owner), sourceTagId: tagId, targetTagId: tagId })).rejects.toThrow(DomainOperationError);
   });
 
   test("refuses merging a tag the caller does not own (either endpoint)", async () => {
@@ -133,9 +133,9 @@ describe("mergeTags", () => {
     const theirs = await seedTag(db, stranger, { id: "tag_theirs", name: "theirs" });
 
     // Foreign SOURCE → not-found.
-    await expect(svc.mergeTags({ principal: principal(owner), sourceTagId: theirs, targetTagId: mine })).rejects.toThrow(TagNotFoundError);
+    await expect(svc.mergeTags({ principal: await principal(db, owner), sourceTagId: theirs, targetTagId: mine })).rejects.toThrow(TagNotFoundError);
     // Foreign TARGET → not-found.
-    await expect(svc.mergeTags({ principal: principal(owner), sourceTagId: mine, targetTagId: theirs })).rejects.toThrow(TagNotFoundError);
+    await expect(svc.mergeTags({ principal: await principal(db, owner), sourceTagId: mine, targetTagId: theirs })).rejects.toThrow(TagNotFoundError);
     // The stranger's tag survived untouched.
     expect(await db.select().from(tags).where(eq(tags.id, theirs))).toHaveLength(1);
   });
@@ -147,7 +147,7 @@ describe("mergeTags", () => {
     const mine = await seedTag(db, owner, { id: "tag_mine", name: "mine" });
     await expect(
       svc.mergeTags({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         sourceTagId: mine,
         targetTagId: castId<TagId>("tag_ghost"),
       }),
@@ -164,7 +164,7 @@ describe("mergeTags — audit", () => {
     const source = await seedTag(db, owner, { id: "tag_src", name: "src" });
     const target = await seedTag(db, owner, { id: "tag_dst", name: "dst" });
 
-    await svc.mergeTags({ principal: principal(owner), sourceTagId: source, targetTagId: target });
+    await svc.mergeTags({ principal: await principal(db, owner), sourceTagId: source, targetTagId: target });
     expect(h.audits).toEqual([
       {
         actorUserId: owner,

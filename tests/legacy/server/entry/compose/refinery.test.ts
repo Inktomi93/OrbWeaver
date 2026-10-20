@@ -23,6 +23,7 @@ import { castId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
 import { publishUserEvent } from "@orb/server/transport/trpc";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeCapability, makeGenerationCapability, TEST_OWNER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -178,9 +179,12 @@ function scoreDraft(schema: ReturnType<typeof projectJsonSchema>): Record<string
   };
 }
 
-function planOn(connection: Resolved | null): ReturnType<ReturnType<typeof buildRefinery>["refinery"]["previewSchemaPlan"]> {
+// The plan preview reads no user rows; its caller resolves from a row in one in-memory database.
+const callersDb = await freshDb();
+
+async function planOn(connection: Resolved | null): ReturnType<ReturnType<typeof buildRefinery>["refinery"]["previewSchemaPlan"]> {
   return previewOn(connection, () => Promise.resolve(undefined))({
-    principal: principal(TEST_OWNER_ID),
+    principal: await principal({ db: callersDb }, TEST_OWNER_ID),
     stage: "score",
     schema: scoreDraft(optionalFields(30)),
   });
@@ -213,8 +217,8 @@ test("the Utility default reasoning off admits the same conditional tool fallbac
   });
   const params = vi.fn<RefineryComposeDeps["resolveUtilityPresetParams"]>().mockResolvedValue(undefined);
   const preview = previewOn(connection, params);
-  const planSchema = (owner: UserId, draft: ReturnType<typeof projectJsonSchema>): ReturnType<typeof preview> =>
-    preview({ principal: principal(owner), stage: "score", schema: scoreDraft(draft) });
+  const planSchema = async (owner: UserId, draft: ReturnType<typeof projectJsonSchema>): ReturnType<typeof preview> =>
+    preview({ principal: await principal({ db: NO_DB }, owner), stage: "score", schema: scoreDraft(draft) });
   const schema = projectJsonSchema(z.object({ a: z.string(), b: z.string() }));
   expect(await planSchema(TEST_OWNER_ID, schema)).toEqual({ outcome: "sends", model: "gpt-6-sol", carrier: "tool" });
   expect(params).toHaveBeenLastCalledWith(TEST_OWNER_ID);
@@ -256,7 +260,10 @@ test("the plan preview reads only the facts already cached, so a dead endpoint i
     return Promise.reject(new TypeError("fetch failed: connect ECONNREFUSED 127.0.0.1:1"));
   };
   const runtime = await createInferenceRuntime({ ...fakeDeps({ stores, fetch: deadServer }), now: () => clock });
-  const resolveStructuredBinding = createResolveStructuredBinding({ resolve: runtime.resolve, principalOf: (userId) => Promise.resolve(principal(userId)) });
+  const resolveStructuredBinding = createResolveStructuredBinding({
+    resolve: runtime.resolve,
+    principalOf: async (userId) => Promise.resolve(await principal({ db: NO_DB }, userId)),
+  });
 
   for (let ask = 0; ask < 4; ask += 1) {
     expect(await resolveStructuredBinding(ownerId)).toMatchObject({ model: "local-model" });

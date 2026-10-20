@@ -44,7 +44,7 @@ async function makeSeededHarness(): Promise<{
   const assets = createAssetsService(assetsHarness.ctx);
   const characters = createCharacterService(makeCharacterHarness(db).ctx);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const actor = principal(owner);
+  const actor = await principal(db, owner);
   const seeder = createDefaultCharacterSeeder({
     ...realLorebookImport(db),
     characters,

@@ -15,11 +15,18 @@ import { seedParticipant } from "../../chat/_support.ts";
 import { FIXED_NOW_MS, MSG_COMMITTED, makeAutomationHarness, principal, readFailingDb, ruleFixture, SET_VAR, seedHostChat, seedUser } from "../_support.ts";
 
 test("updateRule replaces the editable fields and announces the edit", async () => {
-  const { host, chatId, svc, events } = await ruleFixture();
-  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "greet", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const { host, chatId, svc, events, db } = await ruleFixture();
+  const rule = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(db, host),
+    chatId,
+    name: "greet",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
   const updated = await svc.updateRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(host),
+    principal: await principal(db, host),
     ruleId: rule.id,
     name: "greet2",
     trigger: MSG_COMMITTED,
@@ -34,10 +41,10 @@ test("updateRule replaces the editable fields and announces the edit", async () 
 });
 
 test("ANY edit clears the mint provenance — a hand-edited rule is no longer the preset's mint (§3-S3; B10's capture must not read a lying bag)", async () => {
-  const { host, chatId, svc } = await ruleFixture();
+  const { host, chatId, svc, db } = await ruleFixture();
   const [minted] = await svc.createRuleFromPreset({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(host),
+    principal: await principal(db, host),
     chatId,
     presetId: "pacingNudge",
     knobs: { everyN: 4 },
@@ -48,7 +55,7 @@ test("ANY edit clears the mint provenance — a hand-edited rule is no longer th
   }
   const updated = await svc.updateRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(host),
+    principal: await principal(db, host),
     ruleId: minted.id,
     name: minted.name,
     trigger: minted.trigger,
@@ -66,27 +73,34 @@ test("a rule saved before rules carried a zone reads UTC until its next save sta
   }
   // The harness clock reads 22:13 in UTC and 03:58 in Kathmandu.
   const body = { name: "night owl", trigger: MSG_COMMITTED, predicateCel: "int(now.hour) == 3", actions: [SET_VAR] };
-  const rule = await svc.createRule({ ...body, timeZone: UTC_TIME_ZONE, principal: principal(host), chatId });
+  const rule = await svc.createRule({ ...body, timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId });
   await db.update(automationRules).set({ timeZone: null }).where(eq(automationRules.id, rule.id));
 
-  expect((await svc.listRules({ principal: principal(host), chatId }))[0]?.timeZone).toBeNull();
-  expect((await svc.testRule({ principal: principal(host), ruleId: rule.id })).predicate).toBe(false);
+  expect((await svc.listRules({ principal: await principal(db, host), chatId }))[0]?.timeZone).toBeNull();
+  expect((await svc.testRule({ principal: await principal(db, host), ruleId: rule.id })).predicate).toBe(false);
   // An operational toggle is not a save: it moves no clock.
-  await svc.setRuleEnabled({ principal: principal(host), ruleId: rule.id, enabled: true });
-  expect((await svc.listRules({ principal: principal(host), chatId }))[0]?.timeZone).toBeNull();
+  await svc.setRuleEnabled({ principal: await principal(db, host), ruleId: rule.id, enabled: true });
+  expect((await svc.listRules({ principal: await principal(db, host), chatId }))[0]?.timeZone).toBeNull();
 
-  const saved = await svc.updateRule({ ...body, timeZone: kathmandu, principal: principal(host), ruleId: rule.id });
+  const saved = await svc.updateRule({ ...body, timeZone: kathmandu, principal: await principal(db, host), ruleId: rule.id });
   expect(saved.timeZone).toBe("Asia/Kathmandu");
-  expect((await svc.testRule({ principal: principal(host), ruleId: rule.id })).predicate).toBe(true);
+  expect((await svc.testRule({ principal: await principal(db, host), ruleId: rule.id })).predicate).toBe(true);
 });
 
 test("an update that fails validation writes nothing and announces nothing", async () => {
-  const { host, chatId, svc, events } = await ruleFixture();
-  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "greet", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const { host, chatId, svc, events, db } = await ruleFixture();
+  const rule = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(db, host),
+    chatId,
+    name: "greet",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
   await expect(
     svc.updateRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(host),
+      principal: await principal(db, host),
       ruleId: rule.id,
       name: "bad",
       trigger: MSG_COMMITTED,
@@ -97,7 +111,7 @@ test("an update that fails validation writes nothing and announces nothing", asy
   // Only the create's event stands: `validateRuleInput` runs before `applyRuleUpdate`, so the announce that
   // sits after the write cannot fire on a refusal.
   expect(events).toEqual([{ type: "rulesChanged", chatId }]);
-  const [listed] = await svc.listRules({ principal: principal(host), chatId });
+  const [listed] = await svc.listRules({ principal: await principal(db, host), chatId });
   expect(listed?.name).toBe("greet");
 });
 
@@ -112,7 +126,7 @@ test("editing a rule VOIDS its pending confirmation cards — the stale card can
   const fx = await ruleFixture();
   const rule = await fx.svc.createRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(fx.host),
+    principal: await principal(fx.db, fx.host),
     chatId: fx.chatId,
     name: "greet",
     trigger: MSG_COMMITTED,
@@ -134,7 +148,7 @@ test("editing a rule VOIDS its pending confirmation cards — the stale card can
 
   await fx.svc.updateRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(fx.host),
+    principal: await principal(fx.db, fx.host),
     ruleId: rule.id,
     name: "greet",
     trigger: MSG_COMMITTED,
@@ -155,7 +169,14 @@ test("an index-refresh failure does NOT reject the committed edit, and the stale
   const enabled = createEnabledRuleIndex(databaseHandle(readFailingDb(db, failing)));
   const ctx = makeAutomationHarness(db, { enabled });
   const svc = createAutomationService(ctx);
-  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "greet", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const rule = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(db, host),
+    chatId,
+    name: "greet",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
   await enabled.reload();
 
   failing.fail = true;
@@ -163,7 +184,7 @@ test("an index-refresh failure does NOT reject the committed edit, and the stale
   // half of the defect (the other half is the index that keeps dispatching the pre-edit rule).
   const updated = await svc.updateRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(host),
+    principal: await principal(db, host),
     ruleId: rule.id,
     name: "greet2",
     trigger: MSG_COMMITTED,
@@ -205,7 +226,7 @@ test("a SUCCESSOR host cannot point the author's rule at a tool only the SUCCESS
   });
   const rule = await fx.svc.createRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(fx.host),
+    principal: await principal(fx.db, fx.host),
     chatId: fx.chatId,
     name: "greet",
     trigger: MSG_COMMITTED,
@@ -222,7 +243,7 @@ test("a SUCCESSOR host cannot point the author's rule at a tool only the SUCCESS
   await expect(
     fx.svc.updateRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(successor),
+      principal: await principal(fx.db, successor),
       ruleId: rule.id,
       name: "greet",
       trigger: MSG_COMMITTED,
@@ -235,7 +256,7 @@ test("a SUCCESSOR host cannot point the author's rule at a tool only the SUCCESS
   // from `requireRuleHost`.
   const ok = await fx.svc.updateRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(successor),
+    principal: await principal(fx.db, successor),
     ruleId: rule.id,
     name: "greet3",
     trigger: MSG_COMMITTED,
@@ -253,7 +274,7 @@ test("the pending-ask void runs BEFORE the row is written (and again after, for 
   const fx = await ruleFixture();
   const rule = await fx.svc.createRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(fx.host),
+    principal: await principal(fx.db, fx.host),
     chatId: fx.chatId,
     name: "greet",
     trigger: MSG_COMMITTED,
@@ -279,7 +300,14 @@ test("the pending-ask void runs BEFORE the row is written (and again after, for 
   });
   const svc = createAutomationService({ ...fx.ctx, db: databaseHandle(tracingDb), suggestions: recordingStore });
 
-  await svc.updateRule({ timeZone: UTC_TIME_ZONE, principal: principal(fx.host), ruleId: rule.id, name: "greet2", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  await svc.updateRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(fx.db, fx.host),
+    ruleId: rule.id,
+    name: "greet2",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
 
   // The FIRST thing that happens to the pending-ask store is the void, and it happens before the row moves.
   expect(order).toEqual(["void", "update", "void"]);

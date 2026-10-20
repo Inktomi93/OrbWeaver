@@ -1,7 +1,9 @@
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { VECTOR_SCOPES_BY_TASK } from "@orb/contracts/embeddings";
+import { ENCODER_IDENTITY_NO_API } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import { userConnections } from "@orb/db";
+import { embeddingExecution } from "@orb/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -32,8 +34,9 @@ async function connection(db: Db, ownerId: UserId, key: string): Promise<Embeddi
   return {
     ...resolved,
     connectionId,
-    api: "test",
-    wire: "test",
+    api: ENCODER_IDENTITY_NO_API,
+    wire: "openai-compat",
+    execution: embeddingExecution({ wire: "openai-compat", features: {} }),
     baseUrl: null,
     features: {},
     extras: null,

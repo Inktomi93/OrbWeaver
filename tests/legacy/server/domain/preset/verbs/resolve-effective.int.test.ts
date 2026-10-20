@@ -50,7 +50,7 @@ async function resolveWith(
   const svc = createPresetService(makeHarness(db, { capability: view }).ctx);
   const owner = await seedUser(db);
   await seedPreset(db, { id: PRESET_ID, ownerId: owner, config: configWith(params) });
-  return await svc.resolveEffective({ principal: principal(owner), id: PRESET_ID, ...(on.target !== undefined ? { target: on.target } : {}) });
+  return await svc.resolveEffective({ principal: await principal({ db }, owner), id: PRESET_ID, ...(on.target !== undefined ? { target: on.target } : {}) });
 }
 
 describe("resolveEffective — parity with the turn pipeline's own funnel", () => {
@@ -64,7 +64,10 @@ describe("resolveEffective — parity with the turn pipeline's own funnel", () =
       const db = await freshDb();
       const owner = await seedUser(db);
       await seedPreset(db, { id: PRESET_ID, ownerId: owner, config: configWith(params) });
-      const effective = await createPresetService(makeHarness(db, { capability: view }).ctx).resolveEffective({ principal: principal(owner), id: PRESET_ID });
+      const effective = await createPresetService(makeHarness(db, { capability: view }).ctx).resolveEffective({
+        principal: await principal({ db }, owner),
+        id: PRESET_ID,
+      });
       const actual = resolveCachePolicy({ context: view.cacheContext, generation: capability, preset: params.responseCache });
       expect(effective.cache).toEqual(actual.plan);
       expect(effective.cacheWarnings).toEqual(actual.warnings);
@@ -356,6 +359,6 @@ describe("resolveEffective — scope", () => {
     const a = await seedUser(db, "a");
     const b = await seedUser(db, "b");
     const owned = await seedPreset(db, { id: castId<PresetId>("preset_b_eff"), ownerId: b });
-    await expect(svc.resolveEffective({ principal: principal(a), id: owned })).rejects.toThrow(PresetNotFoundError);
+    await expect(svc.resolveEffective({ principal: await principal({ db }, a), id: owned })).rejects.toThrow(PresetNotFoundError);
   });
 });

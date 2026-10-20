@@ -20,7 +20,7 @@ describe("updateUserSettingsSection", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db);
-    const p = principal(u, "user");
+    const p = await principal(db, u, "user");
     await h.svc.updateUserSettingsSection({
       principal: p,
       input: { section: "chat", patch: { enterSends: false, attachmentQuality: { imageDetail: "high", videoMaxResolution: "original" } } },
@@ -34,7 +34,7 @@ describe("updateUserSettingsSection", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_u" });
-    const p = principal(u, "user");
+    const p = await principal(db, u, "user");
     await Promise.all([
       h.svc.updateUserSettingsSection({
         principal: p,
@@ -54,7 +54,7 @@ describe("updateUserSettingsSection", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_u" });
-    const p = principal(u, "user");
+    const p = await principal(db, u, "user");
     await h.svc.updateUserSettingsSection({
       principal: p,
       input: { section: "worldInfo", patch: { scanDepth: 10 } },
@@ -75,23 +75,23 @@ describe("updateUserSettingsSection", () => {
     const b = await seedUser(db, { id: "user_b" });
     await Promise.all([
       h.svc.updateUserSettingsSection({
-        principal: principal(a, "user"),
+        principal: await principal(db, a, "user"),
         input: { section: "memory", patch: { enabled: true } },
       }),
       h.svc.updateUserSettingsSection({
-        principal: principal(b, "user"),
+        principal: await principal(db, b, "user"),
         input: { section: "memory", patch: { enabled: false } },
       }),
     ]);
-    expect((await h.svc.getUserSettings({ principal: principal(a, "user") })).config.memory.enabled).toBe(true);
-    expect((await h.svc.getUserSettings({ principal: principal(b, "user") })).config.memory.enabled).toBe(false);
+    expect((await h.svc.getUserSettings({ principal: await principal(db, a, "user") })).config.memory.enabled).toBe(true);
+    expect((await h.svc.getUserSettings({ principal: await principal(db, b, "user") })).config.memory.enabled).toBe(false);
   });
 
   test("the appearance section patches + deep-merges (D44 §12.1 display prefs round-trip)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_appearance" });
-    const p = principal(u, "user");
+    const p = await principal(db, u, "user");
     // Two partial patches on the same section: the second must not clobber the first (deep-merge).
     await h.svc.updateUserSettingsSection({
       principal: p,
@@ -113,7 +113,7 @@ describe("updateUserSettingsSection", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_elevation" });
-    const p = principal(u, "user");
+    const p = await principal(db, u, "user");
     expect((await h.svc.getUserSettings({ principal: p })).config.appearance.elevation).toBe("flat");
     await h.svc.updateUserSettingsSection({
       principal: p,
@@ -127,7 +127,7 @@ describe("updateUserSettingsSection", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_theme" });
-    const p = principal(u, "user");
+    const p = await principal(db, u, "user");
     expect((await h.svc.getUserSettings({ principal: p })).config.theme.selectedThemeId).toBeNull();
     await h.svc.updateUserSettingsSection({
       principal: p,
@@ -144,7 +144,7 @@ describe("updateUserSettingsSection", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_prose" });
-    const p = principal(u, "user");
+    const p = await principal(db, u, "user");
     const override = { text: "Pick whoever has been quiet longest.", baseVersion: 1 };
     const before = (await h.svc.getUserSettings({ principal: p })).config;
     await h.svc.updateUserSettingsSection({
@@ -186,7 +186,7 @@ describe("updateUserSettingsSection", () => {
 
     await expect(
       h.svc.updateUserSettingsSection({
-        principal: principal(u, "user"),
+        principal: await principal(db, u, "user"),
         input: { section: "memory", patch: { enabled: false } },
       }),
     ).rejects.toBeInstanceOf(DomainOperationError);
@@ -204,7 +204,7 @@ describe("updateUserSettingsSection", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_fresh" });
-    const p = principal(u, "user");
+    const p = await principal(db, u, "user");
     expect(await db.select().from(userSettings).where(eq(userSettings.userId, u))).toHaveLength(0);
     await h.svc.updateUserSettingsSection({ principal: p, input: { section: "memory", patch: { enabled: true } } });
     expect((await h.svc.getUserSettings({ principal: p })).config.memory.enabled).toBe(true);

@@ -15,7 +15,12 @@ import { principal } from "../_support.ts";
 
 const TOOL_NAME = "plugin_rule_catalog_shared";
 
-function installTool(app: ServicesResult, db: Db, owner: UserId, probe: { readonly marker: string; readonly calls: string[] }): PluginToolHandle {
+async function installTool(
+  app: ServicesResult,
+  db: Db,
+  owner: UserId,
+  probe: { readonly marker: string; readonly calls: string[] },
+): Promise<PluginToolHandle> {
   const { marker, calls } = probe;
   return app.toolUse.registerPluginTool({
     name: TOOL_NAME,
@@ -26,12 +31,12 @@ function installTool(app: ServicesResult, db: Db, owner: UserId, probe: { readon
       required: ["value"],
       additionalProperties: false,
     },
-    installer: principal(owner),
+    installer: await principal(db, owner),
     invoke: (): Promise<string> => {
       calls.push(marker);
       return Promise.resolve(`${marker} private execution result`);
     },
-    resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db: databaseHandle(db), can })(principal(owner), chatId),
+    resolveInstallerAuthority: async (chatId) => createPluginChatAuthority({ db: databaseHandle(db), can })(await principal(db, owner), chatId),
   });
 }
 
@@ -53,12 +58,12 @@ function catalog(marker: string): AutomationRuleToolView[] {
 
 test("the real automation service lists only its caller's metadata for identically named installed tools", async ({ app, db }) => {
   const calls: string[] = [];
-  const first = installTool(app, db, OWNER_USER_ID, { marker: "first installer", calls });
+  const first = await installTool(app, db, OWNER_USER_ID, { marker: "first installer", calls });
   try {
-    const second = installTool(app, db, OTHER_USER_ID, { marker: "second installer", calls });
+    const second = await installTool(app, db, OTHER_USER_ID, { marker: "second installer", calls });
     try {
-      const firstCatalog = await app.automation.listRuleTools({ principal: principal(OWNER_USER_ID) });
-      const secondCatalog = await app.automation.listRuleTools({ principal: principal(OTHER_USER_ID) });
+      const firstCatalog = await app.automation.listRuleTools({ principal: await principal(db, OWNER_USER_ID) });
+      const secondCatalog = await app.automation.listRuleTools({ principal: await principal(db, OTHER_USER_ID) });
       expect(firstCatalog).toEqual(catalog("first installer"));
       expect(secondCatalog).toEqual(catalog("second installer"));
       expect(JSON.stringify(firstCatalog)).not.toContain("second installer");
@@ -75,14 +80,14 @@ test("the real automation service lists only its caller's metadata for identical
 
 test("catalog rereads reflect deregistration without removing the other installer's same-name tool", async ({ app, db }) => {
   const calls: string[] = [];
-  const first = installTool(app, db, OWNER_USER_ID, { marker: "first installer", calls });
+  const first = await installTool(app, db, OWNER_USER_ID, { marker: "first installer", calls });
   try {
-    const second = installTool(app, db, OTHER_USER_ID, { marker: "second installer", calls });
+    const second = await installTool(app, db, OTHER_USER_ID, { marker: "second installer", calls });
     try {
-      expect(await app.automation.listRuleTools({ principal: principal(OWNER_USER_ID) })).toEqual(catalog("first installer"));
+      expect(await app.automation.listRuleTools({ principal: await principal(db, OWNER_USER_ID) })).toEqual(catalog("first installer"));
       first.unregister();
-      expect(await app.automation.listRuleTools({ principal: principal(OWNER_USER_ID) })).toEqual([]);
-      expect(await app.automation.listRuleTools({ principal: principal(OTHER_USER_ID) })).toEqual(catalog("second installer"));
+      expect(await app.automation.listRuleTools({ principal: await principal(db, OWNER_USER_ID) })).toEqual([]);
+      expect(await app.automation.listRuleTools({ principal: await principal(db, OTHER_USER_ID) })).toEqual(catalog("second installer"));
       expect(calls).toEqual([]);
     } finally {
       second.unregister();

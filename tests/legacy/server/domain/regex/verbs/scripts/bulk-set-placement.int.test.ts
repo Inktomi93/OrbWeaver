@@ -42,7 +42,7 @@ describe("bulkSetScriptsPlacement", () => {
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
 
-    await svc.bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [a, b, theirs], placement: ["DISPLAY"] });
+    await svc.bulkSetScriptsPlacement({ principal: await principal(db, owner), scriptIds: [a, b, theirs], placement: ["DISPLAY"] });
 
     expect(h.roomFans.map((f) => f.kind)).toEqual(["script", "script"]);
     expect(h.roomFans.map((f) => f.id).toSorted((x, y) => x.localeCompare(y))).toEqual([a, b].toSorted((x, y) => x.localeCompare(y)));
@@ -50,7 +50,7 @@ describe("bulkSetScriptsPlacement", () => {
     // A gesture that writes nothing announces nothing — the fan sits inside the same `affected > 0` guard as
     // the audit row and the user event.
     const quiet = makeHarness(db);
-    await createRegexService(quiet.ctx).bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [theirs], placement: ["DISPLAY"] });
+    await createRegexService(quiet.ctx).bulkSetScriptsPlacement({ principal: await principal(db, owner), scriptIds: [theirs], placement: ["DISPLAY"] });
     expect(quiet.roomFans).toEqual([]);
   });
 
@@ -66,7 +66,7 @@ describe("bulkSetScriptsPlacement", () => {
     });
 
     // The wire carries NO flags — only the new placement.
-    const result = await svc.bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [a], placement: ["AI_OUTPUT"] });
+    const result = await svc.bulkSetScriptsPlacement({ principal: await principal(db, owner), scriptIds: [a], placement: ["AI_OUTPUT"] });
 
     expect(result).toEqual({ affected: 1 });
     const stored = await storedBehavior(db, a);
@@ -88,7 +88,7 @@ describe("bulkSetScriptsPlacement", () => {
       behavior: behavior({ placement: ["USER_INPUT", "AI_OUTPUT"], markdownOnly: false, promptOnly: true }),
     });
 
-    await svc.bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [a], placement: ["DISPLAY"] });
+    await svc.bulkSetScriptsPlacement({ principal: await principal(db, owner), scriptIds: [a], placement: ["DISPLAY"] });
 
     const stored = await storedBehavior(db, a);
     expect(stored?.markdownOnly).toBe(true);
@@ -102,7 +102,7 @@ describe("bulkSetScriptsPlacement", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_gainhist000000", behavior: behavior({ placement: ["AI_OUTPUT"] }) });
 
-    await svc.bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [a], placement: ["AI_OUTPUT", "PROMPT_HISTORY"] });
+    await svc.bulkSetScriptsPlacement({ principal: await principal(db, owner), scriptIds: [a], placement: ["AI_OUTPUT", "PROMPT_HISTORY"] });
 
     const stored = await storedBehavior(db, a);
     expect(stored?.historyDepth).toEqual({ min: 0, max: null });
@@ -119,7 +119,7 @@ describe("bulkSetScriptsPlacement", () => {
       behavior: behavior({ placement: ["PROMPT_HISTORY"], historyDepth: { min: 2, max: 5 } }),
     });
 
-    await svc.bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [a], placement: ["AI_OUTPUT"] });
+    await svc.bulkSetScriptsPlacement({ principal: await principal(db, owner), scriptIds: [a], placement: ["AI_OUTPUT"] });
 
     const stored = await storedBehavior(db, a);
     expect(stored?.historyDepth).toBeUndefined();
@@ -136,7 +136,7 @@ describe("bulkSetScriptsPlacement", () => {
       behavior: behavior({ placement: ["PROMPT_HISTORY"], historyDepth: { min: 3, max: 8 } }),
     });
 
-    await svc.bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [a], placement: ["AI_OUTPUT", "PROMPT_HISTORY"] });
+    await svc.bulkSetScriptsPlacement({ principal: await principal(db, owner), scriptIds: [a], placement: ["AI_OUTPUT", "PROMPT_HISTORY"] });
 
     const stored = await storedBehavior(db, a);
     expect(stored?.historyDepth).toEqual({ min: 3, max: 8 });
@@ -150,7 +150,7 @@ describe("bulkSetScriptsPlacement", () => {
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", behavior: behavior({ placement: ["DISPLAY"], findRegex: "aaa" }) });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", behavior: behavior({ placement: ["DISPLAY"], findRegex: "bbb" }) });
 
-    const result = await svc.bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [a, b], placement: ["AI_OUTPUT"] });
+    const result = await svc.bulkSetScriptsPlacement({ principal: await principal(db, owner), scriptIds: [a, b], placement: ["AI_OUTPUT"] });
 
     expect(result).toEqual({ affected: 2 });
     expect((await storedBehavior(db, a))?.findRegex).toBe("aaa");
@@ -175,7 +175,7 @@ describe("bulkSetScriptsPlacement", () => {
     const [bornTheirs] = await db.select().from(regexScripts).where(eq(regexScripts.id, theirs));
 
     h.advance(ONE_HOUR_MS);
-    await svc.bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [mine, theirs], placement: ["AI_OUTPUT"] });
+    await svc.bulkSetScriptsPlacement({ principal: await principal(db, owner), scriptIds: [mine, theirs], placement: ["AI_OUTPUT"] });
 
     const [afterMine] = await db.select().from(regexScripts).where(eq(regexScripts.id, mine));
     const [afterTheirs] = await db.select().from(regexScripts).where(eq(regexScripts.id, theirs));
@@ -193,7 +193,7 @@ describe("bulkSetScriptsPlacement", () => {
     const mine = await seedScript(db, { ownerId: owner, id: "regex_script_mine", behavior: behavior({ placement: ["DISPLAY"] }) });
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", behavior: behavior({ placement: ["DISPLAY"] }) });
 
-    const result = await svc.bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [mine, theirs], placement: ["AI_OUTPUT"] });
+    const result = await svc.bulkSetScriptsPlacement({ principal: await principal(db, owner), scriptIds: [mine, theirs], placement: ["AI_OUTPUT"] });
 
     expect(result).toEqual({ affected: 1 });
     // The stranger's script is untouched — still DISPLAY.
@@ -206,9 +206,9 @@ describe("bulkSetScriptsPlacement", () => {
     const svc = createRegexService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const empty = await svc.bulkSetScriptsPlacement({ principal: principal(owner), scriptIds: [], placement: ["AI_OUTPUT"] });
+    const empty = await svc.bulkSetScriptsPlacement({ principal: await principal(db, owner), scriptIds: [], placement: ["AI_OUTPUT"] });
     const ghost = await svc.bulkSetScriptsPlacement({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       scriptIds: [castId<RegexScriptId>("regex_script_nothere")],
       placement: ["AI_OUTPUT"],
     });

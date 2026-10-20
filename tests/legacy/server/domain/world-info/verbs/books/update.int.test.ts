@@ -16,10 +16,10 @@ describe("updateBook", () => {
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Old" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Old" } });
 
     const updated = await svc.updateBook({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { name: "New", description: "fresh" },
     });
@@ -34,10 +34,12 @@ describe("updateBook", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "Theirs" } });
 
-    await expect(svc.updateBook({ principal: principal(owner), bookId: theirs.id, input: { name: "Hijack" } })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
-    const still = await svc.getBook({ principal: principal(other), bookId: theirs.id });
+    await expect(svc.updateBook({ principal: await principal(db, owner), bookId: theirs.id, input: { name: "Hijack" } })).rejects.toBeInstanceOf(
+      WorldInfoNotFoundError,
+    );
+    const still = await svc.getBook({ principal: await principal(db, other), bookId: theirs.id });
     expect(still.name).toBe("Theirs");
   });
 
@@ -46,9 +48,9 @@ describe("updateBook", () => {
     const h = makeHarness(db);
     const svc = createWorldInfoService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "Same" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "Same" } });
 
-    const same = await svc.updateBook({ principal: principal(owner), bookId: book.id, input: {} });
+    const same = await svc.updateBook({ principal: await principal(db, owner), bookId: book.id, input: {} });
     expect(same.name).toBe("Same");
     expect(h.audits.filter((a) => a.entry.action === "worldInfo.updateBook")).toHaveLength(0);
   });

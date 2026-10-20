@@ -1,4 +1,4 @@
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, UserId } from "@orb/kit/ids";
 import { brandedId, castId, ID_PREFIX, mintTypeId, typeIdSchema } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
@@ -50,7 +50,7 @@ test("typeIdSchema's issue message never echoes the rejected value", () => {
 });
 
 test("brandedId accepts only non-empty strings", () => {
-  const schema = brandedId<ChatId>();
+  const schema = brandedId<UserId>();
   expect(schema.safeParse("").success).toBe(false);
   expect(schema.safeParse("anything").success).toBe(true);
   expect(schema.safeParse(42).success).toBe(false);

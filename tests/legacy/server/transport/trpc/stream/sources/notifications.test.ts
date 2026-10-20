@@ -24,11 +24,13 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import type { StreamFrame } from "@orb/contracts/stream";
+import type { Db } from "@orb/db";
 import { DomainUnavailableError } from "@orb/kit/errors";
 import type { ChatId, NotificationId, SocketId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Context } from "@orb/server/transport/trpc";
 import { publishNotification, publishUserEvent, ROOM_SOURCES } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { InboxView, NotificationsService } from "#server/domain/notifications/index.ts";
@@ -99,12 +101,15 @@ function inboxLog(seqs: readonly number[]): {
 /** Drive the room source's pump DIRECTLY and collect the seqs of the first `take` frames, then abort it —
  *  exactly what a socket death / detach does to a running replay. */
 async function pump(notifications: Partial<NotificationsService>, opts: { readonly cursor: number | null; readonly take: number }): Promise<number[]> {
+  const db = await freshDb();
   const controller = new AbortController();
   const seen: number[] = [];
+  const context = await ctxWith(db, notifications);
   const args = {
     ref: { channel: "notifications" } as const,
-    principal: principal("user", { userId: RECIPIENT }),
-    services: ctxWith(notifications).services,
+    principal: await principal(db, "user", { userId: RECIPIENT }),
+    services: context.services,
+    liveBuses: context.liveBuses,
     multiHumanCapable: true,
     cursor: opts.cursor,
     signal: controller.signal,
@@ -123,9 +128,9 @@ async function pump(notifications: Partial<NotificationsService>, opts: { readon
   return seen;
 }
 
-function ctxWith(notifications: Partial<NotificationsService>, multiHumanCapable = true): Context {
+async function ctxWith(db: Db, notifications: Partial<NotificationsService>, multiHumanCapable = true): Promise<Context> {
   return makeContext({
-    auth: principal("user", { userId: RECIPIENT }),
+    auth: await principal(db, "user", { userId: RECIPIENT }),
     services: { notifications },
     multiHumanCapable,
   });
@@ -147,9 +152,10 @@ async function openInboxRoom(ctx: Context, opts: { readonly sinceSeq?: number } 
 
 describe("the notifications room — durable-first resume", () => {
   test("replays durable rows newer than the cursor, ascending, before going live", async () => {
+    const db = await freshDb();
     const replaySince = vi.fn<NotificationsService["replaySince"]>(inboxLog([4, 5, 6, 7]).replaySince);
 
-    const iterator = await openInboxRoom(ctxWith({ replaySince }), { sinceSeq: 5 });
+    const iterator = await openInboxRoom(await ctxWith(db, { replaySince }), { sinceSeq: 5 });
     const first = await iterator.next();
     const second = await iterator.next();
     await iterator.return?.(undefined);
@@ -163,8 +169,9 @@ describe("the notifications room — durable-first resume", () => {
   });
 
   test("a CURSOR-LESS attach replays nothing and goes straight live — the client already loaded `list`", async () => {
+    const db = await freshDb();
     const replaySince = vi.fn<NotificationsService["replaySince"]>();
-    const iterator = await openInboxRoom(ctxWith({ replaySince }));
+    const iterator = await openInboxRoom(await ctxWith(db, { replaySince }));
 
     const pending = iterator.next(); // parks the pump in the live loop before anything is published
     publishNotification(inboxView(9));
@@ -177,8 +184,9 @@ describe("the notifications room — durable-first resume", () => {
   });
 
   test("the replay/live overlap is deduped by the monotonic seq — a re-published replayed row is dropped", async () => {
+    const db = await freshDb();
     const { replaySince } = inboxLog([6]);
-    const iterator = await openInboxRoom(ctxWith({ replaySince }), { sinceSeq: 5 });
+    const iterator = await openInboxRoom(await ctxWith(db, { replaySince }), { sinceSeq: 5 });
     const replayed = await iterator.next();
 
     const pending = iterator.next();
@@ -193,8 +201,9 @@ describe("the notifications room — durable-first resume", () => {
   });
 
   test("a live settlement behind the resume cursor is delivered without rewinding it", async () => {
+    const db = await freshDb();
     const { replaySince } = inboxLog([11]);
-    const iterator = await openInboxRoom(ctxWith({ replaySince }), { sinceSeq: 10 });
+    const iterator = await openInboxRoom(await ctxWith(db, { replaySince }), { sinceSeq: 10 });
     try {
       expect(inboxFrame(await iterator.next()).seq).toBe(11);
       const next = iterator.next();
@@ -222,8 +231,9 @@ describe("the notifications room — durable-first resume", () => {
 // inside the verb. `stream.connect`/`attach` remain `authedProcedure`, which is the belt that stayed.
 describe("the notifications room — authed is the whole gate (#1627)", () => {
   test("a deployment that cannot seat a second human ATTACHES the inbox and gets its durable replay", async () => {
+    const db = await freshDb();
     const replaySince = vi.fn<NotificationsService["replaySince"]>(inboxLog([6, 7]).replaySince);
-    const iterator = await openInboxRoom(ctxWith({ replaySince }, false), { sinceSeq: 5 });
+    const iterator = await openInboxRoom(await ctxWith(db, { replaySince }, false), { sinceSeq: 5 });
     const first = await iterator.next();
     await iterator.return?.(undefined);
 
@@ -233,8 +243,9 @@ describe("the notifications room — authed is the whole gate (#1627)", () => {
   });
 
   test("both rooms attach on a single-user socket — the inbox joins `user` instead of being refused", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
-    const call = caller(ctxWith({}, false));
+    const call = caller(await ctxWith(db, {}, false));
 
     await expect(call.stream.attach({ socketId, ref: { channel: "user" } })).resolves.toBeUndefined();
     await expect(call.stream.attach({ socketId, ref: { channel: "notifications" } })).resolves.toBeUndefined();
@@ -266,12 +277,13 @@ describe("the notifications room — authed is the whole gate (#1627)", () => {
 
 describe("the notifications room — a failing durable replay is a TYPED per-room frame", () => {
   test("a throwing resume read becomes roomFailed with the classified code, and the socket's other room survives", async () => {
+    const db = await freshDb();
     // Before the fold this throw ended the WHOLE stream (`withSubscriptionErrors` yields a terminal frame and
     // returns). Under the multiplex it is one room's fault: the inbox room detaches with a typed frame the
     // client surfaces as a toast, and every other room on the tab keeps delivering.
     const socketId = nextSocket();
     const replaySince = vi.fn<NotificationsService["replaySince"]>(() => Promise.reject(new DomainUnavailableError("inbox read unavailable")));
-    const call = caller(ctxWith({ replaySince }));
+    const call = caller(await ctxWith(db, { replaySince }));
     await call.stream.attach({ socketId, ref: { channel: "notifications" }, sinceSeq: 3 });
     await call.stream.attach({ socketId, ref: { channel: "user" } });
 

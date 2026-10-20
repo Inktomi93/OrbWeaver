@@ -554,6 +554,7 @@ describe("toView (poison tolerance)", () => {
       lane: "sweep",
       params: { k: 7 },
       ownerId: null,
+      funderUserId: null,
       dependsOn: null,
       scheduledAt: T0,
       createdAt: T0,

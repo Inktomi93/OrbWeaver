@@ -15,7 +15,11 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { createRefineryWorkloadContributions } from "#server/domain/refinery/index.ts";
 import { createScoreSweep } from "#server/domain/refinery/verbs/score-sweep.ts";
+import { everyOwnerAuthority } from "../../workloads/_support.ts";
 import { makeRefineryHarness, principal, refineryWorkloadDepsOf, scoreReply, seedOwnedCharacter, seedUser } from "../_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 /** The workload engine's `report` — a sink here, plus the messages the assertions read. */
 function reporter(): { report: (p: { message?: string; current?: number; total?: number }) => void; messages: string[] } {
@@ -106,7 +110,7 @@ test("the batch's output cap is PAYLOAD-AWARE and covers the hungriest card, not
   // overrun, where the budget correctly clamps back to the shipped floor — a different arm, not this one.
   const fat = "A meticulous keeper of records. ".repeat(20);
   const verbose = await h.character.create({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     input: {
       handle: castId<CharacterHandle>("sw-card-budget-b"),
       name: "Verbose",
@@ -127,8 +131,9 @@ test("the batch's output cap is PAYLOAD-AWARE and covers the hungriest card, not
   // The hungriest card's need, read through the ONE estimator rather than re-spelled here: a SESSION on that
   // same card derives the same default selection, so its preflight prints exactly the number the sweep sized
   // its cap for. Both calls in the batch carry it — a cap is per generation, and every card shares this one.
-  const session = await h.svc.startSession({ principal: principal(owner), characterId: verbose.id });
-  const need = (await h.svc.preflight({ principal: principal(owner), sessionId: session.id })).stages.find((s) => s.stage === "score")?.outputEstimate ?? 0;
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId: verbose.id });
+  const need =
+    (await h.svc.preflight({ principal: await principal(db, owner), sessionId: session.id })).stages.find((s) => s.stage === "score")?.outputEstimate ?? 0;
   expect(need).toBeGreaterThan(SIDE_GEN_POSTURES.refine_score.maxOutputTokens);
   expect(cap).toBeGreaterThanOrEqual(need);
   expect(h.summarizeCalls[1]?.opts?.maxOutputTokens).toBe(cap);
@@ -261,7 +266,7 @@ test("the CONTENT FLOOR counts a name-only card as skipped, never as scored or f
   // A card with a name and NOTHING else: there is no refinable text to critique, so the sweep must decline
   // rather than ask a model to invent a quality judgement out of a name.
   await h.character.create({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     // An EMPTY description is the card contract's own spelling of "nothing written" (the field is required
     // on create), so this really is a name-only card — not a card the fixture forgot to fill in.
     input: { handle: castId<CharacterHandle>("sw-card-empty"), name: "Nameless", description: "" },
@@ -312,7 +317,7 @@ test("the BULK arm (ownerId null) sweeps every owner, stamping each card under I
   h.queueReply(scoreReply({ overallScore: 6 }));
   h.queueReply(scoreReply({ overallScore: 6 }));
 
-  const result = await sweep({ ownerId: null, rescoreAll: false, report: reporter().report, signal: undefined, funderUserId: alpha });
+  const result = await sweep({ ...EVERY_OWNER.runScope, rescoreAll: false, report: reporter().report, signal: undefined, funderUserId: alpha });
 
   expect(result).toEqual({ scanned: 2, scored: 2, skipped: 0, failed: 0 });
   // The stamp op carries the OWNER PREDICATE in its WHERE, so a mixed-owner sweep only lands because each

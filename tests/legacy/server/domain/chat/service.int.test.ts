@@ -10,7 +10,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
+import { statementToken } from "@orb/db/wiring-owner";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
@@ -24,7 +24,7 @@ import type { TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import type { ChatService } from "#server/domain/chat/index.ts";
 import { insertChatEventStatement } from "#server/domain/chat/persistence/events.ts";
 import { createChatService } from "#server/domain/chat/service.ts";
-import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "./_support.ts";
+import { chatAssembly, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "./_support.ts";
 
 let db: Db;
 
@@ -34,8 +34,8 @@ beforeEach(async () => {
 
 const card = (name: string): CharacterCard => ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 /** A scripted role turn — a text delta + the terminal `final` carrying content/economics. */
@@ -106,13 +106,15 @@ function makeService(
       return Promise.resolve(true);
     },
     prepareCreationEvent: (event) => ({
-      statement: insertChatEventStatement(ctx.db, {
-        id: ctx.newEventId(),
-        chatId: event.chatId,
-        seq: 1,
-        event,
-        createdAt: ctx.now(),
-      }),
+      statement: statementToken(
+        insertChatEventStatement(ctx.db, {
+          id: ctx.newEventId(),
+          chatId: event.chatId,
+          seq: 1,
+          event,
+          createdAt: ctx.now(),
+        }),
+      ),
       publishCommitted: (): void => {
         events.push(event);
       },
@@ -156,7 +158,7 @@ function makeService(
       },
     },
   };
-  return { service: createChatService({ ...ctx, db: databaseHandle(ctx.db) }, deps).service, events };
+  return { service: createChatService(chatAssembly(ctx), deps).service, events };
 }
 
 /** Seed a solo room (host + one character) with `per-speaker`/`natural` group config. */
@@ -208,7 +210,7 @@ describe("createChatService — assembly", () => {
     const { service, events } = makeService(names);
 
     const outcome = await service.send({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       content: "yo",
     });
@@ -237,12 +239,12 @@ describe("createChatService — assembly", () => {
     }
     const { service } = makeService(names);
     const target = { kind: "message" as const, messageId: anchor.messageId };
-    const window = await service.getMessageWindow({ principal: principal(member), chatId, target, limit: 12 });
+    const window = await service.getMessageWindow({ principal: await principal(db, member), chatId, target, limit: 12 });
     expect(window).toMatchObject({ outcome: "resolved", anchorMessageId: anchor.messageId, anchorSeq: 50, hasBefore: false });
     expect(window.messages.map((message) => message.seq)).toEqual([45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55, 56]);
     expect(window.messages[0]?.content).toBe("public  end");
     expect(JSON.stringify(window)).not.toContain("private truth");
-    const hostWindow = await service.getMessageWindow({ principal: principal(host), chatId, target, limit: 12 });
+    const hostWindow = await service.getMessageWindow({ principal: await principal(db, host), chatId, target, limit: 12 });
     expect(hostWindow.messages[0]?.content).toContain("private truth");
   });
 
@@ -250,7 +252,7 @@ describe("createChatService — assembly", () => {
     const { host, chatId, names } = await seedRoom();
     const { service } = makeService(names);
 
-    const roster = await service.listParticipants({ principal: principal(host), chatId });
+    const roster = await service.listParticipants({ principal: await principal(db, host), chatId });
 
     const hostRow = roster.find((p) => p.userId === host);
     const charRow = roster.find((p) => p.characterId !== null);
@@ -275,7 +277,7 @@ describe("createChatService — assembly", () => {
       {},
       { resolveSeatDecos: () => Promise.resolve(new Map<CharacterId, Awaited<ReturnType<ChatContext["resolveSeatDeco"]>>>()) },
     );
-    const roster = await service.listParticipants({ principal: principal(host), chatId });
+    const roster = await service.listParticipants({ principal: await principal(db, host), chatId });
 
     const charRow = roster.find((p) => p.characterId !== null);
     expect(charRow?.displayName).toBe("(removed character)");
@@ -286,7 +288,7 @@ describe("createChatService — assembly", () => {
     const { host, chatId } = await seedRoom();
     // publics resolves null for the host (deleted user row mid-read) — no displayName, no handle.
     const { service } = makeService({}, { resolveUserPublics: () => Promise.resolve(null) });
-    const roster = await service.listParticipants({ principal: principal(host), chatId });
+    const roster = await service.listParticipants({ principal: await principal(db, host), chatId });
 
     const hostRow = roster.find((p) => p.userId === host);
     expect(hostRow?.displayName).toBe("(removed member)");
@@ -299,7 +301,7 @@ describe("createChatService — assembly", () => {
       {},
       { resolveUserPublics: () => Promise.resolve({ displayName: null, handle: castId<Handle>("alex"), avatarAssetId: null }) },
     );
-    const roster = await service.listParticipants({ principal: principal(host), chatId });
+    const roster = await service.listParticipants({ principal: await principal(db, host), chatId });
 
     expect(roster.find((p) => p.userId === host)?.displayName).toBe("alex");
   });

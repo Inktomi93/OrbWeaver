@@ -32,7 +32,7 @@ describe("createRule — authority", () => {
     );
     const birth = {
       timeZone: UTC_TIME_ZONE,
-      principal: principal(fx.host),
+      principal: await principal(held.db, fx.host),
       chatId: fx.chatId,
       creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
       name: "winner",
@@ -53,7 +53,7 @@ describe("createRule — authority", () => {
       scopeRead.release();
       expect(await losing).toBe("live-admission-refusal");
       expect(await fx.svc.createRule(birth)).toEqual(winner);
-      expect(await fx.svc.listRules({ principal: principal(fx.host), chatId: fx.chatId })).toEqual([winner]);
+      expect(await fx.svc.listRules({ principal: await principal(held.db, fx.host), chatId: fx.chatId })).toEqual([winner]);
       expect(fx.events).toEqual([{ type: "rulesChanged", chatId: fx.chatId }]);
     } finally {
       scopeRead.release();
@@ -65,7 +65,7 @@ describe("createRule — authority", () => {
     const other = await seedUser(db, "cohost");
     await seedParticipant(db, { chatId, key: "cohost", userId: other, role: "member" });
     const body = { chatId, creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX), trigger: MSG_COMMITTED, actions: [SET_VAR] };
-    const foreign = await svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(host), name: "foreign private marker" });
+    const foreign = await svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(db, host), name: "foreign private marker" });
     await db
       .update(chatParticipants)
       .set({ role: "member" })
@@ -74,17 +74,19 @@ describe("createRule — authority", () => {
       .update(chatParticipants)
       .set({ role: "host" })
       .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, other)));
-    const own = await svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(other), name: "own body" });
+    const own = await svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(db, other), name: "own body" });
     expect(own.id).not.toBe(foreign.id);
-    expect(await svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(other), name: "retry" })).toEqual(own);
-    await expect(svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(host), name: "retry" })).rejects.toThrow(DomainForbiddenError);
+    expect(await svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(db, other), name: "retry" })).toEqual(own);
+    await expect(svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(db, host), name: "retry" })).rejects.toThrow(
+      DomainForbiddenError,
+    );
   });
 
   test("own request in a different authorized scope is a fixed conflict, without changing either scope", async () => {
     const { db, host, chatId, svc, events } = await ruleFixture();
     const otherChat = await seedHostChat(db, host, "second");
     const body = {
-      principal: principal(host),
+      principal: await principal(db, host),
       creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
       name: "one",
       trigger: MSG_COMMITTED,
@@ -106,7 +108,7 @@ describe("createRule — authority", () => {
     const { db, host, chatId, svc, events } = await ruleFixture();
     const birth = {
       timeZone: UTC_TIME_ZONE,
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
       name: "private",
@@ -127,7 +129,7 @@ describe("createRule — authority", () => {
     const { db, host, chatId, svc } = await ruleFixture();
     const birth = {
       timeZone: UTC_TIME_ZONE,
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
       name: "birth",
@@ -146,7 +148,7 @@ describe("createRule — authority", () => {
       lastError: "retained error",
     });
     expect(await db.select().from(automationRules).where(eq(automationRules.id, original.id))).toEqual(before);
-    await svc.deleteRule({ principal: principal(host), ruleId: original.id });
+    await svc.deleteRule({ principal: await principal(db, host), ruleId: original.id });
     await expect(svc.createRule({ ...birth, predicateCel: "invalid ==" })).rejects.toThrow(RuleValidationError);
     expect(await db.select().from(automationRules)).toEqual([]);
     const replacement = await svc.createRule(birth);
@@ -164,17 +166,17 @@ describe("createRule — authority", () => {
       trigger: { bus: "domain" as const, type: "character.updated" as const },
       actions: [{ ...SET_VAR, scope: "global" as const }],
     };
-    const foreign = await svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(other) });
-    const own = await svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(host), name: "own" });
+    const foreign = await svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(db, other) });
+    const own = await svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(db, host), name: "own" });
     expect(own.id).not.toBe(foreign.id);
-    expect(await svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(host), name: "ignored retry" })).toEqual(own);
+    expect(await svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(db, host), name: "ignored retry" })).toEqual(own);
     expect(events).toEqual([]);
   });
   test("same-author creation retries recover one born-disabled rule without another position or notification", async () => {
-    const { host, chatId, svc, events } = await ruleFixture();
+    const { host, chatId, svc, events, db } = await ruleFixture();
     const birth = {
       timeZone: UTC_TIME_ZONE,
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
       name: "one birth",
@@ -185,14 +187,14 @@ describe("createRule — authority", () => {
     const recovered = await svc.createRule({ ...birth, name: "retry is not an update" });
     expect(recovered).toEqual(original);
     expect(recovered.enabled).toBe(false);
-    expect(await svc.listRules({ principal: principal(host), chatId })).toEqual([original]);
+    expect(await svc.listRules({ principal: await principal(db, host), chatId })).toEqual([original]);
     expect(events).toEqual([{ type: "rulesChanged", chatId }]);
   });
 
   test("concurrent different bodies for one author/request preserve the winning birth until an explicit update", async () => {
-    const { host, chatId, svc, events } = await ruleFixture();
+    const { host, chatId, svc, events, db } = await ruleFixture();
     const birth = {
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
       trigger: MSG_COMMITTED,
@@ -201,15 +203,15 @@ describe("createRule — authority", () => {
     const results = await Promise.all(["first", "second", "third"].map((name) => svc.createRule({ timeZone: UTC_TIME_ZONE, ...birth, name })));
     expect(new Set(results.map((rule) => rule.id)).size).toBe(1);
     expect(results).toEqual([results[0], results[0], results[0]]);
-    expect(await svc.listRules({ principal: principal(host), chatId })).toEqual([results[0]]);
+    expect(await svc.listRules({ principal: await principal(db, host), chatId })).toEqual([results[0]]);
     expect(events).toEqual([{ type: "rulesChanged", chatId }]);
   });
 
   test("birth recovery preserves the current edited enabled row rather than replaying the old payload", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     const birth = {
       timeZone: UTC_TIME_ZONE,
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       creationRequestId: mintTypeId(CREATION_REQUEST_PREFIX),
       name: "birth snapshot",
@@ -218,17 +220,17 @@ describe("createRule — authority", () => {
     };
     const original = await svc.createRule(birth);
     const edited = await svc.updateRule({ ...birth, ruleId: original.id, name: "current stored edit" });
-    await svc.setRuleEnabled({ principal: principal(host), ruleId: original.id, enabled: true });
-    const current = (await svc.listRules({ principal: principal(host), chatId }))[0];
+    await svc.setRuleEnabled({ principal: await principal(db, host), ruleId: original.id, enabled: true });
+    const current = (await svc.listRules({ principal: await principal(db, host), chatId }))[0];
     expect(current).toEqual({ ...edited, enabled: true });
     expect(await svc.createRule(birth)).toEqual(current);
   });
 
   test("a host creates a rule born disabled at position 0, and the roster announces itself", async () => {
-    const { host, chatId, svc, events } = await ruleFixture();
+    const { host, chatId, svc, events, db } = await ruleFixture();
     const rule = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       name: "greet",
       trigger: MSG_COMMITTED,
@@ -250,15 +252,15 @@ describe("createRule — authority", () => {
   // followed by a separate INSERT, so two creates in one scope that interleaved between those two statements
   // both read the same max and both wrote it. It is now allocated by the INSERT's own subquery.
   test("CONCURRENT creates in one chat never collide on a position", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
 
     await Promise.all(
-      ["a", "b", "c", "d", "e"].map((name) =>
-        svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name, trigger: MSG_COMMITTED, actions: [SET_VAR] }),
+      ["a", "b", "c", "d", "e"].map(async (name) =>
+        svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name, trigger: MSG_COMMITTED, actions: [SET_VAR] }),
       ),
     );
 
-    const listed = await svc.listRules({ principal: principal(host), chatId });
+    const listed = await svc.listRules({ principal: await principal(db, host), chatId });
     expect(listed).toHaveLength(5);
     expect(listed.map((rule) => rule.position).toSorted((x, y) => x - y)).toEqual([0, 1, 2, 3, 4]);
   });
@@ -268,7 +270,7 @@ describe("createRule — authority", () => {
     const member = await seedUser(db, "user_member");
     await seedParticipant(db, { chatId, key: "mem", userId: member, role: "member" });
     await expect(
-      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(member), chatId, name: "x", trigger: MSG_COMMITTED, actions: [SET_VAR] }),
+      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, member), chatId, name: "x", trigger: MSG_COMMITTED, actions: [SET_VAR] }),
     ).rejects.toThrow(DomainForbiddenError);
     expect(events).toHaveLength(0);
   });
@@ -277,7 +279,7 @@ describe("createRule — authority", () => {
     const { db, chatId, svc, events } = await ruleFixture();
     const stranger = await seedUser(db, "user_stranger");
     await expect(
-      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(stranger), chatId, name: "x", trigger: MSG_COMMITTED, actions: [SET_VAR] }),
+      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, stranger), chatId, name: "x", trigger: MSG_COMMITTED, actions: [SET_VAR] }),
     ).rejects.toThrow(AutomationChatNotFoundError);
     expect(events).toHaveLength(0);
   });
@@ -289,7 +291,7 @@ describe("createRule — validation refusals", () => {
     const name = "🙂".repeat(AUTOMATION_RULE_NAME_MAX_CHARS);
     const row = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       name: "legacy",
       trigger: MSG_COMMITTED,
@@ -301,38 +303,45 @@ describe("createRule — validation refusals", () => {
     });
     const edited = await svc.updateRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(host),
+      principal: await principal(db, host),
       ruleId: row.id,
       name,
       trigger: MSG_COMMITTED,
       actions: [SET_VAR],
     });
     expect(edited.name).toBe(name);
-    expect((await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name, trigger: MSG_COMMITTED, actions: [SET_VAR] })).name).toBe(
-      name,
-    );
+    expect(
+      (await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name, trigger: MSG_COMMITTED, actions: [SET_VAR] })).name,
+    ).toBe(name);
     await expect(
-      svc.updateRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), ruleId: row.id, name: `${name}x`, trigger: MSG_COMMITTED, actions: [SET_VAR] }),
+      svc.updateRule({
+        timeZone: UTC_TIME_ZONE,
+        principal: await principal(db, host),
+        ruleId: row.id,
+        name: `${name}x`,
+        trigger: MSG_COMMITTED,
+        actions: [SET_VAR],
+      }),
     ).rejects.toThrow(RuleValidationError);
-    expect((await svc.listRules({ principal: principal(host), chatId })).find((rule) => rule.id === row.id)?.name).toBe(name);
+    expect((await svc.listRules({ principal: await principal(db, host), chatId })).find((rule) => rule.id === row.id)?.name).toBe(name);
   });
   test("refuses a reserved trigger — and a validation refusal announces nothing", async () => {
-    const { host, chatId, svc, events } = await ruleFixture();
+    const { host, chatId, svc, events, db } = await ruleFixture();
     const trigger: AutomationTrigger = { bus: "chat", type: "messageHidden" };
-    await expect(svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "x", trigger, actions: [SET_VAR] })).rejects.toThrow(
-      AutomationReservedTriggerError,
-    );
+    await expect(
+      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name: "x", trigger, actions: [SET_VAR] }),
+    ).rejects.toThrow(AutomationReservedTriggerError);
     // The emit sits AFTER the insert, so every gauntlet refusal is silent by construction — nothing was
     // written, so there is nothing for a second host tab to re-read.
     expect(events).toHaveLength(0);
   });
 
   test("refuses an unparseable CEL predicate", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     await expect(
       svc.createRule({
         timeZone: UTC_TIME_ZONE,
-        principal: principal(host),
+        principal: await principal(db, host),
         chatId,
         name: "x",
         trigger: MSG_COMMITTED,
@@ -343,43 +352,51 @@ describe("createRule — validation refusals", () => {
   });
 
   test("refuses more than 8 arms", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     const arms = Array.from({ length: 9 }, () => SET_VAR);
     await expect(
-      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "x", trigger: MSG_COMMITTED, actions: arms }),
+      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name: "x", trigger: MSG_COMMITTED, actions: arms }),
     ).rejects.toThrow(RuleValidationError);
   });
 
   test("refuses a post_notification arm below the 60s cooldown floor", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     const arm: AutomationActionInput = { type: "post_notification", recipient: "host", messageTemplate: "hi" };
     await expect(
-      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "x", trigger: MSG_COMMITTED, cooldownSeconds: 10, actions: [arm] }),
+      svc.createRule({
+        timeZone: UTC_TIME_ZONE,
+        principal: await principal(db, host),
+        chatId,
+        name: "x",
+        trigger: MSG_COMMITTED,
+        cooldownSeconds: 10,
+        actions: [arm],
+      }),
     ).rejects.toThrow(RuleValidationError);
   });
 
   test("refuses a transform_draft arm mixed with a non-transform arm (transform_mix)", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     const arms: AutomationActionInput[] = [{ type: "transform_draft", target: "user_input", template: "{{draft}}" }, SET_VAR];
     const trigger: AutomationTrigger = { bus: "chat", type: "turnStarted" };
-    await expect(svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "x", trigger, actions: arms })).rejects.toThrow(
+    await expect(svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name: "x", trigger, actions: arms })).rejects.toThrow(
       RuleValidationError,
     );
   });
 
   test("refuses a transform_draft rule on a non-turnStarted trigger (transform_trigger)", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     const arm: AutomationActionInput = { type: "transform_draft", target: "user_input", template: "{{draft}}" };
     await expect(
-      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "x", trigger: MSG_COMMITTED, actions: [arm] }),
+      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name: "x", trigger: MSG_COMMITTED, actions: [arm] }),
     ).rejects.toThrow(RuleValidationError);
   });
 
   test("accepts a transform_draft rule on chat/turnStarted (all-transform)", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     const arm: AutomationActionInput = { type: "transform_draft", target: "assembled_dynamic", template: "{{draft}}!" };
     const trigger: AutomationTrigger = { bus: "chat", type: "turnStarted" };
-    const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "xf", trigger, actions: [arm] });
+    const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name: "xf", trigger, actions: [arm] });
     expect(rule.actions).toEqual([arm]);
   });
 
@@ -391,13 +408,13 @@ describe("createRule — validation refusals", () => {
   // a later `false` can only mean the contributor went away — the engine never has to guess between "gone" and
   // "never yours", and a typo can never masquerade as a paused plugin.
   test("refuses a run_tool arm naming a tool this author cannot drive — the rule is never STORED", async () => {
-    const { host, chatId, svc } = await ruleFixture(); // the default tool seam: NOTHING is drivable
+    const { host, chatId, svc, db } = await ruleFixture(); // the default tool seam: NOTHING is drivable
     const arm: AutomationActionInput = { type: "run_tool", name: "plugin_someone_elses_tool" };
     await expect(
-      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "x", trigger: MSG_COMMITTED, actions: [arm] }),
+      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name: "x", trigger: MSG_COMMITTED, actions: [arm] }),
     ).rejects.toThrow(RuleValidationError);
     // Nothing stored, and nothing announced — the roster event rides the durable insert.
-    expect(await svc.listRules({ principal: principal(host), chatId })).toEqual([]);
+    expect(await svc.listRules({ principal: await principal(db, host), chatId })).toEqual([]);
   });
 
   test("accepts a run_tool arm whose tool the author CAN drive — and asks about the AUTHOR, not the chat", async () => {
@@ -406,7 +423,7 @@ describe("createRule — validation refusals", () => {
     // Bound AFTER the fixture exists (the predicate is only called at `createRule`, below) so the stub can
     // compare against the real seeded author rather than a hand-spelled id.
     let author: UserId | null = null;
-    const { host, chatId, svc } = await ruleFixture({
+    const { host, chatId, svc, db } = await ruleFixture({
       tools: {
         isToolDrivableBy: (name, userId): boolean => {
           asks.push({ name, userId });
@@ -418,7 +435,14 @@ describe("createRule — validation refusals", () => {
     author = host;
     const arm: AutomationActionInput = { type: "run_tool", name: "plugin_mine", argsTemplate: '{"a":1}' };
 
-    const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "x", trigger: MSG_COMMITTED, actions: [arm] });
+    const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
+      principal: await principal(db, host),
+      chatId,
+      name: "x",
+      trigger: MSG_COMMITTED,
+      actions: [arm],
+    });
 
     // The STORED shape is the PARSED one — the defaults the verb filled, never the caller's params.
     expect(rule.actions).toEqual([{ type: "run_tool", name: "plugin_mine", argsTemplate: '{"a":1}', resultScope: "chat" }]);
@@ -426,7 +450,7 @@ describe("createRule — validation refusals", () => {
   });
 
   test("refuses an insert_world_info_entry arm whose (valid) book is not attached to the chat", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     const arm: AutomationActionInput = {
       type: "insert_world_info_entry",
       bookId: mintTypeId(ID_PREFIX.worldBook),
@@ -436,7 +460,7 @@ describe("createRule — validation refusals", () => {
       position: "before",
     };
     await expect(
-      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "x", trigger: MSG_COMMITTED, actions: [arm] }),
+      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name: "x", trigger: MSG_COMMITTED, actions: [arm] }),
     ).rejects.toThrow(RuleValidationError);
   });
 });
@@ -445,26 +469,26 @@ describe("createRule — the S5 run_analysis admission rows", () => {
   const turnTrigger: AutomationTrigger = { bus: "chat", type: "turnCompleted" };
 
   test("refuses a routeless analysis arm (an arm that could think and do nothing)", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     const arm: AutomationActionInput = { type: "run_analysis", brief: "b", routes: {} };
     await expect(
-      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "x", trigger: turnTrigger, actions: [arm] }),
+      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name: "x", trigger: turnTrigger, actions: [arm] }),
     ).rejects.toThrow("at least one output route");
   });
 
   test("refuses TWO confirm-class routes on one arm — the S4 store replaces per (chat, rule), so cards would silently displace each other", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     const arm: AutomationActionInput = { type: "run_analysis", brief: "b", routes: { steer: { apply: "confirm" }, suggest: {} } };
     await expect(
-      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "x", trigger: turnTrigger, actions: [arm] }),
+      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name: "x", trigger: turnTrigger, actions: [arm] }),
     ).rejects.toThrow("at most one confirm-class route");
   });
 
   test("refuses a lore route whose book is not attached (the same consent gate as the insert arm's)", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     const arm: AutomationActionInput = { type: "run_analysis", brief: "b", routes: { lore: { bookId: mintTypeId(ID_PREFIX.worldBook) } } };
     await expect(
-      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "x", trigger: turnTrigger, actions: [arm] }),
+      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name: "x", trigger: turnTrigger, actions: [arm] }),
     ).rejects.toThrow("not attached");
   });
 
@@ -480,14 +504,21 @@ describe("createRule — the S5 run_analysis admission rows", () => {
     });
     const arm: AutomationActionInput = { type: "run_analysis", brief: "b", routes: { steer: {} } };
     await expect(
-      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "x", trigger: turnTrigger, actions: [arm] }),
+      svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name: "x", trigger: turnTrigger, actions: [arm] }),
     ).rejects.toThrow("directs its own story");
   });
 
   test("admits + stores the pacing shape (steer-direct) with the parsed defaults, on a game-less chat", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     const arm: AutomationActionInput = { type: "run_analysis", brief: "Watch the pacing.", steer: "slow burn", routes: { steer: {} } };
-    const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "pacing", trigger: turnTrigger, actions: [arm] });
+    const rule = await svc.createRule({
+      timeZone: UTC_TIME_ZONE,
+      principal: await principal(db, host),
+      chatId,
+      name: "pacing",
+      trigger: turnTrigger,
+      actions: [arm],
+    });
     expect(rule.actions).toEqual([{ type: "run_analysis", brief: "Watch the pacing.", steer: "slow burn", routes: { steer: { apply: "direct" } } }]);
   });
 });

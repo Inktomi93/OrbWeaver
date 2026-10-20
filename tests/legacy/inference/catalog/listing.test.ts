@@ -13,6 +13,7 @@ import { providerIdSchema } from "@orb/contracts/inference";
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, ProviderError } from "@orb/inference";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
@@ -89,7 +90,10 @@ interface Stage {
 
 /** A runtime whose credentials door hands out ONE secret, and only to its owner — any other owner is refused,
  *  which is how the credentials domain answers a credential that is not the caller's. */
-function stage(options: { routes?: readonly Route[]; claudeExecutable?: string; agentSdkQuery?: unknown } = {}): Stage {
+// The runtime reads no user rows; the stage caller resolves from a row in one in-memory database.
+const callersDb = await freshDb();
+
+async function stage(options: { routes?: readonly Route[]; claudeExecutable?: string; agentSdkQuery?: unknown } = {}): Promise<Stage> {
   const aliceId = newUserId();
   const credentialId = mintTypeId(ID_PREFIX.userCredential);
   const requests: Recorded[] = [];
@@ -113,7 +117,7 @@ function stage(options: { routes?: readonly Route[]; claudeExecutable?: string; 
         : Promise.reject(new Error(`no credential for ${args.providerId}`));
     },
   };
-  return { alice: principal(aliceId), credentialId, requests, credentialReads, log, deps, stores: base.stores };
+  return { alice: await principal({ db: callersDb }, aliceId), credentialId, requests, credentialReads, log, deps, stores: base.stores };
 }
 
 function provider(id: string): ProviderId {
@@ -142,7 +146,7 @@ const OPENROUTER_ROUTES: readonly Route[] = [
 
 describe("a draft lists by the provider's catalog strategy, with no connection row", () => {
   test("builtin: the curated rows with their kinds, and nothing is dialed", async () => {
-    const s = stage();
+    const s = await stage();
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({ principal: s.alice, providerId: provider("local-light"), secret: { credentialId: null }, baseUrl: null });
     expect(listedIds(listing)).toContain(DEFAULT_EMBED_MODEL);
@@ -151,7 +155,7 @@ describe("a draft lists by the provider's catalog strategy, with no connection r
   });
 
   test("openrouter: the keyless enriched catalog, dialed with no credential attached", async () => {
-    const s = stage({ routes: OPENROUTER_ROUTES });
+    const s = await stage({ routes: OPENROUTER_ROUTES });
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({
       principal: s.alice,
@@ -164,7 +168,7 @@ describe("a draft lists by the provider's catalog strategy, with no connection r
   });
 
   test("a hosted openai-compatible provider: its FIXED /v1/models with the caller's key", async () => {
-    const s = stage({ routes: [{ match: "https://api.openai.com/v1/models", json: { data: [{ id: "gpt-6" }] } }] });
+    const s = await stage({ routes: [{ match: "https://api.openai.com/v1/models", json: { data: [{ id: "gpt-6" }] } }] });
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({
       principal: s.alice,
@@ -178,7 +182,7 @@ describe("a draft lists by the provider's catalog strategy, with no connection r
   });
 
   test("an endpoint provider: the draft's OWN server, keyed by a raw draft key", async () => {
-    const s = stage({ routes: [{ match: `${ENDPOINT_BASE}/models`, json: { data: [{ id: "qwen3", max_model_len: 32_768 }] } }] });
+    const s = await stage({ routes: [{ match: `${ENDPOINT_BASE}/models`, json: { data: [{ id: "qwen3", max_model_len: 32_768 }] } }] });
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({ principal: s.alice, providerId: provider("vllm"), secret: { key: PLANTED }, baseUrl: ENDPOINT_BASE });
     expect(listing).toMatchObject({ listed: true, models: [{ id: "qwen3", contextLength: 32_768 }] });
@@ -187,7 +191,9 @@ describe("a draft lists by the provider's catalog strategy, with no connection r
   });
 
   test("anthropic: GET /v1/models under the caller's key, re-read by id through the credentials door", async () => {
-    const s = stage({ routes: [{ match: "https://api.anthropic.com/v1/models", json: { data: [{ id: "claude-opus-5", display_name: "Claude Opus 5" }] } }] });
+    const s = await stage({
+      routes: [{ match: "https://api.anthropic.com/v1/models", json: { data: [{ id: "claude-opus-5", display_name: "Claude Opus 5" }] } }],
+    });
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({
       principal: s.alice,
@@ -202,7 +208,9 @@ describe("a draft lists by the provider's catalog strategy, with no connection r
   });
 
   test("anthropic: a saved row's resolve-time warm lists through the Anthropic lister, sending anthropic-version", async () => {
-    const s = stage({ routes: [{ match: "https://api.anthropic.com/v1/models", json: { data: [{ id: "claude-opus-5", display_name: "Claude Opus 5" }] } }] });
+    const s = await stage({
+      routes: [{ match: "https://api.anthropic.com/v1/models", json: { data: [{ id: "claude-opus-5", display_name: "Claude Opus 5" }] } }],
+    });
     const row = fakeConnection({ ownerId: s.alice.userId, providerId: "anthropic", model: "claude-opus-5", credentialId: s.credentialId });
     s.stores.connections.rows.set(row.id, row);
     s.stores.bindings.bind({ actorKind: "user", actorId: s.alice.userId, task: "chat", connectionId: row.id });
@@ -221,7 +229,7 @@ describe("a draft lists by the provider's catalog strategy, with no connection r
         interrupt: (): Promise<void> => Promise.resolve(),
       };
     };
-    const s = stage({ claudeExecutable: "/usr/bin/claude", agentSdkQuery: query });
+    const s = await stage({ claudeExecutable: "/usr/bin/claude", agentSdkQuery: query });
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({
       principal: s.alice,
@@ -237,21 +245,21 @@ describe("a draft lists by the provider's catalog strategy, with no connection r
 
 describe("a failed dial is listed:false with its reason — never an empty success", () => {
   test("openrouter answering 500", async () => {
-    const s = stage({ routes: [{ match: OPENROUTER_BASE, status: 500, json: { error: "upstream exploded" } }] });
+    const s = await stage({ routes: [{ match: OPENROUTER_BASE, status: 500, json: { error: "upstream exploded" } }] });
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({ principal: s.alice, providerId: provider("openrouter"), secret: { credentialId: null }, baseUrl: null });
     expect(reasonOf(listing)).toMatch(/HTTP 500/u);
   });
 
   test("an endpoint answering 500, and an endpoint that lists nothing, are two different reasons", async () => {
-    const failing = stage({ routes: [{ match: ENDPOINT_BASE, status: 500, json: { error: "boom" } }] });
+    const failing = await stage({ routes: [{ match: ENDPOINT_BASE, status: 500, json: { error: "boom" } }] });
     const failed = await (await createInferenceRuntime(failing.deps)).catalogs.models({
       principal: failing.alice,
       providerId: provider("vllm"),
       secret: { credentialId: null },
       baseUrl: ENDPOINT_BASE,
     });
-    const empty = stage({ routes: [{ match: ENDPOINT_BASE, json: { data: [] } }] });
+    const empty = await stage({ routes: [{ match: ENDPOINT_BASE, json: { data: [] } }] });
     const none = await (await createInferenceRuntime(empty.deps)).catalogs.models({
       principal: empty.alice,
       providerId: provider("vllm"),
@@ -263,7 +271,7 @@ describe("a failed dial is listed:false with its reason — never an empty succe
   });
 
   test("agent-sdk without the bundled runtime says so instead of listing nothing", async () => {
-    const s = stage();
+    const s = await stage();
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({
       principal: s.alice,
@@ -275,7 +283,7 @@ describe("a failed dial is listed:false with its reason — never an empty succe
   });
 
   test("a raw draft key cannot reach the subscription daemon, which spawns only under a saved credential", async () => {
-    const s = stage({ claudeExecutable: "/usr/bin/claude" });
+    const s = await stage({ claudeExecutable: "/usr/bin/claude" });
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({ principal: s.alice, providerId: provider("claude-sub"), secret: { key: PLANTED }, baseUrl: null });
     expect(reasonOf(listing)).toMatch(/saved credential/u);
@@ -283,7 +291,9 @@ describe("a failed dial is listed:false with its reason — never an empty succe
   });
 
   test("anthropic lists under a key typed into the draft, with no credential read", async () => {
-    const s = stage({ routes: [{ match: "https://api.anthropic.com/v1/models", json: { data: [{ id: "claude-opus-5", display_name: "Claude Opus 5" }] } }] });
+    const s = await stage({
+      routes: [{ match: "https://api.anthropic.com/v1/models", json: { data: [{ id: "claude-opus-5", display_name: "Claude Opus 5" }] } }],
+    });
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({ principal: s.alice, providerId: provider("anthropic"), secret: { key: PLANTED }, baseUrl: null });
     expect(listing).toEqual({ listed: true, models: [expect.objectContaining({ id: "claude-opus-5", name: "Claude Opus 5" })] });
@@ -294,7 +304,7 @@ describe("a failed dial is listed:false with its reason — never an empty succe
 
 describe("a planted secret reaches neither the reason nor a log line", () => {
   test("anthropic reflecting the key in a 401 body", async () => {
-    const s = stage({ routes: [{ match: "https://api.anthropic.com/v1/models", status: 401, echoAuth: true }] });
+    const s = await stage({ routes: [{ match: "https://api.anthropic.com/v1/models", status: 401, echoAuth: true }] });
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({
       principal: s.alice,
@@ -311,7 +321,7 @@ describe("a planted secret reaches neither the reason nor a log line", () => {
   });
 
   test("anthropic reflecting a raw draft key in a 401 body", async () => {
-    const s = stage({ routes: [{ match: "https://api.anthropic.com/v1/models", status: 401, echoAuth: true }] });
+    const s = await stage({ routes: [{ match: "https://api.anthropic.com/v1/models", status: 401, echoAuth: true }] });
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({ principal: s.alice, providerId: provider("anthropic"), secret: { key: PLANTED }, baseUrl: null });
     const reason = reasonOf(listing);
@@ -322,7 +332,7 @@ describe("a planted secret reaches neither the reason nor a log line", () => {
   });
 
   test("an endpoint reflecting the raw draft key in a 500 body", async () => {
-    const s = stage({ routes: [{ match: ENDPOINT_BASE, status: 500, echoAuth: true }] });
+    const s = await stage({ routes: [{ match: ENDPOINT_BASE, status: 500, echoAuth: true }] });
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({ principal: s.alice, providerId: provider("vllm"), secret: { key: PLANTED }, baseUrl: ENDPOINT_BASE });
     const reason = reasonOf(listing);
@@ -337,7 +347,7 @@ describe("a planted secret reaches neither the reason nor a log line", () => {
       supportedModels: () => Promise.reject(new Error(`auth rejected for ${PLANTED}`)),
       interrupt: (): Promise<void> => Promise.resolve(),
     });
-    const s = stage({ claudeExecutable: "/usr/bin/claude", agentSdkQuery: query });
+    const s = await stage({ claudeExecutable: "/usr/bin/claude", agentSdkQuery: query });
     const runtime = await createInferenceRuntime(s.deps);
     const listing = await runtime.catalogs.models({
       principal: s.alice,
@@ -356,9 +366,10 @@ describe("a planted secret reaches neither the reason nor a log line", () => {
 
 describe("refusals are thrown, not listed", () => {
   test("a credential the caller does not hold is refused before any dial", async () => {
-    const s = stage({ routes: [{ match: "https://api.anthropic.com/v1/models", json: { data: [] } }] });
+    const db = await freshDb();
+    const s = await stage({ routes: [{ match: "https://api.anthropic.com/v1/models", json: { data: [] } }] });
     const runtime = await createInferenceRuntime(s.deps);
-    const stranger = principal(newUserId());
+    const stranger = await principal({ db }, newUserId());
     await expect(
       runtime.catalogs.models({ principal: stranger, providerId: provider("anthropic"), secret: { credentialId: s.credentialId }, baseUrl: null }),
     ).rejects.toThrow(/no credential/u);
@@ -366,7 +377,7 @@ describe("refusals are thrown, not listed", () => {
   });
 
   test("an unregistered provider is a typed refusal", async () => {
-    const s = stage();
+    const s = await stage();
     const runtime = await createInferenceRuntime(s.deps);
     await expect(
       runtime.catalogs.models({ principal: s.alice, providerId: provider("no-such-provider"), secret: { credentialId: null }, baseUrl: null }),
@@ -376,11 +387,12 @@ describe("refusals are thrown, not listed", () => {
 
 // ── an endpoint draft dials the provider row's reader, so what the picker lists carries the server's kind ──
 test("an Ollama draft lists its embedder as an embedder and its chat models kindless of nothing — the reader's kind rides the row", async () => {
+  const db = await freshDb();
   const seen: string[] = [];
   const ownerId = newUserId();
   const runtime = await createInferenceRuntime(fakeDeps({ fetch: localServerFetch("ollama", {}, seen) }));
   const listing = await runtime.catalogs.models({
-    principal: principal(ownerId),
+    principal: await principal({ db }, ownerId),
     providerId: provider("ollama"),
     secret: { credentialId: null },
     baseUrl: "http://127.0.0.1:1/v1",
@@ -395,7 +407,7 @@ test("an Ollama draft lists its embedder as an embedder and its chat models kind
   ).toBe(true);
   // PLANTED CONTROL: the same server through a row without a reader lists ids only.
   const bare = await runtime.catalogs.models({
-    principal: principal(ownerId),
+    principal: await principal({ db }, ownerId),
     providerId: provider("custom-openai"),
     secret: { credentialId: null },
     baseUrl: "http://127.0.0.1:1/v1",

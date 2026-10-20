@@ -53,8 +53,8 @@ beforeEach(async () => {
   db = await freshDb();
 });
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 /** A minimal character card, description overridable — the worked examples put `{{user}}`/`{{persona}}`
@@ -296,7 +296,7 @@ describe("canon freeze — swapping the Chat persona (#3) or the Anchor (#4) NEV
     });
 
     // The Anchor re-pin: this chat's card {{user}} moves Alex → Steve.
-    await life.setChatAnchorPersona({ principal: principal(host), chatId, personaId: steve });
+    await life.setChatAnchorPersona({ principal: await principal(db, host), chatId, personaId: steve });
 
     const [row] = await db.select().from(messages).where(eq(messages.id, messageId));
     expect(row?.personaId).toBe(alex); // untouched — only `reattributePersona` (edit.int.test.ts) may re-stamp

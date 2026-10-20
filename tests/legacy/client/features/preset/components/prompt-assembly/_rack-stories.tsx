@@ -21,6 +21,8 @@ import { Toaster, ToastProvider } from "@orb/ui/toast";
 import type { ReactElement } from "react";
 import { useEffect, useState } from "react";
 import { PresetStructureTabs } from "#client/features/preset/components/preset-structure-tabs.tsx";
+import type { PresetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
+import { admitPresetValues, canonicalPresetValues, presetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
 import type { AppFormInstance, AutosaveSession } from "#client/forms/editor/index.ts";
 import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
@@ -48,7 +50,11 @@ const SECTIONS: PromptSection[] = [
   { type: "literal", id: "sec_z", name: "Zeta", role: "system", content: "z", enabled: true },
 ];
 
-const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
+const StoryForm = createAutosaveEntityForm<PresetEditorValues>({
+  defaultValues: presetEditorValues(DEFAULT_PROMPT_CONFIG),
+  canonicalValues: canonicalPresetValues,
+  admitValues: admitPresetValues,
+});
 
 /** The FORM's own `inject` state per section — the O-8 write round-trip proof. A depth field that renders
  *  its own keystrokes while writing nothing is exactly the defect ("stuck at in flow"), and only the
@@ -78,11 +84,11 @@ function RackBody({
   savedCount,
   savedTrig,
 }: {
-  readonly session: AutosaveSession<PromptConfig>;
+  readonly session: AutosaveSession<PresetEditorValues>;
   readonly savedCount: number;
   readonly savedTrig: string;
 }): ReactElement {
-  const form = session.form as AppFormInstance<PromptConfig>;
+  const form = session.form as AppFormInstance<PresetEditorValues>;
   useFreshSectionDrill();
   return (
     <>
@@ -110,9 +116,9 @@ export function MainPromptStory(): ReactElement {
       <StoryForm
         entityId={STORY_PRESET}
         save={(): Promise<void> => Promise.resolve()}
-        serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections: [...MAIN_PROMPT_SECTIONS] }}
+        serverValues={presetEditorValues({ ...DEFAULT_PROMPT_CONFIG, sections: [...MAIN_PROMPT_SECTIONS] })}
       >
-        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} tab="prompt" />}
+        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PresetEditorValues>} presetId={STORY_PRESET} tab="prompt" />}
       </StoryForm>
       <Toaster />
     </ToastProvider>
@@ -151,8 +157,12 @@ export function SectionForkStory(): ReactElement {
         simulate fork retarget
       </button>
       <output>{`entity=${entity}`}</output>
-      <StoryForm entityId={entity} save={(): Promise<void> => Promise.resolve()} serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections: [...FORK_SECTIONS] }}>
-        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} presetId={entity} tab="prompt" />}
+      <StoryForm
+        entityId={entity}
+        save={(): Promise<void> => Promise.resolve()}
+        serverValues={presetEditorValues({ ...DEFAULT_PROMPT_CONFIG, sections: [...FORK_SECTIONS] })}
+      >
+        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PresetEditorValues>} presetId={entity} tab="prompt" />}
       </StoryForm>
       <Toaster />
     </ToastProvider>
@@ -174,7 +184,7 @@ export function RackStory(): ReactElement {
   };
   return (
     <ToastProvider>
-      <StoryForm entityId={STORY_PRESET} save={save} serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections: [...SECTIONS] }}>
+      <StoryForm entityId={STORY_PRESET} save={save} serverValues={presetEditorValues({ ...DEFAULT_PROMPT_CONFIG, sections: [...SECTIONS] })}>
         {(session): ReactElement => <RackBody savedCount={savedCount} savedTrig={savedTrig} session={session} />}
       </StoryForm>
       <Toaster />
@@ -243,8 +253,12 @@ export function CacheWarningStory({ placement }: { readonly placement: CacheWarn
   useFreshSectionDrill();
   return (
     <ToastProvider>
-      <StoryForm entityId={STORY_PRESET} save={(): Promise<void> => Promise.resolve()} serverValues={{ ...DEFAULT_PROMPT_CONFIG, sections, userMacros }}>
-        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} tab="prompt" />}
+      <StoryForm
+        entityId={STORY_PRESET}
+        save={(): Promise<void> => Promise.resolve()}
+        serverValues={presetEditorValues({ ...DEFAULT_PROMPT_CONFIG, sections, userMacros })}
+      >
+        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PresetEditorValues>} presetId={STORY_PRESET} tab="prompt" />}
       </StoryForm>
       <Toaster />
     </ToastProvider>

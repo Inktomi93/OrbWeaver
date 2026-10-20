@@ -94,7 +94,7 @@ function build(overrides: Partial<PortabilityRunnerComposeDeps> = {}): ReturnTyp
     attachBooksByName: vi.fn(),
     bulkImportChats: vi.fn(),
     bulkImportPersonas: vi.fn(),
-    resolveOwnerPrincipal: vi.fn(() => Promise.resolve(principal(OWNER))),
+    resolveOwnerPrincipal: vi.fn(async () => Promise.resolve(await principal({ db: NO_DB }, OWNER))),
     workloads: { start: vi.fn(() => Promise.resolve({ id: "wl_1" })) },
     ...overrides,
   } as unknown as PortabilityRunnerComposeDeps;

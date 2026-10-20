@@ -34,10 +34,10 @@ describe("bulkRemoveScripts", () => {
     const characterId = await seedCharacter(db, owner);
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
-    await svc.attachGlobal({ principal: principal(owner), scriptId: a });
-    await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: b });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId: a });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId: b });
 
-    const result = await svc.bulkRemoveScripts({ principal: principal(owner), scriptIds: [a, b] });
+    const result = await svc.bulkRemoveScripts({ principal: await principal(db, owner), scriptIds: [a, b] });
 
     expect(result).toEqual({ affected: 2 });
     expect(await db.select().from(regexScripts)).toHaveLength(0);
@@ -54,7 +54,7 @@ describe("bulkRemoveScripts", () => {
     const mine = await seedScript(db, { ownerId: owner, id: "regex_script_mine", name: "mine" });
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
 
-    const result = await svc.bulkRemoveScripts({ principal: principal(owner), scriptIds: [mine, theirs] });
+    const result = await svc.bulkRemoveScripts({ principal: await principal(db, owner), scriptIds: [mine, theirs] });
 
     expect(result).toEqual({ affected: 1 });
     expect((await db.select().from(regexScripts)).map((r) => r.id)).toEqual([theirs]);
@@ -77,19 +77,19 @@ describe("bulkRemoveScripts", () => {
     const onlyB = await seedChat(db, "onlyb");
     const untouched = await seedChat(db, "untouched");
     const survivor = await seedScript(db, { ownerId: owner, id: "regex_script_keep", name: "keep" });
-    await svc.attachToChat({ principal: principal(owner), chatId: both, scriptId: a });
-    await svc.attachToChat({ principal: principal(owner), chatId: both, scriptId: b });
-    await svc.attachToChat({ principal: principal(owner), chatId: onlyB, scriptId: b });
-    await svc.attachToChat({ principal: principal(owner), chatId: untouched, scriptId: survivor });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId: both, scriptId: a });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId: both, scriptId: b });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId: onlyB, scriptId: b });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId: untouched, scriptId: survivor });
 
-    await svc.bulkRemoveScripts({ principal: principal(owner), scriptIds: [a, b] });
+    await svc.bulkRemoveScripts({ principal: await principal(db, owner), scriptIds: [a, b] });
 
     expect(roomsFanned(captured)).toEqual(new Set([both, onlyB]));
     expect(captured).toHaveLength(2);
     // The member-visible read moved in both rooms, and not in the third.
-    expect(await svc.listForChat({ principal: principal(owner), chatId: both })).toEqual([]);
-    expect(await svc.listForChat({ principal: principal(owner), chatId: onlyB })).toEqual([]);
-    expect((await svc.listForChat({ principal: principal(owner), chatId: untouched })).map((r) => r.name)).toEqual(["keep"]);
+    expect(await svc.listForChat({ principal: await principal(db, owner), chatId: both })).toEqual([]);
+    expect(await svc.listForChat({ principal: await principal(db, owner), chatId: onlyB })).toEqual([]);
+    expect((await svc.listForChat({ principal: await principal(db, owner), chatId: untouched })).map((r) => r.name)).toEqual(["keep"]);
   });
 
   // The confirmed-set filter: this verb has no pre-read to gate on, so the capture snapshots every id the
@@ -106,10 +106,10 @@ describe("bulkRemoveScripts", () => {
     const theirs = await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
     const myRoom = await seedChat(db, "mine");
     const theirRoom = await seedChat(db, "theirs");
-    await svc.attachToChat({ principal: principal(owner), chatId: myRoom, scriptId: mine });
-    await svc.attachToChat({ principal: principal(stranger), chatId: theirRoom, scriptId: theirs });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId: myRoom, scriptId: mine });
+    await svc.attachToChat({ principal: await principal(db, stranger), chatId: theirRoom, scriptId: theirs });
 
-    await svc.bulkRemoveScripts({ principal: principal(owner), scriptIds: [mine, theirs] });
+    await svc.bulkRemoveScripts({ principal: await principal(db, owner), scriptIds: [mine, theirs] });
 
     expect(roomsFanned(captured)).toEqual(new Set([myRoom]));
     expect(captured).toHaveLength(1);
@@ -124,7 +124,7 @@ describe("bulkRemoveScripts", () => {
     const mine = await seedScript(db, { ownerId: owner, id: "regex_script_mine", name: "mine" });
 
     const result = await svc.bulkRemoveScripts({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       scriptIds: [castId<RegexScriptId>("regex_script_vanished"), mine],
     });
 

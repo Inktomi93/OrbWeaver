@@ -17,12 +17,14 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { ChatBusEvent, MessageView } from "@orb/contracts/chat";
 import type { StreamDataFrame, StreamFrame } from "@orb/contracts/stream";
+import type { Db } from "@orb/db";
 import type { ChatId, SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { ChatService } from "@orb/server/domain/chat";
 import { ChatNotFoundError } from "@orb/server/domain/chat";
 import type { Context } from "@orb/server/transport/trpc";
 import { publishChatEvent } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { caller, makeContext, principal } from "../../_support.ts";
@@ -97,13 +99,14 @@ async function openChatRoom(ctx: Context, opts: { readonly chatId?: ChatId; read
 
 describe("the chat room — durable-first resume", () => {
   test("replays durable rows newer than the cursor, ascending, before going live (after the chatOpened attach synthesis)", async () => {
+    const db = await freshDb();
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async ({ afterSeq }) => [
       { seq: (afterSeq ?? 0) + 1, event: event("chatCreated") },
       { seq: (afterSeq ?? 0) + 2, event: event() },
     ]);
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => BOUNDS);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { replayChatEvents, chatEventBounds } },
     });
 
@@ -131,6 +134,7 @@ describe("the chat room — durable-first resume", () => {
   });
 
   test("withhold-not-throw: a NOT_FOUND gate silences yields (pre-start attach / kicked member) without detaching", async () => {
+    const db = await freshDb();
     // The gate flips per probe: attach (not yet a member — no chatOpened) → event 1 withheld → event 2
     // member → event 3 kicked → event 4 member. The first verdict is consumed by the attach probe.
     const verdicts = [false, false, true, false, true];
@@ -142,7 +146,7 @@ describe("the chat room — durable-first resume", () => {
     });
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { replayChatEvents, chatEventBounds } },
     });
 
@@ -168,6 +172,7 @@ describe("the chat room — durable-first resume", () => {
   });
 
   test("a listener never admitted to the room receives no chatDeleted existence metadata", async () => {
+    const db = await freshDb();
     // Attach probe rejects. `chatDeleted` must not bypass that listener's complete lack of authorization;
     // the next ordinary event is admitted so the assertion is deterministic without a timeout race.
     const verdicts = [false, true];
@@ -178,7 +183,7 @@ describe("the chat room — durable-first resume", () => {
       return allowed ? Promise.resolve(BOUNDS) : Promise.reject(new ChatNotFoundError(CHAT));
     });
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { replayChatEvents: vi.fn(async () => []), chatEventBounds } },
     });
     const iterator = await openChatRoom(ctx);
@@ -205,10 +210,11 @@ describe("the chat room — synthesized attach/resume events", () => {
   // nothing here can advance a cursor past an UNDELIVERED row, because a cursor-less attach delivers no
   // durable rows — the client's canon read already covers everything at or below `maxSeq`.
   test("a CURSOR-LESS attach yields `chatOpened` FIRST stamped with the room's high-water, and replays nothing", async () => {
+    const db = await freshDb();
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => BOUNDS);
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { replayChatEvents, chatEventBounds } },
     });
 
@@ -223,6 +229,7 @@ describe("the chat room — synthesized attach/resume events", () => {
   });
 
   test("an EMPTY room's cursor-less attach still stamps 0 — there is no high-water to adopt", async () => {
+    const db = await freshDb();
     // The floor degrades to the old value exactly when the room has no durable log, which is also the one
     // case where a null cursor loses nothing.
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({
@@ -234,7 +241,7 @@ describe("the chat room — synthesized attach/resume events", () => {
     }));
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { replayChatEvents, chatEventBounds } },
     });
 
@@ -246,6 +253,7 @@ describe("the chat room — synthesized attach/resume events", () => {
   });
 
   test("the high-water STAMP is not the live-dedup floor — a row buffered before the bounds read still lands", async () => {
+    const db = await freshDb();
     // The trap the R3 stamp walked into. The live listener attaches BEFORE the bounds probe, so a row
     // published in that gap is both buffered for this subscriber and already counted in `maxSeq`. Had the
     // synthetic's stamp raised the dedup floor, that row would be dropped whole — delivered to nobody, with
@@ -253,7 +261,7 @@ describe("the chat room — synthesized attach/resume events", () => {
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => BOUNDS);
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { replayChatEvents, chatEventBounds } },
     });
 
@@ -271,12 +279,13 @@ describe("the chat room — synthesized attach/resume events", () => {
   });
 
   test("a RESUMING attach keeps its OWN cursor — the high-water never overrides a client that has one", async () => {
+    const db = await freshDb();
     // The non-advancement rule, stated positively: a resuming client's synthetic must carry ITS cursor, not
     // the room's head, or the synthetic would push the socket cell past rows this client never received.
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => BOUNDS);
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { replayChatEvents, chatEventBounds } },
     });
 
@@ -289,6 +298,7 @@ describe("the chat room — synthesized attach/resume events", () => {
   });
 
   test("a cursor PREDATING the retained window yields `historyTruncated` after chatOpened, BEFORE the retained rows", async () => {
+    const db = await freshDb();
     // minSeq=5 ⇒ events 1..4 were dropped; resume cursor 1 predates the window (1 < 5 - 1) ⇒ truncated.
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({
       minSeq: 5,
@@ -302,7 +312,7 @@ describe("the chat room — synthesized attach/resume events", () => {
       { seq: 6, event: event() },
     ]);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { replayChatEvents, chatEventBounds } },
     });
 
@@ -324,6 +334,7 @@ describe("the chat room — synthesized attach/resume events", () => {
   });
 
   test("a cursor INSIDE the retained window replays WITHOUT `historyTruncated`", async () => {
+    const db = await freshDb();
     // minSeq=1 ⇒ nothing dropped; resume cursor 3 is caught up within the window (3 < 1 - 1 is false).
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({
       minSeq: 1,
@@ -334,7 +345,7 @@ describe("the chat room — synthesized attach/resume events", () => {
     }));
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => [{ seq: 4, event: event("chatCreated") }]);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { replayChatEvents, chatEventBounds } },
     });
 
@@ -350,6 +361,7 @@ describe("the chat room — synthesized attach/resume events", () => {
   });
 
   test("round-trip: the chatOpened synthetic does NOT corrupt the resume cursor — replay runs from the same sinceSeq", async () => {
+    const db = await freshDb();
     // Even caught-up-at-window-floor (minSeq=1, cursor 0): the replay uses the client cursor unchanged, and
     // the synthetic's seq equals that cursor (never a faked/advanced durable seq).
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({
@@ -361,7 +373,7 @@ describe("the chat room — synthesized attach/resume events", () => {
     }));
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async ({ afterSeq }) => [{ seq: (afterSeq ?? 0) + 1, event: event() }]);
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { replayChatEvents, chatEventBounds } },
     });
 
@@ -400,6 +412,7 @@ const MESSAGE: MessageView = {
   selectedVariantIdx: 0,
   variantCount: 1,
   hasContinuation: false,
+  hasGeneratedVariant: true,
   outputCapReached: false,
   content: "hi",
   reasoning: null,
@@ -450,7 +463,7 @@ describe("the chat room — the D16 join-history clamp on the LIVE fan-out", () 
   });
 
   /** The room's own attach probe, stubbed at a given floor (`0` = unclamped). */
-  function streamAt(historyFloorSeq: number): Context {
+  async function streamAt(db: Db, historyFloorSeq: number): Promise<Context> {
     const chatEventBounds = vi.fn<ChatService["chatEventBounds"]>(async () => ({
       minSeq: 1,
       maxSeq: 20,
@@ -460,14 +473,15 @@ describe("the chat room — the D16 join-history clamp on the LIVE fan-out", () 
     }));
     const replayChatEvents = vi.fn<ChatService["replayChatEvents"]>(async () => []);
     return makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { replayChatEvents, chatEventBounds } },
     });
   }
 
   test("a clamped member gets NO live view-carrying event for a PRE-join row — and the withheld row never advances the cursor", async () => {
+    const db = await freshDb();
     // Floor 5: the member joined at canon head 5, so `messages.seq` 1-4 are not theirs to see.
-    const iterator = await openChatRoom(streamAt(5), { chatId: LiveChat });
+    const iterator = await openChatRoom(await streamAt(db, 5), { chatId: LiveChat });
     expect(dataOf(await iterator.next()).type).toBe("chatOpened");
 
     const pending = iterator.next(); // parks the pump in the live loop before anything is published
@@ -488,7 +502,8 @@ describe("the chat room — the D16 join-history clamp on the LIVE fan-out", () 
   });
 
   test("an UNCLAMPED subscriber (host / `full` member) receives that same pre-join-view event live — the other arm works", async () => {
-    const iterator = await openChatRoom(streamAt(0), { chatId: LiveChat });
+    const db = await freshDb();
+    const iterator = await openChatRoom(await streamAt(db, 0), { chatId: LiveChat });
     expect(dataOf(await iterator.next()).type).toBe("chatOpened");
 
     const pending = iterator.next();
@@ -516,10 +531,11 @@ describe("the chat room — the D16 join-history clamp on the LIVE fan-out", () 
   });
 
   test("a clamped member DOES stream a POST-join turn's live deltas — the restoration `from-join` had lost", async () => {
+    const db = await freshDb();
     // The whole point of carrying `slotSeq`: blanket-withholding deltas silently un-streamed every
     // host-restricted (`from-join`) member in a room with prior canon (messages popped in on commit).
     // Floor 5, tokens streaming into slot 7 — theirs, so they arrive at their own durable seq.
-    const iterator = await openChatRoom(streamAt(5), { chatId: LiveChat });
+    const iterator = await openChatRoom(await streamAt(db, 5), { chatId: LiveChat });
     expect(dataOf(await iterator.next()).type).toBe("chatOpened");
 
     const pending = iterator.next();
@@ -532,11 +548,12 @@ describe("the chat room — the D16 join-history clamp on the LIVE fan-out", () 
   });
 
   test("a live `delta` for a PRE-join slot is still withheld — the leak (host swipes/continues an old row) stays closed", async () => {
+    const db = await freshDb();
     // The exploit this clamp exists for: a host swiping or continuing a PRE-join slot streams THAT slot's
     // tokens live. The emit site stamps the loaded target's own seq, so the verdict withholds it — while the
     // very next post-join stream still flows. Live and replay ask the same function, so a row's visibility
     // never depends on whether the client happened to be connected.
-    const iterator = await openChatRoom(streamAt(5), { chatId: LiveChat });
+    const iterator = await openChatRoom(await streamAt(db, 5), { chatId: LiveChat });
     expect(dataOf(await iterator.next()).type).toBe("chatOpened");
 
     const pending = iterator.next();
@@ -552,7 +569,8 @@ describe("the chat room — the D16 join-history clamp on the LIVE fan-out", () 
   });
 
   test("an UNCLAMPED subscriber receives that same pre-join-slot delta — floor 0 short-circuits before any compare", async () => {
-    const iterator = await openChatRoom(streamAt(0), { chatId: LiveChat });
+    const db = await freshDb();
+    const iterator = await openChatRoom(await streamAt(db, 0), { chatId: LiveChat });
     expect(dataOf(await iterator.next()).type).toBe("chatOpened");
 
     const pending = iterator.next();
@@ -645,8 +663,9 @@ describe("§5.5 two rooms on one socket — the per-room verdict, and the produc
   }
 
   test("the deception room's reasoning cut does NOT reach the other room — live", async () => {
+    const db = await freshDb();
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
     });
     const { iterator } = await openBothRooms(ctx);
@@ -673,13 +692,14 @@ describe("§5.5 two rooms on one socket — the per-room verdict, and the produc
   });
 
   test("the pump forwards each room's PRODUCER STAMP verbatim — a held span in one room is not the other's business", async () => {
+    const db = await freshDb();
     // Both rooms stream into slotSeq 1, which is exactly the collision a per-pump scrubber map used to make
     // possible. There is no such map now: the producer already decided each tick's member bytes, and the pump
     // is a stateless field read. So the deception room's held `<lie …` open (stamped `"He says "` — the
     // provably-safe prefix, the raw tail withheld) and the plain room's full tick pass each other untouched,
     // and the RAW text of a partially-withheld tick never reaches the member's wire.
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
     });
     const { iterator } = await openBothRooms(ctx);
@@ -699,10 +719,11 @@ describe("§5.5 two rooms on one socket — the per-room verdict, and the produc
   });
 
   test("an UNSTAMPED delta is withheld from a member — fail-closed, per room, and it does not stall the room", async () => {
+    const db = await freshDb();
     // The stamp is the member's ONLY source of delta bytes, so a producer that bypassed `domain/chat/bus`
     // can under-deliver but never leak. The room must drop that tick (no cursor advance) and keep streaming.
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
     });
     const { iterator } = await openBothRooms(ctx);
@@ -720,8 +741,9 @@ describe("§5.5 two rooms on one socket — the per-room verdict, and the produc
   });
 
   test("a RECONNECT re-derives each room's verdict from CURRENT membership — never a cached/shared one", async () => {
+    const db = await freshDb();
     const ctx = makeContext({
-      auth: principal("user", { userId: MEMBER }),
+      auth: await principal(db, "user", { userId: MEMBER }),
       services: { chat: { chatEventBounds: bounds, replayChatEvents: () => Promise.resolve([]) } },
     });
     const { socketId, iterator } = await openBothRooms(ctx);

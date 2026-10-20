@@ -26,6 +26,8 @@ import { createImportAvatarStore } from "@orb/server/domain/assets";
 import type { ImportCharacterPort } from "@orb/server/domain/character";
 import { createCharacterImportOps } from "@orb/server/domain/character";
 import type { ImportContextWiring } from "@orb/server/domain/import";
+import { freshDb } from "@orb/testkit/node/db.ts";
+import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
@@ -38,7 +40,9 @@ const FOREIGN = castId<UserId>("usr_victim");
 const CHARACTER = castId<CharacterId>("chr_aria");
 const ASSET = castId<AssetId>("ast_avatar");
 
-const PRINCIPAL: Principal = { userId: OWNER, role: "user", handle: castId<Handle>("owner"), externalId: null, via: "cookie" };
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+const PRINCIPAL: Principal = await makePrincipal({ db: callersDb }, OWNER, { handle: castId<Handle>("owner") });
 
 /** A real parsed CREATE input — the same contract the tRPC router and the import normalizer validate. */
 const CARD: CreateCharacterInput = createCharacterSchema.parse({ handle: "aria", name: "Aria", description: "A test character." });

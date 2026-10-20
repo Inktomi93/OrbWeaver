@@ -18,9 +18,13 @@ test("upgrades the bundle: version bump, new bytes stored, old bundle reaped", a
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "pp", version: "1.0.0" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "pp", version: "1.0.0" }), grant: [] });
 
-  const upgraded = await h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: installed.id, bundle: makeBundle({ id: "pp", version: "1.1.0" }) });
+  const upgraded = await h.service.upgrade({
+    caller: await ownerPrincipalFor(db, owner),
+    pluginId: installed.id,
+    bundle: makeBundle({ id: "pp", version: "1.1.0" }),
+  });
 
   expect(upgraded.version).toBe("1.1.0");
   expect(h.storedBytes.size).toBe(1); // the old bundle asset was reaped, the new one remains
@@ -30,9 +34,9 @@ test("a version LOWER than installed is refused (no silent rollback)", async () 
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "pp", version: "2.0.0" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "pp", version: "2.0.0" }), grant: [] });
   await expect(
-    h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: installed.id, bundle: makeBundle({ id: "pp", version: "1.9.9" }) }),
+    h.service.upgrade({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, bundle: makeBundle({ id: "pp", version: "1.9.9" }) }),
   ).rejects.toBeInstanceOf(PluginDowngradeRefusedError);
 });
 
@@ -40,9 +44,9 @@ test("a bundle whose slug differs from the installed plugin is refused", async (
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "pp" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "pp" }), grant: [] });
   await expect(
-    h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: installed.id, bundle: makeBundle({ id: "other", version: "2.0.0" }) }),
+    h.service.upgrade({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, bundle: makeBundle({ id: "other", version: "2.0.0" }) }),
   ).rejects.toBeInstanceOf(ManifestInvalidError);
 });
 
@@ -50,13 +54,17 @@ test("an upgrade for an unsupported host major is distinctly refused without rep
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "pp", version: "1.0.0" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "pp", version: "1.0.0" }), grant: [] });
 
   await expect(
-    h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: installed.id, bundle: makeBundle({ id: "pp", version: "2.0.0", hostVersion: 2 }) }),
+    h.service.upgrade({
+      caller: await ownerPrincipalFor(db, owner),
+      pluginId: installed.id,
+      bundle: makeBundle({ id: "pp", version: "2.0.0", hostVersion: 2 }),
+    }),
   ).rejects.toBeInstanceOf(HostVersionUnservedError);
 
-  expect((await h.service.list({ caller: ownerPrincipalFor(owner) }))[0]?.version).toBe("1.0.0");
+  expect((await h.service.list({ caller: await ownerPrincipalFor(db, owner) }))[0]?.version).toBe("1.0.0");
   expect(h.storedBytes.size).toBe(1);
 });
 
@@ -65,14 +73,14 @@ test("an upgrade that declares a NEW capability lands disabled (pending re-grant
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
     grant: ["chat.read"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   const upgraded = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read", "notify"] }),
   });
@@ -87,14 +95,14 @@ test("upgrading an ENABLED plugin with no new caps re-activates on the new bundl
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["chat.read"] }),
     grant: ["chat.read"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   const upgraded = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["chat.read"] }),
   });
@@ -116,14 +124,14 @@ test("an upgrade that SWAPS the netHosts allowlist lands disabled — the egress
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: ["net.fetch"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   const upgraded = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["collector.attacker.example"] }),
   });
@@ -141,14 +149,14 @@ test("a strictly NARROWING netHosts change carries forward enabled (consent to {
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["a.vendor.example", "b.vendor.example"] }),
     grant: ["net.fetch"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   const upgraded = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["a.vendor.example"] }),
   });
@@ -165,14 +173,14 @@ test("a CASE-only netHosts respelling reaches the identical host and does not re
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: ["net.fetch"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   const upgraded = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["API.Vendor.Example"] }),
   });
@@ -199,13 +207,13 @@ test("a STANDING re-consent survives a later NON-widening upgrade — the system
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: ["net.fetch"],
   });
 
   const widened = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
   });
@@ -213,7 +221,7 @@ test("a STANDING re-consent survives a later NON-widening upgrade — the system
 
   // v3 declares exactly what v2 declared — nothing widens RELATIVE TO V2, but the owner never answered v2.
   const quiet = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.1", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
   });
@@ -232,18 +240,18 @@ test("…but it is NOT a latch: a later upgrade that DROPS the refused host clea
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: ["net.fetch"],
   });
   await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
   });
 
   const walkedBack = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.2.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
   });
@@ -264,14 +272,14 @@ describe("widenedNetHosts — which destinations the pending re-consent added", 
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
       grant: ["net.fetch"],
     });
     expect(installed.widenedNetHosts).toEqual([]); // a fresh install has nothing widened
 
     const upgraded = await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
     });
@@ -288,13 +296,13 @@ describe("widenedNetHosts — which destinations the pending re-consent added", 
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
       grant: ["net.fetch"],
     });
 
     const upgraded = await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch", "notify"], netHosts: ["api.vendor.example"] }),
     });
@@ -310,18 +318,18 @@ describe("widenedNetHosts — which destinations the pending re-consent added", 
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["a.vendor.example"] }),
       grant: ["net.fetch"],
     });
     await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["a.vendor.example", "x.attacker.example"] }),
     });
 
     const second = await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({
         id: "pp",
@@ -341,13 +349,13 @@ describe("widenedNetHosts — which destinations the pending re-consent added", 
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["a.vendor.example"] }),
       grant: ["net.fetch"],
     });
 
     const upgraded = await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["a.vendor.example"] }),
     });
@@ -363,7 +371,11 @@ test("a missing plugin id is a leak-free NotFound", async () => {
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
   await expect(
-    h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: castId<PluginId>("plugin_missing"), bundle: makeBundle({ id: "pp", version: "2.0.0" }) }),
+    h.service.upgrade({
+      caller: await ownerPrincipalFor(db, owner),
+      pluginId: castId<PluginId>("plugin_missing"),
+      bundle: makeBundle({ id: "pp", version: "2.0.0" }),
+    }),
   ).rejects.toBeInstanceOf(PluginNotFoundError);
 });
 
@@ -376,14 +388,14 @@ test("a plain user's widening upgrade still records the refusal — the re-conse
   const h = makePluginHarness(db);
   const user = await seedUser(db, { handle: castId<Handle>("user") });
   const installed = await h.service.install({
-    caller: principalFor(user),
+    caller: await principalFor(db, user),
     bundle: makeBundle({ id: "pp", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: ["net.fetch"],
   });
-  await h.service.setEnabled({ caller: principalFor(user), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await principalFor(db, user), pluginId: installed.id, enabled: true });
 
   const upgraded = await h.service.upgrade({
-    caller: principalFor(user),
+    caller: await principalFor(db, user),
     pluginId: installed.id,
     bundle: makeBundle({ id: "pp", version: "1.1.0", capabilities: ["net.fetch", "notify"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
   });
@@ -404,13 +416,15 @@ test("a stranger cannot upgrade another user's plugin — not a plain user, and 
   const alice = await seedUser(db, { handle: castId<Handle>("alice") });
   const bob = await seedUser(db, { handle: castId<Handle>("bob") });
   const boss = await seedUser(db, { handle: castId<Handle>("boss") });
-  const hers = await h.service.install({ caller: principalFor(alice), bundle: makeBundle({ id: "pp", version: "1.0.0" }), grant: [] });
+  const hers = await h.service.install({ caller: await principalFor(db, alice), bundle: makeBundle({ id: "pp", version: "1.0.0" }), grant: [] });
   const hostile = makeBundle({ id: "pp", version: "9.9.9", capabilities: ["net.fetch"], netHosts: ["collector.attacker.example"] });
 
-  await expect(h.service.upgrade({ caller: principalFor(bob), pluginId: hers.id, bundle: hostile })).rejects.toBeInstanceOf(PluginNotFoundError);
-  await expect(h.service.upgrade({ caller: ownerPrincipalFor(boss), pluginId: hers.id, bundle: hostile })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.upgrade({ caller: await principalFor(db, bob), pluginId: hers.id, bundle: hostile })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.upgrade({ caller: await ownerPrincipalFor(db, boss), pluginId: hers.id, bundle: hostile })).rejects.toBeInstanceOf(
+    PluginNotFoundError,
+  );
 
-  const [row] = await h.service.list({ caller: principalFor(alice) });
+  const [row] = await h.service.list({ caller: await principalFor(db, alice) });
   expect(row?.version).toBe("1.0.0"); // never swapped
   expect(row?.declaredCapabilities).toEqual([]); // the hostile manifest never landed
   expect(h.storedBytes.size).toBe(1); // and the stranger's bytes were never stored
@@ -424,14 +438,14 @@ describe("#820 the bundle-asset set across an upgrade", () => {
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", version: "1.0.0" }, undefined, undefined, {
         "ui/assets/keep.png": magicBytes("png"),
         "ui/assets/drop.gif": magicBytes("gif"),
       }),
       grant: [],
     });
-    const before = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+    const before = await h.service.listBundleAssets({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
     const keptId = before.find((entry) => entry.path === "ui/assets/keep.png")?.assetId;
     const droppedId = before.find((entry) => entry.path === "ui/assets/drop.gif")?.assetId;
     if (keptId === undefined || droppedId === undefined) {
@@ -442,12 +456,12 @@ describe("#820 the bundle-asset set across an upgrade", () => {
     // exactly as production does, so the re-shipped bytes come back with the SAME assetId — which is what
     // makes `reapIfOrphan`'s reference re-check the whole diff.
     await h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "1.1.0" }, undefined, undefined, { "ui/assets/keep.png": magicBytes("png") }),
     });
 
-    const after = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+    const after = await h.service.listBundleAssets({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
     expect(after.map((entry) => entry.path)).toEqual(["ui/assets/keep.png"]);
     // THE DROPPED path resolves to nothing — a node still naming it paints a placeholder rather than stale art.
     expect(after.some((entry) => entry.path === "ui/assets/drop.gif")).toBe(false);
@@ -462,14 +476,14 @@ describe("#820 the bundle-asset set across an upgrade", () => {
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", version: "1.0.0" }, undefined, undefined, { "ui/assets/a.png": magicBytes("png") }),
       grant: [],
     });
 
-    await h.service.upgrade({ caller: ownerPrincipalFor(owner), pluginId: installed.id, bundle: makeBundle({ id: "pp", version: "1.1.0" }) });
+    await h.service.upgrade({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, bundle: makeBundle({ id: "pp", version: "1.1.0" }) });
 
-    expect(await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id })).toEqual([]);
+    expect(await h.service.listBundleAssets({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id })).toEqual([]);
   });
 
   test("a REFUSED asset in the new bundle leaves the INSTALLED version and its images untouched", async () => {
@@ -479,22 +493,22 @@ describe("#820 the bundle-asset set across an upgrade", () => {
     const h = makePluginHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", version: "1.0.0" }, undefined, undefined, { "ui/assets/a.png": magicBytes("png") }),
       grant: [],
     });
 
     await expect(
       h.service.upgrade({
-        caller: ownerPrincipalFor(owner),
+        caller: await ownerPrincipalFor(db, owner),
         pluginId: installed.id,
         bundle: makeBundle({ id: "pp", version: "2.0.0" }, undefined, undefined, { "ui/assets/evil.svg": magicBytes("svg") }),
       }),
     ).rejects.toBeInstanceOf(ManifestInvalidError);
 
-    const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+    const [row] = await h.service.list({ caller: await ownerPrincipalFor(db, owner) });
     expect(row?.version).toBe("1.0.0");
-    expect((await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id })).map((entry) => entry.path)).toEqual([
+    expect((await h.service.listBundleAssets({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id })).map((entry) => entry.path)).toEqual([
       "ui/assets/a.png",
     ]);
   });
@@ -511,16 +525,16 @@ describe("#820 the bundle-asset set across an upgrade", () => {
     const h = makePluginHarness(db, { failStoreAfter: 3 });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       bundle: makeBundle({ id: "pp", version: "1.0.0" }, undefined, undefined, { "ui/assets/a.png": magicBytes("png") }),
       grant: [],
     });
-    await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+    await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
     const assetsBefore = await db.select().from(assets);
 
     await expect(
       h.service.upgrade({
-        caller: ownerPrincipalFor(owner),
+        caller: await ownerPrincipalFor(db, owner),
         pluginId: installed.id,
         bundle: makeBundle({ id: "pp", version: "2.0.0" }, undefined, undefined, { "ui/assets/b.webp": magicBytes("webp") }),
       }),
@@ -528,7 +542,7 @@ describe("#820 the bundle-asset set across an upgrade", () => {
 
     // The resident instance was never torn down — the row that still says `enabled` is telling the truth.
     expect(h.port.disposed).toEqual([]);
-    const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+    const [row] = await h.service.list({ caller: await ownerPrincipalFor(db, owner) });
     expect(row?.status).toBe("enabled");
     expect(row?.version).toBe("1.0.0");
     // …and the half-written v2 bundle asset did not survive as an unreferenced blob.
@@ -552,16 +566,16 @@ describe("#820 the bundle-asset set across an upgrade", () => {
     const h = makePluginHarness(brokenDb);
     const owner = await seedUser(brokenDb, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(brokenDb, owner),
       bundle: makeBundle({ id: "pp", version: "1.0.0" }, undefined, undefined, { "ui/assets/a.png": magicBytes("png") }),
       grant: [],
     });
-    await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+    await h.service.setEnabled({ caller: await ownerPrincipalFor(brokenDb, owner), pluginId: installed.id, enabled: true });
 
     failBatch = true;
     await expect(
       h.service.upgrade({
-        caller: ownerPrincipalFor(owner),
+        caller: await ownerPrincipalFor(brokenDb, owner),
         pluginId: installed.id,
         bundle: makeBundle({ id: "pp", version: "2.0.0" }, undefined, undefined, { "ui/assets/b.webp": magicBytes("webp") }),
       }),
@@ -570,7 +584,7 @@ describe("#820 the bundle-asset set across an upgrade", () => {
 
     // The instance IS gone (the stop precedes the swap by design) — so the row must not still claim `enabled`.
     expect(h.port.disposed).toHaveLength(1);
-    const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+    const [row] = await h.service.list({ caller: await ownerPrincipalFor(brokenDb, owner) });
     expect(row?.status).toBe("disabled");
     expect(row?.version).toBe("1.0.0");
     expect(row?.lastError).toMatch(/db unavailable/u);
@@ -611,15 +625,15 @@ describe("#820 the bundle-asset set across an upgrade", () => {
     const h = makePluginHarness(brokenDb);
     const owner = await seedUser(brokenDb, { handle: castId<Handle>("owner") });
     const installed = await h.service.install({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(brokenDb, owner),
       bundle: makeBundle({ id: "pp", version: "1.0.0" }, undefined, undefined, { "ui/assets/a.png": magicBytes("png") }),
       grant: [],
     });
-    await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+    await h.service.setEnabled({ caller: await ownerPrincipalFor(brokenDb, owner), pluginId: installed.id, enabled: true });
 
     control.armed = true;
     const rejection = h.service.upgrade({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(brokenDb, owner),
       pluginId: installed.id,
       bundle: makeBundle({ id: "pp", version: "2.0.0" }, undefined, undefined, { "ui/assets/b.webp": magicBytes("webp") }),
     });
@@ -630,7 +644,7 @@ describe("#820 the bundle-asset set across an upgrade", () => {
     control.swapFailed = false;
 
     // …and the version is untouched: nothing half-applied behind the swallowed error.
-    const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+    const [row] = await h.service.list({ caller: await ownerPrincipalFor(brokenDb, owner) });
     expect(row?.version).toBe("1.0.0");
   });
 });

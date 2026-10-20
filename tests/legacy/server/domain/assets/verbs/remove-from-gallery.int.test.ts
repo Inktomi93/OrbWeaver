@@ -25,15 +25,15 @@ describe("removeFromGallery", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const asset = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1),
       kind: "gallery",
       mime: PNG,
     });
-    const item = await svc.addToGallery({ principal: principal(owner), assetId: asset.assetId });
+    const item = await svc.addToGallery({ principal: await principal(db, owner), assetId: asset.assetId });
 
-    await svc.removeFromGallery({ principal: principal(owner), galleryItemId: item.galleryItemId });
-    expect(await svc.listGallery({ principal: principal(owner), limit: ALL })).toHaveLength(0);
+    await svc.removeFromGallery({ principal: await principal(db, owner), galleryItemId: item.galleryItemId });
+    expect(await svc.listGallery({ principal: await principal(db, owner), limit: ALL })).toHaveLength(0);
   });
 
   test("a non-owner cannot remove another user's item (leak-free NOT_FOUND); the item survives", async () => {
@@ -44,15 +44,17 @@ describe("removeFromGallery", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const asset = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(2),
       kind: "gallery",
       mime: PNG,
     });
-    const item = await svc.addToGallery({ principal: principal(owner), assetId: asset.assetId });
+    const item = await svc.addToGallery({ principal: await principal(db, owner), assetId: asset.assetId });
 
-    await expect(svc.removeFromGallery({ principal: principal(other), galleryItemId: item.galleryItemId })).rejects.toBeInstanceOf(DomainNotFoundError);
-    expect(await svc.listGallery({ principal: principal(owner), limit: ALL })).toHaveLength(1);
+    await expect(svc.removeFromGallery({ principal: await principal(db, other), galleryItemId: item.galleryItemId })).rejects.toBeInstanceOf(
+      DomainNotFoundError,
+    );
+    expect(await svc.listGallery({ principal: await principal(db, owner), limit: ALL })).toHaveLength(1);
   });
 
   test("deleting the asset cascades its gallery rows", async () => {
@@ -62,14 +64,14 @@ describe("removeFromGallery", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const asset = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(3),
       kind: "gallery",
       mime: PNG,
     });
-    await svc.addToGallery({ principal: principal(owner), assetId: asset.assetId });
+    await svc.addToGallery({ principal: await principal(db, owner), assetId: asset.assetId });
 
     await db.delete(assets).where(eq(assets.id, asset.assetId));
-    expect(await svc.listGallery({ principal: principal(owner), limit: ALL })).toHaveLength(0);
+    expect(await svc.listGallery({ principal: await principal(db, owner), limit: ALL })).toHaveLength(0);
   });
 });

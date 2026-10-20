@@ -16,18 +16,18 @@ test("deletes the owned session + its runs; the character survives; a stranger g
   const stranger = await seedUser(db, { id: "user_ds_b", handle: castId<Handle>("ds-stranger") });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "ds-card-a");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
   h.queueReply(scoreReply());
-  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "score" });
+  await h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "score" });
 
-  await expect(h.svc.deleteSession({ principal: principal(stranger), sessionId: session.id })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(h.svc.deleteSession({ principal: await principal(db, stranger), sessionId: session.id })).rejects.toBeInstanceOf(DomainNotFoundError);
   // Positive control before the delete (non-vacuity), then the cascade.
   expect(await db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, session.id))).toHaveLength(1);
-  await h.svc.deleteSession({ principal: principal(owner), sessionId: session.id });
+  await h.svc.deleteSession({ principal: await principal(db, owner), sessionId: session.id });
   expect(await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id))).toHaveLength(0);
   expect(await db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, session.id))).toHaveLength(0);
   // Canon untouched — the character still reads.
-  const detail = await h.character.get({ principal: principal(owner), characterId });
+  const detail = await h.character.get({ principal: await principal(db, owner), characterId });
   expect(detail.name).toBe("Aria the Archivist");
   // The delete announced itself LAST (start · run · delete) — the stranger's refusal announced nothing. The
   // tick rides after the row is gone: the user bus is live-only, so there is no durable event to orphan.

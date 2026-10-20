@@ -44,6 +44,26 @@ export async function seedUser(db: Db, overrides: Partial<UserRow> = {}, source:
   return row;
 }
 
+/** The identity fields a case can require of a stored row; an absent or `undefined` field keeps its stored value. */
+export interface UserIdentity {
+  readonly role?: UserRow["role"] | undefined;
+  readonly handle?: UserRow["handle"] | undefined;
+}
+
+/** Make `userId`'s row carry `identity`: insert it through {@link seedUser} when absent, then rewrite only the named fields. */
+export async function seedUserIdentity(db: Db, userId: UserId, identity: UserIdentity): Promise<void> {
+  const stored =
+    (await db.select({ role: users.role, handle: users.handle }).from(users).where(eq(users.id, userId)).get()) ?? (await seedUser(db, { id: userId }));
+  const role = identity.role ?? stored.role;
+  const handle = identity.handle ?? stored.handle;
+  if (role !== stored.role || handle !== stored.handle) {
+    await db
+      .update(users)
+      .set({ role, handle, handleKey: handleKey(handle) })
+      .where(eq(users.id, userId));
+  }
+}
+
 export interface SeededAdminUser {
   readonly view: Awaited<ReturnType<ReturnType<typeof createCaller>["admin"]["createUser"]>>;
   readonly row: UserRow;

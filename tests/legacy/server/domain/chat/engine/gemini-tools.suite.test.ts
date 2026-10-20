@@ -4,6 +4,7 @@ import { createInferenceRuntime } from "@orb/inference";
 import type { MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
@@ -22,7 +23,8 @@ const GOOGLE_DETAIL = { type: "reasoning.encrypted", data: "fixture-google-opaqu
 const record = z.record(z.string(), z.unknown());
 
 test.each([false, true])("ordinary OpenRouter Gemini tools preserve required opaque metadata with carry disabled, late detail: %s", async (late) => {
-  const owner = principal(newUserId());
+  const db = await freshDb();
+  const owner = await principal({ db }, newUserId());
   const model = "google/gemini-3.8-flash";
   const bodies: Record<string, unknown>[] = [];
   const runtime = await createInferenceRuntime(

@@ -8,6 +8,7 @@
 // must travel too — else a restore rebuilds the referencing JSON without its bytes.
 
 import type { AssetKind, StoredAsset } from "@orb/contracts/assets";
+import type { Principal } from "@orb/contracts/identity";
 import type { PortableFile } from "@orb/contracts/portability";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
@@ -33,8 +34,8 @@ function seedingService(h: AssetsHarness): SeedingService {
   return createAssetsService({ ...h.ctx, newAssetId: () => mintTypeId(ID_PREFIX.asset) });
 }
 
-function store(svc: SeedingService, owner: UserId, bytes: Uint8Array, kind: AssetKind): Promise<StoredAsset> {
-  return svc.store({ principal: principal(owner), bytes, kind, mime: PNG });
+function store(svc: SeedingService, owner: Principal, bytes: Uint8Array, kind: AssetKind): Promise<StoredAsset> {
+  return svc.store({ principal: owner, bytes, kind, mime: PNG });
 }
 
 async function seedInlineRef(db: Db, chatId: ChatId, refId: string): Promise<void> {
@@ -81,21 +82,21 @@ describe("exportAssets", () => {
 
     // (a) FK side: an avatar blob referenced by a character.
     const avatarBytes = pngBytes(1, 2, 3);
-    const avatar = await store(svc, owner, avatarBytes, "avatar");
+    const avatar = await store(svc, await principal(db, owner), avatarBytes, "avatar");
     const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     await setCharacterAvatar(db, hero, avatar.assetId);
 
     // (b) TEXT side: a blob referenced ONLY by a chat-inline `asset:<id>` (no FK row at all).
     const inlineBytes = pngBytes(9, 8, 7);
-    const inline = await store(svc, owner, inlineBytes, "generated");
+    const inline = await store(svc, await principal(db, owner), inlineBytes, "generated");
     const chat = await seedChatRow(db, "chat_owner");
     await seedParticipant(db, chat, "human", { userId: owner });
     await seedInlineRef(db, chat, inline.assetId);
 
     // Excluded: an unreferenced owned blob…
-    await store(svc, owner, pngBytes(5, 5), "gallery");
+    await store(svc, await principal(db, owner), pngBytes(5, 5), "gallery");
     // …and a foreign owner's referenced blob.
-    const fAvatar = await store(svc, other, pngBytes(4, 4), "avatar");
+    const fAvatar = await store(svc, await principal(db, other), pngBytes(4, 4), "avatar");
     const villain = await seedCharacter(db, other, { handle: castId<CharacterHandle>("villain") });
     await setCharacterAvatar(db, villain, fAvatar.assetId);
 
@@ -124,12 +125,12 @@ describe("exportAssets", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     // (a) the settings pin: `appearance.backgroundAssetId` — no FK column holds it.
-    const settingsBg = await store(svc, owner, pngBytes(1, 1, 1), "background");
+    const settingsBg = await store(svc, await principal(db, owner), pngBytes(1, 1, 1), "background");
     // (b) the settings LIBRARY pin: an uploaded-but-unpicked background.
-    const libraryBg = await store(svc, owner, pngBytes(2, 2, 2), "background");
+    const libraryBg = await store(svc, await principal(db, owner), pngBytes(2, 2, 2), "background");
     await seedBackgroundSettings(db, owner, settingsBg.assetId, libraryBg.assetId);
     // (c) the carried card background: `characters.background_override` JSON.
-    const cardBg = await store(svc, owner, pngBytes(3, 3, 3), "background");
+    const cardBg = await store(svc, await principal(db, owner), pngBytes(3, 3, 3), "background");
     const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     await setCharacterBackground(db, hero, cardBg.assetId);
 

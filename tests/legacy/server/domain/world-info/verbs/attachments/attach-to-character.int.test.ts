@@ -17,24 +17,24 @@ describe("attachToCharacter", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
-    const book1 = await svc.createBook({ principal: principal(owner), input: { name: "One" } });
-    const book2 = await svc.createBook({ principal: principal(owner), input: { name: "Two" } });
+    const book1 = await svc.createBook({ principal: await principal(db, owner), input: { name: "One" } });
+    const book2 = await svc.createBook({ principal: await principal(db, owner), input: { name: "Two" } });
 
     await svc.attachToCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       bookId: book1.id,
       role: "primary",
     });
     await svc.attachToCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       bookId: book2.id,
       role: "primary",
     });
 
     const attached = await svc.listForCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
     });
     const primaries = attached.filter((b) => b.role === "primary");
@@ -47,23 +47,23 @@ describe("attachToCharacter", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
 
     await svc.attachToCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       bookId: book.id,
       role: "auxiliary",
     });
     await svc.attachToCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       bookId: book.id,
       role: "primary",
     });
 
     const attached = await svc.listForCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
     });
     expect(attached).toHaveLength(1);
@@ -76,11 +76,11 @@ describe("attachToCharacter", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await seedCharacter(db, { ownerId: other });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
 
     await expect(
       svc.attachToCharacter({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         characterId: foreign,
         bookId: book.id,
         role: "auxiliary",
@@ -94,11 +94,11 @@ describe("attachToCharacter", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const character = await seedCharacter(db, { ownerId: owner });
-    const theirBook = await svc.createBook({ principal: principal(other), input: { name: "T" } });
+    const theirBook = await svc.createBook({ principal: await principal(db, other), input: { name: "T" } });
 
     await expect(
       svc.attachToCharacter({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         characterId: character,
         bookId: theirBook.id,
         role: "auxiliary",

@@ -39,10 +39,12 @@
 
 import type { RpgDateMode, RpgTrackerDef } from "@orb/contracts/rpg";
 import { actorRefKey } from "@orb/contracts/rpg";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { actorTrackerWriteKeys } from "#contracts/rpg/tracker.ts";
-import { ACTOR_CARRIERS, CARRIERS, HOST, MANA, openGame, openingBeat, RPG_DELTA_HEADING, RPG_MACRO_KEYS, stageCast } from "./_field-reachability-support.ts";
-import { expect, seedLiteGame, test } from "./_support.ts";
+import { ACTOR_CARRIERS, CARRIERS, MANA, openGame, openingBeat, RPG_DELTA_HEADING, RPG_MACRO_KEYS, stageCast } from "./_field-reachability-support.ts";
+import { expect, principal, seedLiteGame, test } from "./_support.ts";
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE STATE / LOCK / PIN / CONFIG MATRIX — the axes that gate whether a field renders at all.
@@ -97,7 +99,7 @@ test("LOCK (fieldLocks): a hand-pinned value still renders AND survives the next
   const f = await openGame({ carrier: CARRIERS.character });
   await f.beat({ scene: { location: "The Bone Road" } });
   // The coarse auto-lock (the hand-edit default) pins `location`.
-  await expect(f.h.service.editSnapshot({ principal: HOST, chatId: f.chatId, patch: { location: "The Crypt" } })).resolves.toEqual({ ok: true });
+  await expect(f.h.service.editSnapshot({ principal: f.host, chatId: f.chatId, patch: { location: "The Crypt" } })).resolves.toEqual({ ok: true });
   await f.beat({ scene: { location: "The Docks" } });
   const reminder = await f.reminder();
   expect(reminder).toContain("Scene: The Crypt");
@@ -108,7 +110,7 @@ test("PIN state: the band is a panel decision — the reminder is byte-identical
   const drive = async (pinned: boolean): Promise<{ reminder: string; orbs: number }> => {
     const f = await openGame({ carrier: CARRIERS.character, trackers: [{ ...MANA, pinned }] });
     await f.beat({ party: [{ targetRef: f.carrier.targetRef, trackerSets: [{ key: "mana", value: 7 }] }] });
-    const view = await f.h.service.getTrackerView({ principal: HOST, chatId: f.chatId });
+    const view = await f.h.service.getTrackerView({ principal: f.host, chatId: f.chatId });
     return { reminder: await f.reminder(), orbs: view.trackerOrbs.length };
   };
   const off = await drive(false);
@@ -122,15 +124,16 @@ test("READ-ONLY delivery: a game whose connection can't write state still READS 
   const db = await freshDb();
   const carrier = CARRIERS.character;
   const { chatId, h } = await seedLiteGame(db, { participants: [...carrier.participants], trackersReadOnly: true });
-  await h.service.updateConfig({ principal: HOST, chatId, patch: { trackers: [MANA] } });
+  const host = await principal(db, castId<Handle>("host"));
+  await h.service.updateConfig({ principal: host, chatId, patch: { trackers: [MANA] } });
   // BOTH hand doors are asserted: `trackersReadOnly` is a MODEL-write verdict, so the HOST's hand must still
   // commit here — a silently-refused edit would leave the two reads below asserting an unmoved state.
-  await expect(h.service.editSnapshot({ principal: HOST, chatId, patch: { location: "The Crypt" } })).resolves.toEqual({ ok: true });
+  await expect(h.service.editSnapshot({ principal: host, chatId, patch: { location: "The Crypt" } })).resolves.toEqual({ ok: true });
   // The per-actor half rides the op door (R1) — the image left `editSnapshot`'s vocabulary.
   await expect(
-    h.service.patchActor({ principal: HOST, chatId, targetRef: carrier.actorRef, ops: [{ op: "setTracker", key: "mana", value: { value: 5 } }] }),
+    h.service.patchActor({ principal: host, chatId, targetRef: carrier.actorRef, ops: [{ op: "setTracker", key: "mana", value: { value: 5 } }] }),
   ).resolves.toEqual({ ok: true });
-  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: HOST.userId });
+  const out = await h.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: host.userId });
   const reminder = out?.injections[0]?.content ?? "";
   // The honest degrade (§4.6): no write path, but the hand-steered values still steer.
   expect(reminder).toContain("Scene: The Crypt");
@@ -140,7 +143,7 @@ test("READ-ONLY delivery: a game whose connection can't write state still READS 
 test("CONFIG dateMode: `structured` carries the day counter, `narrated` drops it (both keep time-of-day)", async () => {
   const drive = async (dateMode: RpgDateMode): Promise<string> => {
     const f = await openGame({ carrier: CARRIERS.character });
-    await f.h.service.updateConfig({ principal: HOST, chatId: f.chatId, patch: { dateMode } });
+    await f.h.service.updateConfig({ principal: f.host, chatId: f.chatId, patch: { dateMode } });
     await f.beat({ scene: { day: 7, timeOfDay: "night" } });
     return f.reminder();
   };
@@ -153,7 +156,7 @@ test("CONFIG dateMode: `structured` carries the day counter, `narrated` drops it
 test("CONFIG recentBeatsKeepLast: 0 drops the beat block entirely; N keeps the last N", async () => {
   const drive = async (keepLast: number): Promise<string> => {
     const f = await openGame({ carrier: CARRIERS.character });
-    await f.h.service.updateConfig({ principal: HOST, chatId: f.chatId, patch: { recentBeatsKeepLast: keepLast } });
+    await f.h.service.updateConfig({ principal: f.host, chatId: f.chatId, patch: { recentBeatsKeepLast: keepLast } });
     await f.beat({ scene: { recentEvent: "The first beat." } });
     await f.beat({ scene: { recentEvent: "The second beat." } });
     return f.reminder();
@@ -168,16 +171,16 @@ test("CONFIG recentBeatsKeepLast: 0 drops the beat block entirely; N keeps the l
 test("CONFIG engaged=false: the whole read surface goes silent (byte-identical no-op, rows preserved)", async () => {
   const f = await openGame({ carrier: CARRIERS.character, trackers: [MANA] });
   await f.beat({ scene: { location: "The Bone Road" } });
-  await f.h.service.updateConfig({ principal: HOST, chatId: f.chatId, patch: { engaged: false } });
+  await f.h.service.updateConfig({ principal: f.host, chatId: f.chatId, patch: { engaged: false } });
   expect(await f.reminder()).toBe("");
-  await f.h.service.updateConfig({ principal: HOST, chatId: f.chatId, patch: { engaged: true } });
+  await f.h.service.updateConfig({ principal: f.host, chatId: f.chatId, patch: { engaged: true } });
   expect(await f.reminder()).toContain("The Bone Road");
 });
 
 test("CONFIG hiddenContentReveal is a HOST-plane knob: it never changes what the model reads", async () => {
   const drive = async (hiddenContentReveal: boolean): Promise<string> => {
     const f = await openGame({ carrier: CARRIERS.character });
-    await f.h.service.updateConfig({ principal: HOST, chatId: f.chatId, patch: { hiddenContentReveal } });
+    await f.h.service.updateConfig({ principal: f.host, chatId: f.chatId, patch: { hiddenContentReveal } });
     await f.beat({ scene: { location: "The Bone Road" } });
     return f.reminder();
   };
@@ -208,7 +211,7 @@ test("actorRefKey is the ONE join: a tool write on a participant NAME lands unde
   // the datum and the ref is the join; if that join broke, every probe above would still pass on `npc:` rows.
   const f = await openGame({ carrier: CARRIERS.user });
   await f.beat({ party: [{ targetRef: "player", status: "winded" }] }); // a self-alias, not the participant name
-  const view = await f.h.service.getTrackerView({ principal: HOST, chatId: f.chatId });
+  const view = await f.h.service.getTrackerView({ principal: f.host, chatId: f.chatId });
   const you = view.actors.find((a) => actorRefKey(a.actorRef) === "user:user_host");
   expect(you?.volatile?.status).toBe("winded");
   expect(await f.reminder()).toContain("- You — winded");

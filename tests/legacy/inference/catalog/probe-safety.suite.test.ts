@@ -6,6 +6,7 @@
 import type { ProviderId } from "@orb/contracts/inference";
 import { createInferenceRuntime } from "@orb/inference";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NO_PROVIDER_SECRETS } from "#inference/backends/http/sanitize.ts";
@@ -35,11 +36,12 @@ function ollamaRecording(chats: Posted[]): typeof fetch {
 }
 
 test("listing an Ollama server's models for the add flow renders none of them", async () => {
+  const db = await freshDb();
   const chats: Posted[] = [];
   const stores = memoryStores();
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: ollamaRecording(chats) }));
   const listing = await runtime.catalogs.models({
-    principal: principal(newUserId()),
+    principal: await principal({ db }, newUserId()),
     providerId: castId<ProviderId>("ollama"),
     secret: { credentialId: null },
     baseUrl: BASE_URL,
@@ -49,13 +51,14 @@ test("listing an Ollama server's models for the add flow renders none of them", 
 });
 
 test("a cold-mirror resolve renders the connection's own model once, and releases it", async () => {
+  const db = await freshDb();
   const chats: Posted[] = [];
   const stores = memoryStores();
   const ownerId = newUserId();
   const row = fakeConnection({ ownerId, providerId: "ollama", model: "qwen2.5:0.5b", baseUrl: BASE_URL });
   stores.connections.rows.set(row.id, row);
   const runtime = await createInferenceRuntime(fakeDeps({ stores, fetch: ollamaRecording(chats) }));
-  const { resolved } = await runtime.resolve({ task: "chat", principal: principal(ownerId), connectionId: row.id });
+  const { resolved } = await runtime.resolve({ task: "chat", principal: await principal({ db }, ownerId), connectionId: row.id });
   expect(chats).toHaveLength(1);
   expect(chats[0]?.body).toMatchObject({ model: "qwen2.5:0.5b", ["_debug_render_only"]: true, stream: false, ["keep_alive"]: 0 });
   expect(resolved.capability).toMatchObject({ kind: "generation", generation: { turns: { assistantPrefill: true } } });

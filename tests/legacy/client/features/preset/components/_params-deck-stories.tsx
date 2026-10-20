@@ -8,7 +8,7 @@
 // from the resolver and is never written back) — the macro-gate's data-flow blind spot is exactly this
 // hazard, so the `<output>` mirrors the saved key set, not just one field.
 
-import { builtinProvider } from "@orb/contracts/inference";
+import { builtinProvider, modelIdSchema } from "@orb/contracts/inference";
 import type { PromptConfig } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
@@ -18,7 +18,10 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ParamsDeck } from "#client/features/preset/components/params-deck.tsx";
 import { samplerSpellingOf } from "#client/features/preset/lib/capability-panel-model.ts";
+import type { EffectiveProfileRow } from "#client/features/preset/lib/effective-knobs.ts";
 import { validatePresetConfig } from "#client/features/preset/lib/preset-editor-model.ts";
+import type { PresetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
+import { admitPresetValues, canonicalPresetValues, presetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
 import type { ReadFailure } from "#client/features/preset/lib/resolve-failure.ts";
 import type { AppFormInstance } from "#client/forms/editor/index.ts";
 import { AutosaveStatus, createAutosaveEntityForm } from "#client/forms/editor/index.ts";
@@ -47,8 +50,8 @@ const STORY_CAPABILITY = makeGenerationCapability({
 // The funnel's projection (`preset.resolveEffective`) for a preset with NOTHING explicit: top-p resolves
 // from the model default and max-output falls to the engine FLOOR. Nothing here is a client derivation —
 // the deck renders exactly what the read reports, which is the whole point of D5.
-const GHOST_EFFECTIVE = {
-  model: "qwen3-32b",
+const GHOST_EFFECTIVE: EffectiveProfileRow = {
+  model: modelIdSchema.parse("qwen3-32b"),
   knobs: {
     topP: { value: 0.92, provenance: "modelDefault" },
     maxOutputTokens: { value: 2048, provenance: "floor" },
@@ -62,8 +65,8 @@ const GHOST_EFFECTIVE = {
 
 // The same preset on `quality: deep` with an explicit, OVER-RANGE repetition penalty: temperature now comes
 // from the DIAL (the rung the mapping gloss reads) and the penalty was CLAMPED to the model's max.
-const EXPLICIT_EFFECTIVE = {
-  model: "qwen3-32b",
+const EXPLICIT_EFFECTIVE: EffectiveProfileRow = {
+  model: modelIdSchema.parse("qwen3-32b"),
   knobs: {
     temperature: { value: 1, provenance: "quality" },
     topP: { value: 0.92, provenance: "modelDefault" },
@@ -86,15 +89,17 @@ const EXPLICIT_EFFECTIVE = {
 
 // A stored `topA` this model does not honor — the funnel drops it, so it is invisible in both directions
 // until the staleness row names it (F7).
-const STALE_EFFECTIVE = {
+const STALE_EFFECTIVE: EffectiveProfileRow = {
   ...GHOST_EFFECTIVE,
   stale: [{ knob: "topA", value: 0.2 }],
 };
 
 // The PRODUCTION validator is mounted here, not omitted: the escape-hatch editor's saved-truth arm is a
 // claim about the fold `form.state.isValid` drives, so a story without it could not fail.
-const StoryForm = createAutosaveEntityForm<PromptConfig>({
-  defaultValues: DEFAULT_PROMPT_CONFIG,
+const StoryForm = createAutosaveEntityForm<PresetEditorValues>({
+  defaultValues: presetEditorValues(DEFAULT_PROMPT_CONFIG),
+  canonicalValues: canonicalPresetValues,
+  admitValues: admitPresetValues,
   options: {
     validators: {
       onDynamic: ({ value }: { value: PromptConfig }): { fields: Record<string, string> } | undefined => validatePresetConfig(value),
@@ -114,7 +119,7 @@ export function ParamsDeckReplayStory(): ReactElement {
     <DeckHarness
       effective={{
         ...GHOST_EFFECTIVE,
-        model: "openai/gpt-6-sol",
+        model: modelIdSchema.parse("openai/gpt-6-sol"),
         cache: makeCachePolicy({ replay: { ...neutral.replay, supported: true, enabled: true, ttlSeconds: 60, provenance: "connection" } }),
       }}
       params={{}}
@@ -186,7 +191,7 @@ export function ParamsDeckMirostatStory(): ReactElement {
     <DeckHarness
       capability={LLAMA_MIROSTAT_CAPABILITY}
       effective={{
-        model: "qwen3-8b",
+        model: modelIdSchema.parse("qwen3-8b"),
         knobs: { mirostatMode: { value: 2, provenance: "explicit" }, topP: { value: 0.95, provenance: "serverDefault" } },
         stale: [],
         qualityMapping: null,
@@ -285,7 +290,7 @@ function DeckHarness({ params, effective, capability = STORY_CAPABILITY, capabil
   // The data providers are for the logit-bias editor's word lookup, which a CT answers with `routeTrpc`.
   return (
     <CtDataProviders>
-      <StoryForm entityId={STORY_PRESET} save={save} serverValues={serverValues}>
+      <StoryForm entityId={STORY_PRESET} save={save} serverValues={presetEditorValues(serverValues)}>
         {(session): ReactElement => (
           <>
             <output>{saved}</output>
@@ -299,7 +304,7 @@ function DeckHarness({ params, effective, capability = STORY_CAPABILITY, capabil
                 capability={resolvedCapability}
                 capabilityError={capabilityError}
                 effective={effective}
-                form={session.form as AppFormInstance<PromptConfig>}
+                form={session.form as AppFormInstance<PresetEditorValues>}
                 samplerSpelling={samplerSpelling}
               />
             </Container>

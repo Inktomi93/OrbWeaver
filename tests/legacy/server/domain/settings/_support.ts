@@ -28,6 +28,8 @@ interface AuditCall {
 }
 
 export interface SettingsHarness {
+  /** The database the service was built over; callers' Principals resolve from its rows. */
+  readonly db: Db;
   readonly svc: ReturnType<typeof createSettingsService>;
   readonly deps: SettingsServiceDeps;
   readonly audits: AuditCall[];
@@ -61,11 +63,9 @@ export async function seedUser(db: Db, overrides: SeedUserOverrides = {}): Promi
   return id;
 }
 
-/** Build a Principal for a given user id + role (cookie-resolved by default). Delegates to the shared
- *  `support/factories/principal` — settings keeps the positional `(id, role, handle?)` convention its
- *  call sites use; the shared home owns the literal (role/handle over the `overrides` axis). */
-export function principal(userId: UserId, role: UserRole, handle: Handle = castId<Handle>(userId)): Principal {
-  return makePrincipal(userId, { role, handle });
+/** Resolve a caller's Principal through the production row resolver; a passed role or handle is first written onto the user's row. */
+export async function principal(db: Db, userId: UserId, role: UserRole, handle?: Handle): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role, handle });
 }
 
 /** The identity the harness reports — a FIXED block, never a read of the checkout under test: a spec that
@@ -122,14 +122,14 @@ export function makeHarness(
       published.push(entries);
     },
   };
-  return { svc: createSettingsService(deps), deps, audits, clock, onEmbedModelChanged, published };
+  return { db, svc: createSettingsService(deps), deps, audits, clock, onEmbedModelChanged, published };
 }
 
 /** Find a seed theme by name in `ownerId`'s readable set (own ∪ seeds) — the
  *  `ensureSeedThemes` + `listThemes` + find + not-undefined-guard block 5 theme-verb tests repeated. Throws
  *  if the name isn't found (a seed lookup that misses is a test-setup bug, not a case to assert on). */
 export async function findSeedTheme(h: SettingsHarness, ownerId: UserId, name: string): Promise<ThemeView> {
-  const views = await h.svc.listThemes({ principal: principal(ownerId, "user") });
+  const views = await h.svc.listThemes({ principal: await principal(h.db, ownerId, "user") });
   const found = views.find((v) => v.name === name);
   if (found === undefined) {
     throw new Error(`seed theme not found: ${name}`);

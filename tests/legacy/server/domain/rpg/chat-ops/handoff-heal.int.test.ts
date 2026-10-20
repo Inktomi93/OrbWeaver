@@ -13,6 +13,7 @@ import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
 import { characters, presets, rpgSheets } from "@orb/db";
 import { batchMany } from "@orb/db/query";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import type { CharacterHandle, CharacterId, ChatId, Handle, PresetId, RpgGameId, RpgSheetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -63,9 +64,7 @@ async function seedGameRoom(
  *  exist). Returns the seeded character id. */
 async function seedSheetFor(db: Db, gameId: RpgGameId, ownerId: UserId, key: string): Promise<CharacterId> {
   const characterId = castId<CharacterId>(`character_${key}`);
-  await db
-    .insert(characters)
-    .values(makeCharacter({ id: characterId, ownerId, handle: castId<CharacterHandle>(key), name: key, tokenSize: 0, createdAt: FROZEN_AT_MS }));
+  await db.insert(characters).values(makeCharacter({ id: characterId, ownerId, handle: castId<CharacterHandle>(key), name: key, createdAt: FROZEN_AT_MS }));
   await db.insert(rpgSheets).values({
     id: castId<RpgSheetId>(`rpg_sheet_${key}`),
     gameId,
@@ -100,7 +99,7 @@ test("a preset the NEW HOST cannot read yields the clear — and nothing is writ
   // The op is a pure producer: the knob still stands until the caller's batch runs (the atomicity property —
   // chat commits the heal WITH the role swap, never as a second write a crash could skip).
   expect((await findGameByChat(db, chatId))?.gmPresetId).toBe(preset);
-  await db.batch(batchMany(stmts));
+  await db.batch(batchMany(stmts.map(statementForOwner)));
   expect((await findGameByChat(db, chatId))?.gmPresetId).toBeNull();
 });
 
@@ -134,7 +133,7 @@ test("a DISENGAGED game still heals — the knob must not survive the toggle bac
   const h = makeRpgService(db);
 
   const stmts = await h.chatOps.handoffHealStatements(healArgs(chatId));
-  await db.batch(batchMany(stmts));
+  await db.batch(batchMany(stmts.map(statementForOwner)));
   expect((await findGameByChat(db, chatId))?.gmPresetId).toBeNull();
 });
 
@@ -161,7 +160,7 @@ test("an offered GM preset the new host cannot read is COPIED and the knob re-po
   expect(h.fakes.presetCopies).toEqual([{ fromOwnerId: oldHost, toUserId: NEW_HOST, presetId: preset }]);
   // Still a pure producer: nothing moves until chat's swap batch runs.
   expect((await findGameByChat(db, chatId))?.gmPresetId).toBe(preset);
-  await db.batch(batchMany(stmts));
+  await db.batch(batchMany(stmts.map(statementForOwner)));
   expect((await findGameByChat(db, chatId))?.gmPresetId).toBe(`${preset}__copy_${NEW_HOST}`);
 });
 
@@ -173,7 +172,7 @@ test("an offered preset that CANNOT be copied falls back to the built clear (nev
   const h = makeRpgService(db, { copyPresetFails: true });
 
   const stmts = await h.chatOps.handoffHealStatements(healArgs(chatId, { copyGmPreset: true, oldHostUserId: oldHost }));
-  await db.batch(batchMany(stmts));
+  await db.batch(batchMany(stmts.map(statementForOwner)));
 
   expect((await findGameByChat(db, chatId))?.gmPresetId).toBeNull();
 });
@@ -205,7 +204,6 @@ test("the copied cast's SHEETS re-key onto the copies in the swap batch (the roo
       ownerId: NEW_HOST,
       handle: castId<CharacterHandle>("mira_copy"),
       name: "Mira",
-      tokenSize: 0,
       createdAt: FROZEN_AT_MS,
     }),
   );
@@ -214,7 +212,7 @@ test("the copied cast's SHEETS re-key onto the copies in the swap batch (the roo
   const stmts = await h.chatOps.handoffHealStatements(healArgs(chatId, { cardCopies: [{ sourceCharacterId: source, characterId: copy }] }));
   // Pure producer again: the sheet still names the source until chat commits.
   expect((await db.select().from(rpgSheets).where(eq(rpgSheets.gameId, gameId)))[0]?.characterId).toBe(source);
-  await db.batch(batchMany(stmts));
+  await db.batch(batchMany(stmts.map(statementForOwner)));
 
   expect((await db.select().from(rpgSheets).where(eq(rpgSheets.gameId, gameId)))[0]?.characterId).toBe(copy);
 });

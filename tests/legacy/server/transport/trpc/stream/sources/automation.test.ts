@@ -21,11 +21,13 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { AutomationBusEvent } from "@orb/contracts/automation";
 import type { StreamFrame } from "@orb/contracts/stream";
+import type { Db } from "@orb/db";
 import { DomainUnavailableError } from "@orb/kit/errors";
 import type { AutomationRuleId, SocketId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Context } from "@orb/server/transport/trpc";
 import { createSocketRegistry, publishAutomationEvent, publishUserEvent } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { AutomationService } from "#server/domain/automation/index.ts";
@@ -58,8 +60,8 @@ function nextSocket(): SocketId {
   return castId<SocketId>(`socket_automation_${socketSeq}`);
 }
 
-function ctxWith(automation: Partial<AutomationService>): Context {
-  return makeContext({ auth: principal("user", { userId: MEMBER }), services: { automation } });
+async function ctxWith(db: Db, automation: Partial<AutomationService>): Promise<Context> {
+  return makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { automation } });
 }
 
 /** The tracked envelope's parts (`[ordinal, frame, symbol]` on the server side of `createCaller`). */
@@ -93,10 +95,11 @@ async function nextFrameAfter(iterator: AsyncIterator<unknown>, publish: () => v
 
 describe("the automation room refuses at attach — the asymmetry against chat/rpg", () => {
   test("a NON-present member is refused NOT_FOUND, and no room is recorded on the socket", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
     const sockets = createSocketRegistry(() => 0);
     const resolveStreamAuthority = vi.fn<AutomationService["resolveStreamAuthority"]>(() => Promise.reject(new AutomationChatNotFoundError(CHAT)));
-    const call = caller(makeContext({ auth: principal("user", { userId: MEMBER }), services: { automation: { resolveStreamAuthority } }, sockets }));
+    const call = caller(makeContext({ auth: await principal(db, "user", { userId: MEMBER }), services: { automation: { resolveStreamAuthority } }, sockets }));
 
     // The verdict the deleted subscription gave on its first pull, now given at attach — before any bus tail
     // and before the socket cell knows the room exists. A stranger never learns the chat is real.
@@ -111,7 +114,8 @@ describe("the automation room refuses at attach — the asymmetry against chat/r
 
 describe("the tier projection — the host's hidden hand stays hidden", () => {
   test("a `member` subscriber receives the room-visible chips", async () => {
-    const iterator = await openAutomationRoom(ctxWith({ resolveStreamAuthority: () => Promise.resolve("member") }));
+    const db = await freshDb();
+    const iterator = await openAutomationRoom(await ctxWith(db, { resolveStreamAuthority: () => Promise.resolve("member") }));
     const frame = await nextFrameAfter(iterator, () => publishAutomationEvent(CHIPS));
     await iterator.return?.(undefined);
 
@@ -121,7 +125,8 @@ describe("the tier projection — the host's hidden hand stays hidden", () => {
   });
 
   test("a `member` subscriber never receives a host-only event — it is elided, not merely unrendered", async () => {
-    const iterator = await openAutomationRoom(ctxWith({ resolveStreamAuthority: () => Promise.resolve("member") }));
+    const db = await freshDb();
+    const iterator = await openAutomationRoom(await ctxWith(db, { resolveStreamAuthority: () => Promise.resolve("member") }));
     const frame = await nextFrameAfter(iterator, () => {
       publishAutomationEvent(HOST_ONLY); // rule fire/error/disable/config-change: the host's hidden hand
       publishAutomationEvent(CHIPS);
@@ -133,7 +138,8 @@ describe("the tier projection — the host's hidden hand stays hidden", () => {
   });
 
   test("a `host` subscriber receives the host-only events too", async () => {
-    const iterator = await openAutomationRoom(ctxWith({ resolveStreamAuthority: () => Promise.resolve("host") }));
+    const db = await freshDb();
+    const iterator = await openAutomationRoom(await ctxWith(db, { resolveStreamAuthority: () => Promise.resolve("host") }));
     const frame = await nextFrameAfter(iterator, () => publishAutomationEvent(HOST_ONLY));
     await iterator.return?.(undefined);
 
@@ -143,10 +149,11 @@ describe("the tier projection — the host's hidden hand stays hidden", () => {
 
 describe("ephemeral by design — there is no rewind arm", () => {
   test("a `sinceSeq` attach replays NOTHING and goes straight live (no durable row exists to re-read)", async () => {
+    const db = await freshDb();
     const resolveStreamAuthority = vi.fn<AutomationService["resolveStreamAuthority"]>(() => Promise.resolve("host"));
     // `sinceSeq: 0` is the strongest replay request a client can make — a durable room would re-send its whole
     // log for it. This room has no log: the cursor is accepted and ignored.
-    const iterator = await openAutomationRoom(ctxWith({ resolveStreamAuthority }), { sinceSeq: 0 });
+    const iterator = await openAutomationRoom(await ctxWith(db, { resolveStreamAuthority }), { sinceSeq: 0 });
     const frame = await nextFrameAfter(iterator, () => publishAutomationEvent(CHIPS));
     await iterator.return?.(undefined);
 
@@ -158,6 +165,7 @@ describe("ephemeral by design — there is no rewind arm", () => {
 
 describe("the pump re-runs the gate, and its throw is one room's fault", () => {
   test("a failing authority resolve becomes roomFailed and the socket's other room survives", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
     // Accept the ATTACH, then fail inside the pump — which is exactly the shape of a membership read that
     // breaks (or a member kicked) between the attach and the pump start / a reconnect.
@@ -165,7 +173,7 @@ describe("the pump re-runs the gate, and its throw is one room's fault", () => {
       .fn<AutomationService["resolveStreamAuthority"]>()
       .mockResolvedValueOnce("host")
       .mockRejectedValue(new DomainUnavailableError("automation authority read unavailable"));
-    const call = caller(ctxWith({ resolveStreamAuthority }));
+    const call = caller(await ctxWith(db, { resolveStreamAuthority }));
     await call.stream.attach({ socketId, ref: { channel: "automation", chatId: CHAT } });
     await call.stream.attach({ socketId, ref: { channel: "user" } });
 
@@ -202,6 +210,7 @@ describe("the pump re-runs the gate, and its throw is one room's fault", () => {
 // too, and these two rows are the difference between "narrows on the next event" and "narrows on reconnect".
 describe("the authority tier follows a role change mid-subscription (#1407)", () => {
   test("a host DEMOTED after attach stops receiving host-only events from the very next one", async () => {
+    const db = await freshDb();
     // host at attach and at pump start, `member` from then on -- the shape of an `acceptHostHandoff` landing
     // under an open subscription.
     const resolveStreamAuthority = vi
@@ -209,7 +218,7 @@ describe("the authority tier follows a role change mid-subscription (#1407)", ()
       .mockResolvedValueOnce("host")
       .mockResolvedValueOnce("host")
       .mockResolvedValue("member");
-    const iterator = await openAutomationRoom(ctxWith({ resolveStreamAuthority }));
+    const iterator = await openAutomationRoom(await ctxWith(db, { resolveStreamAuthority }));
 
     const frame = await nextFrameAfter(iterator, () => {
       publishAutomationEvent(HOST_ONLY); // no longer theirs to see
@@ -222,13 +231,14 @@ describe("the authority tier follows a role change mid-subscription (#1407)", ()
   });
 
   test("a subscriber KICKED mid-subscription fails its room rather than draining stale events", async () => {
+    const db = await freshDb();
     const socketId = nextSocket();
     const resolveStreamAuthority = vi
       .fn<AutomationService["resolveStreamAuthority"]>()
       .mockResolvedValueOnce("host")
       .mockResolvedValueOnce("host")
       .mockRejectedValue(new AutomationChatNotFoundError(CHAT));
-    const call = caller(ctxWith({ resolveStreamAuthority }));
+    const call = caller(await ctxWith(db, { resolveStreamAuthority }));
     await call.stream.attach({ socketId, ref: { channel: "automation", chatId: CHAT } });
     await call.stream.attach({ socketId, ref: { channel: "user" } });
 

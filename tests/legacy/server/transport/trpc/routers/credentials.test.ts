@@ -7,11 +7,13 @@
 
 import type { CredentialView } from "@orb/contracts/credentials";
 import type { ProviderId } from "@orb/contracts/inference";
+import type { Db } from "@orb/db";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
 import type { Context } from "@orb/server/transport/trpc";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { CredentialsService } from "#server/domain/credentials/index.ts";
@@ -31,18 +33,19 @@ const VIEW: CredentialView = {
   updatedAt: FROZEN_AT_MS,
 };
 
-function ctxWith(credentials: Partial<CredentialsService>): Context {
-  return makeContext({ auth: principal("user", { userId: OWNER }), services: { credentials } });
+async function ctxWith(db: Db, credentials: Partial<CredentialsService>): Promise<Context> {
+  return makeContext({ auth: await principal(db, "user", { userId: OWNER }), services: { credentials } });
 }
 
 const ADD_INPUT = { provider: "openrouter", key: PLAINTEXT_KEY } as const;
 
 describe("credentials — CredentialView output boundary", () => {
   test("a well-formed view passes through unchanged on list, add and replace", async () => {
+    const db = await freshDb();
     const list = vi.fn<CredentialsService["list"]>(async () => [VIEW]);
     const add = vi.fn<CredentialsService["add"]>(async () => VIEW);
     const replace = vi.fn<CredentialsService["replace"]>(async () => VIEW);
-    const api = caller(ctxWith({ list, add, replace }));
+    const api = caller(await ctxWith(db, { list, add, replace }));
 
     await expect(api.credentials.list()).resolves.toEqual([VIEW]);
     await expect(api.credentials.add(ADD_INPUT)).resolves.toEqual(VIEW);
@@ -50,39 +53,46 @@ describe("credentials — CredentialView output boundary", () => {
   });
 
   test("replace refuses a view echoing the plaintext key", async () => {
+    const db = await freshDb();
     const replace = vi.fn<CredentialsService["replace"]>(async () => ({ ...VIEW, key: PLAINTEXT_KEY }));
 
-    await expect(caller(ctxWith({ replace })).credentials.replace({ credentialId: VIEW.id, key: PLAINTEXT_KEY })).toThrowTRPCError("INTERNAL_SERVER_ERROR");
+    await expect(caller(await ctxWith(db, { replace })).credentials.replace({ credentialId: VIEW.id, key: PLAINTEXT_KEY })).toThrowTRPCError(
+      "INTERNAL_SERVER_ERROR",
+    );
   });
 
   test("list refuses a view carrying a sealed-secret column", async () => {
+    const db = await freshDb();
     const leaked = { ...VIEW, ciphertext: SEALED_SECRET };
     const list = vi.fn<CredentialsService["list"]>(async () => [leaked]);
 
-    await expect(caller(ctxWith({ list })).credentials.list()).toThrowTRPCError("INTERNAL_SERVER_ERROR");
+    await expect(caller(await ctxWith(db, { list })).credentials.list()).toThrowTRPCError("INTERNAL_SERVER_ERROR");
   });
 
   test("add refuses a view echoing the plaintext key", async () => {
+    const db = await freshDb();
     const leaked = { ...VIEW, key: PLAINTEXT_KEY };
     const add = vi.fn<CredentialsService["add"]>(async () => leaked);
 
-    await expect(caller(ctxWith({ add })).credentials.add(ADD_INPUT)).toThrowTRPCError("INTERNAL_SERVER_ERROR");
+    await expect(caller(await ctxWith(db, { add })).credentials.add(ADD_INPUT)).toThrowTRPCError("INTERNAL_SERVER_ERROR");
   });
 
   test("a known field with the wrong shape is refused too", async () => {
+    const db = await freshDb();
     // The brand satisfies the compiler; the runtime value is not a registry id (the provider-id grammar).
     const reshaped = { ...VIEW, provider: castId<ProviderId>(PLAINTEXT_KEY.toUpperCase()) };
     const list = vi.fn<CredentialsService["list"]>(async () => [reshaped]);
 
-    await expect(caller(ctxWith({ list })).credentials.list()).toThrowTRPCError("INTERNAL_SERVER_ERROR");
+    await expect(caller(await ctxWith(db, { list })).credentials.list()).toThrowTRPCError("INTERNAL_SERVER_ERROR");
   });
 
   test("the refusal is logged server-side with the offending key NAME and never the secret VALUE", async () => {
+    const db = await freshDb();
     const log = vi.spyOn(logger, "error");
     const leaked = { ...VIEW, ciphertext: SEALED_SECRET };
     const list = vi.fn<CredentialsService["list"]>(async () => [leaked]);
 
-    const failure = await caller(ctxWith({ list }))
+    const failure = await caller(await ctxWith(db, { list }))
       .credentials.list()
       .then(
         () => null,
@@ -103,13 +113,14 @@ describe("credentials — CredentialView output boundary", () => {
   });
 
   test("a secret mapped into the id field is refused without the log echoing it", async () => {
+    const db = await freshDb();
     const log = vi.spyOn(logger, "error");
     // Shaped to reach typeid-js's prefix-mismatch path, whose own message echoes everything before the last `_`.
     const secretId = `sk_live_${SEALED_SECRET.replaceAll("-", "_")}_01jz0000000000000000000000`;
     const misMapped = { ...VIEW, id: castId<UserCredentialId>(secretId) };
     const list = vi.fn<CredentialsService["list"]>(async () => [misMapped]);
 
-    await expect(caller(ctxWith({ list })).credentials.list()).toThrowTRPCError("INTERNAL_SERVER_ERROR");
+    await expect(caller(await ctxWith(db, { list })).credentials.list()).toThrowTRPCError("INTERNAL_SERVER_ERROR");
     const [bindings] = log.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
     const cause = bindings["err"] as Error;
     expect(`${cause.message} ${JSON.stringify(cause)}`).not.toContain("sealed_ciphertext");
@@ -119,14 +130,16 @@ describe("credentials — CredentialView output boundary", () => {
 // The verbs trim the key before sealing, so a whitespace-only key would store an empty secret.
 describe("credentials — a blank key is refused at the input", () => {
   test("add refuses a whitespace-only key and never reaches the verb", async () => {
+    const db = await freshDb();
     const add = vi.fn<CredentialsService["add"]>(async () => VIEW);
-    await expect(caller(ctxWith({ add })).credentials.add({ provider: "openrouter", key: "   " })).toThrowTRPCError("BAD_REQUEST");
+    await expect(caller(await ctxWith(db, { add })).credentials.add({ provider: "openrouter", key: "   " })).toThrowTRPCError("BAD_REQUEST");
     expect(add).not.toHaveBeenCalled();
   });
 
   test("replace refuses a whitespace-only key and never reaches the verb", async () => {
+    const db = await freshDb();
     const replace = vi.fn<CredentialsService["replace"]>(async () => VIEW);
-    await expect(caller(ctxWith({ replace })).credentials.replace({ credentialId: VIEW.id, key: "   " })).toThrowTRPCError("BAD_REQUEST");
+    await expect(caller(await ctxWith(db, { replace })).credentials.replace({ credentialId: VIEW.id, key: "   " })).toThrowTRPCError("BAD_REQUEST");
     expect(replace).not.toHaveBeenCalled();
   });
 });

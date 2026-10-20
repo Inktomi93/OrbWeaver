@@ -20,7 +20,7 @@ describe("workloads.retry", () => {
     await seedUser(db, "user_admin", "admin");
     const s = makeService(db);
     const bulk = await seedWorkloadRow(db, { id: "workload_bulk", kind: "compute-themes", status: "failed", mode: "bulk" });
-    const admin = principal("user_admin", "admin");
+    const admin = await principal(db, "user_admin", "admin");
 
     await expect(s.retry({ id: bulk, caller: admin })).rejects.toBeInstanceOf(DomainNotFoundError);
     await expect(s.retry({ id: castId<WorkloadId>("workload_missing"), caller: admin })).rejects.toBeInstanceOf(DomainNotFoundError);
@@ -99,9 +99,9 @@ describe("workloads.retry", () => {
       status: "failed",
     });
     const s = makeService(db);
-    await expect(s.retry({ id, caller: principal("user_bob") })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(s.retry({ id, caller: await principal(db, "user_bob") })).rejects.toBeInstanceOf(DomainNotFoundError);
     // No clone leaked into anyone's world — only the original row exists (admin sees all).
-    expect((await s.list({ caller: principal("user_admin", "admin") })).map((r) => r.id)).toEqual([id]);
+    expect((await s.list({ caller: await principal(db, "user_admin", "admin") })).map((r) => r.id)).toEqual([id]);
   });
 
   test("the owner retries its OWN failed workload; the clone stays owned by that owner", async () => {
@@ -114,8 +114,8 @@ describe("workloads.retry", () => {
       status: "failed",
     });
     const s = makeService(db);
-    const { id: cloneId } = await s.retry({ id, caller: principal("user_alice") });
-    expect((await s.get({ id: cloneId, caller: principal("user_alice") })).ownerId).toBe(alice);
+    const { id: cloneId } = await s.retry({ id, caller: await principal(db, "user_alice") });
+    expect((await s.get({ id: cloneId, caller: await principal(db, "user_alice") })).ownerId).toBe(alice);
   });
 
   test("a legacy cross-owner dependency cannot be laundered into a fresh retry row", async () => {
@@ -132,8 +132,8 @@ describe("workloads.retry", () => {
     });
     const s = makeService(db);
 
-    await expect(s.retry({ id: original, caller: principal("user_alice") })).rejects.toBeInstanceOf(DomainNotFoundError);
-    expect(new Set((await s.list({ caller: principal("user_admin", "admin") })).map((row) => row.id))).toEqual(new Set([original, foreign]));
+    await expect(s.retry({ id: original, caller: await principal(db, "user_alice") })).rejects.toBeInstanceOf(DomainNotFoundError);
+    expect(new Set((await s.list({ caller: await principal(db, "user_admin", "admin") })).map((row) => row.id))).toEqual(new Set([original, foreign]));
   });
 
   // Retry IS an enqueue door (#156): a memory backfill retried after memory was turned off would otherwise
@@ -143,9 +143,9 @@ describe("workloads.retry", () => {
     const alice = await seedUser(db, "user_alice");
     const id = await seedWorkloadRow(db, { id: "w_mem", kind: "memory-backfill", ownerId: alice, status: "failed" });
     const s = makeService(db, fakeContributions({ memoryEnabled: false }));
-    await expect(s.retry({ id, caller: principal("user_alice") })).rejects.toThrow(MEMORY_OFF_RE);
+    await expect(s.retry({ id, caller: await principal(db, "user_alice") })).rejects.toThrow(MEMORY_OFF_RE);
     // Refused at the door: the original stays as the audit trail and no clone exists.
-    expect((await s.list({ caller: principal("user_alice") })).map((r) => r.id)).toEqual([id]);
+    expect((await s.list({ caller: await principal(db, "user_alice") })).map((r) => r.id)).toEqual([id]);
   });
 
   test("clones the same row once memory is back on", async () => {
@@ -153,7 +153,7 @@ describe("workloads.retry", () => {
     const alice = await seedUser(db, "user_alice");
     const id = await seedWorkloadRow(db, { id: "w_mem", kind: "memory-backfill", ownerId: alice, status: "failed" });
     const s = makeService(db, fakeContributions({ memoryEnabled: true }));
-    const { id: cloneId } = await s.retry({ id, caller: principal("user_alice") });
-    expect((await s.get({ id: cloneId, caller: principal("user_alice") })).status).toBe("queued");
+    const { id: cloneId } = await s.retry({ id, caller: await principal(db, "user_alice") });
+    expect((await s.get({ id: cloneId, caller: await principal(db, "user_alice") })).status).toBe("queued");
   });
 });

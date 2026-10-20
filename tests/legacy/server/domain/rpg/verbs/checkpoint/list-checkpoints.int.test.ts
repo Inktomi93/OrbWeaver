@@ -17,10 +17,10 @@ beforeEach(async () => {
 describe("listCheckpoints", () => {
   test("returns the game's checkpoints (the just-created one)", async () => {
     const { chatId, h } = await seedLiteGame(db);
-    await h.service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "The Ruins" } });
-    const checkpointId = await h.service.createCheckpoint({ principal: principal(castId<Handle>("host")), chatId, label: "before the fight" });
+    await h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "The Ruins" } });
+    const checkpointId = await h.service.createCheckpoint({ principal: await principal(db, castId<Handle>("host")), chatId, label: "before the fight" });
 
-    const list = await h.service.listCheckpoints({ principal: principal(castId<Handle>("host")), chatId });
+    const list = await h.service.listCheckpoints({ principal: await principal(db, castId<Handle>("host")), chatId });
     expect(list.map((c) => c.label)).toEqual(["before the fight"]);
     expect(list[0]?.id).toBe(checkpointId);
   });
@@ -36,11 +36,11 @@ describe("listCheckpoints — hidden spans are the HOST's plane, not the member'
   test("a member reads the label STRIPPED; the host reads it whole", async () => {
     const { chatId, h } = await seedLiteGame(db);
     h.fakes.membership.set("user_member", "member");
-    await h.service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "The Ruins" } });
-    await h.service.createCheckpoint({ principal: principal(castId<Handle>("host")), chatId, label: `before the fight ${HIDDEN_SPAN}` });
+    await h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "The Ruins" } });
+    await h.service.createCheckpoint({ principal: await principal(db, castId<Handle>("host")), chatId, label: `before the fight ${HIDDEN_SPAN}` });
 
-    const memberList = await h.service.listCheckpoints({ principal: principal(castId<Handle>("member")), chatId });
-    const hostList = await h.service.listCheckpoints({ principal: principal(castId<Handle>("host")), chatId });
+    const memberList = await h.service.listCheckpoints({ principal: await principal(db, castId<Handle>("member")), chatId });
+    const hostList = await h.service.listCheckpoints({ principal: await principal(db, castId<Handle>("host")), chatId });
 
     expect(memberList.map((c) => c.label)).toEqual(["before the fight "]);
     expect(hostList.map((c) => c.label)).toEqual([`before the fight ${HIDDEN_SPAN}`]);

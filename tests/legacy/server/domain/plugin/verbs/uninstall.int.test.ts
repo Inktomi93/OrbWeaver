@@ -28,18 +28,18 @@ test("uninstall leaves zero rows, zero KV, zero bundle bytes; disposes a residen
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "mood", capabilities: ["storage.kv"] }),
     grant: ["storage.kv"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
   // Seed a KV row so the CASCADE is observable.
   await upsertKvUnderCap(db, { pluginId: installed.id, ownerId: owner }, { key: "k", value: "v", updatedAt: 1000 }, 8);
 
-  await h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+  await h.service.uninstall({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
 
   expect(h.port.disposed.length).toBe(1); // the resident instance was torn down
-  expect(await h.service.list({ caller: ownerPrincipalFor(owner) })).toEqual([]); // row gone
+  expect(await h.service.list({ caller: await ownerPrincipalFor(db, owner) })).toEqual([]); // row gone
   expect(h.storedBytes.size).toBe(0); // bundle asset reaped
   const kv = await db.select().from(pluginKv).where(eq(pluginKv.pluginId, installed.id));
   expect(kv).toEqual([]); // KV cascaded off the FK
@@ -52,8 +52,8 @@ test("uninstall reaps the plugin's fetched assets too — but never one another 
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const atlas = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "atlas" }), grant: [] });
-  const other = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "other" }), grant: [] });
+  const atlas = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "atlas" }), grant: [] });
+  const other = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "other" }), grant: [] });
   // Two covers `net.fetchAsset` landed in the installer's CAS: one only atlas fetched, one both did (the CAS
   // is content-addressed, so two plugins pulling the same image share ONE assetId).
   const solo = await seedFetchedAsset(db, owner, "asset_cover_solo");
@@ -62,7 +62,7 @@ test("uninstall reaps the plugin's fetched assets too — but never one another 
   await recordPluginFetchedAsset(db, atlas.id, shared, 1000);
   await recordPluginFetchedAsset(db, other.id, shared, 1000);
 
-  await h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: atlas.id });
+  await h.service.uninstall({ caller: await ownerPrincipalFor(db, owner), pluginId: atlas.id });
 
   expect(await db.select().from(assets).where(eq(assets.id, solo))).toHaveLength(0); // reaped with the install
   expect(await db.select().from(assets).where(eq(assets.id, shared))).toHaveLength(1); // still `other`'s
@@ -73,9 +73,9 @@ test("uninstalling a disabled plugin needs no instance (idempotent deactivate)",
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "mood" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "mood" }), grant: [] });
 
-  await h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+  await h.service.uninstall({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
   expect(h.port.disposed.length).toBe(0);
   expect(h.storedBytes.size).toBe(0);
 });
@@ -90,22 +90,22 @@ test("uninstall takes the standing re-consent with it — a REINSTALL at the sam
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "mood", capabilities: ["net.fetch"], netHosts: ["api.vendor.example"] }),
     grant: ["net.fetch"],
   });
   const upgraded = await h.service.upgrade({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     bundle: makeBundle({ id: "mood", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
   });
   expect(upgraded.reconsentPending).toBe(true);
   expect(upgraded.widenedNetHosts).toEqual(["collector.attacker.example"]);
 
-  await h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+  await h.service.uninstall({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
   // The same bundle, installed again — the reach the notice was about, now chosen deliberately.
   const reinstalled = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "mood", version: "1.1.0", capabilities: ["net.fetch"], netHosts: ["api.vendor.example", "collector.attacker.example"] }),
     grant: ["net.fetch"],
   });
@@ -114,7 +114,7 @@ test("uninstall takes the standing re-consent with it — a REINSTALL at the sam
   expect(reinstalled.reconsentPending).toBe(false);
   expect(reinstalled.widenedNetHosts).toEqual([]);
   // …and the read-back row agrees with the install's own return (one projection, two paths).
-  const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+  const [row] = await h.service.list({ caller: await ownerPrincipalFor(db, owner) });
   expect(row?.widenedNetHosts).toEqual([]);
 });
 
@@ -123,7 +123,7 @@ test("a missing plugin id is a leak-free NotFound", async () => {
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  await expect(h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: castId<PluginId>("plugin_missing") })).rejects.toBeInstanceOf(
+  await expect(h.service.uninstall({ caller: await ownerPrincipalFor(db, owner), pluginId: castId<PluginId>("plugin_missing") })).rejects.toBeInstanceOf(
     PluginNotFoundError,
   );
 });
@@ -132,11 +132,11 @@ test("a plain user (role:'user') uninstalls their OWN plugin — D147", async ()
   const db = await freshDb();
   const h = makePluginHarness(db);
   const user = await seedUser(db, { handle: castId<Handle>("user") });
-  const installed = await h.service.install({ caller: principalFor(user), bundle: makeBundle({ id: "mine" }), grant: [] });
+  const installed = await h.service.install({ caller: await principalFor(db, user), bundle: makeBundle({ id: "mine" }), grant: [] });
 
-  await h.service.uninstall({ caller: principalFor(user), pluginId: installed.id });
+  await h.service.uninstall({ caller: await principalFor(db, user), pluginId: installed.id });
 
-  expect(await h.service.list({ caller: principalFor(user) })).toEqual([]);
+  expect(await h.service.list({ caller: await principalFor(db, user) })).toEqual([]);
 });
 
 // The DESTRUCTIVE cross-user arm. `uninstall` returns void, so a silent write-IDOR leaves no error to read —
@@ -149,16 +149,16 @@ test("a stranger cannot uninstall another user's plugin — the row, its KV and 
   const bob = await seedUser(db, { handle: castId<Handle>("bob") });
   const boss = await seedUser(db, { handle: castId<Handle>("boss") });
   const hers = await h.service.install({
-    caller: principalFor(alice),
+    caller: await principalFor(db, alice),
     bundle: makeBundle({ id: "mood", capabilities: ["storage.kv"] }),
     grant: ["storage.kv"],
   });
   await upsertKvUnderCap(db, { pluginId: hers.id, ownerId: alice }, { key: "k", value: "v", updatedAt: 1000 }, 8);
 
-  await expect(h.service.uninstall({ caller: principalFor(bob), pluginId: hers.id })).rejects.toBeInstanceOf(PluginNotFoundError);
-  await expect(h.service.uninstall({ caller: ownerPrincipalFor(boss), pluginId: hers.id })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.uninstall({ caller: await principalFor(db, bob), pluginId: hers.id })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.uninstall({ caller: await ownerPrincipalFor(db, boss), pluginId: hers.id })).rejects.toBeInstanceOf(PluginNotFoundError);
 
-  expect((await h.service.list({ caller: principalFor(alice) })).map((p) => p.id)).toEqual([hers.id]);
+  expect((await h.service.list({ caller: await principalFor(db, alice) })).map((p) => p.id)).toEqual([hers.id]);
   expect(await db.select().from(pluginKv).where(eq(pluginKv.pluginId, hers.id))).toHaveLength(1);
   expect(h.storedBytes.size).toBe(1); // the bundle asset was never reaped out from under A
 });
@@ -174,33 +174,33 @@ test("uninstall reaps the plugin's BUNDLE-SHIPPED images too — but never one a
   const solo = magicBytes("gif", 128);
 
   const first = await h.service.install({
-    caller: principalFor(alice),
+    caller: await principalFor(db, alice),
     bundle: makeBundle({ id: "sprites-a" }, undefined, undefined, { "ui/assets/shared.png": shared, "ui/assets/solo.gif": solo }),
     grant: [],
   });
   // A SECOND plugin of the SAME owner shipping byte-identical art: content-addressed storage gives both the
   // same assetId, so this is the containment case — uninstalling one must not blank the other's sprite.
   const second = await h.service.install({
-    caller: principalFor(alice),
+    caller: await principalFor(db, alice),
     bundle: makeBundle({ id: "sprites-b" }, undefined, undefined, { "ui/assets/shared.png": shared }),
     grant: [],
   });
 
-  const firstMap = await h.service.listBundleAssets({ caller: principalFor(alice), pluginId: first.id });
+  const firstMap = await h.service.listBundleAssets({ caller: await principalFor(db, alice), pluginId: first.id });
   const sharedId = firstMap.find((entry) => entry.path === "ui/assets/shared.png")?.assetId;
   const soloId = firstMap.find((entry) => entry.path === "ui/assets/solo.gif")?.assetId;
-  const secondMap = await h.service.listBundleAssets({ caller: principalFor(alice), pluginId: second.id });
+  const secondMap = await h.service.listBundleAssets({ caller: await principalFor(db, alice), pluginId: second.id });
   if (sharedId === undefined || soloId === undefined) {
     throw new Error("the install produced no asset links");
   }
   expect(secondMap[0]?.assetId).toBe(sharedId); // the CAS deduped — one blob, two holders
 
-  await h.service.uninstall({ caller: principalFor(alice), pluginId: first.id });
+  await h.service.uninstall({ caller: await principalFor(db, alice), pluginId: first.id });
 
   // The sole-held sprite is reaped with the install; the shared one survives because the second plugin's link
   // still references it (`reapIfOrphan` re-checks the WHOLE registry per id).
   expect(h.storedBytes.has(soloId)).toBe(false);
   expect(h.storedBytes.has(sharedId)).toBe(true);
   expect(await db.select().from(pluginAssets).where(eq(pluginAssets.pluginId, first.id))).toEqual([]);
-  expect(await h.service.listBundleAssets({ caller: principalFor(alice), pluginId: second.id })).toHaveLength(1);
+  expect(await h.service.listBundleAssets({ caller: await principalFor(db, alice), pluginId: second.id })).toHaveLength(1);
 });

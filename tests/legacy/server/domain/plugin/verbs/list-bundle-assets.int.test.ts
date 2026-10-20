@@ -17,7 +17,7 @@ test("projects the plugin's own bundle images, path-keyed and path-ordered", asy
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "sprites" }, undefined, undefined, {
       "ui/assets/z.png": magicBytes("png"),
       "ui/assets/a.gif": magicBytes("gif"),
@@ -25,7 +25,7 @@ test("projects the plugin's own bundle images, path-keyed and path-ordered", asy
     grant: [],
   });
 
-  const map = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+  const map = await h.service.listBundleAssets({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
   expect(map.map((entry) => entry.path)).toEqual(["ui/assets/a.gif", "ui/assets/z.png"]);
   expect(map.every((entry) => entry.assetId.startsWith("asset_"))).toBe(true);
 });
@@ -36,9 +36,9 @@ test("a plugin that ships no images projects an EMPTY map — not an error", asy
   const db = await freshDb();
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "plain" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "plain" }), grant: [] });
 
-  expect(await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id })).toEqual([]);
+  expect(await h.service.listBundleAssets({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id })).toEqual([]);
 });
 
 test("a RUNTIME-fetched cover (#802) is NOT in the map — only bundle-shipped paths are resolution targets", async () => {
@@ -49,18 +49,18 @@ test("a RUNTIME-fetched cover (#802) is NOT in the map — only bundle-shipped p
   const h = makePluginHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "mixed" }, undefined, undefined, { "ui/assets/shipped.png": magicBytes("png") }),
     grant: [],
   });
   // The bundle's own asset id doubles as a stand-in for a fetched cover here — what matters is the `''` path.
-  const [shipped] = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+  const [shipped] = await h.service.listBundleAssets({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
   if (shipped === undefined) {
     throw new Error("the install shipped no bundle asset");
   }
   await recordPluginFetchedAsset(db, installed.id, shipped.assetId, 1000);
 
-  const map = await h.service.listBundleAssets({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+  const map = await h.service.listBundleAssets({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
   expect(map.map((entry) => entry.path)).toEqual(["ui/assets/shipped.png"]);
 });
 
@@ -74,13 +74,13 @@ test("a stranger holding the REAL pluginId is refused leak-free — including th
   const alice = await seedUser(db, { handle: castId<Handle>("alice") });
   const bob = await seedUser(db, { handle: castId<Handle>("bob") });
   const hers = await h.service.install({
-    caller: principalFor(alice),
+    caller: await principalFor(db, alice),
     bundle: makeBundle({ id: "hers" }, undefined, undefined, { "ui/assets/private.png": magicBytes("png") }),
     grant: [],
   });
 
-  await expect(h.service.listBundleAssets({ caller: principalFor(bob), pluginId: hers.id })).rejects.toBeInstanceOf(PluginNotFoundError);
-  await expect(h.service.listBundleAssets({ caller: ownerPrincipalFor(bob), pluginId: hers.id })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.listBundleAssets({ caller: await principalFor(db, bob), pluginId: hers.id })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.listBundleAssets({ caller: await ownerPrincipalFor(db, bob), pluginId: hers.id })).rejects.toBeInstanceOf(PluginNotFoundError);
   // …and the owner still reads her own, so the refusal is scoping and not a blanket break.
-  expect(await h.service.listBundleAssets({ caller: principalFor(alice), pluginId: hers.id })).toHaveLength(1);
+  expect(await h.service.listBundleAssets({ caller: await principalFor(db, alice), pluginId: hers.id })).toHaveLength(1);
 });
