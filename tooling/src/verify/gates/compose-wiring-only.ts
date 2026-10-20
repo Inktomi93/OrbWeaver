@@ -427,8 +427,30 @@ function nativeRatePolicy(fn: MorphNode, reads: ComposeReads): boolean {
   const calls = fn.getDescendantsOfKind(SyntaxKind.CallExpression);
   return (
     calls.some((call) => nativeBucketConsume(call, factory, reads)) &&
-    calls.every((call) => nativeBucketConsume(call, factory, reads) || bucketSelector(call, factory, reads))
+    calls.every((call) => nativeBucketConsume(call, factory, reads) || bucketSelector(call, factory, reads)) &&
+    fn.getDescendants().every((node) => syntacticDecision(node) === undefined || bucketDecision(node, fn, factory, reads))
   );
+}
+
+// The owned operation may decide only which bucket it debits: a decision is a debiting branch's condition or sits in a debit's own argument.
+function bucketDecision(decision: MorphNode, fn: MorphNode, factory: FunctionDeclaration, reads: ComposeReads): boolean {
+  for (let current: MorphNode | undefined = decision; current !== undefined && current !== fn; current = current.getParent()) {
+    if (Node.isCallExpression(current) && current !== decision && nativeBucketConsume(current, factory, reads)) {
+      return current.getArguments().some((argument) => argument === decision || decision.getAncestors().includes(argument));
+    }
+    if (Node.isIfStatement(current)) {
+      const condition = current.getExpression();
+      const guards = current === decision || condition === decision || decision.getAncestors().includes(condition);
+      return (
+        guards &&
+        current
+          .getThenStatement()
+          .getDescendantsOfKind(SyntaxKind.CallExpression)
+          .some((call) => nativeBucketConsume(call, factory, reads))
+      );
+    }
+  }
+  return false;
 }
 
 /** A callback the enclosing code runs before it continues: an IIFE callee or an eager array-method callback. */
@@ -598,11 +620,50 @@ type Attempt = <T>(site: MorphNode, fallback: T, run: () => T) => T;
 /** The sealed native answers and the per-site unknown boundary every typed judgment runs under. */
 interface Judge {
   readonly reads: ComposeReads;
+  /** A phase judgment of a function or a typed decision; its unknown can stand in for a decision's verdict. */
   readonly attempt: Attempt;
+  /** A reference-reach judgment; its unknown never stands in for the phase of a decision at the same node. */
+  readonly attemptReference: Attempt;
 }
 
-function businessReference(at: MorphNode, called: boolean, perCall: (fn: MorphNode) => boolean, { reads, attempt }: Judge): boolean {
-  if (!(called || attempt(at, false, () => lifetimeSlot(at, reads)))) {
+interface UnknownRecorder extends Omit<Judge, "reads"> {
+  readonly phaseUnknowns: ReadonlyMap<object, string>;
+  readonly unknownSites: readonly { readonly site: MorphNode; readonly reason: string }[];
+}
+
+// D328: an un-nominated question is an explicit unknown at its own site, never a verdict and never a whole-gate refusal.
+function unknownRecorder(): UnknownRecorder {
+  const phaseUnknowns = new Map<object, string>();
+  const unknownSites: { readonly site: MorphNode; readonly reason: string }[] = [];
+  const recorded = new Set<object>();
+  const record = (site: MorphNode, reason: string, phase: boolean): void => {
+    if (phase && !phaseUnknowns.has(site.compilerNode)) {
+      phaseUnknowns.set(site.compilerNode, reason);
+    }
+    if (!recorded.has(site.compilerNode)) {
+      recorded.add(site.compilerNode);
+      unknownSites.push({ site, reason });
+    }
+  };
+  const attemptInto =
+    (phase: boolean): Attempt =>
+    <T>(site: MorphNode, fallback: T, run: () => T): T => {
+      try {
+        return run();
+      } catch (error) {
+        const reason = unsupportedComposeQuestion(error);
+        if (reason === undefined) {
+          throw error;
+        }
+        record(site, reason, phase);
+        return fallback;
+      }
+    };
+  return { attempt: attemptInto(true), attemptReference: attemptInto(false), phaseUnknowns, unknownSites };
+}
+
+function businessReference(at: MorphNode, called: boolean, perCall: (fn: MorphNode) => boolean, { reads, attemptReference }: Judge): boolean {
+  if (!(called || attemptReference(at, false, () => lifetimeSlot(at, reads)))) {
     return true;
   }
   const fn = enclosingFunction(at);
@@ -860,7 +921,8 @@ function canonicalPrincipalProjection(fn: MorphNode, reads: ComposeReads): boole
 
 interface Subject {
   readonly anchor: MorphNode;
-  decision?: MorphNode;
+  /** Every per-call decision in source order; one unknown never hides another decision's concrete phase. */
+  readonly decisions: MorphNode[];
 }
 
 interface DecisionCandidate {
@@ -897,13 +959,9 @@ function unknownAround(node: MorphNode, unknowns: ReadonlyMap<object, string>): 
   return current === undefined ? undefined : unknowns.get(current.compilerNode);
 }
 
-function subjectMessage(subject: Subject): string {
-  const parts: string[] = [];
-  if (subject.decision !== undefined) {
-    const snippet = (subject.decision.getText().split("\n")[0] ?? "").slice(0, SNIPPET_LENGTH);
-    parts.push(`decides per call: \`${snippet}\` at line ${subject.decision.getStartLineNumber()}`);
-  }
-  return `compose ${parts.join("; ")}. ${MESSAGE}`;
+function subjectMessage(decision: MorphNode): string {
+  const snippet = (decision.getText().split("\n")[0] ?? "").slice(0, SNIPPET_LENGTH);
+  return `compose decides per call: \`${snippet}\` at line ${decision.getStartLineNumber()}. ${MESSAGE}`;
 }
 
 const COMPOSE_FILE = "packages/server/src/entry/compose/x.ts";
@@ -940,6 +998,23 @@ const WRAPPED_MINTS = [
   ["return mintPrincipal({", "return (mintPrincipal satisfies typeof mintPrincipal)({"],
 ] as const;
 const DOMAIN_OWNER = "packages/server/src/domain/x/owner.ts";
+const DOMAIN_OWNER_SOURCE =
+  '/// <reference lib="esnext.disposable" />\nexport const owner = { value: 1, [Symbol.asyncDispose]: (): number => (Date.now() > 1 ? 1 : 0) };\n';
+/** A reference-reach unknown beside a concrete decision, in both source orders, plus the plain-member control. */
+const MASKING_ORDERS = [
+  {
+    body: "const f = owner?.[Symbol.asyncDispose]; if (id.length > 0) { return f; } return undefined;",
+    why: "an unknown symbol-member reach written before a concrete branch never masks the branch's violation",
+  },
+  {
+    body: "if (id.length > 0) { return undefined; } return owner?.[Symbol.asyncDispose];",
+    why: "the same unknown reach written after the concrete branch leaves the same violation; source order decides nothing",
+  },
+  {
+    body: "const f = owner?.value; if (id.length > 0) { return f; } return undefined;",
+    why: "CONTROL: a plain member read of the same domain object carries no unknown and the same violation",
+  },
+] as const;
 
 export const gate = defineGate({
   id: "compose-wiring-only",
@@ -962,24 +1037,7 @@ export const gate = defineGate({
     const functions: MorphNode[] = [];
     const unresolvedMembers: { readonly at: MorphNode; readonly detail: string }[] = [];
     const subjects = new Map<object, Subject>();
-    // D328: an un-nominated question is an explicit unknown at its own site, never a verdict and never a whole-gate refusal.
-    const unknowns = new Map<object, string>();
-    const unknownSites: MorphNode[] = [];
-    const attempt: Attempt = (site, fallback, run) => {
-      try {
-        return run();
-      } catch (error) {
-        const reason = unsupportedComposeQuestion(error);
-        if (reason === undefined) {
-          throw error;
-        }
-        if (!unknowns.has(site.compilerNode)) {
-          unknowns.set(site.compilerNode, reason);
-          unknownSites.push(site);
-        }
-        return fallback;
-      }
-    };
+    const { attempt, attemptReference, phaseUnknowns, unknownSites } = unknownRecorder();
     const reference = (node: MorphNode): void => {
       referenceSites.push(node);
       if (referencePosition(node)) {
@@ -992,7 +1050,7 @@ export const gate = defineGate({
       if (existing !== undefined) {
         return existing;
       }
-      const subject: Subject = { anchor: (key === node ? undefined : handedOutName(key)) ?? key };
+      const subject: Subject = { anchor: (key === node ? undefined : handedOutName(key)) ?? key, decisions: [] };
       subjects.set(key.compilerNode, subject);
       return subject;
     };
@@ -1016,7 +1074,7 @@ export const gate = defineGate({
         if (!referencePosition(expression)) {
           return [];
         }
-        return attempt(expression, [], (): readonly Reference[] => {
+        return attemptReference(expression, [], (): readonly Reference[] => {
           const callable = reads.callable(expression);
           const target = callable.kind === "resolved" ? callable.value.declaration : lifetimeTarget(expression, reads);
           return target !== undefined && tracked.has(target.compilerNode) ? [{ target, at: expression, called: calledDirectly(expression) }] : [];
@@ -1024,16 +1082,18 @@ export const gate = defineGate({
       });
     const reportSubjects = (): void => {
       for (const subject of subjects.values()) {
-        // A subject whose phase or admission rests on an unknown is reported as that unknown, never as a violation.
-        const unknown = subject.decision === undefined ? undefined : unknownAround(subject.decision, unknowns);
-        if (unknown === undefined) {
-          ctx.report.node(subject.anchor, { message: subjectMessage(subject) });
-        } else {
-          ctx.report.analysis(subject.anchor, { kind: "unknown", reason: `compose cannot establish this operation's phase natively: ${unknown}` });
+        // Any decision whose phase is established is a violation; only a subject with no such decision is an unknown.
+        const concrete = subject.decisions.find((decision) => unknownAround(decision, phaseUnknowns) === undefined);
+        const [first] = subject.decisions;
+        if (concrete !== undefined) {
+          ctx.report.node(subject.anchor, { message: subjectMessage(concrete) });
+        } else if (first !== undefined) {
+          const reason = unknownAround(first, phaseUnknowns) ?? UNKNOWN_SITE;
+          ctx.report.analysis(subject.anchor, { kind: "unknown", reason: `compose cannot establish this operation's phase natively: ${reason}` });
         }
       }
-      for (const site of unknownSites) {
-        ctx.report.analysis(site, { kind: "unknown", reason: unknowns.get(site.compilerNode) ?? UNKNOWN_SITE });
+      for (const { site, reason } of unknownSites) {
+        ctx.report.analysis(site, { kind: "unknown", reason });
       }
     };
     const reportMemberRefusals = ({ perCall, judged }: Classifier, judge: Judge): void => {
@@ -1098,7 +1158,7 @@ export const gate = defineGate({
       prepare: native.prepare,
       evaluate: () => {
         const reads = native.reads();
-        const judge: Judge = { reads, attempt };
+        const judge: Judge = { reads, attempt, attemptReference };
         const named = new Set<object>([...callables.values()].flat().map((fn) => fn.compilerNode));
         const lifetimeMembers = functions.filter((fn) => attempt(fn, false, () => lifetimeSlot(fn, reads))).map((fn) => fn.compilerNode);
         const inCompose = (node: MorphNode): boolean => ctx.relativePath(node.getSourceFile()).startsWith(COMPOSE_PREFIX);
@@ -1117,7 +1177,7 @@ export const gate = defineGate({
         for (const { node, typed } of decisions) {
           const decides = !typed || (Node.isCallExpression(node) && attempt(node, false, () => typedDecision(node, reads)));
           if (decides && decidesPerCall(node, classifier, canonicalProjection)) {
-            subjectOf(node, classifier.perCall, judge).decision ??= node;
+            subjectOf(node, classifier.perCall, judge).decisions.push(node);
           }
         }
         reportSubjects();
@@ -1473,6 +1533,15 @@ export const gate = defineGate({
       expect: { count: 1, token: "read", messageIncludes: "decides per call" },
       why: "D328: an unsupported site (a domain-owned stable member source) is an explicit unknown at that site; every other compose file stays judged",
     },
+    ...MASKING_ORDERS.map(({ body, why }) => ({
+      mode: "types" as const,
+      files: {
+        [DOMAIN_OWNER]: DOMAIN_OWNER_SOURCE,
+        [COMPOSE_FILE]: `/// <reference lib="esnext.disposable" />\nimport { owner } from "../../domain/x/owner.ts";\nexport function build() { return { op: (id: string) => { ${body} } }; }\n`,
+      },
+      expect: { count: 1, token: "op", messageIncludes: "decides per call" },
+      why,
+    })),
   ],
   mustPass: [
     {

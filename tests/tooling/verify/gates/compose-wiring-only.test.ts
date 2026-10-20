@@ -112,6 +112,11 @@ test("the actual native transport-policy owner is separate from compose-supplied
     owner.replaceWithText(text);
     expect.soft(run().authority.effectiveFindings, edits.map(([, to]) => to).join(" / ")).toEqual([]);
   }
+  // A call-free branch is not a bucket choice: the owned operation loses its Tier-5 ownership and is judged.
+  const userIdLine = "const userId = decision.principal.userId;";
+  expect(original.split(userIdLine)).toHaveLength(2);
+  owner.replaceWithText(original.replace(userIdLine, `${userIdLine}\n      if (userId.length > 3) {\n        return;\n      }`));
+  expect(run().authority.effectiveFindings.map((finding) => finding.token)).toEqual(["isAiTurnPath", "enforce"]);
   owner.replaceWithText(original);
   carrier.replaceWithText(
     'import { createRateLimitGate as createGate } from "../rate-limit-gate.ts";\nexport function build(deps: Parameters<typeof createGate>[0]) { return createGate({ ...deps, resolveRateLimits: () => deps.now() > 1 ? deps.resolveRateLimits() : deps.resolveRateLimits() }); }',
