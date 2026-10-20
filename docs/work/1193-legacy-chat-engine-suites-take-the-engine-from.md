@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-20
 priority: P1
+lane: codex/legacy-engine-root-1193
 plan: test-foundation
 ---
 
@@ -18,8 +19,8 @@ createTurnEngine takes only the engine capability projection and bound memory op
 
 ## Done when
 
-Each listed case runs against an engine taken from the composed graph or its chat service with its assertion unchanged, and the listed sites leave tsconfig.tests-legacy.json.
+Every listed behavior and required scenario consumer runs through the composed graph with its meaningful invariants preserved. Remove replaced legacy assemblies only after successor qualification.
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Private spy expressions map to qualified provider requests, durable rows and production recorders. Fabricated narrator input and stale-return cases require explicit production-wiring controls and recorded corrections; they do not authorize a compatibility facade.

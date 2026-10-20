@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-20
 priority: P1
+lane: codex/legacy-obsolete-1195
 plan: test-foundation
 ---
 

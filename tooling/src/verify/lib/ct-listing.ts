@@ -36,12 +36,11 @@ export function readField(entry: unknown, key: string): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-/** Walk the playwright JSON suite tree collecting every `file`. Nested suites repeat the field, so one
- *  recursive read covers both the top-level grouping and per-describe nesting. */
-function walkSuiteFiles(node: unknown, rootDir: string, root: string, out: Set<string>): void {
+// A spec entry owns its nested suites; their file fields can name shared declaration helpers.
+function walkSuiteFiles(node: unknown, rootDir: string, root: string, { out, hasEntry = false }: { out: Set<string>; hasEntry?: boolean }): void {
   if (Array.isArray(node)) {
     for (const child of node) {
-      walkSuiteFiles(child, rootDir, root, out);
+      walkSuiteFiles(child, rootDir, root, { out, hasEntry });
     }
     return;
   }
@@ -49,12 +48,12 @@ function walkSuiteFiles(node: unknown, rootDir: string, root: string, out: Set<s
     return;
   }
   const file = readField(node, "file");
-  if (file !== undefined) {
+  if (!hasEntry && file !== undefined) {
     out.add(toRepoRelative(root, resolve(rootDir, file)));
   }
   for (const key of ["suites", "specs"]) {
     if (key in node) {
-      walkSuiteFiles((node as Record<string, unknown>)[key], rootDir, root, out);
+      walkSuiteFiles((node as Record<string, unknown>)[key], rootDir, root, { out, hasEntry: hasEntry || file !== undefined });
     }
   }
 }
@@ -144,7 +143,7 @@ export function classifyCtListing(root: string, listing: CtListing): ScopedTestC
   const { report } = decoded;
   const rootDir = readField(report["config"], "rootDir") ?? root;
   const files = new Set<string>();
-  walkSuiteFiles(report["suites"], rootDir, root, files);
+  walkSuiteFiles(report["suites"], rootDir, root, { out: files });
   // Playwright's suite tree carries no project attribution this door needs; the CT arm has one config and
   // no typecheck projects, so the #2232 runtime-only question does not arise for it.
   return { files: [...files], projects: [] };

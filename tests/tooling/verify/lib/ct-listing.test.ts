@@ -100,6 +100,36 @@ function nativeReport(specs: readonly object[]): string {
   return ctReport({ suites: [{ title: "client/probe.ct.tsx", file: "client/probe.ct.tsx", specs: [], suites: [{ title: "named suite", specs }] }] });
 }
 
+test("entry membership belongs to each spec root while native cases retain their shared declaration source", () => {
+  const entries = [CT_PROBE, "tests/client/second.ct.tsx"];
+  const helper = "tests/support/browser/shared-cases.tsx";
+  const stdout = ctReport({
+    suites: entries.map((file, index) => ({
+      title: file,
+      file,
+      specs: [],
+      suites: [{ title: "shared cases", file: helper, specs: [{ ...nativeCase(`shared-${index}`), file: helper }] }],
+    })),
+  });
+  expect(classifyCtListing(CT_ROOT, { status: 0, stdout, stderr: "" })).toEqual({ files: entries, projects: [] });
+  expect(readNativeCtCases({ status: 0, stdout, stderr: "" })).toEqual({
+    rootDir: CT_ROOT,
+    cases: entries.map((_file, index) => ({
+      id: `shared-${index}`,
+      file: helper,
+      project: "chromium",
+      titlePath: ["shared cases", "case > one"],
+      diagnosticOnly: false,
+    })),
+  });
+});
+
+test("file membership retains unexpected entry files so the caller can reject them", () => {
+  const unexpected = "tests/support/unexpected-entry.ts";
+  const stdout = ctReport({ suites: [{ file: unexpected, specs: [] }] });
+  expect(classifyCtListing(CT_ROOT, { status: 0, stdout, stderr: "" })).toEqual({ files: [unexpected], projects: [] });
+});
+
 test("native case collection retains exact project, ID, full title path and collection-visible diagnostic annotation", () => {
   const read = readNativeCtCases({ status: 0, stdout: nativeReport([nativeCase("case-1", [{ type: "diagnostic-only" }])]), stderr: "" });
   expect(read).toEqual({
