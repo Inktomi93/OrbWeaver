@@ -92,7 +92,6 @@
     "./floor/code-facts/id-brand": "./src/floor/code-facts/id-brand.ts",
     "./floor/code-facts/inventory-consumers": "./src/floor/code-facts/inventory-consumers.ts",
     "./floor/code-facts/liveness": "./src/floor/code-facts/liveness.ts",
-    "./floor/code-facts/liveness-contract": "./src/floor/code-facts/liveness-contract.ts",
     "./floor/code-facts/module-namespace": "./src/floor/code-facts/module-namespace.ts",
     "./floor/code-facts/package-module": "./src/floor/code-facts/package-module.ts",
     "./floor/code-facts/reference-fact": "./src/floor/code-facts/reference-fact.ts",

@@ -3,20 +3,14 @@
 import type { BindingElement, ImportDeclaration, Node as MorphNode, ObjectBindingPattern, SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import type { SourceCorpus } from "../compiler/ts-workspace.ts";
-import type { ImportConsumption, NamespaceSite } from "./liveness-contract.ts";
+import type { FileConsumptions, ImportConsumption, NamespaceSite } from "./liveness-contract.ts";
 import { dynamicModuleTarget, relativeModuleTarget } from "./module-target.ts";
 import { literalMemberAccess } from "./reference-fact.ts";
 import { MEMBER_ACCESS_KINDS } from "./reference-fact-contract.ts";
 import { declarationBindingKeys, inventoryDeclarationKey, inventoryExports, inventoryStaticTarget, semanticInventoryOf } from "./semantic-inventory-reader.ts";
 
-/** One file's consumptions plus the namespace-import sites the swallowed lens judges. */
-export interface FileConsumptions {
-  readonly consumptions: readonly ImportConsumption[];
-  readonly namespaceSites: readonly NamespaceSite[];
-}
-
-/** origin key → the export names `target` surfaces it under; a barrel may re-export one declaration twice. */
-export function exposedNames(target: SourceFile, importer?: MorphNode): Map<string, string[]> {
+// origin key → the export names `target` surfaces it under; a barrel may re-export one declaration twice.
+function exposedNames(target: SourceFile, importer?: MorphNode): Map<string, string[]> {
   const out = new Map<string, string[]>();
   for (const [name, declarations] of inventoryExports(target, importer)) {
     for (const declaration of declarations) {

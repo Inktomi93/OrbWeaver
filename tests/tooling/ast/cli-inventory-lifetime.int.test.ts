@@ -164,24 +164,122 @@ test.for(DEMAND_VERBS)("actual %s CLI preserves output and requests only its req
   expect(payload.hits.map((hit) => hit.text.split("  ←")[0])).toEqual(["shaped"]);
 });
 
-test("actual testonly CLI reports an export reached only by a legacy test instead of a clean zero", { tags: ["slow"] }, async ({ scratch, repoRoot }) => {
+const LEGACY_OPTIONS = {
+  noLib: true,
+  types: [],
+  target: "ES2022",
+  module: "ESNext",
+  moduleResolution: "Bundler",
+  allowImportingTsExtensions: true,
+  noEmit: true,
+};
+const NODE_NEXT_OPTIONS = { ...LEGACY_OPTIONS, module: "NodeNext", moduleResolution: "NodeNext" };
+const LEGACY_TEST = "tests/legacy/kit/a.test.ts";
+const LEGACY_BARREL = "tests/legacy/kit/_support.ts";
+
+interface LegacyReachCase {
+  readonly name: string;
+  readonly files: Readonly<Record<string, string>>;
+  readonly options?: object;
+  readonly roots?: readonly string[];
+  readonly code: number;
+  readonly hits: readonly (readonly [string, string])[];
+  readonly stderr: string;
+}
+
+const LEGACY_REACH_CASES: readonly LegacyReachCase[] = [
+  {
+    name: "a direct legacy import",
+    files: { [LEGACY_TEST]: "import {unused} from '../../../packages/kit/src/a';export const held=unused;\n" },
+    code: 0,
+    stderr: "status=complete",
+    hits: [["packages/kit/src/a.ts", "unused"]],
+  },
+  {
+    name: "a named re-export in a legacy barrel",
+    files: {
+      [LEGACY_BARREL]: "export { unused as viaBarrel } from '../../../packages/kit/src/a';\n",
+      [LEGACY_TEST]: "import {viaBarrel} from './_support';export const held=viaBarrel;\n",
+    },
+    code: 0,
+    stderr: "status=complete",
+    hits: [["packages/kit/src/a.ts", "unused"]],
+  },
+  {
+    name: "an `export *` of a legacy barrel that re-exports the origin",
+    files: {
+      "tests/legacy/kit/_inner.ts": "export { unused as local } from '../../../packages/kit/src/a';\n",
+      [LEGACY_BARREL]: "export * from './_inner';\n",
+      [LEGACY_TEST]: "import {local} from './_support';export const held=local;\n",
+    },
+    code: 0,
+    stderr: "status=complete",
+    hits: [["packages/kit/src/a.ts", "unused"]],
+  },
+  {
+    name: "a legacy barrel that does not export the imported name",
+    files: { [LEGACY_BARREL]: "export const other=1;\n", [LEGACY_TEST]: "import {missing} from './_support';export const held=missing;\n" },
+    code: 2,
+    hits: [],
+    stderr: "exports no missing",
+  },
+  {
+    name: "an asset import the legacy program types through an ambient module",
+    files: {
+      "ambient.d.ts": 'declare module "*.css";\n',
+      "packages/kit/src/x.module.css": ".a{color:red}\n",
+      [LEGACY_TEST]:
+        "import styles from '../../../packages/kit/src/x.module.css';import {unused} from '../../../packages/kit/src/a';export const held=[styles,unused];\n",
+    },
+    code: 0,
+    stderr: "status=complete",
+    hits: [["packages/kit/src/a.ts", "unused"]],
+  },
+  {
+    name: "a conditional import resolved under the importing file's ESM mode",
+    files: {
+      "package.json": JSON.stringify({
+        type: "module",
+        scripts: {},
+        imports: { "#cond": { import: "./packages/kit/src/esm.ts", default: "./packages/kit/src/cjs.ts" } },
+      }),
+      "packages/kit/src/esm.ts": "export const picked=1;\n",
+      "packages/kit/src/cjs.ts": "export const picked=2;\n",
+      [LEGACY_TEST]: "import {picked} from '#cond';export const held=picked;\n",
+    },
+    options: NODE_NEXT_OPTIONS,
+    roots: ["packages/kit/src/esm.ts", "packages/kit/src/cjs.ts"],
+    code: 0,
+    stderr: "status=complete",
+    hits: [["packages/kit/src/esm.ts", "picked"]],
+  },
+];
+
+const hitsPayload = z.object({ hits: z.array(z.object({ file: z.string(), kind: z.string(), text: z.string() })) });
+
+test.for(LEGACY_REACH_CASES)("actual testonly CLI counts legacy reach through $name", { tags: ["slow"] }, async (row, { scratch, repoRoot }) => {
   demandFixture(scratch, repoRoot);
   write(
     scratch,
     "tsconfig.tests-legacy.json",
-    JSON.stringify({
-      include: ["tests/legacy/**/*.ts"],
-      compilerOptions: { noLib: true, types: [], target: "ES2022", module: "ESNext", moduleResolution: "Bundler" },
-    }),
+    JSON.stringify({ include: ["tests/legacy/**/*.ts", "ambient.d.ts"], compilerOptions: row.options ?? LEGACY_OPTIONS }),
   );
-  write(scratch, "tests/legacy/kit/a.test.ts", "import {unused} from '../../../packages/kit/src/a';export const held=unused;\n");
+  for (const [path, text] of Object.entries(row.files)) {
+    write(scratch, path, text);
+  }
+  if (row.roots !== undefined) {
+    const config = z.looseObject({ files: z.array(z.string()) }).parse(JSON.parse(readFileSync(join(scratch, "tsconfig.json"), "utf8")));
+    write(scratch, "tsconfig.json", JSON.stringify({ ...config, files: [...config.files, ...row.roots] }));
+  }
   const result = await spawnNiced(process.execPath, [join(scratch, "tooling/src/ast/cli.ts"), "testonly", "kit", "--json"], {
     cwd: scratch,
     timeoutMs: budget(30_000),
   });
-  expect(result.code, result.stdout + result.stderr).toBe(0);
-  const payload = typeOnlyPayload.parse(JSON.parse(result.stdout));
-  expect(payload.hits.map((hit) => [hit.kind, hit.text.split("  —")[0]])).toEqual([["test-only-export", "unused"]]);
+  expect(result.code, result.stdout + result.stderr).toBe(row.code);
+  expect(result.stderr).toContain(row.stderr);
+  // A refused run prints no payload; its expected hits are empty.
+  const hits = result.code === 0 ? hitsPayload.parse(JSON.parse(result.stdout)).hits : [];
+  expect(hits.map((hit) => [hit.kind, hit.file, hit.text.split("  —")[0]])).toEqual(row.hits.map(([file, name]) => ["test-only-export", file, name]));
 });
 
 test("the real AST factory retains references but refuses each omitted type-only family", { tags: ["slow"] }, async ({ scratch, repoRoot }) => {

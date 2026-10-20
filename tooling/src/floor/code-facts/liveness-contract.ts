@@ -21,6 +21,12 @@ export interface ImportConsumption {
   readonly typeOnly: boolean;
 }
 
+/** One file's consumptions plus the namespace-import sites the swallowed lens judges. */
+export interface FileConsumptions {
+  readonly consumptions: readonly ImportConsumption[];
+  readonly namespaceSites: readonly NamespaceSite[];
+}
+
 /** A checked consumer outside the import graph: a package-root tool config or a typed source-reader witness. */
 export interface ExternalConsumption {
   readonly targetKey: string;
