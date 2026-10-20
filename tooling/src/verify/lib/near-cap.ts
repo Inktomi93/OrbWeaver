@@ -17,7 +17,7 @@ const TOOLING_CAP_DEFAULT = 450;
 const TOOLING_CAP_CLI = 200;
 const TOOLING_GATES_CARVE = "/verify/gates/";
 
-export interface NearCapRow {
+interface NearCapRow {
   readonly gate: string;
   readonly file: string;
   readonly lines: number;

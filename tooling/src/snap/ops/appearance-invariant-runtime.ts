@@ -12,12 +12,12 @@ import { readBrowserEnvironment } from "../../floor/browser/browser-environment.
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { budget } from "../../floor/host/load-budget.ts";
 import { buildNavScript } from "../../floor/instrument/nav.ts";
+import type { AppearanceCheckContext, AppearanceMutationIsolationEvidence } from "../contract/appearance-check-context.ts";
 import type { AppearanceCascadeExpectation, AppearanceInvariantReceipt, AppearanceMergeExpectation } from "../contract/appearance-invariants.ts";
 import type { ContrastEvidence } from "../contract/contrast.ts";
 import type { Args } from "../contract/types.ts";
 import { HOVER_REVEAL_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
 import { driveOppositeDensity } from "./appearance-density-persistence.ts";
-import type { AppearanceCheckContext, AppearanceMutationIsolationEvidence } from "./appearance-invariant-check-context.ts";
 import { buildAppearanceInvariantChecks } from "./appearance-invariant-checks.ts";
 import type { AppearanceDomSnapshot } from "./appearance-invariant-dom.ts";
 import { probeAppearanceDom } from "./appearance-invariant-dom.ts";

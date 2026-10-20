@@ -8,6 +8,7 @@ export type {
   ResolvedReviewFocus,
   ReviewFocus,
   ReviewMirrorEvidence,
+  RunReviewMirrorResult,
 } from "./contract/types.ts";
 export { PENDING_GUARD_CLASSIFICATIONS } from "./contract/types.ts";
 export { assertReviewEvidence, reviewEvidenceGaps } from "./lib/evidence.ts";
@@ -15,5 +16,5 @@ export { REVIEW_FOCUS, resolveReviewFocus } from "./lib/focus.ts";
 export { stripComments, stripperFor } from "./lib/strip.ts";
 export { depositTrackedEvidence, resolveTrackedEvidencePath } from "./lib/tracked-evidence.ts";
 export { censusPendingGuards } from "./ops/pending-guard.ts";
-export type { RunReviewMirrorOptions, RunReviewMirrorResult } from "./ops/run.ts";
+export type { RunReviewMirrorOptions } from "./ops/run.ts";
 export { runReviewMirror } from "./ops/run.ts";

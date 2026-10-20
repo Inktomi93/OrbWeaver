@@ -4,7 +4,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { judgeTypeHomeDeclaration } from "@orb/tooling/floor/code-facts/type-home-declaration";
 import { Project } from "ts-morph";
 import ts from "typescript";
-import { serverFactoryTypeHome } from "../../../../tooling/src/floor/code-facts/server-factory-type-home.ts";
+import { signatureTypeHome } from "../../../../tooling/src/floor/code-facts/server-factory-type-home.ts";
 import type { TypeHomeNativeSource } from "../../../../tooling/src/floor/code-facts/type-home-contract.ts";
 import { createSemanticWorkspace, registeredSemanticSourceView } from "../../../../tooling/src/floor/compiler/ts-workspace.ts";
 import { execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
@@ -144,12 +144,12 @@ export function ignoredReturn() { const value: Ignore<Erased> = { kind: "ignored
       checker: program.getTypeChecker(),
     };
     for (const name of ["Options", "Dependency", "Handle", "Supporting", "CallableResult", "InferredHandle", "AsyncHandle", "Recursive"]) {
-      expect(serverFactoryTypeHome(declaration(name), path, factory), `${path}/${name}`).toBe(true);
+      expect(signatureTypeHome(declaration(name), path, factory), `${path}/${name}`).toBe(true);
     }
-    expect(serverFactoryTypeHome(declaration("NestedOptions"), path, factory)).toBe(true);
-    expect(serverFactoryTypeHome(declaration("DataResponse"), path, factory)).toBe(false);
+    expect(signatureTypeHome(declaration("NestedOptions"), path, factory)).toBe(true);
+    expect(signatureTypeHome(declaration("DataResponse"), path, factory)).toBe(false);
     for (const name of ["Unused", "Shadow", "BodyOnly", "PayloadResponse", "Erased"]) {
-      expect(serverFactoryTypeHome(declaration(name), path, factory), `${path}/${name}`).toBe(false);
+      expect(signatureTypeHome(declaration(name), path, factory), `${path}/${name}`).toBe(false);
     }
   }
 });

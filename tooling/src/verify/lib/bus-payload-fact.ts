@@ -74,8 +74,9 @@ import type { TypeObservationReader } from "../../floor/code-facts/type-observat
 import type { NamedTypeDecl } from "../contract/bus-payload-fact.ts";
 import { defineFact } from "../contract/fact.ts";
 import { busNativeRead } from "./bus-native-read.ts";
+import type { WalkFrame } from "./bus-payload-fact-field.ts";
 import { walkMembers } from "./bus-payload-fact-field.ts";
-import type { BusEmptyRoot, BusPayloadField, BusShapeRefusal, CollectorState, WalkFrame } from "./bus-payload-fact-resolve.ts";
+import type { BusEmptyRoot, BusPayloadField, BusShapeRefusal, CollectorState } from "./bus-payload-fact-resolve.ts";
 import {
   contributionMark,
   MEMBERLESS_KINDS,

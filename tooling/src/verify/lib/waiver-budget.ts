@@ -20,8 +20,7 @@ const APPLICATION = Object.freeze({
   "knob-wire-coverage": 4,
   "membership-enforcer": 6,
   "no-await-db-in-loop": 13,
-  "no-inline-types": 5,
-  "no-inline-wire-interface": 31,
+  "no-inline-types": 3,
   "no-manual-memo": 3,
   "no-vanity-alias": 91,
   "nullable-column-inequality": 1,
@@ -49,7 +48,6 @@ const APPLICATION = Object.freeze({
 
 const IMPLEMENTATION = Object.freeze({
   "caught-failure-ownership": 21,
-  "no-inline-types": 1,
   "no-vanity-alias": 1,
   suppressions: 5,
   "test-determinism": 32,

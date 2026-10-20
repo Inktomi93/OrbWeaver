@@ -6,12 +6,6 @@ import { defineFact } from "../contract/fact.ts";
 import type { CssVariableSite } from "./css-var-resolution.ts";
 import { inventoryCssVariableSourceNode } from "./css-var-resolution.ts";
 
-export interface CssVariableSourceFact {
-  readonly definitions: ReadonlySet<string>;
-  readonly definitionSites: readonly CssVariableSite[];
-  readonly references: readonly CssVariableSite[];
-}
-
 const KINDS = [SyntaxKind.PropertyAssignment, SyntaxKind.StringLiteral, SyntaxKind.NoSubstitutionTemplateLiteral, SyntaxKind.TemplateExpression] as const;
 
 function unique(sites: readonly CssVariableSite[]): readonly CssVariableSite[] {

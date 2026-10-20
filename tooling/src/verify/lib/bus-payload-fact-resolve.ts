@@ -296,12 +296,3 @@ export const MEMBERLESS_KINDS: ReadonlySet<SyntaxKind> = new Set([
   SyntaxKind.NeverKeyword,
   SyntaxKind.VoidKeyword,
 ]);
-
-export interface WalkFrame {
-  readonly readers: TypeObservationReader;
-  readonly state: CollectorState;
-  /** `local` = spelled inside the named event; `inherited` = reached through a base/constituent/alias. */
-  readonly origin: "local" | "inherited";
-  /** The node a `missing-type-node` verdict anchors on (the declaration that owns this type position). */
-  readonly owner: MorphNode;
-}

@@ -174,7 +174,7 @@ function printSurface(opts: Args, entries: readonly MapEntry[] | null, error: st
   print("  NOTE: only actionability=actionable is a current interaction handle; locator-only rows are orientation/inventory evidence.");
 }
 
-export interface MapBlockInput {
+interface MapBlockInput {
   readonly opts: Args;
   readonly atlas: MapAtlasEvidence | null;
   readonly atlasError: string | null;

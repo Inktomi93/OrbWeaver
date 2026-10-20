@@ -3,8 +3,13 @@ import type { CssFacts } from "../contract/resource-css.ts";
 import type { StaticClassFactResult, StaticClassSegment } from "../contract/static-class-expression.ts";
 import type { CssVariableSite } from "./css-var-resolution.ts";
 import { arbitraryCssVariableSites, cssVariableReferenceSites } from "./css-var-resolution.ts";
-import type { CssVariableSourceFact } from "./css-variable-source-fact.ts";
 import type { VendorContract } from "./vendor-css-contract.ts";
+
+export interface CssVariableSourceFact {
+  readonly definitions: ReadonlySet<string>;
+  readonly definitionSites: readonly CssVariableSite[];
+  readonly references: readonly CssVariableSite[];
+}
 
 const DYNAMIC_CUSTOM_PROPERTY_TAIL_RE = /(?:var\(\s*|[-a-zA-Z0-9_[\].:/]+-\()--[a-zA-Z0-9_-]*$/u;
 

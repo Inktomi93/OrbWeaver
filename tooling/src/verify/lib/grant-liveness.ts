@@ -1,15 +1,5 @@
-// Config-read row shape, line lookup and glob selection shared by the static config reader and no-blanket-suppression.
+// Config-read line lookup and glob selection shared by the static config reader and no-blanket-suppression.
 import { matchesGlob } from "node:path";
-
-/** One classified file-exact row: the config FILE it was declared in (findings anchor there — a registry may
- *  span several config files, e.g. tsconfig.json + tsconfig.tests-dom.json), the literal path, and the
- *  1-based source line it sits on (0 when the line scan can't place it — the finding still stands, it just
- *  anchors file-level). */
-export interface ExactRow {
-  readonly file: string;
-  readonly path: string;
-  readonly line: number;
-}
 
 /** Resolve repeated literal selector values to their successive authored lines. */
 export function lineFinder(text: string): (path: string) => number {

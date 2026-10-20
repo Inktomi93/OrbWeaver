@@ -1,8 +1,17 @@
 // The static config reader resolves runner selector values or returns each unreadable shape. Homed in contract/ per the
 // five-slot type law (docs/law/Core-Tooling-Law.md §2.5): contract/ owns the shapes, lib/ owns the
-// behavior. `no-inline-types` enforces it — a `lib/` module exporting a type alias is RED.
+// behavior. `orb/type-home-direct-export` enforces it (D331).
 import type { SourceFile } from "ts-morph";
-import type { ExactRow } from "../lib/grant-liveness.ts";
+
+/** One classified file-exact row: the config FILE it was declared in (findings anchor there — a registry may
+ *  span several config files, e.g. tsconfig.json + tsconfig.tests-dom.json), the literal path, and the
+ *  1-based source line it sits on (0 when the line scan can't place it — the finding still stands, it just
+ *  anchors file-level). */
+export interface ExactRow {
+  readonly file: string;
+  readonly path: string;
+  readonly line: number;
+}
 
 /** One shape the evaluator refused to read, for the caller's fail-loud arm.
  *  @public knip type-face false positive — a structural field of `StaticRead`/`RowExtraction`, never

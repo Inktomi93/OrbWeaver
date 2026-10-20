@@ -86,16 +86,13 @@ export type TrpcClientOutput<TPath extends TrpcPath> = Awaited<
 export type CanonMessage = TrpcClientOutput<"chat.listMessages">["messages"][number];
 
 /** A present seat as received by the native room read. */
-export type RosterSeat = TrpcClientOutput<"chat.getChat">["participants"][number];
+type RosterSeat = TrpcClientOutput<"chat.getChat">["participants"][number];
 
 /** A native model-role binding result. */
 export type TaskBinding = TrpcClientOutput<"connection.listBindings">[number];
 
 /** The native client's persisted tracker projection. */
-export type TrackerView = TrpcClientOutput<"rpg.getTrackerView">;
-
-/** One actor in the native tracker projection. */
-export type TrackerActor = TrackerView["actors"][number];
+type TrackerView = TrpcClientOutput<"rpg.getTrackerView">;
 
 /** Bind the native batch transport to one stack and the caller's exact identifying headers. */
 export function createTrpcClient(baseUrl: string, headers: Readonly<Record<string, string>> = {}): TrpcClient {

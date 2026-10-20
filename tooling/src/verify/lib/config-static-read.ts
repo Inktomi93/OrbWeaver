@@ -10,8 +10,7 @@
 import { resolveStableExpression } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { SourceFile } from "ts-morph";
 import { Node, Project, SyntaxKind } from "ts-morph";
-import type { ConfigRead, ExtractRequest, RowExtraction, StaticRead, UnresolvedShape } from "../contract/config-read.ts";
-import type { ExactRow } from "./grant-liveness.ts";
+import type { ConfigRead, ExactRow, ExtractRequest, RowExtraction, StaticRead, UnresolvedShape } from "../contract/config-read.ts";
 import { lineFinder } from "./grant-liveness.ts";
 
 export type { ConfigRead } from "../contract/config-read.ts";

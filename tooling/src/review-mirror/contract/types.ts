@@ -59,3 +59,11 @@ export interface ReviewMirrorEvidence {
   readonly reviewFocus: readonly ResolvedReviewFocus[];
   readonly pendingGuard: PendingGuardCensus;
 }
+
+export interface RunReviewMirrorResult {
+  readonly code: number;
+  readonly evidencePath: string;
+  /** The resolved absolute path of the tracked deposit when `evidenceOut` was requested, else null. */
+  readonly trackedEvidencePath: string | null;
+  readonly evidence: ReviewMirrorEvidence;
+}

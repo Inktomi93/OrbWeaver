@@ -31,7 +31,7 @@ import type { ShowInk } from "./show-policy.ts";
  *  the default view is a tail and `--limit` widens it. */
 const DEFAULT_TAIL = 40;
 
-export interface StageViewRequest {
+interface StageViewRequest {
   /** The stage to render, matched exactly or by a UNIQUE substring. */
   readonly stage: string | null;
   /** List every stage with its verdict and render each failed stage's transcript tail. */
@@ -42,7 +42,7 @@ export interface StageViewRequest {
   readonly limit: number | null;
 }
 
-export interface StageView {
+interface StageView {
   readonly lines: readonly string[];
   readonly exit: number;
 }

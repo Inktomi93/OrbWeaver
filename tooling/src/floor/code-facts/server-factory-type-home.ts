@@ -3,7 +3,7 @@ import ts from "typescript";
 import { isParserPlainDataShape, WIRE_SHAPE_SUFFIXES } from "./shape-declaration.ts";
 import { parserGenericReferenceContributes } from "./shape-derivation.ts";
 
-import { SERVER_FACTORY_TYPE_HOME_ROOTS } from "./type-home.ts";
+import { SIGNATURE_TYPE_HOME_ROOTS } from "./type-home.ts";
 import { readParserReturnedTypeIdentities } from "./type-member-origin.ts";
 import type { NativeParserTypeContext } from "./type-member-origin-contract.ts";
 
@@ -30,9 +30,9 @@ function sourceFactoryDeclarations(parser: NativeParserTypeContext): ReadonlySet
   return declarations;
 }
 
-/** D324 applies to local factory signatures, never to an unrelated shape or plain wire data. */
-export function serverFactoryTypeHome(node: ts.InterfaceDeclaration | ts.TypeAliasDeclaration, path: string, parser: NativeParserTypeContext): boolean {
-  if (!SERVER_FACTORY_TYPE_HOME_ROOTS.some((root) => path.startsWith(root))) {
+/** D324 and D331 apply to local function signatures, never to an unrelated shape or plain wire data. */
+export function signatureTypeHome(node: ts.InterfaceDeclaration | ts.TypeAliasDeclaration, path: string, parser: NativeParserTypeContext): boolean {
+  if (!SIGNATURE_TYPE_HOME_ROOTS.some((root) => path.startsWith(root))) {
     return false;
   }
   const raw = node;
@@ -60,7 +60,9 @@ function signatureReferences(
       ts.isFunctionExpression(node) ||
       ts.isArrowFunction(node) ||
       ts.isMethodDeclaration(node) ||
-      ts.isConstructorDeclaration(node)
+      ts.isConstructorDeclaration(node) ||
+      ts.isGetAccessorDeclaration(node) ||
+      ts.isSetAccessorDeclaration(node)
     ) ||
     node.body === undefined
   ) {

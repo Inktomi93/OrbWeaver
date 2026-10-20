@@ -7,8 +7,9 @@
 // an empty delta with canon intact — the 8B ceiling, plan-for-small-hardware). What changed is the INPUT of
 // the second arm: it now requires the flush to have been OBSERVED.
 import { describe, expect, test } from "vitest";
-import type { RpgSettleView } from "./rpg-settle.ts";
 import { hasRpgFlush, rpgStateMoved, rpgTurnSettled } from "./rpg-settle.ts";
+
+type RpgSettleView = Parameters<typeof rpgStateMoved>[0];
 
 const SEEDED = "The Rusted Gate tavern";
 /** The pre-seeded snapshot: canon present, nothing extracted yet. */

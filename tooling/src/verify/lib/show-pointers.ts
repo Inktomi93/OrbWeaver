@@ -24,7 +24,7 @@ import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { UsageError } from "@orb/tooling/floor/cli/run-tool";
 import type { ShowInk } from "./show-policy.ts";
 
-export interface PointerView {
+interface PointerView {
   readonly lines: readonly string[];
   readonly exit: number;
 }

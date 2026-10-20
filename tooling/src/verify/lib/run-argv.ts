@@ -214,7 +214,7 @@ function tierFor(v: ParsedValues, scoped: boolean): Tier | { readonly error: str
 }
 
 /** An argv's meaning before its selection is resolved: the tier, the run flags and the scope REQUEST. */
-export interface ParsedRequest extends Omit<Parsed, "selection"> {
+interface ParsedRequest extends Omit<Parsed, "selection"> {
   readonly request: SelectionRequest | undefined; // undefined = whole scope
 }
 

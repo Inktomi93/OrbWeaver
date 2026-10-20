@@ -10,7 +10,7 @@ import type { RawSamples } from "../contract/samples.ts";
 import type { CensusCapFamily } from "../contract/samples-populations.ts";
 import { accountedFindings } from "./population-strategies.ts";
 
-export interface MutableFamilyCheckResult {
+interface MutableFamilyCheckResult {
   readonly findings: Finding[];
   scans: number;
 }

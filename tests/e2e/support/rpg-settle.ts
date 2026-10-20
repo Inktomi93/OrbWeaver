@@ -25,13 +25,13 @@
 
 /** The subset of `TrackerView` the predicate reads. Spelled structurally so this module stays free of the
  *  support tree's tRPC types (and so a fixture is three fields, not a whole projection). */
-export interface RpgSettleView {
+interface RpgSettleView {
   readonly ambient: { readonly location: string } | null;
   readonly actors: readonly { readonly volatile?: { readonly conditions: readonly unknown[] } | null }[];
   readonly recentBeats: readonly unknown[];
 }
 
-export interface RpgSettleInput {
+interface RpgSettleInput {
   /** The freshly-read persisted-snapshot projection. */
   readonly view: RpgSettleView;
   /** The location the spec pre-seeded — "the state moved" is measured against THIS, never a literal. */

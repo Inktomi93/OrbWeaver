@@ -29,6 +29,11 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** An a
 | **portability registry value shapes** | `packages/server/src/entry/contract/portability.ts` under [D329](../adr/0329-data-layout-and-portability-registry-type-homes.md) | the entry portability registries and their tests |
 | **entry request env** | `packages/server/src/entry/http/contract/request-env.ts` under [D329](../adr/0329-data-layout-and-portability-registry-type-homes.md) | entry route registrars |
 | **tRPC router type bridge** | `packages/server/src/transport/trpc/router.ts` under [D329](../adr/0329-data-layout-and-portability-registry-type-homes.md) | the client, type-only |
+| **server-only pure primitive shape** | `packages/server/src/primitives/` | server callers |
+| **tooling result, config and exit shape** | the tool's `contract/`, or `tooling/src/floor/` for plumbing ([Core-Tooling-Law](Core-Tooling-Law.md) §2.4, §2.5) | the tool and its tests |
+| **tooling helper API** (a function's options, handle and result shapes) | the file that declares the function under [D331](../adr/0331-tooling-and-test-shapes-stay-beside-their-function.md) | the function's callers |
+| **shared test shape** | the test kit under `tests/support/`, a `fixtures.ts`, `*.fixtures.ts`, `*-fixtures.ts` or `_support.ts` module, or a `contract/` folder | suites in maintained tests |
+| **test helper API** | the file that declares the helper function under [D331](../adr/0331-tooling-and-test-shapes-stay-beside-their-function.md) | the helper's callers |
 | **pure primitive shape** | `kit` | anyone (it's the bottom) |
 
 **The rule:** exported types, interfaces and schemas belong in the homes above. Domain, wire and database shapes never move into a component.
@@ -41,14 +46,17 @@ Component-owned prop and render APIs may stay beside their component. Derive nat
 
 D42 and D54 place domain-agnostic component, DOM and string-math primitives in UI; [UI-Primitives section 13.9](UI-Primitives-and-Reuse.md#139-homing--the-parked-list) owns that boundary. Their options, handles and supporting shapes stay with the actual primitive API. Establish ownership from its production signature and dependency graph, not a package path or shape name. Unrelated pure engines stay in kit. Generated vocabulary and Node build APIs require their own owner; browser component evidence does not qualify them.
 
-A server factory shape is owned by its production signature: it is a parameter, return type or member of a function declared in the same file (D324). A plain-data shape with a wire-vocabulary name is wire data, not a factory shape, and takes the wire home. Inline application data shapes in `verbs/`, `persistence/`, `service.ts` or transport remain violations. Existing placement gates do not yet establish this complete home table.
+A server factory shape is owned by its production signature: it is a parameter, return type or member of a function declared in the same file (D324). A plain-data shape with a wire-vocabulary name is wire data, not a factory shape, and takes the wire home. Inline application data shapes in `verbs/`, `persistence/`, `service.ts` or transport remain violations. D331 applies the same signature ownership to tooling and maintained tests; legacy tests stay outside type-aware lint (D320).
+
+No placement gate yet judges these: client exported interfaces other than wire-named plain data, `ui` component APIs, `showcase-plugins`, and exported zod schemas built by a method chain or a non-shape factory. `scripts/` is the research zone ([Core-Tooling-Law](Core-Tooling-Law.md) §2.7) and has no type home. `erasableSyntaxOnly` in `tsconfig.base.json` makes every enum and value namespace a compile error. Ambient `declare global` and module augmentations stay where they augment.
 
 **The enforcers:**
 
 | Gate | What it judges |
 | - | - |
-| ESLint `orb/type-home-direct-export` | exported aliases, interfaces and proven zod shape schemas, direct or export-listed, outside contract homes in inference, default-content, plugin-toolchain and every server tier except primitives; generated declarations and domain test mirrors retain custom ownership |
-| `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in client, tooling, tests and UI authoring, plus generated declarations, server root modules such as `packages/server/src/index.ts`, schemas in the transport API homes and server-domain test mirrors; the native population is subtracted |
+| ESLint `orb/type-home-direct-export` | exported aliases, interfaces and proven zod shape schemas, direct or export-listed, outside their homes in inference, default-content, plugin-toolchain, every server tier except primitives, `tooling/src` and maintained tests; the D324 signature reader (`tooling/src/floor/code-facts/server-factory-type-home.ts`) admits signature-owned shapes in the server factory tiers, tooling and tests; generated declarations and domain test mirrors retain custom ownership |
+| ESLint `orb/server-factory-tier-reference` | a server factory shape that a file in another tier imports or exposes (D324) |
+| `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in client and UI authoring, plus generated declarations, server root modules such as `packages/server/src/index.ts`, schemas in the transport API homes and server-domain test mirrors; the native population is subtracted |
 | ESLint `orb/no-inline-package-interface` | exported interfaces, direct or export-listed, in generated server and inference files, `packages/server/src/index.ts` and the UI authoring files outside `packages/ui/token-contract.ts` |
 | ESLint `orb/no-inline-union-alias` | an inline string-literal union type alias of three or more members in authored code |
 | `no-inline-wire-interface` | an exported interface in the client, outside a home, whose name is in the wire vocabulary (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) and whose type is plain data (no callable member anywhere in it); the client `data` tier is included |
