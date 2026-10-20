@@ -4,6 +4,8 @@
 // button, and the dialog's submit fires the real `admin.linkSsoIdentity` mutation with the entered subject.
 // The empty state renders when nothing is linkable.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import type { TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -36,7 +38,11 @@ const USERS = [
 ];
 
 function stub(page: Page, users: readonly AdminUser[], extra: Partial<TrpcRoutes<"admin.linkSsoIdentity">> = {}): Promise<TrpcRecorder> {
-  return routeTrpc(page, { "admin.listUsers": () => users, ...extra });
+  return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+    "admin.listUsers": () => users,
+    ...extra,
+  });
 }
 
 test("lists ONLY the linkable set (unbound, non-owner) — the owner + already-bound rows are excluded", async ({ mount, page }) => {

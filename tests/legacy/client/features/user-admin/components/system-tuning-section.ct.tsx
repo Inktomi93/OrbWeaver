@@ -9,6 +9,8 @@
 // from `KNOBS` in the section itself, and the Reset arm now pins the WHOLE clear set by equality — a knob
 // added without its reset key is an override with no way back to the floor, and that must fail here.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastAppSettingsPartial } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -45,6 +47,8 @@ type AppSettingsOverrides = TrpcWireOutput<"settings.getAppSettingsWithOverrides
 
 function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, overrides),
     [UPDATE_PROC]: () => effectiveAppSettings(RESOLVED),
   });

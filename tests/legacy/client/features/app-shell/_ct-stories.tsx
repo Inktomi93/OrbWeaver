@@ -41,13 +41,14 @@ import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import {
   CtChatContributorSectionRegistry,
+  CtConfigGroupBody,
   CtDataProviders,
   CtFakeModalRegistry,
   CtFakeSectionRegistry,
   CtRealSectionRegistry,
   CtStandInChromeRegistry,
 } from "@orb/testkit/browser/ct-data-providers.tsx";
-import { chatSettingsSections } from "@orb/testkit/browser/ct-door.ts";
+import { chatSettingsSections, configSections } from "@orb/testkit/browser/ct-door.ts";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { Button } from "@orb/ui/button";
@@ -60,10 +61,6 @@ import { Toaster } from "@orb/ui/toast";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { AppearanceBackgroundSection } from "#client/features/app-shell/components/appearance-background-section.tsx";
-import { AppearanceEffectsSection } from "#client/features/app-shell/components/appearance-effects-section.tsx";
-import { AppearanceReadingSection } from "#client/features/app-shell/components/appearance-reading-section.tsx";
-import { AppearanceSizingSection } from "#client/features/app-shell/components/appearance-sizing-section.tsx";
 import { ContextTabsPanel } from "#client/features/app-shell/components/context-tabs-panel.tsx";
 import { CustomThemeStyle } from "#client/features/app-shell/components/custom-theme-style.tsx";
 import { Rail } from "#client/features/app-shell/components/rail.tsx";
@@ -86,6 +83,27 @@ import type { ModalSlotId } from "#client/state/modal-slot-ids.ts";
 import { openModal, setActiveSection, setPanelMode, useActiveSection, useContextTab } from "#client/state/shell-store.ts";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { CT_META_RAIL_CROWNED_IDS } from "./_crowned-tabs.ts";
+
+const appearanceSizingSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates appearance-sizing from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("appearance-sizing")],
+);
+const appearanceReadingSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates appearance-reading from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("appearance-reading")],
+);
+const appearanceEffectsSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates appearance-effects from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("appearance-effects")],
+);
+const appearanceBackgroundSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates appearance-background from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("appearance-background")],
+);
 
 /** Lands the shell on a section before the assertions run. The BORN default is now `home` (owner
  *  decision H1 = D-1), but most shell CTs are about the FRAME's mechanics over a section that has panes —
@@ -1013,7 +1031,7 @@ function fakeHeaderSection(context: SectionDefinition["context"]): SectionDefini
     panelDefaults: { list: "docked", context: "docked" },
     contentInset: "section",
     placeholder: { title: "Chats", description: "Fake section for the header-channel CT." },
-    content: { planned: "ct" },
+    content: (): ReactNode => null,
     context,
     useSelectionTitle: NO_SELECTION_TITLE,
   };
@@ -1408,7 +1426,7 @@ function regionSection(regions: ContributorRegistry<ContextRegionDef<void>>): Se
     panelDefaults: { list: "docked", context: "docked" },
     contentInset: "section",
     placeholder: { title: "Chats", description: "Fake section for the region-claim CT." },
-    content: { planned: "ct" },
+    content: (): ReactNode => null,
     context: defineContextTabs<void>({
       useContextState: () => VOID_STATE,
       tabs: REGION_TABS,
@@ -1484,7 +1502,7 @@ export function AppearanceSizingSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
-        <AppearanceSizingSection sectionId="appearance-sizing" />
+        <CtConfigGroupBody anchor="appearance" sections={appearanceSizingSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -1495,7 +1513,7 @@ export function AppearanceReadingSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
-        <AppearanceReadingSection sectionId="appearance-reading" />
+        <CtConfigGroupBody anchor="appearance" sections={appearanceReadingSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -1506,7 +1524,7 @@ export function AppearanceEffectsSectionStory({ width = 720 }: { readonly width?
   return (
     <CtDataProviders>
       <div style={{ width, padding: 16 }}>
-        <AppearanceEffectsSection sectionId="appearance-effects" />
+        <CtConfigGroupBody anchor="appearance" sections={appearanceEffectsSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -1517,7 +1535,7 @@ export function AppearanceBackgroundSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 720, padding: 16 }}>
-        <AppearanceBackgroundSection sectionId="appearance-background" />
+        <CtConfigGroupBody anchor="appearance" sections={appearanceBackgroundSectionRegistry} />
       </div>
     </CtDataProviders>
   );

@@ -10,7 +10,9 @@ import { __resetConfigNav, selectChat, usePersonaEditorId } from "@orb/client/st
 import type { ChatId, PersonaId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { realConfigGroups } from "@orb/testkit/browser/ct-config-groups.ts";
-import { CtDataProviders, CtRealConfigSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtConfigGroupBody, CtDataProviders, CtRealConfigSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { configSections } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
@@ -20,8 +22,13 @@ import { ConfigListSurface } from "#client/features/config/surfaces/config-list-
 import { FirstRunPersonaDialog } from "#client/features/persona/anchors/first-run-persona-dialog.tsx";
 import { PersonaEditor } from "#client/features/persona/components/persona-editor.tsx";
 import { PersonaList } from "#client/features/persona/components/persona-list.tsx";
-import { PersonaNotificationsSection } from "#client/features/persona/components/persona-notifications-section.tsx";
 import { toNotice } from "#client/lib/notify.ts";
+
+const personaNotificationsSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates persona-notifications from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("persona-notifications")],
+);
 
 const LIST_MOUNT_DELAY_MS = 800;
 
@@ -280,7 +287,7 @@ export function PersonaNotificationsReopenStory(): ReactElement {
       </button>
       <CtDataProviders key={open}>
         <div style={{ width: 720, padding: 16 }}>
-          <PersonaNotificationsSection />
+          <CtConfigGroupBody anchor="personas" sections={personaNotificationsSectionRegistry} />
           <div data-testid={storyTestId("personasNotificationsTail")} style={{ height: 8 }} />
         </div>
       </CtDataProviders>

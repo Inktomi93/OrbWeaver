@@ -4,6 +4,8 @@
 // config), and the OVERRIDE-vs-FLOOR honesty that replaced the pane's footnote (a row says which one it is,
 // and never prints a stored override as if it were the default).
 
+import { viewerViewSchema } from "@orb/contracts/identity";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastAppSettingsPartial } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -36,6 +38,8 @@ const WEBRTC_DISCLOSURE_RE = /A script can still tell its author that you viewed
 
 function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, overrides),
     [UPDATE_PROC]: () => effectiveAppSettings(RESOLVED),
   });

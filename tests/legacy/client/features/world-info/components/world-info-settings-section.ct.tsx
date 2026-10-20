@@ -3,7 +3,9 @@
 // form (scanDepth/tokenBudget), each field change debounces then fires updateUserSettingsSection("worldInfo")
 // with the full worldInfo-section patch. Proves the previously-UI-less knobs now have a real write path.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -21,6 +23,8 @@ const SETTINGS_VIEW: TrpcWireOutput<"settings.getUserSettings"> = {
 
 function stub(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "settings.getUserSettings": () => SETTINGS_VIEW,
     [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
   });

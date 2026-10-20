@@ -3,6 +3,8 @@
 // numeric knobs batch a Save (memoryDefaults MERGE), and Reset clears a whole nested override. Asserts the
 // write fired with the right section/patch shape (route recorder).
 
+import { viewerViewSchema } from "@orb/contracts/identity";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastAppSettingsPartial } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
@@ -28,6 +30,8 @@ const SEARCH_CANDIDATES_GUIDANCE =
 
 function stub(page: Page, overrides: Partial<AppSettingsOverrides> = {}): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "settings.getAppSettingsWithOverrides": () => appSettingsView(RESOLVED, overrides),
     [UPDATE_PROC]: () => effectiveAppSettings(RESOLVED),
   });

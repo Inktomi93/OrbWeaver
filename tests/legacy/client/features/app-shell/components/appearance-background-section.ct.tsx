@@ -16,7 +16,9 @@
 // tile; both add-arms now also prove the new entry becomes a SELECTED TILE in the grid; and the refusal now
 // also proves the grid gains no tile. Every one of those is a claim the combobox shape could not make.
 
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcResponder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
@@ -76,6 +78,8 @@ const OWNED_KEYS = [
 
 function stub(page: Page, external: TrpcResponder<typeof EXTERNAL_PROC> = () => MATERIALIZED_ENTRY): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "settings.getUserSettings": () => SETTINGS_VIEW,
     [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
     [EXTERNAL_PROC]: external,

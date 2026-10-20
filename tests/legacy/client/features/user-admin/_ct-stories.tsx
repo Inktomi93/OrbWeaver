@@ -1,28 +1,81 @@
 // user-admin feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The
-// stories reach feature internals the front door doesn't re-export (the section BODIES are mounted by the
-// settings host through the contribution defs) — the settings _ct-stories.tsx precedent.
+// stories resolve the production settings contributions through the config registry so section anchors
+// come from the same resolver the settings host uses.
 
 import { QueryBoundary } from "@orb/client/components";
 import { createAppQueryClient, createTrpcClient, createTrpcProxy, TRPCProvider, useBusRoom, useOrbSocket, useTRPC } from "@orb/client/data";
-import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtConfigGroupBody, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { configSections } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { TooltipProvider } from "@orb/ui/tooltip";
 import { QueryClientProvider, useSuspenseQueries } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { AboutSection, AboutUpdatesSection } from "#client/features/user-admin/components/about-section.tsx";
-import { AdminApprovalsSection } from "#client/features/user-admin/components/admin-approvals-section.tsx";
-import { AdminLinkSsoSection } from "#client/features/user-admin/components/admin-link-sso-section.tsx";
-import { AdminCatalogSection, AdminEmbedCardSection } from "#client/features/user-admin/components/admin-ops-section.tsx";
-import { AdminUsersSection } from "#client/features/user-admin/components/admin-users-section.tsx";
-import { MultiUserSection } from "#client/features/user-admin/components/governance-sections.tsx";
-import { MediaTrustSection } from "#client/features/user-admin/components/media-trust-section.tsx";
-import { MemoryTuningSection } from "#client/features/user-admin/components/memory-tuning-section.tsx";
-import { OperationsSection } from "#client/features/user-admin/components/operations-section.tsx";
-import { RateLimitsSection } from "#client/features/user-admin/components/rate-limits-section.tsx";
-import { SystemTuningSection } from "#client/features/user-admin/components/system-tuning-section.tsx";
 import { CtToastSurface } from "../../lib/_ct-stories.tsx";
 import { ConfigHostStory } from "../config/_ct-stories.tsx";
+
+const adminUsersSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates admin-users from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("admin-users")],
+);
+const adminApprovalsSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates admin-approvals from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("admin-approvals")],
+);
+const adminLinkSsoSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates admin-link-sso from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("admin-link-sso")],
+);
+const adminOpsSectionsRegistry = isolationRegistry(
+  "config-sections",
+  "isolates the adjacent catalog and card embedding sections from the other admin settings",
+  [configSections.get("admin-model-catalog"), configSections.get("admin-card-embeddings")],
+);
+
+const rateLimitsSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates admin-rate-limits from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("admin-rate-limits")],
+);
+const memoryTuningSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates admin-memory-tuning from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("admin-memory-tuning")],
+);
+const mediaTrustSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates admin-media-trust from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("admin-media-trust")],
+);
+const multiUserSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates admin-multi-user from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("admin-multi-user")],
+);
+const aboutSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates about-version from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("about-version")],
+);
+const aboutUpdatesSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates about-updates from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("about-updates")],
+);
+const operationsSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates admin-operations from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("admin-operations")],
+);
+const systemTuningSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates admin-system-tuning from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("admin-system-tuning")],
+);
 
 /** The Users SECTION (SET-SEAMS stage 3) in isolation — `admin.listUsers` + `sessions.me` (the viewer's role
  *  for the owner-only role controls) and the row-verb mutations are stubbed per-test via routeTrpc. The
@@ -32,7 +85,7 @@ export function AdminUsersSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ height: 900, overflow: "auto", width: 960 }}>
-          <AdminUsersSection />
+          <CtConfigGroupBody anchor="admin" sections={adminUsersSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -46,7 +99,7 @@ export function AdminApprovalsSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ height: 900, overflow: "auto", width: 960 }}>
-          <AdminApprovalsSection />
+          <CtConfigGroupBody anchor="admin" sections={adminApprovalsSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -61,7 +114,7 @@ export function AdminLinkSsoSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ height: 900, overflow: "auto", width: 960 }}>
-          <AdminLinkSsoSection />
+          <CtConfigGroupBody anchor="admin" sections={adminLinkSsoSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -74,8 +127,7 @@ export function AdminOpsSectionsStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 960 }}>
-        <AdminCatalogSection />
-        <AdminEmbedCardSection />
+        <CtConfigGroupBody anchor="admin" sections={adminOpsSectionsRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -96,7 +148,7 @@ export function RateLimitsSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ padding: 16, width: 720 }}>
-          <RateLimitsSection sectionId="admin-rate-limits" />
+          <CtConfigGroupBody anchor="admin" sections={rateLimitsSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -110,7 +162,7 @@ export function MemoryTuningSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ padding: 16, width: 720 }}>
-          <MemoryTuningSection sectionId="admin-memory-tuning" />
+          <CtConfigGroupBody anchor="admin" sections={memoryTuningSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -123,7 +175,7 @@ export function MemoryTuningSectionNarrowStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ padding: 8, width: 320 }}>
-          <MemoryTuningSection sectionId="admin-memory-tuning" />
+          <CtConfigGroupBody anchor="admin" sections={memoryTuningSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -136,7 +188,7 @@ export function MediaTrustSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ padding: 16, width: 720 }}>
-          <MediaTrustSection sectionId="admin-media-trust" />
+          <CtConfigGroupBody anchor="admin" sections={mediaTrustSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -150,7 +202,7 @@ export function GovernanceSectionsStory({ width = 720 }: { readonly width?: numb
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ padding: 16, width }}>
-          <MultiUserSection sectionId="admin-multi-user" />
+          <CtConfigGroupBody anchor="admin" sections={multiUserSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -164,7 +216,7 @@ export function AboutSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ overflow: "visible", padding: 16, width: 480 }}>
-          <AboutSection />
+          <CtConfigGroupBody anchor="about" sections={aboutSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -177,7 +229,7 @@ export function AboutUpdatesSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ overflow: "visible", padding: 16, width: 480 }}>
-        <AboutUpdatesSection />
+        <CtConfigGroupBody anchor="about" sections={aboutUpdatesSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -189,7 +241,7 @@ export function OperationsSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ padding: 16, width: 720 }}>
-          <OperationsSection sectionId="admin-operations" />
+          <CtConfigGroupBody anchor="admin" sections={operationsSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -201,7 +253,7 @@ function OperationsWithSocket(): ReactElement {
   return (
     <QueryBoundary fallback={<output>Loading operations</output>}>
       <OperationsConnectionProbe />
-      <OperationsSection sectionId="admin-operations" />
+      <CtConfigGroupBody anchor="admin" sections={operationsSectionRegistry} />
     </QueryBoundary>
   );
 }
@@ -266,7 +318,7 @@ export function SystemTuningSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ padding: 16, width: 720 }}>
-          <SystemTuningSection sectionId="admin-system-tuning" />
+          <CtConfigGroupBody anchor="admin" sections={systemTuningSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>

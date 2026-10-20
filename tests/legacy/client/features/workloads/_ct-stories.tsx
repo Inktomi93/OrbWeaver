@@ -1,23 +1,36 @@
 // workloads feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module). The
-// stories reach a feature internal the front door doesn't re-export (the settings _ct-stories.tsx
-// precedent) — the section bodies are mounted by the config host, not exported standalone; the Backup group
-// mounts as its two CONTRIBUTED sections through the host's own resolver.
+// settings stories resolve production contributions through the config host; the Backup group keeps its
+// complete contributed section population.
 
 import { useOrbSocket } from "@orb/client/data";
 import type { WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { CtConfigGroupBody, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
 import { configSections } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
 import { BundleWorkloadTracker } from "#client/features/workloads/components/bundle-workload-tracker.tsx";
-import { SchedulesSection } from "#client/features/workloads/components/schedules-section.tsx";
-import { WorkloadsJobsSection } from "#client/features/workloads/components/workloads-jobs-section.tsx";
-import { WorkloadsTuningSection } from "#client/features/workloads/components/workloads-tuning-section.tsx";
 import type { LibraryImport } from "#client/features/workloads/hooks/use-library-import.ts";
 import { useLibraryImport } from "#client/features/workloads/hooks/use-library-import.ts";
 import { ConfigHostStory } from "../config/_ct-stories.tsx";
+
+const workloadsJobsSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates workloads-jobs from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("workloads-jobs")],
+);
+const schedulesSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates workloads-schedules from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("workloads-schedules")],
+);
+const workloadsTuningSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates workloads-tuning from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("workloads-tuning")],
+);
 
 /** The app-root shape: ONE socket, above every room hook. Since SSE-1 S5 an active workload row has no
  *  subscription of its own — it JOINS a `workloads` ROOM on the tab's one socket, so the socket has to be
@@ -36,7 +49,7 @@ export function WorkloadsJobsSectionStory(): ReactElement {
     <CtDataProviders>
       <SocketHost>
         <div style={{ height: 900, overflow: "auto", width: 960 }}>
-          <WorkloadsJobsSection />
+          <CtConfigGroupBody anchor="workloads" sections={workloadsJobsSectionRegistry} />
         </div>
       </SocketHost>
     </CtDataProviders>
@@ -50,7 +63,7 @@ export function WorkloadsSchedulesSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ height: 900, overflow: "auto", width: 960 }}>
-        <SchedulesSection />
+        <CtConfigGroupBody anchor="workloads" sections={schedulesSectionRegistry} />
       </div>
     </CtDataProviders>
   );
@@ -74,7 +87,7 @@ export function WorkloadsTuningSectionStory(): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width: 640, padding: 16 }}>
-        <WorkloadsTuningSection sectionId="workloads-tuning" />
+        <CtConfigGroupBody anchor="workloads" sections={workloadsTuningSectionRegistry} />
       </div>
     </CtDataProviders>
   );

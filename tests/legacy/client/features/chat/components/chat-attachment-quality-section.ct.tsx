@@ -1,4 +1,6 @@
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { DEFAULT_USER_SETTINGS, USER_SETTINGS_SCHEMA_VERSION } from "@orb/contracts/settings";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { expect, test } from "@playwright/experimental-ct-react";
@@ -12,7 +14,11 @@ const SETTINGS_VIEW = {
   updatedAt: 0,
 };
 test("defaults and cost/fidelity hint are visible at narrow width", async ({ mount, page }) => {
-  await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
+  await routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
+  });
   await mount(<AttachmentQualityStory />);
   await expect(page.getByRole("heading", { name: "Attachments", exact: true })).toBeVisible();
   await expect(page.getByRole("combobox", { name: "Image detail", exact: true })).toContainText("Auto");
@@ -23,7 +29,11 @@ test("defaults and cost/fidelity hint are visible at narrow width", async ({ mou
 });
 
 test("each image/video option autosaves only attachment quality and renders the selected value", async ({ mount, page }) => {
-  const recorder = await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
+  const recorder = await routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+    "settings.getUserSettings": () => SETTINGS_VIEW,
+    [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
+  });
   await mount(<AttachmentQualityStory />);
   for (const [label, value] of [
     ["Low", "low"],
@@ -54,7 +64,11 @@ test("each image/video option autosaves only attachment quality and renders the 
 
 for (const width of [280, 320, 480, 760, 1000]) {
   test(`attachment fields remain paired and contained in a ${width}px host`, async ({ mount, page }) => {
-    await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
+    await routeTrpc(page, {
+      "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+      "settings.getUserSettings": () => SETTINGS_VIEW,
+      [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
+    });
     await mount(<AttachmentQualityStory width={width} />);
     const image = page.getByRole("combobox", { name: "Image detail", exact: true });
     const video = page.getByRole("combobox", { name: "Video maximum resolution", exact: true });
@@ -109,7 +123,11 @@ for (const width of [280, 320, 480, 760, 1000]) {
 test.describe("coarse attachment choices", () => {
   test.use({ hasTouch: true });
   test("280px host keeps full touch targets and names both opened lists", async ({ mount, page }) => {
-    await routeTrpc(page, { "settings.getUserSettings": () => SETTINGS_VIEW, [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW });
+    await routeTrpc(page, {
+      "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+      "settings.getUserSettings": () => SETTINGS_VIEW,
+      [UPDATE_USER_SETTINGS_SECTION]: () => SETTINGS_VIEW,
+    });
     await mount(<AttachmentQualityStory width={280} />);
     await expect.poll(() => page.evaluate(() => matchMedia("(pointer: coarse)").matches)).toBe(true);
     for (const name of ["Image detail", "Video maximum resolution"]) {

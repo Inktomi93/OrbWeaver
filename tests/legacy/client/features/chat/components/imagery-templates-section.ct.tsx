@@ -4,11 +4,13 @@
 // fires updateUserSettingsSection("imagery") with the nested {templates,captions} patch, and CLEARING an
 // override sends the leaf `null` (reset-to-default). Asserts the fired patch shape (assert-the-mutation-fired).
 
+import { viewerViewSchema } from "@orb/contracts/identity";
 import { DEFAULT_PROMPT_TEMPLATES } from "@orb/contracts/imagery";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { loadCorpusFixture } from "@orb/testkit/node/corpus.ts";
 import { makePresetDetail } from "@orb/testkit/node/factories/preset-view.ts";
 import { lastSettingsPatch, UPDATE_USER_SETTINGS_SECTION } from "@orb/testkit/node/last-settings-patch.ts";
 import type { TrpcRecorder, TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
@@ -25,6 +27,8 @@ function settingsView(imagery = DEFAULT_USER_SETTINGS.imagery): TrpcWireOutput<"
 
 function stub(page: Page, imagery?: (typeof DEFAULT_USER_SETTINGS)["imagery"]): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "settings.getUserSettings": () => settingsView(imagery),
     [UPDATE_USER_SETTINGS_SECTION]: () => settingsView(imagery),
     // IMGMAC — the section now reads the active-preset plane (the built-in default declares none, so the
@@ -85,6 +89,8 @@ const USER_MACROS = [{ name: "sceneTone", description: USER_MACRO_GLOSS, args: [
 /** The settings view with a real ACTIVE preset (the plane's source), plus the imagery seed. */
 function stubWithPlane(page: Page): Promise<TrpcRecorder> {
   return routeTrpc(page, {
+    "sessions.me": () => viewerViewSchema.parse(loadCorpusFixture().wire.memberIdentities?.sharedMember.viewer),
+
     "settings.getUserSettings": () => userSettingsView({ seeds: { defaultPresetId: castId<PresetId>(ACTIVE_PRESET_ID) } }, { schemaVersion: 6 }),
     "preset.get": () => makePresetDetail({ config: { ...DEFAULT_PROMPT_CONFIG, userMacros: USER_MACROS } }),
     [UPDATE_USER_SETTINGS_SECTION]: () => userSettingsView({ seeds: { defaultPresetId: castId<PresetId>(ACTIVE_PRESET_ID) } }, { schemaVersion: 6 }),

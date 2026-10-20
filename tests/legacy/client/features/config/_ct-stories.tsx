@@ -11,8 +11,8 @@
 // (localStorage), and a CT that inherited another run's expanded set would assert the wrong first frame.
 //
 // THE LOOKS + GROUP-SKIMMER STORIES AT THE FOOT arrived with #2447, when `features/settings` folded into
-// this feature (owner ruling 2026-09-19). They kept their posture exactly: the LOOKS section (the theme
-// picker + builder) mounts DIRECTLY because it is a section body, while the two `sections`-skimmer group
+// this feature (owner ruling 2026-09-19). The LOOKS section (the theme picker + builder) resolves its
+// actual isolated contribution through the config registry, while the two `sections`-skimmer group
 // definitions (Appearance · Chat behavior) mount ONLY through `ConfigHostStory` — a skimmer has no surface
 // of its own. Their old home, `tests/client/features/settings/_ct-stories.tsx`, reached `ConfigHostStory`
 // across a directory; here it is a local function.
@@ -32,7 +32,8 @@ import {
   useActiveSection,
 } from "@orb/client/state";
 import { placeholderConfigGroups, realConfigGroups } from "@orb/testkit/browser/ct-config-groups.ts";
-import { CtDataProviders, CtRealConfigSectionRegistry, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtConfigGroupBody, CtDataProviders, CtRealConfigSectionRegistry, CtRealSectionRegistry } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { configSections } from "@orb/testkit/browser/ct-door.ts";
 import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
 import { createManualTimer } from "@orb/testkit/iso/clock.ts";
@@ -41,12 +42,17 @@ import type { ReactElement, ReactNode } from "react";
 import { useRef, useState } from "react";
 import { SectionContextHost } from "#client/features/app-shell/components/section-context-host.tsx";
 import { CommandPaletteSurface } from "#client/features/chat/surfaces/command-palette-surface.tsx";
-import { AppearanceLooksSection } from "#client/features/config/components/appearance-looks-section.tsx";
 import { createAnchorFlasher } from "#client/features/config/lib/config-scroll-spy.ts";
 import { makeConfigSection } from "#client/features/config/lib/config-section.tsx";
 import { ConfigContentSurface } from "#client/features/config/surfaces/config-content-surface.tsx";
 import { ConfigListSurface } from "#client/features/config/surfaces/config-list-surface.tsx";
 import { __resetConfigGroupOpen } from "#client/state/config-group-open-store.ts";
+
+const appearanceLooksSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates appearance-looks from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("appearance-looks")],
+);
 
 /** The determinism button every story carries: the disclosure memory, the nav and the selection all reset. */
 function ResetGroupsButton(): ReactElement {
@@ -402,7 +408,7 @@ export function LooksSectionStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div style={{ width: 760 }}>
-          <AppearanceLooksSection />
+          <CtConfigGroupBody anchor="appearance" sections={appearanceLooksSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -417,7 +423,7 @@ export function LooksSectionNarrowStory(): ReactElement {
     <CtDataProviders>
       <TooltipProvider>
         <div data-testid={storyTestId("looksNarrowHost")} style={{ overflow: "visible", width: 430 }}>
-          <AppearanceLooksSection />
+          <CtConfigGroupBody anchor="appearance" sections={appearanceLooksSectionRegistry} />
         </div>
       </TooltipProvider>
     </CtDataProviders>
@@ -438,7 +444,7 @@ export function LooksSectionReopenStory(): ReactElement {
       <CtDataProviders key={open}>
         <TooltipProvider>
           <div style={{ width: 760 }}>
-            <AppearanceLooksSection />
+            <CtConfigGroupBody anchor="appearance" sections={appearanceLooksSectionRegistry} />
             <div data-testid={storyTestId("looksTail")} style={{ height: 8 }} />
           </div>
         </TooltipProvider>

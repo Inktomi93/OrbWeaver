@@ -1,5 +1,4 @@
 import { storyTestId } from "@orb/testkit/browser/story-test-ids.ts";
-import { ConnectionsListSection } from "#client/features/credentials/components/connections-list-section.tsx";
 // credentials feature CT stories (docs/law/Spine-Testing.md §7 — CT mounts ONLY from a non-test module).
 // The story reaches a feature internal the front door doesn't re-export (the settings _ct-stories.tsx
 // precedent) — CredentialKeyRow is mounted by the keys section itself, not exported standalone. The whole
@@ -27,6 +26,12 @@ import { useEffect, useState } from "react";
 import { ConnectionEditor } from "#client/features/credentials/components/connection-editor.tsx";
 import { CredentialKeyRow } from "#client/features/credentials/components/credential-key-row.tsx";
 import { toNotice } from "#client/lib/notify.ts";
+
+const connectionsListSectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates connections-list from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("connections-list")],
+);
 
 // The plugin lifecycle story watches one plugins row beside one connections row; the door's other sections at those anchors stay out of it.
 const providerLifecycleConnectionSections: ContributorRegistry<ConfigSectionContribution> = isolationRegistry<ConfigSectionContribution>(
@@ -465,7 +470,7 @@ export function ConnectionEditorNarrowStory(): ReactElement {
 export function ConnectionsListReadStory(): ReactElement {
   return (
     <CtDataProviders>
-      <ConnectionsListSection />
+      <CtConfigGroupBody anchor="connections" sections={connectionsListSectionRegistry} />
     </CtDataProviders>
   );
 }

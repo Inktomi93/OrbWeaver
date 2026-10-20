@@ -1,12 +1,19 @@
-import { CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { CtConfigGroupBody, CtDataProviders } from "@orb/testkit/browser/ct-data-providers.tsx";
+import { configSections } from "@orb/testkit/browser/ct-door.ts";
+import { isolationRegistry } from "@orb/testkit/browser/ct-isolation.ts";
 import type { ReactElement } from "react";
-import { ChatAttachmentQualitySection } from "#client/features/chat/components/chat-attachment-quality-section.tsx";
+
+const chatAttachmentQualitySectionRegistry = isolationRegistry(
+  "config-sections",
+  "isolates chat-attachment-quality from sibling settings sections while retaining its production contribution and anchor",
+  [configSections.get("chat-attachment-quality")],
+);
 
 export function AttachmentQualityStory({ width = 320 }: { readonly width?: number }): ReactElement {
   return (
     <CtDataProviders>
       <div style={{ width }}>
-        <ChatAttachmentQualitySection sectionId="chat-attachment-quality" />
+        <CtConfigGroupBody anchor="chat-behavior" sections={chatAttachmentQualitySectionRegistry} />
       </div>
     </CtDataProviders>
   );
