@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-20
 priority: P3
+lane: codex/legacy-refused-fixtures-1198
 plan: test-foundation
 ---
 
