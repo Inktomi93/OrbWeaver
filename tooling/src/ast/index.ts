@@ -52,7 +52,7 @@ export {
   noteToolError,
 } from "./lib/ledger.ts";
 export { isPublicTagged, publicMarkerOf } from "./lib/public-markers.ts";
-export { ownExports } from "./lib/scope.ts";
+export { inventoryScopeFiles, ownExports } from "./lib/scope.ts";
 export { USAGE } from "./lib/usage.ts";
 export { collectViewFieldCandidates, isViewServerOnly, viewFieldsOf, viewGapHit } from "./lib/view-fields.ts";
 export { ANTIPATTERN_CLASSES, ANTIPATTERNS_VERB, judgeAntipatternPass, parseAntipatternScope, runAntipatterns } from "./ops/antipatterns.ts";
@@ -77,5 +77,13 @@ export {
 } from "./ops/subset-callers.ts";
 export { collectSwallowedCandidates, isSwallowedExempt } from "./ops/swallowed.ts";
 export { collectTypeOnlyCandidates, isTypeOnlyExempt } from "./ops/typeonly.ts";
-export { ARGLESS_VERBS, INVENTORY_VERB_FAMILIES, INVENTORY_VERBS, TYPED_VERBS, VERBS, WIDE_SYNTACTIC_VERBS } from "./ops/verbs.ts";
+export {
+  ARGLESS_VERBS,
+  INVENTORY_SCOPED_VERBS,
+  INVENTORY_VERB_FAMILIES,
+  INVENTORY_VERBS,
+  TYPED_VERBS,
+  VERBS,
+  WIDE_SYNTACTIC_VERBS,
+} from "./ops/verbs.ts";
 export { collectClientConsumed, collectServerProcedures, isUnwiredExempt } from "./ops/wiring.ts";

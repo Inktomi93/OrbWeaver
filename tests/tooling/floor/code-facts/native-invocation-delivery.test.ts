@@ -292,6 +292,45 @@ test(
 );
 
 test(
+  "mixed full bindings retain explicitly demanded authored closure invocation sources",
+  ({ scratch, repoRoot }) => {
+    setup(scratch, repoRoot);
+    writeFileSync(join(scratch, ".gitignore"), "node_modules\n.cache\nreports\n");
+    const { descriptor, calls } = controls(scratch);
+    const call = calls.find((node) => node.getText() === "bound()");
+    if (call === undefined) {
+      throw new Error("authored closure invocation is missing");
+    }
+    const options = {
+      root: scratch,
+      programs: [descriptor],
+      globalOriginQueries: [],
+      globalBindingQueries: [],
+      computedNameQueries: [],
+      invocationQueries: [{ program: descriptor.id, query: { ...PLAN, node: span(call) } }],
+    };
+    for (const families of [
+      ["invocation-evidence", "global-origins", "computed-names"],
+      ["bindings", "invocation-evidence", "global-origins", "computed-names"],
+    ] as const) {
+      using inventory = nativeInventoryFixture({ ...options, families });
+      const evidence = inventory.invocationEvidence(call, descriptor.id, PLAN);
+      const invoked = evidence.invocation;
+      if (invoked?.kind !== "resolved" || invoked.value.arguments.kind !== "resolved") {
+        throw new Error("authored closure bound argument is missing");
+      }
+      const argument = invoked.value.arguments.value[0];
+      if (argument === undefined) {
+        throw new Error("authored closure argument is missing");
+      }
+      expect(argument.getSourceFile().getFilePath()).toBe(join(scratch, "vendor/bound.ts"));
+      expect(evidence.declarations(argument).map((node) => node.getText())).toEqual(["PREFIX='chat'"]);
+    }
+  },
+  scaledBudget(60_000),
+);
+
+test(
   "mixed full and invocation bindings preserve authored output and strict dependency ownership",
   ({ scratch, repoRoot }) => {
     setup(scratch, repoRoot);
