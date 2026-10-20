@@ -19,7 +19,6 @@ import type { HostSeams } from "@orb/server/infra/plugin-host";
 import { Sandbox } from "@orb/server/infra/plugin-host";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { and, eq, inArray } from "drizzle-orm";
 import { zipSync } from "fflate";
 import { can } from "#server/domain/admin/index.ts";
@@ -46,6 +45,7 @@ import {
   PLUGIN_QUIET_LLM_PER_HOUR,
   PLUGIN_SEARCH_QUERY_PER_HOUR,
 } from "#server/domain/plugin/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 export { seedUser } from "../embeddings/_support.ts";
 

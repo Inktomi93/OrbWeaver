@@ -11,11 +11,11 @@ import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createMaterializeBackground } from "@orb/server/domain/assets";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { SafeFetchResult } from "#server/infra/network/index.ts";
 import { EgressBlockedError } from "#server/infra/network/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 // A minimal but header-PARSEABLE 1×1 PNG: signature + an IHDR carrying width/height. The magic belt fails a
 // bare signature (requireDimensions defaults true), so the success case needs a real IHDR.

@@ -7,12 +7,12 @@ import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { TEST_CONNECTION_ID, TEST_OWNER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { makeEmbeddingRuntime } from "@orb/testkit/node/inference-runtime.ts";
 import { describe } from "vitest";
+import { principal } from "../../../db/schema/_support.ts";
 import { makeResolvedSecret } from "../../../inference/_support.ts";
 
 // The resolve reads no user rows; the host resolver answers from rows in one in-memory database.

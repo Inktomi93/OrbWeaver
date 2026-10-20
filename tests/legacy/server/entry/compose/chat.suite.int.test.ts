@@ -14,12 +14,12 @@ import {
   userConnections,
 } from "@orb/db";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { reconcileStats } from "#server/domain/stats/index.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import type { RecordedRequest } from "../../../inference/backends/_hosted-support.ts";
 import { openAiTextStream, scriptedSseFetch } from "../../../inference/backends/_hosted-support.ts";
 import { seedCharacter, seedChat, seedParticipant } from "../../domain/chat/_support.ts";

@@ -32,10 +32,10 @@ import { connectionBindings, embedGenerations, embedGenerationTargets, userConne
 import type { ChatId, ConnectionBindingId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 const FROZEN_AT = 1_700_000_000_000;

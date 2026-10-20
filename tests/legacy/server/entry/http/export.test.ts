@@ -9,12 +9,12 @@ import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { ExportService } from "#server/domain/export/index.ts";
 import type { ExportDeps } from "#server/entry/http/index.ts";
 import { registerExport } from "#server/entry/http/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 // The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
 const callersDb = await freshDb();

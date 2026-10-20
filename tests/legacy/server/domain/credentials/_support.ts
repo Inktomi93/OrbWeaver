@@ -11,7 +11,6 @@ import type { ProviderId } from "@orb/contracts/inference";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { handleKey } from "@orb/kit/handle-key";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import type { Principal, UserRole } from "#contracts/identity/index.ts";
 import { builtinProvider } from "#contracts/inference/index.ts";
 import type { Db } from "#db/client/index.ts";
@@ -23,6 +22,7 @@ import type { CredentialView } from "#server/domain/credentials/contract/views.t
 import type { CredentialsService } from "#server/domain/credentials/index.ts";
 import { createCredentialsService } from "#server/domain/credentials/index.ts";
 import { createSecretBox } from "#server/infra/crypto/secrets.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 // A fixed 32-byte key so the SecretBox is enabled + deterministic across runs.
 const TEST_KEY = Buffer.alloc(32, 7);

@@ -12,12 +12,12 @@ import { castId } from "@orb/kit/ids";
 import type { ImportAssetPort } from "@orb/server/domain/assets";
 import type { ImportCharacterPort } from "@orb/server/domain/character";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { AttachCardTagByNameParams } from "#server/domain/tag/contract/params.ts";
 import type { ImportTagPort } from "#server/domain/tag/index.ts";
 import { runProfileImport } from "#server/entry/import/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 // The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
 const callersDb = await freshDb();

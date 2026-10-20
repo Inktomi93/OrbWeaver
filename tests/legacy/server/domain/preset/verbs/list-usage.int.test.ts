@@ -11,9 +11,9 @@ import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPresetService, PresetNotFoundError, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/index.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { principal } from "../../../../db/schema/_support.ts";
 import { makeHarness, seedPreset, seedUser } from "../_support.ts";
 
 const USAGE = { isUserDefault: true, gmRooms: [] } as const;

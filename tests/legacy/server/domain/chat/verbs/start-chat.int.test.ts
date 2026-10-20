@@ -23,7 +23,6 @@ import type { CharacterId, ChatEventId, ChatId, Handle, PersonaId, RpgGameId, Us
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -32,6 +31,7 @@ import { listMemberChats } from "#server/domain/chat/persistence/queries.ts";
 import { hostSeatOf } from "#server/domain/chat/substrate/participants-host.ts";
 import { createStartChat } from "#server/domain/chat/verbs/start-chat.ts";
 import { publishChatEvent, subscribeAllChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support.ts";
 
 /** A page bound comfortably above every fixture here — these arms are about the FILTERS, not the keyset. */

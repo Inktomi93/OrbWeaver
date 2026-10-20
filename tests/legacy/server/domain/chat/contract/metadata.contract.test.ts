@@ -10,12 +10,12 @@ import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/cha
 import type { ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { getGroupConfig, getRoomOverrides, parseChatMetadata } from "#server/domain/chat/contract/metadata.ts";
 import type { CreateInviteParams, RedeemInviteParams, SendParams } from "#server/domain/chat/contract/params.ts";
 import type { CreateInviteResult, TurnOutcome } from "#server/domain/chat/contract/results.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 
 describe("parseChatMetadata", () => {
   test("round-trips a full metadata blob (group + roomOverrides + opening)", () => {

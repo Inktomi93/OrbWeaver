@@ -18,9 +18,9 @@ import type { AssetId, CharacterHandle, CharacterId, Handle, TagId, UserId, Worl
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { ExportContext } from "#server/domain/export/context.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 // An 8×8 PNG (distinct from the 256×256 placeholder) — a real, decodable PNG so `writeCardChunk` accepts
 // it as a base image; being distinct lets a test prove the AVATAR (not the placeholder) was embedded.

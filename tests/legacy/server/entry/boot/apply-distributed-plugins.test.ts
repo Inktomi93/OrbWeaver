@@ -20,10 +20,10 @@ import { castId } from "@orb/kit/ids";
 import type { DistributedPluginApplierDeps } from "@orb/server/domain/plugin";
 import { createDistributedPluginApplier } from "@orb/server/domain/plugin";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 async function user(database: Db, id: string): Promise<Principal> {
   return await makePrincipal({ db: database }, castId<UserId>(id));

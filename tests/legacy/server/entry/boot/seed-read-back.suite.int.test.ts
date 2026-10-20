@@ -2,7 +2,7 @@
 // through its current `@orb/contracts` schema, every seeded blob must survive its read seam's schema, and every
 // seeded table is either read back row for row or named in `NOT_READ_BACK`.
 
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import "@orb/testkit/node/composed-real.ts";
 import { join } from "node:path";
 import process from "node:process";

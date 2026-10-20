@@ -69,7 +69,6 @@ import type {
 import { castId } from "@orb/kit/ids";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, sql } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -81,6 +80,7 @@ import { createCopyHandoffRegexScripts, createCountHandoffRegexScripts } from "#
 import { createStatsBatchWiring, reconcileStats } from "#server/domain/stats/index.ts";
 import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
 import { createCopyHandoffBooks, createCountHandoffBooks } from "#server/domain/world-info/index.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 // The stats seam as the composition root wires it: the production writers behind the batch and database handles.

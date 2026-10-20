@@ -9,8 +9,8 @@ import { castId } from "@orb/kit/ids";
 import type { UserContentSeederDeps } from "@orb/server/entry/boot";
 import { createUserContentSeeder } from "@orb/server/entry/boot";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 // The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
 const callersDb = await freshDb();

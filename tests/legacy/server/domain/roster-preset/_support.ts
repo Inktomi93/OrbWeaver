@@ -25,13 +25,13 @@ import { createOwnedCharacterIds } from "@orb/server/domain/character";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { RuleValidationError } from "#server/domain/automation/contract/errors.ts";
 import { RULE_PRESETS } from "#server/domain/automation/contract/presets.ts";
 import { resolveChatRulePresetKnobs, toRulePresetView } from "#server/domain/automation/substrate/presets.ts";
 import type { ParticipantData } from "#server/domain/chat/contract/views.ts";
 import { createPersonaOwned } from "#server/domain/persona/index.ts";
 import type { PresentCharacterSeat, RosterPresetContext } from "#server/domain/roster-preset/contract/service.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { seatRoles } from "../chat/_support.ts";
 
 // Seat roles are captured row data: one in-memory room supplies the host and member roles these checks read.

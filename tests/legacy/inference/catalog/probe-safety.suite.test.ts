@@ -7,11 +7,11 @@ import type { ProviderId } from "@orb/contracts/inference";
 import { createInferenceRuntime } from "@orb/inference";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { NO_PROVIDER_SECRETS } from "#inference/backends/http/sanitize.ts";
 import { detectServer } from "#inference/catalog/detect.ts";
 import { fetchEndpointModels } from "#inference/catalog/endpoint.ts";
+import { principal } from "../../db/schema/_support.ts";
 import { fakeConnection, fakeDeps, memoryStores, newUserId } from "../_support.ts";
 import { localServerFetch, transcriptFetch } from "./_local-servers-fetch.ts";
 

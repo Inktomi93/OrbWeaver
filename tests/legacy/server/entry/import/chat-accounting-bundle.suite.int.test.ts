@@ -11,7 +11,6 @@ import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/serve
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -23,6 +22,7 @@ import { loadWorkload, runWorkload } from "#server/domain/workloads/index.ts";
 import type { PrincipalEnv } from "#server/entry/http/index.ts";
 import { registerExport, registerImportBundle } from "#server/entry/http/index.ts";
 import { parseChatBundleFile } from "#server/primitives/serde/chat-bundle/index.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 test("two-box native workload preserves retained legs and pending positional facts, remints private parents and settles once", async ({

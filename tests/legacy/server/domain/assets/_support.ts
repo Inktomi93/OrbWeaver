@@ -40,13 +40,13 @@ import { createLoadChatAssetRefs, createLoadCoParticipantOwner } from "@orb/serv
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { eq } from "drizzle-orm";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import type { AssetsContext } from "#server/domain/assets/index.ts";
 import { createCas, createVariantCache } from "#server/infra/storage/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { makeHarness as makeCharacterHarness } from "../character/_support.ts";
 
 // The PNG magic bytes — every `pngBytes(...)` starts here so `sniffMime` returns image/png. The tail makes

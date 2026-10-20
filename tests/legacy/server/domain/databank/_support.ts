@@ -18,7 +18,6 @@ import { castId } from "@orb/kit/ids";
 import { loadPresentHostUserId } from "@orb/server/domain/chat";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import { can } from "#server/domain/admin/index.ts";
@@ -34,6 +33,7 @@ import {
   createFanDatabankMemberRooms,
 } from "#server/entry/compose/room-reach.ts";
 import { createExtractText, EXTRACTOR_VERSION } from "#server/infra/extraction/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { EMBED_DIM, EMBED_MODEL, makeStoreHarness } from "../embeddings/_support.ts";
 
 // `seedUser` seeds the `users` row AND the `user_connections` row the harness's fake embed connection

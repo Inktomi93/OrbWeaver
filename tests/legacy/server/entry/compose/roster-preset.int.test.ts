@@ -13,10 +13,10 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { describe } from "vitest";
+import { principal } from "../../../db/schema/_support.ts";
 import { seedCharacter, seedUser } from "../../domain/chat/_support.ts";
 
 describe("roster-preset applyToChat — composed-real (createServices)", () => {

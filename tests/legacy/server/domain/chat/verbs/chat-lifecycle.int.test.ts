@@ -18,7 +18,6 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { tape } from "@orb/testkit/node/chat/tape.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -32,6 +31,7 @@ import type { TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import { loadStoredUserMacroValues } from "#server/domain/chat/persistence/queries.ts";
 import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { scenario } from "../_scenario.ts";
 import { makeChatContext, noClaim, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 

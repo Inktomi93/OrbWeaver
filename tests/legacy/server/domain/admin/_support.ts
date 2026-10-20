@@ -32,7 +32,6 @@ import { env } from "@orb/server/foundation/env";
 import { buildAuditStatementIfPrecedingWrote, createAuditWiring } from "@orb/server/foundation/observability";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import type { UnclaimedLinkOutcome } from "#server/domain/admin/contract/results.ts";
 import type { AdminAssemblyContext as AdminContext, AdminContext as AdminVerbContext } from "#server/domain/admin/contract/service.ts";
@@ -40,6 +39,7 @@ import type { SessionAdminView } from "#server/domain/admin/contract/views.ts";
 import type { AdminService } from "#server/domain/admin/index.ts";
 import { createAdminService } from "#server/domain/admin/index.ts";
 import { insertSession } from "#server/domain/sessions/persistence/sessions.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 interface AuditCall {
   readonly entry: Parameters<AdminContext["audit"]>[0];

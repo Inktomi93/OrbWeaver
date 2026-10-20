@@ -37,7 +37,6 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { testModelId, testProviderId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -49,6 +48,7 @@ import { createEdit } from "#server/domain/chat/verbs/edit.ts";
 import { reconcileStats } from "#server/domain/stats/persistence/rebuild-from-canon.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { sha256Hex } from "#server/primitives/content-hash/index.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { emptyState, seedGame, snapshotId } from "../../rpg/_support.ts";
 import {
   addVariant,

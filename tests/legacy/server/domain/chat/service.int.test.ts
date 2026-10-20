@@ -15,7 +15,6 @@ import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "#server/domain/chat/active-turns.ts";
@@ -24,6 +23,7 @@ import type { TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import type { ChatService } from "#server/domain/chat/index.ts";
 import { insertChatEventStatement } from "#server/domain/chat/persistence/events.ts";
 import { createChatService } from "#server/domain/chat/service.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { chatAssembly, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "./_support.ts";
 
 let db: Db;

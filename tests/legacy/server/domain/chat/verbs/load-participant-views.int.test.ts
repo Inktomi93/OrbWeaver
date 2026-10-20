@@ -6,9 +6,9 @@ import type { Db } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshCountedDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
+import { principal } from "../../../../db/schema/_support.ts";
 import { seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 const test = base.extend<{ db: Db; observed: Awaited<ReturnType<typeof freshCountedDb>> }>({

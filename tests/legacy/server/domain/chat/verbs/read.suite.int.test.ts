@@ -5,11 +5,11 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createTurnPersonaResolver } from "@orb/server/entry/compose";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { createRead } from "#server/domain/chat/verbs/read.ts";
 import { loadPersonasForOwners } from "#server/domain/persona/persistence/queries.ts";
+import { principal } from "../../../../db/schema/_support.ts";
 import { makeResolved } from "../../../../inference/_support.ts";
 import {
   batchParticipantViews,

@@ -17,12 +17,12 @@ import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
 import type { Handle, PluginId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
 import type { PrincipalEnv } from "#server/entry/http/index.ts";
 import { registerPluginUi } from "#server/entry/http/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 /** MINTED, never a hand-written literal: the route parses the path segment with `typeIdSchema`, which validates
  *  the 26-char base32 suffix at RUNTIME — a plausible-looking short literal is refused as malformed and every

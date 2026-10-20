@@ -14,10 +14,10 @@ import { castId } from "@orb/kit/ids";
 import { createCharacterImportOps, createCharacterService } from "@orb/server/domain/character";
 import { buildImportContext } from "@orb/server/domain/import";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createImportService } from "#server/domain/import/index.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeHarness, seedUser } from "../../character/_support.ts";
 
 const encoder = new TextEncoder();

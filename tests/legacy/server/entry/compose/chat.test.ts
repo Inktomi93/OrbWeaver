@@ -16,7 +16,6 @@ import type { HumanSeatPersona, TurnMessage, TurnRequest, TurnStreamChunk } from
 import { activePersonaIdFor, buildChatToolOps, createRunChatTurnBridge, createTurnPersonaResolver, voicePersonaFor } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as principalOf } from "@orb/testkit/node/factories/principal.ts";
 import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { McpCallResult } from "@orb/testkit/node/mcp-in-memory.ts";
@@ -30,6 +29,7 @@ import type { PersonaListView } from "#server/domain/persona/contract/views.ts";
 import type { ToolExecutionContext, ToolUseService } from "#server/domain/tool-use/index.ts";
 import { createToolUseService } from "#server/domain/tool-use/index.ts";
 import { createGeneratePictureOp, createTaskWindowReaders } from "#server/entry/compose/chat.ts";
+import { principal as principalOf } from "../../../db/schema/_support.ts";
 import { fakeConnection, fakeDeps, fakeModelCache, makeResolved, memoryStores, newUserId } from "../../../inference/_support.ts";
 import { defOf, execOf, makeHarness } from "../../domain/tool-use/_support.ts";
 

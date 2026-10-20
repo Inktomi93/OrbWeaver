@@ -12,11 +12,11 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { can } from "#server/domain/admin/guard.ts";
 import { assertHostRole, assertOwnUserRef, notFoundGame } from "#server/domain/rpg/guard.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import { seatRoles } from "../chat/_support.ts";
 
 // Seat roles are captured row data: one in-memory room supplies the host and member roles these checks read.

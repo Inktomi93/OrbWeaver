@@ -18,9 +18,9 @@ import { castId } from "@orb/kit/ids";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { WorldInfoContext } from "#server/domain/world-info/context.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 interface AuditCall {
   readonly entry: Parameters<WorldInfoContext["audit"]>[0];

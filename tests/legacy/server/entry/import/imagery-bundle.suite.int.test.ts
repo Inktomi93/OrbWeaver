@@ -13,7 +13,6 @@ import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/serve
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { makeImageryCall } from "@orb/testkit/node/factories/imagery-call.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -25,6 +24,7 @@ import type { PrincipalEnv } from "#server/entry/http/index.ts";
 import { registerExport, registerImportBundle } from "#server/entry/http/index.ts";
 import { buildImageryCall, parseImageryCall } from "#server/primitives/serde/imagery/index.ts";
 import { subscribeUserEvents } from "#server/transport/trpc/user-events-bus.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 async function imageSpend(db: Db, ownerId: UserId): Promise<number | undefined> {

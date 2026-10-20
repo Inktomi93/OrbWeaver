@@ -27,13 +27,13 @@ import type { ImportCharacterPort } from "@orb/server/domain/character";
 import { createCharacterImportOps } from "@orb/server/domain/character";
 import type { ImportContextWiring } from "@orb/server/domain/import";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import { buildImportContext } from "#server/domain/import/index.ts";
 import type { ImportTagPort } from "#server/domain/tag/index.ts";
 import { createImportedCardTag } from "#server/domain/tag/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 const FOREIGN = castId<UserId>("usr_victim");

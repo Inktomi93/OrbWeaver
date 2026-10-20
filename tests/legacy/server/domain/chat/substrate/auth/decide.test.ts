@@ -7,12 +7,12 @@ import type { Db } from "@orb/db";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { can } from "#server/domain/admin/index.ts";
 import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { assertAuthorOrHost, assertHost, assertParticipant } from "#server/domain/chat/substrate/auth/index.ts";
+import { principal as makePrincipal } from "../../../../../db/schema/_support.ts";
 import { seatRoles, seedUser } from "../../_support.ts";
 
 const CHAT = castId<ChatId>("chat_x");

@@ -27,7 +27,6 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Tape } from "@orb/testkit/node/chat/tape.ts";
 import { scriptedRunner } from "@orb/testkit/node/chat/tape.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { onTestFinished } from "vitest";
 import { createActiveTurns } from "#server/domain/chat/active-turns.ts";
 import type { ActiveTurns, OwnedActiveTurns } from "#server/domain/chat/contract/active-turns.ts";
@@ -43,6 +42,7 @@ import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { createClaimChat } from "#server/domain/chat/verbs/claim-chat.ts";
 import { createRequestTurn, createTurn } from "#server/domain/chat/verbs/turn.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { makeResolved } from "../../../inference/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser } from "./_support.ts";
 

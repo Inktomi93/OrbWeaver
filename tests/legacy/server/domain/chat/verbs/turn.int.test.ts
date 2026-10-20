@@ -38,7 +38,6 @@ import type { SeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { makeCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { CUSTOM_SYSTEM_TEMPLATE, utilityPresetResolver } from "@orb/testkit/node/utility-preset.ts";
@@ -72,6 +71,7 @@ import { createRead } from "#server/domain/chat/verbs/read.ts";
 import { createRequestTurn, createTurn } from "#server/domain/chat/verbs/turn.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { createToolUseService, createToolUseTeachingContributions } from "#server/domain/tool-use/index.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import {
   batchParticipantViews,
   makeChatContext,

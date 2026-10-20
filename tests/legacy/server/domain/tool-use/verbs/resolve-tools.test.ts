@@ -9,11 +9,11 @@
 
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import type { PluginToolSpec } from "#server/domain/tool-use/index.ts";
 import { createToolUseService, ToolNotFoundError } from "#server/domain/tool-use/index.ts";
+import { principal } from "../../../../db/schema/_support.ts";
 import { ANY_DRIVER, defOf, execOf, makeHarness } from "../_support.ts";
 
 const okHandler = (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: null });

@@ -6,11 +6,11 @@ import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { isAdmin } from "#server/domain/admin/guard.ts";
 import { assertKindSupportsMode, isVisibleToCaller, resolveListOwnerFilter } from "#server/domain/workloads/substrate/authorize.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 
 const OWNER: UserId = castId("user_owner");
 const OTHER: UserId = castId("user_other");

@@ -26,12 +26,12 @@ import { CARD_FRAME_HEIGHT_SCRIPT } from "@orb/kit/card-frame";
 import type { PluginId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
 import type { PluginFrameDeps, PrincipalEnv } from "#server/entry/http/index.ts";
 import { registerPluginFrame, securityHeaders } from "#server/entry/http/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 const PLUGIN = castId<PluginId>("plugin_01h455vb4pex5vsknk084sn02q");
 

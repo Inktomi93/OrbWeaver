@@ -24,7 +24,6 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { vi } from "vitest";
@@ -36,6 +35,7 @@ import { runWorkload } from "#server/domain/workloads/index.ts";
 import { loadWorkload } from "#server/domain/workloads/persistence/queries.ts";
 import { createWorkloadService } from "#server/domain/workloads/service.ts";
 import { buildWorkloadContributions } from "#server/entry/compose/workload-contributions.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 type WorkloadFrame = Parameters<typeof buildWorkloadContributions>[0];
 

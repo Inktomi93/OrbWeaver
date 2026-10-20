@@ -18,7 +18,6 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { TeachingContext } from "#server/domain/chat/contract/context.ts";
@@ -26,6 +25,7 @@ import { collectTeaching } from "#server/domain/chat/substrate/teaching.ts";
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
 import type { PluginToolSpec } from "#server/domain/tool-use/index.ts";
 import { createToolUseService, createToolUseTeachingContributions } from "#server/domain/tool-use/index.ts";
+import { principal } from "../../../db/schema/_support.ts";
 
 type Service = ReturnType<typeof createToolUseService>;
 

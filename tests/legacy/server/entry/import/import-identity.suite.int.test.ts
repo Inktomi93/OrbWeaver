@@ -18,8 +18,8 @@ import { relativePathOf } from "#client/data/import-tree.ts";
 import { planTreeImport } from "#client/data/import-tree-plan.ts";
 import { runProfileImport } from "#server/entry/import/index.ts";
 import "@orb/testkit/node/composed-real.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 const ENC = new TextEncoder();
 

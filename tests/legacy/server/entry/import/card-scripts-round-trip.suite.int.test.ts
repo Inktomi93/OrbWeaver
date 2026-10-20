@@ -16,9 +16,9 @@ import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { describe } from "vitest";
 import { runProfileImport } from "#server/entry/import/index.ts";
 import "@orb/testkit/node/composed-real.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 const ENC = new TextEncoder();
 const DEC = new TextDecoder();

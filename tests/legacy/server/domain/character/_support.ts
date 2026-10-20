@@ -30,12 +30,12 @@ import { castId } from "@orb/kit/ids";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { AttachCardTagOp, CharacterAssemblyInput as CharacterContext, DetachCardTagOp } from "#server/domain/character/contract/service.ts";
 import { createStatsBatchWiring } from "#server/domain/stats/index.ts";
 import type { BulkImportLorebook, HasPrimaryBook } from "#server/domain/world-info/index.ts";
 import { createBulkImportLorebook, createCopyCharacterBooks, createHasPrimaryBook } from "#server/domain/world-info/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 interface AuditCall {
   readonly entry: Parameters<CharacterContext["audit"]>[0];

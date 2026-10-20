@@ -120,11 +120,11 @@ describe("maybeRevokeOnAuthFailed", () => {
     expect(rows[0]?.revokedAt).not.toBeNull();
   });
 
-  test("a FOREIGN credentialId under this owner revokes NOTHING (the write is owner-scoped, not id-only)", async () => {
-    // THE HOLE THIS CLOSES (`injected-op-caller-param`): the op is the domain boundary, so the boundary has
-    // to carry the scope. Before this, the strike wrote `WHERE id = ?` and the ONLY thing keeping it off a
-    // stranger's row was the discipline of today's call sites — a promise the next wiring inherits nothing
-    // about. Bob's key must survive an `auth_failed` that Alice's turn reported against it.
+  test("a FOREIGN credentialId under this owner revokes NOTHING (the execution witness's owner must match the claim)", async () => {
+    // The control is the witness's owner check: the evidence names the owner whose resolve admitted the key
+    // (Bob), and a strike that claims another owner (Alice) is refused before any write. The owner-scoped
+    // strike behind it is defence in depth that a real witness cannot reach. Bob's key must survive an
+    // `auth_failed` that Alice's turn reported against it.
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCredentialsService(h.ctx);

@@ -32,7 +32,6 @@ import type {
 import { castId, ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { can } from "#server/domain/admin/index.ts";
 import type { ChatRpgOps, RpgCardCorpus, RpgTurnContext, RpgTurnTranscriptMessage } from "#server/domain/chat/index.ts";
@@ -50,6 +49,7 @@ import type {
 } from "#server/domain/rpg/index.ts";
 import { createRpgChatOps, createRpgService, createRpgStagingStore } from "#server/domain/rpg/index.ts";
 import { buildActorRefIndex, extractionToStateDelta } from "#server/domain/rpg/tools/apply.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { makeResolved } from "../../../inference/_support.ts";
 import { seatRoles, seedChat, seedMessage, seedUser } from "../chat/_support.ts";
 

@@ -17,12 +17,12 @@ import { readCardChunk } from "@orb/kit/png-card-chunk";
 import type { ImportAssetPort } from "@orb/server/domain/assets";
 import { createCharacterService } from "@orb/server/domain/character";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createExportService } from "#server/domain/export/index.ts";
 import type { ImportTagPort } from "#server/domain/tag/index.ts";
 import { runProfileImport } from "#server/entry/import/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { makeHarness as makeCharacterHarness, seedUser } from "../../domain/character/_support.ts";
 import { makeHarness as makeExportHarness } from "../../domain/export/_support.ts";
 

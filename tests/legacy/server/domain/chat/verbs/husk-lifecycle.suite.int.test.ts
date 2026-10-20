@@ -33,7 +33,6 @@ import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -47,6 +46,7 @@ import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts
 import { createClaimChat } from "#server/domain/chat/verbs/claim-chat.ts";
 import { createSetRpgPointer } from "#server/domain/chat/verbs/set-rpg-pointer.ts";
 import { createStartChat } from "#server/domain/chat/verbs/start-chat.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { chatAssembly, makeChatContext, makeLoadParticipantViews, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 /** A page bound comfortably above every fixture here — these arms are about the LENS, not the keyset. */

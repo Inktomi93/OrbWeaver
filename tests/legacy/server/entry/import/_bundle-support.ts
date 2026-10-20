@@ -1,9 +1,9 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import type { ExportDeps, ImportBundleDeps } from "#server/entry/http/index.ts";
 import { registerExport, registerImportBundle } from "#server/entry/http/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 /** The importing owner's Principal; owner is written onto the row before it resolves. */
 export async function principalOf(db: Db, userId: UserId): Promise<Principal> {

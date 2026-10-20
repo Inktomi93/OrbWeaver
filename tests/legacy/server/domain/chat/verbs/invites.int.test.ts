@@ -14,7 +14,6 @@ import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -22,6 +21,7 @@ import type { AssembleInvitePreviewOp, ClaimChatOp, LoadParticipantViewsOp } fro
 import { ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { createInvitePreview, guestModeSentence } from "#server/domain/chat/verbs/invite-preview.ts";
 import { createInvites } from "#server/domain/chat/verbs/invites.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeChatContext, makeLoadParticipantViews, noClaim, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;

@@ -19,7 +19,6 @@ import { getTraceByRequestId, initTracing } from "@orb/server/foundation/observa
 import { classifyDomainError, createSocketRegistry } from "@orb/server/transport/trpc";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { SearchSuggestion, SuggestParams } from "#server/domain/search/index.ts";
@@ -29,6 +28,7 @@ import { createApp, rateLimitResponseMeta } from "#server/entry/app.ts";
 import type { AuthSeam, AuthSeamResolution } from "#server/entry/auth/index.ts";
 import { recentRequests } from "#server/foundation/observability/logger.ts";
 import { versionIdentity } from "#server/foundation/version/index.ts";
+import { principal as makePrincipal } from "../../db/schema/_support.ts";
 import { testLiveBuses } from "../transport/trpc/_support.ts";
 
 /** Build the classifier-mapped `TRPCError` (cause-carrying) that `rateLimitResponseMeta` receives at the

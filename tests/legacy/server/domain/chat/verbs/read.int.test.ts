@@ -52,7 +52,6 @@ import { resolveImageRefToUrl } from "@orb/server/domain/chat";
 import { createTurnPersonaResolver, voicePersonaFor } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
@@ -71,6 +70,7 @@ import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts
 import { createParticipants, setParticipantActivePersona } from "#server/domain/chat/verbs/participants.ts";
 import { createRead } from "#server/domain/chat/verbs/read.ts";
 import { loadPersonasForOwners } from "#server/domain/persona/persistence/queries.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeResolved } from "../../../../inference/_support.ts";
 import {
   addVariant,

@@ -24,7 +24,6 @@ import { projectJsonSchema } from "@orb/kit/json-schema";
 import { publishUserEvent } from "@orb/server/transport/trpc";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeCapability, makeGenerationCapability, TEST_OWNER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
@@ -33,6 +32,7 @@ import { SCORE_MIN } from "#contracts/refinery/core.ts";
 import { createResolveStructuredBinding } from "#server/domain/refinery/index.ts";
 import type { RefineryComposeDeps } from "#server/entry/compose/refinery.ts";
 import { buildRefinery } from "#server/entry/compose/refinery.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import { FROZEN_NOW, fakeConnection, fakeDeps, makeResolved, memoryStores, newUserId } from "../../../inference/_support.ts";
 
 const USER = castId<UserId>("usr_author");

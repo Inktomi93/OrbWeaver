@@ -1,5 +1,5 @@
 import { databaseHandle } from "@orb/db/wiring-driver";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import "@orb/testkit/node/composed-real.ts";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptCacheSettings } from "@orb/contracts/inference";

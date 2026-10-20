@@ -21,12 +21,12 @@ import { messageReactions, messageVariants } from "@orb/db";
 import type { ChatId, Handle, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { createReactAsCharacter, createReactions } from "#server/domain/chat/verbs/reactions.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { addVariant, chatAssembly, makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;

@@ -15,12 +15,12 @@ import { castId } from "@orb/kit/ids";
 import type { UpstreamProbes, VersionIdentity } from "@orb/kit/version-identity";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { createFrozenClock, FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import type { Mock } from "vitest";
 import { vi } from "vitest";
 import { requireAdmin, requireOwner } from "#server/domain/admin/index.ts";
 import type { SettingsServiceDeps, ThemeView } from "#server/domain/settings/index.ts";
 import { createSettingsService } from "#server/domain/settings/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 interface AuditCall {
   readonly entry: AuditEntry;

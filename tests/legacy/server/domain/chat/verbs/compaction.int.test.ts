@@ -14,13 +14,13 @@ import type { CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import type { QuietGenerate, QuietGenerateParams } from "#server/domain/chat/contract/context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { createCompaction } from "#server/domain/chat/verbs/compaction.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeChatContext, seedChat, seedMessage, seedParticipant, seedUser, testConnection } from "../_support.ts";
 
 let db: Db;

@@ -17,7 +17,6 @@ import { createSerialLanes } from "@orb/kit/serial-lanes";
 import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import { createResolveUserEnabled } from "@orb/server/domain/sessions";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import { can } from "#server/domain/admin/index.ts";
 import type {
@@ -43,6 +42,7 @@ import { createLoadUserById } from "#server/domain/sessions/verbs/load-user-by-i
 import { createHostPrincipalResolver } from "#server/entry/auth/index.ts";
 import type { AutomationActionOpsDeps } from "#server/entry/compose/automation-watcher.ts";
 import { createAutomationOps } from "#server/entry/compose/automation-watcher.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { seedChat, seedParticipant } from "../chat/_support.ts";
 
 // One lane set per suite, the way the automation service owns one for its dispatcher and arms.

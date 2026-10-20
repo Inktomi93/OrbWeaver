@@ -16,12 +16,18 @@ import { createWorkloadProgressBus } from "@orb/server/domain/workloads";
 import type { Context, LiveBuses, PresenceRegistry, RateLimitGate, Services, SocketRegistry } from "@orb/server/transport/trpc";
 import { createCaller, createLiveBuses, createSocketRegistry } from "@orb/server/transport/trpc";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { onTestFinished } from "vitest";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import type { seatRoles } from "../../domain/chat/_support.ts";
 
-/** The caller for a role, resolved from its seeded row. `userId` and `handle` are written onto that row first. */
+/** The caller for a role, resolved from its seeded row. `userId` and `handle` are written onto that row first.
+ *  @throws Error for any other override (`via`, `externalId`): a row-resolved caller is always `via: "fallback"`, so a
+ *  case that needs a request credential fails here instead of silently passing as a fallback caller. */
 export async function principal(db: Db, role: UserRole, overrides: { readonly userId?: UserId; readonly handle?: Handle } = {}): Promise<Principal> {
+  const unhonored = Object.keys(overrides).filter((key) => key !== "userId" && key !== "handle");
+  if (unhonored.length > 0) {
+    throw new Error(`principal(): a row-resolved caller cannot carry ${unhonored.join(", ")}; this case needs a request credential`);
+  }
   const userId = overrides.userId ?? castId<UserId>(`user_${role}`);
   return await makePrincipal({ db }, userId, { role, handle: overrides.handle ?? castId<Handle>(userId) });
 }

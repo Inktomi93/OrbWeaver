@@ -9,11 +9,11 @@ import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { magicBytes } from "@orb/testkit/node/magic-bytes.ts";
 import type { PluginBundleAssetLink, PluginBundleAssetStoreOutcome } from "#server/domain/plugin/contract/bundle-assets.ts";
 import { storeBundleAssets } from "#server/domain/plugin/substrate/bundle-assets.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 
 // The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
 const callersDb = await freshDb();

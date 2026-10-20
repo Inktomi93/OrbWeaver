@@ -29,13 +29,13 @@ import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids"
 import { castId } from "@orb/kit/ids";
 import { isCharacterSeated } from "@orb/server/domain/chat";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import { imageryToolDefinitions } from "#server/domain/imagery/index.ts";
 import type { ImageryComposeDeps } from "#server/entry/compose/imagery.ts";
 import { buildImagery } from "#server/entry/compose/imagery.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import { seedCharacter, seedChat, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
 // These callers resolve from rows in one in-memory database; the subject under test reads no database of its own.

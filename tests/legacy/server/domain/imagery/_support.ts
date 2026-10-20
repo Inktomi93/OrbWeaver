@@ -1,5 +1,5 @@
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 // Shared imagery test harness: a fake ImageryContext over a real db, with recording spies for the injected
 // ops (generate/fetch/store/extract/caption/stats). The infra executor + role resolver + CAS write + the
 // chat/character/assets ops are stubs — imagery declares their ports; the composition root binds the real infra.

@@ -34,7 +34,6 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, asc, eq, isNull } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -45,6 +44,7 @@ import { parseChatMetadata, resolveToolRecurseLimit } from "#server/domain/chat/
 import { createParticipants, setParticipantActivePersona } from "#server/domain/chat/verbs/participants.ts";
 import { applyStatsDelta, bumpStatsCanonVersion } from "#server/domain/stats/index.ts";
 import { publishChatEvent, subscribeAllChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeChatContext, noClaim, seedAsset, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;

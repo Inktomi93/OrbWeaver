@@ -1,4 +1,4 @@
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import "@orb/testkit/node/composed-real.ts";
 import { IMAGE_DETAILS, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import { chatParticipants, connectionBindings, messages, messageVariants, userConnections } from "@orb/db";

@@ -14,7 +14,6 @@ import { castId } from "@orb/kit/ids";
 import { JsonSchemaLiftError } from "@orb/kit/json-schema";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { z } from "zod";
@@ -23,6 +22,7 @@ import { can as realCan } from "#server/domain/admin/index.ts";
 import { TOOL_NAME_RE } from "#server/domain/tool-use/contract/params.ts";
 import type { PluginToolSpec, ToolCallRecord, ToolExecutionContext } from "#server/domain/tool-use/index.ts";
 import { createToolUseService, ToolNameCollisionError } from "#server/domain/tool-use/index.ts";
+import { principal } from "../../../../db/schema/_support.ts";
 import { seatRoles } from "../../chat/_support.ts";
 import { defOf, execOf } from "../_support.ts";
 

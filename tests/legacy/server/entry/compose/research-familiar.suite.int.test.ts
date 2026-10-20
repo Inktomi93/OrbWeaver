@@ -2,7 +2,7 @@
 
 // The shipped UI action and lookup guest cross the real installer-variable, room-attachment and lore
 // persistence boundaries. Only the external DNS/HTTP edges are scripted; no provider/model is called.
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import "@orb/testkit/node/composed-real.ts";
 import { join } from "node:path";
 import vm from "node:vm";

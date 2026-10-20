@@ -3,7 +3,7 @@
 // Every way a plugin can fail reaches the server log once, naming the plugin, the kind of failure and the cause.
 // Each case drives a scratch plugin through the real broker and compose and counts ALL warn/error lines the
 // failure produced, so a second line from anywhere up the stack fails the case.
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import "@orb/testkit/node/composed-real.ts";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";

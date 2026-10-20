@@ -9,9 +9,9 @@ import { DomainForbiddenError } from "@orb/kit/errors";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import type { z } from "zod";
 import type { ToolDefinition, ToolExecutionContext, ToolHandler, ToolUseContext } from "#server/domain/tool-use/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 export interface ToolUseHarness {
   readonly ctx: ToolUseContext;

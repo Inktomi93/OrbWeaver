@@ -30,11 +30,11 @@ import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/serve
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedUser } from "@orb/testkit/node/factories/index.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { TEST_BASE_URL, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { createPersonaSeedLatch } from "#server/entry/compose/assets-character.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 async function principalOf(db: Db, userId: UserId): Promise<Principal> {
   return await makePrincipal({ db }, userId);

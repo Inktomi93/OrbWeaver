@@ -18,9 +18,9 @@ import type { AuditEntry } from "@orb/server/foundation/observability";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { TagContext } from "#server/domain/tag/contract/service.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 /** The harness: the TagContext + recorders/controls for the injected membership-gate fake. */
 export interface TagHarness {

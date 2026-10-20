@@ -14,10 +14,10 @@ import type { Handle, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { planLocalLightPrefetch } from "@orb/server/entry/boot";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
+import { principal } from "../../../db/schema/_support.ts";
 import { makeResolved } from "../../../inference/_support.ts";
 
 // The prefetch reads no user rows; its caller resolves from a row in one in-memory database.

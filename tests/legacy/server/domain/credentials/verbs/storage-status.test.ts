@@ -11,7 +11,6 @@
 import { DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { describe, vi } from "vitest";
@@ -19,6 +18,7 @@ import type { CredentialContext } from "#server/domain/credentials/context.ts";
 import { CREDENTIALS_OP_CODES } from "#server/domain/credentials/contract/errors.ts";
 import { createStorageStatus } from "#server/domain/credentials/verbs/storage-status.ts";
 import type { SecretBox } from "#server/infra/crypto/index.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 
 // The last test dynamic-`import()`s `verbs/add.ts` — a cold pull of its own graph (crypto, errors) that
 // measured sitting at ~10.6s against the project's ~9.7s scaled default under load (#1810), a near-miss with

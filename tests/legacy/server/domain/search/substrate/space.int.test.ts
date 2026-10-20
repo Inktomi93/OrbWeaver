@@ -28,7 +28,6 @@ import type { Db } from "@orb/db";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import type { FakeRoleClientControls } from "@orb/testkit/node/factories/role-clients.ts";
 import { makeFakeRoleClients } from "@orb/testkit/node/factories/role-clients.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -41,6 +40,7 @@ import { markGenerationComplete } from "#server/domain/embeddings/persistence/sp
 import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/generation.ts";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING } from "#server/domain/search/contract/errors.ts";
 import { withActiveQuerySpace } from "#server/domain/search/substrate/space.ts";
+import { principal } from "../../../../db/schema/_support.ts";
 import { makeResolvedSecret } from "../../../../inference/_support.ts";
 import { seedUser, vectorConnectionOf } from "../../embeddings/_support.ts";
 

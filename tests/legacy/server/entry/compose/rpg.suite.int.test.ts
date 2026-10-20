@@ -15,7 +15,6 @@ import { createResolveViewerVisibility } from "@orb/server/domain/chat";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { makeCapability, makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -23,6 +22,7 @@ import { ZodError, z } from "zod";
 import { observeChatResult } from "#inference/backends/http/generation-observation.ts";
 import { reconcileStats } from "#server/domain/stats/index.ts";
 import { buildRpg } from "#server/entry/compose/rpg.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { makeResolved } from "../../../inference/_support.ts";
 import { seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 

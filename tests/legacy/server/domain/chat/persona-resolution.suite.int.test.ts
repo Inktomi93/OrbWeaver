@@ -34,7 +34,6 @@ import type { CharacterId, ChatId, Handle, PersonaId, UserId } from "@orb/kit/id
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -46,6 +45,7 @@ import type { ActiveTurns } from "#server/domain/chat/contract/active-turns.ts";
 import type { HistoryMacroNames } from "#server/domain/chat/contract/results.ts";
 import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts";
 import { setParticipantActivePersona } from "#server/domain/chat/verbs/participants.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "./_support.ts";
 
 let db: Db;

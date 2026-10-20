@@ -23,7 +23,6 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import type { AssetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type {
   DefaultBackgroundSeederDeps,
@@ -33,6 +32,7 @@ import type {
   SeededSlugResolver,
 } from "#server/domain/settings/index.ts";
 import { createDefaultBackgroundSeeder } from "#server/domain/settings/index.ts";
+import { principal } from "../../../../db/schema/_support.ts";
 
 const PLATES: readonly SeedBackgroundPlateRef[] = [
   { slug: "assistant-bg", label: "Charlotte's study" },

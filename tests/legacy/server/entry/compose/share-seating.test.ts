@@ -9,9 +9,9 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEnableShareSeating } from "@orb/server/domain/share";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 const OWNER = castId<UserId>("user_owner");
 const BOTH_ON: AppSettings = { localMultiUser: true, discreetLogin: true };

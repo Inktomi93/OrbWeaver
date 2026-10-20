@@ -6,13 +6,13 @@ import type { Db } from "@orb/db";
 import type { CharacterId, Handle, SessionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 // The compose SEAMS are not on the `entry/compose` barrel — `services.ts` (the keystone) is their only
 // production importer, by path; the seam tests follow it (the `chat-tools.test.ts` precedent).
 import type { AdminComposeDeps } from "#server/entry/compose/admin.ts";
 import { buildAdmin } from "#server/entry/compose/admin.ts";
+import { principal } from "../../../db/schema/_support.ts";
 
 // These callers resolve from rows in one in-memory database; the subject under test reads no database of its own.
 const callersDb = await freshDb();

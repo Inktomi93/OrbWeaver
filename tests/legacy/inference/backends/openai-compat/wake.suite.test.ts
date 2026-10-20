@@ -5,9 +5,9 @@ import type { ChatResult, Resolved } from "@orb/inference";
 import { createInferenceRuntime } from "@orb/inference";
 import { createFrozenClock } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createReachabilityProber } from "#inference/backends/openai-compat/reachability.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import { fakeConnection, fakeDeps, memoryStores, newUserId } from "../../_support.ts";
 
 const BASE_URL = "http://engine.test:8000";

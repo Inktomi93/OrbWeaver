@@ -16,10 +16,10 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { requireAdmin, requireOwner } from "#server/domain/admin/index.ts";
 import type { ShareService } from "#server/domain/share/index.ts";
 import { createShareService } from "#server/domain/share/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 export const LOCAL_SETUP_URL = "http://localhost:8788";
 /** The app listener's port the harness reports. */

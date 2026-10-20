@@ -22,12 +22,12 @@ import { CARD_FRAME_HEIGHT_SCRIPT, CARD_FRAME_HEIGHT_SCRIPT_CSP_HASH } from "@or
 import type { CharacterId, ChatId, ChatParticipantId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Hono } from "hono";
 import { describe } from "vitest";
 import type { CardFrameDeps, PrincipalEnv } from "#server/entry/http/index.ts";
 import { registerCardFrame, securityHeaders } from "#server/entry/http/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 // REAL TypeIDs: the mint contract brands both selectors (`typeIdSchema`), so a placeholder like "chat_1"
 // is now a 400 rather than a floor — the shapes here are what a live client actually sends.

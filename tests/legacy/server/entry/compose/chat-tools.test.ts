@@ -12,12 +12,12 @@
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { ReactAsCharacterOp } from "#server/domain/chat/contract/results.ts";
 import type { ToolExecutionContext } from "#server/domain/tool-use/contract/params.ts";
 import { createReactToolDefinition } from "#server/entry/compose/chat-tools.ts";
+import { principal } from "../../../db/schema/_support.ts";
 
 const HEART = "\u2764\ufe0f";
 const USER = castId<UserId>("user_host");

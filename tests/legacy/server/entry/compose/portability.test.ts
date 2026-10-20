@@ -24,13 +24,13 @@ import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import type { PortabilityDeps } from "#server/entry/compose/portability.ts";
 import { buildPortabilityRegistry } from "#server/entry/compose/portability.ts";
 import { CHAT_BUNDLE_EXT } from "#server/primitives/serde/chat-bundle/index.ts";
+import { principal } from "../../../db/schema/_support.ts";
 
 const OWNER = castId<UserId>("usr_owner");
 // These callers resolve from rows in one in-memory database; the subject under test reads no database of its own.

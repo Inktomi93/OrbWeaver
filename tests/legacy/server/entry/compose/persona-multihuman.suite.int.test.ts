@@ -29,11 +29,11 @@ import { characters, chatParticipants, connectionBindings, userConnections } fro
 import type { ChatId, ConnectionBindingId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "../../domain/chat/_support.ts";
 
 /** The card whose own description carries the CARD-context probe (§A.2's "`{{user}}` is my brother" shape). */

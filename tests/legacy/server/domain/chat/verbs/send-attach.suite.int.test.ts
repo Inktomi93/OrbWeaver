@@ -18,7 +18,6 @@ import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, onTestFinished } from "vitest";
@@ -31,6 +30,7 @@ import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/quer
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { createTurn } from "#server/domain/chat/verbs/turn.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeHarness } from "../../assets/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
 

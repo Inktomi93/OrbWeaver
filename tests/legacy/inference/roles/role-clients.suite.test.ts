@@ -3,8 +3,8 @@
 
 import { createInferenceRuntime, DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, ProviderError } from "@orb/inference";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { principal } from "../../db/schema/_support.ts";
 import { fakeConnection, fakeDeps, fakeModelCache, memoryStores, newUserId } from "../_support.ts";
 
 test("one role-client bundle re-reads a changed binding on the next call", async () => {
