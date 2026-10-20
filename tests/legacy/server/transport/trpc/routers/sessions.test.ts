@@ -1,20 +1,9 @@
-// sessions.me — the canonical viewer-identity read (docs/law/Tier-4-Transport.md). Unlike the other router
-// tests, this procedure calls NO `ctx.services` verb: it is a PURE projection of the resolved `Principal`
-// (`ctx.auth`) into a `ViewerView` (`userId`/`handle`/`globalRole`), so identity is never re-queried below
-// the seam (Spine-Identity-and-Auth invariant #2). These tests drive the real middleware ladder via
-// `createCaller` and assert the projection: the exact three fields and `role`→`globalRole`. That no other
-// `Principal` field (`externalId`/`via`) reaches the wire is proven over a real SSO credential in
-// tests/e2e/csrf-gates.forward.spec.ts.
-//
-// The procedure also parses its result through the strict `viewerViewSchema`. The literal projection cannot
-// carry an extra key today; the parser is what refuses a refactor that spreads the Principal (its
-// `externalId` is the SSO subject). The contract test pins the strict refusal; here the pins are that the
-// parser is installed and that it rejects a malformed known field at runtime.
+// sessions.me projects the resolved Principal without re-querying identity (Spine-Identity-and-Auth invariant 2).
+// Real-credential wire projection lives in tests/server/entry/auth/seam-arms.int.test.ts and
+// tests/e2e/csrf-gates.forward.spec.ts; this legacy slice also retains malformed-known-field refusal.
 
-import { viewerViewSchema } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { appRouter } from "@orb/server/transport/trpc";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
@@ -42,13 +31,6 @@ describe("sessions.me — viewer identity projection", () => {
 });
 
 describe("sessions.me — the strict output parser", () => {
-  test("the procedure parses its result through the canonical viewerViewSchema", () => {
-    const output: unknown = Reflect.get(appRouter.sessions.me._def, "output");
-    // Both sides undefined would pass `toBe`, so the parser's presence is asserted on its own first.
-    expect(output).toBeDefined();
-    expect(output).toBe(viewerViewSchema);
-  });
-
   test("a malformed known field is refused at runtime instead of reaching the wire", async () => {
     const db = await freshDb();
     const ctx = makeContext({ auth: await principal(db, "user", { userId: USER, handle: castId<Handle>("") }) });

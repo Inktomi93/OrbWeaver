@@ -3,6 +3,7 @@
 import "@orb/testkit/node/composed-real.ts";
 import process from "node:process";
 import { authConfigSchema } from "@orb/contracts/auth-config";
+import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
@@ -28,13 +29,60 @@ function localRoot(options: Parameters<typeof createServerHarness>[0] = {}): Pro
 }
 
 describe("GET /api/auth/config", () => {
+  test("serves the injected single-user mode and complete deployment flags without checkout defaults", async () => {
+    const maxImageBytes = 5_000_000;
+    const defaultHandle = castId<Handle>("bootstrap-owner");
+    await using root = await createServerHarness({
+      physicalPeer: () => "127.0.0.1",
+      authConfig: { ...authConfigFromEnv(), mode: "single-user", fallback: "deny", defaultHandle },
+    });
+    await root.services.settings.updateAppSettings({
+      principal: await root.principalFor(root.ownerId),
+      partial: {
+        discreetLogin: false,
+        localMultiUser: true,
+        forbidExternalMedia: true,
+        trustHtml: false,
+        allowInteractiveCards: true,
+        maxImageBytes,
+        maxDatabankBytes: DEFAULT_UPLOAD_CAPS.databankUpload,
+      },
+    });
+    expect(await authConfig(root)).toEqual({
+      mode: "single-user",
+      localEnabled: false,
+      oidcEnabled: false,
+      oidcProviderName: "Harness identity provider",
+      localFirstRun: false,
+      discreetLogin: false,
+      defaultHandle,
+      multiHumanCapable: false,
+      forbidExternalMedia: true,
+      trustHtml: false,
+      allowInteractiveCards: true,
+      share: { state: "off", url: null },
+      uploads: { ...DEFAULT_UPLOAD_CAPS, image: maxImageBytes },
+      transport: "http",
+      clientScope: "loopback",
+    });
+    const join = await root.http.request("/join/some-token");
+    expect(join.status).toBe(404);
+    expect(join.headers.get("location")).toBeNull();
+  });
+
   test("multiHumanCapable is the INJECTED per-request derivation (a runtime LOCAL_MULTI_USER flip takes effect immediately)", async () => {
     await using root = await localRoot();
     const owner = await root.principalFor(root.ownerId);
     await root.services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: false } });
     expect((await authConfig(root)).multiHumanCapable).toBe(false);
+    const refused = await root.http.request("/join/some-token");
+    expect(refused.status).toBe(404);
+    expect(refused.headers.get("location")).toBeNull();
     await root.services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: true } });
     expect((await authConfig(root)).multiHumanCapable).toBe(true);
+    const admitted = await root.http.request("/join/some-token");
+    expect(admitted.status).toBe(302);
+    expect(admitted.headers.get("location")).toBe("/?join=some-token");
   });
 });
 
