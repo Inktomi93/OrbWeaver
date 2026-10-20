@@ -2,7 +2,6 @@
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
-  buildLiveness,
   collectChainCandidates,
   collectOrphanCandidates,
   collectSwallowedCandidates,
@@ -14,6 +13,7 @@ import type { InventoryBuildRequest, InventoryMembership, StoredInventoryPartiti
 import { SemanticInventoryError } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { latestInventoryGeneration, openInventoryDatabase, readInventoryGeneration } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
 import type { SourceCorpus } from "@orb/tooling/floor/compiler/ts-workspace";
+import { buildLiveness } from "../../../../tooling/src/floor/code-facts/liveness.ts";
 import { scopedInventoryPrograms } from "../../../../tooling/src/floor/code-facts/semantic-inventory-scope.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { initializeNativeInventoryFixture, nativeInventoryFixture, writeNativeInventoryFixtureFile as write } from "../compiler/native-inventory-fixture.ts";

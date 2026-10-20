@@ -1,6 +1,6 @@
 // @subject tooling/src/floor/compiler/invocation-evidence-extract.ts
 // @subject tooling/src/floor/code-facts/invocation-evidence-replay.ts
-import { symlinkSync } from "node:fs";
+import { symlinkSync, writeFileSync } from "node:fs";
 import { syncBuiltinESMExports } from "node:module";
 import path, { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
