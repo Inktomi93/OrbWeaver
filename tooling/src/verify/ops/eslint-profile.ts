@@ -16,7 +16,7 @@ import { eslintScheme } from "../lib/exit-classifiers.ts";
 import { readPolicyRepositoryInventory } from "../lib/policy-repo-inventory.ts";
 import { TYPED_NATIVE_COMPILER_CONTEXT_ENV, typedNativeCompilerConfigs } from "../lib/typed-native-inputs.ts";
 import { readEslintFileAdmissions } from "./config-snapshot.ts";
-import { lazyRuleCodeIdentity } from "./eslint-code-identity.ts";
+import { lazyRuleCode } from "./eslint-code-identity.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
 
@@ -31,6 +31,11 @@ interface ProfileDispatch {
   readonly hard: boolean;
   readonly receipts: Map<string, string> | undefined;
   readonly codeIdentity: () => string;
+}
+
+function lazyDigest(root: string): () => string {
+  const ruleCode = lazyRuleCode(root);
+  return () => ruleCode().identity;
 }
 
 function ownerFor(path: string, owners: readonly string[]): string {
@@ -81,10 +86,7 @@ export async function runProfiles(
   admitted: readonly EslintFileAdmission[],
   cachePrefix: string,
   // `codeIdentity` is one digest per lint invocation: callers that run several profile passes share it.
-  {
-    completed,
-    codeIdentity = lazyRuleCodeIdentity(root),
-  }: { readonly completed?: Map<string, EslintCompletedProfiles>; readonly codeIdentity?: () => string } = {},
+  { completed, codeIdentity = lazyDigest(root) }: { readonly completed?: Map<string, EslintCompletedProfiles>; readonly codeIdentity?: () => string } = {},
 ): Promise<number> {
   const configuration = completed === undefined ? undefined : configurationIdentity(root);
   const hardAdmissions = await readEslintFileAdmissions(

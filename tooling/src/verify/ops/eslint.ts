@@ -40,7 +40,7 @@ import {
   validateTypedCompilerInputs,
 } from "../lib/typed-native-inputs.ts";
 import { readEslintFileAdmissions } from "./config-snapshot.ts";
-import { lazyRuleCodeIdentity } from "./eslint-code-identity.ts";
+import { lazyRuleCode } from "./eslint-code-identity.ts";
 import { hasCompletedProfiles, runProfiles } from "./eslint-profile.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm lint:eslint");
@@ -53,7 +53,7 @@ function admittedPopulation(root: string, patterns: readonly string[]): Promise<
 /** Per-invocation state: receipts of completed profiles and one shared rule-code digest. */
 interface LintSession {
   readonly completed: Map<string, EslintCompletedProfiles>;
-  readonly codeIdentity: () => string;
+  readonly ruleCode: ReturnType<typeof lazyRuleCode>;
 }
 
 export async function runEslint(root: string): Promise<number> {
@@ -61,7 +61,7 @@ export async function runEslint(root: string): Promise<number> {
 }
 
 export const ESLINT_SCOPED_USAGE =
-  "usage: node tooling/src/verify/cli.ts eslint-scoped <paths…>\n  Lints the named files or directories in sequential native compiler-owner processes, one TypeScript program per process. A named code file that no config admits is refused with exit 2, except built dist output that a typed policy claims.";
+  "usage: node tooling/src/verify/cli.ts eslint-scoped <paths…>\n  Lints the named files or directories in sequential native compiler-owner processes, one TypeScript program per process. A named code file that no config admits is refused with exit 2, except rule code the configs load.";
 
 export async function runScopedEslint(root: string, paths: readonly string[]): Promise<number> {
   const flag = paths.find((path) => path.startsWith("-"));
@@ -81,7 +81,7 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
     }
     return population;
   };
-  const session: LintSession = { completed: new Map(), codeIdentity: lazyRuleCodeIdentity(root) };
+  const session: LintSession = { completed: new Map(), ruleCode: lazyRuleCode(root) };
   const sources = paths.filter((path) => !isNativeInput(path) || (CODE_FILE.test(path) && existsSync(resolve(root, path))));
   // The named targets lint first and alone; dependency-wide findings follow under their own banner.
   // A named failure still lets the metadata families run: their refusal names the cause (a missing compiler owner or
@@ -101,8 +101,6 @@ export async function runScopedEslint(root: string, paths: readonly string[]): P
   return verdict;
 }
 
-// Built rule code (a patched plugin copy) sits in a dist directory under a typed policy root; authored sources never do.
-const GENERATED_OUTPUT_SEGMENT = "dist";
 const CODE_FILE = /\.[cm]?[jt]sx?$/u;
 
 function isNativeInput(path: string): boolean {
@@ -120,21 +118,17 @@ function isNativeInput(path: string): boolean {
 
 async function lintNamedSources(root: string, sources: readonly string[], observe: typeof admittedPopulation, session: LintSession): Promise<number> {
   const admitted = await observe(root, [...sources]);
-  // A named source that no config admits has no verdict, wherever it lives. Only built output (a dist directory) that a
-  // typed policy claims as a dependency, and a native input judged by its metadata family, are not refused. Named paths
+  // A named source that no config admits has no verdict, wherever it lives. Only rule code the configs themselves load,
+  // and a native input judged by its metadata family, are not lint subjects and are not refused. Named paths
   // may be spelled `./x` or absolute, so compare repository-relative identities.
   const relativeToRoot = (path: string): string => relative(root, resolve(root, path)).split(sep).join("/");
-  const claimedByTypedPolicy = (path: string): boolean =>
-    path.split("/").includes(GENERATED_OUTPUT_SEGMENT) &&
-    affectsTypedNativeLint(path, root) &&
-    TYPED_NATIVE_POLICIES.some((entry) => typedNativeDependencySignal(entry, [path], readPolicyRepositoryInventory(root).paths, root));
   const unlinted = sources.filter(
     (path) =>
       !isNativeInput(path) &&
       CODE_FILE.test(path) &&
       statSync(resolve(root, path), { throwIfNoEntry: false })?.isFile() === true &&
       !admitted.some((entry) => entry.path === relativeToRoot(path)) &&
-      !claimedByTypedPolicy(relativeToRoot(path)),
+      !session.ruleCode().files.has(relativeToRoot(path)),
   );
   if (unlinted.length > 0) {
     process.stderr.write(`[eslint] eslint.config.js admits no rules for named file(s), so no verdict exists: ${unlinted.join(", ")}\n`);
@@ -145,7 +139,7 @@ async function lintNamedSources(root: string, sources: readonly string[], observ
     return EXIT.clean;
   }
   process.stderr.write(`[eslint] named targets: ${sources.join(", ")}\n`);
-  return runProfiles(root, admitted, "scoped-", session);
+  return runProfiles(root, admitted, "scoped-", { completed: session.completed, codeIdentity: () => session.ruleCode().identity });
 }
 
 function sourceTypeSuppressionMetadata(root: string, paths: readonly string[]): NativeMetadataFamily[] {
@@ -250,7 +244,9 @@ async function recheckTypedNativeFamilies(
       pending.push(entry);
     }
   }
-  return pending.length === 0 ? EXIT.clean : runProfiles(root, pending, "metadata-typed-", session);
+  return pending.length === 0
+    ? EXIT.clean
+    : runProfiles(root, pending, "metadata-typed-", { completed: session.completed, codeIdentity: () => session.ruleCode().identity });
 }
 
 async function recheckNativeFamilies(

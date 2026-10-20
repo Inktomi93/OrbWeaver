@@ -154,6 +154,12 @@ test("public boundary implementation and provider signatures invalidate warm nat
   }
 }, 180_000);
 
+test("an authored source under a dist directory that no config admits is refused, not exempted by its path", async ({ scratch, repoRoot }) => {
+  fixture(scratch, repoRoot);
+  put(scratch, "packages/ui/dist/authored.ts", "export const authored=1;");
+  expect(await runScopedEslint(scratch, ["packages/ui/dist/authored.ts"])).toBe(2);
+}, 30_000);
+
 test("unrelated UI edits retain required HARD admission without selecting server declaration consumers", async ({ scratch, repoRoot }) => {
   fixture(scratch, repoRoot);
   const snapshots = await import("../../../../tooling/src/verify/lib/config-snapshot.ts");

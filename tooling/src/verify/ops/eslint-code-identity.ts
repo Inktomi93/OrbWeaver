@@ -78,37 +78,52 @@ function patchInputs(root: string): string[] {
   return [...PATCH_INPUTS.map((name) => resolve(root, name)), ...patches].filter((path) => existsSync(path) && statSync(path).isFile());
 }
 
-/** Digest of the config files, the modules they import (authored and installed) and the pnpm patch inputs. */
-export function eslintRuleCodeIdentity(root: string): string {
+/** A relative import may omit its extension or name a directory; the first existing candidate is the module. */
+function existingModule(path: string): string | undefined {
+  return [path, `${path}.js`, `${path}.ts`, join(path, "index.js"), join(path, "index.ts")].find(
+    (candidate) => existsSync(candidate) && statSync(candidate).isFile(),
+  );
+}
+
+/** The modules the two configs load, with a digest of them, of the pnpm patch inputs and of the lockfile. */
+interface RuleCode {
+  readonly identity: string;
+  /** Repository-relative POSIX paths of every loaded module inside the repository. */
+  readonly files: ReadonlySet<string>;
+}
+
+export function readRuleCode(root: string): RuleCode {
   const pending = [ESLINT_CONFIG_REL, ESLINT_HARD_CONFIG_REL].map((path) => resolve(root, path));
   const seen = new Set<string>();
+  const files = new Set<string>();
   const digest = createHash("sha256");
   for (const patch of patchInputs(root)) {
     digest.update(`${patch.slice(root.length)}\0${readFileSync(patch, "utf8")}\0`);
   }
-  for (let file = pending.pop(); file !== undefined; file = pending.pop()) {
-    if (seen.has(file)) {
+  for (let candidate = pending.pop(); candidate !== undefined; candidate = pending.pop()) {
+    const file = existingModule(candidate);
+    // A specifier that names no file (type-only or extensionless package entry) loads nothing; a missing authored one would fail the config load.
+    if (file === undefined || seen.has(file)) {
       continue;
     }
     seen.add(file);
-    // Extensionless or type-only package specifiers name no file; the config would not load if an authored one were missing.
-    if (!(existsSync(file) && statSync(file).isFile())) {
-      continue;
-    }
     const source = readFileSync(file, "utf8");
     digest.update(`${file.slice(root.length)}\0${source}\0`);
+    if (file.startsWith(`${root}/`)) {
+      files.add(file.slice(root.length + 1));
+    }
     for (const { fileName } of ts.preProcessFile(source, true, true).importedFiles) {
       pending.push(...importedModules(file, fileName));
     }
   }
-  return digest.digest("hex");
+  return { identity: digest.digest("hex"), files };
 }
 
-/** Defers and memoizes the digest so a lint invocation pays for it once, and only when a cache is opened. */
-export function lazyRuleCodeIdentity(root: string): () => string {
-  let identity: string | undefined;
+/** Defers and memoizes the read so a lint invocation pays for it once, and only when something needs it. */
+export function lazyRuleCode(root: string): () => RuleCode {
+  let ruleCode: RuleCode | undefined;
   return () => {
-    identity ??= eslintRuleCodeIdentity(root);
-    return identity;
+    ruleCode ??= readRuleCode(root);
+    return ruleCode;
   };
 }
