@@ -39,7 +39,7 @@ interface SkippedBlock {
   readonly reason: "unknown-name" | "content-arg-semantics";
 }
 
-export interface MigrationResult {
+interface MigrationResult {
   readonly text: string;
   readonly rewrites: number;
   readonly skipped: readonly SkippedBlock[];

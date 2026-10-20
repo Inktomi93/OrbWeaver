@@ -14,8 +14,8 @@ import { instrumentRefusal } from "@orb/tooling/floor/browser/page-validate";
 import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import type { Page, Route } from "@playwright/test";
 import { settle } from "../../floor/browser/browser.ts";
+import type { AppearanceMutationIsolationEvidence } from "../contract/appearance-check-context.ts";
 import { MOUNT_SETTLE_MS, STEP_TIMEOUT_MS } from "../lib/budgets.ts";
-import type { AppearanceMutationIsolationEvidence } from "./appearance-invariant-check-context.ts";
 import type { AppearanceDomSnapshot } from "./appearance-invariant-dom.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
@@ -44,7 +44,7 @@ export interface MutationRequestRead {
   readonly postDataJSON: () => unknown;
 }
 
-export interface ReadMutationInput {
+interface ReadMutationInput {
   readonly input: Readonly<Record<string, unknown>> | null;
   readonly shape: string;
 }

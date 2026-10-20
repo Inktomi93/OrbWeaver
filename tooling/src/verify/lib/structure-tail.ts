@@ -20,7 +20,7 @@ const REASON_FLAG = "--reason";
 
 /** What the operator asked for. `selection.kind === "all"` is the shipped default and the ONLY shape that
  *  publishes the pointer; `failOnWarnings` DEFAULTS FALSE (ops/structure.ts `runFinalPass`'s header). */
-export interface StructureRequest {
+interface StructureRequest {
   readonly failOnWarnings: boolean;
   readonly selection: PolicySelector;
   /** Present when the operator asked to TOMBSTONE an existing slot instead of running anything (#2167). */

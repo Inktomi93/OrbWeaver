@@ -4,8 +4,8 @@
 import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appearance-matrix.ts";
 import type { BrowserEnvironmentEvidence } from "../../floor/browser/browser-environment.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { AppearanceCheckContext } from "../contract/appearance-check-context.ts";
 import type { AppearanceInvariantCheck } from "../contract/appearance-invariants.ts";
-import type { AppearanceCheckContext } from "./appearance-invariant-check-context.ts";
 import { buildDensityPreviewChecks, buildPrepaintChecks } from "./appearance-invariant-checks-settings.ts";
 import type { AppearanceDomSnapshot, AppearanceDomSubject, AppearanceElementFacts } from "./appearance-invariant-dom.ts";
 

@@ -6,7 +6,7 @@
 import type { GatePolicy, GatePolicyProof, PolicyProofArm } from "../contract/policy.ts";
 import { POLICY_PROOF_ARMS } from "../contract/policy.ts";
 
-export interface PolicyProofRow {
+interface PolicyProofRow {
   readonly arm: PolicyProofArm;
   readonly index: number;
   readonly proof: GatePolicyProof;

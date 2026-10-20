@@ -3,8 +3,8 @@
 
 import { parseCssColorToSrgb } from "@orb/kit/safe-color";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { AppearanceCheckContext } from "../contract/appearance-check-context.ts";
 import type { AppearanceInvariantCheck } from "../contract/appearance-invariants.ts";
-import type { AppearanceCheckContext } from "./appearance-invariant-check-context.ts";
 import type { AppearanceDomSnapshot, AppearanceElementFacts } from "./appearance-invariant-dom.ts";
 
 const NONVIRTUALIZED_CLS_CEILING = 0.1;

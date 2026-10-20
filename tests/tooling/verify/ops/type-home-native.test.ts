@@ -89,7 +89,7 @@ test("export lists are native placement; reexports, unbound factories and other 
   ]) {
     expect(await nativeFindings(eslint, "packages/plugin-toolchain/src/probe.ts", source), source).toEqual([]);
   }
-  for (const path of ["packages/ui/src/probe.tsx", "packages/client/src/probe.ts", "tooling/src/probe.ts", "tests/support/node/probe.ts"]) {
+  for (const path of ["packages/ui/src/probe.tsx", "packages/client/src/probe.ts", "tests/support/node/probe.ts"]) {
     expect(await nativeFindings(eslint, path, "export interface Probe {};")).toEqual([]);
   }
   expect(packageTypeHome("packages/ui/src/primitives/probe.tsx")).toMatchObject({ category: "component", home: null, nativePilot: false, world: "browser" });
@@ -127,7 +127,7 @@ test("proven zod shape schemas exported directly or by list are native placement
     }
     expect(await nativeFindings(eslint, home, cases[0][0], installed), home).toEqual([]);
   }
-  for (const path of ["packages/server/src/domain/probe/probe.gen.ts", "packages/client/src/features/probe/lib/probe.ts", "tooling/src/snap/ops/probe.ts"]) {
+  for (const path of ["packages/server/src/domain/probe/probe.gen.ts", "packages/client/src/features/probe/lib/probe.ts", "tests/legacy/server/probe.ts"]) {
     expect(await nativeFindings(eslint, path, cases[0][0], installed), path).toEqual([]);
   }
 }, 30_000);
@@ -286,9 +286,8 @@ test("server domains and D324 tiers own direct and listed exports without admitt
     "packages/server/src/primitives/probe.ts",
     "packages/ui/src/probe.tsx",
     "packages/client/src/probe.tsx",
-    "tooling/src/probe.ts",
     "scripts/probes/probe.ts",
-    "tests/server/probe.test.ts",
+    "tests/legacy/server/probe.test.ts",
   ]) {
     expect(await nativeFindings(eslint, path, "export interface Data {}; export type Scalar = string;"), path).toEqual([]);
     expect(nativeTypeHomeAdmission(path), path).toBe(false);
@@ -328,4 +327,76 @@ test("server native placement owns listed and schema planes while preserving gen
   expect(result.authority.effectiveFindings.map(({ token }) => token).toSorted((left = "", right = "") => left.localeCompare(right))).toEqual(
     roots.flatMap(() => ["GeneratedAlias"]).toSorted((left, right) => left.localeCompare(right)),
   );
+});
+
+test("D331: tooling and maintained tests keep signature-owned shapes and flag every other export outside their homes", async ({ repoRoot }) => {
+  const eslint = new ESLint({ cwd: repoRoot });
+  const installed = [ZOD_DECLARATION];
+  const cases = [
+    ["export interface Options { readonly n: number } export function run(options: Options): void { void options; }", 0],
+    ["export type Outcome = { readonly n: number }; export function run(): Outcome { return { n: 1 }; }", 0],
+    [
+      "interface Nested { readonly n: number } export interface Options { readonly nested: Nested } export function run(options: Options): void { void options; }",
+      0,
+    ],
+    ["export interface ProbeHandle { readonly stop: () => void } export function start(): ProbeHandle { return { stop: () => undefined }; }", 0],
+    ["export interface Work { readonly n: number } export class Holder { get work(): Work { return { n: 1 }; } }", 0],
+    ["export interface Work { readonly n: number } export class Holder { set work(value: Work) { void value; } }", 0],
+    ["export type Mode = string; export const value = 1;", 1],
+    ["export interface Local { readonly n: number } export function run(): void { const local: Local = { n: 1 }; void local; }", 1],
+    ["export interface ProbeView { readonly n: number } export function view(): ProbeView { return { n: 1 }; }", 1],
+    ["type Listed = string; export type { Listed };", 1],
+    ['import { z } from "zod"; export const Schema = z.object({}); export function schema(): typeof Schema { return Schema; }', 1],
+  ] as const;
+  for (const path of [
+    "tooling/src/snap/lib/probe.ts",
+    "tooling/src/snap/ops/probe.ts",
+    "tooling/src/snap/lib/run.fixtures.ts",
+    "tooling/src/probe.ts",
+    "tests/tooling/probe/_helper.ts",
+    "tests/e2e/support/probe.ts",
+    "tests/server/domain/probe/verb.test.ts",
+    "tests/client/features/probe/_ct-stories.tsx",
+  ]) {
+    expect(nativeTypeHomeAdmission(path), path).toBe(true);
+    for (const [source, count] of cases) {
+      expect(await nativeFindings(eslint, path, source, installed), `${path}: ${source}`).toHaveLength(count);
+    }
+  }
+  for (const path of [
+    "tooling/src/floor/host/probe.ts",
+    "tooling/src/snap/contract/probe.ts",
+    "tooling/src/snap/contract.ts",
+    "tests/support/node/probe.ts",
+    "tests/client/features/probe/fixtures.ts",
+    "tests/client/features/probe/panel.fixtures.ts",
+    "tests/client/components/picker.fixtures.tsx",
+    "tests/client/features/probe/_connection-fixtures.ts",
+    "tests/client/features/probe/_gallery-fixtures.tsx",
+    "tests/server/domain/probe/_support.ts",
+    "tests/legacy/server/domain/probe/verb.test.ts",
+  ]) {
+    expect(nativeTypeHomeAdmission(path), path).toBe(false);
+    expect(await nativeFindings(eslint, path, "export type Mode = string; export interface Data {}", installed), path).toEqual([]);
+  }
+});
+
+test("D331: the custom alias owner leaves tooling and maintained tests to native placement", async ({ repoRoot }) => {
+  const eslint = new ESLint({ cwd: repoRoot });
+  const root = "/type-home-tooling-tests";
+  const project = new Project({ useInMemoryFileSystem: true });
+  const files = [
+    ["tooling/src/snap/ops/capture.ts", "type Foo = string;\nexport type { Foo };\nexport type Bar = string;\n"],
+    ["tests/server/domain/x/verb.test.ts", "export type Seen = string;\n"],
+    ["packages/client/src/features/x/anchor.ts", "export const anchor = 1;\n"],
+  ] as const;
+  for (const [path, source] of files) {
+    project.createSourceFile(`${root}/${path}`, source);
+  }
+  const policies = [inlineTypes];
+  const result = runPolicyPass({ root, project, knownPolicies: policies, policies, reviewedGrants: [], failOnWarnings: false });
+  expect(result.toolErrors).toEqual([]);
+  expect(result.authority.effectiveFindings).toEqual([]);
+  expect(await nativeFindings(eslint, files[0][0], files[0][1])).toHaveLength(2);
+  expect(await nativeFindings(eslint, files[1][0], files[1][1])).toHaveLength(1);
 });

@@ -42,7 +42,7 @@ const HEAP_LABEL_RE = /^[a-z0-9][a-z0-9._-]{0,63}$/iu;
 const HEAP_CLASS_NAME_MAX = 160;
 const HEAP_GROWTH_PROBLEM_CAP = 20;
 
-export interface HeapIdentityInput {
+interface HeapIdentityInput {
   readonly label: string;
   readonly rawPath: string;
   readonly summaryPath: string;

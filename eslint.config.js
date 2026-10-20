@@ -125,7 +125,7 @@ import { deriveCanonicalBrandTypeNames, ID_BRAND_HOME, nativeCanonicalIdBrand, r
 import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TOOLING_PREFIX } from "./tooling/src/floor/code-facts/module-specifier.ts";
 import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
 import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
-import { serverFactoryTypeHome } from "./tooling/src/floor/code-facts/server-factory-type-home.ts";
+import { signatureTypeHome } from "./tooling/src/floor/code-facts/server-factory-type-home.ts";
 import { readServerAugmentationBoundary, readServerPublicBoundary } from "./tooling/src/floor/code-facts/server-public-boundary.ts";
 import { isZodShapeCall } from "./tooling/src/floor/code-facts/shape-declaration.ts";
 import { readStaticAuthoredScalar } from "./tooling/src/floor/code-facts/static-authored-value.ts";
@@ -6234,8 +6234,8 @@ const typeHomeDeclarationRule = {
     schema: [],
     messages: {
       misplacedType:
-        "An exported type belongs in its canonical domain, wire, package or foundation contract home unless its local factory signature owns it (D324; Spine-TypeScript §7.4).",
-      misplacedSchema: "An exported zod shape schema belongs in its canonical domain, wire, package or foundation contract home (Spine-TypeScript §7.4).",
+        "An exported type belongs in its canonical domain, wire, package, foundation, tool or test home unless a local function signature owns it (D324, D331; Spine-TypeScript §7.4).",
+      misplacedSchema: "An exported zod shape schema belongs in its canonical domain, wire, package, foundation, tool or test home (Spine-TypeScript §7.4).",
     },
   },
   create(context) {
@@ -6248,7 +6248,7 @@ const typeHomeDeclarationRule = {
       if (!(shape && nativeDeclarationExported(declaration, native.checker))) {
         return;
       }
-      if (serverFactoryTypeHome(declaration, path, { kind: "parser", checker: native.checker, program: native.program, source: declaration.getSourceFile() })) {
+      if (signatureTypeHome(declaration, path, { kind: "parser", checker: native.checker, program: native.program, source: declaration.getSourceFile() })) {
         return;
       }
       context.report({ node: native.tsNodeToESTreeNodeMap.get(declaration.name), messageId: "misplacedType" });

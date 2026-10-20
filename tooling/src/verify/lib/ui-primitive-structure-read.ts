@@ -4,7 +4,8 @@ import type { Node } from "ts-morph";
 import { LEGACY_TEST_ROOT } from "../../floor/testing/test-population.ts";
 import type { GateFactValue } from "../contract/fact.ts";
 import type { ResourceTreeEntry } from "../contract/resource.ts";
-import type { SourceEvidence, uiPrimitiveFact } from "./ui-primitive-fact.ts";
+import type { SourceEvidence } from "../contract/ui-primitive-source.ts";
+import type { uiPrimitiveFact } from "./ui-primitive-fact.ts";
 
 type Snapshot = GateFactValue<typeof uiPrimitiveFact> & {
   readonly primitiveEntries: readonly ResourceTreeEntry[];

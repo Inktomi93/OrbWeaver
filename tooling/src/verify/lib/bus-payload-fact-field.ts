@@ -3,8 +3,18 @@
 // door and calls into this leaf for member lists and field types; this leaf never calls back into it.
 import type { Node as MorphNode } from "ts-morph";
 import { Node as N, SyntaxKind } from "ts-morph";
-import type { WalkFrame } from "./bus-payload-fact-resolve.ts";
+import type { TypeObservationReader } from "../../floor/code-facts/type-observations-contract.ts";
+import type { CollectorState } from "./bus-payload-fact-resolve.ts";
 import { countReferencedPayload, MEMBERLESS_KINDS, readIndexedAccess, recordMember, refuse, UNSUPPORTED_TOKEN } from "./bus-payload-fact-resolve.ts";
+
+export interface WalkFrame {
+  readonly readers: TypeObservationReader;
+  readonly state: CollectorState;
+  /** `local` = spelled inside the named event; `inherited` = reached through a base/constituent/alias. */
+  readonly origin: "local" | "inherited";
+  /** The node a `missing-type-node` verdict anchors on (the declaration that owns this type position). */
+  readonly owner: MorphNode;
+}
 
 /** The FIELD position's keyless set — deliberately WIDER than `MEMBERLESS_KINDS` (#1066). A field
  *  legitimately spells a scalar where an event's identity never does, and a scalar declares no wire key, so

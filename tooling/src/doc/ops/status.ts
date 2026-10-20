@@ -32,7 +32,7 @@ function statusRefusal(path: string, status: string, docKind: string | null, rep
   return rule.statuses.includes(status) ? null : `${path}: status ${status} is not one of ${rule.statuses.join(" | ")} for kind ${kind}`;
 }
 
-export interface StatusInput {
+interface StatusInput {
   readonly status: string;
   readonly paths: readonly string[];
   /** The successor, for `superseded` only. */

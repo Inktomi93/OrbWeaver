@@ -2,7 +2,7 @@ import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { describe } from "vitest";
 import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/floor/appearance/appearance-matrix.ts";
 import type { BrowserEnvironmentEvidence } from "../../../../tooling/src/floor/browser/browser-environment.ts";
-import type { AppearanceCheckContext } from "../../../../tooling/src/snap/ops/appearance-invariant-check-context.ts";
+import type { AppearanceCheckContext } from "../../../../tooling/src/snap/contract/appearance-check-context.ts";
 import { buildAppearanceInvariantChecks } from "../../../../tooling/src/snap/ops/appearance-invariant-checks.ts";
 import type { AppearanceDomSnapshot, AppearanceDomSubject, AppearanceElementFacts } from "../../../../tooling/src/snap/ops/appearance-invariant-dom.ts";
 

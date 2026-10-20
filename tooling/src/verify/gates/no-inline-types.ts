@@ -4,8 +4,9 @@
 //
 // THE TYPE HOMES ARE POPULATION, NOT GRANTS. Every clause of the legacy `isTypeHome` predicate names a
 // STRUCTURAL class the law itself defines — `contract/` directories, the `kit`/`contracts`/`db`/`ui`
-// packages, the client's `data|forms|state|lib` tiers, `server/src/primitives`, the tooling plumbing floor, and
-// the test/script trees. None of them is a reviewed permission for a named file, so they convert as
+// packages, the client's `data|forms|state|lib` tiers, `server/src/primitives` and the script tree. Native placement
+// owns tooling and maintained tests with their own homes (D331), so neither root is in this population. None of
+// them is a reviewed permission for a named file, so they convert as
 // population algebra (`notUnder`/`notNamed`), which is exactly what the exception census reserves that
 // arm for: "current test/spec population exclusions remain population algebra where they define the
 // policy's subject". A NEW home would be a change to §7.4, never a row someone adds to a table here.
@@ -22,11 +23,10 @@
 //
 // EVERY POPULATION CLAUSE AND EVERY ARM FENCE CARRIES A ROW THAT DIES WITHOUT IT (§4.1; each measured in
 // both directions 2026-09-12, the `notUnder` and `notNamed` entries cut one at a time): the `in` root list
-// → `mustPass[8]`; the four client/server tier homes → `mustPass[9]`, which carries all four at once and
-// reds under each of the four cuts separately; `notNamed` → `mustPass[10]`, likewise reddening under each
-// of its three entries; the VariableStatement export-keyword test → `mustPass[11]`; the `zod` door →
-// `mustPass[12]`. `mustPass[0]`/`[2]`/`[3]`/`[7]` already carried `**/contract/**`, `tooling/src/floor/**`
-// and `packages/client/src/data/**`. Since #0038 the factory set is tested ONCE, on the candidate name, and
+// → `mustPass[7]`; the four client/server tier homes → `mustPass[8]`, which carries all four at once and
+// reds under each of the four cuts separately; `notNamed` → `mustPass[9]`; the VariableStatement export-keyword
+// test → `mustPass[10]`; the `zod` door → `mustPass[11]`. `mustPass[0]`/`[1]`/`[6]` carry `**/contract/**` and
+// `packages/client/src/data/**`. Since #0038 the factory set is tested ONCE, on the candidate name, and
 // `isZodCall` then requires the resolved terminal to equal that name — the earlier pair of mutually redundant
 // factory tests (a name prefilter and a terminal-set test) is gone with the private reader.
 //
@@ -80,7 +80,7 @@ export const gate = defineGate({
   population: {
     anyOf: [
       {
-        in: ["@client", "@server", "@inference", "@tooling", "@tests", "@ui-authoring"],
+        in: ["@client", "@server", "@inference", "@ui-authoring"],
         notUnder: [
           UI_TOKEN_AUTHORING_CONTRACT_HOME,
           "packages/client/src/data/**",
@@ -88,17 +88,7 @@ export const gate = defineGate({
           "packages/client/src/state/**",
           "packages/client/src/lib/**",
           "packages/server/src/primitives/**",
-          "tooling/src/floor/**",
           "**/contract/**",
-          // The test type home: shared helpers and fixture modules hold the test-only shapes suites import. Scoped to
-          // `tests/`, so a product or tooling file named like a fixture is still judged.
-          "tests/support/**",
-          "tests/**/fixtures.ts",
-          "tests/**/*.fixtures.ts",
-          "tests/**/*.fixtures.tsx",
-          "tests/**/*-fixtures.ts",
-          "tests/**/*-fixtures.tsx",
-          "tests/**/_support.ts",
         ],
         notNamed: ["contract.ts"],
       },
@@ -132,12 +122,6 @@ export const gate = defineGate({
       files: { "packages/client/src/features/x/view.ts": "type ProbeResult = string;\nexport type { ProbeResult };\n" },
       expect: { count: 1, token: "ProbeResult" },
       why: "a client export list stays with this owner; native placement owns export lists only in its admitted population",
-    },
-    {
-      mode: "resource",
-      files: { "tooling/src/snap/ops/capture.ts": "type Foo = string;\nexport type { Foo };\n" },
-      expect: { count: 1, token: "Foo" },
-      why: "a locally export-listed alias in a tool's ops/ retains the custom placement obligation outside the native population",
     },
     {
       mode: "resource",
@@ -187,29 +171,13 @@ export const gate = defineGate({
     },
     {
       mode: "resource",
-      files: { "tooling/src/snap/ops/capture.ts": "export type Foo = string;\n" },
-      expect: { count: 1, token: "Foo" },
-      why: "a tool's ops/ exporting a shape — tool types live in the tool's contract/ slot (Core-Tooling-Law.md §2.5)",
-    },
-    {
-      mode: "resource",
-      files: {
-        "tests/server/domain/x/verb.test.ts": "export type Seen = string;\n",
-        "tests/client/features/x/_ct-stories.tsx": "export type StoryRow = { readonly id: string };\n",
-      },
-      expect: { count: 2 },
-      why: "TESTS ARE JUDGED: a suite or a CT story exporting a shape is outside the test type home; the shape belongs in a fixture or support module, or is derived from its contract",
-    },
-    {
-      mode: "resource",
       files: {
         "packages/client/src/features/x/fixtures.ts": "export type A = string;\n",
         "packages/client/src/features/x/seed-fixtures.ts": "type B = string;\nexport type { B };\n",
         "packages/client/src/features/x/_support.ts": "type C = string;\nexport type { C };\n",
-        "tooling/src/snap/lib/run.fixtures.ts": "export type D = string;\n",
       },
-      expect: { count: 4 },
-      why: "THE TEST HOME IS SCOPED TO `tests/`: a product or tooling module named like a fixture or support file is not a type home",
+      expect: { count: 3 },
+      why: "THE TEST HOME IS SCOPED TO `tests/`: a product module named like a fixture or support file is not a type home",
     },
   ],
   mustPass: [
@@ -233,22 +201,6 @@ export const gate = defineGate({
       mode: "resource",
       files: { "packages/client/src/features/x/view.ts": "type Foo = string;\nexport const use = (value: Foo): Foo => value;\n" },
       why: "an UNEXPORTED alias is file-local and has no second home to collide with",
-    },
-    {
-      mode: "resource",
-      files: {
-        "packages/server/src/domain/x/anchor.ts": "const local = 1;\nexport const use = (): number => local;\n",
-        "tooling/src/floor/host/x.ts": "export type Foo = string;\n",
-      },
-      why: "tooling `floor/` is the plumbing floor — a sanctioned type home (Core-Tooling-Law.md §2.4)",
-    },
-    {
-      mode: "resource",
-      files: {
-        "packages/server/src/domain/x/anchor.ts": "const local = 1;\nexport const use = (): number => local;\n",
-        "tooling/src/snap/contract/types.ts": "export type Foo = string;\n",
-      },
-      why: "a tool's contract/ slot rides the same `contract/` clause — the five-slot type home",
     },
     {
       mode: "resource",
@@ -296,7 +248,7 @@ export const gate = defineGate({
         "packages/client/src/lib/x.ts": "export type Baz = string;\n",
         "packages/server/src/primitives/x.ts": "export type Qux = string;\n",
       },
-      why: "THE FOUR REMAINING STRUCTURAL TIER HOMES, one file each, in ONE row because they are one clause of one legacy predicate: the client's `forms`/`state`/`lib` tiers and `server/src/primitives`. Each is falsified separately — dropping any ONE `notUnder` entry makes that file flag and reds this row, measured four times. `data/` has its own row above and `**/contract/**` and `tooling/src/floor/**` have theirs",
+      why: "THE FOUR REMAINING STRUCTURAL TIER HOMES, one file each, in ONE row because they are one clause of one legacy predicate: the client's `forms`/`state`/`lib` tiers and `server/src/primitives`. Each is falsified separately — dropping any ONE `notUnder` entry makes that file flag and reds this row, measured four times. `data/` has its own row above and `**/contract/**` has its own",
     },
     {
       mode: "resource",
@@ -306,20 +258,6 @@ export const gate = defineGate({
         "packages/client/src/features/x/anchor.tsx": "export const Anchor = (): null => null;\n",
       },
       why: "THE `contract.ts` SPELLING: a FILE named `contract.ts` is the single-file form of a `contract/` directory. Dropping that entry reds this row. The `.tsx` anchor is here so the row measures tsx admission rather than inheriting the `.ts` verdict",
-    },
-    {
-      mode: "resource",
-      files: {
-        "tests/client/features/x/view.ct.tsx": "export const anchor = 1;\n",
-        "tests/support/node/rows.ts": "export type A = string;\n",
-        "tests/client/features/x/fixtures.ts": "export type B = string;\n",
-        "tests/client/features/x/panel.fixtures.ts": "export type C = string;\n",
-        "tests/client/components/picker.fixtures.tsx": "export type D = string;\n",
-        "tests/client/features/x/_connection-fixtures.ts": "export type E = string;\n",
-        "tests/client/features/x/_gallery-fixtures.tsx": "export type F = string;\n",
-        "tests/server/domain/x/_support.ts": "export type G = string;\n",
-      },
-      why: "THE TEST TYPE HOME: `tests/support/**` and the fixture and support module spellings hold the test-only shapes suites import. Each clause is falsified separately — dropping any one reds this row on its own file",
     },
     {
       mode: "resource",
