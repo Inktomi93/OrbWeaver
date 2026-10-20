@@ -1,0 +1,153 @@
+// Shared real-root setup for native executable controls; no fixture owns engine decisions or context.
+import "@orb/testkit/node/composed-real.ts";
+import type { UserIntent } from "@orb/contracts/preset";
+import { chatEvents, chats } from "@orb/db";
+import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/chat/composed.ts";
+import { createChatRoot } from "@orb/testkit/node/chat/composed.ts";
+import {
+  CORPUS_EMBED_MODEL,
+  CORPUS_EMBEDDING_VECTOR,
+  CORPUS_STRUCTURED_REPLIES,
+  CORPUS_TEXT_MODEL,
+  createCorpusProviderExecution,
+} from "@orb/testkit/node/corpus-provider.ts";
+import { seedMessage } from "@orb/testkit/node/factories/message.ts";
+import { createSdkProcessSpawner } from "@orb/testkit/node/sdk-process.ts";
+import { eq } from "drizzle-orm";
+import { z } from "zod";
+import { ENGINE_SDK_MODEL, ENGINE_SDK_POLICY, ENGINE_SDK_RECEIPT } from "./engine-sdk-physical.mjs";
+
+const receiptSchema = z.object({
+  marker: z.boolean(),
+  prompt: z.string(),
+  held: z.boolean(),
+  argv: z.array(z.string()),
+  importedSeed: z.object({ sessionId: z.uuid(), rowCount: z.number(), firstText: z.string(), lastText: z.string() }).optional(),
+});
+const behaviorSchema = z.enum(["reply", "fail", "hold"]);
+const policySchema = z.object({ marker: behaviorSchema, foreground: behaviorSchema, inputTokens: z.number(), inspectHistory: z.literal(true).optional() });
+const sdkFixtureIds = createSeededIds();
+
+async function seedEngineHistory(h: ChatRoot, from: number, through: number): Promise<void> {
+  for (let seq = from; seq <= through; seq += 1) {
+    await seedMessage(
+      h.root.db,
+      {
+        chatId: h.chatId,
+        seq,
+        role: seq % 2 === 1 ? "user" : "assistant",
+        authorUserId: seq % 2 === 1 ? h.owner.userId : null,
+        characterId: seq % 2 === 0 ? (h.characters[0]?.id ?? null) : null,
+        content: `turn ${seq} — ${"lorem ipsum dolor sit amet ".repeat(8)}`,
+      },
+      h.root.idSource,
+    );
+  }
+}
+
+export async function sdkEngineRoom(
+  options: Omit<ChatRootOptions, "providerFetch"> & {
+    readonly history?: number;
+    readonly window?: number;
+    readonly policy?: Partial<z.infer<typeof policySchema>>;
+  } = {},
+): Promise<
+  AsyncDisposable & {
+    readonly h: ChatRoot;
+    readonly connection: Awaited<ReturnType<ChatRoot["root"]["services"]["connection"]["create"]>>;
+    readonly receipts: readonly z.infer<typeof receiptSchema>[];
+    readonly held: ReadonlySet<ReturnType<ReturnType<typeof createSdkProcessSpawner>>>;
+    readonly setPolicy: (patch: Partial<z.infer<typeof policySchema>>) => void;
+    readonly release: () => void;
+    readonly turn: (intent?: UserIntent) => ReturnType<ChatRoot["root"]["services"]["chat"]["generate"]>;
+    readonly marker: () => Promise<typeof chats.$inferSelect | undefined>;
+    readonly warnings: () => Promise<(typeof chatEvents.$inferSelect)[]>;
+  }
+> {
+  await using construction = new AsyncDisposableStack();
+  const { history = 0, window = 32_000, policy: initialPolicy, ...rootOptions } = options;
+  let policy = policySchema.parse({ marker: "reply", foreground: "reply", inputTokens: 4, ...initialPolicy });
+  const spawn = createSdkProcessSpawner(new URL("./engine-sdk-physical.mjs", import.meta.url));
+  const receipts: z.infer<typeof receiptSchema>[] = [];
+  const held = new Set<ReturnType<typeof spawn>>();
+  const released = new WeakSet<ReturnType<typeof spawn>>();
+  const physical = createCorpusProviderExecution({
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "The stateless engine reply.",
+    structuredReplies: CORPUS_STRUCTURED_REPLIES,
+    images: [],
+  });
+  const h = construction.use(
+    await createChatRoot({
+      memoryEnabled: false,
+      group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
+      ...rootOptions,
+      providerFetch: physical.execute,
+      server: {
+        secretBoxKey: Buffer.alloc(32, 1),
+        ids: sdkFixtureIds,
+        ...rootOptions.server,
+        sdkSpawn: (input) => {
+          const physicalPolicy = policy.inspectHistory === true ? { ...policy, materializedRuntime: input.env["CLAUDE_CONFIG_DIR"] } : policy;
+          const child = spawn({ ...input, args: [...input.args, `${ENGINE_SDK_POLICY}${JSON.stringify(physicalPolicy)}`] });
+          let pending = "";
+          child.stderr.on("data", (bytes: Buffer) => {
+            const lines = `${pending}${bytes.toString("utf8")}`.split("\n");
+            pending = lines.pop() ?? "";
+            for (const line of lines) {
+              if (!line.startsWith(ENGINE_SDK_RECEIPT)) {
+                continue;
+              }
+              const receipt = receiptSchema.parse(JSON.parse(line.slice(ENGINE_SDK_RECEIPT.length)));
+              receipts.push(receipt);
+              if (receipt.held) {
+                held.add(child);
+              }
+            }
+          });
+          child.once("close", () => held.delete(child));
+          return child;
+        },
+      },
+    }),
+  );
+  const credential = await h.root.services.credentials.add({ principal: h.owner, provider: "claude-sub", key: "controlled-engine-native-token" });
+  const connection = await h.root.services.connection.create({
+    principal: h.owner,
+    providerId: "claude-sub",
+    credentialId: credential.id,
+    baseUrl: null,
+    model: ENGINE_SDK_MODEL,
+    allowBackground: true,
+    declared: { kind: "generation", generation: { context: { window } } },
+  });
+  await h.caller.connection.setBinding({ task: "chat", connectionId: connection.id });
+  await seedEngineHistory(h, 1, history);
+  const release = (): void => {
+    for (const child of held) {
+      if (!released.has(child)) {
+        released.add(child);
+        child.kill("SIGUSR2");
+      }
+    }
+  };
+  construction.defer(release);
+  const lifetime = construction.move();
+  return {
+    h,
+    connection,
+    receipts,
+    held,
+    setPolicy: (patch): void => {
+      policy = policySchema.parse({ ...policy, ...patch });
+    },
+    release,
+    turn: async (intent = {}) => await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId, intent }),
+    marker: async () => await h.root.db.select().from(chats).where(eq(chats.id, h.chatId)).get(),
+    warnings: async () =>
+      (await h.root.db.select().from(chatEvents).where(eq(chatEvents.chatId, h.chatId))).filter(({ payload }) => payload.type === "warning"),
+    [Symbol.asyncDispose]: () => lifetime.disposeAsync(),
+  };
+}

@@ -80,7 +80,7 @@ beforeAll(async () => {
 });
 
 // `DEV_SEED=on` is the automation stamp that arms the default-persona seeder; without it no persona row exists.
-// biome-ignore-start lint/style/noProcessEnv: this file DRIVES the env parse by crafting process.env before the module graph loads — the same seam `tests/legacy/server/domain/chat/engine/turn-fault-outcome.suite.int.test.ts` uses.
+// biome-ignore-start lint/style/noProcessEnv: this file DRIVES the env parse by crafting process.env before the module graph loads — the same seam `tests/server/domain/chat/engine/turn-fault-outcome.suite.int.test.ts` uses.
 // biome-ignore-start lint/correctness/noProcessGlobal: the `vi.hoisted` body below runs before this file's import bindings exist, so the `node:process` import is unreachable from it — `globalThis.process` is the only handle available at that point (the rest of the file uses the import).
 const PREVIOUS_DEV_SEED = vi.hoisted((): string | undefined => {
   const previous = globalThis.process.env["DEV_SEED"];
