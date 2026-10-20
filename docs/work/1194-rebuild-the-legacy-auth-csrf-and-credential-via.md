@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
+status: doing
 updated: 2026-10-20
 priority: P1
+lane: wt/agent-a1d5a77e8cd76fb95
 plan: test-foundation
 ---
 
