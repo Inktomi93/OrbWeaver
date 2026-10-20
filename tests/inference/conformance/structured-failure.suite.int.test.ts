@@ -1,32 +1,10 @@
-// CONFORMANCE — STRUCTURED-OUTPUT FAILURE. A malformed structured payload must be a typed `ProviderError` on
-// every wire that serves `structured` — NEVER a resolved result carrying an empty or blank item. That second
-// arm is #1400's shape in the non-streaming task: a collapse-to-null that hands a caller a "successful"
-// structured answer with nothing in it, which then gets written as if the model had said it.
-//
-// WHAT "MALFORMED" IS PER WIRE, and why it is not one fixture. The hosted wires take `structured` as a chat turn
-// over the stream, so the malformed input is an event whose JSON is cut off (`{"choices": `) — the literal shape a
-// socket cut mid-event produces. The agent-sdk wire has no HTTP body at all; its analogue is a `result` frame with
-// NO `structured_output`, which is what the bundled runtime produces when its schema pass yields nothing. Same law,
-// two renderings — the harness owns both.
-//
-// WHAT THESE PINS WOULD CATCH
-//  · Remove the runner's missing-`structured_output` throw in `backends/agent-sdk/runner.ts` and that wire resolves
-//    the turn's prose as the payload — an answer laundered into a record. Only this arm reds.
-//  · Turn `roles/side-gen.ts`'s item failure into a swallow-and-return-empty and every hosted wire resolves with
-//    zero items while every shape check in the tree still passes.
-//  · Change the classification so a malformed body reports `retryable: true` and the ERROR-KIND table below
-//    reds — a deterministic shape disagreement that is retried just re-buys the same refusal.
-//
-// THE KIND TABLE IS AN OBSERVATION, NOT AN APPLICABILITY ROSTER. Applicability is derived (`cellTest` +
-// `WIRE_DEFS[wire].serves`); the table records WHICH typed kind each wire reaches, because the wires
-// legitimately classify a malformed payload differently — the hosted pair sees a transport/parse failure, the
-// agent-sdk wire sees a structurally-invalid RESPONSE it can name. Both are inside `PROVIDER_ERROR_KINDS` and
-// both are non-retryable, which is the part that is actually a law.
-
+// @subject packages/inference/src/roles/side-gen.ts
+// @subject packages/inference/src/backends/agent-sdk/runner.ts
 import type { Wire } from "@orb/contracts/inference";
+import { PROVIDER_ERROR_KINDS } from "@orb/inference";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { PROVIDER_ERROR_KINDS } from "#inference/contract/errors.ts";
-import { CONFORMANCE_WIRES, cellTest, driveStructuredMalformed, settledProviderError } from "./_harness.ts";
+
+import { CONFORMANCE_WIRES, cellTest, driveStructuredMalformed, settledProviderError } from "./runtime.fixtures.ts";
 
 for (const wire of CONFORMANCE_WIRES) {
   cellTest(wire, "structured", "a malformed structured payload is a typed ProviderError, never an empty success (#1400)", async () => {
@@ -65,7 +43,7 @@ test("the structured-failure kinds each wire reaches — a drifting classificati
     "google-generative-ai": "unknown",
     // The subscription wire reduced a complete, successful turn that simply carried no schema frame.
     "agent-sdk": "invalid",
-    // `WIRE_DEFS["local-light"].serves` has no `structured`; the dispatcher's typed refusal is the answer.
-    "local-light": "invalid",
+    // The production resolver refuses the unserved task before any executable request exists.
+    "local-light": "forbidden",
   });
 });

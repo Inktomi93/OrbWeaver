@@ -1,33 +1,21 @@
-// CONFORMANCE — STREAMING COMPLETION. Every wire that serves `chat` must end a normal stream on a TERMINAL
-// frame that carries the turn's accounting, and the reply the record commits must be exactly the deltas the
-// caller was streamed. The two halves are one law: a wire whose reply disagrees with its deltas has shown
-// the user text it did not persist (or persisted text it never showed), and a wire that treats a MISSING
-// terminal frame as a normal end commits an empty reply as canon — #1400's defect class, the one a
-// byte-equality wire pin cannot see.
-//
-// WHAT EACH PIN WOULD CATCH
-//  · "deltas concatenate to the reply" — a reducer that accumulates from a different channel than it streams.
-//    The agent-sdk wire genuinely uses two (`stream_event` frames drive `onDelta`; the `assistant` frame is
-//    the canonical accumulation), so drift between them is real and nothing else in the tree sees it.
-//  · "the terminal frame carries the accounting" — a wire that folds usage from somewhere other than the
-//    frame that ends the turn, so a turn's tokens belong to a different turn.
-//  · "a truncated stream FAILS CLOSED" — the #1400 arm. Delete `backends/v4/stream.ts`'s
-//    `acc.finish === undefined` throw (hosted) or `backends/agent-sdk/runner.ts`'s `!acc.sawTerminalFrame`
-//    throw (agent-sdk) and this is the only thing in the tree that reds: the turn RESOLVES with `reply: ""`
-//    and every other assertion in this file still passes.
-
+// @subject packages/inference/src/backends/v4/stream.ts
+// @subject packages/inference/src/backends/agent-sdk/runner.ts
 import type { Wire } from "@orb/contracts/inference";
+
 import { NORMALIZED_FINISH_REASONS } from "@orb/contracts/inference";
+
 import { expect } from "@orb/testkit/node/fixtures.ts";
-import type { ChatScript } from "./_harness.ts";
-import { CONFORMANCE_WIRES, cellTest, driveChat, settledProviderError } from "./_harness.ts";
+
+import type { ChatScript } from "./runtime.fixtures.ts";
+
+import { CONFORMANCE_WIRES, cellTest, driveChat, settledProviderError } from "./runtime.fixtures.ts";
 
 const DELTAS = ["Con", "form", "ance."];
+
 const REPLY = DELTAS.join("");
+
 const COMPLETE: ChatScript = { deltas: DELTAS, stop: "stop", tokensIn: 11, tokensOut: 7 };
 
-/** The anthropic wire spells its own stop words and `stop` is not one of them; the FOLD is pinned in
- *  `finish-reason.suite.test.ts`, so here the raw word only has to terminate the stream. */
 function terminatedScript(wire: Wire): ChatScript {
   return wire === "anthropic-messages" ? { ...COMPLETE, stop: "end_turn" } : COMPLETE;
 }

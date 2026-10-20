@@ -1,37 +1,15 @@
-// CONFORMANCE — USAGE REPORTING. Every wire that serves `chat` lands the SAME normalized `ChatUsage` core,
-// and `costProvenance` is `measured | estimated | unrecorded` with the arm the wire's own nature justifies.
-//
-// THE PROVENANCE LAWS ARE IMPLICATIONS, not a per-wire expectation, because the wires legitimately reach
-// different arms with the same fixture and a hand-written "this wire says X" table would be an applicability
-// roster in disguise. Each is spelled as a forbidden COMBINATION so it asserts unconditionally:
-//   U1  `measured` ⟹ the provider row is METERED. A subscription's SDK-computed price is notional — no
-//       invoice exists — so it is `estimated` by ruling (`contracts/inference/usage.ts`), and a rollup that
-//       summed it with a metered figure would be inventing spend. `metered` is read off `BUILTIN_PROVIDERS`,
-//       so this law re-derives if a row's billing nature ever changes.
-//   U2  `costUsd === null` ⟺ `costProvenance === "unrecorded"`, and `unrecorded` ⟹ `costDetails === null`.
-//       A recorded number with no provenance, or a provenance with no number, is a row that lies about where
-//       its figure came from.
-//   U3  the normalized core is COMPLETE on every wire: the token counts come from the terminal frame, and
-//       the two cache counters are numbers — never null, because a wire that reports no cache HAS none, and
-//       that is 0, not unknown.
-//
-// WHAT THESE PINS WOULD CATCH
-//  · Change `backends/agent-sdk/runner.ts`'s `costProvenance: … "estimated"` to `"measured"` and U1 reds on
-//    exactly one wire — the subscription — while every shape and token assertion stays green. That single
-//    word is the difference between a real invoice line and a notional one in every downstream rollup.
-//  · Drop the `pricing` arm in `backends/v4/result.ts::costOf` and the ARM TABLE below reds: the two hosted
-//    wires fall to `unrecorded` and stop reporting a cost they can legitimately derive.
-//  · Default a missing `cacheRead` to `null` instead of `0` in `foldNestedUsage` and U3 reds on every wire.
-
+// @subject packages/inference/src/backends/v4/result.ts
+// @subject packages/inference/src/backends/agent-sdk/runner.ts
 import { TOKEN_PROVENANCES } from "@orb/contracts/chat";
-import type { Wire } from "@orb/contracts/inference";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ChatScript } from "./_harness.ts";
-import { CONFORMANCE_WIRES, cellTest, driveChat, meteredForWire } from "./_harness.ts";
 
-/** A turn whose wire reports a cost figure WHERE THE WIRE HAS A CHANNEL FOR ONE — OpenRouter's `usage.cost`,
- *  the agent-sdk's `modelUsage[].costUSD`. The anthropic-messages wire has no such channel at all, which is
- *  exactly why the laws above are implications: that wire must reach its arm from the row's pricing. */
+import type { Wire } from "@orb/contracts/inference";
+
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+
+import type { ChatScript } from "./runtime.fixtures.ts";
+
+import { CONFORMANCE_WIRES, cellTest, driveChat, meteredForWire } from "./runtime.fixtures.ts";
+
 const COST_BEARING: ChatScript = { deltas: ["ok"], stop: "stop", tokensIn: 1000, tokensOut: 500, costUsd: 0.0042 };
 
 function scriptFor(wire: Wire): ChatScript {
@@ -67,9 +45,6 @@ for (const wire of CONFORMANCE_WIRES) {
   });
 }
 
-// U4 — `tokensIn` is the WHOLE prompt on every wire, cache included, so the stats plane's cache-hit share
-// (`cacheRead / tokensIn`) is at most 1. Anthropic's own `input_tokens` counts only the uncached part; a wire
-// that copied it into `tokensIn` reported a hit share far above 1 on every cached turn.
 const CACHED = { deltas: ["ok"], stop: "stop", tokensIn: 18_580, tokensOut: 20, cacheRead: 18_568 } satisfies ChatScript;
 
 for (const wire of CONFORMANCE_WIRES) {
