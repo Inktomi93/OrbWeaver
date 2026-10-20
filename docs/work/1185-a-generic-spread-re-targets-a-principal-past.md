@@ -4,6 +4,7 @@ status: open
 updated: 2026-10-20
 priority: P2
 area: security
+plan: test-foundation
 ---
 
 # A generic spread re-targets a Principal past the brand and lint

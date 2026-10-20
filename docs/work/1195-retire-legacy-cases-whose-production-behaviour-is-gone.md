@@ -23,4 +23,4 @@ Each row is deleted with its reason, or rebuilt against the current behaviour th
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Wire-dispatch coverage does not establish current executor funding, credential or accounting authority. Real-root replacements own those claims. Retained side-generation, conformance and catalog cases still require their promised legacy exit, so a qualified source leg does not complete this item. Evidence: `reports/review/1195-legacy-obsolete-review.md`.

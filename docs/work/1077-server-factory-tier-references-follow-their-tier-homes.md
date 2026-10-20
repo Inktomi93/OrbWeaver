@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-19
+updated: 2026-10-20
 priority: P2
 area: server
+plan: test-foundation
 ---
 
 # Server factory tier references follow their tier homes

@@ -4,6 +4,7 @@ status: open
 updated: 2026-10-20
 priority: P1
 area: security
+plan: test-foundation
 ---
 
 # owner-scoped-upserts accepts targetWhere as an owner guard

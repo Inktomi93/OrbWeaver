@@ -1,8 +1,9 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-19
+updated: 2026-10-20
 priority: P2
+plan: test-foundation
 ---
 
 # server-factory tier rule refuses brand narrowings that name no server shape

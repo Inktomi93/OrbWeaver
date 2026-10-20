@@ -4,6 +4,7 @@ status: open
 updated: 2026-10-20
 priority: P3
 area: security
+plan: test-foundation
 ---
 
 # 1194 rebuild precision gaps

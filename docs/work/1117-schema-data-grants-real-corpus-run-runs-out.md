@@ -3,6 +3,7 @@ kind: bug
 status: open
 updated: 2026-10-20
 priority: P1
+plan: test-foundation
 ---
 
 # schema-data-grants real-corpus run runs out of heap at 16 GB

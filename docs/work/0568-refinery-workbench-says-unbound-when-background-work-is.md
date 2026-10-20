@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-04
+updated: 2026-10-20
 priority: P3
 area: refinery
+plan: inference-flow
 ---
 
 # Refinery workbench says unbound when background work is refused

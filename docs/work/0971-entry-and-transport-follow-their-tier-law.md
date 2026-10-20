@@ -3,6 +3,7 @@ kind: work
 status: open
 updated: 2026-10-20
 priority: P1
+plan: test-foundation
 ---
 
 # Entry and transport follow their tier law

@@ -1,8 +1,9 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-18
+updated: 2026-10-20
 priority: P2
+plan: test-foundation
 ---
 
 # Main reds and loose ends from the test-mirror lanes

@@ -1,9 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-12
+updated: 2026-10-20
 priority: P2
 area: ci
+plan: test-foundation
 ---
 
 # Restore mutation dry-run project collection

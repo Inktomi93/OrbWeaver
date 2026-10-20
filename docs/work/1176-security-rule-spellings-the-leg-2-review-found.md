@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-19
+updated: 2026-10-20
 priority: P3
 area: security
+plan: test-foundation
 ---
 
 # Security rule spellings the leg 2 review found

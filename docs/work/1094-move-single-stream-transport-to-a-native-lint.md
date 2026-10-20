@@ -1,8 +1,9 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-19
+updated: 2026-10-20
 priority: P3
+plan: test-foundation
 ---
 
 # Move single-stream-transport to a native lint selector over the routers

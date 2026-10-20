@@ -1,8 +1,9 @@
 ---
 kind: work
 status: open
-updated: 2026-10-12
+updated: 2026-10-20
 priority: P3
+plan: test-mirror
 ---
 
 # Move the app CSP directive table into kit

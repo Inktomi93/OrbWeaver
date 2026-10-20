@@ -1,8 +1,9 @@
 ---
 kind: work
 status: open
-updated: 2026-10-19
+updated: 2026-10-20
 priority: P3
+plan: test-foundation
 ---
 
 # Open-json readers read template-literal keys

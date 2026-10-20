@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-19
+updated: 2026-10-20
 priority: P2
 area: security
+plan: test-foundation
 ---
 
 # Principal assertion rules miss import-type spellings

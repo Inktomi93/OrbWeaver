@@ -1,8 +1,9 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-19
+updated: 2026-10-20
 priority: P2
+plan: test-foundation
 ---
 
 # caught-failure readers miss the false positives the 1049 phase 3 audit escalated

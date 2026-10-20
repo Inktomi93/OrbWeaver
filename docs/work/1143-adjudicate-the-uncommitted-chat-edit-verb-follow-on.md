@@ -21,4 +21,4 @@ The patch is read against main: each hunk is merged with a test, or recorded as 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The archived greeting patch is superseded by main ancestor `5d35ffca10`. Current provenance, greeting preservation, accounting and saved-reply successors are mapped in `reports/review/codex-claude-salvage-adjudication.md`. No source recovery remains for this patch. Rendered greeting acceptance and concurrent-step qualification remain with their separate work items; this adjudication does not close them.

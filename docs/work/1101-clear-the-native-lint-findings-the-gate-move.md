@@ -3,6 +3,7 @@ kind: tooling
 status: open
 updated: 2026-10-20
 priority: P2
+plan: test-foundation
 ---
 
 # Clear the native lint findings the gate-move merges introduced

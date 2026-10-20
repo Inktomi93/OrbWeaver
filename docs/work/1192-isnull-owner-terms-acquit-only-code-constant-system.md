@@ -4,6 +4,7 @@ status: open
 updated: 2026-10-20
 priority: P2
 area: security
+plan: test-foundation
 ---
 
 # isNull owner terms acquit only code-constant system-plane writes

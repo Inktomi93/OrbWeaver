@@ -4,6 +4,7 @@ status: open
 updated: 2026-10-20
 priority: P3
 area: security
+plan: test-foundation
 ---
 
 # Owner-term and env-walker spellings from the 1172-1174 review

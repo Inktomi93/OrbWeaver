@@ -1,9 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-10-11
+updated: 2026-10-20
 priority: P1
 area: ci
+plan: test-foundation
 ---
 
 # Restore full E2E client startup
