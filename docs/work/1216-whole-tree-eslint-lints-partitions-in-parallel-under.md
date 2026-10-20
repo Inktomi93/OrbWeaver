@@ -22,4 +22,4 @@ The runner runs independent partitions concurrently up to a configured memory bu
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Hosted run `39483788717` reaches dependency-wide ESLint before cancellation at the configured job limit. The transcript establishes neither complete lint qualification nor the sole timeout cause. Evidence: `reports/review/ci-39483788717/triage.md`.

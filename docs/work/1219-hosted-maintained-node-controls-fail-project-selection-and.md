@@ -23,4 +23,4 @@ Reproduce each failure against the exact selected population, correct the actual
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Hosted run `39483788717` repeats the OIDC selection mismatch and private-copy lifecycle timeout. Other historical corpus failures remain unqualified, not reproduced by this run. Evidence: `reports/review/ci-39483788717/triage.md`.

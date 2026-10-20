@@ -22,4 +22,4 @@ Each file sits under its cap along real seams, with its tests and registration l
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Hosted run `39483788717` emits the engine file-cap findings. The exact paths and locations are recorded in `reports/review/ci-39483788717/triage.md`.

@@ -22,4 +22,4 @@ Every named surface carries its reserveKey, each is proven rendered by a CT or s
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Hosted run `39483788717` emits the surface reservation findings. The exact paths and locations are recorded in `reports/review/ci-39483788717/triage.md`.

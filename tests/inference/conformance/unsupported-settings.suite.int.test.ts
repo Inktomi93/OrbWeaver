@@ -1,36 +1,14 @@
-// CONFORMANCE — UNSUPPORTED SETTINGS (D41, no silent degrade). A knob the wire cannot spell must be DROPPED
-// LOUDLY: a `warning` event carrying a code from `WARNING_CODES`, and the knob absent from the bytes that
-// actually left. Both halves or neither — a warning with the knob still on the wire is a lie about what the
-// model received, and a clean drop with no warning is the silent degrade D41 exists to forbid.
-//
-// THE DEGRADE IS CAPABILITY-DRIVEN, so one arm drives all three chat wires with no per-wire roster: a
-// capability whose `sampling` axis is EMPTY plus an intent asking for `temperature`. `funnel/resolve-chat.ts`
-// is the single funnel all three runners call (`resolveChat` directly on the hosted pair,
-// `backends/agent-sdk/translate.ts::toSdkGeneration` on the subscription), so the same capability produces
-// the same `sampling_knob_dropped` verdict on each — and a wire that forgot to surface the funnel's warnings
-// reds here while its request bytes stay byte-identical to yesterday's.
-//
-// THE "NEVER SENT" HALF READS `captureWire`, which is the ONE send-boundary observation that exists on every
-// wire — including agent-sdk, whose `body` is the SDK query input precisely because that wire has no
-// observable HTTP body. A per-wire request recorder could not make this assertion cross-backend at all.
-//
-// WHAT THESE PINS WOULD CATCH
-//  · Delete the `appendWarnings(result, gen.warnings, …)` call at the end of `backends/agent-sdk/runner.ts`'s
-//    `runChatTurn` and only the subscription wire reds — the funnel still drops the knob correctly, but the
-//    product never hears about it. Nothing else in the tree asserts that hand-off.
-//  · Make `backends/v4/options.ts::standardSampling` pass an unresolved knob straight through and the
-//    "never sent" half reds on the hosted wires while the warning half still passes — which is the exact
-//    shape of "we told the user we dropped it and sent it anyway".
+// @subject packages/inference/src/funnel/resolve-chat.ts
+// @subject packages/inference/src/backends/agent-sdk/translate.ts
+import type { Wire } from "@orb/contracts/inference";
 
-import type { CapabilityOverrideInput, Wire } from "@orb/contracts/inference";
 import { WARNING_CODES } from "@orb/contracts/inference";
-import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import type { ChatScript } from "./_harness.ts";
-import { CONFORMANCE_WIRES, cellTest, chatCapability, driveChat, warningCodesOf } from "./_harness.ts";
 
-/** The knob, and the literal a wire would spell it with. Asserted against the WHOLE captured body rather
- *  than a known key path: each wire nests its sampling differently, and a deep string test cannot be fooled
- *  by a knob that moved into `providerOptions`, `extraBody` or an env override. */
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { wireConnection } from "../roles/runtime.fixtures.ts";
+import type { ChatScript } from "./runtime.fixtures.ts";
+import { CONFORMANCE_WIRES, cellTest, chatCapability, conformanceRoot, driveChat, warningCodesOf } from "./runtime.fixtures.ts";
+
 const KNOB = "temperature";
 
 function scriptFor(wire: Wire): ChatScript {
@@ -87,32 +65,16 @@ for (const wire of CONFORMANCE_WIRES) {
   });
 }
 
-// THE GUARD THAT MAKES THE DISJUNCTION HOLD ON THE SUBSCRIPTION WIRE, pinned rather than assumed.
-// `backends/agent-sdk/translate.ts::buildGenerationOptions` spells ONLY `thinking`/`effort` into the SDK
-// options — every resolved sampler knob is discarded there with no warning and no code, which is the silent
-// degrade D41 forbids. It is unreachable today for exactly ONE reason: the curated row below states that the
-// Claude runtime exposes no sampler at all, so the funnel drops each preset knob loudly before translation
-// ever runs. That safety property currently lives in a DATA ROW that nothing checks; this is the check.
-// Widen that axis from any capability source — curated, measured, or a connection's own `declared` block,
-// which outranks curated in the fold — and the silent path opens. Then this reds, and it reds pointing at
-// the translation gap rather than at a mysteriously missing warning.
-test("the agent-sdk curated capability exposes NO sampler range — the row D41 depends on, on that wire", async () => {
-  const { anthropicRows } = await import("#inference/capability/sources/curated/anthropic.ts");
-  // Widened to the declared row type: the module ships a `const` TUPLE, whose members do not share a `wire`
-  // or a `sampling` key, so the literal type cannot be filtered on either.
-  const rows: readonly CapabilityOverrideInput[] = anthropicRows;
-  const agentSdkRows = rows.filter((row) => row.match?.wire === "agent-sdk");
-  expect(agentSdkRows.length, "the agent-sdk curated row exists").toBeGreaterThan(0);
-  for (const row of agentSdkRows) {
-    expect(Object.keys(row.generation?.sampling ?? {}), `curated row ${row.match?.model ?? "?"} widened the agent-sdk sampler axis`).toEqual([]);
+test("an undeclared saved subscription resolves with no sampler range on the production path (D41)", async () => {
+  await using root = await conformanceRoot();
+  const connection = await wireConnection(root, { task: "chat", providerId: "claude-sub", model: "claude-opus-5" });
+  expect(connection.capability.kind).toBe("generation");
+  if (connection.capability.kind !== "generation") {
+    throw new Error("the production chat resolve returned a non-generation model");
   }
+  expect(Object.keys(connection.capability.generation.sampling)).toEqual([]);
 });
 
-// THE PLANTED CONTROL for `backends/agent-sdk/translate.ts::droppedSamplerWarnings`. The curated path can
-// NEVER exercise that code — it exists precisely for the axis curated keeps empty — so a test driven by the
-// shipped capability would be a green that proves nothing. This drives the state a user can actually reach:
-// a `declared.sampling` block, which the fold ranks ABOVE curated (§6.2), widening the axis on a
-// `claude-sub` connection. The knob still cannot be sent; what changed is that the wire now SAYS so.
 test("a user-widened sampler axis on the agent-sdk wire is ANNOUNCED, never silently discarded (D41)", async () => {
   const { events, captured } = await driveChat("agent-sdk", {
     script: scriptFor("agent-sdk"),
@@ -127,9 +89,6 @@ test("a user-widened sampler axis on the agent-sdk wire is ANNOUNCED, never sile
   }
 });
 
-// A PRESET CONTROL THE SUBSCRIPTION RUNTIME CANNOT HONOUR. The Claude runtime takes no parallel-tool control (the
-// SDK's query options have none), so `advanced.parallelToolCalls` cannot reach that wire. A turn that carries tools
-// says so by name; a turn with no tools is silent, because the setting has nothing to govern there on any wire.
 const SCENE_TOOL = {
   name: "record_scene",
   description: "Record the scene state.",
