@@ -899,7 +899,7 @@ function collectModuleDoor(node: MorphNode, file: string, context: SourceFactCol
   if (!(Node.isImportDeclaration(node) || Node.isExportDeclaration(node))) {
     throw new Error("native contextual module query is not an authored import/export door");
   }
-  if (!context.authored(file)) {
+  if (!(context.roots.has(file) && context.authored(file))) {
     const fact = moduleFact(node, context.spans);
     if (fact === undefined) {
       throw new Error("native contextual module query has no module specifier");
@@ -1501,8 +1501,8 @@ function collectInvocationBinding(identifier: MorphNode, state: InvocationCollec
   context.values.globalBindings.push(node);
   const symbols = bindingFacts(identifier, context.spans);
   context.invocationBindings.set(key, symbols);
-  // Complete authored order stays with its walk; matching normalized bytes prove the shared row for both owners.
-  if (!(context.families.has("bindings") && context.authored(node.file))) {
+  // Only authored roots take the complete walk; demanded closure bindings must be captured here.
+  if (!(context.families.has("bindings") && context.roots.has(node.file) && context.authored(node.file))) {
     context.values.bindings.push({ node, symbols });
   }
 }
