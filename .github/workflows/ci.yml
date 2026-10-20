@@ -50,11 +50,12 @@ jobs:
   changes:
     if: ${{ github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly' }}
     runs-on: ubuntu-slim
-    timeout-minutes: 5
+    timeout-minutes: 15
     outputs:
       code: ${{ steps.diff.outputs.code }}
       base: ${{ steps.diff.outputs.base }}
       head: ${{ steps.diff.outputs.head }}
+      classified: ${{ steps.diff.outputs.classified }}
       corpus-matrix: ${{ steps.corpus.outputs.matrix }}
     permissions:
       contents: read
@@ -69,9 +70,22 @@ jobs:
       - id: diff
         name: Classify the change against its qualified baseline
         env:
+          CLASSIFICATION_TIMEOUT_SECONDS: "120"
           GH_TOKEN: ${{ github.token }}
           BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || inputs.base }}
-        run: pnpm exec node scripts/ci-qualification.ts baseline "$GITHUB_SHA" "$BEFORE"
+        run: |
+          classification=$(mktemp)
+          trap 'rm -f "$classification"' EXIT
+          if GITHUB_OUTPUT="$classification" timeout --kill-after=5s "${CLASSIFICATION_TIMEOUT_SECONDS}s" pnpm exec node scripts/ci-qualification.ts baseline "$GITHUB_SHA" "$BEFORE"; then
+            cat "$classification" >> "$GITHUB_OUTPUT"
+            echo "classified=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          echo "::warning title=CI classification::Baseline discovery failed or timed out; running all checks without qualification authority"
+          {
+            echo "code=true"
+            echo "classified=false"
+          } >> "$GITHUB_OUTPUT"
       - id: corpus
         name: Plan canonical corpus projects
         run: pnpm exec node scripts/ci-plan.ts corpus
@@ -399,7 +413,7 @@ jobs:
             echo "$NEEDS" | jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"'
           } >> "$GITHUB_STEP_SUMMARY"
           echo "$NEEDS" | jq -e '
-            .changes.result == "success" and .static.result == "success" and
+            .changes.result == "success" and .changes.outputs.classified == "true" and .static.result == "success" and
             (.changes.outputs.code == "true" or .changes.outputs.code == "false") and
             (.changes.outputs.code as $code | [.node, .["node-legacy"], .["verb-coverage"], .ct, .["ct-legacy"], .["e2e-smoke"], .["e2e-corpus"]]
               | all(.[]; .result == (if $code == "true" then "success" else "skipped" end)))

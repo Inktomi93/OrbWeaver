@@ -205,7 +205,7 @@ test.for(["release-pr", "missing-event-base", "zero-event-base", "switched-head"
 );
 
 test("first-generation bootstrap positively excludes old workflow authority and requires full proof", async ({ scratch, repoRoot, fakeBin }) => {
-  await fakeBin("gh", "process.stderr.write('unexpected metadata call');process.exitCode=91;");
+  await fakeBin("gh", API_FIXTURE);
   const root = join(scratch, "bootstrap");
   mkdirSync(join(root, ".github/workflows"), { recursive: true });
   execFixtureGit(root, ["init", "--initial-branch=main"]);
@@ -216,6 +216,8 @@ test("first-generation bootstrap positively excludes old workflow authority and 
   execFixtureGit(root, ["add", "."]);
   execFixtureGit(root, ["commit", "-m", "admitted published source"]);
   const base = execFixtureGit(root, ["rev-parse", "HEAD"]).trim();
+  writeFileSync(join(root, ".gitignore"), "ci-*\n");
+  writeFileSync(join(root, "ci-api.json"), JSON.stringify(metadata(base)));
   const source = readFileSync(join(repoRoot, ".github/workflows/ci.yml"), "utf8").replace("ac6cfc19ea9db59644426b37f6b8c842c33473ad", base);
   writeFileSync(workflowPath, source);
   execFixtureGit(root, ["add", "."]);
@@ -225,7 +227,7 @@ test("first-generation bootstrap positively excludes old workflow authority and 
   expect(result.status, result.stdout + result.stderr).toBe(0);
   expect(result.stdout).toContain(`base=${base}\nhead=${head}\nevent_base=\ncode=true\nauthority=publication`);
   expect(result.stderr).toContain("no current-generation qualified ancestor");
-  expect(result.stderr).not.toContain("unexpected metadata call");
+  expect(readFileSync(join(root, "ci-requests.jsonl"), "utf8")).not.toContain(`head_sha=${base}`);
 });
 
 test.for(["current", "previous-generation", "missing-node-legacy", "missing-ct-legacy"] as const)(

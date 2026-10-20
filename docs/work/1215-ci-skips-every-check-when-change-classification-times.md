@@ -22,4 +22,4 @@ Classification has a measured budget that holds for a large push, and if it cann
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Run-backed discovery avoids unpublished workflow-tree reads. The bounded workflow discards partial classifier output and selects every runtime job after failure. Failed discovery grants no baseline authority; version checks refuse and `ci-ok` stays red under D307. Independent review and focused ancestry, producer, workflow and timeout controls pass. Evidence: `reports/review/1215-ci-classification-review.md` and `reports/review/1215-ci-classification-delivery.md`. Hosted large-push qualification remains open.

@@ -94,10 +94,7 @@ test("workflow-history exclusion follows a merged generation on the second paren
   ).toMatchObject({ base: qualified, head, eventBase, authority: "qualified", code: false });
 });
 
-test("unqualified current-generation ancestry enumerates workflow boundaries rather than reading each legacy tree", { timeout: scaledBudget(60_000) }, async ({
-  scratch,
-  fakeBin,
-}) => {
+test("run-backed discovery skips unpublished workflow history over a large commit range", { timeout: scaledBudget(60_000) }, async ({ scratch, fakeBin }) => {
   execFixtureGit(scratch, ["init", "--initial-branch=main"]);
   execFixtureGit(scratch, ["config", "user.name", "Orb Test"]);
   execFixtureGit(scratch, ["config", "user.email", "orb@example.invalid"]);
@@ -108,8 +105,9 @@ test("unqualified current-generation ancestry enumerates workflow boundaries rat
   execFixtureGit(scratch, ["add", "."]);
   execFixtureGit(scratch, ["commit", "-m", "publication"]);
   const publication = execFixtureGit(scratch, ["rev-parse", "HEAD"]).trim();
-  for (let index = 0; index < 150; index += 1) {
-    execFixtureGit(scratch, ["commit", "--allow-empty", "-m", "legacy"]);
+  for (let index = 0; index < 300; index += 1) {
+    writeFileSync(workflowPath, `env: { generation: legacy, revision: ${index} }\n`);
+    execFixtureGit(scratch, ["commit", "-am", "legacy workflow change"]);
   }
   writeFileSync(workflowPath, "env: { generation: current }\n");
   execFixtureGit(scratch, ["add", "."]);
