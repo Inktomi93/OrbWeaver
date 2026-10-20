@@ -24,3 +24,5 @@ Every listed behavior and required scenario consumer runs through the composed g
 ## Evidence
 
 Private spy expressions map to qualified provider requests, durable rows and production recorders. Fabricated narrator input and stale-return cases require explicit production-wiring controls and recorded corrections; they do not authorize a compatibility facade.
+
+Warning-failure coverage exercises durable append failure through the total composed publisher, not an injected rejecting emitter. Preserve completed canon, failure reporting and background settlement. Impersonation coverage exercises a non-persisting draft followed by an explicit message commit. Compare live accounting with canonical reconciliation and prove that drafting alone changes neither canon nor rollups.

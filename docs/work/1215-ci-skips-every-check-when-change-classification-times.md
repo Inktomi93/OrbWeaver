@@ -22,4 +22,6 @@ Classification has a measured budget that holds for a large push, and if it cann
 
 ## Evidence
 
-Run-backed discovery avoids unpublished workflow-tree reads. The bounded workflow discards partial classifier output and selects every runtime job after failure. Failed discovery grants no baseline authority; version checks refuse and `ci-ok` stays red under D307. Independent review and focused ancestry, producer, workflow and timeout controls pass. Evidence: `reports/review/1215-ci-classification-review.md` and `reports/review/1215-ci-classification-delivery.md`. Hosted large-push qualification remains open.
+Run-backed discovery avoids unpublished workflow-tree reads. The bounded workflow discards partial classifier output and selects every runtime job after failure. Failed discovery grants no baseline authority; version checks refuse and `ci-ok` stays red under D307. Independent review and focused ancestry, producer, workflow and timeout controls pass. Evidence: `reports/review/1215-ci-classification-review.md` and `reports/review/1215-ci-classification-delivery.md`.
+
+Hosted run `39469280964` completes classification within its budget and executes the application jobs. Smoke and maintained CT pass; other jobs report failures. Static qualification remains incomplete because entry-membership collection refuses a shared helper origin. The reader correction is on main at `bdd658f11f`; hosted acceptance remains open until CI measures the complete static population.

@@ -22,4 +22,4 @@ The sweep tells an unrelated unreadable process from a marked one (for example b
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Hosted run `39469280964`, project `corpus-phone-whisper`, records passing executed cases and no unexpected cases, then exits with a process-completion tool error. The sweep cannot read a same-UID candidate's environment. Evidence: `reports/review/ci-39469280964-phone-whisper.log` and `reports/review/ci-39469280964-phone-whisper-artifact/`. This is incomplete process qualification, not a product assertion failure.

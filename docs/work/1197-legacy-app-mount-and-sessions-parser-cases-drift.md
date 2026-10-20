@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-20
 priority: P3
+lane: codex/legacy-http-contracts-1197
 plan: test-foundation
 ---
 
