@@ -2,9 +2,9 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import { access, readFile } from "node:fs/promises";
 import { pendingJoinConfirmResultSchema, signedOutInvitePreviewSchema } from "@orb/contracts/chat";
-import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
+import { authLogoutResultSchema, authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import { chatInvites, chatParticipants, closeDb, oidcPendingSignups, oidcTransactions, sessions, users } from "@orb/db";
-import type { ExternalId } from "@orb/kit/ids";
+import type { ExternalId, Handle } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
@@ -20,6 +20,7 @@ import { eq, sql } from "drizzle-orm";
 import type { JWTPayload } from "jose";
 import { customFetch } from "openid-client";
 import { vi } from "vitest";
+import { z } from "zod";
 
 // biome-ignore lint/style/useNamingConvention: preferred_username is the issuer's actual configured OIDC claim.
 const MEMBER = { sub: "native-member-subject", preferred_username: "oidc-member" } satisfies JWTPayload;
@@ -636,4 +637,167 @@ test.each([
   expect(await root.db.select().from(sessions)).toEqual(before);
   const me = await root.http.request("/api/auth/me", { headers: { cookie } });
   expect(authMeSchema.parse(await me.json()).authenticated).toBe(true);
+});
+
+// ── The callback's code→token exchange and every arm downstream of it, through the native client ──────────────
+
+const ID_TOKEN_SECRET = "callback-thrown-secret-must-not-reflect";
+const SESSION_COOKIE_PATTERN = /^(?:__Host-)?orb_session(?:_insecure)?=/u;
+const BINDING_COOKIE_PATTERN = /^(?:__Host-)?orb_oidc_state(?:_insecure)?=/u;
+
+/** Replace the issuer's token endpoint answer, keeping discovery and keys native. */
+function scriptTokenEndpoint(issuer: Issuer, answer: (native: () => Promise<Response>) => Promise<Response>): void {
+  const execute = issuer.fetch;
+  vi.spyOn(issuer, "fetch").mockImplementation(async (input, init) => {
+    const request = new Request(input, init);
+    return new URL(request.url).pathname === "/token" ? await answer(() => execute(request)) : await execute(request);
+  });
+}
+
+function writes(response: Response, pattern: RegExp): string[] {
+  return response.headers.getSetCookie().filter((line) => pattern.test(line));
+}
+
+async function expectRefusedWithoutSession(root: HttpRoot, response: Response, location: string): Promise<void> {
+  expect(response.status).toBe(302);
+  expect(response.headers.get("location")).toBe(location);
+  expect(writes(response, SESSION_COOKIE_PATTERN)).toEqual([]);
+  expect(await root.db.select().from(sessions)).toEqual([]);
+}
+
+test("a verified grant mints the session and threads the id_token to sessions.create VERBATIM", async () => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  const result = await callback(root, await begin(root, issuer));
+  expect(result.status).toBe(302);
+  expect(result.headers.get("location")).toBe("/");
+  expect(await root.db.select().from(oidcTransactions)).toEqual([]);
+  const [idToken] = issuer.idTokens;
+  const logout = await root.http.request("/api/auth/logout", { method: "POST", headers: { cookie: cookieJar(result), [CSRF_HEADER]: "1" } });
+  const endSession = new URL(authLogoutResultSchema.parse(await logout.json()).endSessionUrl ?? "missing end-session URL");
+  expect(endSession.searchParams.get("id_token_hint")).toBe(idToken);
+});
+
+test("the mint writes the live cookie AND clears the other posture's name, in that order", async () => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  const result = await callback(root, await begin(root, issuer));
+  const [minted, cleared] = writes(result, SESSION_COOKIE_PATTERN);
+  expect(writes(result, SESSION_COOKIE_PATTERN)).toHaveLength(2);
+  expect(minted).toMatch(/^orb_session_insecure=[^;]+;/u);
+  expect(minted).not.toContain("Max-Age=0");
+  expect(cleared).toMatch(/^__Host-orb_session=;/u);
+  expect(cleared).toContain("Max-Age=0");
+  expect(authMeSchema.parse(await (await root.http.request("/api/auth/me", { headers: { cookie: cookieJar(result) } })).json()).authenticated).toBe(true);
+});
+
+// The issuer refuses a code presented with any redirect_uri but the authorized one, so arriving on another origin
+// signs in only when the exchange presents the stored, allowlisted redirect_uri.
+test("the exchange is handed the STORED redirect_uri (not the arrival origin) and the consumed transaction", async () => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  const login = await begin(root, issuer);
+  const arrival = new URL(login.callback);
+  arrival.host = "127.0.0.1";
+  const result = await root.http.request(arrival, { headers: { host: arrival.host, cookie: login.cookie } });
+  expect(result.headers.get("location")).toBe("/");
+  expect(await root.db.select().from(oidcTransactions)).toEqual([]);
+  expect(await root.db.select().from(sessions)).toHaveLength(1);
+});
+
+// The route passes the transaction's nonce, so openid-client requires the ID token it binds: an issuer that omits
+// one cannot sign anybody in, and no session or account is left behind.
+test("a grant with no id_token mints no session: the #141 null-hint degrade is unreachable through the nonce-bound grant", async () => {
+  const issuer = await createNativeIssuer();
+  scriptTokenEndpoint(issuer, async (native) => {
+    const body = z.record(z.string(), z.unknown()).parse(await (await native()).json());
+    const { ["id_token"]: _dropped, ...rest } = body;
+    return Response.json(rest);
+  });
+  await using root = await rootFor(issuer);
+  await expectRefusedWithoutSession(root, await callback(root, await begin(root, issuer)), "/login?authError=token_exchange_failed");
+  expect(await root.db.select().from(users)).toEqual([]);
+});
+
+test("a THROWING exchange (replayed/expired code) mints no session, sets no cookie, and 302s with the sanitized code", async () => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  const login = await begin(root, issuer);
+  const replayed = new URL(login.callback);
+  replayed.searchParams.set("code", "a-code-the-issuer-never-issued");
+  await expectRefusedWithoutSession(root, await callback(root, { ...login, callback: replayed }), "/login?authError=invalid_grant");
+  expect(await root.db.select().from(oidcTransactions)).toEqual([]);
+});
+
+test("an exchange error carrying FREE TEXT is not reflected — the generic marker rides instead", async () => {
+  const issuer = await createNativeIssuer();
+  scriptTokenEndpoint(issuer, () => Promise.resolve(Response.json({ error: "<script>alert(1)</script>" }, { status: 400 })));
+  await using root = await rootFor(issuer);
+  const result = await callback(root, await begin(root, issuer));
+  expect(result.headers.get("location") ?? "").not.toContain("script");
+  await expectRefusedWithoutSession(root, result, "/login?authError=token_exchange_failed");
+});
+
+test("nothing from the thrown error's message reaches the redirect or the body", async () => {
+  const issuer = await createNativeIssuer();
+  scriptTokenEndpoint(issuer, () => Promise.reject(new Error(`token endpoint said: ${ID_TOKEN_SECRET}`)));
+  await using root = await rootFor(issuer);
+  const result = await callback(root, await begin(root, issuer));
+  expect(result.headers.get("location") ?? "").not.toContain(ID_TOKEN_SECRET);
+  expect(await result.clone().text()).not.toContain(ID_TOKEN_SECRET);
+  await expectRefusedWithoutSession(root, result, "/login?authError=token_exchange_failed");
+});
+
+test("a verified grant with NO stable subject is refused fail-closed — no session (#699)", async () => {
+  const issuer = await createNativeIssuer();
+  // The deployment keys accounts on a claim this issuer never emits.
+  await using root = await rootFor(issuer, { ["OIDC_UID_CLAIM"]: "employee_number" });
+  await expectRefusedWithoutSession(root, await callback(root, await begin(root, issuer)), "/login?authError=no_identity");
+  expect(await root.db.select().from(users)).toEqual([]);
+});
+
+test("a grant with NO usable username is refused too (the pre-existing null-identity arm)", async () => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  await expectRefusedWithoutSession(root, await callback(root, await begin(root, issuer, { sub: MEMBER.sub })), "/login?authError=no_identity");
+  expect(await root.db.select().from(users)).toEqual([]);
+});
+
+test("a DENIED provision (login gate refused) mints nothing — generic not_authorized", async () => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer, {}, { rolePolicyConfig: { ["DEFAULT_USER_HANDLE"]: "owner", ["OIDC_ALLOWED_GROUPS"]: "friends" } });
+  await expectRefusedWithoutSession(
+    root,
+    await callback(root, await begin(root, issuer, { ...MEMBER, groups: ["outsiders"] })),
+    "/login?authError=not_authorized",
+  );
+  expect(await root.db.select().from(users)).toEqual([]);
+});
+
+test("an ACCOUNT-EXISTS collision deny surfaces its distinct code, still with no session", async () => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  const email = "native-collision@example.test";
+  const local = await root.actor({ handle: brandedId<Handle>().parse("native-local-holder"), email });
+  const result = await callback(root, await begin(root, issuer, { ...MEMBER, email }));
+  await expectRefusedWithoutSession(root, result, "/login?authError=account_exists");
+  expect(await root.db.select({ id: users.id, externalId: users.externalId }).from(users)).toEqual([{ id: local.id, externalId: null }]);
+});
+
+test("a provisioned but DISABLED account mints no session", async () => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  await root.actor({ handle: brandedId<Handle>().parse(MEMBER.preferred_username), externalId: brandedId<ExternalId>().parse(MEMBER.sub), enabled: false });
+  await expectRefusedWithoutSession(root, await callback(root, await begin(root, issuer)), "/login?authError=account_disabled");
+  expect(await root.db.select({ enabled: users.enabled }).from(users)).toEqual([{ enabled: false }]);
+});
+
+test("the browser that started the flow completes it, and the spent binding is cleared under both names", async () => {
+  const issuer = await createNativeIssuer();
+  await using root = await rootFor(issuer);
+  const result = await callback(root, await begin(root, issuer));
+  expect(result.headers.get("location")).toBe("/");
+  const cleared = writes(result, BINDING_COOKIE_PATTERN);
+  expect(cleared.map((line) => line.split("=")[0])).toEqual(["__Host-orb_oidc_state", "orb_oidc_state_insecure"]);
+  expect(cleared.every((line) => line.includes("Max-Age=0"))).toBe(true);
 });

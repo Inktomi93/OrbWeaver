@@ -1,10 +1,12 @@
 // Actor identity headers bind the native transport; raw probes preserve HTTP status and body evidence.
 import type { AuthMe } from "@orb/contracts/identity";
 import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
+import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import type { ChatId, Handle } from "@orb/kit/ids";
+import { expect } from "@playwright/test";
 import type { CryptoKey } from "jose";
 import { exportJWK, generateKeyPair, SignJWT } from "jose";
-import type { NewConnection, TrpcClient } from "./trpc.ts";
+import type { NewConnection, TrpcClient, TrpcClientOutput } from "./trpc.ts";
 import { createTrpcClient } from "./trpc.ts";
 
 // Every actor constructor takes the stack's `baseUrl` explicitly — the spec passes Playwright's per-project
@@ -31,20 +33,50 @@ export interface ActorClient {
   readonly headers: Readonly<Record<string, string>>;
 }
 
+const IMPORT_IDLE_MS = 30_000;
+
 const encodeInput = (value: unknown): string => encodeURIComponent(JSON.stringify({ 0: value }));
+
+/** One batched tRPC call carrying exactly `headers` (no CSRF header is added), resolved to its raw HTTP status and
+ *  body: the instrument for a gate's refusal, which the native client would only throw. */
+export async function rawTrpcCall(
+  baseUrl: string,
+  call: { readonly procedure: string; readonly input: unknown; readonly kind: "query" | "mutation" },
+  headers: Readonly<Record<string, string>>,
+): Promise<{ readonly status: number; readonly body: string }> {
+  const { procedure, input, kind } = call;
+  const url = kind === "query" ? `${baseUrl}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}` : `${baseUrl}/api/trpc/${procedure}?batch=1`;
+  const res = await fetch(
+    url,
+    kind === "query" ? { headers } : { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ 0: input }) },
+  );
+  return { status: res.status, body: await res.text() };
+}
+
+/** The actor's identifying headers without the CSRF header: what a cross-site page's request carries. */
+export function ambientHeaders(actor: Pick<ActorClient, "headers">): Readonly<Record<string, string>> {
+  return Object.fromEntries(Object.entries(actor.headers).filter(([name]) => name !== CSRF_HEADER));
+}
+
+/** Cancel the actor's own active bundle imports through the real verb. The kind is singular, and a harness stack
+ *  leaves an upload queued, so an earlier run's upload would otherwise answer the next one with the 409 lock. */
+export async function importsIdle(actor: Pick<ActorClient, "trpc">): Promise<void> {
+  const active: readonly string[] = ACTIVE_WORKLOAD_STATUSES;
+  const running = async (): Promise<TrpcClientOutput<"workloads.list">> =>
+    (await actor.trpc.workloads.list.query({ kind: "import-bundle" })).filter((row) => active.includes(row.status));
+  for (const row of await running()) {
+    await actor.trpc.workloads.cancel.mutate({ id: row.id });
+  }
+  await expect.poll(async () => (await running()).length, { timeout: IMPORT_IDLE_MS }).toBe(0);
+}
 
 /** Build an actor client bound to a stack `baseUrl` + a fixed header set (the actor's session/identity).
  *  Mutations merge the actor's headers with the JSON content-type; queries ride the actor's headers on the GET. */
 function makeActorClient(baseUrl: string, headers: Readonly<Record<string, string>>): ActorClient {
   const trpc = createTrpcClient(baseUrl, headers);
 
-  async function expectError(procedure: string, input: unknown, kind: "query" | "mutation"): Promise<{ readonly status: number; readonly body: string }> {
-    const url = kind === "query" ? `${baseUrl}/api/trpc/${procedure}?batch=1&input=${encodeInput(input)}` : `${baseUrl}/api/trpc/${procedure}?batch=1`;
-    const res = await fetch(
-      url,
-      kind === "query" ? { headers } : { method: "POST", headers: { ...headers, "content-type": "application/json" }, body: JSON.stringify({ 0: input }) },
-    );
-    return { status: res.status, body: await res.text() };
+  function expectError(procedure: string, input: unknown, kind: "query" | "mutation"): Promise<{ readonly status: number; readonly body: string }> {
+    return rawTrpcCall(baseUrl, { procedure, input, kind }, headers);
   }
 
   async function whoami(): Promise<AuthMe> {

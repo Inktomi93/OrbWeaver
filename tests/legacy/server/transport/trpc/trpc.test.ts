@@ -1,8 +1,8 @@
 // The procedure ladder — the 2-layer auth gates + the injected rate-limit seam, driven through the real
 // `appRouter` via `createCaller` (docs/law/Tier-4-Transport.md). Proves: authedProcedure rejects anon;
 // adminProcedure rejects a plain user but passes owner ∪ admin (LAYER-1, no db); a representative router
-// delegates to the injected service verb with the Principal; the CSRF gate fires on cookie mutations only;
-// the injected rate-limit gate's throw maps to TOO_MANY_REQUESTS; the multi-human belt 404s the
+// delegates to the injected service verb with the Principal (the cookie-only CSRF gate is proven over real
+// credentials in tests/e2e/csrf-gates.local.spec.ts and tests/e2e/csrf-gates.forward.spec.ts); the injected rate-limit gate's throw maps to TOO_MANY_REQUESTS; the multi-human belt 404s the
 // documented single-user-refused surface list (the invites router + `notifications.presence` — the inbox
 // CRUD trio LEFT that list with #1627) and stays open in multi-user mode; the errorFormatter's
 // PROD-LEAK belt keeps `stack` off the wire shape in EVERY env; and its UNCLASSIFIED-MESSAGE belt keeps an
@@ -11,8 +11,6 @@
 import { seatRoles } from "../../domain/chat/_support.ts";
 import "@orb/testkit/node/composed-real.ts";
 import type { ParticipantView, StartChatResult } from "@orb/contracts/chat";
-import type { UserSettingsView } from "@orb/contracts/settings";
-import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Db } from "@orb/db";
 import { ProviderError, providerErrorFromHttp, resolvedScrubSet } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
@@ -28,7 +26,6 @@ import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import type { AdminService } from "#server/domain/admin/index.ts";
 import type { PersonaService } from "#server/domain/persona/index.ts";
-import type { SettingsService } from "#server/domain/settings/index.ts";
 import { caller, denyRateLimit, inertPresence, inviteResults, makeContext, participantData, principal, redeemedData } from "./_support.ts";
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
@@ -38,17 +35,8 @@ const ID = {
   chatInvite1: mintTypeId(ID_PREFIX.chatInvite),
 } as const;
 
-// The router reads no user rows; the callers resolve from rows in one in-memory database.
-const callersDb = await freshDb();
 // Seat roles are captured row data: one in-memory room supplies the host and member roles these checks read.
 const ROLES = await seatRoles(await freshDb());
-const UPDATED_SETTINGS = {
-  userId: (await principal(callersDb, "user")).userId,
-  schemaVersion: DEFAULT_USER_SETTINGS.schemaVersion,
-  config: DEFAULT_USER_SETTINGS,
-  updatedAt: 1,
-  configUnreadable: null,
-} satisfies UserSettingsView;
 
 describe("authedProcedure", () => {
   test("rejects an anonymous caller with UNAUTHORIZED", async () => {
@@ -101,59 +89,6 @@ describe("a representative router delegates to the injected service verb", () =>
     const ctx = makeContext({ auth: await principal(db, "admin"), services: { admin: { listUsers } } });
     await caller(ctx).admin.listUsers();
     expect(listUsers).toHaveBeenCalledWith({ principal: ctx.auth });
-  });
-});
-
-describe("CSRF gate (cookie-authed mutations only)", () => {
-  const patch = { displayName: "x" };
-  test("a cookie mutation WITHOUT the custom header → FORBIDDEN", async () => {
-    const db = await freshDb();
-    const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>();
-    const ctx = makeContext({
-      auth: await principal(db, "user", { via: "cookie" }),
-      csrfHeaderPresent: false,
-      services: { settings: { updateUserSettingsSection } },
-    });
-    await expect(caller(ctx).settings.updateUserSettingsSection({ section: "profile", patch })).rejects.toMatchObject({
-      code: "FORBIDDEN",
-    });
-    expect(updateUserSettingsSection).not.toHaveBeenCalled();
-  });
-
-  test("a cookie mutation WITH the custom header passes", async () => {
-    const db = await freshDb();
-    const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>(async () => UPDATED_SETTINGS);
-    const ctx = makeContext({
-      auth: await principal(db, "user", { via: "cookie" }),
-      csrfHeaderPresent: true,
-      services: { settings: { updateUserSettingsSection } },
-    });
-    await expect(caller(ctx).settings.updateUserSettingsSection({ section: "profile", patch })).resolves.toEqual(UPDATED_SETTINGS);
-    expect(updateUserSettingsSection).toHaveBeenCalledWith({ principal: ctx.auth, input: { section: "profile", patch } });
-  });
-
-  test("a header-authed mutation is exempt (no cross-site surface)", async () => {
-    const db = await freshDb();
-    const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>(async () => UPDATED_SETTINGS);
-    const ctx = makeContext({
-      auth: await principal(db, "user", { via: "header" }),
-      csrfHeaderPresent: false,
-      services: { settings: { updateUserSettingsSection } },
-    });
-    await expect(caller(ctx).settings.updateUserSettingsSection({ section: "profile", patch })).resolves.toEqual(UPDATED_SETTINGS);
-    expect(updateUserSettingsSection).toHaveBeenCalledTimes(1);
-  });
-
-  test("a query is never CSRF-gated (even cookie-authed without the header)", async () => {
-    const db = await freshDb();
-    const list = vi.fn<PersonaService["list"]>(async () => []);
-    const ctx = makeContext({
-      auth: await principal(db, "user", { via: "cookie" }),
-      csrfHeaderPresent: false,
-      services: { persona: { list } },
-    });
-    await expect(caller(ctx).persona.list()).resolves.toEqual([]);
-    expect(list).toHaveBeenCalledTimes(1);
   });
 });
 

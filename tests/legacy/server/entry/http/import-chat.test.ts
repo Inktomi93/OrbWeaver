@@ -6,23 +6,18 @@
 // upload.test.ts pattern).
 
 import type { Principal } from "@orb/contracts/identity";
-import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { PortableEntity, PortableFile, PortableImportOutcome } from "@orb/contracts/portability";
 import type { Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { ImportChatDeps } from "#server/entry/http/index.ts";
 import { registerImportChat } from "#server/entry/http/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
-const OWNER: Principal = {
-  userId: castId<UserId>("usr_owner"),
-  role: "owner",
-  handle: castId<Handle>("owner"),
-  externalId: null,
-  via: "fallback",
-};
-const COOKIE_OWNER: Principal = { ...OWNER, via: "cookie" };
+// The subject reads no user rows of its own; the caller resolves from its row in one in-memory database.
+const OWNER: Principal = await makePrincipal({ db: await freshDb() }, castId<UserId>("usr_owner"), { role: "owner", handle: castId<Handle>("owner") });
 const CHAT_ROUTE = "POST /api/import/chat";
 /** The registration-time compose guard's message (hoisted — a literal inside a test body is a perf lint). */
 const NO_DESCRIPTOR = /no chat descriptor/u;
@@ -158,31 +153,6 @@ describe("registerImportChat — registration + belts", () => {
       () => Promise.resolve(),
     );
     expect(res?.status).toBe(401);
-  });
-
-  test("cookie caller without the CSRF header → 403; with it, falls through", async () => {
-    const spy = spyRegistry();
-    interface GuardCtx {
-      readonly get: (key: string) => Principal | null;
-      readonly body: (data: null, status?: number) => Response;
-      readonly req: { readonly raw: { readonly headers: Headers } };
-    }
-    const guard = chainFor(spy.deps)[0] as unknown as (c: GuardCtx, next: () => Promise<void>) => Promise<Response | undefined>;
-    const ctxWith = (headers: Record<string, string>): GuardCtx => ({
-      get: (key: string): Principal | null => (key === "principal" ? COOKIE_OWNER : null),
-      body: (data: null, status = 200): Response => new Response(data, { status }),
-      req: { raw: { headers: new Headers(headers) } },
-    });
-    const blocked = await guard(ctxWith({}), () => Promise.resolve());
-    expect(blocked?.status).toBe(403);
-
-    let nexted = false;
-    const allowed = await guard(ctxWith({ [CSRF_HEADER]: "1" }), () => {
-      nexted = true;
-      return Promise.resolve();
-    });
-    expect(allowed).toBeUndefined();
-    expect(nexted).toBe(true);
   });
 
   // #300 — the loopback owner FALLBACK arm is ambient-credential too; this CORS-simple multipart route must

@@ -1,18 +1,11 @@
-// Strict authoring routes over the real composed graph. The response-loss case drops the HTTP response
-// only after the actual tRPC handler has committed and built it; retry must recover, not mint again.
-import { databaseHandle } from "@orb/db/wiring-driver";
+// Strict authoring routes over the real composed graph. The lost-response recovery is proven over the box
+// owner's real loopback session in tests/server/transport/trpc/routers/automation-response-loss.int.test.ts.
 import "@orb/testkit/node/composed-real.ts";
-import { once } from "node:events";
-import { createServer } from "node:http";
-import { join } from "node:path";
 import { automationRules } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { expect, OTHER_USER_ID, OWNER_USER_ID, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { createApp } from "#server/entry/app.ts";
-import { createCas } from "#server/infra/storage/index.ts";
-import { principal } from "../../../domain/automation/_support.ts";
 import { seedChat, seedParticipant } from "../../../domain/chat/_support.ts";
 
 const body = {
@@ -109,112 +102,4 @@ test("strict mounted authoring creates disabled, updates losslessly without birt
   expect((await ownerCaller.automation.listRules({ chatId })).map((rule) => rule.id)).toEqual([second.id, first.id]);
   await expect(otherCaller.automation.updateRule(replacement)).toThrowTRPCError("FORBIDDEN");
   expect(await ownerCaller.automation.listRuleTools()).toEqual([]);
-});
-
-test("lost mounted HTTP response after real commit recovers one unchanged birth with no second position", async ({
-  db,
-  app,
-  ownerCaller,
-  clock,
-  importStagingDir,
-}) => {
-  const chatId = await seedChat(db, "lost-birth", { id: mintTypeId(ID_PREFIX.chat) });
-  await seedParticipant(db, { chatId, key: "lost-host", userId: OWNER_USER_ID, role: "host" });
-  const birth = { ...body, chatId, creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation) };
-  const committed = Promise.withResolvers<void>();
-  const handlerFailure = Promise.withResolvers<never>();
-  const mounted = createApp({
-    now: () => clock.now(),
-    db: databaseHandle(db),
-    seam: {
-      resolvePrincipal: async () =>
-        Promise.resolve({ principal: { ...(await principal(db, OWNER_USER_ID)), role: "owner", via: "header" }, sessionId: null, csrfHeaderPresent: false }),
-      debugGateAdmits: () => false,
-    },
-    services: app.services,
-    presence: app.presence,
-    sockets: app.sockets,
-    rateLimit: { enforce: (): Promise<void> => Promise.resolve() },
-    assets: app.assets,
-    cas: createCas(join(importStagingDir, "unhit-cas")),
-    character: app.services.character,
-    portability: app.portability,
-    settleImportMemory: app.settleImportMemory,
-    importWorldInfo: app.importWorldInfo,
-    importCardScripts: app.importCardScripts,
-    exportService: app.exportService,
-    sessions: app.sessions,
-    isShuttingDown: () => false,
-    credentialsKeyOk: () => true,
-    inContainer: false,
-    relayHosts: () => [],
-    shareState: () => ({ state: "off" }),
-    // This fixture tests a durable rule write, not first-request default-library seeding.
-    seedUserCharacters: (): void => undefined,
-    oidcProviderName: "fixture",
-  });
-  const forgedCatalog = await mounted.fetch(
-    new Request(`http://127.0.0.1/api/trpc/automation.listRuleTools?input=${encodeURIComponent(JSON.stringify({ userId: OTHER_USER_ID }))}`),
-    { incoming: { socket: { remoteAddress: "127.0.0.1", remotePort: 1, remoteFamily: "IPv4" } } },
-  );
-  expect(forgedCatalog.status).toBe(400);
-  const server = createServer((req, res) => {
-    void (async (): Promise<void> => {
-      const chunks: Buffer[] = [];
-      for await (const chunk of req) {
-        if (!Buffer.isBuffer(chunk)) {
-          throw new Error("expected an HTTP byte buffer");
-        }
-        chunks.push(chunk);
-      }
-      const response = await mounted.fetch(
-        new Request(`http://127.0.0.1${req.url}`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: Buffer.concat(chunks).toString("utf8"),
-        }),
-        { incoming: req },
-      );
-      if (response.status !== 200) {
-        throw new Error(`expected committed response, got ${response.status}`);
-      }
-      await response.text();
-      committed.resolve();
-      res.destroy();
-    })().catch((error: Error) => {
-      handlerFailure.reject(error);
-      res.destroy();
-    });
-  });
-  server.listen(0, "127.0.0.1");
-  try {
-    await once(server, "listening");
-    const address = server.address();
-    if (address === null || typeof address === "string") {
-      throw new Error("expected loopback address");
-    }
-    const request = fetch(`http://127.0.0.1:${address.port}/api/trpc/automation.createRule`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify(birth),
-    });
-    const responseLost = expect(request).rejects.toThrow();
-    await Promise.race([committed.promise, handlerFailure.promise]);
-    await responseLost;
-    const stored = await ownerCaller.automation.listRules({ chatId });
-    expect(stored).toHaveLength(1);
-    expect(await ownerCaller.automation.createRule(birth)).toEqual(stored[0]);
-    expect(await ownerCaller.automation.createRule({ ...birth, name: "response-loss retry" })).toEqual(stored[0]);
-    expect(await ownerCaller.automation.listRules({ chatId })).toEqual(stored);
-    const recovered = stored[0];
-    if (recovered === undefined) {
-      throw new Error("expected committed birth");
-    }
-    const updated = await ownerCaller.automation.updateRule({ ...body, ruleId: recovered.id, name: "ordinary update after recovery" });
-    expect(updated).toMatchObject({ id: recovered.id, name: "ordinary update after recovery", enabled: false, position: 0 });
-    expect(await ownerCaller.automation.listRules({ chatId })).toEqual([updated]);
-  } finally {
-    server.closeAllConnections();
-    await new Promise<void>((resolve, reject) => server.close((error) => (error === undefined ? resolve() : reject(error))));
-  }
 });

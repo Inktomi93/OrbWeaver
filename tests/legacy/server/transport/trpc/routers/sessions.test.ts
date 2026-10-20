@@ -2,8 +2,9 @@
 // tests, this procedure calls NO `ctx.services` verb: it is a PURE projection of the resolved `Principal`
 // (`ctx.auth`) into a `ViewerView` (`userId`/`handle`/`globalRole`), so identity is never re-queried below
 // the seam (Spine-Identity-and-Auth invariant #2). These tests drive the real middleware ladder via
-// `createCaller` and assert the projection: the exact three fields, `role`→`globalRole`, and no leakage of
-// any other `Principal` field (`externalId`/`via`).
+// `createCaller` and assert the projection: the exact three fields and `role`→`globalRole`. That no other
+// `Principal` field (`externalId`/`via`) reaches the wire is proven over a real SSO credential in
+// tests/e2e/csrf-gates.forward.spec.ts.
 //
 // The procedure also parses its result through the strict `viewerViewSchema`. The literal projection cannot
 // carry an extra key today; the parser is what refuses a refactor that spreads the Principal (its
@@ -11,7 +12,7 @@
 // parser is installed and that it rejects a malformed known field at runtime.
 
 import { viewerViewSchema } from "@orb/contracts/identity";
-import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { appRouter } from "@orb/server/transport/trpc";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -37,22 +38,6 @@ describe("sessions.me — viewer identity projection", () => {
 
     const user = await caller(makeContext({ auth: await principal(db, "user") })).sessions.me();
     expect(user.globalRole).toBe("user");
-  });
-
-  test("leaks no other Principal field (externalId / via stay off the wire)", async () => {
-    const db = await freshDb();
-    const view = await caller(
-      makeContext({
-        auth: await principal(db, "user", {
-          userId: USER,
-          handle: HANDLE,
-          externalId: castId<ExternalId>("authentik-sub-123"),
-          via: "cookie",
-        }),
-      }),
-    ).sessions.me();
-
-    expect(Object.keys(view).sort()).toEqual(["globalRole", "handle", "userId"]);
   });
 });
 
