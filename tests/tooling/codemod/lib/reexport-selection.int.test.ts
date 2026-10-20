@@ -398,10 +398,7 @@ test.each([
       });
     },
   );
-  const exports = z
-    .object({ before: z.literal("before"), after: z.literal("after") })
-    .strict()
-    .parse(await import(moduleUrl(emitted)));
+  const exports = z.strictObject({ before: z.literal("before"), after: z.literal("after") }).parse(await import(moduleUrl(emitted)));
   expect(exports).toEqual({ before: "before", after: "after" });
   const trace = z.object({ order: z.array(z.string()) }).parse(await import(changed.traceUrl));
   expect(trace.order).toEqual(originalTrace.order);

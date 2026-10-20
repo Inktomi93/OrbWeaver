@@ -5,7 +5,7 @@
 // host-side lifecycle failures a CALLER sees, never a guest.
 
 import { DomainConflictError, DomainError, DomainNotFoundError, DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
-import type { PluginId } from "@orb/kit/ids";
+import type { PluginId, SandboxWireId } from "@orb/kit/ids";
 
 /** The bundle failed unzip/validation: a bad zip, extra/unknown entries, a decompression-bomb over the caps,
  *  malformed `manifest.json`, or a manifest that fails `pluginManifestSchema` (bad slug/version/hostVersion shape/
@@ -180,10 +180,7 @@ export class PluginCrashedError extends DomainUnavailableError {}
  *  caller's — collapsed leak-free (no foreign-existence oracle; the owner-scoped read returns undefined either
  *  way). Maps to NOT_FOUND. */
 export class PluginNotFoundError extends DomainNotFoundError {
-  constructor(
-    // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-    pluginId: string,
-  ) {
+  constructor(pluginId: SandboxWireId<PluginId>) {
     super("plugin", pluginId);
   }
 }

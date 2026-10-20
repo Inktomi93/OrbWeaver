@@ -14,7 +14,7 @@ import { inheritedProcessEnv, processEnvValue, testProcessEnv, withProcessEnv } 
 const ABSENT_ENV_KEY = "ORB_PROC_TEST_ABSENT";
 const PRESENT_ENV_KEY = "ORB_PROC_TEST_PRESENT";
 
-test("test environment preserves explicit overrides and adds the storage option without ambient mutation", () => {
+test("the test environment preserves explicit overrides and adds the storage option without ambient mutation", () => {
   const ambient = inheritedProcessEnv();
   const overrides = {
     ["NODE_OPTIONS"]: '--max-old-space-size=16384 --import="/a path/preload.js"',
@@ -27,7 +27,7 @@ test("test environment preserves explicit overrides and adds the storage option 
   expect(testProcessEnv(environment)).toEqual(environment);
 });
 
-test("test environment disables storage after an inherited enabling option in an actual Node child", () => {
+test("the test environment disables storage after an inherited enabling option in an actual Node child", () => {
   const environment = testProcessEnv({ ["NODE_OPTIONS"]: "--max-old-space-size=16384 --no-webstorage --experimental-webstorage" });
   const child = runNicedSync(
     process.execPath,

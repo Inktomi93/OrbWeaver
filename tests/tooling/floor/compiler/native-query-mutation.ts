@@ -1,5 +1,6 @@
 import { readFileSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { plantPrototypeFault } from "@orb/testkit/node/prototype-fault-plant.ts";
 import { Project } from "ts-morph";
 
 export const NATIVE_QUERY_MUTATIONS = ["file-retarget", "directory-retarget", "dangling", "disappear", "appear", "authored-alias-retarget"] as const;
@@ -40,7 +41,7 @@ export function installNativeQueryMutation(root: string, mode: (typeof NATIVE_QU
     mutateQueryFileSystem(root, mode);
     writeFileSync(join(root, ".cache/native-query-mutation.json"), JSON.stringify({ changed }));
   };
-  Object.defineProperty(Project.prototype, "getLanguageService", {
+  const restoreLanguageService = plantPrototypeFault(Project.prototype, "getLanguageService", {
     value(this: Project): ReturnType<Project["getLanguageService"]> {
       const service = original.call(this);
       if (!observed.has(service)) {
@@ -74,7 +75,7 @@ export function installNativeQueryMutation(root: string, mode: (typeof NATIVE_QU
     },
   });
   return () => {
-    Object.defineProperty(Project.prototype, "getLanguageService", { value: original });
+    restoreLanguageService();
     for (const restore of restores.toReversed()) {
       restore();
     }

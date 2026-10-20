@@ -81,13 +81,13 @@ import {
 import { createGenerationObservationSession } from "../persistence/generation-observation.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
 import { holdsLock, refreshLock, releaseLock, tryAcquireLock } from "../persistence/lock.ts";
+import { loadInlineReplyAssetIds } from "../persistence/message-asset-links.ts";
 import {
   loadCanonContentSignatures,
   loadCanonCues,
   loadCanonHistory,
   loadCanonReasoningParts,
   loadChatRow,
-  loadInlineReplyAssetIds,
   loadMaxMessageSeq,
   loadMessageView,
   loadRecordedSystemTokens,

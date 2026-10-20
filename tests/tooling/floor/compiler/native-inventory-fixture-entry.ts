@@ -4,6 +4,7 @@ import { syncBuiltinESMExports } from "node:module";
 import { dirname, join, relative, sep } from "node:path";
 import process from "node:process";
 import { backup, DatabaseSync, StatementSync } from "node:sqlite";
+import { plantPrototypeFault } from "@orb/testkit/node/prototype-fault-plant.ts";
 import type {
   InventoryBuildRequest,
   InventoryFileProjection,
@@ -114,7 +115,7 @@ let declarationPreparations = 0;
 let closureLookups = 0;
 const closureKeys = new Set<string>();
 let connection: DatabaseSync | undefined;
-Object.defineProperty(DatabaseSync.prototype, "prepare", {
+const restorePrepare = plantPrototypeFault(DatabaseSync.prototype, "prepare", {
   value(this: DatabaseSync, ...args: Parameters<DatabaseSync["prepare"]>): ReturnType<DatabaseSync["prepare"]> {
     connection = this;
     if (validating && args[0].includes("d.kind='bindings'") && args[0].includes("d.role=?")) {
@@ -123,8 +124,10 @@ Object.defineProperty(DatabaseSync.prototype, "prepare", {
     return prepare.apply(this, args);
   },
 });
+let restoreGet: (() => void) | undefined;
+let restoreIterate: (() => void) | undefined;
 if (request.observeCoverage === true) {
-  Object.defineProperty(StatementSync.prototype, "get", {
+  restoreGet = plantPrototypeFault(StatementSync.prototype, "get", {
     value(this: StatementSync, ...args: Parameters<StatementSync["get"]>): ReturnType<StatementSync["get"]> {
       if (validating && this.sourceSQL.includes("kind='available' AND value=?")) {
         closureLookups++;
@@ -133,7 +136,7 @@ if (request.observeCoverage === true) {
       return get.apply(this, args);
     },
   });
-  Object.defineProperty(StatementSync.prototype, "iterate", {
+  restoreIterate = plantPrototypeFault(StatementSync.prototype, "iterate", {
     value(this: StatementSync, ...args: Parameters<StatementSync["iterate"]>): ReturnType<StatementSync["iterate"]> {
       if (validating && this.sourceSQL.includes("b.lexicalCount,b.originCount FROM inventory_global_binding")) {
         enumerations++;
@@ -206,8 +209,8 @@ try {
   }
   writeFileSync(resultPath, JSON.stringify({ refusal: error.message, workers, faults, requests, published }));
 } finally {
-  Object.defineProperty(DatabaseSync.prototype, "prepare", { value: prepare });
-  Object.defineProperty(StatementSync.prototype, "get", { value: get });
-  Object.defineProperty(StatementSync.prototype, "iterate", { value: iterate });
+  restorePrepare();
+  restoreGet?.();
+  restoreIterate?.();
   Object.defineProperty(childProcess, "spawnSync", { value: spawn });
 }

@@ -38,6 +38,7 @@ import {
   users,
   workloadSchedules,
 } from "@orb/db";
+import type { Handle } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
@@ -714,7 +715,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
       const member = await cloneRoot.principalFor(identities.sharedMember.viewer.userId);
       const address = await cloneRoot.listen();
       const origin = `http://${address.address}:${String(address.port)}`;
-      const login = async (handle: string, password: string): Promise<Response> => {
+      const login = async (handle: Handle, password: string): Promise<Response> => {
         const response = await fetch(new URL("/api/auth/login", origin), {
           method: "POST",
           headers: { [CSRF_HEADER]: "1", forwarded: "" },

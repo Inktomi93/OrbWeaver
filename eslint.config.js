@@ -121,7 +121,13 @@ import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
 import { BUS_SUBUNIONS, BUSES } from "./packages/contracts/src/bus-registry/index.ts";
 import { STRUCTURED_VEHICLES, WIRE_SCHEMA_KEYWORD_VOCABULARY } from "./packages/contracts/src/inference/wire-subset.ts";
 import { TABLE_SCOPING } from "./packages/db/src/tenancy/index.ts";
-import { deriveCanonicalBrandTypeNames, ID_BRAND_HOME, nativeCanonicalIdBrand, requireEntityIdTypeNames } from "./tooling/src/floor/code-facts/id-brand.ts";
+import {
+  deriveCanonicalBrandTypeNames,
+  ID_BRAND_HOME,
+  nativeCanonicalIdBrand,
+  requireEntityIdTypeNames,
+  SANDBOX_WIRE_ID_TYPE,
+} from "./tooling/src/floor/code-facts/id-brand.ts";
 import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TOOLING_PREFIX } from "./tooling/src/floor/code-facts/module-specifier.ts";
 import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
 import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
@@ -1254,7 +1260,6 @@ const ROLE_DATA_EXPORTS = [
       "loadPendingUserText",
       "loadIsReplyToLatestUserMessage",
       "loadCanonHistory",
-      "loadInlineReplyAssetIds",
       "loadRecordedSystemTokens",
       "loadCanonContentSignatures",
       "loadCanonReasoningParts",
@@ -7329,22 +7334,70 @@ function nativePackageCallRule(methods, grouped) {
   };
 }
 
-function nativeBareString(type) {
-  if (ts.isParenthesizedTypeNode(type)) {
-    return nativeBareString(type.type);
+function nativeReferencedAlias(reference, checker) {
+  const symbol = checker.getSymbolAtLocation(reference.typeName);
+  const target = symbol !== undefined && nativeAliasFlag(symbol) ? checker.getAliasedSymbol(symbol) : symbol;
+  return target?.declarations?.find(ts.isTypeAliasDeclaration);
+}
+
+function nativeInIdsHome(declaration) {
+  return declaration.getSourceFile().fileName.replaceAll("\\", "/").endsWith(`/${ID_BRAND_HOME}`);
+}
+
+// A type reference's arms: the ids home's sandbox wire id as `{ wire: <brand type name | null> }`; any other alias is
+// followed to its declared type, so a renamed `string` stays `string`.
+function nativeReferenceArms(type, checker) {
+  const alias = nativeReferencedAlias(type, checker);
+  if (alias === undefined) {
+    return [null];
   }
-  const arms = ts.isUnionTypeNode(type) ? type.types : [type];
-  const kinds = arms.map((raw) => {
-    let arm = raw;
-    while (ts.isParenthesizedTypeNode(arm)) {
-      arm = arm.type;
-    }
-    if (arm.kind === ts.SyntaxKind.StringKeyword) {
-      return "string";
-    }
-    return arm.kind === ts.SyntaxKind.UndefinedKeyword || (ts.isLiteralTypeNode(arm) && arm.literal.kind === ts.SyntaxKind.NullKeyword) ? "nullable" : null;
-  });
-  return kinds.includes("string") && kinds.every((kind) => kind !== null);
+  if (alias.name.text !== SANDBOX_WIRE_ID_TYPE || !nativeInIdsHome(alias)) {
+    return nativeTextArms(alias.type, checker);
+  }
+  const argument = type.typeArguments?.[0];
+  const carried = argument !== undefined && ts.isTypeReferenceNode(argument) ? nativeReferencedAlias(argument, checker) : undefined;
+  return [{ wire: carried !== undefined && nativeInIdsHome(carried) ? carried.name.text : null }];
+}
+
+// Each arm of a name-position type as `string`, `nullable`, a sandbox wire id, or `null` when the arm is not text.
+function nativeTextArms(type, checker) {
+  if (ts.isParenthesizedTypeNode(type)) {
+    return nativeTextArms(type.type, checker);
+  }
+  if (ts.isUnionTypeNode(type)) {
+    return type.types.flatMap((arm) => nativeTextArms(arm, checker));
+  }
+  if (type.kind === ts.SyntaxKind.StringKeyword) {
+    return ["string"];
+  }
+  if (type.kind === ts.SyntaxKind.UndefinedKeyword || (ts.isLiteralTypeNode(type) && type.literal.kind === ts.SyntaxKind.NullKeyword)) {
+    return ["nullable"];
+  }
+  return ts.isTypeReferenceNode(type) ? nativeReferenceArms(type, checker) : [null];
+}
+
+// The parameter or property that declares a typed identifier name position, or undefined.
+function nativeNamePosition(mapped) {
+  const declaration = ts.isIdentifier(mapped) && ts.isParameter(mapped.parent) && mapped.parent.name === mapped ? mapped.parent : mapped;
+  return (ts.isParameter(declaration) || ts.isPropertySignature(declaration) || ts.isPropertyDeclaration(declaration)) &&
+    ts.isIdentifier(declaration.name) &&
+    declaration.type !== undefined
+    ? declaration
+    : undefined;
+}
+
+// Why a text-typed position violates its canonical brand, or undefined when it does not.
+function nativeBrandPositionViolation(name, arms, expected) {
+  if (arms.includes(null)) {
+    return;
+  }
+  if (arms.includes("string")) {
+    return `${name} is bare string, but canonical ${expected.typeName} (${expected.brand}) owns this position. (@orb/kit/ids)`;
+  }
+  const stray = arms.find((arm) => typeof arm === "object" && arm.wire !== expected.typeName);
+  return stray === undefined
+    ? undefined
+    : `${name} carries ${SANDBOX_WIRE_ID_TYPE}<${stray.wire ?? "a non-canonical id"}>, but canonical ${expected.typeName} (${expected.brand}) owns this position. (@orb/kit/ids)`;
 }
 
 const brandNamePositionRule = {
@@ -7354,6 +7407,9 @@ const brandNamePositionRule = {
     const ids = native.program.getSourceFiles().find((source) => source.fileName.replaceAll("\\", "/").endsWith(`/${ID_BRAND_HOME}`));
     if (ids === undefined) {
       throw new Error("Native canonical brand vocabulary is absent from the owning Program");
+    }
+    if (!ids.statements.some((statement) => ts.isTypeAliasDeclaration(statement) && statement.name.text === SANDBOX_WIRE_ID_TYPE)) {
+      throw new Error(`Native canonical brand vocabulary declares no ${SANDBOX_WIRE_ID_TYPE}; sandbox wire positions would read as bare string`);
     }
     const brands = new Map();
     for (const declaration of ids.statements) {
@@ -7371,22 +7427,14 @@ const brandNamePositionRule = {
       }
     }
     const check = (node) => {
-      const mapped = native.esTreeNodeToTSNodeMap.get(node);
-      const declaration = ts.isIdentifier(mapped) && ts.isParameter(mapped.parent) && mapped.parent.name === mapped ? mapped.parent : mapped;
-      if (
-        !((ts.isParameter(declaration) || ts.isPropertySignature(declaration) || ts.isPropertyDeclaration(declaration)) && ts.isIdentifier(declaration.name)) ||
-        declaration.type === undefined ||
-        !nativeBareString(declaration.type)
-      ) {
+      const declaration = nativeNamePosition(native.esTreeNodeToTSNodeMap.get(node));
+      const expected = declaration === undefined ? undefined : brands.get(declaration.name.text);
+      if (expected === undefined) {
         return;
       }
-      const name = declaration.name.text;
-      const expected = brands.get(name);
-      if (expected !== undefined) {
-        context.report({
-          node: native.tsNodeToESTreeNodeMap.get(declaration.name),
-          message: `${name} is bare string, but canonical ${expected.typeName} (${expected.brand}) owns this position. (@orb/kit/ids)`,
-        });
+      const message = nativeBrandPositionViolation(declaration.name.text, nativeTextArms(declaration.type, native.checker), expected);
+      if (message !== undefined) {
+        context.report({ node: native.tsNodeToESTreeNodeMap.get(declaration.name), message });
       }
     };
     return { Identifier: check, TSPropertySignature: check, PropertyDefinition: check };
@@ -9322,14 +9370,46 @@ function maintainedRulePacks() {
       files: vitestTests,
       ignores: playwrightTests,
       plugins: { vitest },
-      settings: { vitest: { vitestImports: ["@orb/testkit/node/fixtures.ts", "@orb/testkit/node/tool-fixtures.ts"] } },
+      // The plugin knows `test`/`expect` only by import source. Besides the two testkit doors, the test-local
+      // doors re-export or `.extend()` that same `test`: the relative testkit spellings inside `tests/support`,
+      // a suite's `_fixtures.ts` or `<name>.fixtures.ts`, and the legacy rpg `_support.ts`. Every module under
+      // `tests/` that exports `test`, `it`, `expect` or `describe` is one of these, so the pattern names no
+      // other API. An unlisted door turns every vitest rule off for its importers' assertions.
+      settings: {
+        vitest: {
+          vitestImports: [
+            "@orb/testkit/node/fixtures.ts",
+            "@orb/testkit/node/tool-fixtures.ts",
+            /(?:^|\/)(?:_fixtures|_support|fixtures|tool-fixtures|[\w-]+\.fixtures)\.ts$/u,
+          ],
+        },
+      },
       rules: {
         ...packRules(vitest.configs.recommended, "vitest/"),
-        "vitest/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"] }],
+        "vitest/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"], additionalTestBlockFunctions: ["auditRuleTest", "cellTest"] }],
         "vitest/valid-expect": ["error", { maxArgs: 2 }],
+        // The suites' own case wrappers each call `test` with the caller's body, so the body's expects are
+        // inside a test block the plugin cannot see through the wrapper.
+        "vitest/no-standalone-expect": ["error", { additionalTestBlockFunctions: ["auditRuleTest", "cellTest"] }],
         "vitest/no-conditional-expect": "off",
         "vitest/no-focused-tests": "off",
       },
+    },
+    {
+      // These suites title each case from a typed `string` parameter or loop binding (a case wrapper or a
+      // table). tsc already refuses a non-string title on `test`, the only defect the literal-only arm catches,
+      // so identifier titles are admitted here and nowhere else.
+      files: [
+        "tests/tooling/ui-audit/**/*.test.ts",
+        "tests/tooling/review-mirror/index.test.ts",
+        "tests/tooling/floor/code-facts/drizzle-helper-origins.test.ts",
+        "tests/tooling/floor/code-facts/drizzle-native-provenance.test.ts",
+        "tests/tooling/floor/code-facts/drizzle-settled-reads.test.ts",
+        "tests/legacy/inference/conformance/_harness.ts",
+        "tests/legacy/server/infra/network/safefetch-selfenforcing.suite.test.ts",
+      ],
+      plugins: { vitest },
+      rules: { "vitest/valid-title": ["error", { allowArguments: true }] },
     },
     {
       // Zod, on the two packages that author schemas. `prefer-enum-over-literal-union` is not in the

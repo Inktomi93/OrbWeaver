@@ -29,10 +29,10 @@
 //          produce UI selectors; the exact legacy-only difference is measured below.
 
 import { join } from "node:path";
+import { TEST_IDS } from "@orb/client/lib";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import { TEST_IDS } from "../../../../packages/client/src/lib/test-ids.ts";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { POPULATION_ROOTS } from "../../../../tooling/src/verify/contract/population.ts";
 import { gate as testid } from "../../../../tooling/src/verify/gates/testid-liveness.ts";

@@ -7,8 +7,8 @@ import { castId } from "@orb/kit/ids";
 import { sniffMime } from "@orb/kit/image-sniff";
 import type { ImageRefAssets, MediaRoomAccess, ResolveMediaRef, ResolveMediaRefDeps } from "../contract/media-ref.ts";
 import type { ResolvedMediaRef } from "../contract/results.ts";
+import { hasMessageAssetLinkInChat } from "../persistence/message-asset-links.ts";
 import { isPresentParticipant } from "../persistence/participants-read.ts";
-import { hasMessageAssetLinkInChat } from "../persistence/queries.ts";
 
 const VIDEO_MIME_PREFIX = "video/";
 const GIF_MIME = "image/gif";

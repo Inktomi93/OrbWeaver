@@ -1,4 +1,5 @@
 import type { PluginHostV1, PluginInvocationLiveness } from "@orb/contracts/plugin";
+import type { AssetId, SandboxWireId } from "@orb/kit/ids";
 
 /** The membrane's egress seam. `init` is the guest's raw (already dumped) request init; only GET/POST, a
  *  string-valued header map and a string body survive into the request. */
@@ -8,8 +9,7 @@ export interface PluginNetEgress {
     url: string,
     liveness: PluginInvocationLiveness,
   ) => Promise<{
-    // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — a host-minted id for the installer's own new asset; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-    readonly assetId: string;
+    readonly assetId: SandboxWireId<AssetId>;
   }>;
 }
 

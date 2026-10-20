@@ -3,12 +3,11 @@
 // and the ordinary-waiver carrier acquisition central authority reconciliation reads.
 import type { SourceFile } from "ts-morph";
 import { factProvider } from "../contract/fact.ts";
-import type { GateOwnerResult } from "../contract/gate-authority.ts";
+import type { GateOwnerResult, RawGateFinding } from "../contract/gate-authority.ts";
 import type { OrdinaryWaiverCarrierRefusal, OrdinaryWaiverCarriers, OrdinaryWaiverSource } from "../contract/ordinary-waiver-source.ts";
 import type { GatePolicy } from "../contract/policy.ts";
 import type { GateFactOwnerResult, PolicyFactValueRegistry, PolicyOwnerResult, PolicySemanticReceipt, PolicyToolError } from "../contract/policy-pass.ts";
 import { POLICY_PASS_REFUSALS } from "../contract/policy-pass.ts";
-import { canonicalFindings } from "./policy-pass-resolve.ts";
 import type { FactControl, FactRun, PolicyRun } from "./policy-pass-types.ts";
 import { finishFactTiming, finishTiming, guard, guardFact, markIncomplete } from "./policy-pass-types.ts";
 
@@ -217,4 +216,15 @@ export function ordinaryWaiverAcquisition(
     sources.push(source);
   }
   return { sources: Object.freeze(sources), refusals: acquired.refusals };
+}
+
+function canonicalFindings(findings: readonly RawGateFinding[]): readonly RawGateFinding[] {
+  return [...findings].toSorted(
+    (left, right) =>
+      left.file.localeCompare(right.file) ||
+      left.line - right.line ||
+      left.column - right.column ||
+      (left.token ?? "").localeCompare(right.token ?? "") ||
+      (left.message ?? "").localeCompare(right.message ?? ""),
+  );
 }

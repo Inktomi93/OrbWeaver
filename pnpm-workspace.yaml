@@ -554,5 +554,12 @@ patchedDependencies:
   # reordered and the best match could sit under a lower group. The patch keys the lookup by the group id.
   cmdk@1.1.1: patches/cmdk@1.1.1.patch
   '@anthropic-ai/claude-agent-sdk@0.3.280': patches/@anthropic-ai__claude-agent-sdk@0.3.280.patch
+  # valid-expect accepted an async assertion only where it was written. The patch accepts an assertion stored in a block-scoped
+  # const or let when every path to the block's end awaits, returns or Promise.all-settles it: an early return or throw, a catch
+  # that can swallow, or any reassignment or shadowing of the name keeps the finding, and a declaration outside a block keeps it
+  # too. expect-expect skips a test call only inside a wrapper named in additionalTestBlockFunctions that forwards its own
+  # untouched body parameter. valid-expect-in-promise is unpatched. A bump must port it;
+  # tests/tooling/eslint-vitest-plugin-patch.test.ts holds both directions.
+  '@vitest/eslint-plugin@1.6.27': patches/@vitest__eslint-plugin@1.6.27.patch
 
 nodeOptions: "--max-old-space-size=16384"

@@ -52,7 +52,9 @@ beforeAll(async () => {
     headers: { "content-type": "application/x-www-form-urlencoded", [CSRF_HEADER]: "1" },
     body: new URLSearchParams({ password: OWNER_PASSWORD }).toString(),
   });
-  expect(claim.status).toBe(OK);
+  if (claim.status !== OK) {
+    throw new Error(`the first-run claim answered ${String(claim.status)}`);
+  }
   ownerCookie = claim.headers
     .getSetCookie()
     .map((cookie) => cookie.split(";")[0] ?? "")

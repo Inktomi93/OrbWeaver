@@ -1,5 +1,6 @@
 import { symlinkSync } from "node:fs";
 import { join, relative } from "node:path";
+import { plantPrototypeFault } from "@orb/testkit/node/prototype-fault-plant.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { observeCallReturns, readCallReturnProgram, readSuppliedParameter } from "@orb/tooling/floor/code-facts/call-returns";
 import { beginReferencePass, endReferencePass, readPrototypeExposureCensus, resolveModuleMemberOrigin } from "@orb/tooling/floor/code-facts/reference-fact";
@@ -19,7 +20,7 @@ test("optional parsed fields do not turn an inherited getter into an own-data pr
   expect(Object.getOwnPropertyDescriptor(Object.prototype, fieldName)).toBeUndefined();
   let actual: string | undefined;
   const modeName = "MODE";
-  Object.defineProperty(Object.prototype, fieldName, {
+  const restorePrototype = plantPrototypeFault(Object.prototype, fieldName, {
     configurable: true,
     get() {
       Reflect.set(this, modeName, "outside");
@@ -32,7 +33,7 @@ test("optional parsed fields do not turn an inherited getter into an own-data pr
     const result = schema.safeParse({ [modeName]: "local" });
     actual = result.success ? result.data[modeName] : undefined;
   } finally {
-    Reflect.deleteProperty(Object.prototype, fieldName);
+    restorePrototype();
   }
   expect(actual).toBe("outside");
   symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");
@@ -68,7 +69,7 @@ test("required parser assignments cannot assume an inherited setter creates an o
   expect(Object.getOwnPropertyDescriptor(Object.prototype, fieldName)).toBeUndefined();
   let actual: string | undefined;
   const modeName = "MODE";
-  Object.defineProperty(Object.prototype, fieldName, {
+  const restorePrototype = plantPrototypeFault(Object.prototype, fieldName, {
     configurable: true,
     get() {
       Reflect.set(this, modeName, "outside");
@@ -85,7 +86,7 @@ test("required parser assignments cannot assume an inherited setter creates an o
     const result = schema.safeParse({ [modeName]: "local", [fieldName]: "input" });
     actual = result.success ? result.data[modeName] : undefined;
   } finally {
-    Reflect.deleteProperty(Object.prototype, fieldName);
+    restorePrototype();
   }
   expect(actual).toBe("outside");
   symlinkSync(join(repoRoot, "node_modules"), join(scratch, "node_modules"), "dir");

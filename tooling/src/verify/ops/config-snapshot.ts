@@ -252,17 +252,19 @@ export async function readEslintFileAdmissions(root: string, config: string, pat
 }
 
 function configuredCompilerInputs(root: string, path: string, options: Readonly<Record<string, unknown>> | undefined): readonly string[] | null {
-  if (options?.["programs"]) {
+  const programs = options?.["programs"];
+  if (programs !== undefined && programs !== null && programs !== false) {
     return null;
   }
   const base = typeof options?.["tsconfigRootDir"] === "string" ? options["tsconfigRootDir"] : root;
   const service = options?.["projectService"];
+  const serviceOff = service === undefined || service === null || service === false;
   const project = options?.["project"];
-  if (service === true || (!service && project === true)) {
+  if (service === true || (serviceOff && project === true)) {
     const config = ts.findConfigFile(dirname(resolve(root, path)), ts.sys.fileExists);
     return config === undefined ? null : [relative(root, config).replaceAll("\\", "/")];
   }
-  if (service) {
+  if (!serviceOff) {
     return null;
   }
   let projects: readonly string[] = [];

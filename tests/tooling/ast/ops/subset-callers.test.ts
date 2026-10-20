@@ -178,7 +178,7 @@ describe("ast subset-callers lens (the stale-door class)", () => {
     expect(audit.findings).toHaveLength(1);
   });
 
-  test("test and tool callers never enter the shipped-product comparison pool", () => {
+  test("callers in tests and tools never enter the shipped-product comparison pool", () => {
     const audit = auditOf({
       "packages/client/src/a.ts": "export const A = () => sendTurn({ chatId, guided });\n",
       "packages/client/src/b.ts": "export const B = () => sendTurn({ chatId, guided });\n",

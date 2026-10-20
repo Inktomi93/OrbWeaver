@@ -21,18 +21,20 @@ const GENERATION_INTENT = { maxContextTokens: 4096, maxOutputTokens: 64, compact
 
 const PHASES = ["pre", "post"] as const;
 type SendOutcome = Awaited<ReturnType<Fixtures["app"]["services"]["chat"]["send"]>>;
+async function settleRefusedTurn(call: Promise<SendOutcome>): Promise<SendOutcome | null> {
+  await expect(call).rejects.toBeInstanceOf(DomainNoCredentialError);
+  return null;
+}
+async function settleCommittedTurn(call: Promise<SendOutcome>): Promise<SendOutcome | null> {
+  const committed = await call;
+  expect(committed.aborted).toBe(false);
+  expect(committed.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
+  expect(committed.messages.find((message) => message.role === "assistant")?.content).toBe("native funding reply");
+  return committed;
+}
 const SETTLEMENT: Record<(typeof PHASES)[number], (call: Promise<SendOutcome>) => Promise<SendOutcome | null>> = {
-  pre: async (call): Promise<SendOutcome | null> => {
-    await expect(call).rejects.toBeInstanceOf(DomainNoCredentialError);
-    return null;
-  },
-  post: async (call): Promise<SendOutcome | null> => {
-    const committed = await call;
-    expect(committed.aborted).toBe(false);
-    expect(committed.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
-    expect(committed.messages.find((message) => message.role === "assistant")?.content).toBe("native funding reply");
-    return committed;
-  },
+  pre: settleRefusedTurn,
+  post: settleCommittedTurn,
 };
 const WARNINGS: Record<(typeof PHASES)[number], string> = {
   pre: "chat: pre-turn managed compaction failed (proceeding)",

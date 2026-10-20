@@ -1,14 +1,10 @@
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project, SyntaxKind } from "ts-morph";
-import {
-  baseReferences,
-  readShapeAssociation,
-  shapeAssociationQuestions,
-  shapeAssociationSites,
-} from "../../../../tooling/src/floor/code-facts/shape-association.ts";
+import { readShapeAssociation } from "../../../../tooling/src/floor/code-facts/shape-association.ts";
 import type { ShapeAssociationRead, ShapeAssociationSite } from "../../../../tooling/src/floor/code-facts/shape-association-contract.ts";
 import { SHAPE_ASSOCIATION_UNKNOWN } from "../../../../tooling/src/floor/code-facts/shape-association-contract.ts";
+import { baseReferences, shapeAssociationQuestions, shapeAssociationSites } from "../../../../tooling/src/floor/code-facts/shape-association-sites.ts";
 import { captureTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations.ts";
 import { encodeTypeObservations, replayTypeObservations } from "../../../../tooling/src/floor/code-facts/type-observations-codec.ts";
 import { TYPE_OBSERVATION_PROFILE } from "../../../../tooling/src/floor/code-facts/type-observations-contract.ts";

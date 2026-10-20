@@ -50,12 +50,12 @@ import type { ParticipantData } from "../contract/views.ts";
 import { requireParticipant } from "../guard.ts";
 import { carriesAssetBackground, guardedChatId } from "../persistence/background-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
+import { loadMessageAssetLinks } from "../persistence/message-asset-links.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants } from "../persistence/participants-read.ts";
 import {
   loadChatInjections,
   loadChatRow,
-  loadMessageAssetLinks,
   loadMessageSlots,
   loadStoredUserMacroValues,
   loadStoredVariables,

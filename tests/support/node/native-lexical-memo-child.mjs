@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import process from "node:process";
 import { test } from "node:test";
 import { ts } from "ts-morph";
+import { plantPrototypeFault } from "./prototype-fault-plant.ts";
 
 const NAME_CAPACITY = 65_536;
 const POSITION_CAPACITY = 1_048_576;
@@ -53,12 +54,14 @@ await test("native lexical admission bounds and combined retained ownership", ()
   const sourceTexts = new Set(files.values());
   const indexOf = String.prototype.indexOf;
   let scans = 0;
-  String.prototype.indexOf = function (search, start) {
-    if (start === 0 && sourceTexts.has(this)) {
-      scans++;
-    }
-    return indexOf.call(this, search, start);
-  };
+  const restoreIndexOf = plantPrototypeFault(String.prototype, "indexOf", {
+    value(search, start) {
+      if (start === 0 && sourceTexts.has(this)) {
+        scans++;
+      }
+      return indexOf.call(this, search, start);
+    },
+  });
   const event = (phase, detail = {}) => {
     // @orb-waive test-determinism(performance.now): Native lexical phase completion reports actual elapsed time, not business time; remove with that telemetry.
     const row = { phase, elapsedMs: performance.now() - started, ...detail };
@@ -156,7 +159,7 @@ await test("native lexical admission bounds and combined retained ownership", ()
       gcDisturbedRepresentationOnly: true,
     });
   } finally {
-    String.prototype.indexOf = indexOf;
+    restoreIndexOf();
     pass?.dispose();
     service.dispose();
   }

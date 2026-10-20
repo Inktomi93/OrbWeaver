@@ -19,7 +19,8 @@ import {
   statsCanonVersions,
 } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { ChatId } from "@orb/kit/ids";
+import type { CharacterHandle, ChatId } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { CHAT_OP_CODES } from "@orb/server/domain/chat";
 import {
   CORPUS_EMBED_MODEL,
@@ -54,7 +55,7 @@ function paidReplies(count = 1): ReturnType<typeof createCorpusProviderExecution
   });
 }
 
-async function card(root: ServerTestHarness, principal: Principal, handle: string): ReturnType<ServerTestHarness["services"]["character"]["create"]> {
+async function card(root: ServerTestHarness, principal: Principal, handle: CharacterHandle): ReturnType<ServerTestHarness["services"]["character"]["create"]> {
   return await root.services.character.create({
     principal,
     input: createCharacterSchema.parse({ name: handle, handle, description: `Private ${handle} library` }),
@@ -87,7 +88,7 @@ for (const change of ["seat", "canon", "copy-plan"] as const) {
     const host = await root.principalFor(root.ownerId);
     const nominee = await root.principalFor((await root.actor()).id);
     const other = await root.principalFor((await root.actor()).id);
-    const source = await card(root, host, "offered-ledger");
+    const source = await card(root, host, castId<CharacterHandle>("offered-ledger"));
     const room = await root.services.chat.startChat({ principal: host, characterIds: [source.id], opening: "none" });
     const post = await root.app.chatRpgOps.postNarratorMessage(room.chat.id, "The original canon witness.");
     await invite(root, host, nominee, room.chat.id);
@@ -136,10 +137,10 @@ test("retained owners and owner-room inverse projections include departed charac
   const host = await root.principalFor(root.ownerId);
   const member = await root.principalFor((await root.actor()).id);
   const outsider = await root.principalFor((await root.actor()).id);
-  const original = await card(root, host, "retained-original");
-  const duplicate = await card(root, host, "retained-duplicate");
-  const incoming = await card(root, member, "retained-incoming");
-  const foreign = await card(root, outsider, "unrelated-library");
+  const original = await card(root, host, castId<CharacterHandle>("retained-original"));
+  const duplicate = await card(root, host, castId<CharacterHandle>("retained-duplicate"));
+  const incoming = await card(root, member, castId<CharacterHandle>("retained-incoming"));
+  const foreign = await card(root, outsider, castId<CharacterHandle>("unrelated-library"));
   const room = await root.services.chat.startChat({ principal: host, characterIds: [original.id, duplicate.id], opening: "none" });
   await root.app.chatRpgOps.postNarratorMessage(room.chat.id, "The retained witnesses counted the ledger.");
   await invite(root, host, member, room.chat.id);
@@ -259,13 +260,13 @@ test("a stale voice owner refuses canon even when accepted copying preserves the
   if (source?.characterId === null || source?.characterId === undefined) {
     throw new Error("the retained voice control has no native seated speaker");
   }
-  const retainedA = await card(root, actors.owner, "departed-a");
+  const retainedA = await card(root, actors.owner, castId<CharacterHandle>("departed-a"));
   await root.services.chat.addCharacterToChat({ principal: actors.owner, chatId, characterId: retainedA.id });
   await root.services.chat.removeCharacterFromChat({ principal: actors.owner, chatId, characterId: retainedA.id });
   await invite(root, actors.owner, nominee, chatId);
   await root.services.chat.nominateHostHandoff({ principal: actors.owner, chatId, userId: nominee.userId });
   await root.services.chat.acceptHostHandoff({ principal: nominee, chatId });
-  const retainedB = await card(root, nominee, "departed-b");
+  const retainedB = await card(root, nominee, castId<CharacterHandle>("departed-b"));
   await root.services.chat.addCharacterToChat({ principal: nominee, chatId, characterId: retainedB.id });
   await root.services.chat.removeCharacterFromChat({ principal: nominee, chatId, characterId: retainedB.id });
   await root.services.chat.nominateHostHandoff({ principal: nominee, chatId, userId: actors.owner.userId });

@@ -3,7 +3,7 @@ import process from "node:process";
 import { readSdkProcessInput } from "@orb/testkit/node/sdk-process.ts";
 import { z } from "zod";
 
-const { sessionId, frameId, lines } = await readSdkProcessInput();
+const { sdkSessionId: sessionId, frameId, lines } = await readSdkProcessInput();
 
 const inputSchema = z.object({
   type: z.string(),

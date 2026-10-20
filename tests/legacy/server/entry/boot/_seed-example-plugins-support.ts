@@ -26,7 +26,9 @@ const REPO_ROOT = join(import.meta.dirname, "..", "..", "..", "..", "..");
 
 beforeAll(async () => {
   const built = await writeShowcaseArtifacts(REPO_ROOT);
-  expect(built.diagnostics).toEqual([]);
+  if (built.diagnostics.length > 0) {
+    throw new Error(`the showcase artifacts did not build: ${JSON.stringify(built.diagnostics)}`);
+  }
 });
 
 let hostResources = new AsyncDisposableStack();

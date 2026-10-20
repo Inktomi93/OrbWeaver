@@ -5,7 +5,7 @@ import { randomUUID } from "node:crypto";
 import type { Principal } from "@orb/contracts/identity";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { BindingActor, RoleClientsWithSignal, SideGenSampling } from "@orb/inference";
-import type { IdSource, PluginId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, IdSource, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import { packShowcaseBundle, readShowcaseManifest, SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
@@ -147,8 +147,7 @@ export interface AutomationPluginComposeDeps {
      *  `character.ingest` doc). */
     readonly pluginId: PluginId | null;
   }) => Promise<{
-    // eslint-disable-next-line orb/brand-in-name-position -- the result id for the installer's own new character, minted under the installer by the import funnel and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
-    readonly characterId: string;
+    readonly characterId: SandboxWireId<CharacterId>;
     readonly created: boolean;
   }>;
   /** #798 — the remote-image "summon with art" op, pre-built PER-INSTALLER at the composition root (same
@@ -157,13 +156,11 @@ export interface AutomationPluginComposeDeps {
    *  embedded avatar. */
   readonly ingestCharacterAsset: (req: {
     readonly installerUserId: UserId;
-    // eslint-disable-next-line orb/brand-in-name-position -- the guest's untrusted wire string, owner-scope-gated by the CAS read at the root, cast there — branding here would claim a validation this boundary has not performed.
-    readonly assetId: string;
+    readonly assetId: SandboxWireId<AssetId>;
     /** See `ingestCharacterCard`'s `pluginId` (#1702 provenance). */
     readonly pluginId: PluginId | null;
   }) => Promise<{
-    // eslint-disable-next-line orb/brand-in-name-position -- the result id for the installer's own new character, minted under the installer by the import funnel and handed back to the guest as inert text. Ends if the bridge starts parsing to brands at the membrane.
-    readonly characterId: string;
+    readonly characterId: SandboxWireId<CharacterId>;
     readonly created: boolean;
   }>;
 }

@@ -3,6 +3,8 @@
 
 import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
+import type { Handle } from "@orb/kit/ids";
+import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
@@ -16,7 +18,7 @@ interface Call {
 }
 
 /** A local-mode server's HTTP surface as `seed multi-user` uses it, over the given user list. */
-async function fakeServer(users: readonly { readonly id: string; readonly handle: string }[]): Promise<{
+async function fakeServer(users: readonly { readonly id: string; readonly handle: Handle }[]): Promise<{
   readonly base: string;
   readonly calls: Call[];
   readonly close: () => Promise<void>;
@@ -51,7 +53,7 @@ async function fakeServer(users: readonly { readonly id: string; readonly handle
   };
 }
 
-async function seedAgainst(users: readonly { readonly id: string; readonly handle: string }[]): Promise<readonly Call[]> {
+async function seedAgainst(users: readonly { readonly id: string; readonly handle: Handle }[]): Promise<readonly Call[]> {
   const server = await fakeServer(users);
   vi.stubEnv("SEED_BASE_URL", server.base);
   vi.stubEnv("FIXTURE_MEMBER_PASSWORD", MEMBER_PASSWORD);
@@ -66,15 +68,15 @@ async function seedAgainst(users: readonly { readonly id: string; readonly handl
 
 test("a member handle that already exists gets the fixture password instead of staying locked out", async () => {
   const calls = await seedAgainst([
-    { id: "user_owner", handle: "owner" },
-    { id: "user_existing_member", handle: "Member" },
+    { id: "user_owner", handle: castId<Handle>("owner") },
+    { id: "user_existing_member", handle: castId<Handle>("Member") },
   ]);
   expect(calls).toContainEqual({ proc: "admin.resetPassword", body: { userId: "user_existing_member", password: MEMBER_PASSWORD } });
   expect(calls.some((call) => call.proc === "admin.createUser")).toBe(false);
 });
 
 test("a missing member is created, and nobody else's password is touched", async () => {
-  const calls = await seedAgainst([{ id: "user_owner", handle: "owner" }]);
+  const calls = await seedAgainst([{ id: "user_owner", handle: castId<Handle>("owner") }]);
   expect(calls).toContainEqual({ proc: "admin.createUser", body: { handle: "member", password: MEMBER_PASSWORD, role: "user" } });
   expect(calls.filter((call) => call.proc === "admin.resetPassword").map((call) => call.body)).toEqual([expect.objectContaining({ userId: "user_owner" })]);
 });

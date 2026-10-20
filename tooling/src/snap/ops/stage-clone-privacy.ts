@@ -3,7 +3,10 @@ import { existsSync, lstatSync, readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { DatabaseSync } from "node:sqlite";
 import { secretRedactionLiterals } from "@orb/kit/secret-redaction";
+import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { StageCloneOptions } from "../contract/stage-clone.ts";
+
+refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const SECRET_BOUND_ROWS = [
   "DELETE FROM user_credentials",

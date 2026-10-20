@@ -6,6 +6,7 @@ import type { GateFactToolError, PolicyFactValueRegistry, PolicyPassInput, Polic
 import { GATE_FACT_PHASES, POLICY_PHASES } from "../contract/policy-pass.ts";
 import { createResourceHost } from "../ops/resource-host.ts";
 import { coordinateGateAuthority } from "./gate-authority.ts";
+import { assertInvocationPolicies, assertOwnerPlans, assertSelectedPoliciesAreLoaded } from "./policy-pass-admission.ts";
 import {
   authorityOwnerResult,
   evaluateRuns,
@@ -15,14 +16,7 @@ import {
   ownerResult,
   withholdFactDependents,
 } from "./policy-pass-receipts.ts";
-import {
-  assertInvocationPolicies,
-  assertOwnerPlans,
-  assertSelectedPoliciesAreLoaded,
-  resolveFactRuns,
-  resolveRuns,
-  selectedFacts,
-} from "./policy-pass-resolve.ts";
+import { resolveFactRuns, resolveRuns, selectedFacts } from "./policy-pass-resolve.ts";
 import type { FactControl } from "./policy-pass-types.ts";
 import { ceilMs } from "./policy-pass-types.ts";
 import { createFactRuns, createRuns, prepareRuns, walkRuns } from "./policy-pass-walk.ts";

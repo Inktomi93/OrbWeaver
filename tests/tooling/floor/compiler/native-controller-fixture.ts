@@ -3,6 +3,7 @@ import { createRequire } from "node:module";
 import process from "node:process";
 import { DatabaseSync } from "node:sqlite";
 import { pathToFileURL } from "node:url";
+import { plantPrototypeFault } from "@orb/testkit/node/prototype-fault-plant.ts";
 import type { SemanticInventoryOptions } from "../../../../tooling/src/floor/code-facts/semantic-inventory-contract.ts";
 
 const mode = process.argv[2];
@@ -40,9 +41,9 @@ if (mode === "overlay") {
   });
   options = { ...options, fileSystem, projectedPaths: [helper], overlay: { addedPaths: [], deletedPaths: [] } };
 }
-const prepare = DatabaseSync.prototype.prepare;
 const observed: { path?: ReturnType<DatabaseSync["location"]> } = {};
-Object.defineProperty(DatabaseSync.prototype, "prepare", {
+const prepare = DatabaseSync.prototype.prepare;
+const restorePrepare = plantPrototypeFault(DatabaseSync.prototype, "prepare", {
   value(this: DatabaseSync, ...args: Parameters<DatabaseSync["prepare"]>): ReturnType<DatabaseSync["prepare"]> {
     observed.path = this.location();
     return prepare.apply(this, args);
@@ -80,5 +81,5 @@ try {
     }),
   );
 } finally {
-  Object.defineProperty(DatabaseSync.prototype, "prepare", { value: prepare });
+  restorePrepare();
 }

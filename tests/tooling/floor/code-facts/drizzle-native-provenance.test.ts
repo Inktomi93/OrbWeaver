@@ -135,8 +135,8 @@ const CASES = [
   },
 ] as const;
 
-for (const scenario of CASES) {
-  test(scenario.name, async ({ plantedTree, repoRoot }) => {
+for (const { name, ...scenario } of CASES) {
+  test(name, async ({ plantedTree, repoRoot }) => {
     const read = `${SCOPE_HEAD}${"imported" in scenario ? 'import {cohort} from "./producer.js";' : ""}${"before" in scenario ? scenario.before : ""}
 export async function read(db:Db,ownerId:string) {${scenario.body}}`;
     const fixture = await nativeFixture(

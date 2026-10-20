@@ -1,6 +1,6 @@
 // Reduced owner projections and admitted installer operations shared by host adapters.
 
-import type { AssetId, ChatId, PluginId, UserId, WorldBookId } from "@orb/kit/ids";
+import type { AssetId, ChatId, PluginId, SandboxWireId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { OwnedAssetBytes } from "#assets";
 import type { Principal } from "#identity";
 import type { NotificationEvent, NotificationType, PluginNotificationRecipient } from "#notifications";
@@ -60,11 +60,7 @@ export interface PluginWorldInfoReads {
 }
 
 export interface PluginAssetReadOps {
-  readonly read: (req: {
-    readonly installerUserId: UserId;
-    // eslint-disable-next-line orb/brand-in-name-position -- the guest's untrusted wire string, owner-scope-gated by the domain read, cast at compose — branding here would claim a validation this boundary has not performed.
-    readonly assetId: string;
-  }) => Promise<PluginAssetView | null>;
+  readonly read: (req: { readonly installerUserId: UserId; readonly assetId: SandboxWireId<AssetId> }) => Promise<PluginAssetView | null>;
 }
 
 export interface PluginDocumentReads {

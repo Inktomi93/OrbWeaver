@@ -115,11 +115,10 @@ test("a target owner change before the ingestion batch cannot leave private cano
   const gate = held.hold(/insert into "documents"/u);
   const params = { principal: await principalFor(db, owner), name: "Scoped", text: "Canon", destination: { kind: "character", characterId } as const };
   const pending = h.service.createFromText(params);
-  const refused = expect(pending).rejects.toThrow();
   await gate.reached;
   await db.update(characters).set({ ownerId: stranger }).where(eq(characters.id, characterId));
   gate.release();
-  await refused;
+  await expect(pending).rejects.toThrow();
   expect(await db.select().from(documents)).toEqual([]);
   expect(await db.select().from(characterDocuments)).toEqual([]);
 });
@@ -133,11 +132,10 @@ test("a host demotion before the ingestion batch refuses both canon and room con
   const h = makeDatabankHarness(db, { ensureChatHost: (actor, id) => requireHost({ db: databaseHandle(db), can }, actor, id).then((): void => undefined) });
   const gate = held.hold(/insert into "documents"/u);
   const pending = h.service.createFromText({ principal: await principalFor(db, owner), name: "Scoped", text: "Canon", destination: { kind: "chat", chatId } });
-  const refused = expect(pending).rejects.toThrow();
   await gate.reached;
   await db.update(chatParticipants).set({ role: "member" }).where(eq(chatParticipants.chatId, chatId));
   gate.release();
-  await refused;
+  await expect(pending).rejects.toThrow();
   expect(await db.select().from(documents)).toEqual([]);
   expect(await db.select().from(chatDocuments)).toEqual([]);
   expect(h.enqueueIngest).not.toHaveBeenCalled();

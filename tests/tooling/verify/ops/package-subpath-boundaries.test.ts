@@ -68,7 +68,7 @@ test("a re-export and a dynamic import cross the same way an import does", ({ sc
     "packages/client/src/lib/protocol.ts": "export type P = number;\n",
     "packages/client/src/state/store.ts": "export const s = 1;\n",
   });
-  expect(found.map(({ from, to }) => [from, to]).toSorted()).toEqual([
+  expect(found.map(({ from, to }) => [from, to]).toSorted((left, right) => left.join().localeCompare(right.join()))).toEqual([
     [importer, "packages/client/src/lib/protocol.ts"],
     [importer, "packages/client/src/state/store.ts"],
   ]);
@@ -84,7 +84,7 @@ test("an inference backend and a ui group are modules too", ({ scratch }) => {
     [icon]: 'import { g } from "#src/art/web-weave/geometry.ts";\nexport const y = g;\n',
     "packages/ui/src/art/web-weave/geometry.ts": "export const g = 1;\n",
   });
-  expect(found.map(({ from, to }) => [from, to]).toSorted()).toEqual([
+  expect(found.map(({ from, to }) => [from, to]).toSorted((left, right) => left.join().localeCompare(right.join()))).toEqual([
     [backend, "packages/inference/src/backends/wire/shapes.ts"],
     [backend, "packages/inference/src/contract/errors.ts"],
     [icon, "packages/ui/src/art/web-weave/geometry.ts"],
@@ -112,7 +112,7 @@ test("a relative cross-module path is not a subpath spelling and stays outside t
 });
 
 test("every exempt leaf importer is a real file, so a deleted importer cannot leave a standing permission", () => {
-  const exempt = [rule?.from?.pathNot ?? []].flat().map((pattern) => pattern.replace(/^\^/u, "").replace(/\$$/u, "").replaceAll("\\.", "."));
+  const exempt = [rule?.from.pathNot ?? []].flat().map((pattern) => pattern.replace(/^\^/u, "").replace(/\$$/u, "").replaceAll("\\.", "."));
   expect(exempt.length).toBeGreaterThan(0);
   expect(exempt.filter((path) => !existsSync(join(ROOT, path)))).toEqual([]);
 });

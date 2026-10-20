@@ -39,8 +39,8 @@
 // known — `evaluateObjectProperties` takes the name set — and those names come from the CSS census. The
 // provider therefore reads the same closed identity its consumers do, one phase earlier.
 
-import { readStaticString, staticMemberAccess } from "@orb/tooling/floor/code-facts/reference-fact";
-import type { SourceFile, Type } from "ts-morph";
+import { readStaticString } from "@orb/tooling/floor/code-facts/reference-fact";
+import type { SourceFile } from "ts-morph";
 import { Node } from "ts-morph";
 import type { GateFactContext } from "../contract/fact.ts";
 import { defineFact } from "../contract/fact.ts";
@@ -53,6 +53,7 @@ import type {
   StaticClassSegment,
 } from "../contract/static-class-expression.ts";
 import { unwrapExpression } from "./ast-read.ts";
+import { accessedPropertyName, accessReceiver, isDomClassNameReceiver, isDomTokenListExpression } from "./css-dom-class-terminal.ts";
 import type { HookOwners } from "./css-family-census.ts";
 import { recordClassTokens, recordOwner, sourceOwner } from "./css-family-census.ts";
 import type { SelectorWriterCensus, SelectorWriterPass } from "./css-selector-writers.ts";
@@ -62,13 +63,11 @@ import { readyResourceValue } from "./resource-declaration.ts";
 import type { StaticClassCollector, StaticClassWork } from "./static-class-expression.ts";
 import { StaticClassCollector as ClassCollector, STATIC_CLASS_KINDS } from "./static-class-expression.ts";
 import { nativeStaticClassRead } from "./static-class-native.ts";
-import { classDomProperty, classDomTokenList } from "./static-class-semantic.ts";
 
 type SourceOwner = "ui" | "client";
 
 const CLASS_LIST_MUTATORS = new Set(["add", "remove", "toggle", "replace"]);
 const CLASS_NAME_ASSIGNMENT_OPERATORS = new Set(["=", "+=", "&&=", "||=", "??="]);
-const TYPESCRIPT_DOM_LIB = "/typescript/lib/lib.dom.d.ts";
 const CLASS_PREFIX_LENGTH = "class:".length;
 
 /** Everything one invocation learned about who WRITES the hooks the product stylesheets select. */
@@ -248,46 +247,6 @@ function recordJsxSpread(
       recordSpreadPropertyOwner(map, property, context.owner);
     }
   }
-}
-
-/** The accessed member name in either spelling; the computed arm resolves through the shared reader. */
-function accessedPropertyName(node: Node, native?: StaticClassNativeContext): string | undefined {
-  return staticMemberAccess(node, (key) => (native === undefined ? readStaticString(key) : requiredInvocationFact(native.evidence.strings, key)))?.name;
-}
-
-function accessReceiver(node: Node): Node | undefined {
-  return Node.isPropertyAccessExpression(node) || Node.isElementAccessExpression(node) ? node.getExpression() : undefined;
-}
-
-function meaningfulTypes(type: Type): readonly Type[] {
-  const candidates = type.isUnion() ? type.getUnionTypes() : [type];
-  return candidates.filter((candidate) => !(candidate.isNull() || candidate.isUndefined()));
-}
-
-function isDomDeclaration(node: Node): boolean {
-  return normalizedPath(node).endsWith(TYPESCRIPT_DOM_LIB);
-}
-
-function isDomTokenListExpression(node: Node, native?: StaticClassNativeContext): boolean {
-  if (native !== undefined) {
-    return classDomTokenList(node, native);
-  }
-  const types = meaningfulTypes(node.getType());
-  return (
-    types.length > 0 &&
-    types.every((type) => {
-      const symbol = type.getAliasSymbol() ?? type.getSymbol();
-      return symbol?.getName() === "DOMTokenList" && symbol.getDeclarations().some(isDomDeclaration);
-    })
-  );
-}
-
-function isDomClassNameReceiver(node: Node, native?: StaticClassNativeContext): boolean {
-  if (native !== undefined) {
-    return classDomProperty(node, "className", native);
-  }
-  const types = meaningfulTypes(node.getType());
-  return types.length > 0 && types.every((type) => type.getProperty("className")?.getDeclarations().some(isDomDeclaration) === true);
 }
 
 function recordCall(

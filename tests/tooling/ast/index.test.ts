@@ -2539,7 +2539,7 @@ describe("ast clientgap lens (liveness split)", () => {
     expect(contractKeys(live.usedProd).sort(byString)).toEqual([...contractKeys(live.usedClientProd), ...contractKeys(live.usedServerProd)].sort(byString));
   });
 
-  test("test imports annotate a server-only gap but do not acquit it", () => {
+  test("imports from tests annotate a server-only gap but do not acquit it", () => {
     const project = new Project({ useInMemoryFileSystem: true });
     const files: Record<string, string> = {
       "packages/contracts/src/thing/index.ts": "export interface MissingView { id: string; }",

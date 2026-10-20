@@ -34,7 +34,7 @@ process.on("SIGTERM", () => {
 });
 // biome-ignore lint/style/noProcessEnv: this external executable consumes the actual prepared subprocess credential to prove split raw/JSON stderr scrubbing, not app configuration.
 const token = process.env.CLAUDE_CODE_OAUTH_TOKEN;
-const { sessionId, frameId, lines } = await readSdkProcessInput();
+const { sdkSessionId: sessionId, frameId, lines } = await readSdkProcessInput();
 function write(value) {
   process.stdout.write(`${JSON.stringify({ ...value, uuid: frameId(value.type === "system" ? value.subtype : value.type) })}\n`);
 }

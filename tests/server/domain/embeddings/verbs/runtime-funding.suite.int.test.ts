@@ -23,7 +23,7 @@ type BackgroundTask = Exclude<Task, "chat" | "agent" | "generateImage">;
 type Execute = (runtime: InferenceRuntime, connection: Resolved) => ReturnType<ProviderExecutor[keyof ProviderExecutor]>;
 
 const INPUTS = [{ systemPrompt: "Answer briefly.", userPrompt: "A funding control." }];
-const FORMAT = { name: "funding_answer", schema: projectJsonSchema(z.object({ answer: z.string() }).strict()) };
+const FORMAT = { name: "funding_answer", schema: projectJsonSchema(z.strictObject({ answer: z.string() })) };
 const EXECUTE: Record<BackgroundTask, Execute> = {
   embed: (runtime, connection) => runtime.executor.embed({ connection: { ...connection, task: "embed" }, input: "funding control" }),
   imageEmbed: (runtime, connection) =>

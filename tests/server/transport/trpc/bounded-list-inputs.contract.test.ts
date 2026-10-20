@@ -14,9 +14,60 @@ interface NumericCeiling {
   readonly maximum?: number;
 }
 
-// Zod's documented core discriminator owns these definitions; unknown future node kinds fail closed.
+type CoreDefType = z.core.$ZodTypes["_zod"]["def"]["type"];
+// Every core schema kind, checked both ways by `satisfies`: a new zod kind or a misspelled one fails tsc here.
+const CORE_DEF_TYPES = {
+  number: true,
+  literal: true,
+  enum: true,
+  optional: true,
+  nullable: true,
+  nonoptional: true,
+  default: true,
+  prefault: true,
+  catch: true,
+  readonly: true,
+  lazy: true,
+  union: true,
+  intersection: true,
+  any: true,
+  unknown: true,
+  custom: true,
+  transform: true,
+  pipe: true,
+  string: true,
+  bigint: true,
+  boolean: true,
+  symbol: true,
+  undefined: true,
+  object: true,
+  function: true,
+  map: true,
+  array: true,
+  date: true,
+  null: true,
+  never: true,
+  void: true,
+  tuple: true,
+  record: true,
+  set: true,
+  promise: true,
+  ["template_literal"]: true,
+  nan: true,
+  success: true,
+  file: true,
+} as const satisfies Record<CoreDefType, true>;
+
+// A schema is a core union member only when its runtime discriminant names one of zod's core kinds.
+function isCoreSchema(schema: z.core.$ZodType): schema is z.core.$ZodTypes {
+  return "_zod" in schema && Object.hasOwn(CORE_DEF_TYPES, schema._zod.def.type);
+}
+
 function definition(schema: z.core.$ZodType): z.core.$ZodTypes["_zod"]["def"] {
-  return (schema as z.core.$ZodTypes)._zod.def;
+  if (!isCoreSchema(schema)) {
+    throw new Error("a limit schema carries no zod core discriminant");
+  }
+  return schema._zod.def;
 }
 
 function numberCeiling(def: z.core.$ZodNumberDef): NumericCeiling {

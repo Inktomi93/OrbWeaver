@@ -303,6 +303,13 @@ export type NotificationId = TypeIdOf<"notification">;
  *  confused with an entity id). */
 export type SocketId = Branded<"SocketId">;
 
+// --- Plugin sandbox wire -----------------------------------------------------
+/** The text of an `Id` as it crosses the plugin sandbox wire, in either direction: a bare `string`, never the brand.
+ *  @remarks The membrane validates nothing. Inbound text is admitted only by the host's owner-gated read, and an
+ *  outbound id reaches the guest as inert text. `orb/brand-in-name-position` accepts this type only in the
+ *  position whose brand is `Id`, so the position still records which id it carries. */
+export type SandboxWireId<Id extends Branded<string>> = Id extends string ? string : never;
+
 // --- Cross-cutting -----------------------------------------------------------
 export type AuditLogId = TypeIdOf<"audit_log">;
 

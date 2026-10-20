@@ -10,7 +10,8 @@ import type { CtMountRead } from "../contract/browser-mount-native.ts";
 import { defineGate } from "../contract/policy.ts";
 import { readStringValue } from "../lib/ast-read.ts";
 import { nativeCtMountRead } from "../lib/browser-mount-native.ts";
-import { ctMountArguments, isCtMountRoot, MIN_ISOLATION_REASON_WORDS, readCtMountAdmission, readCtProductionDoor } from "../lib/ct-mount-admission.ts";
+import { ctMountArguments, isCtMountRoot, MIN_ISOLATION_REASON_WORDS, readCtMountAdmission } from "../lib/ct-mount-admission.ts";
+import { readCtProductionDoor } from "../lib/ct-production-door.ts";
 import { definitionField } from "../lib/registry-definition-field.ts";
 
 const COMPOSE = "packages/client/src/compose";

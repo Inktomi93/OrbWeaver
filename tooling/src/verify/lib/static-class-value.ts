@@ -18,7 +18,9 @@ import {
   importedSource,
   literalValue,
   localDeclarations,
+  productValues,
   sliceStaticValue,
+  templatePartValue,
   uniqueNodes,
   unwrap,
 } from "./static-class-expression-model.ts";
@@ -131,7 +133,7 @@ export class StaticClassEvaluator implements CollectionHost {
   private evalBinary(node: import("ts-morph").BinaryExpression, path: Set<Node>): StaticValue[] {
     const operator = node.getOperatorToken().getText();
     if (operator === "+") {
-      return this.product(this.evalClass(node.getLeft(), path), this.evalClass(node.getRight(), path));
+      return productValues(this.evalClass(node.getLeft(), path), this.evalClass(node.getRight(), path));
     }
     if (operator === "&&") {
       return this.evalClass(node.getRight(), path);
@@ -231,14 +233,14 @@ export class StaticClassEvaluator implements CollectionHost {
 
   private evalTemplate(node: import("ts-morph").TemplateExpression, path: Set<Node>): StaticValue[] {
     const headText = node.getHead().getLiteralText();
-    let values: StaticValue[] = [this.templatePart(node.getHead(), headText)];
+    let values: StaticValue[] = [templatePartValue(node.getHead(), headText)];
     for (const span of node.getTemplateSpans()) {
       const substitutions = this.templateSubstitutions(span.getExpression(), path, values);
       if (substitutions.length === 0) {
         return [];
       }
-      values = this.product(values, substitutions);
-      values = values.map((value) => combine(value, this.templatePart(span.getLiteral(), span.getLiteral().getLiteralText())));
+      values = productValues(values, substitutions);
+      values = values.map((value) => combine(value, templatePartValue(span.getLiteral(), span.getLiteral().getLiteralText())));
     }
     return values;
   }
@@ -268,22 +270,11 @@ export class StaticClassEvaluator implements CollectionHost {
     return [];
   }
 
-  private templatePart(node: Node, value: string): StaticValue {
-    return {
-      value,
-      segments: value.length === 0 ? [] : [{ node, valueStart: 0, valueEnd: value.length, sourceStart: node.getStart() + 1 }],
-    };
-  }
-
   private addRuntimePrefix(prefix: StaticValue): void {
     if (prefix.value.length === 0) {
       return;
     }
     this.runtimePrefixes.push({ prefix: prefix.value, segments: prefix.segments });
-  }
-
-  private product(left: readonly StaticValue[], right: readonly StaticValue[]): StaticValue[] {
-    return dedupeValues(left.flatMap((a) => right.map((b) => combine(a, b))));
   }
 
   evalIdentifier = (node: import("ts-morph").Identifier, path: Set<Node>): StaticValue[] => {

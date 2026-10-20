@@ -17,8 +17,9 @@ paths:
   hyphen-to-underscore transliteration.
 - The client-guest proxy tuple in `packages/contracts/src/plugin/host-v1.ts` covers only
   server-owned data the guest lacks. Exclude host-mediated effects such as toast or openDialog.
-- An id crossing the sandbox boundary stays a bare string under a line-adjacent foreign-id-ok
-  marker. Branding it would claim a validation the boundary never performs.
+- Type an id that crosses the sandbox boundary as `SandboxWireId<Brand>` from `@orb/kit/ids`.
+  It stays a bare string, because a brand would claim a validation the boundary never performs.
+  `orb/brand-in-name-position` checks the brand only in a position named for it.
 - A verb that executes user-supplied code under the caller's principal takes no cross-owner admin
   branch. Judge a management verb by what it does, not what it reads.
 - A capability whose reach is set by a manifest field can widen on upgrade with

@@ -1,9 +1,11 @@
 // Only production operations create canon; transient snapshots are private observations at physical holds.
+
 import { createCharacterSchema } from "@orb/contracts/character";
 import { chatInjectionInputSchema } from "@orb/contracts/chat";
 import { chatImportClaims, chats, messageReactions } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
-import { ID_PREFIX } from "@orb/kit/ids";
+import type { CharacterHandle } from "@orb/kit/ids";
+import { castId, ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { ChatOperationError } from "@orb/server/domain/chat";
 import { eq } from "drizzle-orm";
@@ -124,7 +126,7 @@ export async function captureCorpusMemberMessages(
   return { viewerUserId: viewer.viewerUserId, chatId, read: { input, output: await caller.chat.listMessages(input) } };
 }
 
-async function lifecycleRoom(root: ServerTestHarness, handle: string): Promise<NativeRoom> {
+async function lifecycleRoom(root: ServerTestHarness, handle: CharacterHandle): Promise<NativeRoom> {
   const caller = await root.internalCallerFor(root.ownerId);
   const character = await caller.character.create({
     input: createCharacterSchema.parse({ handle, name: "Lifecycle witness", description: "A keeper preserves the orbital ledger." }),
@@ -135,7 +137,7 @@ async function lifecycleRoom(root: ServerTestHarness, handle: string): Promise<N
 
 async function importAndReact(root: ServerTestHarness, foreignUserId: ServerTestHarness["ownerId"]): Promise<ImportReactionCapture> {
   const principal = await root.principalFor(root.ownerId);
-  const source = await lifecycleRoom(root, "corpus-lifecycle-import");
+  const source = await lifecycleRoom(root, castId<CharacterHandle>("corpus-lifecycle-import"));
   const chatId = source.room.chat.id;
   const injection = chatInjectionInputSchema.parse({ position: "in_chat", depth: 0, role: "system", content: "Keep the lifecycle scene factual.", order: 2 });
   await root.services.chat.setChatInjection({ principal, chatId, ...injection });
@@ -196,7 +198,7 @@ async function importAndReact(root: ServerTestHarness, foreignUserId: ServerTest
 
 async function compactAndRefuse(root: ServerTestHarness): Promise<CompactRefusalCapture> {
   const principal = await root.principalFor(root.ownerId);
-  const compactRoom = await lifecycleRoom(root, "corpus-lifecycle-compact");
+  const compactRoom = await lifecycleRoom(root, castId<CharacterHandle>("corpus-lifecycle-compact"));
   await root.services.chat.commitMessage({
     principal,
     chatId: compactRoom.room.chat.id,
@@ -207,7 +209,7 @@ async function compactAndRefuse(root: ServerTestHarness): Promise<CompactRefusal
   const spend = await captureCompactionSpend(root.db, root.ownerId);
   const repeated = await root.services.chat.compact({ principal, chatId: compactRoom.room.chat.id });
   const repeatedSpend = await captureCompactionSpend(root.db, root.ownerId);
-  const refusedRoom = await lifecycleRoom(root, "corpus-lifecycle-empty");
+  const refusedRoom = await lifecycleRoom(root, castId<CharacterHandle>("corpus-lifecycle-empty"));
   let refusal: string | undefined;
   try {
     await root.services.chat.send({ principal, chatId: refusedRoom.room.chat.id, content: CORPUS_CHAT_EMPTY_CUE, timeZone: UTC_TIME_ZONE });
@@ -224,7 +226,7 @@ async function compactAndRefuse(root: ServerTestHarness): Promise<CompactRefusal
 
 async function heldTurn(root: ServerTestHarness, wire: ChatWire, memberUserId: ServerTestHarness["ownerId"], abort: boolean): Promise<HeldTurnCapture> {
   const principal = await root.principalFor(root.ownerId);
-  const source = await lifecycleRoom(root, abort ? "corpus-lifecycle-abort" : "corpus-lifecycle-held");
+  const source = await lifecycleRoom(root, castId<CharacterHandle>(abort ? "corpus-lifecycle-abort" : "corpus-lifecycle-held"));
   const chatId = source.room.chat.id;
   const member = await root.principalFor(memberUserId);
   const invite = await seedChatInvite(root.db, root.services.chat.createInvite, { principal, chatId, input: { invitedHandle: member.handle } });
@@ -277,7 +279,7 @@ async function deferAndHandoff(
   const principal = await root.principalFor(root.ownerId);
   const member = await root.principalFor(memberUserId);
   const memberCaller = await root.internalCallerFor(member.userId);
-  const source = await lifecycleRoom(root, "corpus-lifecycle-deferred");
+  const source = await lifecycleRoom(root, castId<CharacterHandle>("corpus-lifecycle-deferred"));
   const chatId = source.room.chat.id;
   const invite = await seedChatInvite(root.db, root.services.chat.createInvite, { principal, chatId, input: { invitedHandle: member.handle } });
   const participant = await seedInvitedChatParticipant(root.db, root.services.chat.acceptInvite, { principal: member, inviteId: invite.id });

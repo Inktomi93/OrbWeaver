@@ -4,6 +4,8 @@ import { Node, SyntaxKind } from "ts-morph";
 import ts from "typescript";
 
 export const ID_BRAND_HOME = "packages/kit/src/ids/index.ts";
+/** The ids-home alias for an id's bare text on the plugin sandbox wire; its one type argument names the brand it carries. */
+export const SANDBOX_WIRE_ID_TYPE = "SandboxWireId";
 
 /** Every literal prefix carried by a canonical `TypeIdOf<"…">` alias in the ids home. The derivation is
  *  structural and source-owned: a new entity alias becomes visible without a copied registry row, while a

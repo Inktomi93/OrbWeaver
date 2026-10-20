@@ -35,7 +35,7 @@
 // check-then-await-then-record would let a burst of 32 all observe the pre-burst count and pass.
 
 import type { PluginBridge, PluginCharacterView, PluginMessageView, PluginSearchHit, PluginWorldBookView, PluginWorldEntryView } from "@orb/contracts/plugin";
-import type { PluginId, UserId } from "@orb/kit/ids";
+import type { AssetId, PluginId, SandboxWireId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { neutralizeMacros } from "@orb/kit/macro";
 import type { PluginBelts, PluginHostOps, PluginIdentity } from "../contract/ops.ts";
@@ -209,8 +209,7 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         chatId,
         args,
       ): Promise<{
-        // eslint-disable-next-line orb/brand-in-name-position -- the plugin SANDBOX wire DTO — an untrusted guest's JSON, branded only after the host parses it; branding the wire type would claim a validation this boundary has not performed. Ends if the bridge starts parsing to brands at the membrane.
-        readonly assetId: string;
+        readonly assetId: SandboxWireId<AssetId>;
       }> => ops.imagery.generatePicture({ authorUserId: installerUserId, chatId, args }),
     },
     variables: {

@@ -3,7 +3,7 @@
 import process from "node:process";
 import { readSdkProcessInput, writeSdkControlReply } from "./sdk-process-control.mjs";
 
-const { sessionId, frameId, lines } = await readSdkProcessInput();
+const { sdkSessionId: sessionId, frameId, lines } = await readSdkProcessInput();
 
 const MODEL = "funding-model";
 const PRE_MARKER = "pre-compaction";

@@ -59,7 +59,7 @@ describe("resolveBindPosture — the DEFAULT arm: a non-production build restric
     expect(notice).toContain("ALLOW_DEV_PUBLIC_BIND=true");
   });
 
-  test("test env behaves as development (the rule is NOT-production, not just development)", () => {
+  test("the test env behaves as development (the rule is NOT-production, not just development)", () => {
     expect(resolveBindPosture({ nodeEnv: "test", bindHost: undefined, ...HATCH_SHUT }).host).toBe("127.0.0.1");
   });
 

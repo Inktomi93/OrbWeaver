@@ -119,6 +119,7 @@ import type {
 } from "../contract/views.ts";
 import { gateLineagePerAncestor, requireHost, requireParticipant } from "../guard.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
+import { loadInlineReplyAssetIds } from "../persistence/message-asset-links.ts";
 import { classifyParticipant } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentVisibilityRows } from "../persistence/participants-read.ts";
 import {
@@ -134,7 +135,6 @@ import {
   loadChatMessageStats,
   loadChatRow,
   loadForkChildren,
-  loadInlineReplyAssetIds,
   loadMessagesPage,
   loadMessageVariantSummaries,
   loadStreamBounds,

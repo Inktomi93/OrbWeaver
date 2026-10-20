@@ -222,7 +222,8 @@ test("native context utility identity preserves ambient, local, imported and unr
 const BRAND_RULE = "orb/brand-in-name-position";
 const BRAND_SUBJECT = "packages/server/src/domain/chat/verbs/post.ts";
 const BRAND_BASE =
-  "declare const brand: unique symbol; export type Branded<B extends string> = string & { readonly [brand]: B }; export type TypeIdOf<P extends string> = Branded<P>;";
+  "declare const brand: unique symbol; export type Branded<B extends string> = string & { readonly [brand]: B }; export type TypeIdOf<P extends string> = Branded<P>; export type SandboxWireId<Id extends Branded<string>> = Id extends string ? string : never;";
+const BRAND_IDS = 'import type { ChatId, SandboxWireId, SessionId } from "../../../../../kit/src/ids/index";';
 
 test("native signature brands derive canonical declarations and preserve exact signature and syntax limits", async ({ scratch, repoRoot }) => {
   const config = await new ESLint({ cwd: repoRoot }).calculateConfigForFile(join(repoRoot, BRAND_SUBJECT));
@@ -242,6 +243,19 @@ test("native signature brands derive canonical declarations and preserve exact s
     ['export interface Row { readonly "chatId": string; }', 0],
     ["export type chatId = string;", 0],
     ['type Branded<B> = string & { readonly localBrand: B }; type RoomId = Branded<"RoomId">; export function post(roomId: string): void {}', 0],
+    ["type Text = string; export function post(chatId: Text): void {}", 1],
+    ["type Text = string | null; export interface Row { readonly chatId: Text; }", 1],
+    ["type Inner = string; type Outer = Inner; export function post(chatId: Outer | undefined): void {}", 1],
+    ["type Loose<T> = string; export function post(chatId: Loose<number>): void {}", 1],
+    ['import type { Text } from "../text"; export function post(chatId: Text): void {}', 1],
+    ["type Maybe<T> = T | null; export function post(chatId: Maybe<number>): void {}", 0],
+    ["type SandboxWireId<T> = string; export function post(chatId: SandboxWireId<ChatId>): void {}", 1],
+    [`${BRAND_IDS} export function post(chatId: SandboxWireId<ChatId>): void {}`, 0],
+    [`${BRAND_IDS} export interface Row { readonly chatId: SandboxWireId<ChatId> | null; }`, 0],
+    [`${BRAND_IDS} type Wire = SandboxWireId<ChatId>; export function post(chatId: Wire): void {}`, 0],
+    [`${BRAND_IDS} export function post(chatId: SandboxWireId<SessionId>): void {}`, 1],
+    [`${BRAND_IDS} export function post(chatId: SandboxWireId<ChatId> | string): void {}`, 1],
+    [`${BRAND_IDS} export function post(handle: SandboxWireId<ChatId>): void {}`, 0],
   ] as const;
   for (const [source, count] of cases) {
     const messages = lint([config, BRAND_RULE], source, join(scratch, BRAND_SUBJECT), {
@@ -249,6 +263,7 @@ test("native signature brands derive canonical declarations and preserve exact s
         [ids]:
           BRAND_BASE +
           'export type ChatId = TypeIdOf<"chat">; export type SessionId = TypeIdOf<"session">; export type SessionToken = Branded<"SessionToken">;',
+        [join(scratch, "packages/server/src/domain/chat/text.ts")]: "export type Text = string;",
       },
     });
     expect(
@@ -258,9 +273,15 @@ test("native signature brands derive canonical declarations and preserve exact s
     expect(messages, source).toHaveLength(count);
     expect(messages.map(({ ruleId }) => ruleId)).toEqual(Array.from({ length: count }, () => BRAND_RULE));
   }
+  const wireMismatch = lint([config, BRAND_RULE], `${BRAND_IDS} export function post(chatId: SandboxWireId<SessionId>): void {}`, join(scratch, BRAND_SUBJECT));
+  expect(wireMismatch).toMatchObject([{ message: expect.stringContaining("carries SandboxWireId<SessionId>, but canonical ChatId") }]);
   expect(() => lint([config, BRAND_RULE], "export function post(chatId: string): void {}", join(scratch, BRAND_SUBJECT))).toThrow(
     "canonical brand vocabulary is absent",
   );
+  const unwired = `${BRAND_BASE.replace(/ export type SandboxWireId.*$/u, "")} export type ChatId = TypeIdOf<"chat">;`;
+  expect(() =>
+    lint([config, BRAND_RULE], "export function post(chatId: string): void {}", join(scratch, BRAND_SUBJECT), { files: { [ids]: unwired } }),
+  ).toThrow("declares no SandboxWireId");
 });
 
 const QUERY_SURFACE = "packages/client/src/features/example/surfaces/example.tsx";
