@@ -34,7 +34,7 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
   test("a WHOLE-appearance autosave patch reaches a byte-stable fixed point in one rewrite", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    const p = principal(await seedUser(db, { id: "user_appear_fp" }), "user");
+    const p = await principal(db, await seedUser(db, { id: "user_appear_fp" }), "user");
 
     // The client sends the ENTIRE appearance object (create-autosave-entity-form saves `values`), not a
     // sparse patch. Start from the real defaults, flip a few knobs — exactly the client's save payload.
@@ -56,7 +56,7 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
   test("re-saving the exact server echo is byte-identical across repeated cycles (no drift)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    const p = principal(await seedUser(db, { id: "user_appear_cycle" }), "user");
+    const p = await principal(db, await seedUser(db, { id: "user_appear_cycle" }), "user");
 
     const seeded = await h.svc.updateUserSettingsSection({
       principal: p,
@@ -84,7 +84,7 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
     // library and the just-saved background silently vanishes (the invisible-save symptom).
     const stored = { assetId: mintTypeId(ID_PREFIX.asset), assetHash: "deadbeef", mime: "image/png" };
     const h = makeHarness(db, { materializeBackground: () => Promise.resolve({ ok: true, asset: stored }) });
-    const p = principal(await seedUser(db, { id: "user_bg_fp" }), "user");
+    const p = await principal(db, await seedUser(db, { id: "user_bg_fp" }), "user");
     // The REAL materialize op writes the asset row; this harness fakes only the op, so seed the row it
     // would have created. Since `b6e092745c` the settings write is FK-guarded against `assets` and refuses
     // (`background_unavailable`) rather than storing a dangling reference — a fake that mints an id without
@@ -124,7 +124,7 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
   test("a stale/deleted theme id round-trips byte-stable (degrades at RESOLUTION, not at parse — no rewrite)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    const p = principal(await seedUser(db, { id: "user_theme_fp" }), "user");
+    const p = await principal(db, await seedUser(db, { id: "user_theme_fp" }), "user");
 
     // A theme id whose row was deleted: it must PERSIST as-sent (the `.catch(null)` only fires on a schema
     // failure, and any string is valid) and degrade to the Hearth default only when `useSelectedTheme`
@@ -140,7 +140,7 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
   test("every WRITE stamps the schemaVersion column to the current version (the anti-re-lift invariant)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    const p = principal(await seedUser(db, { id: "user_stamp" }), "user");
+    const p = await principal(db, await seedUser(db, { id: "user_stamp" }), "user");
     await h.svc.updateUserSettingsSection({ principal: p, input: { section: "memory", patch: { enabled: true } } });
     const row = await readRow(db, castId("user_stamp"));
     // The COLUMN is what beats the in-blob probe on the next read — it MUST be current after any write.
@@ -170,32 +170,32 @@ describe("updateUserSettingsSection — echo-stability fixed points (#16)", () =
       });
 
     // The first read lifts v1→v4 (in-blob probe = 1). The value it produces is the resolved truth.
-    const firstRead = (await h.svc.getUserSettings({ principal: principal(userId, "user") })).config;
+    const firstRead = (await h.svc.getUserSettings({ principal: await principal(db, userId, "user") })).config;
     // The v1 `defaultModel` leaf lifted into `routing`, which v9 then DROPS (per-task picks are bindings now).
     expect("routing" in firstRead).toBe(false);
     expect(firstRead.memory.enabled).toBe(true);
 
     // Any write re-stamps the column to v4 (writeUserConfig), so the row is now stored at the current
     // version — the lift never runs again.
-    await h.svc.updateUserSettingsSection({ principal: principal(userId, "user"), input: { section: "memory", patch: { enabled: true } } });
+    await h.svc.updateUserSettingsSection({ principal: await principal(db, userId, "user"), input: { section: "memory", patch: { enabled: true } } });
     const rowAfter = await readRow(db, userId);
     expect(rowAfter.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
 
     // Re-parse the STORED blob at the stamped column version — it must equal the resolved truth (no
     // second lift, byte-stable). This is the property that was violated when a row went out unstamped.
     const reparsed = parseUserSettings(rowAfter.config, rowAfter.schemaVersion);
-    const secondRead = (await h.svc.getUserSettings({ principal: principal(userId, "user") })).config;
+    const secondRead = (await h.svc.getUserSettings({ principal: await principal(db, userId, "user") })).config;
     expect(JSON.stringify(reparsed)).toBe(JSON.stringify(secondRead));
 
     // And a further read is identical to the one before it — the row has reached its fixed point.
-    const thirdRead = (await h.svc.getUserSettings({ principal: principal(userId, "user") })).config;
+    const thirdRead = (await h.svc.getUserSettings({ principal: await principal(db, userId, "user") })).config;
     expect(JSON.stringify(thirdRead)).toBe(JSON.stringify(secondRead));
   });
 
   test("repeated parse/serialize cycles of the stored blob are byte-stable (idempotent parser)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
-    const p = principal(await seedUser(db, { id: "user_idem" }), "user");
+    const p = await principal(db, await seedUser(db, { id: "user_idem" }), "user");
     await h.svc.updateUserSettingsSection({
       principal: p,
       input: { section: "appearance", patch: { ...DEFAULT_APPEARANCE_SETTINGS, backgroundImageKind: "none" as const } },

@@ -23,16 +23,19 @@ import type { PortableEntity, PortableFile, PortableKind } from "@orb/contracts/
 import type { Db } from "@orb/db";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import type { PortabilityDeps } from "#server/entry/compose/portability.ts";
 import { buildPortabilityRegistry } from "#server/entry/compose/portability.ts";
 import { CHAT_BUNDLE_EXT } from "#server/primitives/serde/chat-bundle/index.ts";
+import { principal } from "../../../db/schema/_support.ts";
 
 const OWNER = castId<UserId>("usr_owner");
-const OWNER_PRINCIPAL = principal(OWNER);
+// These callers resolve from rows in one in-memory database; the subject under test reads no database of its own.
+const callersDb = await freshDb();
+const OWNER_PRINCIPAL = await principal({ db: callersDb }, OWNER);
 const CHARACTER = castId<CharacterId>("chr_1");
 const CHAT = castId<ChatId>("chat_1");
 const PERSONA = castId<PersonaId>("per_1");
@@ -192,7 +195,7 @@ describe("buildPortabilityRegistry — ownerId is the ONLY owner any half ever s
     const i = injected();
     const persona = descriptor(i, "persona");
     const other = castId<UserId>("usr_other");
-    const otherPrincipal = principal(other);
+    const otherPrincipal = await principal({ db: NO_DB }, other);
     i.resolveOwnerPrincipal.mockImplementation((userId) => Promise.resolve(userId === other ? otherPrincipal : OWNER_PRINCIPAL));
 
     await persona.importFile(OWNER, { filename: "me.json", bytes: new Uint8Array([2]) });

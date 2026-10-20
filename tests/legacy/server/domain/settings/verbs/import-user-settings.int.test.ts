@@ -17,7 +17,7 @@ describe("importUserSettings", () => {
     const h = makeHarness(db);
     const ctx = createSettingsContext(h.deps);
     const owner = await seedUser(db, { id: "user_owner" });
-    const p = principal(owner, "user");
+    const p = await principal(db, owner, "user");
 
     // Pre-existing sibling state the restore must NOT clobber.
     await h.svc.updateUserSettingsSection({
@@ -42,7 +42,7 @@ describe("importUserSettings", () => {
     const h = makeHarness(db);
     const ctx = createSettingsContext(h.deps);
     const owner = await seedUser(db, { id: "user_fence" });
-    const p = principal(owner, "user");
+    const p = await principal(db, owner, "user");
 
     const hostile = new TextEncoder().encode(
       JSON.stringify({

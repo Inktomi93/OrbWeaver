@@ -27,7 +27,7 @@ describe("reviewImport", () => {
     await seedPersona(db, { ownerId: owner, name: "Eve", description: "same Eve" });
 
     const collisions = await svc.reviewImport({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       incoming: [incoming("NATE ", "ST Nate"), incoming("Nate", "another ST Nate"), incoming("Eve", "same Eve"), incoming("Robin", "new")],
     });
 
@@ -44,7 +44,7 @@ describe("reviewImport", () => {
     await seedPersona(db, { ownerId: owner, name: "Tamsin", description: "a tavern singer" });
 
     const collisions = await svc.reviewImport({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       incoming: [{ name: "Tamsin", description: "a tavern singer", metadata: null, artHash: "hash-of-new-art" }],
     });
 
@@ -58,7 +58,7 @@ describe("reviewImport", () => {
     await seedPersona(db, { ownerId: owner, name: "Nate", description: "one" });
     await seedPersona(db, { ownerId: owner, name: "Nate 2", description: "two" });
 
-    const collisions = await svc.reviewImport({ principal: principal(owner), incoming: [incoming("Nate", "three")] });
+    const collisions = await svc.reviewImport({ principal: await principal(db, owner), incoming: [incoming("Nate", "three")] });
 
     expect(collisions.map((c) => c.keepBothName)).toEqual(["Nate 3"]);
   });
@@ -70,7 +70,7 @@ describe("reviewImport", () => {
     await seedPersona(db, { ownerId: owner, name: "Nate", description: "A" });
     await seedPersona(db, { ownerId: owner, name: "Nate 2", description: "B" });
 
-    const collisions = await svc.reviewImport({ principal: principal(owner), incoming: [incoming("Nate", "Y"), incoming("Nate 2", "Y")] });
+    const collisions = await svc.reviewImport({ principal: await principal(db, owner), incoming: [incoming("Nate", "Y"), incoming("Nate 2", "Y")] });
 
     expect(collisions.map((c) => c.key)).toEqual(["nate", "nate 2"]);
   });
@@ -83,7 +83,7 @@ describe("reviewImport", () => {
     await seedPersona(db, { ownerId: owner, name: "Eve", description: "B" });
     await seedPersona(db, { ownerId: owner, name: "eve 2", description: "C" });
 
-    const collisions = await svc.reviewImport({ principal: principal(owner), incoming: [incoming("Nate", "x"), incoming("Eve", "y")] });
+    const collisions = await svc.reviewImport({ principal: await principal(db, owner), incoming: [incoming("Nate", "x"), incoming("Eve", "y")] });
 
     expect(collisions.map((c) => [c.key, c.keepBothName])).toEqual([
       ["nate", "Nate 2"],
@@ -98,7 +98,7 @@ describe("reviewImport", () => {
     await seedPersona(db, { ownerId: owner, name: "Nate", description: "A" });
 
     // "Nate 2" clashes with nothing owned, so the write adds it first; the copy of "Nate" is then "Nate 3".
-    const collisions = await svc.reviewImport({ principal: principal(owner), incoming: [incoming("Nate 2", "new"), incoming("Nate", "B")] });
+    const collisions = await svc.reviewImport({ principal: await principal(db, owner), incoming: [incoming("Nate 2", "new"), incoming("Nate", "B")] });
 
     expect(collisions.map((c) => [c.key, c.keepBothName])).toEqual([["nate", "Nate 3"]]);
   });
@@ -110,7 +110,7 @@ describe("reviewImport", () => {
     await seedPersona(db, { ownerId: owner, name: "Nate", description: "A" });
     await seedPersona(db, { ownerId: owner, name: "Eve", description: "B" });
 
-    const collisions = await svc.reviewImport({ principal: principal(owner), incoming: [incoming("Eve", "x"), incoming("Nate", "y")] });
+    const collisions = await svc.reviewImport({ principal: await principal(db, owner), incoming: [incoming("Eve", "x"), incoming("Nate", "y")] });
 
     expect(collisions.map((c) => [c.key, c.keepBothName])).toEqual([
       ["eve", "Eve 2"],
@@ -125,6 +125,6 @@ describe("reviewImport", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     await seedPersona(db, { ownerId: stranger, name: "Nate", description: "theirs" });
 
-    expect(await svc.reviewImport({ principal: principal(owner), incoming: [incoming("Nate", "mine")] })).toEqual([]);
+    expect(await svc.reviewImport({ principal: await principal(db, owner), incoming: [incoming("Nate", "mine")] })).toEqual([]);
   });
 });

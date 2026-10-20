@@ -27,17 +27,17 @@ describe("applyScopeOrder", () => {
     const characterId = await seedCharacter(db, owner);
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
-    await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: a });
-    await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: b });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId: a });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId: b });
 
     const result = await svc.applyScopeOrder({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       scope: { kind: "character", characterId },
       orderedScriptIds: [b, "regex_script_gone" as typeof a, a],
     });
 
     expect(result.reordered).toBe(2);
-    expect((await svc.listForCharacter({ principal: principal(owner), characterId })).map((r) => r.name)).toEqual(["b", "a"]);
+    expect((await svc.listForCharacter({ principal: await principal(db, owner), characterId })).map((r) => r.name)).toEqual(["b", "a"]);
   });
 
   test("the GLOBAL scope reorders too (it is an ordered tier, not a set)", async () => {
@@ -47,12 +47,12 @@ describe("applyScopeOrder", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
-    await svc.attachGlobal({ principal: principal(owner), scriptId: a });
-    await svc.attachGlobal({ principal: principal(owner), scriptId: b });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId: a });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId: b });
 
-    await svc.applyScopeOrder({ principal: principal(owner), scope: { kind: "global" }, orderedScriptIds: [b, a] });
+    await svc.applyScopeOrder({ principal: await principal(db, owner), scope: { kind: "global" }, orderedScriptIds: [b, a] });
 
-    expect((await svc.listGlobal({ principal: principal(owner) })).map((r) => r.name)).toEqual(["b", "a"]);
+    expect((await svc.listGlobal({ principal: await principal(db, owner) })).map((r) => r.name)).toEqual(["b", "a"]);
   });
 
   // #708 (HIGH IDOR) — the global tier has NO owner column (its scope IS the script's), so a bare
@@ -68,8 +68,8 @@ describe("applyScopeOrder", () => {
     const ownerB = await seedUser(db, { id: "user_ownerB", handle: castId<Handle>("ownerB") });
     const a1 = await seedScript(db, { ownerId: ownerA, id: "regex_script_a1", name: "a1" });
     const a2 = await seedScript(db, { ownerId: ownerA, id: "regex_script_a2", name: "a2" });
-    await svc.attachGlobal({ principal: principal(ownerA), scriptId: a1 }); // position 0
-    await svc.attachGlobal({ principal: principal(ownerA), scriptId: a2 }); // position 1
+    await svc.attachGlobal({ principal: await principal(db, ownerA), scriptId: a1 }); // position 0
+    await svc.attachGlobal({ principal: await principal(db, ownerA), scriptId: a2 }); // position 1
 
     const positions = async (): Promise<{ id: string; position: number }[]> =>
       db
@@ -83,7 +83,7 @@ describe("applyScopeOrder", () => {
     ]);
 
     // (1) B naming A's ids is REFUSED — not silently dropped, not written.
-    await expect(svc.applyScopeOrder({ principal: principal(ownerB), scope: { kind: "global" }, orderedScriptIds: [a2, a1] })).rejects.toBeInstanceOf(
+    await expect(svc.applyScopeOrder({ principal: await principal(db, ownerB), scope: { kind: "global" }, orderedScriptIds: [a2, a1] })).rejects.toBeInstanceOf(
       RegexNotFoundError,
     );
 
@@ -91,7 +91,7 @@ describe("applyScopeOrder", () => {
     expect(await positions()).toEqual(before);
     // …and one absent id in the list is equally refused (no partial write of the owned prefix).
     await expect(
-      svc.applyScopeOrder({ principal: principal(ownerB), scope: { kind: "global" }, orderedScriptIds: [castId<typeof a1>("regex_script_absent")] }),
+      svc.applyScopeOrder({ principal: await principal(db, ownerB), scope: { kind: "global" }, orderedScriptIds: [castId<typeof a1>("regex_script_absent")] }),
     ).rejects.toBeInstanceOf(RegexNotFoundError);
   });
 
@@ -103,13 +103,13 @@ describe("applyScopeOrder", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
-    await svc.attachGlobal({ principal: principal(owner), scriptId: a });
-    await svc.attachGlobal({ principal: principal(owner), scriptId: b });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId: a });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId: b });
 
-    const result = await svc.applyScopeOrder({ principal: principal(owner), scope: { kind: "global" }, orderedScriptIds: [b, a] });
+    const result = await svc.applyScopeOrder({ principal: await principal(db, owner), scope: { kind: "global" }, orderedScriptIds: [b, a] });
 
     expect(result.reordered).toBe(2);
-    expect((await svc.listGlobal({ principal: principal(owner) })).map((r) => r.name)).toEqual(["b", "a"]);
+    expect((await svc.listGlobal({ principal: await principal(db, owner) })).map((r) => r.name)).toEqual(["b", "a"]);
   });
 
   test("the CHAT scope's order is HOST-gated", async () => {
@@ -120,7 +120,7 @@ describe("applyScopeOrder", () => {
     const chatId = await seedChat(db);
 
     await expect(
-      createRegexService(h.ctx).applyScopeOrder({ principal: principal(owner), scope: { kind: "chat", chatId }, orderedScriptIds: [] }),
+      createRegexService(h.ctx).applyScopeOrder({ principal: await principal(db, owner), scope: { kind: "chat", chatId }, orderedScriptIds: [] }),
     ).rejects.toThrow("not the host");
   });
 
@@ -128,9 +128,11 @@ describe("applyScopeOrder", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    expect(await createRegexService(h.ctx).applyScopeOrder({ principal: principal(owner), scope: { kind: "global" }, orderedScriptIds: [] })).toEqual({
-      reordered: 0,
-    });
+    expect(await createRegexService(h.ctx).applyScopeOrder({ principal: await principal(db, owner), scope: { kind: "global" }, orderedScriptIds: [] })).toEqual(
+      {
+        reordered: 0,
+      },
+    );
   });
 
   // #1733 — the CHAT arm only. A room's run order is what every member's turns assemble in, so it announces
@@ -144,15 +146,15 @@ describe("applyScopeOrder", () => {
     const chatId = await seedChat(db);
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
-    await svc.attachToChat({ principal: principal(owner), chatId, scriptId: a });
-    await svc.attachToChat({ principal: principal(owner), chatId, scriptId: b });
-    await svc.attachGlobal({ principal: principal(owner), scriptId: a });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId, scriptId: a });
+    await svc.attachToChat({ principal: await principal(db, owner), chatId, scriptId: b });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId: a });
     const before = h.roomFans.length;
 
-    await svc.applyScopeOrder({ principal: principal(owner), scope: { kind: "chat", chatId }, orderedScriptIds: [b, a] });
+    await svc.applyScopeOrder({ principal: await principal(db, owner), scope: { kind: "chat", chatId }, orderedScriptIds: [b, a] });
     expect(h.roomFans.slice(before)).toEqual([{ kind: "room", id: chatId }]);
 
-    await svc.applyScopeOrder({ principal: principal(owner), scope: { kind: "global" }, orderedScriptIds: [a] });
+    await svc.applyScopeOrder({ principal: await principal(db, owner), scope: { kind: "global" }, orderedScriptIds: [a] });
     expect(h.roomFans.slice(before)).toEqual([{ kind: "room", id: chatId }]);
   });
 });

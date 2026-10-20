@@ -22,7 +22,7 @@ describe("assetCasRefById", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1, 2, 3, 4),
       kind: "avatar",
       mime: PNG,

@@ -14,6 +14,7 @@
 
 import type { Db } from "@orb/db";
 import { chatDigestSpeakers, chatDigests, chatParticipants, chatSegments } from "@orb/db";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatDigestId, ChatParticipantId, ChatSegmentId, EmbedGenerationId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -34,7 +35,7 @@ async function seedVectorParents(db: Db, ownerId: UserId): Promise<EmbedGenerati
   }
   // The `user_connections` row `resolved.connectionId` points at is seeded by `seedUser` (embeddings
   // `_support` → `seedVectorConnection`) — the generation's `connection_id` FK parent has ONE home.
-  const generation = await resolveTargetGeneration(harness.ctx, ownerId, "embed");
+  const generation = await resolveTargetGeneration({ ...harness.ctx, db: databaseForOwner(harness.ctx.db) }, ownerId, "embed");
   if (generation === null) {
     throw new Error("the memory generation must resolve");
   }
@@ -188,7 +189,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
         });
       }
     };
-    const firstGeneration = await resolveTargetGeneration(harness.ctx, first, "embed");
+    const firstGeneration = await resolveTargetGeneration({ ...harness.ctx, db: databaseForOwner(harness.ctx.db) }, first, "embed");
     if (firstGeneration === null) {
       throw new Error("the first host's generation must resolve");
     }
@@ -203,7 +204,7 @@ describe("pruneMemoryBlocks — the chat-memory shrink reclaim", () => {
       joinedAt: FROZEN_AT_MS,
       joinSeq: 2,
     });
-    const secondGeneration = await resolveTargetGeneration(harness.ctx, second, "embed");
+    const secondGeneration = await resolveTargetGeneration({ ...harness.ctx, db: databaseForOwner(harness.ctx.db) }, second, "embed");
     if (secondGeneration === null || secondGeneration.id === firstGeneration.id) {
       throw new Error("the new host must fund a generation of their own");
     }

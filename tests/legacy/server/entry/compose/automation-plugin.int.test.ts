@@ -22,7 +22,7 @@
 // together, because `runTool`'s own reachability re-check + `resolveTools`' throw are a third belt behind
 // them. It is a defence-in-depth receipt, not a dead assertion.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import type { Principal } from "@orb/contracts/identity";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import "@orb/testkit/node/composed-real.ts";
 import type { AutomationActionInput } from "@orb/contracts/automation";
@@ -66,7 +66,7 @@ interface ToolSpec {
 /** Install `installer`'s copy of {@link TOOL} through the REAL runtime registrar, with a marker-prefixed
  *  result so a captured value names which shelf it came off. `resolveInstallerAuthority` is the production wiring
  *  verbatim (chat's own `loadPresentRole` over the real roster), so the PL-C ceiling is real too. */
-function installTool(app: ServicesResult, db: Db, installer: UserId, definition: string | ToolSpec): ToolProbe {
+async function installTool(app: ServicesResult, db: Db, installer: UserId, definition: string | ToolSpec): Promise<ToolProbe> {
   const spec: ToolSpec = typeof definition === "string" ? { marker: definition } : definition;
   const calls: { argsJson: string; chat: InvocationChat | null }[] = [];
   const handle = app.toolUse.registerPluginTool({
@@ -78,12 +78,12 @@ function installTool(app: ServicesResult, db: Db, installer: UserId, definition:
       required: ["tag"],
       additionalProperties: false,
     },
-    installer: principal(installer),
+    installer: await principal(db, installer),
     invoke: (argsJson, chat): Promise<string> => {
       calls.push({ argsJson, chat });
       return Promise.resolve(`${spec.marker}:${argsJson}`);
     },
-    resolveInstallerAuthority: (chatId) => createPluginChatAuthority({ db: databaseHandle(db), can })(principal(installer), chatId),
+    resolveInstallerAuthority: async (chatId) => createPluginChatAuthority({ db: databaseHandle(db), can })(await principal(db, installer), chatId),
   });
   return { calls, handle };
 }
@@ -103,8 +103,7 @@ async function seedScene(db: Db): Promise<Scene> {
 }
 
 /** Mint + enable one rule through the real verbs (rules are born disabled; enabling is the consent act). */
-async function mintEnabledRule(app: ServicesResult, author: UserId, chatId: ChatId | null, action: AutomationActionInput): Promise<AutomationRuleId> {
-  const actor = principal(author);
+async function mintEnabledRule(app: ServicesResult, actor: Principal, chatId: ChatId | null, action: AutomationActionInput): Promise<AutomationRuleId> {
   const rule = await app.automation.createRule({
     timeZone: UTC_TIME_ZONE,
     principal: actor,
@@ -126,12 +125,12 @@ async function chatVariables(db: Db, chatId: ChatId): Promise<Record<string, str
 test("catalog resolves only the caller's installed metadata and never exposes executable/identity fields", async ({ app, db, ownerCaller, otherCaller }) => {
   const author = OWNER_USER_ID;
   const stranger = OTHER_USER_ID;
-  const foreign = installTool(app, db, stranger, {
+  const foreign = await installTool(app, db, stranger, {
     marker: "foreign credential result marker",
     description: "foreign catalog marker",
     schemaValue: "foreign schema marker",
   });
-  const own = installTool(app, db, author, { marker: "private execution marker", description: "own catalog marker", schemaValue: "own schema marker" });
+  const own = await installTool(app, db, author, { marker: "private execution marker", description: "own catalog marker", schemaValue: "own schema marker" });
   const expectedParameters = {
     $schema: "https://json-schema.org/draft/2020-12/schema",
     type: "object",
@@ -155,11 +154,11 @@ test("catalog resolves only the caller's installed metadata and never exposes ex
 
 test("host handoff edits use stored-author tool admission, while birth recovery bypasses vanished tool admission only for its author", async ({ app, db }) => {
   const { author, stranger, chatId } = await seedScene(db);
-  const own = installTool(app, db, author, "author");
+  const own = await installTool(app, db, author, "author");
   await seedParticipant(db, { chatId, key: "successor", userId: stranger, role: "member" });
   const birth = {
     timeZone: UTC_TIME_ZONE,
-    principal: principal(author),
+    principal: await principal(db, author),
     chatId,
     creationRequestId: mintTypeId(ID_PREFIX.automationRuleCreation),
     name: "tool birth",
@@ -176,20 +175,25 @@ test("host handoff edits use stored-author tool admission, while birth recovery 
     .set({ role: "host" })
     .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, stranger)));
   const successorOnlyTool = "plugin_successor_only";
-  installTool(app, db, stranger, { marker: "successor private result", description: "successor-only metadata", name: successorOnlyTool });
-  expect((await app.automation.listRuleTools({ principal: principal(stranger) })).map((tool) => tool.name)).toEqual([successorOnlyTool]);
+  await installTool(app, db, stranger, { marker: "successor private result", description: "successor-only metadata", name: successorOnlyTool });
+  expect((await app.automation.listRuleTools({ principal: await principal(db, stranger) })).map((tool) => tool.name)).toEqual([successorOnlyTool]);
   const originalRows = await db.select().from(automationRules).where(eq(automationRules.id, original.id));
   await expect(
-    app.automation.updateRule({ ...birth, principal: principal(stranger), ruleId: original.id, actions: [{ type: "run_tool", name: successorOnlyTool }] }),
+    app.automation.updateRule({
+      ...birth,
+      principal: await principal(db, stranger),
+      ruleId: original.id,
+      actions: [{ type: "run_tool", name: successorOnlyTool }],
+    }),
   ).rejects.toThrow(RuleValidationError);
   expect(await db.select().from(automationRules).where(eq(automationRules.id, original.id))).toEqual(originalRows);
-  const edited = await app.automation.updateRule({ ...birth, principal: principal(stranger), ruleId: original.id, name: "successor edit" });
+  const edited = await app.automation.updateRule({ ...birth, principal: await principal(db, stranger), ruleId: original.id, name: "successor edit" });
   expect(edited.actions).toEqual(original.actions);
-  await app.automation.setRuleEnabled({ principal: principal(stranger), ruleId: original.id, enabled: true });
+  await app.automation.setRuleEnabled({ principal: await principal(db, stranger), ruleId: original.id, enabled: true });
   own.handle.unregister();
-  installTool(app, db, stranger, "wrong shelf");
-  await expect(app.automation.updateRule({ ...birth, principal: principal(stranger), ruleId: original.id })).rejects.toThrow(RuleValidationError);
-  expect(await app.automation.runRuleNow({ principal: principal(stranger), ruleId: original.id })).toEqual({ outcome: "paused" });
+  await installTool(app, db, stranger, "wrong shelf");
+  await expect(app.automation.updateRule({ ...birth, principal: await principal(db, stranger), ruleId: original.id })).rejects.toThrow(RuleValidationError);
+  expect(await app.automation.runRuleNow({ principal: await principal(db, stranger), ruleId: original.id })).toEqual({ outcome: "paused" });
   await db
     .update(chatParticipants)
     .set({ role: "member" })
@@ -209,11 +213,16 @@ test("the AUTHOR'S OWN copy of a shared tool name runs, and its result lands in 
   const { author, stranger, chatId } = await seedScene(db);
   // Both users hold the same namespaced name. The stranger's copy is registered FIRST, so a name-only
   // resolve (the pre-#677 shape) would hand the arm exactly this entry.
-  const strangerTool = installTool(app, db, stranger, "stranger");
-  const authorTool = installTool(app, db, author, "author");
-  const ruleId = await mintEnabledRule(app, author, chatId, { type: "run_tool", name: TOOL, argsTemplate: ARGS_TEMPLATE, resultVar: "mood" });
+  const strangerTool = await installTool(app, db, stranger, "stranger");
+  const authorTool = await installTool(app, db, author, "author");
+  const ruleId = await mintEnabledRule(app, await principal(db, author), chatId, {
+    type: "run_tool",
+    name: TOOL,
+    argsTemplate: ARGS_TEMPLATE,
+    resultVar: "mood",
+  });
 
-  const result = await app.automation.runRuleNow({ principal: principal(author), ruleId });
+  const result = await app.automation.runRuleNow({ principal: await principal(db, author), ruleId });
 
   expect(result).toEqual({ outcome: "fired" });
   // WHOSE grant was spent: the author's guest ran once with the RENDERED args; the stranger's never ran.
@@ -225,12 +234,12 @@ test("the AUTHOR'S OWN copy of a shared tool name runs, and its result lands in 
 
 test("the executor receives the AUTHOR's identity frame — their Principal, triggeredBy, no turn, the rule's chat", async ({ app, db }) => {
   const { author, chatId } = await seedScene(db);
-  installTool(app, db, author, "author");
-  const ruleId = await mintEnabledRule(app, author, chatId, { type: "run_tool", name: TOOL, argsTemplate: ARGS_TEMPLATE });
+  await installTool(app, db, author, "author");
+  const ruleId = await mintEnabledRule(app, await principal(db, author), chatId, { type: "run_tool", name: TOOL, argsTemplate: ARGS_TEMPLATE });
   // Records the frame; the real execute still runs (spyOn calls through).
   const executed = vi.spyOn(app.toolUse, "executeToolCalls");
 
-  await app.automation.runRuleNow({ principal: principal(author), ruleId });
+  await app.automation.runRuleNow({ principal: await principal(db, author), ruleId });
 
   // The spy firing at all is the premise receipt: the compose closure and `ServicesResult.toolUse` are ONE
   // instance, so this file really is observing the production wire.
@@ -255,12 +264,12 @@ test("a tool the author never installed is refused at the MINT — the rule is n
   const { author, stranger, chatId } = await seedScene(db);
   // The name EXISTS in the registry — it is simply on someone else's shelf, which is the cross-user case the
   // reachability predicate exists for (a room-mate's plugin is not drivable by naming it).
-  const strangerTool = installTool(app, db, stranger, "stranger");
+  const strangerTool = await installTool(app, db, stranger, "stranger");
 
   await expect(
     app.automation.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(author),
+      principal: await principal(db, author),
       chatId,
       name: "moodwatch",
       trigger: { bus: "chat", type: "messageCommitted" },
@@ -268,22 +277,27 @@ test("a tool the author never installed is refused at the MINT — the rule is n
     }),
   ).rejects.toThrow(RuleValidationError);
 
-  expect(await app.automation.listRules({ principal: principal(author), chatId })).toEqual([]);
+  expect(await app.automation.listRules({ principal: await principal(db, author), chatId })).toEqual([]);
   expect(strangerTool.calls).toEqual([]);
 });
 
 test("deactivating the author's plugin PAUSES the rule — no fire row, no error tick, the row byte-identical", async ({ app, db }) => {
   const { author, chatId } = await seedScene(db);
-  const authorTool = installTool(app, db, author, "author");
-  const ruleId = await mintEnabledRule(app, author, chatId, { type: "run_tool", name: TOOL, argsTemplate: ARGS_TEMPLATE, resultVar: "mood" });
+  const authorTool = await installTool(app, db, author, "author");
+  const ruleId = await mintEnabledRule(app, await principal(db, author), chatId, {
+    type: "run_tool",
+    name: TOOL,
+    argsTemplate: ARGS_TEMPLATE,
+    resultVar: "mood",
+  });
   // A healthy fire FIRST, so the pause below is a state change away from a working rule rather than a rule
   // that never ran (which any refusal would satisfy).
-  expect(await app.automation.runRuleNow({ principal: principal(author), ruleId })).toEqual({ outcome: "fired" });
+  expect(await app.automation.runRuleNow({ principal: await principal(db, author), ruleId })).toEqual({ outcome: "fired" });
   const before = await db.select().from(automationRules).where(eq(automationRules.id, ruleId)).limit(1);
 
   // The plugin is deactivated — PL-A's handle is what a real deactivation calls.
   authorTool.handle.unregister();
-  const paused = await app.automation.runRuleNow({ principal: principal(author), ruleId });
+  const paused = await app.automation.runRuleNow({ principal: await principal(db, author), ruleId });
 
   expect(paused).toEqual({ outcome: "paused" });
   expect(authorTool.calls).toHaveLength(1); // the guest was not invoked a second time
@@ -291,7 +305,7 @@ test("deactivating the author's plugin PAUSES the rule — no fire row, no error
   // self-heals when the plugin comes back — no `action_error` row, no `consecutiveErrors` tick toward the
   // 20-error auto-disable, no `lastFiredAt` movement.
   expect(await db.select().from(automationRules).where(eq(automationRules.id, ruleId)).limit(1)).toEqual(before);
-  const fires = await app.automation.listFires({ principal: principal(author), ruleId });
+  const fires = await app.automation.listFires({ principal: await principal(db, author), ruleId });
   expect(fires.map((fire) => fire.outcome)).toEqual(["fired"]);
   // …and the captured variable still holds the value the healthy fire wrote (a pause writes nothing at all).
   expect(await chatVariables(db, chatId)).toEqual({ mood: `author:${ARGS_TEMPLATE}` });
@@ -299,13 +313,13 @@ test("deactivating the author's plugin PAUSES the rule — no fire row, no error
 
 test("C5: a global rule cannot capture into a CHAT variable, and its chat-less fire runs the tool with no room", async ({ app, db }) => {
   const { author } = await seedScene(db);
-  const authorTool = installTool(app, db, author, "author");
+  const authorTool = await installTool(app, db, author, "author");
 
   // The admission matrix's `run_tool` row: the `chat` plane is one room's fold and this rule has no room.
   await expect(
     app.automation.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(author),
+      principal: await principal(db, author),
       chatId: null,
       name: "moodwatch",
       trigger: { bus: "domain", type: "character.updated" },
@@ -313,10 +327,10 @@ test("C5: a global rule cannot capture into a CHAT variable, and its chat-less f
     }),
   ).rejects.toThrow(RuleValidationError);
   // `listOwnerRules` is the chat-less twin of `listRules` (the global lane's read has no chat to gate on).
-  expect(await app.automation.listOwnerRules({ principal: principal(author) })).toEqual([]);
+  expect(await app.automation.listOwnerRules({ principal: await principal(db, author) })).toEqual([]);
 
   // The same arm on the AUTHOR's own plane is admissible — the refusal is about the plane, not the arm.
-  const ruleId = await mintEnabledRule(app, author, null, {
+  const ruleId = await mintEnabledRule(app, await principal(db, author), null, {
     type: "run_tool",
     name: TOOL,
     argsTemplate: ARGS_TEMPLATE,
@@ -325,12 +339,12 @@ test("C5: a global rule cannot capture into a CHAT variable, and its chat-less f
   });
   const executed = vi.spyOn(app.toolUse, "executeToolCalls");
 
-  expect(await app.automation.runRuleNow({ principal: principal(author), ruleId })).toEqual({ outcome: "fired" });
+  expect(await app.automation.runRuleNow({ principal: await principal(db, author), ruleId })).toEqual({ outcome: "fired" });
 
   // A chat-less fire hands the executor no room, so the guest gets no invocation-chat scope at all.
   expect(executed.mock.calls[0]?.[2].chatId).toBeNull();
   expect(authorTool.calls).toEqual([{ argsJson: ARGS_TEMPLATE, chat: null }]);
-  expect(await app.automation.getGlobalVariable({ principal: principal(author), key: "mood" })).toBe(`author:${ARGS_TEMPLATE}`);
+  expect(await app.automation.getGlobalVariable({ principal: await principal(db, author), key: "mood" })).toBe(`author:${ARGS_TEMPLATE}`);
 });
 
 // ── the rule as a BINDING ACTOR (item 0025) ─────────────────────────────────────────────────────────────
@@ -339,8 +353,8 @@ test("C5: a global rule cannot capture into a CHAT variable, and its chat-less f
 // connection service through a call-through spy: the resolved row is the evidence of which connection was spent.
 
 /** Two of the author's endpoint rows: one bound to their own role, one for the rule. */
-async function seedTwoRows(app: ServicesResult, author: UserId): Promise<{ readonly own: UserConnectionId; readonly rules: UserConnectionId }> {
-  const actor = principal(author);
+async function seedTwoRows(db: Db, app: ServicesResult, author: UserId): Promise<{ readonly own: UserConnectionId; readonly rules: UserConnectionId }> {
+  const actor = await principal(db, author);
   const own = await app.services.connection.create({
     principal: actor,
     providerId: "custom-openai",
@@ -383,10 +397,10 @@ const QUIET_FREE_IMAGE: AutomationActionInput = {
 
 test("a generate_image rule spends the connection bound to the rule, and without one the author's own", async ({ app, db }) => {
   const { author, chatId } = await seedScene(db);
-  const actor = principal(author);
-  const rows = await seedTwoRows(app, author);
+  const actor = await principal(db, author);
+  const rows = await seedTwoRows(db, app, author);
   await app.services.connection.setBinding({ principal: actor, task: "generateImage", connectionId: rows.own });
-  const ruleId = await mintEnabledRule(app, author, chatId, QUIET_FREE_IMAGE);
+  const ruleId = await mintEnabledRule(app, await principal(db, author), chatId, QUIET_FREE_IMAGE);
 
   const unbound = vi.spyOn(app.services.connection, "resolve");
   await app.automation.runRuleNow({ principal: actor, ruleId });
@@ -401,7 +415,7 @@ test("a generate_image rule spends the connection bound to the rule, and without
 
 test("a generate_image rule hands imagery its own stamped clock, so an extraction renders time macros in the rule zone", async ({ app, db }) => {
   const { author, chatId } = await seedScene(db);
-  const actor = principal(author);
+  const actor = await principal(db, author);
   const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
   if (kathmandu === null) {
     throw new Error("the platform must know Asia/Kathmandu");
@@ -424,10 +438,10 @@ test("a generate_image rule hands imagery its own stamped clock, so an extractio
 
 test("a trigger_turn rule's turn resolves the rule's own chat binding first, and without one the host's", async ({ app, db }) => {
   const { author, chatId } = await seedScene(db);
-  const actor = principal(author);
-  const rows = await seedTwoRows(app, author);
+  const actor = await principal(db, author);
+  const rows = await seedTwoRows(db, app, author);
   await app.services.connection.setBinding({ principal: actor, task: "chat", connectionId: rows.own });
-  const ruleId = await mintEnabledRule(app, author, chatId, { type: "trigger_turn" });
+  const ruleId = await mintEnabledRule(app, await principal(db, author), chatId, { type: "trigger_turn" });
 
   const unbound = vi.spyOn(app.services.connection, "resolve");
   await app.automation.runRuleNow({ principal: actor, ruleId });

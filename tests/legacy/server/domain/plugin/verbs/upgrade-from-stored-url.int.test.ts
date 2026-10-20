@@ -26,22 +26,22 @@ test("upgradeFromStoredUrl re-fetches the STORED url (no re-paste) and a reach-W
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   // Install FROM URL (records sourceUrl) + enable, granting only chat.read.
   const installed = await h.service.installFromUrl({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     url: URL,
     expectedBundleHash: hashBundle(served),
     grant: ["chat.read"],
   });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
 
   // Upstream publishes a WIDENED bundle; the one-click upgrade names NO url — it re-fetches the remembered one.
   served = makeBundle({ id: "scraper", version: "1.1.0", capabilities: ["chat.read", "notify"] });
-  const [check] = await h.service.checkForUpdates({ caller: ownerPrincipalFor(owner) });
+  const [check] = await h.service.checkForUpdates({ caller: await ownerPrincipalFor(db, owner) });
   expect(check?.status).toBe("update-available");
   if (check?.status !== "update-available" || check.source !== "url") {
     throw new Error("expected a URL update identity");
   }
   const upgraded = await h.service.upgradeFromStoredUrl({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     pluginId: installed.id,
     expectedBundleHash: check.bundleHash,
   });
@@ -64,11 +64,11 @@ test("upgradeFromStoredUrl on a FILE install is a typed PluginNoSourceUrlError �
     },
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "filed", capabilities: [] }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "filed", capabilities: [] }), grant: [] });
 
   await expect(
     h.service.upgradeFromStoredUrl({
-      caller: ownerPrincipalFor(owner),
+      caller: await ownerPrincipalFor(db, owner),
       pluginId: installed.id,
       expectedBundleHash: hashBundle(new Uint8Array()),
     }),
@@ -91,7 +91,7 @@ test("upgradeFromStoredUrl on a FOREIGN / missing pluginId is NOT_FOUND — and 
 
   await expect(
     h.service.upgradeFromStoredUrl({
-      caller: ownerPrincipalFor(stranger),
+      caller: await ownerPrincipalFor(db, stranger),
       pluginId: foreignId,
       expectedBundleHash: hashBundle(new Uint8Array()),
     }),
@@ -105,7 +105,7 @@ test("upgradeFromStoredUrl preserves the enabled installation when bytes move af
   let served = makeBundle({ id: "scraper", version: "1.0.0", capabilities: ["chat.read"] });
   const h = makePluginHarness(db, { fetchBundle: () => Promise.resolve(served) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const installed = await h.service.installFromUrl({ caller, url: URL, expectedBundleHash: hashBundle(served), grant: ["chat.read"] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 

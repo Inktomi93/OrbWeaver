@@ -15,7 +15,7 @@ test("applyAsCopy mints a fresh character with the accepted patch; the live card
   const owner = await seedUser(db, { id: "user_ac_a" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "ac-card-a");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   h.queueReply(rewriteReply({ fields: [{ field: "description", text: "REFINED description with {{user}}." }] }));
   await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });
@@ -47,7 +47,7 @@ test("the zero-write arm mints NO copy: every accept dead on the belts returns c
   const owner = await seedUser(db, { id: "user_ac_b" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "ac-card-b");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   h.queueReply(rewriteReply({ fields: [{ field: "description", text: "REFINED." }] }));
   await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });
@@ -66,7 +66,7 @@ test("a copy is all-or-nothing too: one refused accept mints no copy even when a
   const owner = await seedUser(db, { id: "user_ac_all" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "ac-card-all");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   h.queueReply(rewriteReply({ fields: [{ field: "description", text: "REFINED." }] }));
   await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });
@@ -82,7 +82,7 @@ test("the §21 divergence belt: a field edited under the session drops without c
   const owner = await seedUser(db, { id: "user_ac_c" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "ac-card-c");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   h.queueReply(rewriteReply({ fields: [{ field: "description", text: "REFINED description." }] }));
   await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });
@@ -113,7 +113,7 @@ test("#1519: applying an OLDER named rewrite stamps the copy with the score run 
   const owner = await seedUser(db, { id: "user_ac_e" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "ac-card-e");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
 
   // Score run #1 (overallScore 6.5, the default SCORE_PAYLOAD), THEN rewrite #1 — this is the rewrite the
@@ -157,7 +157,7 @@ test("an UNMOVED field never trips divergence (the belt is about motion, not the
   const owner = await seedUser(db, { id: "user_ac_d" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "ac-card-d");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   h.queueReply(rewriteReply({ fields: [{ field: "description", text: "REFINED, no conflict." }] }));
   await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });

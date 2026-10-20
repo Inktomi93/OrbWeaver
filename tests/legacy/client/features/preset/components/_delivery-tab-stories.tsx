@@ -18,11 +18,17 @@ import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ReactElement } from "react";
 import { PresetStructureTabs } from "#client/features/preset/components/preset-structure-tabs.tsx";
+import type { PresetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
+import { admitPresetValues, canonicalPresetValues, presetEditorValues } from "#client/features/preset/lib/preset-editor-values.ts";
 import type { AppFormInstance } from "#client/forms/editor/index.ts";
 import { createAutosaveEntityForm } from "#client/forms/editor/index.ts";
 
 const STORY_PRESET = castId<PresetId>("preset_ct_deliveryyyy");
-const StoryForm = createAutosaveEntityForm<PromptConfig>({ defaultValues: DEFAULT_PROMPT_CONFIG });
+const StoryForm = createAutosaveEntityForm<PresetEditorValues>({
+  defaultValues: presetEditorValues(DEFAULT_PROMPT_CONFIG),
+  canonicalValues: canonicalPresetValues,
+  admitValues: admitPresetValues,
+});
 
 /** `content` is the LONGEST names-behavior option and the one the finding measured truncating. Seeded as a
  *  stored value so the trigger renders the picked label rather than its placeholder. */
@@ -31,8 +37,8 @@ const SEEDED: PromptConfig = { ...DEFAULT_PROMPT_CONFIG, namesBehavior: "content
 function Harness({ width }: { readonly width: number }): ReactElement {
   return (
     <div style={{ width }}>
-      <StoryForm entityId={STORY_PRESET} serverValues={SEEDED} save={async (): Promise<void> => undefined}>
-        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PromptConfig>} presetId={STORY_PRESET} tab="delivery" />}
+      <StoryForm entityId={STORY_PRESET} serverValues={presetEditorValues(SEEDED)} save={async (): Promise<void> => undefined}>
+        {(session): ReactElement => <PresetStructureTabs form={session.form as AppFormInstance<PresetEditorValues>} presetId={STORY_PRESET} tab="delivery" />}
       </StoryForm>
     </div>
   );

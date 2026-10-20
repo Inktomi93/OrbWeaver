@@ -1,7 +1,7 @@
 // Unit: the effective-knob DISPLAY names (features/preset/lib/effective-knobs). Every knob the server's
 // projection can report needs a label, or the readout prints a schema identifier such as `replyMedia`.
 
-import { samplingCapabilitySchema } from "@orb/contracts/inference";
+import { modelIdSchema, samplingCapabilitySchema } from "@orb/contracts/inference";
 import { EFFECTIVE_KNOBS, EFFECTIVE_PROVENANCES } from "@orb/server/domain/preset";
 import { makeCachePolicy } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -60,8 +60,9 @@ test("an unmapped key still prints itself rather than being hidden", () => {
 });
 
 test("the server's Mirostat skips apply only while the resolved Mirostat mode is on, set or by server default", () => {
-  const profile = (mode: number | undefined, provenance = "explicit"): Parameters<typeof mirostatSkipped>[0] => ({
-    model: "m",
+  type Provenance = NonNullable<NonNullable<Parameters<typeof mirostatSkipped>[0]>["knobs"]["mirostatMode"]>["provenance"];
+  const profile = (mode: number | undefined, provenance: Provenance = "explicit"): Parameters<typeof mirostatSkipped>[0] => ({
+    model: modelIdSchema.parse("m"),
     knobs: mode === undefined ? {} : { mirostatMode: { value: mode, provenance } },
     stale: [],
     qualityMapping: null,

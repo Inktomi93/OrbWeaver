@@ -51,7 +51,7 @@ describe("the inbox on a single-user deployment (#1627) — a durable row its ow
     // "plugin-disabled", recipientUserId, pluginId })`, which composes onto `record`).
     await notifications.record({ event: { type: "plugin-disabled", recipientUserId: SOLO, pluginId: mintTypeId(ID_PREFIX.plugin) } });
 
-    const ctx = makeContext({ auth: principal("owner", { userId: SOLO }), multiHumanCapable: false, services: { notifications } });
+    const ctx = makeContext({ auth: await principal(db, "owner", { userId: SOLO }), multiHumanCapable: false, services: { notifications } });
     const inbox = await caller(ctx).notifications.list();
 
     expect(inbox.items.map((item) => item.type)).toEqual(["plugin-disabled"]);
@@ -72,7 +72,7 @@ describe("the inbox on a single-user deployment (#1627) — a durable row its ow
       },
     });
 
-    const ctx = makeContext({ auth: principal("owner", { userId: SOLO }), multiHumanCapable: false, services: { notifications } });
+    const ctx = makeContext({ auth: await principal(db, "owner", { userId: SOLO }), multiHumanCapable: false, services: { notifications } });
     const inbox = await caller(ctx).notifications.list();
 
     expect(inbox.items[0]?.payload).toMatchObject({ type: "automation-notice", chatId: null });

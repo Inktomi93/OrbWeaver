@@ -16,7 +16,7 @@ beforeEach(async () => {
 describe("editQuestObjective", () => {
   test("concurrent objective operations derive in order and preserve each other's changes", async () => {
     const { chatId, gameId, h } = await seedLiteGame(db);
-    const host = principal(castId<Handle>("host"));
+    const host = await principal(db, castId<Handle>("host"));
     const questId = await h.service.upsertQuest({
       principal: host,
       chatId,

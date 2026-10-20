@@ -96,24 +96,24 @@ test.for(MALFORMED_SELECTIONS)("owned session read heals $label to empty canonic
   const stranger = await seedUser(db, { id: "user_selection_stranger", handle: castId<Handle>("selection-stranger") });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "selection-read");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
   const valid = { fields: ["greetings", "description"], greetingIndexes: [1] } as const;
   const saved = await h.svc.updateSession({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     sessionId: session.id,
     patch: { selection: { fields: [...valid.fields], greetingIndexes: [...valid.greetingIndexes] } },
   });
   expect(saved.selection).toEqual(valid);
-  expect((await h.svc.getSession({ principal: principal(owner), sessionId: session.id })).selection).toEqual(valid);
+  expect((await h.svc.getSession({ principal: await principal(db, owner), sessionId: session.id })).selection).toEqual(valid);
 
   await db.run(sql`UPDATE refinery_sessions SET selection = ${JSON.stringify(value)} WHERE id = ${session.id}`);
   const before = await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id));
-  const healed = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
+  const healed = await h.svc.getSession({ principal: await principal(db, owner), sessionId: session.id });
   expect(healed.selection).toEqual({ fields: [] });
   expect(healed.originalCard).toEqual(session.originalCard);
   expect(healed.stageConfig).toEqual(session.stageConfig);
   expect(before[0]?.selection).toEqual(value);
-  await expect(h.svc.getSession({ principal: principal(stranger), sessionId: session.id })).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(h.svc.getSession({ principal: await principal(db, stranger), sessionId: session.id })).rejects.toBeInstanceOf(DomainNotFoundError);
   expect(await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id))).toEqual(before);
   expect(h.userEvents).toEqual([
     { userId: owner, event: { type: "refineryChanged", sessionId: session.id } },

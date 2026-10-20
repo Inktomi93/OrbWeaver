@@ -21,13 +21,13 @@ describe("listScripts", () => {
     await seedScript(db, { ownerId: owner, id: "regex_script_new", name: "new", createdAt: 2000 });
     await seedScript(db, { ownerId: stranger, id: "regex_script_theirs", name: "theirs" });
 
-    expect((await svc.listScripts({ principal: principal(owner) })).map((r) => r.name)).toEqual(["new", "old"]);
+    expect((await svc.listScripts({ principal: await principal(db, owner) })).map((r) => r.name)).toEqual(["new", "old"]);
   });
 
   test("an empty library is an empty list, not a throw", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    expect(await createRegexService(h.ctx).listScripts({ principal: principal(owner) })).toEqual([]);
+    expect(await createRegexService(h.ctx).listScripts({ principal: await principal(db, owner) })).toEqual([]);
   });
 });

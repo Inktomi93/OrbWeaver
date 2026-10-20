@@ -14,19 +14,19 @@ describe("testRule", () => {
     const { db, host, chatId, svc } = await ruleFixture();
     const rule = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       name: "dry",
       trigger: MSG_COMMITTED,
       predicateCel: 'event.type == "messageCommitted"',
       actions: [{ type: "set_variable", scope: "chat", key: "greeting", op: "set", value: "hello {{time}}" }],
     });
-    const result = await svc.testRule({ principal: principal(host), ruleId: rule.id });
+    const result = await svc.testRule({ principal: await principal(db, host), ruleId: rule.id });
     expect(result.predicate).toBe(true);
     expect(result.arms).toHaveLength(1);
     expect(result.arms[0]?.type).toBe("set_variable");
     expect(typeof result.arms[0]?.renderedPreview).toBe("string");
-    const fires = await svc.listFires({ principal: principal(host), ruleId: rule.id });
+    const fires = await svc.listFires({ principal: await principal(db, host), ruleId: rule.id });
     expect(fires[0]?.outcome).toBe("test_run");
     // The rule never actually fired — lastFiredAt is untouched (the dry run debits nothing).
     const [row] = await db.select({ lastFiredAt: automationRules.lastFiredAt }).from(automationRules).where(eq(automationRules.id, rule.id));
@@ -34,18 +34,18 @@ describe("testRule", () => {
   });
 
   test("surfaces a predicate runtime error without throwing", async () => {
-    const { host, chatId, svc } = await ruleFixture();
+    const { host, chatId, svc, db } = await ruleFixture();
     // Reading a field the synthesized fact never populates → a runtime CEL error (no has() guard).
     const rule = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       name: "err",
       trigger: MSG_COMMITTED,
       predicateCel: 'event.message.role == "user"',
       actions: [SET_VAR],
     });
-    const result = await svc.testRule({ principal: principal(host), ruleId: rule.id });
+    const result = await svc.testRule({ principal: await principal(db, host), ruleId: rule.id });
     expect(typeof result.predicate).toBe("object");
   });
 });

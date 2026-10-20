@@ -34,7 +34,7 @@ test("previewFromUrl returns the fetched manifest and exact bundle identity", as
   const h = makePluginHarness(db, { fetchBundle: returns(bundle) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  const preview = await h.service.previewFromUrl({ caller: ownerPrincipalFor(owner), url: URL });
+  const preview = await h.service.previewFromUrl({ caller: await ownerPrincipalFor(db, owner), url: URL });
 
   expect(preview.manifest.id).toBe("hub-scraper");
   expect(preview.manifest.version).toBe("2.1.0");
@@ -48,7 +48,7 @@ test("previewFromUrl on a malicious / non-zip payload is refused by the SAME fun
   const h = makePluginHarness(db, { fetchBundle: returns(new TextEncoder().encode("<html>not a zip</html>")) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  await expect(h.service.previewFromUrl({ caller: ownerPrincipalFor(owner), url: URL })).rejects.toBeInstanceOf(ManifestInvalidError);
+  await expect(h.service.previewFromUrl({ caller: await ownerPrincipalFor(db, owner), url: URL })).rejects.toBeInstanceOf(ManifestInvalidError);
 });
 
 test("previewFromUrl on a fetch failure is a LEAK-FREE PluginBundleFetchError â€” the block reason never crosses into the message", async () => {
@@ -56,7 +56,7 @@ test("previewFromUrl on a fetch failure is a LEAK-FREE PluginBundleFetchError â€
   const h = makePluginHarness(db, { fetchBundle: blockedFetch });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  const err = await h.service.previewFromUrl({ caller: ownerPrincipalFor(owner), url: URL }).catch((e: unknown) => e);
+  const err = await h.service.previewFromUrl({ caller: await ownerPrincipalFor(db, owner), url: URL }).catch((e: unknown) => e);
   expect(err).toBeInstanceOf(PluginBundleFetchError);
   const message = (err as Error).message;
   // The URL the caller supplied is named; the SSRF-block internals (the resolved private IP, the "private-address"

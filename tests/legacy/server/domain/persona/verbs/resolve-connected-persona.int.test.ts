@@ -19,11 +19,11 @@ describe("resolveConnectedPersona", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const solo = await seedCharacter(db, { ownerId: owner, id: "character_solo" });
     const twice = await seedCharacter(db, { ownerId: owner, id: "character_twice" });
-    const first = await svc.create({ principal: principal(owner), input: { name: "First", description: "d" } });
-    const second = await svc.create({ principal: principal(owner), input: { name: "Second", description: "d" } });
-    await svc.connectToCharacter({ principal: principal(owner), characterId: solo, personaId: first.id });
-    await svc.connectToCharacter({ principal: principal(owner), characterId: twice, personaId: first.id });
-    await svc.connectToCharacter({ principal: principal(owner), characterId: twice, personaId: second.id });
+    const first = await svc.create({ principal: await principal(db, owner), input: { name: "First", description: "d" } });
+    const second = await svc.create({ principal: await principal(db, owner), input: { name: "Second", description: "d" } });
+    await svc.connectToCharacter({ principal: await principal(db, owner), characterId: solo, personaId: first.id });
+    await svc.connectToCharacter({ principal: await principal(db, owner), characterId: twice, personaId: first.id });
+    await svc.connectToCharacter({ principal: await principal(db, owner), characterId: twice, personaId: second.id });
     const resolve = createResolveConnectedPersona({ db: databaseHandle(db) });
 
     expect(await resolve(owner, [solo])).toBe(first.id);

@@ -84,7 +84,7 @@ describe("createListHostChats", () => {
     await seat(db, { chatId, seatId: "chatpart_hero", characterId: hero, role: "member", joinSeq: 1 });
     await seat(db, { chatId, seatId: "chatpart_villain", characterId: villain, role: "member", joinSeq: 2 });
 
-    const rows = await createListHostChats(makeHarness(db).ctx)({ principal: principal(owner) });
+    const rows = await createListHostChats(makeHarness(db).ctx)({ principal: await principal(db, owner) });
 
     expect(rows).toEqual([{ chatId, handle: "hero" }]);
   });
@@ -95,7 +95,7 @@ describe("createListHostChats", () => {
     const chatId = await seedChat(db, castId<ChatId>("chat_no_character"));
     await seat(db, { chatId, seatId: "chatpart_host_only", userId: owner, role: "host", joinSeq: 0 });
 
-    expect(await createListHostChats(makeHarness(db).ctx)({ principal: principal(owner) })).toEqual([]);
+    expect(await createListHostChats(makeHarness(db).ctx)({ principal: await principal(db, owner) })).toEqual([]);
   });
 
   test("a chat the caller merely JOINED is not theirs to back up (host gate)", async () => {
@@ -108,7 +108,7 @@ describe("createListHostChats", () => {
     await seat(db, { chatId, seatId: "chatpart_guest", userId: owner, role: "member", joinSeq: 1 });
     await seat(db, { chatId, seatId: "chatpart_char", characterId: hero, role: "member", joinSeq: 2 });
 
-    expect(await createListHostChats(makeHarness(db).ctx)({ principal: principal(owner) })).toEqual([]);
+    expect(await createListHostChats(makeHarness(db).ctx)({ principal: await principal(db, owner) })).toEqual([]);
   });
 
   test("a LEFT character seat does not pair — the chat falls back to its next present character", async () => {
@@ -126,6 +126,6 @@ describe("createListHostChats", () => {
     await seat(db, { chatId, seatId: "chatpart_gone", characterId: gone, role: "member", joinSeq: 1, leftSeq: 5 });
     await seat(db, { chatId, seatId: "chatpart_present", characterId: present, role: "member", joinSeq: 2 });
 
-    expect(await createListHostChats(makeHarness(db).ctx)({ principal: principal(owner) })).toEqual([{ chatId, handle: "present" }]);
+    expect(await createListHostChats(makeHarness(db).ctx)({ principal: await principal(db, owner) })).toEqual([{ chatId, handle: "present" }]);
   });
 });

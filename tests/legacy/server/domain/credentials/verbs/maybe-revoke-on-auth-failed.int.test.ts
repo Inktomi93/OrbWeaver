@@ -9,6 +9,7 @@
 // have to notice a chip in the Connections pane to get it back.
 // @subject packages/server/src/domain/credentials/verbs/maybe-revoke-on-auth-failed.ts
 
+import type { ProviderId } from "@orb/contracts/inference";
 import { userCredentials } from "@orb/db";
 import type { ProviderErrorKind } from "@orb/inference";
 import { PROVIDER_ERROR_KINDS } from "@orb/inference";
@@ -19,7 +20,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createCredentialsService } from "#server/domain/credentials/index.ts";
-import { makeHarness, principal, seedCredential, seedUser } from "../_support.ts";
+import { executionEvidence, makeHarness, principal, seedCredential, seedUser } from "../_support.ts";
 
 /** The verdict every provider failure kind carries. Exhaustive by construction — a new `PROVIDER_ERROR_KINDS`
  *  member falls through to `default`, where it is no longer `never` and `tsc` reds. (A mapped `Record` would
@@ -48,6 +49,8 @@ function revokes(kind: ProviderErrorKind): boolean {
   }
 }
 
+const OPENROUTER = castId<ProviderId>("openrouter");
+
 describe("maybeRevokeOnAuthFailed", () => {
   test("auth_failed + a BYO credentialId revokes that credential AND records WHY", async () => {
     const db = await freshDb();
@@ -56,7 +59,7 @@ describe("maybeRevokeOnAuthFailed", () => {
 
     await svc.maybeRevokeOnAuthFailed({
       ownerId: owner,
-      credentialId: cred.id,
+      ...(await executionEvidence(svc, owner, cred.id, OPENROUTER)),
       errorKind: "auth_failed",
       errorMessage: "401 from upstream",
     });
@@ -82,7 +85,12 @@ describe("maybeRevokeOnAuthFailed", () => {
       const h = makeHarness(db);
       const { svc, cred, owner } = await seedCredential(db, h);
 
-      await svc.maybeRevokeOnAuthFailed({ ownerId: owner, credentialId: cred.id, errorKind: kind, errorMessage: `a ${kind} failure` });
+      await svc.maybeRevokeOnAuthFailed({
+        ownerId: owner,
+        ...(await executionEvidence(svc, owner, cred.id, OPENROUTER)),
+        errorKind: kind,
+        errorMessage: `a ${kind} failure`,
+      });
 
       const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
       // Both columns move together or neither does: a live credential must never acquire a reason.
@@ -99,7 +107,12 @@ describe("maybeRevokeOnAuthFailed", () => {
     const svc = createCredentialsService({ ...h.ctx, audit: (): Promise<void> => Promise.reject(new Error("audit sink unavailable")) });
 
     await expect(
-      svc.maybeRevokeOnAuthFailed({ ownerId: owner, credentialId: cred.id, errorKind: "auth_failed", errorMessage: "401 from upstream" }),
+      svc.maybeRevokeOnAuthFailed({
+        ownerId: owner,
+        ...(await executionEvidence(svc, owner, cred.id, OPENROUTER)),
+        errorKind: "auth_failed",
+        errorMessage: "401 from upstream",
+      }),
     ).resolves.toBeUndefined();
 
     const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
@@ -107,21 +120,21 @@ describe("maybeRevokeOnAuthFailed", () => {
     expect(rows[0]?.revokedAt).not.toBeNull();
   });
 
-  test("a FOREIGN credentialId under this owner revokes NOTHING (the write is owner-scoped, not id-only)", async () => {
-    // THE HOLE THIS CLOSES (`injected-op-caller-param`): the op is the domain boundary, so the boundary has
-    // to carry the scope. Before this, the strike wrote `WHERE id = ?` and the ONLY thing keeping it off a
-    // stranger's row was the discipline of today's call sites — a promise the next wiring inherits nothing
-    // about. Bob's key must survive an `auth_failed` that Alice's turn reported against it.
+  test("a FOREIGN credentialId under this owner revokes NOTHING (the execution witness's owner must match the claim)", async () => {
+    // The control is the witness's owner check: the evidence names the owner whose resolve admitted the key
+    // (Bob), and a strike that claims another owner (Alice) is refused before any write. The owner-scoped
+    // strike behind it is defence in depth that a real witness cannot reach. Bob's key must survive an
+    // `auth_failed` that Alice's turn reported against it.
     const db = await freshDb();
     const h = makeHarness(db);
     const svc = createCredentialsService(h.ctx);
     const alice = await seedUser(db, { id: "user_alice", role: "user" });
     const bob = await seedUser(db, { id: "user_bob", role: "user" });
-    const bobsKey = await svc.add({ principal: principal(bob), provider: "openrouter", key: "sk-bob" });
+    const bobsKey = await svc.add({ principal: await principal(db, bob), provider: "openrouter", key: "sk-bob" });
 
     await svc.maybeRevokeOnAuthFailed({
       ownerId: alice,
-      credentialId: bobsKey.id,
+      ...(await executionEvidence(svc, bob, bobsKey.id, OPENROUTER)),
       errorKind: "auth_failed",
       errorMessage: "401 from upstream",
     });
@@ -139,9 +152,14 @@ describe("maybeRevokeOnAuthFailed", () => {
     const svc = createCredentialsService(h.ctx);
     const alice = await seedUser(db, { id: "user_alice", role: "user" });
     const bob = await seedUser(db, { id: "user_bob", role: "user" });
-    const bobsKey = await svc.add({ principal: principal(bob), provider: "openrouter", key: "sk-bob" });
+    const bobsKey = await svc.add({ principal: await principal(db, bob), provider: "openrouter", key: "sk-bob" });
 
-    await svc.maybeRevokeOnAuthFailed({ ownerId: alice, credentialId: bobsKey.id, errorKind: "auth_failed", errorMessage: "401" });
+    await svc.maybeRevokeOnAuthFailed({
+      ownerId: alice,
+      ...(await executionEvidence(svc, bob, bobsKey.id, OPENROUTER)),
+      errorKind: "auth_failed",
+      errorMessage: "401",
+    });
 
     // System-attributed (no principal was proven — the runner holds only ids), naming WHICH owner claimed
     // WHICH id. The refusal itself is the durable record; the row is untouched above.
@@ -159,6 +177,7 @@ describe("maybeRevokeOnAuthFailed", () => {
       svc.maybeRevokeOnAuthFailed({
         ownerId: castId<UserId>("user_o"),
         credentialId: null,
+        executionWitness: null,
         errorKind: "auth_failed",
         errorMessage: "401",
       }),
@@ -172,7 +191,13 @@ describe("maybeRevokeOnAuthFailed", () => {
     const db = await freshDb();
     const { svc, cred, owner } = await seedCredential(db, makeHarness(db));
 
-    await svc.maybeRevokeOnAuthFailed({ ownerId: owner, credentialId: null, errorKind: "auth_failed", errorMessage: "401 on the host box credential" });
+    await svc.maybeRevokeOnAuthFailed({
+      ownerId: owner,
+      credentialId: null,
+      executionWitness: null,
+      errorKind: "auth_failed",
+      errorMessage: "401 on the host box credential",
+    });
 
     const rows = await db.select().from(userCredentials).where(eq(userCredentials.id, cred.id));
     expect(rows[0]?.revokedAt).toBeNull();

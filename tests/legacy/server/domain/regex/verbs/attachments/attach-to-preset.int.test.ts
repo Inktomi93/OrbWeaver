@@ -22,12 +22,12 @@ describe("attachToPreset", () => {
     const first = await seedScript(db, { ownerId: owner, id: "regex_script_1", name: "first" });
     const second = await seedScript(db, { ownerId: owner, id: "regex_script_2", name: "second" });
 
-    await svc.attachToPreset({ principal: principal(owner), presetId, scriptId: first });
-    await svc.attachToPreset({ principal: principal(owner), presetId, scriptId: first });
-    await svc.attachToPreset({ principal: principal(owner), presetId, scriptId: second });
+    await svc.attachToPreset({ principal: await principal(db, owner), presetId, scriptId: first });
+    await svc.attachToPreset({ principal: await principal(db, owner), presetId, scriptId: first });
+    await svc.attachToPreset({ principal: await principal(db, owner), presetId, scriptId: second });
 
     expect(await db.select().from(presetRegexScripts).where(eq(presetRegexScripts.presetId, presetId))).toHaveLength(2);
-    expect((await svc.listForPreset({ principal: principal(owner), presetId })).map((r) => r.name)).toEqual(["first", "second"]);
+    expect((await svc.listForPreset({ principal: await principal(db, owner), presetId })).map((r) => r.name)).toEqual(["first", "second"]);
   });
 
   test("refuses a FOREIGN script", async () => {
@@ -39,7 +39,7 @@ describe("attachToPreset", () => {
     const presetId = await seedPreset(db, owner);
     const scriptId = await seedScript(db, { ownerId: stranger, name: "theirs" });
 
-    await expect(svc.attachToPreset({ principal: principal(owner), presetId, scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.attachToPreset({ principal: await principal(db, owner), presetId, scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
     expect(await db.select().from(presetRegexScripts)).toHaveLength(0);
   });
 });

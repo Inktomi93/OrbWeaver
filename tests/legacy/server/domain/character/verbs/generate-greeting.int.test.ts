@@ -20,12 +20,15 @@ describe("generateGreeting", () => {
     harness.setGreetingText({ text: "Hello, traveller.", costUsd: 0.001 });
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const created = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
 
-    const result = await svc.generateGreeting({ principal: principal(owner), characterId: created.id, steer: "cheerful and short" });
+    const result = await svc.generateGreeting({ principal: await principal(db, owner), characterId: created.id, steer: "cheerful and short" });
 
     expect(harness.greetingTextCalls).toHaveLength(1);
-    expect(harness.greetingTemplateCalls).toEqual([{ caller: principal(owner), kind: "greeting_new" }]);
+    expect(harness.greetingTemplateCalls).toEqual([{ caller: await principal(db, owner), kind: "greeting_new" }]);
     // {{char}} resolves to the card name; {{input}} = steer; there is NO {{base}} token for a new greeting.
     expect(harness.greetingTextCalls[0]?.prompt).toBe("Write a greeting for Nyx: cheerful and short");
     expect(result).toEqual({ text: "Hello, traveller.", costUsd: 0.001 });
@@ -37,9 +40,14 @@ describe("generateGreeting", () => {
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
-    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const created = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
 
-    await expect(svc.generateGreeting({ principal: principal(stranger), characterId: created.id, steer: "x" })).rejects.toBeInstanceOf(CharacterNotFoundError);
+    await expect(svc.generateGreeting({ principal: await principal(db, stranger), characterId: created.id, steer: "x" })).rejects.toBeInstanceOf(
+      CharacterNotFoundError,
+    );
     expect(harness.greetingTemplateCalls).toHaveLength(0);
     expect(harness.greetingTextCalls).toHaveLength(0);
   });
@@ -49,9 +57,9 @@ describe("generateGreeting", () => {
     const harness = makeHarness(db);
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await expect(svc.generateGreeting({ principal: principal(owner), characterId: castId<CharacterId>("character_ghost"), steer: "s" })).rejects.toBeInstanceOf(
-      CharacterNotFoundError,
-    );
+    await expect(
+      svc.generateGreeting({ principal: await principal(db, owner), characterId: castId<CharacterId>("character_ghost"), steer: "s" }),
+    ).rejects.toBeInstanceOf(CharacterNotFoundError);
     expect(harness.greetingTextCalls).toHaveLength(0);
   });
 
@@ -61,15 +69,18 @@ describe("generateGreeting", () => {
     harness.setGreetingTemplate("{{weekday}} {{date}} {{time}}: {{input}}");
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const created = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
     const kathmandu = parseIanaTimeZone("Asia/Kathmandu");
     if (kathmandu === null) {
       throw new Error("the platform must know Asia/Kathmandu");
     }
 
     // The harness clock is frozen at 15:06:40 UTC on Sunday 2025-06-15, which is 20:51:40 in Kathmandu (+5:45).
-    await svc.generateGreeting({ principal: principal(owner), characterId: created.id, steer: "hi", timeZone: kathmandu });
-    await svc.generateGreeting({ principal: principal(owner), characterId: created.id, steer: "hi" });
+    await svc.generateGreeting({ principal: await principal(db, owner), characterId: created.id, steer: "hi", timeZone: kathmandu });
+    await svc.generateGreeting({ principal: await principal(db, owner), characterId: created.id, steer: "hi" });
 
     expect(harness.greetingTextCalls.map((c) => c.prompt)).toEqual(["Sunday 2025-06-15 20:51:40: hi", "Sunday 2025-06-15 15:06:40: hi"]);
   });
@@ -80,14 +91,14 @@ describe("generateGreeting", () => {
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d", greetings: [{ text: "original" }] },
     });
     const emitsBefore = harness.events.length;
 
-    await svc.generateGreeting({ principal: principal(owner), characterId: created.id, steer: "a new one" });
+    await svc.generateGreeting({ principal: await principal(db, owner), characterId: created.id, steer: "a new one" });
 
-    const after = await svc.getCard({ principal: principal(owner), characterId: created.id });
+    const after = await svc.getCard({ principal: await principal(db, owner), characterId: created.id });
     expect(after?.greetings).toEqual([{ text: "original" }]);
     // The verb writes nothing — it emits no NEW domain event beyond what create already fired.
     expect(harness.events.length).toBe(emitsBefore);

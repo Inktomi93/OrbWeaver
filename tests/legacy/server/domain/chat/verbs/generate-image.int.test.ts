@@ -15,13 +15,13 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe, onTestFinished } from "vitest";
 import type { ChatContext } from "#server/domain/chat/context.ts";
 import { createGenerateImage } from "#server/domain/chat/verbs/generate-image.ts";
 import { applyStatsDelta } from "#server/domain/stats/write/apply-delta.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeHarness } from "../../assets/_support.ts";
 import { makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
@@ -38,8 +38,8 @@ const emit = (event: ChatBusEvent): Promise<void> => {
   return Promise.resolve();
 };
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 async function seedGeneratedAsset(ownerId: UserId, key: string): Promise<AssetId> {
@@ -72,7 +72,7 @@ describe("generateImage", () => {
     });
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
 
-    await expect(generateImage({ principal: principal(host), chatId, mode: "free" })).rejects.toThrow();
+    await expect(generateImage({ principal: await principal(db, host), chatId, mode: "free" })).rejects.toThrow();
     expect(providerCalls).toBe(1);
     expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(1);
     expect(await db.select().from(messageAssets)).toEqual([]);
@@ -104,8 +104,8 @@ describe("generateImage", () => {
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
 
     const views = await Promise.all([
-      generateImage({ principal: principal(host), chatId, mode: "free", prompt: "one" }),
-      generateImage({ principal: principal(host), chatId, mode: "free", prompt: "two" }),
+      generateImage({ principal: await principal(db, host), chatId, mode: "free", prompt: "one" }),
+      generateImage({ principal: await principal(db, host), chatId, mode: "free", prompt: "two" }),
     ]);
 
     expect(calls.toSorted((a, b) => a.localeCompare(b))).toEqual(["one", "two"]);
@@ -132,7 +132,7 @@ describe("generateImage", () => {
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
 
     const view = await generateImage({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       mode: "free",
       prompt: "a dragon",
@@ -181,7 +181,7 @@ describe("generateImage", () => {
     });
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
 
-    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon" });
+    await generateImage({ principal: await principal(db, host), chatId, mode: "free", prompt: "a dragon" });
 
     // The message still committed; the warning rides the one chat `warning` surface after it.
     const warnings = emitted.filter((e) => e.type === "warning");
@@ -203,7 +203,7 @@ describe("generateImage", () => {
     });
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
 
-    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "shared view" });
+    await generateImage({ principal: await principal(db, host), chatId, mode: "free", prompt: "shared view" });
 
     const harness = await makeHarness(db);
     onTestFinished(harness.cleanup);
@@ -231,7 +231,7 @@ describe("generateImage", () => {
     });
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
 
-    const view = await generateImage({ principal: principal(member), chatId, mode: "scenario" });
+    const view = await generateImage({ principal: await principal(db, member), chatId, mode: "scenario" });
 
     expect(calls.map((c) => ({ caller: c.caller.userId, runAsUserId: c.runAsUserId }))).toEqual([{ caller: member, runAsUserId: host }]);
     expect(view.authorUserId).toBe(member);
@@ -252,7 +252,7 @@ describe("generateImage", () => {
       generatePicture: async (p) => ({ images: [{ assetId: await seedGeneratedAsset(p.runAsUserId, "room-only") }], warnings: [] }),
     });
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
-    await generateImage({ principal: principal(member), chatId, mode: "free", prompt: "a lantern" });
+    await generateImage({ principal: await principal(db, member), chatId, mode: "free", prompt: "a lantern" });
     const picture = castId<AssetId>("asset_room-only");
     const harness = await makeHarness(db);
     onTestFinished(harness.cleanup);
@@ -279,7 +279,7 @@ describe("generateImage", () => {
     });
     const { generateImage } = createGenerateImage(ctx, { emit, claimChat: noClaim });
 
-    await expect(generateImage({ principal: principal(outsider), chatId, mode: "free", prompt: "x" })).rejects.toThrow();
+    await expect(generateImage({ principal: await principal(db, outsider), chatId, mode: "free", prompt: "x" })).rejects.toThrow();
     expect(called).toBe(false);
   });
 
@@ -301,7 +301,7 @@ describe("generateImage", () => {
       },
     });
 
-    await expect(generateImage({ principal: principal(host), chatId, mode: "free", prompt: "x" })).rejects.toThrow("refused");
+    await expect(generateImage({ principal: await principal(db, host), chatId, mode: "free", prompt: "x" })).rejects.toThrow("refused");
     expect(claims).toEqual([]);
     expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toEqual([]);
   });
@@ -325,7 +325,7 @@ describe("generateImage", () => {
       },
     });
 
-    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "x" });
+    await generateImage({ principal: await principal(db, host), chatId, mode: "free", prompt: "x" });
     expect(claims).toEqual([chatId]);
     expect(canonAtClaim).toBe(0);
     expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(1);
@@ -352,7 +352,7 @@ describe("generateImage", () => {
       },
     });
 
-    await expect(generateImage({ principal: principal(host), chatId, mode: "free", prompt: "x" })).rejects.toThrow("no host");
+    await expect(generateImage({ principal: await principal(db, host), chatId, mode: "free", prompt: "x" })).rejects.toThrow("no host");
     expect(claims).toEqual([]);
     expect(pictures).toBe(0);
   });
@@ -381,7 +381,7 @@ describe("generateImage — gallery auto-add target", () => {
     const calls: PictureCall[] = [];
     const { generateImage } = createGenerateImage(recordingContext(calls), { emit, claimChat: noClaim });
 
-    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon" });
+    await generateImage({ principal: await principal(db, host), chatId, mode: "free", prompt: "a dragon" });
 
     expect(calls[0]?.gallery).toEqual({ subjectCharacterId: aria });
   });
@@ -394,8 +394,8 @@ describe("generateImage — gallery auto-add target", () => {
     const calls: PictureCall[] = [];
     const { generateImage } = createGenerateImage(recordingContext(calls), { emit, claimChat: noClaim });
 
-    await generateImage({ principal: principal(host), chatId, mode: "scenario", timeZone: UTC_TIME_ZONE });
-    await generateImage({ principal: principal(host), chatId, mode: "scenario" });
+    await generateImage({ principal: await principal(db, host), chatId, mode: "scenario", timeZone: UTC_TIME_ZONE });
+    await generateImage({ principal: await principal(db, host), chatId, mode: "scenario" });
 
     expect(calls.map((c) => c.timeZone)).toEqual([UTC_TIME_ZONE, undefined]);
   });
@@ -411,7 +411,7 @@ describe("generateImage — gallery auto-add target", () => {
     const calls: PictureCall[] = [];
     const { generateImage } = createGenerateImage(recordingContext(calls), { emit, claimChat: noClaim });
 
-    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon", gallery: false });
+    await generateImage({ principal: await principal(db, host), chatId, mode: "free", prompt: "a dragon", gallery: false });
 
     expect(calls).toHaveLength(1);
     expect(calls[0]?.gallery).toBeUndefined();
@@ -430,7 +430,7 @@ describe("generateImage — gallery auto-add target", () => {
     const calls: PictureCall[] = [];
     const { generateImage } = createGenerateImage(recordingContext(calls), { emit, claimChat: noClaim });
 
-    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon" });
+    await generateImage({ principal: await principal(db, host), chatId, mode: "free", prompt: "a dragon" });
 
     expect(calls).toHaveLength(1);
     expect(calls[0]?.gallery).toEqual({ subjectCharacterId: aria });
@@ -445,7 +445,7 @@ describe("generateImage — gallery auto-add target", () => {
     const calls: PictureCall[] = [];
     const { generateImage } = createGenerateImage(recordingContext(calls), { emit, claimChat: noClaim });
 
-    await generateImage({ principal: principal(host), chatId, mode: "free", prompt: "a dragon" });
+    await generateImage({ principal: await principal(db, host), chatId, mode: "free", prompt: "a dragon" });
 
     expect(calls[0]?.gallery).toBeUndefined();
   });

@@ -36,22 +36,22 @@ test("install → enable → getLog → disable → uninstall: full lifecycle th
   const h = makePluginHarness(db, { port: makeSandboxPort(seeds()) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "roundtrip" }, LOGGING_MAIN), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "roundtrip" }, LOGGING_MAIN), grant: [] });
   expect(installed.status).toBe("disabled");
 
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
-  const [enabled] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
+  const [enabled] = await h.service.list({ caller: await ownerPrincipalFor(db, owner) });
   expect(enabled?.status).toBe("enabled");
 
   // The activation-run host.log surfaced through the port, with the INJECTED clock (never ambient Date).
-  const log = await h.service.getLog({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+  const log = await h.service.getLog({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
   expect(log).toEqual([{ level: "info", message: `activated at ${FROZEN_AT_MS}`, at: FROZEN_AT_MS }]);
 
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: false });
-  expect(await h.service.getLog({ caller: ownerPrincipalFor(owner), pluginId: installed.id })).toEqual([]); // no resident → no ring
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: false });
+  expect(await h.service.getLog({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id })).toEqual([]); // no resident → no ring
 
-  await h.service.uninstall({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
-  expect(await h.service.list({ caller: ownerPrincipalFor(owner) })).toEqual([]);
+  await h.service.uninstall({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
+  expect(await h.service.list({ caller: await ownerPrincipalFor(db, owner) })).toEqual([]);
   expect(h.storedBytes.size).toBe(0); // bundle asset reaped
 });
 
@@ -60,13 +60,13 @@ test("a main.js that throws at activation lands the row errored, host process he
   const h = makePluginHarness(db, { port: makeSandboxPort(seeds()) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const installed = await h.service.install({
-    caller: ownerPrincipalFor(owner),
+    caller: await ownerPrincipalFor(db, owner),
     bundle: makeBundle({ id: "boom" }, "throw new Error('activation boom');"),
     grant: [],
   });
 
-  await expect(h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true })).rejects.toThrow();
-  const [view] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+  await expect(h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true })).rejects.toThrow();
+  const [view] = await h.service.list({ caller: await ownerPrincipalFor(db, owner) });
   expect(view?.status).toBe("errored");
   expect(view?.lastError).toContain("activation boom");
 });
@@ -75,13 +75,13 @@ test("determinism floor: two activations with the same seams produce byte-identi
   const db = await freshDb();
   const h = makePluginHarness(db, { port: makeSandboxPort(seeds()) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: "determ" }, LOGGING_MAIN), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: "determ" }, LOGGING_MAIN), grant: [] });
 
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
-  const first = await h.service.getLog({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: false });
-  await h.service.setEnabled({ caller: ownerPrincipalFor(owner), pluginId: installed.id, enabled: true });
-  const second = await h.service.getLog({ caller: ownerPrincipalFor(owner), pluginId: installed.id });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
+  const first = await h.service.getLog({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: false });
+  await h.service.setEnabled({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id, enabled: true });
+  const second = await h.service.getLog({ caller: await ownerPrincipalFor(db, owner), pluginId: installed.id });
 
   expect(second).toEqual(first);
 });

@@ -5,6 +5,7 @@
 // would take), that read-through composes two tool calls in one turn, and the off-game/errors-as-data lanes.
 
 import { RPG_LITE_TOOL_NAMES } from "@orb/contracts/rpg";
+import type { Db } from "@orb/db";
 import type { ChatId, ChatTurnId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -22,8 +23,8 @@ function defOf(defs: readonly ToolDefinition[], name: string): ToolDefinition {
   return def;
 }
 
-function exec(chatId: ChatId, turnId: ChatTurnId | null): ToolExecutionContext {
-  return { principal: principal(castId<Handle>("host")), triggeredBy: castId("user_host"), chatId, turnId, membership: null };
+async function exec(db: Db, chatId: ChatId, turnId: ChatTurnId | null): Promise<ToolExecutionContext> {
+  return { principal: await principal(db, castId<Handle>("host")), triggeredBy: castId("user_host"), chatId, turnId, membership: null };
 }
 
 test("the factory returns the 7 lite tool defs — member-floor, builtin, projectable args", async ({ db }) => {
@@ -41,7 +42,7 @@ test("update_party STAGES a pool delta into the turn's accumulator (the mutation
   const { chatId, h } = await seedLiteGame(db);
   const result = await defOf(rpgToolDefinitions(h.ctx), "update_party").handler(
     { targetRef: "Goblin", trackerDeltas: [{ key: "rage", delta: 5 }] },
-    exec(chatId, TURN),
+    await exec(db, chatId, TURN),
   );
   expect(result.ok).toBe(true);
   // Assert the accumulator holds the staged mutation — the effective state the flush would take.
@@ -52,8 +53,8 @@ test("update_party STAGES a pool delta into the turn's accumulator (the mutation
 test("read-through: two tool calls in one turn compose (tool 2 sees tool 1's write)", async ({ db }) => {
   const { chatId, h } = await seedLiteGame(db);
   const defs = rpgToolDefinitions(h.ctx);
-  await defOf(defs, "update_inventory").handler({ targetRef: "Hero", walletDeltas: [{ name: "gold", delta: 10 }] }, exec(chatId, TURN));
-  await defOf(defs, "update_inventory").handler({ targetRef: "Hero", walletDeltas: [{ name: "gold", delta: 5 }] }, exec(chatId, TURN));
+  await defOf(defs, "update_inventory").handler({ targetRef: "Hero", walletDeltas: [{ name: "gold", delta: 10 }] }, await exec(db, chatId, TURN));
+  await defOf(defs, "update_inventory").handler({ targetRef: "Hero", walletDeltas: [{ name: "gold", delta: 5 }] }, await exec(db, chatId, TURN));
   const staged = h.ctx.staging.peek(TURN);
   // The second delta composed onto the first (15), not overwrote it — read-through through the accumulator.
   expect(staged?.actorState[0]?.volatile.wallet).toEqual([{ name: "gold", amount: 15 }]);
@@ -61,7 +62,7 @@ test("read-through: two tool calls in one turn compose (tool 2 sees tool 1's wri
 
 test("upsert_quest STAGES a quest into the snapshot plane", async ({ db }) => {
   const { chatId, h } = await seedLiteGame(db);
-  const result = await defOf(rpgToolDefinitions(h.ctx), "upsert_quest").handler({ name: "Find the key", action: "create" }, exec(chatId, TURN));
+  const result = await defOf(rpgToolDefinitions(h.ctx), "upsert_quest").handler({ name: "Find the key", action: "create" }, await exec(db, chatId, TURN));
   expect(result.ok).toBe(true);
   expect(h.ctx.staging.peek(TURN)?.quests[0]?.name).toBe("Find the key");
 });
@@ -70,7 +71,7 @@ test("add_journal_entry STAGES a journal entry (flushed at commit)", async ({ db
   const { chatId, h } = await seedLiteGame(db);
   const result = await defOf(rpgToolDefinitions(h.ctx), "add_journal_entry").handler(
     { type: "event", label: "", title: "Arrival", content: "They reached the city." },
-    exec(chatId, TURN),
+    await exec(db, chatId, TURN),
   );
   expect(result.ok).toBe(true);
   // The staged journal rides the same take() the flush drains — assert via take (which also clears the bucket).
@@ -80,7 +81,7 @@ test("add_journal_entry STAGES a journal entry (flushed at commit)", async ({ db
 
 test("roll_dice returns a baked roll, zero state (nothing staged)", async ({ db }) => {
   const { chatId, h } = await seedLiteGame(db, { dice: [3, 5] });
-  const result = await defOf(rpgToolDefinitions(h.ctx), "roll_dice").handler({ notation: "2d6+1" }, exec(chatId, TURN));
+  const result = await defOf(rpgToolDefinitions(h.ctx), "roll_dice").handler({ notation: "2d6+1" }, await exec(db, chatId, TURN));
   expect(result).toEqual({ ok: true, value: { notation: "2d6+1", total: 11, faces: [4, 6] } });
   expect(h.ctx.staging.peek(TURN)).toBeUndefined(); // no bucket — zero state
 });
@@ -92,7 +93,7 @@ test("update_party is TOTAL since R3 — the hp refusal lane left with the bespo
   const { chatId, h } = await seedLiteGame(db);
   const result = await defOf(rpgToolDefinitions(h.ctx), "update_party").handler(
     { targetRef: "Ghost", trackerDeltas: [{ key: "hp", delta: -1 }] },
-    exec(chatId, TURN),
+    await exec(db, chatId, TURN),
   );
   expect(result.ok).toBe(true);
   expect(h.ctx.staging.peek(TURN)?.actorState[0]?.volatile.trackerValues["hp"]).toEqual({ value: -1, items: null, max: null });
@@ -101,7 +102,7 @@ test("update_party is TOTAL since R3 — the hp refusal lane left with the bespo
 test("a stateful tool on a non-game chat is an errors-as-data denial (never a throw)", async ({ db }) => {
   const { h } = await seedLiteGame(db);
   const noGame = castId<ChatId>("chat_no_game");
-  const result = await defOf(rpgToolDefinitions(h.ctx), "update_scene").handler({ location: "Nowhere" }, exec(noGame, TURN));
+  const result = await defOf(rpgToolDefinitions(h.ctx), "update_scene").handler({ location: "Nowhere" }, await exec(db, noGame, TURN));
   expect(result.ok).toBe(false);
   expect((result as Extract<ToolHandlerResult, { ok: false }>).error).toContain("not an rpg game");
 });

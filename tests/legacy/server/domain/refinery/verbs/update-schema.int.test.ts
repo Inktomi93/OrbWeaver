@@ -18,15 +18,21 @@ test("update bumps version on CONTENT change only; foreign owner collapses to NO
   const owner = await seedUser(db, { id: "user_usch_a" });
   const other = await seedUser(db, { id: "user_usch_b" });
   const h = makeRefineryHarness(db);
-  const created = await h.svc.createSchema({ principal: principal(owner), name: "vibe_scorer", description: "v1", stage: "score", schema: validScoreSchema() });
+  const created = await h.svc.createSchema({
+    principal: await principal(db, owner),
+    name: "vibe_scorer",
+    description: "v1",
+    stage: "score",
+    schema: validScoreSchema(),
+  });
 
   // A description-only edit is prose, not provenance — no version bump.
-  const prose = await h.svc.updateSchema({ principal: principal(owner), schemaId: created.id, patch: { description: "rate the VIBE" } });
+  const prose = await h.svc.updateSchema({ principal: await principal(db, owner), schemaId: created.id, patch: { description: "rate the VIBE" } });
   expect(prose.version).toBe(1);
 
   // A schema edit IS provenance — the pin bumps.
   const bumped = await h.svc.updateSchema({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     schemaId: created.id,
     patch: { schema: { ...validScoreSchema(), properties: { ...(validScoreSchema()["properties"] as object), extra: { type: "string" } } } },
   });
@@ -34,11 +40,13 @@ test("update bumps version on CONTENT change only; foreign owner collapses to NO
 
   // The merged document re-runs the belt — an update cannot smuggle a core-less schema past it.
   await expect(
-    h.svc.updateSchema({ principal: principal(owner), schemaId: created.id, patch: { schema: { type: "object", properties: {}, required: [] } } }),
+    h.svc.updateSchema({ principal: await principal(db, owner), schemaId: created.id, patch: { schema: { type: "object", properties: {}, required: [] } } }),
   ).rejects.toThrow(SCORE_CORE_REFUSAL);
 
   // Foreign owner — leak-free collapse.
-  await expect(h.svc.updateSchema({ principal: principal(other), schemaId: created.id, patch: { description: "steal" } })).rejects.toThrow(DomainNotFoundError);
+  await expect(h.svc.updateSchema({ principal: await principal(db, other), schemaId: created.id, patch: { description: "steal" } })).rejects.toThrow(
+    DomainNotFoundError,
+  );
 
   // THREE ticks, all to the owner: create + the two landed patches. The belt refusal and the foreign
   // attempt announced nothing — the emit sits after the durable write.
@@ -53,12 +61,12 @@ test("two held renames to one folded name admit one update and type the loser", 
   const { db, hold } = await freshHeldDb();
   const owner = await seedUser(db, { id: "user_usch_race" });
   const h = makeRefineryHarness(db);
-  const a = await h.svc.createSchema({ principal: principal(owner), name: "SchemaA", description: "a", stage: "score", schema: validScoreSchema() });
-  const b = await h.svc.createSchema({ principal: principal(owner), name: "SchemaB", description: "b", stage: "score", schema: validScoreSchema() });
+  const a = await h.svc.createSchema({ principal: await principal(db, owner), name: "SchemaA", description: "a", stage: "score", schema: validScoreSchema() });
+  const b = await h.svc.createSchema({ principal: await principal(db, owner), name: "SchemaB", description: "b", stage: "score", schema: validScoreSchema() });
   const updates = hold(REFINERY_SCHEMA_UPDATE, 2);
   const renames = [
-    h.svc.updateSchema({ principal: principal(owner), schemaId: a.id, patch: { name: "SharedName" } }),
-    h.svc.updateSchema({ principal: principal(owner), schemaId: b.id, patch: { name: "sharedname" } }),
+    h.svc.updateSchema({ principal: await principal(db, owner), schemaId: a.id, patch: { name: "SharedName" } }),
+    h.svc.updateSchema({ principal: await principal(db, owner), schemaId: b.id, patch: { name: "sharedname" } }),
   ];
 
   await updates.reached;
@@ -72,7 +80,7 @@ test("two held renames to one folded name admit one update and type the loser", 
     throw new Error("expected the concurrent schema-name loser to be typed");
   }
   expect(rejected.reason.code).toBe("refinery_schema_name_taken");
-  const rows = await h.svc.listSchemas({ principal: principal(owner) });
+  const rows = await h.svc.listSchemas({ principal: await principal(db, owner) });
   expect(rows.filter((row) => row.name.toLowerCase() === "sharedname")).toHaveLength(1);
 });
 
@@ -80,15 +88,21 @@ test("two CONCURRENT patches to DISJOINT fields cannot silently drop each other 
   const { db, hold } = await freshHeldDb();
   const owner = await seedUser(db, { id: "user_usch_cas" });
   const h = makeRefineryHarness(db);
-  const created = await h.svc.createSchema({ principal: principal(owner), name: "cas_scorer", description: "v1", stage: "score", schema: validScoreSchema() });
+  const created = await h.svc.createSchema({
+    principal: await principal(db, owner),
+    name: "cas_scorer",
+    description: "v1",
+    stage: "score",
+    schema: validScoreSchema(),
+  });
   const widened = { ...validScoreSchema(), properties: { ...(validScoreSchema()["properties"] as object), extra: { type: "string" } } };
 
   // Both patches READ the same pre-edit row, then both write the WHOLE merged document — the shape that
   // loses an edit. The hold keeps them together so this is a real interleaving, not a sequence.
   const updates = hold(REFINERY_SCHEMA_UPDATE, 2);
   const patches = [
-    h.svc.updateSchema({ principal: principal(owner), schemaId: created.id, patch: { description: "rate the VIBE" } }),
-    h.svc.updateSchema({ principal: principal(owner), schemaId: created.id, patch: { schema: widened } }),
+    h.svc.updateSchema({ principal: await principal(db, owner), schemaId: created.id, patch: { description: "rate the VIBE" } }),
+    h.svc.updateSchema({ principal: await principal(db, owner), schemaId: created.id, patch: { schema: widened } }),
   ];
   await updates.reached;
   updates.release();

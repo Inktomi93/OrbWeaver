@@ -39,6 +39,7 @@ function build(db: Awaited<ReturnType<typeof freshDb>>): ReturnType<typeof build
     now: (): number => NOW,
     audit: (): Promise<void> => Promise.resolve(),
     emitChatEventLive: (): void => undefined,
+    emitUserEvent: (): void => undefined,
   });
 }
 
@@ -56,7 +57,7 @@ describe("compose/regex — resolveVisibleRooms (the reverse roster's room filte
 
     await db.insert(chatRegexScripts).values([present, left, never].map((chatId) => ({ chatId, regexScriptId: scriptId, position: 0 })));
 
-    const usage = await build(db).regex.listScriptUsage({ principal: principal(owner), scriptId });
+    const usage = await build(db).regex.listScriptUsage({ principal: await principal(db, owner), scriptId });
 
     expect(usage.rooms.map((room) => room.id)).toEqual([present]);
   });
@@ -74,7 +75,7 @@ describe("compose/regex — resolveVisibleRooms (the reverse roster's room filte
     await seedParticipant(db, { chatId: untitled, key: "c", characterId, role: "member" });
     await db.insert(chatRegexScripts).values([{ chatId: untitled, regexScriptId: scriptId, position: 0 }]);
 
-    const usage = await build(db).regex.listScriptUsage({ principal: principal(owner), scriptId });
+    const usage = await build(db).regex.listScriptUsage({ principal: await principal(db, owner), scriptId });
 
     // The authored title arrives RAW — the trim is the chain's, not this op's, so nothing here decides that
     // "   " means unnamed.
@@ -94,7 +95,7 @@ describe("compose/regex — resolveVisibleRooms (the reverse roster's room filte
     await seedParticipant(db, { chatId: room, key: "friend", userId: friend, role: "member", activePersonaId: personaId });
     await db.insert(chatRegexScripts).values([{ chatId: room, regexScriptId: scriptId, position: 0 }]);
 
-    const usage = await build(db).regex.listScriptUsage({ principal: principal(owner), scriptId });
+    const usage = await build(db).regex.listScriptUsage({ principal: await principal(db, owner), scriptId });
 
     // "owner" is absent: the caller is in every room they can see, so their own name carries no information
     // and eats the width the row has for the people it is ABOUT (the chats list's `summaryParticipantNames` rule).
@@ -110,7 +111,7 @@ describe("compose/regex — resolveVisibleRooms (the reverse roster's room filte
     await seedParticipant(db, { chatId: solo, key: "me", userId: owner, role: "host" });
     await db.insert(chatRegexScripts).values([{ chatId: solo, regexScriptId: scriptId, position: 0 }]);
 
-    const usage = await build(db).regex.listScriptUsage({ principal: principal(owner), scriptId });
+    const usage = await build(db).regex.listScriptUsage({ principal: await principal(db, owner), scriptId });
 
     // Suppressing the only seat would collapse the row to "Untitled chat" — the very defect this fixes.
     expect(usage.rooms[0]?.participantNames).toEqual(["owner"]);
@@ -129,7 +130,7 @@ describe("compose/regex — resolveVisibleRooms (the reverse roster's room filte
     await seedParticipant(db, { chatId: newer, key: "n1", userId: owner, role: "host" });
     await db.insert(chatRegexScripts).values([older, newer].map((chatId) => ({ chatId, regexScriptId: scriptId, position: 0 })));
 
-    const usage = await build(db).regex.listScriptUsage({ principal: principal(owner), scriptId });
+    const usage = await build(db).regex.listScriptUsage({ principal: await principal(db, owner), scriptId });
 
     expect(usage.rooms.map((room) => room.id)).toEqual([newer, older]);
     // The departed member is gone from the cast too — the roster names who is in the room NOW.
@@ -153,12 +154,12 @@ describe("compose/regex — resolveRoomDisplayPolicy (whose scripts an opted-in 
     await seedScript(db, { ownerId: host, name: "fx", behavior: behavior({ placement: ["DISPLAY"] }) });
     const { regex } = build(db);
 
-    expect((await regex.listRoomDisplayScripts({ principal: principal(member), chatId: room })).map((script) => script.name)).toEqual(["fx"]);
+    expect((await regex.listRoomDisplayScripts({ principal: await principal(db, member), chatId: room })).map((script) => script.name)).toEqual(["fx"]);
 
     await db
       .update(chatParticipants)
       .set({ leftSeq: 3 })
       .where(and(eq(chatParticipants.chatId, room), eq(chatParticipants.userId, host)));
-    expect(await regex.listRoomDisplayScripts({ principal: principal(member), chatId: room })).toEqual([]);
+    expect(await regex.listRoomDisplayScripts({ principal: await principal(db, member), chatId: room })).toEqual([]);
   });
 });

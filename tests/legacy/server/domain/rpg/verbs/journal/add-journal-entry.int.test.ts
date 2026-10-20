@@ -20,7 +20,7 @@ describe("addJournalEntry", () => {
     const { chatId, gameId, h } = await seedLiteGame(db);
     h.fakes.busEvents.length = 0; // drop the createGame emit — assert the journal emit alone
     const journalId = await h.service.addJournalEntry({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       type: "note",
       title: "Session 1",

@@ -20,10 +20,10 @@ test("patches name/guidance/selection/stageConfig/status with per-member parses;
   const owner = await seedUser(db, { id: "user_us_a" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "us-card-a");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId, name: "before" });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId, name: "before" });
 
   const updated = await h.svc.updateSession({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     sessionId: session.id,
     patch: {
       name: null,
@@ -46,7 +46,7 @@ test("patches name/guidance/selection/stageConfig/status with per-member parses;
 
   // The guidance belt bites at the verb (over the PROSE_MAX_CHARS twin).
   await expect(
-    h.svc.updateSession({ principal: principal(owner), sessionId: session.id, patch: { guidance: "x".repeat(GUIDANCE_MAX + 1) } }),
+    h.svc.updateSession({ principal: await principal(db, owner), sessionId: session.id, patch: { guidance: "x".repeat(GUIDANCE_MAX + 1) } }),
   ).rejects.toBeInstanceOf(ZodError);
 });
 
@@ -63,23 +63,23 @@ test("a scope save that never ADDRESSED greetings preserves applyFields' remap (
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "us-card-straddle");
   await h.character.update({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     characterId,
     input: { greetings: [{ text: "g0" }, { text: "g1" }, { text: "g2" }, { text: "g3" }] },
   });
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
   // The scope the dialog opens on: greetings 0, 2 and 3 (the apply-fields §15.2 worked example).
   await h.svc.updateSession({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     sessionId: session.id,
     patch: { selection: { fields: ["greetings"], greetingIndexes: [0, 2, 3] } },
   });
 
   // WRITER TWO: the apply removes greeting 2, so the survivors shift down — [0,2,3] → [0,2].
   h.queueReply(rewriteReply({ fields: [{ field: "greetings", greetingIndex: 2, cleared: true }] }));
-  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
-  await h.svc.applyFields({ principal: principal(owner), sessionId: session.id, accepts: [{ field: "greetings", greetingIndex: 2 }] });
-  const remapped = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
+  await h.svc.runStage({ principal: await principal(db, owner), sessionId: session.id, stage: "rewrite" });
+  await h.svc.applyFields({ principal: await principal(db, owner), sessionId: session.id, accepts: [{ field: "greetings", greetingIndex: 2 }] });
+  const remapped = await h.svc.getSession({ principal: await principal(db, owner), sessionId: session.id });
   expect(remapped.selection.greetingIndexes, "the remap landed (the premise this test straddles)").toEqual([0, 2]);
 
   // WRITER ONE, STRADDLING: the dialog was opened BEFORE the apply and the user only widened the FIELD
@@ -87,7 +87,7 @@ test("a scope save that never ADDRESSED greetings preserves applyFields' remap (
   // wrote `{fields}` verbatim, dropping `greetingIndexes` entirely and silently re-widening the session
   // to EVERY greeting of the now-shorter card.
   const saved = await h.svc.updateSession({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     sessionId: session.id,
     patch: { selection: { fields: ["greetings", "description"] } },
   });
@@ -100,10 +100,10 @@ test("the greeting axis is three-state: `null` means EVERY greeting, an array me
   const owner = await seedUser(db, { id: "user_us_tristate" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "us-card-tristate");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
 
   const narrowed = await h.svc.updateSession({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     sessionId: session.id,
     patch: { selection: { fields: ["greetings"], greetingIndexes: [1] } },
   });
@@ -112,7 +112,7 @@ test("the greeting axis is three-state: `null` means EVERY greeting, an array me
   // `null` is the ONLY way the wire says "back to every greeting" — absence is spent on "keep", so a
   // widen that omitted the axis would be a no-op, and the all-checked dialog press would not land.
   const widened = await h.svc.updateSession({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     sessionId: session.id,
     patch: { selection: { greetingIndexes: null } },
   });
@@ -127,12 +127,12 @@ test("a stranger's patch collapses to NOT_FOUND (no write)", async () => {
   const stranger = await seedUser(db, { id: "user_us_c", handle: castId<Handle>("us-stranger") });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "us-card-b");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId, name: "mine" });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId, name: "mine" });
 
-  await expect(h.svc.updateSession({ principal: principal(stranger), sessionId: session.id, patch: { name: "stolen" } })).rejects.toBeInstanceOf(
+  await expect(h.svc.updateSession({ principal: await principal(db, stranger), sessionId: session.id, patch: { name: "stolen" } })).rejects.toBeInstanceOf(
     DomainNotFoundError,
   );
-  const unchanged = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
+  const unchanged = await h.svc.getSession({ principal: await principal(db, owner), sessionId: session.id });
   expect(unchanged.name).toBe("mine");
   // A refused write announces NOTHING (the emit sits after the durable write, never before the belt) —
   // the ledger holds only the `startSession` tick from the setup above.
@@ -145,14 +145,14 @@ test("selection omission keeps stored residue; addressed axes persist canonical 
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "selection-omission");
   const extensions = { vendor: { opaque: "owner-anchor-bytes", nested: ["retained"] } };
-  await h.character.update({ principal: principal(owner), characterId, input: { extensions } });
-  const session = await h.svc.startSession({ principal: principal(owner), characterId, name: "before" });
+  await h.character.update({ principal: await principal(db, owner), characterId, input: { extensions } });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId, name: "before" });
   const rewrite = await h.svc.submitManualRewrite({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     sessionId: session.id,
     fields: [{ field: "description", text: "Hand-authored rewrite." }],
   });
-  await h.svc.decideRewrite({ principal: principal(owner), sessionId: session.id, rewriteRunId: rewrite.id, decisions: [true] });
+  await h.svc.decideRewrite({ principal: await principal(db, owner), sessionId: session.id, rewriteRunId: rewrite.id, decisions: [true] });
   await db
     .update(refinerySessions)
     .set({ inflightUntil: session.createdAt + 60_000 })
@@ -160,19 +160,19 @@ test("selection omission keeps stored residue; addressed axes persist canonical 
   const stored = { fields: ["greetings", "description"], greetingIndexes: [1], legacyResidue: { opaque: "selection-residue" } };
   await db.run(sql`UPDATE refinery_sessions SET selection = ${JSON.stringify(stored)} WHERE id = ${session.id}`);
   const [before] = await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id));
-  const viewed = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
+  const viewed = await h.svc.getSession({ principal: await principal(db, owner), sessionId: session.id });
   expect(viewed.selection).toEqual({ fields: ["greetings", "description"], greetingIndexes: [1] });
   expect(viewed.originalCard.extensions).toEqual(extensions);
   expect(viewed.rewriteDecisions).toEqual({ [rewrite.id]: [true] });
 
   h.advance(1);
-  const renamed = await h.svc.updateSession({ principal: principal(owner), sessionId: session.id, patch: { name: "renamed" } });
+  const renamed = await h.svc.updateSession({ principal: await principal(db, owner), sessionId: session.id, patch: { name: "renamed" } });
   expect(renamed.selection).toEqual(viewed.selection);
   expect(await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id))).toEqual([{ ...before, name: "renamed", updatedAt: h.ctx.now() }]);
 
   h.advance(1);
   const fieldsOnly = await h.svc.updateSession({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     sessionId: session.id,
     patch: { selection: { fields: ["greetings", "personality"] } },
   });
@@ -184,9 +184,13 @@ test("selection omission keeps stored residue; addressed axes persist canonical 
     { ...before, name: "renamed", selection: expected, updatedAt: h.ctx.now() },
   ]);
 
-  const same = await h.svc.updateSession({ principal: principal(owner), sessionId: session.id, patch: { selection: {} } });
+  const same = await h.svc.updateSession({ principal: await principal(db, owner), sessionId: session.id, patch: { selection: {} } });
   expect(same.selection).toEqual(expected);
-  const everyGreeting = await h.svc.updateSession({ principal: principal(owner), sessionId: session.id, patch: { selection: { greetingIndexes: null } } });
+  const everyGreeting = await h.svc.updateSession({
+    principal: await principal(db, owner),
+    sessionId: session.id,
+    patch: { selection: { greetingIndexes: null } },
+  });
   expect(everyGreeting.selection).toEqual({ fields: expected.fields });
   expect(await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id))).toEqual([
     { ...before, name: "renamed", selection: { fields: expected.fields }, updatedAt: h.ctx.now() },
@@ -202,10 +206,14 @@ test("a real selection update after historical heal uses the empty canonical bas
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "selection-heal");
   const extensions = { vendor: { opaque: "historical-anchor", nested: ["keep"] } };
-  await h.character.update({ principal: principal(owner), characterId, input: { extensions } });
-  const session = await h.svc.startSession({ principal: principal(owner), characterId, name: "before" });
-  const rewrite = await h.svc.submitManualRewrite({ principal: principal(owner), sessionId: session.id, fields: [{ field: "description", text: "Manual." }] });
-  await h.svc.decideRewrite({ principal: principal(owner), sessionId: session.id, rewriteRunId: rewrite.id, decisions: [false] });
+  await h.character.update({ principal: await principal(db, owner), characterId, input: { extensions } });
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId, name: "before" });
+  const rewrite = await h.svc.submitManualRewrite({
+    principal: await principal(db, owner),
+    sessionId: session.id,
+    fields: [{ field: "description", text: "Manual." }],
+  });
+  await h.svc.decideRewrite({ principal: await principal(db, owner), sessionId: session.id, rewriteRunId: rewrite.id, decisions: [false] });
   await db
     .update(refinerySessions)
     .set({ inflightUntil: session.createdAt + 60_000 })
@@ -214,25 +222,29 @@ test("a real selection update after historical heal uses the empty canonical bas
   await db.run(sql`UPDATE refinery_sessions SET selection = ${JSON.stringify(malformed)} WHERE id = ${session.id}`);
   const before = await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id));
   expect(before[0]?.selection).toEqual(malformed);
-  const healed = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
+  const healed = await h.svc.getSession({ principal: await principal(db, owner), sessionId: session.id });
   expect(healed.selection).toEqual({ fields: [] });
   expect(await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id))).toEqual(before);
   const events = [...h.userEvents];
   await expect(
-    h.svc.updateSession({ principal: principal(stranger), sessionId: session.id, patch: { selection: { fields: ["systemPrompt"], greetingIndexes: [1] } } }),
+    h.svc.updateSession({
+      principal: await principal(db, stranger),
+      sessionId: session.id,
+      patch: { selection: { fields: ["systemPrompt"], greetingIndexes: [1] } },
+    }),
   ).rejects.toBeInstanceOf(DomainNotFoundError);
   expect(await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id))).toEqual(before);
   expect(h.userEvents).toEqual(events);
 
   h.advance(1);
-  const omitted = await h.svc.updateSession({ principal: principal(owner), sessionId: session.id, patch: { name: "still-corrupt" } });
+  const omitted = await h.svc.updateSession({ principal: await principal(db, owner), sessionId: session.id, patch: { name: "still-corrupt" } });
   expect(omitted.selection).toEqual({ fields: [] });
   expect(await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id))).toEqual([
     { ...before[0], name: "still-corrupt", updatedAt: h.ctx.now() },
   ]);
 
   h.advance(1);
-  const repaired = await h.svc.updateSession({ principal: principal(owner), sessionId: session.id, patch: { selection: { greetingIndexes: [1] } } });
+  const repaired = await h.svc.updateSession({ principal: await principal(db, owner), sessionId: session.id, patch: { selection: { greetingIndexes: [1] } } });
   const expected = { fields: [], greetingIndexes: [1] };
   expect(repaired.selection).toEqual(expected);
   expect(repaired.originalCard).toEqual(session.originalCard);
@@ -242,9 +254,9 @@ test("a real selection update after historical heal uses the empty canonical bas
     { ...before[0], name: "still-corrupt", selection: expected, updatedAt: h.ctx.now() },
   ]);
 
-  const selected = await h.svc.updateSession({ principal: principal(owner), sessionId: session.id, patch: { selection: { fields: ["greetings"] } } });
+  const selected = await h.svc.updateSession({ principal: await principal(db, owner), sessionId: session.id, patch: { selection: { fields: ["greetings"] } } });
   expect(selected.selection).toEqual({ fields: ["greetings"], greetingIndexes: [1] });
-  expect((await h.svc.getSession({ principal: principal(owner), sessionId: session.id })).selection).toEqual(selected.selection);
+  expect((await h.svc.getSession({ principal: await principal(db, owner), sessionId: session.id })).selection).toEqual(selected.selection);
   expect(await db.select().from(refinerySessions).where(eq(refinerySessions.id, session.id))).toEqual([
     { ...before[0], name: "still-corrupt", selection: selected.selection, updatedAt: h.ctx.now() },
   ]);

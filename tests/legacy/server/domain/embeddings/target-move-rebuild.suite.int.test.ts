@@ -108,6 +108,7 @@ async function drive(intercept?: HarnessOptions["intercept"], admission?: Harnes
   const store = makeStoreHarness(db, { characterIds: CARDS, cardTexts: new Map(CARDS.map((id) => [id, `card text ${id}`])) });
   const ctx: EmbeddingsContext = {
     ...store.ctx,
+    db,
     onTargetGenerationMoved: (ownerId) => {
       moved.push(ownerId);
     },
@@ -275,10 +276,12 @@ async function runIndexWithMoveIn(d: Drive, hook: (ctx: EmbeddingsContext, move:
     emitUserEvent: () => undefined,
     listCorpusOwners: () => Promise.resolve([d.userId]),
   });
-  return await index.run({ userId: d.userId, ownerId: d.userId, now: () => 0 }, { source: "all" }, vi.fn(), new AbortController().signal).then(
-    () => "fulfilled",
-    (error: unknown) => `rejected: ${String(error)}`,
-  );
+  return await index
+    .run({ userId: d.userId, ownerId: d.userId, funderUserId: d.userId, now: () => 0 }, { source: "all" }, vi.fn(), new AbortController().signal)
+    .then(
+      () => "fulfilled",
+      (error: unknown) => `rejected: ${String(error)}`,
+    );
 }
 
 // A move can land while the owner's `index(all)` run is already running (a second re-point within a rebuild, or a
@@ -331,7 +334,7 @@ async function runRebuild(d: Drive): Promise<void> {
     listCorpusOwners: () => Promise.resolve([d.userId]),
   });
   await index.run(
-    { userId: d.userId, ownerId: d.userId, now: () => 0 },
+    { userId: d.userId, ownerId: d.userId, funderUserId: d.userId, now: () => 0 },
     { source: "all", force: true, embedderChanged: true },
     vi.fn(),
     new AbortController().signal,
@@ -351,7 +354,7 @@ const NO_DOCUMENTS = { documents: 0, chunksUpserted: 0, chunksNoop: 0, chunksPru
 function sweepOps(d: Drive): ReturnType<typeof createVectorSweepOps> {
   return createVectorSweepOps({
     embeddings: d.svc,
-    listCorpusOwners: () => distinctCorpusOwners(d.db),
+    listCorpusOwners: (run) => distinctCorpusOwners(databaseHandle(d.db), run),
     vacuousMemoryReceipt: createVacuousMemoryReceipt({
       isMemoryEnabled: () => Promise.resolve(true),
       emptyMemoryScope: () => Promise.resolve(null),
@@ -376,7 +379,7 @@ async function runDatabankPass(d: Drive, during: () => Promise<void>): Promise<v
     targetSnapshot: d.svc.targetSnapshot,
   });
   await reindex.run(
-    { userId: d.userId, ownerId: d.userId, now: () => 0 },
+    { userId: d.userId, ownerId: d.userId, funderUserId: d.userId, now: () => 0 },
     { scope: { kind: "owner" }, mode: "chunk-embed" },
     vi.fn(),
     new AbortController().signal,
@@ -401,7 +404,7 @@ async function runMemorySweep(d: Drive, plan: (pinned: MemoryEmbedSpace) => Prom
     isMemoryEnabled: () => Promise.resolve(true),
     targetSnapshot: d.svc.targetSnapshot,
   });
-  await memory.run({ userId: d.userId, ownerId: d.userId, now: () => 0 }, {}, vi.fn(), new AbortController().signal);
+  await memory.run({ userId: d.userId, ownerId: d.userId, funderUserId: d.userId, now: () => 0 }, {}, vi.fn(), new AbortController().signal);
 }
 
 /** Land the move once, however often the hook fires. */
@@ -501,6 +504,7 @@ test("a sync whose embedder makes the wrong width returns the refusal and moves 
   await repointNarrow(d);
   const svc = createEmbeddingsService({
     ...d.ctx,
+    db: databaseHandle(d.ctx.db),
     resolveEmbeddingConnection: async (ownerId, task, connectionId) => {
       const connection = await d.ctx.resolveEmbeddingConnection(ownerId, task, connectionId);
       return connection === null
@@ -588,6 +592,7 @@ function probedService(d: Drive, answer: (n: number, real: () => Promise<EmbedRe
   let probes = 0;
   return createEmbeddingsService({
     ...d.ctx,
+    db: databaseHandle(d.ctx.db),
     resolveEmbeddingConnection: async (ownerId, task, connectionId) => {
       const connection = await d.ctx.resolveEmbeddingConnection(ownerId, task, connectionId);
       if (connection === null) {
@@ -1049,6 +1054,7 @@ function keyRefusingServer(url: string): Promise<Response> | null {
 function wiredService(d: Drive): EmbeddingsService {
   return createEmbeddingsService({
     ...d.ctx,
+    db: databaseHandle(d.ctx.db),
     resolveEmbeddingConnection: createResolveEmbeddingConnection(d.h.runtime, createHostPrincipalResolver(createLoadUserById({ db: d.db }))),
   });
 }

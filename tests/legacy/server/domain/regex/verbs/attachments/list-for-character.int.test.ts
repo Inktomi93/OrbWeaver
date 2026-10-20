@@ -19,10 +19,10 @@ describe("listForCharacter", () => {
     const characterId = await seedCharacter(db, owner);
     const a = await seedScript(db, { ownerId: owner, id: "regex_script_a", name: "a" });
     const b = await seedScript(db, { ownerId: owner, id: "regex_script_b", name: "b" });
-    await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: a });
-    await svc.attachToCharacter({ principal: principal(owner), characterId, scriptId: b });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId: a });
+    await svc.attachToCharacter({ principal: await principal(db, owner), characterId, scriptId: b });
 
-    expect((await svc.listForCharacter({ principal: principal(owner), characterId })).map((r) => r.name)).toEqual(["a", "b"]);
+    expect((await svc.listForCharacter({ principal: await principal(db, owner), characterId })).map((r) => r.name)).toEqual(["a", "b"]);
   });
 
   test("refuses a FOREIGN character rather than returning an empty list", async () => {
@@ -33,6 +33,6 @@ describe("listForCharacter", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const characterId = await seedCharacter(db, owner);
 
-    await expect(svc.listForCharacter({ principal: principal(stranger), characterId })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.listForCharacter({ principal: await principal(db, stranger), characterId })).rejects.toBeInstanceOf(RegexNotFoundError);
   });
 });

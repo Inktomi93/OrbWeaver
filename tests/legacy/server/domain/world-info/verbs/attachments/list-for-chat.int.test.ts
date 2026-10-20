@@ -18,15 +18,15 @@ describe("listForChat", () => {
     const chatId = await seedChat(db);
     const harness = makeHarness(db, { requireChatMember: () => Promise.resolve(), requireChatHost: () => Promise.resolve() });
     const base = createWorldInfoService(harness.ctx);
-    const global = await base.createBook({ principal: principal(host), input: { name: "Inherited global" } });
-    const direct = await base.createBook({ principal: principal(host), input: { name: "Direct" } });
-    await base.attachToChat({ principal: principal(host), chatId, bookId: direct.id });
+    const global = await base.createBook({ principal: await principal(db, host), input: { name: "Inherited global" } });
+    const direct = await base.createBook({ principal: await principal(db, host), input: { name: "Direct" } });
+    await base.attachToChat({ principal: await principal(db, host), chatId, bookId: direct.id });
     const ctx = {
       ...harness.ctx,
       readInheritedChatBooks: () => Promise.resolve([{ ...global, role: null, inherited: { source: "global" as const, name: null } }]),
     };
     const svc = createWorldInfoService(ctx);
-    expect((await svc.listForChat({ principal: principal(host), chatId, includeInherited: true })).map((book) => book.name)).toEqual([
+    expect((await svc.listForChat({ principal: await principal(db, host), chatId, includeInherited: true })).map((book) => book.name)).toEqual([
       "Inherited global",
       "Direct",
     ]);
@@ -42,14 +42,14 @@ describe("listForChat", () => {
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     const member = await seedUser(db, { handle: castId<Handle>("member") });
     const chatId = await seedChat(db);
-    const older = await svc.createBook({ principal: principal(host), input: { name: "older" } });
-    await svc.attachToChat({ principal: principal(host), chatId, bookId: older.id });
+    const older = await svc.createBook({ principal: await principal(db, host), input: { name: "older" } });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, bookId: older.id });
     harness.advance(1000);
-    const newer = await svc.createBook({ principal: principal(host), input: { name: "newer" } });
-    await svc.attachToChat({ principal: principal(host), chatId, bookId: newer.id });
+    const newer = await svc.createBook({ principal: await principal(db, host), input: { name: "newer" } });
+    await svc.attachToChat({ principal: await principal(db, host), chatId, bookId: newer.id });
 
     // The MEMBER (who owns neither book) sees the room's full pool, newest first.
-    const listed = await svc.listForChat({ principal: principal(member), chatId });
+    const listed = await svc.listForChat({ principal: await principal(db, member), chatId });
     expect(listed.map((b) => b.id)).toEqual([newer.id, older.id]);
     expect(listed.every((b) => b.role === null)).toBe(true);
   });
@@ -62,6 +62,6 @@ describe("listForChat", () => {
     const outsider = await seedUser(db, { handle: castId<Handle>("outsider") });
     const chatId = await seedChat(db);
 
-    await expect(svc.listForChat({ principal: principal(outsider), chatId })).rejects.toBe(refusal);
+    await expect(svc.listForChat({ principal: await principal(db, outsider), chatId })).rejects.toBe(refusal);
   });
 });

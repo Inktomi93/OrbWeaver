@@ -18,10 +18,10 @@ describe("get", () => {
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = (await seedUser(db, { handle: castId<Handle>("owner") })).id;
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Nyx", description: "d" },
     });
-    const got = await svc.get({ principal: principal(owner), personaId: created.id });
+    const got = await svc.get({ principal: await principal(db, owner), personaId: created.id });
     expect(got.id).toBe(created.id);
     expect(got.name).toBe("Nyx");
   });
@@ -32,16 +32,16 @@ describe("get", () => {
     const owner = (await seedUser(db, { handle: castId<Handle>("owner") })).id;
     const other = (await seedUser(db, { handle: castId<Handle>("other") })).id;
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Secret", description: "d" },
     });
-    await expect(svc.get({ principal: principal(other), personaId: created.id })).rejects.toThrow(PersonaNotFoundError);
+    await expect(svc.get({ principal: await principal(db, other), personaId: created.id })).rejects.toThrow(PersonaNotFoundError);
   });
 
   test("a missing id throws PersonaNotFoundError", async () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = (await seedUser(db, { handle: castId<Handle>("owner") })).id;
-    await expect(svc.get({ principal: principal(owner), personaId: castId<PersonaId>("persona_ghost") })).rejects.toThrow(PersonaNotFoundError);
+    await expect(svc.get({ principal: await principal(db, owner), personaId: castId<PersonaId>("persona_ghost") })).rejects.toThrow(PersonaNotFoundError);
   });
 });

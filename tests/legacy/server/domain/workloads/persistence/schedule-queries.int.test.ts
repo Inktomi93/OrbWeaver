@@ -6,6 +6,7 @@ import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { isAdmin } from "#server/domain/admin/guard.ts";
 import {
   advanceSchedule,
   deleteScheduleRow,
@@ -16,7 +17,11 @@ import {
   setScheduleEnabledQuery,
   updateScheduleFields,
 } from "#server/domain/workloads/persistence/schedule-queries.ts";
+import { isVisibleToCaller } from "#server/domain/workloads/substrate/authorize.ts";
 import { seedUser, T0 } from "../_support.ts";
+
+// The trusted system caller's read verdict, as the schedule verbs compute it for a null caller.
+const SYSTEM_READ = (ownerId: UserId | null): boolean => isVisibleToCaller(isAdmin, null, ownerId);
 
 const SCHEDULE_ID = castId<WorkloadScheduleId>("workload_schedule_1");
 
@@ -39,7 +44,7 @@ describe("schedule-queries — CRUD round-trip", () => {
     const db = await freshDb();
     const alice = await seedUser(db, "user_alice");
     await seedOne(db, alice);
-    const row = await loadSchedule(db, SCHEDULE_ID);
+    const row = await loadSchedule(db, SCHEDULE_ID, SYSTEM_READ);
     expect(row?.ownerId).toBe(alice);
     expect(row?.kind).toBe("reconcile-stats");
     expect(row?.cadence).toBe("daily");
@@ -49,7 +54,7 @@ describe("schedule-queries — CRUD round-trip", () => {
 
   test("load of an absent id → null", async () => {
     const db = await freshDb();
-    expect(await loadSchedule(db, castId<WorkloadScheduleId>("workload_schedule_ghost"))).toBeNull();
+    expect(await loadSchedule(db, castId<WorkloadScheduleId>("workload_schedule_ghost"), SYSTEM_READ)).toBeNull();
   });
 
   test("updateScheduleFields patches + bumps updatedAt", async () => {
@@ -138,7 +143,7 @@ describe("schedule-queries — the tick's DUE + ADVANCE physics", () => {
     const alice = await seedUser(db, "user_alice");
     await seedOne(db, alice, { nextRunAt: T0 });
     await advanceSchedule(db, SCHEDULE_ID, T0 + 100, T0 + 5);
-    const row = await loadSchedule(db, SCHEDULE_ID);
+    const row = await loadSchedule(db, SCHEDULE_ID, SYSTEM_READ);
     expect(row?.nextRunAt).toBe(T0 + 100);
     expect(row?.lastRunAt).toBe(T0 + 5);
   });

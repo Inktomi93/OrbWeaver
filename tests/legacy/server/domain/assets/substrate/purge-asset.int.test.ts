@@ -22,7 +22,7 @@ describe("purgeAsset", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await createAssetsService(h.ctx).store({ principal: principal(owner), bytes: pngBytes(30), kind: "avatar", mime: PNG });
+    const stored = await createAssetsService(h.ctx).store({ principal: await principal(db, owner), bytes: pngBytes(30), kind: "avatar", mime: PNG });
     // Drop the row directly so only the blob remains — the "pure orphan blob" shape purgeAsset(assetId: undefined) targets.
     await db.delete(assets).where(eq(assets.id, stored.assetId));
     expect(await h.ctx.cas.exists(owner, stored.hash)).toBe(true);
@@ -38,7 +38,7 @@ describe("purgeAsset", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await createAssetsService(h.ctx).store({ principal: principal(owner), bytes: pngBytes(31), kind: "avatar", mime: PNG });
+    const stored = await createAssetsService(h.ctx).store({ principal: await principal(db, owner), bytes: pngBytes(31), kind: "avatar", mime: PNG });
     const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     await setCharacterAvatar(db, character, stored.assetId);
 
@@ -54,7 +54,7 @@ describe("purgeAsset", () => {
     const h = await makeHarness(db);
     onTestFinished(h.cleanup);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const stored = await createAssetsService(h.ctx).store({ principal: principal(owner), bytes: pngBytes(32), kind: "avatar", mime: PNG });
+    const stored = await createAssetsService(h.ctx).store({ principal: await principal(db, owner), bytes: pngBytes(32), kind: "avatar", mime: PNG });
 
     const won = await purgeAsset({ db, cas: h.ctx.cas, variants: undefined, assetId: stored.assetId, ownerId: owner, hash: stored.hash });
 

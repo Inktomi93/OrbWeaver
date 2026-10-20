@@ -28,12 +28,11 @@ import type { Principal } from "@orb/contracts/identity";
 import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chats } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
+import { statementToken } from "@orb/db/wiring-owner";
 import type { ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
@@ -47,7 +46,8 @@ import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts
 import { createClaimChat } from "#server/domain/chat/verbs/claim-chat.ts";
 import { createSetRpgPointer } from "#server/domain/chat/verbs/set-rpg-pointer.ts";
 import { createStartChat } from "#server/domain/chat/verbs/start-chat.ts";
-import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
+import { chatAssembly, makeChatContext, makeLoadParticipantViews, seedCharacter, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
 /** A page bound comfortably above every fixture here — these arms are about the LENS, not the keyset. */
 const TEST_PAGE_LIMIT = 100;
@@ -82,8 +82,8 @@ function deathsAnnounced(): readonly ChatBusEvent[] {
   return [...emitted, ...fannedLive].filter((e) => e.type === "chatDeleted");
 }
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 /** The lifecycle bundle under the two recorders + a live claim chokepoint (the composition root's wiring). */
@@ -158,13 +158,15 @@ function startDeps(_ctx: ChatContext): Parameters<typeof createStartChat>[1] {
   return {
     emit,
     prepareCreationEvent: (event) => ({
-      statement: insertChatEventStatement(_ctx.db, {
-        id: _ctx.newEventId(),
-        chatId: event.chatId,
-        seq: 1,
-        event,
-        createdAt: _ctx.now(),
-      }),
+      statement: statementToken(
+        insertChatEventStatement(_ctx.db, {
+          id: _ctx.newEventId(),
+          chatId: event.chatId,
+          seq: 1,
+          event,
+          createdAt: _ctx.now(),
+        }),
+      ),
       publishCommitted: (): void => {
         emitted.push(event);
       },
@@ -193,7 +195,7 @@ describe("husk lens — a room nobody started is invisible to the library list",
 
     expect((await listMemberChats(db, host, { limit: TEST_PAGE_LIMIT })).map((c) => c.id)).toStrictEqual([]);
     // Claimed by a plain host row write — the lens is a pure function of `started_at`, not of canon.
-    await lifecycle(makeChatContext(db)).updateTitle({ principal: principal(host), chatId, title: "Real now" });
+    await lifecycle(makeChatContext(db)).updateTitle({ principal: await principal(db, host), chatId, title: "Real now" });
     expect((await listMemberChats(db, host, { limit: TEST_PAGE_LIMIT })).map((c) => c.id)).toStrictEqual([chatId]);
   });
 
@@ -211,7 +213,7 @@ describe("claim — the one-way, idempotent stamp", () => {
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve({ name: "Aria", greetings: [] } as unknown as CharacterCard) });
     const { startChat } = createStartChat(ctx, startDeps(ctx));
 
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria], opening: "none" });
     expect(await startedAtOf(chat.id)).toBeNull();
     expect(await listMemberChats(db, host, { limit: TEST_PAGE_LIMIT })).toStrictEqual([]);
   });
@@ -221,10 +223,10 @@ describe("claim — the one-way, idempotent stamp", () => {
     const later = FROZEN_AT_MS + 5000;
     const life = lifecycle(makeChatContext(db));
 
-    await life.star({ principal: principal(host), chatId, starred: true });
+    await life.star({ principal: await principal(db, host), chatId, starred: true });
     expect(await startedAtOf(chatId)).toBe(FROZEN_AT_MS);
 
-    await lifecycle(makeChatContext(db, { now: () => later })).archive({ principal: principal(host), chatId, archived: true });
+    await lifecycle(makeChatContext(db, { now: () => later })).archive({ principal: await principal(db, host), chatId, archived: true });
     expect(await startedAtOf(chatId)).toBe(FROZEN_AT_MS);
   });
 
@@ -238,7 +240,7 @@ describe("claim — the one-way, idempotent stamp", () => {
       },
     });
 
-    await lifecycle(ctx).setVariables({ principal: principal(host), chatId, values: { mood: "grim" } });
+    await lifecycle(ctx).setVariables({ principal: await principal(db, host), chatId, values: { mood: "grim" } });
     expect(fanned).toContain(chatId);
   });
 
@@ -253,7 +255,7 @@ describe("claim — the one-way, idempotent stamp", () => {
       },
     });
 
-    await lifecycle(ctx).star({ principal: principal(host), chatId, starred: true });
+    await lifecycle(ctx).star({ principal: await principal(db, host), chatId, starred: true });
     expect(deltas).toStrictEqual([]);
   });
 });
@@ -262,7 +264,7 @@ describe("game mode — turning a husk into a game is doing something with it", 
   test("the rpg pointer write claims the room into the list; the dangling-pointer detach does not", async () => {
     const { host, chatId } = await seedHusk("game");
     const ctx = makeChatContext(db);
-    const setRpgPointer = createSetRpgPointer({ ...ctx, db: databaseHandle(ctx.db) }, { claimChat: createClaimChat(ctx) });
+    const setRpgPointer = createSetRpgPointer(chatAssembly(ctx), { claimChat: createClaimChat(ctx) });
 
     // The detach is a heal the server runs on a pointer at a vanished game, never the host's own act.
     await setRpgPointer(chatId, null);
@@ -287,10 +289,10 @@ describe("stats timing — the creation deltas fire at CLAIM, never at creation 
     });
     const { startChat } = createStartChat(ctx, startDeps(ctx));
 
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria] });
     expect(deltas).toStrictEqual([]);
 
-    await lifecycle(ctx).updateTitle({ principal: principal(host), chatId: chat.id, title: "Started" });
+    await lifecycle(ctx).updateTitle({ principal: await principal(db, host), chatId: chat.id, title: "Started" });
     const created = deltas.find((d) => d.chats === 1);
     expect(created?.chatsCreated).toBe(1);
     expect(created?.characterId).toBe(aria);
@@ -313,8 +315,8 @@ describe("stats timing — the creation deltas fire at CLAIM, never at creation 
     });
     const { startChat } = createStartChat(ctx, startDeps(ctx));
 
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
-    await lifecycle(ctx).reapHusk({ principal: principal(host), chatId: chat.id });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria] });
+    await lifecycle(ctx).reapHusk({ principal: await principal(db, host), chatId: chat.id });
     expect(deltas).toStrictEqual([]);
     expect(await db.select().from(chats).where(eq(chats.id, chat.id))).toStrictEqual([]);
   });
@@ -339,7 +341,7 @@ describe("reap — the nav-away verb and the TTL belt", () => {
     const { host, chatId } = await seedHusk("e");
     const life = lifecycle(makeChatContext(db));
 
-    await life.reapHusk({ principal: principal(host), chatId });
+    await life.reapHusk({ principal: await principal(db, host), chatId });
     expect(await db.select().from(chats).where(eq(chats.id, chatId))).toStrictEqual([]);
     // A husk CAN be the open room on the creating device, so its removal MUST reach that device — the temp
     // reaper's "deliberately no bus event" argument does not transfer. It rides the LIVE-ONLY lane: a durable
@@ -352,7 +354,7 @@ describe("reap — the nav-away verb and the TTL belt", () => {
     await seedParticipant(db, { chatId: claimed, key: "p2", userId: host2, role: "host" });
     emitted.length = 0;
     fannedLive.length = 0;
-    await life.reapHusk({ principal: principal(host2), chatId: claimed });
+    await life.reapHusk({ principal: await principal(db, host2), chatId: claimed });
     expect(await db.select().from(chats).where(eq(chats.id, claimed))).toHaveLength(1);
     expect(deathsAnnounced()).toStrictEqual([]);
   });
@@ -378,7 +380,7 @@ describe("reap — the nav-away verb and the TTL belt", () => {
       await db.update(chats).set({ startedAt: FROZEN_AT_MS }).where(eq(chats.id, chatId));
     });
 
-    await lifecycle(makeChatContext(racing)).reapHusk({ principal: principal(host), chatId });
+    await lifecycle(makeChatContext(racing)).reapHusk({ principal: await principal(db, host), chatId });
 
     // R1-4b: the room is still here — the DELETE re-evaluated `started_at IS NULL` and matched nothing.
     expect(await db.select().from(chats).where(eq(chats.id, chatId))).toHaveLength(1);
@@ -403,7 +405,7 @@ describe("reap — the nav-away verb and the TTL belt", () => {
       await db.update(chats).set({ startedAt: FROZEN_AT_MS }).where(eq(chats.id, rescued));
     });
 
-    const result = await lifecycle(makeChatContext(racing)).reapTemporaryChats({ principal: principal(doomed.host) });
+    const result = await lifecycle(makeChatContext(racing)).reapTemporaryChats({ principal: await principal(db, doomed.host) });
 
     // The claimed room is intact…
     expect(await db.select().from(chats).where(eq(chats.id, rescued))).toHaveLength(1);
@@ -421,13 +423,13 @@ describe("reap — the nav-away verb and the TTL belt", () => {
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
 
     const err = await lifecycle(makeChatContext(db))
-      .reapHusk({ principal: principal(member), chatId })
+      .reapHusk({ principal: await principal(db, member), chatId })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
     expect(await db.select().from(chats).where(eq(chats.id, chatId))).toHaveLength(1);
     // …and the same call from the HOST does reap it (the refusal is authority, not a broken predicate).
-    await lifecycle(makeChatContext(db)).reapHusk({ principal: principal(host), chatId });
+    await lifecycle(makeChatContext(db)).reapHusk({ principal: await principal(db, host), chatId });
     expect(await db.select().from(chats).where(eq(chats.id, chatId))).toStrictEqual([]);
   });
 
@@ -438,7 +440,7 @@ describe("reap — the nav-away verb and the TTL belt", () => {
     const temp = await seedChat(db, "temp", { temporary: true, createdAt: FROZEN_AT_MS - TTL_MS - 1 });
     await seedParticipant(db, { chatId: temp, key: "pt", userId: host, role: "host" });
 
-    const { reaped } = await lifecycle(makeChatContext(db)).reapTemporaryChats({ principal: principal(host) });
+    const { reaped } = await lifecycle(makeChatContext(db)).reapTemporaryChats({ principal: await principal(db, host) });
     expect(reaped).toBe(2);
     expect((await db.select({ id: chats.id }).from(chats)).map((r) => r.id)).toStrictEqual([fresh]);
     expect(fannedLive).toContainEqual({ type: "chatDeleted", chatId: expired });
@@ -451,7 +453,7 @@ describe("reap — the nav-away verb and the TTL belt", () => {
     const theirs = await seedChat(db, "theirs", { startedAt: null, createdAt: FROZEN_AT_MS - TTL_MS - 1 });
     await seedParticipant(db, { chatId: theirs, key: "ps", userId: stranger, role: "host" });
 
-    await lifecycle(makeChatContext(db)).reapTemporaryChats({ principal: principal(host) });
+    await lifecycle(makeChatContext(db)).reapTemporaryChats({ principal: await principal(db, host) });
     expect((await db.select({ id: chats.id }).from(chats)).map((r) => r.id)).toStrictEqual([theirs]);
   });
 
@@ -460,7 +462,7 @@ describe("reap — the nav-away verb and the TTL belt", () => {
     const guest = await seedUser(db, castId<Handle>("guest"));
     await seedParticipant(db, { chatId, key: "g", userId: guest, role: "member" });
 
-    const { reaped } = await lifecycle(makeChatContext(db)).reapTemporaryChats({ principal: principal(host) });
+    const { reaped } = await lifecycle(makeChatContext(db)).reapTemporaryChats({ principal: await principal(db, host) });
     expect(reaped).toBe(0);
     expect(await db.select().from(chats).where(eq(chats.id, chatId))).toHaveLength(1);
   });

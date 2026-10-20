@@ -24,11 +24,15 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { afterEach, describe, vi } from "vitest";
 import type { ImportWorkloadDeps } from "#server/domain/import/contract/workloads.ts";
 import { createImportWorkloadContributions, readStagedFile } from "#server/domain/import/workload-contributions.ts";
+import { everyOwnerAuthority } from "../workloads/_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 const OWNER_ID = castId<UserId>("user_owner");
 const T0 = 1_700_000_000_000;
 const STRANGER_ID = castId<UserId>("user_stranger");
-const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, now: () => T0 };
+const ctx: WorkloadRunContext = { userId: OWNER_ID, ownerId: OWNER_ID, funderUserId: OWNER_ID, now: () => T0 };
 const sig = (): AbortSignal => new AbortController().signal;
 
 function build(
@@ -167,7 +171,7 @@ describe("import-st — the run's own logic", () => {
   test("an ownerless row is refused (a create-kind cannot mint ownerless rows)", async () => {
     const { stagingRoot } = await makeStaging();
     const { contributions } = build(stagingRoot);
-    await expect(contributions[0].run({ ...ctx, ownerId: null }, {}, vi.fn(), sig())).rejects.toThrow(NO_TARGET_OWNER);
+    await expect(contributions[0].run({ ...ctx, ...EVERY_OWNER.runScope }, {}, vi.fn(), sig())).rejects.toThrow(NO_TARGET_OWNER);
   });
 
   test("a real run that CHANGED rows reconciles the owner's stats post-settle", async () => {
@@ -279,7 +283,7 @@ describe("import-bundle — staging containment", () => {
   test("an ownerless row is refused (a bundle is scoped to its uploader)", async () => {
     const { stagingRoot } = await makeStaging();
     const { contributions } = build(stagingRoot);
-    await expect(contributions[2].run({ ...ctx, ownerId: null }, { token: VALID_TOKEN }, vi.fn(), sig())).rejects.toThrow(NO_TARGET_OWNER);
+    await expect(contributions[2].run({ ...ctx, ...EVERY_OWNER.runScope }, { token: VALID_TOKEN }, vi.fn(), sig())).rejects.toThrow(NO_TARGET_OWNER);
   });
 
   test("a bundle that imported canon fans the owner's library-changed refresh; an empty import does not (#23)", async () => {
@@ -413,7 +417,7 @@ describe("staged handles are per-owner, not bearer tokens (#1534)", () => {
 
     // B names A's handle on a run of B's own (`workloads.start` is `authedProcedure`; this is the whole
     // exploit — nothing but the row's ownerId distinguishes the two calls).
-    const strangerCtx: WorkloadRunContext = { ...ctx, userId: STRANGER_ID, ownerId: STRANGER_ID };
+    const strangerCtx: WorkloadRunContext = { ...ctx, userId: STRANGER_ID, ownerId: STRANGER_ID, funderUserId: STRANGER_ID, everyOwnerRun: null };
     await expect(contributions[2].run(strangerCtx, { token: VALID_TOKEN }, vi.fn(), sig())).rejects.toThrow(/staging root/u);
 
     // A's bytes never reached the importer, and B's cleanup `finally` did not delete them.
@@ -444,7 +448,7 @@ describe("staged handles are per-owner, not bearer tokens (#1534)", () => {
     const rootDecoy = join(stagingRoot, VALID_TOKEN);
     await mkdir(rootDecoy, { recursive: true });
     const { deps, contributions } = build(stagingRoot);
-    const strangerCtx: WorkloadRunContext = { ...ctx, userId: STRANGER_ID, ownerId: STRANGER_ID };
+    const strangerCtx: WorkloadRunContext = { ...ctx, userId: STRANGER_ID, ownerId: STRANGER_ID, funderUserId: STRANGER_ID, everyOwnerRun: null };
 
     await expect(contributions[0].run(strangerCtx, { stagedDir: VALID_TOKEN }, vi.fn(), sig())).rejects.toThrow(/staging root/u);
 

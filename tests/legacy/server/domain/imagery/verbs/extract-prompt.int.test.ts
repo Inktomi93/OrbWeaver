@@ -28,7 +28,7 @@ describe("extractPrompt", () => {
     const owner = await seedOwner(db, castId<Handle>("owner"));
     const { ctx, extractInstructions } = makeHarness(db);
 
-    const preview = await createImageryService(ctx).extractPrompt({ caller: principal(owner), chatId: CHAT, mode: "character" });
+    const preview = await createImageryService(ctx).extractPrompt({ caller: await principal(db, owner), chatId: CHAT, mode: "character" });
 
     expect(extractInstructions).toHaveLength(1);
     expect(preview).toEqual({ prompt: "keyword one, keyword two", mode: "character", source: "extracted", costUsd: 0.005 });
@@ -40,7 +40,7 @@ describe("extractPrompt", () => {
     const { ctx, captionInstructions } = makeHarness(db);
 
     const preview = await createImageryService(ctx).extractPrompt({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       chatId: CHAT,
       mode: "face_multimodal",
       subjectCharacterId: castId("character_aria"),
@@ -68,7 +68,7 @@ describe("extractPrompt", () => {
     if (kathmandu === null) {
       throw new Error("the platform must know Asia/Kathmandu");
     }
-    const caller = principal(owner);
+    const caller = await principal(db, owner);
 
     await expect(imagery.extractPrompt({ caller, chatId: CHAT, mode: "scenario", timeZone: kathmandu })).rejects.toThrow(PromptExtractionFailedError);
     await expect(imagery.generatePicture({ caller, chatId: CHAT, mode: "scenario", timeZone: kathmandu })).rejects.toThrow(PromptExtractionFailedError);
@@ -87,9 +87,9 @@ describe("extractPrompt — a member's /imagine preview runs as the room host (D
     const extraction: { readonly viewer: UserId; readonly funder: UserId }[] = [];
     const roomAsked: { readonly caller: UserId; readonly chatId: ChatId }[] = [];
     const { ctx } = makeHarness(db, {
-      resolveRoomRunAs: (caller, chatId) => {
+      resolveRoomRunAs: async (caller, chatId) => {
         roomAsked.push({ caller: caller.userId, chatId });
-        return Promise.resolve(principal(host));
+        return Promise.resolve(await principal(db, host));
       },
       resolvePromptTemplate: (runAs, mode) => {
         templateFor.push(runAs.userId);
@@ -101,7 +101,7 @@ describe("extractPrompt — a member's /imagine preview runs as the room host (D
       },
     });
 
-    await createImageryService(ctx).extractPrompt({ caller: principal(member), chatId: CHAT, mode: "scenario" });
+    await createImageryService(ctx).extractPrompt({ caller: await principal(db, member), chatId: CHAT, mode: "scenario" });
 
     expect(roomAsked).toEqual([{ caller: member, chatId: CHAT }]);
     expect(templateFor).toEqual([host]);
@@ -119,7 +119,7 @@ describe("extractPrompt — a member's /imagine preview runs as the room host (D
     onTestFinished(assetsHarness.cleanup);
     const assetsService = createAssetsService(assetsHarness.ctx);
     const characterService = createCharacterService(makeCharacterHarness(db).ctx);
-    const avatar = await assetsService.store({ principal: principal(host), bytes: PNG_BYTES, kind: "avatar", mime: "image/png" });
+    const avatar = await assetsService.store({ principal: await principal(db, host), bytes: PNG_BYTES, kind: "avatar", mime: "image/png" });
     await db.insert(characters).values(makeCharacter({ id: subject, ownerId: host, avatarAssetId: avatar.assetId }));
     const reads: { readonly card: UserId[]; readonly avatar: UserId[]; readonly instruction: UserId[]; readonly funder: UserId[] } = {
       card: [],
@@ -128,7 +128,7 @@ describe("extractPrompt — a member's /imagine preview runs as the room host (D
       funder: [],
     };
     const { ctx } = makeHarness(db, {
-      resolveRoomRunAs: () => Promise.resolve(principal(host)),
+      resolveRoomRunAs: async () => Promise.resolve(await principal(db, host)),
       getCard: (caller, characterId) => {
         reads.card.push(caller.userId);
         return characterService.get({ principal: caller, characterId });
@@ -148,7 +148,7 @@ describe("extractPrompt — a member's /imagine preview runs as the room host (D
     });
 
     const preview = await createImageryService(ctx).extractPrompt({
-      caller: principal(member),
+      caller: await principal(db, member),
       chatId: CHAT,
       mode: "face_multimodal",
       subjectCharacterId: subject,

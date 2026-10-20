@@ -28,7 +28,7 @@ describe("export", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner, hash: "sha_avatar" });
     const source = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: {
         name: "Nyx",
         title: "The Wanderer",
@@ -39,7 +39,7 @@ describe("export", () => {
       },
     });
 
-    const file = await svc.export({ principal: principal(owner), personaId: source.id });
+    const file = await svc.export({ principal: await principal(db, owner), personaId: source.id });
     expect(file.filename).toBe("nyx.json");
     const backup = must(parsePersonaBackup(file.bytes));
 
@@ -61,10 +61,10 @@ describe("export", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await svc.create({
-      principal: principal(other),
+      principal: await principal(db, other),
       input: { name: "Theirs", description: "d" },
     });
 
-    await expect(svc.export({ principal: principal(owner), personaId: foreign.id })).rejects.toBeInstanceOf(PersonaNotFoundError);
+    await expect(svc.export({ principal: await principal(db, owner), personaId: foreign.id })).rejects.toBeInstanceOf(PersonaNotFoundError);
   });
 });

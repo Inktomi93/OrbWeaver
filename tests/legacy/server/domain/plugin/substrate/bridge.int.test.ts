@@ -62,7 +62,7 @@ function roomOps(): RoomOps {
       ...base.chat,
       resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
       requireHost: async (chatId, userId) => {
-        await requireHost({ db: databaseHandle(db), can }, principalFor(userId), chatId);
+        await requireHost({ db: databaseHandle(db), can }, await principalFor(db, userId), chatId);
       },
       getVariables: async () => {
         reads += 1;

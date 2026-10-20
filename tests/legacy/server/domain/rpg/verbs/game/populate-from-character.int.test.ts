@@ -71,7 +71,7 @@ test("HOST fill: the card's identity + gear land — sheet, inventory, purse, qu
   });
   h.fakes.busEvents.length = 0;
 
-  await h.service.populateFromCharacter({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } });
+  await h.service.populateFromCharacter({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } });
 
   // The round read THIS character's card (never the story window) and ran under the room host's own userId.
   expect(h.fakes.cardCorpusReads).toEqual([{ chatId, characterId }]);
@@ -85,7 +85,7 @@ test("HOST fill: the card's identity + gear land — sheet, inventory, purse, qu
   // D124: the snapshot half is a message-less HAND row — the populate posts NOTHING to canon.
   expect(h.fakes.narratorPosts).toEqual([]);
 
-  const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
+  const view = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
   const actor = view.actors.find((a) => a.name === "Mira");
   expect(actor?.sheet.className).toBe("Warden of House Vane");
   expect(actor?.sheet.level).toBe(3);
@@ -106,16 +106,16 @@ test("FILL, never overwrite: a title/level the host already wrote SURVIVES the r
   });
   // The host typed their own title + level first — the sheet has no lock plane, so "already written" IS the pin.
   await h.service.patchSheet({
-    principal: principal(castId<Handle>("host")),
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     actorRef: { kind: "character", characterId },
     patch: { className: "Hand-written", level: 1 },
   });
   h.fakes.busEvents.length = 0;
 
-  await h.service.populateFromCharacter({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } });
+  await h.service.populateFromCharacter({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } });
 
-  const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
+  const view = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
   const actor = view.actors.find((a) => a.name === "Mira");
   expect(actor?.sheet.className).toBe("Hand-written");
   expect(actor?.sheet.level).toBe(1);
@@ -127,13 +127,13 @@ test("a LOCKED quest survives the round (the hand-pin beats the card, like every
   const db = await freshDb();
   const { chatId, characterId, h } = await seedCharacterGame(db);
   // The host authored a goal by hand — `upsertQuest` stamps the `quests.<id>` lock (manual-edit-wins).
-  const questId = await h.service.upsertQuest({ principal: principal(castId<Handle>("host")), chatId, name: "The host's own goal" });
+  const questId = await h.service.upsertQuest({ principal: await principal(db, castId<Handle>("host")), chatId, name: "The host's own goal" });
   // The round tries to rewrite that very quest.
   h.fakes.populateDelta = { statePatch: { quests: [{ ...bornQuest(questId, "the card's rewrite"), description: "clobbered" }] }, sheet: {} };
 
-  await h.service.populateFromCharacter({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } });
+  await h.service.populateFromCharacter({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } });
 
-  const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
+  const view = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
   expect(view.quests.map((q) => q.name)).toEqual(["The host's own goal"]);
 });
 
@@ -142,9 +142,9 @@ test("the ARCHIVE is untouched — a card read writes no journal entry (it has n
   const { chatId, characterId, h } = await seedCharacterGame(db);
   h.fakes.populateDelta = { statePatch: { quests: [bornQuest("q_born", "A background hook")] }, sheet: { level: 1 } };
 
-  await h.service.populateFromCharacter({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } });
+  await h.service.populateFromCharacter({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } });
 
-  expect(await h.service.listJournal({ principal: principal(castId<Handle>("host")), chatId, limit: 50 })).toEqual([]);
+  expect(await h.service.listJournal({ principal: await principal(db, castId<Handle>("host")), chatId, limit: 50 })).toEqual([]);
   expect(h.fakes.busEvents.map((e) => e.type)).not.toContain("journalChanged");
 });
 
@@ -153,7 +153,7 @@ test("AUTHORITY: a non-member gets leak-free NOT_FOUND — before any card read 
   const { chatId, characterId, h } = await seedCharacterGame(db);
 
   await expect(
-    h.service.populateFromCharacter({ principal: principal(castId<Handle>("stranger")), chatId, actorRef: { kind: "character", characterId } }),
+    h.service.populateFromCharacter({ principal: await principal(db, castId<Handle>("stranger")), chatId, actorRef: { kind: "character", characterId } }),
   ).rejects.toBeInstanceOf(DomainNotFoundError);
   expect(h.fakes.populateCalls).toEqual([]);
   expect(h.fakes.cardCorpusReads).toEqual([]);
@@ -166,7 +166,7 @@ test("AUTHORITY: a present NON-HOST member gets FORBIDDEN — the host-principal
   h.fakes.membership.set("user_member", "member");
 
   await expect(
-    h.service.populateFromCharacter({ principal: principal(castId<Handle>("member")), chatId, actorRef: { kind: "character", characterId } }),
+    h.service.populateFromCharacter({ principal: await principal(db, castId<Handle>("member")), chatId, actorRef: { kind: "character", characterId } }),
   ).rejects.toBeInstanceOf(DomainForbiddenError);
   expect(h.fakes.populateCalls).toEqual([]);
   expect(h.fakes.cardCorpusReads).toEqual([]);
@@ -177,7 +177,11 @@ test("APPLICABILITY: an actor with NO card (a user seat) is refused before any c
   const { chatId, h } = await seedCharacterGame(db);
 
   await expect(
-    h.service.populateFromCharacter({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "user", userId: castId<UserId>("user_host") } }),
+    h.service.populateFromCharacter({
+      principal: await principal(db, castId<Handle>("host")),
+      chatId,
+      actorRef: { kind: "user", userId: castId<UserId>("user_host") },
+    }),
   ).rejects.toBeInstanceOf(DomainOperationError);
   expect(h.fakes.cardCorpusReads).toEqual([]);
   expect(h.fakes.populateCalls).toEqual([]);
@@ -189,7 +193,7 @@ test("APPLICABILITY: an UNREADABLE card is refused — the round never runs on n
   h.fakes.cardCorpus = null; // the card is gone / unreadable under the room host
 
   await expect(
-    h.service.populateFromCharacter({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } }),
+    h.service.populateFromCharacter({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } }),
   ).rejects.toBeInstanceOf(DomainOperationError);
   expect(h.fakes.cardCorpusReads).toHaveLength(1); // it tried…
   expect(h.fakes.populateCalls).toEqual([]); // …and stopped before the model call
@@ -200,7 +204,11 @@ test("a no-op round (no writer capability / a card that established nothing) wri
   const { chatId, characterId, h } = await seedCharacterGame(db);
   h.fakes.busEvents.length = 0;
 
-  const result = await h.service.populateFromCharacter({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } });
+  const result = await h.service.populateFromCharacter({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    actorRef: { kind: "character", characterId },
+  });
 
   expect(h.fakes.populateCalls).toHaveLength(1); // the call fired (the host resolved it) and produced nothing
   expect(h.fakes.narratorPosts).toEqual([]);
@@ -223,12 +231,12 @@ test("a FILL reports ok:true populated:true (the client's success signal)", asyn
   const { chatId, characterId, h } = await seedCharacterGame(db);
   h.fakes.populateDelta = { statePatch: {}, sheet: { className: "Warden of House Vane", level: 3 } };
 
-  expect(await h.service.populateFromCharacter({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } })).toEqual(
-    {
-      ok: true,
-      populated: true,
-    },
-  );
+  expect(
+    await h.service.populateFromCharacter({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } }),
+  ).toEqual({
+    ok: true,
+    populated: true,
+  });
 });
 
 test("a STATE-only fill (no sheet half) still reports populated:true — either plane landing IS a fill", async () => {
@@ -236,12 +244,12 @@ test("a STATE-only fill (no sheet half) still reports populated:true — either 
   const { chatId, characterId, h } = await seedCharacterGame(db);
   h.fakes.populateDelta = { statePatch: { quests: [bornQuest("q_born", "A background hook")] }, sheet: {} };
 
-  expect(await h.service.populateFromCharacter({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } })).toEqual(
-    {
-      ok: true,
-      populated: true,
-    },
-  );
+  expect(
+    await h.service.populateFromCharacter({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } }),
+  ).toEqual({
+    ok: true,
+    populated: true,
+  });
 });
 
 test("a round the FILL RULE fully absorbed reports populated:false — nothing changed, and the host hears that", async () => {
@@ -250,14 +258,18 @@ test("a round the FILL RULE fully absorbed reports populated:false — nothing c
   h.fakes.populateDelta = { statePatch: {}, sheet: { className: "the model's title", level: 9 } };
   // The host already wrote BOTH fields — the fill rule keeps them, so the round changes nothing at all.
   await h.service.patchSheet({
-    principal: principal(castId<Handle>("host")),
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     actorRef: { kind: "character", characterId },
     patch: { className: "Hand-written", level: 1 },
   });
   h.fakes.busEvents.length = 0;
 
-  const result = await h.service.populateFromCharacter({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } });
+  const result = await h.service.populateFromCharacter({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    actorRef: { kind: "character", characterId },
+  });
 
   expect(result).toEqual({ ok: true, populated: false });
   expect(h.fakes.busEvents).toEqual([]);
@@ -269,7 +281,11 @@ test("a round that could NOT RUN is surfaced as data — the provider's reason r
   h.fakes.populateRefusal = { ok: false, reason: "the model call failed, so nothing was filled: openrouter structured item 0 failed" };
   h.fakes.busEvents.length = 0;
 
-  const result = await h.service.populateFromCharacter({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "character", characterId } });
+  const result = await h.service.populateFromCharacter({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    actorRef: { kind: "character", characterId },
+  });
 
   expect(result).toEqual({ ok: false, reason: "the model call failed, so nothing was filled: openrouter structured item 0 failed" });
   // A round that never ran writes NOTHING — the only change is that it SAYS so.

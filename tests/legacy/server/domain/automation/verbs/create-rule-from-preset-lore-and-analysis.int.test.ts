@@ -61,9 +61,9 @@ describe("§4 #15 story pacing analysis (C1 — RULED F7 direct steer)", () => {
       config: rpgGameConfigSchema.parse({}),
     });
     await expect(
-      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "storyPacing" }),
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: await principal(f.db, f.host), chatId: f.chatId, presetId: "storyPacing" }),
     ).rejects.toThrow("directs its own story");
-    expect(await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).toEqual([]);
+    expect(await f.svc.listRules({ principal: await principal(f.db, f.host), chatId: f.chatId })).toEqual([]);
   });
 });
 
@@ -158,7 +158,10 @@ describe("§4 #11 distill lore (C2 — confirm-first, the settled-span watermark
     expect((await selectRuleState(f.db, ruleId)).state.settledThroughSeq).toBe(0);
 
     // Confirm ⇒ the entries land through the ONE lore belt AND the watermark advances to the span end (4).
-    const confirmed = await f.svc.confirmSuggestion({ principal: principal(f.host), suggestionId: card?.id ?? mintTypeId(ID_PREFIX.automationSuggestion) });
+    const confirmed = await f.svc.confirmSuggestion({
+      principal: await principal(f.db, f.host),
+      suggestionId: card?.id ?? mintTypeId(ID_PREFIX.automationSuggestion),
+    });
     expect(confirmed).toMatchObject({ outcome: "fired" });
     expect((await selectRuleState(f.db, ruleId)).state.settledThroughSeq).toBe(DISTILL_SPAN_END);
 
@@ -179,9 +182,15 @@ describe("§4 #11 distill lore (C2 — confirm-first, the settled-span watermark
     const bookId = mintTypeId(ID_PREFIX.worldBook);
     await f.db.insert(worldBooks).values({ id: bookId, ownerId: f.host, name: "detached lore" }); // exists, NOT attached
     await expect(
-      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "distillLore", knobs: { bookId } }),
+      f.svc.createRuleFromPreset({
+        timeZone: UTC_TIME_ZONE,
+        principal: await principal(f.db, f.host),
+        chatId: f.chatId,
+        presetId: "distillLore",
+        knobs: { bookId },
+      }),
     ).rejects.toThrow(UNATTACHED_BOOK);
-    expect(await f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).toEqual([]);
+    expect(await f.svc.listRules({ principal: await principal(f.db, f.host), chatId: f.chatId })).toEqual([]);
   });
 
   test("the attach gate is RE-CHECKED at confirm: a book detached between the card and the yes refuses on stale consent (zero writes)", async () => {
@@ -195,7 +204,10 @@ describe("§4 #11 distill lore (C2 — confirm-first, the settled-span watermark
 
     // The room withdraws consent after the card is raised — the belt answers for the state NOW, not at raise.
     await f.db.delete(chatBooks).where(and(eq(chatBooks.chatId, f.chatId), eq(chatBooks.worldBookId, bookId)));
-    const result = await f.svc.confirmSuggestion({ principal: principal(f.host), suggestionId: card?.id ?? mintTypeId(ID_PREFIX.automationSuggestion) });
+    const result = await f.svc.confirmSuggestion({
+      principal: await principal(f.db, f.host),
+      suggestionId: card?.id ?? mintTypeId(ID_PREFIX.automationSuggestion),
+    });
 
     // Errors-as-data at the verb, and nothing durable moved: no entry wrote, and the watermark never advanced
     // (the confirm's state write is downstream of the belt, so a refused belt leaves the span uncovered for a
@@ -208,7 +220,7 @@ describe("§4 #11 distill lore (C2 — confirm-first, the settled-span watermark
   test("REFUSES at mint without a book — the entityRef knob has no usable default and the refusal is typed", async () => {
     const f = await setup();
     await expect(
-      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(f.host), chatId: f.chatId, presetId: "distillLore", knobs: {} }),
+      f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: await principal(f.db, f.host), chatId: f.chatId, presetId: "distillLore", knobs: {} }),
     ).rejects.toThrow(NO_BOOK);
   });
 });

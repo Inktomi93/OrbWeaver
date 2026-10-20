@@ -15,13 +15,13 @@ test("an admin reads what the deployment publishes, oldest first", async () => {
   const boss = await seedUser(db, { handle: castId<Handle>("boss") });
   const h = makePluginHarness(db, { listRecipients: () => Promise.resolve([]) });
 
-  await h.service.installForAllUsers({ caller: ownerPrincipalFor(boss), bundle: makeBundle({ id: "house-style", name: "House Style" }) });
+  await h.service.installForAllUsers({ caller: await ownerPrincipalFor(db, boss), bundle: makeBundle({ id: "house-style", name: "House Style" }) });
   await h.service.installForAllUsers({
-    caller: ownerPrincipalFor(boss),
+    caller: await ownerPrincipalFor(db, boss),
     bundle: makeBundle({ id: "note-taker", name: "Note Taker", version: "2.1.0" }),
   });
 
-  const published = await h.service.listDistributedPlugins({ caller: ownerPrincipalFor(boss) });
+  const published = await h.service.listDistributedPlugins({ caller: await ownerPrincipalFor(db, boss) });
 
   expect(published.map((p) => ({ slug: p.slug, name: p.name, version: p.version }))).toEqual([
     { slug: "house-style", name: "House Style", version: "1.0.0" },
@@ -35,10 +35,10 @@ test("a plain member cannot read the published set", async () => {
   const db = await freshDb();
   const boss = await seedUser(db, { handle: castId<Handle>("boss") });
   const member = await seedUser(db, { handle: castId<Handle>("member") });
-  const h = makePluginHarness(db, { listRecipients: () => Promise.resolve([principalFor(member)]) });
-  await h.service.installForAllUsers({ caller: ownerPrincipalFor(boss), bundle: makeBundle({ id: "house-style" }) });
+  const h = makePluginHarness(db, { listRecipients: async () => Promise.resolve([await principalFor(db, member)]) });
+  await h.service.installForAllUsers({ caller: await ownerPrincipalFor(db, boss), bundle: makeBundle({ id: "house-style" }) });
 
-  await expect(h.service.listDistributedPlugins({ caller: principalFor(member) })).rejects.toBeInstanceOf(DomainForbiddenError);
+  await expect(h.service.listDistributedPlugins({ caller: await principalFor(db, member) })).rejects.toBeInstanceOf(DomainForbiddenError);
   // …and they still see their OWN copy, which is the read that belongs to them.
-  expect((await h.service.list({ caller: principalFor(member) })).map((r) => r.slug)).toEqual(["house-style"]);
+  expect((await h.service.list({ caller: await principalFor(db, member) })).map((r) => r.slug)).toEqual(["house-style"]);
 });

@@ -2,19 +2,22 @@
 // FORBIDDEN a user gets. The service is the real one over a recording relay (`tests/legacy/server/domain/share/_support.ts`).
 
 import type { UserRole } from "@orb/contracts/identity";
+import type { Db } from "@orb/db";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { LIVE_SOCKETS, shareHarness } from "../../../domain/share/_support.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
-function shareCaller(role: UserRole, harness = shareHarness({ authMode: "local" })): ReturnType<typeof caller>["share"] {
-  return caller(makeContext({ auth: principal(role), services: { share: harness.share } })).share;
+async function shareCaller(db: Db, role: UserRole, harness = shareHarness({ authMode: "local" })): Promise<ReturnType<typeof caller>["share"]> {
+  return caller(makeContext({ auth: await principal(db, role), services: { share: harness.share } })).share;
 }
 
 describe("share router", () => {
   test("a user is refused at layer 1, and nothing reaches the relay", async () => {
+    const db = await freshDb();
     const h = shareHarness({ authMode: "local" });
-    const share = shareCaller("user", h);
+    const share = await shareCaller(db, "user", h);
     await expect(share.start()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(share.status()).rejects.toMatchObject({ code: "FORBIDDEN" });
     await expect(share.stop()).rejects.toMatchObject({ code: "FORBIDDEN" });
@@ -22,8 +25,9 @@ describe("share router", () => {
   });
 
   test("an admin passes layer 1 and gets the owner gate's FORBIDDEN, which carries no share state", async () => {
+    const db = await freshDb();
     const h = shareHarness({ authMode: "local", ownerNeedsPassword: true });
-    const share = shareCaller("admin", h);
+    const share = await shareCaller(db, "admin", h);
     for (const refusal of [share.start(), share.status(), share.stop()]) {
       await expect(refusal).rejects.toMatchObject({ code: "FORBIDDEN", message: "requires owner privilege" });
     }
@@ -31,12 +35,14 @@ describe("share router", () => {
   });
 
   test("under single-user the owner's start is a BAD_REQUEST coded share_single_user", async () => {
-    const share = shareCaller("owner", shareHarness({ authMode: "single-user" }));
+    const db = await freshDb();
+    const share = await shareCaller(db, "owner", shareHarness({ authMode: "single-user" }));
     await expect(share.start()).rejects.toMatchObject({ code: "BAD_REQUEST", cause: { code: "share_single_user" } });
   });
 
   test("control: the owner starts, reads and stops the share", async () => {
-    const share = shareCaller("owner");
+    const db = await freshDb();
+    const share = await shareCaller(db, "owner");
     await expect(share.start()).resolves.toEqual({
       relay: { state: "starting", relay: "quick", restartAfter: null },
       liveSocketCount: LIVE_SOCKETS,
@@ -53,6 +59,7 @@ describe("share router", () => {
   });
 
   test("the strict output parser refuses a status carrying anything beyond its shape", async () => {
+    const db = await freshDb();
     const leaky = {
       status: () =>
         Promise.resolve({
@@ -63,19 +70,21 @@ describe("share router", () => {
           ownerPasswordHash: "scrypt$…",
         }),
     };
-    const share = caller(makeContext({ auth: principal("owner"), services: { share: leaky } })).share;
+    const share = caller(makeContext({ auth: await principal(db, "owner"), services: { share: leaky } })).share;
     await expect(share.status()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
   });
 
   test("signInMode refuses a user at layer 1 and answers the owner and an admin", async () => {
-    await expect(shareCaller("user").signInMode()).rejects.toMatchObject({ code: "FORBIDDEN" });
+    const db = await freshDb();
+    await expect((await shareCaller(db, "user")).signInMode()).rejects.toMatchObject({ code: "FORBIDDEN" });
     for (const role of ["owner", "admin"] as const) {
-      await expect(shareCaller(role).signInMode()).resolves.toMatchObject({ mode: "local", source: "env-file", install: "bare-metal" });
+      await expect((await shareCaller(db, role)).signInMode()).resolves.toMatchObject({ mode: "local", source: "env-file", install: "bare-metal" });
     }
   });
 
   // The view names where the mode came from, never another env value: a service that spread the env into it fails.
   test("the strict output parser refuses a sign-in view carrying an env secret", async () => {
+    const db = await freshDb();
     const leaky = {
       signInMode: () =>
         Promise.resolve({
@@ -86,15 +95,16 @@ describe("share router", () => {
           sessionSecret: "x".repeat(32),
         }),
     };
-    const share = caller(makeContext({ auth: principal("owner"), services: { share: leaky } })).share;
+    const share = caller(makeContext({ auth: await principal(db, "owner"), services: { share: leaky } })).share;
     await expect(share.signInMode()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
   });
 
   test("the IP certificate procedures refuse a user at layer 1 and an admin at the owner gate, and store nothing", async () => {
+    const db = await freshDb();
     const setting = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 };
     for (const role of ["user", "admin"] as const) {
       const h = shareHarness({ authMode: "local" });
-      const share = shareCaller(role, h);
+      const share = await shareCaller(db, role, h);
       await expect(share.enableIpCertificate(setting)).rejects.toMatchObject({ code: "FORBIDDEN" });
       await expect(share.disableIpCertificate()).rejects.toMatchObject({ code: "FORBIDDEN" });
       expect(h.calls, role).toEqual([]);
@@ -103,8 +113,9 @@ describe("share router", () => {
   });
 
   test("the input parser refuses a port out of range or an unknown field before the verb runs", async () => {
+    const db = await freshDb();
     const h = shareHarness({ authMode: "local" });
-    const share = shareCaller("owner", h);
+    const share = await shareCaller(db, "owner", h);
     await expect(share.enableIpCertificate({ address: "81.2.69.160", httpsPort: 70_000, challengePort: 8080 })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     // A variable, not a literal, so the extra field reaches the wire the way a hand-built request would send it.
     const withExtraField = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080, keyPem: "x" };
@@ -113,8 +124,9 @@ describe("share router", () => {
   });
 
   test("the owner's LAN address is a BAD_REQUEST coded ip_certificate_not_public; a public one starts the certificate", async () => {
+    const db = await freshDb();
     const h = shareHarness({ authMode: "local" });
-    const share = shareCaller("owner", h);
+    const share = await shareCaller(db, "owner", h);
     await expect(share.enableIpCertificate({ address: "192.168.1.20", httpsPort: 8443, challengePort: 8080 })).rejects.toMatchObject({
       code: "BAD_REQUEST",
       cause: { code: "ip_certificate_not_public" },
@@ -125,6 +137,7 @@ describe("share router", () => {
   });
 
   test("the strict output parser refuses a certificate status that carries a key", async () => {
+    const db = await freshDb();
     const setting = { address: "81.2.69.160", httpsPort: 8443, challengePort: 8080 };
     const leaky = {
       status: () =>
@@ -135,7 +148,7 @@ describe("share router", () => {
           certificate: { state: "obtaining" as const, setting, keyPem: "-----BEGIN PRIVATE KEY-----" },
         }),
     };
-    const share = caller(makeContext({ auth: principal("owner"), services: { share: leaky } })).share;
+    const share = caller(makeContext({ auth: await principal(db, "owner"), services: { share: leaky } })).share;
     await expect(share.status()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
   });
 });

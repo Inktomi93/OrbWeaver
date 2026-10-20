@@ -8,16 +8,14 @@ import type { ProviderId } from "@orb/contracts/inference";
 import type { Handle, UserCredentialId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { seedCredentialFromEnv } from "@orb/server/entry/boot";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { CredentialView } from "#server/domain/credentials/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
-const OWNER: Principal = {
-  userId: castId<UserId>("u_owner"),
-  role: "owner",
-  handle: castId<Handle>("owner"),
-  externalId: null,
-  via: "fallback",
-};
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+const OWNER: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("u_owner"), { role: "owner", handle: castId<Handle>("owner") });
 
 const KEY = "sk-or-test-key";
 

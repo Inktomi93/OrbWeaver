@@ -24,7 +24,7 @@ describe("setEnabled", () => {
     await seedLiveSession(db, target);
 
     const updated = await svc.setEnabled({
-      principal: principal(admin, "admin"),
+      principal: await principal(db, admin, "admin"),
       userId: target,
       enabled: false,
     });
@@ -46,7 +46,7 @@ describe("setEnabled", () => {
     const h = makeHarness(db);
     const svc = createAdminService(h.ctx);
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
-    await expect(svc.setEnabled({ principal: principal(admin, "admin"), userId: admin, enabled: false })).rejects.toMatchObject({
+    await expect(svc.setEnabled({ principal: await principal(db, admin, "admin"), userId: admin, enabled: false })).rejects.toMatchObject({
       code: "cannot_disable_self",
     });
     expect(h.evictedSockets).toHaveLength(0);
@@ -58,7 +58,7 @@ describe("setEnabled", () => {
     const db = await freshDb();
     const { svc, admin } = await seedAdminCaller(db);
     const owner = await seedUser(db, { id: "user_owner", role: "owner", handle: castId<Handle>("owner") });
-    await expect(svc.setEnabled({ principal: principal(admin, "admin"), userId: owner, enabled: false })).rejects.toMatchObject({
+    await expect(svc.setEnabled({ principal: await principal(db, admin, "admin"), userId: owner, enabled: false })).rejects.toMatchObject({
       code: "cannot_modify_owner",
     });
   });
@@ -70,7 +70,7 @@ describe("setEnabled", () => {
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     await expect(
       svc.setEnabled({
-        principal: principal(admin, "admin"),
+        principal: await principal(db, admin, "admin"),
         userId: castId<UserId>("user_ghost"),
         enabled: false,
       }),
@@ -83,7 +83,7 @@ describe("setEnabled", () => {
     const svc = createAdminService(makeHarness(db).ctx);
     const u = await seedUser(db, { id: "user_u", role: "user", handle: castId<Handle>("u") });
     const t = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
-    await expect(svc.setEnabled({ principal: principal(u, "user"), userId: t, enabled: false })).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.setEnabled({ principal: await principal(db, u, "user"), userId: t, enabled: false })).rejects.toThrow(DomainForbiddenError);
   });
   // #1691 RED-FIRST — a containment action that returns success with no forensic row is the same defect as an
   // unaudited grant, and `logAudit` swallows in production. The flip, its audit row and the kick are one batch.
@@ -95,7 +95,7 @@ describe("setEnabled", () => {
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
     const live = await seedLiveSession(db, target);
 
-    await expect(svc.setEnabled({ principal: principal(admin, "admin"), userId: target, enabled: false })).rejects.toThrow();
+    await expect(svc.setEnabled({ principal: await principal(db, admin, "admin"), userId: target, enabled: false })).rejects.toThrow();
 
     const row = (await db.select().from(users).where(eq(users.id, target)))[0];
     expect(row?.enabled).toBe(true);
@@ -114,7 +114,7 @@ describe("setEnabled", () => {
     const admin = await seedUser(db, { id: "user_adm", role: "admin", handle: castId<Handle>("adm") });
     const target = await seedUser(db, { id: "user_t", role: "user", handle: castId<Handle>("t") });
 
-    const updated = await svc.setEnabled({ principal: principal(admin, "admin"), userId: target, enabled: false });
+    const updated = await svc.setEnabled({ principal: await principal(db, admin, "admin"), userId: target, enabled: false });
 
     expect(updated.enabled).toBe(false);
     expect(await auditActions(db)).toEqual(["admin.setEnabled"]);

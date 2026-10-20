@@ -3,8 +3,9 @@
 // throwing and yields every transport `Services` key plus the boot handles. This proves the injection graph
 // wires (the 21 services + the boot-global RoleClients bundle resolve offline against the vLLM floor).
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 import { databaseHandle } from "@orb/db/wiring-driver";
+// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import { everyOwnerAuthority } from "../../domain/workloads/_support.ts";
 import "@orb/testkit/node/composed-real.ts";
 import { tmpdir } from "node:os";
 import { automationActionSchema } from "@orb/contracts/automation";
@@ -76,6 +77,9 @@ import { makeHarness as makeCharHarness } from "../../domain/character/_support.
 import { seedCharacter, seedChat, seedParticipant } from "../../domain/chat/_support.ts";
 import { seedTurns } from "../../domain/chat/memory/_support.ts";
 import { makeRoleClients, makeStoreHarness, seedUser as seedVectorOwner } from "../../domain/embeddings/_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 const SERVICE_KEYS = [
   "admin",
@@ -180,7 +184,7 @@ test("W7a an admin revoke-all evicts that user's live sockets through the compos
   result.sockets.goLive(bystanderCell, listener("bystander"));
 
   await result.services.admin.revokeUserSessions({
-    principal: { userId: ownerId, role: "owner", handle: castId<Handle>("owner"), externalId: null, via: "cookie" },
+    principal: await principal(db, ownerId, "owner", castId<Handle>("owner")),
     userId: victim,
   });
 
@@ -204,14 +208,14 @@ test("character.bulkAddCardTag attaches via the real tag wiring — not the iner
 
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const created = await result.services.character.create({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     input: { handle: castId<CharacterHandle>("hero-card"), name: "Hero", description: "a card" },
   });
 
   // The injected attachCardTag port now reaches tag.attachCardTagByName (the inert throw is gone): a by-name
   // add resolve-or-creates the owner's tag and writes the accepted junction row, end-to-end through compose.
   await result.services.character.bulkAddCardTag({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     tagName: "  favorites  ",
     characterIds: [created.id],
   });
@@ -255,7 +259,7 @@ describe("user seed wiring", () => {
     const db = await freshDb();
     const result = await buildGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
 
     await result.contentSeeder.ensureSeeded(actor);
 
@@ -273,7 +277,7 @@ describe("user seed wiring", () => {
   test("a deleted seeded character is not seeded again, even by a cold graph", async () => {
     const db = await freshDb();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     const first = await buildGraph(db);
     await first.contentSeeder.ensureSeeded(actor);
     const niko = await first.services.character.findByHandle({ ownerId: owner, handle: castId<CharacterHandle>("niko") });
@@ -291,7 +295,7 @@ describe("user seed wiring", () => {
     const db = await freshDb();
     const result = await buildGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
 
     await result.contentSeeder.ensureSeeded(actor);
 
@@ -324,7 +328,7 @@ describe("user seed wiring", () => {
     const db = await freshDb();
     const result = await buildGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     await result.services.settings.updateUserSettingsSection({
       principal: actor,
       input: { section: "seeds", patch: { welcomeAssistantCharacterId: "chr_my_pick" } },
@@ -376,6 +380,7 @@ async function wireIndexer(db: Db, bus: ReturnType<typeof createDomainEventBus>)
     indexAsset: createImageIndexer(
       {
         ...makeStoreHarness(db).ctx,
+        db,
         loadAssetMime: async (id) => (await assets.assetCasRefById(id))?.mime ?? null,
         loadAssetBytes: async (id) => (await assets.loadAssetBytes(id)) ?? undefined,
       },
@@ -432,7 +437,7 @@ describe("embeddings indexer bus subscription", () => {
     onTestFinished(w.cleanup);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await w.character.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
     });
     const expected = await w.character.loadCardText(created.id);
@@ -457,7 +462,7 @@ describe("embeddings indexer bus subscription", () => {
     onTestFinished(w.cleanup);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await w.character.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("star"), name: "Star", description: "a starred card" },
     });
 
@@ -477,7 +482,7 @@ describe("embeddings indexer bus subscription", () => {
     const owner = await seedVectorOwner(db, { handle: castId<Handle>("owner") });
     const bytes = pngBytes(7, 7, 7, 7);
     const stored = await w.assets.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes,
       kind: "avatar",
       mime: "image/png",
@@ -569,7 +574,7 @@ describe("notifications fan-out — record (durable) → publishNotification (li
     const iter = subscribeNotifications(member, ac.signal)[Symbol.asyncIterator]();
     const nextLive = iter.next();
     try {
-      await result.services.chat.kick({ principal: principal(host), chatId, userId: member });
+      await result.services.chat.kick({ principal: await principal(db, host), chatId, userId: member });
 
       // LIVE half: the PERSISTED InboxView (with its seq) arrives on the per-user bus…
       const live = await nextLive;
@@ -581,7 +586,7 @@ describe("notifications fan-out — record (durable) → publishNotification (li
       });
       expect(live.value?.view.seq).toBeGreaterThan(0);
       // …DURABLE half: the same event is on the recipient's inbox (deliverable without the bus).
-      const inbox = await result.services.notifications.list({ principal: principal(member) });
+      const inbox = await result.services.notifications.list({ principal: await principal(db, member) });
       expect(inbox.items.map((i) => i.type)).toContain("kicked");
       expect(inbox.items.find((i) => i.type === "kicked")?.seq).toBe(live.value?.view.seq);
     } finally {
@@ -621,7 +626,7 @@ describe("persona.setActivePersona → chat bus", () => {
       joinedAt: clock.now(),
     });
     const persona = await result.services.persona.create({
-      principal: principal(host),
+      principal: await principal(db, host),
       input: { name: "Alex", description: "the user" },
     });
 
@@ -632,7 +637,7 @@ describe("persona.setActivePersona → chat bus", () => {
     const nextLive = iter.next();
     try {
       await result.services.persona.setActivePersona({
-        principal: principal(host),
+        principal: await principal(db, host),
         chatId,
         targetUserId: host,
         personaId: persona.id,
@@ -685,7 +690,7 @@ describe("persona.remove seed re-point (owner invariant)", () => {
     const db = await freshDb();
     const result = await graph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     const keeper = await result.services.persona.create({
       principal: actor,
       input: { name: "Keeper", description: "k" },
@@ -716,7 +721,7 @@ describe("persona.remove seed re-point (owner invariant)", () => {
     const db = await freshDb();
     const result = await graph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     const older = await result.services.persona.create({
       principal: actor,
       input: { name: "Older", description: "o" },
@@ -742,7 +747,7 @@ describe("persona.remove seed re-point (owner invariant)", () => {
     const db = await freshDb();
     const result = await graph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     const survivor = await result.services.persona.create({
       principal: actor,
       input: { name: "Survivor", description: "s" },
@@ -771,7 +776,7 @@ describe("persona.remove seed re-point (owner invariant)", () => {
     const db = await freshDb();
     const result = await graph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     const lastPlayed = await result.services.persona.create({ principal: actor, input: { name: "LastPlayed", description: "l" } });
     const newer = await result.services.persona.create({ principal: actor, input: { name: "Newer", description: "n" } });
     const doomedDefault = await result.services.persona.create({ principal: actor, input: { name: "DoomedDefault", description: "d" } });
@@ -794,7 +799,7 @@ describe("persona.remove seed re-point (owner invariant)", () => {
     const db = await freshDb();
     const result = await graph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     const keeper = await result.services.persona.create({ principal: actor, input: { name: "Keeper", description: "k" } });
     const doomed = await result.services.persona.create({ principal: actor, input: { name: "Doomed", description: "d" } });
     await result.services.settings.updateUserSettingsSection({
@@ -809,7 +814,7 @@ describe("persona.remove seed re-point (owner invariant)", () => {
     const db = await freshDb();
     const result = await graph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     const seated = await result.services.persona.create({ principal: actor, input: { name: "Seated", description: "s" } });
     const fallback = await result.services.persona.create({ principal: actor, input: { name: "Fallback", description: "f" } });
     await result.services.settings.updateUserSettingsSection({
@@ -858,8 +863,8 @@ async function seedLegacyTarget(db: Db, owner: UserId): Promise<void> {
 }
 
 /** The connection the local-light seed bound for the owner's `embed` role. */
-async function seededEmbedder(result: Awaited<ReturnType<typeof buildGatedGraph>>, owner: UserId): Promise<UserConnectionId> {
-  const embedder = (await result.services.connection.listBindings({ principal: principal(owner) })).find((view) => view.task === "embed")?.binding
+async function seededEmbedder(db: Db, result: Awaited<ReturnType<typeof buildGatedGraph>>, owner: UserId): Promise<UserConnectionId> {
+  const embedder = (await result.services.connection.listBindings({ principal: await principal(db, owner) })).find((view) => view.task === "embed")?.binding
     ?.connectionId;
   if (embedder === undefined || embedder === null) {
     throw new Error("the seed bound no embedder");
@@ -873,7 +878,7 @@ async function runQueued(result: Awaited<ReturnType<typeof buildGatedGraph>>, ro
     rows.map(async (row) => {
       const contribution = result.workloadContributions[row.kind] as { readonly run: (...args: readonly unknown[]) => Promise<unknown> };
       return await contribution.run(
-        { userId: row.ownerId, ownerId: row.ownerId, now: createFrozenClock().now },
+        { userId: row.ownerId, ownerId: row.ownerId, funderUserId: row.ownerId, now: createFrozenClock().now },
         row.params,
         vi.fn(),
         new AbortController().signal,
@@ -898,7 +903,7 @@ describe("embed-space rebuild trigger (DBK-B(b))", () => {
     await drain(() => false);
     const errorSpy = vi.spyOn(logger, "error");
 
-    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: null });
+    await result.services.connection.setBinding({ principal: await principal(db, member), task: "embed", connectionId: null });
     await drain(() => false);
 
     expect(await db.select().from(workloads)).toEqual([]);
@@ -911,12 +916,12 @@ describe("embed-space rebuild trigger (DBK-B(b))", () => {
     const result = await buildGatedGraph(db);
     const member = await seedUser(db, { handle: castId<Handle>("member") });
     await result.seedUserConnections(member);
-    const embedder = await seededEmbedder(result, member);
+    const embedder = await seededEmbedder(db, result, member);
     await result.embeddings.resolveGeneration(member, "embed");
     const errorSpy = vi.spyOn(logger, "error");
 
-    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: null });
-    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: embedder });
+    await result.services.connection.setBinding({ principal: await principal(db, member), task: "embed", connectionId: null });
+    await result.services.connection.setBinding({ principal: await principal(db, member), task: "embed", connectionId: embedder });
     await drain(() => false);
 
     expect(await db.select().from(workloads)).toEqual([]);
@@ -932,9 +937,9 @@ describe("embed-space rebuild trigger (DBK-B(b))", () => {
     const result = await buildGatedGraph(db);
     const member = await seedUser(db, { handle: castId<Handle>("member") });
     await result.seedUserConnections(member);
-    const embedder = await seededEmbedder(result, member);
+    const embedder = await seededEmbedder(db, result, member);
     await seedLegacyTarget(db, member);
-    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: null });
+    await result.services.connection.setBinding({ principal: await principal(db, member), task: "embed", connectionId: null });
     await drain(() => false);
     const abort = new AbortController();
     onTestFinished(() => {
@@ -952,7 +957,7 @@ describe("embed-space rebuild trigger (DBK-B(b))", () => {
       return heard;
     })();
 
-    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: embedder });
+    await result.services.connection.setBinding({ principal: await principal(db, member), task: "embed", connectionId: embedder });
     // Bounded: an announcement that never comes fails the assertion below instead of hanging the test.
     const heard = await Promise.race([announced, drain(() => false).then((): UserBusEvent[] => [])]);
     await drain(() => false);
@@ -963,7 +968,7 @@ describe("embed-space rebuild trigger (DBK-B(b))", () => {
     expect(index).toMatchObject({ ownerId: member, mode: "singular", params: { source: "all", force: true, embedderChanged: true } });
     // The documents sweep is the move's rebuild too, in its own slot beside any plain owner pass.
     expect(rows.find((row) => row.kind === "databank-reindex")).toMatchObject({ admissionKey: "owner:rebuild", params: { embedderChanged: true } });
-    const listed = await result.services.workloads.list({ caller: principal(member), kind: "index" });
+    const listed = await result.services.workloads.list({ caller: await principal(db, member), kind: "index" });
     expect(listed.map((row) => row.id)).toEqual([index?.id]);
     expect(heard).toContainEqual({ type: WORKLOADS_CHANGED });
     expect(await runQueued(result, rows)).toEqual(rows.map((row) => ({ kind: row.kind, status: "fulfilled" })));
@@ -993,14 +998,14 @@ describe("embed-space rebuild trigger (DBK-B(b))", () => {
     const result = await buildGatedGraph(db);
     const member = await seedUser(db, { handle: castId<Handle>("member") });
     await result.seedUserConnections(member);
-    const embedder = await seededEmbedder(result, member);
+    const embedder = await seededEmbedder(db, result, member);
     await seedLegacyTarget(db, member);
-    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: null });
+    await result.services.connection.setBinding({ principal: await principal(db, member), task: "embed", connectionId: null });
     await drain(() => false);
     const errorSpy = vi.spyOn(logger, "error");
 
     result.detachStaleSpaceReindex();
-    await result.services.connection.setBinding({ principal: principal(member), task: "embed", connectionId: embedder });
+    await result.services.connection.setBinding({ principal: await principal(db, member), task: "embed", connectionId: embedder });
     await drain(() => false);
 
     const kinds = (await db.select().from(workloads)).map((row) => row.kind).toSorted((a, b) => a.localeCompare(b));
@@ -1036,15 +1041,17 @@ describe("embed-space rebuild trigger (DBK-B(b))", () => {
     const result = await buildGatedGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await result.seedUserConnections(owner);
-    const embedder = await seededEmbedder(result, owner);
+    const embedder = await seededEmbedder(db, result, owner);
     await seedLegacyTarget(db, owner);
-    await result.services.connection.setBinding({ principal: principal(owner), task: "embed", connectionId: null });
+    await result.services.connection.setBinding({ principal: await principal(db, owner), task: "embed", connectionId: null });
     await drain(() => false);
     const enqueueFailure = new Error("workload admission unavailable");
     const start = vi.spyOn(result.services.workloads, "start").mockRejectedValue(enqueueFailure);
     const errorSpy = vi.spyOn(logger, "error");
 
-    await expect(result.services.connection.setBinding({ principal: principal(owner), task: "embed", connectionId: embedder })).resolves.toBeDefined();
+    await expect(
+      result.services.connection.setBinding({ principal: await principal(db, owner), task: "embed", connectionId: embedder }),
+    ).resolves.toBeDefined();
     await drain(() => false);
 
     // Every enqueue the move attempted failed, and each failure is logged in the reindex span; none escaped.
@@ -1061,10 +1068,15 @@ describe("embed-space rebuild trigger (DBK-B(b))", () => {
 });
 
 async function runEmbedSweeps(result: Awaited<ReturnType<typeof buildGatedGraph>>, owner: UserId, memoryScope: UserId | null): Promise<void> {
-  const ctx = { userId: owner, ownerId: owner, now: createFrozenClock().now };
+  const ctx = { userId: owner, ownerId: owner, funderUserId: owner, now: createFrozenClock().now };
   await result.workloadContributions.index.run(ctx, { source: "all" }, vi.fn(), new AbortController().signal);
   await result.workloadContributions["databank-reindex"].run(ctx, { scope: { kind: "owner" }, mode: "chunk-embed" }, vi.fn(), new AbortController().signal);
-  await result.workloadContributions["memory-backfill"].run({ ...ctx, ownerId: memoryScope }, {}, vi.fn(), new AbortController().signal);
+  await result.workloadContributions["memory-backfill"].run(
+    memoryScope === null ? { ...ctx, ...EVERY_OWNER.runScope } : { ...ctx, ownerId: memoryScope },
+    {},
+    vi.fn(),
+    new AbortController().signal,
+  );
 }
 
 describe("corpusAutoindex indexer gate (Piece D)", () => {
@@ -1077,7 +1089,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     const result = await buildGatedGraph(db, cache);
     const owner = await seedUser(db, { handle: castId<Handle>("seeded-owner") });
     await seedLocalLightOnBoot({ db: databaseHandle(db), now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
-    await result.contentSeeder.ensureSeeded(principal(owner));
+    await result.contentSeeder.ensureSeeded(await principal(db, owner));
     await runEmbedSweeps(result, owner, null);
     await drain(() => false);
     const cards = await db.select().from(characterEmbeddings);
@@ -1103,7 +1115,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     const result = await buildGatedGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedLocalLightOnBoot({ db: databaseHandle(db), now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
-    const actor = { ...principal(owner), role: "admin" as const };
+    const actor = await principal(db, owner, "admin");
     await result.services.settings.updateAppSettings({ principal: actor, partial: { corpusAutoindex: true } });
     await drain(() => false);
     expect((await db.select().from(workloads)).filter((row) => row.kind === "index")).toHaveLength(1);
@@ -1131,7 +1143,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     await seedLocalLightOnBoot({ db: databaseHandle(db), now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
 
     const created = await result.services.character.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
     });
     // Bounded, wall-clock-free flush of the fire-and-forget bus dispatch → the embed → the store write.
@@ -1147,7 +1159,7 @@ describe("corpusAutoindex indexer gate (Piece D)", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const created = await result.services.character.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
     });
     await drain(() => false);
@@ -1168,7 +1180,7 @@ describe("automation generate_image forwards diffusion params through the compos
     const db = await freshDb();
     const result = await buildGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
 
     // A host chat the owner authors + fires rules on (the real host-authority + dispatch gates read these rows).
     const chatId = mintTypeId(ID_PREFIX.chat);
@@ -1240,7 +1252,7 @@ describe("search when the memory scope can build no digests (0215)", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedLocalLightOnBoot({ db: databaseHandle(db), now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
     await result.services.character.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
     });
     const room = await seedChat(db, "room_old_memory");
@@ -1285,9 +1297,9 @@ describe("search when the memory scope can build no digests (0215)", () => {
     const result = await buildGatedGraph(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await seedLocalLightOnBoot({ db: databaseHandle(db), now: createFrozenClock().now, onEmbedSpaceBound: () => undefined });
-    await result.services.settings.updateUserSettingsSection({ principal: principal(owner), input: { section: "memory", patch: { enabled: true } } });
+    await result.services.settings.updateUserSettingsSection({ principal: await principal(db, owner), input: { section: "memory", patch: { enabled: true } } });
     await result.services.character.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("bryn"), name: "Bryn", description: "a lighthouse keeper" },
     });
     const aria = await seedCharacter(db, owner, "aria");

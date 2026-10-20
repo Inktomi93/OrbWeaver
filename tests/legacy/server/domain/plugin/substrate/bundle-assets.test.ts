@@ -8,18 +8,16 @@ import type { StoredAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
 import type { AssetId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { magicBytes } from "@orb/testkit/node/magic-bytes.ts";
 import type { PluginBundleAssetLink, PluginBundleAssetStoreOutcome } from "#server/domain/plugin/contract/bundle-assets.ts";
 import { storeBundleAssets } from "#server/domain/plugin/substrate/bundle-assets.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 
-const CALLER: Principal = {
-  userId: castId<UserId>("user_bundle_assets"),
-  role: "user",
-  handle: castId<Handle>("owner"),
-  externalId: null,
-  via: "fallback",
-};
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+const CALLER: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("user_bundle_assets"), { handle: castId<Handle>("owner") });
 
 /** A recording CAS store: hands back a deterministic id per call and remembers exactly what it was asked to
  *  write, so the assertions are about WHAT CROSSED the seam rather than about a database. */

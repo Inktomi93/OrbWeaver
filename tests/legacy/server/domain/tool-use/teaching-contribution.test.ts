@@ -17,7 +17,7 @@ import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { TeachingContext } from "#server/domain/chat/contract/context.ts";
@@ -25,11 +25,14 @@ import { collectTeaching } from "#server/domain/chat/substrate/teaching.ts";
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
 import type { PluginToolSpec } from "#server/domain/tool-use/index.ts";
 import { createToolUseService, createToolUseTeachingContributions } from "#server/domain/tool-use/index.ts";
+import { principal } from "../../../db/schema/_support.ts";
 
 type Service = ReturnType<typeof createToolUseService>;
 
-const ALICE = principal(castId<UserId>("user_alice"), { handle: castId("alice") });
-const BOB = principal(castId<UserId>("user_bob"), { handle: castId("bob") });
+// These callers resolve from rows in one in-memory database; the subject under test reads no database of its own.
+const callersDb = await freshDb();
+const ALICE = await principal({ db: callersDb }, castId<UserId>("user_alice"), { handle: castId("alice") });
+const BOB = await principal({ db: callersDb }, castId<UserId>("user_bob"), { handle: castId("bob") });
 
 const allowAll: Can = (() => undefined) as Can;
 

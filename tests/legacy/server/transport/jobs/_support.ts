@@ -34,6 +34,7 @@ export function makeRow(
     mode: "bulk",
     lane: overrides.lane ?? "sweep",
     ownerId: overrides.ownerId ?? null,
+    funderUserId: null,
     dependsOn: null,
     error: null,
     progress: null,

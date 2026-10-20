@@ -22,12 +22,12 @@ describe("list", () => {
     const b = (await seedCharacter(db, { ownerId: owner, name: "Brook", avatarAssetId: avatar.id })).id;
 
     await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Zeta", description: "", groupConfig: { output: "narrator" }, members: [memberSpec(b, 0), memberSpec(a, 1)] },
     });
-    await svc.create({ principal: principal(owner), input: { name: "Alpha", description: "", members: [memberSpec(a, 0)] } });
+    await svc.create({ principal: await principal(db, owner), input: { name: "Alpha", description: "", members: [memberSpec(a, 0)] } });
 
-    const rows = await svc.list({ principal: principal(owner) });
+    const rows = await svc.list({ principal: await principal(db, owner) });
     expect(rows.map((r) => r.name)).toEqual(["Alpha", "Zeta"]);
     expect(rows[0]?.characterCount).toBe(1);
     expect(rows[0]?.hasGroupConfig).toBe(false);
@@ -44,12 +44,12 @@ describe("list", () => {
     const a = (await seedUser(db)).id;
     const b = (await seedUser(db)).id;
     const ca = (await seedCharacter(db, { ownerId: a })).id;
-    await svc.create({ principal: principal(a), input: { name: "A's party", description: "", members: [memberSpec(ca, 0)] } });
+    await svc.create({ principal: await principal(db, a), input: { name: "A's party", description: "", members: [memberSpec(ca, 0)] } });
 
     // The positive control (A sees the row) is what entitles the empty read to mean "partitioned",
     // not "broken query" (empty-population-vs-broken-probe).
-    expect(await svc.list({ principal: principal(a) })).toHaveLength(1);
-    expect(await svc.list({ principal: principal(b) })).toHaveLength(0);
+    expect(await svc.list({ principal: await principal(db, a) })).toHaveLength(1);
+    expect(await svc.list({ principal: await principal(db, b) })).toHaveLength(0);
   });
 });
 
@@ -58,10 +58,10 @@ test("Home's bounded shelf leaves the complete library and truthful census acces
   const character = (await seedCharacter(db, { ownerId: owner })).id;
   const service = createRosterPresetService(makeHarness(db).ctx);
   for (let index = 0; index < 8; index += 1) {
-    await service.create({ principal: principal(owner), input: { name: `Roster ${index}`, description: "", members: [memberSpec(character, 0)] } });
+    await service.create({ principal: await principal(db, owner), input: { name: `Roster ${index}`, description: "", members: [memberSpec(character, 0)] } });
   }
-  expect(await service.count({ principal: principal(owner) })).toBe(8);
-  expect((await service.list({ principal: principal(owner), limit: 6 })).map((row) => row.name)).toEqual([
+  expect(await service.count({ principal: await principal(db, owner) })).toBe(8);
+  expect((await service.list({ principal: await principal(db, owner), limit: 6 })).map((row) => row.name)).toEqual([
     "Roster 0",
     "Roster 1",
     "Roster 2",
@@ -69,5 +69,5 @@ test("Home's bounded shelf leaves the complete library and truthful census acces
     "Roster 4",
     "Roster 5",
   ]);
-  expect(await service.list({ principal: principal(owner) })).toHaveLength(8);
+  expect(await service.list({ principal: await principal(db, owner) })).toHaveLength(8);
 });

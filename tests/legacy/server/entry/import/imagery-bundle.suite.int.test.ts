@@ -13,7 +13,6 @@ import { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "@orb/serve
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { makeImageryCall } from "@orb/testkit/node/factories/imagery-call.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
@@ -25,6 +24,7 @@ import type { PrincipalEnv } from "#server/entry/http/index.ts";
 import { registerExport, registerImportBundle } from "#server/entry/http/index.ts";
 import { buildImageryCall, parseImageryCall } from "#server/primitives/serde/imagery/index.ts";
 import { subscribeUserEvents } from "#server/transport/trpc/user-events-bus.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import { loadRunnableWorkload, makeRunnerDeps } from "../../domain/workloads/_support.ts";
 
 async function imageSpend(db: Db, ownerId: UserId): Promise<number | undefined> {
@@ -40,7 +40,7 @@ test("a complete library bundle restores uncurated image calls and rebuilds spen
 }) => {
   const source = await seedUser(db);
   const foreign = await seedUser(db);
-  const owner = principal(source.id, { handle: source.handle, via: "header" });
+  const owner = await principal({ db }, source.id);
   const call = makeImageryCall();
   const character = await seedCharacter(db, { ownerId: source.id, id: mintTypeId(ID_PREFIX.character), name: "Hero", handle: castId("hero") });
   const chatId = mintTypeId(ID_PREFIX.chat);
@@ -76,7 +76,7 @@ test("a complete library bundle restores uncurated image calls and rebuilds spen
     });
   }
   const foreignBlob = await app.services.assets.store({
-    principal: principal(foreign.id),
+    principal: await principal({ db }, foreign.id),
     bytes: new TextEncoder().encode("foreign image must stay home"),
     kind: "generated",
     mime: "image/png",
@@ -100,7 +100,7 @@ test("a complete library bundle restores uncurated image calls and rebuilds spen
 
   const restoredDb = await freshDb();
   const targetUser = await seedUser(restoredDb);
-  const target = principal(targetUser.id, { handle: targetUser.handle, via: "header" });
+  const target = await principal({ db: restoredDb }, targetUser.id);
   const casDir = await mkdtemp(join(tmpdir(), "orb-imagery-restore-cas-"));
   const variantDir = await mkdtemp(join(tmpdir(), "orb-imagery-restore-var-"));
   onTestFinished(async () => {

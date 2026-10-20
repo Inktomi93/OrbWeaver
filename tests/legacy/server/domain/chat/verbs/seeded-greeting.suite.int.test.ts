@@ -25,12 +25,12 @@ import { messageVariants } from "@orb/db";
 import type { CharacterId, ChatId, Handle, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { createEdit } from "#server/domain/chat/verbs/edit.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeChatContext, noClaim, seedCharacter, seedChat, seedMessage, seedParticipant, seedUser } from "../_support.ts";
 
 let db: Db;
@@ -46,8 +46,8 @@ const emit = (event: ChatBusEvent): Promise<void> => {
   return Promise.resolve();
 };
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 const ALT_0 = "The night market hums.";
@@ -106,7 +106,12 @@ describe("the step — the host walks the card's alternates", () => {
   test("stepping swaps the row's canon bytes to the indexed alternate and emits messageEdited", async () => {
     const room = await seedRoom("a");
 
-    const view = await edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 });
+    const view = await edit().setSeededGreeting({
+      principal: await principal(db, room.host),
+      chatId: room.chatId,
+      messageId: room.greetingId,
+      greetingIndex: 1,
+    });
 
     expect(view.content).toBe(ALT_1);
     expect(await contentOf(room.greetingId)).toBe(ALT_1);
@@ -117,12 +122,12 @@ describe("the step — the host walks the card's alternates", () => {
     const room = await seedRoom("b");
     const verbs = edit();
 
-    await verbs.setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 2 });
+    await verbs.setSeededGreeting({ principal: await principal(db, room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 2 });
     expect(await contentOf(room.greetingId)).toBe(ALT_2);
 
     // Back to the first: the step reads the CARD each time, so it never depends on where it has been —
     // which is what makes the client's wrap-around (last → first) land as plain index arithmetic.
-    await verbs.setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 0 });
+    await verbs.setSeededGreeting({ principal: await principal(db, room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 0 });
     expect(await contentOf(room.greetingId)).toBe(ALT_0);
   });
 
@@ -132,7 +137,12 @@ describe("the step — the host walks the card's alternates", () => {
     // overridden by a stale client: what lands is whatever the card says NOW.
     const rewritten = [REWRITTEN_FIRST, REWRITTEN_ALT];
 
-    await edit(cardWith(rewritten)).setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 });
+    await edit(cardWith(rewritten)).setSeededGreeting({
+      principal: await principal(db, room.host),
+      chatId: room.chatId,
+      messageId: room.greetingId,
+      greetingIndex: 1,
+    });
 
     expect(await contentOf(room.greetingId)).toBe(REWRITTEN_ALT);
   });
@@ -144,7 +154,7 @@ describe("the freeze — the window is one-way", () => {
     await seedMessage(db, room.chatId, 2, { role: "user", authorUserId: room.host, content: "Hello." });
 
     await expect(
-      edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 }),
+      edit().setSeededGreeting({ principal: await principal(db, room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 }),
     ).rejects.toThrow(ChatOperationError);
     expect(await contentOf(room.greetingId)).toBe(ALT_0);
     expect(emitted).toStrictEqual([]);
@@ -155,7 +165,7 @@ describe("the freeze — the window is one-way", () => {
     // wrong predicate (or nothing at all) and the step happened to fail for some unrelated reason.
     const room = await seedRoom("e");
 
-    await edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 });
+    await edit().setSeededGreeting({ principal: await principal(db, room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 });
 
     expect(await contentOf(room.greetingId)).toBe(ALT_1);
   });
@@ -166,7 +176,7 @@ describe("the freeze — the window is one-way", () => {
     await seedMessage(db, room.chatId, 3, { role: "assistant", characterId: room.characterId, content: "A reply." });
 
     await expect(
-      edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 }),
+      edit().setSeededGreeting({ principal: await principal(db, room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 }),
     ).rejects.toThrow(ChatOperationError);
   });
 });
@@ -176,7 +186,7 @@ describe("authority — host-only, and leak-free to a stranger", () => {
     const room = await seedRoom("g");
 
     await expect(
-      edit().setSeededGreeting({ principal: principal(room.member), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 }),
+      edit().setSeededGreeting({ principal: await principal(db, room.member), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 }),
     ).rejects.toThrow(ChatOperationError);
     expect(await contentOf(room.greetingId)).toBe(ALT_0);
   });
@@ -184,7 +194,7 @@ describe("authority — host-only, and leak-free to a stranger", () => {
   test("PLANTED CONTROL for the host belt: the same call by the HOST succeeds", async () => {
     const room = await seedRoom("h");
 
-    await edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 });
+    await edit().setSeededGreeting({ principal: await principal(db, room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 });
 
     expect(await contentOf(room.greetingId)).toBe(ALT_1);
   });
@@ -197,7 +207,7 @@ describe("authority — host-only, and leak-free to a stranger", () => {
     // or the freeze state — the same collapse every other chatId surface makes (the cross-tenant sweep
     // probes this verb for exactly this reason).
     await expect(
-      edit().setSeededGreeting({ principal: principal(stranger), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 }),
+      edit().setSeededGreeting({ principal: await principal(db, stranger), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 }),
     ).rejects.toThrow(ChatNotFoundError);
     expect(await contentOf(room.greetingId)).toBe(ALT_0);
   });
@@ -211,7 +221,7 @@ describe("the target — only a character-voiced greeting has alternates", () =>
     // system row instead, which is the same shape question without touching the freeze.)
     const { messageId } = await seedMessage(db, room.chatId, 2, { role: "system", content: "A system note." });
 
-    await expect(edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId, greetingIndex: 1 })).rejects.toThrow(
+    await expect(edit().setSeededGreeting({ principal: await principal(db, room.host), chatId: room.chatId, messageId, greetingIndex: 1 })).rejects.toThrow(
       ChatOperationError,
     );
   });
@@ -220,7 +230,7 @@ describe("the target — only a character-voiced greeting has alternates", () =>
     const room = await seedRoom("k");
     const { messageId } = await seedMessage(db, room.chatId, 2, { role: "assistant", characterId: null, content: "The rain keeps on." });
 
-    await expect(edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId, greetingIndex: 1 })).rejects.toThrow(
+    await expect(edit().setSeededGreeting({ principal: await principal(db, room.host), chatId: room.chatId, messageId, greetingIndex: 1 })).rejects.toThrow(
       ChatOperationError,
     );
   });
@@ -237,13 +247,15 @@ describe("the target — only a character-voiced greeting has alternates", () =>
       genFinishedAt: 2000,
     });
 
-    await expect(edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId, greetingIndex: 1 })).rejects.toMatchObject({
+    await expect(
+      edit().setSeededGreeting({ principal: await principal(db, room.host), chatId: room.chatId, messageId, greetingIndex: 1 }),
+    ).rejects.toMatchObject({
       code: CHAT_OP_CODES.notGreetingRow,
     });
     expect(await contentOf(messageId)).toBe(Generated);
     expect(emitted).toStrictEqual([]);
     // Planted control: the seeded greeting beside it steps under the same host, card and window.
-    await edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 });
+    await edit().setSeededGreeting({ principal: await principal(db, room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: 1 });
     expect(await contentOf(room.greetingId)).toBe(ALT_1);
   });
 
@@ -252,7 +264,7 @@ describe("the target — only a character-voiced greeting has alternates", () =>
     const other = await seedRoom("m");
 
     await expect(
-      edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId: other.greetingId, greetingIndex: 1 }),
+      edit().setSeededGreeting({ principal: await principal(db, room.host), chatId: room.chatId, messageId: other.greetingId, greetingIndex: 1 }),
     ).rejects.toThrow(ChatNotFoundError);
     expect(await contentOf(other.greetingId)).toBe(ALT_0);
   });
@@ -263,7 +275,12 @@ describe("the index — resolved against the card, never trusted", () => {
     const room = await seedRoom("n");
 
     await expect(
-      edit().setSeededGreeting({ principal: principal(room.host), chatId: room.chatId, messageId: room.greetingId, greetingIndex: ALTERNATES.length }),
+      edit().setSeededGreeting({
+        principal: await principal(db, room.host),
+        chatId: room.chatId,
+        messageId: room.greetingId,
+        greetingIndex: ALTERNATES.length,
+      }),
     ).rejects.toThrow(ChatOperationError);
     expect(await contentOf(room.greetingId)).toBe(ALT_0);
     expect(emitted).toStrictEqual([]);
@@ -274,7 +291,7 @@ describe("the index — resolved against the card, never trusted", () => {
 
     await expect(
       edit(cardWith([ALT_0])).setSeededGreeting({
-        principal: principal(room.host),
+        principal: await principal(db, room.host),
         chatId: room.chatId,
         messageId: room.greetingId,
         greetingIndex: 2,

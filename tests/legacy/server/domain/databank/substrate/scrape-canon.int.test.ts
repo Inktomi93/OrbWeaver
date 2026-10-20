@@ -21,7 +21,7 @@ test("a rejecting enqueue still lands the document row; ingest is reported not-q
   const result = await finalizeScrape(
     { ...h.ctx, db },
     {
-      principal: principalFor(owner),
+      principal: await principalFor(db, owner),
       bytes: new TextEncoder().encode("hello world"),
       origin: "web",
       mime: "text/html",
@@ -51,7 +51,7 @@ test("zero-char extraction carries the empty-extraction warning", async () => {
   const result = await finalizeScrape(
     { ...h.ctx, db },
     {
-      principal: principalFor(owner),
+      principal: await principalFor(db, owner),
       bytes: new TextEncoder().encode("<html></html>"),
       origin: "web",
       mime: "text/html",

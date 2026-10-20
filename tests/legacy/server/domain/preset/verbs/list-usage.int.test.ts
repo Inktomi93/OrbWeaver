@@ -11,9 +11,9 @@ import type { PresetId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createPresetService, PresetNotFoundError, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/index.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { principal } from "../../../../db/schema/_support.ts";
 import { makeHarness, seedPreset, seedUser } from "../_support.ts";
 
 const USAGE = { isUserDefault: true, gmRooms: [] } as const;
@@ -33,7 +33,7 @@ describe("listUsage", () => {
     );
     const id = await seedPreset(db, { id: castId<PresetId>("preset_own"), ownerId: owner });
 
-    expect(await svc.listUsage({ principal: principal(owner), id })).toEqual(USAGE);
+    expect(await svc.listUsage({ principal: await principal({ db }, owner), id })).toEqual(USAGE);
     expect(asked).toEqual([`${owner}:${id}`]);
   });
 
@@ -43,7 +43,7 @@ describe("listUsage", () => {
     const svc = createPresetService(makeHarness(db, { resolvePresetUsage: () => Promise.resolve(USAGE) }).ctx);
     await seedPreset(db, { id: SYSTEM_DEFAULT_PRESET_ID, ownerId: null, name: "Default" });
 
-    expect(await svc.listUsage({ principal: principal(owner), id: SYSTEM_DEFAULT_PRESET_ID })).toEqual(USAGE);
+    expect(await svc.listUsage({ principal: await principal({ db }, owner), id: SYSTEM_DEFAULT_PRESET_ID })).toEqual(USAGE);
   });
 
   // The harness's `resolvePresetUsage` default THROWS "not stubbed", so this also pins that the gate runs
@@ -55,6 +55,6 @@ describe("listUsage", () => {
     const svc = createPresetService(makeHarness(db).ctx);
     const id = await seedPreset(db, { id: castId<PresetId>("preset_a"), ownerId: a });
 
-    await expect(svc.listUsage({ principal: principal(b), id })).rejects.toBeInstanceOf(PresetNotFoundError);
+    await expect(svc.listUsage({ principal: await principal({ db }, b), id })).rejects.toBeInstanceOf(PresetNotFoundError);
   });
 });

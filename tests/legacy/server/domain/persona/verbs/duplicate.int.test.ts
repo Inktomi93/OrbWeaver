@@ -21,7 +21,7 @@ describe("duplicate", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const avatar = await seedAsset(db, { ownerId: owner, hash: "sha_avatar" });
     const source = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: {
         name: "Nyx",
         title: "The Wanderer",
@@ -32,7 +32,7 @@ describe("duplicate", () => {
       },
     });
 
-    const clone = await svc.duplicate({ principal: principal(owner), personaId: source.id });
+    const clone = await svc.duplicate({ principal: await principal(db, owner), personaId: source.id });
 
     expect(clone.id).not.toBe(source.id);
     expect(clone.name).toBe("Nyx (copy)");
@@ -56,11 +56,11 @@ describe("duplicate", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await svc.create({
-      principal: principal(other),
+      principal: await principal(db, other),
       input: { name: "Theirs", description: "d" },
     });
 
-    await expect(svc.duplicate({ principal: principal(owner), personaId: foreign.id })).rejects.toBeInstanceOf(PersonaNotFoundError);
+    await expect(svc.duplicate({ principal: await principal(db, owner), personaId: foreign.id })).rejects.toBeInstanceOf(PersonaNotFoundError);
 
     const rows = await db.select().from(personas).where(eq(personas.ownerId, owner));
     expect(rows).toHaveLength(0);

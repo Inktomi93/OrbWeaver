@@ -22,7 +22,12 @@ test("refines the CURRENT draft: the prompt carries the schema + the instruction
   const owner = await seedUser(db, { id: "user_rsch_a" });
   const h = makeRefineryHarness(db);
   h.queueReply(designReply);
-  const refined = await h.svc.refineSchema({ principal: principal(owner), schema: validScoreSchema(), instruction: "add a mood note", stage: "score" });
+  const refined = await h.svc.refineSchema({
+    principal: await principal(db, owner),
+    schema: validScoreSchema(),
+    instruction: "add a mood note",
+    stage: "score",
+  });
   if (refined.kind !== "draft") {
     throw new Error(`expected the draft arm, got ${refined.kind}`);
   }
@@ -50,7 +55,7 @@ test("a schema carrying a construct OUTSIDE the leaf language still refines — 
     required: ["overallScore"],
   };
   h.queueReply(designReply);
-  const refined = await h.svc.refineSchema({ principal: principal(owner), schema: handAuthored, instruction: "add a mood", stage: "score" });
+  const refined = await h.svc.refineSchema({ principal: await principal(db, owner), schema: handAuthored, instruction: "add a mood", stage: "score" });
   expect(refined.kind).toBe("draft");
   expect(h.summarizeCalls.at(-1)?.user).toContain("anyOf");
 });

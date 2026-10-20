@@ -38,7 +38,6 @@ import type { SeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb, freshHeldDb } from "@orb/testkit/node/db.ts";
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { makeCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { CUSTOM_SYSTEM_TEMPLATE, utilityPresetResolver } from "@orb/testkit/node/utility-preset.ts";
@@ -72,6 +71,7 @@ import { createRead } from "#server/domain/chat/verbs/read.ts";
 import { createRequestTurn, createTurn } from "#server/domain/chat/verbs/turn.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { createToolUseService, createToolUseTeachingContributions } from "#server/domain/tool-use/index.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import {
   batchParticipantViews,
   makeChatContext,
@@ -90,8 +90,8 @@ import {
 // assertions (speaker-name/prompt resolution); the rest of the full card schema is never read here.
 const card = (name: string): CharacterCard => ({ name, description: "", avatarAssetId: null, regexScripts: [] }) as unknown as CharacterCard;
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 /** Transfer the one host seat while keeping both humans present. */
@@ -419,7 +419,7 @@ describe("send — the solo path (roster-of-1)", () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
 
     expect(outcome.aborted).toBe(false);
     expect(outcome.messages).toHaveLength(2);
@@ -453,7 +453,7 @@ describe("commitMessage — post-without-generate (D56)", () => {
       },
     });
 
-    const outcome = await h.turn.commitMessage({ principal: principal(host), chatId, content: "hello" });
+    const outcome = await h.turn.commitMessage({ principal: await principal(db, host), chatId, content: "hello" });
 
     expect(outcome.aborted).toBe(false);
     expect(outcome.messages).toHaveLength(1);
@@ -475,7 +475,7 @@ describe("commitMessage — post-without-generate (D56)", () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
 
-    await h.turn.commitMessage({ principal: principal(host), chatId, content: "I roll {{roll:d20}} and {{user}} smiles" });
+    await h.turn.commitMessage({ principal: await principal(db, host), chatId, content: "I roll {{roll:d20}} and {{user}} smiles" });
 
     const stored = (await loadCanonHistory(db, chatId)).find((r) => r.role === "user")?.content ?? "";
     expect(FROZEN_ROLL_RE.exec(stored)).not.toBeNull();
@@ -488,7 +488,7 @@ describe("commitMessage — post-without-generate (D56)", () => {
     await seedMessage(db, chatId, 1, { role: "assistant", characterId: chars[0] as CharacterId, content: "A {{roll:d20}} appears" });
     const h = harness(db, names);
 
-    await h.turn.commitMessage({ principal: principal(host), chatId, content: "hello" });
+    await h.turn.commitMessage({ principal: await principal(db, host), chatId, content: "hello" });
 
     expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(1);
   });
@@ -501,7 +501,7 @@ describe("commitMessage — post-without-generate (D56)", () => {
     const foreignPersona = await seedPersona(stranger, "stranger_pov");
     const h = harness(db, names);
 
-    await expect(h.turn.commitMessage({ principal: principal(member), chatId, content: "hi", personaId: foreignPersona })).rejects.toMatchObject({
+    await expect(h.turn.commitMessage({ principal: await principal(db, member), chatId, content: "hi", personaId: foreignPersona })).rejects.toMatchObject({
       code: "not_persona_owner",
     });
     expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "user")).toHaveLength(0);
@@ -512,7 +512,7 @@ describe("commitMessage — post-without-generate (D56)", () => {
     const stranger = await seedUser(db, castId<Handle>("stranger"));
     const h = harness(db, names);
 
-    await expect(h.turn.commitMessage({ principal: principal(stranger), chatId, content: "hi" })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(h.turn.commitMessage({ principal: await principal(db, stranger), chatId, content: "hi" })).rejects.toBeInstanceOf(ChatNotFoundError);
     expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "user")).toHaveLength(0);
   });
 });
@@ -536,7 +536,7 @@ describe("send — a caller-cancelled turn RETURNS aborted (the return-based abo
       h.activeTurns.abort(chatId, host);
     };
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
 
     // The previously-dead turn.ts abort branch now carries real values.
     expect(outcome.aborted).toBe(true);
@@ -558,7 +558,7 @@ describe("send — volatile-macro FREEZE at commit (Chat-Macro-Resolution §0 / 
     const h = harness(db, names);
 
     await h.turn.send({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       content: "I roll {{roll:d20}} and {{user}} smiles",
     });
@@ -594,7 +594,7 @@ describe("send — volatile-macro FREEZE at commit (Chat-Macro-Resolution §0 / 
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
 
-    await h.turn.send({ principal: principal(host), chatId, content: "the time is {{time}}" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "the time is {{time}}" });
 
     const stored = (await loadCanonHistory(db, chatId)).find((r) => r.role === "user")?.content ?? "";
     expect(stored).toMatch(FROZEN_TIME_RE);
@@ -606,7 +606,7 @@ describe("send — volatile-macro FREEZE at commit (Chat-Macro-Resolution §0 / 
     const h = harness(db, names);
     const raw = "just {{user}} talking to {{char}}, no dice";
 
-    await h.turn.send({ principal: principal(host), chatId, content: raw });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: raw });
 
     expect((await loadCanonHistory(db, chatId)).find((m) => m.role === "user")?.content).toBe(raw);
   });
@@ -644,7 +644,7 @@ describe("send — user-row seq collision retry (U1: the seq TOCTOU is allocated
     }) as Db;
 
     const h = harness(racedDb, names);
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
 
     expect(tripped).toBe(true); // the retry path actually fired
     const canon = await loadCanonHistory(db, chatId);
@@ -727,7 +727,7 @@ describe("send — presence character-gating", () => {
       readPresence: (userId) => Promise.resolve({ userId, online: userId !== room.member, lastSeenAt: null }),
     });
 
-    await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, room.host), chatId: room.chatId, content: "hi" });
 
     expect(wire).toContain("HOST-POV-LORE for host_pov");
     expect(wire).toContain("MEMBER-POV-LORE for member_pov");
@@ -750,7 +750,7 @@ describe("send — presence character-gating", () => {
     });
 
     // The MEMBER drives the turn: their own lore still stays out, because the room's prompt is the host's call.
-    await h.turn.send({ principal: principal(room.member), chatId: room.chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, room.member), chatId: room.chatId, content: "hi" });
 
     expect(wire).toContain("HOST-POV-LORE");
     expect(wire).not.toContain("MEMBER-POV-LORE");
@@ -772,7 +772,7 @@ describe("send — presence character-gating", () => {
       readPresence: (userId) => Promise.resolve({ userId, online: true, lastSeenAt: null }),
     });
 
-    await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, room.host), chatId: room.chatId, content: "hi" });
 
     expect(wire).toContain("HOST-POV-LORE");
     expect(wire).not.toContain("MEMBER-POV-LORE");
@@ -789,7 +789,7 @@ describe("send — presence character-gating", () => {
       resolveUserEnabled: (userId) => Promise.resolve(userId !== room.member),
     });
 
-    await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, room.host), chatId: room.chatId, content: "hi" });
 
     expect(presentHumanUserIds).toContain(room.host);
     expect(presentHumanUserIds).not.toContain(room.member);
@@ -804,7 +804,7 @@ describe("send — presence character-gating", () => {
       },
     });
 
-    await h.turn.send({ principal: principal(room.host), chatId: room.chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, room.host), chatId: room.chatId, content: "hi" });
 
     expect(presentHumanUserIds).toContain(room.host);
     expect(presentHumanUserIds).toContain(room.member);
@@ -842,13 +842,13 @@ describe("send / impersonate — persona attribution fallback", () => {
     const { host, chatId, hostPersona, names } = await seedPersonaRoom();
     const h = harness(db, names);
 
-    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+    const sent = await h.turn.send({ principal: await principal(db, host), chatId, content: "hi" });
     expect(sent.messages[0]?.personaId).toBe(hostPersona);
 
     // impersonateStream is NON-PERSISTING: it STREAMS the drafted user line (resolved under the host's active
     // persona for `{{user}}`) and writes NO canon — the seq after the send round is unchanged.
     const seqBefore = await loadMaxMessageSeq(db, chatId);
-    const text = await drainImpersonation(h.turn.impersonateStream({ principal: principal(host), chatId }));
+    const text = await drainImpersonation(h.turn.impersonateStream({ principal: await principal(db, host), chatId }));
     expect(text.length).toBeGreaterThan(0);
     expect(await loadMaxMessageSeq(db, chatId)).toBe(seqBefore);
   });
@@ -873,11 +873,11 @@ describe("send / impersonate — persona attribution fallback", () => {
         .set({ activePersonaId: personaId })
         .where(and(eq(chatParticipants.chatId, chatId), eq(chatParticipants.userId, host)));
     };
-    const target = async (): Promise<PersonaId | null> => (await read.getChat({ principal: principal(host), chatId })).viewerActivePersonaId;
+    const target = async (): Promise<PersonaId | null> => (await read.getChat({ principal: await principal(db, host), chatId })).viewerActivePersonaId;
 
     // Swapped mid-chat: the next line and the target both name the new persona.
     await setSeat(spare);
-    const swapped = await h.turn.commitMessage({ principal: principal(host), chatId, content: "after the swap" });
+    const swapped = await h.turn.commitMessage({ principal: await principal(db, host), chatId, content: "after the swap" });
     expect(swapped.messages[0]?.personaId).toBe(spare);
     expect(await target()).toBe(spare);
 
@@ -885,7 +885,7 @@ describe("send / impersonate — persona attribution fallback", () => {
     // POV, never the speaker's), so there is no persona to restamp to and the target says so.
     await db.update(chats).set({ anchorPersonaId: spare }).where(eq(chats.id, chatId));
     await setSeat(null);
-    const bare = await h.turn.commitMessage({ principal: principal(host), chatId, content: "no seat persona" });
+    const bare = await h.turn.commitMessage({ principal: await principal(db, host), chatId, content: "no seat persona" });
     expect(bare.messages[0]?.personaId).toBeNull();
     expect(await target()).toBeNull();
   });
@@ -895,7 +895,7 @@ describe("send / impersonate — persona attribution fallback", () => {
     const h = harness(db, names);
 
     const explicit = await h.turn.send({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       content: "hi",
       personaId: spare,
@@ -903,7 +903,7 @@ describe("send / impersonate — persona attribution fallback", () => {
     expect(explicit.messages[0]?.personaId).toBe(spare);
 
     const nulled = await h.turn.send({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       content: "again",
       personaId: null,
@@ -917,7 +917,7 @@ describe("send — the group round (N speakers via driveRound)", () => {
     const { host, chatId, chars, names } = await seedRoom("list", ["aria", "bryn"]);
     const h = harness(db, names);
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hi all" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "hi all" });
 
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(2);
@@ -931,7 +931,7 @@ describe("send — the group round (N speakers via driveRound)", () => {
     const h = harness(db, names);
 
     const outcome = await h.turn.send({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       content: "@bryn hello",
     });
@@ -947,7 +947,7 @@ describe("send — the group round (N speakers via driveRound)", () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "bryn", "cara"]);
     const h = harness(db, names, { prng: () => 0.99 });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hello, everyone" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "hello, everyone" });
 
     expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[2]]);
   });
@@ -956,7 +956,7 @@ describe("send — the group round (N speakers via driveRound)", () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "bryn", "cara"]);
     const h = harness(db, names, { prng: () => 0.99 });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "Bryn, what do you make of this?" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "Bryn, what do you make of this?" });
 
     expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1]]);
   });
@@ -969,7 +969,7 @@ describe("send — the group round (N speakers via driveRound)", () => {
     await seedMessage(db, chatId, 2, { role: "assistant", characterId: chars[0] as CharacterId, content: "aria answers" });
     const h = harness(db, names, { prng: () => 0.99 });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "Aria, say more." });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "Aria, say more." });
 
     expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[0]]);
   });
@@ -980,7 +980,7 @@ describe("send — the group round (N speakers via driveRound)", () => {
     await seedMessage(db, chatId, 2, { role: "assistant", characterId: chars[0] as CharacterId, content: "aria answers" });
     const h = harness(db, names);
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "again" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "again" });
 
     expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[0], chars[1]]);
   });
@@ -991,7 +991,7 @@ describe("send — the group round (N speakers via driveRound)", () => {
     await seedMessage(db, chatId, 2, { role: "assistant", characterId: chars[0] as CharacterId, content: "aria answers" });
     const h = harness(db, names);
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "again" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "again" });
 
     expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1], chars[0]]);
   });
@@ -1000,7 +1000,7 @@ describe("send — the group round (N speakers via driveRound)", () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "bryn"], { autoMode: true, autoModeMaxTurns: 1 });
     const h = harness(db, names, { prng: () => 0.99 });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
 
     // Every roll fails: the human round's fallback draws bryn (index 1 of 2); the chain bans bryn, leaving aria.
     const canon = await loadCanonHistory(db, chatId);
@@ -1011,7 +1011,7 @@ describe("send — the group round (N speakers via driveRound)", () => {
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria", "bryn"], { autoMode: true, autoModeMaxTurns: 1, allowSelfResponses: true });
     const h = harness(db, names, { prng: () => 0.99 });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
 
     const canon = await loadCanonHistory(db, chatId);
     expect(canon.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1], chars[1]]);
@@ -1069,7 +1069,7 @@ describe("send — Smart's picker route (the reranker by default, the Utility mo
     const ranked = reranker("bryn");
     const h = harness(db, names, { resolveSpeakerReranker: ranked.op });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
 
     expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1]]);
     expect(ranked.calls()).toBe(1);
@@ -1082,7 +1082,7 @@ describe("send — Smart's picker route (the reranker by default, the Utility mo
     const chosen = arbiter("bryn");
     const h = harness(db, names, { resolveSpeakerReranker: ranked.op, arbiter: chosen.op });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
 
     expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1]]);
     expect(chosen.calls()).toBe(1);
@@ -1093,7 +1093,7 @@ describe("send — Smart's picker route (the reranker by default, the Utility mo
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"]);
     const h = harness(db, names);
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
 
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(1);
@@ -1123,12 +1123,12 @@ describe("send — the smart arbiter runs on the funder's Utility preset (D299)"
   test("the Utility preset's sampling reaches the arbiter, and its custom system template never does", async () => {
     const { host, chatId, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const baseline = recordingArbiter("bryn");
-    await harness(db, names, { arbiter: baseline.op }).turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    await harness(db, names, { arbiter: baseline.op }).turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
 
     const withPreset = recordingArbiter("aria");
     const utility = utilityPresetResolver({ temperature: 0.9, maxOutputTokens: 64, compaction: { mode: "managed" }, replyMedia: "text+image" });
     await harness(db, names, { arbiter: withPreset.op, resolveUtilityPresetParams: utility }).turn.send({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       content: "and now?",
     });
@@ -1149,7 +1149,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     const chosen = arbiter("bryn");
     const h = harness(db, names, { arbiter: chosen.op });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
 
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants.map((m) => m.characterId)).toEqual([chars[1]]);
@@ -1174,7 +1174,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
       },
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
 
     expect(prompts).toHaveLength(1);
     expect(prompts[0]).toContain(
@@ -1197,7 +1197,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
       },
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "how far to the crossing?" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "how far to the crossing?" });
 
     expect(asked).toContainEqual({ ownerId: host, ids: chars });
     expect(prompts[0]).toMatch(/^- bryn: The caravan's guide\. \(spoke 0 of the last 1 lines, talkativeness \d+%\)$/mu);
@@ -1208,7 +1208,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { smartPicker: "utility" });
     const h = harness(db, names, { arbiter: arbiter("cara", "aria").op });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
 
     expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[2], chars[0]]);
     expect(warnings(h.events)).toHaveLength(0);
@@ -1219,7 +1219,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     const chosen = arbiter("aria");
     const h = harness(db, names, { arbiter: chosen.op });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "cara, bryn: thoughts?" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "cara, bryn: thoughts?" });
 
     expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[2], chars[1]]);
     expect(chosen.calls()).toBe(0);
@@ -1230,7 +1230,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     const chosen = arbiter("bryn");
     const h = harness(db, names, { arbiter: chosen.op });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "@cara hello" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "@cara hello" });
 
     expect(outcome.messages.filter((m) => m.role === "assistant").map((m) => m.characterId)).toEqual([chars[1]]);
     expect(chosen.calls()).toBe(1);
@@ -1242,7 +1242,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
       arbiter: () => Promise.reject(new Error("side-LLM down")),
     });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
 
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(1);
@@ -1256,7 +1256,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const h = harness(db, names);
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
 
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(1);
@@ -1274,7 +1274,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
       },
     });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
 
     expect(outcome.messages.filter((m) => m.role === "assistant")).toHaveLength(1);
     expect(warnings(h.events)).toEqual([{ type: "warning", chatId, code: "smart_arbitration_degraded" }]);
@@ -1284,7 +1284,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const h = harness(db, names, { arbiter: arbiter("Gandalf the Grey").op });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
 
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(1);
@@ -1297,7 +1297,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     const chosen = arbiter("aria");
     const h = harness(db, names, { arbiter: chosen.op });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "@bryn hello" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "@bryn hello" });
 
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants.map((m) => m.characterId)).toEqual([chars[1]]);
@@ -1309,7 +1309,7 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
     const { host, chatId, chars, names } = await seedRoom("smart", ["aria", "bryn", "cara"], { smartPicker: "utility", disabledKeys: ["cara"] });
     const h = harness(db, names, { arbiter: arbiter("cara").op });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
 
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(1);
@@ -1338,9 +1338,9 @@ describe("send — the smart policy (side-LLM turn arbiter + its visible fallbac
         }),
     });
 
-    const sending = h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    const sending = h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
     await arrived;
-    await h.turn.abort({ principal: principal(host), chatId });
+    await h.turn.abort({ principal: await principal(db, host), chatId });
     const outcome = await sending;
 
     expect(outcome.aborted).toBe(true);
@@ -1378,7 +1378,7 @@ describe("send — narrator output (group character authors the turn)", () => {
     const groupCharacterId = await seedCharacter(db, host, "group");
     const h = harness(db, names, { groupCharacterId });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "narrate" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "narrate" });
 
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(1);
@@ -1403,7 +1403,7 @@ describe("send — a stored narrator × smart room reads as Natural: no arbiter 
       },
     });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "narrate" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "narrate" });
 
     expect(arbiterCalls).toBe(0);
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
@@ -1419,7 +1419,7 @@ describe("send — a stored narrator × smart room reads as Natural: no arbiter 
       arbiter: () => Promise.reject(new Error("side-LLM down")),
     });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "narrate" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "narrate" });
 
     expect(warnings(h.events)).toHaveLength(0);
     expect(outcome.messages.filter((m) => m.role === "assistant")).toHaveLength(1);
@@ -1444,7 +1444,7 @@ describe("send — a stored narrator × smart room reads as Natural: no arbiter 
       },
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "narrate" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "narrate" });
 
     expect(arbiterCalls).toBe(0);
     // the human round's narrator turn + 2 chained narrator turns, all authored by the group character.
@@ -1461,7 +1461,7 @@ describe("send — a stored narrator × smart room reads as Natural: no arbiter 
     const groupCharacterId = await seedCharacter(db, host, "group");
     const h = harness(db, names, { groupCharacterId });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "@bryn hello" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "@bryn hello" });
 
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(1);
@@ -1474,7 +1474,7 @@ describe("send — a stored narrator × smart room reads as Natural: no arbiter 
     const groupCharacterId = await seedCharacter(db, host, "group");
     const h = harness(db, names, { groupCharacterId });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "@Gandalf hello" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "@Gandalf hello" });
 
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants).toHaveLength(1);
@@ -1490,7 +1490,7 @@ describe("send — auto-mode AI→AI chain", () => {
     });
     const h = harness(db, names);
 
-    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     // human round (aria, bryn) + 2 chained turns = 4 assistant rows + the 1 user row.
     const canon = await loadCanonHistory(db, chatId);
@@ -1508,7 +1508,7 @@ describe("send — auto-mode AI→AI chain", () => {
     });
     const h = harness(db, names);
 
-    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     const assistants = (await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant");
     // The human round is uncapped (all three, roster order); the three CHAINED turns then rotate past the
@@ -1528,7 +1528,7 @@ describe("send — auto-mode AI→AI chain", () => {
     });
     const h = harness(db, names);
 
-    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     const assistants = (await loadCanonHistory(db, chatId)).filter((m) => m.role === "assistant");
     expect(assistants.map((m) => m.characterId)).toEqual([...chars, ...chars]);
@@ -1558,9 +1558,9 @@ describe("send — auto-mode AI→AI chain", () => {
     };
     const h = harness(db, names, { arbiter: structured });
 
-    const sending = h.turn.send({ principal: principal(host), chatId, content: "who's up?" });
+    const sending = h.turn.send({ principal: await principal(db, host), chatId, content: "who's up?" });
     await arrived; // the chain reached the hung arbitration
-    await h.turn.abort({ principal: principal(host), chatId });
+    await h.turn.abort({ principal: await principal(db, host), chatId });
     const outcome = await sending;
 
     // The chain STOPPED at the hung iteration — the human round (aria) + exactly ONE chained turn (bryn)
@@ -1604,7 +1604,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       },
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "hi" });
 
     expect(seenStop).toEqual(["<END>", "\nUser:"]);
   });
@@ -1619,7 +1619,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       },
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "hi" });
 
     expect(seenStop).toBeUndefined();
   });
@@ -1638,7 +1638,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       },
     });
 
-    await drainImpersonation(h.turn.impersonateStream({ principal: principal(host), chatId }));
+    await drainImpersonation(h.turn.impersonateStream({ principal: await principal(db, host), chatId }));
 
     expect(seenStop).toEqual(["<END>", ...chars.map((id) => `\n${names[id]}:`)]);
   });
@@ -1653,7 +1653,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       },
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "hi" });
 
     expect(seenStop).toBeUndefined();
   });
@@ -1672,7 +1672,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       ],
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     // One initial gen + one auto-continue = 2 generations; the continue extends the single assistant slot.
     expect(generations).toBe(2);
@@ -1694,7 +1694,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       replyTape: [{ content: "all done here", finishReason: "stop" }],
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     expect(generations).toBe(1);
     const canon = await loadCanonHistory(db, chatId);
@@ -1717,7 +1717,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       ],
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     expect(generations).toBe(2); // initial + exactly one continue.
   });
@@ -1729,7 +1729,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       replyTape: [{ content: "too short" }, { content: "a comfortably long reply that clears the bar" }],
     });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     const tip = await loadMessageView(db, outcome.messages.at(-1)?.id ?? castId<MessageId>("x"));
     expect(tip?.variantCount).toBe(2); // the reroll appended a second variant …
@@ -1743,7 +1743,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       replyTape: [{ content: "i'm sorry, i can't help with that" }, { content: "sure, here is the scene" }],
     });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     const tip = await loadMessageView(db, outcome.messages.at(-1)?.id ?? castId<MessageId>("x"));
     expect(tip?.variantCount).toBe(2);
@@ -1761,7 +1761,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       replyTape: [{ content: "nope" }, { content: "still short" }, { content: "again short" }],
     });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     expect(generations).toBe(2); // initial + exactly one swipe.
     const tip = await loadMessageView(db, outcome.messages.at(-1)?.id ?? castId<MessageId>("x"));
@@ -1780,7 +1780,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       replyTape: [{ content: "nope" }, { content: "still short" }, { content: "again short" }],
     });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     expect(generations).toBe(3); // initial + exactly two swipes (the maxRetries=2 bound).
     const tip = await loadMessageView(db, outcome.messages.at(-1)?.id ?? castId<MessageId>("x"));
@@ -1806,7 +1806,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       ],
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     expect(generations).toBe(3); // initial + exactly two continues (the autoContinueRounds=2 bound).
   });
@@ -1825,7 +1825,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       ],
     });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     // Auto-swipe wins (one reroll); auto-continue never runs — so exactly 2 generations and a 2-variant slot.
     expect(generations).toBe(2);
@@ -1844,7 +1844,7 @@ describe("send — custom stopping strings + auto-behaviors", () => {
       replyTape: [{ content: "x", finishReason: "length" }],
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "go" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "go" });
 
     expect(generations).toBe(1);
     const canon = await loadCanonHistory(db, chatId);
@@ -1859,7 +1859,7 @@ describe("send — the D19 triple (run-as-host attribution)", () => {
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const h = harness(db, names);
 
-    const outcome = await h.turn.send({ principal: principal(member), chatId, content: "hi" });
+    const outcome = await h.turn.send({ principal: await principal(db, member), chatId, content: "hi" });
 
     expect(outcome.messages[0]?.authorUserId).toBe(member); // the user row is the caller's
     expect(h.connectionFunders).toEqual([host]);
@@ -1878,7 +1878,7 @@ describe("send — the D19 triple (run-as-host attribution)", () => {
     const attribution = triggeredBySpyRpg();
     const h = harness(db, names, { rpg: attribution.rpg });
 
-    await h.turn.send({ principal: principal(member), chatId, content: "go" });
+    await h.turn.send({ principal: await principal(db, member), chatId, content: "go" });
 
     expect(h.connectionFunders).toEqual([host]);
     expect(attribution.triggeredBy.length).toBeGreaterThan(1);
@@ -1891,9 +1891,9 @@ describe("send — the D19 triple (run-as-host attribution)", () => {
     await seedParticipant(db, { chatId, key: "next-host", userId: nextHost, role: "member" });
     const h = harness(db, names);
 
-    await h.turn.send({ principal: principal(nextHost), chatId, content: "before" });
+    await h.turn.send({ principal: await principal(db, nextHost), chatId, content: "before" });
     await transferHost(chatId, host, nextHost);
-    await h.turn.send({ principal: principal(host), chatId, content: "after" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "after" });
 
     expect(h.connectionFunders).toEqual([host, nextHost]);
   });
@@ -1907,7 +1907,7 @@ describe("send — the D19 triple (run-as-host attribution)", () => {
         funderUserId === host ? Promise.reject(new Error("host has no chat connection")) : Promise.resolve(testConnection("vllm")),
     });
 
-    await expect(h.turn.send({ principal: principal(member), chatId, content: "hi" })).rejects.toThrow("host has no chat connection");
+    await expect(h.turn.send({ principal: await principal(db, member), chatId, content: "hi" })).rejects.toThrow("host has no chat connection");
     expect(h.connectionFunders).toEqual([host]);
     expect(await loadCanonHistory(db, chatId)).toHaveLength(0);
   });
@@ -1917,7 +1917,7 @@ describe("send — the D19 triple (run-as-host attribution)", () => {
     const stranger = await seedUser(db, castId<Handle>("stranger"));
     const h = harness(db, names);
 
-    await expect(h.turn.send({ principal: principal(stranger), chatId, content: "hi" })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(h.turn.send({ principal: await principal(db, stranger), chatId, content: "hi" })).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 });
 
@@ -1949,7 +1949,7 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     const { host, member, chatId, names } = await seedMemberRoom();
     const h = harness(db, names, { readPresence: hostOffline(host) });
 
-    const outcome = await h.turn.send({ principal: principal(member), chatId, content: "hi" });
+    const outcome = await h.turn.send({ principal: await principal(db, member), chatId, content: "hi" });
 
     // The member's message is durable canon; the owed AI turn did NOT run.
     expect(outcome.messages).toHaveLength(1);
@@ -1970,7 +1970,7 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
       readPresence: (userId) => Promise.resolve({ userId, online: false, lastSeenAt: null }),
     });
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "hi" });
 
     // Ran inline: user + assistant, no queued row.
     expect(outcome.messages).toHaveLength(2);
@@ -1984,7 +1984,7 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     const h = harness(db, names, { readPresence: hostOffline(host) });
 
     // DEFER via a real send (exercises insertPendingTurn), then DRAIN on the host's return.
-    await h.turn.send({ principal: principal(member), chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, member), chatId, content: "hi" });
     expect(await loadPendingTurns(db, chatId)).toHaveLength(1);
 
     const report = await h.turn.drainDeferredTurns({ hostUserId: host });
@@ -2029,9 +2029,9 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     const { host, member, chatId, names } = await seedMemberRoom();
     const { h, clocks } = clockDrainHarness(host, names);
 
-    await h.turn.send({ principal: principal(member), chatId, content: "from Kathmandu", timeZone: zone("Asia/Kathmandu") });
+    await h.turn.send({ principal: await principal(db, member), chatId, content: "from Kathmandu", timeZone: zone("Asia/Kathmandu") });
     // The sender travels: their next send reports a different zone; the first queued turn keeps its own.
-    await h.turn.send({ principal: principal(member), chatId, content: "from New York", timeZone: zone("America/New_York") });
+    await h.turn.send({ principal: await principal(db, member), chatId, content: "from New York", timeZone: zone("America/New_York") });
     await expect(h.turn.drainDeferredTurns({ hostUserId: host })).resolves.toStrictEqual({ ran: 2, dropped: 0 });
 
     expect(clocks()).toEqual(["2026-01-16 01:45:00", "2026-01-15 15:00:00"]);
@@ -2041,7 +2041,7 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     const { host, member, chatId, names } = await seedMemberRoom();
     const { h, clocks } = clockDrainHarness(host, names);
 
-    await h.turn.send({ principal: principal(member), chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, member), chatId, content: "hi" });
     expect((await loadPendingTurns(db, chatId))[0]?.timeZone).toBeNull();
     await expect(h.turn.drainDeferredTurns({ hostUserId: host })).resolves.toStrictEqual({ ran: 1, dropped: 0 });
 
@@ -2054,7 +2054,7 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
     await seedParticipant(db, { chatId, key: "deferred-next-host", userId: nextHost, role: "member" });
     const h = harness(db, names, { readPresence: hostOffline(host) });
 
-    await h.turn.send({ principal: principal(member), chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, member), chatId, content: "hi" });
     await transferHost(chatId, host, nextHost);
     h.connectionFunders.splice(0);
 
@@ -2065,7 +2065,7 @@ describe("send / drainDeferredTurns — host-offline defer + reclaim (D16 / Part
   test("the boot reclaim ({all}) drains every chat's queued turns", async () => {
     const { host, member, chatId, names } = await seedMemberRoom();
     const h = harness(db, names, { readPresence: hostOffline(host) });
-    await h.turn.send({ principal: principal(member), chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, member), chatId, content: "hi" });
 
     const report = await h.turn.drainDeferredTurns({ all: true });
 
@@ -2173,7 +2173,7 @@ describe("send — a solo room drives exactly ONE speaker (the deleted simpleSen
     const { host, chatId, chars, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "yo" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "yo" });
 
     expect(outcome.messages).toHaveLength(2);
     expect(outcome.messages[1]?.role).toBe("assistant");
@@ -2187,7 +2187,7 @@ describe("forceCharacterTurn — host-only", () => {
     const h = harness(db, names);
 
     const outcome = await h.turn.forceCharacterTurn({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       characterId: chars[1] as CharacterId,
     });
@@ -2205,7 +2205,7 @@ describe("forceCharacterTurn — host-only", () => {
 
     await expect(
       h.turn.forceCharacterTurn({
-        principal: principal(member),
+        principal: await principal(db, member),
         chatId,
         characterId: chars[0] as CharacterId,
       }),
@@ -2218,7 +2218,7 @@ describe("forceCharacterTurn — host-only", () => {
 
     await expect(
       h.turn.forceCharacterTurn({
-        principal: principal(host),
+        principal: await principal(db, host),
         chatId,
         characterId: castId<CharacterId>("character_ghost"),
       }),
@@ -2236,7 +2236,7 @@ describe("forceCharacterTurn — host-only", () => {
     const h = harness(db, names);
 
     const outcome = await h.turn.forceCharacterTurn({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       characterId: chars[1] as CharacterId,
     });
@@ -2254,7 +2254,7 @@ describe("forceCharacterTurn — host-only", () => {
     });
     const h = harness(db, names);
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "hi all" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "hi all" });
 
     const assistants = outcome.messages.filter((m) => m.role === "assistant");
     expect(assistants.length).toBeGreaterThan(0);
@@ -2277,7 +2277,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
 
     await expect(
       h.turn.generate({
-        principal: principal(member),
+        principal: await principal(db, member),
         chatId,
         speakerCharacterId: castId<CharacterId>("character_foreign"),
       }),
@@ -2301,7 +2301,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
 
     await expect(
       h.turn.generate({
-        principal: principal(member),
+        principal: await principal(db, member),
         chatId,
         speakerCharacterId: departed,
       }),
@@ -2316,7 +2316,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
     const h = harness(db, names);
 
     const outcome = await h.turn.generate({
-      principal: principal(member),
+      principal: await principal(db, member),
       chatId,
       speakerCharacterId: chars[1] as CharacterId,
     });
@@ -2336,7 +2336,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
     const h = harness(db, names);
 
     const outcome = await h.turn.generate({
-      principal: principal(member),
+      principal: await principal(db, member),
       chatId,
       speakerCharacterId: chars[1] as CharacterId,
     });
@@ -2365,7 +2365,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
         withFlag = lastUserText(req);
       },
     });
-    await h1.turn.generate({ principal: principal(host), chatId, afterAssistant: true });
+    await h1.turn.generate({ principal: await principal(db, host), chatId, afterAssistant: true });
     expect(withFlag).toContain("write the next reply"); // the DEFAULT_FORMAT_STRINGS.responseNudge text
 
     let withoutFlag = "sentinel";
@@ -2374,7 +2374,7 @@ describe("generate — member-reachable speaker attribution is presence-gated (f
         withoutFlag = lastUserText(req);
       },
     });
-    await h2.turn.generate({ principal: principal(host), chatId });
+    await h2.turn.generate({ principal: await principal(db, host), chatId });
     expect(withoutFlag).not.toContain("write the next reply"); // no nudge without the flag
   });
 });
@@ -2399,7 +2399,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
     const { host, chatId, chars, names } = await roomAfter("list", ["aria", "bryn"]);
     const h = harness(db, names);
 
-    const outcome = await h.turn.generate({ principal: principal(host), chatId });
+    const outcome = await h.turn.generate({ principal: await principal(db, host), chatId });
 
     expect(assistantsOf(outcome)).toEqual([chars[1]]);
   });
@@ -2408,7 +2408,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
     const { host, chatId, chars, names } = await roomAfter("list", ["aria", "bryn"], { allowSelfResponses: true });
     const h = harness(db, names);
 
-    const outcome = await h.turn.generate({ principal: principal(host), chatId });
+    const outcome = await h.turn.generate({ principal: await principal(db, host), chatId });
 
     expect(assistantsOf(outcome)).toEqual([chars[0]]);
   });
@@ -2417,7 +2417,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
     const { host, chatId, chars, names } = await roomAfter("pooled", ["aria", "bryn", "cara"]);
     const h = harness(db, names);
 
-    const outcome = await h.turn.generate({ principal: principal(host), chatId });
+    const outcome = await h.turn.generate({ principal: await principal(db, host), chatId });
 
     expect(assistantsOf(outcome)).toEqual([chars[1]]);
   });
@@ -2426,7 +2426,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
     const { host, chatId, chars, names } = await roomAfter("natural", ["aria", "bryn", "cara"], { disabledKeys: ["bryn"] });
     const h = harness(db, names);
 
-    const outcome = await h.turn.generate({ principal: principal(host), chatId });
+    const outcome = await h.turn.generate({ principal: await principal(db, host), chatId });
 
     expect(assistantsOf(outcome)).toEqual([chars[2]]);
   });
@@ -2436,7 +2436,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
     const chosen = arbiter("cara");
     const h = harness(db, names, { arbiter: chosen.op });
 
-    const outcome = await h.turn.generate({ principal: principal(host), chatId });
+    const outcome = await h.turn.generate({ principal: await principal(db, host), chatId });
 
     expect(assistantsOf(outcome)).toEqual([chars[2]]);
     expect(chosen.calls()).toBe(1);
@@ -2447,7 +2447,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
     const { host, chatId, chars, names } = await roomAfter("smart", ["aria", "bryn"], { smartPicker: "utility" });
     const h = harness(db, names, { arbiter: () => Promise.reject(new Error("side-LLM down")) });
 
-    const outcome = await h.turn.generate({ principal: principal(host), chatId });
+    const outcome = await h.turn.generate({ principal: await principal(db, host), chatId });
 
     expect(assistantsOf(outcome)).toEqual([chars[1]]);
     expect(warnings(h.events)).toEqual([{ type: "warning", chatId, code: "smart_arbitration_degraded" }]);
@@ -2457,7 +2457,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
     const { host, chatId, names } = await roomAfter("manual", ["aria", "bryn"]);
     const h = harness(db, names);
 
-    const outcome = await h.turn.generate({ principal: principal(host), chatId });
+    const outcome = await h.turn.generate({ principal: await principal(db, host), chatId });
 
     expect(outcome).toEqual({ messages: [], aborted: false, abortReason: undefined });
     expect((await loadCanonHistory(db, chatId)).map((m) => m.seq)).toEqual([1, 2]);
@@ -2470,7 +2470,7 @@ describe("generate — a speakerless reply uses the room's speaker policy, never
     const chosen = arbiter("bryn");
     const h = harness(db, names, { arbiter: chosen.op });
 
-    const outcome = await h.turn.generate({ principal: principal(host), chatId, speakerCharacterId: chars[0] as CharacterId });
+    const outcome = await h.turn.generate({ principal: await principal(db, host), chatId, speakerCharacterId: chars[0] as CharacterId });
 
     expect(assistantsOf(outcome)).toEqual([chars[0]]);
     expect(chosen.calls()).toBe(0);
@@ -2490,7 +2490,7 @@ describe("send / impersonate — an EXPLICIT foreign personaId is refused (cross
     const foreignPersona = await seedPersona(stranger, "stranger_pov");
     const h = harness(db, names);
 
-    await expect(h.turn.send({ principal: principal(member), chatId, content: "hi", personaId: foreignPersona })).rejects.toMatchObject({
+    await expect(h.turn.send({ principal: await principal(db, member), chatId, content: "hi", personaId: foreignPersona })).rejects.toMatchObject({
       code: "not_persona_owner",
     });
     expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "user")).toHaveLength(0);
@@ -2498,7 +2498,9 @@ describe("send / impersonate — an EXPLICIT foreign personaId is refused (cross
     // impersonateStream persists nothing, but the persona still binds the generation's `{{user}}` — a foreign id
     // would read a stranger's private persona name into the assembled prompt, so the ownership belt still fires
     // (on the first `.next()` — draining the stream surfaces the rejection before any delta yields).
-    await expect(drainImpersonation(h.turn.impersonateStream({ principal: principal(member), chatId, personaId: foreignPersona }))).rejects.toMatchObject({
+    await expect(
+      drainImpersonation(h.turn.impersonateStream({ principal: await principal(db, member), chatId, personaId: foreignPersona })),
+    ).rejects.toMatchObject({
       code: "not_persona_owner",
     });
     expect((await loadCanonHistory(db, chatId)).filter((m) => m.role === "user")).toHaveLength(0);
@@ -2513,7 +2515,7 @@ describe("abort — owner-only (rollback-theft defense)", () => {
     const h = harness(db, names);
     using _foreign = h.activeTurns.register(chatId, host);
 
-    await expect(h.turn.abort({ principal: principal(member), chatId })).rejects.toMatchObject({
+    await expect(h.turn.abort({ principal: await principal(db, member), chatId })).rejects.toMatchObject({
       code: "not_turn_owner",
     });
   });
@@ -2523,7 +2525,7 @@ describe("abort — owner-only (rollback-theft defense)", () => {
     const h = harness(db, names);
     using handle = h.activeTurns.register(chatId, host);
 
-    await h.turn.abort({ principal: principal(host), chatId });
+    await h.turn.abort({ principal: await principal(db, host), chatId });
 
     expect(handle.signal.aborted).toBe(true);
     expect(h.activeTurns.countActive(chatId)).toBe(0);
@@ -2532,7 +2534,7 @@ describe("abort — owner-only (rollback-theft defense)", () => {
   test("abort with nothing in flight is a no-op", async () => {
     const { host, chatId, names } = await seedRoom("natural", ["aria"]);
     const h = harness(db, names);
-    await expect(h.turn.abort({ principal: principal(host), chatId })).resolves.toBeUndefined();
+    await expect(h.turn.abort({ principal: await principal(db, host), chatId })).resolves.toBeUndefined();
   });
 
   // RPG-SIGNAL: `activeTurns` covers the GENERATION only — its entry is released the instant the engine turn
@@ -2544,7 +2546,7 @@ describe("abort — owner-only (rollback-theft defense)", () => {
     const h = harness(db, names, { rpg: stateRoundCancellingRpg(cancels, 0) });
     using _mine = h.activeTurns.register(chatId, host);
 
-    await h.turn.abort({ principal: principal(host), chatId });
+    await h.turn.abort({ principal: await principal(db, host), chatId });
 
     expect(cancels).toEqual([{ chatId, userId: host }]); // scoped to the CALLER, mirroring activeTurns.abort
   });
@@ -2561,7 +2563,7 @@ describe("abort — owner-only (rollback-theft defense)", () => {
     const h = harness(db, names, { rpg: stateRoundCancellingRpg(cancels, 1) });
     using _foreign = h.activeTurns.register(chatId, host);
 
-    await expect(h.turn.abort({ principal: principal(member), chatId })).resolves.toBeUndefined();
+    await expect(h.turn.abort({ principal: await principal(db, member), chatId })).resolves.toBeUndefined();
 
     expect(cancels).toEqual([{ chatId, userId: member }]);
   });
@@ -2595,7 +2597,7 @@ describe("guided steer routing (the chat design doc §6)", () => {
     const h = harness(db, names, { onChatRequest: (r) => requests.push(r) });
 
     await h.turn.send({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       content: "hi",
       guided: { action: "response", input: "be dramatic" },
@@ -2613,7 +2615,7 @@ describe("guided steer routing (the chat design doc §6)", () => {
     const requests: unknown[] = [];
     const h = harness(db, names, { onChatRequest: (r) => requests.push(r) });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "hi" });
 
     expect(JSON.stringify(requests)).not.toContain("special consideration");
   });
@@ -2625,7 +2627,7 @@ describe("guided steer routing (the chat design doc §6)", () => {
 
     await drainImpersonation(
       h.turn.impersonateStream({
-        principal: principal(host),
+        principal: await principal(db, host),
         chatId,
         guided: { action: "impersonate", input: "ask about the ruins", person: "third" },
       }),
@@ -2645,7 +2647,7 @@ describe("guided steer routing (the chat design doc §6)", () => {
 
     await drainImpersonation(
       h.turn.impersonateStream({
-        principal: principal(host),
+        principal: await principal(db, host),
         chatId,
         guided: { action: "impersonate", input: "ask about the ruins" },
       }),
@@ -2672,7 +2674,7 @@ describe("guided steer routing (the chat design doc §6)", () => {
     const h = harness(db, { [cid]: "aria" }, { onChatRequest: (r) => requests.push(r) });
 
     // NO guided steer → the unsteered impersonate nudge is the only steering appended.
-    await drainImpersonation(h.turn.impersonateStream({ principal: principal(host), chatId }));
+    await drainImpersonation(h.turn.impersonateStream({ principal: await principal(db, host), chatId }));
 
     const wire = JSON.stringify(requests);
     // {{user}}→persona name (harness "Alex"), {{char}}→character name ("aria"), {{person}}→the "first"
@@ -2744,7 +2746,7 @@ describe("F1 — injection_trigger gate is wired per TurnKind (not hardcoded nor
       onChatRequest: (r) => requests.push(r),
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "hi" });
 
     const wire = JSON.stringify(requests);
     expect(wire).toContain(NORMAL_MARK);
@@ -2765,7 +2767,7 @@ describe("F1 — injection_trigger gate is wired per TurnKind (not hardcoded nor
       onChatRequest: (r) => requests.push(r),
     });
 
-    await h.turn.swipe({ principal: principal(host), chatId, messageId });
+    await h.turn.swipe({ principal: await principal(db, host), chatId, messageId });
 
     const wire = JSON.stringify(requests);
     expect(wire).not.toContain(NORMAL_MARK);
@@ -2786,7 +2788,7 @@ describe("F1 — injection_trigger gate is wired per TurnKind (not hardcoded nor
       onChatRequest: (r) => requests.push(r),
     });
 
-    await h.turn.continueTurn({ principal: principal(host), chatId, messageId });
+    await h.turn.continueTurn({ principal: await principal(db, host), chatId, messageId });
 
     const wire = JSON.stringify(requests);
     expect(wire).toContain(CONTINUE_MARK);
@@ -2805,7 +2807,7 @@ describe("swipe — append-variant on an existing assistant slot (D26)", () => {
     });
     const h = harness(db, names);
 
-    const outcome = await h.turn.swipe({ principal: principal(host), chatId, messageId });
+    const outcome = await h.turn.swipe({ principal: await principal(db, host), chatId, messageId });
 
     expect(outcome.messages).toHaveLength(1);
     expect(outcome.messages[0]?.id).toBe(messageId);
@@ -2824,7 +2826,7 @@ describe("swipe — append-variant on an existing assistant slot (D26)", () => {
       content: "hi",
     });
     const h = harness(db, names);
-    await expect(h.turn.swipe({ principal: principal(host), chatId, messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
+    await expect(h.turn.swipe({ principal: await principal(db, host), chatId, messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
   });
 });
 
@@ -3032,7 +3034,7 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
       },
       { content: PrivateRestoreBody, reasoning: PrivateRestoreReasoning },
     );
-    const view = await f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId });
+    const view = await f.h.turn[method]({ principal: await principal(db, f.host), chatId: f.chatId, messageId: f.messageId });
     expect(view.content).toBe(method === "undoContinue" ? "Before.After." : "Before.After.A.");
     expect(view.reasoning).toBeNull();
     expect(view.toolCalls[0]).toMatchObject({ toolCallId: f.base.toolCallId, textOffset: 13, exchangeTextEnd: 13 });
@@ -3059,7 +3061,9 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
         },
         { content: PrivateRestoreBody, reasoning: PrivateRestoreReasoning },
       );
-      await expect(f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId })).rejects.toBeInstanceOf(ChatNotFoundError);
+      await expect(f.h.turn[method]({ principal: await principal(db, f.host), chatId: f.chatId, messageId: f.messageId })).rejects.toBeInstanceOf(
+        ChatNotFoundError,
+      );
       await committedRestoration(f, method);
     },
   );
@@ -3070,7 +3074,7 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
       .update(chatParticipants)
       .set({ joinSeq: 2, joinHistoryVisibility: "from-join" })
       .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, f.host)));
-    const view = await f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId });
+    const view = await f.h.turn[method]({ principal: await principal(db, f.host), chatId: f.chatId, messageId: f.messageId });
     expect(view.content).toBe(method === "undoContinue" ? PrivateRestoreBody : `${PrivateRestoreBody}A.`);
     expect(view.reasoning).toBe(method === "undoContinue" ? PrivateRestoreReasoning : `${PrivateRestoreReasoning}RA.`);
     expect(view.toolCalls[0]?.textOffset).toBe(PrivateRestoreBody.length);
@@ -3088,7 +3092,7 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
         .update(chatParticipants)
         .set({ joinHistoryVisibility: "from-join" })
         .where(and(eq(chatParticipants.chatId, f.chatId), eq(chatParticipants.userId, member)));
-      const view = await f.h.turn[method]({ principal: principal(member), chatId: f.chatId, messageId: f.messageId });
+      const view = await f.h.turn[method]({ principal: await principal(db, member), chatId: f.chatId, messageId: f.messageId });
       expect(view.seq).toBe(1);
       expect(view.content).toBe(method === "undoContinue" ? "Before.After." : "Before.After.A.");
       expect(view.reasoning).toBeNull();
@@ -3105,7 +3109,7 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
       db = held.db;
       const f = await restoreFixture(method, ids);
       const gate = held.hold(/update "message_variants" set[\s\S]*case when json_type\([\s\S]*continuationTools/u);
-      const pending = f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId });
+      const pending = f.h.turn[method]({ principal: await principal(db, f.host), chatId: f.chatId, messageId: f.messageId });
       const refusal = expect(pending).rejects.toBeInstanceOf(race === "membership" ? ChatNotFoundError : ChatOperationError);
       await gate.reached;
       const mutations: Record<RestoreRace, () => Promise<void>> = {
@@ -3179,7 +3183,7 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
 
   test.for(RESTORE_METHODS)("restore-first %s leaves a coherent private snapshot; the next generation may then replace it", async (method, { ids }) => {
     const f = await restoreFixture(method, ids);
-    const view = await f.h.turn[method]({ principal: principal(f.host), chatId: f.chatId, messageId: f.messageId });
+    const view = await f.h.turn[method]({ principal: await principal(db, f.host), chatId: f.chatId, messageId: f.messageId });
     const undone = method === "undoContinue";
     expect(view.content).toBe(undone ? "Base." : "Base.A.");
     expect(view.reasoning).toBe(undone ? "R0." : "R0.RA.");
@@ -3214,10 +3218,10 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
       })
       .where(eq(messageVariants.id, variantId));
     const h = harness(db, names);
-    const undone = await h.turn.undoContinue({ principal: principal(host), chatId, messageId });
+    const undone = await h.turn.undoContinue({ principal: await principal(db, host), chatId, messageId });
     expect(undone.content).toBe("Before.");
     expect(undone.toolCalls).toEqual([]);
-    const reverted = await h.turn.revertContinue({ principal: principal(host), chatId, messageId });
+    const reverted = await h.turn.revertContinue({ principal: await principal(db, host), chatId, messageId });
     expect(reverted.content).toBe("Before.");
     expect(reverted.toolCalls).toEqual([record]);
     const [stored] = await db.select().from(messageVariants).where(eq(messageVariants.id, variantId));
@@ -3234,14 +3238,14 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
     });
     const h = harness(db, names);
 
-    const cont = await h.turn.continueTurn({ principal: principal(host), chatId, messageId });
+    const cont = await h.turn.continueTurn({ principal: await principal(db, host), chatId, messageId });
     expect(cont.messages[0]?.content).toBe("Once upon a timeHi there");
 
-    const undone = await h.turn.undoContinue({ principal: principal(host), chatId, messageId });
+    const undone = await h.turn.undoContinue({ principal: await principal(db, host), chatId, messageId });
     expect(undone.content).toBe("Once upon a time");
     expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(1);
 
-    const reverted = await h.turn.revertContinue({ principal: principal(host), chatId, messageId });
+    const reverted = await h.turn.revertContinue({ principal: await principal(db, host), chatId, messageId });
     expect(reverted.content).toBe("Once upon a timeHi there");
     expect((await db.select().from(statsCanonVersions).where(eq(statsCanonVersions.ownerId, host)))[0]?.version).toBe(2);
   });
@@ -3286,14 +3290,14 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
       );
       return rows[0]?.row.content ?? [];
     };
-    await h.turn.continueTurn({ principal: principal(host), chatId, messageId });
+    await h.turn.continueTurn({ principal: await principal(db, host), chatId, messageId });
     expect(await replay()).toEqual([
       { type: "text", text: "The secret word is", thoughtSignature: "prefix-proof" },
       { type: "text", text: " ORBIT.", thoughtSignature: "suffix-proof" },
     ]);
-    await h.turn.undoContinue({ principal: principal(host), chatId, messageId });
+    await h.turn.undoContinue({ principal: await principal(db, host), chatId, messageId });
     expect(await replay()).toEqual([{ type: "text", text: "The secret word is", thoughtSignature: "prefix-proof" }]);
-    await h.turn.revertContinue({ principal: principal(host), chatId, messageId });
+    await h.turn.revertContinue({ principal: await principal(db, host), chatId, messageId });
     expect(await replay()).toEqual([
       { type: "text", text: "The secret word is", thoughtSignature: "prefix-proof" },
       { type: "text", text: " ORBIT.", thoughtSignature: "suffix-proof" },
@@ -3311,7 +3315,7 @@ describe("continueTurn / undoContinue / revertContinue — extend in place (D26)
       content: "plain",
     });
     const h = harness(db, names);
-    await expect(h.turn.undoContinue({ principal: principal(host), chatId, messageId })).rejects.toMatchObject({ code: "no_continuation" });
+    await expect(h.turn.undoContinue({ principal: await principal(db, host), chatId, messageId })).rejects.toMatchObject({ code: "no_continuation" });
   });
 });
 
@@ -3324,7 +3328,7 @@ describe("impersonateStream — a NON-PERSISTING, STREAMING user-line generation
     // Collect the deltas — each `onText` from the generation stream yields one `{ delta }` (the scripted
     // runner emits the reply as one text delta; the client CT proves multi-delta progressive fill).
     const deltas: string[] = [];
-    for await (const { delta } of h.turn.impersonateStream({ principal: principal(host), chatId })) {
+    for await (const { delta } of h.turn.impersonateStream({ principal: await principal(db, host), chatId })) {
       deltas.push(delta);
     }
 
@@ -3358,7 +3362,7 @@ describe("impersonateStream — a NON-PERSISTING, STREAMING user-line generation
     const seen: { signal: AbortSignal | undefined } = { signal: undefined };
     const h = harness(db, names, { runChatTurn: parkingStream(seen) });
 
-    const iter = h.turn.impersonateStream({ principal: principal(host), chatId })[Symbol.asyncIterator]();
+    const iter = h.turn.impersonateStream({ principal: await principal(db, host), chatId })[Symbol.asyncIterator]();
     expect((await iter.next()).value?.delta).toContain("drafted");
 
     // The in-flight draft is visible to the room's turn registry — which is the ONLY thing `abort` can see.
@@ -3374,7 +3378,7 @@ describe("impersonateStream — a NON-PERSISTING, STREAMING user-line generation
     const seen: { signal: AbortSignal | undefined } = { signal: undefined };
     const h = harness(db, names, { runChatTurn: parkingStream(seen) });
 
-    const iter = h.turn.impersonateStream({ principal: principal(host), chatId })[Symbol.asyncIterator]();
+    const iter = h.turn.impersonateStream({ principal: await principal(db, host), chatId })[Symbol.asyncIterator]();
     await iter.next();
     expect(seen.signal?.aborted).toBe(false);
 
@@ -3401,12 +3405,12 @@ describe("generate — LOCK-FREE (runs concurrent with a held send lock)", () =>
     // human send interleaved): the user row commits, the speaker turn is refused by the lock, driveRound
     // stops with what committed so far. (The deleted simpleSend hit the engine directly and REJECTED
     // `locked` — the round path's yield is the production behavior.)
-    const locked = await h.turn.send({ principal: principal(host), chatId, content: "blocked" });
+    const locked = await h.turn.send({ principal: await principal(db, host), chatId, content: "blocked" });
     expect(locked.messages).toHaveLength(1);
     expect(locked.messages[0]?.role).toBe("user");
 
     // …but the lock-free generate commits concurrently.
-    const outcome = await h.turn.generate({ principal: principal(host), chatId });
+    const outcome = await h.turn.generate({ principal: await principal(db, host), chatId });
     expect(outcome.messages).toHaveLength(1);
     expect(outcome.messages[0]?.role).toBe("assistant");
     expect(outcome.messages[0]?.characterId).toBe(chars[0]);
@@ -3428,7 +3432,7 @@ describe("send — SEND USER_INPUT regex (D53; the chat design doc §2/§7)", ()
     const h = harness(db, names, { hostTierRegexScripts: [script] });
 
     const outcome = await h.turn.send({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       content: "this is a badword here",
     });
@@ -3449,7 +3453,7 @@ describe("send — SEND USER_INPUT regex (D53; the chat design doc §2/§7)", ()
     const h = harness(db, names);
 
     const outcome = await h.turn.send({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       content: "raw badword text",
     });
@@ -3520,7 +3524,7 @@ describe("cross-chat IDOR (F1) — swipe/continue/undo must be scoped to chatId"
     // Bob (host of A, non-member of B) targets B's assistant message via A → leak-free NOT_FOUND…
     await expect(
       h.turn.swipe({
-        principal: principal(room.bob),
+        principal: await principal(db, room.bob),
         chatId: room.attackerChat,
         messageId: room.victimMessageId,
       }),
@@ -3528,7 +3532,7 @@ describe("cross-chat IDOR (F1) — swipe/continue/undo must be scoped to chatId"
     // …indistinguishable from a genuinely nonexistent message in A.
     await expect(
       h.turn.swipe({
-        principal: principal(room.bob),
+        principal: await principal(db, room.bob),
         chatId: room.attackerChat,
         messageId: ghost,
       }),
@@ -3547,14 +3551,14 @@ describe("cross-chat IDOR (F1) — swipe/continue/undo must be scoped to chatId"
 
     await expect(
       h.turn.continueTurn({
-        principal: principal(room.bob),
+        principal: await principal(db, room.bob),
         chatId: room.attackerChat,
         messageId: room.victimMessageId,
       }),
     ).rejects.toBeInstanceOf(ChatNotFoundError);
     await expect(
       h.turn.continueTurn({
-        principal: principal(room.bob),
+        principal: await principal(db, room.bob),
         chatId: room.attackerChat,
         messageId: ghost,
       }),
@@ -3571,7 +3575,7 @@ describe("cross-chat IDOR (F1) — swipe/continue/undo must be scoped to chatId"
     // Alice legitimately continues M in B → writes the D26 snapshot columns + extends the content (so the
     // foreign undo below WOULD succeed against an unscoped loader — this is the real exploit precondition).
     const cont = await h.turn.continueTurn({
-      principal: principal(room.alice),
+      principal: await principal(db, room.alice),
       chatId: room.victimChat,
       messageId: room.victimMessageId,
     });
@@ -3580,7 +3584,7 @@ describe("cross-chat IDOR (F1) — swipe/continue/undo must be scoped to chatId"
     // Bob (member of A, non-member of B) tries to roll back B's continuation via A → no_continuation…
     await expect(
       h.turn.undoContinue({
-        principal: principal(room.bob),
+        principal: await principal(db, room.bob),
         chatId: room.attackerChat,
         messageId: room.victimMessageId,
       }),
@@ -3588,7 +3592,7 @@ describe("cross-chat IDOR (F1) — swipe/continue/undo must be scoped to chatId"
     // …indistinguishable from a nonexistent message in A (both hit the empty-snapshot refusal).
     await expect(
       h.turn.undoContinue({
-        principal: principal(room.bob),
+        principal: await principal(db, room.bob),
         chatId: room.attackerChat,
         messageId: ghost,
       }),
@@ -3616,7 +3620,7 @@ describe("storage stays RAW (D51) — macros in message content are never resolv
     const h = harness(db, names, { content: "{{char}} nods at {{user}}." });
 
     const outcome = await h.turn.send({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       content: "{{user}} waves at {{char}}.",
     });
@@ -3657,7 +3661,7 @@ describe("requestTurn — the non-human turn seam (walls: depth · authority)", 
     expect(replyId).toBeDefined();
     expect(replyId !== undefined ? await loadTurnOrigin(db, chatId, replyId) : null).toEqual({ initiator: "automation", automationDepth: 2 });
     // A human turn in the same room stays byte-identical: its reply is born human/depth-0 (the column defaults).
-    const send = await h.turn.send({ principal: principal(host), chatId, content: "hi" });
+    const send = await h.turn.send({ principal: await principal(db, host), chatId, content: "hi" });
     const humanReplyId = send.messages[1]?.id;
     expect(humanReplyId !== undefined ? await loadTurnOrigin(db, chatId, humanReplyId) : null).toEqual({ initiator: "human", automationDepth: 0 });
   });
@@ -3763,7 +3767,7 @@ describe("WAVE MU — user-macro random-pick delivery + swipe replay (the REAL a
     const h = harness(db, names, { promptConfig: userMacroPromptConfig(), onChatRequest: (r) => requests.push(r) });
 
     // ── The SEND: a fresh draw renders into the assembled prompt + persists onto the committed variant. ──
-    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    const sent = await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
     const drawn = drawnToneFrom(requests.at(-1));
     expect(drawn).toBeDefined();
     expect(MOOD_POOL).toContain(drawn);
@@ -3779,7 +3783,7 @@ describe("WAVE MU — user-macro random-pick delivery + swipe replay (the REAL a
     if (replyId === undefined) {
       throw new Error("expected an assistant reply to swipe");
     }
-    await h.turn.swipe({ principal: principal(host), chatId, messageId: replyId });
+    await h.turn.swipe({ principal: await principal(db, host), chatId, messageId: replyId });
     const swipeDrawn = drawnToneFrom(requests.at(-1));
     // THE PIN: the swipe's prompt carries the ORIGINAL drawn value (replay, not a fresh draw).
     expect(swipeDrawn).toBe(drawn);
@@ -3798,7 +3802,7 @@ describe("WAVE MU — user-macro random-pick delivery + swipe replay (the REAL a
     const target = await loadSlotTarget(db, chatId, messageId);
     expect(target?.macroDraws).toBeNull(); // no record to replay
 
-    await h.turn.swipe({ principal: principal(host), chatId, messageId });
+    await h.turn.swipe({ principal: await principal(db, host), chatId, messageId });
     const drawn = drawnToneFrom(requests.at(-1));
     expect(MOOD_POOL).toContain(drawn); // a fresh draw happened
     const after = await loadSlotTarget(db, chatId, messageId);
@@ -3816,7 +3820,7 @@ describe("WAVE MU — user-macro random-pick delivery + swipe replay (the REAL a
     const prng = (): number => seq[Math.min(i++, seq.length - 1)] ?? 0;
     const h = harness(db, names, { promptConfig: userMacroPromptConfig(), onChatRequest: (r) => requests.push(r), prng });
 
-    const sent1 = await h.turn.send({ principal: principal(host), chatId, content: "one" });
+    const sent1 = await h.turn.send({ principal: await principal(db, host), chatId, content: "one" });
     const drawn1 = drawnToneFrom(requests.at(-1));
     expect(drawn1).toBe("grim");
     const reply1 = sent1.messages.find((m) => m.role === "assistant")?.id;
@@ -3824,7 +3828,7 @@ describe("WAVE MU — user-macro random-pick delivery + swipe replay (the REAL a
 
     // ── A NEW send: a FRESH draw (not the prior turn's frozen record) — a new slot, a new value. ──
     requests.length = 0;
-    const sent2 = await h.turn.send({ principal: principal(host), chatId, content: "two" });
+    const sent2 = await h.turn.send({ principal: await principal(db, host), chatId, content: "two" });
     const drawn2 = drawnToneFrom(requests.at(-1));
     expect(drawn2).toBe("wry");
     expect(drawn2).not.toBe(drawn1); // the new turn drew fresh, in the prompt…
@@ -3845,7 +3849,7 @@ describe("WAVE MU — user-macro random-pick delivery + swipe replay (the REAL a
     // A prng that would draw index 0 (grim) from the FULL pool — proving the STORE, not the prng, chose "warm".
     const h = harness(db, names, { promptConfig: userMacroPromptConfig(), onChatRequest: (r) => requests.push(r), prng: () => 0 });
 
-    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    const sent = await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
     // The stored pick narrowed the pool to ["warm"], so the turn resolves + records "warm" (not the prng's grim).
     expect(drawnToneFrom(requests.at(-1))).toBe("warm");
     const replyId = sent.messages.find((m) => m.role === "assistant")?.id;
@@ -3862,7 +3866,7 @@ describe("WAVE MU — user-macro random-pick delivery + swipe replay (the REAL a
       replyTape: [{ content: "part one", finishReason: "length" }, { content: " part two" }],
     });
 
-    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    const sent = await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
     const drawn = drawnToneFrom(requests.at(-1));
     expect(MOOD_POOL).toContain(drawn);
     const replyId = sent.messages.find((m) => m.role === "assistant")?.id;
@@ -3872,7 +3876,7 @@ describe("WAVE MU — user-macro random-pick delivery + swipe replay (the REAL a
 
     // ── The CONTINUE: re-assembles through the verb; the prompt carries the ORIGINAL drawn value (replay). ──
     requests.length = 0;
-    await h.turn.continueTurn({ principal: principal(host), chatId, messageId: replyId });
+    await h.turn.continueTurn({ principal: await principal(db, host), chatId, messageId: replyId });
     expect(drawnToneFrom(requests.at(-1))).toBe(drawn); // the extension prompt replays the same draw
     // The continued variant re-stamps the identical record (never nulled by the in-place continue write).
     expect((await loadSlotTarget(db, chatId, replyId))?.macroDraws).toEqual({ mood: { tone: drawn } });
@@ -3942,7 +3946,7 @@ describe("WAVE MU — the GAME's user macros (the second definition home) throug
       onChatRequest: (r) => requests.push(r),
     });
 
-    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    const sent = await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
     expect(drawnToneFrom(requests.at(-1))).toBe("doomed"); // the game's def rendered, via its declared default
     const replyId = sent.messages.find((m) => m.role === "assistant")?.id;
     // A single-select never draws → the committed record is empty (nothing to replay on a swipe).
@@ -3960,7 +3964,7 @@ describe("WAVE MU — the GAME's user macros (the second definition home) throug
       prng: () => 0, // would draw "grim" from the preset's pool if the preset's def had survived
     });
 
-    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    const sent = await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
     expect(drawnToneFrom(requests.at(-1))).toBe("doomed");
     const replyId = sent.messages.find((m) => m.role === "assistant")?.id;
     expect(replyId !== undefined ? (await loadSlotTarget(db, chatId, replyId))?.macroDraws : undefined).toEqual({});
@@ -3979,7 +3983,7 @@ describe("WAVE MU — the GAME's user macros (the second definition home) throug
       onChatRequest: (r) => requests.push(r),
     });
 
-    await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
     expect(drawnToneFrom(requests.at(-1))).toBe("hopeful"); // the pick keyed by NAME, not by source
   });
 
@@ -3992,7 +3996,7 @@ describe("WAVE MU — the GAME's user macros (the second definition home) throug
       onChatRequest: (r) => requests.push(r),
     });
 
-    const sent = await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+    const sent = await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
     const drawn = drawnToneFrom(requests.at(-1));
     expect(MOOD_POOL).toContain(drawn);
     const replyId = sent.messages.find((m) => m.role === "assistant")?.id;
@@ -4080,7 +4084,7 @@ test("R1 end-to-end: a send mounts the gather's terminal tools on the wire and h
     },
   );
 
-  const out = await h.turn.send({ principal: makePrincipal(host), chatId, content: "I cross the river." });
+  const out = await h.turn.send({ principal: await makePrincipal({ db }, host), chatId, content: "I cross the river." });
 
   // The gather's tools reached the request as the TERMINAL set (the wire's `auto`, which keeps the prose safe,
   // is `@orb/inference`'s projection of it — tests/legacy/inference/roles/chat-request.test.ts).
@@ -4120,7 +4124,7 @@ test("R1 end-to-end: a game turn that mounts NO terminal tools hands the flush a
     },
   );
 
-  await h.turn.send({ principal: makePrincipal(host), chatId, content: "I cross the river." });
+  await h.turn.send({ principal: await makePrincipal({ db }, host), chatId, content: "I cross the river." });
 
   expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
   // NULL, not `[]` — the consumer must be able to tell "no fold happened" from "the fold found nothing".
@@ -4160,7 +4164,7 @@ test("R2 end-to-end: a teaching contribution's declared tool name reaches the WI
     onChatRequest: (req) => requests.push(req),
   });
 
-  await h.turn.send({ principal: principal(host), chatId, content: "how long have we walked?" });
+  await h.turn.send({ principal: await principal(db, host), chatId, content: "how long have we walked?" });
 
   const attached = requests[0] as TurnRequest;
   expect(attached.tools?.offer?.definitions.map((t) => t.name)).toEqual(["tick_clock"]);
@@ -4176,7 +4180,7 @@ test("R2 end-to-end: the SAME declaration on a tools-INCAPABLE model is dropped 
     onChatRequest: (req) => requests.push(req),
   });
 
-  await h.turn.send({ principal: principal(host), chatId, content: "how long have we walked?" });
+  await h.turn.send({ principal: await principal(db, host), chatId, content: "how long have we walked?" });
 
   expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
 });
@@ -4186,7 +4190,7 @@ test("R2 end-to-end: NO contribution declares a name — the request carries no 
   const requests: unknown[] = [];
   const h = harness(db, names, { tools: fakeChatToolOps(), connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });
 
-  await h.turn.send({ principal: principal(host), chatId, content: "hello" });
+  await h.turn.send({ principal: await principal(db, host), chatId, content: "hello" });
 
   expect((requests[0] as { tools?: unknown }).tools).toBeUndefined();
 });
@@ -4205,22 +4209,22 @@ test("R2 end-to-end: a REAL plugin registration reaches the WIRE, and a deactiva
     name: "plugin_mood_report",
     description: "report the mood",
     parameters: { type: "object", properties: {}, additionalProperties: false },
-    installer: principal(host),
+    installer: await principal(db, host),
     invoke: () => Promise.resolve("ok"),
     resolveInstallerAuthority: () => Promise.resolve({ canRead: true, canWrite: true }),
   });
-  const toolOps = buildChatToolOps(toolUse, (userId) => Promise.resolve(principal(userId)));
+  const toolOps = buildChatToolOps(toolUse, async (userId) => Promise.resolve(await principal(db, userId)));
   const teaching = createToolUseTeachingContributions({ listDrivableToolNames: toolUse.listDrivableToolNames });
   const h = harness(db, names, { teaching, tools: toolOps, connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });
 
-  await h.turn.send({ principal: principal(host), chatId, content: "how do we feel?" });
+  await h.turn.send({ principal: await principal(db, host), chatId, content: "how do we feel?" });
   expect((requests[0] as TurnRequest).tools?.offer?.definitions.map((t) => t.name)).toEqual(["plugin_mood_report"]);
 
   // The owner switches the plugin off between turns. `resolveTools` THROWS on an unknown name at attach, so a
   // contribution that had cached its list would fail this send outright; the read-through contribution simply
   // stops naming it, and the turn ships tool-less exactly as it would for a host with no plugins at all.
   handle.unregister();
-  await h.turn.send({ principal: principal(host), chatId, content: "and now?" });
+  await h.turn.send({ principal: await principal(db, host), chatId, content: "and now?" });
   expect((requests[1] as { tools?: unknown }).tools).toBeUndefined();
 });
 
@@ -4233,25 +4237,25 @@ test("R2 end-to-end: a STRANGER holds the same plugin tool name, and the host's 
   const { host, chatId, names } = await seedRoom("attach_shared", ["aria"]);
   const stranger = await seedUser(db, castId<Handle>("shared_stranger"));
   const toolUse = createToolUseService({ can: (() => undefined) as Can, clock: () => 0 });
-  const specFor = (installerUserId: UserId, description: string): Parameters<typeof toolUse.registerPluginTool>[0] => ({
+  const specFor = async (installerUserId: UserId, description: string): Promise<Parameters<typeof toolUse.registerPluginTool>[0]> => ({
     name: "plugin_mood_report",
     description,
     parameters: { type: "object", properties: {}, additionalProperties: false },
-    installer: principal(installerUserId),
+    installer: await principal(db, installerUserId),
     invoke: () => Promise.resolve("ok"),
     resolveInstallerAuthority: () => Promise.resolve({ canRead: true, canWrite: true }),
   });
   // The stranger enables FIRST — pre-fix this squatted the name and the room host's own activation would have
   // thrown; post-fix both are resident and the turn must pick the host's.
-  toolUse.registerPluginTool(specFor(stranger, "the stranger's copy"));
-  toolUse.registerPluginTool(specFor(host, "the host's copy"));
+  toolUse.registerPluginTool(await specFor(stranger, "the stranger's copy"));
+  toolUse.registerPluginTool(await specFor(host, "the host's copy"));
 
   const requests: unknown[] = [];
-  const toolOps = buildChatToolOps(toolUse, (userId) => Promise.resolve(principal(userId)));
+  const toolOps = buildChatToolOps(toolUse, async (userId) => Promise.resolve(await principal(db, userId)));
   const teaching = createToolUseTeachingContributions({ listDrivableToolNames: toolUse.listDrivableToolNames });
   const h = harness(db, names, { teaching, tools: toolOps, connection: TOOLS_CONNECTION, onChatRequest: (req) => requests.push(req) });
 
-  await h.turn.send({ principal: principal(host), chatId, content: "how do we feel?" });
+  await h.turn.send({ principal: await principal(db, host), chatId, content: "how do we feel?" });
 
   // The wire `description` is the observable that says WHICH copy rode — the NAME is identical by construction,
   // so a resolve that picked "whoever registered first" would ship the stranger's tool into this room.
@@ -4283,7 +4287,7 @@ test("M2: a chat with NO rpg game contributes no window — a stored card rides 
   const requests: unknown[] = [];
   const h = harness(db, names, { onChatRequest: (req) => requests.push(req) });
 
-  await h.turn.generate({ principal: principal(host), chatId });
+  await h.turn.generate({ principal: await principal(db, host), chatId });
 
   const texts = historyTexts(requests[0]);
   expect(texts.some((t) => t.includes("multi-KB html blob"))).toBe(true);
@@ -4299,7 +4303,7 @@ test("M2: a GAME turn's explicit cardKeepLastX:0 still stubs every stored card (
   const gameRpg = { ...rpg, gatherTurnContext: () => Promise.resolve({ macros: {}, injections: [], tools: [], cardKeepLastX: 0 }) };
   const h = harness(db, names, { rpg: gameRpg as NonNullable<ChatContext["rpg"]>, onChatRequest: (req) => requests.push(req) });
 
-  await h.turn.generate({ principal: principal(host), chatId });
+  await h.turn.generate({ principal: await principal(db, host), chatId });
 
   const texts = historyTexts(requests[0]);
   expect(texts.some((t) => t.includes("[card: Terminal]"))).toBe(true);
@@ -4345,7 +4349,7 @@ test("S1: the rpg post-turn flush is registered BEFORE the turnCompleted emit (a
   const timeline: string[] = [];
   const h = harness(db, { [charA]: "Aria" }, { rpg: fireOrderRpg(timeline), onEmit: (e) => timeline.push(e.type) });
 
-  await h.turn.send({ principal: makePrincipal(host), chatId, content: "I cross the river." });
+  await h.turn.send({ principal: await makePrincipal({ db }, host), chatId, content: "I cross the river." });
 
   const fired = timeline.indexOf(RPG_FIRE_MARK);
   const completed = timeline.indexOf("turnCompleted");
@@ -4399,8 +4403,8 @@ test("the post-turn rpg round opens its OWN request trace (it outlives the reque
   const h = harness(db, { [charA]: "Aria" }, { rpg });
 
   // The turn runs INSIDE a request root, exactly as production runs it under the tRPC span.
-  await withRequestSpan(OUTER_REQUEST_ID, "http POST /api/trpc/chat.send", {}, () =>
-    h.turn.send({ principal: makePrincipal(host), chatId, content: "I cross the river." }),
+  await withRequestSpan(OUTER_REQUEST_ID, "http POST /api/trpc/chat.send", {}, async () =>
+    h.turn.send({ principal: await makePrincipal({ db }, host), chatId, content: "I cross the river." }),
   );
   await rounded;
 
@@ -4451,8 +4455,8 @@ test("the send-path rpg user-commit opens its OWN request trace (it outlives the
   } as unknown as NonNullable<ChatContext["rpg"]>;
   const h = harness(db, { [charA]: "Aria" }, { rpg });
 
-  await withRequestSpan(USER_COMMIT_OUTER_REQUEST_ID, "http POST /api/trpc/chat.send", {}, () =>
-    h.turn.send({ principal: makePrincipal(host), chatId, content: "I ford the river." }),
+  await withRequestSpan(USER_COMMIT_OUTER_REQUEST_ID, "http POST /api/trpc/chat.send", {}, async () =>
+    h.turn.send({ principal: await makePrincipal({ db }, host), chatId, content: "I ford the river." }),
   );
   await committed;
 
@@ -4501,11 +4505,11 @@ test("VER-1b: a SWIPE tells the rpg gather which slot it regenerates; a SEND tel
   const { slots, rpg } = gatherSpyRpg();
   const h = harness(db, { [charA]: "Aria" }, { rpg });
 
-  await h.turn.swipe({ principal: makePrincipal(host), chatId, messageId });
+  await h.turn.swipe({ principal: await makePrincipal({ db }, host), chatId, messageId });
   // The swipe's `append-variant` target — the same slot its canon context stops before.
   expect(slots).toEqual([messageId]);
 
   // A fresh turn regenerates nothing: the gather resolves the head, exactly as before (byte-identical arm).
-  await h.turn.send({ principal: makePrincipal(host), chatId, content: "and then?" });
+  await h.turn.send({ principal: await makePrincipal({ db }, host), chatId, content: "and then?" });
   expect(slots.at(-1)).toBeUndefined();
 });

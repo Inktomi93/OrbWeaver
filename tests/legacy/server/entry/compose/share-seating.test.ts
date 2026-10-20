@@ -4,17 +4,22 @@
 
 import type { Principal } from "@orb/contracts/identity";
 import type { AppSettings } from "@orb/contracts/settings";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { Db } from "@orb/db";
+import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createEnableShareSeating } from "@orb/server/domain/share";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 const OWNER = castId<UserId>("user_owner");
 const BOTH_ON: AppSettings = { localMultiUser: true, discreetLogin: true };
+// The seating op reads no user rows; the owner resolves from a row in one in-memory database.
+const callersDb = await freshDb();
 
-function ownerPrincipal(userId: UserId): Principal {
-  return { userId, role: "owner", handle: castId<Handle>("owner"), externalId: null, via: "cookie" };
+async function ownerPrincipal(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role: "owner" });
 }
 
 interface Seating {
@@ -40,7 +45,7 @@ function harness(
       return Promise.resolve();
     },
     getOwnerUserId: () => Promise.resolve((options.ownerRow ?? true) ? OWNER : undefined),
-    resolvePrincipal: (userId) => Promise.resolve(ownerPrincipal(userId)),
+    resolvePrincipal: (userId) => ownerPrincipal(callersDb, userId),
   });
   return { op, writes };
 }
@@ -51,9 +56,10 @@ describe("createEnableShareSeating", () => {
     { localMultiUser: true, discreetLogin: false },
     { localMultiUser: false, discreetLogin: true },
   ])("with %o it turns both on in one write, as the owner", async (start) => {
+    const db = await freshDb();
     const { op, writes } = harness(start);
     await op();
-    expect(writes).toEqual([{ principal: ownerPrincipal(OWNER), partial: BOTH_ON }]);
+    expect(writes).toEqual([{ principal: await ownerPrincipal(db, OWNER), partial: BOTH_ON }]);
   });
 
   test("control: with both on it writes nothing, and its restore writes nothing", async () => {
@@ -63,18 +69,20 @@ describe("createEnableShareSeating", () => {
   });
 
   test("the restore puts back only what it turned on: a stored override as stored, a default by clearing its override", async () => {
+    const db = await freshDb();
     const { op, writes } = harness({ localMultiUser: false, discreetLogin: false }, { stored: { discreetLogin: false } });
     await (await op())();
     expect(writes).toEqual([
-      { principal: ownerPrincipal(OWNER), partial: BOTH_ON },
-      { principal: ownerPrincipal(OWNER), partial: { localMultiUser: null, discreetLogin: false } },
+      { principal: await ownerPrincipal(db, OWNER), partial: BOTH_ON },
+      { principal: await ownerPrincipal(db, OWNER), partial: { localMultiUser: null, discreetLogin: false } },
     ]);
   });
 
   test("a setting that was already on is not touched by the restore", async () => {
+    const db = await freshDb();
     const { op, writes } = harness({ localMultiUser: true, discreetLogin: false }, { stored: { localMultiUser: true } });
     await (await op())();
-    expect(writes[1]).toEqual({ principal: ownerPrincipal(OWNER), partial: { discreetLogin: null } });
+    expect(writes[1]).toEqual({ principal: await ownerPrincipal(db, OWNER), partial: { discreetLogin: null } });
   });
 
   test("with no owner row it throws and writes nothing", async () => {

@@ -54,7 +54,7 @@ describe("findByHandle", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const detail = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("assistant"), name: "Assistant", description: "the welcome assistant" },
     });
 

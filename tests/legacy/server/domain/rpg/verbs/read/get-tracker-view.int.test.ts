@@ -23,7 +23,7 @@ describe("getTrackerView — the turnless-game default-state synthesis (no born 
     const participants = [participantUser(castId<Handle>("host"), "The Host"), participantCharacter("gorak", "Gorak")];
     const { chatId, h } = await seedLiteGame(db, { participants });
 
-    const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
+    const view = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
     // No snapshot ⇒ synthesized default: null ambient, empty quests/cast/beats.
     expect(view.ambient).toBeNull();
     expect(view.quests).toEqual([]);
@@ -39,15 +39,15 @@ describe("getTrackerView — the turnless-game default-state synthesis (no born 
     const participants = [participantUser(castId<Handle>("host"), "The Host")]; // only the host is a participant
     const { chatId, h } = await seedLiteGame(db, { participants });
     // Re-seed the game with the d20 profile (seedLiteGame defaults to freeform) — patch a sheet referencing it.
-    await h.service.updateConfig({ principal: principal(castId<Handle>("host")), chatId, patch: { statProfile: RPG_PROFILE_D20 } });
+    await h.service.updateConfig({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { statProfile: RPG_PROFILE_D20 } });
     await h.service.patchSheet({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       actorRef: { kind: "user", userId: hostId },
       patch: { className: "Wizard", attributes: { str: 8 } },
     });
 
-    const view = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
+    const view = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
     expect(view.actors).toHaveLength(1); // only the participant actor is projected
     expect(view.actors[0]?.sheet.className).toBe("Wizard");
     expect(view.actors[0]?.sheet.attributes["str"]).toBe(8);
@@ -59,11 +59,11 @@ describe("getTrackerView — the turnless-game default-state synthesis (no born 
     const { chatId, h } = await seedLiteGame(db, { participants });
 
     // Render the SYNTHESIZED default (no snapshot rows — the no-born-seed ruling).
-    const synthesized = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
+    const synthesized = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
     // An empty hand-edit turn PERSISTS the default via clone-forward (mints the first snapshot). The rendered
     // view must not drift from the synthesized one — the synthesis and the persisted-empty state are the same.
-    await h.service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: {} });
-    const persisted = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
+    await h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: {} });
+    const persisted = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
 
     expect(persisted).toEqual(synthesized);
   });
@@ -83,20 +83,20 @@ describe("getTrackerView — hidden spans are the HOST's plane, not the member's
     const { chatId, h } = await seedLiteGame(db);
     h.fakes.membership.set("user_member", "member");
     await h.service.editSnapshot({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       patch: { location: `The docks ${HIDDEN}` },
     });
     await h.service.upsertQuest({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       name: `Find the key ${HIDDEN}`,
       status: "active",
       description: `It is in the vault ${HIDDEN}`,
     });
 
-    const memberView = await h.service.getTrackerView({ principal: principal(castId<Handle>("member")), chatId });
-    const hostView = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
+    const memberView = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("member")), chatId });
+    const hostView = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
 
     // The member never receives the truth BYTES on any free-text plane, at any depth.
     expect(JSON.stringify(memberView)).not.toContain(TRUTH);
@@ -114,14 +114,14 @@ describe("getTrackerView — hidden spans are the HOST's plane, not the member's
     const { chatId, h } = await seedLiteGame(db, { participants: [participantUser(castId<Handle>("host"), "The Host")] });
     h.fakes.membership.set("user_member", "member");
     await h.service.patchActor({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       targetRef: { kind: "user", userId: hostId },
       ops: [{ op: "addItem", item: { name: `Bone key ${HIDDEN}`, description: `taken from ${HIDDEN}` } }],
     });
 
-    const memberView = await h.service.getTrackerView({ principal: principal(castId<Handle>("member")), chatId });
-    const hostView = await h.service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId });
+    const memberView = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("member")), chatId });
+    const hostView = await h.service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
 
     expect(JSON.stringify(memberView)).not.toContain(TRUTH);
     expect(JSON.stringify(hostView)).toContain(TRUTH);

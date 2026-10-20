@@ -4,7 +4,6 @@
 
 import type { Db } from "@orb/db";
 import { messages, rpgCheckpoints, rpgSnapshots } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatId, Handle, MessageId, MessageVariantId, RpgCheckpointId, RpgSnapshotId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { PostNarratorMessage } from "@orb/server/domain/chat";
@@ -15,7 +14,7 @@ import { beforeEach, describe } from "vitest";
 import { createRpgService } from "#server/domain/rpg/index.ts";
 import { resolveSnapshotForTurn } from "#server/domain/rpg/persistence/snapshots.ts";
 import { createRpgRestorePost } from "#server/entry/compose/rpg.ts";
-import { makeChatContext, noClaim, seedCharacter, seedParticipant, seedUser } from "../../../chat/_support.ts";
+import { chatAssembly, makeChatContext, noClaim, seedCharacter, seedParticipant, seedUser } from "../../../chat/_support.ts";
 import type { RpgHarness } from "../../_support.ts";
 import { expect, principal, seedLiteGame, seedMessage, test } from "../../_support.ts";
 
@@ -27,16 +26,16 @@ beforeEach(async () => {
 describe("restoreCheckpoint", () => {
   test("clones the checkpointed snapshot forward onto a NEW narrator slot, born committed", async () => {
     const { chatId, gameId, h } = await seedLiteGame(db);
-    await h.service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "The Ruins" } });
-    const checkpointId = await h.service.createCheckpoint({ principal: principal(castId<Handle>("host")), chatId, label: "before the fight" });
+    await h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "The Ruins" } });
+    const checkpointId = await h.service.createCheckpoint({ principal: await principal(db, castId<Handle>("host")), chatId, label: "before the fight" });
 
     // Move on: change the location.
-    await h.service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "The Aftermath" } });
+    await h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "The Aftermath" } });
     expect((await resolveSnapshotForTurn(db, { id: gameId, chatId }))?.location).toBe("The Aftermath");
 
     // Restore: the checkpointed "The Ruins" clones forward onto a NEW narrator slot, born committed.
     const postsBefore = h.fakes.narratorPosts.length;
-    await h.service.restoreCheckpoint({ principal: principal(castId<Handle>("host")), chatId, checkpointId });
+    await h.service.restoreCheckpoint({ principal: await principal(db, castId<Handle>("host")), chatId, checkpointId });
     expect(h.fakes.narratorPosts.length).toBe(postsBefore + 1); // a fresh narrator slot was minted
     const restored = await resolveSnapshotForTurn(db, { id: gameId, chatId });
     expect(restored?.location).toBe("The Ruins");
@@ -57,12 +56,12 @@ describe("restoreCheckpoint", () => {
     });
     const service = createRpgService({ ...h.ctx, postNarratorMessage: createRpgRestorePost(post) });
 
-    await expect(service.restoreCheckpoint({ principal: principal(castId<Handle>("host")), chatId, checkpointId })).rejects.toThrow();
+    await expect(service.restoreCheckpoint({ principal: await principal(db, castId<Handle>("host")), chatId, checkpointId })).rejects.toThrow();
     expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(beforeMessages.length);
     expect(await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId))).toHaveLength(beforeSnapshots.length);
     expect(h.fakes.busEvents).toHaveLength(beforeBusEvents);
 
-    await service.restoreCheckpoint({ principal: principal(castId<Handle>("host")), chatId, checkpointId });
+    await service.restoreCheckpoint({ principal: await principal(db, castId<Handle>("host")), chatId, checkpointId });
     const afterMessages = await db.select().from(messages).where(eq(messages.chatId, chatId));
     const afterSnapshots = await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId));
     expect(afterMessages).toHaveLength(beforeMessages.length + 1);
@@ -91,12 +90,12 @@ describe("restoreCheckpoint", () => {
       postNarratorMessage: createRpgRestorePost(post),
     });
 
-    await expect(service.restoreCheckpoint({ principal: principal(castId<Handle>("host")), chatId, checkpointId })).rejects.toThrow();
+    await expect(service.restoreCheckpoint({ principal: await principal(db, castId<Handle>("host")), chatId, checkpointId })).rejects.toThrow();
     expect(await db.select().from(messages).where(eq(messages.chatId, chatId))).toHaveLength(beforeMessages.length);
     expect(await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId))).toHaveLength(beforeSnapshots.length);
     expect(h.fakes.busEvents).toHaveLength(beforeBusEvents);
 
-    await service.restoreCheckpoint({ principal: principal(castId<Handle>("host")), chatId, checkpointId });
+    await service.restoreCheckpoint({ principal: await principal(db, castId<Handle>("host")), chatId, checkpointId });
     const afterMessages = await db.select().from(messages).where(eq(messages.chatId, chatId));
     const afterSnapshots = await db.select().from(rpgSnapshots).where(eq(rpgSnapshots.gameId, gameId));
     expect(afterMessages).toHaveLength(beforeMessages.length + 1);
@@ -109,8 +108,8 @@ describe("restoreCheckpoint", () => {
 });
 
 async function seedCheckpointedState(chatId: ChatId, h: RpgHarness): Promise<RpgCheckpointId> {
-  await h.service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "The Ruins" } });
-  return h.service.createCheckpoint({ principal: principal(castId<Handle>("host")), chatId, label: "before the fight" });
+  await h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "The Ruins" } });
+  return h.service.createCheckpoint({ principal: await principal(db, castId<Handle>("host")), chatId, label: "before the fight" });
 }
 
 async function realNarratorPost(
@@ -125,7 +124,7 @@ async function realNarratorPost(
     ...(ids.messageId === undefined ? {} : { newMessageId: ids.messageId }),
     ...(ids.variantId === undefined ? {} : { newMessageVariantId: ids.variantId }),
   });
-  return createPostNarratorMessage({ ...ctx, db: databaseHandle(ctx.db) }, { emit: () => Promise.resolve(), claimChat: noClaim });
+  return createPostNarratorMessage(chatAssembly(ctx), { emit: () => Promise.resolve(), claimChat: noClaim });
 }
 
 function sequence<T>(first: T, second: T): () => T {

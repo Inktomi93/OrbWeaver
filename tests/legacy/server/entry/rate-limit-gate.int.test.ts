@@ -26,7 +26,7 @@ import type { Db } from "@orb/db";
 import { rateLimitBuckets } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { DomainRateLimitError } from "@orb/kit/errors";
-import type { Handle, UserId } from "@orb/kit/ids";
+import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { env } from "@orb/server/foundation/env";
 import type { RateLimitDecision } from "@orb/server/transport/trpc";
@@ -36,6 +36,7 @@ import { like } from "drizzle-orm";
 import { describe } from "vitest";
 import { layer } from "#server/domain/settings/effective-config/layer.ts";
 import { createRateLimitGate } from "#server/entry/rate-limit-gate.ts";
+import { principal as makePrincipal } from "../../db/schema/_support.ts";
 
 const WINDOW = env.RATE_LIMIT_WINDOW_MS;
 // ALIGNED to a fixed-window boundary on purpose: the limiter floors `now` to `windowStart`, so an arbitrary
@@ -65,12 +66,12 @@ function gateAt(db: Db, clock: { now: number }, overrides: AppSettings = {}): Re
   return createRateLimitGate({ db: databaseHandle(db), now: () => clock.now, resolveRateLimits: () => layer(overrides).rateLimits });
 }
 
-function principalFor(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>(userId), externalId: null, via: "header" };
+async function principalFor(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId);
 }
 
-function authedCall(userId: UserId, path: string): RateLimitDecision {
-  return { path, type: "mutation", principal: principalFor(userId), clientIp: "9.9.9.9" };
+async function authedCall(db: Db, userId: UserId, path: string): Promise<RateLimitDecision> {
+  return { path, type: "mutation", principal: await principalFor(db, userId), clientIp: "9.9.9.9" };
 }
 
 /** A test-local UserId mint — the buckets key on it, so the pins below name their callers by brand. */
@@ -100,7 +101,7 @@ describe("rate-limit gate — the $/GPU classification is exact (no free-turn le
     // One call per spending path, each by its OWN user so a per-path miss is visible as a missing row
     // rather than being absorbed into a shared counter.
     for (const [i, path] of SPENDING_PATHS.entries()) {
-      await enforce(authedCall(uid(`user_spend_${i}`), path));
+      await enforce(await authedCall(db, uid(`user_spend_${i}`), path));
     }
 
     const aiTurnKeys = await keysInScope(db, "ai-turn");
@@ -116,7 +117,7 @@ describe("rate-limit gate — the $/GPU classification is exact (no free-turn le
     const { enforce } = gateAt(db, clock);
 
     for (const [i, path] of NON_SPENDING_PATHS.entries()) {
-      await enforce(authedCall(uid(`user_cheap_${i}`), path));
+      await enforce(await authedCall(db, uid(`user_cheap_${i}`), path));
     }
 
     expect(await keysInScope(db, "ai-turn")).toEqual([]);
@@ -130,8 +131,8 @@ describe("rate-limit gate — the $/GPU classification is exact (no free-turn le
     const { enforce } = gateAt(db, clock);
 
     // `chat.sendSomethingElse` shares the `chat.send` PREFIX — a `startsWith` classifier would tax it.
-    await enforce(authedCall(uid("user_unknown"), "chat.sendSomethingElse"));
-    await enforce(authedCall(uid("user_unknown"), "character.list"));
+    await enforce(await authedCall(db, uid("user_unknown"), "chat.sendSomethingElse"));
+    await enforce(await authedCall(db, uid("user_unknown"), "character.list"));
 
     expect(await keysInScope(db, "ai-turn")).toEqual([]);
   });
@@ -143,9 +144,9 @@ describe("rate-limit gate — the $/GPU classification is exact (no free-turn le
     const cap = env.RATE_LIMIT_AI_TURN;
 
     for (let i = 0; i < cap; i += 1) {
-      await enforce(authedCall(uid("user_order"), "chat.send"));
+      await enforce(await authedCall(db, uid("user_order"), "chat.send"));
     }
-    await expect(enforce(authedCall(uid("user_order"), "chat.send"))).rejects.toBeInstanceOf(DomainRateLimitError);
+    await expect(enforce(await authedCall(db, uid("user_order"), "chat.send"))).rejects.toBeInstanceOf(DomainRateLimitError);
 
     // `cap` allowed turns debited general `cap` times; the REFUSED one threw out of ai-turn.consume before
     // the general consume ran, so the general count is still exactly `cap`.
@@ -166,12 +167,12 @@ describe("rate-limit gate — per-principal / per-IP isolation (one caller's flo
     const cap = env.RATE_LIMIT_AI_TURN;
 
     for (let i = 0; i < cap; i += 1) {
-      await enforce(authedCall(uid("user_flood"), "chat.send"));
+      await enforce(await authedCall(db, uid("user_flood"), "chat.send"));
     }
-    await expect(enforce(authedCall(uid("user_flood"), "chat.send"))).rejects.toBeInstanceOf(DomainRateLimitError);
+    await expect(enforce(await authedCall(db, uid("user_flood"), "chat.send"))).rejects.toBeInstanceOf(DomainRateLimitError);
 
     // The victim of a shared/constant key would already be refused here.
-    await expect(enforce(authedCall(uid("user_bystander"), "chat.send"))).resolves.toBeUndefined();
+    await expect(enforce(await authedCall(db, uid("user_bystander"), "chat.send"))).resolves.toBeUndefined();
   });
 
   // The arm above rides the AI-TURN bucket, which trips first and therefore hides how `general` is keyed —
@@ -182,11 +183,11 @@ describe("rate-limit gate — per-principal / per-IP isolation (one caller's flo
     const clock = { now: T0 };
     const { enforce } = gateAt(db, clock, { rateLimits: { authed: 2 } });
 
-    await enforce(authedCall(uid("user_gen_flood"), "chat.listChats"));
-    await enforce(authedCall(uid("user_gen_flood"), "chat.listChats"));
-    await expect(enforce(authedCall(uid("user_gen_flood"), "chat.listChats"))).rejects.toBeInstanceOf(DomainRateLimitError);
+    await enforce(await authedCall(db, uid("user_gen_flood"), "chat.listChats"));
+    await enforce(await authedCall(db, uid("user_gen_flood"), "chat.listChats"));
+    await expect(enforce(await authedCall(db, uid("user_gen_flood"), "chat.listChats"))).rejects.toBeInstanceOf(DomainRateLimitError);
 
-    await expect(enforce(authedCall(uid("user_gen_bystander"), "chat.listChats"))).resolves.toBeUndefined();
+    await expect(enforce(await authedCall(db, uid("user_gen_bystander"), "chat.listChats"))).resolves.toBeUndefined();
     // …and the rows say why: one bucket per userId, never one shared row.
     const keys = await keysInScope(db, "general");
     expect(keys).toHaveLength(2);
@@ -224,18 +225,18 @@ describe("rate-limit gate — the window is the ENV window (a wrong window silen
     const cap = env.RATE_LIMIT_AI_TURN;
 
     for (let i = 0; i < cap; i += 1) {
-      await enforce(authedCall(uid("user_window"), "chat.send"));
+      await enforce(await authedCall(db, uid("user_window"), "chat.send"));
     }
-    await expect(enforce(authedCall(uid("user_window"), "chat.send"))).rejects.toBeInstanceOf(DomainRateLimitError);
+    await expect(enforce(await authedCall(db, uid("user_window"), "chat.send"))).rejects.toBeInstanceOf(DomainRateLimitError);
 
     // Fixed window: T0 and T0+WINDOW-1 floor to the SAME bucket start, so the refusal must survive.
     clock.now = T0 + WINDOW - 1;
-    await expect(enforce(authedCall(uid("user_window"), "chat.send"))).rejects.toBeInstanceOf(DomainRateLimitError);
+    await expect(enforce(await authedCall(db, uid("user_window"), "chat.send"))).rejects.toBeInstanceOf(DomainRateLimitError);
 
     // …and the very next ms opens a fresh bucket. A gate wired with windowMs=0 (or a per-request window)
     // would already have passed the assertion above; a window far larger than env's would fail this one.
     clock.now = T0 + WINDOW;
-    await expect(enforce(authedCall(uid("user_window"), "chat.send"))).resolves.toBeUndefined();
+    await expect(enforce(await authedCall(db, uid("user_window"), "chat.send"))).resolves.toBeUndefined();
   });
 });
 
@@ -250,13 +251,13 @@ describe("rate-limit gate — the restart bucket outlives the restart it throttl
     const clock = { now: RestartT0 };
     for (let i = 0; i < RestartCap; i += 1) {
       // Each restart ends the process, so every call rides a new gate: only the durable rows carry the count.
-      await gateAt(db, clock).enforce(authedCall(uid("user_owner"), "admin.restart"));
+      await gateAt(db, clock).enforce(await authedCall(db, uid("user_owner"), "admin.restart"));
     }
-    await expect(gateAt(db, clock).enforce(authedCall(uid("user_owner"), "admin.restart"))).rejects.toBeInstanceOf(DomainRateLimitError);
+    await expect(gateAt(db, clock).enforce(await authedCall(db, uid("user_owner"), "admin.restart"))).rejects.toBeInstanceOf(DomainRateLimitError);
     // Control: the owner's ordinary requests still pass, and the restart bucket reopens with the next window.
-    await expect(gateAt(db, clock).enforce(authedCall(uid("user_owner"), "admin.listUsers"))).resolves.toBeUndefined();
+    await expect(gateAt(db, clock).enforce(await authedCall(db, uid("user_owner"), "admin.listUsers"))).resolves.toBeUndefined();
     clock.now = RestartT0 + RestartWindowMs;
-    await expect(gateAt(db, clock).enforce(authedCall(uid("user_owner"), "admin.restart"))).resolves.toBeUndefined();
+    await expect(gateAt(db, clock).enforce(await authedCall(db, uid("user_owner"), "admin.restart"))).resolves.toBeUndefined();
     expect(await keysInScope(db, "restart")).toHaveLength(2);
   });
 });

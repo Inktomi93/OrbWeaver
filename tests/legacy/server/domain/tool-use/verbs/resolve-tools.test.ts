@@ -8,17 +8,20 @@
 // @subject packages/server/src/domain/tool-use/verbs/resolve-tools.ts
 
 import { castId } from "@orb/kit/ids";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import type { PluginToolSpec } from "#server/domain/tool-use/index.ts";
 import { createToolUseService, ToolNotFoundError } from "#server/domain/tool-use/index.ts";
+import { principal } from "../../../../db/schema/_support.ts";
 import { ANY_DRIVER, defOf, execOf, makeHarness } from "../_support.ts";
 
 const okHandler = (): Promise<{ ok: true; value: unknown }> => Promise.resolve({ ok: true, value: null });
 
-const ALICE = principal(castId("user_alice"), { handle: castId("alice") });
-const BOB = principal(castId("user_bob"), { handle: castId("bob") });
+// These callers resolve from rows in one in-memory database; the subject under test reads no database of its own.
+const callersDb = await freshDb();
+const ALICE = await principal({ db: callersDb }, castId("user_alice"), { handle: castId("alice") });
+const BOB = await principal({ db: callersDb }, castId("user_bob"), { handle: castId("bob") });
 
 /** Two installers' copies of the SAME plugin: identical namespaced name, distinct planted behavior. */
 function sharedSpec(installer: typeof ALICE, echo: string): PluginToolSpec {
@@ -54,6 +57,7 @@ test("a builtin resolves for EVERY driver — first-party tools live on the shel
 });
 
 test("#677: each driver resolves to THEIR OWN copy of a shared plugin tool name, not the first registered", async () => {
+  const db = await freshDb();
   // THE DEFECT PIN, at the seam that decides which code runs. Alice enables first; pre-fix Bob's activation
   // could not even register (name squatted), and the shape this replaces it with must not merely let Bob
   // register — it must route Bob's invocation to BOB's plugin. The behaviors are planted distinctly precisely
@@ -63,8 +67,8 @@ test("#677: each driver resolves to THEIR OWN copy of a shared plugin tool name,
   svc.registerPluginTool(sharedSpec(BOB, "bobs-copy"));
 
   const call = { toolCallId: "c1", name: "plugin_shared_report", arguments: "{}" };
-  const forAlice = await svc.executeToolCalls(svc.resolveTools(ALICE.userId, ["plugin_shared_report"]), [call], execOf());
-  const forBob = await svc.executeToolCalls(svc.resolveTools(BOB.userId, ["plugin_shared_report"]), [call], execOf());
+  const forAlice = await svc.executeToolCalls(svc.resolveTools(ALICE.userId, ["plugin_shared_report"]), [call], await execOf(db));
+  const forBob = await svc.executeToolCalls(svc.resolveTools(BOB.userId, ["plugin_shared_report"]), [call], await execOf(db));
 
   expect(forAlice[0]?.result).toBe("alices-copy");
   expect(forBob[0]?.result).toBe("bobs-copy");

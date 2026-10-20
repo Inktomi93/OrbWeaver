@@ -3,6 +3,7 @@ import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — the same malformed payload leaves identical state on all three delivery paths, the born-folded fallback, quest updates, the mounted terminal tools and the prompt-cache property.
 
 import { RPG_TOOL_ROUND_TOOL_NAMES, rpgTrackerDefSchema } from "@orb/contracts/rpg";
+import type { Db } from "@orb/db";
 import type { ChatId, ChatTurnId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { logger } from "@orb/server/foundation/observability";
@@ -43,8 +44,8 @@ function mixedExtractionText(): string {
 
 /** The DURABLE survivors of a turn, read back through the real views — the thing the three paths must agree on
  *  (ids/timestamps excluded: they are per-run mints, not semantics). */
-async function survivingState(compose: ReturnType<typeof buildRpg>, hostId: UserId, chatId: ChatId): Promise<unknown> {
-  const principal = hostPrincipal(hostId);
+async function survivingState(db: Db, compose: ReturnType<typeof buildRpg>, hostId: UserId, chatId: ChatId): Promise<unknown> {
+  const principal = await hostPrincipal(db, hostId);
   const view = await compose.service.getTrackerView({ principal, chatId });
   const journal = await compose.service.listJournal({ principal, chatId, limit: 50 });
   return {
@@ -62,8 +63,8 @@ test("EXT-4a: the SAME malformed payload leaves IDENTICAL state on all three del
   // (1) STRUCTURED — the schema emission (the agent-sdk degrade), salvaged per plane / per entry.
   const rel = await seedHostGameChat(db, "ext4-structured");
   const relCompose = buildCannedRpgWithText({ app, db, api: "agent-sdk", spy: emptySpy(), cannedText: mixedExtractionText() });
-  await relCompose.service.createGame({ principal: hostPrincipal(rel.hostId), chatId: rel.chatId, mode: "lite" });
-  await relCompose.service.updateConfig({ principal: hostPrincipal(rel.hostId), chatId: rel.chatId, extractionMode: "cheap" });
+  await relCompose.service.createGame({ principal: await hostPrincipal(db, rel.hostId), chatId: rel.chatId, mode: "lite" });
+  await relCompose.service.updateConfig({ principal: await hostPrincipal(db, rel.hostId), chatId: rel.chatId, extractionMode: "cheap" });
   const relSlot = await seedMessage(db, rel.chatId, 1, { role: "assistant", content: "They ford the river." });
   await relCompose.chatOps.onTurnCompleted(rel.chatId, relSlot.messageId, relSlot.variantId, TURN, tc("agent-sdk"));
 
@@ -77,22 +78,22 @@ test("EXT-4a: the SAME malformed payload leaves IDENTICAL state on all three del
     cannedText: "{}",
     cannedToolCalls: MIXED_CALLS.map((c) => ({ name: c.name, arguments: JSON.stringify(c.args) })),
   });
-  await cheapCompose.service.createGame({ principal: hostPrincipal(cheap.hostId), chatId: cheap.chatId, mode: "lite" });
-  await cheapCompose.service.updateConfig({ principal: hostPrincipal(cheap.hostId), chatId: cheap.chatId, extractionMode: "cheap" });
+  await cheapCompose.service.createGame({ principal: await hostPrincipal(db, cheap.hostId), chatId: cheap.chatId, mode: "lite" });
+  await cheapCompose.service.updateConfig({ principal: await hostPrincipal(db, cheap.hostId), chatId: cheap.chatId, extractionMode: "cheap" });
   const cheapSlot = await seedMessage(db, cheap.chatId, 1, { role: "assistant", content: "They ford the river." });
   await cheapCompose.chatOps.onTurnCompleted(cheap.chatId, cheapSlot.messageId, cheapSlot.variantId, TURN, tc("chat-completions"));
 
   // (3) FOLDED — the character turn's own co-emitted calls.
   const fold = await seedHostGameChat(db, "ext4-folded");
   const foldCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
-  await foldCompose.service.createGame({ principal: hostPrincipal(fold.hostId), chatId: fold.chatId, mode: "lite" });
+  await foldCompose.service.createGame({ principal: await hostPrincipal(db, fold.hostId), chatId: fold.chatId, mode: "lite" });
   const foldSlot = await seedMessage(db, fold.chatId, 1, { role: "assistant", content: "They ford the river." });
   await foldCompose.chatOps.onTurnCompleted(fold.chatId, foldSlot.messageId, foldSlot.variantId, TURN, foldedTurn(MIXED_CALLS));
 
   const survivors = await Promise.all([
-    survivingState(relCompose, rel.hostId, rel.chatId),
-    survivingState(cheapCompose, cheap.hostId, cheap.chatId),
-    survivingState(foldCompose, fold.hostId, fold.chatId),
+    survivingState(db, relCompose, rel.hostId, rel.chatId),
+    survivingState(db, cheapCompose, cheap.hostId, cheap.chatId),
+    survivingState(db, foldCompose, fold.hostId, fold.chatId),
   ]);
   // THE INVARIANT: three vehicles, one outcome.
   expect(survivors[1]).toEqual(survivors[0]);
@@ -124,14 +125,14 @@ test("EXT-4a: a totally unparseable structured payload is still one WARN + an em
   const warnSpy = vi.spyOn(logger, "warn");
   const { chatId, hostId } = await seedHostGameChat(db, "ext4-garbage");
   const rpgCompose = buildCannedRpgWithText({ app, db, api: "agent-sdk", spy: emptySpy(), cannedText: "I'm sorry, I can't do that." });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Nothing lands." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
   const line = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.unparseable");
   expect((line?.[0] as { dropped?: { plane: string }[] })?.dropped).toEqual([{ plane: "root", index: null, issues: ["expected a JSON object"] }]);
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient).toBeNull(); // nothing salvageable ⇒ no snapshot at all (the non-writing turn)
 });
 
@@ -143,15 +144,15 @@ test("BORN FOLDED: a FRESH game on an agent-sdk wire still lands state — via t
   const { chatId, hostId } = await seedHostGameChat(db, "born-folded-sdk");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" }); // NO updateConfig — born folded
-  expect((await rpgCompose.service.getGame({ principal: hostPrincipal(hostId), chatId })).extractionMode).toBe("folded");
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" }); // NO updateConfig — born folded
+  expect((await rpgCompose.service.getGame({ principal: await hostPrincipal(db, hostId), chatId })).extractionMode).toBe("folded");
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
 
   // `terminalToolCalls: null` = the character turn could not mount the tools (the agent-sdk wire).
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
   // The state landed anyway (cheap's round on agent-sdk rides the SAME structured extraction — shared plane).
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.ambient?.location).toBe("the obsidian tower");
   // …and the extra call the fold exists to delete is VISIBLE in the trail, named.
   const path = warnSpy.mock.calls.find((c) => (c[0] as { event?: string }).event === "rpg.extraction.path");
@@ -161,7 +162,7 @@ test("BORN FOLDED: a FRESH game on an agent-sdk wire still lands state — via t
 test("EXT-4c: a quest UPDATE restating its objectives keeps the completed ones (composed-real, folded)", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "ext4-quest");
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
 
   // Beat 1: the quest is created with two objectives.
   const slot1 = await seedMessage(db, chatId, 1, { role: "assistant", content: "The task opens." });
@@ -188,7 +189,7 @@ test("EXT-4c: a quest UPDATE restating its objectives keeps the completed ones (
     ]),
   );
 
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.quests[0]?.objectives.map((o) => ({ text: o.text, completed: o.completed }))).toEqual([
     { text: "Find the road", completed: true },
     { text: "Enter the vault", completed: false },
@@ -201,14 +202,14 @@ test("EXT-4c: a quest UPDATE restating its objectives keeps the completed ones (
 test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the fold changes delivery, not schema)", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "r1-tools");
   const rpgCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
 
   // The host's opt-out (cheap) mounts NONE — the two-call arm never touches the character turn's wire.
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const built = await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: hostId });
   expect(built?.terminalTools).toBeUndefined();
 
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "folded" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "folded" });
   const folded = await rpgCompose.chatOps.gatherTurnContext({ chatId, pendingUserText: undefined, respondsToLatestUserTurn: false, funderUserId: hostId });
   // The SAME tools the dedicated round sends, in the same order, incl. the `no_changes` escape. R6: this game
   // defines NO game-subject tracker, so `set_tracker` is OMITTED ENTIRELY (a disabled feature's tool is absent,
@@ -250,7 +251,7 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
   // R6/R2 — define a game tracker + a party tracker: the tool APPEARS, its key enum binds, and the party
   // description names the host's tracker by label AND gloss (the write surface is a per-game assembly).
   await rpgCompose.service.updateConfig({
-    principal: hostPrincipal(hostId),
+    principal: await hostPrincipal(db, hostId),
     chatId,
     patch: {
       trackers: [
@@ -290,7 +291,7 @@ test("R1: the mounted terminal tools ARE the round's set, ref-constrained (the f
 // regardless — must keep the live enums. Both halves, on one game, driven through the real graph.
 test("PROMPT-CACHE (probe F4): a gained actor + condition leave the FOLDED tools byte-identical; the ROUND keeps live enums", async ({ app, db }) => {
   const { chatId, hostId } = await seedHostGameChat(db, "f4-cache-stability");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const foldCompose = buildCannedRpg(app, db, "chat-completions", emptySpy());
   await foldCompose.service.createGame({ principal, chatId, mode: "lite" });
   await foldCompose.service.updateConfig({ principal, chatId, extractionMode: "folded" });

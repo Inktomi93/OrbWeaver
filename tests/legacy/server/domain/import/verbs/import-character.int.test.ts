@@ -14,10 +14,10 @@ import { castId } from "@orb/kit/ids";
 import { createCharacterImportOps, createCharacterService } from "@orb/server/domain/character";
 import { buildImportContext } from "@orb/server/domain/import";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createImportService } from "#server/domain/import/index.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeHarness, seedUser } from "../../character/_support.ts";
 
 const encoder = new TextEncoder();
@@ -33,7 +33,7 @@ describe("importCharacter — plugin-funnel provenance (#1702)", () => {
     const db = await freshDb();
     const character = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const principal = makePrincipal(owner);
+    const principal = await makePrincipal({ db }, owner);
     const importCtx = buildImportContext({
       principal,
       characterOps: createCharacterImportOps(principal, character),
@@ -60,7 +60,7 @@ describe("importCharacter — plugin-funnel provenance (#1702)", () => {
     const db = await freshDb();
     const character = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const principal = makePrincipal(owner);
+    const principal = await makePrincipal({ db }, owner);
     const importCtx = buildImportContext({
       principal,
       characterOps: createCharacterImportOps(principal, character),

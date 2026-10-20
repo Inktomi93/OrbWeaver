@@ -65,7 +65,7 @@ describe("the two readers", () => {
       features: { ...declared.features, concurrency: { ...declared.features.concurrency, summarize: SUMMARIZE_CONCURRENCY_MAX } },
     };
     expect((await fetchOwnedConnection(db, owner, ROW_ID))?.declared).toEqual(expected);
-    expect((await fetchConnectionById(db, ROW_ID))?.declared).toEqual(expected);
+    expect((await fetchConnectionById(db, ROW_ID))?.parse().declared).toEqual(expected);
     expect((await listOwnedConnections(db, owner))[0]?.declared).toEqual(expected);
     expect((await db.select().from(userConnections))[0]?.declared).toEqual(declared);
   });

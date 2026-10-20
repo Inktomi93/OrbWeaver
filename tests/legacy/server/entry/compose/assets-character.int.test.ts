@@ -22,6 +22,7 @@ import "@orb/testkit/node/composed-real.ts";
 import { tmpdir } from "node:os";
 import type { Principal } from "@orb/contracts/identity";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
+import type { Db } from "@orb/db";
 import { connectionBindings, userConnections } from "@orb/db";
 import type { ConnectionBindingId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -33,15 +34,16 @@ import { TEST_BASE_URL, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testki
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { createPersonaSeedLatch } from "#server/entry/compose/assets-character.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
-function principalOf(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId("firstrun"), externalId: null, via: "header" };
+async function principalOf(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId);
 }
 
 describe("the composed default-persona seeder — the real-stack (forced first-run) posture", () => {
   test("a REAL stack seeds NO persona for a fresh user — the zero-personas first-run ask holds", async ({ db, app, services }) => {
     const user = (await seedUser(db, { handle: castId("firstrun") })).id;
-    const principal = principalOf(user);
+    const principal = await principalOf(db, user);
 
     // The per-user first-authed-request hook (and the boot-owner step) both land here.
     await app.personaSeeder.ensureSeeded(principal);
@@ -53,7 +55,7 @@ describe("the composed default-persona seeder — the real-stack (forced first-r
 
   test("…and the seeds pointers stay unset, so nothing pretends the user has picked an identity", async ({ db, app, services }) => {
     const user = (await seedUser(db, { handle: castId("firstrun2") })).id;
-    const principal = principalOf(user);
+    const principal = await principalOf(db, user);
 
     await app.personaSeeder.ensureSeeded(principal);
 
@@ -76,7 +78,7 @@ describe("the composed default-persona seeder — the real-stack (forced first-r
 describe("createPersonaSeedLatch — the seeder never relitigates a persona pick", () => {
   test("an explicit currentPersonaId + defaultPersonaId both survive markSeeded", async ({ db, services }) => {
     const user = (await seedUser(db, { handle: castId("picker") })).id;
-    const principal = principalOf(user);
+    const principal = await principalOf(db, user);
     const mine = await services.persona.create({ principal, input: { name: "Sarah", description: "a persona I made myself" } });
     await services.settings.updateUserSettingsSection({
       principal,
@@ -94,7 +96,7 @@ describe("createPersonaSeedLatch — the seeder never relitigates a persona pick
 
   test("the two pointers are decided INDEPENDENTLY — a pinned default keeps its pick, an unset current is filled", async ({ db, services }) => {
     const user = (await seedUser(db, { handle: castId("halfpicker") })).id;
-    const principal = principalOf(user);
+    const principal = await principalOf(db, user);
     const mine = await services.persona.create({ principal, input: { name: "Sarah", description: "a persona I made myself" } });
     await services.settings.updateUserSettingsSection({ principal, input: { section: "seeds", patch: { defaultPersonaId: mine.id } } });
     const latch = createPersonaSeedLatch({ settings: services.settings, getPersona: () => services.persona });
@@ -114,7 +116,7 @@ describe("createPersonaSeedLatch — the seeder never relitigates a persona pick
   // write now, so it means "complete" — an interruption leaves the pass retryable and loses nothing.
   test("a crash BETWEEN the two settings writes leaves the seed RETRYABLE — the latch never lands first", async ({ db, services }) => {
     const user = (await seedUser(db, { handle: castId("interrupted") })).id;
-    const principal = principalOf(user);
+    const principal = await principalOf(db, user);
     const seeded = castId<PersonaId>("persona_the_seeder_just_made");
     let writes = 0;
     const flakySettings = {
@@ -155,7 +157,7 @@ describe("createPersonaSeedLatch — the seeder never relitigates a persona pick
   // pointers too, and leaving them null is the incomplete state the row asks to have repaired on next boot.
   test("the layer-2 heal REPAIRS null pointers at the surviving artifact, and still never moves a pick", async ({ db, services }) => {
     const user = (await seedUser(db, { handle: castId("healed") })).id;
-    const principal = principalOf(user);
+    const principal = await principalOf(db, user);
     const latch = createPersonaSeedLatch({ settings: services.settings, getPersona: () => services.persona });
     const survivor = await services.persona.create({
       principal,
@@ -172,7 +174,7 @@ describe("createPersonaSeedLatch — the seeder never relitigates a persona pick
 
   test("findSeededDefault returns the seeder's artifact id and nothing else", async ({ db, services }) => {
     const user = (await seedUser(db, { handle: castId("artifact") })).id;
-    const principal = principalOf(user);
+    const principal = await principalOf(db, user);
     const latch = createPersonaSeedLatch({ settings: services.settings, getPersona: () => services.persona });
 
     // A library of the user's OWN personas never suppresses the seed — the recorded ruling this fix preserves.
@@ -198,7 +200,7 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
 
   test("a non-not-found preset rejection PROPAGATES before any completion runs", async ({ db, app, services }) => {
     const owner = (await seedUser(db, { handle: castId("greethost1") })).id;
-    const principal = principalOf(owner);
+    const principal = await principalOf(db, owner);
     const created = await services.character.create({ principal, input: { handle: castId("aria-greet1"), name: "Aria", description: "a card" } });
     await services.settings.updateUserSettingsSection({
       principal,
@@ -252,7 +254,7 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
     });
 
     const owner = (await seedUser(db, { handle: castId("greethost2") })).id;
-    const principal = principalOf(owner);
+    const principal = await principalOf(db, owner);
     const created = await services.character.create({ principal, input: { handle: castId("bryn-greet2"), name: "Bryn", description: "a card" } });
     await services.settings.updateUserSettingsSection({
       principal,
@@ -289,7 +291,7 @@ describe("compose/assets-character.ts — resolveGreetingTemplate narrows to Pre
 describe("the composed character service evicts the owner's lexical index on a delete", () => {
   test("after remove, the next search counts only the live cards", async ({ db, services }) => {
     const user = (await seedUser(db, { handle: castId("lexical_owner") })).id;
-    const principal = principalOf(user);
+    const principal = await principalOf(db, user);
     const kept = await services.character.create({ principal, input: { handle: castId("kept"), name: "Dragon Kept", description: "d" } });
     const gone = await services.character.create({ principal, input: { handle: castId("gone"), name: "Dragon Gone", description: "d" } });
     const before = await services.search.fields({ ownerId: user, query: "dragon", topN: 5 });

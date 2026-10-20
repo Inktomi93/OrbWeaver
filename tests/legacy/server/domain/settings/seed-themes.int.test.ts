@@ -40,7 +40,7 @@ describe("ensureSeedThemes", () => {
     await ensureSeedThemes(db, () => FROZEN_AT_MS);
     await ensureSeedThemes(db, () => FROZEN_AT_MS + 999);
     const a = await seedUser(db, { id: "user_a" });
-    const seeds = (await h.svc.listThemes({ principal: principal(a, "user") })).filter((v) => v.isSeed);
+    const seeds = (await h.svc.listThemes({ principal: await principal(db, a, "user") })).filter((v) => v.isSeed);
     expect(seeds).toHaveLength(SEED_THEMES.length);
   });
 
@@ -111,11 +111,11 @@ describe("ensureSeedThemes", () => {
       updatedAt: FROZEN_AT_MS,
     });
     // Duplicate-to-customize: THEIR row, holding the same palette.
-    const mine = await h.svc.duplicateTheme({ principal: principal(a, "user"), id: RETIRED_SEED_THEME_IDS[0] ?? THEME_LIGHT_ID });
+    const mine = await h.svc.duplicateTheme({ principal: await principal(db, a, "user"), id: RETIRED_SEED_THEME_IDS[0] ?? THEME_LIGHT_ID });
 
     await ensureSeedThemes(db, () => FROZEN_AT_MS + 1);
 
-    const view = await h.svc.getTheme({ principal: principal(a, "user"), id: mine.id });
+    const view = await h.svc.getTheme({ principal: await principal(db, a, "user"), id: mine.id });
     expect(view.name).toBe("Charlotte copy");
     expect(view.override).toEqual({ accent: "oklch(0.74 0.1 248)" });
   });
@@ -138,14 +138,20 @@ describe("ensureSeedThemes", () => {
       createdAt: FROZEN_AT_MS,
       updatedAt: FROZEN_AT_MS,
     });
-    await h.svc.updateUserSettingsSection({ principal: principal(doomed, "user"), input: { section: "theme", patch: { selectedThemeId: retiredId } } });
-    await h.svc.updateUserSettingsSection({ principal: principal(keeper, "user"), input: { section: "theme", patch: { selectedThemeId: THEME_MOCHA_ID } } });
+    await h.svc.updateUserSettingsSection({
+      principal: await principal(db, doomed, "user"),
+      input: { section: "theme", patch: { selectedThemeId: retiredId } },
+    });
+    await h.svc.updateUserSettingsSection({
+      principal: await principal(db, keeper, "user"),
+      input: { section: "theme", patch: { selectedThemeId: THEME_MOCHA_ID } },
+    });
 
     await ensureSeedThemes(db, () => FROZEN_AT_MS + 1);
 
-    const healed = await h.svc.getUserSettings({ principal: principal(doomed, "user") });
+    const healed = await h.svc.getUserSettings({ principal: await principal(db, doomed, "user") });
     expect(healed.config.theme.selectedThemeId).toBeNull();
-    const untouched = await h.svc.getUserSettings({ principal: principal(keeper, "user") });
+    const untouched = await h.svc.getUserSettings({ principal: await principal(db, keeper, "user") });
     expect(untouched.config.theme.selectedThemeId).toBe(THEME_MOCHA_ID);
     // ONLY-IF-SET: the keeper's row was not rewritten at all (its updatedAt is still its own write's).
     const rows = await db.select().from(userSettings).where(eq(userSettings.userId, keeper));
@@ -157,11 +163,11 @@ describe("ensureSeedThemes", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const mine = await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Mine", override: {} },
     });
     await ensureSeedThemes(db, () => FROZEN_AT_MS);
-    const view = await h.svc.getTheme({ principal: principal(a, "user"), id: mine.id });
+    const view = await h.svc.getTheme({ principal: await principal(db, a, "user"), id: mine.id });
     expect(view.name).toBe("Mine");
   });
 });

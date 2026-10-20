@@ -32,7 +32,6 @@ beforeEach(async () => {
 });
 
 const VESNA = { kind: "npc", npcKey: "vesna" } as const;
-const HOST = principal(castId<Handle>("host"));
 
 async function seedGame(): Promise<{
   chatId: ChatId;
@@ -43,7 +42,7 @@ async function seedGame(): Promise<{
   const chatId = await seedChat(db, "a");
   const h = makeRpgService(db, { participants: [participantUser(castId<Handle>("host"), "Alex")] });
   h.fakes.membership.set("user_host", "host");
-  await h.service.createGame({ principal: HOST, chatId, mode: "lite" });
+  await h.service.createGame({ principal: await principal(db, castId<Handle>("host")), chatId, mode: "lite" });
   const game = await findGameByChat(db, chatId);
   if (!game) {
     throw new Error("no game");
@@ -54,9 +53,9 @@ async function seedGame(): Promise<{
 /** Put Vesna on stage with an identity the story wrote and tracked state the host hand-pinned — the shape a
  *  real promotion candidate has after an acquaintance. */
 async function seedVesna(service: ReturnType<typeof makeRpgService>["service"], chatId: ChatId): Promise<void> {
-  await service.editSnapshot({ principal: HOST, chatId, patch: { presentCharacters: ["npc:vesna"] } });
+  await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { presentCharacters: ["npc:vesna"] } });
   await service.patchActor({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     targetRef: VESNA,
     ops: [
@@ -82,7 +81,10 @@ test("the re-key carries the WHOLE person across: state row, scene presence, and
   expect(before?.fieldLocks?.["actorState.npc:vesna.volatile.status"]).toBe(true);
   expect(before?.fieldLocks?.["actorState.npc:vesna.volatile.trackerValues.trust"]).toBe(true);
 
-  expect(await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).toStrictEqual({ ok: true, issues: [] });
+  expect(await service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: VESNA })).toStrictEqual({
+    ok: true,
+    issues: [],
+  });
 
   // The id the promotion minted — read off the RECORDER, never a hand-written stand-in: the re-keyed ref
   // crosses the snapshot write boundary, which validates the id SHAPE, so a readable fake id would fail there
@@ -135,21 +137,21 @@ test("a promoted actor named under a hidden span gets a card name and handle wit
   const { chatId, service, fakes } = await seedGame();
   await seedVesna(service, chatId);
   await service.patchActor({
-    principal: HOST,
+    principal: await principal(db, castId<Handle>("host")),
     chatId,
     targetRef: VESNA,
     ops: [{ op: "setIdentityText", field: "name", text: 'Sister Vesna <lie truth="the abbess poisoned the well"/>' }],
   });
-  expect(await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).toMatchObject({ ok: true });
+  expect(await service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: VESNA })).toMatchObject({ ok: true });
   expect(fakes.promoteMints[0]).toMatchObject({ name: "Sister Vesna", handle: "sister-vesna" });
 });
 
 test("the promoted actor is projected as a PARTICIPANT carrying her state — not as an npc, and not twice", async () => {
   const { chatId, service } = await seedGame();
   await seedVesna(service, chatId);
-  await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA });
+  await service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: VESNA });
 
-  const view = await service.getTrackerView({ principal: HOST, chatId });
+  const view = await service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId });
   const vesna = view.actors.filter((a) => a.name === "Sister Vesna");
   expect(vesna).toHaveLength(1);
   expect(vesna[0]?.actorRef.kind).toBe("character");
@@ -168,7 +170,7 @@ test("a NAME the chat's participants already carry is REFUSED as data — no car
   fakes.participants.push(participantUser(castId<Handle>("other"), "sister vesna"));
   const slotsBefore = fakes.narratorPosts.length;
 
-  const refused = await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA });
+  const refused = await service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: VESNA });
   expect(refused.ok).toBe(false);
   expect(refused.ok === false && refused.reason).toContain("already among this chat's participants");
 
@@ -182,7 +184,7 @@ test("a NAME the chat's participants already carry is REFUSED as data — no car
 test("promoting an actor the game does not track is ERRORS-AS-DATA — the mint never runs", async () => {
   const { chatId, service, fakes } = await seedGame();
 
-  const refused = await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA });
+  const refused = await service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: VESNA });
   expect(refused.ok).toBe(false);
   expect(refused.ok === false && refused.reason).toContain("npc:vesna");
   expect(fakes.promoteMints).toHaveLength(0);
@@ -193,7 +195,7 @@ test("a durable-half refusal (an exhausted card handle) leaves the actor exactly
   await seedVesna(service, chatId);
   fakes.promoteRefusal = 'your character library already carries "vesna" and every variant this promotion tried';
 
-  const refused = await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA });
+  const refused = await service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: VESNA });
   expect(refused.ok).toBe(false);
   expect(refused.ok === false && refused.reason).toContain("character library");
 
@@ -210,13 +212,16 @@ test("#723 retry after the card and seat land reuses them, then completes the ac
     sql.raw("CREATE TRIGGER fail_promotion_rekey BEFORE INSERT ON rpg_snapshots BEGIN SELECT RAISE(ABORT, 'injected actor rekey interruption'); END"),
   );
 
-  await expect(service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).rejects.toThrow();
+  await expect(service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: VESNA })).rejects.toThrow();
   expect(fakes.promoteMints).toHaveLength(1);
   expect(fakes.participants.filter((actor) => actor.name === "Sister Vesna")).toHaveLength(1);
   expect((await resolveSnapshotForTurn(db, { id: game.id, chatId }))?.actorState?.[0]?.actorRef).toEqual(VESNA);
 
   await db.run(sql.raw("DROP TRIGGER fail_promotion_rekey"));
-  await expect(service.promoteActor({ principal: HOST, chatId, targetRef: VESNA })).resolves.toEqual({ ok: true, issues: [] });
+  await expect(service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: VESNA })).resolves.toEqual({
+    ok: true,
+    issues: [],
+  });
   expect(fakes.promoteMints).toHaveLength(1);
   expect(fakes.participants.filter((actor) => actor.name === "Sister Vesna")).toHaveLength(1);
   expect((await resolveSnapshotForTurn(db, { id: game.id, chatId }))?.actorState?.[0]?.actorRef.kind).toBe("character");
@@ -232,10 +237,10 @@ test("#723 retry after the card and seat land reuses them, then completes the ac
 /** Put an npc on stage under her canonical key with the display name the story wrote. */
 async function seedCastActor(service: ReturnType<typeof makeRpgService>["service"], chatId: ChatId, names: readonly string[]): Promise<readonly string[]> {
   const keys = names.map((name) => rpgNpcSlug(name));
-  await service.editSnapshot({ principal: HOST, chatId, patch: { presentCharacters: keys.map((key) => `npc:${key}`) } });
+  await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { presentCharacters: keys.map((key) => `npc:${key}`) } });
   for (const [index, key] of keys.entries()) {
     await service.patchActor({
-      principal: HOST,
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       targetRef: { kind: "npc", npcKey: key },
       ops: [{ op: "setIdentityText", field: "name", text: names[index] ?? "" }],
@@ -252,7 +257,7 @@ test("#1386 the promoted handle is `slugifyHandle`'s, and it fits the character 
   // refuses at 200.
   const long = `Sœur ${"あ".repeat(300)}`;
   const [key] = await seedCastActor(service, chatId, [long]);
-  await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: key ?? "" } });
+  await service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: { kind: "npc", npcKey: key ?? "" } });
 
   const handle = fakes.promoteMints[0]?.handle ?? "";
   expect(handle).toBe(slugifyHandle(long));
@@ -271,7 +276,9 @@ test("#1386 two NPCs named in different scripts promote to two DISTINCT handles 
   const names = ["李明", "Мария", "محمد"];
   const keys = await seedCastActor(service, chatId, names);
   for (const key of keys) {
-    expect(await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: key } })).toStrictEqual({ ok: true, issues: [] });
+    expect(
+      await service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: { kind: "npc", npcKey: key } }),
+    ).toStrictEqual({ ok: true, issues: [] });
   }
   const handles = fakes.promoteMints.map((mint) => mint.handle);
   expect(handles).toHaveLength(names.length);
@@ -291,7 +298,7 @@ test("#1449 a 300-char NPC name promotes: the card name is clamped and the trunc
   const long = `Sœur ${"あ".repeat(300)}`;
   const [key] = await seedCastActor(service, chatId, [long]);
 
-  const result = await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: key ?? "" } });
+  const result = await service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: { kind: "npc", npcKey: key ?? "" } });
 
   // The clamped value the mint actually received — the SAME pure clamp the contract test pins, so the two
   // can never disagree about what "clamped" means.
@@ -310,7 +317,7 @@ test("#1449 a 300-char NPC name promotes: the card name is clamped and the trunc
 test("#1449 a short NPC name promotes cleanly: no truncation, no issue", async () => {
   const { chatId, service, fakes } = await seedGame();
   const [key] = await seedCastActor(service, chatId, ["Sister Vesna"]);
-  const result = await service.promoteActor({ principal: HOST, chatId, targetRef: { kind: "npc", npcKey: key ?? "" } });
+  const result = await service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: { kind: "npc", npcKey: key ?? "" } });
   expect(result).toStrictEqual({ ok: true, issues: [] });
   expect(fakes.promoteMints[0]?.name).toBe("Sister Vesna");
 });
@@ -318,7 +325,7 @@ test("#1449 a short NPC name promotes cleanly: no truncation, no issue", async (
 test("a promoted character is a normal participant actor afterwards: hand ops reach her, identity ops correctly refuse", async () => {
   const { chatId, game, service, fakes } = await seedGame();
   await seedVesna(service, chatId);
-  await service.promoteActor({ principal: HOST, chatId, targetRef: VESNA });
+  await service.promoteActor({ principal: await principal(db, castId<Handle>("host")), chatId, targetRef: VESNA });
   const characterId = fakes.promoteMints[0]?.characterId;
   if (characterId === undefined || characterId === null) {
     throw new Error("the promotion did not mint a character");
@@ -326,9 +333,21 @@ test("a promoted character is a normal participant actor afterwards: hand ops re
   const promoted = { kind: "character", characterId } as const;
 
   // The volatile door still reaches her under the new key — the re-key did not orphan her from the ops.
-  expect(await service.patchActor({ principal: HOST, chatId, targetRef: promoted, ops: [{ op: "setStatus", status: "healed" }] })).toStrictEqual({ ok: true });
+  expect(
+    await service.patchActor({
+      principal: await principal(db, castId<Handle>("host")),
+      chatId,
+      targetRef: promoted,
+      ops: [{ op: "setStatus", status: "healed" }],
+    }),
+  ).toStrictEqual({ ok: true });
   // …and the identity arms refuse, exactly as they do for every other participant (her name is the card's).
-  const refused = await service.patchActor({ principal: HOST, chatId, targetRef: promoted, ops: [{ op: "setIdentityText", field: "mood", text: "calm" }] });
+  const refused = await service.patchActor({
+    principal: await principal(db, castId<Handle>("host")),
+    chatId,
+    targetRef: promoted,
+    ops: [{ op: "setIdentityText", field: "mood", text: "calm" }],
+  });
   expect(refused.ok).toBe(false);
   expect(refused.ok === false && refused.reason).toContain("carries no identity of its own");
 

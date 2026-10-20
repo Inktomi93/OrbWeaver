@@ -150,9 +150,9 @@ describe("exportChatBundle — the host gate is the jsonl arm's, restated", () =
     });
     const exportBundle = verb();
 
-    expect(await exportBundle({ principal: principal(member), chatId: CHAT_ID })).toBeNull();
-    expect(await exportBundle({ principal: principal(host), chatId: castId<ChatId>("chat_missing") })).toBeNull();
-    expect(await exportBundle({ principal: principal(host), chatId: CHAT_ID })).not.toBeNull();
+    expect(await exportBundle({ principal: await principal(db, member), chatId: CHAT_ID })).toBeNull();
+    expect(await exportBundle({ principal: await principal(db, host), chatId: castId<ChatId>("chat_missing") })).toBeNull();
+    expect(await exportBundle({ principal: await principal(db, host), chatId: CHAT_ID })).not.toBeNull();
   });
 });
 
@@ -185,11 +185,11 @@ describe("exportChatBundle — the fidelity planes", () => {
     });
     const ctx = { db, now: () => FROZEN_AT_MS, applyStatsDelta };
     expect(await appendGenerationObservation(ctx, parent, { ordinal: 0, funderUserId: host, connectionId: null, leg })).toBe(true);
-    const before = must(await verb()({ principal: principal(host), chatId: CHAT_ID }));
+    const before = must(await verb()({ principal: await principal(db, host), chatId: CHAT_ID }));
     expect(before.pendingGenerationObservations?.map((fact) => fact.leg.costUsd)).toEqual([0.125]);
     const facts = await createGenerationObservationSession(ctx, parent).load();
     const gate = held.hold(/^select[\s\S]*from "chat_generation_observations"/iu);
-    const exporting = verb()({ principal: principal(host), chatId: CHAT_ID });
+    const exporting = verb()({ principal: await principal(db, host), chatId: CHAT_ID });
     await gate.reached;
     try {
       const statements = [...createGenerationObservationSession(ctx, parent).transferStatements(facts)];
@@ -270,7 +270,7 @@ describe("exportChatBundle — the fidelity planes", () => {
         observedAt: FROZEN_AT_MS + 2,
       },
     ]);
-    const file = await verb()({ principal: principal(host), chatId: CHAT_ID });
+    const file = await verb()({ principal: await principal(db, host), chatId: CHAT_ID });
     const bundle = must(file);
     expect(bundle.pendingGenerationObservations).toEqual([
       { turnIndex: 0, ordinal: 0, sourceMessageIndex: 0, sourceVariantIdx: 1, leg },
@@ -287,7 +287,7 @@ describe("exportChatBundle — the fidelity planes", () => {
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     await seedRoom(host);
 
-    const bundle = must(await verb()({ principal: principal(host), chatId: CHAT_ID }));
+    const bundle = must(await verb()({ principal: await principal(db, host), chatId: CHAT_ID }));
 
     expect(bundle.title).toBe("A Long Road");
     expect(bundle.starred).toBe(true);
@@ -320,7 +320,7 @@ describe("exportChatBundle — the fidelity planes", () => {
       { chatId: CHAT_ID, tagId: castId<TagId>("tag_theirs"), ownerId: other, createdAt: FROZEN_AT_MS },
     ]);
 
-    const bundle = must(await verb()({ principal: principal(host), chatId: CHAT_ID }));
+    const bundle = must(await verb()({ principal: await principal(db, host), chatId: CHAT_ID }));
     expect(bundle.tagNames).toEqual(["campaign"]);
   });
 
@@ -331,7 +331,7 @@ describe("exportChatBundle — the fidelity planes", () => {
     await db.insert(personas).values({ id: personaId, ownerId: host, name: "My Persona", description: "d" });
     await db.update(chats).set({ anchorPersonaId: personaId }).where(eq(chats.id, CHAT_ID));
 
-    const bundle = must(await verb()({ principal: principal(host), chatId: CHAT_ID }));
+    const bundle = must(await verb()({ principal: await principal(db, host), chatId: CHAT_ID }));
     expect(bundle.anchorPersonaName).toBe("My Persona");
   });
 
@@ -360,7 +360,7 @@ describe("exportChatBundle — the fidelity planes", () => {
       createdAt: FROZEN_AT_MS,
     });
 
-    const bundle = must(await verb()({ principal: principal(host), chatId: CHAT_ID }));
+    const bundle = must(await verb()({ principal: await principal(db, host), chatId: CHAT_ID }));
     expect(bundle.rpg?.sessionNumber).toBe(3);
     expect(bundle.rpg?.snapshots[0]).toMatchObject({ messageIndex: 0, variantIdx: 1 });
     expect(bundle.rpg?.snapshots[0]?.state.location).toBe("the broken bridge");
@@ -369,6 +369,6 @@ describe("exportChatBundle — the fidelity planes", () => {
   test("a chat with no game exports `rpg: null` — the common case is not a special case", async () => {
     const host = await seedUser(db, { handle: castId<Handle>("host") });
     await seedRoom(host);
-    expect(must(await verb()({ principal: principal(host), chatId: CHAT_ID })).rpg).toBeNull();
+    expect(must(await verb()({ principal: await principal(db, host), chatId: CHAT_ID })).rpg).toBeNull();
   });
 });

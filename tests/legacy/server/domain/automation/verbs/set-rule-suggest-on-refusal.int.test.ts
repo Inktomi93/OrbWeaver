@@ -14,18 +14,27 @@
 // @subject packages/server/src/domain/automation/verbs/set-rule-suggest-on-refusal.ts
 
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 test("a rule is born OFFERING (the F4 default) and the verb flips it durably, announcing the change", async () => {
+  const db = await freshDb();
   const { host, chatId, svc, events } = await ruleFixture();
-  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "r", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const rule = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(db, host),
+    chatId,
+    name: "r",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
   // The ruling's default — landing an OPT-OUT must leave every existing rule exactly where it was.
   expect(rule.suggestOnRefusal).toBe(true);
 
-  await svc.setRuleSuggestOnRefusal({ principal: principal(host), ruleId: rule.id, suggestOnRefusal: false });
+  await svc.setRuleSuggestOnRefusal({ principal: await principal(db, host), ruleId: rule.id, suggestOnRefusal: false });
 
-  const [listed] = await svc.listRules({ principal: principal(host), chatId });
+  const [listed] = await svc.listRules({ principal: await principal(db, host), chatId });
   expect(listed?.suggestOnRefusal).toBe(false);
   // A second host tab renders this rule's own switch, so the flip rides the same rules-changed announcement
   // the enable flip does (create, then the flip).
@@ -36,21 +45,30 @@ test("a rule is born OFFERING (the F4 default) and the verb flips it durably, an
 });
 
 test("the flip is idempotent and reversible — turning the offer back ON restores the default", async () => {
+  const db = await freshDb();
   const { host, chatId, svc } = await ruleFixture();
-  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "r", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const rule = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(db, host),
+    chatId,
+    name: "r",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
 
-  await svc.setRuleSuggestOnRefusal({ principal: principal(host), ruleId: rule.id, suggestOnRefusal: false });
-  await svc.setRuleSuggestOnRefusal({ principal: principal(host), ruleId: rule.id, suggestOnRefusal: false });
-  await svc.setRuleSuggestOnRefusal({ principal: principal(host), ruleId: rule.id, suggestOnRefusal: true });
+  await svc.setRuleSuggestOnRefusal({ principal: await principal(db, host), ruleId: rule.id, suggestOnRefusal: false });
+  await svc.setRuleSuggestOnRefusal({ principal: await principal(db, host), ruleId: rule.id, suggestOnRefusal: false });
+  await svc.setRuleSuggestOnRefusal({ principal: await principal(db, host), ruleId: rule.id, suggestOnRefusal: true });
 
-  const [listed] = await svc.listRules({ principal: principal(host), chatId });
+  const [listed] = await svc.listRules({ principal: await principal(db, host), chatId });
   expect(listed?.suggestOnRefusal).toBe(true);
 });
 
 test("the flip does NOT touch the rule's mint provenance — the whole reason it is not part of the PUT", async () => {
+  const db = await freshDb();
   const { host, chatId, svc } = await ruleFixture();
   // `pacingNudge` mints ONE rule carrying a `trigger_turn` (SPEND) arm — the exact class this knob governs.
-  const minted = await svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, presetId: "pacingNudge" });
+  const minted = await svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, presetId: "pacingNudge" });
   const rule = minted[0];
   if (rule === undefined) {
     throw new Error("createRuleFromPreset minted no rules");
@@ -58,9 +76,9 @@ test("the flip does NOT touch the rule's mint provenance — the whole reason it
   expect(rule.rulePresetId).toBe("pacingNudge");
   expect(rule.rulePresetKnobs).not.toBeNull();
 
-  await svc.setRuleSuggestOnRefusal({ principal: principal(host), ruleId: rule.id, suggestOnRefusal: false });
+  await svc.setRuleSuggestOnRefusal({ principal: await principal(db, host), ruleId: rule.id, suggestOnRefusal: false });
 
-  const [after] = await svc.listRules({ principal: principal(host), chatId });
+  const [after] = await svc.listRules({ principal: await principal(db, host), chatId });
   expect(after?.suggestOnRefusal).toBe(false);
   // The lineage the saved-cast capture reads survived a preference toggle. `updateRule` would have nulled it.
   expect(after?.rulePresetId).toBe("pacingNudge");

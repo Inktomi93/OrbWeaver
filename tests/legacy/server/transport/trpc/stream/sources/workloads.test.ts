@@ -23,11 +23,13 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
+import type { Db } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { SocketId, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { Context } from "@orb/server/transport/trpc";
 import { createSocketRegistry, publishUserEvent } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { WorkloadRowAnyKind, WorkloadService } from "#server/domain/workloads/index.ts";
@@ -66,8 +68,8 @@ function progressEvent(workloadId: WorkloadId, pct: number, at: number): Workloa
  *  assert nothing and would have to be maintained against a shape this test never exercises. */
 const visible: WorkloadService["get"] = ({ id }) => Promise.resolve({ id } as unknown as WorkloadRowAnyKind);
 
-function ctxWith(get: WorkloadService["get"], userId: UserId = OWNER): Context {
-  return makeContext({ auth: principal("user", { userId }), services: { workloads: { get } } });
+async function ctxWith(db: Db, get: WorkloadService["get"], userId: UserId = OWNER): Promise<Context> {
+  return makeContext({ auth: await principal(db, "user", { userId }), services: { workloads: { get } } });
 }
 
 /** The tracked envelope's parts (`[ordinal, frame, symbol]` on the server side of `createCaller`). */
@@ -101,12 +103,13 @@ async function nextFrameAfter(iterator: AsyncIterator<unknown>, emit: () => void
 
 describe("the room refuses at attach — a run you do not own does not exist for you", () => {
   test("a STRANGER's attach is a leak-free NOT_FOUND, and no room is recorded on the socket", async () => {
+    const db = await freshDb();
     const run = nextRun();
     const socketId = nextSocket();
     const sockets = createSocketRegistry(() => 0);
     // The verb's IDOR collapse: a foreign row and an absent one throw the SAME DomainNotFoundError.
     const get = vi.fn<WorkloadService["get"]>(() => Promise.reject(new DomainNotFoundError("workload", run)));
-    const call = caller(makeContext({ auth: principal("user", { userId: STRANGER }), services: { workloads: { get } }, sockets }));
+    const call = caller(makeContext({ auth: await principal(db, "user", { userId: STRANGER }), services: { workloads: { get } }, sockets }));
 
     await expect(call.stream.attach({ socketId, ref: { channel: "workloads", workloadId: run } })).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(get).toHaveBeenCalledWith({ id: run, caller: expect.objectContaining({ userId: STRANGER }) });
@@ -117,10 +120,11 @@ describe("the room refuses at attach — a run you do not own does not exist for
   });
 
   test("the caller Principal is threaded to the verb VERBATIM — the gate is the verb's, not the transport's", async () => {
+    const db = await freshDb();
     const run = nextRun();
     const get = vi.fn<WorkloadService["get"]>(visible);
 
-    await caller(ctxWith(get)).stream.attach({ socketId: nextSocket(), ref: { channel: "workloads", workloadId: run } });
+    await caller(await ctxWith(db, get)).stream.attach({ socketId: nextSocket(), ref: { channel: "workloads", workloadId: run } });
 
     // Transport never re-derives ownership (it holds no ownerId at all): it hands over the Principal resolved
     // once at the edge and the verb decides. A room that dropped `caller` would be a cross-tenant hole.
@@ -130,9 +134,10 @@ describe("the room refuses at attach — a run you do not own does not exist for
 
 describe("the per-workload filter is the room's scope on the wire", () => {
   test("ANOTHER run's events never reach this room — one emitter carries every owner's runs", async () => {
+    const db = await freshDb();
     const run = nextRun();
     const foreign = nextRun();
-    const iterator = await openWorkloadRoom(ctxWith(visible), run);
+    const iterator = await openWorkloadRoom(await ctxWith(db, visible), run);
     const at = nextAt();
     const frame = await nextFrameAfter(iterator, () => {
       // A different owner's run, publishing on the SAME process-local emitter at the same instant. Without
@@ -147,8 +152,9 @@ describe("the per-workload filter is the room's scope on the wire", () => {
   });
 
   test("a live event rides VERBATIM under `event` and carries NO seq (live-only: no cursor to advance)", async () => {
+    const db = await freshDb();
     const run = nextRun();
-    const iterator = await openWorkloadRoom(ctxWith(visible), run);
+    const iterator = await openWorkloadRoom(await ctxWith(db, visible), run);
     const event = progressEvent(run, 40, nextAt());
     const frame = await nextFrameAfter(iterator, () => emitWorkloadEvent(event));
     await iterator.return?.(undefined);
@@ -160,6 +166,7 @@ describe("the per-workload filter is the room's scope on the wire", () => {
 
 describe("the 60s ring is the smoother, not a cursor", () => {
   test("events emitted BEFORE the attach replay at pump start — the start()→attach gap loses nothing", async () => {
+    const db = await freshDb();
     const run = nextRun();
     const at = nextAt();
     // What the engine emitted while the client was still deciding to watch this row: the run began, and
@@ -171,7 +178,7 @@ describe("the 60s ring is the smoother, not a cursor", () => {
     emitWorkloadEvent(started);
     emitWorkloadEvent(reported);
 
-    const iterator = await openWorkloadRoom(ctxWith(visible), run);
+    const iterator = await openWorkloadRoom(await ctxWith(db, visible), run);
     const first = frameOf((await iterator.next()).value);
     const second = frameOf((await iterator.next()).value);
     await iterator.return?.(undefined);
@@ -181,13 +188,14 @@ describe("the 60s ring is the smoother, not a cursor", () => {
   });
 
   test("the ring is PER RUN — a sibling run's buffered events are not replayed into this room", async () => {
+    const db = await freshDb();
     const run = nextRun();
     const foreign = nextRun();
     const at = nextAt();
     emitWorkloadEvent(progressEvent(foreign, 88, at));
     emitWorkloadEvent(progressEvent(run, 20, at + 1));
 
-    const iterator = await openWorkloadRoom(ctxWith(visible), run);
+    const iterator = await openWorkloadRoom(await ctxWith(db, visible), run);
     const first = frameOf((await iterator.next()).value);
     await iterator.return?.(undefined);
 
@@ -195,6 +203,7 @@ describe("the 60s ring is the smoother, not a cursor", () => {
   });
 
   test("a `sinceSeq: 0` attach replays the RING and nothing more — there is no durable log to rewind", async () => {
+    const db = await freshDb();
     const run = nextRun();
     const at = nextAt();
     emitWorkloadEvent(progressEvent(run, 30, at));
@@ -202,7 +211,7 @@ describe("the 60s ring is the smoother, not a cursor", () => {
     // `sinceSeq: 0` is the strongest replay request a client can make; a durable room re-sends its whole log
     // for it. This room has no log — the durable `progress` COLUMN is a snapshot the client reads off
     // `workloads.list`, so the cursor is accepted and ignored.
-    const iterator = await openWorkloadRoom(ctxWith(visible), run, { sinceSeq: 0 });
+    const iterator = await openWorkloadRoom(await ctxWith(db, visible), run, { sinceSeq: 0 });
     const first = frameOf((await iterator.next()).value);
     await iterator.return?.(undefined);
 
@@ -213,10 +222,11 @@ describe("the 60s ring is the smoother, not a cursor", () => {
 
 describe("the gate runs at attach ONLY — deliberately, not by omission", () => {
   test("the pump does not re-read the row, and the room multiplexes beside another on one socket", async () => {
+    const db = await freshDb();
     const run = nextRun();
     const socketId = nextSocket();
     const get = vi.fn<WorkloadService["get"]>(visible);
-    const call = caller(ctxWith(get));
+    const call = caller(await ctxWith(db, get));
     await call.stream.attach({ socketId, ref: { channel: "workloads", workloadId: run } });
     await call.stream.attach({ socketId, ref: { channel: "user" } });
 

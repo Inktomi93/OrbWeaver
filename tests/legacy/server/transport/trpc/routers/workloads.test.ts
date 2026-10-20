@@ -2,7 +2,9 @@
 // crosses from caller text into the durable scheduler graph, so the wire must prove the canonical workload
 // TypeID shape before the domain sees it.
 
+import type { Db } from "@orb/db";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { WorkloadService } from "#server/domain/workloads/index.ts";
@@ -11,17 +13,18 @@ import { caller, makeContext, principal } from "../_support.ts";
 const VALID_DEPENDENCY = mintTypeId(ID_PREFIX.workload);
 const STARTED = mintTypeId(ID_PREFIX.workload);
 
-function setup(): { readonly call: ReturnType<typeof caller>; readonly start: ReturnType<typeof vi.fn<WorkloadService["start"]>> } {
+async function setup(db: Db): Promise<{ readonly call: ReturnType<typeof caller>; readonly start: ReturnType<typeof vi.fn<WorkloadService["start"]>> }> {
   const start = vi.fn<WorkloadService["start"]>(() => Promise.resolve({ id: STARTED }));
   return {
-    call: caller(makeContext({ auth: principal("user"), services: { workloads: { start } } })),
+    call: caller(makeContext({ auth: await principal(db, "user"), services: { workloads: { start } } })),
     start,
   };
 }
 
 describe("workloads.start dependency TypeID boundary", () => {
   test("a canonical workload dependency reaches the domain as a WorkloadId", async () => {
-    const { call, start } = setup();
+    const db = await freshDb();
+    const { call, start } = await setup(db);
 
     await expect(
       call.workloads.start({ input: { kind: "index", params: { source: "text" } }, mode: "singular", dependsOn: [VALID_DEPENDENCY] }),
@@ -30,7 +33,8 @@ describe("workloads.start dependency TypeID boundary", () => {
   });
 
   test("a canonical TypeID with the wrong prefix is BAD_REQUEST and never reaches the domain", async () => {
-    const { call, start } = setup();
+    const db = await freshDb();
+    const { call, start } = await setup(db);
 
     await expect(
       call.workloads.start({
@@ -44,7 +48,8 @@ describe("workloads.start dependency TypeID boundary", () => {
   });
 
   test("malformed nonempty dependency text is BAD_REQUEST and never reaches the domain", async () => {
-    const { call, start } = setup();
+    const db = await freshDb();
+    const { call, start } = await setup(db);
 
     await expect(
       call.workloads.start({
@@ -60,8 +65,9 @@ describe("workloads.start dependency TypeID boundary", () => {
 
 describe("workloads.estimateModelCalls", () => {
   test("a bulk estimate is refused to a non-owner at the edge, before the domain counts anything", async () => {
+    const db = await freshDb();
     const estimateModelCalls = vi.fn<WorkloadService["estimateModelCalls"]>(() => Promise.resolve({ calls: 3 }));
-    const call = caller(makeContext({ auth: principal("user"), services: { workloads: { estimateModelCalls } } }));
+    const call = caller(makeContext({ auth: await principal(db, "user"), services: { workloads: { estimateModelCalls } } }));
 
     await expect(call.workloads.estimateModelCalls({ input: { kind: "distill-characters", params: {} }, mode: "bulk" })).rejects.toMatchObject({
       code: "FORBIDDEN",
@@ -70,8 +76,9 @@ describe("workloads.estimateModelCalls", () => {
   });
 
   test("a singular estimate reaches the domain as the caller's own, and returns its count", async () => {
+    const db = await freshDb();
     const estimateModelCalls = vi.fn<WorkloadService["estimateModelCalls"]>(() => Promise.resolve({ calls: 3 }));
-    const auth = principal("user");
+    const auth = await principal(db, "user");
     const call = caller(makeContext({ auth, services: { workloads: { estimateModelCalls } } }));
 
     await expect(call.workloads.estimateModelCalls({ input: { kind: "distill-characters", params: {} } })).resolves.toEqual({ calls: 3 });
@@ -83,6 +90,7 @@ describe("workloads.estimateModelCalls", () => {
 // would fail the whole Jobs list. A pre-scope `import-bundle` row reads as having no memory scope.
 describe("workloads.list over stored rows from before the import memory scope", () => {
   test("a pre-scope import-bundle row lists, with no memory scope", async () => {
+    const db = await freshDb();
     const stored = {
       id: mintTypeId(ID_PREFIX.workload),
       status: "succeeded",
@@ -101,7 +109,7 @@ describe("workloads.list over stored rows from before the import memory scope", 
       poison: false,
     } as const;
     const list = vi.fn<WorkloadService["list"]>(() => Promise.resolve([stored] as unknown as Awaited<ReturnType<WorkloadService["list"]>>));
-    const call = caller(makeContext({ auth: principal("user"), services: { workloads: { list } } }));
+    const call = caller(makeContext({ auth: await principal(db, "user"), services: { workloads: { list } } }));
 
     const rows = await call.workloads.list({});
 

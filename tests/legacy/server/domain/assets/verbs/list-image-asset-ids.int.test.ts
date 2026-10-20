@@ -26,7 +26,7 @@ describe("listImageAssetIds", () => {
     const created = await Promise.all(
       ASSET_KINDS.map(async (kind, index) => ({
         kind,
-        asset: await svc.store({ principal: principal(owner), kind, mime: PNG, bytes: pngBytes(index, 20, 30, 40) }),
+        asset: await svc.store({ principal: await principal(db, owner), kind, mime: PNG, bytes: pngBytes(index, 20, 30, 40) }),
       })),
     );
     const avatar = created.find((row) => row.kind === "avatar");
@@ -41,20 +41,20 @@ describe("listImageAssetIds", () => {
     const bob = await seedUser(db, { handle: castId<Handle>("bob") });
 
     const aliceAvatar = await svc.store({
-      principal: principal(alice),
+      principal: await principal(db, alice),
       bytes: pngBytes(1, 2, 3, 4),
       kind: "avatar",
       mime: PNG,
     });
     const bobAvatar = await svc.store({
-      principal: principal(bob),
+      principal: await principal(db, bob),
       bytes: pngBytes(5, 6, 7, 8),
       kind: "avatar",
       mime: PNG,
     });
     // A non-image asset (an export zip) must never enter the imageEmbed sweep universe.
     await svc.store({
-      principal: principal(alice),
+      principal: await principal(db, alice),
       bytes: new Uint8Array([0x50, 0x4b, 0x03, 0x04, 9, 9]),
       kind: "export",
       mime: ZIP,

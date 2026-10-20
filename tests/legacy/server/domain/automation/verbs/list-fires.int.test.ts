@@ -2,14 +2,23 @@
 // @subject packages/server/src/domain/automation/verbs/list-fires.ts
 
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "../_support.ts";
 
 test("listFires returns the rule's fire log (the testRule test_run row)", async () => {
+  const db = await freshDb();
   const { host, chatId, svc } = await ruleFixture();
-  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "r", trigger: MSG_COMMITTED, actions: [SET_VAR] });
-  await svc.testRule({ principal: principal(host), ruleId: rule.id });
-  const fires = await svc.listFires({ principal: principal(host), ruleId: rule.id });
+  const rule = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(db, host),
+    chatId,
+    name: "r",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
+  await svc.testRule({ principal: await principal(db, host), ruleId: rule.id });
+  const fires = await svc.listFires({ principal: await principal(db, host), ruleId: rule.id });
   expect(fires).toHaveLength(1);
   expect(fires[0]?.outcome).toBe("test_run");
 });

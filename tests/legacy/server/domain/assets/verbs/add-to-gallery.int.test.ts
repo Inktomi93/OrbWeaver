@@ -34,14 +34,14 @@ describe("addToGallery", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const asset = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(1),
       kind: "gallery",
       mime: PNG,
     });
 
     const view = await svc.addToGallery({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       assetId: asset.assetId,
       subjectCharacterId: character,
     });
@@ -63,13 +63,13 @@ describe("addToGallery", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const asset = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(2),
       kind: "gallery",
       mime: PNG,
     });
 
-    const view = await svc.addToGallery({ principal: principal(owner), assetId: asset.assetId });
+    const view = await svc.addToGallery({ principal: await principal(db, owner), assetId: asset.assetId });
     expect(view.subjectCharacterId).toBeNull();
   });
 
@@ -81,25 +81,25 @@ describe("addToGallery", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
     const asset = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(3),
       kind: "gallery",
       mime: PNG,
     });
 
     const first = await svc.addToGallery({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       assetId: asset.assetId,
       subjectCharacterId: character,
     });
     const second = await svc.addToGallery({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       assetId: asset.assetId,
       subjectCharacterId: character,
     });
     expect(second.galleryItemId).toBe(first.galleryItemId);
 
-    const all = await svc.listGallery({ principal: principal(owner), limit: 100 });
+    const all = await svc.listGallery({ principal: await principal(db, owner), limit: 100 });
     expect(all).toHaveLength(1);
   });
 
@@ -112,14 +112,14 @@ describe("addToGallery", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const asset = await svc.store({ principal: principal(owner), bytes: pngBytes(6), kind: "gallery", mime: PNG });
+    const asset = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(6), kind: "gallery", mime: PNG });
 
-    const first = await svc.addToGallery({ principal: principal(owner), assetId: asset.assetId });
-    const second = await svc.addToGallery({ principal: principal(owner), assetId: asset.assetId });
+    const first = await svc.addToGallery({ principal: await principal(db, owner), assetId: asset.assetId });
+    const second = await svc.addToGallery({ principal: await principal(db, owner), assetId: asset.assetId });
     expect(second.galleryItemId).toBe(first.galleryItemId);
     expect(second.subjectCharacterId).toBeNull();
 
-    const all = await svc.listGallery({ principal: principal(owner), limit: 100 });
+    const all = await svc.listGallery({ principal: await principal(db, owner), limit: 100 });
     expect(all).toHaveLength(1);
   });
 
@@ -132,12 +132,12 @@ describe("addToGallery", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
-    const asset = await svc.store({ principal: principal(owner), bytes: pngBytes(7), kind: "gallery", mime: PNG });
+    const asset = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(7), kind: "gallery", mime: PNG });
 
-    const bare = await svc.addToGallery({ principal: principal(owner), assetId: asset.assetId });
-    const scoped = await svc.addToGallery({ principal: principal(owner), assetId: asset.assetId, subjectCharacterId: character });
+    const bare = await svc.addToGallery({ principal: await principal(db, owner), assetId: asset.assetId });
+    const scoped = await svc.addToGallery({ principal: await principal(db, owner), assetId: asset.assetId, subjectCharacterId: character });
     expect(scoped.galleryItemId).not.toBe(bare.galleryItemId);
-    expect(await svc.listGallery({ principal: principal(owner), limit: 100 })).toHaveLength(2);
+    expect(await svc.listGallery({ principal: await principal(db, owner), limit: 100 })).toHaveLength(2);
   });
 
   test("rejects a foreign asset (leak-free NOT_FOUND)", async () => {
@@ -148,13 +148,13 @@ describe("addToGallery", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await svc.store({
-      principal: principal(other),
+      principal: await principal(db, other),
       bytes: pngBytes(4),
       kind: "gallery",
       mime: PNG,
     });
 
-    await expect(svc.addToGallery({ principal: principal(owner), assetId: foreign.assetId })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(svc.addToGallery({ principal: await principal(db, owner), assetId: foreign.assetId })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 
   test("rejects a foreign subject character (leak-free NOT_FOUND)", async () => {
@@ -166,7 +166,7 @@ describe("addToGallery", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreignChar = await seedCharacter(db, other, { handle: castId<CharacterHandle>("villain") });
     const asset = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(5),
       kind: "gallery",
       mime: PNG,
@@ -174,7 +174,7 @@ describe("addToGallery", () => {
 
     await expect(
       svc.addToGallery({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         assetId: asset.assetId,
         subjectCharacterId: foreignChar,
       }),
@@ -191,10 +191,10 @@ describe("addToGallery", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const asset = await svc.store({ principal: principal(owner), bytes: pngBytes(8), kind: "gallery", mime: PNG });
+    const asset = await svc.store({ principal: await principal(db, owner), bytes: pngBytes(8), kind: "gallery", mime: PNG });
 
     const view = hold(GALLERY_VIEW_JOIN);
-    const adding = svc.addToGallery({ principal: principal(owner), assetId: asset.assetId });
+    const adding = svc.addToGallery({ principal: await principal(db, owner), assetId: asset.assetId });
     await view.reached;
     // The concurrent writer: another request deletes the row addToGallery just inserted, in the gap
     // between the insert and this re-read. Raw SQL so the plant itself is not held (it does not match

@@ -19,14 +19,14 @@ describe("deleteJournalEntry", () => {
   test("removes the entry", async () => {
     const { chatId, gameId, h } = await seedLiteGame(db);
     const entryId = await h.service.addJournalEntry({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       type: "note",
       title: "Session 1",
       content: "We began.",
     });
 
-    await h.service.deleteJournalEntry({ principal: principal(castId<Handle>("host")), chatId, entryId });
+    await h.service.deleteJournalEntry({ principal: await principal(db, castId<Handle>("host")), chatId, entryId });
     expect(await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED })).toHaveLength(0);
   });
 });

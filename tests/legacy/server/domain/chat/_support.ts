@@ -4,8 +4,8 @@
 // (the persistence layer takes the clock as a PARAM; the schema's `unixepoch()` default would be
 // non-deterministic, so every seeded row stamps `FROZEN_AT`).
 
-import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, ParticipantView, TurnInitiator } from "@orb/contracts/chat";
-import type { ParticipantRole } from "@orb/contracts/identity";
+import type { ChatBusEvent, JoinHistoryVisibility, MessageKind, TurnInitiator } from "@orb/contracts/chat";
+import type { ParticipantRole, ParticipantRoleState } from "@orb/contracts/identity";
 import type { Capability } from "@orb/contracts/inference";
 import { modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { SummarizeResult } from "@orb/contracts/providers";
@@ -27,7 +27,7 @@ import {
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import { databaseHandle } from "@orb/db/wiring-driver";
-import { statementForOwner, statementToken } from "@orb/db/wiring-owner";
+import { batchForOwner, databaseForOwner, statementForOwner, statementToken } from "@orb/db/wiring-owner";
 import type { Resolved } from "@orb/inference";
 import type {
   AssetId,
@@ -54,19 +54,22 @@ import type {
 } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
-import { loadPresentHostUserId } from "@orb/server/domain/chat";
+import { loadPresentHostUserId, loadPresentRole } from "@orb/server/domain/chat";
 import { createMemoryEmbeddingOps } from "@orb/server/domain/embeddings";
 import { buildAuditStatement } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
 import { makeCapability, TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
-import { and, asc, eq, isNull, sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { can } from "#server/domain/admin/index.ts";
 import type { ChatContext } from "#server/domain/chat/context.ts";
-import type { ClaimChatOp, SummarizeOp } from "#server/domain/chat/contract/context.ts";
+import type { ClaimChatOp, LoadParticipantViewsOp, SummarizeOp } from "#server/domain/chat/contract/context.ts";
 import type { MemoryRecallResult } from "#server/domain/chat/contract/memory.ts";
 import type { TurnRequest, TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
+import type { ParticipantData } from "#server/domain/chat/contract/views.ts";
+import type { ChatAssemblyContext } from "#server/domain/chat/contract/wiring.ts";
+import { loadParticipantsBatch } from "#server/domain/chat/persistence/participants-read.ts";
 import { createChatTeachingContributions } from "#server/domain/chat/teaching-contribution.ts";
 import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
 import { createPersonaOwned } from "#server/domain/persona/index.ts";
@@ -323,20 +326,28 @@ export async function seedMessage(
   return { messageId, variantId };
 }
 
-/** A fake roster resolver — maps present `chat_participants` rows to minimal `ParticipantView`s (the root
- *  resolves the real `users` publics; here the handle/name derive from the id — the `fork.ts` test precedent).
- *  Byte-identical across fork/invites/start-chat/read; call fresh per test (after `db = await freshDb()`) so it
- *  closes over the current test's db. */
-export function makeLoadParticipantViews(db: Db): (chatId: ChatId) => Promise<readonly ParticipantView[]> {
-  return async (chatId: ChatId): Promise<readonly ParticipantView[]> => {
-    // SEAT ORDER, like production's `loadParticipants` (joinSeq, then id) — not insertion order. `ChatSummary`'s
-    // `participantPortraits` is rendered IN SEAT ORDER (#192), so a double that answered in insertion order
-    // would let a real ordering regression pass.
-    const rows = await db
-      .select()
-      .from(chatParticipants)
-      .where(and(eq(chatParticipants.chatId, chatId), isNull(chatParticipants.leftSeq)))
-      .orderBy(asc(chatParticipants.joinSeq), asc(chatParticipants.id));
+/** A host seat and a member seat in a fresh room, their roles read back through the production loader. Pure
+ *  decision tests take seat roles from here: a role is captured row data, never a literal. */
+export async function seatRoles(db: Db): Promise<{ readonly host: ParticipantRoleState; readonly member: ParticipantRoleState }> {
+  const host = await seedUser(db, castId<Handle>("seat_host"));
+  const member = await seedUser(db, castId<Handle>("seat_member"));
+  const chatId = await seedChat(db, "seat_roles");
+  await seedParticipant(db, { chatId, key: "seat_host", userId: host, role: "host" });
+  await seedParticipant(db, { chatId, key: "seat_member", userId: member, role: "member" });
+  const [hostRole, memberRole] = [await loadPresentRole(db, chatId, host), await loadPresentRole(db, chatId, member)];
+  if (hostRole === null || memberRole === null) {
+    throw new Error("seatRoles: a seeded seat did not load as present");
+  }
+  return { host: hostRole, member: memberRole };
+}
+
+/** A roster resolver over the production seat read (`loadParticipantsBatch`: present seats in seat order, roles
+ *  captured) with minimal decoration (the root resolves the real `users` publics; here the handle/name derive from
+ *  the id — the `fork.ts` test precedent). Call fresh per test (after `db = await freshDb()`) so it closes over the
+ *  current test's db. */
+export function makeLoadParticipantViews(db: Db): LoadParticipantViewsOp {
+  return async (chatId: ChatId): Promise<readonly ParticipantData[]> => {
+    const rows = await loadParticipantsBatch(db, [chatId]);
     return rows.map((r) => ({
       id: r.id,
       chatId: r.chatId,
@@ -454,6 +465,18 @@ export function fakeRecallResult(text: string): MemoryRecallResult {
   };
 }
 
+/** The assembly door the chat verbs take: the same context behind the db, batch and stats wiring handles the
+ *  composition root hands over, so an owner-form override reaches the verb unchanged. */
+export function chatAssembly(ctx: ChatContext): ChatAssemblyContext {
+  return {
+    ...ctx,
+    db: databaseHandle(ctx.db),
+    applyStatsDelta: (batch, opDb, delta) => ctx.applyStatsDelta(batchForOwner(batch), databaseForOwner(opDb), delta),
+    applyCharacterStatsDelta: (batch, opDb, delta) => ctx.applyCharacterStatsDelta(batchForOwner(batch), databaseForOwner(opDb), delta),
+    settleRetainedChatRebase: (batch, opDb, scope) => ctx.settleRetainedChatRebase(batchForOwner(batch), databaseForOwner(opDb), scope),
+    bumpStatsCanonVersion: (batch, opDb, ownerId) => ctx.bumpStatsCanonVersion(batchForOwner(batch), databaseForOwner(opDb), ownerId),
+  };
+}
 /**
  * Build a full `ChatContext` for the verb int-tests — the REAL db + the REAL admin `can()` (the unified
  * seam, wired as the root will) + a frozen clock + deterministic id minters. Every cross-feature op defaults
@@ -702,7 +725,7 @@ export const stubRunCompaction = (_args: {
 
 /** Adapt an isolated single-room resolver to the read bundle's required batch contract. */
 export function batchParticipantViews(
-  load: (chatId: ChatId) => Promise<readonly ParticipantView[]>,
-): (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantView[]>> {
+  load: (chatId: ChatId) => Promise<readonly ParticipantData[]>,
+): (chatIds: readonly ChatId[]) => Promise<ReadonlyMap<ChatId, readonly ParticipantData[]>> {
   return async (chatIds) => new Map(await Promise.all(chatIds.map(async (id) => [id, await load(id)] as const)));
 }

@@ -65,7 +65,7 @@ test("the seeded sequence RAISES the ask, and a second ungranted plugin re-raise
   const { ops, moves } = recordingConsentOps();
   const h = makePluginHarness(db, { ops });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
 
   // The seeder's own two calls, verbatim: install with an empty grant, then the empty RE-GRANT that raises
   // the standing ask (`entry/boot/seed-example-plugins.ts`).
@@ -88,7 +88,7 @@ test("answering LOWERS the ask quietly, and answering the LAST one retracts it",
   const { ops, moves } = recordingConsentOps();
   const h = makePluginHarness(db, { ops });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
 
   const first = await h.service.install({ caller, bundle: makeBundle({ id: "aa", capabilities: ["chat.read"] }), grant: [] });
   const second = await h.service.install({ caller, bundle: makeBundle({ id: "bb", capabilities: ["chat.read"] }), grant: [] });
@@ -111,7 +111,7 @@ test("a PARTIAL grant leaves the ask standing — the count is corrected, not wi
   const { ops, moves } = recordingConsentOps();
   const h = makePluginHarness(db, { ops });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
 
   const installed = await h.service.install({
     caller,
@@ -131,7 +131,7 @@ test("REMOVING an unanswered plugin withdraws its question — the ask never cou
   const { ops, moves } = recordingConsentOps();
   const h = makePluginHarness(db, { ops });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
 
   const first = await h.service.install({ caller, bundle: makeBundle({ id: "aa", capabilities: ["chat.read"] }), grant: [] });
   const second = await h.service.install({ caller, bundle: makeBundle({ id: "bb", capabilities: ["chat.read"] }), grant: [] });
@@ -152,16 +152,16 @@ test("a reach-WIDENING upgrade raises the ask; the count is the OWNER's, per own
   const h = makePluginHarness(db, { ops });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const other = await seedUser(db, { handle: castId<Handle>("other") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
 
   // The other user's own ungranted plugin must never be counted into this owner's ask: plugins are
   // user-scoped (D147), so the aggregate is derived per ROW OWNER and never as a deployment singleton.
   const theirs = await h.service.install({
-    caller: ownerPrincipalFor(other),
+    caller: await ownerPrincipalFor(db, other),
     bundle: makeBundle({ id: "cc", capabilities: ["chat.read"] }),
     grant: [],
   });
-  await h.service.setGrant({ caller: ownerPrincipalFor(other), pluginId: theirs.id, grant: [], acknowledgedNetHosts: [] });
+  await h.service.setGrant({ caller: await ownerPrincipalFor(db, other), pluginId: theirs.id, grant: [], acknowledgedNetHosts: [] });
   expect(moves).toEqual([{ move: "emit", recipientUserId: other, pendingCount: 1 }]);
   moves.length = 0;
 

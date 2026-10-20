@@ -29,7 +29,7 @@ describe("listRoomDisplayScripts", () => {
       resolveRoomDisplayPolicy: () => Promise.resolve({ enabled: false, hostUserId: host }),
     });
 
-    expect(await createRegexService(h.ctx).listRoomDisplayScripts({ principal: principal(member), chatId })).toEqual([]);
+    expect(await createRegexService(h.ctx).listRoomDisplayScripts({ principal: await principal(db, member), chatId })).toEqual([]);
   });
 
   test("opted IN: a MEMBER receives the HOST's display scripts", async () => {
@@ -43,7 +43,7 @@ describe("listRoomDisplayScripts", () => {
       resolveRoomDisplayPolicy: () => Promise.resolve({ enabled: true, hostUserId: host }),
     });
 
-    expect((await createRegexService(h.ctx).listRoomDisplayScripts({ principal: principal(member), chatId })).map((r) => r.name)).toEqual(["fx"]);
+    expect((await createRegexService(h.ctx).listRoomDisplayScripts({ principal: await principal(db, member), chatId })).map((r) => r.name)).toEqual(["fx"]);
   });
 
   test("opted IN: narrowed to what would FIRE — a disabled or prompt-side script never rides", async () => {
@@ -61,7 +61,7 @@ describe("listRoomDisplayScripts", () => {
 
     // Handing over a disabled or prompt-side script would leak the host's library shape for zero render
     // benefit — the narrowing is a privacy property, not an optimization.
-    expect((await createRegexService(h.ctx).listRoomDisplayScripts({ principal: principal(member), chatId })).map((r) => r.name)).toEqual(["fires"]);
+    expect((await createRegexService(h.ctx).listRoomDisplayScripts({ principal: await principal(db, member), chatId })).map((r) => r.name)).toEqual(["fires"]);
   });
 
   test("a HOSTLESS room broadcasts nothing", async () => {
@@ -73,7 +73,7 @@ describe("listRoomDisplayScripts", () => {
       resolveRoomDisplayPolicy: () => Promise.resolve({ enabled: true, hostUserId: null }),
     });
 
-    expect(await createRegexService(h.ctx).listRoomDisplayScripts({ principal: principal(member), chatId })).toEqual([]);
+    expect(await createRegexService(h.ctx).listRoomDisplayScripts({ principal: await principal(db, member), chatId })).toEqual([]);
   });
 
   test("a NON-member is refused before the policy is even consulted", async () => {
@@ -84,6 +84,6 @@ describe("listRoomDisplayScripts", () => {
     // `resolveRoomDisplayPolicy` is the throwing default — reaching it would fail with a different message.
     const h = makeHarness(db, { requireChatMember: refuse });
 
-    await expect(createRegexService(h.ctx).listRoomDisplayScripts({ principal: principal(outsider), chatId })).rejects.toThrow("not a member");
+    await expect(createRegexService(h.ctx).listRoomDisplayScripts({ principal: await principal(db, outsider), chatId })).rejects.toThrow("not a member");
   });
 });

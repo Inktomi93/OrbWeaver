@@ -18,15 +18,15 @@ describe("duplicateScript", () => {
     const svc = createRegexService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "original", behavior: behavior({ findRegex: "src" }) });
-    await svc.attachGlobal({ principal: principal(owner), scriptId });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId });
 
-    const copy = await svc.duplicateScript({ principal: principal(owner), scriptId });
+    const copy = await svc.duplicateScript({ principal: await principal(db, owner), scriptId });
 
     expect(copy.id).not.toBe(scriptId);
     expect(copy.name).toBe("original (copy)");
     expect(copy.findRegex).toBe("src");
     // The copy is detached everywhere; only the source is still global.
-    expect((await svc.listGlobal({ principal: principal(owner) })).map((r) => r.id)).toEqual([scriptId]);
+    expect((await svc.listGlobal({ principal: await principal(db, owner) })).map((r) => r.id)).toEqual([scriptId]);
   });
 
   test("refuses a foreign source", async () => {
@@ -37,6 +37,6 @@ describe("duplicateScript", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
 
-    await expect(svc.duplicateScript({ principal: principal(stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.duplicateScript({ principal: await principal(db, stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
   });
 });

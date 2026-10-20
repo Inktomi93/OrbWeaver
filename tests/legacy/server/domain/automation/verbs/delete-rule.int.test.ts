@@ -9,10 +9,17 @@ import { createAutomationService, createEnabledRuleIndex, RuleNotFoundError } fr
 import { MSG_COMMITTED, makeAutomationHarness, principal, readFailingDb, ruleFixture, SET_VAR, seedHostChat, seedUser } from "../_support.ts";
 
 test("deleteRule removes the rule from the chat's list, and announces the roster move", async () => {
-  const { host, chatId, svc, events } = await ruleFixture();
-  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "gone", trigger: MSG_COMMITTED, actions: [SET_VAR] });
-  await svc.deleteRule({ principal: principal(host), ruleId: rule.id });
-  await expect(svc.listRules({ principal: principal(host), chatId })).resolves.toHaveLength(0);
+  const { host, chatId, svc, events, db } = await ruleFixture();
+  const rule = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(db, host),
+    chatId,
+    name: "gone",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
+  await svc.deleteRule({ principal: await principal(db, host), ruleId: rule.id });
+  await expect(svc.listRules({ principal: await principal(db, host), chatId })).resolves.toHaveLength(0);
   // Create + delete each announce. D50 bans per-entity DELETION events and this is not one — `rulesChanged`
   // is the coarse "this chat's rule set moved" member, identical on both writes (survey H2/F5).
   expect(events).toEqual([
@@ -42,17 +49,17 @@ test("an index-refresh failure does not reject the committed delete, and the del
   const svc = createAutomationService(ctx);
   const rule = await svc.createRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(host),
+    principal: await principal(db, host),
     chatId,
     name: "doomed",
     trigger: { bus: "chat", type: "chatOpened" },
     actions: [SET_VAR],
   });
-  await svc.setRuleEnabled({ principal: principal(host), ruleId: rule.id, enabled: true });
+  await svc.setRuleEnabled({ principal: await principal(db, host), ruleId: rule.id, enabled: true });
   await enabled.reload();
 
   failing.fail = true;
-  await expect(svc.deleteRule({ principal: principal(host), ruleId: rule.id })).resolves.toBeUndefined();
+  await expect(svc.deleteRule({ principal: await principal(db, host), ruleId: rule.id })).resolves.toBeUndefined();
   expect(enabled.isStale()).toBe(true);
 
   // The pre-check now claims interest (fail open), so the event reaches the DB — which no longer holds the
@@ -63,11 +70,18 @@ test("an index-refresh failure does not reject the committed delete, and the del
 
 test("a foreign caller's delete is refused and announces nothing", async () => {
   const { db, host, chatId, svc, events } = await ruleFixture();
-  const rule = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "kept", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+  const rule = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(db, host),
+    chatId,
+    name: "kept",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
   const stranger = await seedUser(db, "user_stranger");
-  await expect(svc.deleteRule({ principal: principal(stranger), ruleId: rule.id })).rejects.toThrow(RuleNotFoundError);
+  await expect(svc.deleteRule({ principal: await principal(db, stranger), ruleId: rule.id })).rejects.toThrow(RuleNotFoundError);
   // The guard throws before the DELETE, so the ledger still holds only the create's event — a refused write
   // must never tell a subscriber to re-read (it would be announcing a change that did not happen).
   expect(events).toEqual([{ type: "rulesChanged", chatId }]);
-  await expect(svc.listRules({ principal: principal(host), chatId })).resolves.toHaveLength(1);
+  await expect(svc.listRules({ principal: await principal(db, host), chatId })).resolves.toHaveLength(1);
 });

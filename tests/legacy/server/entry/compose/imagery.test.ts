@@ -29,16 +29,18 @@ import type { AssetId, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids"
 import { castId } from "@orb/kit/ids";
 import { isCharacterSeated } from "@orb/server/domain/chat";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import { imageryToolDefinitions } from "#server/domain/imagery/index.ts";
 import type { ImageryComposeDeps } from "#server/entry/compose/imagery.ts";
 import { buildImagery } from "#server/entry/compose/imagery.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import { seedCharacter, seedChat, seedParticipant, seedUser } from "../../domain/chat/_support.ts";
 
-const CALLER = principal(castId<UserId>("usr_caller"), { handle: castId<Handle>("caller") });
+// These callers resolve from rows in one in-memory database; the subject under test reads no database of its own.
+const callersDb = await freshDb();
+const CALLER = await principal({ db: callersDb }, castId<UserId>("usr_caller"), { handle: castId<Handle>("caller") });
 const HOST = castId<UserId>("usr_host");
 const CHAT = castId<ChatId>("chat_room");
 const SUBJECT = castId<CharacterId>("chr_subject");
@@ -99,7 +101,7 @@ function build(f: Fakes, db: Db | Record<string, never> = {}): ReturnType<typeof
     roleClientsFor: f.roleClientsFor,
     resolveChatHostUserId: f.resolveChatHostUserId,
     isCharacterSeated: f.isCharacterSeated,
-    resolveHostPrincipal: (userId: UserId) => Promise.resolve(principal(userId)),
+    resolveHostPrincipal: async (userId: UserId) => Promise.resolve(await principal({ db: callersDb }, userId)),
     resolveUtilityPresetParams: f.resolveUtilityPresetParams,
     resolveUserMacroDefs: vi.fn(() => Promise.resolve({ preset: [], game: [] })),
     loadUserSettings: f.loadUserSettings,
@@ -241,8 +243,8 @@ describe("buildImagery — a member's preview in a host's room runs as the host 
     await build(f).extractPrompt({ caller: CALLER, chatId: CHAT, mode: "character_multimodal", subjectCharacterId: SUBJECT });
 
     expect(f.resolveViewerVisibility).toHaveBeenCalledWith(CHAT, CALLER.userId);
-    expect(f.characterGet).toHaveBeenCalledWith({ principal: principal(HOST), characterId: SUBJECT });
-    expect(f.readOwnedAssetBytes).toHaveBeenCalledWith(principal(HOST), AVATAR);
+    expect(f.characterGet).toHaveBeenCalledWith({ principal: await principal({ db: callersDb }, HOST), characterId: SUBJECT });
+    expect(f.readOwnedAssetBytes).toHaveBeenCalledWith(await principal({ db: callersDb }, HOST), AVATAR);
     expect(f.loadUserSettings.mock.calls).toEqual([[HOST]]);
     expect(f.resolveUtilityPresetParams.mock.calls).toEqual([[HOST]]);
     expect(f.roleClientsFor.mock.calls).toEqual([[HOST]]);
@@ -258,7 +260,7 @@ describe("buildImagery — a member's preview in a host's room runs as the host 
     const f = fakes();
     f.resolveChatHostUserId.mockResolvedValue(host);
 
-    await build(f, db).extractPrompt({ caller: principal(member), chatId, mode: "scenario" });
+    await build(f, db).extractPrompt({ caller: await principal({ db }, member), chatId, mode: "scenario" });
 
     expect(f.resolveViewerVisibility.mock.calls.every(([room, viewer]) => room === chatId && viewer === member)).toBe(true);
     expect(f.loadUserSettings.mock.calls).toEqual([[host]]);
@@ -299,7 +301,7 @@ describe("buildImagery — a room preview's subject comes from the room roster",
       const f = roomFakes(room.db);
 
       await expect(
-        build(f, room.db).extractPrompt({ caller: principal(room.member), chatId: room.chatId, mode, subjectCharacterId: room.offRoom }),
+        build(f, room.db).extractPrompt({ caller: await principal({ db: room.db }, room.member), chatId: room.chatId, mode, subjectCharacterId: room.offRoom }),
       ).rejects.toMatchObject({ name: "DomainNotFoundError" });
       expect(f.cardGetCard).not.toHaveBeenCalled();
       expect(f.characterGet).not.toHaveBeenCalled();
@@ -312,7 +314,12 @@ describe("buildImagery — a room preview's subject comes from the room roster",
     const f = roomFakes(room.db);
     f.resolveChatHostUserId.mockResolvedValue(room.host);
 
-    await build(f, room.db).extractPrompt({ caller: principal(room.host), chatId: room.chatId, mode: "character", subjectCharacterId: room.offRoom });
+    await build(f, room.db).extractPrompt({
+      caller: await principal({ db: room.db }, room.host),
+      chatId: room.chatId,
+      mode: "character",
+      subjectCharacterId: room.offRoom,
+    });
 
     expect(f.summarize).toHaveBeenCalledTimes(1);
   });
@@ -321,7 +328,12 @@ describe("buildImagery — a room preview's subject comes from the room roster",
     const room = await seedRoom();
     const f = roomFakes(room.db);
 
-    await build(f, room.db).extractPrompt({ caller: principal(room.member), chatId: room.chatId, mode: "character", subjectCharacterId: room.seated });
+    await build(f, room.db).extractPrompt({
+      caller: await principal({ db: room.db }, room.member),
+      chatId: room.chatId,
+      mode: "character",
+      subjectCharacterId: room.seated,
+    });
 
     expect(f.summarize).toHaveBeenCalledTimes(1);
   });

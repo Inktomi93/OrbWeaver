@@ -18,7 +18,6 @@ import { castId } from "@orb/kit/ids";
 import { createAssetsService } from "@orb/server/domain/assets";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe, onTestFinished } from "vitest";
@@ -31,11 +30,12 @@ import { loadWitnessHorizons } from "#server/domain/chat/memory/persistence/quer
 import { recallMemory } from "#server/domain/chat/memory/recall/recall.ts";
 import { loadCanonHistory } from "#server/domain/chat/persistence/queries.ts";
 import { createTurn } from "#server/domain/chat/verbs/turn.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeHarness } from "../../assets/_support.ts";
 import { makeChatContext, seedCharacter, seedChat, seedParticipant, seedUser, stubRunCompaction, testConnection } from "../_support.ts";
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 /** A scripted assistant turn so `send` completes a real round (the attach lands on the USER row regardless). */
@@ -159,7 +159,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
     const h = await harness(db, {});
 
     const outcome = await h.turn.send({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       content: "look at this",
       attachmentAssetIds: [assetId],
@@ -183,7 +183,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
     const { host, chatId } = await seedSolo(db);
     const h = await harness(db, {});
 
-    const outcome = await h.turn.send({ principal: principal(host), chatId, content: "plain" });
+    const outcome = await h.turn.send({ principal: await principal(db, host), chatId, content: "plain" });
 
     expect(outcome.messages.find((m) => m.role === "user")?.content).toBe("plain");
     const rows = await db.select({ id: messageAssets.id }).from(messageAssets);
@@ -198,7 +198,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
 
     await expect(
       h.turn.send({
-        principal: principal(host),
+        principal: await principal(db, host),
         chatId,
         content: "steal this",
         attachmentAssetIds: [foreignAsset],
@@ -219,7 +219,7 @@ describe("send — #67 attach TRUST BOUNDARY", () => {
 
     await expect(
       h.turn.send({
-        principal: principal(outsider),
+        principal: await principal(db, outsider),
         chatId,
         content: "intrude",
         attachmentAssetIds: [outsiderAsset],

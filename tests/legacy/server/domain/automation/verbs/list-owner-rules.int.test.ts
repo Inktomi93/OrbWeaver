@@ -24,7 +24,7 @@ describe("listOwnerRules", () => {
     const other = await seedUser(f.db, "user_other");
     await f.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: null,
       name: "mine",
       trigger: DOMAIN_TRIGGER,
@@ -32,22 +32,22 @@ describe("listOwnerRules", () => {
     });
     await f.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(other),
+      principal: await principal(f.db, other),
       chatId: null,
       name: "theirs",
       trigger: DOMAIN_TRIGGER,
       actions: [GLOBAL_ARM],
     });
 
-    await expect(f.svc.listOwnerRules({ principal: principal(f.host) })).resolves.toMatchObject([{ name: "mine", chatId: null }]);
-    await expect(f.svc.listOwnerRules({ principal: principal(other) })).resolves.toMatchObject([{ name: "theirs", chatId: null }]);
+    await expect(f.svc.listOwnerRules({ principal: await principal(f.db, f.host) })).resolves.toMatchObject([{ name: "mine", chatId: null }]);
+    await expect(f.svc.listOwnerRules({ principal: await principal(f.db, other) })).resolves.toMatchObject([{ name: "theirs", chatId: null }]);
   });
 
   test("a CHAT rule never appears on the global lane, and vice versa — the two lists are disjoint", async () => {
     const f = await ruleFixture();
     await f.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: f.chatId,
       name: "room rule",
       trigger: { bus: "chat", type: "messageCommitted" },
@@ -55,22 +55,22 @@ describe("listOwnerRules", () => {
     });
     await f.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: null,
       name: "library rule",
       trigger: DOMAIN_TRIGGER,
       actions: [GLOBAL_ARM],
     });
 
-    await expect(f.svc.listOwnerRules({ principal: principal(f.host) })).resolves.toMatchObject([{ name: "library rule" }]);
-    await expect(f.svc.listRules({ principal: principal(f.host), chatId: f.chatId })).resolves.toMatchObject([{ name: "room rule" }]);
+    await expect(f.svc.listOwnerRules({ principal: await principal(f.db, f.host) })).resolves.toMatchObject([{ name: "library rule" }]);
+    await expect(f.svc.listRules({ principal: await principal(f.db, f.host), chatId: f.chatId })).resolves.toMatchObject([{ name: "room rule" }]);
   });
 
   test("orders by position, which is the order the rules were minted in", async () => {
     const f = await ruleFixture();
     await f.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: null,
       name: "first",
       trigger: DOMAIN_TRIGGER,
@@ -78,7 +78,7 @@ describe("listOwnerRules", () => {
     });
     await f.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: null,
       name: "second",
       trigger: DOMAIN_TRIGGER,
@@ -86,7 +86,7 @@ describe("listOwnerRules", () => {
     });
     // Order IS semantics on this lane exactly as it is in a room: the arms of two rules in one dispatch
     // batch share (and mutate) the author's global variable plane.
-    const rules = await f.svc.listOwnerRules({ principal: principal(f.host) });
+    const rules = await f.svc.listOwnerRules({ principal: await principal(f.db, f.host) });
     expect(rules.map((rule) => rule.name)).toEqual(["first", "second"]);
     expect(rules.map((rule) => rule.position)).toEqual([0, 1]);
   });
@@ -96,13 +96,13 @@ describe("listOwnerRules", () => {
     const other = await seedUser(f.db, "user_other");
     await f.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: null,
       name: "mine",
       trigger: DOMAIN_TRIGGER,
       actions: [GLOBAL_ARM],
     });
     // The empty read is about WHICH PRINCIPAL ASKED, never about whether any global rule exists — one does.
-    await expect(f.svc.listOwnerRules({ principal: principal(other) })).resolves.toEqual([]);
+    await expect(f.svc.listOwnerRules({ principal: await principal(f.db, other) })).resolves.toEqual([]);
   });
 });

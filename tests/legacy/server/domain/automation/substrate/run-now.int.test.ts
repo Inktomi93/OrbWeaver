@@ -5,6 +5,7 @@
 
 import { setTimeout as sleep } from "node:timers/promises";
 import { automationFires, automationRules } from "@orb/db";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AutomationRuleId, MessageId } from "@orb/kit/ids";
 import { mintTypeId } from "@orb/kit/ids";
@@ -20,7 +21,7 @@ import { insertRule, selectRuleRow, setRuleEnabledRow } from "#server/domain/aut
 import { createAutomationService } from "#server/domain/automation/service.ts";
 import { dispatchRuleNow } from "#server/domain/automation/substrate/run-now.ts";
 import { seedMessage } from "../../chat/_support.ts";
-import { FIXED_NOW_MS, readFailingDb, ruleFixture } from "../_support.ts";
+import { automationContext, FIXED_NOW_MS, readFailingDb, ruleFixture } from "../_support.ts";
 
 async function seedEnabledRule(
   fixture: Awaited<ReturnType<typeof ruleFixture>>,
@@ -87,7 +88,7 @@ describe("dispatchRuleNow", () => {
     }
 
     failing.fail = true;
-    await expect(dispatchRuleNow(ctx, rule, fixture.chatId, fixture.host)).resolves.not.toBeNull();
+    await expect(dispatchRuleNow(automationContext(ctx), rule, fixture.chatId, fixture.host)).resolves.not.toBeNull();
     expect(enabled.isStale()).toBe(true);
 
     // THE PREMISE, proven: the disable really did commit, so the reconcile this test is about really ran.
@@ -159,7 +160,7 @@ describe("#1565 Run now and the bus door queue on ONE lane", () => {
     const gate = deferred();
     let n = 0;
     const base = await ruleFixture();
-    const ctx: AutomationContext = {
+    const ctx: DbAssemblyInput<AutomationContext> = {
       ...base.ctx,
       runArm: async (): Promise<{ readonly ok: true }> => {
         n += 1;
@@ -172,7 +173,7 @@ describe("#1565 Run now and the bus door queue on ONE lane", () => {
         return { ok: true };
       },
     };
-    const svc = createAutomationService({ ...ctx, db: databaseHandle(ctx.db) });
+    const svc = createAutomationService(ctx);
     const ruleId = await seedEnabledRule(base, [{ type: "set_variable", scope: "chat", key: "beats", op: "inc" }]);
     await ctx.enabled.reload();
     const rule = await ruleRowFor(base, ruleId);
@@ -181,7 +182,7 @@ describe("#1565 Run now and the bus door queue on ONE lane", () => {
     // The bus event enters first and parks inside its arm; the host presses Run now while it is parked.
     const bus = svc.handleEvent({ type: "messageCommitted", chatId: base.chatId, messageId });
     await sleep(0);
-    const manual = dispatchRuleNow(ctx, rule, base.chatId, base.host);
+    const manual = dispatchRuleNow(automationContext(ctx), rule, base.chatId, base.host);
     await sleep(0);
     gate.resolve();
     await Promise.all([bus, manual]);
@@ -203,7 +204,7 @@ describe("#1565 Run now and the bus door queue on ONE lane", () => {
     let svc!: ReturnType<typeof createAutomationService>;
     const reentry: Promise<void>[] = [];
     let messageId: MessageId | null = null;
-    const ctx: AutomationContext = {
+    const ctx: DbAssemblyInput<AutomationContext> = {
       ...base.ctx,
       runArm: (): Promise<{ readonly ok: true }> => {
         order.push("arm");
@@ -214,7 +215,7 @@ describe("#1565 Run now and the bus door queue on ONE lane", () => {
         return Promise.resolve({ ok: true });
       },
     };
-    svc = createAutomationService({ ...ctx, db: databaseHandle(ctx.db) });
+    svc = createAutomationService(ctx);
     const ruleId = await seedEnabledRule(base, [{ type: "set_variable", scope: "chat", key: "beats", op: "inc" }]);
     await ctx.enabled.reload();
     const rule = await ruleRowFor(base, ruleId);
@@ -222,7 +223,7 @@ describe("#1565 Run now and the bus door queue on ONE lane", () => {
 
     // The outer manual run RESOLVES (it would hang forever if the re-entry were awaited on its own lane), and
     // the re-entrant event has NOT run its arm yet at that point -- it is queued behind the job that raised it.
-    await expect(dispatchRuleNow(ctx, rule, base.chatId, base.host)).resolves.not.toBeNull();
+    await expect(dispatchRuleNow(automationContext(ctx), rule, base.chatId, base.host)).resolves.not.toBeNull();
     expect(order).toEqual(["arm"]);
 
     // Draining it runs the queued event, second and separately.

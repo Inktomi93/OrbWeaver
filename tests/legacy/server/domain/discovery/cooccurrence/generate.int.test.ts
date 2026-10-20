@@ -14,7 +14,11 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createDiscoveryService } from "#server/domain/discovery/index.ts";
+import { everyOwnerAuthority } from "../../workloads/_support.ts";
 import { makeDiscoveryHarness, seedCharacter, seedChatDigest, seedHostedChat, seedUser, vec } from "../_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 function svcFor(db: Db): ReturnType<typeof createDiscoveryService> {
   return createDiscoveryService(makeDiscoveryHarness(db).ctx);
@@ -60,7 +64,7 @@ describe("computeCooccurrence", () => {
     });
 
     // hubFraction: 1 disables dropping (no keyword appears in > 2 digests).
-    const stats = await svcFor(db).computeCooccurrence({ hubFraction: 1 });
+    const stats = await svcFor(db).computeCooccurrence({ ...EVERY_OWNER.runScope, hubFraction: 1 });
     expect(stats.ownersProcessed).toBe(1);
     expect(stats.hubTokensDropped).toBe(0);
 
@@ -117,7 +121,7 @@ describe("computeCooccurrence", () => {
       keywords: ["common", "armor"],
     });
 
-    const stats = await svcFor(db).computeCooccurrence();
+    const stats = await svcFor(db).computeCooccurrence(EVERY_OWNER.runScope);
     expect(stats.hubTokensDropped).toBe(1);
     const pairs = await pairsFor(db, owner);
     // "common" is dropped, so no pair survives (each digest has one non-hub keyword).
@@ -150,7 +154,7 @@ describe("computeCooccurrence", () => {
       keywords: ["dragons", "castle"],
     });
 
-    await svcFor(db).computeCooccurrence({ hubFraction: 1 });
+    await svcFor(db).computeCooccurrence({ ...EVERY_OWNER.runScope, hubFraction: 1 });
     const pairs = await pairsFor(db, owner);
     // Collapsed to ONE scene → the pair counts once, not twice.
     expect(pairs).toEqual([{ a: "castle", b: "dragons", count: 1 }]);
@@ -187,7 +191,7 @@ describe("computeCooccurrence", () => {
       keywords: ["pirates", "treasure"],
     });
 
-    await svcFor(db).computeCooccurrence({ hubFraction: 1 });
+    await svcFor(db).computeCooccurrence({ ...EVERY_OWNER.runScope, hubFraction: 1 });
     expect(await pairsFor(db, owner)).toEqual([]); // only a tier-1 digest → nothing
     expect((await pairsFor(db, other)).map((p) => `${p.a}-${p.b}`)).toEqual(["pirates-treasure"]);
   });
@@ -198,7 +202,7 @@ describe("computeCooccurrence", () => {
   test("NO DIGESTS: reports digestsRead 0 — the caller's refusal signal, not a zero-change run", async () => {
     const db = await freshDb();
     await seedUser(db, "user_a");
-    const stats = await svcFor(db).computeCooccurrence({ hubFraction: 1 });
+    const stats = await svcFor(db).computeCooccurrence({ ...EVERY_OWNER.runScope, hubFraction: 1 });
     expect(stats).toMatchObject({ ownersProcessed: 0, pairsWritten: 0, charKeywordsWritten: 0, digestsRead: 0 });
   });
 
@@ -227,7 +231,7 @@ describe("computeCooccurrence", () => {
       contentHash: "h2",
       keywords: ["dragons", "knights"],
     });
-    const stats = await svcFor(db).computeCooccurrence({ hubFraction: 1 });
+    const stats = await svcFor(db).computeCooccurrence({ ...EVERY_OWNER.runScope, hubFraction: 1 });
     expect(stats.digestsRead).toBe(2);
   });
 });
@@ -263,7 +267,7 @@ describe("group-room digests", () => {
       keywords: ["tavern", "brawl"],
     });
 
-    const stats = await svcFor(db).computeCooccurrence({ hubFraction: 1 });
+    const stats = await svcFor(db).computeCooccurrence({ ...EVERY_OWNER.runScope, hubFraction: 1 });
 
     // Both digests were READ; only the solo one is the pass's actual input plane.
     expect(stats.digestsRead).toBe(2);
@@ -287,7 +291,7 @@ describe("group-room digests", () => {
       keywords: ["tavern", "brawl"],
     });
 
-    const stats = await svcFor(db).computeCooccurrence({ hubFraction: 1 });
+    const stats = await svcFor(db).computeCooccurrence({ ...EVERY_OWNER.runScope, hubFraction: 1 });
 
     expect(stats).toMatchObject({ digestsRead: 1, soloDigestsRead: 0, pairsWritten: 0, charKeywordsWritten: 0 });
   });
@@ -328,7 +332,7 @@ describe("the maxPairs cut is a TOTAL order", () => {
       keywords: ["alpha", "beta"],
     });
 
-    const stats = await svcFor(db).computeCooccurrence({ hubFraction: 1, maxPairs: 1 });
+    const stats = await svcFor(db).computeCooccurrence({ ...EVERY_OWNER.runScope, hubFraction: 1, maxPairs: 1 });
 
     expect(stats.pairsWritten).toBe(1);
     expect(await pairsFor(db, owner)).toEqual([{ a: "alpha", b: "beta", count: 1 }]);

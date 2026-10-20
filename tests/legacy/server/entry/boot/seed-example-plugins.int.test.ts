@@ -75,7 +75,7 @@ test("research familiar: the real bundle installs consent-first, and its message
     },
   };
   const h = makePluginHarness(db, { port: realHost(), ops: configuredOps });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
 
   // THE SEEDED SEQUENCE, verbatim: install with an EMPTY grant, then the empty RE-GRANT that raises the
   // standing consent ask. The row can do nothing at all until a human answers it.
@@ -144,7 +144,7 @@ test("oracle deck: the real bundle registers both tools and a draw is verifiable
   const db = await freshDb();
   const { ops, captured } = recordingOps(db, new Map());
   const h = makePluginHarness(db, { port: realHost(), ops });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
 
   const bundle = await packShowcaseBundle("oracle-deck");
   expect(bundle).not.toBeNull();
@@ -261,7 +261,7 @@ test("oracle deck: two CONCURRENT draws claim DISJOINT cards — the shared sess
   const db = await freshDb();
   const { ops, captured } = recordingOps(db, new Map());
   const h = makePluginHarness(db, { port: realHost(), ops });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
 
   await installGrantEnable({ h, caller, slug: "oracle-deck", grant: ["storage.kv", "tools.register", "ui.surface", "plugin_events"] });
   const invoke = requireInvoke(captured);
@@ -282,7 +282,7 @@ test("draft polish: the real bundle explicitly replaces a draft and registers no
   const db = await freshDb();
   const { ops, captured } = recordingOps(db, new Map());
   const h = makePluginHarness(db, { port: realHost(), ops });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
 
   const installed = await installGrantEnable({ h, caller, slug: "draft-polish", grant: ["chat.transform", "ui.surface"] });
   expect(captured.transforms).toEqual([]);
@@ -308,7 +308,7 @@ test("draft polish: the DISPLAY transform typesets the viewer's own screen and l
   const db = await freshDb();
   const { ops } = recordingOps(db, new Map());
   const h = makePluginHarness(db, { port: realHost(), ops });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
 
   await installGrantEnable({ h, caller, slug: "draft-polish", grant: ["chat.transform"] });
 
@@ -328,7 +328,7 @@ test("draft polish: the DISPLAY transform typesets the viewer's own screen and l
 test("scene chips: the real bundle offers chips on a long narrator beat, once per cooldown", async () => {
   const db = await freshDb();
   const { ops: recorded, captured } = recordingOps(db, new Map());
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   await seedChat(db, "scene", { id: CHAT });
   await seedParticipant(db, { chatId: CHAT, key: "scene_host", userId: caller.userId, role: "host" });
   const otherRoom = await seedChat(db, "scene_other", { id: castId<ChatId>("chat_2") });

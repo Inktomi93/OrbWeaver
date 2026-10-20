@@ -34,7 +34,7 @@ describe("editImage — the capability gate (doc 03 §1)", () => {
 
     await expect(
       createImageryService(ctx).editImage({
-        caller: principal(owner),
+        caller: await principal(db, owner),
         source: { assetId: SOURCE_ASSET },
         instruction: "make it night",
       }),
@@ -64,7 +64,7 @@ describe("editImage — the edit path (doc 02 §4)", () => {
     });
 
     const result = await createImageryService(ctx).editImage({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       source: { assetId: SOURCE_ASSET },
       instruction: "make it night",
     });
@@ -99,8 +99,13 @@ describe("editImage — the edit path (doc 02 §4)", () => {
     });
     const imagery = createImageryService(ctx);
 
-    await imagery.editImage({ caller: principal(owner), chatId: mine, source: { bytes: PNG_BYTES, mime: "image/png" }, instruction: "in my room" });
-    await imagery.editImage({ caller: principal(owner), chatId: strangers, source: { bytes: PNG_BYTES, mime: "image/png" }, instruction: "in theirs" });
+    await imagery.editImage({ caller: await principal(db, owner), chatId: mine, source: { bytes: PNG_BYTES, mime: "image/png" }, instruction: "in my room" });
+    await imagery.editImage({
+      caller: await principal(db, owner),
+      chatId: strangers,
+      source: { bytes: PNG_BYTES, mime: "image/png" },
+      instruction: "in theirs",
+    });
 
     const rows = await db.select().from(imageryGenerations);
     expect(rows.map((row) => [row.prompt, row.chatId])).toEqual(
@@ -129,7 +134,7 @@ describe("editImage — the edit path (doc 02 §4)", () => {
     });
 
     await createImageryService(ctx).editImage({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       source: { bytes: PNG_BYTES, mime: "image/png" },
       instruction: "add a scar",
       mask: { bytes: maskBytes, mime: "image/png" },
@@ -154,7 +159,7 @@ describe("editImage — the edit path (doc 02 §4)", () => {
     });
 
     const result = await createImageryService(ctx).editImage({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       source: { bytes: PNG_BYTES, mime: "image/png" },
       instruction: "add a scar",
       mask: { bytes: Uint8Array.from([1, 2]), mime: "image/png" },

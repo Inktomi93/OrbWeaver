@@ -14,12 +14,12 @@ import {
   userConnections,
 } from "@orb/db";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { makeGenerationCapability } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { test as base, expect } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { reconcileStats } from "#server/domain/stats/index.ts";
+import { principal } from "../../../db/schema/_support.ts";
 import type { RecordedRequest } from "../../../inference/backends/_hosted-support.ts";
 import { openAiTextStream, scriptedSseFetch } from "../../../inference/backends/_hosted-support.ts";
 import { seedCharacter, seedChat, seedParticipant } from "../../domain/chat/_support.ts";
@@ -54,8 +54,8 @@ test("a fresh paid turn after no-copy handoff and its signed inverse retain ever
 }) => {
   const a = await seedUser(db, { handle: castId("departing_owner") });
   const b = await seedUser(db, { handle: castId("incoming_owner") });
-  const pa = principal(a.id, { handle: a.handle });
-  const pb = principal(b.id, { handle: b.handle });
+  const pa = await principal({ db }, a.id, { handle: a.handle });
+  const pb = await principal({ db }, b.id, { handle: b.handle });
   const chatId = await seedChat(db, "fresh_cohort", { id: mintTypeId(ID_PREFIX.chat) });
   const oldVoice = await seedCharacter(db, a.id, "Old Voice", { id: mintTypeId(ID_PREFIX.character) });
   const newVoice = await seedCharacter(db, b.id, "New Voice", { id: mintTypeId(ID_PREFIX.character) });

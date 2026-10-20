@@ -10,9 +10,13 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { createReservedWorkloadContributions } from "#server/domain/workloads/substrate/reserved-contributions.ts";
+import { everyOwnerAuthority } from "../_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 const T0 = 1_700_000_000_000;
-const ctx: WorkloadRunContext = { userId: castId<UserId>("system"), ownerId: null, now: () => T0 };
+const ctx: WorkloadRunContext = { ...EVERY_OWNER.run, userId: castId<UserId>("system"), now: () => T0 };
 
 describe("reconcile-world-state (reserved)", () => {
   test("is inert: it reports, mutates nothing, and returns the deferred sentinel", async () => {

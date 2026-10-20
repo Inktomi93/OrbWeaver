@@ -13,7 +13,7 @@ import type { UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { JsonSchemaLiftError } from "@orb/kit/json-schema";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { z } from "zod";
@@ -22,12 +22,21 @@ import { can as realCan } from "#server/domain/admin/index.ts";
 import { TOOL_NAME_RE } from "#server/domain/tool-use/contract/params.ts";
 import type { PluginToolSpec, ToolCallRecord, ToolExecutionContext } from "#server/domain/tool-use/index.ts";
 import { createToolUseService, ToolNameCollisionError } from "#server/domain/tool-use/index.ts";
+import { principal } from "../../../../db/schema/_support.ts";
+import { seatRoles } from "../../chat/_support.ts";
 import { defOf, execOf } from "../_support.ts";
+
+// Seat roles are captured row data: one in-memory room supplies the host and member roles these checks read.
+const ROLES = await seatRoles(await freshDb());
 
 type Service = ReturnType<typeof createToolUseService>;
 
-const INSTALLER = principal(castId("user_installer"), { handle: castId("installer") });
-const STRANGER = principal(castId("user_stranger"), { handle: castId("stranger") });
+// These callers resolve from rows in one in-memory database; the subject under test reads no database of its own.
+const callersDb = await freshDb();
+const automationExec = await execOf(callersDb, { chatId: castId("chat_x"), membership: null, turnId: null });
+const hostCallerExec = await execOf(callersDb, { chatId: castId("chat_x"), membership: { role: ROLES.host } });
+const INSTALLER = await principal({ db: callersDb }, castId("user_installer"), { handle: castId("installer") });
+const STRANGER = await principal({ db: callersDb }, castId("user_stranger"), { handle: castId("stranger") });
 
 const allowAll: Can = (() => undefined) as Can;
 
@@ -60,7 +69,8 @@ async function runOne(
   args: unknown,
   over: { readonly exec?: ToolExecutionContext; readonly driver?: UserId } = {},
 ): Promise<ToolCallRecord | undefined> {
-  const exec = over.exec ?? execOf();
+  const db = await freshDb();
+  const exec = over.exec ?? (await execOf(db));
   const set = service.resolveTools(over.driver ?? INSTALLER.userId, [name]);
   const records = await service.executeToolCalls(set, [{ toolCallId: "c1", name, arguments: JSON.stringify(args) }], exec);
   return records[0];
@@ -84,6 +94,7 @@ test("registration display and replay metadata survive the canonical executor", 
 });
 
 test("the turn cancellation signal reaches the plugin runtime admission request", async () => {
+  const db = await freshDb();
   const service = serviceWith();
   const controller = new AbortController();
   let received: AbortSignal | undefined;
@@ -95,7 +106,7 @@ test("the turn cancellation signal reaches the plugin runtime admission request"
       },
     }),
   );
-  const record = await runOne(service, "plugin_mood_report", { tag: "calm" }, { exec: execOf({ signal: controller.signal }) });
+  const record = await runOne(service, "plugin_mood_report", { tag: "calm" }, { exec: await execOf(db, { signal: controller.signal }) });
   expect(record?.isError).toBe(false);
   expect(received).toBe(controller.signal);
 });
@@ -132,8 +143,6 @@ test("a name collision is activation-fatal (ToolNameCollisionError), never last-
 // and (b) `canWrite` was taken from whoever was host of the room the tool ran in. These pins are written
 // against the REAL `can` seam so no stubbed `can` can make them pass vacuously.
 describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", () => {
-  const hostCallerExec = execOf({ chatId: castId("chat_x"), membership: { role: "host" } });
-
   test("a chat the installer is not a present member of is DENIED — even when the CALLER is its host", async () => {
     const service = serviceWith(realCan);
     let invoked = false;
@@ -172,6 +181,7 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
   });
 
   test("a HOST installer gets the write scope even when the CALLER is only a member", async () => {
+    const db = await freshDb();
     // The mirror: the caller's role is irrelevant in BOTH directions — the plugin's effects are the
     // installer's authority, which is what makes the membrane's host-authority gates meaningful.
     const service = serviceWith(realCan);
@@ -183,12 +193,18 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
     service.registerPluginTool(
       specOf({ name: "plugin_host", installer: INSTALLER, invoke, resolveInstallerAuthority: () => Promise.resolve({ canRead: true, canWrite: true }) }),
     );
-    const rec = await runOne(service, "plugin_host", { tag: "calm" }, { exec: execOf({ chatId: castId("chat_x"), membership: { role: "member" } }) });
+    const rec = await runOne(
+      service,
+      "plugin_host",
+      { tag: "calm" },
+      { exec: await execOf(db, { chatId: castId("chat_x"), membership: { role: ROLES.member } }) },
+    );
     expect(rec?.isError).toBe(false);
     expect(seen?.canWrite).toBe(true);
   });
 
   test("the installer's role is resolved for THE INVOCATION CHAT, per call", async () => {
+    const db = await freshDb();
     // The op takes the chatId precisely so one registration cannot carry a role resolved elsewhere: the same
     // tool is host in chat_x and a non-member in chat_y.
     const service = serviceWith(realCan);
@@ -208,8 +224,18 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
         },
       }),
     );
-    const okRec = await runOne(service, "plugin_per_chat", { tag: "a" }, { exec: execOf({ chatId: castId("chat_x"), membership: { role: "member" } }) });
-    const deniedRec = await runOne(service, "plugin_per_chat", { tag: "b" }, { exec: execOf({ chatId: castId("chat_y"), membership: { role: "host" } }) });
+    const okRec = await runOne(
+      service,
+      "plugin_per_chat",
+      { tag: "a" },
+      { exec: await execOf(db, { chatId: castId("chat_x"), membership: { role: ROLES.member } }) },
+    );
+    const deniedRec = await runOne(
+      service,
+      "plugin_per_chat",
+      { tag: "b" },
+      { exec: await execOf(db, { chatId: castId("chat_y"), membership: { role: ROLES.host } }) },
+    );
     expect(okRec?.isError).toBe(false);
     expect(deniedRec?.isError).toBe(true);
     expect(asked).toEqual(["chat_x", "chat_y"]);
@@ -223,7 +249,6 @@ describe("PL-C: the invocation ceiling is the INSTALLER's role in THIS chat", ()
   // arm deliberately does not hand over anyone's membership). A ceiling that quietly depended on either field
   // being populated would go silent on exactly this path, which is why these two pins exist rather than an
   // assumption that the turn-shaped pins above still cover it.
-  const automationExec = execOf({ chatId: castId("chat_x"), membership: null, turnId: null });
 
   test("the ceiling still DENIES on the automation exec shape — a null membership does not soften it", async () => {
     const service = serviceWith(realCan);

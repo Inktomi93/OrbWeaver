@@ -16,7 +16,7 @@ describe("listTags", () => {
     await seedTag(db, owner, { id: "tag_mine", name: "mine" });
     await seedTag(db, other, { id: "tag_theirs", name: "theirs" });
 
-    const names = (await svc.listTags({ principal: principal(owner) })).map((t) => t.name);
+    const names = (await svc.listTags({ principal: await principal(db, owner) })).map((t) => t.name);
     expect(names).toEqual(["mine"]);
   });
 });

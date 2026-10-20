@@ -22,20 +22,20 @@ describe("list", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     const first = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "First", description: "" },
     });
     h.advance(ONE_MINUTE);
     const second = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Second", description: "" },
     });
-    await svc.create({ principal: principal(other), input: { name: "Foreign", description: "" } });
+    await svc.create({ principal: await principal(db, other), input: { name: "Foreign", description: "" } });
 
-    const mine = await svc.list({ principal: principal(owner) });
+    const mine = await svc.list({ principal: await principal(db, owner) });
     expect(mine.map((p) => p.id)).toEqual([second.id, first.id]);
 
-    const theirs = await svc.list({ principal: principal(other) });
+    const theirs = await svc.list({ principal: await principal(db, other) });
     expect(theirs.map((p) => p.name)).toEqual(["Foreign"]);
   });
 
@@ -43,6 +43,6 @@ describe("list", () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    expect(await svc.list({ principal: principal(owner) })).toEqual([]);
+    expect(await svc.list({ principal: await principal(db, owner) })).toEqual([]);
   });
 });

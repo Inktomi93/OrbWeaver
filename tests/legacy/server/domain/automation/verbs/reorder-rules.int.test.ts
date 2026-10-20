@@ -21,9 +21,9 @@ test("global totality refuses duplicate, partial, foreign, nonexistent and empty
   const fx = await ruleFixture();
   const other = await seedUser(fx.db, "foreign-global-gate");
   const body = { chatId: null, trigger: { bus: "domain" as const, type: "character.updated" as const }, actions: [{ ...SET_VAR, scope: "global" as const }] };
-  const a = await fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(fx.host), name: "a" });
-  const b = await fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(fx.host), name: "b" });
-  const foreign = await fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(other), name: "foreign" });
+  const a = await fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(fx.db, fx.host), name: "a" });
+  const b = await fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(fx.db, fx.host), name: "b" });
+  const foreign = await fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(fx.db, other), name: "foreign" });
   const before = await fx.db.select().from(automationRules);
   const orders = [
     { ids: [a.id, a.id], code: "duplicate" },
@@ -33,17 +33,17 @@ test("global totality refuses duplicate, partial, foreign, nonexistent and empty
     { ids: [], code: "incomplete" },
   ];
   for (const order of orders) {
-    await expect(fx.svc.reorderRules({ principal: principal(fx.host), chatId: null, orderedIds: order.ids })).rejects.toMatchObject({
+    await expect(fx.svc.reorderRules({ principal: await principal(fx.db, fx.host), chatId: null, orderedIds: order.ids })).rejects.toMatchObject({
       code: `automation_reorder_${order.code}`,
     });
     expect(await fx.db.select().from(automationRules)).toEqual(before);
   }
-  await fx.svc.reorderRules({ principal: principal(fx.host), chatId: null, orderedIds: [b.id, a.id] });
-  expect((await fx.svc.listOwnerRules({ principal: principal(fx.host) })).map((rule) => [rule.id, rule.position])).toEqual([
+  await fx.svc.reorderRules({ principal: await principal(fx.db, fx.host), chatId: null, orderedIds: [b.id, a.id] });
+  expect((await fx.svc.listOwnerRules({ principal: await principal(fx.db, fx.host) })).map((rule) => [rule.id, rule.position])).toEqual([
     [b.id, 0],
     [a.id, 1],
   ]);
-  expect(await fx.svc.listOwnerRules({ principal: principal(other) })).toEqual([foreign]);
+  expect(await fx.svc.listOwnerRules({ principal: await principal(fx.db, other) })).toEqual([foreign]);
   expect(fx.events).toEqual([]);
 });
 
@@ -52,8 +52,10 @@ test("global exact-set reorder rejects delete-C/create-D after admission and nev
   const fx = await ruleFixture({}, held.db);
   const other = await seedUser(fx.db, "other-global-order");
   const body = { chatId: null, trigger: { bus: "domain" as const, type: "character.updated" as const }, actions: [{ ...SET_VAR, scope: "global" as const }] };
-  const rules = await Promise.all(["a", "b", "c"].map((name) => fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(fx.host), name })));
-  const foreign = await fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(other), name: "foreign marker" });
+  const rules = await Promise.all(
+    ["a", "b", "c"].map(async (name) => fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(fx.db, fx.host), name })),
+  );
+  const foreign = await fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(fx.db, other), name: "foreign marker" });
   const c = rules[2];
   if (c === undefined) {
     throw new Error("expected third rule");
@@ -62,21 +64,21 @@ test("global exact-set reorder rejects delete-C/create-D after admission and nev
   let operation: Promise<string> | undefined;
   try {
     const svc = createAutomationService({ ...fx.ctx, now: () => REORDER_NOW });
-    operation = svc.reorderRules({ principal: principal(fx.host), chatId: null, orderedIds: rules.toReversed().map((rule) => rule.id) }).then(
+    operation = svc.reorderRules({ principal: await principal(fx.db, fx.host), chatId: null, orderedIds: rules.toReversed().map((rule) => rule.id) }).then(
       () => "resolved",
       (error) => (error instanceof DomainOperationError ? error.code : String(error)),
     );
     await write.reached;
     write.disarm();
-    await fx.svc.deleteRule({ principal: principal(fx.host), ruleId: c.id });
-    await fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: principal(fx.host), name: "d" });
+    await fx.svc.deleteRule({ principal: await principal(fx.db, fx.host), ruleId: c.id });
+    await fx.svc.createRule({ timeZone: UTC_TIME_ZONE, ...body, principal: await principal(fx.db, fx.host), name: "d" });
     const before = await fx.db.select().from(automationRules);
     write.release();
     expect(await operation).toBe("automation_reorder_changed");
     expect(await fx.db.select().from(automationRules)).toEqual(before);
     expect(before.find((row) => row.id === foreign.id)?.position).toBe(0);
     expect(fx.events).toEqual([]);
-    await expect(fx.svc.reorderRules({ principal: principal(fx.host), chatId: null, orderedIds: [foreign.id] })).rejects.toMatchObject({
+    await expect(fx.svc.reorderRules({ principal: await principal(fx.db, fx.host), chatId: null, orderedIds: [foreign.id] })).rejects.toMatchObject({
       code: "automation_reorder_foreign",
     });
   } finally {
@@ -90,8 +92,15 @@ for (const mutation of ["addition", "deletion", "replacement"] as const) {
     const held = await freshHeldDb();
     const fx = await ruleFixture({}, held.db);
     const rules = await Promise.all(
-      ["a", "b", "c"].map((name) =>
-        fx.svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(fx.host), chatId: fx.chatId, name, trigger: MSG_COMMITTED, actions: [SET_VAR] }),
+      ["a", "b", "c"].map(async (name) =>
+        fx.svc.createRule({
+          timeZone: UTC_TIME_ZONE,
+          principal: await principal(fx.db, fx.host),
+          chatId: fx.chatId,
+          name,
+          trigger: MSG_COMMITTED,
+          actions: [SET_VAR],
+        }),
       ),
     );
     const c = rules[2];
@@ -103,19 +112,19 @@ for (const mutation of ["addition", "deletion", "replacement"] as const) {
     let settled: Promise<string> | undefined;
     try {
       const svc = createAutomationService({ ...fx.ctx, now: () => REORDER_NOW });
-      settled = svc.reorderRules({ principal: principal(fx.host), chatId: fx.chatId, orderedIds: rules.toReversed().map((rule) => rule.id) }).then(
+      settled = svc.reorderRules({ principal: await principal(fx.db, fx.host), chatId: fx.chatId, orderedIds: rules.toReversed().map((rule) => rule.id) }).then(
         () => "resolved",
         (error) => (error instanceof DomainOperationError ? error.code : String(error)),
       );
       await write.reached;
       write.disarm();
       if (mutation !== "addition") {
-        await fx.svc.deleteRule({ principal: principal(fx.host), ruleId: c.id });
+        await fx.svc.deleteRule({ principal: await principal(fx.db, fx.host), ruleId: c.id });
       }
       if (mutation !== "deletion") {
         await fx.svc.createRule({
           timeZone: UTC_TIME_ZONE,
-          principal: principal(fx.host),
+          principal: await principal(fx.db, fx.host),
           chatId: fx.chatId,
           name: "d",
           trigger: MSG_COMMITTED,
@@ -138,12 +147,33 @@ for (const mutation of ["addition", "deletion", "replacement"] as const) {
 }
 
 test("reorderRules rewrites position as a total order, and announces once", async () => {
-  const { host, chatId, svc, events } = await ruleFixture();
-  const a = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "a", trigger: MSG_COMMITTED, actions: [SET_VAR] });
-  const b = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "b", trigger: MSG_COMMITTED, actions: [SET_VAR] });
-  const c = await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "c", trigger: MSG_COMMITTED, actions: [SET_VAR] });
-  await svc.reorderRules({ principal: principal(host), chatId, orderedIds: [c.id, a.id, b.id] });
-  const listed = await svc.listRules({ principal: principal(host), chatId });
+  const { host, chatId, svc, events, db } = await ruleFixture();
+  const a = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(db, host),
+    chatId,
+    name: "a",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
+  const b = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(db, host),
+    chatId,
+    name: "b",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
+  const c = await svc.createRule({
+    timeZone: UTC_TIME_ZONE,
+    principal: await principal(db, host),
+    chatId,
+    name: "c",
+    trigger: MSG_COMMITTED,
+    actions: [SET_VAR],
+  });
+  await svc.reorderRules({ principal: await principal(db, host), chatId, orderedIds: [c.id, a.id, b.id] });
+  const listed = await svc.listRules({ principal: await principal(db, host), chatId });
   expect(listed.map((r) => r.name)).toEqual(["c", "a", "b"]);
   expect(listed.map((r) => r.position)).toEqual([0, 1, 2]);
   // Three creates + ONE reorder — the reorder announces once for the whole total rewrite, not once per moved
@@ -187,7 +217,7 @@ describe("the total-order gate", () => {
     const fx = await ruleFixture();
     const a = await fx.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(fx.host),
+      principal: await principal(fx.db, fx.host),
       chatId: fx.chatId,
       name: "a",
       trigger: MSG_COMMITTED,
@@ -195,7 +225,7 @@ describe("the total-order gate", () => {
     });
     const b = await fx.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(fx.host),
+      principal: await principal(fx.db, fx.host),
       chatId: fx.chatId,
       name: "b",
       trigger: MSG_COMMITTED,
@@ -203,7 +233,7 @@ describe("the total-order gate", () => {
     });
     const c = await fx.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(fx.host),
+      principal: await principal(fx.db, fx.host),
       chatId: fx.chatId,
       name: "c",
       trigger: MSG_COMMITTED,
@@ -214,10 +244,10 @@ describe("the total-order gate", () => {
 
   test("a PARTIAL list is refused, and the stored order is untouched", async () => {
     const { fx, a, b } = await threeRules();
-    expect(await refusalCode(fx.svc.reorderRules({ principal: principal(fx.host), chatId: fx.chatId, orderedIds: [b, a] }))).toBe(
+    expect(await refusalCode(fx.svc.reorderRules({ principal: await principal(fx.db, fx.host), chatId: fx.chatId, orderedIds: [b, a] }))).toBe(
       "automation_reorder_incomplete",
     );
-    const listed = await fx.svc.listRules({ principal: principal(fx.host), chatId: fx.chatId });
+    const listed = await fx.svc.listRules({ principal: await principal(fx.db, fx.host), chatId: fx.chatId });
     // The refusal happens BEFORE the batch: names and positions are exactly as created.
     expect(listed.map((r) => r.name)).toEqual(["a", "b", "c"]);
     expect(listed.map((r) => r.position)).toEqual([0, 1, 2]);
@@ -225,7 +255,7 @@ describe("the total-order gate", () => {
 
   test("a DUPLICATE id is refused", async () => {
     const { fx, a, b } = await threeRules();
-    expect(await refusalCode(fx.svc.reorderRules({ principal: principal(fx.host), chatId: fx.chatId, orderedIds: [a, b, a] }))).toBe(
+    expect(await refusalCode(fx.svc.reorderRules({ principal: await principal(fx.db, fx.host), chatId: fx.chatId, orderedIds: [a, b, a] }))).toBe(
       "automation_reorder_duplicate",
     );
   });
@@ -235,30 +265,30 @@ describe("the total-order gate", () => {
     const other = await ruleFixture();
     const stranger = await other.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(other.host),
+      principal: await principal(other.db, other.host),
       chatId: other.chatId,
       name: "stranger",
       trigger: MSG_COMMITTED,
       actions: [SET_VAR],
     });
-    expect(await refusalCode(fx.svc.reorderRules({ principal: principal(fx.host), chatId: fx.chatId, orderedIds: [a, b, stranger.id] }))).toBe(
+    expect(await refusalCode(fx.svc.reorderRules({ principal: await principal(fx.db, fx.host), chatId: fx.chatId, orderedIds: [a, b, stranger.id] }))).toBe(
       "automation_reorder_foreign",
     );
     // The refusal text names no id.
-    await expect(fx.svc.reorderRules({ principal: principal(fx.host), chatId: fx.chatId, orderedIds: [a, b, stranger.id] })).rejects.toThrow(
+    await expect(fx.svc.reorderRules({ principal: await principal(fx.db, fx.host), chatId: fx.chatId, orderedIds: [a, b, stranger.id] })).rejects.toThrow(
       /may only list this chat's own rules/,
     );
   });
 
   test("the COMPLETE permutation still applies (the gate refuses malformed input, not the feature)", async () => {
     const { fx, a, b, c } = await threeRules();
-    await fx.svc.reorderRules({ principal: principal(fx.host), chatId: fx.chatId, orderedIds: [c, b, a] });
-    const listed = await fx.svc.listRules({ principal: principal(fx.host), chatId: fx.chatId });
+    await fx.svc.reorderRules({ principal: await principal(fx.db, fx.host), chatId: fx.chatId, orderedIds: [c, b, a] });
+    const listed = await fx.svc.listRules({ principal: await principal(fx.db, fx.host), chatId: fx.chatId });
     expect(listed.map((r) => r.name)).toEqual(["c", "b", "a"]);
   });
 
   test("an EMPTY list is admitted for a chat with no rules (the trivially total order)", async () => {
     const fx = await ruleFixture();
-    await expect(fx.svc.reorderRules({ principal: principal(fx.host), chatId: fx.chatId, orderedIds: [] })).resolves.toBeUndefined();
+    await expect(fx.svc.reorderRules({ principal: await principal(fx.db, fx.host), chatId: fx.chatId, orderedIds: [] })).resolves.toBeUndefined();
   });
 });

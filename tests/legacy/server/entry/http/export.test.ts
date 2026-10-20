@@ -8,19 +8,17 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { ExportService } from "#server/domain/export/index.ts";
 import type { ExportDeps } from "#server/entry/http/index.ts";
 import { registerExport } from "#server/entry/http/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
-const OWNER: Principal = {
-  userId: castId<UserId>("usr_owner"),
-  role: "owner",
-  handle: castId<Handle>("owner"),
-  externalId: null,
-  via: "fallback",
-};
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+const OWNER: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("usr_owner"), { role: "owner", handle: castId<Handle>("owner") });
 const CHARACTER_ID = castId<CharacterId>("character_test");
 const CHAT_ID = castId<ChatId>("chat_test");
 const CHARACTER_ROUTE = "GET /api/export/character/:characterId";

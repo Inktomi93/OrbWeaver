@@ -7,23 +7,21 @@
 // as a miss since none of these cases exercise it.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { TagSource, TagStatus } from "@orb/contracts/tag";
 import type { AssetId, CharacterHandle, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { ImportAssetPort } from "@orb/server/domain/assets";
 import type { ImportCharacterPort } from "@orb/server/domain/character";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import type { AttachCardTagByNameParams } from "#server/domain/tag/contract/params.ts";
 import type { ImportTagPort } from "#server/domain/tag/index.ts";
 import { runProfileImport } from "#server/entry/import/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
-const OWNER: Principal = {
-  userId: castId<UserId>("usr_owner"),
-  role: "owner",
-  handle: castId<Handle>("owner"),
-  externalId: null,
-  via: "fallback",
-};
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+const OWNER: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("usr_owner"), { role: "owner", handle: castId<Handle>("owner") });
 
 // A readable bare-V2 JSON card (no PNG → no avatar store). Authored as a string so its snake_case wire
 // keys don't trip useNamingConvention.
@@ -46,13 +44,7 @@ const noHandleMatch: Pick<ImportCharacterPort, "findByHandle" | "findByName" | "
   attachImportedArt: (): Promise<boolean> => Promise.resolve(false),
 };
 
-interface TagAttachCall {
-  readonly ownerId: UserId;
-  readonly characterId: CharacterId;
-  readonly tagName: string;
-  readonly source: TagSource;
-  readonly status: TagStatus;
-}
+type TagAttachCall = AttachCardTagByNameParams;
 
 /** Records the importer's tag provenance and application policy at the owning-domain boundary. */
 function recordingTag(): { readonly tag: ImportTagPort; readonly calls: TagAttachCall[] } {

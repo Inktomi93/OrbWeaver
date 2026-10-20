@@ -45,7 +45,7 @@ describe("runSnippet verb", () => {
     const h = makePluginHarness(db, { port: rec.port, resolveChatAuthority: () => Promise.resolve({ canRead: true, canWrite: false }) });
     const owner = await seedUser(db, { handle: castId<Handle>("a") });
 
-    const result = await createRunSnippet(h.ctx)({ caller: principalFor(owner), chatId: CHAT, code: "1 + 1" });
+    const result = await createRunSnippet(h.ctx)({ caller: await principalFor(db, owner), chatId: CHAT, code: "1 + 1" });
 
     expect(result.logLines).toEqual(["ran"]);
     expect(rec.calls[0]?.grants).toEqual(["chat.read", "global_vars"]);
@@ -58,7 +58,7 @@ describe("runSnippet verb", () => {
     const h = makePluginHarness(db, { port: rec.port, resolveChatAuthority: () => Promise.resolve({ canRead: true, canWrite: true }) });
     const owner = await seedUser(db, { handle: castId<Handle>("a") });
 
-    await createRunSnippet(h.ctx)({ caller: principalFor(owner), chatId: CHAT, code: "1 + 1" });
+    await createRunSnippet(h.ctx)({ caller: await principalFor(db, owner), chatId: CHAT, code: "1 + 1" });
 
     expect(rec.calls[0]?.grants).toEqual(["chat.read", "global_vars", "chat.variables.write"]);
     expect(rec.calls[0]?.chat).toEqual({ chatId: CHAT, canWrite: true, automationDepth: 0 });
@@ -70,7 +70,7 @@ describe("runSnippet verb", () => {
     const h = makePluginHarness(db, { port: rec.port, resolveChatAuthority: () => Promise.resolve({ canRead: false, canWrite: false }) });
     const owner = await seedUser(db, { handle: castId<Handle>("a") });
 
-    await expect(createRunSnippet(h.ctx)({ caller: principalFor(owner), chatId: CHAT, code: "1 + 1" })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(createRunSnippet(h.ctx)({ caller: await principalFor(db, owner), chatId: CHAT, code: "1 + 1" })).rejects.toBeInstanceOf(DomainNotFoundError);
     expect(rec.calls).toEqual([]);
   });
 });
@@ -107,7 +107,7 @@ describe("runSnippet — the per-user concurrency ceiling (P2-F)", () => {
     const h = makePluginHarness(db, { port: rec.port, snippetConcurrency: 1 });
     const owner = await seedUser(db, { handle: castId<Handle>("a") });
     const run = createRunSnippet(h.ctx);
-    const caller = principalFor(owner);
+    const caller = await principalFor(db, owner);
 
     const first = run({ caller, chatId: CHAT, code: "1 + 1" });
     // The second call lands while the first is still HOLDING its context — the exact state the belt exists for.
@@ -129,8 +129,8 @@ describe("runSnippet — the per-user concurrency ceiling (P2-F)", () => {
     const bob = await seedUser(db, { handle: castId<Handle>("bob") });
     const run = createRunSnippet(h.ctx);
 
-    const first = run({ caller: principalFor(alice), chatId: CHAT, code: "1 + 1" });
-    const second = run({ caller: principalFor(bob), chatId: CHAT, code: "1 + 1" });
+    const first = run({ caller: await principalFor(db, alice), chatId: CHAT, code: "1 + 1" });
+    const second = run({ caller: await principalFor(db, bob), chatId: CHAT, code: "1 + 1" });
     rec.release();
     await expect(Promise.all([first, second])).resolves.toHaveLength(2);
     expect(rec.started()).toBe(2);
@@ -149,7 +149,7 @@ describe("runSnippet — the per-user concurrency ceiling (P2-F)", () => {
     const h = makePluginHarness(db, { port, snippetConcurrency: 1 });
     const owner = await seedUser(db, { handle: castId<Handle>("a") });
     const run = createRunSnippet(h.ctx);
-    const caller = principalFor(owner);
+    const caller = await principalFor(db, owner);
 
     await expect(run({ caller, chatId: CHAT, code: "1 + 1" })).rejects.toThrow("host exploded");
     // A leaked slot here would permanently lock the member out of their own REPL after one host fault.

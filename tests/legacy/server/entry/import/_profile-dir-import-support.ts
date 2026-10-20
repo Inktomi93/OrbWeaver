@@ -7,17 +7,15 @@ import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import type { ImportAssetPort } from "@orb/server/domain/assets";
 import type { ImportCharacterPort } from "@orb/server/domain/character";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import type { ImportFsPort } from "#server/domain/import/index.ts";
 import type { ImportTagPort } from "#server/domain/tag/index.ts";
 import type { ProfileDirImportDeps } from "#server/entry/import/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
-export const OWNER: Principal = {
-  userId: castId<UserId>("usr_owner"),
-  role: "owner",
-  handle: castId<Handle>("owner"),
-  externalId: null,
-  via: "fallback",
-};
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+export const OWNER: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("usr_owner"), { role: "owner", handle: castId<Handle>("owner") });
 const NOW = 1_700_000_000_000;
 
 // A minimal valid PNG (signature + zero-length IEND) to embed a card into via the kit codec.
@@ -160,12 +158,7 @@ interface StoreCall {
   readonly maxBytes?: number;
 }
 
-interface TagAttach {
-  readonly characterId: CharacterId;
-  readonly tagName: string;
-  readonly source: string;
-  readonly status: string;
-}
+type TagAttach = Pick<Parameters<ImportTagPort["attachCardTagByName"]>[0], "characterId" | "tagName" | "source" | "status">;
 
 interface Fakes {
   readonly character: ImportCharacterPort;
@@ -236,7 +229,7 @@ export function fakes(): Fakes {
   };
 
   const tag: ImportTagPort["attachCardTagByName"] = ({ characterId, tagName, source, status }) => {
-    tagAttaches.push({ characterId, tagName, source, status });
+    tagAttaches.push({ characterId, tagName, ...(source === undefined ? {} : { source }), ...(status === undefined ? {} : { status }) });
     return Promise.resolve(true);
   };
 

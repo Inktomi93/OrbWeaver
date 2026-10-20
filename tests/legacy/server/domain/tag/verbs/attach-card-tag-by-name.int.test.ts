@@ -188,7 +188,7 @@ describe("cross-source tag dedupe", () => {
     const svc = createTagService(makeTagHarness(db).ctx);
     const characterId = await seedCharacter(db, owner);
 
-    const manual = await svc.createTag({ principal: principal(owner), input: { name: "Female" } });
+    const manual = await svc.createTag({ principal: await principal(db, owner), input: { name: "Female" } });
     await svc.attachCardTagByName({
       ownerId: owner,
       characterId,
@@ -220,7 +220,7 @@ describe("cross-source tag dedupe", () => {
       tagName: "female",
       source: "card",
     });
-    await expect(svc.createTag({ principal: principal(owner), input: { name: "FEMALE" } })).rejects.toThrow();
+    await expect(svc.createTag({ principal: await principal(db, owner), input: { name: "FEMALE" } })).rejects.toThrow();
 
     expect(await db.select().from(tags).where(eq(tags.ownerId, owner))).toHaveLength(1);
   });

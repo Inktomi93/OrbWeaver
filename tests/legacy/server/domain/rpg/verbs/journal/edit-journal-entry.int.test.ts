@@ -19,14 +19,14 @@ describe("editJournalEntry", () => {
   test("patches an entry's text at the row", async () => {
     const { chatId, gameId, h } = await seedLiteGame(db);
     const entryId = await h.service.addJournalEntry({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       type: "note",
       title: "Session 1",
       content: "We began.",
     });
 
-    await h.service.editJournalEntry({ principal: principal(castId<Handle>("host")), chatId, entryId, patch: { content: "We truly began." } });
+    await h.service.editJournalEntry({ principal: await principal(db, castId<Handle>("host")), chatId, entryId, patch: { content: "We truly began." } });
     const rows = await listActiveJournal(db, gameId, { limit: 50, historyFloorSeq: UNCLAMPED });
     expect(rows[0]?.content).toBe("We truly began.");
   });

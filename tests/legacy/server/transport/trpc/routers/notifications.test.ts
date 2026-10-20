@@ -20,6 +20,7 @@ import type { InboxView } from "@orb/contracts/notifications";
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createPresenceRegistry } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { NotificationsService } from "#server/domain/notifications/index.ts";
@@ -31,6 +32,8 @@ const ID = {
 } as const;
 
 const VIEWER = castId<UserId>("user_viewer");
+// The router reads no user rows; the viewer resolves from a row in one in-memory database.
+const VIEWER_AUTH = await principal(await freshDb(), "user", { userId: VIEWER });
 /** A user the caller shares NOTHING with — no room, no invite, no prior contact. */
 const STRANGER = castId<UserId>("user_stranger");
 
@@ -54,7 +57,8 @@ describe("notifications.presence — the disclosure boundary", () => {
   });
 
   test("v1 audience: an authenticated caller reads a STRANGER's online state (owner-ruled, 2026-09-01)", async () => {
-    const ctx = makeContext({ auth: principal("user", { userId: VIEWER }), presence: presenceWith([STRANGER]) });
+    const db = await freshDb();
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: VIEWER }), presence: presenceWith([STRANGER]) });
 
     // Deliberately wide. When the audience narrows, THIS is the assertion that must be edited — alongside
     // `readPresenceDisclosure`, which is the only place the decision lives.
@@ -62,13 +66,15 @@ describe("notifications.presence — the disclosure boundary", () => {
   });
 
   test("an offline id comes back ABSENT, so a withheld answer and an offline user stay indistinguishable", async () => {
-    const ctx = makeContext({ auth: principal("user", { userId: VIEWER }), presence: presenceWith([]) });
+    const db = await freshDb();
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: VIEWER }), presence: presenceWith([]) });
 
     await expect(caller(ctx).notifications.presence({ userIds: [STRANGER] })).resolves.toEqual({ onlineUserIds: [] });
   });
 
   test("the response carries ONE key — the activity timestamp has no field to ride on", async () => {
-    const ctx = makeContext({ auth: principal("user", { userId: VIEWER }), presence: presenceWith([VIEWER]) });
+    const db = await freshDb();
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: VIEWER }), presence: presenceWith([VIEWER]) });
 
     const answer = await caller(ctx).notifications.presence({ userIds: [VIEWER] });
     expect(Object.keys(answer)).toEqual(["onlineUserIds"]);
@@ -76,15 +82,17 @@ describe("notifications.presence — the disclosure boundary", () => {
   });
 
   test("an over-cap ask is refused at the wire, before the registry is read", async () => {
+    const db = await freshDb();
     const registry = presenceWith([]);
-    const ctx = makeContext({ auth: principal("user", { userId: VIEWER }), presence: registry });
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: VIEWER }), presence: registry });
     const overCap = Array.from({ length: MAX_USER_IDS + 1 }, (_, i) => castId<UserId>(`user_bulk_${i}`));
 
     await expect(caller(ctx).notifications.presence({ userIds: overCap })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
 
   test("an EMPTY ask is refused too — a read that names nobody is a malformed ask, not a free sweep", async () => {
-    const ctx = makeContext({ auth: principal("user", { userId: VIEWER }), presence: presenceWith([VIEWER]) });
+    const db = await freshDb();
+    const ctx = makeContext({ auth: await principal(db, "user", { userId: VIEWER }), presence: presenceWith([VIEWER]) });
 
     await expect(caller(ctx).notifications.presence({ userIds: [] })).rejects.toMatchObject({ code: "BAD_REQUEST" });
   });
@@ -112,7 +120,7 @@ describe("notifications.presence — the disclosure boundary", () => {
 // two principals' inboxes, so it is PROBED at the wire (all three, no longer EXEMPT) in
 // tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts.
 describe("the inbox CRUD trio on a deployment that cannot seat a second human (#1627)", () => {
-  const notCapable = { multiHumanCapable: false, auth: principal("user", { userId: VIEWER }) } as const;
+  const notCapable = { multiHumanCapable: false, auth: VIEWER_AUTH } as const;
 
   test("list reaches the caller's OWN inbox, scoped to the resolved principal", async () => {
     const list = vi.fn<NotificationsService["list"]>(() => Promise.resolve({ items: [], nextCursor: null }));

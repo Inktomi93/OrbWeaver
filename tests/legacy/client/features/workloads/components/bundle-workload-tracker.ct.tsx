@@ -52,6 +52,7 @@ const SUCCEEDED_ROW = {
   mode: "singular",
   lane: "interactive",
   ownerId: "user_ct_tracker",
+  funderUserId: "user_ct_tracker",
   dependsOn: null,
   error: null,
   progress: null,

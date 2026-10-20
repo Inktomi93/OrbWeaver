@@ -207,7 +207,7 @@ test("Stop while resolving word bias closes the actual tokenize request before g
   try {
     await peer.arrived;
     expect(peer.requests).toEqual(["/tokenize"]);
-    await harness.chat.turn.abort({ principal: harness.chat.principal(), chatId: harness.chat.chatId });
+    await harness.chat.turn.abort({ principal: await harness.chat.principal(), chatId: harness.chat.chatId });
     await expect.poll(peer.stopped).toBe(true);
     expect(await pending).toMatchObject({ aborted: true, abortReason: "user" });
     expect(peer.requests).toEqual(["/tokenize"]);
@@ -227,7 +227,7 @@ for (const phase of ["stream", "headers"] as const) {
       const pending = harness.chat.send("hello");
       await peer.arrived;
       await expect.poll(() => phase !== "stream" || harness.chat.events.some((event) => event.type === "delta")).toBe(true);
-      await harness.chat.turn.abort({ principal: harness.chat.principal(), chatId: harness.chat.chatId });
+      await harness.chat.turn.abort({ principal: await harness.chat.principal(), chatId: harness.chat.chatId });
       const outcome = await pending;
       expect(outcome).toMatchObject({ aborted: true, abortReason: "user" });
       await peer.disconnected;
@@ -255,7 +255,7 @@ test("Stop during an actual HTTP 503 backoff prevents the queued retry and chain
   try {
     const pending = harness.chat.send("hello");
     await harness.retryScheduled;
-    await harness.chat.turn.abort({ principal: harness.chat.principal(), chatId: harness.chat.chatId });
+    await harness.chat.turn.abort({ principal: await harness.chat.principal(), chatId: harness.chat.chatId });
     expect(await pending).toMatchObject({ aborted: true, abortReason: "user" });
     expect(peer.requests).toEqual(["/chat/completions"]);
     expect(harness.retries.filter((name) => name === "provider.retry")).toHaveLength(1);
@@ -291,7 +291,7 @@ test("transport proof distinguishes an unforwarded Stop from a cancelled provide
   try {
     const pending = harness.chat.send("hello");
     await peer.arrived;
-    await harness.chat.turn.abort({ principal: harness.chat.principal(), chatId: harness.chat.chatId });
+    await harness.chat.turn.abort({ principal: await harness.chat.principal(), chatId: harness.chat.chatId });
     expect(peer.stopped()).toBe(false);
     expect(peer.responses[0]?.destroyed).toBe(false);
     expect(peer.writeLate()).toBe(true);

@@ -90,7 +90,7 @@ test("THE GAP: selecting an unfrozen greeting alternate after the window closed 
   expect((await readProvenance(scn.db, greeting.variantId)).content).toBe("Selected greeting, you rolled 1");
   expect((await readProvenance(scn.db, alternateId)).content).toContain("{{roll::1d1}}");
 
-  await edit.selectVariant({ principal: scn.principal(), chatId: scn.chatId, messageId: greeting.messageId, variantId: alternateId });
+  await edit.selectVariant({ principal: await scn.principal(), chatId: scn.chatId, messageId: greeting.messageId, variantId: alternateId });
 
   const after = await readProvenance(scn.db, alternateId);
   // The volatile is gone from canon; the IDENTITY macro is untouched (it resolves per view, forever).
@@ -102,7 +102,7 @@ test("THE GAP: selecting an unfrozen greeting alternate after the window closed 
 
 test("A → B → A is BYTE-STABLE: re-selecting the already-frozen variant replays its record and writes nothing", async () => {
   const { scn, edit, greeting, alternateId } = await roomPastTheWindow();
-  const principal = scn.principal();
+  const principal = await scn.principal();
   const args = { principal, chatId: scn.chatId, messageId: greeting.messageId };
 
   const beforeA = await readProvenance(scn.db, greeting.variantId);
@@ -120,7 +120,7 @@ test("A → B → A is BYTE-STABLE: re-selecting the already-frozen variant repl
 test("NULL provenance with no volatiles degrades to today: no write, no provenance invented", async () => {
   const { scn, edit, greeting, alternateId } = await roomPastTheWindow("Alt greeting with {{char}} and no dice");
 
-  await edit.selectVariant({ principal: scn.principal(), chatId: scn.chatId, messageId: greeting.messageId, variantId: alternateId });
+  await edit.selectVariant({ principal: await scn.principal(), chatId: scn.chatId, messageId: greeting.messageId, variantId: alternateId });
 
   const after = await readProvenance(scn.db, alternateId);
   expect(after.content).toBe("Alt greeting with {{char}} and no dice");
@@ -146,7 +146,7 @@ test("THE WINDOW GATE: while the greeting window is still OPEN, selection does N
 
   // No user row yet — the first turn's own freeze will catch whatever is selected then, and `setSeededGreeting`
   // refuses a FROZEN row, so baking here would silently close a host affordance that is supposed to be open.
-  await edit.selectVariant({ principal: scn.principal(), chatId: scn.chatId, messageId: greeting.messageId, variantId: alternateId });
+  await edit.selectVariant({ principal: await scn.principal(), chatId: scn.chatId, messageId: greeting.messageId, variantId: alternateId });
 
   const after = await readProvenance(scn.db, alternateId);
   expect(after.content).toBe("Alt greeting, you rolled {{roll::1d1}}");
@@ -179,7 +179,7 @@ test("a DISABLED member drops from the greeting re-bake's foreign-input consent 
     { emit: () => Promise.resolve(), resolveForeignInputs: observingForeignInputs, claimChat: (): Promise<void> => Promise.resolve(), prng: () => 0.5 },
   );
 
-  await edit.selectVariant({ principal: scn.principal(), chatId: scn.chatId, messageId: greeting.messageId, variantId: alternateId });
+  await edit.selectVariant({ principal: await scn.principal(), chatId: scn.chatId, messageId: greeting.messageId, variantId: alternateId });
 
   expect(presentHumanUserIds).toContain(scn.host);
   expect(presentHumanUserIds).not.toContain(member);
@@ -202,9 +202,15 @@ test("a baked clock is the viewer's: the first user line and a later selection f
   });
 
   // A post-without-generate line closes the window exactly as a send does, and bakes in its sender's zone.
-  await scn.turn.commitMessage({ principal: scn.principal(), chatId: scn.chatId, content: "hello", timeZone: kathmandu });
+  await scn.turn.commitMessage({ principal: await scn.principal(), chatId: scn.chatId, content: "hello", timeZone: kathmandu });
   expect((await readProvenance(scn.db, greeting.variantId)).content).toBe("Selected at 01:45:00");
 
-  await edit.selectVariant({ principal: scn.principal(), chatId: scn.chatId, messageId: greeting.messageId, variantId: alternateId, timeZone: kathmandu });
+  await edit.selectVariant({
+    principal: await scn.principal(),
+    chatId: scn.chatId,
+    messageId: greeting.messageId,
+    variantId: alternateId,
+    timeZone: kathmandu,
+  });
   expect((await readProvenance(scn.db, alternateId)).content).toBe("Alternate at 01:45:00");
 });

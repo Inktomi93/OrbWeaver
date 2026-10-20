@@ -5,7 +5,7 @@
 // root wires the real ones — see invites.ts FLAG[invite-deps-not-on-ctx]). The verbs are reached through the
 // grouped-file BUNDLE (`createInvites(ctx, deps)`).
 
-import type { ParticipantView } from "@orb/contracts/chat";
+import type { Principal } from "@orb/contracts/identity";
 import type { NotificationEvent } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import { chatInvites, chatParticipants, users } from "@orb/db";
@@ -14,14 +14,14 @@ import type { ChatId, ChatInviteId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
-import type { AssembleInvitePreviewOp, ClaimChatOp } from "#server/domain/chat/contract/context.ts";
+import type { AssembleInvitePreviewOp, ClaimChatOp, LoadParticipantViewsOp } from "#server/domain/chat/contract/context.ts";
 import { ChatOperationError } from "#server/domain/chat/contract/errors.ts";
 import { createInvitePreview, guestModeSentence } from "#server/domain/chat/verbs/invite-preview.ts";
 import { createInvites } from "#server/domain/chat/verbs/invites.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeChatContext, makeLoadParticipantViews, noClaim, seedChat, seedMessage, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
@@ -34,15 +34,15 @@ beforeEach(async () => {
   loadParticipantViews = makeLoadParticipantViews(db);
 });
 
-function principal(userId: UserId): ReturnType<typeof makePrincipal> {
-  return makePrincipal(userId, { handle: castId<Handle>(userId) });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 // hashToken/newInviteId now ride the ctx — makeChatContext supplies the same `h:${token}` fake
 // hasher + a deterministic chat_invite minter; deps carry only the bus emit + the roster resolver.
 function makeDeps(): {
   emit: () => Promise<void>;
-  loadParticipantViews: (chatId: ChatId) => Promise<readonly ParticipantView[]>;
+  loadParticipantViews: LoadParticipantViewsOp;
   claimChat: ClaimChatOp;
   assemblePreview: AssembleInvitePreviewOp;
 } {
@@ -86,7 +86,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     const invites = createInvites(makeChatContext(db), makeDeps());
 
     const { invite, token } = await invites.createInvite({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       input: {},
     });
@@ -108,7 +108,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    const { invite } = await invites.createInvite({ principal: principal(host), chatId, input: {} });
+    const { invite } = await invites.createInvite({ principal: await principal(db, host), chatId, input: {} });
 
     const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, invite.id));
     expect(row?.maxUses).toBe(1);
@@ -122,7 +122,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     const invites = createInvites(makeChatContext(db), makeDeps());
 
     const { invite } = await invites.createInvite({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       input: { expiresAt: null, maxUses: 25 },
     });
@@ -138,7 +138,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     await seedParticipant(db, { chatId, key: "h", userId: host, role: "host" });
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    const { invite } = await invites.createInvite({ principal: principal(host), chatId, input: { maxUses: null } });
+    const { invite } = await invites.createInvite({ principal: await principal(db, host), chatId, input: { maxUses: null } });
 
     const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, invite.id));
     // NULL is what `redeemInviteAtomic` reads as unlimited (`isNull(maxUses)`), so this is the persisted
@@ -156,7 +156,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     await seedParticipant(db, { chatId, key: "m", userId: member, role: "member" });
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    const err = await invites.createInvite({ principal: principal(member), chatId, input: {} }).catch((e: unknown) => e);
+    const err = await invites.createInvite({ principal: await principal(db, member), chatId, input: {} }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
   });
@@ -169,7 +169,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
     const invites = createInvites(makeChatContext(db, { resolveHandle: (h) => Promise.resolve(h === "bob" ? bob : null) }), makeDeps());
 
     const { invite } = await invites.createInvite({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       input: { invitedHandle: castId<Handle>("bob") },
     });
@@ -184,7 +184,7 @@ describe("createInvite — host mints a share-link; the token is stored HASHED",
 
     const err = await invites
       .createInvite({
-        principal: principal(host),
+        principal: await principal(db, host),
         chatId,
         input: { invitedHandle: castId<Handle>("ghost") },
       })
@@ -214,13 +214,17 @@ describe("createInvite — allowSignup authority and caps (D259)", () => {
     const plain = await hostedRoom("user", "signup_plain");
     const invites = createInvites(makeChatContext(db), makeDeps());
     const err = await invites
-      .createInvite({ principal: makePrincipal(plain.host, { role: "user" }), chatId: plain.chatId, input: valid })
+      .createInvite({ principal: await makePrincipal({ db }, plain.host, { role: "user" }), chatId: plain.chatId, input: valid })
       .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainForbiddenError);
     expect(await db.select().from(chatInvites).where(eq(chatInvites.chatId, plain.chatId))).toHaveLength(0);
 
     const admin = await hostedRoom("admin", "signup_admin");
-    const { invite } = await invites.createInvite({ principal: makePrincipal(admin.host, { role: "admin" }), chatId: admin.chatId, input: valid });
+    const { invite } = await invites.createInvite({
+      principal: await makePrincipal({ db }, admin.host, { role: "admin" }),
+      chatId: admin.chatId,
+      input: valid,
+    });
     const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, invite.id));
     expect(row).toMatchObject({ allowSignup: true, createdByUserId: admin.host, mintMode: "local", maxUses: 3, expiresAt: FROZEN_AT_MS + DayMs });
     expect(invite.allowSignup).toBe(true);
@@ -240,7 +244,9 @@ describe("createInvite — allowSignup authority and caps (D259)", () => {
   ])("%s is refused with invite_signup_shape and writes no row", async (_label, input) => {
     const admin = await hostedRoom("admin", "signup_shape");
     const invites = createInvites(makeChatContext(db), makeDeps());
-    const err = await invites.createInvite({ principal: makePrincipal(admin.host, { role: "admin" }), chatId: admin.chatId, input }).catch((e: unknown) => e);
+    const err = await invites
+      .createInvite({ principal: await makePrincipal({ db }, admin.host, { role: "admin" }), chatId: admin.chatId, input })
+      .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("invite_signup_shape");
     expect(await db.select().from(chatInvites).where(eq(chatInvites.chatId, admin.chatId))).toHaveLength(0);
@@ -250,7 +256,7 @@ describe("createInvite — allowSignup authority and caps (D259)", () => {
     const admin = await hostedRoom("admin", "signup_bounds");
     const invites = createInvites(makeChatContext(db), makeDeps());
     const { invite } = await invites.createInvite({
-      principal: makePrincipal(admin.host, { role: "admin" }),
+      principal: await makePrincipal({ db }, admin.host, { role: "admin" }),
       chatId: admin.chatId,
       input: { allowSignup: true, maxUses: SignupCaps.maxUses, expiresAt: FROZEN_AT_MS + SignupCaps.ttlMs },
     });
@@ -261,7 +267,7 @@ describe("createInvite — allowSignup authority and caps (D259)", () => {
     const admin = await hostedRoom("admin", "signup_fh");
     const invites = createInvites(makeChatContext(db, { signupInvites: { mode: "forward-header", mintable: false } }), makeDeps());
     const err = await invites
-      .createInvite({ principal: makePrincipal(admin.host, { role: "admin" }), chatId: admin.chatId, input: valid })
+      .createInvite({ principal: await makePrincipal({ db }, admin.host, { role: "admin" }), chatId: admin.chatId, input: valid })
       .catch((e: unknown) => e);
     expect((err as ChatOperationError).code).toBe("invite_signup_unavailable");
     expect(await db.select().from(chatInvites).where(eq(chatInvites.chatId, admin.chatId))).toHaveLength(0);
@@ -270,7 +276,7 @@ describe("createInvite — allowSignup authority and caps (D259)", () => {
   test("a plain share link still mints for a user-role host and is stamped with its minter and mode", async () => {
     const plain = await hostedRoom("user", "signup_share");
     const invites = createInvites(makeChatContext(db), makeDeps());
-    const { invite } = await invites.createInvite({ principal: makePrincipal(plain.host, { role: "user" }), chatId: plain.chatId, input: {} });
+    const { invite } = await invites.createInvite({ principal: await makePrincipal({ db }, plain.host, { role: "user" }), chatId: plain.chatId, input: {} });
     const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, invite.id));
     expect(row).toMatchObject({ allowSignup: false, createdByUserId: plain.host, mintMode: "local" });
   });
@@ -296,7 +302,7 @@ describe("createInvite — the targeted-invite notification", () => {
     const invites = createInvites(recordingCtx(notes), makeDeps());
 
     const { invite } = await invites.createInvite({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       input: { invitedHandle: castId<Handle>("bob") },
     });
@@ -308,7 +314,7 @@ describe("createInvite — the targeted-invite notification", () => {
         recipientUserId: bob,
         chatId,
         inviteId: invite.id,
-        invitedByHandle: principal(host).handle,
+        invitedByHandle: (await principal(db, host)).handle,
       },
     ]);
     // The notification NEVER carries the raw token (type-level unrepresentable — the schema declares no
@@ -325,7 +331,7 @@ describe("createInvite — the targeted-invite notification", () => {
     const invites = createInvites(recordingCtx(notes), makeDeps());
 
     const { invite } = await invites.createInvite({
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       input: {},
     });
@@ -345,7 +351,7 @@ describe("redeemInvite — THE participant-insert chokepoint", () => {
     const invites = createInvites(makeChatContext(db), makeDeps());
 
     const result = await invites.redeemInvite({
-      principal: principal(joiner),
+      principal: await principal(db, joiner),
       input: { token: "tok" },
     });
 
@@ -370,7 +376,7 @@ describe("redeemInvite — THE participant-insert chokepoint", () => {
     await seedInvite(chatId, "tok");
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await invites.redeemInvite({ principal: principal(back), input: { token: "tok" } });
+    await invites.redeemInvite({ principal: await principal(db, back), input: { token: "tok" } });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, back));
     expect(row?.leftSeq).toBeNull();
@@ -380,7 +386,7 @@ describe("redeemInvite — THE participant-insert chokepoint", () => {
   test("an invalid token is a leak-free NOT_FOUND", async () => {
     const joiner = await seedUser(db, castId<Handle>("joiner"));
     const invites = createInvites(makeChatContext(db), makeDeps());
-    await expect(invites.redeemInvite({ principal: principal(joiner), input: { token: "nope" } })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(invites.redeemInvite({ principal: await principal(db, joiner), input: { token: "nope" } })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 });
 
@@ -418,7 +424,7 @@ describe("redeemInvite/acceptInvite — the join floor is THIS chat's canon head
     await seedInvite(chatId, "tok");
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await invites.redeemInvite({ principal: principal(joiner), input: { token: "tok" } });
+    await invites.redeemInvite({ principal: await principal(db, joiner), input: { token: "tok" } });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
     expect(row?.joinSeq).toBe(targetHead);
@@ -431,7 +437,7 @@ describe("redeemInvite/acceptInvite — the join floor is THIS chat's canon head
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await invites.acceptInvite({ principal: principal(target), inviteId });
+    await invites.acceptInvite({ principal: await principal(db, target), inviteId });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, target));
     expect(row?.joinSeq).toBe(targetHead);
@@ -449,7 +455,7 @@ describe("redeemInvite/acceptInvite — the join floor is THIS chat's canon head
     await seedInvite(chatId, "tok");
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await invites.redeemInvite({ principal: principal(back), input: { token: "tok" } });
+    await invites.redeemInvite({ principal: await principal(db, back), input: { token: "tok" } });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, back));
     expect(row?.leftSeq).toBeNull();
@@ -467,7 +473,7 @@ describe("redeemInvite/acceptInvite — the join floor is THIS chat's canon head
     await seedInvite(chatId, "tok");
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await invites.redeemInvite({ principal: principal(joiner), input: { token: "tok" } });
+    await invites.redeemInvite({ principal: await principal(db, joiner), input: { token: "tok" } });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
     expect(row?.joinSeq).toBe(0);
@@ -496,7 +502,7 @@ describe("redeem/accept — the joiner's seat is born with their persona", () =>
       makeDeps(),
     );
 
-    await invites.redeemInvite({ principal: principal(joiner), input: { token: "tok" } });
+    await invites.redeemInvite({ principal: await principal(db, joiner), input: { token: "tok" } });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
     expect(row?.activePersonaId).toBe(fallback);
@@ -511,7 +517,7 @@ describe("redeem/accept — the joiner's seat is born with their persona", () =>
     const fallback = await seedPersona(db, joiner, "joiner_default");
     const invites = createInvites(makeChatContext(db, { resolveDefaultPersona: () => Promise.resolve(fallback) }), makeDeps());
 
-    await invites.redeemInvite({ principal: principal(joiner), input: { token: "tok" } });
+    await invites.redeemInvite({ principal: await principal(db, joiner), input: { token: "tok" } });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
     expect(row?.activePersonaId).toBe(fallback);
@@ -526,7 +532,7 @@ describe("redeem/accept — the joiner's seat is born with their persona", () =>
     const current = await seedPersona(db, joiner, "joiner_current");
     const invites = createInvites(makeChatContext(db, { resolveCurrentPersona: () => Promise.resolve(current) }), makeDeps());
 
-    await invites.acceptInvite({ principal: principal(joiner), inviteId });
+    await invites.acceptInvite({ principal: await principal(db, joiner), inviteId });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
     expect(row?.activePersonaId).toBe(current);
@@ -541,7 +547,7 @@ describe("redeem/accept — the joiner's seat is born with their persona", () =>
     await seedInvite(chatId, "tok");
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await invites.redeemInvite({ principal: principal(joiner), input: { token: "tok" } });
+    await invites.redeemInvite({ principal: await principal(db, joiner), input: { token: "tok" } });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, joiner));
     expect(row?.activePersonaId).toBeNull();
@@ -564,7 +570,7 @@ describe("redeemInvite — targeting (F4)", () => {
     const invites = createInvites(makeChatContext(db), makeDeps());
 
     // The token reached the wrong user (forwarded / mis-posted); the attacker redeems it directly.
-    await expect(invites.redeemInvite({ principal: principal(attacker), input: { token: "tok" } })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(invites.redeemInvite({ principal: await principal(db, attacker), input: { token: "tok" } })).rejects.toBeInstanceOf(DomainNotFoundError);
 
     // No membership was granted, and the atomic UPDATE never matched — the use count + status are untouched,
     // so the invite is still fully redeemable by its real target.
@@ -584,7 +590,7 @@ describe("redeemInvite — targeting (F4)", () => {
     const invites = createInvites(makeChatContext(db), makeDeps());
 
     const result = await invites.redeemInvite({
-      principal: principal(target),
+      principal: await principal(db, target),
       input: { token: "tok" },
     });
 
@@ -601,7 +607,7 @@ describe("redeemInvite — targeting (F4)", () => {
     const invites = createInvites(makeChatContext(db), makeDeps());
 
     const result = await invites.redeemInvite({
-      principal: principal(anyone),
+      principal: await principal(db, anyone),
       input: { token: "tok" },
     });
 
@@ -625,10 +631,10 @@ describe("redeemInvite — idempotent re-redeem does not burn a use (F5)", () =>
     const invites = createInvites(makeChatContext(db), makeDeps());
 
     // First joiner redeems (uses 0 → 1) and joins.
-    await invites.redeemInvite({ principal: principal(first), input: { token: "tok" } });
+    await invites.redeemInvite({ principal: await principal(db, first), input: { token: "tok" } });
     // The bookmarked /join re-fires while `first` is still present — this must NOT burn the second use.
     const again = await invites.redeemInvite({
-      principal: principal(first),
+      principal: await principal(db, first),
       input: { token: "tok" },
     });
     expect(again.participant.userId).toBe(first); // recovered their existing membership, not a phantom error
@@ -639,7 +645,7 @@ describe("redeemInvite — idempotent re-redeem does not burn a use (F5)", () =>
 
     // The intended second joiner still gets in (they would have been locked out if the re-fire had exhausted it).
     const secondResult = await invites.redeemInvite({
-      principal: principal(second),
+      principal: await principal(db, second),
       input: { token: "tok" },
     });
     expect(secondResult.participant.userId).toBe(second);
@@ -657,7 +663,7 @@ describe("redeemInvite — idempotent re-redeem does not burn a use (F5)", () =>
     const inviteId = await seedInvite(chatId, "tok", { maxUses: 2 });
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await invites.redeemInvite({ principal: principal(back), input: { token: "tok" } });
+    await invites.redeemInvite({ principal: await principal(db, back), input: { token: "tok" } });
 
     const [row] = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, back));
     expect(row?.leftSeq).toBeNull(); // re-joined
@@ -679,7 +685,7 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    const result = await invites.acceptInvite({ principal: principal(target), inviteId });
+    const result = await invites.acceptInvite({ principal: await principal(db, target), inviteId });
 
     expect(result.chat.id).toBe(chatId);
     expect(result.participant.userId).toBe(target);
@@ -701,7 +707,7 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await expect(invites.acceptInvite({ principal: principal(attacker), inviteId })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(invites.acceptInvite({ principal: await principal(db, attacker), inviteId })).rejects.toBeInstanceOf(DomainNotFoundError);
 
     const attackerRows = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, attacker));
     expect(attackerRows).toHaveLength(0);
@@ -718,7 +724,7 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
     const inviteId = await seedInvite(chatId, "tok"); // untargeted share-link
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await expect(invites.acceptInvite({ principal: principal(anyone), inviteId })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(invites.acceptInvite({ principal: await principal(db, anyone), inviteId })).rejects.toBeInstanceOf(DomainNotFoundError);
     const rows = await db.select().from(chatParticipants).where(eq(chatParticipants.userId, anyone));
     expect(rows).toHaveLength(0);
   });
@@ -735,7 +741,7 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
       .where(eq(chatInvites.id, inviteId));
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await expect(invites.acceptInvite({ principal: principal(target), inviteId })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(invites.acceptInvite({ principal: await principal(db, target), inviteId })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 
   test("an EXHAUSTED targeted invite (uses == maxUses) → NOT_FOUND", async () => {
@@ -747,7 +753,7 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
     await db.update(chatInvites).set({ uses: 1, status: "accepted" }).where(eq(chatInvites.id, inviteId));
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await expect(invites.acceptInvite({ principal: principal(target), inviteId })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(invites.acceptInvite({ principal: await principal(db, target), inviteId })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 
   test("a DECLINED or REVOKED targeted invite → NOT_FOUND", async () => {
@@ -761,8 +767,8 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
     await db.update(chatInvites).set({ status: "revoked" }).where(eq(chatInvites.id, revokedId));
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await expect(invites.acceptInvite({ principal: principal(target), inviteId: declinedId })).rejects.toBeInstanceOf(DomainNotFoundError);
-    await expect(invites.acceptInvite({ principal: principal(target), inviteId: revokedId })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(invites.acceptInvite({ principal: await principal(db, target), inviteId: declinedId })).rejects.toBeInstanceOf(DomainNotFoundError);
+    await expect(invites.acceptInvite({ principal: await principal(db, target), inviteId: revokedId })).rejects.toBeInstanceOf(DomainNotFoundError);
   });
 
   test("an unknown inviteId → NOT_FOUND (never confirms existence)", async () => {
@@ -770,7 +776,7 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
     const invites = createInvites(makeChatContext(db), makeDeps());
     await expect(
       invites.acceptInvite({
-        principal: principal(stranger),
+        principal: await principal(db, stranger),
         inviteId: castId<ChatInviteId>("chat_invite_ghost"),
       }),
     ).rejects.toBeInstanceOf(DomainNotFoundError);
@@ -784,10 +790,10 @@ describe("acceptInvite — token-free accept-by-id (self-authorizing)", () => {
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target, maxUses: 2 });
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    const first = await invites.acceptInvite({ principal: principal(target), inviteId });
+    const first = await invites.acceptInvite({ principal: await principal(db, target), inviteId });
     expect(first.participant.userId).toBe(target);
     // Re-fire while still present — must NOT burn a second use, and must recover the existing membership.
-    const again = await invites.acceptInvite({ principal: principal(target), inviteId });
+    const again = await invites.acceptInvite({ principal: await principal(db, target), inviteId });
     expect(again.participant.userId).toBe(target);
     expect(again.participant.role).toBe("member");
 
@@ -805,7 +811,7 @@ describe("revokeInvite / declineInvite — status transitions", () => {
     const inviteId = await seedInvite(chatId, "tok");
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await invites.revokeInvite({ principal: principal(host), chatId, inviteId });
+    await invites.revokeInvite({ principal: await principal(db, host), chatId, inviteId });
 
     const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, inviteId));
     expect(row?.status).toBe("revoked");
@@ -819,7 +825,7 @@ describe("revokeInvite / declineInvite — status transitions", () => {
     const inviteId = await seedInvite(chatId, "tok", { invitedUserId: target });
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await invites.declineInvite({ principal: principal(target), inviteId });
+    await invites.declineInvite({ principal: await principal(db, target), inviteId });
 
     const [row] = await db.select().from(chatInvites).where(eq(chatInvites.id, inviteId));
     expect(row?.status).toBe("declined");
@@ -836,7 +842,7 @@ describe("previewInvite — minimal preview-then-confirm", () => {
     const invites = createInvites(makeChatContext(db), makeDeps());
 
     const preview = await invites.previewInvite({
-      principal: principal(outsider),
+      principal: await principal(db, outsider),
       input: { token: "tok" },
     });
 
@@ -852,10 +858,10 @@ describe("previewInvite — minimal preview-then-confirm", () => {
     const chatId = await seedChat(db, "a", { title: "The Tavern" });
     await seedInvite(chatId, "tok");
     const outsider = await seedUser(db, castId<Handle>("outsider"));
-    loadParticipantViews = (): Promise<readonly ParticipantView[]> => Promise.resolve([]);
+    loadParticipantViews = (): ReturnType<LoadParticipantViewsOp> => Promise.resolve([]);
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await expect(invites.previewInvite({ principal: principal(outsider), input: { token: "tok" } })).rejects.toThrow(
+    await expect(invites.previewInvite({ principal: await principal(db, outsider), input: { token: "tok" } })).rejects.toThrow(
       `previewInvite: chat ${chatId} has no host participant`,
     );
   });
@@ -867,11 +873,11 @@ describe("previewInvite — minimal preview-then-confirm", () => {
     await seedInvite(chatId, "tok");
     const outsider = await seedUser(db, castId<Handle>("outsider"));
     const loadViews = loadParticipantViews;
-    loadParticipantViews = async (id): Promise<readonly ParticipantView[]> =>
-      (await loadViews(id)).map((participant) => (participant.role === "host" ? { ...participant, handle: null } : participant));
+    loadParticipantViews = async (id): ReturnType<LoadParticipantViewsOp> =>
+      (await loadViews(id)).map((participant) => (participant.userId === host ? { ...participant, handle: null } : participant));
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    await expect(invites.previewInvite({ principal: principal(outsider), input: { token: "tok" } })).rejects.toThrow(
+    await expect(invites.previewInvite({ principal: await principal(db, outsider), input: { token: "tok" } })).rejects.toThrow(
       `previewInvite: chat ${chatId} has no host participant`,
     );
   });
@@ -889,7 +895,7 @@ describe("listInvites — the host-management outstanding-invites read (FIX #4)"
     await db.update(chatInvites).set({ uses: 1 }).where(eq(chatInvites.id, finiteId));
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    const views = await invites.listInvites({ principal: principal(host), chatId });
+    const views = await invites.listInvites({ principal: await principal(db, host), chatId });
 
     expect(views.map((v) => v.id).sort()).toEqual([unlimitedId, finiteId].sort());
     const unlimited = views.find((v) => v.id === unlimitedId);
@@ -915,7 +921,7 @@ describe("listInvites — the host-management outstanding-invites read (FIX #4)"
     await seedInvite(chatId, "tok");
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    const err = await invites.listInvites({ principal: principal(member), chatId }).catch((e: unknown) => e);
+    const err = await invites.listInvites({ principal: await principal(db, member), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(ChatOperationError);
     expect((err as ChatOperationError).code).toBe("not_host");
   });
@@ -928,7 +934,7 @@ describe("listInvites — the host-management outstanding-invites read (FIX #4)"
     await seedInvite(chatId, "tok");
     const invites = createInvites(makeChatContext(db), makeDeps());
 
-    const err = await invites.listInvites({ principal: principal(outsider), chatId }).catch((e: unknown) => e);
+    const err = await invites.listInvites({ principal: await principal(db, outsider), chatId }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainNotFoundError);
   });
 });

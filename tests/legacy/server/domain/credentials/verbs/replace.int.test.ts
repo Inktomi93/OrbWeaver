@@ -18,7 +18,7 @@ describe("replace", () => {
   test("replaces the secret in place: same id and label, the new key resolves", async () => {
     const db = await freshDb();
     const { svc, owner, cred } = await seedCredential(db, makeHarness(db), { key: "sk-old", label: "work" });
-    const replaced = await svc.replace({ principal: principal(owner), credentialId: cred.id, key: "sk-new" });
+    const replaced = await svc.replace({ principal: await principal(db, owner), credentialId: cred.id, key: "sk-new" });
 
     expect(replaced).toMatchObject({ id: cred.id, label: "work", provider: "openrouter" });
     expect(await svc.resolve({ ownerId: owner, credentialId: cred.id, providerId: OPENROUTER })).toMatchObject({ secret: "sk-new" });
@@ -31,8 +31,8 @@ describe("replace", () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const token = await svc.add({ principal: principal(owner), provider: "claude-sub", key: "sk-ant-oat01-old", metadata: { auth: "oauthToken" } });
-    await svc.replace({ principal: principal(owner), credentialId: token.id, key: "sk-ant-oat01-new" });
+    const token = await svc.add({ principal: await principal(db, owner), provider: "claude-sub", key: "sk-ant-oat01-old", metadata: { auth: "oauthToken" } });
+    await svc.replace({ principal: await principal(db, owner), credentialId: token.id, key: "sk-ant-oat01-new" });
 
     expect(await svc.resolve({ ownerId: owner, credentialId: token.id, providerId: castId<ProviderId>("claude-sub") })).toMatchObject({
       kind: "oauthToken",
@@ -43,8 +43,8 @@ describe("replace", () => {
   test("a fresh key clears a revocation", async () => {
     const db = await freshDb();
     const { svc, owner, cred } = await seedCredential(db, makeHarness(db));
-    await svc.markRevokedByUser({ principal: principal(owner), credentialId: cred.id });
-    const replaced = await svc.replace({ principal: principal(owner), credentialId: cred.id, key: "sk-new" });
+    await svc.markRevokedByUser({ principal: await principal(db, owner), credentialId: cred.id });
+    const replaced = await svc.replace({ principal: await principal(db, owner), credentialId: cred.id, key: "sk-new" });
     expect(replaced.revokedAt).toBeNull();
   });
 
@@ -52,7 +52,7 @@ describe("replace", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const { svc, owner, cred } = await seedCredential(db, h);
-    await svc.replace({ principal: principal(owner), credentialId: cred.id, key: "sk-new" });
+    await svc.replace({ principal: await principal(db, owner), credentialId: cred.id, key: "sk-new" });
     const audit = h.audits.find((a) => a.entry.action === "credential.replace");
     expect(audit?.entry).toMatchObject({ actorUserId: owner, entityType: "credential", entityId: cred.id });
   });
@@ -62,7 +62,7 @@ describe("replace", () => {
     const { svc, owner, cred } = await seedCredential(db, makeHarness(db), { key: "sk-alice" });
     const bob = await seedUser(db, { id: "user_b", role: "user" });
 
-    await expect(svc.replace({ principal: principal(bob), credentialId: cred.id, key: "sk-bob" })).rejects.toMatchObject({
+    await expect(svc.replace({ principal: await principal(db, bob), credentialId: cred.id, key: "sk-bob" })).rejects.toMatchObject({
       code: CREDENTIALS_OP_CODES.notFound,
     });
     expect(await svc.resolve({ ownerId: owner, credentialId: cred.id, providerId: OPENROUTER })).toMatchObject({ secret: "sk-alice" });
@@ -73,7 +73,7 @@ describe("replace", () => {
     const h = makeHarness(db);
     const { owner, cred } = await seedCredential(db, h);
     const disabled = createCredentialsService({ ...h.ctx, box: createSecretBox(null) });
-    await expect(disabled.replace({ principal: principal(owner), credentialId: cred.id, key: "sk-new" })).rejects.toMatchObject({
+    await expect(disabled.replace({ principal: await principal(db, owner), credentialId: cred.id, key: "sk-new" })).rejects.toMatchObject({
       code: CREDENTIALS_OP_CODES.disabled,
     });
     const [row] = await db.select({ updatedAt: userCredentials.updatedAt }).from(userCredentials).where(eq(userCredentials.id, cred.id));

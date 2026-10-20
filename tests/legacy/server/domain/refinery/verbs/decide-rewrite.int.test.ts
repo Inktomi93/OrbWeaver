@@ -13,7 +13,7 @@ test("decisions survive re-entry, per rewrite run, and a later run's sheet never
   const owner = await seedUser(db, { id: "user_dr_a" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "dr-card-a");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   h.queueReply(rewriteReply());
   const first = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "rewrite" });
@@ -39,7 +39,7 @@ test("a sheet for a non-rewrite run or another session's run is NOT_FOUND, and a
   const stranger = await seedUser(db, { id: "user_dr_c" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "dr-card-b");
-  const p = principal(owner);
+  const p = await principal(db, owner);
   const session = await h.svc.startSession({ principal: p, characterId });
   h.queueReply(scoreReply());
   const score = await h.svc.runStage({ principal: p, sessionId: session.id, stage: "score" });
@@ -53,7 +53,7 @@ test("a sheet for a non-rewrite run or another session's run is NOT_FOUND, and a
     h.svc.decideRewrite({ principal: p, sessionId: session.id, rewriteRunId: mintTypeId(ID_PREFIX.refineryRun), decisions: [true] }),
   ).rejects.toBeInstanceOf(DomainNotFoundError);
   await expect(
-    h.svc.decideRewrite({ principal: principal(stranger), sessionId: session.id, rewriteRunId: rewrite.id, decisions: [true] }),
+    h.svc.decideRewrite({ principal: await principal(db, stranger), sessionId: session.id, rewriteRunId: rewrite.id, decisions: [true] }),
   ).rejects.toBeInstanceOf(DomainNotFoundError);
   // A real rewrite run of ANOTHER session the same owner holds — the sheet may only describe this session's runs.
   const other = await h.svc.startSession({ principal: p, characterId });

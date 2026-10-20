@@ -22,6 +22,7 @@ import {
   useActiveChatId,
   useActiveSection,
 } from "@orb/client/state";
+import { modelIdSchema } from "@orb/contracts/inference";
 import type { PromptSection } from "@orb/contracts/preset";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { ChatId, PresetId } from "@orb/kit/ids";
@@ -278,7 +279,7 @@ export function EffectiveProfileMirostatStory(): ReactElement {
         <EffectiveProfile
           subject="chat role"
           effective={{
-            model: "qwen3-8b",
+            model: modelIdSchema.parse("qwen3-8b"),
             knobs: {
               temperature: { value: 0.7, provenance: "explicit" },
               topP: { value: 0.95, provenance: "serverDefault" },
@@ -307,7 +308,7 @@ export function EffectiveProfileSettledStory(): ReactElement {
           subject="chat role"
           contextWindow={32_768}
           effective={{
-            model: "qwen3-32b",
+            model: modelIdSchema.parse("qwen3-32b"),
             knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } },
             stale: [],
             qualityMapping: null,
@@ -340,7 +341,7 @@ export function LongModelPathReadoutStory(): ReactElement {
           subject="chat role"
           contextWindow={32_768}
           effective={{
-            model: LOCAL_WEIGHTS_PATH,
+            model: modelIdSchema.parse(LOCAL_WEIGHTS_PATH),
             knobs: { maxOutputTokens: { value: 2048, provenance: "floor" } },
             stale: [],
             qualityMapping: null,
@@ -376,7 +377,7 @@ export function EffectiveProfileShapeMatchStory(): ReactElement {
             subject="chat role"
             contextWindow={32_768}
             effective={{
-              model: "qwen3-32b",
+              model: modelIdSchema.parse("qwen3-32b"),
               knobs: {
                 temperature: { value: 0.8, provenance: "explicit" },
                 topP: { value: 0.95, provenance: "explicit" },

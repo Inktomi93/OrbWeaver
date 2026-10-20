@@ -10,7 +10,7 @@ test("the plan is asked about the projected draft a run would send; a belt-refus
   const db = await freshDb();
   const owner = await seedUser(db, { id: "user_psp_a" });
   const h = makeRefineryHarness(db);
-  const p = principal(owner);
+  const p = await principal(db, owner);
 
   expect(await h.svc.previewSchemaPlan({ principal: p, schema: validScoreSchema(), stage: "score" })).toEqual({ outcome: "unbound" });
   // The projection closes every object, exactly as the run's send does.

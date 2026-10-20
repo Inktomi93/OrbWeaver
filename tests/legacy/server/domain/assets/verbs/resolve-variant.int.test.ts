@@ -32,7 +32,7 @@ async function storeOriginal(
   const svc = createAssetsService(h.ctx);
   const owner = await seedUser(db, { handle: castId<Handle>(handle) });
   const stored = await svc.store({
-    principal: principal(owner),
+    principal: await principal(db, owner),
     bytes: pngBytes(1, 2, 3),
     kind: "avatar",
     mime: PNG,
@@ -49,7 +49,7 @@ describe("resolveVariant", () => {
     const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("owner"));
 
     const first = await svc.resolveVariant({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       hash,
       width: REQUESTED_WIDTH,
       kind: "icon",
@@ -64,7 +64,7 @@ describe("resolveVariant", () => {
     });
 
     const second = await svc.resolveVariant({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       hash,
       width: REQUESTED_WIDTH,
       kind: "icon",
@@ -88,13 +88,13 @@ describe("resolveVariant", () => {
     await mkdir(hashDir, { recursive: true });
     await writeFile(join(hashDir, `w${SNAPPED_WIDTH}-q80.webp`), moved);
 
-    const served = await svc.resolveVariant({ principal: principal(ownerId), hash, width: REQUESTED_WIDTH, kind: "icon" });
+    const served = await svc.resolveVariant({ principal: await principal(db, ownerId), hash, width: REQUESTED_WIDTH, kind: "icon" });
     expect(Array.from(served ?? [])).toEqual(Array.from(moved));
     expect(h.imageTransform).not.toHaveBeenCalled();
 
     // CONTROL: the same file one shard up is not where the cache looks, so this resolve transforms once.
     await writeFile(join(h.variantDir, ownerId, hash.slice(0, 2), `w${TOP_RUNG}-q80.webp`), moved);
-    const regenerated = await svc.resolveVariant({ principal: principal(ownerId), hash, width: OVERSIZED_WIDTH, kind: "icon" });
+    const regenerated = await svc.resolveVariant({ principal: await principal(db, ownerId), hash, width: OVERSIZED_WIDTH, kind: "icon" });
     expect(Array.from(regenerated ?? [])).toEqual(Array.from(FAKE_WEBP));
     expect(h.imageTransform).toHaveBeenCalledTimes(1);
   });
@@ -107,7 +107,7 @@ describe("resolveVariant", () => {
     const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("owner"));
 
     await svc.resolveVariant({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       hash,
       width: OVERSIZED_WIDTH,
       kind: "icon",
@@ -127,7 +127,7 @@ describe("resolveVariant", () => {
     const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("owner"));
 
     const out = await svc.resolveVariant({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       hash,
       width: 0,
       kind: "icon",
@@ -144,7 +144,7 @@ describe("resolveVariant", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const out = await svc.resolveVariant({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       hash: "../../etc/passwd",
       width: REQUESTED_WIDTH,
       kind: "icon",
@@ -162,7 +162,7 @@ describe("resolveVariant", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     const out = await svc.resolveVariant({
-      principal: principal(other),
+      principal: await principal(db, other),
       hash,
       width: REQUESTED_WIDTH,
       kind: "icon",
@@ -194,7 +194,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
     const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("portrait_owner"));
 
     const first = await svc.resolveVariant({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       hash,
       width: PORTRAIT_REQUESTED,
       kind: "portrait",
@@ -211,7 +211,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
     });
 
     const second = await svc.resolveVariant({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       hash,
       width: PORTRAIT_REQUESTED,
       kind: "portrait",
@@ -229,7 +229,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
     const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("portrait_oversized"));
 
     await svc.resolveVariant({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       hash,
       width: OVERSIZED_WIDTH,
       kind: "portrait",
@@ -253,8 +253,8 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
 
     // 200 already sits exactly on BOTH ladders (an icon rung is 240, so use a width that snaps to 200
     // on the portrait ladder and to 240 on the icon ladder — the point is the CACHE KEY, not the number).
-    await svc.resolveVariant({ principal: principal(ownerId), hash, width: 200, kind: "icon" });
-    await svc.resolveVariant({ principal: principal(ownerId), hash, width: 200, kind: "portrait" });
+    await svc.resolveVariant({ principal: await principal(db, ownerId), hash, width: 200, kind: "icon" });
+    await svc.resolveVariant({ principal: await principal(db, ownerId), hash, width: 200, kind: "portrait" });
     // Two DISTINCT transforms (icon: width-only; portrait: width+height+fit+position) — neither served
     // the other's cache entry.
     expect(h.imageTransform).toHaveBeenCalledTimes(2);
@@ -281,7 +281,7 @@ describe("resolveVariant — portrait ladder (kind:'portrait')", () => {
     const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("portrait_absurd"));
 
     const out = await svc.resolveVariant({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       hash,
       width: 0,
       kind: "portrait",
@@ -308,7 +308,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
     const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("banner_owner"));
 
     const first = await svc.resolveVariant({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       hash,
       width: BANNER_REQUESTED,
       kind: "banner",
@@ -325,7 +325,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
     });
 
     const second = await svc.resolveVariant({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       hash,
       width: BANNER_REQUESTED,
       kind: "banner",
@@ -343,7 +343,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
     const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("banner_oversized"));
 
     await svc.resolveVariant({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       hash,
       width: OVERSIZED_WIDTH,
       kind: "banner",
@@ -367,8 +367,8 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
 
     // 400 is a rung on both ladders but the banner ladder snaps it up to 480 — two
     // DISTINCT (kind, width) cache keys, neither serving the other's transform.
-    await svc.resolveVariant({ principal: principal(ownerId), hash, width: 400, kind: "portrait" });
-    await svc.resolveVariant({ principal: principal(ownerId), hash, width: 400, kind: "banner" });
+    await svc.resolveVariant({ principal: await principal(db, ownerId), hash, width: 400, kind: "portrait" });
+    await svc.resolveVariant({ principal: await principal(db, ownerId), hash, width: 400, kind: "banner" });
     expect(h.imageTransform).toHaveBeenCalledTimes(2);
     expect(h.imageTransform).toHaveBeenNthCalledWith(1, expect.anything(), {
       width: PORTRAIT_400_WIDTH,
@@ -396,7 +396,7 @@ describe("resolveVariant — banner ladder (kind:'banner')", () => {
     const { ownerId, hash } = await storeOriginal(db, h, castId<CharacterHandle>("banner_absurd"));
 
     const out = await svc.resolveVariant({
-      principal: principal(ownerId),
+      principal: await principal(db, ownerId),
       hash,
       width: 0,
       kind: "banner",
@@ -417,14 +417,14 @@ describe("resolveVariant — animated bailout (G2)", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("gif_owner") });
     const original = gifBytes(1, 2, 3);
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: original,
       kind: "gallery",
       mime: "image/gif",
     });
 
     const out = await svc.resolveVariant({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       hash: stored.hash,
       width: REQUESTED_WIDTH,
       kind: "icon",
@@ -435,7 +435,7 @@ describe("resolveVariant — animated bailout (G2)", () => {
 
     // A second resolve re-reads the original (no variant-cache entry was written for the bailout).
     await svc.resolveVariant({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       hash: stored.hash,
       width: REQUESTED_WIDTH,
       kind: "icon",

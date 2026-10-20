@@ -750,6 +750,7 @@ function cardRebuild(status: "running" | "failed"): TrpcWireOutput<"workloads.li
     mode: "singular",
     lane: "sweep",
     ownerId: PAUSED_VIEWER,
+    funderUserId: PAUSED_VIEWER,
     dependsOn: null,
     error: null,
     progress: null,

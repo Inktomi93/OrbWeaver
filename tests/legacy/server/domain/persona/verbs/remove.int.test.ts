@@ -27,18 +27,18 @@ describe("remove", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const character = await seedCharacter(db, { ownerId: owner });
     // A second persona keeps the delete legal (the last-persona belt refuses deleting the sole one).
-    await svc.create({ principal: principal(owner), input: { name: "Keeper", description: "k" } });
+    await svc.create({ principal: await principal(db, owner), input: { name: "Keeper", description: "k" } });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Doomed", description: "d" },
     });
     await svc.connectToCharacter({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: character,
       personaId: created.id,
     });
 
-    const result = await svc.remove({ principal: principal(owner), personaId: created.id });
+    const result = await svc.remove({ principal: await principal(db, owner), personaId: created.id });
 
     expect(result).toEqual({ deleted: true, newDefaultPersonaId: null });
     expect(await db.select().from(personas).where(eq(personas.id, created.id))).toHaveLength(0);
@@ -55,10 +55,10 @@ describe("remove", () => {
     const svc = createPersonaService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const only = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Sole", description: "s" },
     });
-    await svc.remove({ principal: principal(owner), personaId: only.id }).catch(() => undefined);
+    await svc.remove({ principal: await principal(db, owner), personaId: only.id }).catch(() => undefined);
     // No delete committed ⇒ no re-point (the pointer still resolves to the surviving sole persona).
     expect(h.repointCalls).toHaveLength(0);
   });
@@ -70,10 +70,10 @@ describe("remove", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Mine", description: "d" },
     });
-    await expect(svc.remove({ principal: principal(other), personaId: created.id })).rejects.toThrow(PersonaNotFoundError);
+    await expect(svc.remove({ principal: await principal(db, other), personaId: created.id })).rejects.toThrow(PersonaNotFoundError);
     expect(await db.select().from(personas).where(eq(personas.id, created.id))).toHaveLength(1);
     expect(h.audits.some((a) => a.entry.action === "persona.remove")).toBe(false);
   });
@@ -82,7 +82,7 @@ describe("remove", () => {
     const db = await freshDb();
     const svc = createPersonaService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    await expect(svc.remove({ principal: principal(owner), personaId: castId<PersonaId>("persona_ghost") })).rejects.toThrow(PersonaNotFoundError);
+    await expect(svc.remove({ principal: await principal(db, owner), personaId: castId<PersonaId>("persona_ghost") })).rejects.toThrow(PersonaNotFoundError);
   });
 
   test("the LAST persona is refused with last_persona (the always-one belt); a second persona unblocks it", async () => {
@@ -91,11 +91,11 @@ describe("remove", () => {
     const svc = createPersonaService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const only = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { name: "Sole", description: "s" },
     });
 
-    const err = await svc.remove({ principal: principal(owner), personaId: only.id }).catch((e: unknown) => e);
+    const err = await svc.remove({ principal: await principal(db, owner), personaId: only.id }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(LastPersonaError);
     expect((err as LastPersonaError).code).toBe("last_persona");
     // The refusal is a no-op: the row survives and nothing audited.
@@ -103,8 +103,8 @@ describe("remove", () => {
     expect(h.audits.some((a) => a.entry.action === "persona.remove")).toBe(false);
 
     // A second persona makes the original deletable again.
-    await svc.create({ principal: principal(owner), input: { name: "Spare", description: "x" } });
-    await expect(svc.remove({ principal: principal(owner), personaId: only.id })).resolves.toEqual({
+    await svc.create({ principal: await principal(db, owner), input: { name: "Spare", description: "x" } });
+    await expect(svc.remove({ principal: await principal(db, owner), personaId: only.id })).resolves.toEqual({
       deleted: true,
       newDefaultPersonaId: null,
     });
@@ -115,11 +115,14 @@ describe("remove", () => {
     const h = makeHarness(db);
     const svc = createPersonaService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const a = await svc.create({ principal: principal(owner), input: { name: "A", description: "a" } });
-    const b = await svc.create({ principal: principal(owner), input: { name: "B", description: "b" } });
+    const a = await svc.create({ principal: await principal(db, owner), input: { name: "A", description: "a" } });
+    const b = await svc.create({ principal: await principal(db, owner), input: { name: "B", description: "b" } });
     const deletes = hold(PERSONA_DELETE, 2);
 
-    const removals = [svc.remove({ principal: principal(owner), personaId: a.id }), svc.remove({ principal: principal(owner), personaId: b.id })];
+    const removals = [
+      svc.remove({ principal: await principal(db, owner), personaId: a.id }),
+      svc.remove({ principal: await principal(db, owner), personaId: b.id }),
+    ];
     await deletes.reached;
     deletes.release();
     const settled = await Promise.allSettled(removals);
@@ -143,12 +146,12 @@ describe("remove", () => {
     const svc = createPersonaService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // A second persona keeps the delete legal (the last-persona belt).
-    await svc.create({ principal: principal(owner), input: { name: "Keeper", description: "k" } });
-    const doomed = await svc.create({ principal: principal(owner), input: { name: "Doomed", description: "d" } });
+    await svc.create({ principal: await principal(db, owner), input: { name: "Keeper", description: "k" } });
+    const doomed = await svc.create({ principal: await principal(db, owner), input: { name: "Doomed", description: "d" } });
     const room = await seedChat(db, "seat");
     await seedParticipant(db, { chatId: room, key: "del_seat", userId: owner, activePersonaId: doomed.id });
 
-    await svc.remove({ principal: principal(owner), personaId: doomed.id });
+    await svc.remove({ principal: await principal(db, owner), personaId: doomed.id });
 
     const fanned = captured.filter((e) => e.type === "roomEntityChanged" && e.entity === "persona").map((e) => e.chatId);
     expect(fanned).toEqual([room]);
@@ -164,11 +167,11 @@ describe("remove", () => {
     const svc = createPersonaService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirs = await svc.create({ principal: principal(other), input: { name: "Theirs", description: "d" } });
+    const theirs = await svc.create({ principal: await principal(db, other), input: { name: "Theirs", description: "d" } });
     const room = await seedChat(db, "seat");
     await seedParticipant(db, { chatId: room, key: "del_foreign_seat", userId: other, activePersonaId: theirs.id });
 
-    await expect(svc.remove({ principal: principal(owner), personaId: theirs.id })).rejects.toThrow(PersonaNotFoundError);
+    await expect(svc.remove({ principal: await principal(db, owner), personaId: theirs.id })).rejects.toThrow(PersonaNotFoundError);
     expect(captured).toEqual([]);
   });
 });

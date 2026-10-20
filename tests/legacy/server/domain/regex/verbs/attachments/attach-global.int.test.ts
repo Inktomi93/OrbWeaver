@@ -21,8 +21,8 @@ describe("attachGlobal", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "g" });
 
-    await svc.attachGlobal({ principal: principal(owner), scriptId });
-    await svc.attachGlobal({ principal: principal(owner), scriptId });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId });
 
     expect(await db.select().from(globalRegexScripts).where(eq(globalRegexScripts.regexScriptId, scriptId))).toHaveLength(1);
     expect(h.userEvents.map((e) => e.event)).toEqual([
@@ -39,10 +39,10 @@ describe("attachGlobal", () => {
     const first = await seedScript(db, { ownerId: owner, id: "regex_script_1", name: "first" });
     const second = await seedScript(db, { ownerId: owner, id: "regex_script_2", name: "second" });
 
-    await svc.attachGlobal({ principal: principal(owner), scriptId: first });
-    await svc.attachGlobal({ principal: principal(owner), scriptId: second });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId: first });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId: second });
 
-    expect((await svc.listGlobal({ principal: principal(owner) })).map((r) => r.name)).toEqual(["first", "second"]);
+    expect((await svc.listGlobal({ principal: await principal(db, owner) })).map((r) => r.name)).toEqual(["first", "second"]);
   });
 
   test("refuses a FOREIGN script and writes nothing", async () => {
@@ -53,7 +53,7 @@ describe("attachGlobal", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
 
-    await expect(svc.attachGlobal({ principal: principal(stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.attachGlobal({ principal: await principal(db, stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
     expect(await db.select().from(globalRegexScripts)).toHaveLength(0);
   });
 });

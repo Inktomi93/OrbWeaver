@@ -19,9 +19,9 @@ describe("createCheckpoint", () => {
   test("labels the current snapshot — the checkpoint row lands pointing at the head", async () => {
     const { chatId, gameId, h } = await seedLiteGame(db);
     // Establish a snapshot (a hand edit mints the first one).
-    await h.service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "The Ruins" } });
+    await h.service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "The Ruins" } });
 
-    const checkpointId = await h.service.createCheckpoint({ principal: principal(castId<Handle>("host")), chatId, label: "before the fight" });
+    const checkpointId = await h.service.createCheckpoint({ principal: await principal(db, castId<Handle>("host")), chatId, label: "before the fight" });
 
     const rows = await listCheckpoints(db, gameId);
     expect(rows.map((c) => c.label)).toEqual(["before the fight"]);

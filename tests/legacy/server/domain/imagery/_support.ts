@@ -1,4 +1,5 @@
 import { makeGenerationUsage } from "@orb/testkit/node/factories/generation-usage.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 // Shared imagery test harness: a fake ImageryContext over a real db, with recording spies for the injected
 // ops (generate/fetch/store/extract/caption/stats). The infra executor + role resolver + CAS write + the
 // chat/character/assets ops are stubs — imagery declares their ports; the composition root binds the real infra.
@@ -11,6 +12,7 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { assets, userConnections, users } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
 import type { Resolved } from "@orb/inference";
 import { generationOf } from "@orb/inference";
 import { handleKey } from "@orb/kit/handle-key";
@@ -20,6 +22,7 @@ import { createCharacterOwned } from "@orb/server/domain/character";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { TEST_CONNECTION_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
+import type { ImageryContext as ImageryVerbContext } from "#server/domain/imagery/contract/service.ts";
 import type { ImageGenerateRequest, ImageryContext } from "#server/domain/imagery/index.ts";
 import { makeResolved } from "../../../inference/_support.ts";
 
@@ -47,8 +50,9 @@ export async function seedGenerationOwner(db: Db, handle: Handle): Promise<UserI
   return ownerId;
 }
 
-export function principal(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>("h"), externalId: null, via: "cookie" };
+/** Resolve a caller's Principal through the production row resolver; the stored row decides the role. */
+export async function principal(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId);
 }
 
 /** A `resolveGenerateImage` override whose resolved model advertises a concrete `input.imageEdit` capability
@@ -85,6 +89,16 @@ export interface ImageryHarness {
   readonly galleryAdds: { readonly ownerId: UserId; readonly assetId: AssetId; readonly subjectCharacterId: CharacterId }[];
 }
 
+/** The context a verb below the service takes: the harness's assembly input behind its db and stats handles,
+ *  recovered as the imagery composition root recovers it. */
+export function imageryVerbContext(ctx: ImageryContext): ImageryVerbContext {
+  return {
+    ...ctx,
+    db: databaseForOwner(ctx.db),
+    applyStatsDelta: (batch, opDb, delta) => ctx.applyStatsDelta(batchHandle(batch), databaseHandle(opDb), delta),
+  };
+}
+
 export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): ImageryHarness {
   const ids = createSeededIds();
   const recordedStats: StatsDelta[] = [];
@@ -108,7 +122,7 @@ export function makeHarness(db: Db, overrides: Partial<ImageryContext> = {}): Im
     newGenerationId: (): ImageryGenerationId => castId<ImageryGenerationId>(ids.next("imagery_generation")),
     newCallId: (): ImageryCallId => castId<ImageryCallId>(ids.next("imagery_call")),
     resolveGenerateImage: () => Promise.resolve({ connection, capability: generationOf(connection) }),
-    resolveRunAs: (runAsUserId) => Promise.resolve(principal(runAsUserId)),
+    resolveRunAs: async (runAsUserId) => Promise.resolve(await principal(db, runAsUserId)),
     callerInChat: () => Promise.resolve(true),
     // By default the caller hosts the room it previews in.
     resolveRoomRunAs: (caller) => Promise.resolve(caller),

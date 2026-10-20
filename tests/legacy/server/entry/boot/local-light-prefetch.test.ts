@@ -13,13 +13,16 @@ import { DEFAULT_EMBED_MODEL, DEFAULT_RERANK_MODEL, NoConnectionError } from "@o
 import type { Handle, ModelId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { planLocalLightPrefetch } from "@orb/server/entry/boot";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
+import { principal } from "../../../db/schema/_support.ts";
 import { makeResolved } from "../../../inference/_support.ts";
 
-const OWNER: Principal = principal(castId<UserId>("usr_owner"), { role: "owner", handle: castId<Handle>("owner") });
+// The prefetch reads no user rows; its caller resolves from a row in one in-memory database.
+const callersDb = await freshDb();
+const OWNER: Principal = await principal({ db: callersDb }, castId<UserId>("usr_owner"), { role: "owner", handle: castId<Handle>("owner") });
 
 /** Where each task resolves: a built-in provider id + the model, or `null` for `no-connection`. */
 type Landing = Readonly<Record<string, { readonly providerId: string; readonly model: string } | null>>;

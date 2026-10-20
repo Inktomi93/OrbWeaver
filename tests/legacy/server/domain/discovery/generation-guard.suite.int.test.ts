@@ -15,6 +15,7 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createDiscoveryService } from "#server/domain/discovery/index.ts";
 import { computeGroupHubs } from "#server/domain/discovery/substrate/hub-math.ts";
+import { everyOwnerAuthority } from "../workloads/_support.ts";
 import {
   EMBED_MODEL,
   makeDiscoveryHarness,
@@ -29,6 +30,9 @@ import {
   seedUser,
   vec,
 } from "./_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 /** The late rows' width — anything but the current generation's. */
 const LATE_DIMS = 512;
@@ -170,10 +174,10 @@ describe("discovery never meets a late write from an old generation", () => {
     await seedMixedCorpus(db);
     const hubScores = makeHubScoreRecorder();
     const svc = createDiscoveryService(makeDiscoveryHarness(db, { hubScores }).ctx);
-    await svc.computeCharacterHubScores();
-    await svc.computeDigestHubScores();
-    await svc.computeSegmentHubScores();
-    await svc.computeImageHubScores();
+    await svc.computeCharacterHubScores(EVERY_OWNER.runScope);
+    await svc.computeDigestHubScores(EVERY_OWNER.runScope);
+    await svc.computeSegmentHubScores(EVERY_OWNER.runScope);
+    await svc.computeImageHubScores(EVERY_OWNER.runScope);
     const scored = hubScores.calls.flatMap((call) => call.updates.map((update) => update.id));
     expect(scored.length).toBeGreaterThan(0);
     expect(scored.filter((id) => id.includes("_late_"))).toEqual([]);
@@ -183,8 +187,8 @@ describe("discovery never meets a late write from an old generation", () => {
     const db = await freshDb();
     const { owner, chat, cards } = await seedMixedCorpus(db);
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    await svc.computeDuplicatePairs();
-    await svc.computeThemes({ k: 2, funderUserId: owner });
+    await svc.computeDuplicatePairs(EVERY_OWNER.runScope);
+    await svc.computeThemes({ ...EVERY_OWNER.runScope, k: 2, funderUserId: owner });
     const points = await svc.corpusProjection(owner);
     expect(points.map((point) => point.characterId).toSorted()).toEqual([...cards].toSorted());
     // The graph plots only cards with a neighbour, so it is a subset of the current cards, each once.

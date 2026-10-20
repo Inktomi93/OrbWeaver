@@ -11,6 +11,7 @@ import { themeBackgroundSchema, themeOverrideSchema } from "@orb/contracts/theme
 import type { WorkloadRowAnyKind } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId, newId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import type { SettingsService } from "#server/domain/settings/index.ts";
@@ -194,12 +195,14 @@ test("mounted vendor, custom-model and global JSON value planes remain open", ()
 });
 
 test("the real clean-workload caller refuses nested scope additions while poison and raw schedules retain data", async () => {
+  const db = await freshDb();
   const row = {
     id: mintTypeId(ID_PREFIX.workload),
     status: "succeeded",
     mode: "singular",
     lane: "sweep",
     ownerId: null,
+    funderUserId: null,
     dependsOn: null,
     error: null,
     progress: null,
@@ -213,7 +216,7 @@ test("the real clean-workload caller refuses nested scope additions while poison
   } satisfies WorkloadRowAnyKind;
   let result: WorkloadRowAnyKind = row;
   const get: WorkloadService["get"] = async () => result;
-  const ctx = makeContext({ auth: principal("user"), services: { workloads: { get } } });
+  const ctx = makeContext({ auth: await principal(db, "user"), services: { workloads: { get } } });
   await expect(caller(ctx).workloads.get({ id: row.id })).resolves.toEqual(row);
   const scope = { ...row.params.scope, privateJobSecret: "secret" };
   result = { ...row, params: { scope } };
@@ -237,7 +240,8 @@ test("the real clean-workload caller refuses nested scope additions while poison
 });
 
 test("the real settings caller preserves attachment quality and refuses a typed nested field addition", async () => {
-  const auth = principal("user", { userId: newId<UserId>() });
+  const db = await freshDb();
+  const auth = await principal(db, "user", { userId: newId<UserId>() });
   const quality = { imageDetail: "high", videoMaxResolution: "480" } as const;
   const valid: UserSettingsView = {
     userId: auth.userId,

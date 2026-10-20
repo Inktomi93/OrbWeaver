@@ -17,19 +17,21 @@ import type { StatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import { chatEvents, chatInjections, chatParticipants, chats, messages, personas } from "@orb/db";
 import { batchStmt } from "@orb/db/query";
+import { statementToken } from "@orb/db/wiring-owner";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, ChatEventId, ChatId, Handle, PersonaId, RpgGameId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { asc, eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { insertChatEventStatement } from "#server/domain/chat/persistence/events.ts";
 import { listMemberChats } from "#server/domain/chat/persistence/queries.ts";
+import { hostSeatOf } from "#server/domain/chat/substrate/participants-host.ts";
 import { createStartChat } from "#server/domain/chat/verbs/start-chat.ts";
 import { publishChatEvent, subscribeAllChatEvents } from "#server/transport/trpc/chat-events-bus.ts";
+import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
 import { makeChatContext, makeLoadParticipantViews, seedCharacter, seedUser } from "../_support.ts";
 
 /** A page bound comfortably above every fixture here — these arms are about the FILTERS, not the keyset. */
@@ -50,8 +52,8 @@ const emit = (event: ChatBusEvent): Promise<void> => {
   return Promise.resolve();
 };
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId, { handle: castId<Handle>("h") });
+async function principal(database: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db: database }, userId);
 }
 
 /** A full canonical card with a single greeting (D28 live read; the rest is empty). */
@@ -88,13 +90,15 @@ function makeDeps(overrides: Partial<Parameters<typeof createStartChat>[1]> = {}
     prepareCreationEvent: (event): ReturnType<Parameters<typeof createStartChat>[1]["prepareCreationEvent"]> => {
       eventNumber += 1;
       return {
-        statement: insertChatEventStatement(db, {
-          id: castId<ChatEventId>(`chat_event_start_${eventNumber}`),
-          chatId: event.chatId,
-          seq: 1,
-          event,
-          createdAt: FROZEN_AT_MS,
-        }),
+        statement: statementToken(
+          insertChatEventStatement(db, {
+            id: castId<ChatEventId>(`chat_event_start_${eventNumber}`),
+            chatId: event.chatId,
+            seq: 1,
+            event,
+            createdAt: FROZEN_AT_MS,
+          }),
+        ),
         publishCommitted: (): void => {
           emitted.push(event);
         },
@@ -112,15 +116,17 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")) });
     const deps = makeDeps({
       prepareCreationEvent: (event) => ({
-        statement: batchStmt(
-          db.insert(chatEvents).values({
-            id: castId<ChatEventId>("chat_event_invalid_birth"),
-            chatId: event.chatId,
-            seq: 1,
-            type: "not-a-chat-event" as never,
-            payload: event,
-            createdAt: FROZEN_AT_MS,
-          }),
+        statement: statementToken(
+          batchStmt(
+            db.insert(chatEvents).values({
+              id: castId<ChatEventId>("chat_event_invalid_birth"),
+              chatId: event.chatId,
+              seq: 1,
+              type: "not-a-chat-event" as never,
+              payload: event,
+              createdAt: FROZEN_AT_MS,
+            }),
+          ),
         ),
         publishCommitted: (): void => {
           emitted.push(event);
@@ -129,7 +135,7 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
     });
     const { startChat } = createStartChat(ctx, deps);
 
-    await expect(startChat({ principal: principal(host), characterIds: [aria], startAsGame: {} })).rejects.toThrow();
+    await expect(startChat({ principal: await principal(db, host), characterIds: [aria], startAsGame: {} })).rejects.toThrow();
     expect(await db.select().from(chats)).toHaveLength(0);
     expect(await db.select().from(chatEvents)).toHaveLength(0);
     expect(emitted).toEqual([]);
@@ -150,7 +156,7 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")), rpg });
     const { startChat } = createStartChat(ctx, makeDeps());
 
-    await expect(startChat({ principal: principal(host), characterIds: [aria], startAsGame: {} })).rejects.toThrow();
+    await expect(startChat({ principal: await principal(db, host), characterIds: [aria], startAsGame: {} })).rejects.toThrow();
     expect(await db.select().from(chats)).toHaveLength(0);
     expect(await db.select().from(chatParticipants)).toHaveLength(0);
     expect(await db.select().from(messages)).toHaveLength(0);
@@ -172,7 +178,7 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
     } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")), rpg });
     const { startChat } = createStartChat(ctx, makeDeps());
-    const result = await startChat({ principal: principal(host), characterIds: [aria], startAsGame: {} });
+    const result = await startChat({ principal: await principal(db, host), characterIds: [aria], startAsGame: {} });
     // The op fired exactly once for the minted chat (BEFORE the verb returned — turn 1 is in-game); an
     // omitted profile rides through as undefined (freeform default is rpg's own).
     expect(planned).toEqual([{ chatId: result.chat.id, profile: undefined }]);
@@ -196,7 +202,7 @@ describe("startChat — #40 draft-time game birth (startAsGame)", () => {
     } as unknown as NonNullable<NonNullable<Parameters<typeof makeChatContext>[1]>["rpg"]>;
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")), rpg });
     const { startChat } = createStartChat(ctx, makeDeps());
-    await startChat({ principal: principal(host), characterIds: [aria] });
+    await startChat({ principal: await principal(db, host), characterIds: [aria] });
     expect(started).toEqual([]);
   });
 });
@@ -220,7 +226,7 @@ describe("startChat — canon-mutator stats push (stats.md)", () => {
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria] });
 
     expect(deltas).toStrictEqual([]);
     // …and the room really was created with its greeting — the silence is a TIMING change, not a
@@ -244,8 +250,8 @@ describe("startChat — canon-mutator stats push (stats.md)", () => {
     // Two husks back to back. Under the OLD timing the first would have spent aria's `newCharacter`
     // bump at creation — and if it were then abandoned and reaped, that bump was gone forever. Now
     // neither creation counts anything, and whichever room is CLAIMED first is the one that gets it.
-    await startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
-    await startChat({ principal: principal(host), characterIds: [aria, bryn], opening: "none" });
+    await startChat({ principal: await principal(db, host), characterIds: [aria], opening: "none" });
+    await startChat({ principal: await principal(db, host), characterIds: [aria, bryn], opening: "none" });
 
     expect(deltas).toStrictEqual([]);
   });
@@ -275,7 +281,7 @@ describe("startChat — lazy room creation + opening", () => {
     });
 
     try {
-      const result = await createStartChat(ctx, deps).startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
+      const result = await createStartChat(ctx, deps).startChat({ principal: await principal(db, host), characterIds: [aria], opening: "none" });
       expect(result.chat.id).toBeDefined();
       expect(await db.select().from(chats)).toHaveLength(1);
       expect(await db.select().from(chatEvents)).toHaveLength(1);
@@ -293,12 +299,12 @@ describe("startChat — lazy room creation + opening", () => {
 
     const { startChat } = createStartChat(ctx, makeDeps());
     const { chat, opening } = await startChat({
-      principal: principal(host),
+      principal: await principal(db, host),
       characterIds: [aria],
     });
 
     // The caller is the host; the character is a member referencing the LIVE row (D28 — not a copied card).
-    const hostRow = chat.participants.find((p) => p.role === "host");
+    const hostRow = hostSeatOf(chat.participants);
     expect(hostRow?.userId).toBe(host);
     const charRow = chat.participants.find((p) => p.kind === "character");
     expect(charRow?.characterId).toBe(aria);
@@ -331,7 +337,7 @@ describe("startChat — lazy room creation + opening", () => {
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    const { opening } = await startChat({ principal: principal(host), characterIds: [aria, borg] });
+    const { opening } = await startChat({ principal: await principal(db, host), characterIds: [aria, borg] });
 
     expect(opening?.messages.map((m) => m.content)).toEqual(["Aria hi", "Borg hi"]);
     expect(opening?.messages.map((m) => m.seq)).toEqual([1, 2]);
@@ -348,7 +354,7 @@ describe("startChat — lazy room creation + opening", () => {
 
     const { startChat } = createStartChat(ctx, makeDeps());
     const { chat, opening } = await startChat({
-      principal: principal(host),
+      principal: await principal(db, host),
       characterIds: [aria, mute],
     });
 
@@ -366,7 +372,7 @@ describe("startChat — lazy room creation + opening", () => {
 
     const { startChat } = createStartChat(ctx, makeDeps());
     const { chat, opening } = await startChat({
-      principal: principal(host),
+      principal: await principal(db, host),
       characterIds: [aria],
       opening: "none",
     });
@@ -384,7 +390,7 @@ describe("startChat — lazy room creation + opening", () => {
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "hi")) });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria] });
 
     const roster = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chat.id)).orderBy(asc(chatParticipants.joinSeq));
     expect(roster).toHaveLength(2);
@@ -400,7 +406,7 @@ describe("startChat — lazy room creation + opening", () => {
 
     await expect(
       startChat({
-        principal: principal(host),
+        principal: await principal(db, host),
         characterIds: [castId<CharacterId>("character_foreign")],
       }),
     ).rejects.toBeInstanceOf(DomainNotFoundError);
@@ -415,11 +421,11 @@ describe("startChat — lazy room creation + opening", () => {
     const { startChat } = createStartChat(ctx, makeDeps());
 
     const temp = await startChat({
-      principal: principal(host),
+      principal: await principal(db, host),
       characterIds: [aria],
       temporary: true,
     });
-    const persistent = await startChat({ principal: principal(host), characterIds: [aria] });
+    const persistent = await startChat({ principal: await principal(db, host), characterIds: [aria] });
 
     const [tempRow] = await db.select().from(chats).where(eq(chats.id, temp.chat.id));
     const [persistentRow] = await db.select().from(chats).where(eq(chats.id, persistent.chat.id));
@@ -446,11 +452,11 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria] });
 
     const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
     expect(row?.anchorPersonaId).toBe(mine);
-    const hostRow = chat.participants.find((p) => p.role === "host");
+    const hostRow = hostSeatOf(chat.participants);
     expect(hostRow?.activePersonaId).toBe(mine);
   });
 
@@ -466,7 +472,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
 
     const { startChat } = createStartChat(ctx, makeDeps());
     const { chat } = await startChat({
-      principal: principal(host),
+      principal: await principal(db, host),
       characterIds: [aria],
       anchorPersonaId: explicit,
     });
@@ -483,7 +489,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria] });
 
     const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
     expect(row?.anchorPersonaId).toBeNull();
@@ -501,11 +507,11 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria] });
 
     const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
     expect(row?.anchorPersonaId).toBe(connected);
-    const hostRow = chat.participants.find((p) => p.role === "host");
+    const hostRow = hostSeatOf(chat.participants);
     expect(hostRow?.activePersonaId).toBe(connected);
   });
 
@@ -520,7 +526,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria] });
 
     const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
     expect(row?.anchorPersonaId).toBe(fallback);
@@ -538,7 +544,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
 
     const { startChat } = createStartChat(ctx, makeDeps());
     const { chat } = await startChat({
-      principal: principal(host),
+      principal: await principal(db, host),
       characterIds: [aria],
       anchorPersonaId: explicit,
     });
@@ -560,7 +566,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria] });
 
     const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
     expect(row?.anchorPersonaId).toBe(fallback);
@@ -576,10 +582,10 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria] });
 
     expect(chat.anchorPersonaId).toBe(current);
-    expect(chat.participants.find((p) => p.role === "host")?.activePersonaId).toBe(current);
+    expect(hostSeatOf(chat.participants)?.activePersonaId).toBe(current);
   });
 
   test("the connected persona (character-lock hop) beats the Current persona (#2)", async () => {
@@ -594,7 +600,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria] });
 
     const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
     expect(row?.anchorPersonaId).toBe(connected);
@@ -612,7 +618,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
 
     const { startChat } = createStartChat(ctx, makeDeps());
     const { chat } = await startChat({
-      principal: principal(host),
+      principal: await principal(db, host),
       characterIds: [aria],
       anchorPersonaId: explicit,
     });
@@ -632,7 +638,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    const { chat } = await startChat({ principal: principal(host), characterIds: [aria] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [aria] });
 
     const [row] = await db.select().from(chats).where(eq(chats.id, chat.id));
     expect(row?.anchorPersonaId).toBe(fallback);
@@ -651,7 +657,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "hi")) });
 
     const { startChat } = createStartChat(ctx, makeDeps());
-    await expect(startChat({ principal: principal(host), characterIds: [aria], anchorPersonaId: theirs })).rejects.toMatchObject({
+    await expect(startChat({ principal: await principal(db, host), characterIds: [aria], anchorPersonaId: theirs })).rejects.toMatchObject({
       code: "not_persona_owner",
     });
 
@@ -667,7 +673,7 @@ describe("startChat — anchor default-seed (the starter's active persona)", () 
 
     const { startChat } = createStartChat(ctx, makeDeps());
     await expect(
-      startChat({ principal: principal(host), characterIds: [aria], anchorPersonaId: castId<PersonaId>("persona_nonexistent") }),
+      startChat({ principal: await principal(db, host), characterIds: [aria], anchorPersonaId: castId<PersonaId>("persona_nonexistent") }),
     ).rejects.toMatchObject({ code: "not_persona_owner" });
 
     expect(await db.select().from(chats)).toEqual([]);
@@ -686,7 +692,7 @@ describe("startChat — founding injections (creation-time only)", () => {
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "")) });
     const { startChat } = createStartChat(ctx, makeDeps());
     const { chat } = await startChat({
-      principal: principal(host),
+      principal: await principal(db, host),
       characterIds: [aria],
       opening: "none",
       injections: [{ position: "in_chat", depth: 2, role: "system", content: "stay in character" }],
@@ -709,8 +715,8 @@ describe("startChat — temporary rooms are HIDDEN from the library", () => {
     const ctx = makeChatContext(db, { getCard: () => Promise.resolve(cardWith("Aria", "Hello.")) });
     const { startChat } = createStartChat(ctx, makeDeps());
 
-    const temp = await startChat({ principal: principal(host), characterIds: [aria], temporary: true, opening: "none" });
-    const permanent = await startChat({ principal: principal(host), characterIds: [aria], opening: "none" });
+    const temp = await startChat({ principal: await principal(db, host), characterIds: [aria], temporary: true, opening: "none" });
+    const permanent = await startChat({ principal: await principal(db, host), characterIds: [aria], opening: "none" });
     // R0: a freshly minted room is ALSO a husk, and the husk lens would hide the permanent one too — so
     // claim it, isolating what this arm is about (the `temporary` exclusion) from the husk arm beside it.
     await db.update(chats).set({ startedAt: FROZEN_AT_MS }).where(eq(chats.id, permanent.chat.id));
@@ -733,7 +739,7 @@ describe("startChat — a blank start seats the welcome assistant", () => {
     });
     const { startChat } = createStartChat(ctx, makeDeps());
 
-    const { chat } = await startChat({ principal: principal(host), characterIds: [] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [] });
 
     const seats = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chat.id));
     expect(seats.filter((s) => s.kind === "character").map((s) => s.characterId)).toEqual([helper]);
@@ -749,7 +755,7 @@ describe("startChat — a blank start seats the welcome assistant", () => {
     });
     const { startChat } = createStartChat(ctx, makeDeps());
 
-    const { chat } = await startChat({ principal: principal(host), characterIds: [] });
+    const { chat } = await startChat({ principal: await principal(db, host), characterIds: [] });
 
     const seats = await db.select().from(chatParticipants).where(eq(chatParticipants.chatId, chat.id));
     expect(seats.filter((s) => s.kind === "character")).toEqual([]);

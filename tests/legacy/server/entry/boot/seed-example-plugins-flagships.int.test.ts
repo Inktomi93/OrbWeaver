@@ -9,7 +9,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { PluginHostOps } from "#server/domain/plugin/index.ts";
 import { createSurfaceStatePublisher } from "#server/domain/plugin/index.ts";
-import { seedChat, seedParticipant } from "../../domain/chat/_support.ts";
+import { seatRoles, seedChat, seedParticipant } from "../../domain/chat/_support.ts";
 import { makeInertOps, makePluginHarness, ownerPrincipalFor, seedUser } from "../../domain/plugin/_support.ts";
 import {
   CHAT,
@@ -23,6 +23,9 @@ import {
   requireInvoke,
   roomAuthority,
 } from "./_seed-example-plugins-support.ts";
+
+// Seat roles are captured row data: one in-memory room supplies the host and member roles these checks read.
+const ROLES = await seatRoles(await freshDb());
 
 /** The live value of one key in a room's variable store — `null` for an unset key, which is the reading a
  *  `{ expected: null }` belief claims (and is NOT the same as the empty string). */
@@ -43,7 +46,7 @@ function casRefusal(vars: Record<string, string>, beliefs: readonly VariablePrec
 test("story clocks: variables are the room-state plane, the tool ticks, and a human fill asks for a turn", async () => {
   const db = await freshDb();
   const { ops: recorded, captured } = recordingOps(db, new Map());
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   await seedChat(db, "clocks", { id: CHAT });
   await seedParticipant(db, { chatId: CHAT, key: "clock_host", userId: caller.userId, role: "host" });
   // The ROOM-STATE fakes this archetype is about: a per-room chat-variable store the delta seam mutates, and
@@ -190,7 +193,7 @@ test("pocket arcade: a one-capability frame plugin registers its document, and t
   const db = await freshDb();
   const { ops } = recordingOps(db, new Map());
   const h = makePluginHarness(db, { port: realHost(), ops });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
 
   await installGrantEnable({ h, caller, slug: "pocket-arcade", grant: ["ui.frame"] });
 
@@ -220,7 +223,7 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
       // boundary, and the inert default reports NO membership (an empty read) — so a member verdict is part of
       // the fixture, not a nicety: without it the camera correctly answers "nothing to photograph".
       resolveViewerVisibility: (): ReturnType<PluginHostOps["chat"]["resolveViewerVisibility"]> =>
-        Promise.resolve({ role: "host", historyFloorSeq: historyFloor(0), readsHidden: true }),
+        Promise.resolve({ role: ROLES.host, historyFloorSeq: historyFloor(0), readsHidden: true }),
       // Two beats on the record, so the local-fallback titling pass has something to borrow.
       listMessages: (): ReturnType<PluginHostOps["chat"]["listMessages"]> =>
         Promise.resolve([
@@ -246,7 +249,7 @@ test("keepsake camera: the spend pipeline — structured quiet falls back, the p
   };
   const h = makePluginHarness(db, { port: realHost(), ops });
   const publishState = createSurfaceStatePublisher(h.ctx.surfaceState, () => undefined);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
 
   const pluginId = await installGrantEnable({
     h,
@@ -312,7 +315,7 @@ test("card atlas: the ARM C flagship page registers, publishes its empty browse 
   };
   const h = makePluginHarness(db, { port: realHost(), ops });
   const publishState = createSurfaceStatePublisher(h.ctx.surfaceState, () => undefined);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
 
   const pluginId = await installGrantEnable({
     h,
@@ -421,7 +424,7 @@ test("affinity tracker: a grant without ui.surface still activates headless — 
   const db = await freshDb();
   const { ops, captured } = recordingOps(db, new Map());
   const h = makePluginHarness(db, { port: realHost(), ops });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
 
   const headlessGrant: readonly PluginCapability[] = ["chat.read", "storage.kv", "notify", "llm.quiet", "events.subscribe"];
   await installGrantEnable({ h, caller, slug: "affinity-tracker", grant: headlessGrant });
@@ -447,7 +450,7 @@ test("affinity tracker: a grant without ui.surface still activates headless — 
 test("the seeded scripted example round-trips its ui.js through install → CAS → getUiBundle", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db, { port: realHost(), ops: makeInertOps() });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
 
   const scripted = await packShowcaseBundle("affinity-tracker");
   const installed = await h.service.install({ caller, bundle: scripted as Uint8Array, grant: [] });

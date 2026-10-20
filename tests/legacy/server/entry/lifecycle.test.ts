@@ -75,7 +75,7 @@ describe("HTTP server timeout policy", () => {
     const adapterServer = createServer();
     const fetch = (): Response => new Response("ok");
     const listeningListener = vi.fn();
-    const serveAdapter = vi.fn(() => adapterServer);
+    const serveAdapter = vi.fn<NonNullable<Parameters<typeof serveHttpServer>[3]>>(() => adapterServer);
 
     const result = serveHttpServer({ fetch, port: 0 }, listeningListener, HTTP_SERVER_TIMEOUTS, serveAdapter);
 
@@ -89,7 +89,7 @@ describe("HTTP server timeout policy", () => {
       },
       listeningListener,
     );
-    expect(serveAdapter.mock.calls[0]?.[0].fetch).not.toBe(fetch);
+    expect(serveAdapter.mock.calls[0]?.[0]?.fetch).not.toBe(fetch);
   });
 
   test("boot's default call forwards the chosen timeout values, not Node's implicit ones", () => {

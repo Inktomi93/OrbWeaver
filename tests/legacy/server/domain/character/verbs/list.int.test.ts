@@ -27,20 +27,20 @@ describe("list", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     h.advance(1000);
     const second = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" },
     });
     await svc.create({
-      principal: principal(other),
+      principal: await principal(db, other),
       input: { handle: castId<CharacterHandle>("c"), name: "C", description: "d" },
     });
 
-    const page = await svc.list({ principal: principal(owner) });
+    const page = await svc.list({ principal: await principal(db, owner) });
     expect(page.items.map((r) => r.handle)).toEqual(["b", "a"]);
     expect(page.items[0]?.id).toBe(second.id);
     expect(page.items[0]?.tokenSize).toBeGreaterThan(0);
@@ -52,7 +52,7 @@ describe("list", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("real"), name: "Real", description: "d" },
     });
     await seedRawCharacter(db, {
@@ -62,7 +62,7 @@ describe("list", () => {
       synthetic: true,
     });
 
-    const page = await svc.list({ principal: principal(owner) });
+    const page = await svc.list({ principal: await principal(db, owner) });
     expect(page.items.map((r) => r.handle)).toEqual(["real"]);
   });
 
@@ -71,7 +71,7 @@ describe("list", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const page = await svc.list({ principal: principal(owner) });
+    const page = await svc.list({ principal: await principal(db, owner) });
     expect(page.items).toEqual([]);
     expect(page.nextCursor).toBeNull();
   });
@@ -85,21 +85,21 @@ describe("list — cursor paging", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
     const a = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     h.advance(1000);
     const b = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" },
     });
     h.advance(1000);
     const c = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("c"), name: "C", description: "d" },
     });
 
-    const first = await svc.list({ principal: principal(owner), limit: 2 });
+    const first = await svc.list({ principal: await principal(db, owner), limit: 2 });
     expect(first.items.map((r) => r.id)).toEqual([c.id, b.id]);
     // Default sort is `recent`; nothing's been chatted → the null tail orders by createdAt DESC (== the old
     // newest-first). The cursor is sort-discriminated (carries `sort` + `lastChattedAt`, null here).
@@ -114,7 +114,7 @@ describe("list — cursor paging", () => {
     if (cursor === null) {
       throw new Error("expected a page cursor");
     }
-    const second = await svc.list({ principal: principal(owner), limit: 2, cursor });
+    const second = await svc.list({ principal: await principal(db, owner), limit: 2, cursor });
     expect(second.items.map((r) => r.id)).toEqual([a.id]);
     expect(second.nextCursor).toBeNull();
   });
@@ -127,16 +127,16 @@ describe("list — cursor paging", () => {
 
     // Both created at the SAME frozen instant — createdAt alone can't order them.
     const first = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("tie-1"), name: "Tie1", description: "d" },
     });
     const second = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("tie-2"), name: "Tie2", description: "d" },
     });
     expect(first.createdAt).toBe(second.createdAt);
 
-    const firstPage = await svc.list({ principal: principal(owner), limit: 1 });
+    const firstPage = await svc.list({ principal: await principal(db, owner), limit: 1 });
     expect(firstPage.items).toHaveLength(1);
     // A FULL page always carries a cursor (mirrors notifications — no lookahead peek); exhaustion is
     // discovered on the NEXT fetch, which comes back short.
@@ -146,7 +146,7 @@ describe("list — cursor paging", () => {
     if (cursor === null) {
       throw new Error("expected a page cursor");
     }
-    const secondPage = await svc.list({ principal: principal(owner), limit: 1, cursor });
+    const secondPage = await svc.list({ principal: await principal(db, owner), limit: 1, cursor });
     expect(secondPage.items).toHaveLength(1);
     // The two pages, together, cover both ties exactly once (no skip, no dupe) — order-independent.
     const seenIds = new Set([...firstPage.items, ...secondPage.items].map((r) => r.id));
@@ -157,7 +157,7 @@ describe("list — cursor paging", () => {
       throw new Error("expected a page cursor (the second page was also full)");
     }
     const thirdPage = await svc.list({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       limit: 1,
       cursor: secondCursor,
     });
@@ -172,17 +172,17 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const cold = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("cold"), name: "Cold", description: "d" },
     });
     const hot = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("hot"), name: "Hot", description: "d" },
     });
     // Only "hot" has been chatted → it leads; "cold" (never chatted) sinks to the null tail.
     await seedSeatedChat(db, { chatId: castId<ChatId>("chat_hot"), ownerId: owner, characterId: hot.id, recencyAt: 7000 });
 
-    const page = await svc.list({ principal: principal(owner), sort: "recent", limit: 1 });
+    const page = await svc.list({ principal: await principal(db, owner), sort: "recent", limit: 1 });
     expect(page.items.map((r) => r.id)).toEqual([hot.id]);
     expect(page.items[0]?.lastChattedAt).toBe(7000);
     expect(page.nextCursor).toEqual({
@@ -197,7 +197,7 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
       throw new Error("expected a page cursor");
     }
     const second = await svc.list({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       sort: "recent",
       limit: 1,
       cursor,
@@ -210,15 +210,15 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("z"), name: "Zoe", description: "d" },
     });
     const ada = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "Ada", description: "d" },
     });
 
-    const page = await svc.list({ principal: principal(owner), sort: "alpha", limit: 1 });
+    const page = await svc.list({ principal: await principal(db, owner), sort: "alpha", limit: 1 });
     expect(page.items.map((r) => r.name)).toEqual(["Ada"]);
     expect(page.nextCursor).toEqual({ sort: "alpha", name: "Ada", id: ada.id });
   });
@@ -229,16 +229,16 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const first = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "A", description: "d" },
     });
     h.advance(1000);
     const second = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("b"), name: "B", description: "d" },
     });
 
-    const newest = await svc.list({ principal: principal(owner), sort: "newest", limit: 1 });
+    const newest = await svc.list({ principal: await principal(db, owner), sort: "newest", limit: 1 });
     expect(newest.items.map((r) => r.id)).toEqual([second.id]);
     expect(newest.nextCursor).toEqual({
       sort: "newest",
@@ -246,7 +246,7 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
       id: second.id,
     });
 
-    const oldest = await svc.list({ principal: principal(owner), sort: "oldest", limit: 1 });
+    const oldest = await svc.list({ principal: await principal(db, owner), sort: "oldest", limit: 1 });
     expect(oldest.items.map((r) => r.id)).toEqual([first.id]);
     expect(oldest.nextCursor).toEqual({ sort: "oldest", createdAt: first.createdAt, id: first.id });
   });
@@ -256,24 +256,24 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const busy = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("busy"), name: "Busy", description: "d" },
     });
     // "quiet" is seated in no room at all → a chat count of zero (the tail).
     await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("quiet"), name: "Quiet", description: "d" },
     });
     await seedSeatedChat(db, { chatId: castId<ChatId>("chat_busy1"), ownerId: owner, characterId: busy.id, recencyAt: 7000 });
     await seedSeatedChat(db, { chatId: castId<ChatId>("chat_busy2"), ownerId: owner, characterId: busy.id, recencyAt: 6000 });
 
-    const most = await svc.list({ principal: principal(owner), sort: "mostChats", limit: 1 });
+    const most = await svc.list({ principal: await principal(db, owner), sort: "mostChats", limit: 1 });
     expect(most.items.map((r) => r.id)).toEqual([busy.id]);
     expect(most.nextCursor).toEqual({ sort: "mostChats", chatCount: 2, id: busy.id });
 
     // fewestChats: the never-chatted "quiet" (0) STILL sinks to the tail → "busy" leads, and the last row
     // of a full page (here the only row on a limit-1 page) carries its chatCount.
-    const fewest = await svc.list({ principal: principal(owner), sort: "fewestChats", limit: 1 });
+    const fewest = await svc.list({ principal: await principal(db, owner), sort: "fewestChats", limit: 1 });
     expect(fewest.items.map((r) => r.id)).toEqual([busy.id]);
     expect(fewest.nextCursor).toEqual({ sort: "fewestChats", chatCount: 2, id: busy.id });
   });
@@ -290,7 +290,7 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
       personality: "curious, meticulous, verbose",
       greetings: [{ text: "Greetings, traveller — welcome to my exceedingly wordy realm." }],
     };
-    const made = await svc.create({ principal: principal(owner), input });
+    const made = await svc.create({ principal: await principal(db, owner), input });
 
     // The ONE computer over the SAME card content the create verb stamped (defaults applied for omitted fields).
     const expected = cardTokenSize({
@@ -305,7 +305,7 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     });
     expect(expected).toBeGreaterThan(0);
 
-    const page = await svc.list({ principal: principal(owner) });
+    const page = await svc.list({ principal: await principal(db, owner) });
     const row = page.items.find((r) => r.id === made.id);
     expect(row?.tokenSize).toBe(expected);
   });
@@ -316,7 +316,7 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // "big" has a much longer definition → a larger stamped token_size than "small".
     const big = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: {
         handle: castId<CharacterHandle>("big"),
         name: "Big",
@@ -324,11 +324,11 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
       },
     });
     await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("small"), name: "Sm", description: "tiny" },
     });
 
-    const largest = await svc.list({ principal: principal(owner), sort: "largestCards", limit: 1 });
+    const largest = await svc.list({ principal: await principal(db, owner), sort: "largestCards", limit: 1 });
     expect(largest.items.map((r) => r.id)).toEqual([big.id]);
     const bigSize = largest.items[0]?.tokenSize ?? 0;
     expect(bigSize).toBeGreaterThan(0);
@@ -336,7 +336,7 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
 
     // smallestCards flips direction — "small" leads; its cursor carries its (smaller) stamped size.
     const smallest = await svc.list({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       sort: "smallestCards",
       limit: 1,
     });
@@ -362,17 +362,23 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     const harness = makeHarness(db);
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const high = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("high"), name: "High", description: "a" } });
-    const low = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("low"), name: "Low", description: "b" } });
-    const unscored = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("none"), name: "None", description: "c" } });
+    const high = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("high"), name: "High", description: "a" },
+    });
+    const low = await svc.create({ principal: await principal(db, owner), input: { handle: castId<CharacterHandle>("low"), name: "Low", description: "b" } });
+    const unscored = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("none"), name: "None", description: "c" },
+    });
     // Stamp through the REAL refinery op — the same writer the sweep and a session's score run use.
     const stamp = createStampRefinerySignals({ db: databaseHandle(db) });
     await stamp({ ownerId: owner, characterId: high.id, patch: { score: 9.5 } });
     await stamp({ ownerId: owner, characterId: low.id, patch: { score: 2 } });
 
-    const best = await svc.list({ principal: principal(owner), sort: "bestScore" });
+    const best = await svc.list({ principal: await principal(db, owner), sort: "bestScore" });
     expect(best.items.map((r) => r.id)).toEqual([high.id, low.id, unscored.id]);
-    const worst = await svc.list({ principal: principal(owner), sort: "worstScore" });
+    const worst = await svc.list({ principal: await principal(db, owner), sort: "worstScore" });
     // Direction flips for the SCORED rows; the unscored card stays LAST rather than leading "worst".
     expect(worst.items.map((r) => r.id)).toEqual([low.id, high.id, unscored.id]);
   });
@@ -381,21 +387,21 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     const db = await freshDb();
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const high = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("h"), name: "H", description: "a" } });
-    const low = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("l"), name: "L", description: "b" } });
-    const unscored = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("u"), name: "U", description: "c" } });
+    const high = await svc.create({ principal: await principal(db, owner), input: { handle: castId<CharacterHandle>("h"), name: "H", description: "a" } });
+    const low = await svc.create({ principal: await principal(db, owner), input: { handle: castId<CharacterHandle>("l"), name: "L", description: "b" } });
+    const unscored = await svc.create({ principal: await principal(db, owner), input: { handle: castId<CharacterHandle>("u"), name: "U", description: "c" } });
     const stamp = createStampRefinerySignals({ db: databaseHandle(db) });
     await stamp({ ownerId: owner, characterId: high.id, patch: { score: 8 } });
     await stamp({ ownerId: owner, characterId: low.id, patch: { score: 4 } });
 
-    const page1 = await svc.list({ principal: principal(owner), sort: "bestScore", limit: 1 });
+    const page1 = await svc.list({ principal: await principal(db, owner), sort: "bestScore", limit: 1 });
     expect(page1.items.map((r) => r.id)).toEqual([high.id]);
     expect(page1.nextCursor).toEqual({ sort: "bestScore", score: 8, id: high.id });
     const cursor1 = page1.nextCursor;
     if (cursor1 === null) {
       throw new Error("expected a next cursor");
     }
-    const page2 = await svc.list({ principal: principal(owner), sort: "bestScore", limit: 1, cursor: cursor1 });
+    const page2 = await svc.list({ principal: await principal(db, owner), sort: "bestScore", limit: 1, cursor: cursor1 });
     expect(page2.items.map((r) => r.id)).toEqual([low.id]);
     // The boundary into the NULL tail: the cursor's score is null and the next page is the unscored card
     // (an unscored boundary must stay INSIDE the tail — the mostChats null-boundary shape).
@@ -403,14 +409,14 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     if (cursor2 === null) {
       throw new Error("expected a next cursor");
     }
-    const page3 = await svc.list({ principal: principal(owner), sort: "bestScore", limit: 1, cursor: cursor2 });
+    const page3 = await svc.list({ principal: await principal(db, owner), sort: "bestScore", limit: 1, cursor: cursor2 });
     expect(page3.items.map((r) => r.id)).toEqual([unscored.id]);
     expect(page3.nextCursor).toEqual({ sort: "bestScore", score: null, id: unscored.id });
     const cursor3 = page3.nextCursor;
     if (cursor3 === null) {
       throw new Error("expected a next cursor");
     }
-    const page4 = await svc.list({ principal: principal(owner), sort: "bestScore", limit: 1, cursor: cursor3 });
+    const page4 = await svc.list({ principal: await principal(db, owner), sort: "bestScore", limit: 1, cursor: cursor3 });
     expect(page4.items).toEqual([]);
   });
 
@@ -419,13 +425,13 @@ describe("list — sort (recent / alpha) + stale-cursor rejection", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const made = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("a"), name: "Ada", description: "d" },
     });
     // An alpha cursor threaded into a recent query — a threading bug the verb must catch, not apply.
     await expect(
       svc.list({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         sort: "recent",
         cursor: { sort: "alpha", name: "Ada", id: made.id },
       }),
@@ -489,7 +495,7 @@ describe("list — server-side search", () => {
     const { owner, cass } = await seedLensLibrary(db);
 
     // A one-row page: the match lives BEYOND it, which is exactly the case a client-side filter cannot serve.
-    const page = await svc.list({ principal: principal(owner), search: "cassi", limit: 1 });
+    const page = await svc.list({ principal: await principal(db, owner), search: "cassi", limit: 1 });
     expect(page.items.map((r) => r.id)).toEqual([cass]);
     expect(page.totalCount).toBe(1);
     // A FULL page always mints a cursor (no lookahead peek); the SEARCH rides the next fetch too, so the
@@ -498,7 +504,7 @@ describe("list — server-side search", () => {
     if (cursor === null) {
       throw new Error("expected a page cursor");
     }
-    const second = await svc.list({ principal: principal(owner), search: "cassi", limit: 1, cursor });
+    const second = await svc.list({ principal: await principal(db, owner), search: "cassi", limit: 1, cursor });
     expect(second.items).toEqual([]);
   });
 
@@ -508,14 +514,14 @@ describe("list — server-side search", () => {
     const { owner, aria, bolt, cass } = await seedLensLibrary(db);
     await seedCharacterSummary(db, { characterId: bolt, elevatorPitch: "A courier who runs the lightning road." });
 
-    const byHandle = await svc.list({ principal: principal(owner), search: "CASSIUS" });
+    const byHandle = await svc.list({ principal: await principal(db, owner), search: "CASSIUS" });
     expect(byHandle.items.map((r) => r.id)).toEqual([cass]);
 
-    const byPitch = await svc.list({ principal: principal(owner), search: "lightning road" });
+    const byPitch = await svc.list({ principal: await principal(db, owner), search: "lightning road" });
     expect(byPitch.items.map((r) => r.id)).toEqual([bolt]);
 
     // The tag arm: "rpg" is on Aria + Cassius and on neither's name.
-    const byTag = await svc.list({ principal: principal(owner), search: "rpg", sort: "alpha" });
+    const byTag = await svc.list({ principal: await principal(db, owner), search: "rpg", sort: "alpha" });
     expect(byTag.items.map((r) => r.id)).toEqual([aria, cass]);
   });
 
@@ -527,7 +533,7 @@ describe("list — server-side search", () => {
     await db.insert(tags).values([{ id: staged, ownerId: owner, name: "staged-only" }]);
     await db.insert(characterTags).values([{ characterId: bolt, tagId: staged, status: "pending" }]);
 
-    const page = await svc.list({ principal: principal(owner), search: "staged-only" });
+    const page = await svc.list({ principal: await principal(db, owner), search: "staged-only" });
     expect(page.items).toEqual([]);
   });
 
@@ -537,12 +543,12 @@ describe("list — server-side search", () => {
     const { owner } = await seedLensLibrary(db);
 
     // `%` used to be interpolated straight into `%needle%`, so searching it returned the WHOLE library.
-    const bareWildcard = await svc.list({ principal: principal(owner), search: "%" });
+    const bareWildcard = await svc.list({ principal: await principal(db, owner), search: "%" });
     expect(bareWildcard.items).toEqual([]);
     expect(bareWildcard.totalCount).toBe(0);
 
     // `_` is LIKE's single-character wildcard: "b_lt" must not reach "Bolt".
-    expect((await svc.list({ principal: principal(owner), search: "b_lt" })).items).toEqual([]);
+    expect((await svc.list({ principal: await principal(db, owner), search: "b_lt" })).items).toEqual([]);
 
     // …and the escape must not cost a LITERAL match: a card whose name really carries a `%` is findable.
     const discount = await seedRawCharacter(db, {
@@ -552,7 +558,7 @@ describe("list — server-side search", () => {
       name: "50% Off",
       createdAt: 5000,
     });
-    const literal = await svc.list({ principal: principal(owner), search: "%" });
+    const literal = await svc.list({ principal: await principal(db, owner), search: "%" });
     expect(literal.items.map((r) => r.id)).toEqual([discount]);
   });
 
@@ -561,7 +567,7 @@ describe("list — server-side search", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const { owner } = await seedLensLibrary(db);
 
-    const page = await svc.list({ principal: principal(owner), search: "   " });
+    const page = await svc.list({ principal: await principal(db, owner), search: "   " });
     expect(page.items).toHaveLength(4);
   });
 });
@@ -575,13 +581,13 @@ describe("list — server-side chip filters (starred · archived · tags)", () =
     const svc = createCharacterService(makeHarness(db).ctx);
     const { owner, aria, dusk } = await seedLensLibrary(db);
 
-    const favorites = await svc.list({ principal: principal(owner), starred: true });
+    const favorites = await svc.list({ principal: await principal(db, owner), starred: true });
     expect(favorites.items.map((r) => r.id)).toEqual([aria]);
 
-    const unfiltered = await svc.list({ principal: principal(owner) });
+    const unfiltered = await svc.list({ principal: await principal(db, owner) });
     expect(unfiltered.items.map((r) => r.id)).toContain(dusk);
 
-    const hidden = await svc.list({ principal: principal(owner), archived: false });
+    const hidden = await svc.list({ principal: await principal(db, owner), archived: false });
     expect(hidden.items.map((r) => r.id)).not.toContain(dusk);
     expect(hidden.totalCount).toBe(3);
   });
@@ -592,15 +598,15 @@ describe("list — server-side chip filters (starred · archived · tags)", () =
     const { owner, aria, bolt, cass, dusk, rpg, noir } = await seedLensLibrary(db);
 
     // rpg AND noir ⇒ only Cassius carries both.
-    const both = await svc.list({ principal: principal(owner), includeTagIds: [rpg, noir] });
+    const both = await svc.list({ principal: await principal(db, owner), includeTagIds: [rpg, noir] });
     expect(both.items.map((r) => r.id)).toEqual([cass]);
 
     // rpg, NOT noir ⇒ Aria only.
-    const excluded = await svc.list({ principal: principal(owner), includeTagIds: [rpg], excludeTagIds: [noir] });
+    const excluded = await svc.list({ principal: await principal(db, owner), includeTagIds: [rpg], excludeTagIds: [noir] });
     expect(excluded.items.map((r) => r.id)).toEqual([aria]);
 
     // A pure exclusion still returns the rows that carry no rpg tag at all (Bolt, and archived Dusk).
-    const notRpg = await svc.list({ principal: principal(owner), excludeTagIds: [rpg], sort: "alpha" });
+    const notRpg = await svc.list({ principal: await principal(db, owner), excludeTagIds: [rpg], sort: "alpha" });
     expect(notRpg.items.map((r) => r.id)).toEqual([bolt, dusk]);
   });
 
@@ -609,7 +615,7 @@ describe("list — server-side chip filters (starred · archived · tags)", () =
     const svc = createCharacterService(makeHarness(db).ctx);
     const { owner } = await seedLensLibrary(db);
 
-    const page = await svc.list({ principal: principal(owner), includeTagIds: [castId<TagId>("tag_deleted")] });
+    const page = await svc.list({ principal: await principal(db, owner), includeTagIds: [castId<TagId>("tag_deleted")] });
     expect(page.items).toEqual([]);
     expect(page.totalCount).toBe(0);
   });
@@ -619,13 +625,13 @@ describe("list — server-side chip filters (starred · archived · tags)", () =
     const svc = createCharacterService(makeHarness(db).ctx);
     const { owner, aria, cass, rpg } = await seedLensLibrary(db);
 
-    const first = await svc.list({ principal: principal(owner), includeTagIds: [rpg], sort: "alpha", limit: 1 });
+    const first = await svc.list({ principal: await principal(db, owner), includeTagIds: [rpg], sort: "alpha", limit: 1 });
     expect(first.items.map((r) => r.id)).toEqual([aria]);
     const cursor = first.nextCursor;
     if (cursor === null) {
       throw new Error("expected a page cursor");
     }
-    const second = await svc.list({ principal: principal(owner), includeTagIds: [rpg], sort: "alpha", limit: 1, cursor });
+    const second = await svc.list({ principal: await principal(db, owner), includeTagIds: [rpg], sort: "alpha", limit: 1, cursor });
     expect(second.items.map((r) => r.id)).toEqual([cass]);
   });
 });
@@ -636,13 +642,13 @@ describe("list — totalCount (the census the readouts print)", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const { owner } = await seedLensLibrary(db);
 
-    const page = await svc.list({ principal: principal(owner), limit: 1 });
+    const page = await svc.list({ principal: await principal(db, owner), limit: 1 });
     expect(page.items).toHaveLength(1);
     // Four rows in scope, one on the page.
     expect(page.totalCount).toBe(4);
 
-    const searched = await svc.list({ principal: principal(owner), search: "a", limit: 1 });
-    expect(searched.totalCount).toBe((await svc.list({ principal: principal(owner), search: "a" })).items.length);
+    const searched = await svc.list({ principal: await principal(db, owner), search: "a", limit: 1 });
+    expect(searched.totalCount).toBe((await svc.list({ principal: await principal(db, owner), search: "a" })).items.length);
   });
 
   test("the census is owner-scoped (another owner's rows never count)", async () => {
@@ -652,7 +658,7 @@ describe("list — totalCount (the census the readouts print)", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     await seedRawCharacter(db, { id: "character_foreign", ownerId: other, handle: castId<CharacterHandle>("foreign"), name: "Aria Nightshade" });
 
-    const page = await svc.list({ principal: principal(owner), search: "aria" });
+    const page = await svc.list({ principal: await principal(db, owner), search: "aria" });
     expect(page.items).toHaveLength(1);
     expect(page.totalCount).toBe(1);
   });
@@ -677,7 +683,7 @@ describe("list — nameIsAmbiguous (the row's disambiguation gate)", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedTwins(db);
 
-    const page = await svc.list({ principal: principal(owner) });
+    const page = await svc.list({ principal: await principal(db, owner) });
     const byHandle = new Map(page.items.map((row) => [row.handle, row.nameIsAmbiguous]));
     // BOTH twins, including the one whose handle IS the slugified name — the case the client's derivability
     // gate skipped, which is what left two rows announcing "Eleni" and "Eleni · eleni-3" side by side.
@@ -694,13 +700,13 @@ describe("list — nameIsAmbiguous (the row's disambiguation gate)", () => {
 
     // A page holding ONE row still knows its name collides: a page-scoped scan would say false here, and
     // the row's announced identity would then change as the keyset advanced.
-    const firstPage = await svc.list({ principal: principal(owner), limit: 1 });
+    const firstPage = await svc.list({ principal: await principal(db, owner), limit: 1 });
     expect(firstPage.items).toHaveLength(1);
     expect(firstPage.items[0]?.nameIsAmbiguous).toBe(true);
 
     // …and a search that matches exactly one of the twins keeps it too — filtering the other one out of
     // view does not make two characters stop sharing a name.
-    const searched = await svc.list({ principal: principal(owner), search: "eleni-3" });
+    const searched = await svc.list({ principal: await principal(db, owner), search: "eleni-3" });
     expect(searched.items.map((row) => row.handle)).toEqual(["eleni-3"]);
     expect(searched.items[0]?.nameIsAmbiguous).toBe(true);
   });
@@ -712,11 +718,11 @@ describe("list — canonical tags (the library tag filter)", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const tagged = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("tagged"), name: "Tagged", description: "d" },
     });
     const bare = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("bare"), name: "Bare", description: "d" },
     });
     const fantasy = castId<TagId>("tag_fantasy");
@@ -730,7 +736,7 @@ describe("list — canonical tags (the library tag filter)", () => {
       { characterId: tagged.id, tagId: staged, status: "pending" },
     ]);
 
-    const page = await svc.list({ principal: principal(owner) });
+    const page = await svc.list({ principal: await principal(db, owner) });
 
     const taggedRow = page.items.find((r) => r.id === tagged.id);
     const bareRow = page.items.find((r) => r.id === bare.id);
@@ -752,7 +758,7 @@ describe("list — the landing projections (chatCount · provenance)", () => {
 
     // AUTHORED — through the real create door, which stamps no creator.
     const mine = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("mine"), name: "Mine", description: "d" },
     });
     // SHIPPED + IMPORTED are raw inserts: the CRUD wire cannot author an import provenance, and the seeded
@@ -776,7 +782,7 @@ describe("list — the landing projections (chatCount · provenance)", () => {
     // Seated only in a room this owner has left — outside her membership scope, so it counts as nothing.
     await seedSeatedChat(db, { chatId: castId<ChatId>("chat_imported"), ownerId: owner, characterId: imported, recencyAt: 9000, present: false });
 
-    const page = await svc.list({ principal: principal(owner), sort: "alpha" });
+    const page = await svc.list({ principal: await principal(db, owner), sort: "alpha" });
     const byId = new Map(page.items.map((row) => [row.id, row]));
     expect(byId.get(mine.id)?.chatCount).toBe(2);
     expect(byId.get(imported)?.chatCount).toBe(0);
@@ -801,7 +807,7 @@ describe("list — the landing projections (chatCount · provenance)", () => {
 
     // The instrument, proven on the ONE-row page first: a real, non-zero statement count.
     const spy = vi.spyOn(db, "select");
-    const onePage = await svc.list({ principal: principal(owner) });
+    const onePage = await svc.list({ principal: await principal(db, owner) });
     const forOneRow = spy.mock.calls.length;
     expect(onePage.items).toHaveLength(1);
     expect(forOneRow).toBeGreaterThan(0);
@@ -823,7 +829,7 @@ describe("list — the landing projections (chatCount · provenance)", () => {
       }
     }
     spy.mockClear();
-    const bigPage = await svc.list({ principal: principal(owner) });
+    const bigPage = await svc.list({ principal: await principal(db, owner) });
     expect(bigPage.items).toHaveLength(7);
     // Seven rows, each with its own chat count, and the SAME number of statements as one row: the count is
     // a CORRELATED SUBQUERY inside the page's own SELECT (#1131 — it used to be a `character_stats` LEFT
@@ -849,7 +855,7 @@ test("dedicated census matches the same normalized archived, search and accepted
     { search: "%" },
   ];
   for (const lens of lenses) {
-    const params = { principal: principal(owner), ...lens };
+    const params = { principal: await principal(db, owner), ...lens };
     expect(await svc.count(params)).toBe((await svc.list({ ...params, limit: 1 })).totalCount);
   }
 });

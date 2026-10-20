@@ -5,6 +5,7 @@
 
 import type { Db } from "@orb/db";
 import { chatDigests, chatSegments, embedGenerations } from "@orb/db";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatDigestId, ChatSegmentId, EmbedGenerationId, Handle, UserConnectionId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
@@ -27,7 +28,7 @@ async function seedHarnessGeneration(ownerId: UserId, harness: StoreHarness): Pr
   }
   // The `user_connections` row `resolved.connectionId` points at is seeded by `seedUser` (embeddings
   // `_support` → `seedVectorConnection`) — the generation's `connection_id` FK parent has ONE home.
-  const generation = await resolveTargetGeneration(harness.ctx, ownerId, "embed");
+  const generation = await resolveTargetGeneration({ ...harness.ctx, db: databaseForOwner(harness.ctx.db) }, ownerId, "embed");
   if (generation === null) {
     throw new Error("expected generation");
   }

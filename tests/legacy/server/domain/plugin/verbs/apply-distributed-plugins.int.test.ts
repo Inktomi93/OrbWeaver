@@ -17,20 +17,20 @@ test("a user created AFTER the publish gets the distributed row — disabled, un
   const boss = await seedUser(db, { handle: castId<Handle>("boss") });
   const early = await seedUser(db, { handle: castId<Handle>("early") });
   // The fan-out sees only the users that existed when it ran.
-  const h = makePluginHarness(db, { listRecipients: () => Promise.resolve([principalFor(early)]) });
+  const h = makePluginHarness(db, { listRecipients: async () => Promise.resolve([await principalFor(db, early)]) });
   await h.service.installForAllUsers({
-    caller: ownerPrincipalFor(boss),
+    caller: await ownerPrincipalFor(db, boss),
     bundle: makeBundle({ id: "house-style", name: "House Style", capabilities: ["chat.transform"] }),
   });
 
   // …and now someone signs up.
   const late = await seedUser(db, { handle: castId<Handle>("late") });
-  expect(await h.service.list({ caller: principalFor(late) })).toEqual([]);
+  expect(await h.service.list({ caller: await principalFor(db, late) })).toEqual([]);
 
-  const applied = await h.service.applyDistributedPlugins({ caller: principalFor(late) });
+  const applied = await h.service.applyDistributedPlugins({ caller: await principalFor(db, late) });
 
   expect(applied).toEqual({ installedSlugs: ["house-style"], skippedSlugs: [] });
-  const [row] = await h.service.list({ caller: principalFor(late) });
+  const [row] = await h.service.list({ caller: await principalFor(db, late) });
   expect(row).toMatchObject({ slug: "house-style", status: "disabled", grantedCapabilities: [], reconsentPending: true });
   // Arriving at a populated pane never means arriving at a running one.
   expect(h.port.created).toEqual([]);
@@ -42,20 +42,20 @@ test("a second drive mints nothing, and a slug the user already holds is left ex
   const late = await seedUser(db, { handle: castId<Handle>("late") });
   const h = makePluginHarness(db, { listRecipients: () => Promise.resolve([]) });
   await h.service.installForAllUsers({
-    caller: ownerPrincipalFor(boss),
+    caller: await ownerPrincipalFor(db, boss),
     bundle: makeBundle({ id: "house-style", capabilities: ["chat.transform"] }),
   });
 
-  await h.service.applyDistributedPlugins({ caller: principalFor(late) });
+  await h.service.applyDistributedPlugins({ caller: await principalFor(db, late) });
   // The user consents to their copy — the state a re-drive must not stomp.
-  const [mine] = await h.service.list({ caller: principalFor(late) });
+  const [mine] = await h.service.list({ caller: await principalFor(db, late) });
   const mineId = mine?.id ?? castId("plugin_missing");
-  await h.service.setGrant({ caller: principalFor(late), pluginId: mineId, grant: ["chat.transform"], acknowledgedNetHosts: [] });
+  await h.service.setGrant({ caller: await principalFor(db, late), pluginId: mineId, grant: ["chat.transform"], acknowledgedNetHosts: [] });
 
-  const second = await h.service.applyDistributedPlugins({ caller: principalFor(late) });
+  const second = await h.service.applyDistributedPlugins({ caller: await principalFor(db, late) });
 
   expect(second).toEqual({ installedSlugs: [], skippedSlugs: ["house-style"] });
-  const rows = await h.service.list({ caller: principalFor(late) });
+  const rows = await h.service.list({ caller: await principalFor(db, late) });
   expect(rows).toHaveLength(1);
   expect(rows[0]).toMatchObject({ id: mineId, grantedCapabilities: ["chat.transform"], reconsentPending: false });
 });
@@ -65,8 +65,8 @@ test("nothing published means nothing applied — the empty deployment is a clea
   const late = await seedUser(db, { handle: castId<Handle>("late") });
   const h = makePluginHarness(db);
 
-  expect(await h.service.applyDistributedPlugins({ caller: principalFor(late) })).toEqual({ installedSlugs: [], skippedSlugs: [] });
-  expect(await h.service.list({ caller: principalFor(late) })).toEqual([]);
+  expect(await h.service.applyDistributedPlugins({ caller: await principalFor(db, late) })).toEqual({ installedSlugs: [], skippedSlugs: [] });
+  expect(await h.service.list({ caller: await principalFor(db, late) })).toEqual([]);
 });
 
 test("the caller only ever installs for THEMSELVES — one user's drive touches nobody else", async () => {
@@ -75,10 +75,10 @@ test("the caller only ever installs for THEMSELVES — one user's drive touches 
   const one = await seedUser(db, { handle: castId<Handle>("one") });
   const two = await seedUser(db, { handle: castId<Handle>("two") });
   const h = makePluginHarness(db, { listRecipients: () => Promise.resolve([]) });
-  await h.service.installForAllUsers({ caller: ownerPrincipalFor(boss), bundle: makeBundle({ id: "house-style" }) });
+  await h.service.installForAllUsers({ caller: await ownerPrincipalFor(db, boss), bundle: makeBundle({ id: "house-style" }) });
 
-  await h.service.applyDistributedPlugins({ caller: principalFor(one) });
+  await h.service.applyDistributedPlugins({ caller: await principalFor(db, one) });
 
-  expect((await h.service.list({ caller: principalFor(one) })).map((r) => r.slug)).toEqual(["house-style"]);
-  expect(await h.service.list({ caller: principalFor(two as UserId) })).toEqual([]);
+  expect((await h.service.list({ caller: await principalFor(db, one) })).map((r) => r.slug)).toEqual(["house-style"]);
+  expect(await h.service.list({ caller: await principalFor(db, two as UserId) })).toEqual([]);
 });

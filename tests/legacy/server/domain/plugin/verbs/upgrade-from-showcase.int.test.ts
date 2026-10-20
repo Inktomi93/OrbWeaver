@@ -27,7 +27,7 @@ test("upgradeFromShowcase takes a DIVERGED seeded install to the shipped bundle 
   // The build SHIPS 1.2.0; the owner's copy sits at 1.1.0 (they took it over — the boot pass left it alone).
   const h = makePluginHarness(db, { showcase: makeShowcaseShipping([{ id: SLUG, version: "1.2.0", capabilities: ["chat.read"] }]) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: SLUG, version: "1.1.0", capabilities: ["chat.read"] }), grant: ["chat.read"] });
   // A guest's own persisted state — the thing a reinstall would destroy and an upgrade must not.
   await db.insert(pluginKv).values({ pluginId: installed.id, ownerId: owner, key: "deck", value: JSON.stringify({ drawn: 3 }), updatedAt: 1 });
@@ -58,14 +58,16 @@ test("upgradeFromShowcase on a STRANGER's pluginId is a leak-free NOT_FOUND — 
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
-  const installed = await h.service.install({ caller: ownerPrincipalFor(owner), bundle: makeBundle({ id: SLUG, version: "1.1.0" }), grant: [] });
+  const installed = await h.service.install({ caller: await ownerPrincipalFor(db, owner), bundle: makeBundle({ id: SLUG, version: "1.1.0" }), grant: [] });
 
-  await expect(h.service.upgradeFromShowcase({ caller: ownerPrincipalFor(stranger), pluginId: installed.id })).rejects.toBeInstanceOf(PluginNotFoundError);
+  await expect(h.service.upgradeFromShowcase({ caller: await ownerPrincipalFor(db, stranger), pluginId: installed.id })).rejects.toBeInstanceOf(
+    PluginNotFoundError,
+  );
   // The ordering, not just the verdict: the pack is never asked, so the refusal cannot have been derived from
   // anything about the owner's row.
   expect(bundleAsks).toBe(0);
   // …and the owner's row is untouched.
-  const [row] = await h.service.list({ caller: ownerPrincipalFor(owner) });
+  const [row] = await h.service.list({ caller: await ownerPrincipalFor(db, owner) });
   expect(row?.version).toBe("1.1.0");
 });
 
@@ -73,7 +75,7 @@ test("upgradeFromShowcase on a plugin this build ships no bundle for is a typed 
   const db = await freshDb();
   const h = makePluginHarness(db, { showcase: makeShowcaseShipping([{ id: SLUG, version: "1.2.0" }]) });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const hand = await h.service.install({ caller, bundle: makeBundle({ id: "hand-rolled", version: "1.0.0" }), grant: [] });
 
   await expect(h.service.upgradeFromShowcase({ caller, pluginId: hand.id })).rejects.toBeInstanceOf(PluginNotShowcaseError);
@@ -87,7 +89,7 @@ test("upgradeFromShowcase refuses a URL install whose slug collides with a shipp
     showcase: makeShowcaseShipping([{ id: SLUG, version: "1.2.0" }]),
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const fromUrl = await h.service.installFromUrl({
     caller,
     url: "https://plugins.example.com/oracle-deck.zip",
@@ -107,7 +109,7 @@ test("upgradeFromShowcase keeps #615's wall: a shipped bundle that WIDENS reach 
     showcase: makeShowcaseShipping([{ id: SLUG, version: "1.2.0", capabilities: ["chat.read", "net.fetch"], netHosts: ["cards.example.com"] }]),
   });
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const caller = ownerPrincipalFor(owner);
+  const caller = await ownerPrincipalFor(db, owner);
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: SLUG, version: "1.1.0", capabilities: ["chat.read"] }), grant: ["chat.read"] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 

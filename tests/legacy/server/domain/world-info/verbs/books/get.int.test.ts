@@ -15,9 +15,9 @@ describe("getBook", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const created = await svc.createBook({ principal: principal(owner), input: { name: "Lore" } });
+    const created = await svc.createBook({ principal: await principal(db, owner), input: { name: "Lore" } });
 
-    const got = await svc.getBook({ principal: principal(owner), bookId: created.id });
+    const got = await svc.getBook({ principal: await principal(db, owner), bookId: created.id });
     expect(got.id).toBe(created.id);
   });
 
@@ -26,9 +26,9 @@ describe("getBook", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
-    const theirs = await svc.createBook({ principal: principal(other), input: { name: "Theirs" } });
+    const theirs = await svc.createBook({ principal: await principal(db, other), input: { name: "Theirs" } });
 
-    await expect(svc.getBook({ principal: principal(owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.getBook({ principal: await principal(db, owner), bookId: theirs.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
   });
 
   test("a missing book is NotFound", async () => {
@@ -37,7 +37,7 @@ describe("getBook", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await expect(
       svc.getBook({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         bookId: castId<WorldBookId>("world_book_missing"),
       }),
     ).rejects.toBeInstanceOf(WorldInfoNotFoundError);

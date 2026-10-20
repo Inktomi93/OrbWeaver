@@ -15,7 +15,7 @@ describe("createTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const view = await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Mine", override: { background: "oklch(0.62 0.01 60)", accent: "oklch(0.72 0.14 280)" } },
     });
     expect(view.name).toBe("Mine");
@@ -29,7 +29,7 @@ describe("createTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const view = await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       // biome-ignore lint/suspicious/noExplicitAny: deliberately hostile input past the wire type
       input: { name: "Mine", override: { accent: "url(evil)" } as any },
     });
@@ -41,10 +41,10 @@ describe("createTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Mine", override: {} },
     });
-    await expect(h.svc.createTheme({ principal: principal(a, "user"), input: { name: "Mine", override: {} } })).rejects.toThrow(DomainConflictError);
+    await expect(h.svc.createTheme({ principal: await principal(db, a, "user"), input: { name: "Mine", override: {} } })).rejects.toThrow(DomainConflictError);
   });
 
   test("two different users may each use the same theme name", async () => {
@@ -52,8 +52,8 @@ describe("createTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const b = await seedUser(db, { id: "user_b" });
-    await expect(h.svc.createTheme({ principal: principal(a, "user"), input: { name: "Mine", override: {} } })).resolves.toBeDefined();
-    await expect(h.svc.createTheme({ principal: principal(b, "user"), input: { name: "Mine", override: {} } })).resolves.toBeDefined();
+    await expect(h.svc.createTheme({ principal: await principal(db, a, "user"), input: { name: "Mine", override: {} } })).resolves.toBeDefined();
+    await expect(h.svc.createTheme({ principal: await principal(db, b, "user"), input: { name: "Mine", override: {} } })).resolves.toBeDefined();
   });
 
   test("custom CSS with `position: fixed` is rejected (a containment break)", async () => {
@@ -62,7 +62,7 @@ describe("createTheme", () => {
     const a = await seedUser(db, { id: "user_a" });
     await expect(
       h.svc.createTheme({
-        principal: principal(a, "user"),
+        principal: await principal(db, a, "user"),
         input: { name: "Mine", override: {}, css: ".x { position: fixed; }" },
       }),
     ).rejects.toThrow(DomainOperationError);
@@ -73,7 +73,7 @@ describe("createTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const view = await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Mine", override: {}, css: "@import 'x.css';" },
     });
     expect(view.css).toBe("@import 'x.css';");

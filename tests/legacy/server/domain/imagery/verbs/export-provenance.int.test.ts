@@ -16,15 +16,18 @@ import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { createImageryPortability } from "#server/domain/imagery/index.ts";
-import { bumpStatsCanonVersion, reconcileStats } from "#server/domain/stats/index.ts";
+import { createStatsBatchWiring, reconcileStats } from "#server/domain/stats/index.ts";
 import { buildImageryCall, parseImageryCall } from "#server/primitives/serde/imagery/index.ts";
+
+// The stats seam as the composition root wires it: the production writers behind the batch and database handles.
+const STATS_WIRING = createStatsBatchWiring();
 
 function service(db: Db): ReturnType<typeof createImageryPortability> {
   return createImageryPortability({
     db: databaseHandle(db),
     newCallId: () => mintTypeId(ID_PREFIX.imageryCall),
     newGenerationId: () => mintTypeId(ID_PREFIX.imageryGeneration),
-    bumpStatsCanonVersion,
+    bumpStatsCanonVersion: STATS_WIRING.bumpStatsCanonVersion,
   });
 }
 async function seedNative(db: Db, ownerId: UserId, call: PortableImageryCall): Promise<void> {

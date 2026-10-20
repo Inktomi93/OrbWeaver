@@ -11,9 +11,9 @@ import { FIXED_NOW_MS, MSG_COMMITTED, principal, ruleFixture, SET_VAR } from "..
 
 describe("listRules", () => {
   test("lists the host's rules in position order", async () => {
-    const { host, chatId, svc } = await ruleFixture();
-    await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: principal(host), chatId, name: "first", trigger: MSG_COMMITTED, actions: [SET_VAR] });
-    const listed = await svc.listRules({ principal: principal(host), chatId });
+    const { host, chatId, svc, db } = await ruleFixture();
+    await svc.createRule({ timeZone: UTC_TIME_ZONE, principal: await principal(db, host), chatId, name: "first", trigger: MSG_COMMITTED, actions: [SET_VAR] });
+    const listed = await svc.listRules({ principal: await principal(db, host), chatId });
     expect(listed.map((r) => r.name)).toEqual(["first"]);
     expect(listed[0]?.actions).toEqual([SET_VAR]);
   });
@@ -22,7 +22,7 @@ describe("listRules", () => {
     const { db, host, chatId, svc } = await ruleFixture();
     const good = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(host),
+      principal: await principal(db, host),
       chatId,
       name: "good",
       trigger: MSG_COMMITTED,
@@ -41,7 +41,7 @@ describe("listRules", () => {
       createdAt: FIXED_NOW_MS,
       updatedAt: FIXED_NOW_MS,
     });
-    const listed = await svc.listRules({ principal: principal(host), chatId });
+    const listed = await svc.listRules({ principal: await principal(db, host), chatId });
     expect(listed).toHaveLength(2);
     expect(listed.find((r) => r.id === good.id)?.actions).toEqual([SET_VAR]);
     expect(listed.find((r) => r.name === "corrupt")?.actions).toEqual([]);

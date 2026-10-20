@@ -21,6 +21,7 @@ import { AssetContentRejectedError, createAssetsService } from "@orb/server/doma
 import type { ImportCharacterPort } from "@orb/server/domain/character";
 import { requireHost } from "@orb/server/domain/chat";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, onTestFinished } from "vitest";
 import { can } from "#server/domain/admin/index.ts";
@@ -32,17 +33,14 @@ import type { UploadAssetsPort, UploadDeps } from "#server/entry/http/index.ts";
 import { registerUpload } from "#server/entry/http/index.ts";
 import { createExtractText, EXTRACTOR_VERSION } from "#server/infra/extraction/index.ts";
 import { matchesAccept } from "#ui/primitives/file-dropzone/accept.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { makeHarness } from "../../domain/assets/_support.ts";
 import { makeDatabankHarness, principalFor, seedCharacter, seedChat, seedChatHost, seedUser } from "../../domain/databank/_support.ts";
 import { buildDocx, buildEpub, buildPdf } from "../../infra/extraction/_fixtures.ts";
 
-const OWNER: Principal = {
-  userId: castId<UserId>("usr_owner"),
-  role: "owner",
-  handle: castId<Handle>("owner"),
-  externalId: null,
-  via: "fallback",
-};
+// The subject reads no user rows of its own; these callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+const OWNER: Principal = await makePrincipal({ db: callersDb }, castId<UserId>("usr_owner"), { role: "owner", handle: castId<Handle>("owner") });
 const ASSET_ROUTE = "POST /api/assets/upload";
 const DATABANK_ROUTE = "POST /api/databank/upload";
 const IMPORT_ROUTE = "POST /api/import";
@@ -494,7 +492,7 @@ async function realDatabankDeps(): Promise<{ readonly deps: UploadDeps; readonly
     ensureChatHost: (actor, id) => requireHost({ db: databaseHandle(db), can }, actor, id).then((): void => undefined),
   });
   const databank = createDatabankService({ ...h.ctx, assetsStore: createAssetsService(assets.ctx).store });
-  return { deps: { ...okDeps, databank }, principal: principalFor(ownerId), db };
+  return { deps: { ...okDeps, databank }, principal: await principalFor(db, ownerId), db };
 }
 
 describe("Databank picker admission reaches the real route, CAS belt and extraction", () => {

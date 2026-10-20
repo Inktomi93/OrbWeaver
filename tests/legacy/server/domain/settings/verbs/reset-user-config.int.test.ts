@@ -38,26 +38,26 @@ describe("resetUserConfig", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_reset" });
-    await h.svc.updateUserSettingsSection({ principal: principal(u, "user"), input: { section: "memory", patch: { enabled: true } } });
+    await h.svc.updateUserSettingsSection({ principal: await principal(db, u, "user"), input: { section: "memory", patch: { enabled: true } } });
     await makeUnreadable(db, u);
 
     // The dead end: the ordinary write path refuses (correctly — it would persist the degraded stand-in).
     await expect(
-      h.svc.updateUserSettingsSection({ principal: principal(u, "user"), input: { section: "memory", patch: { enabled: false } } }),
+      h.svc.updateUserSettingsSection({ principal: await principal(db, u, "user"), input: { section: "memory", patch: { enabled: false } } }),
     ).rejects.toMatchObject({ code: "stored_config_unreadable" });
-    expect((await h.svc.getUserSettings({ principal: principal(u, "user") })).configUnreadable).toBe("version-from-future");
+    expect((await h.svc.getUserSettings({ principal: await principal(db, u, "user") })).configUnreadable).toBe("version-from-future");
 
     // …and the door opens anyway, because its content is a contract constant, not a read of that row.
-    const view = await h.svc.resetUserConfig({ principal: principal(u, "user") });
+    const view = await h.svc.resetUserConfig({ principal: await principal(db, u, "user") });
     expect(view.configUnreadable).toBe(null);
     expect(view.schemaVersion).toBe(USER_SETTINGS_SCHEMA_VERSION);
     expect(view.config.memory.enabled).toBe(false);
 
     // The repair is durable, and the pane's own read agrees with the mutation's response row.
-    expect((await h.svc.getUserSettings({ principal: principal(u, "user") })).configUnreadable).toBe(null);
+    expect((await h.svc.getUserSettings({ principal: await principal(db, u, "user") })).configUnreadable).toBe(null);
     // The ordinary write path works again — the whole point of the door.
-    await h.svc.updateUserSettingsSection({ principal: principal(u, "user"), input: { section: "memory", patch: { enabled: true } } });
-    expect((await h.svc.getUserSettings({ principal: principal(u, "user") })).config.memory.enabled).toBe(true);
+    await h.svc.updateUserSettingsSection({ principal: await principal(db, u, "user"), input: { section: "memory", patch: { enabled: true } } });
+    expect((await h.svc.getUserSettings({ principal: await principal(db, u, "user") })).config.memory.enabled).toBe(true);
   });
 
   test("SCOPED TO THE PRINCIPAL — one user's reset cannot reach another's row", async () => {
@@ -65,20 +65,20 @@ describe("resetUserConfig", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const b = await seedUser(db, { id: "user_b" });
-    await h.svc.updateUserSettingsSection({ principal: principal(a, "user"), input: { section: "memory", patch: { enabled: true } } });
-    await h.svc.updateUserSettingsSection({ principal: principal(b, "user"), input: { section: "memory", patch: { enabled: true } } });
+    await h.svc.updateUserSettingsSection({ principal: await principal(db, a, "user"), input: { section: "memory", patch: { enabled: true } } });
+    await h.svc.updateUserSettingsSection({ principal: await principal(db, b, "user"), input: { section: "memory", patch: { enabled: true } } });
     const before = (await db.select().from(userSettings).where(eq(userSettings.userId, b)))[0];
 
     // The verb's ONLY parameter is the principal — there is no id to hand it, so the cross-tenant attempt
     // is not expressible at all. What a hostile caller CAN do is call it as themselves, which resets THEIR
     // row and nothing else; this asserts the second half.
-    const view = await h.svc.resetUserConfig({ principal: principal(a, "user") });
+    const view = await h.svc.resetUserConfig({ principal: await principal(db, a, "user") });
     expect(view.userId).toBe(a);
     expect(view.config.memory.enabled).toBe(false);
 
     const after = (await db.select().from(userSettings).where(eq(userSettings.userId, b)))[0];
     expect(after).toEqual(before);
-    expect((await h.svc.getUserSettings({ principal: principal(b, "user") })).config.memory.enabled).toBe(true);
+    expect((await h.svc.getUserSettings({ principal: await principal(db, b, "user") })).config.memory.enabled).toBe(true);
   });
 
   test("an ADMIN resetting is still only resetting their own row (the role does not widen the scope)", async () => {
@@ -86,16 +86,16 @@ describe("resetUserConfig", () => {
     const h = makeHarness(db);
     const admin = await seedUser(db, { id: "user_admin", role: "admin" });
     const victim = await seedUser(db, { id: "user_victim" });
-    await h.svc.updateUserSettingsSection({ principal: principal(victim, "user"), input: { section: "memory", patch: { enabled: true } } });
-    await h.svc.resetUserConfig({ principal: principal(admin, "admin") });
-    expect((await h.svc.getUserSettings({ principal: principal(victim, "user") })).config.memory.enabled).toBe(true);
+    await h.svc.updateUserSettingsSection({ principal: await principal(db, victim, "user"), input: { section: "memory", patch: { enabled: true } } });
+    await h.svc.resetUserConfig({ principal: await principal(db, admin, "admin") });
+    expect((await h.svc.getUserSettings({ principal: await principal(db, victim, "user") })).config.memory.enabled).toBe(true);
   });
 
   test("a NEVER-WRITTEN account seeds its row rather than failing (the row-absent arm)", async () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_fresh" });
-    const view = await h.svc.resetUserConfig({ principal: principal(u, "user") });
+    const view = await h.svc.resetUserConfig({ principal: await principal(db, u, "user") });
     expect(view.configUnreadable).toBe(null);
     expect(view.updatedAt).toBe(FROZEN_AT_MS);
     expect(await db.select().from(userSettings).where(eq(userSettings.userId, u))).toHaveLength(1);
@@ -105,7 +105,7 @@ describe("resetUserConfig", () => {
     const db = await freshDb();
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_audit" });
-    await h.svc.resetUserConfig({ principal: principal(u, "user") });
+    await h.svc.resetUserConfig({ principal: await principal(db, u, "user") });
     const entry = h.audits.at(-1)?.entry;
     expect(entry).toMatchObject({ actorUserId: u, action: "settings.resetUserConfig", entityType: "settings", entityId: u });
     // Never the discarded blob: this domain's audit names sections and keys, never values.

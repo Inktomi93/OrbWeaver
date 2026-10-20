@@ -26,7 +26,7 @@ describe("addExternalBackground", () => {
     const h = makeHarness(db, { materializeBackground: () => Promise.resolve({ ok: true, asset: STORED }) });
     const u = await seedUser(db, { id: "user_u" });
 
-    const entry = await h.svc.addExternalBackground({ principal: principal(u, "user"), url: "https://cdn.example/wallpaper.png" });
+    const entry = await h.svc.addExternalBackground({ principal: await principal(db, u, "user"), url: "https://cdn.example/wallpaper.png" });
 
     expect(entry).toEqual({
       entryId: "bg_entry_1", // the harness's deterministic newBackgroundEntryId
@@ -43,7 +43,9 @@ describe("addExternalBackground", () => {
     const h = makeHarness(db, { materializeBackground: () => Promise.resolve({ ok: false, reason: "not-image" }) });
     const u = await seedUser(db, { id: "user_u" });
 
-    const err = await h.svc.addExternalBackground({ principal: principal(u, "user"), url: "https://cdn.example/not-an-image.txt" }).catch((e: unknown) => e);
+    const err = await h.svc
+      .addExternalBackground({ principal: await principal(db, u, "user"), url: "https://cdn.example/not-an-image.txt" })
+      .catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainOperationError);
     expect((err as DomainOperationError).code).toBe("background_unavailable");
   });
@@ -54,7 +56,7 @@ describe("addExternalBackground", () => {
     const h = makeHarness(db);
     const u = await seedUser(db, { id: "user_u" });
 
-    const err = await h.svc.addExternalBackground({ principal: principal(u, "user"), url: "   " }).catch((e: unknown) => e);
+    const err = await h.svc.addExternalBackground({ principal: await principal(db, u, "user"), url: "   " }).catch((e: unknown) => e);
     expect(err).toBeInstanceOf(DomainOperationError);
     expect((err as DomainOperationError).code).toBe("background_url_empty");
   });

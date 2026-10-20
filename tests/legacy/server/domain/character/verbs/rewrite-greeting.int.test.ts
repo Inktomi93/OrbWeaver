@@ -23,13 +23,21 @@ describe("rewriteGreeting", () => {
     const harness = makeHarness(db);
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const created = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
 
-    const result = await svc.rewriteGreeting({ principal: principal(owner), characterId: created.id, greeting: "hey there", steer: "make it formal" });
+    const result = await svc.rewriteGreeting({
+      principal: await principal(db, owner),
+      characterId: created.id,
+      greeting: "hey there",
+      steer: "make it formal",
+    });
 
     // Exactly ONE completion; the template was resolved for the CALLER + the rewrite kind.
     expect(harness.greetingTextCalls).toHaveLength(1);
-    expect(harness.greetingTemplateCalls).toEqual([{ caller: principal(owner), kind: "greeting_rewrite" }]);
+    expect(harness.greetingTemplateCalls).toEqual([{ caller: await principal(db, owner), kind: "greeting_rewrite" }]);
     // The default fake echoes the prompt; assert the returned text is the completion's.
     const promptSeen = harness.greetingTextCalls[0]?.prompt;
     expect(result.text).toBe(`GEN(${promptSeen})`);
@@ -42,10 +50,13 @@ describe("rewriteGreeting", () => {
     harness.setGreetingTemplate("Revise {{base}} per {{input}} for {{char}}");
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const created = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
 
     // The base greeting carries a macro — it MUST be ZWSP-neutralized (other-author content), never resolved.
-    await svc.rewriteGreeting({ principal: principal(owner), characterId: created.id, greeting: "{{user}} waves", steer: "warmer" });
+    await svc.rewriteGreeting({ principal: await principal(db, owner), characterId: created.id, greeting: "{{user}} waves", steer: "warmer" });
 
     const prompt = harness.greetingTextCalls[0]?.prompt;
     // {{char}} (template) resolves to the card name; {{input}} = steer; {{base}} = neutralized greeting.
@@ -64,10 +75,13 @@ describe("rewriteGreeting", () => {
     harness.setGreetingTemplate("{{input}}"); // the prompt IS the steer — the bytes under test, undiluted
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const created = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
 
     await svc.rewriteGreeting({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: created.id,
       greeting: "hey there",
       steer: "keep it short",
@@ -85,13 +99,16 @@ describe("rewriteGreeting", () => {
     harness.setGreetingProse({ "preset.greetingTransform.secondPerson": { text: "Talk straight at the reader", baseVersion: 1 } });
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const created = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
 
-    await svc.rewriteGreeting({ principal: principal(owner), characterId: created.id, greeting: "g", steer: "", transforms: ["second-person"] });
+    await svc.rewriteGreeting({ principal: await principal(db, owner), characterId: created.id, greeting: "g", steer: "", transforms: ["second-person"] });
     expect(harness.greetingTextCalls[0]?.prompt).toBe("Talk straight at the reader.");
 
     // No picks ⇒ the pre-fork path: the host's own text, unjoined and untouched.
-    await svc.rewriteGreeting({ principal: principal(owner), characterId: created.id, greeting: "g", steer: "warmer" });
+    await svc.rewriteGreeting({ principal: await principal(db, owner), characterId: created.id, greeting: "g", steer: "warmer" });
     expect(harness.greetingTextCalls[1]?.prompt).toBe("warmer");
   });
 
@@ -101,11 +118,14 @@ describe("rewriteGreeting", () => {
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
-    const created = await svc.create({ principal: principal(owner), input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" } });
+    const created = await svc.create({
+      principal: await principal(db, owner),
+      input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
+    });
 
-    await expect(svc.rewriteGreeting({ principal: principal(stranger), characterId: created.id, greeting: "hey", steer: "x" })).rejects.toBeInstanceOf(
-      CharacterNotFoundError,
-    );
+    await expect(
+      svc.rewriteGreeting({ principal: await principal(db, stranger), characterId: created.id, greeting: "hey", steer: "x" }),
+    ).rejects.toBeInstanceOf(CharacterNotFoundError);
     // The owner gate fired FIRST — neither the template read nor the completion ran (no LLM spend on a stranger).
     expect(harness.greetingTemplateCalls).toHaveLength(0);
     expect(harness.greetingTextCalls).toHaveLength(0);
@@ -117,7 +137,7 @@ describe("rewriteGreeting", () => {
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     await expect(
-      svc.rewriteGreeting({ principal: principal(owner), characterId: castId<CharacterId>("character_ghost"), greeting: "h", steer: "s" }),
+      svc.rewriteGreeting({ principal: await principal(db, owner), characterId: castId<CharacterId>("character_ghost"), greeting: "h", steer: "s" }),
     ).rejects.toBeInstanceOf(CharacterNotFoundError);
     expect(harness.greetingTextCalls).toHaveLength(0);
   });
@@ -128,14 +148,14 @@ describe("rewriteGreeting", () => {
     const svc = createCharacterService(harness.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const created = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d", greetings: [{ text: "original" }] },
     });
     const emitsBefore = harness.events.length;
 
-    await svc.rewriteGreeting({ principal: principal(owner), characterId: created.id, greeting: "original", steer: "make it grand" });
+    await svc.rewriteGreeting({ principal: await principal(db, owner), characterId: created.id, greeting: "original", steer: "make it grand" });
 
-    const after = await svc.getCard({ principal: principal(owner), characterId: created.id });
+    const after = await svc.getCard({ principal: await principal(db, owner), characterId: created.id });
     expect(after?.greetings).toEqual([{ text: "original" }]);
     // The verb writes nothing — it emits no NEW domain event beyond what create already fired.
     expect(harness.events.length).toBe(emitsBefore);

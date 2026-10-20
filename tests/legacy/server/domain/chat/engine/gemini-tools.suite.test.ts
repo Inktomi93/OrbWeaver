@@ -4,7 +4,7 @@ import { createInferenceRuntime } from "@orb/inference";
 import type { MessageId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { testProviderId } from "@orb/testkit/iso/inference-identities.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { z } from "zod";
 import { buildWirePlan } from "#inference/backends/v4/prompt.ts";
@@ -16,13 +16,15 @@ import { buildWireHistory } from "#server/domain/chat/substrate/wire-history.ts"
 import type { PortableChat } from "#server/primitives/serde/chat-bundle/index.ts";
 import { buildChatBundleFile, parseChatBundleFile } from "#server/primitives/serde/chat-bundle/index.ts";
 import { EXPECTED_VALUES, ordinaryTurn, registryFor, TOOL_NAMES } from "../../../../../../scripts/probes/gemini-capabilities/scenario.ts";
+import { principal } from "../../../../db/schema/_support.ts";
 import { fakeApiKeySecret, fakeDeps, fakeResolved, newUserId, wireSchema } from "../../../../inference/_support.ts";
 
 const GOOGLE_DETAIL = { type: "reasoning.encrypted", data: "fixture-google-opaque-proof", id: "call-alpha", format: "google-gemini-v1", index: 0 };
 const record = z.record(z.string(), z.unknown());
 
 test.each([false, true])("ordinary OpenRouter Gemini tools preserve required opaque metadata with carry disabled, late detail: %s", async (late) => {
-  const owner = principal(newUserId());
+  const db = await freshDb();
+  const owner = await principal({ db }, newUserId());
   const model = "google/gemini-3.8-flash";
   const bodies: Record<string, unknown>[] = [];
   const runtime = await createInferenceRuntime(

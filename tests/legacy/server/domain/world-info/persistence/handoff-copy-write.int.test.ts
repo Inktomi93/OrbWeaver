@@ -8,9 +8,9 @@
 
 import type { Db } from "@orb/db";
 import { characterBooks, characters, chatBooks, worldBooks, worldEntries } from "@orb/db";
-import type { BatchStmt } from "@orb/db/query";
 import { batchMany } from "@orb/db/query";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import { statementForOwner } from "@orb/db/wiring-owner";
 import type { CharacterHandle, CharacterId, ChatId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
@@ -25,7 +25,7 @@ const AT = 1_700_000_000_000;
 
 async function seedCard(db: Db, ownerId: UserId, key: string): Promise<CharacterId> {
   const id = castId<CharacterId>(`character_${key}`);
-  await db.insert(characters).values(makeCharacter({ id, ownerId, handle: castId<CharacterHandle>(key), name: key, tokenSize: 0, createdAt: AT }));
+  await db.insert(characters).values(makeCharacter({ id, ownerId, handle: castId<CharacterHandle>(key), name: key, createdAt: AT }));
   return id;
 }
 
@@ -164,7 +164,7 @@ test("the ROOM's attached book is re-pointed at a copy — returned UNEXECUTED, 
   // The BOOK landed already (orphan-safe, ahead of the swap) but the room still reads the original — the
   // attachment is room state and moves only when chat commits its batch.
   expect((await db.select().from(chatBooks).where(eq(chatBooks.chatId, chatId)))[0]?.worldBookId).toBe(roomBook);
-  await db.batch(batchMany(repoint as BatchStmt[]));
+  await db.batch(batchMany(repoint.map(statementForOwner)));
 
   const attached = await db.select().from(chatBooks).where(eq(chatBooks.chatId, chatId));
   expect(attached).toHaveLength(1);
@@ -210,10 +210,12 @@ test("a RETRIED room re-point converges on the book the recipient already owns o
   const args = { fromOwnerId: oldHost.id, toOwnerId: nominee.id, chatId, cardCopies: [] };
 
   // First attempt: the copy lands, the re-point is committed.
-  await db.batch(batchMany((await copyBooks(args)) as BatchStmt[]));
+  await db.batch(batchMany((await copyBooks(args)).map(statementForOwner)));
   // The retry sees the original detached already, so there is nothing left to copy — and the room keeps ONE
   // attachment rather than accumulating a second identical book on every re-run.
-  await db.batch(batchMany([...((await copyBooks(args)) as BatchStmt[]), db.update(worldBooks).set({ name: "room" }).where(eq(worldBooks.id, roomBook))]));
+  await db.batch(
+    batchMany([...(await copyBooks(args)).map(statementForOwner), db.update(worldBooks).set({ name: "room" }).where(eq(worldBooks.id, roomBook))]),
+  );
 
   expect(await db.select().from(chatBooks).where(eq(chatBooks.chatId, chatId))).toHaveLength(1);
   expect(await db.select().from(worldBooks).where(eq(worldBooks.ownerId, nominee.id))).toHaveLength(1);

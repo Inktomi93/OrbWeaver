@@ -16,16 +16,16 @@ describe("detachFromPersona", () => {
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const persona = await seedPersona(db, { ownerId: owner });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
-    await svc.attachToPersona({ principal: principal(owner), personaId: persona, bookId: book.id });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
+    await svc.attachToPersona({ principal: await principal(db, owner), personaId: persona, bookId: book.id });
 
     const first = await svc.detachFromPersona({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       personaId: persona,
       bookId: book.id,
     });
     const second = await svc.detachFromPersona({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       personaId: persona,
       bookId: book.id,
     });
@@ -39,8 +39,10 @@ describe("detachFromPersona", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const other = await seedUser(db, { handle: castId<Handle>("other") });
     const foreign = await seedPersona(db, { ownerId: other });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
 
-    await expect(svc.detachFromPersona({ principal: principal(owner), personaId: foreign, bookId: book.id })).rejects.toBeInstanceOf(WorldInfoNotFoundError);
+    await expect(svc.detachFromPersona({ principal: await principal(db, owner), personaId: foreign, bookId: book.id })).rejects.toBeInstanceOf(
+      WorldInfoNotFoundError,
+    );
   });
 });

@@ -14,12 +14,14 @@
 
 import type { AutomationActionInput } from "@orb/contracts/automation";
 import type { VariableWriteResult } from "@orb/contracts/chat";
+import type { Db } from "@orb/db";
 import { automationRules, worldBooks } from "@orb/db";
-import { databaseHandle } from "@orb/db/wiring-driver";
+import type { DbAssemblyInput } from "@orb/db/wiring";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AutomationRuleId, UserId, WorldBookId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { VarOp } from "@orb/kit/macro";
+import { createSerialLanes } from "@orb/kit/serial-lanes";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedCharacter } from "@orb/testkit/node/factories/character.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -33,7 +35,10 @@ import type { AutomationOps, AutomationToolOutcome, AutomationToolRequest } from
 import { loadEnabledChatRules } from "#server/domain/automation/persistence/rules.ts";
 import { createAutomationService } from "#server/domain/automation/service.ts";
 import type { RuleFixture } from "../_support.ts";
-import { principal, ruleFixture, seedUser } from "../_support.ts";
+import { automationContext, principal, ruleFixture, seedUser } from "../_support.ts";
+
+// One lane set per suite, the way the automation service owns one for its dispatcher and arms.
+const SERIAL_LANES = createSerialLanes();
 
 /** The refusal CODE a rejected verb threw, or `null` when it resolved. Asserting the code rather than the
  *  message is what makes these pins about behaviour: the copy may be rewritten freely, and a DIFFERENT
@@ -105,10 +110,11 @@ async function pauseFixture(): Promise<{ fixture: Fixture; gate: ToolGate; varOp
       },
     },
   };
-  const ctx: AutomationContext = {
+  const ctx: DbAssemblyInput<AutomationContext> = {
     ...base.ctx,
     ops,
     runArm: createArmExecutors({
+      serialLanes: SERIAL_LANES,
       db: base.db,
       ops,
       prng: () => 0.42,
@@ -117,14 +123,14 @@ async function pauseFixture(): Promise<{ fixture: Fixture; gate: ToolGate; varOp
       newSuggestionId: base.ctx.newSuggestionId,
     }),
   };
-  return { fixture: { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) }, gate, varOps };
+  return { fixture: { ...base, ctx, svc: createAutomationService(ctx) }, gate, varOps };
 }
 
 /** Mint + enable a rule whose arms are `run_tool` plus (optionally) a bookkeeping `set_variable` BEFORE it. */
 async function enableToolRule(fx: Fixture, withSideEffectArm = false): Promise<AutomationRuleId> {
   const rule = await fx.svc.createRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(fx.host),
+    principal: await principal(fx.db, fx.host),
     chatId: fx.chatId,
     name: "mood watch",
     trigger: { bus: "chat", type: "chatOpened" },
@@ -135,7 +141,7 @@ async function enableToolRule(fx: Fixture, withSideEffectArm = false): Promise<A
         ]
       : [{ type: "run_tool", name: TOOL, resultVar: "mood" }],
   });
-  await fx.svc.setRuleEnabled({ principal: principal(fx.host), ruleId: rule.id, enabled: true });
+  await fx.svc.setRuleEnabled({ principal: await principal(fx.db, fx.host), ruleId: rule.id, enabled: true });
   await fx.ctx.enabled.reload();
   return rule.id;
 }
@@ -161,7 +167,7 @@ test("CONTROL: while the plugin is installed the rule FIRES and the tool really 
 
   expect(gate.calls).toHaveLength(1);
   expect(gate.calls[0]).toMatchObject({ authorUserId: fixture.host, chatId: fixture.chatId, name: TOOL });
-  const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId });
+  const fires = await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId });
   expect(fires.map((f) => f.outcome)).toEqual(["fired"]);
   expect((await ruleRow(fixture, ruleId)).lastFiredAt).not.toBeNull();
 });
@@ -177,7 +183,7 @@ describe("D146-d: a deactivated contributor PAUSES the rule and changes nothing"
     expect(gate.calls).toEqual([]); // the gate refused before any arm ran — the tool was never invoked
     // NO ROW. A pause is not a fire and not a fault, so the one surface that answers "why did this run" must
     // not claim either. (`action_error` here would be the rot; `fired` would be a lie.)
-    expect(await fixture.svc.listFires({ principal: principal(fixture.host), ruleId })).toEqual([]);
+    expect(await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId })).toEqual([]);
     expect(await ruleRow(fixture, ruleId)).toEqual({ enabled: true, consecutiveErrors: 0, lastFiredAt: null });
   });
 
@@ -217,7 +223,7 @@ describe("D146-d: a deactivated contributor PAUSES the rule and changes nothing"
 
     expect(varOps).toEqual([]); // the bookkeeping arm never ran — the pause is atomic, not per-arm
     expect(gate.calls).toHaveLength(1); // ...and still only the CONTROL's tool call
-    expect((await fixture.svc.listFires({ principal: principal(fixture.host), ruleId })).map((f) => f.outcome)).toEqual(["fired"]);
+    expect((await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId })).map((f) => f.outcome)).toEqual(["fired"]);
   });
 
   test("re-enabling the plugin resumes the rule on the very next event — no repair step", async () => {
@@ -234,7 +240,7 @@ describe("D146-d: a deactivated contributor PAUSES the rule and changes nothing"
     await fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
 
     expect(gate.calls).toHaveLength(1);
-    expect((await fixture.svc.listFires({ principal: principal(fixture.host), ruleId })).map((f) => f.outcome)).toEqual(["fired"]);
+    expect((await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId })).map((f) => f.outcome)).toEqual(["fired"]);
   });
 });
 
@@ -247,10 +253,10 @@ describe("the pause gate and the rest of the engine", () => {
     const ruleId = await enableToolRule(fixture);
     gate.installed = new Set();
 
-    const result = await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId });
+    const result = await fixture.svc.runRuleNow({ principal: await principal(fixture.db, fixture.host), ruleId });
 
     expect(result).toEqual({ outcome: "paused" });
-    expect(await fixture.svc.listFires({ principal: principal(fixture.host), ruleId })).toEqual([]);
+    expect(await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId })).toEqual([]);
     expect(await ruleRow(fixture, ruleId)).toMatchObject({ consecutiveErrors: 0 });
   });
 
@@ -261,14 +267,14 @@ describe("the pause gate and the rest of the engine", () => {
     const ruleId = await enableToolRule(fixture);
     gate.asks.length = 0;
 
-    await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId });
+    await fixture.svc.runRuleNow({ principal: await principal(fixture.db, fixture.host), ruleId });
 
     expect(gate.asks).not.toEqual([]);
     expect(gate.asks.every((ask) => ask.userId === fixture.host)).toBe(true);
     // AND THE CONTROL that makes the assertion mean something: the stub only answers `true` for its declared
     // owner, so if the gate had asked about anyone else it would have reported the tool missing and this
     // rule would have PAUSED instead of firing.
-    expect(await fixture.svc.runRuleNow({ principal: principal(fixture.host), ruleId })).toEqual({ outcome: "fired" });
+    expect(await fixture.svc.runRuleNow({ principal: await principal(fixture.db, fixture.host), ruleId })).toEqual({ outcome: "fired" });
   });
 });
 
@@ -287,14 +293,15 @@ const C5_QUIET_PORTRAIT: AutomationActionInput = {
 };
 
 /** Mint an owner-global rule with the given arms. `chatId: null` IS the scope. */
-function mintGlobal(
+async function mintGlobal(
+  db: Db,
   f: RuleFixture,
   actions: readonly AutomationActionInput[],
   predicateCel: string | null = null,
-): ReturnType<AutomationService["createRule"]> {
+): Promise<ReturnType<AutomationService["createRule"]>> {
   return f.svc.createRule({
     timeZone: UTC_TIME_ZONE,
-    principal: principal(f.host),
+    principal: await principal(db, f.host),
     chatId: null,
     name: "library rule",
     trigger: C5_DOMAIN_TRIGGER,
@@ -321,6 +328,7 @@ function wireRealArms(f: RuleFixture, requests: AutomationImageRequest[]): { rea
   const wired = {
     ...ctx,
     runArm: createArmExecutors({
+      serialLanes: SERIAL_LANES,
       db: f.db,
       ops: { ...ctx.ops, imagery: captureImages(requests) },
       prng: ctx.prng,
@@ -350,14 +358,14 @@ describe("C5 dispatch — the owner's test", () => {
 
     const rule = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: null,
       name: "living library",
       trigger: C5_DOMAIN_TRIGGER,
       predicateCel: "has(event.character) && event.character.contentChanged",
       actions: [C5_QUIET_PORTRAIT],
     });
-    await svc.setRuleEnabled({ principal: principal(f.host), ruleId: rule.id, enabled: true });
+    await svc.setRuleEnabled({ principal: await principal(f.db, f.host), ruleId: rule.id, enabled: true });
     await reload();
 
     // THE EVENT. No chat is opened, no chat exists in the frame, and the fact is chat-less by construction.
@@ -373,7 +381,7 @@ describe("C5 dispatch — the owner's test", () => {
     expect(request?.subjectCharacterId).toBe(character.id);
     // …and it is recorded as a real fire on the durable log, which is the global lane's only feedback
     // surface (the transient bus is per-chat and correctly says nothing).
-    const fires = await svc.listFires({ principal: principal(f.host), ruleId: rule.id });
+    const fires = await svc.listFires({ principal: await principal(f.db, f.host), ruleId: rule.id });
     expect(fires.map((row) => row.outcome)).toEqual(["fired"]);
     expect(fires[0]?.chatId).toBeNull();
   });
@@ -385,14 +393,14 @@ describe("C5 dispatch — the owner's test", () => {
     const { svc, reload } = wireRealArms(f, requests);
     const rule = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: null,
       name: "living library",
       trigger: C5_DOMAIN_TRIGGER,
       predicateCel: "has(event.character) && event.character.contentChanged",
       actions: [C5_QUIET_PORTRAIT],
     });
-    await svc.setRuleEnabled({ principal: principal(f.host), ruleId: rule.id, enabled: true });
+    await svc.setRuleEnabled({ principal: await principal(f.db, f.host), ruleId: rule.id, enabled: true });
     await reload();
 
     // A FLAG-ONLY edit (star/archive/theme) raises the same event with `contentChanged: false`. Before S7
@@ -402,7 +410,7 @@ describe("C5 dispatch — the owner's test", () => {
     expect(requests).toEqual([]);
     // A `predicate_false` before a rule's first fire logs nothing (the LEAN first-match rule), so the empty
     // log here is the honest evidence that nothing ran rather than an absence of instrumentation.
-    await expect(svc.listFires({ principal: principal(f.host), ruleId: rule.id })).resolves.toEqual([]);
+    await expect(svc.listFires({ principal: await principal(f.db, f.host), ruleId: rule.id })).resolves.toEqual([]);
 
     await svc.handleEvent({ type: "character.updated", characterId: character.id, contentChanged: true });
     expect(requests).toHaveLength(1);
@@ -416,14 +424,14 @@ describe("C5 dispatch — the owner's test", () => {
     const { svc, reload } = wireRealArms(f, requests);
     const rule = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(f.host),
+      principal: await principal(f.db, f.host),
       chatId: null,
       name: "living library",
       trigger: C5_DOMAIN_TRIGGER,
       predicateCel: null,
       actions: [C5_QUIET_PORTRAIT],
     });
-    await svc.setRuleEnabled({ principal: principal(f.host), ruleId: rule.id, enabled: true });
+    await svc.setRuleEnabled({ principal: await principal(f.db, f.host), ruleId: rule.id, enabled: true });
     await reload();
 
     // The domain bus is ONE global firehose and `loadEnabledDomainRules` matches across every owner. Without
@@ -433,7 +441,7 @@ describe("C5 dispatch — the owner's test", () => {
     expect(requests).toEqual([]);
     // QUIET: the rule did nothing wrong, so no fire row and no error budget spent — the same shape as the
     // cascade-suppression skip it sits beside.
-    await expect(svc.listFires({ principal: principal(f.host), ruleId: rule.id })).resolves.toEqual([]);
+    await expect(svc.listFires({ principal: await principal(f.db, f.host), ruleId: rule.id })).resolves.toEqual([]);
   });
 });
 
@@ -442,15 +450,15 @@ describe("C5 belts — the owner rate ceiling and the book-ownership gate", () =
     const f = await ruleFixture();
     const character = await seedCharacter(f.db, { ownerId: f.host, name: "Mira" });
     // A ZERO ceiling is a real, useful setting — "stop all of my library rules" without disabling each one.
-    await f.svc.setOwnerBudgets({ principal: principal(f.host), maxFiresPerHour: 0 });
-    await expect(f.svc.getOwnerBudgets({ principal: principal(f.host) })).resolves.toEqual({ maxFiresPerHour: 0 });
+    await f.svc.setOwnerBudgets({ principal: await principal(f.db, f.host), maxFiresPerHour: 0 });
+    await expect(f.svc.getOwnerBudgets({ principal: await principal(f.db, f.host) })).resolves.toEqual({ maxFiresPerHour: 0 });
 
-    const rule = await mintGlobal(f, [C5_QUIET_PORTRAIT]);
-    await f.svc.setRuleEnabled({ principal: principal(f.host), ruleId: rule.id, enabled: true });
+    const rule = await mintGlobal(f.db, f, [C5_QUIET_PORTRAIT]);
+    await f.svc.setRuleEnabled({ principal: await principal(f.db, f.host), ruleId: rule.id, enabled: true });
     await f.ctx.enabled.reload();
     await f.svc.handleEvent({ type: "character.updated", characterId: character.id, contentChanged: true });
 
-    const fires = await f.svc.listFires({ principal: principal(f.host), ruleId: rule.id });
+    const fires = await f.svc.listFires({ principal: await principal(f.db, f.host), ruleId: rule.id });
     expect(fires.map((row) => row.outcome)).toEqual(["budget_refused"]);
     expect(fires[0]?.detail).toMatchObject({ limit: "owner_hourly" }); // the OWNER belt, not a chat's
     // A rate refusal is NOT an error — the rule stays enabled with a clean error ledger.
@@ -463,12 +471,12 @@ describe("C5 belts — the owner rate ceiling and the book-ownership gate", () =
     const f = await ruleFixture();
     // The projection and the gate read the same default, so a host who never set a ceiling still SEES the
     // one they are actually dispatched under.
-    await expect(f.svc.getOwnerBudgets({ principal: principal(f.host) })).resolves.toEqual({ maxFiresPerHour: 120 });
+    await expect(f.svc.getOwnerBudgets({ principal: await principal(f.db, f.host) })).resolves.toEqual({ maxFiresPerHour: 120 });
     // …and the plane is single-owned: a second user's read is their own, unaffected by this one's write.
     const other = await seedUser(f.db, "user_other");
-    await f.svc.setOwnerBudgets({ principal: principal(f.host), maxFiresPerHour: 7 });
-    await expect(f.svc.getOwnerBudgets({ principal: principal(other) })).resolves.toEqual({ maxFiresPerHour: 120 });
-    await expect(f.svc.getOwnerBudgets({ principal: principal(f.host) })).resolves.toEqual({ maxFiresPerHour: 7 });
+    await f.svc.setOwnerBudgets({ principal: await principal(f.db, f.host), maxFiresPerHour: 7 });
+    await expect(f.svc.getOwnerBudgets({ principal: await principal(f.db, other) })).resolves.toEqual({ maxFiresPerHour: 120 });
+    await expect(f.svc.getOwnerBudgets({ principal: await principal(f.db, f.host) })).resolves.toEqual({ maxFiresPerHour: 7 });
   });
 
   test("the WORLD-INFO gate branches on scope: ownership for a global rule, attachment for a room's", async () => {
@@ -489,16 +497,16 @@ describe("C5 belts — the owner rate ceiling and the book-ownership gate", () =
 
     // GLOBAL: ownership IS the consent (D23 — books are top-level single-owned, and a room consumes one only
     // through its own scope junction, which this path never touches). My own book is admitted…
-    await expect(mintGlobal(f, [lore(mine)])).resolves.toMatchObject({ chatId: null });
+    await expect(mintGlobal(f.db, f, [lore(mine)])).resolves.toMatchObject({ chatId: null });
     // …and a stranger's is refused.
-    await expect(refusalCode(mintGlobal(f, [lore(theirs)]))).resolves.toBe("automation_rule_unattached_book");
+    await expect(refusalCode(mintGlobal(f.db, f, [lore(theirs)]))).resolves.toBe("automation_rule_unattached_book");
 
     // CHAT: the room's consent is the ATTACHMENT, unchanged — my own UNATTACHED book is still refused there,
     // which is what makes these two different questions rather than one weakened for the global lane.
     const roomCode = await refusalCode(
       f.svc.createRule({
         timeZone: UTC_TIME_ZONE,
-        principal: principal(f.host),
+        principal: await principal(f.db, f.host),
         chatId: f.chatId,
         name: "room rule",
         trigger: { bus: "chat", type: "messageCommitted" },
@@ -532,6 +540,7 @@ describe("C5 engine — the chat plane is UNBOUND on a global frame, never faked
       now: 0,
     };
     const runArm = createArmExecutors({
+      serialLanes: SERIAL_LANES,
       db: f.db,
       ops: f.ctx.ops,
       prng: f.ctx.prng,
@@ -544,7 +553,7 @@ describe("C5 engine — the chat plane is UNBOUND on a global frame, never faked
     // The author's OWN global plane is still bound — the omission is the CHAT plane, not the whole env.
     const authorPlane = await runArm({ type: "set_variable", scope: "global", key: "copy", op: "set", value: "{{expr::global.note}}" }, frame);
     expect(authorPlane.ok).toBe(true);
-    await expect(f.svc.getGlobalVariable({ principal: principal(f.host), key: "copy" })).resolves.toBe("kept");
+    await expect(f.svc.getGlobalVariable({ principal: await principal(f.db, f.host), key: "copy" })).resolves.toBe("kept");
   });
 });
 
@@ -567,11 +576,11 @@ describe("#1419 a confirm-first arm stops the chain", () => {
 
   async function fireChain(seen: string[], askAt: string): Promise<{ readonly fixture: Fixture; readonly ruleId: AutomationRuleId }> {
     const base = await ruleFixture();
-    const ctx: AutomationContext = { ...base.ctx, runArm: chainDispatch(seen, askAt) };
-    const fixture: Fixture = { ...base, ctx, svc: createAutomationService({ ...ctx, db: databaseHandle(ctx.db) }) };
+    const ctx: DbAssemblyInput<AutomationContext> = { ...base.ctx, runArm: chainDispatch(seen, askAt) };
+    const fixture: Fixture = { ...base, ctx, svc: createAutomationService(ctx) };
     const rule = await fixture.svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(fixture.host),
+      principal: await principal(base.db, fixture.host),
       chatId: fixture.chatId,
       name: "mixed postures",
       trigger: { bus: "chat", type: "chatOpened" },
@@ -581,7 +590,7 @@ describe("#1419 a confirm-first arm stops the chain", () => {
         { type: "set_variable", scope: "chat", key: "after", op: "inc" },
       ],
     });
-    await fixture.svc.setRuleEnabled({ principal: principal(fixture.host), ruleId: rule.id, enabled: true });
+    await fixture.svc.setRuleEnabled({ principal: await principal(base.db, fixture.host), ruleId: rule.id, enabled: true });
     await ctx.enabled.reload();
     await fixture.svc.handleEvent({ type: "chatOpened", chatId: fixture.chatId });
     return { fixture, ruleId: rule.id };
@@ -591,7 +600,7 @@ describe("#1419 a confirm-first arm stops the chain", () => {
     const seen: string[] = [];
     const { fixture, ruleId } = await fireChain(seen, "nothing-asks");
     expect(seen).toEqual(["before", "asks", "after"]);
-    const fires = await fixture.svc.listFires({ principal: principal(fixture.host), ruleId });
+    const fires = await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId });
     expect(fires.map((row) => row.outcome)).toEqual(["fired"]);
   });
 
@@ -603,7 +612,7 @@ describe("#1419 a confirm-first arm stops the chain", () => {
     expect(seen).toEqual(["before", "asks"]);
     // The terminal writes NOTHING (S4 fire-log honesty) -- unchanged by this fix, and asserted here so a
     // future "just log the partial fire" edit reds against the ruling rather than against a comment.
-    expect(await fixture.svc.listFires({ principal: principal(fixture.host), ruleId })).toEqual([]);
+    expect(await fixture.svc.listFires({ principal: await principal(fixture.db, fixture.host), ruleId })).toEqual([]);
   });
 });
 
@@ -618,7 +627,7 @@ describe("the fire reservation admits exactly one of two overlapping dispatches"
     const entered = Promise.withResolvers<void>();
     const release = Promise.withResolvers<void>();
     let attempts = 0;
-    const ctx: AutomationContext = {
+    const ctx: DbAssemblyInput<AutomationContext> = {
       ...base.ctx,
       runArm: async (): Promise<{ readonly ok: true }> => {
         attempts += 1;
@@ -629,31 +638,31 @@ describe("the fire reservation admits exactly one of two overlapping dispatches"
         return { ok: true };
       },
     };
-    const svc = createAutomationService({ ...ctx, db: databaseHandle(ctx.db) });
+    const svc = createAutomationService(ctx);
     const rule = await svc.createRule({
       timeZone: UTC_TIME_ZONE,
-      principal: principal(base.host),
+      principal: await principal(base.db, base.host),
       chatId: base.chatId,
       name: "reserved",
       trigger: { bus: "chat", type: "chatOpened" },
       actions: [{ type: "set_variable", scope: "chat", key: "ticks", op: "inc" }],
       cooldownSeconds: 60,
     });
-    await svc.setRuleEnabled({ principal: principal(base.host), ruleId: rule.id, enabled: true });
+    await svc.setRuleEnabled({ principal: await principal(base.db, base.host), ruleId: rule.id, enabled: true });
     const rules = await loadEnabledChatRules(base.db, base.chatId, "chatOpened");
     const resolved = { fact: { bus: "chat" as const, type: "chatOpened" as const, chatId: base.chatId }, automationDepth: 0 };
 
     // TRUE overlap: the second dispatch starts while the first is parked inside its arm.
-    const first = runDispatch(ctx, rules, resolved);
+    const first = runDispatch(automationContext(ctx), rules, resolved);
     await entered.promise;
-    const second = await runDispatch(ctx, rules, resolved);
+    const second = await runDispatch(automationContext(ctx), rules, resolved);
     const attemptsWhileHeld = attempts;
     release.resolve();
     await first;
 
     expect(attemptsWhileHeld).toBe(1); // the second never reached the arm -- the HELD reservation refused it
     expect(second.outcomes).toEqual(["budget_refused"]);
-    const outcomes = (await svc.listFires({ principal: principal(base.host), ruleId: rule.id })).map((row) => row.outcome);
+    const outcomes = (await svc.listFires({ principal: await principal(base.db, base.host), ruleId: rule.id })).map((row) => row.outcome);
     expect(outcomes).toContain("fired");
     expect(outcomes).toContain("budget_refused");
   });

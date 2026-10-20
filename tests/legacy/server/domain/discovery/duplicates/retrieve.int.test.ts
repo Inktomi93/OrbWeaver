@@ -10,7 +10,11 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { createDiscoveryService } from "#server/domain/discovery/index.ts";
+import { everyOwnerAuthority } from "../../workloads/_support.ts";
 import { makeDiscoveryHarness, seedCharacter, seedCharacterEmbedding, seedChatSegment, seedHostedChat, seedUser, vec } from "../_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 async function seedNearDupPair(db: Db, ownerId: UserId): Promise<void> {
   const c1 = await seedCharacter(db, { id: "character_1", ownerId, name: "Aria" });
@@ -25,7 +29,7 @@ describe("duplicateCharacters", () => {
     const owner = await seedUser(db, "user_a");
     await seedNearDupPair(db, owner);
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    await svc.computeDuplicatePairs();
+    await svc.computeDuplicatePairs(EVERY_OWNER.runScope);
 
     const pairs = await svc.duplicateCharacters(owner);
     expect(pairs).toHaveLength(1);
@@ -39,7 +43,7 @@ describe("duplicateCharacters", () => {
     const other = await seedUser(db, "user_b");
     await seedNearDupPair(db, owner);
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    await svc.computeDuplicatePairs();
+    await svc.computeDuplicatePairs(EVERY_OWNER.runScope);
 
     expect(await svc.duplicateCharacters(other)).toEqual([]);
   });
@@ -49,7 +53,7 @@ describe("duplicateCharacters", () => {
     const owner = await seedUser(db, "user_a");
     await seedNearDupPair(db, owner);
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    await svc.computeDuplicatePairs();
+    await svc.computeDuplicatePairs(EVERY_OWNER.runScope);
 
     expect(await svc.duplicateCharacters(owner, { minScore: 99 })).toEqual([]);
     expect(await svc.duplicateCharacters(owner, { limit: 0 })).toEqual([]);
@@ -89,7 +93,7 @@ describe("duplicateChats", () => {
     const other = await seedUser(db, "user_b");
     await seedNearDupChats(db, owner);
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    await svc.computeChatDuplicatePairs();
+    await svc.computeChatDuplicatePairs(EVERY_OWNER.runScope);
 
     const pairs = await svc.duplicateChats(owner);
     expect(pairs).toHaveLength(1);
@@ -105,7 +109,7 @@ describe("duplicateChats", () => {
     const owner = await seedUser(db, "user_a");
     await seedNearDupChats(db, owner);
     const svc = createDiscoveryService(makeDiscoveryHarness(db).ctx);
-    await svc.computeChatDuplicatePairs();
+    await svc.computeChatDuplicatePairs(EVERY_OWNER.runScope);
 
     expect(await svc.duplicateChats(owner, { relation: "forked" })).toEqual([]); // these are `duplicate`
     expect(await svc.duplicateChats(owner, { minScore: 1.01 })).toEqual([]);

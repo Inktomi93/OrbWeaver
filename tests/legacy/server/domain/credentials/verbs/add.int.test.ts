@@ -21,7 +21,7 @@ describe("add", () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    await expect(svc.add({ principal: principal(owner), provider: "not-registered", key: "sk-1" })).rejects.toMatchObject({
+    await expect(svc.add({ principal: await principal(db, owner), provider: "not-registered", key: "sk-1" })).rejects.toMatchObject({
       code: CREDENTIALS_OP_CODES.providerUnknown,
     });
     expect(await db.select().from(userCredentials)).toEqual([]);
@@ -36,7 +36,7 @@ describe("add", () => {
     }
     const svc = createCredentialsService({ ...h.ctx, findProvider: (requested) => (requested === "registry-alias" ? registered : undefined) });
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const view = await svc.add({ principal: principal(owner), provider: "registry-alias", key: "sk-1" });
+    const view = await svc.add({ principal: await principal(db, owner), provider: "registry-alias", key: "sk-1" });
     expect(view.provider).toBe(registered.id);
   });
 
@@ -62,11 +62,11 @@ describe("add", () => {
       findProvider: (requested, viewer) => (requested === relay.id && viewer === installer ? relay : undefined),
     });
 
-    await expect(svc.add({ principal: principal(stranger), provider: relay.id, key: "sk-stranger" })).rejects.toMatchObject({
+    await expect(svc.add({ principal: await principal(db, stranger), provider: relay.id, key: "sk-stranger" })).rejects.toMatchObject({
       code: CREDENTIALS_OP_CODES.providerUnknown,
     });
     expect(await db.select().from(userCredentials)).toEqual([]);
-    expect(await svc.add({ principal: principal(installer), provider: relay.id, key: "sk-installer" })).toMatchObject({ provider: relay.id });
+    expect(await svc.add({ principal: await principal(db, installer), provider: relay.id, key: "sk-installer" })).toMatchObject({ provider: relay.id });
   });
 
   test("the view carries no secret field", async () => {
@@ -74,7 +74,7 @@ describe("add", () => {
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
     const view = await svc.add({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       provider: "openrouter",
       key: "sk-1",
     });
@@ -94,8 +94,8 @@ describe("add", () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const first = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-old" });
-    const second = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-new" });
+    const first = await svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-old" });
+    const second = await svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-new" });
 
     expect(second.id).not.toBe(first.id);
     expect(second.label).not.toBe(first.label);
@@ -108,8 +108,8 @@ describe("add", () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const first = await svc.add({ principal: principal(owner), provider: "openrouter", label: "work", key: "sk-work" });
-    const second = await svc.add({ principal: principal(owner), provider: "openrouter", label: "work", key: "sk-other" });
+    const first = await svc.add({ principal: await principal(db, owner), provider: "openrouter", label: "work", key: "sk-work" });
+    const second = await svc.add({ principal: await principal(db, owner), provider: "openrouter", label: "work", key: "sk-other" });
 
     expect(second.id).not.toBe(first.id);
     expect(second.label).not.toBe("work");
@@ -124,8 +124,8 @@ describe("add", () => {
     const owner = await seedUser(held.db, { id: "user_o", role: "user" });
     const parked = held.hold(INSERT_CREDENTIAL, 2);
 
-    const first = svc.add({ principal: principal(owner), provider: "openrouter", label: "dup", key: "sk-first" });
-    const racing = svc.add({ principal: principal(owner), provider: "openrouter", label: "dup", key: "sk-second" });
+    const first = svc.add({ principal: await principal(held.db, owner), provider: "openrouter", label: "dup", key: "sk-first" });
+    const racing = svc.add({ principal: await principal(held.db, owner), provider: "openrouter", label: "dup", key: "sk-second" });
     await parked.reached;
     parked.release();
     const [firstView, second] = await Promise.all([first, racing]);
@@ -143,7 +143,9 @@ describe("add", () => {
     const svc = createCredentialsService(makeHarness(held.db).ctx);
     const owner = await seedUser(held.db, { id: "user_o", role: "user" });
     const firstInserts = held.hold(INSERT_CREDENTIAL, 3);
-    const racers = ["sk-a", "sk-b", "sk-c"].map((key) => svc.add({ principal: principal(owner), provider: "openrouter", label: "dup", key }));
+    const racers = ["sk-a", "sk-b", "sk-c"].map(async (key) =>
+      svc.add({ principal: await principal(held.db, owner), provider: "openrouter", label: "dup", key }),
+    );
     await firstInserts.reached;
     firstInserts.release();
     const retries = held.hold(INSERT_CREDENTIAL, 2);
@@ -164,8 +166,8 @@ describe("add", () => {
     const db = await freshDb();
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-or" });
-    const anthropic = await svc.add({ principal: principal(owner), provider: "anthropic", key: "sk-ant" });
+    await svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-or" });
+    const anthropic = await svc.add({ principal: await principal(db, owner), provider: "anthropic", key: "sk-ant" });
     expect(anthropic.label).toBe("default");
   });
 
@@ -174,7 +176,7 @@ describe("add", () => {
     const svc = createCredentialsService(makeHarness(db).ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
     const view = await svc.add({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       provider: "vllm",
       key: "sk-c",
       metadata: { auth: "endpoint" },
@@ -190,7 +192,7 @@ describe("add", () => {
     const h = makeHarness(db);
     const svc = createCredentialsService(h.ctx);
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    const view = await svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-1" });
+    const view = await svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-1" });
     const audit = h.audits.find((a) => a.entry.action === "credential.add");
     expect(audit?.entry).toMatchObject({ actorUserId: owner, entityType: "credential", entityId: view.id });
     expect(audit?.entry.metadata).toMatchObject({ provider: "openrouter", label: "default" });
@@ -201,8 +203,10 @@ describe("add", () => {
     const h = makeHarness(db);
     const svc = createCredentialsService({ ...h.ctx, box: createSecretBox(null) });
     const owner = await seedUser(db, { id: "user_o", role: "user" });
-    await expect(svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-1" })).rejects.toMatchObject({ code: "credentials_disabled" });
-    await expect(svc.add({ principal: principal(owner), provider: "openrouter", key: "sk-1" })).rejects.toThrow(DomainOperationError);
+    await expect(svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-1" })).rejects.toMatchObject({
+      code: "credentials_disabled",
+    });
+    await expect(svc.add({ principal: await principal(db, owner), provider: "openrouter", key: "sk-1" })).rejects.toThrow(DomainOperationError);
     // No store happened, so nothing was audited.
     expect(h.audits).toHaveLength(0);
   });

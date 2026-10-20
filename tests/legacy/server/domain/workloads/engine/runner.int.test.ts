@@ -18,7 +18,7 @@ import type { WorkloadContribution } from "#server/domain/workloads/contract/con
 import type { WorkloadRunnerDeps } from "#server/domain/workloads/contract/service.ts";
 import { getRecentWorkloadEvents } from "#server/domain/workloads/engine/progress-bus.ts";
 import { reapOrphanedWorkloads } from "#server/domain/workloads/engine/reaper.ts";
-import { runWorkload } from "#server/domain/workloads/engine/runner.ts";
+import { runWorkload } from "#server/domain/workloads/index.ts";
 import { loadWorkload, loadWorkloadStatus, markTerminal } from "#server/domain/workloads/persistence/queries.ts";
 import { contributionsWith, fakeContributions, loadRunnableWorkload, makeRunnerDeps, seedWorkloadRow, T0 } from "../_support.ts";
 

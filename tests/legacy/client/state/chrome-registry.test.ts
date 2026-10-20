@@ -10,14 +10,16 @@ import { mobileBarCuration, sheetOverflowChrome } from "@orb/client/state";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { Users } from "@orb/ui/icons";
 
-function entry(id: string, zone: ChromeEntry["zone"], mobile?: ChromeEntry["mobile"]): ChromeEntry {
-  return {
-    id,
-    label: id,
-    zone,
-    ...(mobile === undefined ? {} : { mobile }),
-    behavior: { kind: "widget", body: (): null => null },
-  };
+const WIDGET = { kind: "widget" as const, body: (): null => null };
+
+/** A topbar-trail widget, which may leave its phone fate to the zone's default. */
+function trailEntry(id: string, mobile?: ChromeEntry["mobile"]): ChromeEntry {
+  return { id, label: id, zone: "topbar.trail", ...(mobile === undefined ? {} : { mobile }), behavior: WIDGET };
+}
+
+/** A rail action widget, which must declare its phone fate. */
+function railEntry(id: string, zone: RailZone, mobile: NonNullable<ChromeEntry["mobile"]>): ChromeEntry {
+  return { id, label: id, zone, mobile, behavior: WIDGET };
 }
 
 /** A rail SECTION entry — the only kind the bar's swap moves. `id` doubles as the section id, exactly as
@@ -38,23 +40,23 @@ function ungroupedSection(sectionId: SectionId, mobile: NonNullable<ChromeEntry[
 
 test("selects ONLY the topbar widgets curated onto the phone's sheet", () => {
   const entries: readonly ChromeEntry[] = [
-    entry("bell", "topbar.trail", "sheet"),
+    trailEntry("bell", "sheet"),
     // Stays on the phone's row — its affordance is already visible there, so the sheet must not double it.
-    entry("focus-toggle", "topbar.trail", "tab"),
+    trailEntry("focus-toggle", "tab"),
     // An UNCURATED trail widget defaults to "stay on the row" (`ChromeEntry.mobile` on this zone), so an
     // omitted axis may never be read as sheet-bound.
-    entry("context-toggle", "topbar.trail"),
+    trailEntry("context-toggle"),
     // A rail entry curated for the sheet is projected by its own path (the footer/overflow lists), never
     // through this one — mixing them would put a nav section where the trail widgets render.
-    entry("corpus", "rail.nav", "sheet"),
-    entry("persona", "rail.end", "sheet"),
+    railEntry("corpus", "rail.nav", "sheet"),
+    railEntry("persona", "rail.end", "sheet"),
   ];
 
   expect(sheetOverflowChrome(entries).map((e) => e.id)).toEqual(["bell"]);
 });
 
 test("preserves the registry's own order and never mutates the list it is handed", () => {
-  const entries: readonly ChromeEntry[] = [entry("second", "topbar.trail", "sheet"), entry("first", "topbar.trail", "sheet")];
+  const entries: readonly ChromeEntry[] = [trailEntry("second", "sheet"), trailEntry("first", "sheet")];
 
   expect(sheetOverflowChrome(entries).map((e) => e.id)).toEqual(["second", "first"]);
   expect(entries.map((e) => e.id)).toEqual(["second", "first"]);
@@ -78,7 +80,7 @@ test("an overflow section takes the LAST standing tab's slot, and that tab folds
     section("chats", "primary", "tab"),
     section("characters", "primary", "tab"),
     section("corpus", "primary", "sheet"),
-    entry("persona", "rail.end", "sheet"),
+    railEntry("persona", "rail.end", "sheet"),
   ];
 
   const curation = mobileBarCuration(entries, "corpus");
@@ -137,15 +139,4 @@ test("an UNGROUPED nav section may not take a slot — it has no cell to paint i
 
   expect(mobileBarCuration(entries, "corpus").get("corpus")).toBe("sheet");
   expect(mobileBarCuration(entries, "corpus").get("chats")).toBe("tab");
-});
-
-test("the map is TOTAL and carries each zone's own default, so no consumer re-spells a fallback", () => {
-  const entries: readonly ChromeEntry[] = [entry("uncurated-trail", "topbar.trail"), entry("uncurated-footer", "rail.end"), section("chats", "primary", "tab")];
-
-  const curation = mobileBarCuration(entries, "chats");
-  expect([...curation.keys()].toSorted()).toEqual(["chats", "uncurated-footer", "uncurated-trail"]);
-  // A rail entry that declares nothing folds into the sheet; a trail widget that declares nothing stays on
-  // the row — the two documented defaults of `ChromeEntry.mobile`, not one guess applied to both.
-  expect(curation.get("uncurated-footer")).toBe("sheet");
-  expect(curation.get("uncurated-trail")).toBe("tab");
 });

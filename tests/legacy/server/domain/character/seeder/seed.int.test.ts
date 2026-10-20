@@ -130,7 +130,7 @@ describe("createDefaultCharacterSeeder", () => {
       ...latch,
     });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
 
     await seedAll(seeder, actor);
 
@@ -150,7 +150,7 @@ describe("createDefaultCharacterSeeder", () => {
       ...latch,
     });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
 
     await seedAll(seeder, actor);
 
@@ -170,7 +170,7 @@ describe("createDefaultCharacterSeeder", () => {
       ...latch,
     });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     // A previous partial run already created the Assistant handle.
     const existingAssistantId = await seedRawCharacter(db, {
       id: "character_existing_assistant",
@@ -205,7 +205,7 @@ describe("createDefaultCharacterSeeder", () => {
       attachCardTag: noopAttach,
       ...latch,
     });
-    const actor = principal("usr_fresh" as UserId);
+    const actor = await principal(await freshDb(), "usr_fresh" as UserId);
 
     await expect(seeder.seedCard(actor, WELCOME_ASSISTANT_HANDLE)).rejects.toThrow("db is on fire");
     expect(latch.marks).toHaveLength(0);
@@ -216,7 +216,7 @@ describe("createDefaultCharacterSeeder", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     const seeder = createDefaultCharacterSeeder({
       ...realLorebookImport(db),
       characters: svc,
@@ -253,7 +253,7 @@ describe("createDefaultCharacterSeeder", () => {
       ...latch,
     });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     // The user already owns a card at the welcome handle (their own card, or a partial prior run).
     const existingId = await seedRawCharacter(db, {
       id: "character_existing_assistant",
@@ -273,7 +273,7 @@ describe("createDefaultCharacterSeeder", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const latch = fakeLatch();
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     // Run one: the Assistant's row is CREATED, then its presentation edit throws — the shape of a crash
     // between `create` and the dressing. The seed rejects, so the ledger never records the card.
     // A RUN COUNTER, not a `let flag = true` — biome narrows a literal-initialized boolean and calls the
@@ -322,7 +322,7 @@ describe("createDefaultCharacterSeeder", () => {
       ...latch,
     });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
 
     await seedAll(seeder, actor);
 
@@ -344,7 +344,7 @@ describe("createDefaultCharacterSeeder", () => {
     const seeder = createDefaultCharacterSeeder({ ...realLorebookImport(db), characters: svc, attachCardTag: noopAttach, ...fakeLatch() });
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    await seedAll(seeder, principal(owner));
+    await seedAll(seeder, await principal(db, owner));
 
     for (const card of DEFAULT_CHARACTER_CARDS) {
       const row = await svc.findByHandle({ ownerId: owner, handle: card.input.handle });
@@ -358,7 +358,7 @@ describe("createDefaultCharacterSeeder", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const lore = realLorebookImport(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const actor = principal(owner);
+    const actor = await principal(db, owner);
     // Run one crashes at the lore step for every card, so each row lands dressed but book-less.
     const run = { index: 0 };
     const crashing = {

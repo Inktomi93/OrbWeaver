@@ -4,20 +4,26 @@
 // their unit tests.
 
 import type { UserRole } from "@orb/contracts/identity";
+import type { Db } from "@orb/db";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
+import type { AdminUserData } from "#server/domain/admin/contract/views.ts";
 import type { AdminService, AdminUserView } from "#server/domain/admin/index.ts";
 import { caller, makeContext, principal } from "../_support.ts";
 
-function harness(role: UserRole): {
+async function harness(
+  db: Db,
+  role: UserRole,
+): Promise<{
   readonly admin: ReturnType<typeof caller>["admin"];
   readonly restart: ReturnType<typeof vi.fn>;
-} {
+}> {
   const restart = vi.fn(() => Promise.resolve());
-  const admin = caller(makeContext({ auth: principal(role), services: { admin: { restart } } })).admin;
+  const admin = caller(makeContext({ auth: await principal(db, role), services: { admin: { restart } } })).admin;
   return { admin, restart };
 }
 
@@ -39,28 +45,38 @@ const USER_VIEW: AdminUserView = {
   updatedAt: FROZEN_AT_MS,
 };
 
+// The admin service hands the router domain rows: the same fields, the role as row data resolved through the
+// production resolver for the row's stored role.
+const callersDb = await freshDb();
+const USER_DATA: AdminUserData = { ...USER_VIEW, role: (await principal(callersDb, "user")).role };
+const ADMIN_ROLE = (await principal(callersDb, "admin")).role;
+
 describe("admin.createUser handle length", () => {
-  const createUser = vi.fn<AdminService["createUser"]>(() => Promise.resolve(USER_VIEW));
-  const admin = (): ReturnType<typeof caller>["admin"] => caller(makeContext({ auth: principal("admin"), services: { admin: { createUser } } })).admin;
+  const createUser = vi.fn<AdminService["createUser"]>(() => Promise.resolve(USER_DATA));
+  const admin = async (db: Db): Promise<ReturnType<typeof caller>["admin"]> =>
+    caller(makeContext({ auth: await principal(db, "admin"), services: { admin: { createUser } } })).admin;
 
   test("a handle over 64 code points answers BAD_REQUEST and the verb never runs", async () => {
+    const db = await freshDb();
     createUser.mockClear();
     const long = `a${COMBINING_MARKS.repeat(16)}`;
-    await expect(admin().createUser({ handle: long, password: "correct-horse" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+    await expect((await admin(db)).createUser({ handle: long, password: "correct-horse" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(createUser).not.toHaveBeenCalled();
   });
 
   test("control: a handle of exactly 64 code points reaches the verb", async () => {
+    const db = await freshDb();
     createUser.mockClear();
     const edge = `${"a".repeat(63)}\u{1D400}`;
-    await admin().createUser({ handle: edge, password: "correct-horse" });
+    await (await admin(db)).createUser({ handle: edge, password: "correct-horse" });
     expect(createUser).toHaveBeenCalledOnce();
   });
 });
 
 describe("admin.restart", () => {
   test("without the confirm it answers BAD_REQUEST and the verb never runs", async () => {
-    const h = harness("owner");
+    const db = await freshDb();
+    const h = await harness(db, "owner");
     for (const input of [
       { expectedServerInstanceId: INSTANCE_ID },
       { confirm: false, expectedServerInstanceId: INSTANCE_ID },
@@ -74,7 +90,8 @@ describe("admin.restart", () => {
   });
 
   test("a missing or malformed expected instance never reaches the verb", async () => {
-    const h = harness("owner");
+    const db = await freshDb();
+    const h = await harness(db, "owner");
     // @ts-expect-error the input boundary must refuse a wire request without its expected process identity
     await expect(h.admin.restart({ confirm: true })).rejects.toMatchObject({ code: "BAD_REQUEST" });
     await expect(h.admin.restart({ confirm: true, expectedServerInstanceId: "not-a-process-uuid" })).rejects.toMatchObject({ code: "BAD_REQUEST" });
@@ -82,54 +99,58 @@ describe("admin.restart", () => {
   });
 
   test("a plain user is refused at layer 1 and the verb never runs", async () => {
-    const h = harness("user");
+    const db = await freshDb();
+    const h = await harness(db, "user");
     await expect(h.admin.restart({ confirm: true, expectedServerInstanceId: INSTANCE_ID })).rejects.toMatchObject({ code: "FORBIDDEN" });
     expect(h.restart).not.toHaveBeenCalled();
   });
 
   test("control: the confirmed call reaches the verb with the caller and the confirm", async () => {
-    const h = harness("owner");
+    const db = await freshDb();
+    const h = await harness(db, "owner");
     await expect(h.admin.restart({ confirm: true, expectedServerInstanceId: INSTANCE_ID })).resolves.toEqual({ restarting: true });
-    expect(h.restart).toHaveBeenCalledExactlyOnceWith({ principal: principal("owner"), confirm: true, expectedServerInstanceId: INSTANCE_ID });
+    expect(h.restart).toHaveBeenCalledExactlyOnceWith({ principal: await principal(db, "owner"), confirm: true, expectedServerInstanceId: INSTANCE_ID });
   });
 });
 
 describe("admin user and session reads — the strict output boundary", () => {
   const PasswordHash = "$argon2id$v=19$m=65536,t=3,p=4$planted";
-  const adminWith = (services: Partial<AdminService>): ReturnType<typeof caller>["admin"] =>
-    caller(makeContext({ auth: principal("admin"), services: { admin: services } })).admin;
+  const adminWith = async (db: Db, services: Partial<AdminService>): Promise<ReturnType<typeof caller>["admin"]> =>
+    caller(makeContext({ auth: await principal(db, "admin"), services: { admin: services } })).admin;
 
   test("control: a well-formed view passes through unchanged", async () => {
-    const listUsers = vi.fn<AdminService["listUsers"]>(async () => [USER_VIEW]);
+    const db = await freshDb();
+    const listUsers = vi.fn<AdminService["listUsers"]>(async () => [USER_DATA]);
     const linked = { ...USER_VIEW, externalId: castId<ExternalId>("sso-subject-1") };
-    const linkSsoIdentity = vi.fn<AdminService["linkSsoIdentity"]>(async () => linked);
-    const api = adminWith({ listUsers, linkSsoIdentity });
+    const linkSsoIdentity = vi.fn<AdminService["linkSsoIdentity"]>(async () => ({ ...USER_DATA, externalId: linked.externalId }));
+    const api = await adminWith(db, { listUsers, linkSsoIdentity });
 
     await expect(api.listUsers()).resolves.toEqual([USER_VIEW]);
     await expect(api.linkSsoIdentity({ userId: USER_VIEW.id, externalId: castId<ExternalId>("sso-subject-1") })).resolves.toEqual(linked);
   });
 
   test("listUsers refuses a row carrying the password hash instead of stripping or shipping it", async () => {
-    const listUsers = vi.fn<AdminService["listUsers"]>(async () => [{ ...USER_VIEW, passwordHash: PasswordHash }]);
+    const db = await freshDb();
+    const listUsers = vi.fn<AdminService["listUsers"]>(async () => [{ ...USER_DATA, passwordHash: PasswordHash }]);
 
-    const failure = await adminWith({ listUsers })
-      .listUsers()
-      .then(
-        () => null,
-        (err: unknown) => err,
-      );
+    const failure = await (await adminWith(db, { listUsers })).listUsers().then(
+      () => null,
+      (err: unknown) => err,
+    );
 
     expect(failure).toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
     expect(String(failure)).not.toContain(PasswordHash);
   });
 
   test("setRole refuses an extra key on the single-row write result", async () => {
-    const setRole = vi.fn<AdminService["setRole"]>(async () => ({ ...USER_VIEW, role: "admin", passwordHash: PasswordHash }));
+    const db = await freshDb();
+    const setRole = vi.fn<AdminService["setRole"]>(async () => ({ ...USER_DATA, role: ADMIN_ROLE, passwordHash: PasswordHash }));
 
-    await expect(adminWith({ setRole }).setRole({ userId: USER_VIEW.id, role: "admin" })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    await expect((await adminWith(db, { setRole })).setRole({ userId: USER_VIEW.id, role: "admin" })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
   });
 
   test("listSessions refuses a session row carrying its token hash", async () => {
+    const db = await freshDb();
     const session = {
       id: mintTypeId(ID_PREFIX.session),
       userId: USER_VIEW.id,
@@ -142,7 +163,7 @@ describe("admin user and session reads — the strict output boundary", () => {
     const listSessions = vi.fn<AdminService["listSessions"]>(async () => [{ ...session, tokenHash: "planted-token-hash" }]);
     const clean = vi.fn<AdminService["listSessions"]>(async () => [session]);
 
-    await expect(adminWith({ listSessions }).listSessions({ userId: USER_VIEW.id })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
-    await expect(adminWith({ listSessions: clean }).listSessions({ userId: USER_VIEW.id })).resolves.toEqual([session]);
+    await expect((await adminWith(db, { listSessions })).listSessions({ userId: USER_VIEW.id })).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+    await expect((await adminWith(db, { listSessions: clean })).listSessions({ userId: USER_VIEW.id })).resolves.toEqual([session]);
   });
 });

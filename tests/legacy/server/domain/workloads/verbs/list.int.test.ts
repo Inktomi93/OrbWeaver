@@ -49,8 +49,8 @@ describe("workloads.list", () => {
     const s = makeService(db);
 
     // Alice sees ONLY her own — not bob's, not the system row (a supplied foreign filter is ignored).
-    expect((await s.list({ caller: principal("user_alice") })).map((r) => r.id)).toEqual(["w_alice"]);
+    expect((await s.list({ caller: await principal(db, "user_alice") })).map((r) => r.id)).toEqual(["w_alice"]);
     // An admin sees every owner (the deployment-wide view).
-    expect((await s.list({ caller: principal("user_admin", "admin") })).map((r) => r.id).sort()).toEqual(["w_alice", "w_bob", "w_system"]);
+    expect((await s.list({ caller: await principal(db, "user_admin", "admin") })).map((r) => r.id).sort()).toEqual(["w_alice", "w_bob", "w_system"]);
   });
 });

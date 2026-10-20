@@ -37,7 +37,7 @@ test("scrapes captions: derives the video id, fetches timedtext, stamps 'youtube
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf(CAPTIONS_XML));
 
-  const result = await h.service.scrapeYoutube({ principal: principalFor(owner), url: WATCH_URL, lang: "en" });
+  const result = await h.service.scrapeYoutube({ principal: await principalFor(db, owner), url: WATCH_URL, lang: "en" });
 
   expect(result.outcome).toBe("created");
   expect(result.ingest).toBe("queued");
@@ -63,8 +63,8 @@ test("accepts a youtu.be short link and a bare id", async () => {
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValue(bytesOf(CAPTIONS_XML));
 
-  await h.service.scrapeYoutube({ principal: principalFor(owner), url: `https://youtu.be/${VIDEO_ID}`, lang: "en" });
-  await h.service.scrapeYoutube({ principal: principalFor(owner), url: VIDEO_ID, lang: "en" });
+  await h.service.scrapeYoutube({ principal: await principalFor(db, owner), url: `https://youtu.be/${VIDEO_ID}`, lang: "en" });
+  await h.service.scrapeYoutube({ principal: await principalFor(db, owner), url: VIDEO_ID, lang: "en" });
 
   expect(h.fetchUrl).toHaveBeenNthCalledWith(1, `https://www.youtube.com/api/timedtext?v=${VIDEO_ID}&lang=en`);
   expect(h.fetchUrl).toHaveBeenNthCalledWith(2, `https://www.youtube.com/api/timedtext?v=${VIDEO_ID}&lang=en`);
@@ -75,9 +75,9 @@ test("a URL with no extractable video id collapses to ScrapeFailedError before a
   const h = makeHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-  await expect(h.service.scrapeYoutube({ principal: principalFor(owner), url: "https://example.com/not-a-video", lang: "en" })).rejects.toBeInstanceOf(
-    ScrapeFailedError,
-  );
+  await expect(
+    h.service.scrapeYoutube({ principal: await principalFor(db, owner), url: "https://example.com/not-a-video", lang: "en" }),
+  ).rejects.toBeInstanceOf(ScrapeFailedError);
   expect(h.fetchUrl).not.toHaveBeenCalled();
 });
 
@@ -87,7 +87,7 @@ test("a video with no caption track (empty XML) collapses to ScrapeFailedError â
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockResolvedValueOnce(bytesOf('<?xml version="1.0"?><transcript></transcript>'));
 
-  await expect(h.service.scrapeYoutube({ principal: principalFor(owner), url: WATCH_URL, lang: "en" })).rejects.toBeInstanceOf(ScrapeFailedError);
+  await expect(h.service.scrapeYoutube({ principal: await principalFor(db, owner), url: WATCH_URL, lang: "en" })).rejects.toBeInstanceOf(ScrapeFailedError);
   expect(h.assetsStore).not.toHaveBeenCalled();
   expect(h.enqueueIngest).not.toHaveBeenCalled();
   const rows = await db.select().from(documents).where(eq(documents.ownerId, owner));
@@ -100,7 +100,7 @@ test("a fetch refusal collapses to a leak-free ScrapeFailedError, not retry-loop
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   h.fetchUrl.mockRejectedValueOnce(new Error("SSRF_BLOCKED: 10.0.0.5"));
 
-  const error = await h.service.scrapeYoutube({ principal: principalFor(owner), url: WATCH_URL, lang: "en" }).catch((e: unknown) => e);
+  const error = await h.service.scrapeYoutube({ principal: await principalFor(db, owner), url: WATCH_URL, lang: "en" }).catch((e: unknown) => e);
   expect(error).toBeInstanceOf(ScrapeFailedError);
   expect((error as ScrapeFailedError).message).not.toContain("10.0.0.5");
   expect(h.fetchUrl).toHaveBeenCalledTimes(1);

@@ -8,7 +8,7 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createCaptionAvatar } from "#server/domain/imagery/verbs/caption-avatar.ts";
-import { fakeCard, makeHarness, principal, seedOwner } from "../_support.ts";
+import { fakeCard, imageryVerbContext, makeHarness, principal, seedOwner } from "../_support.ts";
 
 describe("createCaptionAvatar", () => {
   test("captions the subject's avatar (reads the avatar bytes, returns keywords + cost)", async () => {
@@ -16,8 +16,8 @@ describe("createCaptionAvatar", () => {
     const owner = await seedOwner(db, castId<Handle>("owner"));
     const h = makeHarness(db);
 
-    const result = await createCaptionAvatar({ ...h.ctx, db })({
-      runAs: principal(owner),
+    const result = await createCaptionAvatar(imageryVerbContext(h.ctx))({
+      runAs: await principal(db, owner),
       mode: "character_multimodal",
       subjectCharacterId: castId("character_aria"),
     });
@@ -32,8 +32,8 @@ describe("createCaptionAvatar", () => {
     const owner = await seedOwner(db, castId<Handle>("owner"));
     const h = makeHarness(db);
 
-    const result = await createCaptionAvatar({ ...h.ctx, db })({
-      runAs: principal(owner),
+    const result = await createCaptionAvatar(imageryVerbContext(h.ctx))({
+      runAs: await principal(db, owner),
       mode: "face_multimodal",
       subjectCharacterId: undefined,
     });
@@ -47,8 +47,8 @@ describe("createCaptionAvatar", () => {
     const owner = await seedOwner(db, castId<Handle>("owner"));
     const h = makeHarness(db, { getCard: () => Promise.resolve(fakeCard(null)) });
 
-    const result = await createCaptionAvatar({ ...h.ctx, db })({
-      runAs: principal(owner),
+    const result = await createCaptionAvatar(imageryVerbContext(h.ctx))({
+      runAs: await principal(db, owner),
       mode: "character_multimodal",
       subjectCharacterId: castId("character_aria"),
     });
@@ -63,7 +63,11 @@ describe("createCaptionAvatar", () => {
     const h = makeHarness(db, { captionImage: () => Promise.resolve({ text: "()[]{}", costUsd: 0.001 }) });
 
     await expect(
-      createCaptionAvatar({ ...h.ctx, db })({ runAs: principal(owner), mode: "face_multimodal", subjectCharacterId: castId("character_aria") }),
+      createCaptionAvatar(imageryVerbContext(h.ctx))({
+        runAs: await principal(db, owner),
+        mode: "face_multimodal",
+        subjectCharacterId: castId("character_aria"),
+      }),
     ).rejects.toThrow();
   });
 });

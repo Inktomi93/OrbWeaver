@@ -75,6 +75,7 @@ function workloadRowBase(id = "workload_ct_1"): WorkloadRowBase {
     mode: "singular",
     lane: "sweep",
     ownerId: "user_ct_kes",
+    funderUserId: "user_ct_kes",
     dependsOn: null,
     error: null,
     progress: null,

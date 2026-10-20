@@ -9,6 +9,7 @@
 
 import { characterCardV3Schema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
+import type { Db } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { AssetId, CharacterId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -21,6 +22,7 @@ import { describe } from "vitest";
 import { createExportService } from "#server/domain/export/index.ts";
 import type { ImportTagPort } from "#server/domain/tag/index.ts";
 import { runProfileImport } from "#server/entry/import/index.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { makeHarness as makeCharacterHarness, seedUser } from "../../domain/character/_support.ts";
 import { makeHarness as makeExportHarness } from "../../domain/export/_support.ts";
 
@@ -44,8 +46,8 @@ const CARD_WITH_RESIDUALS = JSON.stringify({
 });
 // biome-ignore-end lint/style/useNamingConvention: end of the block above
 
-function principalOf(userId: UserId): Principal {
-  return { userId, role: "user", handle: castId<Handle>(userId), externalId: null, via: "cookie" };
+async function principalOf(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId);
 }
 
 const noopAssets: ImportAssetPort = {
@@ -59,7 +61,7 @@ describe("residualData survives the DB-mediated import→export round-trip", () 
   test("import writes residualData to the characters row; export re-emits it at the card's data root", async () => {
     const db = await freshDb();
     const ownerId = await seedUser(db, { handle: castId<Handle>("residual-owner") });
-    const principal = principalOf(ownerId);
+    const principal = await principalOf(db, ownerId);
 
     const characterSvc = createCharacterService(makeCharacterHarness(db).ctx);
 
@@ -115,7 +117,7 @@ describe("residualData survives the DB-mediated import→export round-trip", () 
   test("a card with no unknown data.* keys round-trips residualData as null (no phantom residual)", async () => {
     const db = await freshDb();
     const ownerId = await seedUser(db, { handle: castId<Handle>("no-residual-owner") });
-    const principal = principalOf(ownerId);
+    const principal = await principalOf(db, ownerId);
     const characterSvc = createCharacterService(makeCharacterHarness(db).ctx);
 
     const plainCard = JSON.stringify({

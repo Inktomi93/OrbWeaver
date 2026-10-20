@@ -16,11 +16,11 @@ describe("updateTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const created = await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Mine", override: {} },
     });
     const updated = await h.svc.updateTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       id: created.id,
       input: { name: "Renamed", override: { background: "oklch(0.6201 0.01 60)", accent: "oklch(0.48 0.16 40)" } },
     });
@@ -36,7 +36,7 @@ describe("updateTheme", () => {
     const hearth = await findSeedTheme(h, a, "Hearth");
     await expect(
       h.svc.updateTheme({
-        principal: principal(a, "user"),
+        principal: await principal(db, a, "user"),
         id: hearth.id,
         input: { name: "Hacked" },
       }),
@@ -49,12 +49,12 @@ describe("updateTheme", () => {
     const a = await seedUser(db, { id: "user_a" });
     const b = await seedUser(db, { id: "user_b" });
     const created = await h.svc.createTheme({
-      principal: principal(b, "user"),
+      principal: await principal(db, b, "user"),
       input: { name: "Theirs", override: {} },
     });
     await expect(
       h.svc.updateTheme({
-        principal: principal(a, "user"),
+        principal: await principal(db, a, "user"),
         id: created.id,
         input: { name: "Hacked" },
       }),
@@ -66,16 +66,16 @@ describe("updateTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "First", override: {} },
     });
     const second = await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Second", override: {} },
     });
     await expect(
       h.svc.updateTheme({
-        principal: principal(a, "user"),
+        principal: await principal(db, a, "user"),
         id: second.id,
         input: { name: "First" },
       }),
@@ -87,12 +87,12 @@ describe("updateTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const created = await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Mine", override: {} },
     });
     await expect(
       h.svc.updateTheme({
-        principal: principal(a, "user"),
+        principal: await principal(db, a, "user"),
         id: created.id,
         input: { css: ".x { position: sticky; }" },
       }),
@@ -104,11 +104,11 @@ describe("updateTheme", () => {
     const h = makeHarness(db);
     const a = await seedUser(db, { id: "user_a" });
     const created = await h.svc.createTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       input: { name: "Mine", override: { accent: "oklch(0.7 0.14 250)" } },
     });
     const updated = await h.svc.updateTheme({
-      principal: principal(a, "user"),
+      principal: await principal(db, a, "user"),
       id: created.id,
       input: { name: "Renamed" },
     });

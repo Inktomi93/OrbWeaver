@@ -18,9 +18,9 @@ import type { AssetId, CharacterHandle, CharacterId, Handle, TagId, UserId, Worl
 import { castId } from "@orb/kit/ids";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { makeCharacter } from "@orb/testkit/node/factories/character.ts";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { seedUser as seedUserRow } from "@orb/testkit/node/factories/user.ts";
 import type { ExportContext } from "#server/domain/export/context.ts";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 
 // An 8×8 PNG (distinct from the 256×256 placeholder) — a real, decodable PNG so `writeCardChunk` accepts
 // it as a base image; being distinct lets a test prove the AVATAR (not the placeholder) was embedded.
@@ -244,6 +244,7 @@ export async function seedCharacterTag(db: Db, characterId: CharacterId, tagId: 
   await db.insert(characterTags).values({ characterId, tagId, status, createdAt: FROZEN_AT_MS });
 }
 
-export function principal(userId: UserId, role: UserRole = "user"): Principal {
-  return makePrincipal(userId, { role });
+/** Resolve a caller's Principal through the production row resolver; a passed role is first written onto the user's row. */
+export async function principal(db: Db, userId: UserId, role?: UserRole): Promise<Principal> {
+  return await makePrincipal({ db }, userId, { role });
 }

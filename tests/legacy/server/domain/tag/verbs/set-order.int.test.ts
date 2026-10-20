@@ -18,8 +18,8 @@ describe("setTagOrder", () => {
     const a = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
     const b = await seedTag(db, owner, { id: "tag_b", name: "beta" });
 
-    await svc.setTagOrder({ principal: principal(owner), orderedIds: [b, a] });
-    const ordered = (await svc.listTags({ principal: principal(owner) })).map((t) => t.id);
+    await svc.setTagOrder({ principal: await principal(db, owner), orderedIds: [b, a] });
+    const ordered = (await svc.listTags({ principal: await principal(db, owner) })).map((t) => t.id);
     expect(ordered).toEqual([b, a]);
   });
 
@@ -27,7 +27,7 @@ describe("setTagOrder", () => {
     const db = await freshDb();
     const owner = await seedUser(db);
     const svc = createTagService(makeTagHarness(db).ctx);
-    await expect(svc.setTagOrder({ principal: principal(owner), orderedIds: [] })).resolves.toBeUndefined();
+    await expect(svc.setTagOrder({ principal: await principal(db, owner), orderedIds: [] })).resolves.toBeUndefined();
   });
 
   test("rejects duplicate and partial permutations of owned ids before changing any order", async () => {
@@ -38,11 +38,11 @@ describe("setTagOrder", () => {
     const b = await seedTag(db, owner, { id: "tag_b", name: "beta" });
 
     for (const orderedIds of [[a, a], [a]]) {
-      const rejected = svc.setTagOrder({ principal: principal(owner), orderedIds });
+      const rejected = svc.setTagOrder({ principal: await principal(db, owner), orderedIds });
       await expect(rejected).rejects.toBeInstanceOf(DomainOperationError);
       await expect(rejected).rejects.toMatchObject({ code: "tag_order_not_permutation" });
     }
-    expect((await svc.listTags({ principal: principal(owner) })).map((tag) => tag.id)).toEqual([a, b]);
+    expect((await svc.listTags({ principal: await principal(db, owner) })).map((tag) => tag.id)).toEqual([a, b]);
   });
 
   test("collapses foreign and missing ids to not-found without changing any order", async () => {
@@ -55,8 +55,8 @@ describe("setTagOrder", () => {
     const foreign = await seedTag(db, stranger, { id: "tag_foreign", name: "foreign" });
 
     for (const unowned of [foreign, castId<TagId>("tag_missing")]) {
-      await expect(svc.setTagOrder({ principal: principal(owner), orderedIds: [a, unowned] })).rejects.toBeInstanceOf(TagNotFoundError);
+      await expect(svc.setTagOrder({ principal: await principal(db, owner), orderedIds: [a, unowned] })).rejects.toBeInstanceOf(TagNotFoundError);
     }
-    expect((await svc.listTags({ principal: principal(owner) })).map((tag) => tag.id)).toEqual([a, b]);
+    expect((await svc.listTags({ principal: await principal(db, owner) })).map((tag) => tag.id)).toEqual([a, b]);
   });
 });

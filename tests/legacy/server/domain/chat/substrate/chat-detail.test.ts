@@ -4,23 +4,22 @@
 // the host arm, the member arm, and the arm the roster `find` produces for a viewer who is not on it at
 // all (a non-member is NOT a host — the flag must never fall open when the lookup misses).
 
-import type { ParticipantView } from "@orb/contracts/chat";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import type { ParticipantData } from "#server/domain/chat/contract/views.ts";
 import { toChatDetail } from "#server/domain/chat/substrate/chat-detail.ts";
+import { makeLoadParticipantViews, seedChat, seedParticipant, seedUser } from "../_support.ts";
 
-const chatId = castId<ChatId>("chat_detail_1");
-const hostId = castId<UserId>("user_host");
-const memberId = castId<UserId>("user_member");
+// The roster is the production seat read over a seeded room: a host and a member, their roles captured from rows.
+const db = await freshDb();
+const hostId = await seedUser(db, castId<Handle>("host"));
+const memberId = await seedUser(db, castId<Handle>("member"));
 const strangerId = castId<UserId>("user_stranger");
-
-// A deliberate minimal roster row — `toChatDetail`'s viewer resolution reads ONLY `userId` (the ⋈ key) and
-// `role` (the projected bit); the other ~16 ParticipantView fields are irrelevant to what these tests pin,
-// and a full factory would hide that the host flag depends on exactly those two.
-function participant(userId: UserId, role: string): ParticipantView {
-  return { userId, role } as unknown as ParticipantView;
-}
+const chatId = await seedChat(db, "detail_1");
+await seedParticipant(db, { chatId, key: "host", userId: hostId, role: "host" });
+await seedParticipant(db, { chatId, key: "member", userId: memberId, role: "member" });
 
 // The stored row half, byte-complete: it is small, and a partial cast here would be fabricating the very
 // shape the projection copies through.
@@ -41,7 +40,7 @@ const ROW = {
   updatedAt: 2,
 } as const;
 
-function detailFor(viewerUserId: UserId, participants: readonly ParticipantView[]): ReturnType<typeof toChatDetail> {
+function detailFor(viewerUserId: UserId, participants: readonly ParticipantData[]): ReturnType<typeof toChatDetail> {
   return toChatDetail({
     chat: ROW,
     participants,
@@ -53,7 +52,7 @@ function detailFor(viewerUserId: UserId, participants: readonly ParticipantView[
   });
 }
 
-const ROSTER = [participant(hostId, "host"), participant(memberId, "member")];
+const ROSTER = await makeLoadParticipantViews(db)(chatId);
 
 test("viewerIsHost is TRUE for the roster's host", () => {
   expect(detailFor(hostId, ROSTER).viewerIsHost).toBe(true);

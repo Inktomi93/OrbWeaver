@@ -6,10 +6,12 @@
 // through the real ladder via `createCaller`. Host authority + leak-free collapse are the domain guard's
 // job (proven in the cross-tenant sweep + the automation domain tests), not re-tested here.
 
+import type { Db } from "@orb/db";
 import type { AutomationRuleId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { Context } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import type { AutomationService, RuleView } from "#server/domain/automation/index.ts";
@@ -23,8 +25,8 @@ const ID = {
 const OWNER = castId<UserId>("user_owner");
 const CHAT = ID.chat1;
 
-function ctxWith(automation: Partial<AutomationService>): Context {
-  return makeContext({ auth: principal("user", { userId: OWNER }), services: { automation } });
+async function ctxWith(db: Db, automation: Partial<AutomationService>): Promise<Context> {
+  return makeContext({ auth: await principal(db, "user", { userId: OWNER }), services: { automation } });
 }
 
 const RULE: RuleView = {
@@ -55,24 +57,27 @@ const RULE: RuleView = {
 
 describe("automation.listRules — chat wire-through", () => {
   test("passes the validated chatId and the caller's principal to the verb", async () => {
+    const db = await freshDb();
     const listRules = vi.fn<AutomationService["listRules"]>(async () => [RULE]);
-    await caller(ctxWith({ listRules })).automation.listRules({ chatId: CHAT });
+    await caller(await ctxWith(db, { listRules })).automation.listRules({ chatId: CHAT });
     expect(listRules).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), chatId: CHAT });
   });
 });
 
 describe("automation.listRulePresets — catalogue read wire-through", () => {
   test("delegates to the static projection verb (no principal, no chat)", async () => {
+    const db = await freshDb();
     const listRulePresets = vi.fn<AutomationService["listRulePresets"]>(() => []);
-    await caller(ctxWith({ listRulePresets })).automation.listRulePresets();
+    await caller(await ctxWith(db, { listRulePresets })).automation.listRulePresets();
     expect(listRulePresets).toHaveBeenCalledWith();
   });
 });
 
 describe("automation.createRuleFromPreset — preset-mint wire-through", () => {
   test("threads the caller's principal + validated chatId/presetId/zone, and the knob-override bag when present", async () => {
+    const db = await freshDb();
     const createRuleFromPreset = vi.fn<AutomationService["createRuleFromPreset"]>(async () => [RULE]);
-    await caller(ctxWith({ createRuleFromPreset })).automation.createRuleFromPreset({
+    await caller(await ctxWith(db, { createRuleFromPreset })).automation.createRuleFromPreset({
       timeZone: "asia/kathmandu",
       chatId: CHAT,
       presetId: "pacingNudge",
@@ -89,17 +94,19 @@ describe("automation.createRuleFromPreset — preset-mint wire-through", () => {
   });
 
   test("omits an absent knob bag rather than passing it as undefined (exactOptional discipline)", async () => {
+    const db = await freshDb();
     const createRuleFromPreset = vi.fn<AutomationService["createRuleFromPreset"]>(async () => [RULE]);
-    await caller(ctxWith({ createRuleFromPreset })).automation.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, chatId: CHAT, presetId: "cutaways" });
+    await caller(await ctxWith(db, { createRuleFromPreset })).automation.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, chatId: CHAT, presetId: "cutaways" });
     const [args] = createRuleFromPreset.mock.calls[0] ?? [];
     expect(args && "knobs" in args).toBe(false);
   });
 
   test("rejects an unknown presetId at the wire (the contract id enum bites before the verb)", async () => {
+    const db = await freshDb();
     const createRuleFromPreset = vi.fn<AutomationService["createRuleFromPreset"]>(async () => [RULE]);
     await expect(
       // @ts-expect-error — an id outside RULE_PRESET_IDS is a compile error too; the wire enum is the runtime belt.
-      caller(ctxWith({ createRuleFromPreset })).automation.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, chatId: CHAT, presetId: "notAPreset" }),
+      caller(await ctxWith(db, { createRuleFromPreset })).automation.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, chatId: CHAT, presetId: "notAPreset" }),
     ).rejects.toThrow();
     expect(createRuleFromPreset).not.toHaveBeenCalled();
   });
@@ -112,16 +119,18 @@ describe("automation.createRuleFromPreset — preset-mint wire-through", () => {
 
 describe("automation.runRuleNow — R7 wire-through", () => {
   test("passes the validated ruleId + the caller's principal (the chat is the RULE's, never a caller claim)", async () => {
+    const db = await freshDb();
     const runRuleNow = vi.fn<AutomationService["runRuleNow"]>(async () => ({ outcome: "fired" }));
-    await caller(ctxWith({ runRuleNow })).automation.runRuleNow({ ruleId: RULE.id });
+    await caller(await ctxWith(db, { runRuleNow })).automation.runRuleNow({ ruleId: RULE.id });
     expect(runRuleNow).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), ruleId: RULE.id });
   });
 });
 
 describe("automation.setRuleSuggestOnRefusal — B4's per-rule F4 opt-out wire-through", () => {
   test("threads the ruleId + the flag + the caller's principal", async () => {
+    const db = await freshDb();
     const setRuleSuggestOnRefusal = vi.fn<AutomationService["setRuleSuggestOnRefusal"]>(async () => undefined);
-    await caller(ctxWith({ setRuleSuggestOnRefusal })).automation.setRuleSuggestOnRefusal({ ruleId: RULE.id, suggestOnRefusal: false });
+    await caller(await ctxWith(db, { setRuleSuggestOnRefusal })).automation.setRuleSuggestOnRefusal({ ruleId: RULE.id, suggestOnRefusal: false });
     expect(setRuleSuggestOnRefusal).toHaveBeenCalledWith({
       principal: expect.objectContaining({ userId: OWNER }),
       ruleId: RULE.id,
@@ -130,8 +139,9 @@ describe("automation.setRuleSuggestOnRefusal — B4's per-rule F4 opt-out wire-t
   });
 
   test("the flag is REQUIRED on the wire — an omitted one is a BAD_REQUEST, never a silent default", async () => {
+    const db = await freshDb();
     const setRuleSuggestOnRefusal = vi.fn<AutomationService["setRuleSuggestOnRefusal"]>(async () => undefined);
-    const call = caller(ctxWith({ setRuleSuggestOnRefusal })).automation.setRuleSuggestOnRefusal({
+    const call = caller(await ctxWith(db, { setRuleSuggestOnRefusal })).automation.setRuleSuggestOnRefusal({
       ruleId: RULE.id,
     } as unknown as { ruleId: AutomationRuleId; suggestOnRefusal: boolean });
     await expect(call).rejects.toThrow();
@@ -142,16 +152,18 @@ describe("automation.setRuleSuggestOnRefusal — B4's per-rule F4 opt-out wire-t
 
 describe("automation.confirmSuggestion / dismissSuggestion — the S4 pair", () => {
   test("confirm threads the claim handle + the caller as the AUTHORIZER", async () => {
+    const db = await freshDb();
     const suggestionId = mintTypeId(ID_PREFIX.automationSuggestion);
     const confirmSuggestion = vi.fn<AutomationService["confirmSuggestion"]>(async () => ({ ran: "stashed-arm", outcome: "fired" }));
-    await caller(ctxWith({ confirmSuggestion })).automation.confirmSuggestion({ suggestionId });
+    await caller(await ctxWith(db, { confirmSuggestion })).automation.confirmSuggestion({ suggestionId });
     expect(confirmSuggestion).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), suggestionId });
   });
 
   test("dismiss threads the same handle", async () => {
+    const db = await freshDb();
     const suggestionId = mintTypeId(ID_PREFIX.automationSuggestion);
     const dismissSuggestion = vi.fn<AutomationService["dismissSuggestion"]>(async () => undefined);
-    await caller(ctxWith({ dismissSuggestion })).automation.dismissSuggestion({ suggestionId });
+    await caller(await ctxWith(db, { dismissSuggestion })).automation.dismissSuggestion({ suggestionId });
     expect(dismissSuggestion).toHaveBeenCalledWith({ principal: expect.objectContaining({ userId: OWNER }), suggestionId });
   });
 });

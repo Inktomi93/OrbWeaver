@@ -7,6 +7,7 @@
 
 import type { Db } from "@orb/db";
 import { refineryRuns, refinerySessions } from "@orb/db";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -21,15 +22,15 @@ async function seedFirstPass(
   key: string,
 ): ReturnType<typeof h.svc.startSession> {
   const characterId = await seedOwnedCharacter(h, owner, key);
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
+  const session = await h.svc.startSession({ principal: await principal(databaseForOwner(h.ctx.db), owner), characterId });
   h.queueReply(scoreReply());
-  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "score" });
+  await h.svc.runStage({ principal: await principal(databaseForOwner(h.ctx.db), owner), sessionId: session.id, stage: "score" });
   h.advance(10);
   h.queueReply(rewriteReply());
-  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "rewrite" });
+  await h.svc.runStage({ principal: await principal(databaseForOwner(h.ctx.db), owner), sessionId: session.id, stage: "rewrite" });
   h.advance(10);
   h.queueReply(analyzeReply());
-  await h.svc.runStage({ principal: principal(owner), sessionId: session.id, stage: "analyze" });
+  await h.svc.runStage({ principal: await principal(databaseForOwner(h.ctx.db), owner), sessionId: session.id, stage: "analyze" });
   h.advance(10);
   return session;
 }
@@ -45,8 +46,8 @@ test("iterate before any analyze is the typed stage-order refusal", async () => 
   const owner = await seedUser(db, { id: "user_it_a" });
   const h = makeRefineryHarness(db);
   const characterId = await seedOwnedCharacter(h, owner, "it-card-a");
-  const session = await h.svc.startSession({ principal: principal(owner), characterId });
-  await expect(h.svc.iterate({ principal: principal(owner), sessionId: session.id })).rejects.toBeInstanceOf(RefineryStageNotReadyError);
+  const session = await h.svc.startSession({ principal: await principal(db, owner), characterId });
+  await expect(h.svc.iterate({ principal: await principal(db, owner), sessionId: session.id })).rejects.toBeInstanceOf(RefineryStageNotReadyError);
 });
 
 test("one round: refine system + analyze feedback thread the rewrite half; the counter counts the completed round", async () => {
@@ -57,7 +58,7 @@ test("one round: refine system + analyze feedback thread the rewrite half; the c
 
   h.queueReply(rewriteReply());
   h.queueReply(analyzeReply({ verdict: "ACCEPT", issues: [] }));
-  const round = await h.svc.iterate({ principal: principal(owner), sessionId: session.id, guidance: "keep her dry-humoured" });
+  const round = await h.svc.iterate({ principal: await principal(db, owner), sessionId: session.id, guidance: "keep her dry-humoured" });
 
   expect(round.iterationCount).toBe(1);
   expect(round.rewrite.stage).toBe("rewrite");
@@ -70,7 +71,7 @@ test("one round: refine system + analyze feedback thread the rewrite half; the c
   expect(refineCall?.user).toContain("keep her dry-humoured");
   // The refinement-round runs stamp the PRE-increment counter (0-based rounds; the view carries it).
   expect(round.rewrite.iteration).toBe(0);
-  const updated = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
+  const updated = await h.svc.getSession({ principal: await principal(db, owner), sessionId: session.id });
   expect(updated.iterationCount).toBe(1);
   expect(updated.guidance).toBe("keep her dry-humoured");
   // ONE tick for the whole ROUND, not one per stage: the round ran two stages through the shared engine,
@@ -89,12 +90,12 @@ test("a mid-round analyze failure leaves the rewrite run and an UNBUMPED counter
   h.queueReply(rewriteReply());
   h.queueReply("garbage");
   h.queueReply("more garbage");
-  await expect(h.svc.iterate({ principal: principal(owner), sessionId: session.id })).rejects.toBeInstanceOf(RefineryRunFailedError);
+  await expect(h.svc.iterate({ principal: await principal(db, owner), sessionId: session.id })).rejects.toBeInstanceOf(RefineryRunFailedError);
 
   const runs = await db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, session.id));
   // First pass (3) + the round's landed rewrite (1); the failed analyze wrote nothing.
   expect(runs).toHaveLength(4);
-  const updated = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
+  const updated = await h.svc.getSession({ principal: await principal(db, owner), sessionId: session.id });
   expect(updated.iterationCount).toBe(0);
   // …AND IT STILL ANNOUNCED. The emit is TOTAL over the round's outcomes (a `finally` in the verb): the
   // rewrite run LANDED before the analyze half threw, so the ledger moved and every device — including the
@@ -122,8 +123,8 @@ test("two CONCURRENT rounds: one runs, the other is refused BEFORE it spends (#1
   h.queueReply(rewriteReply());
   h.queueReply(analyzeReply());
   const settled = await Promise.allSettled([
-    h.svc.iterate({ principal: principal(owner), sessionId: session.id }),
-    h.svc.iterate({ principal: principal(owner), sessionId: session.id }),
+    h.svc.iterate({ principal: await principal(db, owner), sessionId: session.id }),
+    h.svc.iterate({ principal: await principal(db, owner), sessionId: session.id }),
   ]);
 
   const fulfilled = settled.filter((r) => r.status === "fulfilled");
@@ -133,7 +134,7 @@ test("two CONCURRENT rounds: one runs, the other is refused BEFORE it spends (#1
   expect(rejected[0]?.reason).toBeInstanceOf(RefineryRoundInFlightError);
   // ONE round completed, so the tally is 1 — and the loser's refusal did not consume a round number.
   expect(fulfilled[0]?.value.iterationCount).toBe(1);
-  const updated = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
+  const updated = await h.svc.getSession({ principal: await principal(db, owner), sessionId: session.id });
   expect(updated.iterationCount).toBe(1);
   // The loser spent NOTHING: exactly the winner's two model calls happened.
   expect(h.summarizeCalls.length - spendBefore).toBe(2);
@@ -153,13 +154,13 @@ test("a round REFUSED while claimed leaves the session byte-identical (no guidan
   const runsBefore = await db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, session.id));
   const ticksBefore = h.userEvents.length;
 
-  await expect(h.svc.iterate({ principal: principal(owner), sessionId: session.id, guidance: "this must not persist" })).rejects.toBeInstanceOf(
+  await expect(h.svc.iterate({ principal: await principal(db, owner), sessionId: session.id, guidance: "this must not persist" })).rejects.toBeInstanceOf(
     RefineryRoundInFlightError,
   );
 
   // NOTHING moved: not the guidance (which would mutate the prompt the RUNNING round is about to read), not
   // the run log, not the counter, not the claim, and not the event stream (a refusal is not a change).
-  const after = await h.svc.getSession({ principal: principal(owner), sessionId: session.id });
+  const after = await h.svc.getSession({ principal: await principal(db, owner), sessionId: session.id });
   expect(after.guidance).toBeNull();
   expect(after.iterationCount).toBe(0);
   expect(await db.select().from(refineryRuns).where(eq(refineryRuns.sessionId, session.id))).toHaveLength(runsBefore.length);
@@ -182,7 +183,7 @@ test("an EXPIRED claim does not wedge the session — the next round takes it an
 
   h.queueReply(rewriteReply());
   h.queueReply(analyzeReply());
-  const round = await h.svc.iterate({ principal: principal(owner), sessionId: session.id });
+  const round = await h.svc.iterate({ principal: await principal(db, owner), sessionId: session.id });
   expect(round.iterationCount).toBe(1);
   expect(await inflightUntilOf(db, session.id)).toBeNull();
 });
@@ -196,7 +197,7 @@ test("a mid-round FAILURE releases the claim — the session is iterable again i
   h.queueReply(rewriteReply());
   h.queueReply("garbage");
   h.queueReply("more garbage");
-  await expect(h.svc.iterate({ principal: principal(owner), sessionId: session.id })).rejects.toBeInstanceOf(RefineryRunFailedError);
+  await expect(h.svc.iterate({ principal: await principal(db, owner), sessionId: session.id })).rejects.toBeInstanceOf(RefineryRunFailedError);
   // The `finally` released on the failure arm: waiting out a 15-minute lease after a failed round would be
   // the claim making the product worse than the gap it closed.
   expect(await inflightUntilOf(db, session.id)).toBeNull();
@@ -204,5 +205,5 @@ test("a mid-round FAILURE releases the claim — the session is iterable again i
   // Proven by USE, not just by the column: the very next round runs.
   h.queueReply(rewriteReply());
   h.queueReply(analyzeReply());
-  expect((await h.svc.iterate({ principal: principal(owner), sessionId: session.id })).iterationCount).toBe(1);
+  expect((await h.svc.iterate({ principal: await principal(db, owner), sessionId: session.id })).iterationCount).toBe(1);
 });

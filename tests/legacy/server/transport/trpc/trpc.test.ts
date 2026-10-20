@@ -8,11 +8,12 @@
 // PROD-LEAK belt keeps `stack` off the wire shape in EVERY env; and its UNCLASSIFIED-MESSAGE belt keeps an
 // unmodelled throw's own text off the wire while a classified error keeps both its message and its reason.
 
-// COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
+import { seatRoles } from "../../domain/chat/_support.ts";
 import "@orb/testkit/node/composed-real.ts";
 import type { ParticipantView, StartChatResult } from "@orb/contracts/chat";
 import type { UserSettingsView } from "@orb/contracts/settings";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
+import type { Db } from "@orb/db";
 import { ProviderError, providerErrorFromHttp, resolvedScrubSet } from "@orb/inference";
 import { DomainOperationError, DomainRateLimitError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
@@ -21,13 +22,14 @@ import type { ChatService } from "@orb/server/domain/chat";
 import { logger } from "@orb/server/foundation/observability";
 import type { Context, PresenceRegistry, Services } from "@orb/server/transport/trpc";
 import { appRouter, classifyDomainError } from "@orb/server/transport/trpc";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { Mock } from "vitest";
 import { describe, vi } from "vitest";
 import type { AdminService } from "#server/domain/admin/index.ts";
 import type { PersonaService } from "#server/domain/persona/index.ts";
 import type { SettingsService } from "#server/domain/settings/index.ts";
-import { caller, denyRateLimit, inertPresence, inviteResults, makeContext, principal } from "./_support.ts";
+import { caller, denyRateLimit, inertPresence, inviteResults, makeContext, participantData, principal, redeemedData } from "./_support.ts";
 
 // MINTED, never readable literals: these ids cross `typeIdSchema` tRPC inputs, which validate the TypeID suffix.
 const ID = {
@@ -36,8 +38,12 @@ const ID = {
   chatInvite1: mintTypeId(ID_PREFIX.chatInvite),
 } as const;
 
+// The router reads no user rows; the callers resolve from rows in one in-memory database.
+const callersDb = await freshDb();
+// Seat roles are captured row data: one in-memory room supplies the host and member roles these checks read.
+const ROLES = await seatRoles(await freshDb());
 const UPDATED_SETTINGS = {
-  userId: principal("user").userId,
+  userId: (await principal(callersDb, "user")).userId,
   schemaVersion: DEFAULT_USER_SETTINGS.schemaVersion,
   config: DEFAULT_USER_SETTINGS,
   updatedAt: 1,
@@ -51,8 +57,9 @@ describe("authedProcedure", () => {
   });
 
   test("admits an authenticated caller (the gate passes through to the verb)", async () => {
+    const db = await freshDb();
     const list = vi.fn<PersonaService["list"]>(async () => []);
-    const ctx = makeContext({ auth: principal("user"), services: { persona: { list } } });
+    const ctx = makeContext({ auth: await principal(db, "user"), services: { persona: { list } } });
     await expect(caller(ctx).persona.list()).resolves.toEqual([]);
     expect(list).toHaveBeenCalledWith({ principal: ctx.auth });
   });
@@ -60,7 +67,8 @@ describe("authedProcedure", () => {
 
 describe("adminProcedure (LAYER-1, owner ∪ admin, no db round-trip)", () => {
   test("rejects a plain user with FORBIDDEN", async () => {
-    const ctx = makeContext({ auth: principal("user") });
+    const db = await freshDb();
+    const ctx = makeContext({ auth: await principal(db, "user") });
     await expect(caller(ctx).admin.listUsers()).rejects.toMatchObject({ code: "FORBIDDEN" });
   });
 
@@ -70,15 +78,17 @@ describe("adminProcedure (LAYER-1, owner ∪ admin, no db round-trip)", () => {
   });
 
   test("passes an owner through to the verb", async () => {
+    const db = await freshDb();
     const listUsers = vi.fn<AdminService["listUsers"]>(async () => []);
-    const ctx = makeContext({ auth: principal("owner"), services: { admin: { listUsers } } });
+    const ctx = makeContext({ auth: await principal(db, "owner"), services: { admin: { listUsers } } });
     await caller(ctx).admin.listUsers();
     expect(listUsers).toHaveBeenCalledTimes(1);
   });
 
   test("passes a delegated admin through to the verb", async () => {
+    const db = await freshDb();
     const listUsers = vi.fn<AdminService["listUsers"]>(async () => []);
-    const ctx = makeContext({ auth: principal("admin"), services: { admin: { listUsers } } });
+    const ctx = makeContext({ auth: await principal(db, "admin"), services: { admin: { listUsers } } });
     await caller(ctx).admin.listUsers();
     expect(listUsers).toHaveBeenCalledTimes(1);
   });
@@ -86,8 +96,9 @@ describe("adminProcedure (LAYER-1, owner ∪ admin, no db round-trip)", () => {
 
 describe("a representative router delegates to the injected service verb", () => {
   test("admin.listUsers calls ctx.services.admin.listUsers with the Principal", async () => {
+    const db = await freshDb();
     const listUsers = vi.fn<AdminService["listUsers"]>(async () => []);
-    const ctx = makeContext({ auth: principal("admin"), services: { admin: { listUsers } } });
+    const ctx = makeContext({ auth: await principal(db, "admin"), services: { admin: { listUsers } } });
     await caller(ctx).admin.listUsers();
     expect(listUsers).toHaveBeenCalledWith({ principal: ctx.auth });
   });
@@ -96,9 +107,10 @@ describe("a representative router delegates to the injected service verb", () =>
 describe("CSRF gate (cookie-authed mutations only)", () => {
   const patch = { displayName: "x" };
   test("a cookie mutation WITHOUT the custom header → FORBIDDEN", async () => {
+    const db = await freshDb();
     const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>();
     const ctx = makeContext({
-      auth: principal("user", { via: "cookie" }),
+      auth: await principal(db, "user", { via: "cookie" }),
       csrfHeaderPresent: false,
       services: { settings: { updateUserSettingsSection } },
     });
@@ -109,9 +121,10 @@ describe("CSRF gate (cookie-authed mutations only)", () => {
   });
 
   test("a cookie mutation WITH the custom header passes", async () => {
+    const db = await freshDb();
     const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>(async () => UPDATED_SETTINGS);
     const ctx = makeContext({
-      auth: principal("user", { via: "cookie" }),
+      auth: await principal(db, "user", { via: "cookie" }),
       csrfHeaderPresent: true,
       services: { settings: { updateUserSettingsSection } },
     });
@@ -120,9 +133,10 @@ describe("CSRF gate (cookie-authed mutations only)", () => {
   });
 
   test("a header-authed mutation is exempt (no cross-site surface)", async () => {
+    const db = await freshDb();
     const updateUserSettingsSection = vi.fn<SettingsService["updateUserSettingsSection"]>(async () => UPDATED_SETTINGS);
     const ctx = makeContext({
-      auth: principal("user", { via: "header" }),
+      auth: await principal(db, "user", { via: "header" }),
       csrfHeaderPresent: false,
       services: { settings: { updateUserSettingsSection } },
     });
@@ -131,9 +145,10 @@ describe("CSRF gate (cookie-authed mutations only)", () => {
   });
 
   test("a query is never CSRF-gated (even cookie-authed without the header)", async () => {
+    const db = await freshDb();
     const list = vi.fn<PersonaService["list"]>(async () => []);
     const ctx = makeContext({
-      auth: principal("user", { via: "cookie" }),
+      auth: await principal(db, "user", { via: "cookie" }),
       csrfHeaderPresent: false,
       services: { persona: { list } },
     });
@@ -153,17 +168,18 @@ describe("CSRF gate (cookie-authed mutations only)", () => {
 // sibling — the assertion is on the CALL, not on the ring.
 describe("the unmapped-error 500 log (silent-500 belt)", () => {
   /** A verb that throws something the domain classifier does not model — the genuine-fault shape. */
-  function faultingCaller(err: Error): { ctx: Context; log: ReturnType<typeof vi.spyOn> } {
+  async function faultingCaller(db: Db, err: Error): Promise<{ ctx: Context; log: ReturnType<typeof vi.spyOn> }> {
     const list = vi.fn<PersonaService["list"]>().mockRejectedValue(err);
     return {
-      ctx: makeContext({ auth: principal("user"), services: { persona: { list } } }),
+      ctx: makeContext({ auth: await principal(db, "user"), services: { persona: { list } } }),
       log: vi.spyOn(logger, "error"),
     };
   }
 
   test("an unmapped throw logs ONE error line naming the procedure, and still surfaces as a 500", async () => {
+    const db = await freshDb();
     const boom = new Error("provider exploded");
-    const { ctx, log } = faultingCaller(boom);
+    const { ctx, log } = await faultingCaller(db, boom);
     await expect(caller(ctx).persona.list()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
     expect(log).toHaveBeenCalledOnce();
     const [bindings] = log.mock.calls[0] as [Record<string, unknown>, ...unknown[]];
@@ -174,7 +190,8 @@ describe("the unmapped-error 500 log (silent-500 belt)", () => {
   });
 
   test("a MAPPED domain error is NOT logged as a fault — it is a modelled outcome, not a bug", async () => {
-    const { ctx, log } = faultingCaller(new DomainOperationError("no_continuation", "nothing to continue"));
+    const db = await freshDb();
+    const { ctx, log } = await faultingCaller(db, new DomainOperationError("no_continuation", "nothing to continue"));
     await expect(caller(ctx).persona.list()).rejects.toMatchObject({ code: "BAD_REQUEST" });
     expect(log).not.toHaveBeenCalled();
   });
@@ -189,9 +206,10 @@ describe("the unmapped-error 500 log (silent-500 belt)", () => {
   // the ONLY place its real message exists: the classifier sends host copy for every kind but `invalid`.
   // Without this line a dead key, a rate-limit or an upstream 5xx would leave nothing behind anywhere.
   test("a classified PROVIDER fault logs one WARN carrying toLog(), and is NOT counted as an unmapped fault", async () => {
+    const db = await freshDb();
     const fault = new ProviderError({ kind: "auth_failed", retryable: false, message: "openrouter chat: HTTP 401 — bad key", apiErrorStatus: 401 });
     const list = vi.fn<PersonaService["list"]>().mockRejectedValue(fault);
-    const ctx = makeContext({ auth: principal("user"), services: { persona: { list } } });
+    const ctx = makeContext({ auth: await principal(db, "user"), services: { persona: { list } } });
     const warn = vi.spyOn(logger, "warn");
     const error = vi.spyOn(logger, "error");
 
@@ -208,8 +226,9 @@ describe("the unmapped-error 500 log (silent-500 belt)", () => {
 
 describe("the injected rate-limit gate", () => {
   test("a DomainRateLimitError from the gate maps to TOO_MANY_REQUESTS", async () => {
+    const db = await freshDb();
     const ctx = makeContext({
-      auth: principal("user"),
+      auth: await principal(db, "user"),
       rateLimit: denyRateLimit(new DomainRateLimitError("slow down")),
     });
     await expect(caller(ctx).persona.list()).rejects.toMatchObject({ code: "TOO_MANY_REQUESTS" });
@@ -265,8 +284,8 @@ const INVITE_RESULTS = inviteResults(castId<UserId>("user_user"));
 const beltSurfaces: readonly BeltSurface[] = [
   inviteSurface("createInvite", (ctx) => caller(ctx).invites.createInvite({ chatId, input: {} }), INVITE_RESULTS.created),
   inviteSurface("previewInvite", (ctx) => caller(ctx).invites.previewInvite({ token: "tok" }), INVITE_RESULTS.preview),
-  inviteSurface("redeemInvite", (ctx) => caller(ctx).invites.redeemInvite({ token: "tok" }), INVITE_RESULTS.redeemed),
-  inviteSurface("acceptInvite", (ctx) => caller(ctx).invites.acceptInvite({ inviteId }), INVITE_RESULTS.redeemed),
+  inviteSurface("redeemInvite", (ctx) => caller(ctx).invites.redeemInvite({ token: "tok" }), redeemedData(INVITE_RESULTS.redeemed, ROLES)),
+  inviteSurface("acceptInvite", (ctx) => caller(ctx).invites.acceptInvite({ inviteId }), redeemedData(INVITE_RESULTS.redeemed, ROLES)),
   inviteSurface("revokeInvite", (ctx) => caller(ctx).invites.revokeInvite({ chatId, inviteId })),
   inviteSurface("declineInvite", (ctx) => caller(ctx).invites.declineInvite({ inviteId })),
   inviteSurface("kick", (ctx) => caller(ctx).invites.kick({ chatId, userId: kickTarget })),
@@ -291,9 +310,10 @@ const beltSurfaces: readonly BeltSurface[] = [
 describe("multiHumanProcedure — the multi-human capability 404 belt (B4)", () => {
   for (const surface of beltSurfaces) {
     test(`${surface.path}: not multi-human capable → NOT_FOUND (the surface looks unmounted)`, async () => {
+      const db = await freshDb();
       const { services, presence, probe } = surface.make();
       const ctx = makeContext({
-        auth: principal("user"),
+        auth: await principal(db, "user"),
         multiHumanCapable: false,
         services,
         presence,
@@ -303,9 +323,10 @@ describe("multiHumanProcedure — the multi-human capability 404 belt (B4)", () 
     });
 
     test(`${surface.path}: multi-human capable → reachable`, async () => {
+      const db = await freshDb();
       const { services, presence, probe } = surface.make();
       const ctx = makeContext({
-        auth: principal("user"),
+        auth: await principal(db, "user"),
         multiHumanCapable: true,
         services,
         presence,
@@ -333,7 +354,8 @@ describe("multiHumanProcedure — the multi-human capability 404 belt (B4)", () 
   // founding a room and seating characters — must work while NOT multi-human capable (single-user AND
   // local-single-human). A regression here breaks the product for every local/single-user install.
   test("multi-CHARACTER chat is NOT gated: startChat + addCharacterToChat reachable while not capable", async () => {
-    const viewer = principal("user");
+    const db = await freshDb();
+    const viewer = await principal(db, "user");
     const hostSeat = {
       ...INVITE_RESULTS.joinerRow,
       chatId,
@@ -365,10 +387,12 @@ describe("multiHumanProcedure — the multi-human capability 404 belt (B4)", () 
       displayName: "Aria",
       handle: null,
     } satisfies ParticipantView;
-    const startChat = vi.fn<ChatService["startChat"]>(async () => started);
-    const addCharacterToChat = vi.fn<ChatService["addCharacterToChat"]>(async () => added);
+    // The chat service hands the router domain data; the router answers the wire rows asserted below.
+    const startedData = { ...started, chat: { ...started.chat, participants: started.chat.participants.map((row) => participantData(row, ROLES)) } };
+    const startChat = vi.fn<ChatService["startChat"]>(async () => startedData);
+    const addCharacterToChat = vi.fn<ChatService["addCharacterToChat"]>(async () => participantData(added, ROLES));
     const ctx = makeContext({
-      auth: principal("user"),
+      auth: await principal(db, "user"),
       multiHumanCapable: false,
       services: { chat: { startChat, addCharacterToChat } },
     });

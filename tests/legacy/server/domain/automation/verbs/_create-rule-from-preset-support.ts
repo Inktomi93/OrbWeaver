@@ -6,6 +6,7 @@ import { themeBackgroundSchema } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { createSerialLanes } from "@orb/kit/serial-lanes";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import type {
@@ -23,6 +24,9 @@ import { createAutomationService } from "#server/domain/automation/index.ts";
 import { createSuggestionStore } from "#server/domain/automation/substrate/suggestions.ts";
 import { seedMessage } from "../../chat/_support.ts";
 import { makeAutomationHarness, NO_TOOLS, principal, seedHostChat, seedUser } from "../_support.ts";
+
+// One lane set per suite, the way the automation service owns one for its dispatcher and arms.
+const SERIAL_LANES = createSerialLanes();
 
 export type { ApplyProseRewrite } from "#server/domain/automation/contract/ops.ts";
 export { selectRuleState } from "#server/domain/automation/persistence/rule-state.ts";
@@ -152,6 +156,7 @@ export async function setup(setupOverrides: SetupOverrides = {}): Promise<Fixtur
   // A4 row in this suite assert against an empty map.
   const suggestions = createSuggestionStore();
   const runArm: ArmDispatch = createArmExecutors({
+    serialLanes: SERIAL_LANES,
     db,
     ops,
     prng: () => 0.42,
@@ -224,7 +229,7 @@ export async function mintAndEnable(
   presetId: Parameters<AutomationService["createRuleFromPreset"]>[0]["presetId"],
   knobs = {},
 ): Promise<RuleView[]> {
-  const p = principal(f.host);
+  const p = await principal(f.db, f.host);
   const views = await f.svc.createRuleFromPreset({ timeZone: UTC_TIME_ZONE, principal: p, chatId: f.chatId, presetId, knobs });
   const enable = async (index: number): Promise<void> => {
     const view = views[index];
@@ -255,7 +260,7 @@ export function worldInfoActivated(chatId: ChatId, entryCount: number, automatio
 
 /** Every outcome the rule logged, oldest first. */
 export async function outcomes(f: Fixture, view: RuleView): Promise<string[]> {
-  const fires = await f.svc.listFires({ principal: principal(f.host), ruleId: view.id });
+  const fires = await f.svc.listFires({ principal: await principal(f.db, f.host), ruleId: view.id });
   return fires.map((fire) => fire.outcome).reverse();
 }
 

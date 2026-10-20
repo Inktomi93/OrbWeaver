@@ -22,18 +22,18 @@ test("lists only the caller's documents, newest-activity first, and filters by o
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
   const other = await seedUser(db, { handle: castId<Handle>("other") });
 
-  const first = await h.service.createFromText({ principal: principalFor(owner), name: "one.md", text: "first note" });
+  const first = await h.service.createFromText({ principal: await principalFor(db, owner), name: "one.md", text: "first note" });
   h.advance(1000);
-  const second = await h.service.createFromText({ principal: principalFor(owner), name: "two.md", text: "second note" });
-  await h.service.createFromText({ principal: principalFor(other), name: "foreign.md", text: "not yours" });
+  const second = await h.service.createFromText({ principal: await principalFor(db, owner), name: "two.md", text: "second note" });
+  await h.service.createFromText({ principal: await principalFor(db, other), name: "foreign.md", text: "not yours" });
 
-  const list = await h.service.list({ principal: principalFor(owner) });
+  const list = await h.service.list({ principal: await principalFor(db, owner) });
   expect(list.items.map((d) => d.id)).toEqual([second.document.id, first.document.id]); // newest updatedAt first
   expect(list.nextCursor).toBeNull(); // a short page is the end of the bank
 
-  const text = await h.service.list({ principal: principalFor(owner), origin: "text" });
+  const text = await h.service.list({ principal: await principalFor(db, owner), origin: "text" });
   expect(text.items).toHaveLength(2);
-  const uploads = await h.service.list({ principal: principalFor(owner), origin: "upload" });
+  const uploads = await h.service.list({ principal: await principalFor(db, owner), origin: "upload" });
   expect(uploads.items).toHaveLength(0);
 
   // The census counts the caller's OWN bank over the request's scope — never the other owner's row, and
@@ -47,7 +47,7 @@ test("SEARCH is the server's: a document only reachable on a later page comes ba
   const db = await freshDb();
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const principal = principalFor(owner);
+  const principal = await principalFor(db, owner);
 
   // The needle is written FIRST, so every later document sorts above it (`updatedAt DESC`) and it lands
   // deep in the bank — the exact row a client-side filter over the loaded window could never find.
@@ -77,7 +77,7 @@ test("the PHASE lens narrows the whole bank — a wedged document deep in it is 
   const db = await freshDb();
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const principal = principalFor(owner);
+  const principal = await principalFor(db, owner);
 
   // FOUR phases, seeded by their DATA (there is no status column — the counts and the clock are the truth):
   //   wedged  — canon, never ingested, `updatedAt` frozen past the stall threshold
@@ -125,7 +125,7 @@ test("walks the WHOLE bank by cursor — every document past the first page is r
   const db = await freshDb();
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const principal = principalFor(owner);
+  const principal = await principalFor(db, owner);
 
   // A bank one document PAST the old ceiling, and the tail written in the SAME millisecond as its
   // neighbours (`advance` is not called) — the tie the `(updatedAt, id)` keyset exists for. A cursor on
@@ -156,7 +156,7 @@ test("pages at the caller's own size and clamps a request above the ceiling", as
   const db = await freshDb();
   const h = makeDatabankHarness(db);
   const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-  const principal = principalFor(owner);
+  const principal = await principalFor(db, owner);
   const seeded = 7;
   for (let i = 0; i < seeded; i += 1) {
     await h.service.createFromText({ principal, name: `doc-${String(i)}.md`, text: `note ${String(i)}` });

@@ -36,12 +36,12 @@ describe("duplicate", () => {
     const svc = createCharacterService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "the original" },
     });
     h.events.length = 0;
 
-    const copy = await svc.duplicate({ principal: principal(owner), characterId: source.id });
+    const copy = await svc.duplicate({ principal: await principal(db, owner), characterId: source.id });
     expect(copy.id).not.toBe(source.id);
     expect(copy.handle).toBe("nyx-copy");
     expect(copy.name).toBe("Nyx");
@@ -54,11 +54,11 @@ describe("duplicate", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
-    const first = await svc.duplicate({ principal: principal(owner), characterId: source.id });
-    const second = await svc.duplicate({ principal: principal(owner), characterId: source.id });
+    const first = await svc.duplicate({ principal: await principal(db, owner), characterId: source.id });
+    const second = await svc.duplicate({ principal: await principal(db, owner), characterId: source.id });
     expect(first.handle).toBe("nyx-copy");
     expect(second.handle).toBe("nyx-copy-2");
   });
@@ -69,12 +69,12 @@ describe("duplicate", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const sourceHandle = "a".repeat(200);
     const source = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: createCharacterSchema.shape.handle.parse(sourceHandle), name: "Long", description: "d" },
     });
 
-    const first = await svc.duplicate({ principal: principal(owner), characterId: source.id });
-    const second = await svc.duplicate({ principal: principal(owner), characterId: source.id });
+    const first = await svc.duplicate({ principal: await principal(db, owner), characterId: source.id });
+    const second = await svc.duplicate({ principal: await principal(db, owner), characterId: source.id });
 
     expect(first.handle).toBe(`${"a".repeat(195)}-copy`);
     expect(second.handle).toBe(`${"a".repeat(193)}-copy-2`);
@@ -94,7 +94,7 @@ describe("duplicate", () => {
       importedFrom: "card.png",
       importHash: "rawfilehash",
     });
-    const copy = await svc.duplicate({ principal: principal(owner), characterId: imported });
+    const copy = await svc.duplicate({ principal: await principal(db, owner), characterId: imported });
     expect(copy.handle).toBe("imported-copy");
     expect(copy.importedFrom).toBeNull();
     expect(copy.importHash).toBeNull();
@@ -105,15 +105,15 @@ describe("duplicate", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     await svc.update({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       characterId: source.id,
       input: { trustHtml: true, interactiveHtml: true, themeOverride: { accent: "oklch(0.7 0.14 250)" } },
     });
-    const copy = await svc.duplicate({ principal: principal(owner), characterId: source.id });
+    const copy = await svc.duplicate({ principal: await principal(db, owner), characterId: source.id });
     expect(copy.trustHtml).toBe(true);
     // #111 — the interactive-card opt-in is a card property too, so a clone of an opted-in card is opted in.
     expect(copy.interactiveHtml).toBe(true);
@@ -125,13 +125,13 @@ describe("duplicate", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
     const primary = await seedAttachedBook(db, { bookId: "world_book_primary", ownerId: owner, characterId: source.id, role: "primary" });
     const aux = await seedAttachedBook(db, { bookId: "world_book_aux", ownerId: owner, characterId: source.id, role: "auxiliary" });
 
-    const copy = await svc.duplicate({ principal: principal(owner), characterId: source.id });
+    const copy = await svc.duplicate({ principal: await principal(db, owner), characterId: source.id });
 
     // The clone's junctions point at the SAME books, roles preserved.
     const cloneJunctions = await db
@@ -167,11 +167,11 @@ describe("duplicate", () => {
     const svc = createCharacterService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await svc.create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "d" },
     });
 
-    const copy = await svc.duplicate({ principal: principal(owner), characterId: source.id });
+    const copy = await svc.duplicate({ principal: await principal(db, owner), characterId: source.id });
 
     const cloneJunctions = await db.select().from(characterBooks).where(eq(characterBooks.characterId, copy.id));
     expect(cloneJunctions).toEqual([]);
@@ -184,7 +184,7 @@ describe("duplicate", () => {
     const h = makeHarness(db);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const source = await createCharacterService(h.ctx).create({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       input: { handle: castId<CharacterHandle>("nyx"), name: "Nyx", description: "the original" },
     });
     h.events.length = 0;
@@ -207,7 +207,7 @@ describe("duplicate", () => {
       },
     });
 
-    await expect(svc.duplicate({ principal: principal(owner), characterId: source.id })).rejects.toThrow("world-info is unavailable");
+    await expect(svc.duplicate({ principal: await principal(db, owner), characterId: source.id })).rejects.toThrow("world-info is unavailable");
 
     // Nothing partial survives, and nothing was announced.
     expect(await db.select().from(characters).where(eq(characters.ownerId, owner))).toHaveLength(1);
@@ -216,7 +216,7 @@ describe("duplicate", () => {
     expect(h.userEvents).toEqual([]);
 
     // The retry is a RETRY, not a second clone: the freed handle is available again.
-    const retried = await svc.duplicate({ principal: principal(owner), characterId: source.id });
+    const retried = await svc.duplicate({ principal: await principal(db, owner), characterId: source.id });
     expect(retried.handle).toBe("nyx-copy");
     expect(await db.select().from(characters).where(eq(characters.ownerId, owner))).toHaveLength(2);
   });

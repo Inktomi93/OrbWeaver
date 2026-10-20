@@ -37,13 +37,13 @@ describe("tag-library import", () => {
     const first = await importTags(owner, bytes);
     expect(first).toEqual({ total: 3, created: 3 });
 
-    const names = (await svc.listTags({ principal: principal(owner) })).map((t) => t.name).sort();
+    const names = (await svc.listTags({ principal: await principal(db, owner) })).map((t) => t.name).sort();
     expect(names).toEqual(["fantasy", "noir", "sci-fi"]);
 
     // Re-import the same file: dedup by (ownerId, name) → zero new rows.
     const second = await importTags(owner, bytes);
     expect(second).toEqual({ total: 3, created: 0 });
-    expect(await svc.listTags({ principal: principal(owner) })).toHaveLength(3);
+    expect(await svc.listTags({ principal: await principal(db, owner) })).toHaveLength(3);
   });
 
   test("merges into an existing namespace (dedup, case-insensitive) — only new names land", async () => {
@@ -51,12 +51,12 @@ describe("tag-library import", () => {
     const owner = await seedUser(db);
     const harness = makeTagHarness(db);
     const svc = createTagService(harness.ctx);
-    await svc.createTag({ principal: principal(owner), input: { name: "Fantasy" } });
+    await svc.createTag({ principal: await principal(db, owner), input: { name: "Fantasy" } });
 
     // "fantasy" folds onto the existing "Fantasy"; only "western" is new.
     const result = await createTagLibraryImport(harness.ctx)(owner, libBytes(["fantasy", "western"]));
     expect(result).toEqual({ total: 2, created: 1 });
-    expect((await svc.listTags({ principal: principal(owner) })).map((t) => t.name).sort()).toEqual(["Fantasy", "western"]);
+    expect((await svc.listTags({ principal: await principal(db, owner) })).map((t) => t.name).sort()).toEqual(["Fantasy", "western"]);
   });
 
   test("round-trips export -> import across owners", async () => {
@@ -66,12 +66,12 @@ describe("tag-library import", () => {
     const harness = makeTagHarness(db);
     const svc = createTagService(harness.ctx);
     await svc.createTag({
-      principal: principal(source),
+      principal: await principal(db, source),
       input: { name: "aria", color: "#ff0000" },
     });
 
     const bytes = buildTagLibrary({
-      tags: (await svc.listTags({ principal: principal(source) })).map((t) => ({
+      tags: (await svc.listTags({ principal: await principal(db, source) })).map((t) => ({
         name: t.name,
         color: t.color,
         color2: t.color2,
@@ -83,7 +83,7 @@ describe("tag-library import", () => {
     });
 
     await createTagLibraryImport(harness.ctx)(dest, bytes);
-    const destTags = await svc.listTags({ principal: principal(dest) });
+    const destTags = await svc.listTags({ principal: await principal(db, dest) });
     expect(destTags).toHaveLength(1);
     expect(destTags[0]).toMatchObject({ name: "aria", color: "#ff0000" });
   });

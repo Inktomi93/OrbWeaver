@@ -8,6 +8,7 @@ import { projectViewForMember } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { ChatId, ChatStreamGenerationId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ChatBusReplayEvent, ChatStreamReplayEvent } from "#server/domain/chat/contract/views.ts";
 import {
@@ -19,6 +20,10 @@ import {
   stripChatEventForMember,
   stripMessagesForViewer,
 } from "#server/domain/chat/substrate/member-visibility.ts";
+import { seatRoles } from "../_support.ts";
+
+// Seat roles are captured row data: one in-memory room supplies the host and member roles these pure checks read.
+const ROLES = await seatRoles(await freshDb());
 
 const LIE = '<lie character="Zandik" type="location" truth="He is in the crypt" reason="the heist"/>';
 const chatId = castId<ChatId>("chat_1");
@@ -41,7 +46,7 @@ test("member list/return/event body projection rebases both tool boundaries, inc
   const member = projectViewForMember(view, false);
   expect(member.content).toBe("Before.After.Done.");
   expect(member.toolCalls).toEqual(expected);
-  expect((await projectViewReturnForViewer(view, { role: "member" }, () => Promise.resolve(false))).toolCalls).toEqual(expected);
+  expect((await projectViewReturnForViewer(view, { role: ROLES.member }, () => Promise.resolve(false))).toolCalls).toEqual(expected);
   for (const type of ["messageCommitted", "messageEdited", "messageHidden", "variantSelected", "reasoningEdited", "reasoningCleared"] as const) {
     const event = { type, chatId, messageId, view };
     const projected = stripChatEventForMember(event);
@@ -215,7 +220,7 @@ test("scrubStreamReplayForMember: the DURABLE token-log replay drops hidden byte
     { seq: 4, messageId: msgA, generationId: null, kind: "text", delta: " nothing." },
     { seq: 5, messageId: msgA, generationId: null, kind: "reasoning", delta: "raw <lie thought" },
   ];
-  const memberRows = scrubStreamReplayForMember(rows, { role: "member" });
+  const memberRows = scrubStreamReplayForMember(rows, { role: ROLES.member });
   const memberText = memberRows
     .filter((r) => r.messageId === msgA && r.kind === "text")
     .map((r) => r.delta)
@@ -224,7 +229,7 @@ test("scrubStreamReplayForMember: the DURABLE token-log replay drops hidden byte
   expect(JSON.stringify(memberRows.filter((r) => r.kind === "text"))).not.toContain("crypt");
   // The reasoning row passes through (out of scope), and the host reads every row verbatim.
   expect(memberRows.some((r) => r.kind === "reasoning")).toBe(true);
-  expect(scrubStreamReplayForMember(rows, { role: "host" })).toEqual(rows);
+  expect(scrubStreamReplayForMember(rows, { role: ROLES.host })).toEqual(rows);
 });
 
 test("scrubStreamReplayForMember resets hidden-span state between generations on one slot", () => {
@@ -243,21 +248,21 @@ test("scrubStreamReplayForMember resets hidden-span state between generations on
     },
   ];
 
-  expect(scrubStreamReplayForMember(rows, { role: "member" }).map(({ delta }) => delta)).toEqual(["teral public"]);
+  expect(scrubStreamReplayForMember(rows, { role: ROLES.member }).map(({ delta }) => delta)).toEqual(["teral public"]);
 });
 
 // ── §3.6 the MUTATION-RETURN channel — a member who ran the turn must not get the reply's truth in the return ──
 
 test("stripMessagesForViewer: a non-host caller's TurnOutcome messages are hidden-stripped; the host reads them verbatim", () => {
   const outcome = { messages: [viewOf(`He nods. ${LIE}`)], aborted: false } as const;
-  const member = stripMessagesForViewer(outcome, { role: "member" });
+  const member = stripMessagesForViewer(outcome, { role: ROLES.member });
   expect(JSON.stringify(member)).not.toContain("crypt");
   expect(member.messages[0].content).toBe("He nods. ");
   // Host: identity (same object — the reveal-eye plane reads the full body).
-  expect(stripMessagesForViewer(outcome, { role: "host" })).toBe(outcome);
+  expect(stripMessagesForViewer(outcome, { role: ROLES.host })).toBe(outcome);
   // An empty outcome is the identity fast-path.
   const empty = { messages: [], aborted: true } as const;
-  expect(stripMessagesForViewer(empty, { role: "member" })).toBe(empty);
+  expect(stripMessagesForViewer(empty, { role: ROLES.member })).toBe(empty);
 });
 
 // ── P3 §3.6: the REASONING channel goes host-only on a DECEPTION-ACTIVE game (whole-channel, not per-tag) ──
@@ -266,11 +271,11 @@ const REASONING_SPILL = "I'll tell them nothing, but the truth is he's in the cr
 
 test("stripMessagesForViewer: reasoningHostOnly withholds the reasoning channel from a member's TurnOutcome; the host reads verbatim", () => {
   const outcome = { messages: [viewOf(`He nods. ${LIE}`, REASONING_SPILL)], aborted: false } as const;
-  const member = stripMessagesForViewer(outcome, { role: "member" }, true);
+  const member = stripMessagesForViewer(outcome, { role: ROLES.member }, true);
   expect(member.messages[0].reasoning).toBeNull();
   expect(JSON.stringify(member)).not.toContain("crypt");
   // Host reads verbatim regardless of the flag.
-  expect(stripMessagesForViewer(outcome, { role: "host" }, true)).toBe(outcome);
+  expect(stripMessagesForViewer(outcome, { role: ROLES.host }, true)).toBe(outcome);
 });
 
 test("stripChatEventForMember: on a deception game a view-carrying event withholds reasoning; reasoningStreamDone is DROPPED (null)", () => {
@@ -310,12 +315,12 @@ test("scrubStreamReplayForMember: reasoning replay rows are DROPPED on a decepti
     { seq: 1, messageId: msgA, generationId: null, kind: "text", delta: "He said nothing." },
     { seq: 2, messageId: msgA, generationId: null, kind: "reasoning", delta: REASONING_SPILL },
   ];
-  const deception = scrubStreamReplayForMember(rows, { role: "member" }, true);
+  const deception = scrubStreamReplayForMember(rows, { role: ROLES.member }, true);
   expect(deception.some((r) => r.kind === "reasoning")).toBe(false);
   expect(JSON.stringify(deception)).not.toContain("crypt");
   // Non-deception member keeps the reasoning row; the host reads verbatim either way.
-  expect(scrubStreamReplayForMember(rows, { role: "member" }, false).some((r) => r.kind === "reasoning")).toBe(true);
-  expect(scrubStreamReplayForMember(rows, { role: "host" }, true)).toEqual(rows);
+  expect(scrubStreamReplayForMember(rows, { role: ROLES.member }, false).some((r) => r.kind === "reasoning")).toBe(true);
+  expect(scrubStreamReplayForMember(rows, { role: ROLES.host }, true)).toEqual(rows);
 });
 
 // ── §3.6 the DURABLE CHAT-BUS replay (`replayChatEvents`) — the leak the delta-blind `stripChatEventForMember`
@@ -362,7 +367,7 @@ function deceptionTurnRows(): ChatBusReplayEvent[] {
 }
 
 test("scrubChatEventReplayForMember: a deception game's DURABLE replay withholds the reasoning channel AND scrubs hidden TEXT deltas for a member", () => {
-  const memberRows = scrubChatEventReplayForMember(deceptionTurnRows(), { role: "member" }, true);
+  const memberRows = scrubChatEventReplayForMember(deceptionTurnRows(), { role: ROLES.member }, true);
   const bytes = JSON.stringify(memberRows);
   // The truth leaks NOWHERE — not in a reasoning delta, not in a raw text delta, not in the committed view.
   expect(bytes).not.toContain("crypt");
@@ -389,7 +394,7 @@ test("scrubChatEventReplayForMember: a NON-deception member keeps reasoning but 
   // the same place), but the BODY strip is UNCONDITIONAL — the raw `<lie>` text delta is STILL scrubbed and the
   // committed view's body stripped. So the `<lie>` tag + the lie's `truth=` bytes are gone from every BODY
   // surface, while the reasoning channel survives.
-  const member = scrubChatEventReplayForMember(rows, { role: "member" }, false);
+  const member = scrubChatEventReplayForMember(rows, { role: ROLES.member }, false);
   expect(member.some((r) => deltaOf(r)?.kind === "reasoning")).toBe(true);
   expect(JSON.stringify(member)).not.toContain("<lie");
   // The body-carrying surfaces (text deltas + the committed view content) carry no lie truth.
@@ -398,5 +403,5 @@ test("scrubChatEventReplayForMember: a NON-deception member keeps reasoning but 
   );
   expect(bodyBytes).not.toContain("He is in the crypt");
   // The host reads every row verbatim (identity — no per-row churn).
-  expect(scrubChatEventReplayForMember(rows, { role: "host" }, true)).toEqual(rows);
+  expect(scrubChatEventReplayForMember(rows, { role: ROLES.host }, true)).toEqual(rows);
 });

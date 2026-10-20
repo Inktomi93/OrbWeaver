@@ -29,18 +29,18 @@ import { characters, chatParticipants, connectionBindings, userConnections } fro
 import type { ChatId, ConnectionBindingId, Handle, PersonaId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Services } from "@orb/server/transport/trpc";
-import { principal as makePrincipal } from "@orb/testkit/node/factories/principal.ts";
 import { TEST_CONNECTION_ID, TEST_PROVIDER_ID } from "@orb/testkit/node/factories/resolved-connection.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { and, eq } from "drizzle-orm";
 import { describe } from "vitest";
+import { principal as makePrincipal } from "../../../db/schema/_support.ts";
 import { seedCharacter, seedChat, seedParticipant, seedPersona, seedUser } from "../../domain/chat/_support.ts";
 
 /** The card whose own description carries the CARD-context probe (§A.2's "`{{user}}` is my brother" shape). */
 const CARD_DESCRIPTION = "{{user}} is my brother";
 
-function principal(userId: UserId): Principal {
-  return makePrincipal(userId);
+async function principal(db: Db, userId: UserId): Promise<Principal> {
+  return await makePrincipal({ db }, userId);
 }
 
 interface Room {
@@ -105,8 +105,8 @@ async function departMember(db: Db, room: Room): Promise<void> {
 }
 
 /** The bytes the next real turn would ship, flattened (the host's `peekPrompt` instrument). */
-async function promptText(services: Services, host: UserId, chatId: ChatId): Promise<string> {
-  const prompt = await services.chat.peekPrompt({ principal: principal(host), chatId });
+async function promptText(db: Db, services: Services, host: UserId, chatId: ChatId): Promise<string> {
+  const prompt = await services.chat.peekPrompt({ principal: await principal(db, host), chatId });
   return `${prompt.static}\n${prompt.dynamic}`;
 }
 
@@ -114,7 +114,7 @@ describe("multi-human persona resolution — the composed resolver (F1/F2)", () 
   test("a member-owned ANCHOR actually pins card {{user}} (the host's sanctioned re-pin is not a dead pin)", async ({ db, services }) => {
     const room = await seedRoom(db, { hostActive: true, anchor: "member" });
 
-    const text = await promptText(services, room.host, room.chatId);
+    const text = await promptText(db, services, room.host, room.chatId);
 
     // CARD context resolves against the ANCHOR (§A.1) — the member's persona the host pinned.
     expect(text).toContain("Zara is my brother");
@@ -135,7 +135,7 @@ describe("multi-human persona resolution — the composed resolver (F1/F2)", () 
     // turn binding their OWN seat persona — is the `human` arm, pinned in prompt-config-triggerer.suite.)
     const room = await seedRoom(db, { hostActive: false, anchor: "member" });
 
-    const text = await promptText(services, room.host, room.chatId);
+    const text = await promptText(db, services, room.host, room.chatId);
 
     // The default `main_prompt` marker frames the roleplay "with {{user}}" — the PROMPT context.
     expect(text).toContain("roleplay with Zara");
@@ -155,7 +155,7 @@ describe("multi-human persona resolution — the composed resolver (F1/F2)", () 
     // member's description still enters (D122), but only headed in the people block, never as the voice part.
     const room = await seedRoom(db, { hostActive: false, anchor: null });
 
-    const text = await promptText(services, room.host, room.chatId);
+    const text = await promptText(db, services, room.host, room.chatId);
 
     expect(text).toContain("roleplay with Traveler");
     expect(text).not.toContain("roleplay with Zara");
@@ -169,7 +169,7 @@ describe("multi-human persona resolution — the composed resolver (F1/F2)", () 
     const room = await seedRoom(db, { hostActive: true, anchor: "member" });
     await departMember(db, room);
 
-    const text = await promptText(services, room.host, room.chatId);
+    const text = await promptText(db, services, room.host, room.chatId);
 
     expect(text).toContain("Zara is my brother");
     expect(text).not.toContain("Hostina is my brother");
@@ -186,7 +186,7 @@ describe("multi-human persona resolution — the composed resolver (F1/F2)", () 
     const room = await seedRoom(db, { hostActive: true, anchor: "host" });
     await departMember(db, room);
 
-    const text = await promptText(services, room.host, room.chatId);
+    const text = await promptText(db, services, room.host, room.chatId);
 
     expect(text).toContain("Hostina is my brother");
     expect(text).not.toContain("Zara");
@@ -201,7 +201,7 @@ describe("multi-human persona resolution — the composed resolver (F1/F2)", () 
     }
 
     const card = await services.chat.getMemberCard({
-      principal: principal(room.member),
+      principal: await principal(db, room.member),
       chatId: room.chatId,
       characterId,
     });

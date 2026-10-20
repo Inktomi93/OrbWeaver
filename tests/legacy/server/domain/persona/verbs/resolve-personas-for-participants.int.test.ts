@@ -29,8 +29,8 @@ async function seedTwoOwners(): Promise<{
   const svc = createPersonaService(harness.ctx);
   const alice = await seedUser(db, { handle: castId<Handle>("alice") });
   const bob = await seedUser(db, { handle: castId<Handle>("bob") });
-  const alicePersona = (await svc.create({ principal: principal(alice), input: { name: "Zara", description: "a cartographer" } })).id;
-  const bobPersona = (await svc.create({ principal: principal(bob), input: { name: "Mira", description: "a smith" } })).id;
+  const alicePersona = (await svc.create({ principal: await principal(db, alice), input: { name: "Zara", description: "a cartographer" } })).id;
+  const bobPersona = (await svc.create({ principal: await principal(db, bob), input: { name: "Mira", description: "a smith" } })).id;
   const room = (await seedChat(db)).id;
   return { db, room, resolve: createResolvePersonasForParticipants(harness.ctx), alice, bob, alicePersona, bobPersona };
 }

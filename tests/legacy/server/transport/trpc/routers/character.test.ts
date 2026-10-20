@@ -6,6 +6,7 @@
 import type { CharacterId, TagId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { CharacterService, ListCharactersResult } from "@orb/server/domain/character";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, vi } from "vitest";
 import { caller, makeContext, principal } from "../_support.ts";
@@ -18,9 +19,10 @@ function emptyPage(): ListCharactersResult {
 
 describe("character.list — wire-through", () => {
   test("no input: delegates with only the resolved principal", async () => {
+    const db = await freshDb();
     const list = vi.fn<CharacterService["list"]>(async () => emptyPage());
     const ctx = makeContext({
-      auth: principal("user", { userId: ACTOR }),
+      auth: await principal(db, "user", { userId: ACTOR }),
       services: { character: { list } },
     });
 
@@ -31,9 +33,10 @@ describe("character.list — wire-through", () => {
   });
 
   test("passes cursor + limit through verbatim when given", async () => {
+    const db = await freshDb();
     const list = vi.fn<CharacterService["list"]>(async () => emptyPage());
     const ctx = makeContext({
-      auth: principal("user", { userId: ACTOR }),
+      auth: await principal(db, "user", { userId: ACTOR }),
       services: { character: { list } },
     });
     const cursor = {
@@ -53,9 +56,10 @@ describe("character.list — wire-through", () => {
   });
 
   test("omits cursor/limit from the domain call when the wire input omits them", async () => {
+    const db = await freshDb();
     const list = vi.fn<CharacterService["list"]>(async () => emptyPage());
     const ctx = makeContext({
-      auth: principal("user", { userId: ACTOR }),
+      auth: await principal(db, "user", { userId: ACTOR }),
       services: { character: { list } },
     });
 
@@ -71,9 +75,10 @@ describe("character.list — wire-through", () => {
   // not arrive at the verb as `false` (that would silently hide every archived row from the four
   // lookup-map callers that ask for the plain library).
   test("passes the lens params through verbatim, and omits the ones the wire input omits", async () => {
+    const db = await freshDb();
     const list = vi.fn<CharacterService["list"]>(async () => emptyPage());
     const ctx = makeContext({
-      auth: principal("user", { userId: ACTOR }),
+      auth: await principal(db, "user", { userId: ACTOR }),
       services: { character: { list } },
     });
     const tagId = castId<TagId>("tag_00000000000000000000000000");
@@ -92,6 +97,7 @@ describe("character.list — wire-through", () => {
   });
 
   test("returns the domain page verbatim ({items, nextCursor, totalCount})", async () => {
+    const db = await freshDb();
     const cursor = {
       sort: "recent" as const,
       lastChattedAt: 500,
@@ -101,7 +107,7 @@ describe("character.list — wire-through", () => {
     const page: ListCharactersResult = { items: [], nextCursor: cursor, totalCount: 7 };
     const list = vi.fn<CharacterService["list"]>(async () => page);
     const ctx = makeContext({
-      auth: principal("user", { userId: ACTOR }),
+      auth: await principal(db, "user", { userId: ACTOR }),
       services: { character: { list } },
     });
 
@@ -112,9 +118,10 @@ describe("character.list — wire-through", () => {
 
 describe("character.bulkRemoveCardTag — wire-through", () => {
   test("delegates {tagName, characterIds} with the resolved principal", async () => {
+    const db = await freshDb();
     const bulkRemoveCardTag = vi.fn<CharacterService["bulkRemoveCardTag"]>(async () => ({ applied: [], failed: [] }));
     const ctx = makeContext({
-      auth: principal("user", { userId: ACTOR }),
+      auth: await principal(db, "user", { userId: ACTOR }),
       services: { character: { bulkRemoveCardTag } },
     });
     const characterIds = [castId<CharacterId>("character_00000000000000000000000000")];
@@ -129,9 +136,10 @@ describe("character.bulkRemoveCardTag — wire-through", () => {
   });
 
   test("rejects a blank tag name at the wire boundary (min(1))", async () => {
+    const db = await freshDb();
     const bulkRemoveCardTag = vi.fn<CharacterService["bulkRemoveCardTag"]>(async () => ({ applied: [], failed: [] }));
     const ctx = makeContext({
-      auth: principal("user", { userId: ACTOR }),
+      auth: await principal(db, "user", { userId: ACTOR }),
       services: { character: { bulkRemoveCardTag } },
     });
 
@@ -145,11 +153,12 @@ describe("character.bulkRemoveCardTag — wire-through", () => {
   });
 
   test("returns a valid bulk-tag result through the output boundary", async () => {
+    const db = await freshDb();
     const characterId = mintTypeId(ID_PREFIX.character);
     const result = { applied: [characterId], failed: [] };
     const bulkRemoveCardTag = vi.fn<CharacterService["bulkRemoveCardTag"]>(async () => result);
     const ctx = makeContext({
-      auth: principal("user", { userId: ACTOR }),
+      auth: await principal(db, "user", { userId: ACTOR }),
       services: { character: { bulkRemoveCardTag } },
     });
 
@@ -157,10 +166,11 @@ describe("character.bulkRemoveCardTag — wire-through", () => {
   });
 
   test("rejects a malformed bulk-tag result at the output boundary", async () => {
+    const db = await freshDb();
     const characterId = mintTypeId(ID_PREFIX.character);
     const bulkRemoveCardTag = vi.fn<CharacterService["bulkRemoveCardTag"]>(async () => ({ applied: [], failed: [] }));
     const ctx = makeContext({
-      auth: principal("user", { userId: ACTOR }),
+      auth: await principal(db, "user", { userId: ACTOR }),
       services: { character: { bulkRemoveCardTag } },
     });
     Object.defineProperty(ctx.services.character, "bulkRemoveCardTag", {
@@ -173,11 +183,12 @@ describe("character.bulkRemoveCardTag — wire-through", () => {
 
 describe("character.bulkAddCardTag — output boundary", () => {
   test("returns a valid bulk-tag result", async () => {
+    const db = await freshDb();
     const characterId = mintTypeId(ID_PREFIX.character);
     const result = { applied: [characterId], failed: [] };
     const bulkAddCardTag = vi.fn<CharacterService["bulkAddCardTag"]>(async () => result);
     const ctx = makeContext({
-      auth: principal("user", { userId: ACTOR }),
+      auth: await principal(db, "user", { userId: ACTOR }),
       services: { character: { bulkAddCardTag } },
     });
 
@@ -185,10 +196,11 @@ describe("character.bulkAddCardTag — output boundary", () => {
   });
 
   test("rejects a malformed bulk-tag result", async () => {
+    const db = await freshDb();
     const characterId = mintTypeId(ID_PREFIX.character);
     const bulkAddCardTag = vi.fn<CharacterService["bulkAddCardTag"]>(async () => ({ applied: [], failed: [] }));
     const ctx = makeContext({
-      auth: principal("user", { userId: ACTOR }),
+      auth: await principal(db, "user", { userId: ACTOR }),
       services: { character: { bulkAddCardTag } },
     });
     Object.defineProperty(ctx.services.character, "bulkAddCardTag", {
@@ -200,12 +212,13 @@ describe("character.bulkAddCardTag — output boundary", () => {
 });
 
 test("bulk card-tag outputs preserve partial failures and reject additions at every typed envelope", async () => {
+  const db = await freshDb();
   const id = mintTypeId(ID_PREFIX.character);
   const valid = { applied: [id], failed: [{ id, error: { code: "unexpected", message: "failed" } }] } satisfies Awaited<
     ReturnType<CharacterService["bulkAddCardTag"]>
   >;
   const output = vi.fn<CharacterService["bulkAddCardTag"]>().mockResolvedValue(valid);
-  const ctx = makeContext({ auth: principal("user"), services: { character: { bulkAddCardTag: output, bulkRemoveCardTag: output } } });
+  const ctx = makeContext({ auth: await principal(db, "user"), services: { character: { bulkAddCardTag: output, bulkRemoveCardTag: output } } });
   const api = caller(ctx).character;
   for (const invoke of [api.bulkAddCardTag, api.bulkRemoveCardTag]) {
     output.mockResolvedValue(valid);

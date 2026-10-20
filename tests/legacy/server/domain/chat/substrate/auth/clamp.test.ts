@@ -4,6 +4,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, MemberCardView, MemberCardVisibility, MessageView } from "@orb/contracts/chat";
 import type { AssetId, CharacterId, ChatId, MessageId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import {
@@ -13,6 +14,10 @@ import {
   resolveCardVisibility,
   resolveHistoryFloorSeq,
 } from "#server/domain/chat/substrate/auth/index.ts";
+import { seatRoles } from "../../_support.ts";
+
+// Seat roles are captured row data: one in-memory room supplies the host and member roles these pure checks read.
+const ROLES = await seatRoles(await freshDb());
 
 const CHAR = castId<CharacterId>("character_aria");
 const AVATAR = castId<AssetId>("asset_aria");
@@ -112,10 +117,10 @@ describe("clampMemberCard — each level reveals exactly its fields", () => {
 
 describe("resolveCardVisibility — the host always sees full", () => {
   test("host → full regardless of the configured level; a member → the configured level", () => {
-    expect(resolveCardVisibility("host", "name-avatar")).toBe("full");
-    expect(resolveCardVisibility("host", "sheet")).toBe("full");
-    expect(resolveCardVisibility("member", "sheet")).toBe("sheet");
-    expect(resolveCardVisibility("member", "name-avatar")).toBe("name-avatar");
+    expect(resolveCardVisibility(ROLES.host, "name-avatar")).toBe("full");
+    expect(resolveCardVisibility(ROLES.host, "sheet")).toBe("full");
+    expect(resolveCardVisibility(ROLES.member, "sheet")).toBe("sheet");
+    expect(resolveCardVisibility(ROLES.member, "name-avatar")).toBe("name-avatar");
   });
 });
 
@@ -131,13 +136,13 @@ describe("resolveHistoryFloorSeq — the persisted policy becomes a canon floor"
   // The floor is INCLUSIVE: floor 7 admits seq 7 (the row AT the member's join) and withholds only seq < 7 —
   // pinned on the verdict side by the `viewAt(7)` / `deltaFor(7)` cases below.
   test("from-join floors a MEMBER at their OWN joinSeq; full is unclamped", () => {
-    expect(resolveHistoryFloorSeq({ role: "member", joinSeq: 7, joinHistoryVisibility: "from-join" })).toBe(7);
-    expect(resolveHistoryFloorSeq({ role: "member", joinSeq: 7, joinHistoryVisibility: "full" })).toBe(NO_HISTORY_FLOOR);
+    expect(resolveHistoryFloorSeq({ role: ROLES.member, joinSeq: 7, joinHistoryVisibility: "from-join" })).toBe(7);
+    expect(resolveHistoryFloorSeq({ role: ROLES.member, joinSeq: 7, joinHistoryVisibility: "full" })).toBe(NO_HISTORY_FLOOR);
   });
 
   test("a born-here seat (joinSeq 0) is unclamped under EITHER policy — the default never clamps a founder", () => {
-    expect(resolveHistoryFloorSeq({ role: "member", joinSeq: 0, joinHistoryVisibility: "from-join" })).toBe(NO_HISTORY_FLOOR);
-    expect(resolveHistoryFloorSeq({ role: "member", joinSeq: 0, joinHistoryVisibility: "full" })).toBe(NO_HISTORY_FLOOR);
+    expect(resolveHistoryFloorSeq({ role: ROLES.member, joinSeq: 0, joinHistoryVisibility: "from-join" })).toBe(NO_HISTORY_FLOOR);
+    expect(resolveHistoryFloorSeq({ role: ROLES.member, joinSeq: 0, joinHistoryVisibility: "full" })).toBe(NO_HISTORY_FLOOR);
   });
 
   // F2 — the host has full control (owner ratified): a host is NEVER clamped, even when their own row carries a
@@ -145,8 +150,8 @@ describe("resolveHistoryFloorSeq — the persisted policy becomes a canon floor"
   // promoted). This is what makes `listMessages` coherent with export-chat + discovery, which already hand a
   // host full canon.
   test("a HOST is unclamped regardless of their row's joinHistoryVisibility/joinSeq (F2 — host full control)", () => {
-    expect(resolveHistoryFloorSeq({ role: "host", joinSeq: 12, joinHistoryVisibility: "from-join" })).toBe(NO_HISTORY_FLOOR);
-    expect(resolveHistoryFloorSeq({ role: "host", joinSeq: 12, joinHistoryVisibility: "full" })).toBe(NO_HISTORY_FLOOR);
+    expect(resolveHistoryFloorSeq({ role: ROLES.host, joinSeq: 12, joinHistoryVisibility: "from-join" })).toBe(NO_HISTORY_FLOOR);
+    expect(resolveHistoryFloorSeq({ role: ROLES.host, joinSeq: 12, joinHistoryVisibility: "full" })).toBe(NO_HISTORY_FLOOR);
   });
 });
 

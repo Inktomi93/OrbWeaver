@@ -5,9 +5,10 @@
 
 import type { GalleryCursor, GalleryItemView, GallerySort } from "@orb/contracts/assets";
 import { ASSET_LIST_LIMIT_MAX, GALLERY_SORTS } from "@orb/contracts/assets";
+import type { Principal } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { characters, imageryGenerations } from "@orb/db";
-import type { AssetId, CharacterHandle, CharacterId, ChatId, GalleryItemId, Handle, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, ChatId, GalleryItemId, Handle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import type { AssetsService } from "@orb/server/domain/assets";
 import { createAssetsService } from "@orb/server/domain/assets";
@@ -24,15 +25,15 @@ const PAGE = 2;
 /** One byte of the PNG tail holds 0..255; a larger picture number spans two. */
 const BYTE_SPAN = 256;
 
-async function addAsset(svc: AssetsService, owner: UserId, tail: number, subjectCharacterId?: CharacterId): Promise<GalleryItemView> {
+async function addAsset(svc: AssetsService, owner: Principal, tail: number, subjectCharacterId?: CharacterId): Promise<GalleryItemView> {
   const asset = await svc.store({
-    principal: principal(owner),
+    principal: owner,
     bytes: pngBytes(Math.floor(tail / BYTE_SPAN), tail % BYTE_SPAN),
     kind: "gallery",
     mime: PNG,
   });
   return svc.addToGallery({
-    principal: principal(owner),
+    principal: owner,
     assetId: asset.assetId,
     ...(subjectCharacterId !== undefined ? { subjectCharacterId } : {}),
   });
@@ -59,11 +60,11 @@ function cursorAfter(item: GalleryItemView): GalleryCursor {
 const WALK_PAGE_CEILING = 200;
 
 /** Walk every page of `owner`'s gallery in `sort` order, `limit` rows at a time; returns the pages. */
-async function walkPages(svc: AssetsService, owner: UserId, sort: GallerySort, limit: number): Promise<GalleryItemView[][]> {
+async function walkPages(svc: AssetsService, owner: Principal, sort: GallerySort, limit: number): Promise<GalleryItemView[][]> {
   const pages: GalleryItemView[][] = [];
   let cursor: GalleryCursor | undefined;
   while (pages.length < WALK_PAGE_CEILING) {
-    const page = await svc.listGallery({ principal: principal(owner), limit, sort, ...(cursor === undefined ? {} : { cursor }) });
+    const page = await svc.listGallery({ principal: owner, limit, sort, ...(cursor === undefined ? {} : { cursor }) });
     pages.push(page);
     const last = page.at(-1);
     if (page.length < limit || last === undefined) {
@@ -90,10 +91,10 @@ describe("listGallery", () => {
     const svc = createAssetsService(h.ctx);
     const a = await seedUser(db, { handle: castId<Handle>("a") });
     const b = await seedUser(db, { handle: castId<Handle>("b") });
-    const aItem = await addAsset(svc, a, 1);
-    await addAsset(svc, b, 2);
+    const aItem = await addAsset(svc, await principal(db, a), 1);
+    await addAsset(svc, await principal(db, b), 2);
 
-    const aList = await svc.listGallery({ principal: principal(a), limit: ALL });
+    const aList = await svc.listGallery({ principal: await principal(db, a), limit: ALL });
     expect(aList.map((r) => r.galleryItemId)).toEqual([aItem.galleryItemId]);
   });
 
@@ -104,17 +105,17 @@ describe("listGallery", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
-    const heroItem = await addAsset(svc, owner, 1, hero);
-    const looseItem = await addAsset(svc, owner, 2);
+    const heroItem = await addAsset(svc, await principal(db, owner), 1, hero);
+    const looseItem = await addAsset(svc, await principal(db, owner), 2);
 
     const filtered = await svc.listGallery({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       subjectCharacterId: hero,
       limit: ALL,
     });
     expect(filtered.map((r) => r.galleryItemId)).toEqual([heroItem.galleryItemId]);
 
-    const all = await svc.listGallery({ principal: principal(owner), limit: ALL });
+    const all = await svc.listGallery({ principal: await principal(db, owner), limit: ALL });
     expect(new Set(all.map((r) => r.galleryItemId))).toEqual(new Set([heroItem.galleryItemId, looseItem.galleryItemId]));
   });
 
@@ -125,11 +126,11 @@ describe("listGallery", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const hero = await seedCharacter(db, owner, { handle: castId<CharacterHandle>("hero") });
-    const item = await addAsset(svc, owner, 1, hero);
+    const item = await addAsset(svc, await principal(db, owner), 1, hero);
 
     await db.delete(characters).where(eq(characters.id, hero));
 
-    const list = await svc.listGallery({ principal: principal(owner), limit: ALL });
+    const list = await svc.listGallery({ principal: await principal(db, owner), limit: ALL });
     expect(list).toHaveLength(1);
     const only = row(list, 0);
     expect(only.galleryItemId).toBe(item.galleryItemId);
@@ -143,15 +144,15 @@ describe("listGallery", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // 3 items, all stamped the same frozen createdAt → the (createdAt, galleryItemId) tiebreak orders them.
-    const i0 = await addAsset(svc, owner, 0);
-    const i1 = await addAsset(svc, owner, 1);
-    const i2 = await addAsset(svc, owner, 2);
+    const i0 = await addAsset(svc, await principal(db, owner), 0);
+    const i1 = await addAsset(svc, await principal(db, owner), 1);
+    const i2 = await addAsset(svc, await principal(db, owner), 2);
     const expected = new Set([i0.galleryItemId, i1.galleryItemId, i2.galleryItemId]);
 
-    const p1 = await svc.listGallery({ principal: principal(owner), limit: PAGE });
+    const p1 = await svc.listGallery({ principal: await principal(db, owner), limit: PAGE });
     const c1 = row(p1, 1);
     const p2 = await svc.listGallery({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       limit: PAGE,
       cursor: cursorAfter(c1),
     });
@@ -170,16 +171,16 @@ describe("listGallery", () => {
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const here = await seedChatRow(db, mintTypeId(ID_PREFIX.chat));
     const elsewhere = await seedChatRow(db, mintTypeId(ID_PREFIX.chat));
-    const hereItem = await addAsset(svc, owner, 1);
-    const elsewhereItem = await addAsset(svc, owner, 2);
-    const uploadItem = await addAsset(svc, owner, 3);
+    const hereItem = await addAsset(svc, await principal(db, owner), 1);
+    const elsewhereItem = await addAsset(svc, await principal(db, owner), 2);
+    const uploadItem = await addAsset(svc, await principal(db, owner), 3);
     await bornIn(db, hereItem.assetId, here);
     await bornIn(db, elsewhereItem.assetId, elsewhere);
 
-    const filtered = await svc.listGallery({ principal: principal(owner), chatId: here, limit: ALL });
+    const filtered = await svc.listGallery({ principal: await principal(db, owner), chatId: here, limit: ALL });
     expect(filtered.map((r) => r.galleryItemId)).toEqual([hereItem.galleryItemId]);
 
-    const all = await svc.listGallery({ principal: principal(owner), limit: ALL });
+    const all = await svc.listGallery({ principal: await principal(db, owner), limit: ALL });
     expect(new Set(all.map((r) => r.galleryItemId))).toEqual(new Set([hereItem.galleryItemId, elsewhereItem.galleryItemId, uploadItem.galleryItemId]));
   });
 
@@ -193,19 +194,19 @@ describe("listGallery", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const room = await seedChatRow(db, mintTypeId(ID_PREFIX.chat));
     const strangerRoom = await seedChatRow(db, mintTypeId(ID_PREFIX.chat));
-    const hostItem = await addAsset(svc, host, 1);
-    const memberItem = await addAsset(svc, member, 2);
-    const strangerItem = await addAsset(svc, stranger, 3);
+    const hostItem = await addAsset(svc, await principal(db, host), 1);
+    const memberItem = await addAsset(svc, await principal(db, member), 2);
+    const strangerItem = await addAsset(svc, await principal(db, stranger), 3);
     await bornIn(db, hostItem.assetId, room);
     await bornIn(db, memberItem.assetId, room);
     await bornIn(db, strangerItem.assetId, strangerRoom);
 
-    const hostView = await svc.listGallery({ principal: principal(host), chatId: room, limit: ALL });
+    const hostView = await svc.listGallery({ principal: await principal(db, host), chatId: room, limit: ALL });
     expect(hostView.map((r) => r.galleryItemId)).toEqual([hostItem.galleryItemId]);
-    const memberView = await svc.listGallery({ principal: principal(member), chatId: room, limit: ALL });
+    const memberView = await svc.listGallery({ principal: await principal(db, member), chatId: room, limit: ALL });
     expect(memberView.map((r) => r.galleryItemId)).toEqual([memberItem.galleryItemId]);
     // A principal with nothing in the room gets nothing back, whoever else curated pictures there.
-    const strangerView = await svc.listGallery({ principal: principal(stranger), chatId: room, limit: ALL });
+    const strangerView = await svc.listGallery({ principal: await principal(db, stranger), chatId: room, limit: ALL });
     expect(strangerView).toEqual([]);
   });
 
@@ -216,12 +217,12 @@ describe("listGallery", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const room = await seedChatRow(db, mintTypeId(ID_PREFIX.chat));
-    const item = await addAsset(svc, owner, 1);
-    await addAsset(svc, owner, 2);
+    const item = await addAsset(svc, await principal(db, owner), 1);
+    await addAsset(svc, await principal(db, owner), 2);
     await bornIn(db, item.assetId, room);
     await bornIn(db, item.assetId, room);
 
-    const list = await svc.listGallery({ principal: principal(owner), chatId: room, limit: ALL });
+    const list = await svc.listGallery({ principal: await principal(db, owner), chatId: room, limit: ALL });
     expect(list.map((r) => r.galleryItemId)).toEqual([item.galleryItemId]);
   });
 });
@@ -244,10 +245,10 @@ describe("listGallery — paging and date order", () => {
         if (i % TIE_EVERY !== 0) {
           h.advance(1);
         }
-        added.push(await addAsset(svc, owner, i));
+        added.push(await addAsset(svc, await principal(db, owner), i));
       }
 
-      const pages = await walkPages(svc, owner, sort, ASSET_LIST_LIMIT_MAX);
+      const pages = await walkPages(svc, await principal(db, owner), sort, ASSET_LIST_LIMIT_MAX);
       expect(pages.map((page) => page.length)).toEqual([ASSET_LIST_LIMIT_MAX, MANY - ASSET_LIST_LIMIT_MAX]);
       expect(pages.flat().map((item) => item.galleryItemId)).toEqual(expectedOrder(added, sort));
     });
@@ -260,14 +261,19 @@ describe("listGallery — paging and date order", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     // The frozen clock stamps every row with one instant: the order is the id alone.
-    const added = [await addAsset(svc, owner, 0), await addAsset(svc, owner, 1), await addAsset(svc, owner, 2), await addAsset(svc, owner, 3)];
+    const added = [
+      await addAsset(svc, await principal(db, owner), 0),
+      await addAsset(svc, await principal(db, owner), 1),
+      await addAsset(svc, await principal(db, owner), 2),
+      await addAsset(svc, await principal(db, owner), 3),
+    ];
     expect(new Set(added.map((item) => item.createdAt)).size).toBe(1);
 
     for (const sort of GALLERY_SORTS) {
-      const whole = (await svc.listGallery({ principal: principal(owner), limit: ALL, sort })).map((item) => item.galleryItemId);
+      const whole = (await svc.listGallery({ principal: await principal(db, owner), limit: ALL, sort })).map((item) => item.galleryItemId);
       expect(whole).toEqual(expectedOrder(added, sort));
       // One row per page: every page boundary falls inside the tie, and the walk still reads the same list.
-      expect((await walkPages(svc, owner, sort, 1)).flat().map((item) => item.galleryItemId)).toEqual(whole);
+      expect((await walkPages(svc, await principal(db, owner), sort, 1)).flat().map((item) => item.galleryItemId)).toEqual(whole);
     }
   });
 
@@ -277,14 +283,14 @@ describe("listGallery — paging and date order", () => {
     onTestFinished(h.cleanup);
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const first = await addAsset(svc, owner, 1);
+    const first = await addAsset(svc, await principal(db, owner), 1);
     h.advance(1000);
-    const second = await addAsset(svc, owner, 2);
+    const second = await addAsset(svc, await principal(db, owner), 2);
     h.advance(1000);
-    const third = await addAsset(svc, owner, 3);
+    const third = await addAsset(svc, await principal(db, owner), 3);
 
     const ids = async (sort?: GallerySort): Promise<GalleryItemId[]> =>
-      (await svc.listGallery({ principal: principal(owner), limit: ALL, ...(sort === undefined ? {} : { sort }) })).map((item) => item.galleryItemId);
+      (await svc.listGallery({ principal: await principal(db, owner), limit: ALL, ...(sort === undefined ? {} : { sort }) })).map((item) => item.galleryItemId);
     expect(await ids("newest")).toEqual([third.galleryItemId, second.galleryItemId, first.galleryItemId]);
     expect(await ids("oldest")).toEqual([first.galleryItemId, second.galleryItemId, third.galleryItemId]);
     expect(await ids()).toEqual(await ids("newest"));
@@ -303,16 +309,16 @@ describe("listGallery — paging and date order", () => {
       const bItems: GalleryItemView[] = [];
       for (let i = 0; i < 6; i += 1) {
         h.advance(1);
-        aItems.push(await addAsset(svc, a, i));
+        aItems.push(await addAsset(svc, await principal(db, a), i));
         h.advance(1);
-        bItems.push(await addAsset(svc, b, i));
+        bItems.push(await addAsset(svc, await principal(db, b), i));
       }
 
-      const aWalk = (await walkPages(svc, a, sort, PAGE)).flat().map((item) => item.galleryItemId);
+      const aWalk = (await walkPages(svc, await principal(db, a), sort, PAGE)).flat().map((item) => item.galleryItemId);
       expect(aWalk).toEqual(expectedOrder(aItems, sort));
       // A cursor lifted from A's list gives B none of A's rows: only B's rows past that instant, in B's order.
       const aMiddle = row(aItems, 2);
-      const bAfter = await svc.listGallery({ principal: principal(b), limit: ALL, sort, cursor: cursorAfter(aMiddle) });
+      const bAfter = await svc.listGallery({ principal: await principal(db, b), limit: ALL, sort, cursor: cursorAfter(aMiddle) });
       const pastMiddle = (item: GalleryItemView): boolean => (sort === "newest" ? item.createdAt < aMiddle.createdAt : item.createdAt > aMiddle.createdAt);
       expect(bAfter.map((item) => item.galleryItemId)).toEqual(expectedOrder(bItems.filter(pastMiddle), sort));
     });

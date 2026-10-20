@@ -10,6 +10,7 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe, expectTypeOf } from "vitest";
+import type { readOwnedCharacterVectors } from "#server/domain/discovery/persistence/embed-store-reads.ts";
 import {
   distinctCharacterHubOwners,
   distinctDigestHubOwners,
@@ -21,15 +22,16 @@ import {
   readImageHubVectors,
   readOwnedAvatarVectors,
   readOwnedCaptionRows,
-  readOwnedCharacterVectors,
-  readOwnedDigestKeywords,
-  readOwnedDigestVectors,
   readOwnedPortraitPairs,
+  readRunCharacterVectors,
+  readRunDigestKeywords,
+  readRunDigestVectors,
   readSegmentHubVectors,
   readThemeClusterMembers,
   readThemeClusterTimeline,
   readTier0DigestSpans,
 } from "#server/domain/discovery/persistence/embed-store-reads.ts";
+import { everyOwnerAuthority } from "../../workloads/_support.ts";
 import {
   EMBED_MODEL,
   seedAsset,
@@ -43,6 +45,9 @@ import {
   seedUser,
   vec,
 } from "../_support.ts";
+
+// Every-owner authority as the workload runner and the estimate door hand it out.
+const EVERY_OWNER = await everyOwnerAuthority();
 
 /** `themeDetail`'s member cap, spelled here so the owner-scope pin below is not a bare number. */
 const MEMBER_LIMIT = 15;
@@ -106,7 +111,7 @@ async function seedThemeAssignment(db: Db, ownerId: UserId, digestId: string): P
 describe("readOwnedCharacterVectors", () => {
   test("returns card vectors tagged with owner, EXCLUDING synthetic characters (esoteric #12)", async () => {
     // A compile-time pin: root typecheck reds this file if the owner becomes optional again.
-    expectTypeOf<Parameters<typeof readOwnedCharacterVectors>>().toEqualTypeOf<[Db, UserId | null]>();
+    expectTypeOf<Parameters<typeof readOwnedCharacterVectors>>().toEqualTypeOf<[Db, UserId]>();
     const db = await freshDb();
     const owner = await seedUser(db, "user_a");
     const real = await seedCharacter(db, { id: "character_real", ownerId: owner });
@@ -118,7 +123,7 @@ describe("readOwnedCharacterVectors", () => {
     await seedCharacterEmbedding(db, { characterId: real, embedding: vec(1, 0) });
     await seedCharacterEmbedding(db, { characterId: synth, embedding: vec(1, 0) });
 
-    const rows = await readOwnedCharacterVectors(db, null);
+    const rows = await readRunCharacterVectors(db, EVERY_OWNER.runScope);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ characterId: real, ownerId: owner, model: EMBED_MODEL });
   });
@@ -136,7 +141,7 @@ describe("readOwnedDigestVectors", () => {
       keywords: ["forest", "duel"],
     });
 
-    const rows = await readOwnedDigestVectors(db);
+    const rows = await readRunDigestVectors(db, EVERY_OWNER.runScope);
     expect(rows).toHaveLength(1);
     expect(rows[0]).toMatchObject({ ownerId: owner, isGroup: false, tier: 0 });
     expect(rows[0]?.keywords).toEqual(["forest", "duel"]);
@@ -151,7 +156,7 @@ describe("readOwnedDigestVectors", () => {
     await seedDepartedHost(db, chat, exHost);
     await seedChatDigest(db, { id: "chat_digest_handoff", chatId: chat, embedding: vec(1, 0) });
 
-    const rows = await readOwnedDigestVectors(db);
+    const rows = await readRunDigestVectors(db, EVERY_OWNER.runScope);
     // Without the `leftSeq IS NULL` belt the innerJoin matched BOTH host rows → the digest was duplicated and
     // attributed to the departed ex-host too. The belt keeps exactly one row, owned by the present host.
     expect(rows).toHaveLength(1);
@@ -165,7 +170,7 @@ describe("readOwnedDigestVectors", () => {
     const chat = await seedHostedChat(db, "chat_hosted", owner);
     await seedChatDigest(db, { id: "chat_digest_ok", chatId: chat, embedding: vec(1, 0) });
     // The no-host drop itself is the inner join (untested here); this asserts the hosted digest passes through.
-    const rows = await readOwnedDigestVectors(db);
+    const rows = await readRunDigestVectors(db, EVERY_OWNER.runScope);
     expect(rows.map((r) => r.digestId)).toContain("chat_digest_ok");
   });
 });
@@ -205,10 +210,10 @@ describe("hub reads are OWNER-SCOPED (csls analyzes YOUR OWN library only — ne
     expect((await readImageHubVectors(db, a)).map((r) => r.id)).toEqual(["image_embedding_a"]);
 
     // The BULK fan-out universe: both owners have rows in every table.
-    expect((await distinctCharacterHubOwners(db)).toSorted()).toEqual([a, b].sort());
-    expect((await distinctDigestHubOwners(db)).toSorted()).toEqual([a, b].sort());
-    expect((await distinctSegmentHubOwners(db)).toSorted()).toEqual([a, b].sort());
-    expect((await distinctImageHubOwners(db)).toSorted()).toEqual([a, b].sort());
+    expect((await distinctCharacterHubOwners(db, EVERY_OWNER.runScope.everyOwnerRun)).toSorted()).toEqual([a, b].sort());
+    expect((await distinctDigestHubOwners(db, EVERY_OWNER.runScope.everyOwnerRun)).toSorted()).toEqual([a, b].sort());
+    expect((await distinctSegmentHubOwners(db, EVERY_OWNER.runScope.everyOwnerRun)).toSorted()).toEqual([a, b].sort());
+    expect((await distinctImageHubOwners(db, EVERY_OWNER.runScope.everyOwnerRun)).toSorted()).toEqual([a, b].sort());
   });
 });
 
@@ -238,7 +243,7 @@ describe("hub reads exclude the synthetic per-room group buckets", () => {
     await seedCharacterEmbedding(db, { characterId: card, embedding: vec(1) });
     await seedCharacterEmbedding(db, { characterId: bucket, embedding: vec(1) });
 
-    expect(await distinctCharacterHubOwners(db)).toEqual([real]);
+    expect(await distinctCharacterHubOwners(db, EVERY_OWNER.runScope.everyOwnerRun)).toEqual([real]);
   });
 });
 
@@ -252,7 +257,7 @@ describe("readOwnedDigestKeywords", () => {
     await seedChatDigest(db, { id: "chat_digest_solo", chatId: chat, embedding: vec(1), keywords: ["solo"], isGroup: false });
     await seedChatDigest(db, { id: "chat_digest_group", chatId: chat, embedding: vec(1), keywords: ["party"], isGroup: true, blockIdx: 1 });
 
-    const rows = await readOwnedDigestKeywords(db, owner);
+    const rows = await readRunDigestKeywords(db, { ownerId: owner });
 
     expect(new Set(rows.map((r) => `${r.keywords[0] ?? ""}:${String(r.isGroup)}`))).toEqual(new Set(["solo:false", "party:true"]));
   });
@@ -271,7 +276,7 @@ describe("readTier0DigestSpans", () => {
     await seedChatSegment(db, { id: "chat_segment_c1", chatId: chat, embedding: vec(1), blockIdx: 0, chunkIdx: 1, seqStart: 14, seqEnd: 17 });
     await seedChatSegment(db, { id: "chat_segment_c2", chatId: chat, embedding: vec(1), blockIdx: 0, chunkIdx: 2, seqStart: 18, seqEnd: 21 });
 
-    const spans = await readTier0DigestSpans(db, owner);
+    const spans = await readTier0DigestSpans(db, { ownerId: owner });
 
     expect(spans).toEqual([{ digestId: castId<ChatDigestId>("chat_digest_1"), chatId: chat, seqStart: 10, seqEnd: 21 }]);
   });

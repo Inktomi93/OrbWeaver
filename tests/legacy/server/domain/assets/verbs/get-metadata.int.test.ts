@@ -47,13 +47,13 @@ describe("getMetadata", () => {
     const bytes = pngBytes(1, 2, 3, 4);
 
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes,
       kind: "avatar",
       mime: PNG,
     });
 
-    const meta = await svc.getMetadata({ principal: principal(owner), hash: stored.hash });
+    const meta = await svc.getMetadata({ principal: await principal(db, owner), hash: stored.hash });
     expect(meta).toEqual({ mime: PNG, size: bytes.byteLength });
   });
 
@@ -66,13 +66,13 @@ describe("getMetadata", () => {
     const other = await seedUser(db, { handle: castId<Handle>("other") });
 
     const stored = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(5, 5),
       kind: "avatar",
       mime: PNG,
     });
 
-    const meta = await svc.getMetadata({ principal: principal(other), hash: stored.hash });
+    const meta = await svc.getMetadata({ principal: await principal(db, other), hash: stored.hash });
     expect(meta).toBeUndefined();
   });
 
@@ -83,7 +83,7 @@ describe("getMetadata", () => {
     const svc = createAssetsService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
 
-    const meta = await svc.getMetadata({ principal: principal(owner), hash: "f".repeat(64) });
+    const meta = await svc.getMetadata({ principal: await principal(db, owner), hash: "f".repeat(64) });
     expect(meta).toBeUndefined();
   });
 });
@@ -101,7 +101,7 @@ describe("getMetadata — roster-avatar reference-check", () => {
     const caller = await seedUser(db, { handle: castId<Handle>("caller") });
     const svc = createAssetsService(h.ctx);
     const avatar = await svc.store({
-      principal: principal(charOwner),
+      principal: await principal(db, charOwner),
       bytes: pngBytes(10, 20, 30),
       kind: "avatar",
       mime: PNG,
@@ -120,7 +120,7 @@ describe("getMetadata — roster-avatar reference-check", () => {
     await seedParticipant(db, chat, "human", { id: "cp_caller", userId: s.caller, role: "host" });
     await seedParticipant(db, chat, "character", { id: "cp_char", characterId: s.character });
 
-    const meta = await s.svc.getMetadata({ principal: principal(s.caller), hash: s.avatarHash });
+    const meta = await s.svc.getMetadata({ principal: await principal(db, s.caller), hash: s.avatarHash });
     expect(meta).toEqual({ mime: PNG, size: s.avatarSize, ownerId: s.charOwner });
   });
 
@@ -132,7 +132,7 @@ describe("getMetadata — roster-avatar reference-check", () => {
     // The char-owner also stores a CARD asset (not referenced by any `avatarAssetId`) — the oracle a probe
     // would exploit. It must NOT resolve even though the users share a present chat.
     const card = await s.svc.store({
-      principal: principal(s.charOwner),
+      principal: await principal(db, s.charOwner),
       bytes: pngBytes(99, 98, 97),
       kind: "card",
       mime: PNG,
@@ -141,7 +141,7 @@ describe("getMetadata — roster-avatar reference-check", () => {
     await seedParticipant(db, chat, "human", { id: "cp_caller", userId: s.caller, role: "host" });
     await seedParticipant(db, chat, "character", { id: "cp_char", characterId: s.character });
 
-    const meta = await s.svc.getMetadata({ principal: principal(s.caller), hash: card.hash });
+    const meta = await s.svc.getMetadata({ principal: await principal(db, s.caller), hash: card.hash });
     expect(meta).toBeUndefined();
   });
 
@@ -154,7 +154,7 @@ describe("getMetadata — roster-avatar reference-check", () => {
     const chat = await seedChatRow(db, "chat_elsewhere");
     await seedParticipant(db, chat, "character", { id: "cp_char", characterId: s.character });
 
-    const meta = await s.svc.getMetadata({ principal: principal(s.caller), hash: s.avatarHash });
+    const meta = await s.svc.getMetadata({ principal: await principal(db, s.caller), hash: s.avatarHash });
     expect(meta).toBeUndefined();
   });
 
@@ -172,7 +172,7 @@ describe("getMetadata — roster-avatar reference-check", () => {
     });
     await seedParticipant(db, chat, "character", { id: "cp_char", characterId: s.character });
 
-    const meta = await s.svc.getMetadata({ principal: principal(s.caller), hash: s.avatarHash });
+    const meta = await s.svc.getMetadata({ principal: await principal(db, s.caller), hash: s.avatarHash });
     expect(meta).toBeUndefined();
   });
 
@@ -189,7 +189,7 @@ describe("getMetadata — roster-avatar reference-check", () => {
       leftSeq: 7,
     });
 
-    const meta = await s.svc.getMetadata({ principal: principal(s.caller), hash: s.avatarHash });
+    const meta = await s.svc.getMetadata({ principal: await principal(db, s.caller), hash: s.avatarHash });
     expect(meta).toBeUndefined();
   });
 
@@ -202,7 +202,7 @@ describe("getMetadata — roster-avatar reference-check", () => {
     await seedParticipant(db, chat, "human", { id: "cp_caller", userId: s.caller, role: "host" });
     await seedParticipant(db, chat, "character", { id: "cp_char", characterId: s.character });
 
-    const meta = await s.svc.getMetadata({ principal: principal(s.caller), hash: "a".repeat(64) });
+    const meta = await s.svc.getMetadata({ principal: await principal(db, s.caller), hash: "a".repeat(64) });
     expect(meta).toBeUndefined();
   });
 });
@@ -220,7 +220,7 @@ describe("getMetadata — persona-sibling reference-check (multi-human group)", 
     const personaOwner = await seedUser(db, { handle: castId<Handle>("persona_owner") });
     const caller = await seedUser(db, { handle: castId<Handle>("caller") });
     const avatar = await svc.store({
-      principal: principal(personaOwner),
+      principal: await principal(db, personaOwner),
       bytes: pngBytes(11, 22, 33),
       kind: "avatar",
       mime: PNG,
@@ -237,7 +237,7 @@ describe("getMetadata — persona-sibling reference-check (multi-human group)", 
     });
     await seedParticipant(db, chat, "human", { id: "cp_caller", userId: caller, role: "member" });
 
-    const meta = await svc.getMetadata({ principal: principal(caller), hash: avatar.hash });
+    const meta = await svc.getMetadata({ principal: await principal(db, caller), hash: avatar.hash });
     expect(meta).toEqual({ mime: PNG, size: avatar.size, ownerId: personaOwner });
   });
 
@@ -249,7 +249,7 @@ describe("getMetadata — persona-sibling reference-check (multi-human group)", 
     const personaOwner = await seedUser(db, { handle: castId<Handle>("persona_owner_2") });
     const caller = await seedUser(db, { handle: castId<Handle>("caller_2") });
     const avatar = await svc.store({
-      principal: principal(personaOwner),
+      principal: await principal(db, personaOwner),
       bytes: pngBytes(44, 55, 66),
       kind: "avatar",
       mime: PNG,
@@ -266,7 +266,7 @@ describe("getMetadata — persona-sibling reference-check (multi-human group)", 
       activePersonaId: persona,
     });
 
-    const meta = await svc.getMetadata({ principal: principal(caller), hash: avatar.hash });
+    const meta = await svc.getMetadata({ principal: await principal(db, caller), hash: avatar.hash });
     expect(meta).toBeUndefined();
   });
 });
@@ -285,7 +285,7 @@ describe("getMetadata — #67 attachment co-participant reference-check", () => 
     const owner = await seedUser(db, { handle: castId<Handle>("att_owner") });
     const member = await seedUser(db, { handle: castId<Handle>("att_member") });
     const att = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(7, 7, 7),
       kind: "attachment",
       mime: PNG,
@@ -296,7 +296,7 @@ describe("getMetadata — #67 attachment co-participant reference-check", () => 
     await seedParticipant(db, chat, "human", { id: "cp_owner", userId: owner, role: "host" });
     await seedParticipant(db, chat, "human", { id: "cp_member", userId: member });
 
-    const meta = await svc.getMetadata({ principal: principal(member), hash: att.hash });
+    const meta = await svc.getMetadata({ principal: await principal(db, member), hash: att.hash });
     expect(meta).toEqual({ mime: PNG, size: att.size, ownerId: owner });
   });
 
@@ -308,7 +308,7 @@ describe("getMetadata — #67 attachment co-participant reference-check", () => 
     const owner = await seedUser(db, { handle: castId<Handle>("att_owner_2") });
     const outsider = await seedUser(db, { handle: castId<Handle>("att_outsider") });
     const att = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(6, 6, 6),
       kind: "attachment",
       mime: PNG,
@@ -319,7 +319,7 @@ describe("getMetadata — #67 attachment co-participant reference-check", () => 
     await seedParticipant(db, chat, "human", { id: "cp_owner_2", userId: owner, role: "host" });
     // The outsider is NOT seated in this chat.
 
-    const meta = await svc.getMetadata({ principal: principal(outsider), hash: att.hash });
+    const meta = await svc.getMetadata({ principal: await principal(db, outsider), hash: att.hash });
     expect(meta).toBeUndefined();
   });
 
@@ -333,7 +333,7 @@ describe("getMetadata — #67 attachment co-participant reference-check", () => 
     // The owner stores an asset but never attaches it to a message in the shared chat — a co-participant must
     // NOT be able to probe its existence just by sharing a chat with the owner.
     const unattached = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(5, 4, 3),
       kind: "attachment",
       mime: PNG,
@@ -342,7 +342,7 @@ describe("getMetadata — #67 attachment co-participant reference-check", () => 
     await seedParticipant(db, chat, "human", { id: "cp_owner_3", userId: owner, role: "host" });
     await seedParticipant(db, chat, "human", { id: "cp_member_3", userId: member });
 
-    const meta = await svc.getMetadata({ principal: principal(member), hash: unattached.hash });
+    const meta = await svc.getMetadata({ principal: await principal(db, member), hash: unattached.hash });
     expect(meta).toBeUndefined();
   });
 
@@ -354,7 +354,7 @@ describe("getMetadata — #67 attachment co-participant reference-check", () => 
     const owner = await seedUser(db, { handle: castId<Handle>("att_owner_4") });
     const member = await seedUser(db, { handle: castId<Handle>("att_member_4") });
     const att = await svc.store({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bytes: pngBytes(2, 2, 2),
       kind: "attachment",
       mime: PNG,
@@ -370,7 +370,7 @@ describe("getMetadata — #67 attachment co-participant reference-check", () => 
     });
     await seedParticipant(db, chat, "human", { id: "cp_member_4", userId: member });
 
-    const meta = await svc.getMetadata({ principal: principal(member), hash: att.hash });
+    const meta = await svc.getMetadata({ principal: await principal(db, member), hash: att.hash });
     expect(meta).toBeUndefined();
   });
 });

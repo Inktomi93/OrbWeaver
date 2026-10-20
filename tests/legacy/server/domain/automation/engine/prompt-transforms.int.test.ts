@@ -51,7 +51,7 @@ async function armTransform(
   f: Fixture,
   opts: { actions: readonly AutomationAction[]; predicateCel?: string | null; timeZone?: IanaTimeZone },
 ): Promise<AutomationRuleId> {
-  const p = principal(f.host);
+  const p = await principal(f.db, f.host);
   const rule = await f.svc.createRule({
     timeZone: opts.timeZone ?? UTC_TIME_ZONE,
     principal: p,
@@ -92,7 +92,7 @@ describe("A7 prompt-transform registration lifecycle", () => {
     expect(t.point).toBe("user_input");
     expect(t.order).toBe(0); // position 0 → order 0
 
-    await f.svc.setRuleEnabled({ principal: principal(f.host), ruleId, enabled: false });
+    await f.svc.setRuleEnabled({ principal: await principal(f.db, f.host), ruleId, enabled: false });
     expect(f.registry.list()).toHaveLength(0);
   });
 
@@ -109,7 +109,7 @@ describe("A7 prompt-transform registration lifecycle", () => {
 
   test("updateRule swaps the applied CLOSURE, not just order — a changed template renders the NEW output", async () => {
     const f = await setup();
-    const p = principal(f.host);
+    const p = await principal(f.db, f.host);
     const ruleId = await armTransform(f, { actions: [transformArm("OLD {{draft}}")] });
     // The registered closure applies the ORIGINAL template.
     expect(await (f.registry.list()[0] as PromptTransform).apply("x", envFor(f.chatId))).toBe("OLD x");
@@ -125,7 +125,7 @@ describe("A7 prompt-transform registration lifecycle", () => {
 
   test("a reorder re-ranks the transform's order (position IS order)", async () => {
     const f = await setup();
-    const p = principal(f.host);
+    const p = await principal(f.db, f.host);
     const first = await armTransform(f, { actions: [transformArm("1 {{draft}}")] });
     const second = await armTransform(f, { actions: [transformArm("2 {{draft}}")] });
     // Positions 0,1 → orders 0,1.

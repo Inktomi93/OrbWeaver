@@ -17,11 +17,11 @@ describe("detachGlobal", () => {
     const svc = createRegexService(h.ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "g" });
-    await svc.attachGlobal({ principal: principal(owner), scriptId });
+    await svc.attachGlobal({ principal: await principal(db, owner), scriptId });
 
-    expect(await svc.detachGlobal({ principal: principal(owner), scriptId })).toEqual({ detached: true });
+    expect(await svc.detachGlobal({ principal: await principal(db, owner), scriptId })).toEqual({ detached: true });
     h.userEvents.length = 0;
-    expect(await svc.detachGlobal({ principal: principal(owner), scriptId })).toEqual({ detached: false });
+    expect(await svc.detachGlobal({ principal: await principal(db, owner), scriptId })).toEqual({ detached: false });
     expect(h.userEvents).toEqual([]);
   });
 
@@ -33,6 +33,6 @@ describe("detachGlobal", () => {
     const stranger = await seedUser(db, { handle: castId<Handle>("stranger") });
     const scriptId = await seedScript(db, { ownerId: owner, name: "mine" });
 
-    await expect(svc.detachGlobal({ principal: principal(stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
+    await expect(svc.detachGlobal({ principal: await principal(db, stranger), scriptId })).rejects.toBeInstanceOf(RegexNotFoundError);
   });
 });

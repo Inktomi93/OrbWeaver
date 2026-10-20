@@ -22,7 +22,7 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
 
     await svc.attachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       targetType: "character",
       targetId: characterId,
@@ -33,7 +33,7 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
 
     // the user's "Accept" (default status) flips the same row.
     await svc.attachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       targetType: "character",
       targetId: characterId,
@@ -50,14 +50,14 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
     const characterId = await seedCharacter(db, owner);
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
     await svc.attachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       targetType: "character",
       targetId: characterId,
     });
 
     await svc.detachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       targetType: "character",
       targetId: characterId,
@@ -75,7 +75,7 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
 
     await expect(
       svc.attachTag({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         tagId: foreignTag,
         targetType: "character",
         targetId: characterId,
@@ -93,7 +93,7 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
 
     await expect(
       svc.attachTag({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         tagId,
         targetType: "character",
         targetId: foreign,
@@ -111,7 +111,7 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
     h.allowChat(chatId);
 
     await svc.attachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       targetType: "chat",
       targetId: chatId,
@@ -127,7 +127,7 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
     const chatId = await seedChat(db);
     const tagId = await seedTag(db, owner, { id: "tag_a", name: "alpha" });
 
-    await expect(svc.attachTag({ principal: principal(owner), tagId, targetType: "chat", targetId: chatId })).rejects.toThrow(DomainForbiddenError);
+    await expect(svc.attachTag({ principal: await principal(db, owner), tagId, targetType: "chat", targetId: chatId })).rejects.toThrow(DomainForbiddenError);
     expect(await db.select().from(chatTags).where(eq(chatTags.tagId, tagId))).toHaveLength(0);
   });
 
@@ -140,7 +140,7 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
     const b = await seedTag(db, owner, { id: "tag_b", name: "b" });
 
     await svc.bulkAttachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagIds: [a, b],
       targetType: "character",
       targetId: characterId,
@@ -149,7 +149,7 @@ describe("attachTag / detachTag / bulkAttachTag", () => {
 
     await expect(
       svc.bulkAttachTag({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         tagIds: [a, castId<TagId>("tag_ghost")],
         targetType: "character",
         targetId: characterId,
@@ -169,19 +169,19 @@ describe("junction trio — audit", () => {
     const tagB = await seedTag(db, owner, { id: "tag_b", name: "beta" });
 
     await svc.attachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       targetType: "character",
       targetId: characterId,
     });
     await svc.detachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagId,
       targetType: "character",
       targetId: characterId,
     });
     await svc.bulkAttachTag({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       tagIds: [tagId, tagB],
       targetType: "character",
       targetId: characterId,
@@ -219,7 +219,7 @@ describe("junction trio — audit", () => {
     // A foreign/missing tag throws BEFORE any junction write — no phantom audit row.
     await svc
       .attachTag({
-        principal: principal(owner),
+        principal: await principal(db, owner),
         tagId: castId<TagId>("tag_ghost"),
         targetType: "character",
         targetId: characterId,

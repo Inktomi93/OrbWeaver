@@ -10,11 +10,11 @@ import type { Principal } from "@orb/contracts/identity";
 import type { ProviderDefInput, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDefSchema } from "@orb/contracts/inference";
 import { characterEmbeddings, userCredentials } from "@orb/db";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PluginId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
 import { freshDb } from "@orb/testkit/node/db.ts";
-import { principal } from "@orb/testkit/node/factories/principal.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { createEmbeddingsService } from "#server/domain/embeddings/index.ts";
@@ -23,6 +23,7 @@ import { resolveTargetGeneration } from "#server/domain/embeddings/substrate/gen
 import { SEARCH_SPACE_REINDEXING } from "#server/domain/search/contract/errors.ts";
 import { withActiveQuerySpace } from "#server/domain/search/substrate/space.ts";
 import { endpointAdmission, publishPrivateEndpointAllowlist } from "#server/infra/network/index.ts";
+import { principal } from "../../../../db/schema/_support.ts";
 import { makeStoreHarness, seedCharacter } from "../../embeddings/_support.ts";
 import { BYO_BASE_URL, BYO_PROVIDER, makeHarness, seedOwner, seedPlugin, seedUser } from "../_support.ts";
 
@@ -69,7 +70,7 @@ test("a stated width change enqueues catch-up and the rebuilt corpus becomes rea
   const embeddings = createEmbeddingsService(ctx);
   const catchUp = async (): Promise<string> => {
     await embeddings.embedCorpus({ ownerId: owner.userId, force: false, signal: new AbortController().signal });
-    const generation = await resolveTargetGeneration(ctx, owner.userId, "embed");
+    const generation = await resolveTargetGeneration({ ...ctx, db: databaseForOwner(ctx.db) }, owner.userId, "embed");
     if (generation === null) {
       throw new Error("the bound corpus generation must resolve");
     }
@@ -80,7 +81,8 @@ test("a stated width change enqueues catch-up and the rebuilt corpus becomes rea
     return generation.id;
   };
   const before = await catchUp();
-  const queryGeneration = (): Promise<string | undefined> => withActiveQuerySpace(ctx, owner.userId, "embed", async (space) => space.generationId);
+  const queryGeneration = (): Promise<string | undefined> =>
+    withActiveQuerySpace({ ...ctx, db: databaseForOwner(ctx.db) }, owner.userId, "embed", async (space) => space.generationId);
   expect(await queryGeneration()).toBe(before);
   h.embedSpaceChanges.length = 0;
   await h.svc.update({ principal: owner.principal, connectionId: row.id, patch: { label: "Still the same encoder" } });
@@ -169,8 +171,8 @@ describe("create", () => {
   test("the F12 admission is per-DEPLOYMENT, not per-principal — the box OWNER is refused exactly what a member is", async () => {
     const db = await freshDb();
     const h = await makeHarness(db, { admission: endpointAdmission });
-    const owner = principal(await seedUser(db, "user_box_owner"), { role: "owner" });
-    const member = principal(await seedUser(db, "user_member"));
+    const owner = await principal({ db }, await seedUser(db, "user_box_owner"), { role: "owner" });
+    const member = await principal({ db }, await seedUser(db, "user_member"));
     const create = (who: Principal): ReturnType<typeof h.svc.create> =>
       h.svc.create({ principal: who, providerId: BYO_PROVIDER, credentialId: null, baseUrl: "http://127.0.0.1:8703/v1", model: "qwen3" });
 

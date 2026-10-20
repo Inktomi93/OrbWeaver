@@ -1,7 +1,9 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 // @subject packages/server/src/domain/rpg/tools/rounds/populate.ts
+
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { publishRpgEvent } from "#server/domain/rpg/bus.ts";
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — populate-from-character (the real round and its slotted prose) and the host handoff of a gmPresetId.
 
@@ -32,9 +34,13 @@ test("POPULATE (real round): the card's identity + gear land, and the live-play 
 
   const spy = emptySpy();
   const rpgCompose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: JSON.stringify(CANNED_POPULATE) });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
 
-  const verdict = await rpgCompose.service.populateFromCharacter({ principal: hostPrincipal(hostId), chatId, actorRef: { kind: "character", characterId } });
+  const verdict = await rpgCompose.service.populateFromCharacter({
+    principal: await hostPrincipal(db, hostId),
+    chatId,
+    actorRef: { kind: "character", characterId },
+  });
 
   // POPLOUD — the REAL round reports its ending as data: this one filled (the client's success signal).
   expect(verdict).toEqual({ ok: true, populated: true });
@@ -52,7 +58,7 @@ test("POPULATE (real round): the card's identity + gear land, and the live-play 
   expect(spy.userPrompts[0]).toContain("sworn to a dead name");
   expect(spy.userPrompts[0]).toContain("her cloak heavy with rain");
 
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   const actor = view.actors.find((a) => a.name === "mira");
   // The WIRE said `title`; the SHEET stores `className` (the one mapping, at the parse seam).
   expect(actor?.sheet.className).toBe("Warden of House Vane");
@@ -63,7 +69,7 @@ test("POPULATE (real round): the card's identity + gear land, and the live-play 
   // …and NOTHING the live-play planes volunteered landed: no scene move, no hp write, no journal beat.
   expect(view.ambient?.location ?? "").toBe("");
   expect(actor?.volatile?.trackerValues["hp"] ?? null).toBeNull();
-  expect(await rpgCompose.service.listJournal({ principal: hostPrincipal(hostId), chatId, limit: 50 })).toEqual([]);
+  expect(await rpgCompose.service.listJournal({ principal: await hostPrincipal(db, hostId), chatId, limit: 50 })).toEqual([]);
 });
 
 test("POPULATE (real round): a connection with NO structured writer runs no round at all (honest no-op)", async ({ app, db }) => {
@@ -74,6 +80,7 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
   const rpgCompose = buildRpg({
     db: databaseHandle(db),
     now: () => FROZEN_AT_MS,
+    emitRpgEvent: publishRpgEvent,
     rpgChatOps: app.chatRpgOps,
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
@@ -101,7 +108,7 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
         return Promise.resolve({ reply: "{}", events: [] } as unknown as ChatResult);
       },
     },
-    resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
+    resolveHostPrincipal: async (userId) => Promise.resolve(await hostPrincipal(db, userId)),
     resolvePresetOwned: () => Promise.resolve(false),
     copyPresetToUser: () => Promise.resolve(null),
     toolUse: { register: () => undefined },
@@ -115,9 +122,13 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
     // D126 — the admin-tier structured-output shape, on its shipped floor (the real root reads it per call off
     // `getEffectiveConfig()`); the strict-arm pin below overrides it.
   });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
 
-  const verdict = await rpgCompose.service.populateFromCharacter({ principal: hostPrincipal(hostId), chatId, actorRef: { kind: "character", characterId } });
+  const verdict = await rpgCompose.service.populateFromCharacter({
+    principal: await hostPrincipal(db, hostId),
+    chatId,
+    actorRef: { kind: "character", characterId },
+  });
 
   // POPLOUD — the REAL compose op REFUSES legibly instead of degrading to an empty delta the verb could only
   // read as "this card had nothing to fill". The host reads this sentence; the `rpg.populate.readonly` warn is
@@ -126,10 +137,10 @@ test("POPULATE (real round): a connection with NO structured writer runs no roun
   // NO model call was paid on a wire that could only have produced garbage, and nothing was written.
   expect(spy.summarizeModels).toEqual([]);
   expect(spy.chatTurns).toEqual([]);
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.actors.find((a) => a.name === "vesna")?.sheet.className).toBe("");
   // …and the panel says so honestly: the born-state button is disabled on this connection.
-  const game = await rpgCompose.service.getGame({ principal: hostPrincipal(hostId), chatId });
+  const game = await rpgCompose.service.getGame({ principal: await hostPrincipal(db, hostId), chatId });
   expect(game.canPopulate).toBe(false);
 });
 
@@ -176,9 +187,9 @@ test("PROSE-1 POPULATE: the round's system + user prompts are byte-identical to 
 
   const spy = emptySpy();
   const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: "{}" });
-  await compose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await compose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
 
-  await compose.service.populateFromCharacter({ principal: hostPrincipal(hostId), chatId, actorRef: { kind: "character", characterId } });
+  await compose.service.populateFromCharacter({ principal: await hostPrincipal(db, hostId), chatId, actorRef: { kind: "character", characterId } });
 
   expect(spy.systemPrompts[0]).toBe(POPULATE_SYSTEM_BYTES);
   expect(spy.userPrompts[0]).toBe(POPULATE_USER_BYTES);
@@ -191,9 +202,9 @@ test("PROSE-1 POPULATE: a blank card and an empty room render the fallback arm b
 
   const spy = emptySpy();
   const compose = buildCannedRpgWithText({ app, db, api: "chat-completions", spy, cannedText: "{}" });
-  await compose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await compose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
 
-  await compose.service.populateFromCharacter({ principal: hostPrincipal(hostId), chatId, actorRef: { kind: "character", characterId } });
+  await compose.service.populateFromCharacter({ principal: await hostPrincipal(db, hostId), chatId, actorRef: { kind: "character", characterId } });
 
   expect(spy.userPrompts[0]).toBe(POPULATE_USER_BYTES_BARE);
 });
@@ -204,7 +215,7 @@ test("PROSE-1 POPULATE: a GM-preset override reaches every one of the round's SE
   // and asserted on the rendered prompts the wire carried — the only place "the host edited it" and "the model
   // was told it" are the same fact. The blank-card slot is exercised by giving the character no description.
   const { chatId, hostId } = await seedHostGameChat(db, "populate-prose-override");
-  const principal = hostPrincipal(hostId);
+  const principal = await hostPrincipal(db, hostId);
   const characterId = await seedCharacter(db, hostId, "vail", { id: mintTypeId(ID_PREFIX.character) });
   await seedParticipant(db, { chatId, key: "populate_override_char", characterId, joinSeq: 1 });
   await seedMessage(db, chatId, 1, { role: "assistant", content: "Rain on the ferry deck." });
@@ -280,21 +291,21 @@ test("HOST HANDOFF nulls a gmPresetId the new host cannot read, and keeps one th
     await seedParticipant(db, { chatId, key: `${key}host`, userId: hostId, role: "host", joinSeq: 0 });
     await seedParticipant(db, { chatId, key: `${key}nominee`, userId: nominee, role: "member", joinSeq: 0 });
     const presetId = await seedPreset(`preset_${key}`, presetOwner === "host" ? hostId : nominee);
-    await services.rpg.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-    await services.rpg.updateConfig({ principal: hostPrincipal(hostId), chatId, gmPresetId: presetId });
-    await services.chat.nominateHostHandoff({ principal: hostPrincipal(hostId), chatId, userId: nominee });
+    await services.rpg.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+    await services.rpg.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, gmPresetId: presetId });
+    await services.chat.nominateHostHandoff({ principal: await hostPrincipal(db, hostId), chatId, userId: nominee });
     return { chatId, presetId };
   };
 
   const foreign = await seedHandoffGame("hoffforeign", "host");
   const owned = await seedHandoffGame("hoffowned", "nominee");
 
-  await services.chat.acceptHostHandoff({ principal: hostPrincipal(nominee), chatId: foreign.chatId });
-  await services.chat.acceptHostHandoff({ principal: hostPrincipal(nominee), chatId: owned.chatId });
+  await services.chat.acceptHostHandoff({ principal: await hostPrincipal(db, nominee), chatId: foreign.chatId });
+  await services.chat.acceptHostHandoff({ principal: await hostPrincipal(db, nominee), chatId: owned.chatId });
 
   // The old host's private preset no longer rides the new host's turns — and the knob stops lying.
   expect((await findGameByChat(db, foreign.chatId))?.gmPresetId).toBeNull();
-  expect((await services.rpg.getConfigView({ principal: hostPrincipal(nominee), chatId: foreign.chatId })).gmPresetId).toBeNull();
+  expect((await services.rpg.getConfigView({ principal: await hostPrincipal(db, nominee), chatId: foreign.chatId })).gmPresetId).toBeNull();
   // A knob the new host CAN read is untouched — the heal is conditional, never a blanket clear.
   expect((await findGameByChat(db, owned.chatId))?.gmPresetId).toBe(owned.presetId);
 });

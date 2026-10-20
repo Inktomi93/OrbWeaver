@@ -1,8 +1,10 @@
 // COMPOSED-REAL: the server graph loads in the untimed IMPORT phase, never inside the first test's timeout (#2386 — support/node/composed-real.ts).
 // @subject packages/server/src/domain/rpg/tools/rounds/round-connection.ts
 // @subject packages/server/src/domain/rpg/tools/rounds/round-log.ts
+
 import { databaseHandle } from "@orb/db/wiring-driver";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { publishRpgEvent } from "#server/domain/rpg/bus.ts";
 import "@orb/testkit/node/composed-real.ts";
 // entry/compose/rpg — per-call enums over the live scene and cast, usage logging, the empty and phantom extraction signals, host resolution and the unresolvable-connection degrade.
 
@@ -60,8 +62,8 @@ test("F4: presentRemove enum names an existing scene NPC + party.targetRef reach
   const { chatId, hostId } = await seedHostGameChat(db, "f4-cast-enum");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  const { gameId } = await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
+  const { gameId } = await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
 
   // Seed a COMMITTED base snapshot carrying the scene NPC + cast actor, so the round's `baseState` (resolved via
   // the ladder) hands those keys to `resolveExtractionRefs`.
@@ -96,8 +98,8 @@ test("R5a: the LIVE active conditions bind party[].removeCondition to an enum (a
   const { chatId, hostId } = await seedHostGameChat(db, "r5a-conditions");
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  const { gameId } = await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
+  const { gameId } = await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
 
   // A committed base snapshot where the tracked cast actor CARRIES conditions — the only source of the enum.
   const afflicted = baseWithCast();
@@ -144,8 +146,8 @@ test("F10: a roster character named 'Player' is enum-able and the semantic 'play
 
   const spy = emptySpy();
   const rpgCompose = buildCannedRpg(app, db, "agent-sdk", spy);
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Player draws a blade." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
@@ -174,8 +176,8 @@ test("§10.1a: the cheap TOOL ROUND logs its usage (tokens + cost) — the vehic
     cannedToolCalls: [{ name: "update_scene", arguments: JSON.stringify({ location: "the obsidian tower" }) }],
   });
 
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" });
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" });
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "They arrive at the tower." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("chat-completions"));
 
@@ -199,8 +201,8 @@ test("R3: an extraction that writes NOTHING renderable logs rpg.extraction.empty
   const spy = emptySpy();
   // Override the canned text to an EMPTY extraction (parses, but folds to zero writes).
   const rpgCompose = buildCannedRpgWithText({ app, db, api: "agent-sdk", spy, cannedText: JSON.stringify({}) });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "Nothing tracked changed." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
@@ -223,8 +225,8 @@ test("R5: an extraction targeting a GHOST actor is DROPPED (no cast mint) + logs
     // emits exactly this shape); only `party` carries the non-roster phantom target.
     cannedText: JSON.stringify({ party: [{ targetRef: "Zzyzx the Unknown", status: "cursed" }] }),
   });
-  await rpgCompose.service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
-  await rpgCompose.service.updateConfig({ principal: hostPrincipal(hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
+  await rpgCompose.service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
+  await rpgCompose.service.updateConfig({ principal: await hostPrincipal(db, hostId), chatId, extractionMode: "cheap" }); // born folded — this test drives the DEDICATED round (structured on the agent-sdk wire)
   const { messageId, variantId } = await seedMessage(db, chatId, 1, { role: "assistant", content: "A stranger appears." });
   await rpgCompose.chatOps.onTurnCompleted(chatId, messageId, variantId, TURN, tc("agent-sdk"));
 
@@ -235,7 +237,7 @@ test("R5: an extraction targeting a GHOST actor is DROPPED (no cast mint) + logs
   // empty-outcome line fires ALONGSIDE the ghost line (independent branches: the cause must not hide behind
   // the symptom now that a ghost-only extraction is by definition a write-nothing extraction).
   expect(warnSpy.mock.calls.some((c) => (c[0] as { event?: string }).event === "rpg.extraction.empty")).toBe(true);
-  const view = await rpgCompose.service.getTrackerView({ principal: hostPrincipal(hostId), chatId });
+  const view = await rpgCompose.service.getTrackerView({ principal: await hostPrincipal(db, hostId), chatId });
   expect(view.actors.some((a) => a.actorRef.kind === "npc")).toBe(false);
 });
 
@@ -268,6 +270,7 @@ function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unkno
   return buildRpg({
     db: databaseHandle(db),
     now: () => FROZEN_AT_MS,
+    emitRpgEvent: publishRpgEvent,
     rpgChatOps: app.chatRpgOps,
     // #1528 - the member-facing reads' projection verdict, built off the same db (chat's ONE clamp home).
     resolveViewerVisibility: createResolveViewerVisibility({ db: databaseHandle(db) }),
@@ -277,7 +280,7 @@ function buildRpgWithThrowingResolveChat(app: ServicesResult, db: Db, err: unkno
     executor: {
       runChatTurn: () => Promise.reject(new Error("unreached — the round never fires on a readonly READ")),
     },
-    resolveHostPrincipal: (userId) => Promise.resolve(hostPrincipal(userId)),
+    resolveHostPrincipal: async (userId) => Promise.resolve(await hostPrincipal(db, userId)),
     resolvePresetOwned: () => Promise.resolve(false),
     copyPresetToUser: () => Promise.resolve(null),
     toolUse: { register: () => undefined },
@@ -301,8 +304,8 @@ test("FIX 1: an UNEXPECTED resolveChat failure still PROPAGATES — the catch ne
   const boom = new Error("unexpected infra fault");
   // Create the game through a NON-throwing build first (createGame also reads the pill — the unexpected error is
   // scoped to the READ under test, not birth), then READ it through a build whose resolveChat throws `boom`.
-  await buildCannedRpg(app, db, "chat-completions", emptySpy()).service.createGame({ principal: hostPrincipal(hostId), chatId, mode: "lite" });
+  await buildCannedRpg(app, db, "chat-completions", emptySpy()).service.createGame({ principal: await hostPrincipal(db, hostId), chatId, mode: "lite" });
   const rpgCompose = buildRpgWithThrowingResolveChat(app, db, boom);
 
-  await expect(rpgCompose.service.getGame({ principal: hostPrincipal(hostId), chatId })).rejects.toBe(boom);
+  await expect(rpgCompose.service.getGame({ principal: await hostPrincipal(db, hostId), chatId })).rejects.toBe(boom);
 });

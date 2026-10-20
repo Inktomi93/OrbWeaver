@@ -35,7 +35,7 @@ describe("generatePicture (free mode)", () => {
     const { ctx, recordedStats, generateCalls } = makeHarness(db);
 
     const result = await createImageryService(ctx).generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       mode: "free",
       prompt: "a dragon over a castle",
     });
@@ -79,7 +79,7 @@ describe("generatePicture (free mode)", () => {
 
     await expect(
       createImageryService(ctx).generatePicture({
-        caller: principal(owner),
+        caller: await principal(db, owner),
         mode: "free",
         prompt: "nothing",
       }),
@@ -107,7 +107,7 @@ describe("generatePicture (free mode)", () => {
     });
 
     const result = await createImageryService(ctx).generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       mode: "free",
       prompt: "a dragon over a castle",
     });
@@ -136,7 +136,7 @@ describe("generatePicture (free mode)", () => {
 
     await expect(
       createImageryService(ctx).generatePicture({
-        caller: principal(owner),
+        caller: await principal(db, owner),
         mode: "free",
         prompt: "exfiltrate",
       }),
@@ -151,7 +151,7 @@ describe("generatePicture (free mode)", () => {
     const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db);
 
-    await expect(createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "free" })).rejects.toThrow();
+    await expect(createImageryService(ctx).generatePicture({ caller: await principal(db, owner), mode: "free" })).rejects.toThrow();
   });
 });
 
@@ -168,7 +168,7 @@ describe("generatePicture — prompt resolution (extraction / caption, doc 02 §
     const { ctx, extractInstructions, recordedStats } = makeHarness(db);
     await seedChat();
 
-    const result = await createImageryService(ctx).generatePicture({ caller: principal(owner), chatId: CHAT, mode: "character" });
+    const result = await createImageryService(ctx).generatePicture({ caller: await principal(db, owner), chatId: CHAT, mode: "character" });
 
     // The RAW template (macros unresolved — chat resolves {{char}}) is what imagery hands the shaper.
     expect(extractInstructions).toHaveLength(1);
@@ -192,7 +192,12 @@ describe("generatePicture — prompt resolution (extraction / caption, doc 02 §
     const { ctx, extractInstructions } = makeHarness(db);
     await seedChat();
 
-    const result = await createImageryService(ctx).generatePicture({ caller: principal(owner), chatId: CHAT, mode: "character", prompt: "a specific vision" });
+    const result = await createImageryService(ctx).generatePicture({
+      caller: await principal(db, owner),
+      chatId: CHAT,
+      mode: "character",
+      prompt: "a specific vision",
+    });
 
     expect(extractInstructions).toHaveLength(0);
     expect(result.promptSource).toBe("user");
@@ -208,7 +213,7 @@ describe("generatePicture — prompt resolution (extraction / caption, doc 02 §
     await db.insert(characters).values(makeCharacter({ id: castId<CharacterId>("character_aria"), ownerId: owner }));
 
     const result = await createImageryService(ctx).generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       chatId: CHAT,
       mode: "character_multimodal",
       subjectCharacterId: castId("character_aria"),
@@ -228,7 +233,7 @@ describe("generatePicture — prompt resolution (extraction / caption, doc 02 §
     await db.insert(characters).values(makeCharacter({ id: castId<CharacterId>("character_aria"), ownerId: owner }));
 
     const result = await createImageryService(ctx).generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       chatId: CHAT,
       mode: "face_multimodal",
       subjectCharacterId: castId("character_aria"),
@@ -244,7 +249,7 @@ describe("generatePicture — prompt resolution (extraction / caption, doc 02 §
     const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db, { extractQuiet: () => Promise.resolve({ text: "()[]{}", costUsd: 0.001 }) });
 
-    await expect(createImageryService(ctx).generatePicture({ caller: principal(owner), chatId: CHAT, mode: "scenario" })).rejects.toThrow();
+    await expect(createImageryService(ctx).generatePicture({ caller: await principal(db, owner), chatId: CHAT, mode: "scenario" })).rejects.toThrow();
     expect(await db.select().from(imageryGenerations)).toHaveLength(0);
     expect(await db.select().from(assets)).toHaveLength(0);
   });
@@ -253,7 +258,7 @@ describe("generatePicture — prompt resolution (extraction / caption, doc 02 §
     const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db);
 
-    await expect(createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "scenario" })).rejects.toThrow();
+    await expect(createImageryService(ctx).generatePicture({ caller: await principal(db, owner), mode: "scenario" })).rejects.toThrow();
   });
 
   test("cost null-propagates: an unknown extraction cost makes the total null (generation still lands in stats)", async () => {
@@ -261,7 +266,7 @@ describe("generatePicture — prompt resolution (extraction / caption, doc 02 §
     const { ctx, recordedStats } = makeHarness(db, { extractQuiet: () => Promise.resolve({ text: "keyword one", costUsd: null }) });
     await seedChat();
 
-    const result = await createImageryService(ctx).generatePicture({ caller: principal(owner), chatId: CHAT, mode: "background" });
+    const result = await createImageryService(ctx).generatePicture({ caller: await principal(db, owner), chatId: CHAT, mode: "background" });
 
     expect(result.costUsd).toBeNull();
     // The generation spend is still recorded (a fabricated partial total is worse than an honest null).
@@ -311,7 +316,7 @@ describe("generatePicture — sniff ↔ assets.enforceMagic agreement (F4)", () 
     const { ctx } = makeHarness(db, { storeAsset: enforcingStoreAsset() });
 
     const result = await createImageryService(ctx).generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       mode: "free",
       prompt: "a dragon",
     });
@@ -348,7 +353,7 @@ describe("generatePicture — sniff ↔ assets.enforceMagic agreement (F4)", () 
 
     await expect(
       createImageryService(ctx).generatePicture({
-        caller: principal(owner),
+        caller: await principal(db, owner),
         mode: "free",
         prompt: "avif art",
       }),
@@ -373,11 +378,11 @@ describe("generatePicture — B2 reuse gate (doc 03 §4.4)", () => {
     const { ctx, generateCalls } = makeHarness(db);
     const svc = createImageryService(ctx);
 
-    const first = await svc.generatePicture({ caller: principal(owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
+    const first = await svc.generatePicture({ caller: await principal(db, owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
     expect(first.reused).toBe(false);
     expect(generateCalls).toEqual([1]);
 
-    const second = await svc.generatePicture({ caller: principal(owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
+    const second = await svc.generatePicture({ caller: await principal(db, owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
     expect(second.reused).toBe(true);
     expect(second.costUsd).toBeNull();
     // No second provider call; the reused image is the first generation's stored asset.
@@ -393,8 +398,8 @@ describe("generatePicture — B2 reuse gate (doc 03 §4.4)", () => {
     const { ctx, generateCalls } = makeHarness(db);
     const svc = createImageryService(ctx);
 
-    await svc.generatePicture({ caller: principal(owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
-    const regen = await svc.generatePicture({ caller: principal(owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA, reuse: "never" });
+    await svc.generatePicture({ caller: await principal(db, owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
+    const regen = await svc.generatePicture({ caller: await principal(db, owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA, reuse: "never" });
 
     expect(regen.reused).toBe(false);
     expect(generateCalls).toEqual([1, 1]);
@@ -407,9 +412,9 @@ describe("generatePicture — B2 reuse gate (doc 03 §4.4)", () => {
     const { ctx, generateCalls } = makeHarness(db);
     const svc = createImageryService(ctx);
 
-    await svc.generatePicture({ caller: principal(owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
+    await svc.generatePicture({ caller: await principal(db, owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
     const override = await svc.generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       chatId: CHAT,
       mode: "character",
       subjectCharacterId: ARIA,
@@ -430,7 +435,7 @@ describe("generatePicture — B2 reuse gate (doc 03 §4.4)", () => {
     await seedPortraitFixtures(owner);
     const { ctx } = makeHarness(db);
 
-    await createImageryService(ctx).generatePicture({ caller: principal(owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
+    await createImageryService(ctx).generatePicture({ caller: await principal(db, owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
 
     const rows = await db.select().from(imageryGenerations);
     expect(rows[0]?.subjectCharacterId).toBe("character_aria");
@@ -447,7 +452,7 @@ describe("generatePicture — free-mode external identity hash (08 §2 widening)
     const { ctx } = makeHarness(db);
     const svc = createImageryService(ctx);
 
-    const result = await svc.generatePicture({ caller: principal(owner), mode: "free", prompt: "an npc portrait", identityHash: "rpg-npc-hash-1" });
+    const result = await svc.generatePicture({ caller: await principal(db, owner), mode: "free", prompt: "an npc portrait", identityHash: "rpg-npc-hash-1" });
 
     const rows = await db.select().from(imageryGenerations);
     expect(rows).toHaveLength(1);
@@ -455,7 +460,7 @@ describe("generatePicture — free-mode external identity hash (08 §2 widening)
     // The composed-real read seam rpg's short-circuit uses.
     const assetId = result.images[0]?.assetId;
     expect(assetId).toBeDefined();
-    const prov = await svc.readProvenance({ caller: principal(owner), assetId: castId(assetId ?? "") });
+    const prov = await svc.readProvenance({ caller: await principal(db, owner), assetId: castId(assetId ?? "") });
     expect(prov?.identityHash).toBe("rpg-npc-hash-1");
   });
 
@@ -463,7 +468,7 @@ describe("generatePicture — free-mode external identity hash (08 §2 widening)
     const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { ctx } = makeHarness(db);
 
-    await createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "free", prompt: "a plain scene" });
+    await createImageryService(ctx).generatePicture({ caller: await principal(db, owner), mode: "free", prompt: "a plain scene" });
 
     const rows = await db.select().from(imageryGenerations);
     expect(rows[0]?.identityHash).toBeNull();
@@ -475,7 +480,7 @@ describe("generatePicture — free-mode external identity hash (08 §2 widening)
     const { ctx } = makeHarness(db);
 
     await createImageryService(ctx).generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       chatId: CHAT,
       mode: "character",
       subjectCharacterId: ARIA,
@@ -496,7 +501,7 @@ describe("generatePicture — B3 avatar-reference gate (doc 03 §3)", () => {
     const { ctx, readAssetCalls } = makeHarness(db, { resolveGenerateImage: resolutionWith(true) });
 
     const result = await createImageryService(ctx).generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       chatId: CHAT,
       mode: "character",
       subjectCharacterId: ARIA,
@@ -516,7 +521,7 @@ describe("generatePicture — B3 avatar-reference gate (doc 03 §3)", () => {
     const { ctx, generateRequests } = makeHarness(db, { resolveGenerateImage: resolutionWith(true) });
 
     await createImageryService(ctx).generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       chatId: CHAT,
       mode: "character",
       subjectCharacterId: ARIA,
@@ -534,7 +539,7 @@ describe("generatePicture — B3 avatar-reference gate (doc 03 §3)", () => {
     const { ctx, readAssetCalls } = makeHarness(db, { resolveGenerateImage: resolutionWith(false) });
 
     const result = await createImageryService(ctx).generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       chatId: CHAT,
       mode: "character",
       subjectCharacterId: ARIA,
@@ -555,7 +560,7 @@ describe("generatePicture — B3 avatar-reference gate (doc 03 §3)", () => {
     const { ctx, readAssetCalls } = makeHarness(db, { resolveGenerateImage: resolutionWith(true) });
 
     const result = await createImageryService(ctx).generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       mode: "free",
       prompt: "a lone tower",
       useAvatarReference: true,
@@ -581,7 +586,7 @@ describe("generatePicture — runner warnings surface onto the result (doc 03 §
         }),
     });
 
-    const result = await createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "free", prompt: "an edit" });
+    const result = await createImageryService(ctx).generatePicture({ caller: await principal(db, owner), mode: "free", prompt: "an edit" });
 
     expect(result.warnings).toEqual([{ code: "image_edit_dropped", detail: "img-model: the mask was dropped" }]);
   });
@@ -621,7 +626,7 @@ describe("generatePicture — gallery auto-add", () => {
     });
 
     const result = await createImageryService(ctx).generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       mode: "free",
       prompt: "a lighthouse",
       n: 2,
@@ -629,7 +634,7 @@ describe("generatePicture — gallery auto-add", () => {
     });
 
     expect(result.images).toHaveLength(2);
-    const items = await gallery.svc.listGallery({ principal: principal(owner), subjectCharacterId: aria, limit: 100 });
+    const items = await gallery.svc.listGallery({ principal: await principal(db, owner), subjectCharacterId: aria, limit: 100 });
     expect(items.map((item) => item.assetId).toSorted()).toEqual(result.images.map((image) => image.assetId).toSorted());
   });
 
@@ -639,7 +644,7 @@ describe("generatePicture — gallery auto-add", () => {
     await db.insert(characters).values(makeCharacter({ id: aria, ownerId: owner }));
     const { ctx, galleryAdds } = makeHarness(db);
 
-    await createImageryService(ctx).generatePicture({ caller: principal(owner), mode: "free", prompt: "a lighthouse" });
+    await createImageryService(ctx).generatePicture({ caller: await principal(db, owner), mode: "free", prompt: "a lighthouse" });
 
     expect(galleryAdds).toEqual([]);
     expect(await db.select().from(galleryItems)).toEqual([]);
@@ -654,7 +659,7 @@ describe("generatePicture — gallery auto-add", () => {
     const { ctx, generateCalls } = makeHarness(db, { addToGallery: gallery.addToGallery });
 
     const result = await createImageryService(ctx).generatePicture({
-      caller: principal(guest),
+      caller: await principal(db, guest),
       mode: "free",
       prompt: "a lighthouse",
       gallery: { subjectCharacterId: hostsCharacter },
@@ -671,8 +676,8 @@ describe("generatePicture — gallery auto-add", () => {
     expect(stored[0]?.ownerId).toBe(guest);
     // Neither principal's gallery holds it.
     expect(await db.select().from(galleryItems)).toEqual([]);
-    expect(await gallery.svc.listGallery({ principal: principal(host), limit: 100 })).toEqual([]);
-    expect(await gallery.svc.listGallery({ principal: principal(guest), limit: 100 })).toEqual([]);
+    expect(await gallery.svc.listGallery({ principal: await principal(db, host), limit: 100 })).toEqual([]);
+    expect(await gallery.svc.listGallery({ principal: await principal(db, guest), limit: 100 })).toEqual([]);
   });
 
   test("a reused portrait joins the gallery too", async () => {
@@ -681,9 +686,9 @@ describe("generatePicture — gallery auto-add", () => {
     const { ctx, galleryAdds, generateCalls } = makeHarness(db);
     const svc = createImageryService(ctx);
 
-    const first = await svc.generatePicture({ caller: principal(owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
+    const first = await svc.generatePicture({ caller: await principal(db, owner), chatId: CHAT, mode: "character", subjectCharacterId: ARIA });
     const reused = await svc.generatePicture({
-      caller: principal(owner),
+      caller: await principal(db, owner),
       chatId: CHAT,
       mode: "character",
       subjectCharacterId: ARIA,
@@ -742,7 +747,7 @@ describe("generatePicture — a room picture runs as the room host (D298)", () =
     const { harness, keyedOn } = keyedHarness();
 
     await createImageryService(harness.ctx).generatePicture({
-      caller: principal(member),
+      caller: await principal(db, member),
       runAsUserId: host,
       chatId: CHAT,
       mode: "scenario",
@@ -761,7 +766,13 @@ describe("generatePicture — a room picture runs as the room host (D298)", () =
     const { host, member } = await seedRoom();
     const { harness, keyedOn } = keyedHarness();
 
-    await createImageryService(harness.ctx).generatePicture({ caller: principal(member), runAsUserId: host, chatId: CHAT, mode: "free", prompt: "a lantern" });
+    await createImageryService(harness.ctx).generatePicture({
+      caller: await principal(db, member),
+      runAsUserId: host,
+      chatId: CHAT,
+      mode: "free",
+      prompt: "a lantern",
+    });
 
     expect(keyedOn).toEqual({ connection: [host], template: [], negative: [host], extraction: [] });
     expect((await db.select().from(assets)).map((row) => row.ownerId)).toEqual([host]);
@@ -771,7 +782,7 @@ describe("generatePicture — a room picture runs as the room host (D298)", () =
     const owner = await seedGenerationOwner(db, castId<Handle>("owner"));
     const { harness, keyedOn } = keyedHarness();
 
-    await createImageryService(harness.ctx).generatePicture({ caller: principal(owner), mode: "free", prompt: "a lantern" });
+    await createImageryService(harness.ctx).generatePicture({ caller: await principal(db, owner), mode: "free", prompt: "a lantern" });
 
     expect(keyedOn).toEqual({ connection: [owner], template: [], negative: [owner], extraction: [] });
     expect((await db.select().from(assets)).map((row) => row.ownerId)).toEqual([owner]);

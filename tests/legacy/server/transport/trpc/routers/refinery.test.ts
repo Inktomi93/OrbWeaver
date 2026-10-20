@@ -3,6 +3,7 @@
 
 import type { UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
+import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { vi } from "vitest";
 import type { RefineryService } from "#server/domain/refinery/index.ts";
@@ -13,8 +14,9 @@ const ACTOR = castId<UserId>("user_actor");
 const OVERSIZED_SHEET = 109;
 
 test("an oversized decision sheet is refused at the wire with BAD_REQUEST, before the verb runs", async () => {
+  const db = await freshDb();
   const decideRewrite = vi.fn<RefineryService["decideRewrite"]>();
-  const ctx = makeContext({ auth: principal("user", { userId: ACTOR }), services: { refinery: { decideRewrite } } });
+  const ctx = makeContext({ auth: await principal(db, "user", { userId: ACTOR }), services: { refinery: { decideRewrite } } });
 
   const call = caller(ctx).refinery.decideRewrite({
     sessionId: mintTypeId(ID_PREFIX.refinerySession),

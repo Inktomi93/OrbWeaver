@@ -12,6 +12,8 @@ import { castId } from "@orb/kit/ids";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
+import { isAdmin } from "#server/domain/admin/index.ts";
+import { principal, seedUserIdentity } from "./_support.ts";
 
 // The default global role a freshly-provisioned user lands on (owner/admin are granted explicitly — D17).
 const DEFAULT_ROLE = "user";
@@ -168,4 +170,34 @@ test("kind defaults to 'human' and a human carries no owner link", async () => {
   const row = (await db.select().from(users).where(eq(users.id, id)))[0];
   expect(row?.kind).toBe("human");
   expect(row?.ownerUserId).toBeNull();
+});
+
+// ── the legacy identity seeder behind `principal` (./_support.ts) ──
+
+test("seedUserIdentity inserts a missing row, then writes the named role and handle onto it", async () => {
+  const db = await freshDb();
+  const id = castId<UserId>("user_identity_missing");
+  await seedUserIdentity(db, id, { role: "admin", handle: castId<Handle>("identity_named") });
+  const row = (await db.select().from(users).where(eq(users.id, id)))[0];
+  expect(row).toMatchObject({ role: "admin", handle: "identity_named", handleKey: handleKey(castId<Handle>("identity_named")) });
+});
+
+test("seedUserIdentity rewrites only the named field and leaves an unnamed one as stored", async () => {
+  const db = await freshDb();
+  const id = castId<UserId>("user_identity_stored");
+  await db.insert(users).values({ id, role: "user", handle: castId<Handle>("identity_kept"), handleKey: handleKey(castId<Handle>("identity_kept")) });
+  await seedUserIdentity(db, id, { role: "admin" });
+  expect((await db.select().from(users).where(eq(users.id, id)))[0]).toMatchObject({ role: "admin", handle: "identity_kept" });
+  await seedUserIdentity(db, id, { handle: castId<Handle>("identity_renamed") });
+  expect((await db.select().from(users).where(eq(users.id, id)))[0]).toMatchObject({ role: "admin", handle: "identity_renamed" });
+});
+
+test("principal resolves the role and handle it wrote, through the production host resolver", async () => {
+  const db = await freshDb();
+  const id = castId<UserId>("user_identity_resolved");
+  const caller = await principal({ db }, id, { role: "admin", handle: castId<Handle>("identity_admin") });
+  expect(caller).toMatchObject({ userId: id, handle: "identity_admin", via: "fallback" });
+  expect(isAdmin(caller)).toBe(true);
+  // An unnamed identity reads the row as stored: the admin written above is still an admin.
+  expect(isAdmin(await principal({ db }, id))).toBe(true);
 });

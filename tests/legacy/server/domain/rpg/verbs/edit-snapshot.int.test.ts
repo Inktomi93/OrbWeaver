@@ -40,7 +40,7 @@ async function seedGame(): Promise<Seeded> {
   const chatId = await seedChat(db, "a");
   const { service, fakes } = makeRpgService(db);
   fakes.membership.set("user_host", "host");
-  await service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite" });
+  await service.createGame({ principal: await principal(db, castId<Handle>("host")), chatId, mode: "lite" });
   const game = await findGameByChat(db, chatId);
   if (!game) {
     throw new Error("no game");
@@ -54,7 +54,7 @@ describe("editSnapshot on a turnless game", () => {
     // No snapshot exists yet (no born seed).
     expect(await resolveSnapshotForTurn(db, { id: game.id, chatId })).toBeUndefined();
 
-    await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "The Crypt" } });
+    await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "The Crypt" } });
 
     // D124: a hand write posts NO message at all — the row class that leaked onto every canon plane is gone.
     expect(fakes.narratorPosts).toEqual([]);
@@ -71,9 +71,9 @@ describe("editSnapshot on a turnless game", () => {
 
   test("a locked field survives a later TOOL-style overlay but a re-hand-edit still wins", async () => {
     const { chatId, game, service } = await seedGame();
-    await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "Locked City" } });
+    await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "Locked City" } });
     // A second hand edit re-writes the locked field (the human always wins over their own lock).
-    await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "New City" } });
+    await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "New City" } });
     const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
     expect(snap?.location).toBe("New City");
     expect(snap?.fieldLocks?.["location"]).toBe(true);
@@ -82,7 +82,7 @@ describe("editSnapshot on a turnless game", () => {
   test("`lockPaths` stamps the FINE per-field pin instead of the coarse top-level key (#10)", async () => {
     const { chatId, game, service } = await seedGame();
     await service.editSnapshot({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       patch: { trackerValues: { focus: { value: 5, items: null, max: null } } },
       lockPaths: ["trackerValues.focus"],
@@ -95,8 +95,8 @@ describe("editSnapshot on a turnless game", () => {
 
   test("releaseLocks clears a fine path stamped earlier (release-only call, empty patch)", async () => {
     const { chatId, game, service } = await seedGame();
-    await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "The Crypt" }, lockPaths: ["location"] });
-    await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: {}, releaseLocks: ["location"] });
+    await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "The Crypt" }, lockPaths: ["location"] });
+    await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: {}, releaseLocks: ["location"] });
     const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
     expect(snap?.fieldLocks?.["location"]).toBeUndefined();
   });
@@ -106,12 +106,12 @@ describe("editSnapshot on a turnless game", () => {
   // moves the guess. Nothing is written and no snapshot row is minted.
   test("an `actorState` image is REFUSED as data, naming rpg.patchActor — no write, no slot, no bus event", async () => {
     const { chatId, game, service, fakes } = await seedGame();
-    await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: "The Crypt" } });
+    await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: "The Crypt" } });
     const slotsBefore = fakes.narratorPosts.length;
     const eventsBefore = fakes.busEvents.length;
 
     const refused = await service.editSnapshot({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       patch: { actorState: [actorWithWallet("mari", 10, 5)] },
     });
@@ -138,12 +138,12 @@ const AMBIENT_SET = {
 describe("editSnapshot — the [merge-clear] transition contract, end to end", () => {
   test("null CLEARS its plane — the whole ambient grouping collapses to the view's null (compact) arm", async () => {
     const { chatId, game, service } = await seedGame();
-    expect(await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: AMBIENT_SET })).toStrictEqual({ ok: true });
-    expect((await service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId })).ambient).not.toBeNull();
+    expect(await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: AMBIENT_SET })).toStrictEqual({ ok: true });
+    expect((await service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId })).ambient).not.toBeNull();
 
     // The honest clear: the three NULLABLE ambient leaves take null, `location` takes its empty value.
     const cleared = await service.editSnapshot({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       patch: { clock: null, weather: null, calendarDate: null, location: "" },
     });
@@ -155,7 +155,7 @@ describe("editSnapshot — the [merge-clear] transition contract, end to end", (
     expect(snap?.calendarDate).toBeNull();
     expect(snap?.location).toBe("");
     // The reachable consequence: the tracker view's ambient sub-view is null, so the panel renders compact.
-    expect((await service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId })).ambient).toBeNull();
+    expect((await service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId })).ambient).toBeNull();
   });
 
   // THE TIME CLEAR IS NOT A CLOCK CLEAR. `clock` carries a calendar counter and a time of day, and the panel's
@@ -165,10 +165,10 @@ describe("editSnapshot — the [merge-clear] transition contract, end to end", (
   // contract did not allow would come back as a refusal, not a write.
   test("the TIME clears while the DAY survives — `{clock:{day,hour:null,minute:null}}` is an accepted write", async () => {
     const { chatId, game, service } = await seedGame();
-    expect(await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: AMBIENT_SET })).toStrictEqual({ ok: true });
+    expect(await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: AMBIENT_SET })).toStrictEqual({ ok: true });
 
     const cleared = await service.editSnapshot({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       patch: { clock: { day: 3, hour: null, minute: null } },
     });
@@ -178,7 +178,7 @@ describe("editSnapshot — the [merge-clear] transition contract, end to end", (
     expect(snap?.clock).toStrictEqual({ day: 3, hour: null, minute: null });
     // The reachable consequence, and the whole point: the ambient sub-view is still THERE (the scene has a
     // when), the day counter is intact, and only the time is gone — the panel's Time field renders unset.
-    const ambient = (await service.getTrackerView({ principal: principal(castId<Handle>("host")), chatId })).ambient;
+    const ambient = (await service.getTrackerView({ principal: await principal(db, castId<Handle>("host")), chatId })).ambient;
     expect(ambient?.clock?.day).toBe(3);
     expect(ambient?.clock?.hour).toBeNull();
   });
@@ -186,12 +186,14 @@ describe("editSnapshot — the [merge-clear] transition contract, end to end", (
   test("`{}` is a NO-OP, not a reset — the leaf under it survives", async () => {
     const { chatId, game, service } = await seedGame();
     await service.editSnapshot({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       patch: { trackerValues: { gold: { value: 5, items: null, max: 10 } } },
     });
 
-    expect(await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { trackerValues: {} } })).toStrictEqual({ ok: true });
+    expect(await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { trackerValues: {} } })).toStrictEqual({
+      ok: true,
+    });
 
     const snap = await resolveSnapshotForTurn(db, { id: game.id, chatId });
     expect(snap?.trackerValues?.["gold"]).toStrictEqual({ value: 5, items: null, max: 10 });
@@ -200,13 +202,13 @@ describe("editSnapshot — the [merge-clear] transition contract, end to end", (
   test("a null on a nullable LEAF clears exactly that leaf; its siblings keep their values", async () => {
     const { chatId, game, service } = await seedGame();
     await service.editSnapshot({
-      principal: principal(castId<Handle>("host")),
+      principal: await principal(db, castId<Handle>("host")),
       chatId,
       patch: { trackerValues: { gold: { value: 5, items: null, max: 10 } } },
     });
 
     expect(
-      await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { trackerValues: { gold: { max: null } } } }),
+      await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { trackerValues: { gold: { max: null } } } }),
     ).toStrictEqual({
       ok: true,
     });
@@ -217,13 +219,13 @@ describe("editSnapshot — the [merge-clear] transition contract, end to end", (
 
   test("an UNKNOWN plane is errors-as-data — no write, no lock, no slot, no bus event", async () => {
     const { chatId, game, service, fakes } = await seedGame();
-    await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: AMBIENT_SET });
+    await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: AMBIENT_SET });
     const slotsBefore = fakes.narratorPosts.length;
     const eventsBefore = fakes.busEvents.length;
 
     // `ambient` is the TRACKER VIEW's grouping of location/date/clock/weather — it has no state home, and the
     // old verb merged it into a plain object the column projection silently dropped.
-    const refused = await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { ambient: null } });
+    const refused = await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { ambient: null } });
     expect(refused.ok).toBe(false);
     expect(refused.ok === false && refused.reason).toContain("ambient");
     // The refusal NAMES what is writable (a hand caller must not have to guess twice).
@@ -238,11 +240,11 @@ describe("editSnapshot — the [merge-clear] transition contract, end to end", (
 
   test("a null on a NON-nullable leaf is refused at the F1 write boundary, not coerced", async () => {
     const { chatId, game, service, fakes } = await seedGame();
-    await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: AMBIENT_SET });
+    await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: AMBIENT_SET });
     const slotsBefore = fakes.narratorPosts.length;
 
     // `location` is a non-nullable string (its empty value is ""), so a merge-clear null is contract-invalid.
-    const refused = await service.editSnapshot({ principal: principal(castId<Handle>("host")), chatId, patch: { location: null } });
+    const refused = await service.editSnapshot({ principal: await principal(db, castId<Handle>("host")), chatId, patch: { location: null } });
     expect(refused.ok).toBe(false);
     expect(refused.ok === false && refused.reason).toContain("location");
 

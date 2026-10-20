@@ -14,6 +14,7 @@ import type { AssetKind } from "@orb/contracts/assets";
 import type { PortableFile } from "@orb/contracts/portability";
 import type { Db } from "@orb/db";
 import { assets, messages, messageVariants } from "@orb/db";
+import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { AssetId, CharacterHandle, ChatId, Handle, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import { castId, ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { createAssetsService, createExportAssets, createImportAsset } from "@orb/server/domain/assets";
@@ -53,7 +54,7 @@ async function seedInlineRef(db: Db, chatId: ChatId, refId: string): Promise<voi
 }
 
 async function ownedAssetCount(h: AssetsHarness, ownerId: UserId): Promise<number> {
-  const rows = await h.ctx.db.select({ id: assets.id }).from(assets).where(eq(assets.ownerId, ownerId));
+  const rows = await databaseForOwner(h.ctx.db).select({ id: assets.id }).from(assets).where(eq(assets.ownerId, ownerId));
   return rows.length;
 }
 
@@ -68,7 +69,7 @@ describe("importAsset — full re-link round-trip", () => {
 
     const avatarBytes = pngBytes(1, 2, 3);
     const avatar = await srcSvc.store({
-      principal: principal(owner),
+      principal: await principal(srcDb, owner),
       bytes: avatarBytes,
       kind: "avatar",
       mime: PNG,
@@ -78,7 +79,7 @@ describe("importAsset — full re-link round-trip", () => {
 
     const inlineBytes = pngBytes(9, 8, 7);
     const inline = await srcSvc.store({
-      principal: principal(owner),
+      principal: await principal(srcDb, owner),
       bytes: inlineBytes,
       kind: "generated",
       mime: PNG,
@@ -139,7 +140,7 @@ describe("importAsset — a destination that already holds the bytes", () => {
 
     // The destination is NOT empty: the owner already uploaded these exact bytes, so they carry a LOCAL id.
     const bytes = pngBytes(2, 4, 6);
-    const local = await svc.store({ principal: principal(owner), bytes, kind: "gallery", mime: PNG });
+    const local = await svc.store({ principal: await principal(db, owner), bytes, kind: "gallery", mime: PNG });
 
     // The bundle claims the SOURCE box's id for the same bytes. `(ownerId, hash)` is unique, so the claimed
     // id CANNOT be created — reporting success would leave every gallery/card/inline ref pointing at nothing.

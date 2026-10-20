@@ -36,7 +36,7 @@ async function seedGame(): Promise<{
   const userId = await seedUser(db, castId<Handle>("host"));
   const { service, fakes } = makeRpgService(db);
   fakes.membership.set("user_host", "host");
-  await service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite", ruleset: "d20" });
+  await service.createGame({ principal: await principal(db, castId<Handle>("host")), chatId, mode: "lite", ruleset: "d20" });
   fakes.busEvents.length = 0; // drop the createGame emit — the tests below assert the patchSheet emit alone
   return { chatId, userId, service, fakes };
 }
@@ -55,7 +55,7 @@ async function seedGameWithMember(): Promise<{
   const { service, fakes } = makeRpgService(db);
   fakes.membership.set("user_host", "host");
   fakes.membership.set("user_member", "member");
-  await service.createGame({ principal: principal(castId<Handle>("host")), chatId, mode: "lite", ruleset: "d20" });
+  await service.createGame({ principal: await principal(db, castId<Handle>("host")), chatId, mode: "lite", ruleset: "d20" });
   fakes.busEvents.length = 0;
   return { chatId, memberId, service, fakes };
 }
@@ -64,7 +64,12 @@ describe("patchSheet", () => {
   test("row-on-first-write; a second patch MERGES (omit preserves)", async () => {
     const { chatId, userId, service, fakes } = await seedGame();
     const ref = { kind: "user" as const, userId };
-    await service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: ref, patch: { className: "Rogue", attributes: { str: 12 } } });
+    await service.patchSheet({
+      principal: await principal(db, castId<Handle>("host")),
+      chatId,
+      actorRef: ref,
+      patch: { className: "Rogue", attributes: { str: 12 } },
+    });
     const game = await findGameByChat(db, chatId);
     if (!game) {
       throw new Error("no game");
@@ -77,7 +82,7 @@ describe("patchSheet", () => {
     expect(fakes.busEvents).toEqual([{ type: "sheetChanged", chatId, sheetId: row?.id }]);
 
     // A patch that omits className keeps it; adds dex.
-    await service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: ref, patch: { attributes: { str: 12, dex: 15 } } });
+    await service.patchSheet({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: ref, patch: { attributes: { str: 12, dex: 15 } } });
     sheet = (await findSheet(db, game.id, { userId }))?.sheet;
     expect(sheet?.className).toBe("Rogue"); // preserved
     expect(sheet?.attributes["dex"]).toBe(15);
@@ -91,7 +96,7 @@ describe("patchSheet", () => {
     const ref = { kind: "user" as const, userId };
     // The point is that a caller still sending the retired dial writes nothing — only expressible by sending
     // a key the type no longer has.
-    await service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: ref, patch: { maxHp: 30 } as never });
+    await service.patchSheet({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: ref, patch: { maxHp: 30 } as never });
     const game = await findGameByChat(db, chatId);
     if (!game) {
       throw new Error("no game");
@@ -107,30 +112,40 @@ describe("patchSheet", () => {
       throw new Error("no game");
     }
     // Born null (nullable-honesty).
-    await service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: ref, patch: { className: "Fighter" } });
+    await service.patchSheet({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: ref, patch: { className: "Fighter" } });
     expect((await findSheet(db, game.id, { userId }))?.sheet.level).toBeNull();
     // Hand-set the level.
-    await service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: ref, patch: { level: 4 } });
+    await service.patchSheet({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: ref, patch: { level: 4 } });
     expect((await findSheet(db, game.id, { userId }))?.sheet.level).toBe(4);
     // Omit keeps it (MA-4).
-    await service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: ref, patch: { className: "Paladin" } });
+    await service.patchSheet({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: ref, patch: { className: "Paladin" } });
     expect((await findSheet(db, game.id, { userId }))?.sheet.level).toBe(4);
     // Explicit null clears it (key-presence, not ??).
-    await service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: ref, patch: { level: null } });
+    await service.patchSheet({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: ref, patch: { level: null } });
     expect((await findSheet(db, game.id, { userId }))?.sheet.level).toBeNull();
   });
 
   test("an attribute key NOT in the profile is refused", async () => {
     const { chatId, userId, service } = await seedGame();
     await expect(
-      service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "user", userId }, patch: { attributes: { nonsense: 5 } } }),
+      service.patchSheet({
+        principal: await principal(db, castId<Handle>("host")),
+        chatId,
+        actorRef: { kind: "user", userId },
+        patch: { attributes: { nonsense: 5 } },
+      }),
     ).rejects.toThrow(UNKNOWN_ATTR_RE);
   });
 
   test("an attribute value out of range is refused", async () => {
     const { chatId, userId, service } = await seedGame();
     await expect(
-      service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: { kind: "user", userId }, patch: { attributes: { str: 99 } } }),
+      service.patchSheet({
+        principal: await principal(db, castId<Handle>("host")),
+        chatId,
+        actorRef: { kind: "user", userId },
+        patch: { attributes: { str: 99 } },
+      }),
     ).rejects.toThrow(RANGE_RE);
   });
 });
@@ -149,7 +164,7 @@ describe("patchSheet — RPG-STAT-CLOBBER: the attributes record is a PER-KEY me
   test("filling a sheet one cell at a time keeps every earlier attribute (the panel's exact payload)", async () => {
     const hostId = await seedUser(db, castId<Handle>("host"));
     const { chatId, h } = await seedLiteGame(db, { participants: [participantUser(castId<Handle>("host"), "The Host")] });
-    const host = principal(castId<Handle>("host"));
+    const host = await principal(db, castId<Handle>("host"));
     await h.service.updateConfig({ principal: host, chatId, patch: { statProfile: RPG_PROFILE_D20 } });
     const ref = { kind: "user" as const, userId: hostId };
 
@@ -169,7 +184,7 @@ describe("patchSheet — RPG-STAT-CLOBBER: the attributes record is a PER-KEY me
     // house grammar for this is [merge-clear] (D108): omit keeps, explicit `null` clears.
     const hostId = await seedUser(db, castId<Handle>("host"));
     const { chatId, h } = await seedLiteGame(db, { participants: [participantUser(castId<Handle>("host"), "The Host")] });
-    const host = principal(castId<Handle>("host"));
+    const host = await principal(db, castId<Handle>("host"));
     await h.service.updateConfig({ principal: host, chatId, patch: { statProfile: RPG_PROFILE_D20 } });
     const ref = { kind: "user" as const, userId: hostId };
 
@@ -189,7 +204,7 @@ describe("patchSheet — RPG-STAT-CLOBBER: the attributes record is a PER-KEY me
     // silent-true that would let a clear through a range gate for the wrong reason.
     const hostId = await seedUser(db, castId<Handle>("host"));
     const { chatId, h } = await seedLiteGame(db, { participants: [participantUser(castId<Handle>("host"), "The Host")] });
-    const host = principal(castId<Handle>("host"));
+    const host = await principal(db, castId<Handle>("host"));
     await h.service.updateConfig({ principal: host, chatId, patch: { statProfile: RPG_PROFILE_D20 } });
     const ref = { kind: "user" as const, userId: hostId };
 
@@ -206,7 +221,7 @@ describe("patchSheet — the tracker EXCEPTIONS are host-only, even on a member'
 
   test("a MEMBER self-granting on their OWN user-ref sheet is FORBIDDEN and writes nothing", async () => {
     const { chatId, memberId, service, fakes } = await seedGameWithMember();
-    const member = principal(castId<Handle>("member"));
+    const member = await principal(db, castId<Handle>("member"));
     const ref = { kind: "user" as const, userId: memberId };
     // The member first makes a LEGITIMATE self-edit, so the row exists and a failed grant is provably a
     // no-write rather than a no-row.
@@ -244,8 +259,8 @@ describe("patchSheet — the tracker EXCEPTIONS are host-only, even on a member'
     // here would let a member wipe the host's grants with the emptiest possible payload — the arm is refused
     // BY CONSTRUCTION today, and this row is what keeps it that way if the condition is ever "simplified".
     const { chatId, memberId, service, fakes } = await seedGameWithMember();
-    const member = principal(castId<Handle>("member"));
-    const host = principal(castId<Handle>("host"));
+    const member = await principal(db, castId<Handle>("member"));
+    const host = await principal(db, castId<Handle>("host"));
     const ref = { kind: "user" as const, userId: memberId };
     const game = await findGameByChat(db, chatId);
     if (!game) {
@@ -276,7 +291,7 @@ describe("patchSheet — the tracker EXCEPTIONS are host-only, even on a member'
     // ordering is what makes the coarser refusal the one a member sees — both refusals are `Forbidden`, so
     // neither arm tells a member anything the other would not.
     const { chatId, service, fakes } = await seedGameWithMember();
-    const member = principal(castId<Handle>("member"));
+    const member = await principal(db, castId<Handle>("member"));
     const characterRef = { kind: "character" as const, characterId: castId<CharacterId>("character_mira") };
     fakes.busEvents.length = 0;
 
@@ -299,7 +314,7 @@ describe("patchSheet — the tracker EXCEPTIONS are host-only, even on a member'
 
   test("the HOST grants + revokes on any actor's sheet — the editor's own whole-list replace still works", async () => {
     const { chatId, memberId, service, fakes } = await seedGameWithMember();
-    const host = principal(castId<Handle>("host"));
+    const host = await principal(db, castId<Handle>("host"));
     const ref = { kind: "user" as const, userId: memberId };
     const game = await findGameByChat(db, chatId);
     if (!game) {
@@ -322,7 +337,7 @@ describe("patchSheet — the tracker EXCEPTIONS are host-only, even on a member'
 
   test("a member's ORDINARY self-edit is untouched — the gate is per-FIELD, not per-verb", async () => {
     const { chatId, memberId, service, fakes } = await seedGameWithMember();
-    const member = principal(castId<Handle>("member"));
+    const member = await principal(db, castId<Handle>("member"));
     const ref = { kind: "user" as const, userId: memberId };
     const game = await findGameByChat(db, chatId);
     if (!game) {
@@ -345,7 +360,7 @@ describe("patchSheet — the tracker EXCEPTIONS are host-only, even on a member'
 
     // A host-authored exception SURVIVES a member's later self-edit (omit-keeps, MA-4) — the member cannot
     // erase it by writing the fields they DO own.
-    await service.patchSheet({ principal: principal(castId<Handle>("host")), chatId, actorRef: ref, patch: { trackerGrants: ["bound_will"] } });
+    await service.patchSheet({ principal: await principal(db, castId<Handle>("host")), chatId, actorRef: ref, patch: { trackerGrants: ["bound_will"] } });
     await service.patchSheet({ principal: member, chatId, actorRef: ref, patch: { flavor: "still watchful" } });
     expect((await findSheet(db, game.id, { userId: memberId }))?.sheet.trackerGrants).toEqual(["bound_will"]);
   });

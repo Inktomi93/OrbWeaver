@@ -12,6 +12,7 @@ const row = {
   mode: "singular",
   lane: "sweep",
   ownerId: null,
+  funderUserId: null,
   dependsOn: null,
   error: null,
   progress: { message: "indexed", current: 2, total: 2, pct: 100 },

@@ -15,25 +15,25 @@ describe("applyEntryOrder", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     const a = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "A", content: "c", priority: 0 },
     });
     const b = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "B", content: "c", priority: 0 },
     });
 
     const res = await svc.applyEntryOrder({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       orderedEntryIds: [b.id, a.id],
     });
     expect(res.reordered).toBe(2);
-    const listed = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    const listed = await svc.listEntries({ principal: await principal(db, owner), bookId: book.id });
     expect(listed.map((e) => e.id)).toEqual([b.id, a.id]);
   });
 
@@ -41,15 +41,15 @@ describe("applyEntryOrder", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
     const a = await svc.createEntry({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       input: { title: "A", content: "c" },
     });
 
     const res = await svc.applyEntryOrder({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       orderedEntryIds: [castId<WorldEntryId>("world_entry_ghost"), a.id],
     });
@@ -64,14 +64,14 @@ describe("applyEntryOrder", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
-    const a = await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "A", content: "c", priority: 0 } });
-    const b = await svc.createEntry({ principal: principal(owner), bookId: book.id, input: { title: "B", content: "c", priority: 0 } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
+    const a = await svc.createEntry({ principal: await principal(db, owner), bookId: book.id, input: { title: "A", content: "c", priority: 0 } });
+    const b = await svc.createEntry({ principal: await principal(db, owner), bookId: book.id, input: { title: "B", content: "c", priority: 0 } });
 
-    const res = await svc.applyEntryOrder({ principal: principal(owner), bookId: book.id, orderedEntryIds: [b.id, a.id, b.id] });
+    const res = await svc.applyEntryOrder({ principal: await principal(db, owner), bookId: book.id, orderedEntryIds: [b.id, a.id, b.id] });
 
     expect(res.reordered).toBe(2);
-    const listed = await svc.listEntries({ principal: principal(owner), bookId: book.id });
+    const listed = await svc.listEntries({ principal: await principal(db, owner), bookId: book.id });
     expect(listed.map((e) => e.id)).toEqual([b.id, a.id]);
   });
 
@@ -79,10 +79,10 @@ describe("applyEntryOrder", () => {
     const db = await freshDb();
     const svc = createWorldInfoService(makeHarness(db).ctx);
     const owner = await seedUser(db, { handle: castId<Handle>("owner") });
-    const book = await svc.createBook({ principal: principal(owner), input: { name: "B" } });
+    const book = await svc.createBook({ principal: await principal(db, owner), input: { name: "B" } });
 
     const res = await svc.applyEntryOrder({
-      principal: principal(owner),
+      principal: await principal(db, owner),
       bookId: book.id,
       orderedEntryIds: [],
     });

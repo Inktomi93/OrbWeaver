@@ -68,7 +68,7 @@ function scriptedPort(answers: Record<string, (text: string) => Promise<string>>
 test("with NO registered transforms the round-trip is an IDENTITY — the row's own text comes straight back", async () => {
   const db = await freshDb();
   const h = makePluginHarness(db);
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
 
@@ -79,7 +79,7 @@ test("a registered display transform ANNOTATES the rendered text", async () => {
   const db = await freshDb();
   const scripted = scriptedPort({ "handler-furigana": (text) => Promise.resolve(`${text} ✦`) });
   const h = makePluginHarness(db, { port: scripted.port });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   scripted.script(instanceWith(["furigana"]));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood", capabilities: ["chat.transform"] }), grant: ["chat.transform"] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
@@ -94,7 +94,7 @@ test("transforms FOLD in registration order — each sees the prior's output", a
     "handler-two": (text) => Promise.resolve(`${text}[2]`),
   });
   const h = makePluginHarness(db, { port: scripted.port });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   scripted.script(instanceWith(["one", "two"]));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
@@ -121,7 +121,7 @@ test("the guest receives the row's identity as its `env` (a transform routinely 
     },
   };
   const h = makePluginHarness(db, { port });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   scripted.script(instanceWith(["peek"]));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
@@ -137,7 +137,7 @@ test("a THROWING transform is SKIPPED (D53) — the row keeps its text and the S
     "handler-ok": (text) => Promise.resolve(`${text}[ok]`),
   });
   const h = makePluginHarness(db, { port: scripted.port });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   scripted.script(instanceWith(["boom", "ok"]));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
@@ -150,7 +150,7 @@ test("a HANGING transform is bounded by the per-message deadline — the row sti
   const db = await freshDb();
   const scripted = scriptedPort({ "handler-hang": () => new Promise<string>(() => undefined) });
   const h = makePluginHarness(db, { port: scripted.port });
-  const caller = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("owner") }));
+  const caller = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("owner") }));
   scripted.script(instanceWith(["hang"]));
   const installed = await h.service.install({ caller, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller, pluginId: installed.id, enabled: true });
@@ -162,8 +162,8 @@ test("owner-scoped: another owner's display transforms never run and never list 
   const db = await freshDb();
   const scripted = scriptedPort({ "handler-alpha": (text) => Promise.resolve(`${text}[ALPHA]`) });
   const h = makePluginHarness(db, { port: scripted.port });
-  const alpha = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("alpha") }));
-  const beta = ownerPrincipalFor(await seedUser(db, { handle: castId<Handle>("beta") }));
+  const alpha = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("alpha") }));
+  const beta = await ownerPrincipalFor(db, await seedUser(db, { handle: castId<Handle>("beta") }));
   scripted.script(instanceWith(["alpha"]));
   const alphaPlugin = await h.service.install({ caller: alpha, bundle: makeBundle({ id: "mood" }), grant: [] });
   await h.service.setEnabled({ caller: alpha, pluginId: alphaPlugin.id, enabled: true });
