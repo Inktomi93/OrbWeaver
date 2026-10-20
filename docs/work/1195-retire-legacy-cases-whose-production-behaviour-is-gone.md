@@ -1,9 +1,8 @@
 ---
 kind: work
-status: doing
+status: open
 updated: 2026-10-20
 priority: P1
-lane: codex/legacy-obsolete-1195
 plan: test-foundation
 ---
 
@@ -24,3 +23,5 @@ Each row is deleted with its reason, or rebuilt against the current behaviour th
 ## Evidence
 
 Wire-dispatch coverage does not establish current executor funding, credential or accounting authority. Real-root replacements own those claims. Retained side-generation, conformance and catalog cases still require their promised legacy exit, so a qualified source leg does not complete this item. Evidence: `reports/review/1195-legacy-obsolete-review.md`.
+
+Source legs `77de3a0ced` and `9a6e5a009c` are integrated on main. Combined root and DOM checks pass. The complete native legacy-node program reports only remaining chat-engine diagnostics, owned by the engine rebuild; no SDK fixture diagnostic remains. Evidence: `reports/review/1195-combined-legacy-type-followup.md` and `reports/review/1195-combined-legacy-types.log`. The delivered source leg is complete; the remaining legacy exit has no active lane.
