@@ -1,7 +1,8 @@
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { buildLiveness, collectOrphanCandidates, collectTypeOnlyCandidates } from "@orb/tooling/ast";
+import { collectOrphanCandidates, collectTypeOnlyCandidates } from "@orb/tooling/ast";
+import { buildLiveness } from "@orb/tooling/floor/code-facts/liveness";
 import { createSemanticWorkspace, getWorkspace, readonlyObjectProperties } from "@orb/tooling/floor/compiler/ts-workspace";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { Node, Project, SyntaxKind } from "ts-morph";

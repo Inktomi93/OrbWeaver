@@ -85,6 +85,8 @@ test("the actual inventory CLI closes its pinned database before process cleanup
     });
     expect(result.code, result.stderr).toBe(detached ? 2 : 0);
     expect(result.stdout.length > 0, result.stderr).toBe(!detached);
+    // A refused witness names itself; an exit code alone gives the reader nothing to fix.
+    expect(result.stderr.includes("detached external-consumption witness"), result.stderr).toBe(detached);
     const closed = readFileSync(trace, "utf8")
       .trim()
       .split("\n")
@@ -160,6 +162,26 @@ test.for(DEMAND_VERBS)("actual %s CLI preserves output and requests only its req
   const payload = typeOnlyPayload.parse(JSON.parse(result.stdout));
   expect(payload.hits.map((hit) => hit.kind)).toEqual(["typeonly-alive"]);
   expect(payload.hits.map((hit) => hit.text.split("  ←")[0])).toEqual(["shaped"]);
+});
+
+test("actual testonly CLI reports an export reached only by a legacy test instead of a clean zero", { tags: ["slow"] }, async ({ scratch, repoRoot }) => {
+  demandFixture(scratch, repoRoot);
+  write(
+    scratch,
+    "tsconfig.tests-legacy.json",
+    JSON.stringify({
+      include: ["tests/legacy/**/*.ts"],
+      compilerOptions: { noLib: true, types: [], target: "ES2022", module: "ESNext", moduleResolution: "Bundler" },
+    }),
+  );
+  write(scratch, "tests/legacy/kit/a.test.ts", "import {unused} from '../../../packages/kit/src/a';export const held=unused;\n");
+  const result = await spawnNiced(process.execPath, [join(scratch, "tooling/src/ast/cli.ts"), "testonly", "kit", "--json"], {
+    cwd: scratch,
+    timeoutMs: budget(30_000),
+  });
+  expect(result.code, result.stdout + result.stderr).toBe(0);
+  const payload = typeOnlyPayload.parse(JSON.parse(result.stdout));
+  expect(payload.hits.map((hit) => [hit.kind, hit.text.split("  —")[0]])).toEqual([["test-only-export", "unused"]]);
 });
 
 test("the real AST factory retains references but refuses each omitted type-only family", { tags: ["slow"] }, async ({ scratch, repoRoot }) => {

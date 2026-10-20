@@ -1,15 +1,16 @@
 // chains: declarations whose ONLY life originates inside other DEAD declarations.
 import type { Node } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { buildLiveness } from "../../floor/code-facts/liveness.ts";
+import type { Liveness } from "../../floor/code-facts/liveness-contract.ts";
+import { fileOfKey, isModuleScopeKey, topLevelDeclarations } from "../../floor/code-facts/liveness-edges.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
-import type { ChainAudit, ChainCandidate, ChainLink, Flags, Hit, Liveness } from "../contract/types.ts";
-import { fileOfKey, isModuleScopeKey, topLevelDeclarations } from "../lib/edges.ts";
+import type { ChainAudit, ChainCandidate, ChainLink, Flags, Hit } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
-import { buildLiveness } from "../lib/liveness.ts";
 import { isPublicTagged } from "../lib/public-markers.ts";
-import { isTestPath, TEST_FILE_RE } from "../lib/root.ts";
+import { isPackageSourcePath, isTestPath, TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
 import { relPath } from "./swallowed.ts";
 
@@ -55,7 +56,7 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 // aren't, plus one specific to the fixpoint: a consumer this substrate cannot SEE (a registry dispatched by a
 // DB-sourced key, a `Trpc[…]` proxy consumption, a template-literal module id) makes a live declaration look
 // chain-dead, and a fixpoint AMPLIFIES that — one missed edge can kill a whole subtree in the report. Read the
-// call sites. The attribution errs alive wherever it can (see the substrate section's over-attribution note),
+// call sites. The attribution errs alive wherever it can (see the header of `floor/code-facts/liveness-edges.ts`),
 // which is the only safe direction for a lens that nominates code for deletion.
 /** ONE declaration in the chain graph. `exported` separates the two remedies a reader has: an exported
  *  chain-dead symbol may have an unseen dynamic consumer, a file-local one essentially cannot. */
@@ -73,14 +74,7 @@ interface ChainGraph {
   readonly consumes: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
-/** The workspace surface this lens audits: `packages/<pkg>/src/`. A file OUTSIDE it — a package's own
- *  `vite.config.ts`, a build script — is loaded BY TOOLING, never through an import edge any lens can see,
- *  so it is an unconditional alive root (same class as ROOT 2). Measured on the first audit: without this,
- *  `devCspMirror` and six siblings inside `packages/client/vite.config.ts` read as a dead chain hanging off
- *  the config's own (tooling-consumed, therefore "unconsumed") default export. */
-export const PACKAGE_SRC_RE = /\/packages\/[^/]+\/src\//u;
-
-/** The bare-scope prefix (every package) — the nodes are already `src`-only by {@link PACKAGE_SRC_RE}. */
+/** The bare-scope prefix (every package); the graph nodes are package source only. */
 export const PACKAGES_PREFIX = "/packages/";
 
 /** The R2 sealed package: every export is an alive root (ROOT 4). */
@@ -95,9 +89,10 @@ const CHAIN_HEADS_SHOWN = 12;
 /** Right-aligned width of the summary's per-head link count (the `columns` summary's COLUMN_COUNT_PAD). */
 const CHAIN_COUNT_PAD = 4;
 
-/** Is this consumer key outside the audited surface (a test, a script, a package's own build config)? ROOT 2. */
+/** ROOT 2: a consumer outside package source. A package's own `vite.config.ts` or a build script is loaded by
+ *  tooling, never through an import edge, so treating it as a node would read its helpers as a dead chain. */
 function isChainRootFile(filePath: string): boolean {
-  return isTestPath(filePath) || !PACKAGE_SRC_RE.test(filePath);
+  return isTestPath(filePath) || !isPackageSourcePath(filePath);
 }
 
 /** Every audited declaration, keyed — plus the reverse edge index. Test files are not nodes (their
@@ -106,7 +101,7 @@ function buildChainGraph(project: SourceCorpus, live: Liveness): ChainGraph {
   const nodes = new Map<string, ChainNode>();
   for (const sf of project.getSourceFiles()) {
     const fp = sf.getFilePath();
-    if (!PACKAGE_SRC_RE.test(fp) || TEST_FILE_RE.test(fp)) {
+    if (!isPackageSourcePath(fp) || TEST_FILE_RE.test(fp)) {
       continue;
     }
     const exportedKeys = new Set<string>();
@@ -301,7 +296,7 @@ export function cmdChains(project: SourceCorpus, arg: string, flags: Flags): voi
     scanCorpus(project, {
       scope: scope.prefix,
       label: `path:${scope.prefix}`,
-      skip: [SKIP_TEST_FILES, { reason: "out-of-scope", test: (fp) => !PACKAGE_SRC_RE.test(fp) }],
+      skip: [SKIP_TEST_FILES, { reason: "out-of-scope", test: (fp) => !isPackageSourcePath(fp) }],
     }),
   );
   const live = buildLiveness(project, { edges: true });

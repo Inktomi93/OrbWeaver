@@ -1,16 +1,15 @@
-// Runtime/tool entry conventions shared by file reachability and symbol liveness.
+// Checked consumers outside the import graph: package-root tool configs and typed source-reader witnesses.
+// A witness counts only while its carrier participates in non-test code; a detached witness refuses.
 import type { SourceFile } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
-import { inventoryExports, semanticInventoryOf } from "../../floor/code-facts/semantic-inventory-reader.ts";
-import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
-import { semanticReferenceNodes } from "../../floor/compiler/ts-workspace.ts";
-import type { ExternalConsumption } from "../contract/types.ts";
-import { declKey } from "./keys.ts";
-import { AstToolError } from "./ledger.ts";
-import { isTestPath } from "./root.ts";
+import type { SourceCorpus } from "../compiler/ts-workspace.ts";
+import { semanticReferenceNodes } from "../compiler/ts-workspace.ts";
+import { isInventoryTestPath } from "./inventory-consumers.ts";
+import type { ExternalConsumption } from "./liveness-contract.ts";
+import { LivenessRefusalError } from "./liveness-contract.ts";
+import { inventoryDeclarationKey, inventoryExports, semanticInventoryOf } from "./semantic-inventory-reader.ts";
 
-/** Package-root build-tool configs are loaded by filename convention. A config nested below `src/`
- *  is an ordinary module and must not inherit that external consumer. */
+/** A package-root build-tool config is loaded by filename convention; one nested below `src/` is an ordinary module. */
 const PACKAGE_ROOT_TOOLING_CONFIG_RE = /\/packages\/[^/]+\/[^/]+\.config\.ts$/u;
 
 export function isPackageRootToolingConfig(filePath: string): boolean {
@@ -24,12 +23,11 @@ function externalSite(filePath: string, line: number, label = "typed source-read
 }
 
 function refuseWitness(message: string): never {
-  throw new AstToolError(`ast external-consumption: ${message}`);
+  throw new LivenessRefusalError(`checked external consumption: ${message}`);
 }
 
-/** The exact checked source-reader grammar: `"Export" satisfies keyof typeof import("module")`.
- *  The import type makes a renamed/removed export compiler-red; resolving its property symbol through an
- *  alias makes the fact key the origin declaration, including through a barrel. */
+// The exact grammar is `"Export" satisfies keyof typeof import("module")`: the import type makes a renamed export
+// compiler-red, and the alias-resolved property symbol keys the fact on the origin declaration through any barrel.
 function sourceReaderWitness(satisfies: Node): { readonly name: string; readonly targetKey: string } | undefined {
   if (!Node.isSatisfiesExpression(satisfies)) {
     return;
@@ -59,26 +57,24 @@ function sourceReaderWitness(satisfies: Node): { readonly name: string; readonly
   if (declarations.length !== 1 || declarations[0] === undefined) {
     return refuseWitness(`the witness for ${name} resolves ${String(declarations.length)} origin declarations; exactly one is required`);
   }
-  return { name, targetKey: declKey(declarations[0]) };
+  return { name, targetKey: inventoryDeclarationKey(declarations[0]) };
 }
 
 function configConsumptions(sf: SourceFile): ExternalConsumption[] {
-  const facts: ExternalConsumption[] = [];
   if (!isPackageRootToolingConfig(sf.getFilePath())) {
-    return facts;
+    return [];
   }
-  for (const declaration of inventoryExports(sf).get("default") ?? []) {
-    const targetKey = declKey(declaration);
-    facts.push({
+  return (inventoryExports(sf).get("default") ?? []).map((declaration) => {
+    const targetKey = inventoryDeclarationKey(declaration);
+    return {
       targetKey,
       consumerSite: externalSite(sf.getFilePath(), 1, "tool config entry"),
       consumerFile: sf.getFilePath(),
       consumerClass: "tooling",
       kind: "value",
       rootConsumerKey: targetKey,
-    });
-  }
-  return facts;
+    };
+  });
 }
 
 function sourceReaderConsumption(satisfies: Node): ExternalConsumption | undefined {
@@ -93,7 +89,7 @@ function sourceReaderConsumption(satisfies: Node): ExternalConsumption | undefin
   }
   const liveCarrier = semanticReferenceNodes(carrier).some((reference) => {
     const outsideDeclaration = !(reference.getSourceFile() === sf && reference.getStart() >= carrier.getStart() && reference.getEnd() <= carrier.getEnd());
-    return outsideDeclaration && !isTestPath(reference.getSourceFile().getFilePath());
+    return outsideDeclaration && !isInventoryTestPath(reference.getSourceFile().getFilePath());
   });
   if (!liveCarrier) {
     refuseWitness(`detached external-consumption witness ${carrier.getName()} at ${externalSite(sf.getFilePath(), carrier.getStartLineNumber())}`);
@@ -104,17 +100,15 @@ function sourceReaderConsumption(satisfies: Node): ExternalConsumption | undefin
     consumerFile: sf.getFilePath(),
     consumerClass: "tooling",
     kind: "value",
-    rootConsumerKey: declKey(carrier),
+    rootConsumerKey: inventoryDeclarationKey(carrier),
   };
 }
 
-/** Normalize checked, source-native consumers that sit outside the ordinary import graph. A witness is
- *  evidence only while its carrier participates in non-test code; a detached declaration refuses instead
- *  of becoming a marker-shaped parking permit. */
+/** Every checked external consumption in non-test sources of `project`. */
 export function collectExternalConsumptions(project: SourceCorpus): readonly ExternalConsumption[] {
   const facts: ExternalConsumption[] = [];
   for (const sf of project.getSourceFiles()) {
-    if (isTestPath(sf.getFilePath())) {
+    if (isInventoryTestPath(sf.getFilePath())) {
       continue;
     }
     facts.push(...configConsumptions(sf));

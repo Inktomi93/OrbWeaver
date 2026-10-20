@@ -1,4 +1,4 @@
-import type { Node, SourceFile } from "ts-morph";
+import type { Node } from "ts-morph";
 
 const SKIP_REASONS = ["out-of-scope", "out-of-filter", "test-file", "declaration-file"] as const;
 export type SkipReason = (typeof SKIP_REASONS)[number];
@@ -21,43 +21,6 @@ export interface ScanSpec {
   readonly scope: ScopeMatch;
   readonly label: string;
   readonly skip?: readonly SkipRule[];
-}
-
-const CONSUMPTION_ARMS = ["named", "namespace", "dynamic", "external"] as const;
-export type ConsumptionArm = (typeof CONSUMPTION_ARMS)[number];
-
-export interface ExternalConsumption {
-  readonly targetKey: string;
-  readonly consumerSite: string;
-  readonly consumerFile: string;
-  readonly consumerClass: "tooling";
-  readonly kind: "value" | "type";
-  readonly rootConsumerKey: string;
-}
-
-export interface NamespaceSite {
-  readonly file: SourceFile;
-  readonly alias: string;
-  readonly binding: Node;
-  readonly exposed: ReadonlyMap<string, readonly string[]>;
-}
-
-export interface Liveness {
-  usedProd: Set<string>;
-  /** `usedProd` minus anything reached ONLY from `scripts/**` — dev-only one-off probes, never shipped
-   *  (mirrors knip.ts's own production-entry scope, which carries no `!` on `scripts/**\/*.ts`). The
-   *  ratchet's stale-`@public` arm reads this instead of `usedProd`: a probe script is a real reader, but
-   *  not a shippable one, so marking an export `@public` for it is not a false "deliberately unconsumed"
-   *  claim the way marking one already reached by shipped code would be. */
-  usedProdNonScripts: Set<string>;
-  usedClientProd: Set<string>;
-  usedServerProd: Set<string>;
-  usedTest: Set<string>;
-  starTargets: Set<string>;
-  arms: Map<string, Set<ConsumptionArm>>;
-  namespaceSites: NamespaceSite[];
-  consumers: Map<string, Set<string>>;
-  externalConsumptions: readonly ExternalConsumption[];
 }
 
 export interface Scope {

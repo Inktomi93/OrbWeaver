@@ -140,7 +140,7 @@ Today `pnpm ast` reads code through `tooling/src/ast/lib/` and the gates read it
 | Symbol references and member reads | `ast/lib/resolve.ts`, `usage.ts`, the wiring member reader; floor `reference-fact`; `verify/lib` `symbol-reference`; the hand-written bracket readers | 955 |
 | Import doors and reach | `pnpm ast` importers, reaches and flow; `verify/lib` test-reach, test-import-door, tooling-import-door, policy-production-reach | 956 |
 | Codemods | codemod readers in `tooling/src/codemod/lib/` | 957 |
-| Liveness | `pnpm ast` dead, orphans, testonly and chains; `tests/tooling/doc/ledger-paths.suite.repo.int.test.ts`, testid-liveness | not yet itemized |
+| Liveness | `pnpm ast` dead, orphans, testonly, chains, swallowed, apisurface and clientgap readers in `ast/lib` and `ast/ops` | 1162 |
 | tRPC wiring | `pnpm ast` unwired, clientgap and viewgap; floor `trpc-doors` | not yet itemized |
 | Ambient calls: clock, random, timers, environment | no-raw-clock, no-raw-random, test-determinism, platform-spellings, sole-env-reader | not yet itemized |
 | Casts | Native assertion rules; shared brand and assignability facts retain semantic judgments | 1041; 973 widens the id gates |
@@ -193,10 +193,10 @@ The generation prototype census passes review. Its target refusal remains record
 | - | - |
 | `tooling/src/ast/lib/scope.ts`, `tooling/src/ast/lib/keys.ts` | Own exports and exposed origin sets |
 | `tooling/src/floor/code-facts/module-target.ts` | Native dynamic-import and relative module targets; preserve consumer-specific admission |
-| `tooling/src/ast/lib/liveness.ts`, `tooling/src/ast/lib/edges.ts` | Import targets, export origins and binding identity; keep existing consumption judgments |
+| `tooling/src/floor/code-facts/liveness.ts`, `tooling/src/floor/code-facts/liveness-consumption.ts`, `tooling/src/floor/code-facts/liveness-edges.ts` | Import targets, export origins and binding identity; keep existing consumption judgments |
 | `tooling/src/ast/ops/apisurface.ts` | Package consumption facts; keep classification |
 | `tooling/src/ast/ops/swallowed.ts` | Namespace binding identity; keep member consumption and refusal behavior |
-| `tooling/src/ast/lib/tooling-entries.ts` | Checked witness origins and references; keep detached-witness refusal |
+| `tooling/src/floor/code-facts/liveness-witnesses.ts` | Checked witness origins and references; keep detached-witness refusal |
 | `tooling/src/floor/compiler/ts-workspace.ts` | Stored physical-reference queries; keep explicit native views |
 | `tooling/src/floor/code-facts/reference-fact.ts` | Stored export origins through the existing public reader |
 | `tooling/src/ast/index.ts`, `tooling/src/ast/lib/emit.ts`, `tooling/src/ast/cli.ts` | Explicit store-backed inventory routing; unported typed verbs keep native views |

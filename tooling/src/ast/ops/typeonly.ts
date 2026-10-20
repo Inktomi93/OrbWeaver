@@ -42,8 +42,8 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 // The cost is the `refs` verb's cost, once per value export. That is why the lens is MANUAL-tier.
 //
 // WHY THIS LENS DOES NOT EXTEND `Liveness.arms`. The arm record exists for ONE consumer — `swallowed`'s
-// "is `namespace` this key's only arm?" question — and the ERR-ALIVE ARM contract above binds anything that
-// MARKS a key alive. This lens marks nothing: it never calls `markImportConsumption`, adds no consumption
+// "is `namespace` this key's only arm?" question — and the liveness reader's err-alive arms bind anything that
+// MARKS a key alive. This lens marks nothing: it never reads the consumption walk, adds no consumption
 // path, and reads no liveness set. A `type`-vs-`value` split of the `named` arm would therefore be recorded
 // and never read (and could not change a `swallowed` verdict either way, since that lens only asks whether
 // `namespace` stands alone). Reference position strictly dominates import form for this question — the

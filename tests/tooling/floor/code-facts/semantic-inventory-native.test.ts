@@ -5,7 +5,6 @@ import { DatabaseSync } from "node:sqlite";
 import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import {
-  buildLiveness,
   collectApiSurface,
   collectOrphanCandidates,
   collectSwallowedCandidates,
@@ -15,6 +14,7 @@ import {
   testOnlyClassOf,
 } from "@orb/tooling/ast";
 import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
+import { buildLiveness } from "@orb/tooling/floor/code-facts/liveness";
 import { beginReferencePass, endReferencePass, isDocumentationLinkReference, resolveExportedDeclarations } from "@orb/tooling/floor/code-facts/reference-fact";
 import type { SemanticInventory } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import { SemanticInventoryError } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";

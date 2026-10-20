@@ -2,18 +2,16 @@ import { commentHost } from "../lib/public-markers.ts";
 // swallowed: exports alive ONLY because a namespace import swallowed their module.
 
 import process from "node:process";
-import type { SourceFile } from "ts-morph";
-import { Node, SyntaxKind } from "ts-morph";
+import type { Node, SourceFile } from "ts-morph";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { literalMemberAccess } from "../../floor/code-facts/reference-fact.ts";
-import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
-import { declarationBindingKeys } from "../../floor/code-facts/semantic-inventory-reader.ts";
+import { buildLiveness, isReferencedInOwnFile } from "../../floor/code-facts/liveness.ts";
+import { bindingMemberNames } from "../../floor/code-facts/liveness-consumption.ts";
+import type { Liveness, NamespaceSite } from "../../floor/code-facts/liveness-contract.ts";
 import type { SourceCorpus } from "../../floor/compiler/ts-workspace.ts";
-import type { Flags, Hit, Liveness, NamespaceSite, SwallowedCandidate } from "../contract/types.ts";
+import type { Flags, Hit, SwallowedCandidate } from "../contract/types.ts";
 import { emit, hitOf, narrate } from "../lib/emit.ts";
 import { declKey } from "../lib/keys.ts";
 import { corpusPredicate, SKIP_TEST_FILES, scanCorpus } from "../lib/ledger.ts";
-import { buildLiveness, isReferencedInOwnFile } from "../lib/liveness.ts";
 import { isTestPath, REPO_ROOT, TEST_FILE_RE } from "../lib/root.ts";
 import { ownExports, resolveScope } from "../lib/scope.ts";
 
@@ -22,7 +20,7 @@ refuseDirectInvocation(import.meta.url, "pnpm ast <lens>");
 // ── swallowed: exports alive ONLY because a namespace import swallowed the whole module ─────────
 // The rot-hider class, proven on the real tree: `packages/db/src/client/index.ts` does
 // `import * as schema from "#schema"` and hands the namespace to `drizzle(client, { schema })`. That single
-// import marks EVERY schema export alive (markModuleAlive's deliberate err-alive arm), so a functionally
+// import marks EVERY schema export alive (the namespace arm deliberately errs alive), so a functionally
 // unused export inside the barrel reads as consumed forever — `usersRelations` did, for five weeks.
 //
 // The lens reports exports whose ONLY liveness arm is `namespace` AND whose member NAME no swallowing file
@@ -43,34 +41,6 @@ export function isSwallowedExempt(decl: Node): boolean {
   return commentHost(decl)
     .getLeadingCommentRanges()
     .some((range) => SWALLOWED_OK_RE.test(range.getText()));
-}
-
-/** Every member name a namespace-importing file SPELLS on its `import * as <alias>` binding: `alias.member`,
- *  `alias["member"]`, and `const { member } = alias`. A member named here is genuinely consumed — it is the
- *  arm that separates "the module was swallowed" from "this export was actually used through it". */
-function namedMembersOf(site: NamespaceSite): Set<string> {
-  const bindingKeys = new Set(declarationBindingKeys(site.binding, false));
-  const isNamespaceBinding = (node: Node): boolean => declarationBindingKeys(node, false).some((key) => bindingKeys.has(key));
-  const named = new Set<string>();
-  for (const kind of MEMBER_ACCESS_KINDS) {
-    for (const access of site.file.getDescendantsOfKind(kind)) {
-      const read = literalMemberAccess(access);
-      if (read !== undefined && isNamespaceBinding(read.receiver)) {
-        named.add(read.name);
-      }
-    }
-  }
-  for (const v of site.file.getDescendantsOfKind(SyntaxKind.VariableDeclaration)) {
-    const init = v.getInitializer();
-    const binding = v.getNameNode();
-    if (init === undefined || !isNamespaceBinding(init) || !Node.isObjectBindingPattern(binding)) {
-      continue;
-    }
-    for (const element of binding.getElements()) {
-      named.add((element.getPropertyNameNode() ?? element.getNameNode()).getText());
-    }
-  }
-  return named;
 }
 
 /** Exports of `inScope` whose only liveness arm is `namespace` and whose name no swallowing file spells.
@@ -97,7 +67,8 @@ function memoizedSpelledMembers(): (site: NamespaceSite) => Set<string> {
     if (hit !== undefined) {
       return hit;
     }
-    const fresh = namedMembersOf(site);
+    // A member the swallowing file spells on its namespace binding is consumed, not swallowed.
+    const fresh = bindingMemberNames(site.binding);
     cache.set(site, fresh);
     return fresh;
   };
@@ -111,7 +82,7 @@ function swallowedInFile(sf: SourceFile, live: Liveness, spelledAt: (site: Names
   for (const { name, decl } of ownExports(sf)) {
     const key = declKey(decl);
     const arms = live.arms.get(key);
-    if (arms === undefined || arms.size !== 1 || !arms.has("namespace") || isReferencedInOwnFile(sf, name, decl)) {
+    if (arms === undefined || arms.size !== 1 || !arms.has("namespace") || isReferencedInOwnFile(sf, decl)) {
       continue;
     }
     const sites = live.namespaceSites.filter((s) => s.exposed.has(key));
