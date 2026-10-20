@@ -1,4 +1,4 @@
-import { readFileSync, rmSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { DatabaseSync } from "node:sqlite";
@@ -450,6 +450,37 @@ test("a source edit between two pure-reuse acquisitions re-extracts instead of h
   expect([...ownExports(source(edited, "packages/kit/src/base.ts"))].map((entry) => entry.name)).toContain("replacement");
 });
 
+test("content versions ignore timestamps: same bytes reuse, a same-size edit with restored times rebuilds", { timeout: scaledBudget(240_000) }, ({
+  scratch,
+}) => {
+  initialize(scratch);
+  const options = { root: scratch, programs: readCompilerPrograms(scratch).filter((program) => program.id === "packages/kit/tsconfig.json") };
+  const path = join(scratch, "packages/kit/src/base.ts");
+  const stamp = new Date("2020-01-01T00:00:00Z");
+  utimesSync(path, stamp, stamp);
+  using first = nativeInventoryFixture(options);
+  const text = readFileSync(path, "utf8");
+  const touchStamp = new Date("2021-01-01T00:00:00Z");
+  writeFileSync(path, text);
+  utimesSync(path, stamp, touchStamp);
+  const touchWorkers: string[] = [];
+  using touched = nativeInventoryFixture(options, { workers: touchWorkers });
+  expect(touchWorkers).toEqual([]);
+  expect(touched.generation).toBe(first.generation);
+  const edited = text.replace("unused=4", "unused=5");
+  expect(edited).not.toBe(text);
+  const size = statSync(path).size;
+  writeFileSync(path, edited);
+  utimesSync(path, stamp, touchStamp);
+  expect(statSync(path)).toMatchObject({ size, mtimeMs: touchStamp.getTime() });
+  const editWorkers: string[] = [];
+  using rebuilt = nativeInventoryFixture(options, { workers: editWorkers });
+  expect(editWorkers).toEqual(["packages/kit/tsconfig.json"]);
+  expect(rebuilt.generation).toBeGreaterThan(first.generation);
+  expect(source(rebuilt, path).getFullText()).toBe(edited);
+  expect(source(first, path).getFullText()).toBe(text);
+});
+
 test("changes, additions, removals, package resolution and failed lookups invalidate without mixing pinned generations", { tags: ["slow"] }, ({ scratch }) => {
   initialize(scratch);
   write(scratch, "packages/client/src/missing.ts", "import { absent } from './absent'; export const read=absent;\n");
@@ -497,6 +528,32 @@ test("same-input competing writers recheck under the lock and build each native 
     .split("\n")
     .map((line) => JSON.parse(line) as string);
   expect(builds.toSorted()).toEqual(["packages/client/tsconfig.json", "packages/kit/tsconfig.json", "tsconfig.tools.json"]);
+});
+
+test("concurrent processes on another entry reuse a warm store while a parent reader stays pinned", { timeout: scaledBudget(240_000) }, async ({ scratch }) => {
+  initialize(scratch);
+  const coldWorkers: string[] = [];
+  using pinned = nativeInventoryFixture({ root: scratch }, { workers: coldWorkers });
+  expect(coldWorkers.toSorted()).toEqual(["packages/client/tsconfig.json", "packages/kit/tsconfig.json", "tsconfig.tools.json"]);
+  const text = source(pinned, "packages/kit/src/base.ts").getFullText();
+  const names = [...ownExports(source(pinned, "packages/kit/src/base.ts"))].map((entry) => entry.name);
+  const log = join(scratch, ".cache/warm-builds.jsonl");
+  const command = fileURLToPath(new URL("../compiler/native-inventory-command-cases.ts", import.meta.url));
+  const bootstrap = fileURLToPath(new URL("../../../../tooling/src/floor/compiler/semantic-inventory-runtime.ts", import.meta.url));
+  const results = [join(scratch, ".cache/warm-left.json"), join(scratch, ".cache/warm-right.json")];
+  const runs = await Promise.all(
+    results.map((path) => spawnNiced(process.execPath, ["--import", bootstrap, command, "writer", scratch, path, log], { cwd: scratch })),
+  );
+  for (const run of runs) {
+    expect(run.code, run.stderr).toBe(0);
+  }
+  expect(existsSync(log)).toBe(false);
+  const expected = { generation: pinned.generation, programs: pinned.programs };
+  expect(results.map((path) => JSON.parse(readFileSync(path, "utf8")))).toEqual([expected, expected]);
+  using database = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
+  expect(latestInventoryGeneration(database)).toBe(pinned.generation);
+  expect(source(pinned, "packages/kit/src/base.ts").getFullText()).toBe(text);
+  expect([...ownExports(source(pinned, "packages/kit/src/base.ts"))].map((entry) => entry.name)).toEqual(names);
 });
 
 test("stored declaration selection preserves native local/export admission without invoking a syntax-carrier checker", ({ scratch }) => {
