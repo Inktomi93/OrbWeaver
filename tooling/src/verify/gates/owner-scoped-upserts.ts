@@ -47,18 +47,19 @@ import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
 import type { SchemaTableIndex } from "../contract/tenancy.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { declaredTablesOf, predicatesTableColumn, tableTargetOf, upsertConfigOf } from "../lib/tenancy-read.ts";
+import { declaredTablesOf, predicatesTableColumn, tableTargetOf, targetsTableColumn, upsertConfigOf } from "../lib/tenancy-read.ts";
 import { ownerScopedTableIdents, schemaTableIndex } from "../lib/tenancy-scope.ts";
 import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
 
 const OWNER_COL = "ownerId";
+const TARGET_PROP = "target";
 /** The config properties that can CONSTRAIN which row the DO UPDATE arm touches: the conflict `target` (the
  *  unique index whose collision fires it), the `targetWhere` (a partial-index predicate) and the `setWhere`
  *  (the DO UPDATE's own WHERE — a non-matching row is skipped, not overwritten). `set` is deliberately NOT
  *  here: assigning the owner column in `set` does not constrain WHICH row is written, it RESTAMPS the row that
  *  already lost — the widest form of the hole, not a guard. drizzle's `where:` is deprecated precisely because
  *  it is ambiguous between the two sides, so it cannot prove either. */
-const GUARD_PROPS = ["target", "targetWhere", "setWhere"] as const;
+const GUARD_PROPS = [TARGET_PROP, "targetWhere", "setWhere"] as const;
 
 /** The finding message of the unresolvable arm — a stable CLASS name, so the arm reads distinctly from the
  *  ownerless-target arm even though its token (the binding itself) can collide with it. */
@@ -119,17 +120,21 @@ function upsertCandidateOf(node: Node): UpsertCandidate | undefined {
   return callee.isKind(SyntaxKind.PropertyAccessExpression) && callee.getName() === DRIZZLE_INSERT_VERB ? { node } : undefined;
 }
 
-/** Does the upsert config constrain the DO UPDATE to THIS table's own owner column? Requires an owner-column
- *  read whose receiver names the insert target's one declared table — a bare `ownerId` or some OTHER table's
- *  owner column scopes nothing here. FAILS CLOSED on any config the reader cannot see through (a spread, an
- *  identifier, a call), because an unreadable guard is an unproven one. */
+/** Does the upsert config constrain the DO UPDATE to THIS table's own owner column? The conflict `target` must
+ *  list the insert target's own owner column, or `targetWhere`/`setWhere` must be an owner predicate on it — a bare
+ *  `ownerId`, some OTHER table's owner column, or an owner column under `or`/`ne`/`isNotNull` scopes nothing here.
+ *  FAILS CLOSED on any config the reader cannot see through (a spread, an identifier, a call, a shorthand), because
+ *  an unreadable guard is an unproven one. */
 function guardsOwner(config: Node | undefined, table: string | undefined, index: SchemaTableIndex): boolean {
   if (config?.isKind(SyntaxKind.ObjectLiteralExpression) !== true || table === undefined) {
     return false;
   }
   return GUARD_PROPS.some((name) => {
-    const prop = config.getProperty(name);
-    return prop !== undefined && predicatesTableColumn(prop, table, OWNER_COL, index);
+    const value = config.getProperty(name)?.asKind(SyntaxKind.PropertyAssignment)?.getInitializer();
+    if (value === undefined) {
+      return false;
+    }
+    return name === TARGET_PROP ? targetsTableColumn(value, table, OWNER_COL, index) : predicatesTableColumn(value, table, OWNER_COL, index);
   });
 }
 
@@ -252,7 +257,7 @@ export const gate = defineGate({
         "packages/db/src/schema/character.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/character/persistence/card.ts":
-          'import { characters } from "@orb/db";\nexport async function put(db: Db, row: R, ownerId: string) {\n  return db.insert(characters).values(row).onConflictDoUpdate({ target: characters.slug, where: eq(characters.ownerId, ownerId), set: { name: row.name } });\n}\n',
+          'import { eq } from "drizzle-orm";\nimport { characters } from "@orb/db";\nexport async function put(db: Db, row: R, ownerId: string) {\n  return db.insert(characters).values(row).onConflictDoUpdate({ target: characters.slug, where: eq(characters.ownerId, ownerId), set: { name: row.name } });\n}\n',
       },
       expect: { count: 1 },
       why: "drizzle's `where:` on this config is DEPRECATED because it is ambiguous between the target predicate and the update predicate — an ambiguous guard proves neither side, so it must not exempt. The fix is the explicit `setWhere:`",
@@ -331,7 +336,7 @@ export const gate = defineGate({
         "packages/db/src/schema/theme.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
-          'import { pluginKv, themes } from "@orb/db";\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(pluginKv).values(entry).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], setWhere: eq(themes.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
+          'import { eq } from "drizzle-orm";\nimport { pluginKv, themes } from "@orb/db";\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(pluginKv).values(entry).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], setWhere: eq(themes.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
       },
       expect: { count: 1, token: "pluginKv", messageIncludes: "cross-tenant UPSERT hole" },
       why: "Another owner-scoped table's owner column scopes nothing here: the guard must name the insert target's own declared table",
@@ -346,6 +351,50 @@ export const gate = defineGate({
       },
       expect: { count: 1, token: "characters", messageIncludes: "cross-tenant UPSERT hole" },
       why: "An owner term on an aliased copy of the table inside an EXISTS subquery scopes the subquery, not the row the DO UPDATE overwrites",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/plugin.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { eq, or } from "drizzle-orm";\nimport { pluginKv } from "@orb/db";\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(pluginKv).values(entry).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], setWhere: or(eq(pluginKv.key, entry.key), eq(pluginKv.ownerId, scope.ownerId)), set: { value: entry.value } });\n}\n',
+      },
+      expect: { count: 1, token: "pluginKv", messageIncludes: "cross-tenant UPSERT hole" },
+      why: "An owner term inside `or` in `setWhere` lets the other arm overwrite a foreign row",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/plugin.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { ne } from "drizzle-orm";\nimport { pluginKv } from "@orb/db";\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(pluginKv).values(entry).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], setWhere: ne(pluginKv.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
+      },
+      expect: { count: 1, token: "pluginKv", messageIncludes: "cross-tenant UPSERT hole" },
+      why: "`ne` on the owner column in `setWhere` overwrites only rows the caller does not own",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/plugin.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { isNotNull } from "drizzle-orm";\nimport { pluginKv } from "@orb/db";\nexport async function putKv(db: Db, entry: E) {\n  return db.insert(pluginKv).values(entry).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], setWhere: isNotNull(pluginKv.ownerId), set: { value: entry.value } });\n}\n',
+      },
+      expect: { count: 1, token: "pluginKv", messageIncludes: "cross-tenant UPSERT hole" },
+      why: "`isNotNull` on the owner column in `setWhere` admits every owned row, whoever owns it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/plugin.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
+          'import { eq } from "drizzle-orm";\nimport { pluginKv } from "@orb/db";\nexport async function putKv(db: Db, entry: E) {\n  return db.insert(pluginKv).values(entry).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], setWhere: eq(pluginKv.ownerId, pluginKv.ownerId), set: { value: entry.value } });\n}\n',
+      },
+      expect: { count: 1, token: "pluginKv", messageIncludes: "cross-tenant UPSERT hole" },
+      why: "The owner column compared with itself in `setWhere` is true on every owned row",
     },
   ],
   mustPass: [
@@ -375,7 +424,7 @@ export const gate = defineGate({
         "packages/db/src/schema/character.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/character/persistence/card.ts":
-          'import * as schema from "@orb/db";\nexport async function put(db: Db, row: R, ownerId: string) {\n  return db.insert(schema.characters).values(row).onConflictDoUpdate({ target: schema.characters.id, setWhere: eq(schema.characters.ownerId, ownerId), set: { name: row.name } });\n}\n',
+          'import { eq } from "drizzle-orm";\nimport * as schema from "@orb/db";\nexport async function put(db: Db, row: R, ownerId: string) {\n  return db.insert(schema.characters).values(row).onConflictDoUpdate({ target: schema.characters.id, setWhere: eq(schema.characters.ownerId, ownerId), set: { name: row.name } });\n}\n',
       },
       why: "THE DOTTED NAMESPACE ACQUITTAL (#2341): a namespace-spelled owner-scoped table remains safe when `setWhere` predicates on that same qualified table receiver. `predicatesTableColumn` must resolve the full `schema.characters` receiver to its declared table; reducing it to Identifier-only falsely accuses this correctly belted upsert",
     },
@@ -385,7 +434,7 @@ export const gate = defineGate({
         "packages/db/src/schema/character.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/character/persistence/card.ts":
-          'import * as schema from "@orb/db";\nexport async function put(db: Db, row: R, ownerId: string) {\n  return db.insert(schema["characters"]).values(row).onConflictDoUpdate({ target: schema["characters"].id, setWhere: eq(schema["characters"]["ownerId"], ownerId), set: { name: row.name } });\n}\n',
+          'import { eq } from "drizzle-orm";\nimport * as schema from "@orb/db";\nexport async function put(db: Db, row: R, ownerId: string) {\n  return db.insert(schema["characters"]).values(row).onConflictDoUpdate({ target: schema["characters"].id, setWhere: eq(schema["characters"]["ownerId"], ownerId), set: { name: row.name } });\n}\n',
       },
       why: 'THE BRACKETED NAMESPACE ACQUITTAL (#2341): `schema["characters"]` is the same admitted table and its bracketed owner-column read is the same guard. This independently pins both element-access member reads and the qualified receiver comparison instead of borrowing the dotted row\'s coverage',
     },
@@ -395,7 +444,7 @@ export const gate = defineGate({
         "packages/db/src/schema/plugin.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
-          'import { pluginKv } from "@orb/db";\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(pluginKv).values(entry).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], setWhere: eq(pluginKv.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
+          'import { eq } from "drizzle-orm";\nimport { pluginKv } from "@orb/db";\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(pluginKv).values(entry).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], setWhere: eq(pluginKv.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
       },
       why: "arm 1 via `setWhere` — the belt for a legitimately global unique index (here an FK-partitioned PK). A collision with a foreign owner's row moves 0 rows instead of overwriting it, which is the upsert's version of putting the owner in the WHERE",
     },
@@ -405,7 +454,7 @@ export const gate = defineGate({
         "packages/db/src/schema/theme.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/settings/persistence/theme-queries.ts":
-          'import { themes } from "@orb/db";\nexport async function upsertSeed(db: Db, row: R) {\n  return db.insert(themes).values(row).onConflictDoUpdate({ target: themes.id, setWhere: isNull(themes.ownerId), set: { name: row.name } });\n}\n',
+          'import { isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport async function upsertSeed(db: Db, row: R) {\n  return db.insert(themes).values(row).onConflictDoUpdate({ target: themes.id, setWhere: isNull(themes.ownerId), set: { name: row.name } });\n}\n',
       },
       why: "the NULL-owner system-seed shape: `isNull(T.ownerId)` is an owner predicate too — the boot reseed can only ever overwrite an ownerless seed row, never a user's. The reader keys on the qualified column, not on a specific comparison helper",
     },
@@ -457,7 +506,7 @@ export const gate = defineGate({
         "packages/db/src/schema/plugin.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
-          'import { pluginKv as kvTable } from "@orb/db";\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(kvTable).values(entry).onConflictDoUpdate({ target: [kvTable.pluginId, kvTable.key], setWhere: eq(kvTable.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
+          'import { eq } from "drizzle-orm";\nimport { pluginKv as kvTable } from "@orb/db";\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(kvTable).values(entry).onConflictDoUpdate({ target: [kvTable.pluginId, kvTable.key], setWhere: eq(kvTable.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
       },
       why: "the alias resolver returns the local binding, so a guarded conflict target written through that alias remains safe",
     },
@@ -467,7 +516,7 @@ export const gate = defineGate({
         "packages/db/src/schema/plugin.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
-          'import { pluginKv } from "@orb/db";\nconst table = pluginKv;\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: [table.pluginId, table.key], setWhere: eq(table.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
+          'import { eq } from "drizzle-orm";\nimport { pluginKv } from "@orb/db";\nconst table = pluginKv;\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: [table.pluginId, table.key], setWhere: eq(table.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
       },
       why: "a local canonical-table alias is safe when the conflict guard structurally uses that same binding's owner column",
     },
@@ -477,7 +526,7 @@ export const gate = defineGate({
         "packages/db/src/schema/plugin.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
-          'import { pluginKv } from "@orb/db";\nlet table = pluginKv;\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: [table.pluginId, table.key], setWhere: eq(table.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
+          'import { eq } from "drizzle-orm";\nimport { pluginKv } from "@orb/db";\nlet table = pluginKv;\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: [table.pluginId, table.key], setWhere: eq(table.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
       },
       why: "the #769 widening is two-sided: resolving a `let` alias must ACCEPT the guarded upsert as readily as it reds the unguarded one",
     },
@@ -517,7 +566,7 @@ export const gate = defineGate({
         "packages/db/src/schema/plugin.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const pluginKv = sqliteTable("plugin_kv", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
-          'import { pluginKv } from "@orb/db";\nconst table = pluginKv;\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: [table.pluginId, table.key], setWhere: eq(pluginKv.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
+          'import { eq } from "drizzle-orm";\nimport { pluginKv } from "@orb/db";\nconst table = pluginKv;\nexport async function putKv(db: Db, scope: S, entry: E) {\n  return db.insert(table).values(entry).onConflictDoUpdate({ target: [table.pluginId, table.key], setWhere: eq(pluginKv.ownerId, scope.ownerId), set: { value: entry.value } });\n}\n',
       },
       why: "A guard spelled on the canonical binding scopes an upsert through its alias: both name the one declared table, so the receiver's spelling is not evidence",
     },

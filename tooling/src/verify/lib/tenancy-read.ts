@@ -14,11 +14,11 @@ import { resolveModuleMemberOrigin, resolveStableExpression, staticMemberAccess 
 import type { VariableDeclaration } from "ts-morph";
 import { Node, SyntaxKind } from "ts-morph";
 import { readMemberUses } from "../../floor/code-facts/drizzle-column-reads.ts";
+import { callsDrizzleOperator } from "../../floor/code-facts/drizzle-operators.ts";
 import { readDrizzlePredicate } from "../../floor/code-facts/drizzle-predicate.ts";
 import { readPredicateArgument, readPredicateColumn } from "../../floor/code-facts/drizzle-predicate-argument.ts";
 import type { DrizzlePredicate } from "../../floor/code-facts/drizzle-predicate-contract.ts";
 import { readReturnOccurrences, resultReferenceDepths } from "../../floor/code-facts/drizzle-row-flow.ts";
-import { readDrizzleSelection } from "../../floor/code-facts/drizzle-select.ts";
 import { readFollowingBuilderChain } from "../../floor/code-facts/drizzle-statement.ts";
 import {
   DRIZZLE_CONFLICT_VERBS,
@@ -33,6 +33,8 @@ import type { SchemaTableIndex, TableRef, TableTarget } from "../contract/tenanc
 import { unwrapExpression } from "./ast-read.ts";
 
 const OWNER_COL = "ownerId";
+const EQ_OPERATOR = "eq";
+const IS_NULL_OPERATOR = "isNull";
 const SCHEMA_DIR = "/packages/db/src/schema/";
 const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id)$/u;
 
@@ -177,9 +179,9 @@ function boundInitializer(identifier: Node): Node | undefined {
 
 /** Where a predicate can name a column: its own syntax, and every term the floor predicate fact reaches through a
  *  bound predicate or a helper's return, with the helper's parameter bindings. The floor leaves a bound SQL value
- *  opaque unless every use of it is provably native; `followOpaque` still reads its initializer, which only the
- *  accusing half may do, because a value that can change after binding can lose a column but not prove one. */
-function predicateSites(predicate: Node, followOpaque: boolean): readonly PredicateSite[] {
+ *  opaque unless every use of it is provably native; this accusing reader still reads its initializer, because a
+ *  value that can change after binding can lose a column but not prove one. */
+function predicateSites(predicate: Node): readonly PredicateSite[] {
   const terms = (fact: DrizzlePredicate): readonly PredicateSite[] => {
     if (fact.kind === "and" || fact.kind === "or" || fact.kind === "choice") {
       return fact.terms.flatMap(terms);
@@ -188,7 +190,7 @@ function predicateSites(predicate: Node, followOpaque: boolean): readonly Predic
       return [];
     }
     const site = { node: fact.node, bindings: fact.kind === "leaf" ? fact.bindings : new Map<Node, Node>() };
-    const initializer = followOpaque && fact.kind === "unresolved" && Node.isIdentifier(fact.node) ? boundInitializer(fact.node) : undefined;
+    const initializer = fact.kind === "unresolved" && Node.isIdentifier(fact.node) ? boundInitializer(fact.node) : undefined;
     return initializer === undefined ? [site] : [site, { node: initializer, bindings: site.bindings }];
   };
   return [{ node: predicate, bindings: new Map() }, ...terms(readDrizzlePredicate(predicate))];
@@ -219,20 +221,9 @@ function receiverTables({ receiver, bindings }: ColumnRead, index: SchemaTableIn
 /** The accusing half: does this predicate read `column` on any of `tables`? Judged on the receiver's declared
  *  table, so an alias, a namespace, a bracket key or a bound predicate cannot hide the read. */
 export function readsTableColumn(predicate: Node, tables: ReadonlySet<string>, column: string, index: SchemaTableIndex): boolean {
-  return predicateSites(predicate, true).some((site) =>
+  return predicateSites(predicate).some((site) =>
     columnReadsOf(site).some((read) => read.name === column && receiverTables(read, index).some((ref) => ref.kind === "table" && tables.has(ref.ident))),
   );
-}
-
-/** Is there a drizzle select between this node and the predicate root? A column read there binds to that select's
- *  own row source, so it never constrains the written row. */
-function insideNestedSelect(node: Node, root: Node): boolean {
-  for (let current: Node | undefined = node; current !== undefined && current !== root.getParent(); current = current.getParent()) {
-    if (Node.isCallExpression(current) && readDrizzleSelection(current) !== undefined) {
-      return true;
-    }
-  }
-  return false;
 }
 
 /** Does this receiver name its table through declarations and imports only, the way the floor resolver walks it,
@@ -268,24 +259,84 @@ function namesTableDirectly(node: Node, index: SchemaTableIndex, active: Readonl
   });
 }
 
-/** The acquitting half: does this predicate read `column` on exactly `table`, every arm of the receiver naming
- *  that one declared table directly? A conditional or unreadable receiver, an aliased copy of the table, and a read
- *  inside a nested select prove nothing about the written row. */
-export function predicatesTableColumn(predicate: Node, table: string, column: string, index: SchemaTableIndex): boolean {
-  return predicateSites(predicate, false).some((site) =>
-    columnReadsOf(site).some((read) => {
-      if (read.name !== column || insideNestedSelect(read.access, site.node)) {
-        return false;
-      }
-      const actual = readPredicateArgument(read.receiver, read.bindings);
-      const refs = receiverTables(read, index);
-      return (
-        namesTableDirectly(actual.kind === "resolved" ? actual.value : read.receiver, index) &&
-        refs.length > 0 &&
-        refs.every((ref) => ref.kind === "table" && ref.ident === table)
-      );
-    }),
+/** The owner column one acquittal asks about: `column` on the one declared `table`. */
+interface OwnerColumn {
+  readonly table: string;
+  readonly column: string;
+  readonly index: SchemaTableIndex;
+}
+
+/** Does this operand name the owner column, every arm of its receiver naming that one declared table directly? A
+ *  conditional or unreadable receiver and an aliased copy of the table prove nothing about the written row. */
+function namesOwnerColumn(operand: Node, bindings: ReadonlyMap<Node, Node>, owner: OwnerColumn): boolean {
+  const source = readPredicateColumn(operand, bindings);
+  const access = source.kind === "resolved" ? unwrapExpression(source.value) : operand;
+  const member = staticMemberAccess(access);
+  if (member?.name !== owner.column) {
+    return false;
+  }
+  const read = { name: member.name, access, receiver: member.receiver, bindings };
+  const actual = readPredicateArgument(read.receiver, bindings);
+  const refs = receiverTables(read, owner.index);
+  return (
+    namesTableDirectly(actual.kind === "resolved" ? actual.value : read.receiver, owner.index) &&
+    refs.length > 0 &&
+    refs.every((ref) => ref.kind === "table" && ref.ident === owner.table)
   );
+}
+
+/** Does an operand read a column of any declared table? Then it is a row's value, never the caller's. */
+function readsSchemaColumn(operand: Node, bindings: ReadonlyMap<Node, Node>, index: SchemaTableIndex): boolean {
+  const source = readPredicateColumn(operand, bindings);
+  const node = source.kind === "resolved" ? source.value : operand;
+  return columnReadsOf({ node, bindings }).some((read) => receiverTables(read, index).some((ref) => ref.kind === "table"));
+}
+
+/** An owner term: `eq` of the owner column against a value that reads no table column, either way round. The
+ *  value's provenance is the caller's control flow, which no structural reader proves. `isNull` of the column also
+ *  scopes: it reaches only rows no user owns. */
+function isOwnerTerm(fact: DrizzlePredicate, owner: OwnerColumn): boolean {
+  if (fact.kind !== "leaf" || !Node.isCallExpression(fact.node)) {
+    return false;
+  }
+  const call = fact.node;
+  const operands = call.getArguments();
+  const [left, right] = operands;
+  if (callsDrizzleOperator(call, IS_NULL_OPERATOR) && left !== undefined && operands.length === 1) {
+    return namesOwnerColumn(left, fact.bindings, owner);
+  }
+  if (!callsDrizzleOperator(call, EQ_OPERATOR) || left === undefined || right === undefined || operands.length !== 2) {
+    return false;
+  }
+  const scopes = (own: Node, value: Node): boolean => namesOwnerColumn(own, fact.bindings, owner) && !readsSchemaColumn(value, fact.bindings, owner.index);
+  return scopes(left, right) || scopes(right, left);
+}
+
+/** Whether `holds` is true of a term every match of the predicate must satisfy: any term of an `and`, every arm of
+ *  a choice. A term under `or`, an optional term and an unreadable term constrain nothing. */
+function holdsConjunctively(fact: DrizzlePredicate, holds: (term: DrizzlePredicate) => boolean): boolean {
+  if (fact.kind === "and") {
+    return fact.terms.some((term) => holdsConjunctively(term, holds));
+  }
+  if (fact.kind === "choice") {
+    return fact.terms.every((term) => holdsConjunctively(term, holds));
+  }
+  return holds(fact);
+}
+
+/** The acquitting half: does this predicate constrain every row it matches to its owner? Only an owner term in a
+ *  conjunctive position does (`isOwnerTerm`); an owner column inside `or`, `ne`, `isNotNull`, a self-comparison or a
+ *  nested select reads the column without scoping the row. */
+export function predicatesTableColumn(predicate: Node, table: string, column: string, index: SchemaTableIndex): boolean {
+  const owner = { table, column, index };
+  return holdsConjunctively(readDrizzlePredicate(predicate), (term) => isOwnerTerm(term, owner));
+}
+
+/** Does an upsert's conflict target, one column or an array of them, list `column` on exactly `table`? */
+export function targetsTableColumn(target: Node, table: string, column: string, index: SchemaTableIndex): boolean {
+  const value = unwrapExpression(target);
+  const columns = Node.isArrayLiteralExpression(value) ? value.getElements() : [value];
+  return columns.some((element) => namesOwnerColumn(element, new Map(), { table, column, index }));
 }
 
 /** The `.where(…)` argument of the statement this table anchor starts, or undefined (NO where clause at all —

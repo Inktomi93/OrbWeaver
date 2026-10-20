@@ -1863,10 +1863,12 @@ const injectedOpCallerParamRule = {
 //
 // NOT CLAIMED by the env rule: a written alias cycle with no `process` origin (`const a = b; const b = a;
 // a.env.X = 1`), which throws in its temporal dead zone before the read; a per-key grain inside the sole
-// reader, which is one whole-file home; the process passed through a conditional, a logical, a call argument
-// or a parameter default; and an `env` key taken off an imported value or a declared global through a
-// computed key no `const` binds to a string literal (`door[k]` with `k` a parameter, a `let`, a pattern binding or
-// a call). A key a `const` chain binds to a string literal is read as that name.
+// reader, which is one whole-file home; and an `env` key taken off an imported value or a declared global
+// through a computed key no `const` binds to a string literal (`door[k]` with `k` a parameter, a `let`, a
+// pattern binding or a call). A key a `const` chain binds to a string literal is read as that name. Failing
+// closed on the unreadable key needs the receiver's type: without it every keyed lookup into an imported
+// registry (`RPG_RULESET_PROFILE[ruleset]`) is the same syntax as a laundered door, and the live tree has
+// dozens of them.
 const AMBIENT_ROOTS = new Set(["globalThis", "global", "self", "window"]);
 const VALUE_WRAPPERS = new Set(["TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression", "TSTypeAssertion"]);
 const RAW_FETCH = "fetch";
@@ -1880,14 +1882,17 @@ const PROCESS_MODULE = /^(?:node:)?process$/u;
 const PROCESS_GLOBAL = "process";
 const ENV_MEMBER = "env";
 const MODULE_DEFAULT = "default";
+const REFLECT_GLOBAL = "Reflect";
+const REFLECT_GET = "get";
 const SCRUBBER_FACTORY = "createHiddenSpanStreamScrubber";
 const RAW_EGRESS_MESSAGE =
   "D61 B5a: server and inference egress goes through infra/network (`safeFetch` or the configured-endpoint capability); a raw fetch or HTTP client skips the scheme pin, host allowlist, resolve-validate-pin and deadline.";
 const SOLE_ENV_MESSAGE = "Tier-2-Foundation.md invariant 1: foundation/env is the only process.env reader; import the frozen `env` and dot-access a typed key.";
 
 /**
- * The outermost expression that still denotes `node`'s value; a cast, a non-null assertion, an `await` (of
- * a promise for it, or of the value itself) or a sequence that ends with it does not change it.
+ * The outermost expression that may still denote `node`'s value; a cast, a non-null assertion, an `await` (of
+ * a promise for it, or of the value itself), an optional chain, a sequence that ends with it, a branch of a
+ * conditional and either operand of a logical do not change it.
  */
 function valueCarrier(node) {
   let carrier = node;
@@ -1895,8 +1900,11 @@ function valueCarrier(node) {
     const { parent } = carrier;
     const wraps =
       (VALUE_WRAPPERS.has(parent?.type) && parent.expression === carrier) ||
+      (parent?.type === "ChainExpression" && parent.expression === carrier) ||
       (parent?.type === "AwaitExpression" && parent.argument === carrier) ||
-      (parent?.type === "SequenceExpression" && parent.expressions.at(-1) === carrier);
+      (parent?.type === "SequenceExpression" && parent.expressions.at(-1) === carrier) ||
+      (parent?.type === "ConditionalExpression" && parent.test !== carrier) ||
+      parent?.type === "LogicalExpression";
     if (!wraps) {
       return carrier;
     }
@@ -2006,7 +2014,20 @@ function ambientReferences(sourceCode, names) {
 function aliasReads(sourceCode, declarator) {
   return sourceCode
     .getDeclaredVariables(declarator)
-    .flatMap(({ references }) => references.filter(({ identifier }) => identifier !== declarator.id).map(({ identifier }) => identifier));
+    .flatMap(({ references }) =>
+      references.filter((reference) => reference.identifier !== declarator.id && reference.isRead()).map(({ identifier }) => identifier),
+    );
+}
+
+/** The reads of the binding a pattern identifier declares, such as a parameter or a destructured name with a default. */
+function boundReads(sourceCode, identifier) {
+  for (let scope = sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
+    const variable = scope.set.get(identifier.name);
+    if (variable?.identifiers.includes(identifier)) {
+      return variable.references.filter((reference) => reference.identifier !== identifier && reference.isRead()).map(({ identifier: read }) => read);
+    }
+  }
+  return [];
 }
 
 /** The variable an identifier reference resolves to, or `null` for an undeclared name. */
@@ -2023,7 +2044,7 @@ function referencedVariable(sourceCode, identifier) {
 /** The other reads of the binding an assignment writes, so a reassigned alias of a door is judged as the door. */
 function assignedReads(sourceCode, target) {
   const variable = referencedVariable(sourceCode, target);
-  return (variable?.references ?? []).filter(({ identifier }) => identifier !== target).map(({ identifier }) => identifier);
+  return (variable?.references ?? []).filter((reference) => reference.identifier !== target && reference.isRead()).map(({ identifier }) => identifier);
 }
 
 const DESTRUCTURES = new Set(["ObjectPattern", "ArrayPattern"]);
@@ -2120,32 +2141,85 @@ function unknowableValue(sourceCode, expression) {
   return OPAQUE_VALUES.has(value.type) && !namedModule;
 }
 
+/** Whether `node` is `Reflect.get(target, key)` on the global `Reflect` with `target` as its target: it reads `target[key]`. */
+function isReflectGet(sourceCode, node, target) {
+  const callee = node.type === "CallExpression" && node.arguments[0] === target ? node.callee : undefined;
+  return (
+    callee?.type === "MemberExpression" &&
+    callee.object.type === "Identifier" &&
+    callee.object.name === REFLECT_GLOBAL &&
+    isGlobalBinding(referencedVariable(sourceCode, callee.object)) &&
+    memberKeyName(sourceCode, callee) === REFLECT_GET
+  );
+}
+
+function reflectKeyName(sourceCode, call) {
+  const [, key] = call.arguments;
+  return key === undefined ? undefined : (writtenKeyName(key, true) ?? constKeyName(sourceCode, key, new Set()));
+}
+
+/** Parents that use a value without handing it on: a comparison, arithmetic, a test or a discarded statement. */
+const CONSUMING_PARENTS = new Set([
+  "BinaryExpression",
+  "DoWhileStatement",
+  "ExpressionStatement",
+  "ForStatement",
+  "IfStatement",
+  "SwitchCase",
+  "SwitchStatement",
+  "UnaryExpression",
+  "UpdateExpression",
+  "WhileStatement",
+]);
+
+function consumesValue(carrier) {
+  const { parent } = carrier;
+  return (
+    CONSUMING_PARENTS.has(parent.type) ||
+    (parent.type === "ConditionalExpression" && parent.test === carrier) ||
+    (parent.type === "SequenceExpression" && parent.expressions.at(-1) !== carrier) ||
+    (parent.type === "TemplateLiteral" && parent.parent.type !== "TaggedTemplateExpression")
+  );
+}
+
 /**
- * Where a value flows: a member read of it, a destructure of it, the reads of a binding declared or assigned
- * from it, or an escape: an export, whose importers a per-file rule cannot see, or a copy into an array
- * element, an object property or an object spread, whose later reads no binding names.
+ * Where a value flows: a member read of it, a destructure of it, or the reads of a binding declared, assigned
+ * or defaulted from it. SECURITY: every other position that does not consume the value is an escape, because
+ * it hands the value on where no binding in this file names it: an export, a call or tagged-template argument,
+ * a return, a copy into an array, an object or a member, a class field. Listing the escapes instead would let
+ * each unlisted position launder the door.
  */
 function flowOf(sourceCode, carrier) {
   const { parent } = carrier;
-  if (parent.type === "MemberExpression" && parent.object === carrier) {
-    return { member: parent };
+  if (parent.type === "MemberExpression") {
+    return parent.object === carrier ? { member: parent, name: memberKeyName(sourceCode, parent) } : {};
   }
-  if (
-    parent.type === "ExportSpecifier" ||
-    parent.type === "ExportDefaultDeclaration" ||
-    parent.type === "ArrayExpression" ||
-    (parent.type === "Property" && parent.value === carrier && parent.parent.type === "ObjectExpression") ||
-    (parent.type === "SpreadElement" && parent.parent.type === "ObjectExpression")
-  ) {
-    return { escape: parent };
+  if (isReflectGet(sourceCode, parent, carrier)) {
+    return { member: parent, name: reflectKeyName(sourceCode, parent) };
   }
-  if (parent.type === "AssignmentExpression" && parent.right === carrier) {
-    if (DESTRUCTURES.has(parent.left.type)) {
-      return { pattern: parent.left };
-    }
-    return { aliases: parent.left.type === "Identifier" && ALIAS_ASSIGNMENTS.has(parent.operator) ? assignedReads(sourceCode, parent.left) : [] };
+  if (parent.type === "AssignmentExpression") {
+    return parent.left === carrier ? {} : assignmentFlow(sourceCode, parent);
   }
-  return parent.type === "VariableDeclarator" && parent.init === carrier ? declaratorFlow(sourceCode, parent) : {};
+  if (parent.type === "VariableDeclarator") {
+    return declaratorFlow(sourceCode, parent);
+  }
+  if (parent.type === "AssignmentPattern" && parent.right === carrier) {
+    return targetFlow(sourceCode, parent, parent.left, boundReads);
+  }
+  return inTypeQuery(carrier) || consumesValue(carrier) ? {} : { escape: parent };
+}
+
+/** The flow into an assignment's target: a destructure, the reads of an identifier, or an escape into a member. An
+ * arithmetic or string compound assignment stores a fresh value. */
+function assignmentFlow(sourceCode, assignment) {
+  return ALIAS_ASSIGNMENTS.has(assignment.operator) ? targetFlow(sourceCode, assignment, assignment.left, assignedReads) : {};
+}
+
+function targetFlow(sourceCode, parent, target, readsOf) {
+  if (DESTRUCTURES.has(target.type)) {
+    return { pattern: target };
+  }
+  return target.type === "Identifier" ? { aliases: readsOf(sourceCode, target) } : { escape: parent };
 }
 
 function declaratorFlow(sourceCode, declarator) {
@@ -2168,7 +2242,7 @@ function judgeDoorUses(sourceCode, start, judge) {
     seen.add(node);
     const flow = flowOf(sourceCode, valueCarrier(node));
     if (flow.member !== undefined) {
-      judge.member(flow.member, memberKeyName(sourceCode, flow.member));
+      judge.member(flow.member, flow.name);
     }
     if (flow.pattern !== undefined) {
       judge.pattern(flow.pattern);
