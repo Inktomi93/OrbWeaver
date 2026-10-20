@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
-updated: 2026-10-19
+status: open
+updated: 2026-10-20
 priority: P1
 area: tooling
-lane: wt/agent-abbff5266a3378965
 plan: test-foundation
 ---
 
@@ -41,3 +40,5 @@ Raw observations, auth-fixture lifetimes, native tRPC and legacy-brand quarantin
 Native HARD lint owns tooling CLI and ops entry identity. Actual manifest edits, additions, deletions, renames and containing directories reselect unchanged consumers. Independent review and bounded launcher controls pass. Generated catalog and tooling law match the native successors. Evidence: `reports/review/1041-native-tool-entry-independent.md`.
 
 Native filename discovery preserves admission, configuration validation and real lint without parsing sources. Reviewed native glob factorization preserves full output and lowers observed cost. Invocation-local reuse preserves native ownership and HARD authority. Bounded controls pass review; timing refusals and live metadata remain open. Evidence: `reports/review/1041-scoped-native-reuse-independent.md`.
+
+Reviewed handoff delivery is integrated at `212974e4a9`. Wrapped ambient channel controls and shadowed receivers preserve finite native enforcement. The owning-table matrix remains executable. Source reviews: `reports/review/codex-worktree-1041-review.md` and `reports/review/codex-worktree-1041-remainder.md`. Broader migration qualification remains open.

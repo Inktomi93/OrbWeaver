@@ -1,9 +1,8 @@
 ---
 kind: tooling
-status: doing
-updated: 2026-10-19
+status: open
+updated: 2026-10-20
 priority: P2
-lane: wt/agent-a9e5f5af9058b32d3
 ---
 
 # Clear the standing native lint backlog outside the server factory rule
@@ -22,4 +21,4 @@ Each rule's findings are fixed at the site, or, for a verified false positive su
 
 ## Evidence
 
-Owner ruling: fix false positives, never excuse them; the waiver budget does not rise. valid-expect is fixed by a patched plugin rule, fault plants move to fixture modules, casts become real narrowing, and cellTest is registered in rule options.
+Reviewed source is integrated at `212974e4a9`. The complete native lint run exits with violations beyond item 1099, including SkeletonRows restrictions, max-lines and typed rules. Completed output and resource measurements: `reports/review/handoff-native-lint/`. Keep the remaining population open without suppressions.

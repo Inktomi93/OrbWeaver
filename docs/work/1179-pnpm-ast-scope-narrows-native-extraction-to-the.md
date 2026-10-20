@@ -1,9 +1,8 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-10-20
 priority: P1
-lane: wt/agent-a2c08a6bd3fb0e5ae
 plan: test-foundation
 ---
 
@@ -31,6 +30,6 @@ Extraction collects authored closure facts beyond each world's roots. Measuremen
 
 Baseline on main 492d691d89 (`reports/review/warm/`): rot server cold 1:44:07 at 14.1 GB; warm with nothing changed 17:01 at 10.9 GB; after a one-line tooling edit 1:29:48 at 14.3 GB.
 
-Measured by the 1179 lane (`reports/review/1179-trace/`): in the root tsconfig.json world, the declarations in its own test roots produce 8.05M reference rows, the dominant cost; imported product and tooling declarations add about 4.5M, which roots-only trims. Program construction is about 12 s. The lever is reference demand: rot needs references only for in-scope value exports and witness carriers. That belongs to 1183 (covering-slice reuse) or a root-limited search in the ts-morph patch. Branch commit 65c6ff5712 (Refs) has identical findings, scoped acquisition and cached membership, and halves tests-dom (12:55 to 6:42).
+Measured by the 1179 lane (`reports/review/1179-trace/`): in the root tsconfig.json world, the declarations in its own test roots produce 8.05M reference rows, the dominant cost; imported product and tooling declarations add about 4.5M, which roots-only trims. Program construction is about 12 s. The lever is reference demand: rot needs references only for in-scope value exports and witness carriers. That belongs to 1183 (covering-slice reuse) or a root-limited search in the ts-morph patch. Branch commit 65c6ff5712 (Refs) supplies scoped acquisition and cached membership, and halves tests-dom (12:55 to 6:42). Displayed findings match; complete reference equivalence remains unqualified.
 
-Branch `65c6ff5712` awaits review. The root-world cost target remains unmet. An inference overload-ordering difference remains untraced. Reference-demand work belongs to item 1183; source delivery does not complete this item.
+Reviewed scope and membership delivery is integrated at `212974e4a9`, including explicit authored-closure module and invocation demands. The root-world cost target and complete reference equivalence remain unqualified. The inference difference is iterator-property ordering, not changed overload membership. Reference-demand work belongs to item 1183. Evidence: `reports/review/codex-worktree-1179-review.md`.

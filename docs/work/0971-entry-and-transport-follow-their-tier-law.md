@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-10-19
+updated: 2026-10-20
 priority: P1
 ---
 
@@ -9,7 +9,7 @@ priority: P1
 
 ## What
 
-Move data logic out of entry/boot into owning domains: repair-stale-join-seq.ts (raw SQL on chat participants) and seed-owner.ts (users updates beyond the sanctioned role backfill), and the users imports in boot-secrets.ts and seed-local-light.ts. transport/trpc/stream/sources/rpg.ts imports two domain front doors (Tier-4 forbids it); transport/jobs/workload-schedule-scheduler.ts imports a domain value where drivers import types only; foundation/observability/structured-retry.ts imports @orb/inference (Tier-2 allows kit, contracts and db); domain/sessions constructs its own SecretBox and password hasher that Tier-3 says entry builds and injects; entry deep-imports transport/jobs, which has no front door. Add dependency-cruiser rules for each tier rule that has none: two front doors in transport, type-only driver imports, foundation package imports, entry writes to domain tables.
+Move chat join-floor repair SQL and boot-dependent credentials, sessions and invite probes into their owning domains. Inject sessions crypto and password facilities from entry through temporary boot and steady service assembly. Move the structured-retry summary to contracts. Inject the scheduler tick operation. Add planted dependency-boundary controls. Preserve delivered seed-owner, account enumeration, RPG stream and jobs front-door ownership.
 
 ## Why
 
@@ -21,4 +21,4 @@ Each site follows its tier rule; each new dependency-cruiser rule has a planted 
 
 ## Evidence
 
-Salvaged uncommitted work from the stopped 971 lane (worktree agent-a94ab45e8b5437f01, HEAD 7ac9a7c2b6): `reports/review/salvage/agent-a94ab45e8b5437f01.patch` and `.untracked.tgz`, which hold packages/contracts/src/inference/structured-retry.ts and packages/server/src/transport/jobs/index.ts. Re-derive on main before reusing it.
+Unfinished candidates remain archived under `reports/review/salvage/agent-sweep-2026-10-20/agent-a94ab45e8b5437f01/`. Current-source disposition and security preservation requirements: `reports/review/codex-971-security-salvage-triage.md`. The crypto rename lacks context and root wiring; recover the coherent obligation, not the stale patch. Current secret-dependency refusals remain active.

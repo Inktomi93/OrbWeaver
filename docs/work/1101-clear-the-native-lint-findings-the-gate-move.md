@@ -1,9 +1,8 @@
 ---
 kind: tooling
-status: doing
-updated: 2026-10-19
+status: open
+updated: 2026-10-20
 priority: P2
-lane: wt/agent-a9e5f5af9058b32d3
 ---
 
 # Clear the native lint findings the gate-move merges introduced
@@ -22,4 +21,4 @@ pnpm lint:eslint-scoped over each listed file reports none of these findings, wi
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Reviewed source is integrated at `212974e4a9`. Native lint still reports findings outside the server factory population. Completed output and resource measurements: `reports/review/handoff-native-lint/`. This item remains open; source delivery is not full lint qualification.
