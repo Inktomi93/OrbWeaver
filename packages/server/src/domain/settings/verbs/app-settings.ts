@@ -75,8 +75,6 @@ export function createAppSettings(ctx: SettingsContext): AppSettingsVerbs {
     // `writeChain` is `Promise.resolve()` or `run.catch(() => undefined)` below, so it never rejects and the write
     // needs no rejection arm.
     const run = writeChain.then(() => updateSerialized(params));
-    // @orb-waive caught-failure-ownership(run): a failed write must not poison the chain's next link. The caller owns
-    // the rejection: `return run` below hands it the write's own rejection.
     writeChain = run.catch(() => undefined); // a failed write must not poison the chain
     return run;
   };

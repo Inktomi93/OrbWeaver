@@ -77,7 +77,7 @@
 //   · zod's `.catch()` combinator is schema construction, not a promise — `zod-catch` mustPass.
 //   · package build/config files outside `packages/<name>/src`, and `tests/` + `scripts/` — the population-fence
 //     mustPass, which carries all three excluded coordinates plus its required in-population anchor.
-//   · a rethrow or owner routed through an OPAQUE HELPER is invisible to a syntactic reader — this one is a
+//   · a rethrow or owner routed through an OPAQUE (multi-statement) HELPER is invisible to a syntactic reader — this one is a
 //     KNOWN FALSE POSITIVE, so its honest proof is the `opaque-rethrow-helper` mustFLAG, ADDED here. The
 //     catalogue claimed a mustPass for it; a mustPass would have been a lie about which way the limit cuts.
 //   · a mutation owner behind a wrapper hook's returned function, an injected save, or a local wrapper is
@@ -878,6 +878,64 @@ export const gate = defineGate({
       expect: { count: 1, token: "catch" },
       why: "D328 INSIDE THE BOUND: a catch whose fallback is a success outcome one factory hop away still blocks",
     },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/imported-handlers-module.ts":
+          "export function ignore(_error: unknown): void {}\nexport let surface = (error: unknown): never => {\n  throw error;\n};\n",
+        "packages/client/src/features/probe/imported-handlers.ts":
+          "import { ignore, surface } from './imported-handlers-module.ts';\nexport function run(p: Promise<void>): void {\n  void p.catch(ignore);\n  void p.catch(surface);\n}\n",
+      },
+      expect: { count: 2, token: "p" },
+      why: "an imported handler is read through its alias, so an imported no-op still absorbs, and an exported `let` the declaring module may reassign proves no rethrow on the importing side",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/unretained-forks.ts":
+          "export function early(work: () => Promise<void>, flag: boolean): Promise<void> {\n  const run = work();\n  void run.catch(() => undefined);\n  if (flag) {\n    return Promise.resolve();\n  }\n  return run;\n}\nexport function absorbedReturn(work: () => Promise<void>): Promise<void> {\n  const run = work();\n  void run.catch(() => undefined);\n  return run.then(() => undefined, () => undefined);\n}\nexport function reassignable(work: () => Promise<void>): Promise<void> {\n  let run = work();\n  void run.catch(() => undefined);\n  return run;\n}\nexport function other(work: () => Promise<void>): Promise<void> {\n  const run = work();\n  const next = work();\n  void run.catch(() => undefined);\n  return next;\n}\n",
+      },
+      expect: { count: 5, token: "run" },
+      why: "a fork is retained only when the function's last statement returns the same `const` promise through handler-free links with nothing able to leave first: an earlier return, a returned chain that absorbs, a reassignable binding, or a different returned promise all leave the absorbed rejection with no caller",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/unreturned-deferreds.ts":
+          "export function otherDeferred(run: () => Promise<void>): Promise<void> {\n  const a = Promise.withResolvers<void>();\n  const b = Promise.withResolvers<void>();\n  void run().then(a.resolve, a.reject);\n  return b.promise;\n}\nexport function kept(run: () => Promise<void>, keep: (p: Promise<void>) => void): void {\n  const a = Promise.withResolvers<void>();\n  void run().then(a.resolve, a.reject);\n  keep(a.promise);\n}\n",
+        "packages/server/src/domain/probe/fake-deferred.ts":
+          "const Promise = { withResolvers: () => ({ promise: undefined as unknown, resolve: (_value: unknown): void => undefined, reject: (_error: unknown): void => undefined }) };\nexport function fake(run: () => globalThis.Promise<void>): unknown {\n  const a = Promise.withResolvers();\n  void run().then(a.resolve, a.reject);\n  return a.promise;\n}\n",
+      },
+      expect: { count: 3, token: "run" },
+      why: "forwarding into a deferred's `reject` propagates only when the function returns that same deferred's promise, and a local object named `Promise` is no native deferred",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/unowned-forwards.ts":
+          "import type pino from 'pino';\nfunction reportOther(err: unknown, other: unknown, log: pino.Logger): void {\n  log.error({ err: other }, 'work failed');\n}\nlet reportLater = (err: unknown, log: pino.Logger): void => log.error({ err }, 'work failed');\nconst owned = (err: unknown, log: pino.Logger): void => log.error({ err }, 'work failed');\nfunction relay(err: unknown, log: pino.Logger): void {\n  owned(err, log);\n}\nexport function forwards(log: pino.Logger): void {\n  try { run(); } catch (err) { reportOther(err, null, log); }\n  try { run(); } catch (err) { reportLater(err, log); }\n  try { run(); } catch (err) { relay(err, log); }\n}\n",
+      },
+      expect: { count: 3, token: "err" },
+      why: "a forward owns only through a one-statement helper whose body owns the very parameter the binding lands in: a helper that logs another value, a reassignable `let` helper, and a second forwarding hop are all past what the reader proves",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/unowned-issues.ts":
+          "import { z } from 'zod';\nconst fake = { superRefine: (check: (value: string, ctx: { addIssue: (issue: unknown) => void }) => void): unknown => check };\nexport const local = fake.superRefine((value, ctx) => {\n  try { assertShape(value); } catch (error) { ctx.addIssue({ code: 'custom', message: String(error) }); }\n});\nexport const wrongSlot = z.string().superRefine((value, _ctx) => {\n  const sink = { addIssue: (_issue: unknown): void => undefined };\n  try { assertShape(value); } catch (error) { sink.addIssue({ code: 'custom', message: String(error) }); }\n});\n",
+      },
+      expect: { count: 2, token: "error" },
+      why: "an issue owns only on the context parameter of a zod refinement callback: an `addIssue` on a lookalike schema or on any other object records nothing a parse reports",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/unowned-yields.ts":
+          "function label(_error: unknown): string { return 'failed'; }\nexport function* delegated(work: () => unknown, other: () => Generator<unknown>): Generator<unknown, void> {\n  try { yield work(); } catch (error) { yield* other(); }\n}\nexport function* cleared(work: () => unknown): Generator<unknown, void> {\n  try { yield work(); } catch (error) { yield { thrown: null }; }\n}\nexport function relabelled(work: () => unknown): unknown {\n  try { return work(); } catch (error) { return { status: 'unresolved', reason: label(error) }; }\n}\n",
+      },
+      expect: { count: 3, token: "error" },
+      why: "a delegated `yield*` hands over another generator's values, a `thrown: null` slot carries no failure, and a helper whose result ignores its parameter does not preserve the caught binding",
+    },
   ],
   mustPass: [
     {
@@ -1188,6 +1246,48 @@ export const gate = defineGate({
           "declare function note(message: string): void;\nfunction onErr(error: unknown): void {\n  const message = String(error);\n  globalThis.reportError(error);\n  note(message);\n}\nconst handler = onErr;\nexport function run(p: Promise<void>): void {\n  void p.catch(handler);\n}\n",
       },
       why: "D328 INSIDE THE BOUND: the same aliased multi-statement handler hands the failure to `reportError`, and the walked body owns it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/rethrow-module.ts": "export function surface(error: unknown): never {\n  throw error;\n}\n",
+        "packages/client/src/features/probe/rethrow-barrel.ts": "export { surface } from './rethrow-module.ts';\n",
+        "packages/client/src/features/probe/imported-rethrow.ts":
+          "import { surface } from './rethrow-barrel.ts';\nexport function run(p: Promise<void>): void {\n  void p.catch(surface);\n}\n",
+      },
+      why: "a rethrowing handler imported through a re-export is read at its declaration: the rejection leaves the detached chain unhandled, the same as an inline `(error) => { throw error; }`",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/retained-forks.ts":
+          "export function lane(prior: Promise<void>, job: () => Promise<void>, keep: (p: Promise<void>) => void): Promise<void> {\n  const run = prior.then(job);\n  const tail = run.catch(() => undefined);\n  keep(tail);\n  return run.finally(() => undefined);\n}\nexport function track(run: () => Promise<void>): Promise<void> {\n  const operation = Promise.withResolvers<void>();\n  void run().then(operation.resolve, operation.reject);\n  void operation.promise.then(\n    () => undefined,\n    () => undefined,\n  );\n  return operation.promise;\n}\n",
+      },
+      why: "a RETAINED rejection: a bookkeeping handler on a promise the function returns as its last statement, or a rejection forwarded into a native deferred whose promise it returns, still reaches the caller",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/forwarded-owner.ts":
+          "import type pino from 'pino';\nfunction report(log: pino.Logger, err: unknown): void {\n  log.error({ err }, 'detached work failed');\n}\nexport function forwarded(log: pino.Logger, p: Promise<void>): void {\n  void p.then(\n    () => undefined,\n    (err: unknown) => report(log, err),\n  );\n  try { run(); } catch (err) { report(log, err); }\n}\n",
+      },
+      why: "a FORWARDED owner: the caught binding handed to a one-statement helper whose body owns that parameter is owned by the helper's own owner",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/domain/probe/zod-issue.ts":
+          "import { z } from 'zod';\nexport const checked = z.string().superRefine((value, ctx) => {\n  try { assertShape(value); } catch (error) { ctx.addIssue({ code: 'custom', message: String(error) }); }\n});\nexport const decoded = z.string().transform((value, ctx) => {\n  try { return decode(value); } catch { ctx.addIssue({ code: 'custom', message: 'Invalid value' }); return z.NEVER; }\n});\n",
+      },
+      why: "a zod refinement ISSUE: any issue on a `superRefine` or `transform` context fails the parse, so the caller receives the failure as its ZodError",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/yielded-refusals.ts":
+          "function messageOf(error: unknown): string { return error instanceof Error ? error.message : String(error); }\nexport function* runs(work: () => unknown): Generator<unknown, void> {\n  try { yield { result: work() }; } catch (error) { yield { thrown: messageOf(error) }; }\n}\nexport function resolve(work: () => unknown): unknown {\n  try { return work(); } catch (error) { return { status: 'unresolved', reason: messageOf(error) }; }\n}\n",
+      },
+      why: "a generator's plain `yield` delivers its value to the iterating caller as a `return` does, `thrown` names a failure, and a one-expression helper that preserves its parameter preserves the caught binding",
     },
     ...HANDLER_SPELLINGS.map((statement) => ({
       mode: "types" as const,

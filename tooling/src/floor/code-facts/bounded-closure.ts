@@ -128,13 +128,13 @@ function typedSlot(value: MorphNode, parent: MorphNode): boolean {
   if (Node.isBinaryExpression(parent)) {
     return parent.getOperatorToken().getKind() === SyntaxKind.PlusToken;
   }
-  return Node.isReturnStatement(parent) || Node.isConditionalExpression(parent) || Node.isElementAccessExpression(parent);
+  return Node.isReturnStatement(parent) || Node.isYieldExpression(parent) || Node.isConditionalExpression(parent) || Node.isElementAccessExpression(parent);
 }
 
 /**
  * The walked nodes a question with `closureTypedPositions` asks Type details for: every call, and a value in a call
- * argument, a return, an arrow body, a conditional, an initializer, a member or element receiver, an element key,
- * or a `+` operand, through any parentheses, `as`, `satisfies`, `!` or `await` around it.
+ * argument, a return, a yield, an arrow body, a conditional, an initializer, a member or element receiver, an element
+ * key, or a `+` operand, through any parentheses, `as`, `satisfies`, `!` or `await` around it.
  */
 export function readerTypedPosition(node: MorphNode): boolean {
   if (Node.isCallExpression(node)) {

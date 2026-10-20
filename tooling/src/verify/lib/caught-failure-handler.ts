@@ -1,15 +1,18 @@
 // The catch-clause and promise-handler VERDICT predicates: is a catch clause unowned or a silent
 // default-fallback recovery; does a promise handler (named, inline, or nested) discard, propagate, or
 // return an owned failure. These compose the block-level `hasExplicitOwner` walk (caught-failure-scope.ts)
-// with the value classifiers (caught-failure-outcome.ts) into the per-site verdicts the front door reports.
+// with the value classifiers (caught-failure-outcome.ts) and the governed sinks (caught-failure-sinks.ts) into
+// the per-site verdicts the front door reports.
 import type { Block, CatchClause, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { CaughtFailureReadServices } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
 import { hasInterveningWrite, isFallback } from "./caught-failure-core.ts";
-import { isExplicitOwnerCall, isFailureOutcome, isNativePromiseReject, isNativeReportError } from "./caught-failure-outcome.ts";
+import { isFailureOutcome, isNativePromiseReject } from "./caught-failure-outcome.ts";
 import { rawFailureDeclarations } from "./caught-failure-read.ts";
-import { escapingDescendants, hasExplicitOwner } from "./caught-failure-scope.ts";
+import { rejectionForwardedToReturnedDeferred } from "./caught-failure-retained.ts";
+import { escapingDescendants, forwardsToOwner, hasExplicitOwner } from "./caught-failure-scope.ts";
+import { isExplicitOwnerCall, isNativeReportError } from "./caught-failure-sinks.ts";
 
 export function unownedCatch(clause: CatchClause, reads?: CaughtFailureReadServices): boolean {
   const block = clause.getBlock();
@@ -37,11 +40,24 @@ export function silentDefault(clause: CatchClause, reads?: CaughtFailureReadServ
   });
 }
 
+/** The declarations a named handler resolves to through import aliases. One imported from another module must be a
+ *  function or a `const`: the write guard reads only the importing file, and TypeScript refuses a write to a function. */
+function handlerDeclarations(identifier: Node, reads?: CaughtFailureReadServices): readonly Node[] {
+  const declarations = rawFailureDeclarations(identifier, reads, true);
+  const foreignLet = declarations.some(
+    (declaration) =>
+      declaration.getSourceFile() !== identifier.getSourceFile() &&
+      declaration.isKind(SyntaxKind.VariableDeclaration) &&
+      declaration.getVariableStatement()?.getDeclarationKind() !== "const",
+  );
+  return foreignLet ? [] : declarations;
+}
+
 function namedHandlerDiscards(identifier: Node, reads?: CaughtFailureReadServices): boolean {
   if (!identifier.isKind(SyntaxKind.Identifier)) {
     return true;
   }
-  const declarations = rawFailureDeclarations(identifier, reads);
+  const declarations = handlerDeclarations(identifier, reads);
   const declaration = declarations.length === 1 ? declarations[0] : undefined;
   if (declaration === undefined || hasInterveningWrite(identifier, declaration, reads)) {
     return true;
@@ -73,7 +89,8 @@ export function isDiscardingHandler(handler: Node, reads?: CaughtFailureReadServ
   }
   const body = fn.getBody();
   if (!body.isKind(SyntaxKind.Block)) {
-    return !(body.isKind(SyntaxKind.CallExpression) && isExplicitOwnerCall(body, fn.getParameters()[0]?.getNameNode(), reads));
+    const binding = fn.getParameters()[0]?.getNameNode();
+    return !(body.isKind(SyntaxKind.CallExpression) && (isExplicitOwnerCall(body, binding, reads) || forwardsToOwner(body, binding, reads)));
   }
   const errorBinding = fn.getParameters()[0]?.getNameNode();
   return !hasExplicitOwner(body, errorBinding, false, reads);
@@ -92,7 +109,7 @@ export function isIgnoredPromiseHandler(handler: Node): boolean {
 export function handlerReturnsOwnedFailure(handler: Node, reads?: CaughtFailureReadServices): boolean {
   const fn = unwrapExpression(handler);
   if (fn.isKind(SyntaxKind.Identifier)) {
-    const declaration = rawFailureDeclarations(fn, reads)[0];
+    const declaration = handlerDeclarations(fn, reads)[0];
     if (declaration !== undefined && hasInterveningWrite(fn, declaration, reads)) {
       return false;
     }
@@ -114,7 +131,7 @@ export function handlerReturnsOwnedFailure(handler: Node, reads?: CaughtFailureR
 export function handlerPropagatesRejection(handler: Node, reads?: CaughtFailureReadServices): boolean {
   const fn = unwrapExpression(handler);
   if (fn.isKind(SyntaxKind.Identifier)) {
-    const declaration = rawFailureDeclarations(fn, reads)[0];
+    const declaration = handlerDeclarations(fn, reads)[0];
     if (declaration !== undefined && hasInterveningWrite(fn, declaration, reads)) {
       return false;
     }
@@ -124,6 +141,9 @@ export function handlerPropagatesRejection(handler: Node, reads?: CaughtFailureR
     }
     const initializer = declaration?.isKind(SyntaxKind.VariableDeclaration) === true ? declaration.getInitializer() : undefined;
     return initializer !== undefined && handlerPropagatesRejection(initializer, reads);
+  }
+  if (rejectionForwardedToReturnedDeferred(fn, reads)) {
+    return true;
   }
   if (!(fn.isKind(SyntaxKind.ArrowFunction) || fn.isKind(SyntaxKind.FunctionExpression))) {
     return false;

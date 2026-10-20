@@ -44,7 +44,6 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
 
   const publishInOrder = <T>(publish: () => Promise<T> | T): Promise<T> => {
     const publication = publicationTail.then(publish);
-    // @orb-waive caught-failure-ownership(publication): `publishInOrder` returns `publication` itself, so its caller awaits and owns the rejection; this sibling chain only advances the serialization tail after either verdict. Ends if the returned promise stops carrying the rejection.
     publicationTail = publication.then(
       () => undefined,
       () => undefined,

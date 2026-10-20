@@ -410,13 +410,11 @@ export async function prepareDevToolsCascadeRuntime(assetRoot: string): Promise<
         }
         closed = true;
         const failures: unknown[] = [];
-        // @orb-waive caught-failure-ownership(error): the catch appends to `failures`, which close() throws as an AggregateError after the rm step. Ends if the `failures.length > 0` throw is removed.
         try {
           await ownedServer.close();
         } catch (error) {
           failures.push(error);
         }
-        // @orb-waive caught-failure-ownership(error): the catch appends to `failures`, which close() throws as an AggregateError right after this try. Ends if the `failures.length > 0` throw is removed.
         try {
           await rm(tempRoot, { recursive: true, force: true });
         } catch (error) {

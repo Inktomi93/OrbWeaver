@@ -63,7 +63,6 @@ export function createRuleSaveSession(deps: {
         deps.acknowledge(updated, editZone);
       }
     });
-    // @orb-waive caught-failure-ownership(run): `run` itself, still rejecting, is returned at rule-save-session.ts:68; use-rule-autosave.ts:69-71 catches it, calls `setFailure(error)` and rethrows. This catch only keeps the queue `chain` usable for the next save. Ends if save() stops returning `run`.
     chain = run.catch(() => undefined);
     return run;
   };

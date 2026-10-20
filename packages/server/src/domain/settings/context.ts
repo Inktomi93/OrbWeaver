@@ -20,8 +20,6 @@ export function createSettingsContext(deps: SettingsServiceDeps): SettingsContex
     // `prev` is `Promise.resolve()` or a stored `tail`, and `tail` is built from `settled`, which swallows every
     // rejection, so it never rejects and `run` needs no rejection arm.
     const next = prev.then(run);
-    // @orb-waive caught-failure-ownership(next): `settled` exists so a failed write cannot poison the chain's next
-    // link. The caller owns the rejection: `return next` at the foot of this function hands it `run`'s own rejection.
     const settled = next.catch(() => undefined);
     const tail = settled.finally(() => {
       if (userWriteChains.get(ownerId) === tail) {

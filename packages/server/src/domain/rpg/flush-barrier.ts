@@ -127,9 +127,6 @@ export function createRpgFlushBarrier(
       const flush = run(controller.signal);
       // Swallow the flush's own rejection at the barrier (its error handling logs it — the barrier only gates on
       // SETTLEMENT, success or failure). `.finally` removes THIS flush from the set; an emptied set is deleted.
-      // @orb-waive caught-failure-ownership(flush): this promise only tracks settlement for the in-flight set. The sole
-      // caller (`onTurnCompleted`, chat-ops/index.ts:100) returns the real `flush` to `fireRpgTurnCompleted`, whose
-      // `.catch` logs it with `getLog().warn` at chat/engine/engine.ts:798. Ends if that `.catch` stops logging.
       entry.tracked = flush
         .catch(() => undefined)
         .finally(() => {
