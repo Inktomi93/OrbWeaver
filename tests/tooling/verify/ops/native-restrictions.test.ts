@@ -1,10 +1,7 @@
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { ESLint, Linter } from "eslint";
-import { Project } from "ts-morph";
 import tseslint from "typescript-eslint";
-import { gate as computedFormDependencies } from "../../../../tooling/src/verify/gates/no-form-state-in-useeffect.ts";
-import { runPolicyPass } from "../../../../tooling/src/verify/lib/policy-pass.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = join(import.meta.dirname, "../../../..");
@@ -314,26 +311,6 @@ test("effect dependencies retain arity, callee and nested member syntax", async 
   }
   expect(await findings("tests/legacy/tooling/probe.ts", "useEffect(() => {}, [form.store]);")).toEqual([]);
   expect(await findings("playwright/probe.ts", "useEffect(() => {}, [form.store]);")).toHaveLength(1);
-});
-
-test("computed names retain semantic enforcement while direct syntax produces no duplicate gate findings", async () => {
-  const source =
-    'const field = "store"; const hook = "useEffect"; useEffect(() => {}, [form[field]]); React[hook](() => {}, [form.state.values]); useEffect(() => {}, [form.store]);';
-  const root = "/computed-form-dependencies";
-  const path = "tooling/src/probe.ts";
-  const project = new Project({ useInMemoryFileSystem: true });
-  project.createSourceFile(`${root}/${path}`, source);
-  const result = runPolicyPass({
-    knownPolicies: [computedFormDependencies],
-    policies: [computedFormDependencies],
-    root,
-    project,
-    reviewedGrants: [],
-    failOnWarnings: false,
-  });
-  expect(result.toolErrors).toEqual([]);
-  expect(result.authority.effectiveFindings.map(({ token }) => token)).toEqual(["form[field]", "form.state.values"]);
-  expect(await findings(path, source)).toHaveLength(1);
 });
 
 test("query hook permissions are exact by file and imported name", async () => {

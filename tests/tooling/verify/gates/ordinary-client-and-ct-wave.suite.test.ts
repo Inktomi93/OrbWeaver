@@ -7,8 +7,7 @@
 //   editor-form-factory        — form-factory-for-multifield · no-form-reset-in-autosave ·
 //                                no-form-reset-in-autosave-health. The family IS its shared reader,
 //                                tooling/src/verify/lib/editor-form-factory.ts.
-//   context-definition-shape   — context-definition-shape · context-definition-shape-health (the two
-//                                COUNT arms, split out because their execution is entire-population).
+//   context-definition-shape   — context-definition-shape.
 //
 // WHAT THIS FILE CARRIES, AND WHY IT IS NOT A SECOND CONFORMANCE RUNNER. Every declared
 // `mustFlag`/`mustPass` row already executes on the static bar (`structure:policy-conformance`). What a
@@ -28,15 +27,13 @@
 //
 // §4.3 (reviewed grants) does not apply: all of them declare `facts: []` and `resources: []` and no policy
 // here is `authority: "reviewed-grant"`. §4.5's refusal control applies to `no-form-reset-in-autosave-
-// health` and `context-definition-shape-health`, whose verdicts depend on a derived population; both are
-// pinned below.
+// health`, whose verdict depends on a derived population; it is pinned below.
 
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { SourceFile } from "ts-morph";
 import { Project } from "ts-morph";
 import type { GatePolicy } from "../../../../tooling/src/verify/contract/policy.ts";
 import { gate as contextDefinitionShape } from "../../../../tooling/src/verify/gates/context-definition-shape.ts";
-import { gate as contextDefinitionShapeHealth } from "../../../../tooling/src/verify/gates/context-definition-shape-health.ts";
 import { gate as formFactoryForMultifield } from "../../../../tooling/src/verify/gates/form-factory-for-multifield.ts";
 import { gate as noFormResetInAutosave } from "../../../../tooling/src/verify/gates/no-form-reset-in-autosave.ts";
 import { gate as noFormResetInAutosaveHealth } from "../../../../tooling/src/verify/gates/no-form-reset-in-autosave-health.ts";
@@ -48,13 +45,7 @@ import { scaledBudget } from "../../_load-budget.ts";
 const ROOT = "/ordinary-client-and-ct-wave";
 const CONFORMANCE_TIMEOUT_MS = scaledBudget(300_000);
 
-const WAVE: readonly GatePolicy[] = [
-  contextDefinitionShape,
-  contextDefinitionShapeHealth,
-  formFactoryForMultifield,
-  noFormResetInAutosave,
-  noFormResetInAutosaveHealth,
-];
+const WAVE: readonly GatePolicy[] = [contextDefinitionShape, formFactoryForMultifield, noFormResetInAutosave, noFormResetInAutosaveHealth];
 
 function projectOf(files: Readonly<Record<string, string>>): Project {
   const project = new Project({ useInMemoryFileSystem: true, compilerOptions: { jsx: 4 } });
@@ -186,13 +177,6 @@ test("no-form-reset-in-autosave-health REFUSES when the autosave contract file i
   expect(renamed.toolErrors).toMatchObject([{ policyId: "no-form-reset-in-autosave-health", phase: "population" }]);
   expect(renamed.toolErrors[0]?.message).toMatch(/admitted zero paths/u);
   expect(renamed.authority.effectiveFindings).toEqual([]);
-});
-
-test("context-definition-shape-health REFUSES when the client population is empty", () => {
-  const empty = passOf(contextDefinitionShapeHealth, { "packages/server/src/domain/x/verbs/x.ts": "export const x = 1;\n" });
-
-  expect(empty.toolErrors).toMatchObject([{ policyId: "context-definition-shape-health", phase: "population" }]);
-  expect(empty.toolErrors[0]?.message).toMatch(/admitted zero paths/u);
 });
 
 // ---------------------------------------------------------------------------------------------------

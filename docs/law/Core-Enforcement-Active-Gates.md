@@ -63,7 +63,7 @@ The test-foundation plan owns reader migration and native replacement qualificat
 
 Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` at descriptor admission.
 
-(132 registered gates)
+(119 registered gates)
 
 | Gate | Family | Authority/Severity | Population | Purpose |
 | - | - | - | - | - |
@@ -80,7 +80,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `class-token-splice` | — | ordinary/error | @client,@ui | a ${…} spliced INSIDE a class token —… |
 | `compose-wiring-only` | — | ordinary/error | @server\* | a function value an entry/compose… |
 | `context-definition-shape` | — | ordinary/error | @client | A context projection must explicitly… |
-| `context-definition-shape-health` | context-definition-shape | hard/error | @client | the CONTEXT pane's head band has more… |
 | `contract-structural-copy` | — | ordinary/error | @client,@server,@inference,@contracts | hand-written shape re-spells a… |
 | `css-family-direct-client-mechanism` | css-hook-provenance | reviewed-grant/error | @client,@ui | client globals skins a UI-only… |
 | `css-family-ownership` | css-hook-provenance | ordinary/error | @client,@ui | a declaration is inside a sanctioned… |
@@ -99,9 +98,7 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `ct-poll-schedule-and-paint-health` | ct-poll-schedule-and-paint | hard/error | @legacy-tests\* | the founding CT for the… |
 | `density-tier` | — | reviewed-grant/error | @client,@ui | density-tier violation… |
 | `diagnostic-legibility` | policy-soundness | ordinary/error | @tooling\* | a gate/policy diagnostic carries no… |
-| `discovery-no-stats-rollups` | — | ordinary/error | @server\* | the stats rollup tables (ownerStats /… |
 | `domain-freshness-plane` | drizzle-schema | hard/error | @server,@db\* | a MUTATING domain must declare its… |
-| `domain-inference-dispatch` | — | hard/error | @server\* | a domain dispatches on an inference… |
 | `duplicate-action-doors` | — | reviewed-grant/error | @client\* | one tRPC mutation is invoked from… |
 | `form-factory-for-multifield` | editor-form-factory | ordinary/error | @client\* | a feature component hand-rolls ≥3… |
 | `integer-line-boxes` | static-class-expression | ordinary/error | @client,@ui | A line box off the integer-px grid… |
@@ -116,10 +113,8 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `no-effect-on-shared-selection` | react-origin | reviewed-grant/error | @client\* | an effect keyed on a shared-selection… |
 | `no-form-reset-in-autosave` | editor-form-factory | ordinary/error | @client | reset() survives on an autosave form… |
 | `no-form-reset-in-autosave-health` | editor-form-factory | hard/error | @client\* | the reset type-strip (Omit<…,… |
-| `no-form-state-in-useeffect` | — | ordinary/error | all | A computed form dependency resolves… |
 | `no-handwritten-wire-json-schema` | — | ordinary/error | @server,@contracts,@kit,@inference\* | a hand-authored JSON-Schema literal… |
 | `no-hardcoded-model-prose` | — | ordinary/error | @authored | DEAD catalog prose: authored,… |
-| `no-hardcoded-side-gen-sampling` | — | ordinary/error | @server\* | hardcoded side-gen sampling value — a… |
 | `no-inline-types` | — | ordinary/error | @client,@server,@inference,@ui-authoring\* ∪ @ui\* | exported type/zod-schema outside a… |
 | `no-inline-union-redecl` | — | ordinary/error | @authored\* | a string-union AXIS is declared ONCE… |
 | `no-inline-wire-interface` | no-inline-types | ordinary/error | @client\* | exported wire-named plain-data… |
@@ -149,7 +144,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `query-boundary-reservation-health` | query-boundary-reservation | hard/error | @client | the QueryBoundary reservation seam is… |
 | `query-freshness-coverage` | — | reviewed-grant/error | @client | a client-consumed tRPC query key… |
 | `real-corpus-liveness-manifest` | — | hard/error | @tooling,@tests\* | Every final policy owes a real-corpus… |
-| `receded-ink-integrity` | — | ordinary/error | @client,@ui | RECEDED_INK is carried behind a… |
 | `render-error-via-battery` | — | reviewed-grant/error | @client | a hand-rolled renderError prop on… |
 | `rest-transform-grid` | static-class-expression | hard/error | @client,@ui | A REST-state transform that cannot… |
 | `route-trpc-no-broad-spread` | — | hard/error | @tests\* | a routeTrpc fixture object spreads a… |
@@ -157,13 +151,9 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `scrubber-home` | — | reviewed-grant/error | @product | the hidden-span stream scrubber is… |
 | `section-factory-contribution-bundle` | — | ordinary/error | @client | a section factory grew a positional… |
 | `seed-theme-ink-contrast` | — | reviewed-grant/error | @client,@ui | a colour token painted as TEXT does… |
-| `serde-core-definition-uniqueness` | — | hard/error | @server | a SECOND declaration of a serde-core… |
-| `serde-core-seal-health` | — | hard/error | @server,@kit | a sanctioned serde home… |
-| `session-channel-boundary` | — | ordinary/error | @client | a BroadcastChannel constructed… |
 | `single-stream-transport` | — | reviewed-grant/error | @server\* | a tRPC .subscription( outside… |
 | `spacing-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
 | `stale-draft-commit` | — | ordinary/error | @client | a once-seeded draft is being… |
-| `sub-floor-disclosure-health` | — | hard/error | @ui\* | a collapsible size member is no… |
 | `suppressions` | — | reviewed-grant/error | all | a foreign-tool suppression directive… |
 | `surface-in-a-container` | — | ordinary/error | @client\* | surface establishes raw structural… |
 | `test-assembly-home` | test-production-clone | hard/error | @tests | a test constructs a server service… |
@@ -187,7 +177,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `trpc-input-declarations` | — | hard/error | @server\* | a tRPC procedure reads input without… |
 | `trpc-output-declarations` | — | hard/error | @server\* | A mounted AppRouter query/mutation… |
 | `two-class-role-authority` | role-vocabulary | reviewed-grant/error | @server\* | inline participant-role comparison in… |
-| `types-in-contract` | — | hard/error | @server\* | contract/service.ts must declare the… |
 | `typography-tier-home-health` | — | hard/error | @client,@ui | a SANCTIONED-HOME row for the… |
 | `ui-accname-survives-spread` | — | ordinary/error | @ui | an accessible-name attribute written… |
 | `ui-variant-axes-stamped` | — | hard/error | @ui | @orb/ui variant-axis stamp: a tv()… |
@@ -195,8 +184,6 @@ Ordinary waiver remediation metadata is validated by `lib/policy-validation.ts` 
 | `verb-naming` | — | hard/error | @server\* | a domain verb file does not export… |
 | `warning-code-coverage` | — | ordinary/error | @server,@contracts,@inference | a warning-code tuple member has NO… |
 | `warning-workitem-liveness` | policy-soundness | hard/error | @tooling\* | a warning policy's workItem must name… |
-| `windowed-infinite-query` | — | ordinary/error | @client | maxPages WINDOWS an infinite query's… |
-| `windowed-infinite-query-health` | windowed-infinite-query | hard/error | @client | DERIVED NOTHING — no… |
 | `zod-error-issues-home` | — | reviewed-grant/error | @product,@tests | a hand-flattened zod issues read on a… |
 | `zod-output-twin-parity` | — | hard/error | @product | a hand-authored ZodType twin… |
 

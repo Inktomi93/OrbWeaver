@@ -39,8 +39,8 @@
 // zero on both sides):
 //
 //   a. THE SHAPE LABELS LEFT THE POSITION AND ENTERED THE MESSAGE. Under the legacy engine a marker's
-//      position was compared by plain string equality against the finding's own reported token
-//      (`lib/gate-ignore.ts:180`), so `unresolved-base:UnknowableBase` — a string appearing in no source
+//      position was compared by plain string equality against the finding's own reported token,
+//      so `unresolved-base:UnknowableBase` — a string appearing in no source
 //      file — was a legal DISCRIMINATOR LABEL. This contract redefines a position as AUTHORED TEXT at the
 //      finding's exact offset, and `report.node` THROWS otherwise; all seven refusal rows threw on the
 //      first run. The label is now the message's `Shape:` clause and every row discriminates on it.

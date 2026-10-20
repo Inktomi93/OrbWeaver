@@ -5,9 +5,9 @@
 // helpers, sealed by their DECLARATION HOME rather than their spelling. Not gated: participant-role
 // literals (host LOOKUP, D18-sanctioned). DECLARED LIMITS live in the mustPass rows.
 //
-// FAMILY `membership-enforcer` — a declared SINGLETON, for the same reason its near-twin
-// `discovery-no-stats-rollups` is: `lib/sealed-origin.ts` is a shared READER, not a family, and the two
-// policies seal different homes under different laws. Nothing computes a membership verdict but this module.
+// FAMILY `membership-enforcer` — a declared SINGLETON: `lib/sealed-origin.ts` is a shared READER, not a
+// family, and its consumers seal different homes under different laws. Nothing computes a membership verdict
+// but this module.
 //
 // POPULATION PORT: byte-identical, legacy at `76196db5d4^` (`scanRoot: (p) => CHAT_SCOPE.test(\`/\${p}\`)`);
 // the final expression beside the population const admits exactly that set.

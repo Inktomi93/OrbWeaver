@@ -36,7 +36,7 @@ Four sanctioned consumer patterns, all downward:
 3. **The bulk serializers / analytics read foreign tables directly, by design** — `import` + `export` share one serde core that reads schema tables directly (bulk serializers, not CRUD callers — `Spine-Config-and-Serialization.md`); `search` and `discovery` hold the same bulk read-only posture (discovery computes themes/duplicates/hubness BY reading other domains' rows). READ-only: `import` writes six domains' canon and imports `@orb/db` **zero** times — every write routes through the owning domain's own `persistence/import-write.ts`.
 4. **The read-only-join ("pool.ts") pattern** — a domain owning a *view* of another domain's junction may read that junction directly (`chat/assembly/world-info/pool.ts` over the world-info book junctions; character list reading `character_tags + tags`), as long as the read is ownership-safe. A **shared polymorphic junction gets ONE write seam**: the five entity↔tag junctions are written through `tag/persistence/junctions.ts`, never re-spelled per owning domain.
 
-Enforcement: the `own-tables-only` gate makes the ownership half structural — outside `persistence/`, a domain-side value import of a foreign table from `@orb/db` is RED (the type-only row import is always legal — §7.4), and a foreign table in an `insert`/`update`/`delete` position is RED unconditionally: no class exemption buys a foreign WRITE. Its table→domain map is DERIVED from the schema files; patterns 3–4 are its cited `BULK_READERS` / `FILE_ALLOWLIST` rows, each with a both-ways stale ratchet. The `orb/no-direct-users-read` lint rule and the `discovery-no-stats-rollups` gate are the two narrower table-symbol seals.
+Enforcement: the `own-tables-only` gate makes the ownership half structural — outside `persistence/`, a domain-side value import of a foreign table from `@orb/db` is RED (the type-only row import is always legal — §7.4), and a foreign table in an `insert`/`update`/`delete` position is RED unconditionally: no class exemption buys a foreign WRITE. Its table→domain map is DERIVED from the schema files; patterns 3–4 are its cited `BULK_READERS` / `FILE_ALLOWLIST` rows, each with a both-ways stale ratchet. The `orb/no-direct-users-read` and `orb/discovery-no-stats-rollups` lint rules are the two narrower table-symbol seals.
 
 `@orb/client` never depends on `@orb/db`; `infra` is a sealed executor and never reads the schema.
 
@@ -45,7 +45,7 @@ Enforcement: the `own-tables-only` gate makes the ownership half structural — 
 - **DB row → `db`**; a domain may declare a derived local alias (`CharacterRow = typeof characters.$inferSelect`) in `persistence/`, never re-declare the column shape.
 - **Cross-boundary enum tuples → `contracts`** (`db` imports them down for column `enum:[...]`; a test-mirror pins db === contracts where derivation isn't direct).
 - **TypeID brands → `kit`**; the brand is type-only (SQL stays `TEXT`), so adding/removing a brand is never a migration.
-- **Wire schemas / domain params never live here.** Gates: `types-in-contract`, `no-inline-types`, `schema-branding`, dep-cruiser `db-cake`.
+- **Wire schemas / domain params never live here.** Gates: `no-inline-types`, `schema-branding`, dep-cruiser `db-cake`.
 
 ## The migration lifecycle — forward-only, post-launch
 
@@ -210,7 +210,7 @@ generate against the same parent?).
 
 1. **`db` imports only `kit` + `contracts`.** *(resolve-time physics; dep-cruiser `db-cake`.)*
 2. **Producer names the schema file; the barrel re-exports every file.** *(`tests/db/schema/module-structure.suite.test.ts`.)*
-3. **The DB row is the one home for column shapes; no wire schema in `db`.** *(`types-in-contract` / `no-inline-types`; `schema-branding` pins the `$type<>` brands.)*
+3. **The DB row is the one home for column shapes; no wire schema in `db`.** *(`no-inline-types`; `schema-branding` pins the `$type<>` brands.)*
 4. **All five primary vector tables (character_embeddings · image_embeddings · chat_digests · chat_segments · document_chunks, the last producer FK `documents.id`, owner derives via `documents.ownerId`) carry `content_hash` (staleness gate, NOT NULL) and `hub_score` (advisory `real`, written only by discovery via `embeddings.writeHubScores`, never nulled by a vector write).** *(compile-time DDL; `StoreParams` has no `hubScore`/`ownerId` field — D20.)*
 5. **`@orb/db/query` holds only drizzle-typed primitives** — they would fail `kit-purity` in `@orb/kit`. *(lint + resolve-time.)* `@orb/db/query` is their ONLY import path: the top barrel deliberately does NOT re-export `"./kit"` — re-exporting it lets the tree reach `batchMany`/`fetchOwned`/`isConstraintViolation` through `@orb/db`, which reads as "a table-ish thing from the schema barrel" and blurs the line invariant 6 draws. *(resolve-time: the wrong path does not compile.)*
 6. **A domain writes only its own tables.** Cross-domain reads belong in `persistence/` or injected ops; `own-tables-only` judges foreign writes inside persistence too. Settings alone imports its KV table and injects registered-prefix opaque-value ports. Native ESLint holds that import boundary; the KV port refuses foreign keys before I/O.

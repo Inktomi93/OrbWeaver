@@ -15,7 +15,6 @@
     "owner-scoped-writes": ["bracket"],
     "platform-spellings": ["bracket"],
     "stale-draft-commit": ["bracket"],
-    "testid-liveness": ["bracket"],
-    "windowed-infinite-query": ["bracket"]
+    "testid-liveness": ["bracket"]
   }
 }

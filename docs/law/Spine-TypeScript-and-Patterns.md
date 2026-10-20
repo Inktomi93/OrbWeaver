@@ -62,7 +62,7 @@ No placement gate yet judges these: client exported interfaces other than wire-n
 | `no-inline-wire-interface` | an exported interface in the client, outside a home, whose name is in the wire vocabulary (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) and whose type is plain data (no callable member anywhere in it); the client `data` tier is included |
 | `contract-structural-copy` | any interface, object-literal alias or inline type literal, exported or local, in client, server or inference, whose data fields are a subset of a contract export's with agreeing types |
 | `tests/tooling/verify/ops/contract-derives-native.test.ts` | a domain `contract/` shape whose name collides with an `@orb/contracts` export or a drizzle table |
-| `types-in-contract` | each feature's `contract/service.ts` declares its exported service interface; no exported `ReturnType<typeof fn>` in `context.ts` |
+| ESLint `orb/types-in-contract`, `orb/no-context-returntype` | each feature's `contract/service.ts` declares its exported service interface; no exported `ReturnType<typeof fn>` in `context.ts` |
 | ESLint `orb/no-loose-id-cast`, `no-mint-via-cast` | ID-brand construction and cast claims; the lint rule reads `as never` and the `as unknown as <brand>` pair by syntax over the kit roster |
 | ESLint `orb/no-test-fabrication`, `@typescript-eslint/consistent-type-assertions`, `@typescript-eslint/no-unsafe-type-assertion` | maintained tests reject fabricated literal construction and unsafe narrowing; tooling value casts follow D325, while double-cast fabrication remains forbidden |
 
@@ -84,7 +84,7 @@ A string axis is an `as const` tuple; its union is **derived**, never re-spelled
 
 **AVOID.**
 
-- `ReturnType<typeof fn>` as an **exported** type — ⚙️ banned for `context.ts` (`types-in-contract`); author the boundary type by hand. OK only as a module-local alias or to mirror a third-party fn.
+- `ReturnType<typeof fn>` as an **exported** type — ⚙️ banned for `context.ts` (`orb/no-context-returntype`); author the boundary type by hand. OK only as a module-local alias or to mirror a third-party fn.
 - `Omit<T,K>` — two traps: (1) **does not distribute over unions** → silently flattens a discriminated union, dropping variant fields; (2) keys aren't validated. Prefer **`Pick` (allow-list)** in `contract/`.
 - `ThisType`/`ThisParameterType`/`OmitThisParameter` — OOP/`this`-binding tools orthogonal to our functional+zod style.
 

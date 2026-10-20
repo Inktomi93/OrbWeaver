@@ -1,8 +1,8 @@
-// Canonical mint vocabulary shared by native literal walls, projection publication and region-count health.
+// Canonical mint vocabulary shared by native literal walls, projection publication and the region single-claimant rule.
 /** The ONE legal minter of both context-definition literal shapes. */
 export const REGISTRY_CONTRACTS_RE = /\/lib\/registry-contracts\.ts$/u;
 
-/** The region mint whose single-call-site invariant the `-health` sibling counts. */
+/** The region mint whose single claimant `orb/context-region-single-claimant` holds. */
 export const DEFINE_CONTEXT_REGION = "defineContextRegion";
 
 /** The tabs mint whose projection publication remains the custom owner's claim. */

@@ -12,7 +12,7 @@
 // asks for, and it is why a seventh reader cannot quietly disagree about what the second and third answers
 // are called.
 //
-// ALL SIX NOW LIVE HERE (#1988, 2026-09-12). Four of them were still declared in their own `lib/` reader,
+// THE SURVIVING ALIASES LIVE HERE (#1988, 2026-09-12). Four of them were still declared in their own `lib/` reader,
 // where `no-inline-types` reported them for the separate reason that `lib/` is not a type home — the two
 // laws named the same defect from two directions. `RoleAxisVerdict` (`contract/role-vocabulary.ts`) is the
 // one deliberate NON-member: its refusal arm is spelled `foreign`, and re-spelling it is a design decision
@@ -64,12 +64,9 @@ export interface NativeOriginPass {
 export type OriginRefusalVerdict = "other" | "unreadable";
 
 /** One identity reader's full verdict: its own HIT arm plus the shared refusal pair.
- *  @public knip type-face false positive — the generic behind every named verdict alias in this file (`BroadcastChannelVerdict`,
- *  `ProcessMemberVerdict`, and their siblings): consumers import the alias, never the generic it is an instantiation of. */
+ *  @public knip type-face false positive — the generic behind every named verdict alias in this file
+ *  (`ProcessMemberVerdict` and its siblings): consumers import the alias, never the generic it is an instantiation of. */
 export type OriginVerdict<Hit extends string> = Hit | OriginRefusalVerdict;
-
-/** Does this `new` construct the browser's `BroadcastChannel` global? `lib/broadcast-channel-origin.ts`. */
-export type BroadcastChannelVerdict = OriginVerdict<"constructs">;
 
 /** Is this member read taken off the real node `process`? `lib/process-member-origin.ts`. */
 export type ProcessMemberVerdict = OriginVerdict<"reads">;

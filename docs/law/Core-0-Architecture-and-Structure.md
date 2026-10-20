@@ -251,7 +251,7 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 | Every feature is the identical 8-slot template; the server root is the six tiers plus `index.ts` | `tests/server/layout.suite.test.ts` |
 | A package `src/` root holds `index.ts` and directories only | `tests/kit/package-layout.suite.test.ts` |
 | One verb per file, named for the verb | `verb-naming` |
-| Exported feature types live only in `contract/`; `service.ts` interface always present | `types-in-contract` |
+| Exported feature types live only in `contract/`; `service.ts` interface always present | ESLint `orb/types-in-contract` |
 | Tests live in the mirrored source directory, kind by suffix | `test-layout` |
 | Tests and the test kit enter a package through its declared entries; a raw reach carries a reviewed grant | `tests-package-subpath` · `tests-raw-package-reach` |
 | **Verbs, routers, schemas and persistence are each reached by the test kind they owe** (presence by reach, not blanket coverage) | `test-reach` (§5 `spine/testing`) |

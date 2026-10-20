@@ -119,7 +119,9 @@ import { CONFIG_GROUP_IDS } from "./packages/client/src/state/config-group-ids.t
 import { MODAL_SLOT_IDS } from "./packages/client/src/state/modal-slot-ids.ts";
 import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
 import { BUS_SUBUNIONS, BUSES } from "./packages/contracts/src/bus-registry/index.ts";
+import { connectionApiSchema } from "./packages/contracts/src/inference/connection.ts";
 import { STRUCTURED_VEHICLES, WIRE_SCHEMA_KEYWORD_VOCABULARY } from "./packages/contracts/src/inference/wire-subset.ts";
+import { wireSchema } from "./packages/contracts/src/inference/wires.ts";
 import { TABLE_SCOPING } from "./packages/db/src/tenancy/index.ts";
 import {
   deriveCanonicalBrandTypeNames,
@@ -692,6 +694,9 @@ const SERVER_TRANSPORT = "packages/server/src/transport/**/*.{ts,tsx}";
 const alternation = (names) => `/^(${names.join("|")})$/`;
 const TANSTACK_FORM_MINTS = ["useForm", "createFormHook", "createFormHookContexts"];
 const MATCH_MEDIA = "matchMedia";
+const SESSION_CHANNEL_CONSTRUCTORS = new Set(["BroadcastChannel"]);
+const SESSION_CHANNEL_MESSAGE =
+  "A BroadcastChannel outside packages/client/src/lib/session-channel.ts: cross-tab messaging has one typed home that carries session lifecycle and durable-local pokes, never server truth (D138). Add the message kind to SessionMessage and post it through postSessionMessage.";
 const FIREHOSE_SYMBOL = "subscribeAllChatEvents";
 const SETTINGS_TABLE_IMPORT = {
   regex: "^@orb/db(?:/(?:schema|index))?$",
@@ -752,6 +757,7 @@ const tableImportDoor = (names) => `ImportSpecifier:matches([imported.name=${nam
 const tableExportDoor = (names) => `ExportSpecifier:matches([local.name=${names}], [local.value=${names}])`;
 const DB_STAR_EXPORT = `ExportAllDeclaration[source.value=${DB_MODULE_SOURCE}]`;
 const DB_WHOLE_MODULE_DOORS = `:matches(ImportDeclaration[source.value=${DB_MODULE_SOURCE}] > ImportNamespaceSpecifier, ExportAllDeclaration[source.value=${DB_MODULE_SOURCE}], ImportExpression[source.value=${DB_MODULE_SOURCE}])`;
+const STATS_ROLLUP_TABLES = alternation(["ownerStats", "characterStats", "dailyStats", "modelStats"]);
 // The vector substrate's primary tables (D20, Knowledge-Cluster inv 1-2).
 const VECTOR_TABLES = alternation(["characterEmbeddings", "imageEmbeddings", "chatDigests", "chatSegments", "chatDigestSpeakers", "documentChunks"]);
 const VECTOR_WRITE_METHODS = alternation(["insert", "update", "delete"]);
@@ -760,6 +766,17 @@ const USERS_MESSAGE =
 const VECTOR_MESSAGE =
   "A vector table is named only by its import roles: embeddings (owner), search/persistence (retrieval), chat/memory/persistence (bookkeeping), discovery/persistence (analytics) and the debug probes (D20). Go through the search engine with a producer scope.";
 const TABLE_IMPORT_RESTRICTIONS = [
+  {
+    // Knowledge-Cluster.md §7 #7: discovery is semantics; usage economics arrive only as injected stats ops.
+    id: "discovery-no-stats-rollups",
+    scope: ["packages/server/src/domain/discovery/**/*.{ts,tsx}"],
+    homes: [],
+    selectors: [tableImportDoor(STATS_ROLLUP_TABLES), tableExportDoor(STATS_ROLLUP_TABLES), DB_WHOLE_MODULE_DOORS].map((selector) => ({
+      selector,
+      message:
+        "The stats rollup tables (ownerStats, characterStats, dailyStats, modelStats) are stats' alone; discovery computes no usage rollup (Knowledge-Cluster.md §7 #7). Consume the injected stats economics op instead.",
+    })),
+  },
   {
     id: "no-direct-users-read",
     scope: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}"],
@@ -3815,6 +3832,67 @@ const VERIFY_HARD_RESTRICTIONS = [
   },
 ];
 
+// HARD server structure bans, enabled only by `hardConfig` like the verify bans above.
+// A domain consumes the runtime's operation capability; it never branches on an inference wire or API value. The
+// vocabularies are the contracts' own schemas, so a new wire or API widens the ban without an edit here.
+const inferenceAxisValue = (value) => typeof value === "string" && (wireSchema.safeParse(value).success || connectionApiSchema.safeParse(value).success);
+function staticStringOf(node) {
+  if (node.type === "Literal") {
+    return node.value;
+  }
+  return node.type === "TemplateLiteral" && node.expressions.length === 0 ? node.quasis[0].value.cooked : undefined;
+}
+const INFERENCE_DISPATCH_MESSAGE =
+  "A domain dispatches on an inference wire or API value; ask the runtime for the operation capability through its public door and keep the domain's own policy local.";
+const domainInferenceDispatchRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const report = (node) => context.report({ node, message: INFERENCE_DISPATCH_MESSAGE });
+    return {
+      "BinaryExpression[operator=/^[!=]==?$/]"(node) {
+        for (const operand of [node.left, node.right]) {
+          if (inferenceAxisValue(staticStringOf(operand))) {
+            report(operand);
+          }
+        }
+      },
+      "SwitchCase[test!=null]"(node) {
+        if (inferenceAxisValue(staticStringOf(node.test))) {
+          report(node.test);
+        }
+      },
+    };
+  },
+};
+const SERDE_CARD_MAPPERS = alternation(["cardContentHash", "cardFromJson", "buildCardV3"]);
+const SERDE_CARD_HOME = "packages/server/src/primitives/serde/card/index.ts";
+const SERDE_CARD_MESSAGE = `A second declaration of a serde-core card mapper; each of cardContentHash, cardFromJson and buildCardV3 is declared once, in ${SERDE_CARD_HOME}. Import it from #primitives/serde/card.`;
+const SERVER_HARD_RESTRICTIONS = [
+  {
+    id: "types-in-contract",
+    scope: ["packages/server/src/domain/*/contract/service.ts"],
+    homes: [],
+    selectors: [
+      {
+        selector: "Program:not(:has(:matches(ExportNamedDeclaration, ExportDefaultDeclaration) > TSInterfaceDeclaration))",
+        message:
+          "contract/service.ts must declare the exported <Feature>Service interface (the feature's typed API surface, Spine-TypeScript-and-Patterns.md §7.4).",
+      },
+    ],
+  },
+  {
+    id: "serde-core-definition-uniqueness",
+    scope: rootSources("@server"),
+    notUnder: [SERDE_CARD_HOME],
+    homes: [],
+    selectors: [
+      `ExportNamedDeclaration > FunctionDeclaration[id.name=${SERDE_CARD_MAPPERS}]`,
+      `ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[id.type='Identifier'][id.name=${SERDE_CARD_MAPPERS}]`,
+    ].map((selector) => ({ selector, message: SERDE_CARD_MESSAGE })),
+  },
+  { id: "domain-inference-dispatch", scope: ["packages/server/src/domain/**/*.{ts,tsx}"], homes: [], rule: domainInferenceDispatchRule },
+];
+
 // D34: the db never re-spells a union. The runtime half (tests/db/schema/enum-tuples.suite.test.ts) judges the values.
 const DB_SCHEMA_RESTRICTIONS = [
   {
@@ -4078,6 +4156,14 @@ const RESTRICTIONS = [
   { id: "evaluate-no-scope-capture", scope: rootSources("@tooling"), homes: [] },
   { id: "assumes-single-replica", scope: rootSources("@server", "@inference"), notUnder: ["packages/server/src/**/persistence/**"], homes: [] },
   { id: "detached-work-traced", scope: rootSources("@server", "@inference"), homes: [] },
+  { id: "receded-ink-integrity", scope: rootSources("@client", "@ui"), homes: [] },
+  // infra translates a resolved posture onto a provider body; specs spell the posture they expect.
+  {
+    id: "no-hardcoded-side-gen-sampling",
+    scope: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}"],
+    notNamed: ["**/*.test.ts", "**/*.test.tsx"],
+    homes: [],
+  },
   ...CLIENT_SEAL_RESTRICTIONS,
   ...CLIENT_STYLE_RESTRICTIONS,
   {
@@ -4259,6 +4345,28 @@ const RESTRICTIONS = [
     ],
   },
   {
+    id: "session-channel-boundary",
+    scope: rootSources("@client"),
+    homes: [
+      {
+        path: "packages/client/src/lib/session-channel.ts",
+        why: "the one typed cross-tab session channel (D138): session lifecycle and durable-local pokes, never server truth",
+      },
+    ],
+  },
+  {
+    id: "windowed-infinite-query",
+    scope: rootSources("@client"),
+    homes: [],
+    selectors: [
+      {
+        selector: `Property:matches([key.type='Identifier'][key.name='maxPages'], [key.type='Literal'][key.value='maxPages'])`,
+        message:
+          "`maxPages` windows an infinite query's cache: evicted head pages cannot be re-fetched and a client lens searches only the window. Delete the cap and push search, sort and filter server-side onto the keyset (client-architecture-lockdown.md).",
+      },
+    ],
+  },
+  {
     id: "dialog-via-composite",
     scope: [CLIENT_FEATURES_TSX],
     homes: [],
@@ -4341,10 +4449,14 @@ function restrictionRule({ selectors = [], globals = [] }) {
       const listeners = Object.fromEntries(selectors.map(({ selector, message }) => [selector, (node) => context.report({ node, message })]));
       if (globals.length > 0) {
         listeners["Program:exit"] = (program) => {
-          for (const { identifier } of context.sourceCode.getScope(program).through) {
-            const banned = globals.find(({ name }) => name === identifier.name);
-            if (banned !== undefined) {
-              context.report({ node: identifier, message: banned.message });
+          const globalScope = context.sourceCode.getScope(program);
+          // typescript-eslint declares lib classes such as BroadcastChannel as source-less global variables, so
+          // their references resolve there and never reach `through`.
+          const libReferences = globalScope.variables.filter(({ defs }) => defs.length === 0).flatMap(({ references }) => references);
+          for (const reference of [...globalScope.through, ...libReferences]) {
+            const banned = globals.find(({ name }) => name === reference.identifier.name);
+            if (banned !== undefined && reference.isValueReference !== false) {
+              context.report({ node: reference.identifier, message: banned.message });
             }
           }
         };
@@ -4353,6 +4465,34 @@ function restrictionRule({ selectors = [], globals = [] }) {
     },
   };
 }
+
+// Erased wrappers preserve the ambient receiver; a same-named parameter or local object does not.
+// Cross-module constructor provenance is outside this per-file native claim (D328).
+const sessionChannelBoundaryRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const { sourceCode } = context;
+    const report = reportOnce(context, SESSION_CHANNEL_MESSAGE);
+    return {
+      MemberExpression: (node) => {
+        const receiver = unwrapValue(node.object);
+        if (
+          receiver.type === "Identifier" &&
+          AMBIENT_GLOBAL_RECEIVERS.has(receiver.name) &&
+          isGlobalBinding(referencedVariable(sourceCode, receiver)) &&
+          SESSION_CHANNEL_CONSTRUCTORS.has(memberKeyName(sourceCode, node))
+        ) {
+          report(node);
+        }
+      },
+      "Program:exit"() {
+        for (const reference of ambientReferences(sourceCode, SESSION_CHANNEL_CONSTRUCTORS)) {
+          report(reference);
+        }
+      },
+    };
+  },
+};
 const RAW_Z_INDEX_REGEX = /\bz-(?:\d+|\[\d+\])/u;
 const Z_CLASS_COMPOSERS = new Set(["cn", "clsx", "cva", "tv"]);
 // The nearest carrier is significant; a descendant selector would reclaim nested foreign calls or attributes.
@@ -4885,34 +5025,64 @@ const surfaceA11yFocusRule = {
 // in source order; the rest are findings, and a home that mounts fewer than it allows is stale.
 const SUB_FLOOR_TRIGGER =
   "JSXOpeningElement[name.name='CollapsibleTrigger'] > JSXAttribute[name.name='size']:matches([value.value='text'], [value.expression.value='text'])";
-const subFloorDisclosureRule = {
-  meta: { type: "problem", schema: [{ type: "object", properties: { allowed: { type: "integer", minimum: 1 } }, additionalProperties: false }] },
-  create(context) {
-    const allowed = context.options[0]?.allowed ?? 0;
-    const mounts = [];
-    return {
-      [SUB_FLOOR_TRIGGER]: (node) => {
-        mounts.push(node);
-      },
-      "Program:exit": (program) => {
-        for (const node of mounts.slice(allowed)) {
-          context.report({
-            node,
-            message:
-              'A size="text" CollapsibleTrigger is the sub-floor opt-out (no control box, no hit pseudo); take the control default, or give the file a reasoned home on this row in eslint.config.js saying why the disclosure sits in running content.',
-          });
-        }
-        if (mounts.length < allowed) {
-          context.report({
-            node: program,
-            message:
-              'This file is a reasoned home of orb/sub-floor-disclosure but mounts fewer size="text" CollapsibleTriggers than its ruling names; delete or amend its home on the row in eslint.config.js.',
-          });
-        }
-      },
-    };
+// A home allows exactly `allowed` matches of `selector`, in source order; every other match is a finding, and a home
+// with fewer matches than it allows reports itself stale. Outside a home `allowed` is zero.
+function homedCountRule({ selector, message, staleMessage }) {
+  return {
+    meta: { type: "problem", schema: [{ type: "object", properties: { allowed: { type: "integer", minimum: 1 } }, additionalProperties: false }] },
+    create(context) {
+      const allowed = context.options[0]?.allowed ?? 0;
+      const matches = [];
+      return {
+        [selector]: (node) => {
+          matches.push(node);
+        },
+        "Program:exit": (program) => {
+          for (const node of matches.slice(allowed)) {
+            context.report({ node, message });
+          }
+          if (matches.length < allowed) {
+            context.report({ node: program, message: staleMessage });
+          }
+        },
+      };
+    },
+  };
+}
+const subFloorDisclosureRule = homedCountRule({
+  selector: SUB_FLOOR_TRIGGER,
+  message:
+    'A size="text" CollapsibleTrigger is the sub-floor opt-out (no control box, no hit pseudo); take the control default, or give the file a reasoned home on this row in eslint.config.js saying why the disclosure sits in running content.',
+  staleMessage:
+    'This file is a reasoned home of orb/sub-floor-disclosure but mounts fewer size="text" CollapsibleTriggers than its ruling names; delete or amend its home on the row in eslint.config.js.',
+});
+// D119: the CONTEXT pane's head band has one region claimant and one geometry-probe writer. A HARD single writer:
+// the claimant file is its home with one allowed occurrence; a renamed claimant is a finding at its new path.
+const CONTEXT_MINT_HOME = "packages/client/src/lib/registry-contracts.ts";
+const CONTEXT_SINGLE_WRITERS = [
+  {
+    id: "context-region-single-claimant",
+    home: "packages/client/src/features/rpg/lib/rpg-hud-region.tsx",
+    rule: homedCountRule({
+      selector: `CallExpression:matches([callee.type='Identifier'][callee.name='${DEFINE_CONTEXT_REGION}'], [callee.type='MemberExpression'][callee.property.name='${DEFINE_CONTEXT_REGION}'])`,
+      message:
+        "A second defineContextRegion call site: the CONTEXT pane's head band has one owner, or which claimant wins is a declaration-order accident (D119).",
+      staleMessage:
+        "This file is the one defineContextRegion claimant on orb/context-region-single-claimant but no longer calls it; move the home to the new claimant in eslint.config.js.",
+    }),
   },
-};
+  {
+    id: "context-bracket-single-writer",
+    home: "packages/client/src/features/app-shell/components/context-bracket.tsx",
+    rule: homedCountRule({
+      selector: "JSXAttribute[name.name='data-context-bracket']",
+      message:
+        "A second writer of data-context-bracket: the geometry probe attribute has one writer, the context bracket, so a probe never resolves to two elements (D119).",
+      staleMessage:
+        "This file is the one data-context-bracket writer on orb/context-bracket-single-writer but no longer writes it; move the home to the new writer in eslint.config.js.",
+    }),
+  },
+];
 
 const DISPLAY_UTILITIES = new Set([
   "block",
@@ -7695,6 +7865,84 @@ function lexicalVariable(context, identifier) {
   }
 }
 
+// The side-gen ladder seal: a domain or entry call site never authors a sampling number; it folds
+// SIDE_GEN_POSTURES through resolveSideGenSampling. `maxTokens` also names the canon-window budget, so it is a
+// sampling knob only beside an unambiguous one. An imported binding is data from its home and passes.
+const SIDE_GEN_KNOBS = new Set(["temperature", "maxOutputTokens", "topP"]);
+const SIDE_GEN_SHARED_KNOB = "maxTokens";
+const SIDE_GEN_MESSAGE =
+  "Hardcoded side-gen sampling value: resolve the posture through resolveSideGenSampling and SIDE_GEN_POSTURES from @orb/contracts/preset; a buried constant is a value the user's preset params can never override.";
+// A numeric literal, a signed one, or a same-file const one binding hop at a time.
+function authoredNumber(context, node, hops = 4) {
+  if (node.type === "Literal") {
+    return typeof node.value === "number";
+  }
+  if (node.type === "UnaryExpression" && (node.operator === "-" || node.operator === "+")) {
+    return authoredNumber(context, node.argument, hops);
+  }
+  if (node.type !== "Identifier" || hops === 0) {
+    return false;
+  }
+  const definition = lexicalVariable(context, node)?.defs[0];
+  return (
+    definition?.type === "Variable" &&
+    definition.parent.kind === "const" &&
+    definition.node.init !== null &&
+    authoredNumber(context, definition.node.init, hops - 1)
+  );
+}
+const sideGenSamplingRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      "ObjectExpression > Property[kind='init']"(property) {
+        const name = staticKeyName(context, property);
+        const knob =
+          SIDE_GEN_KNOBS.has(name) ||
+          (name === SIDE_GEN_SHARED_KNOB &&
+            property.parent.properties.some((sibling) => sibling.type === "Property" && SIDE_GEN_KNOBS.has(staticKeyName(context, sibling))));
+        if (knob && authoredNumber(context, property.value)) {
+          context.report({ node: property.key, message: SIDE_GEN_MESSAGE });
+        }
+      },
+    };
+  },
+};
+
+// The imported RECEDED_INK constant is used unprefixed: a Tailwind variant before it (`hover:`, `md:`, `[&:hover]:`)
+// says nothing about the rest state the recession ruling governs (packages/ui/src/lib/receded-ink.ts). A same-named
+// local constant is a different contract. A later overriding ink is not judged: ink and size share the `text-` spelling.
+const RECEDED_INK_NAME = "RECEDED_INK";
+const VARIANT_PREFIX_END = /\S:$/u;
+function importedRecededInk(context, expression) {
+  if (expression.type === "Identifier") {
+    return expression.name === RECEDED_INK_NAME && lexicalVariable(context, expression)?.defs[0]?.node.type === "ImportSpecifier";
+  }
+  return (
+    staticMemberName(expression) === RECEDED_INK_NAME &&
+    expression.object.type === "Identifier" &&
+    lexicalVariable(context, expression.object)?.defs[0]?.node.type === "ImportNamespaceSpecifier"
+  );
+}
+const recededInkRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    return {
+      "TemplateLiteral[expressions.length>0]"(template) {
+        template.expressions.forEach((expression, index) => {
+          if (importedRecededInk(context, expression) && VARIANT_PREFIX_END.test(template.quasis[index].value.raw)) {
+            context.report({
+              node: expression,
+              message:
+                "RECEDED_INK behind a Tailwind variant states nothing about the control's rest state, the only state the recession ruling governs. Carry it unprefixed on the composite's own control, or author the colour directly when the control recedes only in a variant state (packages/ui/src/lib/receded-ink.ts).",
+            });
+          }
+        });
+      },
+    };
+  },
+};
+
 // `x.name`, `x["name"]` or a substitution-free template key: the member name, else undefined.
 function staticMemberName(member) {
   if (member.type !== "MemberExpression") {
@@ -8249,6 +8497,8 @@ const restrictionPlugin = {
     "tooling-ops-direct-invocation": toolingEntryRule(true),
     ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(VERIFY_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
+    ...Object.fromEntries(SERVER_HARD_RESTRICTIONS.map((entry) => [entry.id, entry.rule ?? restrictionRule(entry)])),
+    ...Object.fromEntries(CONTEXT_SINGLE_WRITERS.map(({ id, rule }) => [id, rule])),
     ...Object.fromEntries(IDENTITY_WRITER_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(UI_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     [UI_CT_COLOR_RESTRICTION.id]: uiCtColorRule,
@@ -8327,6 +8577,9 @@ const restrictionPlugin = {
     [TOOLING_ROOT_CONFIG_IMPORT_RULE.slice("orb/".length)]: toolingRootConfigImportRule,
     "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
     "assumes-single-replica": assumesSingleReplicaRule,
+    "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
+    "session-channel-boundary": sessionChannelBoundaryRule,
+    "receded-ink-integrity": recededInkRule,
     "detached-work-traced": detachedWorkRule,
     "commented-code": commentedCodeRule,
     "ct-story-single-import": ctStorySingleImportRule,
@@ -9273,7 +9526,11 @@ export const hardConfig = [
     plugins: { orb: restrictionPlugin },
     rules: { [`orb/${id}`]: "error" },
   })),
-  ...VERIFY_HARD_RESTRICTIONS.map(({ id, scope, notUnder }) => ({
+  ...CONTEXT_SINGLE_WRITERS.flatMap(({ id, home }) => [
+    { files: [CLIENT_SRC], ignores: [home, CONTEXT_MINT_HOME], plugins: { orb: restrictionPlugin }, rules: { [`orb/${id}`]: "error" } },
+    { files: [home], plugins: { orb: restrictionPlugin }, rules: { [`orb/${id}`]: ["error", { allowed: 1 }] } },
+  ]),
+  ...[...VERIFY_HARD_RESTRICTIONS, ...SERVER_HARD_RESTRICTIONS].map(({ id, scope, notUnder }) => ({
     files: scope,
     // A flat-config `ignores` array must not be empty or absent-as-undefined.
     ...(notUnder === undefined ? {} : { ignores: notUnder }),

@@ -27,7 +27,6 @@ export type { GateContractCode, GateContractFinding, GateContractReport } from "
 export { GATE_CONTRACT_CODES } from "./contract/gate-contract.ts";
 export type { GateContractKind, GateCorpus, GatePolicyCorpus, GateRosterEntry, SelectedGateCorpus } from "./contract/gate-corpus.ts";
 export { GATE_CONTRACT_KINDS } from "./contract/gate-corpus.ts";
-export type { GateIgnoreMarker } from "./contract/gate-ignore-marker.ts";
 export type { CheckContext, Violation } from "./contract/harness.ts";
 export type { RunHistoryEntry, RunHistoryStage, SlowdownAdvisory } from "./contract/history.ts";
 export type { InstrumentAffectedSelection } from "./contract/instrument-affected.ts";
@@ -117,7 +116,6 @@ export { readNativeCtCases } from "./lib/ct-listing.ts";
 export { balanceNativeFiles, requireNativeSelection } from "./lib/duration-shards.ts";
 export { aggregateExit, asViolations, eslintScheme, noVerdictStages, ownScheme, producedNoVerdict } from "./lib/exit-classifiers.ts";
 export { inspectGateContract } from "./lib/gate-contract.ts";
-export { findGateIgnoreMarkersWithSpans, GATE_IGNORE_MENTION_SPAN_KINDS } from "./lib/gate-ignore.ts";
 export { getProject } from "./lib/harness.ts";
 export {
   appendHistory,

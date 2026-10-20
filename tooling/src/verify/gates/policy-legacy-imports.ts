@@ -70,7 +70,7 @@
 //     descriptor half was deleted at #2176 Phase F and the three surviving shapes are exactly what §12.5 says a
 //     gate module may not receive), `lib/pass.ts` (the legacy dispatcher — the MODULE is now DELETED; the row
 //     stays as a resurrection tripwire, see the tuple), `lib/gate-ignore.ts` (the `@orb-gate-ignore` recognizer,
-//     §7 kind 1), `lib/reviewed-grants.ts` (the grant table), `lib/ordinary-waiver.ts`
+//     §7 kind 1; also deleted and kept as a tripwire), `lib/reviewed-grants.ts` (the grant table), `lib/ordinary-waiver.ts`
 //     (the central `@orb-waive` engine), `lib/gate-authority.ts` (the coordinator), `lib/policy-pass.ts` (the final
 //     dispatcher — a pass inside a pass is a private workspace cache, §12.3), `lib/loader.ts` · `lib/policy-loader.ts`
 //     (the registry — a module that loads the corpus judges itself). A same-basename module elsewhere
