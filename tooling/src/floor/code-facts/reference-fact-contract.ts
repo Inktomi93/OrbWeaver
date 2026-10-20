@@ -189,6 +189,14 @@ export interface ReferenceResolutionServices {
   readonly readMemberReference: (node: Node) => ReferenceFact<MemberReference>;
 }
 
+/** The origin, stable-source, write and static-key answers a well-known-symbol member read consumes. */
+export interface SymbolMemberValueServices {
+  readonly globalOrigin: (node: Node) => ReferenceFact<GlobalMemberOrigin>;
+  readonly stable: (node: Node) => ReferenceFact<Node>;
+  readonly writes: (identifier: Identifier) => ReferenceFact<true>;
+  readonly staticString: (node: Node) => ReferenceFact<string>;
+}
+
 /** Supplied native calls and their authored return paths, scoped to one policy invocation and compiler epoch. */
 export interface CallReturnObservation {
   readonly call: CallExpression;
