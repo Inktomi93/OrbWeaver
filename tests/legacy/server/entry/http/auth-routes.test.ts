@@ -4,7 +4,6 @@
 // registration (login present only with `authenticate`, OIDC present only with `oidc`). Hono isn't
 // test-resolvable, so the registrar runs over a captured mock app + context.
 
-import type { ResolvedIdentity, UserRole } from "@orb/contracts/identity";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
@@ -268,16 +267,9 @@ function recordingSessions(): SessionRecorder {
         rec.revoked = token;
         return Promise.resolve({ sessionId: REVOKED_SESSION_ID, oidcIdToken: rec.revokedIdToken });
       },
-      provisionIdentity: (
-        _identity: ResolvedIdentity,
-      ): Promise<{ outcome: "provisioned"; userId: UserId; enabled: boolean; role: UserRole; identityChanged: boolean } | { outcome: "denied" }> =>
-        Promise.resolve({
-          outcome: "provisioned",
-          userId: castId<UserId>("usr_x"),
-          enabled: true,
-          role: "user",
-          identityChanged: false,
-        }),
+      // The callback's provisioning arms run through the real verb in tests/server/entry/compose/oidc-native.int.test.ts;
+      // every case left here that reaches the verb supplies its own.
+      provisionIdentity: (): Promise<never> => Promise.reject(new Error("auth-routes.test: this case never provisions")),
       revokeByExternalId: (): Promise<RevokedSessionsSummary> => Promise.resolve({ revoked: 0, userIds: [] }),
     },
   };
@@ -1478,19 +1470,6 @@ describe("OIDC callback — the browser binding (login CSRF)", () => {
     // The planted name is invisible to an https request: the event reports no binding at all.
     expect(unboundWarn(spy.mock.calls)).toMatchObject({ transport: "https", bindingPresent: false });
   });
-
-  test("the browser that started the flow completes it, and the spent binding is cleared under both names", async () => {
-    const h = bindingHarness();
-    const res = await arrive(h, "victim-state", `${OIDC_BINDING_COOKIE_NAME_SECURE}=victim-state`);
-
-    expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("/");
-    expect(h.consumed()).toBe(1);
-    expect(h.session.createdFor).toBe(castId<UserId>("usr_x"));
-    const cookies = res.headers.getSetCookie();
-    expect(cookies).toContain(`${OIDC_BINDING_COOKIE_NAME_SECURE}=; Max-Age=0; Path=/; HttpOnly; Secure; SameSite=Lax`);
-    expect(cookies).toContain(`${OIDC_BINDING_COOKIE_NAME_INSECURE}=; Max-Age=0; Path=/; HttpOnly; SameSite=Lax`);
-  });
 });
 
 // R7 — OIDC CALLBACK state/replay gate. The callback consumes the single-use PKCE transaction by the
@@ -1696,248 +1675,6 @@ describe("OIDC callback — IdP error param fails closed (declined consent / acc
     const location = res.headers.get("location") ?? "";
     expect(location).not.toContain("<script>");
     expect(location).toBe("/login?authError=token_exchange_failed"); // the generic fallback marker
-  });
-});
-
-// ── #867 — THE TOKEN-EXCHANGE SEAM AND EVERYTHING DOWNSTREAM OF IT ───────────────────────────────────
-//
-// Until the exchange was injected, this whole half of the callback was undrivable in-process: the grant was
-// a module-level `openid-client` import, the package resolves only under `packages/server/node_modules` (so
-// a `vi.mock("openid-client")` from `tests/` never binds — the real library runs and every arm reports
-// `token_exchange_failed` while LOOKING wired), and the path-form mock that WOULD bind is correctly RED
-// under `test-mock-doctrine`. So the callback's happy path, the #141 `idToken → sessions.create` hop, the
-// #699 subject refusal at the route, and all three provisioning outcomes were asserted nowhere.
-//
-// With `OidcRoutesDeps.exchange` they are ordinary injected-dep tests. What each arm is FOR:
-//   • the mint arm is the #141 hop — the raw id_token the IdP returned must arrive at `sessions.create`
-//     VERBATIM (the domain seals it there; a route that dropped it degrades every later logout to a bare
-//     end-session URL and silently resurrects the #437 papercut).
-//   • the failure arms are the FAIL-CLOSED contract: a throwing exchange must mint no session and set no
-//     cookie, must not 500, and must never reflect IdP- or exception-supplied text into the Location.
-//   • the refusal arms (#699 no-subject, denied, account-exists, disabled) are reachable end-to-end here
-//     for the first time — each must land on its own authError code with no session.
-// NOT re-asserted, deliberately: the grant's CRYPTOGRAPHY (JWKS signature, issuer/audience, nonce/PKCE
-// binding). That is `openid-client`'s job; ours is to hand it the right inputs and fail closed.
-describe("OIDC callback — the injected code→token exchange (#867)", () => {
-  const callbackBase = "https://app.example/api/auth/oidc/callback";
-  /** The URL the request actually arrives on behind a proxy — a DIFFERENT origin from the allowlisted one
-   *  the transaction stored. The exchange must be presented the STORED one (see the mint-arm test). */
-  const proxyCallback = "https://proxy.internal/api/auth/oidc/callback";
-  const storedTx: OidcTransaction = { state: "s1", codeVerifier: "cv1", nonce: "n1", redirectUri: callbackBase, createdAt: NOW, inviteTokenHash: null };
-  /** A verified-claims stand-in: a usable username AND the stable subject `oidcSessionIdentity` requires. */
-  const verifiedClaims: Record<string, unknown> = { preferred_username: "alice", sub: "sub-alice", email: "alice@corp.example", groups: ["staff"] };
-  const authedUser = castId<UserId>("usr_x");
-
-  const arriveAt = (base: string, query: Record<string, string>): string => {
-    const u = new URL(base);
-    for (const [k, v] of Object.entries(query)) {
-      u.searchParams.set(k, v);
-    }
-    return u.href;
-  };
-
-  interface ExchangeHarness {
-    readonly deps: AuthRoutesDeps;
-    readonly session: SessionRecorder;
-    /** What the route handed the exchange — the reconstructed URL and the transaction it consumed. */
-    readonly seen: () => { url: URL; tx: OidcTransaction } | null;
-    readonly consumed: () => number;
-  }
-
-  function harness(exchange: Exchange, provisionIdentity?: AuthSessionsPort["provisionIdentity"]): ExchangeHarness {
-    let seen: { url: URL; tx: OidcTransaction } | null = null;
-    let consumed = 0;
-    const session = recordingSessions();
-    const sessions: AuthSessionsPort = provisionIdentity === undefined ? session.sessions : { ...session.sessions, provisionIdentity };
-    const deps: AuthRoutesDeps = {
-      sessions,
-      sockets: session.sockets,
-      now: (): number => NOW,
-      db: databaseHandle(STUB_DB),
-      resolveLoginLimit: (): number => 10,
-      discreetLogin: (): boolean => false,
-      oidc: fakeOidcDeps({
-        getConfig: (): Promise<OidcConfig> => Promise.resolve(fakeConfig({ issuer: "https://idp.example" })),
-        redirectAllowlist: [callbackBase],
-        exchange: (config: OidcConfig, url: URL, tx: OidcTransaction): Promise<OidcVerifiedTokens> => {
-          seen = { url, tx };
-          return exchange(config, url, tx);
-        },
-        store: {
-          mint: (): Promise<void> => Promise.resolve(),
-          consume: (): Promise<OidcTransaction | null> => {
-            consumed += 1;
-            return Promise.resolve(storedTx);
-          },
-        },
-      }),
-    };
-    return { deps, session, seen: (): { url: URL; tx: OidcTransaction } | null => seen, consumed: (): number => consumed };
-  }
-
-  /** An exchange that succeeds with the given claims + id_token — the shape `authorizationCodeGrant`
-   *  narrows to once it has verified the response. */
-  const grants =
-    (claims: Record<string, unknown> | undefined, idToken: string | null): Exchange =>
-    (): Promise<OidcVerifiedTokens> =>
-      Promise.resolve({ claims, idToken });
-
-  /** An exchange that rejects — the replayed/expired code, mismatch and transient-fault class. */
-  const rejects =
-    (err: unknown): Exchange =>
-    (): Promise<never> =>
-      Promise.reject(err);
-
-  // The IdP returns the browser through the TLS proxy, so the callback arrives marked https by a trusted hop,
-  // carrying the binding cookie the authorize leg set for `storedTx.state`.
-  const drive = async (h: ExchangeHarness, url: string): Promise<Response> =>
-    await handlerFor(
-      h.deps,
-      "GET /api/auth/oidc/callback",
-    )(makeCtx({ url, headers: { "x-forwarded-proto": "https", cookie: `${OIDC_BINDING_COOKIE_NAME_SECURE}=${storedTx.state}` } }));
-
-  // THE #141 HOP. This is the assertion the whole seam exists for: `createdIdToken` is what
-  // `sessions.create` was handed, and the domain seals exactly that value against the new row id.
-  test("a verified grant mints the session and threads the id_token to sessions.create VERBATIM", async () => {
-    const h = harness(grants(verifiedClaims, ID_TOKEN));
-    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
-
-    expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("/");
-    expect(res.headers.get("set-cookie")).toContain(`${COOKIE}=tok-123`);
-    expect(h.session.createdFor).toBe(authedUser);
-    expect(h.session.createdIdToken).toBe(ID_TOKEN); // #141 — the hop that had no pin before #867
-    expect(h.consumed()).toBe(1); // the PKCE txn is still spent exactly once
-  });
-
-  // #2413 — a MINT writes the live cookie under the active name FIRST, then clears the other posture's name,
-  // as two separate `Set-Cookie` headers. Order matters for the reader of a joined header, and the append is
-  // what keeps the mint from being overwritten by its own hygiene clear.
-  test("the mint writes the live cookie AND clears the other posture's name, in that order", async () => {
-    const h = harness(grants(verifiedClaims, ID_TOKEN));
-    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
-
-    const cookies = sessionCookieWrites(res);
-    expect(cookies).toHaveLength(2);
-    expect(cookies[0]).toContain(`${SESSION_COOKIE_NAME_SECURE}=tok-123`);
-    expect(cookies[0]).not.toContain("Max-Age=0");
-    expect(cookies[1]).toContain(`${SESSION_COOKIE_NAME_INSECURE}=;`);
-    expect(cookies[1]).toContain("Max-Age=0");
-  });
-
-  // The redirect_uri presented at the exchange must be the ALLOWLIST-VALIDATED one stored in the
-  // transaction, never the origin the request happened to arrive on — otherwise a proxy (or an attacker
-  // who can influence the arrival URL) changes the value the IdP is asked to match.
-  test("the exchange is handed the STORED redirect_uri (not the arrival origin) and the consumed transaction", async () => {
-    const h = harness(grants(verifiedClaims, ID_TOKEN));
-    await drive(h, arriveAt(proxyCallback, { state: "s1", code: "grant" }));
-
-    const seen = h.seen();
-    expect(seen).not.toBeNull();
-    expect(`${seen?.url.origin}${seen?.url.pathname}`).toBe(callbackBase);
-    expect(seen?.url.href).not.toContain("proxy.internal");
-    expect(seen?.url.searchParams.get("code")).toBe("grant"); // the incoming query still rides
-    // The whole transaction crosses the seam, so the PKCE verifier + nonce + state are all presented.
-    expect(seen?.tx).toEqual(storedTx);
-  });
-
-  // An IdP that returns no ID token must still log the user in — the DEGRADE #141 documents (that
-  // session's logout gets a bare end-session URL) — and must store nothing rather than sealing "".
-  test("a grant with no id_token still mints the session, carrying null (the documented #141 degrade)", async () => {
-    const h = harness(grants(verifiedClaims, null));
-    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
-
-    expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("/");
-    expect(h.session.createdFor).toBe(authedUser);
-    expect(h.session.createdIdToken).toBeNull();
-  });
-
-  test("a THROWING exchange (replayed/expired code) mints no session, sets no cookie, and 302s with the sanitized code", async () => {
-    const h = harness(rejects({ error: "invalid_grant" }));
-    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "replayed" }));
-
-    expect(res.status).toBe(302); // fail-closed, not a 500 leaking a stack through onError
-    expect(res.headers.get("location")).toBe("/login?authError=invalid_grant");
-    expect(sessionCookieWrites(res)).toEqual([]);
-    expect(h.session.createdFor).toBeNull();
-    expect(h.consumed()).toBe(1); // and the txn stays spent — a failed exchange leaves nothing replayable
-  });
-
-  test("an exchange error carrying FREE TEXT is not reflected — the generic marker rides instead", async () => {
-    const h = harness(rejects({ error: "<script>alert(1)</script>" }));
-    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
-
-    const location = res.headers.get("location") ?? "";
-    expect(location).not.toContain("<script>");
-    expect(location).toBe("/login?authError=token_exchange_failed");
-    expect(h.session.createdFor).toBeNull();
-  });
-
-  // A thrown exception's MESSAGE is attacker-influenceable in the general case (an HTTP client happily
-  // quotes a response body into it) and, worse, can carry our own secrets. Neither the Location nor the
-  // body may echo it.
-  test("nothing from the thrown error's message reaches the redirect or the body", async () => {
-    const h = harness(rejects(new Error(`token endpoint said: ${ID_TOKEN}`)));
-    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
-
-    expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("/login?authError=token_exchange_failed");
-    expect(res.headers.get("location") ?? "").not.toContain(ID_TOKEN);
-    expect(await res.text()).not.toContain(ID_TOKEN);
-    expect(h.session.createdFor).toBeNull();
-  });
-
-  // #699 — reachable END-TO-END for the first time: a verified grant whose claims carry no stable subject
-  // (OIDC_UID_CLAIM names a claim this IdP does not emit) is refused at the callback, not walked onto
-  // whatever row holds that handle.
-  test("a verified grant with NO stable subject is refused fail-closed — no session (#699)", async () => {
-    const h = harness(grants({ preferred_username: "alice" }, ID_TOKEN));
-    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
-
-    expect(res.status).toBe(302);
-    expect(res.headers.get("location")).toBe("/login?authError=no_identity");
-    expect(sessionCookieWrites(res)).toEqual([]);
-    expect(h.session.createdFor).toBeNull();
-  });
-
-  test("a grant with NO usable username is refused too (the pre-existing null-identity arm)", async () => {
-    const h = harness(grants({ sub: "sub-only" }, ID_TOKEN));
-    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
-
-    expect(res.headers.get("location")).toBe("/login?authError=no_identity");
-    expect(h.session.createdFor).toBeNull();
-  });
-
-  test("a DENIED provision (login gate refused) mints nothing — generic not_authorized", async () => {
-    const h = harness(grants(verifiedClaims, ID_TOKEN), () => Promise.resolve({ outcome: "denied" as const }));
-    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
-
-    expect(res.headers.get("location")).toBe("/login?authError=not_authorized");
-    expect(sessionCookieWrites(res)).toEqual([]);
-    expect(h.session.createdFor).toBeNull();
-  });
-
-  // MS-W1 — the collision hard-deny gets its OWN operator-actionable code so the login surface can say
-  // "ask an admin to link the account" instead of the generic refusal.
-  test("an ACCOUNT-EXISTS collision deny surfaces its distinct code, still with no session", async () => {
-    const h = harness(grants(verifiedClaims, ID_TOKEN), () => Promise.resolve({ outcome: "denied" as const, reason: "account-exists" as const }));
-    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
-
-    expect(res.headers.get("location")).toBe("/login?authError=account_exists");
-    expect(h.session.createdFor).toBeNull();
-  });
-
-  // A2 — provisioned-but-awaiting-approval (or admin-disabled). Provisioning SUCCEEDS; the mint must not.
-  test("a provisioned but DISABLED account mints no session", async () => {
-    const h = harness(grants(verifiedClaims, ID_TOKEN), () =>
-      Promise.resolve({ outcome: "provisioned" as const, userId: authedUser, enabled: false, role: "user" as const, identityChanged: false }),
-    );
-    const res = await drive(h, arriveAt(callbackBase, { state: "s1", code: "grant" }));
-
-    expect(res.headers.get("location")).toBe("/login?authError=account_disabled");
-    expect(sessionCookieWrites(res)).toEqual([]);
-    expect(h.session.createdFor).toBeNull();
   });
 });
 

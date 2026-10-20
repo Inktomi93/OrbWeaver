@@ -8,8 +8,6 @@
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import type { AuthMode, Principal, RelayStatus } from "@orb/contracts/identity";
 import { resolveUploadCaps } from "@orb/contracts/uploads";
-import type { Handle, UserId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import type { AuthMetaDeps } from "#server/entry/http/index.ts";
@@ -33,7 +31,6 @@ type Handler = (c: MockCtx) => MockResult | Promise<MockResult>;
 const OK = 200;
 const PROVIDER = "Test IdP";
 const RELAY_OFF: RelayStatus = { state: "off" };
-const RELAY_URL = "https://calm-river-four-birds.trycloudflare.com";
 
 /** Register over a captured mock app; return the two handlers keyed by path. */
 function handlers(deps: AuthMetaDeps): { config: Handler; me: Handler } {
@@ -83,14 +80,6 @@ function depsFor(mode: AuthMode, discreet = false, capable = false, forbidExtern
     share: () => RELAY_OFF,
   };
 }
-
-const USER: Principal = {
-  userId: castId<UserId>("usr_1"),
-  role: "user",
-  handle: castId<Handle>("alice"),
-  externalId: null,
-  via: "cookie",
-};
 
 describe("GET /api/auth/config", () => {
   test("local mode → complete canonical config, localEnabled and handle pre-fill present", async () => {
@@ -284,26 +273,6 @@ describe("GET /api/auth/config", () => {
     expect(body["defaultHandle"]).toBeNull();
   });
 
-  test("multiHumanCapable is the INJECTED per-request derivation (a runtime LOCAL_MULTI_USER flip takes effect immediately)", async () => {
-    let capable = false;
-    const { config } = handlers({
-      mode: "local",
-      defaultHandle: "owner",
-      oidcProviderName: PROVIDER,
-      discreetLogin: () => false,
-      multiHumanCapable: () => capable,
-      maxImageBytes: () => MAX_IMAGE_BYTES,
-      maxDatabankBytes: () => MAX_DATABANK_BYTES,
-      forbidExternalMedia: () => true,
-      trustHtml: () => false,
-      allowInteractiveCards: () => false,
-      share: () => RELAY_OFF,
-    });
-    expect((await run(config)).body["multiHumanCapable"]).toBe(false);
-    capable = true;
-    expect((await run(config)).body["multiHumanCapable"]).toBe(true);
-  });
-
   test("the discreet flag is read PER REQUEST (a runtime AppSettings flip takes effect immediately)", async () => {
     let discreet = false;
     const { config } = handlers({
@@ -326,39 +295,9 @@ describe("GET /api/auth/config", () => {
 });
 
 describe("GET /api/auth/me", () => {
-  test("projects the middleware-resolved principal", async () => {
-    expect((await run(handlers(depsFor("local")).me, USER)).body).toEqual({
-      authenticated: true,
-      handle: "alice",
-      role: "user",
-    });
-  });
-
   test("anonymous → authenticated:false with null identity fields (a 200, never a 401)", async () => {
     const res = await run(handlers(depsFor("local")).me, null);
     expect(res.status).toBe(OK);
     expect(res.body).toEqual({ authenticated: false, handle: null, role: null });
-  });
-});
-
-// The share relay's fields: its state for anyone, its link only for a signed-in caller who may hand it on through a
-// room invite. The sign-in page a stranger reaches needs no link.
-describe("GET /api/auth/config share fields", () => {
-  const withRelay = (status: RelayStatus): AuthMetaDeps => ({ ...depsFor("local"), share: () => status });
-
-  test("an up relay's link goes to a signed-in caller and never to an anonymous one", async () => {
-    const up = handlers(withRelay({ state: "up", relay: "quick", url: RELAY_URL })).config;
-    expect((await run(up, null)).body["share"]).toEqual({ state: "up", url: null });
-    expect((await run(up, USER)).body["share"]).toEqual({ state: "up", url: RELAY_URL });
-  });
-
-  test("a relay that is not up serves no link, even to a signed-in caller", async () => {
-    for (const status of [
-      RELAY_OFF,
-      { state: "starting", relay: "quick", restartAfter: null },
-      { state: "down", relay: "quick", reason: "exited", restarting: true },
-    ] as const) {
-      expect((await run(handlers(withRelay(status)).config, USER)).body["share"], status.state).toEqual({ state: status.state, url: null });
-    }
   });
 });

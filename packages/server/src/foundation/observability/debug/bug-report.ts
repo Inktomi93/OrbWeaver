@@ -31,8 +31,8 @@
 // states about every probe. There is no tRPC twin and no sweep row: the cross-tenant sweep enumerates
 // `appRouter._def.procedures`, so a hono route is structurally outside it, and moving a dev-only file-writing
 // capture into the production router to earn a classification row would satisfy the letter against the purpose
-// (owner ruling 2026-09-02, fork 1). `tests/legacy/server/entry/debug-gate.suite.test.ts` — the enforcer that DOES
-// govern it — carries this path.
+// (owner ruling 2026-09-02, fork 1). `tests/server/entry/debug-gate-admission.int.test.ts` and the e2e specs over
+// `tests/e2e/support/debug-gate.ts` — the enforcers that DO govern it — carry this path.
 //
 // THE SCRUB IS VALUE-BASED AND RUNS OVER THE WHOLE SERIALIZED REPORT, once, immediately before the write
 // (`kit/secret-redaction`, the one scrubber — never a second one). Not per-field: the client bundle is opaque
