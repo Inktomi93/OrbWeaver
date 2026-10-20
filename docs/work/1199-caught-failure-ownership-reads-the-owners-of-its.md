@@ -23,3 +23,5 @@ The reader recognises each owner pattern with a red-first case and a fooled-owne
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+After 1049 merged: also relay/execution.ts:42, failures thrown by the returned object's \[Symbol.asyncDispose]; quick-tunnel.ts:69 settled never rejects, so if the RelayProcess contract (relay contract.ts:66) says so, drop the rejection path instead of adding a rule. The AggregateError owner still clears a site where failures.splice(0) empties the collection between push and the guarded throw: add a red-first row.
