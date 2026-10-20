@@ -3,6 +3,7 @@
 
 import { z } from "zod";
 import { PORTABLE_DIRECTORIES } from "../portability/index.ts";
+import { encodePersonaCollisionChoices, PERSONA_COLLISION_CHOICES, PERSONA_COLLISION_FIELD } from "./persona-collision.ts";
 
 export type { CardImportResult, FailedCard, ImportedCard } from "./card-result.ts";
 export { cardImportResultSchema } from "./card-result.ts";
@@ -264,6 +265,60 @@ export const TREE_FILE_FIELD = "file";
 
 /** The multipart field naming a batch's declared layout. Without it the server sniffs the batch alone. */
 export const TREE_LAYOUT_FIELD = "layout";
+
+// RFC 2046 caps a multipart boundary at 70 characters. A delimiter line is `--`, the boundary and CRLF; the
+// close delimiter adds a trailing `--`.
+const MULTIPART_BOUNDARY_MAX_CHARS = 70;
+const DASHES = "--";
+const CRLF_BYTES = "\r\n".length;
+const MULTIPART_DELIMITER_BYTES = DASHES.length + MULTIPART_BOUNDARY_MAX_CHARS + CRLF_BYTES;
+const MULTIPART_CLOSE_BYTES = MULTIPART_DELIMITER_BYTES + DASHES.length;
+// Form encoding percent-escapes `"`, CR and LF in a name or filename and turns a lone line break in a value
+// into CRLF; no UTF-16 unit takes more than three UTF-8 bytes. No unit therefore encodes to more than three.
+const ENCODED_BYTES_PER_UNIT = 3;
+const DISPOSITION_HEADER = 'Content-Disposition: form-data; name=""';
+const FILENAME_PARAMETER = '; filename=""';
+const CONTENT_TYPE_HEADER = "Content-Type: ";
+// The part type a browser sends for a file it has no type for.
+const UNTYPED_FILE_PART_TYPE = "application/octet-stream";
+
+function encodedBytes(text: string): number {
+  return ENCODED_BYTES_PER_UNIT * text.length;
+}
+
+// The delimiter line, the headers, the blank line and the CRLF after the value.
+function partFramingBytes(name: string, file: TreeUploadPart | null): number {
+  const disposition = DISPOSITION_HEADER.length + encodedBytes(name) + (file === null ? 0 : FILENAME_PARAMETER.length + encodedBytes(file.path)) + CRLF_BYTES;
+  const type = file === null ? 0 : CONTENT_TYPE_HEADER.length + encodedBytes(file.type === "" ? UNTYPED_FILE_PART_TYPE : file.type) + CRLF_BYTES;
+  return MULTIPART_DELIMITER_BYTES + disposition + type + CRLF_BYTES + CRLF_BYTES;
+}
+
+/** One file a tree upload sends: its relative path, which is the part filename, and its browser-assigned type. */
+export interface TreeUploadPart {
+  readonly path: string;
+  readonly type: string;
+}
+
+/**
+ * An upper bound on the bytes a tree upload's multipart body adds to the file bytes it carries. It holds for any
+ * upload of at most `maxFiles` of `parts`, with or without a layout declaration, and with any choice for each
+ * persona collision. The served tree cap limits the whole body, so a planner packs file bytes against the cap
+ * less this bound.
+ */
+export function treeUploadFramingBytes(parts: readonly TreeUploadPart[], maxFiles: number, personaCollisionKeys: readonly string[]): number {
+  const fileFraming = parts
+    .map((part) => partFramingBytes(TREE_FILE_FIELD, part))
+    .toSorted((a, b) => b - a)
+    .slice(0, maxFiles)
+    .reduce((sum, bytes) => sum + bytes, 0);
+  const layout = Math.max(...TREE_LAYOUT_DECLARATIONS.map((value) => partFramingBytes(TREE_LAYOUT_FIELD, null) + encodedBytes(value)));
+  const longestChoice = PERSONA_COLLISION_CHOICES.reduce((longest, value) => (value.length > longest.length ? value : longest));
+  const collisions = personaCollisionKeys.reduce(
+    (sum, key) => sum + partFramingBytes(PERSONA_COLLISION_FIELD, null) + encodedBytes(encodePersonaCollisionChoices({ [key]: longestChoice })[0] ?? ""),
+    0,
+  );
+  return fileFraming + layout + collisions + MULTIPART_CLOSE_BYTES;
+}
 
 /**
  * Admit one wrapper-stripped upload batch. An undeclared batch is sniffed alone. A declared native batch is

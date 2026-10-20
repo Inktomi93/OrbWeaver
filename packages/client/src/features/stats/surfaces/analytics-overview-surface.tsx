@@ -29,7 +29,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { testId, timeLib, useFocusOnMount } from "#lib";
+import { LEADERBOARD_ROW_ATTR, testId, timeLib, useFocusOnMount } from "#lib";
 import { setActiveSection, useSectionListMode } from "#state";
 import { AccountingCoverageNotice } from "../components/accounting-coverage-notice.tsx";
 import { RhythmFigures } from "../components/rhythm-figures.tsx";
@@ -53,7 +53,6 @@ import {
   throughputProvenance,
   UNRECORDED_NOTE,
 } from "../lib/analytics-view-model.ts";
-import { LEADERBOARD_ROW_ATTR } from "../lib/leaderboard-row-attr.ts";
 import { localMomentum, localTimeline, rhythmOf } from "../lib/local-calendar-folds.ts";
 
 /** The leaderboard row the drill with this character was opened from, when it is on screen and operable. */

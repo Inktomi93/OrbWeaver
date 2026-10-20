@@ -144,6 +144,7 @@ export {
   sendUnavailableReason,
 } from "./injection-copy.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "./invite-copy.ts";
+export { LEADERBOARD_ROW_ATTR } from "./leaderboard-row-attr.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView, ListSearchPolicy } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";

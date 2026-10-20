@@ -1,5 +1,5 @@
 // Corpus workbench state restoration on the committed corpus: the Insights drill on desktop and the Tags editor push on a phone.
-import { CORPUS_MODE_LABELS, testId } from "@orb/client/lib";
+import { CORPUS_MODE_LABELS, LEADERBOARD_ROW_ATTR, testId } from "@orb/client/lib";
 import type { Page } from "@playwright/test";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -37,7 +37,8 @@ test.describe("committed corpus workbench", () => {
     await bySwipes.click();
     await expect(bySwipes).toHaveAttribute("aria-pressed", "true");
 
-    const row = list.getByRole("button", { name: ranked.name, exact: true });
+    // The row is found by its character, because a name two characters share is disambiguated in the row.
+    const row = list.locator(`[${LEADERBOARD_ROW_ATTR}="${ranked.characterId}"]`).getByRole("button");
     await row.click();
     const main = page.locator("main.shell-content");
     await expect(main.getByTestId(testId("analyticsCharacterSurface"))).toBeVisible();

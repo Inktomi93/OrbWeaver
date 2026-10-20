@@ -23,7 +23,7 @@ import { useRef, useState } from "react";
 import { ListSearch } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { testId, useFocusOnMount } from "#lib";
+import { LEADERBOARD_ROW_ATTR, testId, useFocusOnMount } from "#lib";
 import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
 import {
   ANALYTICS_DEFAULT_SORT,
@@ -33,7 +33,6 @@ import {
   formatDurationMs,
   formatTokens,
 } from "../lib/analytics-view-model.ts";
-import { LEADERBOARD_ROW_ATTR } from "../lib/leaderboard-row-attr.ts";
 import { useLeaderboardRoving } from "../lib/use-leaderboard-roving.ts";
 
 // The sort-id union derived from the shared vocabulary (a local, non-exported alias — no-inline-types
