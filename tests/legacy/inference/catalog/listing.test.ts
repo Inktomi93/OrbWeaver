@@ -93,7 +93,7 @@ interface Stage {
 // The runtime reads no user rows; the stage caller resolves from a row in one in-memory database.
 const callersDb = await freshDb();
 
-async function stage(options: { routes?: readonly Route[]; claudeExecutable?: string; agentSdkQuery?: unknown } = {}): Promise<Stage> {
+async function stage(options: { routes?: readonly Route[]; claudeExecutable?: string } = {}): Promise<Stage> {
   const aliceId = newUserId();
   const credentialId = mintTypeId(ID_PREFIX.userCredential);
   const requests: Recorded[] = [];
@@ -103,7 +103,6 @@ async function stage(options: { routes?: readonly Route[]; claudeExecutable?: st
     fetch: scriptedFetch(options.routes ?? [], requests),
     log,
     ...(options.claudeExecutable !== undefined ? { claudeExecutable: options.claudeExecutable } : {}),
-    ...(options.agentSdkQuery !== undefined ? { agentSdkQuery: options.agentSdkQuery } : {}),
   });
   const deps: InferenceDeps = {
     ...base,
@@ -219,28 +218,6 @@ describe("a draft lists by the provider's catalog strategy, with no connection r
     expect(s.requests.map((request) => request.url)).toEqual(["https://api.anthropic.com/v1/models"]);
     expect(s.requests.at(0)?.headers["anthropic-version"]).toBeTruthy();
   });
-
-  test("agent-sdk: the daemon's list under the caller's token, re-read by id", async () => {
-    const tokens: string[] = [];
-    const query = (args: { options: { env?: Record<string, string | undefined> } }): unknown => {
-      tokens.push(args.options.env?.["CLAUDE_CODE_OAUTH_TOKEN"] ?? "");
-      return {
-        supportedModels: () => Promise.resolve([{ value: "opus", displayName: "Opus", description: "the big one" }]),
-        interrupt: (): Promise<void> => Promise.resolve(),
-      };
-    };
-    const s = await stage({ claudeExecutable: "/usr/bin/claude", agentSdkQuery: query });
-    const runtime = await createInferenceRuntime(s.deps);
-    const listing = await runtime.catalogs.models({
-      principal: s.alice,
-      providerId: provider("claude-sub"),
-      secret: { credentialId: s.credentialId },
-      baseUrl: null,
-    });
-    expect(listing).toMatchObject({ listed: true, models: [{ id: "opus", name: "Opus" }] });
-    expect(tokens).toEqual([PLANTED]);
-    expect(s.credentialReads).toEqual([{ credentialId: s.credentialId, ownerId: s.alice.userId, providerId: provider("claude-sub") }]);
-  });
 });
 
 describe("a failed dial is listed:false with its reason — never an empty success", () => {
@@ -339,27 +316,6 @@ describe("a planted secret reaches neither the reason nor a log line", () => {
     expect(s.requests.at(0)?.headers["authorization"]).toBe(`Bearer ${PLANTED}`);
     expect(reason).toMatch(/HTTP 500/u);
     expect(reason).not.toContain(PLANTED);
-    expect(s.log.text()).not.toContain(PLANTED);
-  });
-
-  test("the agent-sdk daemon naming the token in its failure", async () => {
-    const query = (): unknown => ({
-      supportedModels: () => Promise.reject(new Error(`auth rejected for ${PLANTED}`)),
-      interrupt: (): Promise<void> => Promise.resolve(),
-    });
-    const s = await stage({ claudeExecutable: "/usr/bin/claude", agentSdkQuery: query });
-    const runtime = await createInferenceRuntime(s.deps);
-    const listing = await runtime.catalogs.models({
-      principal: s.alice,
-      providerId: provider("claude-sub"),
-      secret: { credentialId: s.credentialId },
-      baseUrl: null,
-    });
-    const reason = reasonOf(listing);
-    expect(reason).toMatch(/auth rejected/u);
-    expect(reason).not.toContain(PLANTED);
-    // The control: the mirror DID log this failure, so a clean log is the scrub, not silence.
-    expect(s.log.text()).toContain("auth rejected");
     expect(s.log.text()).not.toContain(PLANTED);
   });
 });

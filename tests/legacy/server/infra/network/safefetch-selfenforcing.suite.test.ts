@@ -90,7 +90,7 @@ describe("safeFetch self-enforcing SSRF (global firewall NOT installed)", () => 
     });
   });
 
-  describe("scheme pin (https-only unless owner-configured)", () => {
+  describe("scheme pin (https-only)", () => {
     test("a plain-http target is refused before resolve/fetch", async () => {
       const fetchSpy = stubOkFetch();
       const resolveSpy = vi.fn((): Promise<readonly string[]> => Promise.resolve([PUBLIC_ADDR]));
@@ -211,29 +211,6 @@ describe("safeFetch self-enforcing SSRF (global firewall NOT installed)", () => 
       });
       const res = await safeFetch("https://drip.test/x", { allowedHosts: ANY_HOST, deadlineMs: 20 });
       await expect(res.bytes()).rejects.toMatchObject({ reason: "deadline" });
-    });
-  });
-
-  describe("owner-configured-endpoint policy (the /models class): host-pinned, but private + http permitted", () => {
-    test("a plain-http LAN IP-literal endpoint is allowed (defers SSRF to the global firewall)", async () => {
-      const resolveSpy = vi.fn((): Promise<readonly string[]> => Promise.resolve([PUBLIC_ADDR]));
-      __setEgressResolverForTest(resolveSpy);
-      const fetchSpy = stubOkFetch();
-      const res = await safeFetch("http://192.168.1.50:8000/models", { allowedHosts: ["192.168.1.50"], ownerConfiguredEndpoint: true });
-      expect(res.status).toBe(200);
-      expect(fetchSpy).toHaveBeenCalledTimes(1);
-      // ownerConfiguredEndpoint skips safeFetch's own resolve→validate→pin (the firewall gates the connect).
-      expect(resolveSpy).not.toHaveBeenCalled();
-    });
-
-    test("still host-pinned: a redirect off the configured host is refused", async () => {
-      __setEgressResolverForTest(() => Promise.resolve([PUBLIC_ADDR]));
-      vi.stubGlobal("fetch", (u: URL | string) =>
-        String(u).startsWith("http://192.168.1.50") ? Response.redirect("http://10.0.0.9/x", 302) : new Response("ok", { status: 200 }),
-      );
-      await expect(safeFetch("http://192.168.1.50:8000/models", { allowedHosts: ["192.168.1.50"], ownerConfiguredEndpoint: true })).rejects.toMatchObject({
-        reason: "host-not-allowed",
-      });
     });
   });
 });
