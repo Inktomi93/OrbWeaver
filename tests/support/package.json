@@ -59,6 +59,7 @@
     "./node/chat-and-inbox-reads-empty.ts": "./node/chat-and-inbox-reads-empty.ts",
     "./node/chat-settings-sections-reads-empty.ts": "./node/chat-settings-sections-reads-empty.ts",
     "./node/chat/assertions.ts": "./node/chat/assertions.ts",
+    "./node/chat/composed.ts": "./node/chat/composed.ts",
     "./node/chat/tape.ts": "./node/chat/tape.ts",
     "./node/chromium-processes.ts": "./node/chromium-processes.ts",
     "./node/composed-real.ts": "./node/composed-real.ts",
