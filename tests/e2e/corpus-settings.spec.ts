@@ -130,7 +130,7 @@ async function assertRestoredWitness(
   page: Page,
   host: ReturnType<typeof ownerActor>,
   witness: RegexScriptRow,
-  exported: PortableTextFile,
+  { exported, settleMs }: { readonly exported: PortableTextFile; readonly settleMs: number },
 ): Promise<RegexScriptRow> {
   const restored = (await host.trpc.regex.listScripts.query(undefined)).filter((script) => script.name === witness.name);
   expect(restored).toHaveLength(1);
@@ -142,7 +142,8 @@ async function assertRestoredWitness(
   expect((await host.trpc.regex.exportScript.query({ scriptId: restoredScript.id })).fileText).toBe(exported.fileText);
   await openGroup(page, "regex");
   await page.getByRole("button", { name: witness.name, exact: true }).click();
-  await expect(page.getByRole("textbox", { name: "Replace with", exact: true })).toHaveValue(witness.replaceString);
+  // The editor reads the script while the restored library's follow-up work still loads the server.
+  await expect(page.getByRole("textbox", { name: "Replace with", exact: true })).toHaveValue(witness.replaceString, { timeout: settleMs });
   return restoredScript;
 }
 
@@ -159,7 +160,7 @@ async function restoreBackup(
   if (!input.folder) {
     await page.getByRole("button", { name: "Import another", exact: true }).click();
   }
-  return await assertRestoredWitness(page, host, witness, input.exported);
+  return await assertRestoredWitness(page, host, witness, input);
 }
 
 test.describe("committed corpus settings", () => {

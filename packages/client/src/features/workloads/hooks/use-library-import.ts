@@ -29,7 +29,7 @@ import {
   importCharacters,
   importTree,
   plannedFiles,
-  planTreeImport,
+  planServedTreeImport,
   relativePathOf,
   reviewTreePersonas,
   useInvalidation,
@@ -161,11 +161,20 @@ export function useLibraryImport(): LibraryImport {
     }
     const epoch = ++requestEpoch.current;
     // The plan reads group definitions, so it is async; the picker's files are staged the moment it lands.
-    // @orb-waive caught-failure-ownership(planTreeImport): the .catch below calls fail(), whose
+    // @orb-waive caught-failure-ownership(planServedTreeImport): the .catch below calls fail(), whose
     // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
-    planTreeImport(files, treeCaps(caps))
-      .then(async (plan) => {
-        const collisions = await reviewTreePersonas(plannedFiles(plan));
+    planServedTreeImport(files, treeCaps(caps), [])
+      .then(async (reviewed) => {
+        const collisions = await reviewTreePersonas(plannedFiles(reviewed));
+        // Every upload carries the collision answers, so their fields come off each upload's file budget too.
+        const plan =
+          collisions.length === 0
+            ? reviewed
+            : await planServedTreeImport(
+                files,
+                treeCaps(caps),
+                collisions.map((c) => c.key),
+              );
         if (epoch === requestEpoch.current) {
           const choices = Object.fromEntries(collisions.map((c): [string, PersonaCollisionChoice] => [c.key, DEFAULT_PERSONA_COLLISION_CHOICE]));
           setState({ status: "staged", files: [...files], folder: true, plan, collisions, choices });

@@ -1,12 +1,14 @@
 // @subject packages/client/src/data/import-tree-plan.ts
 import "@orb/testkit/node/composed-real.ts";
-import type { TreeImportCaps } from "@orb/client/data";
-import { importTree, planTreeImport, relativePathOf } from "@orb/client/data";
+import type { TreeImportCaps, TreeImportPlan } from "@orb/client/data";
+import { importTree, planServedTreeImport, planTreeImport, relativePathOf } from "@orb/client/data";
 import { createCharacterSchema } from "@orb/contracts/character";
-import { admitTreeBatch } from "@orb/contracts/import";
+import type { PersonaCollisionChoices } from "@orb/contracts/import";
+import { admitTreeBatch, importStartedSchema, PERSONA_COLLISION_CHOICES } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
+import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import type { ServerTestHarness } from "@orb/testkit/node/server.ts";
@@ -103,6 +105,42 @@ test("a split native backup sends its planes in import dependency order, whateve
   const plan = await planTreeImport(dependentsFirst, { ...SPLIT_CAPS, files: 1 });
   const dirOrder = PORTABLE_IMPORT_ORDER.map((kind) => PORTABLE_DIRECTORIES[kind].slice(0, -1));
   expect(uploadedPaths(plan.batches).map((paths) => paths.map((path) => path.split("/")[0]))).toEqual(dirOrder.map((dir) => [dir]));
+});
+
+/** The multipart body bytes each upload of `plan` sends through the production sender. */
+async function sentBodyBytes(plan: TreeImportPlan, choices: PersonaCollisionChoices): Promise<number[]> {
+  const bodies: number[] = [];
+  const started = importStartedSchema.parse({ workloadId: mintTypeId(ID_PREFIX.workload) });
+  vi.stubGlobal("fetch", async (_input: string, init?: RequestInit) => {
+    bodies.push((await new Response(init?.body).arrayBuffer()).byteLength);
+    return Response.json(started, { status: 202 });
+  });
+  try {
+    for (const batch of plan.batches) {
+      await importTree(batch, choices, plan.layout);
+    }
+  } finally {
+    vi.unstubAllGlobals();
+  }
+  return bodies;
+}
+
+test("every upload of a folder near the served total fits that total as a whole multipart body", async ({ harness }) => {
+  // Files whose bytes alone fill the total exactly: the multipart framing is what would carry an upload over it.
+  const served: TreeImportCaps = { totalBytes: UNIT * 4, fileBytes: UNIT, files: DEFAULT_UPLOAD_CAPS.importTreeFiles };
+  const files = ["one", "two", "three", "four", "five", "six", "seven", "eight"].map((stem) => nativeFile(harness, "regex", stem, UNIT));
+  const collisionKey = "a persona name the review folded";
+  const longestChoice = PERSONA_COLLISION_CHOICES.reduce((longest, choice) => (choice.length > longest.length ? choice : longest));
+  for (const [keys, choices] of [
+    [[], {}],
+    [[collisionKey], { [collisionKey]: longestChoice }],
+  ] as const) {
+    const plan = await planServedTreeImport(files, served, keys);
+    expect(new Set(plan.batches.flat())).toEqual(new Set(files));
+    for (const bytes of await sentBodyBytes(plan, choices)) {
+      expect(bytes).toBeLessThanOrEqual(served.totalBytes);
+    }
+  }
 });
 
 test("a restore whose chat is picked before its character still links the chat once every upload has run", async () => {

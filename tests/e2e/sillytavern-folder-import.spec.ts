@@ -5,7 +5,7 @@ import { openAsBlob } from "node:fs";
 import { mkdir, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { basename, join, relative } from "node:path";
 import type { TreeImportPlan } from "@orb/client/data";
-import { planTreeImport } from "@orb/client/data";
+import { planServedTreeImport } from "@orb/client/data";
 import { testId } from "@orb/client/lib";
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -93,11 +93,12 @@ async function servedPlan(page: Page, root: string): Promise<TreeImportPlan> {
   const config = await page.request.get("/api/auth/config");
   expect(config.ok()).toBe(true);
   const { uploads } = authConfigSchema.parse(await config.json());
-  return await planTreeImport(await pickedFolder(root), {
-    totalBytes: uploads.importTreeTotal,
-    fileBytes: uploads.importTreeFile,
-    files: uploads.importTreeFiles,
-  });
+  // The synthetic owner holds no persona this folder collides with, so the review answers nothing.
+  return await planServedTreeImport(
+    await pickedFolder(root),
+    { totalBytes: uploads.importTreeTotal, fileBytes: uploads.importTreeFile, files: uploads.importTreeFiles },
+    [],
+  );
 }
 
 async function expectRenderedInLibrary(page: Page, name: string): Promise<void> {
