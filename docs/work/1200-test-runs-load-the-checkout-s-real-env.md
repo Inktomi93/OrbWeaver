@@ -24,3 +24,5 @@ The loader that reads .env under test is found and honours ORB_ENV_NO_FILE, the 
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Cause, traced with a resolve hook: the verify CLI that pnpm test:scoped runs statically imports @orb/server/entry/boot through tooling/src/verify/cli.ts:85, verify/lib/cli-help.ts, verify/ops/baseline.ts:13, verify/ops/gen/snap-flags-index.ts:20, the snap guards and stage-keeper chain, and tooling/src/snap/ops/stage-source.ts:12. That reaches the server logger and then foundation/env, which loads .env with override into the CLI process (packages/server/src/foundation/env/index.ts:181). testProcessEnv (tooling/src/floor/process/process-env.ts:31) passes that environment to vitest, so the workers' ORB_ENV_NO_FILE arrives too late. Fix both halves: keep the verify CLI's static graph off server entry code by loading stage-source only when a stage verb runs, and have testProcessEnv start test workers from an explicit allowlist rather than the parent environment.
