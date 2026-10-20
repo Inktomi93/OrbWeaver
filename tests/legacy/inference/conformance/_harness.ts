@@ -269,6 +269,7 @@ interface ConformanceRuntime {
 }
 
 function buildRuntime(options: { readonly fetch?: typeof fetch | undefined; readonly agentSdk?: ReturnType<typeof physicalSdkScenario> }): ConformanceRuntime {
+  const agentSdk = options.agentSdk;
   const captured: { api: string; wire: Wire; body: Record<string, unknown> }[] = [];
   const captureWire: WireCaptureSink = (entry) => {
     captured.push({ api: entry.api, wire: entry.wire, body: entry.body });
@@ -277,7 +278,7 @@ function buildRuntime(options: { readonly fetch?: typeof fetch | undefined; read
     claudeExecutable: CLAUDE_EXECUTABLE,
     captureWire,
     ...(options.fetch !== undefined ? { fetch: options.fetch } : {}),
-    ...(options.agentSdk === undefined ? {} : { agentSdkSpawn: options.agentSdk.spawn, userRuntimeDir: () => options.agentSdk.directory }),
+    ...(agentSdk === undefined ? {} : { agentSdkSpawn: agentSdk.spawn, userRuntimeDir: () => agentSdk.directory }),
   });
   const built = buildBackends(deps);
   return {

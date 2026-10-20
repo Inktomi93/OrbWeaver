@@ -44,11 +44,12 @@ function executorWith(args: {
   readonly lines?: LogLine[];
   readonly scheduleTimeout?: ReturnType<typeof createManualTimer>["schedule"];
 }): ReturnType<typeof registryExecutor> {
+  const agentSdk = args.agentSdk;
   const deps = fakeDeps({
     claudeExecutable: "/usr/bin/claude",
     log: recordingLog(args.lines ?? []),
     ...(args.fetch !== undefined ? { fetch: args.fetch } : {}),
-    ...(args.agentSdk === undefined ? {} : { agentSdkSpawn: args.agentSdk.spawn, userRuntimeDir: () => args.agentSdk.directory }),
+    ...(agentSdk === undefined ? {} : { agentSdkSpawn: agentSdk.spawn, userRuntimeDir: () => agentSdk.directory }),
   });
   return registryExecutor({ ...deps, ...(args.scheduleTimeout === undefined ? {} : { scheduleTimeout: args.scheduleTimeout }) });
 }
