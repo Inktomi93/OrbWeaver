@@ -213,12 +213,3 @@ export async function selectSystemDefault(db: Db): Promise<PresetRow | undefined
     .limit(1);
   return rows.at(0);
 }
-
-/** Overwrite the system-default row's config + version (the boot reseed; keyed on the sentinel + null
- *  owner so it can never hit an owned row). */
-export async function reseedSystemDefault(db: Db, config: PromptConfig, schemaVersion: number, updatedAt: number): Promise<void> {
-  await db
-    .update(presets)
-    .set({ config, schemaVersion, updatedAt })
-    .where(and(eq(presets.id, SYSTEM_DEFAULT_PRESET_ID), isNull(presets.ownerId)));
-}

@@ -11,6 +11,7 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
+import { THEME_HEARTH_ID } from "#server/domain/settings/constants.ts";
 import {
   deleteOwnedTheme,
   insertTheme,
@@ -19,8 +20,9 @@ import {
   listReadableThemes,
   readableTheme,
   updateOwnedTheme,
-  upsertSeedTheme,
 } from "#server/domain/settings/persistence/theme-queries.ts";
+import { ensureSeedThemes } from "#server/domain/settings/seed-themes.ts";
+import { SEED_THEMES } from "#server/domain/settings/substrate/seed-themes.ts";
 import { seedUser } from "../_support.ts";
 
 const OVERRIDE: ThemeOverride = { accent: "oklch(0.7 0.14 250)" };
@@ -42,7 +44,7 @@ async function insertOwned(db: Db, id: ThemeId, ownerId: UserId, name: string): 
 }
 
 async function insertSeed(db: Db, id: ThemeId, name: string): Promise<void> {
-  await upsertSeedTheme(db, {
+  await insertTheme(db, {
     id,
     ownerId: null,
     name,
@@ -144,24 +146,20 @@ describe("listOwnedThemeNames", () => {
   });
 });
 
-describe("upsertSeedTheme — idempotent + non-clobbering", () => {
-  test("a double-run leaves exactly one row per sentinel id, with the LATEST values", async () => {
+describe("ensureSeedThemes — idempotent + non-clobbering", () => {
+  test("a double-run leaves one row per sentinel with the shipped content and latest timestamp", async () => {
     const db = await freshDb();
-    await insertSeed(db, themeId(1), "Hearth");
-    await upsertSeedTheme(db, {
-      id: themeId(1),
-      ownerId: null,
-      name: "Hearth",
-      override: { accent: "oklch(0.9 0.2 30)" },
-      css: null,
-      createdAt: FROZEN_AT_MS,
-      updatedAt: FROZEN_AT_MS + 10,
-    });
+    await insertSeed(db, THEME_HEARTH_ID, "Stale");
+    await ensureSeedThemes(db, () => FROZEN_AT_MS);
+    await ensureSeedThemes(db, () => FROZEN_AT_MS + 10);
     const a = await seedUser(db, { id: "user_a" });
     const rows = await listReadableThemes(db, a);
-    expect(rows.filter((r) => r.id === themeId(1))).toHaveLength(1);
-    expect(rows.find((r) => r.id === themeId(1))?.override).toEqual({
-      accent: "oklch(0.9 0.2 30)",
+    const shipped = SEED_THEMES.find((row) => row.id === THEME_HEARTH_ID);
+    expect(rows.filter((r) => r.id === THEME_HEARTH_ID)).toHaveLength(1);
+    expect(rows.find((r) => r.id === THEME_HEARTH_ID)).toMatchObject({
+      name: shipped?.name,
+      override: shipped?.override,
+      updatedAt: FROZEN_AT_MS + 10,
     });
   });
 
@@ -169,20 +167,18 @@ describe("upsertSeedTheme — idempotent + non-clobbering", () => {
     const db = await freshDb();
     const a = await seedUser(db, { id: "user_a" });
     await insertOwned(db, themeId(2), a, "Mine");
-    await insertSeed(db, themeId(1), "Hearth");
-    await insertSeed(db, themeId(1), "Hearth"); // re-seed
+    await ensureSeedThemes(db, () => FROZEN_AT_MS);
+    await ensureSeedThemes(db, () => FROZEN_AT_MS);
     const rows = await listReadableThemes(db, a);
     expect(rows.find((r) => r.id === themeId(2))?.name).toBe("Mine");
   });
 
-  test("re-seeding never touches a user-owned row at the SAME id (the PK-collision arm)", async () => {
+  test("re-seeding never touches a user-owned row at the SAME sentinel id", async () => {
     const db = await freshDb();
     const a = await seedUser(db, { id: "user_a" });
-    await insertOwned(db, themeId(1), a, "Mine");
-    // The conflict target is the PK, which carries no owner — without the `ownerId IS NULL` bound on the
-    // DO UPDATE arm the reseed overwrote this user's row in place while it kept its own ownerId.
-    await insertSeed(db, themeId(1), "Hearth");
+    await insertOwned(db, THEME_HEARTH_ID, a, "Mine");
+    await ensureSeedThemes(db, () => FROZEN_AT_MS);
     const rows = await listReadableThemes(db, a);
-    expect(rows.find((r) => r.id === themeId(1))?.name).toBe("Mine");
+    expect(rows.find((r) => r.id === THEME_HEARTH_ID)?.name).toBe("Mine");
   });
 });

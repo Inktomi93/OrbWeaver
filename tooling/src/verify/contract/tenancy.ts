@@ -70,6 +70,16 @@ export interface ValueSources {
 /** A local observation, not runtime authorization or SQL-carrier containment. */
 export type DirectOwnerRead = GatePolicyAnalysisDetails & { readonly finding?: string };
 
+export const SYSTEM_WRITE_VALUES = ["constant", "caller", "unknown"] as const;
+export type SystemWriteValue = (typeof SYSTEM_WRITE_VALUES)[number];
+
+/** Null-owner row scope is separate from a caller's authority; unsupported data provenance stays advisory. */
+export type SystemWriteProof = GatePolicyAnalysisDetails & { readonly scoped: boolean; readonly callerDriven: boolean };
+
+export type TenancyWriteVerdict =
+  | { readonly kind: "finding"; readonly argNode: Node; readonly message: string }
+  | (Extract<GatePolicyAnalysisDetails, { readonly kind: "unknown" }> & { readonly argNode: Node });
+
 export interface DirectOwnerReadScope {
   readonly calls: ReadonlyMap<Node, import("../../floor/code-facts/drizzle-evidence-contract.ts").DrizzleCallEvidence>;
   readonly columns: ReadonlyMap<Node, import("../../floor/code-facts/drizzle-evidence-contract.ts").DrizzleCallEvidence>;

@@ -2,11 +2,14 @@
 // `onConflictDoUpdate` is an UPDATE in disguise whose predicate is the conflict TARGET (a unique index), not a
 // `.where`: on an `ownerId`-class table (`TABLE_SCOPING` in `@orb/db/tenancy`) a target that omits the owner column lets a
 // caller's insert COLLIDE with a foreign row's unique key and overwrite it. The owner must appear in the
-// `target`/`targetWhere`/`setWhere`, or a central `// @orb-waive owner-scoped-upserts(<ident>): <reason>`
+// `target`/`setWhere`, or a central `// @orb-waive owner-scoped-upserts(<ident>): <reason>`
 // waiver must name who proved the target values are the caller's. An UNRESOLVABLE insert target (an
 // identifier tracing to no declared table) reports too — an unreadable target is unproven. DECLARED LIMITS:
-// an unreadable config (a spread/identifier, or drizzle's DEPRECATED ambiguous `where:`) fails CLOSED, and
+// an unreadable config or drizzle's DEPRECATED ambiguous `where:` is unproven; outer spreads report for
+// direct caller data or remain explicit UNKNOWN before any ownership acquittal (D328), and
 // `onConflictDoNothing` is out of scope (it overwrites nothing).
+// Null-owner guards name shared rows, not caller authority: direct caller data reports; inline constant data
+// acquits; composite aliases, calls and injected metadata remain explicit UNKNOWN (D328).
 //
 // MARKER CENSUS: this is a NEW gate (the legacy corpus had no separate upsert checker — the legacy
 // `owner-scoped-writes` treated `onConflictDoUpdate` as out of scope entirely), so there is no legacy
@@ -45,21 +48,18 @@ import { SyntaxKind } from "ts-morph";
 import { DRIZZLE_INSERT_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import type { SchemaTableIndex } from "../contract/tenancy.ts";
+import type { SchemaTableIndex, SystemWriteProof, TenancyWriteVerdict } from "../contract/tenancy.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { declaredTablesOf, predicatesTableColumn, tableTargetOf, targetsTableColumn, upsertConfigOf } from "../lib/tenancy-read.ts";
+import { declaredTablesOf, tableTargetOf, targetsTableColumn, upsertConfigOf, writeOwnerProof } from "../lib/tenancy-read.ts";
 import { ownerScopedTableIdents, schemaTableIndex } from "../lib/tenancy-scope.ts";
 import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
+import { CALLER_SYSTEM_WRITE_MESSAGE, systemWriteValue } from "../lib/tenancy-system-write.ts";
 
 const OWNER_COL = "ownerId";
 const TARGET_PROP = "target";
-/** The config properties that can CONSTRAIN which row the DO UPDATE arm touches: the conflict `target` (the
- *  unique index whose collision fires it), the `targetWhere` (a partial-index predicate) and the `setWhere`
- *  (the DO UPDATE's own WHERE — a non-matching row is skipped, not overwritten). `set` is deliberately NOT
- *  here: assigning the owner column in `set` does not constrain WHICH row is written, it RESTAMPS the row that
- *  already lost — the widest form of the hole, not a guard. drizzle's `where:` is deprecated precisely because
- *  it is ambiguous between the two sides, so it cannot prove either. */
-const GUARD_PROPS = [TARGET_PROP, "targetWhere", "setWhere"] as const;
+// Only setWhere guards DO UPDATE; targetWhere selects a partial conflict index, not the row updated.
+// Assigning ownerId in set restamps the victim instead of constraining it; deprecated where is ambiguous.
+const GUARD_PROPS = [TARGET_PROP, "setWhere"] as const;
 
 /** The finding message of the unresolvable arm — a stable CLASS name, so the arm reads distinctly from the
  *  ownerless-target arm even though its token (the binding itself) can collide with it. */
@@ -121,30 +121,35 @@ function upsertCandidateOf(node: Node): UpsertCandidate | undefined {
 }
 
 /** Does the upsert config constrain the DO UPDATE to THIS table's own owner column? The conflict `target` must
- *  list the insert target's own owner column, or `targetWhere`/`setWhere` must be an owner predicate on it — a bare
+ *  list the insert target's own owner column, or `setWhere` must prove ownership or constant system data — a bare
  *  `ownerId`, some OTHER table's owner column, or an owner column under `or`/`ne`/`isNotNull` scopes nothing here.
- *  FAILS CLOSED on any config the reader cannot see through (a spread, an identifier, a call, a shorthand), because
- *  an unreadable guard is an unproven one. */
-function guardsOwner(config: Node | undefined, table: string | undefined, index: SchemaTableIndex): boolean {
+ *  An unreadable guard is unproven. Outer spreads are fenced before either acquittal: direct caller data
+ *  reports, while opaque config provenance remains explicit UNKNOWN (D328). */
+function ownerGuardProof(anchor: Node, config: Node | undefined, table: string | undefined, index: SchemaTableIndex): SystemWriteProof {
   if (config?.isKind(SyntaxKind.ObjectLiteralExpression) !== true || table === undefined) {
-    return false;
+    return { kind: "supported", scoped: false, callerDriven: false };
   }
-  return GUARD_PROPS.some((name) => {
-    const value = config.getProperty(name)?.asKind(SyntaxKind.PropertyAssignment)?.getInitializer();
-    if (value === undefined) {
-      return false;
-    }
-    return name === TARGET_PROP ? targetsTableColumn(value, table, OWNER_COL, index) : predicatesTableColumn(value, table, OWNER_COL, index);
-  });
-}
-
-interface UpsertVerdict {
-  readonly argNode: Node;
-  readonly message: string;
+  const spreads = config.getProperties().flatMap((property) => (property.isKind(SyntaxKind.SpreadAssignment) ? [property.getExpression()] : []));
+  if (spreads.length > 0) {
+    return spreads.some((spread) => systemWriteValue(spread) === "caller")
+      ? { kind: "supported", scoped: false, callerDriven: false }
+      : {
+          kind: "unknown",
+          scoped: false,
+          callerDriven: false,
+          reason: "upsert-config-provenance: an outer config spread can replace the conflict target, update predicate or written values",
+        };
+  }
+  const target = config.getProperty(GUARD_PROPS[0])?.asKind(SyntaxKind.PropertyAssignment)?.getInitializer();
+  if (target !== undefined && targetsTableColumn(target, table, OWNER_COL, index)) {
+    return { kind: "supported", scoped: true, callerDriven: false };
+  }
+  const predicate = config.getProperty(GUARD_PROPS[1])?.asKind(SyntaxKind.PropertyAssignment)?.getInitializer();
+  return predicate === undefined ? { kind: "supported", scoped: false, callerDriven: false } : writeOwnerProof(anchor, predicate, table, index);
 }
 
 /** Judge one upsert candidate now that the (a)-class/denominator sets are ready. Reports at most once. */
-function judgeUpsert(node: CallExpression, ownerTableIdents: ReadonlySet<string>, allTableIdents: SchemaTableIndex): UpsertVerdict | undefined {
+function judgeUpsert(node: CallExpression, ownerTableIdents: ReadonlySet<string>, allTableIdents: SchemaTableIndex): TenancyWriteVerdict | undefined {
   const arg = node.getArguments()[0];
   const target = tableTargetOf(arg, ownerTableIdents, allTableIdents);
   if (target === undefined || target.kind === "other-table" || arg === undefined) {
@@ -157,11 +162,18 @@ function judgeUpsert(node: CallExpression, ownerTableIdents: ReadonlySet<string>
   if (target.kind === "unresolvable") {
     // The `onConflictDoUpdate` above already proved this is a drizzle statement, so the target being
     // unreadable is the whole finding: no conflict guard can be verified against a table nobody named.
-    return { argNode: arg, message: `${UNRESOLVABLE_MESSAGE} — Spine-Identity-and-Auth.md` };
+    return { kind: "finding", argNode: arg, message: `${UNRESOLVABLE_MESSAGE} — Spine-Identity-and-Auth.md` };
   }
   const tables = declaredTablesOf(arg, allTableIdents);
   const [sole] = tables.size === 1 ? tables : [];
-  return guardsOwner(config, sole, allTableIdents) ? undefined : { argNode: arg, message: `${MESSAGE} — Spine-Identity-and-Auth.md` };
+  const proof = ownerGuardProof(node, config, sole, allTableIdents);
+  if (proof.kind === "unknown") {
+    return { kind: "unknown", argNode: arg, reason: proof.reason };
+  }
+  if (proof.callerDriven) {
+    return { kind: "finding", argNode: arg, message: CALLER_SYSTEM_WRITE_MESSAGE };
+  }
+  return proof.scoped ? undefined : { kind: "finding", argNode: arg, message: `${MESSAGE} — Spine-Identity-and-Auth.md` };
 }
 
 export const gate = defineGate({
@@ -198,7 +210,11 @@ export const gate = defineGate({
         for (const candidate of candidates) {
           const verdict = judgeUpsert(candidate.node, ownerTableIdents, allTableIdents);
           if (verdict !== undefined) {
-            ctx.report.node(verdict.argNode, { token: verdict.argNode.getText(), offset: 0, message: verdict.message });
+            if (verdict.kind === "unknown") {
+              ctx.report.analysis(verdict.argNode, { kind: verdict.kind, reason: verdict.reason });
+            } else {
+              ctx.report.node(verdict.argNode, { token: verdict.argNode.getText(), offset: 0, message: verdict.message });
+            }
           }
         }
         reportBlindWhenEmpty(ctx, schemaFact, ownerTableIdents, BLIND);
@@ -207,6 +223,61 @@ export const gate = defineGate({
   },
 
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { id: text("id").primaryKey(), ownerId: text("owner_id"), name: text("name") });\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          'import { isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function seed(db: Db, config: { readonly set?: { readonly name: string } }) {\n  return db.insert(themes).values({ id: "shipped", ownerId: null, name: "Shipped" }).onConflictDoUpdate({ target: themes.id, setWhere: isNull(themes.ownerId), set: { name: "Shipped" }, ...config });\n}\n',
+      },
+      expect: { count: 1, token: "themes", messageIncludes: "cross-tenant UPSERT hole" },
+      why: "A trailing typed caller config can replace literal system update content; an earlier authored set cannot prove the effective values",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { id: text("id").primaryKey(), ownerId: text("owner_id"), name: text("name") });\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          'import { themes } from "@orb/db";\nexport function seed(db: Db, config: { readonly target?: typeof themes.id }) {\n  return db.insert(themes).values({ id: "shipped", ownerId: "caller", name: "Shipped" }).onConflictDoUpdate({ target: [themes.ownerId, themes.id], set: { name: "Shipped" }, ...config });\n}\n',
+      },
+      expect: { count: 1, token: "themes", messageIncludes: "cross-tenant UPSERT hole" },
+      why: "Outer config spreads are fenced before owner-in-target acquittal: caller data can replace the per-owner target itself",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { id: text("id").primaryKey(), ownerId: text("owner_id"), name: text("name") });\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          'import { eq, type SQL } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function seed(db: Db, config: { readonly setWhere?: SQL }) {\n  return db.insert(themes).values({ id: "shipped", ownerId: "caller", name: "Shipped" }).onConflictDoUpdate({ target: themes.id, setWhere: eq(themes.ownerId, "caller"), set: { name: "Shipped" }, ...config });\n}\n',
+      },
+      expect: { count: 1, token: "themes", messageIncludes: "cross-tenant UPSERT hole" },
+      why: "Outer config spreads are fenced before ordinary setWhere ownership acquittal: a caller can replace that update guard",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { id: text("id").primaryKey(), ownerId: text("owner_id"), name: text("name") });\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          'import { isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function replace(db: Db, row: R) {\n  return db.insert(themes).values(row).onConflictDoUpdate({ target: themes.id, setWhere: isNull(themes.ownerId), set: { name: row.name } });\n}\n',
+      },
+      expect: { count: 1, token: "themes", messageIncludes: "caller-driven system write" },
+      why: "A null-owner guard protects owned rows but lets arbitrary caller keys/content overwrite shared system rows; it is not caller authorization",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { id: text("id").primaryKey(), ownerId: text("owner_id"), name: text("name") });\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          'import { eq } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function replace(db: Db, id: string, ownerId: string, name: string) {\n  return db.insert(themes).values({ id, ownerId, name }).onConflictDoUpdate({ target: themes.id, targetWhere: eq(themes.ownerId, ownerId), set: { name } });\n}\n',
+      },
+      expect: { count: 1, token: "themes", messageIncludes: "cross-tenant UPSERT hole" },
+      why: "A targetWhere owner term selects the conflict index, not the row updated: a caller's primary-key collision overwrites a foreign owner's name despite that term",
+    },
     {
       mode: "types",
       files: {
@@ -401,6 +472,26 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { id: text("id").primaryKey(), ownerId: text("owner_id"), name: text("name") });\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          'import { isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function seed(db: Db) {\n  return db.insert(themes).values({ id: "shipped", ownerId: null, name: "Shipped" }).onConflictDoUpdate({ target: themes.id, setWhere: isNull(themes.ownerId), set: { name: "Shipped" } });\n}\n',
+      },
+      why: "The independent spread regression's closed counterpart remains authored system data when no outer config contribution can replace it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { id: text("id").primaryKey(), ownerId: text("owner_id"), name: text("name") });\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          'import { eq } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function replace(db: Db, id: string, ownerId: string, name: string) {\n  return db.insert(themes).values({ id, ownerId, name }).onConflictDoUpdate({ target: themes.id, setWhere: eq(themes.ownerId, ownerId), set: { name } });\n}\n',
+      },
+      why: "The same primary-key collision is safe with the owner term in setWhere: DO UPDATE skips the foreign row instead of overwriting its name",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/db/src/schema/stats.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const dailyStats = sqliteTable("daily_stats", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/stats/write/apply-delta.ts":
@@ -426,7 +517,7 @@ export const gate = defineGate({
         "packages/server/src/domain/character/persistence/card.ts":
           'import { eq } from "drizzle-orm";\nimport * as schema from "@orb/db";\nexport async function put(db: Db, row: R, ownerId: string) {\n  return db.insert(schema.characters).values(row).onConflictDoUpdate({ target: schema.characters.id, setWhere: eq(schema.characters.ownerId, ownerId), set: { name: row.name } });\n}\n',
       },
-      why: "THE DOTTED NAMESPACE ACQUITTAL (#2341): a namespace-spelled owner-scoped table remains safe when `setWhere` predicates on that same qualified table receiver. `predicatesTableColumn` must resolve the full `schema.characters` receiver to its declared table; reducing it to Identifier-only falsely accuses this correctly belted upsert",
+      why: "THE DOTTED NAMESPACE ACQUITTAL (#2341): a namespace-spelled owner-scoped table remains safe when `setWhere` predicates on that same qualified table receiver. `writeOwnerProof` must resolve the full `schema.characters` receiver to its declared table; reducing it to Identifier-only falsely accuses this correctly belted upsert",
     },
     {
       mode: "types",
@@ -454,9 +545,9 @@ export const gate = defineGate({
         "packages/db/src/schema/theme.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/settings/persistence/theme-queries.ts":
-          'import { isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport async function upsertSeed(db: Db, row: R) {\n  return db.insert(themes).values(row).onConflictDoUpdate({ target: themes.id, setWhere: isNull(themes.ownerId), set: { name: row.name } });\n}\n',
+          'import { isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport async function upsertSeed(db: Db) {\n  return db.insert(themes).values({ id: "shipped", ownerId: null, name: "Shipped" }).onConflictDoUpdate({ target: themes.id, setWhere: isNull(themes.ownerId), set: { name: "Shipped" } });\n}\n',
       },
-      why: "the NULL-owner system-seed shape: `isNull(T.ownerId)` is an owner predicate too — the boot reseed can only ever overwrite an ownerless seed row, never a user's. The reader keys on the qualified column, not on a specific comparison helper",
+      why: "A null-owner system write is statically acquitted only when every inserted key/value and update value is authored constant data, never a caller parameter",
     },
     {
       mode: "types",

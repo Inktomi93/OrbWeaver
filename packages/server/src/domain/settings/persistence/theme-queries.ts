@@ -108,21 +108,6 @@ export function isThemeNameConflict(err: unknown): boolean {
   return isConstraintViolation(err)?.kind === "unique";
 }
 
-/** Drop RETIRED seed rows by their fixed sentinel ids — the converge-seeder's delete arm (TD/O-9). Bounded
- *  to `ownerId IS NULL` twice over (the id list is sentinel-only AND the predicate is explicit), so a user's
- *  own row — including a duplicate they made of a retired palette — can never be caught by it. Returns how
- *  many rows this install actually had. */
-export async function deleteSeedThemes(db: Db, ids: readonly ThemeId[]): Promise<number> {
-  if (ids.length === 0) {
-    return 0;
-  }
-  const removed = await db
-    .delete(themes)
-    .where(and(inArray(themes.id, [...ids]), isNull(themes.ownerId)))
-    .returning({ id: themes.id });
-  return removed.length;
-}
-
 /** ONLY-IF-SET heal: any user whose `theme.selectedThemeId` names one of `ids` falls back to `null` (the
  *  Hearth default). A JSON write, not a column write — `selectedThemeId` is a field inside the settings
  *  blob, so the WHERE is a `json_extract` probe (the `asset-refs` precedent) and the SET is a `json_set`.
@@ -138,18 +123,4 @@ export async function clearSelectedThemeIds(db: Db, ids: readonly ThemeId[], at:
     .where(inArray(selected, [...ids]))
     .returning({ userId: userSettings.userId });
   return healed.length;
-}
-
-/** Overwrite (or first-insert) one seed row by its fixed sentinel id — the boot-reseed write. Idempotent in
- *  one round trip. The conflict target is the PK, so the DO UPDATE arm is bounded to `ownerId IS NULL`: the
- *  reseed can only ever overwrite a SEED row, and never a user's theme that somehow reached a sentinel id. */
-export async function upsertSeedTheme(db: Db, row: Omit<ThemeInsert, "ownerId"> & { readonly ownerId: null }): Promise<void> {
-  await db
-    .insert(themes)
-    .values(row)
-    .onConflictDoUpdate({
-      target: themes.id,
-      setWhere: isNull(themes.ownerId),
-      set: { name: row.name, override: row.override, css: row.css, updatedAt: row.updatedAt },
-    });
 }

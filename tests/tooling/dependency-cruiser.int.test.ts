@@ -303,6 +303,24 @@ function writeAllFixtures(): void {
     `${S}/domain/__dc_feat/verbs/__dc_teachcall.ts`,
     `import { teachingContribution } from "../teaching-contribution.ts";\nexport const u = teachingContribution;\n`,
   );
+  // Private system writes retain one boot owner across every resolved import spelling.
+  const systemSeeds = [
+    { domain: "settings", seed: "seed-themes", query: "system-themes" },
+    { domain: "preset", seed: "seed", query: "system-default" },
+  ];
+  for (const { domain, seed, query } of systemSeeds) {
+    const feature = `${S}/domain/${domain}`;
+    fx(`${feature}/persistence/${query}.ts`, `${VAL}export default t;\n`);
+    const owner =
+      domain === "preset" ? `export { t } from "./persistence/${query}.ts";\n` : `import { t } from "./persistence/${query}.ts";\nexport const seeded = t;\n`;
+    fx(`${feature}/${seed}.ts`, owner);
+    fx(`${feature}/verbs/__dc_seed_named.ts`, `import { t as write } from "../persistence/${query}.ts";\nexport const stolen = write;\n`);
+    fx(`${feature}/verbs/__dc_seed_namespace.ts`, `import * as seed from "../persistence/${query}.ts";\nexport const stolen = seed.t;\n`);
+    fx(`${feature}/verbs/__dc_seed_default.ts`, `import write from "../persistence/${query}.ts";\nexport const stolen = write;\n`);
+    fx(`${feature}/verbs/__dc_seed_dynamic.ts`, `export const stolen = import("../persistence/${query}.ts");\n`);
+    fx(`${feature}/verbs/__dc_seed_forward.ts`, `export * from "../persistence/${query}.ts";\n`);
+    fx(`${feature}/verbs/__dc_seed_type.ts`, `import type { t } from "../persistence/${query}.ts";\nexport type Stolen = typeof t;\n`);
+  }
   // principal-mint-owners (D1/D40): a domain verb reaching the one Principal constructor directly.
   fx(`${S}/entry/auth/principal-mint.ts`, VAL);
   fx(`${S}/domain/__dc_feat/verbs/__dc_mint.ts`, `import { t } from "../../../entry/auth/principal-mint.ts";\nexport const u = t;\n`);
@@ -555,6 +573,40 @@ afterAll(() => {
 
 test("derives a non-trivial set of active rules from the config (the list isn't silently empty)", () => {
   expect(ACTIVE_RULES.length).toBeGreaterThan(20);
+});
+
+test("private system seed writes reject every import spelling and forwarding while admitting their boot owners", () => {
+  for (const { domain, rule } of [
+    { domain: "settings", rule: "system-theme-writes-boot-only" },
+    { domain: "preset", rule: "system-preset-writes-boot-only" },
+  ]) {
+    const prefix = `packages/server/src/domain/${domain}/verbs/__dc_seed_`;
+    expect(
+      allViolations
+        .filter((violation) => violation.rule.name === rule)
+        .map((violation) => violation.from)
+        .toSorted(),
+    ).toEqual(["default", "dynamic", "forward", "named", "namespace", "type"].map((form) => `${prefix}${form}.ts`));
+    for (const form of ["default", "dynamic", "forward", "named", "namespace", "type"]) {
+      const dependency = cruisedModules.find((module) => module.source === `${prefix}${form}.ts`)?.dependencies[0];
+      expect(dependency?.couldNotResolve).toBe(false);
+    }
+  }
+  expect(
+    allViolations
+      .filter((violation) => violation.rule.name === "system-seed-writes-no-forwarding")
+      .map((violation) => violation.from)
+      .toSorted(),
+  ).toEqual([
+    "packages/server/src/domain/preset/seed.ts",
+    "packages/server/src/domain/preset/verbs/__dc_seed_forward.ts",
+    "packages/server/src/domain/settings/verbs/__dc_seed_forward.ts",
+  ]);
+  for (const seed of ["settings/seed-themes", "preset/seed"]) {
+    expect(
+      allViolations.filter((violation) => violation.from === `packages/server/src/domain/${seed}.ts` && violation.rule.name.endsWith("-boot-only")),
+    ).toEqual([]);
+  }
 });
 
 test.each(DUPLICATE_DEP_CASES)("native duplicate declarations: $name", ({ name, facets, rejected }) => {

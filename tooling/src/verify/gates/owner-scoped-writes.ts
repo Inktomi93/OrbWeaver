@@ -10,6 +10,8 @@
 // `isDrizzleWriteStatement` is the fence); and an `onConflictDoUpdate` upsert is out of scope HERE because
 // the sibling `owner-scoped-upserts` owns it (its collision is a UNIQUE-index question, not a WHERE
 // predicate — a third gate with its own waiver position).
+// Null-owner predicates name shared rows, not caller authority: direct caller data reports even without an id;
+// inline constant data acquits, while composite aliases, calls and injected metadata remain UNKNOWN (D328).
 //
 // The legacy `owner-scoped-writes` descriptor (04978142566ff3412b204f73d849f0b9bf301154) carried the
 // `@owner-scope-ok` marker grammar and its own inline schema read before this conversion, and treated
@@ -38,13 +40,13 @@ import { SyntaxKind } from "ts-morph";
 import { DRIZZLE_DELETE_VERB, DRIZZLE_UPDATE_VERB } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { defineGate } from "../contract/policy.ts";
 import { recordReadySchemaFact } from "../contract/schema-fact.ts";
-import type { SchemaTableIndex } from "../contract/tenancy.ts";
+import type { SchemaTableIndex, TenancyWriteVerdict } from "../contract/tenancy.ts";
 import { drizzleSchemaFact } from "../lib/schema-fact.ts";
-import { declaredTablesOf, isDrizzleWriteStatement, predicatesTableColumn, readsTableColumn, tableTargetOf, whereArgOf } from "../lib/tenancy-read.ts";
+import { declaredTablesOf, isDrizzleWriteStatement, readsTableColumn, tableTargetOf, whereArgOf, writeOwnerProof } from "../lib/tenancy-read.ts";
 import { ownerScopedTableIdents, schemaTableIndex } from "../lib/tenancy-scope.ts";
 import { reportBlindWhenEmpty } from "../lib/tenancy-scope-blind.ts";
+import { CALLER_SYSTEM_WRITE_MESSAGE } from "../lib/tenancy-system-write.ts";
 
-const OWNER_COL = "ownerId";
 const ID_COL = "id";
 /** The drizzle write verbs. A `Set`, not a `switch`: the two arms are judged identically — what differs is
  *  only which statement the reader anchors on, and both anchor the same way. */
@@ -109,13 +111,8 @@ function writeCandidateOf(node: Node): WriteCandidate | undefined {
   return callee.isKind(SyntaxKind.PropertyAccessExpression) && WRITE_VERBS.has(callee.getName()) ? { node } : undefined;
 }
 
-interface WriteVerdict {
-  readonly argNode: Node;
-  readonly message: string;
-}
-
 /** Judge one write candidate now that the (a)-class/denominator sets are ready. Reports at most once. */
-function judgeWrite(node: CallExpression, ownerTableIdents: ReadonlySet<string>, allTableIdents: SchemaTableIndex): WriteVerdict | undefined {
+function judgeWrite(node: CallExpression, ownerTableIdents: ReadonlySet<string>, allTableIdents: SchemaTableIndex): TenancyWriteVerdict | undefined {
   const arg = node.getArguments()[0];
   const target = tableTargetOf(arg, ownerTableIdents, allTableIdents);
   if (target === undefined || target.kind === "other-table" || arg === undefined) {
@@ -125,7 +122,7 @@ function judgeWrite(node: CallExpression, ownerTableIdents: ReadonlySet<string>,
     // The fence, not a shrug: `cache.delete(key)` and `db.delete(T)` are one AST shape, so only a chained
     // drizzle builder proves this statement is a write at all. A chain-free unresolvable call is the
     // declared limit (a mustPass row carries it), NOT a silent exemption of a readable one.
-    return isDrizzleWriteStatement(node) ? { argNode: arg, message: `${UNRESOLVABLE_MESSAGE} — Spine-Identity-and-Auth.md` } : undefined;
+    return isDrizzleWriteStatement(node) ? { kind: "finding", argNode: arg, message: `${UNRESOLVABLE_MESSAGE} — Spine-Identity-and-Auth.md` } : undefined;
   }
   const tables = declaredTablesOf(arg, allTableIdents);
   const [sole] = tables.size === 1 ? tables : [];
@@ -133,13 +130,20 @@ function judgeWrite(node: CallExpression, ownerTableIdents: ReadonlySet<string>,
   // NO WHERE AT ALL is the widest form of the hole, not an exemption: on a read it is a list, on a write it
   // is every owner's rows. BY-ID is the read half's shape — whatever id the caller supplies gets written.
   // Any OTHER predicate (a partition column, a status guard on its own) is a different, unenforced question.
-  if (where !== undefined && sole !== undefined && predicatesTableColumn(where, sole, OWNER_COL, allTableIdents)) {
-    return; // arm 1 — the owner is IN THE WHERE (with or without a by-id predicate beside it)
+  const proof = where !== undefined && sole !== undefined ? writeOwnerProof(node, where, sole, allTableIdents) : undefined;
+  if (proof?.kind === "unknown") {
+    return { kind: "unknown", argNode: arg, reason: proof.reason };
+  }
+  if (proof?.callerDriven) {
+    return { kind: "finding", argNode: arg, message: CALLER_SYSTEM_WRITE_MESSAGE };
+  }
+  if (proof?.scoped) {
+    return;
   }
   if (where !== undefined && !readsTableColumn(where, tables, ID_COL, allTableIdents)) {
     return;
   }
-  return { argNode: arg, message: MESSAGE };
+  return { kind: "finding", argNode: arg, message: MESSAGE };
 }
 
 export const gate = defineGate({
@@ -176,7 +180,11 @@ export const gate = defineGate({
         for (const candidate of candidates) {
           const verdict = judgeWrite(candidate.node, ownerTableIdents, allTableIdents);
           if (verdict !== undefined) {
-            ctx.report.node(verdict.argNode, { token: verdict.argNode.getText(), offset: 0, message: verdict.message });
+            if (verdict.kind === "unknown") {
+              ctx.report.analysis(verdict.argNode, { kind: verdict.kind, reason: verdict.reason });
+            } else {
+              ctx.report.node(verdict.argNode, { token: verdict.argNode.getText(), offset: 0, message: verdict.message });
+            }
           }
         }
         reportBlindWhenEmpty(ctx, schemaFact, ownerTableIdents, BLIND);
@@ -185,6 +193,50 @@ export const gate = defineGate({
   },
 
   mustFlag: [
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { ownerId: text("owner_id"), name: text("name"), css: text("css") });\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          'import { isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function replace(db: Db, patch: P) {\n  return db.update(themes).set({ name: loadName(), css: patch.css }).where(isNull(themes.ownerId));\n}\n',
+      },
+      expect: { count: 1, token: "themes", messageIncludes: "caller-driven system write" },
+      why: "An unsupported computed sibling cannot hide a directly caller-supplied content value in the same shared-row write",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { id: text("id").primaryKey(), ownerId: text("owner_id"), name: text("name") });\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          'import { and, eq, isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function replace(db: Db, id: string, name: string) {\n  return db.update(themes).set({ name }).where(and(eq(themes.id, id), isNull(themes.ownerId)));\n}\n',
+      },
+      expect: { count: 1, token: "themes", messageIncludes: "caller-driven system write" },
+      why: "The caller controls the shared-row key and content; isNull prevents an owned-row overwrite but authorizes no shared-row mutation",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { id: text("id").primaryKey(), ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          'import { and, inArray, isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function retire(db: Db, ids: readonly string[]) {\n  const requested = ids;\n  return db.delete(themes).where(and(inArray(themes.id, [...requested]), isNull(themes.ownerId)));\n}\n',
+      },
+      expect: { count: 1, token: "themes", messageIncludes: "caller-driven system write" },
+      why: "Caller-provided ids remain caller data through a local immutable alias and spread; no arbitrary shared seed may be retired from that list",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { ownerId: text("owner_id"), name: text("name") });\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          'import { isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function replace(db: Db, patch: P) {\n  return db.update(themes).set({ name: patch.name }).where(isNull(themes.ownerId));\n}\n',
+      },
+      expect: { count: 1, token: "themes", messageIncludes: "caller-driven system write" },
+      why: "A caller-content write of every shared row must not escape through the ordinary write gate's non-id-predicate limit",
+    },
     {
       mode: "types",
       files: {
@@ -205,7 +257,7 @@ export const gate = defineGate({
           'import { eq } from "drizzle-orm";\nimport * as schema from "@orb/db";\nexport async function renameCard(db: Db, id: string, name: string) {\n  return db.update(schema.characters).set({ name }).where(eq(schema.characters.id, id));\n}\n',
       },
       expect: { count: 1, messageIncludes: "cross-tenant WRITE hole" },
-      why: 'THE NAMESPACE SPELLING of the founding shape (#2199). `import * as schema from "@orb/db"` binds no table identifier and produces no ImportSpecifier, so the shared `tableTargetOf` — which required an Identifier node — classified `schema.characters` as NOT A TABLE ARGUMENT and the write was never judged: 0 findings on the unmodified module, on the widest cross-tenant hole this gate owns. The acquitting side moved with it (`predicatesTableColumn` resolves the declared table of the receiver), or a correctly scoped namespace-spelled write would have been falsely accused instead',
+      why: 'THE NAMESPACE SPELLING of the founding shape (#2199). `import * as schema from "@orb/db"` binds no table identifier and produces no ImportSpecifier, so the shared `tableTargetOf` — which required an Identifier node — classified `schema.characters` as NOT A TABLE ARGUMENT and the write was never judged: 0 findings on the unmodified module, on the widest cross-tenant hole this gate owns. The acquitting side moved with it (`writeOwnerProof` resolves the declared table of the receiver), or a correctly scoped namespace-spelled write would have been falsely accused instead',
     },
     {
       mode: "types",
@@ -454,6 +506,16 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/db/src/schema/theme.ts":
+          'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { id: text("id").primaryKey(), ownerId: text("owner_id") });\n',
+        "packages/server/src/domain/settings/persistence/theme-queries.ts":
+          'import { and, inArray, isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function retire(db: Db) {\n  return db.delete(themes).where(and(inArray(themes.id, ["retired-a", "retired-b"]), isNull(themes.ownerId)));\n}\n',
+      },
+      why: "A fixed authored key list with a conjunctive null-owner guard is a system-plane delete, not caller-provided authority",
+    },
+    {
+      mode: "types",
+      files: {
         "packages/db/src/schema/character.ts":
           'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const characters = sqliteTable("characters", { ownerId: text("owner_id") });\n',
         "packages/server/src/domain/character/persistence/card.ts":
@@ -479,7 +541,7 @@ export const gate = defineGate({
         "packages/server/src/domain/character/persistence/card.ts":
           'import { and, eq } from "drizzle-orm";\nimport * as schema from "@orb/db";\nexport async function renameOwned(db: Db, id: string, ownerId: string, name: string) {\n  return db.update(schema.characters).set({ name }).where(and(eq(schema.characters.id, id), eq(schema.characters.ownerId, ownerId)));\n}\n',
       },
-      why: "THE ACQUITTAL'S OWN ROW (#2214), and the DIRECTION is the point: this write is CORRECTLY SCOPED and namespace-spelled, so the gate must stay SILENT on it. `predicatesTableColumn` resolves the owner predicate's receiver (`schema.characters`) to its declared table rather than requiring an Identifier, and that half has no other proof: cut it and no mustFlag row moves, while this row reds — the namespace-spelled owner predicate reads as ABSENT and a properly-scoped write is accused of the cross-tenant hole. The accusing half of the same fix (the namespace mustFlag row above) can only ever make the gate louder; this is the row that stops it becoming loud about innocent code (§4.1: every narrowing owes a row that dies under its own cut)",
+      why: "THE ACQUITTAL'S OWN ROW (#2214), and the DIRECTION is the point: this write is CORRECTLY SCOPED and namespace-spelled, so the gate must stay SILENT on it. `writeOwnerProof` resolves the owner predicate's receiver (`schema.characters`) to its declared table rather than requiring an Identifier, and that half has no other proof: cut it and no mustFlag row moves, while this row reds — the namespace-spelled owner predicate reads as ABSENT and a properly-scoped write is accused of the cross-tenant hole. The accusing half of the same fix (the namespace mustFlag row above) can only ever make the gate louder; this is the row that stops it becoming loud about innocent code (§4.1: every narrowing owes a row that dies under its own cut)",
     },
     {
       mode: "types",
@@ -529,7 +591,7 @@ export const gate = defineGate({
         "packages/server/src/domain/plugin/persistence/plugin-kv.ts":
           'import { pluginKv } from "@orb/db";\nexport async function put(db: Db, row: Row) {\n  return db.insert(pluginKv).values(row).onConflictDoUpdate({ target: [pluginKv.pluginId, pluginKv.key], set: { value: row.value } });\n}\n',
       },
-      why: "DECLARED LIMIT, now SUPERSEDED rather than assumed: an UPSERT is an update in disguise, but its collision is decided by the conflict TARGET, not a WHERE — so it is judged by the sibling gate `owner-scoped-upserts` (which reds this exact shape unless the owner reaches the target/targetWhere/setWhere). This row stays as the two gates' SEAM: it is what stops this reader from silently widening onto a shape it cannot judge",
+      why: "DECLARED LIMIT, now SUPERSEDED rather than assumed: an UPSERT is an update in disguise, but its collision is decided by the conflict TARGET, not a WHERE — so it is judged by the sibling gate `owner-scoped-upserts` (which reds this exact shape unless the owner reaches the target/setWhere). This row stays as the two gates' SEAM: it is what stops this reader from silently widening onto a shape it cannot judge",
     },
     {
       mode: "types",

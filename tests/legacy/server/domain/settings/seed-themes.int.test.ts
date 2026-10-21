@@ -17,7 +17,8 @@ import { eq } from "drizzle-orm";
 import { describe } from "vitest";
 import { RETIRED_SEED_THEME_IDS, THEME_HEARTH_ID, THEME_HEARTH_NAME, THEME_LIGHT_ID, THEME_MOCHA_ID } from "#server/domain/settings/constants.ts";
 import { readableTheme } from "#server/domain/settings/persistence/theme-queries.ts";
-import { ensureSeedThemes, SEED_THEMES } from "#server/domain/settings/seed-themes.ts";
+import { ensureSeedThemes } from "#server/domain/settings/seed-themes.ts";
+import { SEED_THEMES } from "#server/domain/settings/substrate/seed-themes.ts";
 import { makeHarness, principal, seedUser } from "./_support.ts";
 
 describe("ensureSeedThemes", () => {

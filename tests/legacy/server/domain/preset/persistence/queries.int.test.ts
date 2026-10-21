@@ -6,7 +6,7 @@
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import type { PresetId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
+import { ensureSystemDefaultPreset, SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
@@ -20,7 +20,6 @@ import {
   listReadable,
   readablePreset,
   replacePresetConfig,
-  reseedSystemDefault,
   selectSystemDefault,
   updatePresetRow,
 } from "#server/domain/preset/persistence/queries.ts";
@@ -273,7 +272,7 @@ describe("system-default seed/reseed queries", () => {
       name: "Default",
       schemaVersion: OLDER_VERSION,
     });
-    await reseedSystemDefault(db, DEFAULT_PROMPT_CONFIG, DEFAULT_PROMPT_CONFIG.schemaVersion, FROZEN_AT_MS + 5);
+    await ensureSystemDefaultPreset(db, () => FROZEN_AT_MS + 5);
     const row = await selectSystemDefault(db);
     expect(row?.schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion);
     expect(row?.updatedAt).toBe(FROZEN_AT_MS + 5);

@@ -21,7 +21,7 @@ import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { THEME_HEARTH_ID } from "#server/domain/settings/constants.ts";
-import { SEED_THEMES } from "#server/domain/settings/seed-themes.ts";
+import { SEED_THEMES } from "#server/domain/settings/substrate/seed-themes.ts";
 import { toThemeView } from "#server/domain/settings/substrate/theme-views.ts";
 
 type ThemeRow = typeof themes.$inferSelect;
