@@ -14,8 +14,9 @@ import {
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { CT_VITE_PORT } from "@orb/tooling/floor/host/ports";
+import { exportProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { currentRunLease, inheritedRunMarker, runLeaseArg, runMarkerArg } from "@orb/tooling/floor/process/run-marker";
-import { CT_CACHE_DIR_ENV } from "@orb/tooling/floor/testing/ct-run-slot";
+import { CT_CACHE_DIR_ENV } from "@orb/tooling/floor/testing/ct-cache";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { applicationTestExclusions } from "@orb/tooling/floor/testing/test-population";
 import type { PlaywrightTestConfig } from "@playwright/experimental-ct-react";
@@ -23,11 +24,8 @@ import { defineConfig, devices } from "@playwright/experimental-ct-react";
 import tailwindcss from "@tailwindcss/vite";
 import type { InlineConfig as CtViteConfig, Plugin as CtVitePlugin } from "vite-ct";
 
-// Component tests — `.ct.tsx` at the tests/{ui,client} mirrors, in a real chromium via Playwright CT
-// (the vitest browser project was never adopted — it hangs cold-cache; docs/law/Spine-Testing.md §7).
-// Client/ui pure-logic stays node `.test.ts`. Separate RUNNER, but the same lane: `pnpm test` composes
-// `pnpm test:ct --retries=2` after the vitest projects (merged 2026-07-17 — the split existed only for the
-// old single-thread constraint). Still NOT in `pnpm check` (browser suites never gate the static tier).
+// Native Playwright component tests mount real product providers and styles in Chromium.
+// Node tests run separately through `pnpm test`.
 //
 // The harness page imports the client's REAL production stylesheet front door — shell.css, then
 // @orb/ui/styles/globals.css (tailwind v4 + the GENERATED @theme), then client globals — so token
@@ -207,6 +205,10 @@ const CT_ROLLUP_ONWARN: CtOnWarn = (...[warning, defaultHandler]: Parameters<CtO
 };
 
 export function ctConfig(applicationOnly = false): PlaywrightTestConfig<CtCorpusOptions> {
+  const cacheOverride = process.env[CT_CACHE_DIR_ENV];
+  const cacheDir = path.resolve(import.meta.dirname, cacheOverride === undefined || cacheOverride.length === 0 ? "playwright/.cache" : cacheOverride);
+  // Native CT builds and Node-side media servers must serve the same frontend directory.
+  exportProcessEnv(CT_CACHE_DIR_ENV, cacheDir);
   const exclusions = applicationTestExclusions(applicationOnly);
   return defineConfig<CtCorpusOptions>({
     testDir: "tests",
@@ -220,33 +222,12 @@ export function ctConfig(applicationOnly = false): PlaywrightTestConfig<CtCorpus
     ...(exclusions.length === 0 ? {} : { testIgnore: exclusions }),
     outputDir: "reports/ct-results",
     fullyParallel: true,
-    // WORKERS ARE PINNED, and the value IS the load-safety rule — not a tuning preference (#766).
-    // Playwright's DEFAULT is CPU/2 = 12 workers on this 24-core box, each one a Chromium. The safe value
-    // used to live ONLY as a hand-typed `--workers=2` in a lane rule file, so one
-    // forgotten flag reproduced the very failure that fact documents: at high load the CT default times out
-    // every test at `mount()` on pure contention — ZERO signal, indistinguishable from a real red — while
-    // the capped run came back green in 53s. `pnpm test` composes `pnpm test:ct --retries=2` with no worker
-    // flag, so the uncapped default reached `pnpm verify --push` too. Same defect class as the Stryker
-    // `concurrency` default fixed in c8e645105a: the shipped value was not the one the operating discipline
-    // assumed.
-    // TRUTH REPAIR (#1835, 2026-09-06): the paragraph above ended "4 rather than 2 because the box is
-    // otherwise quiet at the gate" — and the box is NOT otherwise quiet. Six lanes across two accounts run
-    // concurrently, node_load1 peaked at 105.8, and the standing facts still told every lane to hand-type
-    // `--workers=2`, which is that same defect one more time. The number now comes from the ONE profile
-    // (tooling/concurrency-profile.json): 2 on a SHARED host, 4 under `ORB_DEDICATED_BOX=1` — where "the box
-    // is otherwise quiet" is TRUE by construction rather than by hope. A CLI `--workers=N` still overrides.
-    // The co-hosted homelab shares this machine — a 2026-08-21 uncapped run drove load-avg to 103 and
-    // errored Authentik for the owner.
+    // Shared-host caps prevent native Playwright from starting one browser per pair of CPUs.
     workers: CONCURRENCY.ctWorkers,
     timeout: budget(BASE_TEST_TIMEOUT_MS),
     expect: { timeout: budget(BASE_EXPECT_TIMEOUT_MS) },
     forbidOnly: process.env["CI"] !== undefined,
-    // retries:0 is the DEFAULT (ad-hoc `pnpm test:ct` / scoped verify runs show a real flake raw while
-    // debugging). The GATE lane retries instead of blocking — the drawer/chart/lightbox focus/ResizeObserver
-    // parallelism artifacts that only surface after 500+ tests in one page context — but the gate context is
-    // a VISIBLE CLI flag in the `pnpm test` composition (`pnpm test:ct --retries=2`), not an env var this
-    // config decodes (the CT_GATE env retired 2026-07-17 with the lefthook-step era that needed it).
-    // `trace: on-first-retry` (below) still captures a failing retried run.
+    // Keep failures visible locally; CI can explicitly request retries.
     retries: 0,
     reporter: [
       ...(process.env["GITHUB_ACTIONS"] ? [["github"] as const] : []),
@@ -269,24 +250,11 @@ export function ctConfig(applicationOnly = false): PlaywrightTestConfig<CtCorpus
       timezoneId: "UTC",
       locale: "en-US",
 
-      // EVERY CT BROWSER CARRIES THE RUN MARKER (#1848). This is where the 72 orphaned `chrome-headless-shell`
-      // processes came from: playwright starts each browser in its OWN session, so a killed CT run's process
-      // group kill never reaches them. The launcher (`cli.ts scoped-test ct`) exports the marker into this
-      // config's environment; the ARG channel is what a chromium actually keeps (it wipes its own environ —
-      // `floor/process/run-marker.ts` RUN_MARKER_ARG_PREFIX), and the runner's sweeps read it back from
-      // `/proc/<pid>/cmdline`. No marker (a bare `npx playwright test`) ⇒ no arg, exactly as before.
-      // THE LEASE RIDES BESIDE IT (#2504) — the marker says which RUN may kill this browser, the lease says
-      // which INVOCATION started it, and `release()` sweeps only the second. One switch could not say both.
+      // Preserve optional caller ownership on browser processes, which run in their own sessions.
       ...(CT_IDENTITY_ARGS.length === 0 ? {} : { launchOptions: { args: CT_IDENTITY_ARGS } }),
       // Parameterized so parallel CI port-shards don't collide on the CT dev server.
       ctPort: Number(process.env["CT_PORT"] ?? CT_VITE_PORT),
-      // THE BUILD CACHE IS PER INVOCATION when the launcher says so (#1581). playwright-ct resolves this
-      // against the config dir and otherwise defaults to `playwright/.cache` — ONE directory per worktree,
-      // which is what two concurrent `test:ct` runners were clearing and rebuilding under each other
-      // (measured: 201/2 with two reds in a file the run never touched, then 203/203 for the same set alone).
-      // `cli.ts scoped-test ct` mints `.cache/ct/build-<pid>-<ms>` and removes it on exit; a bare
-      // `npx playwright test -c playwright-ct.config.ts` with no env still gets the stock default.
-      ...(process.env[CT_CACHE_DIR_ENV] === undefined ? {} : { ctCacheDir: process.env[CT_CACHE_DIR_ENV] }),
+      ctCacheDir: cacheDir,
       ctViteConfig: {
         // CT applies its OWN @vitejs/plugin-react internally — adding a second one double-transforms.
         // Cast: @tailwindcss/vite resolves vite@8 types; CT viteConfig expects vite@6 — structurally compatible.
@@ -324,8 +292,7 @@ export function ctConfig(applicationOnly = false): PlaywrightTestConfig<CtCorpus
         // harness pins vite 6, so the format has to be said out loud HERE or a Tier-C CT can never build.
         worker: { format: "es" },
         build: {
-          // The launcher owns this invocation's private directory and removes it with its CT lease.
-          // Explicit false preserves Vite's outside-root default without an ambiguous cleanup advisory.
+          // Keep the native build cache reusable, including explicit directories outside the template root.
           emptyOutDir: false,
           rollupOptions: {
             // Silence the advisory floods that drown the CT build output (~dozens of lines each): react-query's

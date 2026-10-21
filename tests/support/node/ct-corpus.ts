@@ -6,7 +6,7 @@ import { BLOB_ROUTE } from "@orb/contracts/assets";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
-import { CT_CACHE_DIR_ENV } from "@orb/tooling/floor/testing/ct-run-slot";
+import { CT_CACHE_DIR_ENV } from "@orb/tooling/floor/testing/ct-cache";
 import { test as base } from "@playwright/experimental-ct-react";
 import type { Route } from "@playwright/test";
 import type { CorpusWire } from "../iso/corpus.ts";

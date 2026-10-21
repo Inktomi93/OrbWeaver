@@ -30,17 +30,24 @@ test("the test environment preserves explicit overrides and adds the storage opt
   expect(testProcessEnv(environment)).toEqual(environment);
 });
 
-test.for(["AUTH_MODE", "AUTH_FALLBACK", "DEBUG_TOKEN", "OIDC_ALLOWED_GROUPS", "OWNER_HANDLES", "ANTHROPIC_API_KEY", "ORB_UNAPPROVED_TEST_KEY"])(
-  "the worker environment does not inherit %s from its parent",
-  async (key) => {
-    await withProcessEnv(key, "synthetic-parent-only-value", () => {
-      expect(Object.hasOwn(testProcessEnv(), key)).toBe(false);
-      expect(testProcessEnv({ [key]: "synthetic-explicit-override" })[key]).toBe("synthetic-explicit-override");
-      expect(processEnvValue(key)).toBe("synthetic-parent-only-value");
-      return Promise.resolve();
-    });
-  },
-);
+test.for([
+  "AUTH_MODE",
+  "AUTH_FALLBACK",
+  "DEBUG_TOKEN",
+  "OIDC_ALLOWED_GROUPS",
+  "OWNER_HANDLES",
+  "ANTHROPIC_API_KEY",
+  "ORB_UNAPPROVED_TEST_KEY",
+  "CT_RUN_SLOT_DIR",
+  "CT_RUN_SLOT_RACING",
+])("the worker environment does not inherit %s from its parent", async (key) => {
+  await withProcessEnv(key, "synthetic-parent-only-value", () => {
+    expect(Object.hasOwn(testProcessEnv(), key)).toBe(false);
+    expect(testProcessEnv({ [key]: "synthetic-explicit-override" })[key]).toBe("synthetic-explicit-override");
+    expect(processEnvValue(key)).toBe("synthetic-parent-only-value");
+    return Promise.resolve();
+  });
+});
 
 test("the worker environment preserves intentional runtime, CI and native fixture protocols", async () => {
   for (const key of [
@@ -51,7 +58,7 @@ test("the worker environment preserves intentional runtime, CI and native fixtur
     "ORB_RUN_MARKER",
     "ORB_RUN_LEASE",
     "ORB_VITEST_BIN",
-    "CT_RUN_SLOT_DIR",
+    "ORB_CT_CACHE_DIR",
     "ORB_NATIVE_OCCURRENCE_PACKAGES",
     "ORB_LOCAL_LIGHT_E2E",
     "PLUGIN_BROKER_PROOF_RECEIPT",

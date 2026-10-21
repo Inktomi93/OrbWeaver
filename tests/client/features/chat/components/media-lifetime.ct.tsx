@@ -5,7 +5,7 @@ import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import type { TrpcWireOutput } from "@orb/testkit/node/route-trpc.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
-import { CT_CACHE_DIR_ENV } from "@orb/tooling/floor/testing/ct-run-slot";
+import { CT_CACHE_DIR_ENV } from "@orb/tooling/floor/testing/ct-cache";
 import { TideMediaLifetimeStory } from "./_media-lifetime-stories.tsx";
 
 test.use({ trace: "on" });

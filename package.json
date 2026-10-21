@@ -56,7 +56,7 @@
     "lint:eslint": "eslint --max-warnings 0",
     "lint:css": "stylelint \"packages/**/*.css\"",
     "test:ct": "playwright test --config=playwright-ct.product.config.ts",
-    "test:tools": "vitest run --config=vitest.config.ts tests/tooling"
+    "test:tools": "vitest run --config=vitest.config.ts --exclude=\"tests/!(tooling)/**\""
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "catalog:",

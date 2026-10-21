@@ -3,13 +3,9 @@
   // Abstract strictness base. World templates compose environment options; leaf configs
   // own roots and ambient scopes. `files: []` keeps this out of the program roster.
   "compilerOptions": {
-    // --- emit: tsc is the type ORACLE only. tsx runs TS directly; the bundler builds the client. ---
+    // Native Node runs erasable source; Vite builds the browser. The router config overrides this to emit declarations.
     "noEmit": true,
-    // EVERY program may import a sibling with its explicit `.ts` extension. Safe under `noEmit` (tsc is
-    // the type ORACLE; nothing here emits). Flipped from root-only 2026-08-03 by the tsx-shedding
-    // migration stage 1: extension-ful relative imports are now the CONVENTION, not a scripts/ exception,
-    // because node's type-stripping does no extensionless resolution. `useImportExtensions` (biome) is the
-    // permanent enforcer.
+    // Native Node requires explicit source extensions; noEmit and declaration-only emit both permit them.
     "allowImportingTsExtensions": true,
     // INCREMENTAL IS OFF, DELIBERATELY (2026-08-03). It produced a FALSE GREEN that merged a
     // build-breaking commit: editing the root ambient `platform.d.ts` did not invalidate the
@@ -76,11 +72,7 @@
     "esModuleInterop": true,
     "noUncheckedSideEffectImports": true,
 
-    // isolatedDeclarations: CONSIDERED-REJECTED (2026-08-03 full-catalog audit) — this is a noEmit
-    // oracle; no program emits declarations (cross-package types resolve to SOURCE via exports maps),
-    // so the flag buys nothing and its annotate-every-export tax fights the z.infer-derive doctrine.
-    // Every other absent option in the 129-option catalog is absent by architecture (emit family,
-    // projects/references, legacy compat) — see the 2026-08-03 audit before "completing" this config.
+    // AppRouter declarations retain inferred Zod/procedure types; isolatedDeclarations would require explicit annotations.
 
     // --- strictness: everything on, out of the gate (these hurt to retrofit later) ---
     "strict": true,
@@ -98,7 +90,7 @@
     "useUnknownInCatchVariables": true,
 
     // No tsconfig `paths` (principle #2): cross-package = package names, intra-package = the
-    // package.json `imports` field (`#*`). `types: []` keeps ambient @types out unless a package opts in.
+    // package.json `imports` field (`#*`). `types: []` disables automatic @types inclusion, not explicit imports or dependency references.
     "types": []
   },
   "files": []

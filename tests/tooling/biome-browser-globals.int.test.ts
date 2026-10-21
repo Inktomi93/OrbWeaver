@@ -1,16 +1,4 @@
-// The PERMANENT PIN for the browser-purity lint override (#1312): biome.json's `style/noRestrictedGlobals`
-// row over `packages/ui/**` + `packages/client/**`. WHY lint and not types: `types: []` (inherited from
-// tsconfig.base.json) only suppresses AUTO-inclusion of `@types/*`; it cannot suppress a triple-slash
-// `/// <reference types="node" />` inside a dependency's own `.d.ts` (vite's `dist/node/index.d.ts` in ui;
-// pino/undici through `@orb/server`'s AppRouter in client), so both browser programs typecheck `Buffer`,
-// `setImmediate`, `require`… clean and would ship a ReferenceError. The row is the ONLY belt, which is why a
-// silent drop of it, or of one name, must be RED here rather than shrinking an assertion.
-//
-// HERMETIC on purpose (house precedent: tests/tooling/verify/gates/biome-grant-liveness.int.test.ts): the
-// REAL biome binary runs over a COPY of the REAL biome.json in a mkdtemp root. Planting a node-global file
-// under packages/*/src on the real tree would red any concurrent whole-tree biome/knip/tsc pass, and
-// `**/__probe*` is gitignored so biome (useIgnoreFile) never sees a probe planted there. The zero on the
-// local-binding body rides the SAME invocation as the nine-global body: a bare zero is never a verdict.
+// Dependencies can explicitly load Node declarations into browser programs; lint rejects their runtime globals.
 import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";

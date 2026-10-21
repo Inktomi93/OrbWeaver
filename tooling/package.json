@@ -85,7 +85,7 @@
     "./floor/process/server-entry": "./src/floor/process/server-entry.ts",
     "./floor/process/stop-escalation": "./src/floor/process/stop-escalation.ts",
     "./floor/process/sync-sleep": "./src/floor/process/sync-sleep.ts",
-    "./floor/testing/ct-run-slot": "./src/floor/testing/ct-run-slot.ts",
+    "./floor/testing/ct-cache": "./src/floor/testing/ct-cache.ts",
     "./floor/testing/test-kinds": "./src/floor/testing/test-kinds.ts",
     "./floor/testing/test-mirror": "./src/floor/testing/test-mirror.ts",
     "./floor/testing/test-population": "./src/floor/testing/test-population.ts",

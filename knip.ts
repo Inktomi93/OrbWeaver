@@ -60,6 +60,7 @@ export const config = {
     },
     // @orb/testkit: every world module is a package subpath export, so each one is an entry.
     "tests/support": {
+      includeEntryExports: true,
       entry: ["{iso,node,browser}/**/*.{ts,tsx}"],
       project: ["{iso,node,browser}/**/*.{ts,tsx}"],
       // Peer pin for @anthropic-ai/claude-agent-sdk (pnpm-workspace.yaml); never imported.

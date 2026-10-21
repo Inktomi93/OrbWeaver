@@ -904,16 +904,6 @@
       }
     },
     {
-      "includes": ["tests/support/node/snap-out.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noProcessEnv": "off"
-          }
-        }
-      }
-    },
-    {
       "includes": ["tooling/src/snap/ops/stage.ts", "tooling/src/snap/ops/stage-probe.ts", "tooling/src/render-trace/ops/fire.ts"],
       "linter": {
         "rules": {
@@ -2610,7 +2600,7 @@
               "level": "error",
               "options": {
                 "deniedGlobals": {
-                  "Buffer": "`Buffer` is a node global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users. tsc will NOT stop you: `types: []` (tsconfig.base.json) only suppresses AUTO-inclusion of `@types/*`, and it cannot suppress the `/// <reference types=\"node\" />` that DEPENDENCY .d.ts files inject \u2014 vite's own index.d.ts for the @orb/ui program, pino-std-serializers/undici-types (reached through the client->server `import type { AppRouter }` edge) for @orb/client. Measured 2026-09-05 (#1312): every global denied here typechecks clean in both programs. Use Uint8Array / TextEncoder / TextDecoder / atob / btoa.",
+                  "Buffer": "`Buffer` is a node global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users. tsc will NOT stop you: `types: []` (tsconfig.base.json) only suppresses AUTO-inclusion of `@types/*`, and it cannot suppress the `/// <reference types=\"node\" />` that DEPENDENCY .d.ts files inject \u2014 vite's own index.d.ts for the @orb/ui program, the @trpc/client WebSocket declarations for @orb/client. The generated AppRouter declaration removes our server implementation from the client program, but cannot remove Node types explicitly imported by upstream declarations. Use Uint8Array / TextEncoder / TextDecoder / atob / btoa.",
                   "setImmediate": "`setImmediate` is a node global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry for why `types: []` is not a program-level guarantee). Use queueMicrotask() for a microtask or setTimeout(fn, 0) for a macrotask.",
                   "clearImmediate": "`clearImmediate` is a node global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Pair setTimeout() with clearTimeout() instead.",
                   "global": "`global` is the node global object and does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use `globalThis`.",
