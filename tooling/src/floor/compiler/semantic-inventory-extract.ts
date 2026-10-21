@@ -35,7 +35,14 @@ import {
   moduleTargetQuerySchema,
   referenceQueryKey,
 } from "../code-facts/semantic-inventory-contract.ts";
-import { canonicalInventoryPath, descriptorVersion, inputsCurrent, inputVersion, inventoryAuthoredFiles } from "../code-facts/semantic-inventory-inputs.ts";
+import {
+  canonicalInventoryPath,
+  captureInventoryInput,
+  descriptorVersion,
+  inputsCurrent,
+  inputVersion,
+  inventoryAuthoredFiles,
+} from "../code-facts/semantic-inventory-inputs.ts";
 import { originRefusalLeaf, readCallMemberDeclarationOrigin } from "../code-facts/type-member-origin.ts";
 import { mapTypeObservationDemand } from "../code-facts/type-observations-codec.ts";
 import type { TypeObservationCaptureRequest } from "../code-facts/type-observations-contract.ts";
@@ -195,10 +202,10 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
   }
   const inputs = new Map<string, InventoryInput>();
   const base = new Project({ skipAddingFilesFromTsConfig: true }).getFileSystem();
-  const fileSystem = inventoryFileSystem(base, request.overlay, inputs);
+  const fileSystem = inventoryFileSystem(base, request.overlay, inputs, true);
   const spans = inventorySpans(fileSystem);
   for (const absolute of [...request.descriptor.configPaths.map((path) => resolve(request.root, path)), resolve(request.root, "pnpm-lock.yaml")]) {
-    inputs.set(`file\0${absolute}`, { path: absolute, kind: "file", version: inputVersion(absolute, "file", fileSystem) });
+    inputs.set(`file\0${absolute}`, captureInventoryInput(absolute, "file", fileSystem, request.overlay === undefined));
   }
   const project = new Project({ skipAddingFilesFromTsConfig: true, compilerOptions: request.descriptor.commandLine.options, fileSystem });
   const sources = project.forgetNodesCreatedInBlock(() => {

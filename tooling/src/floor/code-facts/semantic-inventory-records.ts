@@ -54,6 +54,7 @@ const ORDINAL = "ordinal INTEGER NOT NULL";
 const CONSUMER = "consumerClass TEXT NOT NULL CHECK(consumerClass IN ('product','tooling','test'))";
 const SPAN_REFERENCE = "FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)";
 const RUNTIME_ROLE = `role TEXT NOT NULL CHECK(role IN (${INVENTORY_RUNTIME_ROLES.map((role) => `'${role}'`).join(",")}))`;
+export const inventoryInputStatColumn = "stat TEXT CHECK(stat IS NULL OR (json_valid(stat) AND json_type(stat)='object'))";
 
 export const inventoryRecordTables = {
   runtimeHeader: {
@@ -214,8 +215,8 @@ export const inventoryRecordTables = {
   },
   input: {
     name: "inventory_input",
-    columns: "ordinal,path,kind,version",
-    definition: `${PARTITION},${ORDINAL},path TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN (${INVENTORY_INPUT_KINDS.map((kind) => `'${kind}'`).join(",")})),version TEXT NOT NULL,PRIMARY KEY(partition,ordinal)`,
+    columns: "ordinal,path,kind,version,stat",
+    definition: `${PARTITION},${ORDINAL},path TEXT NOT NULL,kind TEXT NOT NULL CHECK(kind IN (${INVENTORY_INPUT_KINDS.map((kind) => `'${kind}'`).join(",")})),version TEXT NOT NULL,${inventoryInputStatColumn},PRIMARY KEY(partition,ordinal)`,
   },
   source: {
     name: "inventory_source",
@@ -409,7 +410,14 @@ export function visitInventoryRecords(partition: InventoryPartition, write: (rec
   }
   partition.inputs.forEach((entry, ordinal) => {
     const input = inputSchema.parse(entry);
-    emit("input", ordinal, inventoryString(input.path), input.kind, inventoryString(input.version));
+    emit(
+      "input",
+      ordinal,
+      inventoryString(input.path),
+      input.kind,
+      inventoryString(input.version),
+      input.stat === undefined ? null : JSON.stringify(input.stat),
+    );
   });
   visitRuntimeRecords(partition.implementation, write);
   partition.sources.forEach((entry, ordinal) => {

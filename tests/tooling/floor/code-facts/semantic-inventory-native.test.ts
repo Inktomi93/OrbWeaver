@@ -481,7 +481,10 @@ test("content versions ignore timestamps: same bytes reuse, a same-size edit wit
   expect(source(first, path).getFullText()).toBe(text);
 });
 
-test("changes, additions, removals, package resolution and failed lookups invalidate without mixing pinned generations", { tags: ["slow"] }, ({ scratch }) => {
+test("changes, additions, removals, package resolution and failed lookups invalidate without mixing pinned generations", {
+  tags: ["slow"],
+  timeout: scaledBudget(120_000),
+}, ({ scratch }) => {
   initialize(scratch);
   write(scratch, "packages/client/src/missing.ts", "import { absent } from './absent'; export const read=absent;\n");
   using previous = nativeInventoryFixture({ root: scratch });

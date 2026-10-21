@@ -11,7 +11,7 @@ import type {
   InventoryPartition,
   StoredInventoryPartition,
 } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
-import { INVENTORY_FORMAT, inventoryFamilies, invocationQuerySchema } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
+import { INVENTORY_FORMAT, inventoryFamilies, invocationQuerySchema, partitionSchema } from "@orb/tooling/floor/code-facts/semantic-inventory-contract";
 import {
   beginInventoryWrite,
   inventoryGenerationPrograms,
@@ -40,6 +40,7 @@ import {
   readInventoryWitnesses,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { inventoryReader, ownedInventoryReader } from "../../../../tooling/src/floor/code-facts/semantic-inventory-reader.ts";
+import { inventoryStringSchema } from "../../../../tooling/src/floor/code-facts/semantic-inventory-records.ts";
 import { runNicedSync } from "../../../../tooling/src/floor/process/proc.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 import { nativeInventoryFixture } from "../compiler/native-inventory-fixture.ts";
@@ -145,6 +146,19 @@ test.for(NATIVE_PUBLICATION_CASES)("observed native publication preserves %s", {
 
 function completePartition(database: ReturnType<typeof openInventoryDatabase>, stored: StoredInventoryPartition): InventoryPartition {
   const { id, ...metadata } = stored;
+  const referenceNames = partitionSchema.shape.referenceNames.unwrap().parse(
+    database
+      .prepare(`SELECT n.file AS nameFile,n.start AS nameStart,n.end AS nameEnd,n.kind AS nameKind,
+      d.file,d.start,d.end,d.kind FROM inventory_reference_name r
+      JOIN inventory_span n ON n.partition=r.partition AND n.ordinal=r.name
+      JOIN inventory_span d ON d.partition=r.partition AND d.ordinal=r.declaration
+      WHERE r.partition=? ORDER BY r.ordinal`)
+      .all(id)
+      .map((row) => ({
+        name: { file: inventoryStringSchema.parse(row["nameFile"]), start: row["nameStart"], end: row["nameEnd"], kind: row["nameKind"] },
+        declaration: { file: inventoryStringSchema.parse(row["file"]), start: row["start"], end: row["end"], kind: row["kind"] },
+      })),
+  );
   return {
     ...metadata,
     inputs: [...readInventoryInputs(database, id)],
@@ -163,6 +177,7 @@ function completePartition(database: ReturnType<typeof openInventoryDatabase>, s
     modules: [...readInventoryModules(database, id)],
     bindings: [...readInventoryBindings(database, id)],
     references: [...readInventoryReferences(database, id)],
+    ...(referenceNames.length === 0 ? {} : { referenceNames }),
     referenceQueries: [...readInventoryReferenceQueries(database, id)],
     witnesses: [...readInventoryWitnesses(database, id)],
   };
@@ -707,7 +722,7 @@ test("indexed records round-trip every native partition field and raw reference 
   const destination = join(scratch, ".cache/native.sqlite");
   using database = openInventoryDatabase(destination);
   const native = extractInventoryPartition({ root: scratch, descriptor, destination });
-  for (const facts of [native.sources, native.exports, native.modules, native.bindings, native.references, native.witnesses]) {
+  for (const facts of [native.sources, native.exports, native.modules, native.bindings, native.references, native.referenceNames ?? [], native.witnesses]) {
     expect(facts.length).toBeGreaterThan(0);
   }
   database.exec("BEGIN IMMEDIATE");

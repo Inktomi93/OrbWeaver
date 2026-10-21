@@ -33,6 +33,7 @@ import {
   INVENTORY_FACTS,
   INVENTORY_KEY_SEPARATOR,
   inputSchema,
+  inputStatSchema,
   inventorySpanKey,
   invocationAtomSchema,
   invocationEvidenceSchema,
@@ -64,7 +65,14 @@ const sourceRow = storedSourceSchema.extend({
   path: inventoryStringSchema,
   textVersion: inventoryStringSchema,
 });
-const inputRow = inputSchema.extend({ path: inventoryStringSchema, version: inventoryStringSchema });
+const inputRow = inputSchema.extend({
+  path: inventoryStringSchema,
+  version: inventoryStringSchema,
+  stat: z
+    .string()
+    .nullable()
+    .transform((value) => (value === null ? undefined : inputStatSchema.parse(JSON.parse(value)))),
+});
 const spanRow = spanSchema.extend({ file: inventoryStringSchema });
 const invocationAtomRow = invocationAtomSchema.extend({ key: inventoryStringSchema });
 const referenceQueryRow = z.object({ ordinal: integer.nonnegative(), resultCount: integer.nonnegative() });
@@ -82,9 +90,21 @@ const factRow = z.object({
 
 /** Input validation streams the complete recorded dependency/resolution population. */
 export function* readInventoryInputs(db: DatabaseSync, id: string): Iterable<InventoryInput> {
-  for (const row of db.prepare("SELECT path,kind,version FROM inventory_input WHERE partition=? ORDER BY ordinal").iterate(id)) {
-    yield inputRow.parse(row);
+  for (const row of db.prepare("SELECT path,kind,version,stat FROM inventory_input WHERE partition=? ORDER BY ordinal").iterate(id)) {
+    const { stat, ...input } = inputRow.parse(row);
+    yield stat === undefined ? input : { ...input, stat };
   }
+}
+
+/** Refresh only accelerator metadata after proving the stored content version unchanged. */
+export function refreshInventoryInputStat(db: DatabaseSync, id: string, input: InventoryInput): void {
+  db.prepare("UPDATE inventory_input SET stat=? WHERE partition=? AND path=? AND kind=? AND version=?").run(
+    input.stat === undefined ? null : JSON.stringify(inputStatSchema.parse(input.stat)),
+    id,
+    inventoryString(input.path),
+    input.kind,
+    inventoryString(input.version),
+  );
 }
 
 /** Source identity and text versions are small metadata; text is loaded only when syntax is requested. */

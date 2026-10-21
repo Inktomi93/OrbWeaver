@@ -16,6 +16,7 @@ import type {
   InventoryBuildRequest,
   InventoryExportDeclarationQuery,
   InventoryFamily,
+  InventoryInput,
   InventoryInvocationQuery,
   InventoryModuleTargetQuery,
   InventoryOverlay,
@@ -66,6 +67,7 @@ import {
   readInventoryReferenceQueries,
   readInventorySchemaData,
   readInventorySchemaIdentity,
+  refreshInventoryInputStat,
 } from "./semantic-inventory-queries.ts";
 import { inventoryReader, ownedInventoryReader, validateInventoryReaderSources } from "./semantic-inventory-reader.ts";
 import { inventoryStringSchema } from "./semantic-inventory-records.ts";
@@ -157,7 +159,7 @@ export function createSemanticInventory(rawOptions: SemanticInventoryOptions): S
     assertDrizzleCohort(db, options, partitions);
     assertModuleCohort(db, options, partitions);
     const cohort = [...scoped.membership, ...partitions];
-    assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, population, cohort);
+    assertSnapshotCurrent({ db, options: { ...options, root }, overlay, refresh: true }, initialAuthored, population, cohort);
     publishScopeMembership(db, scoped);
     const samePopulation =
       JSON.stringify(
@@ -173,7 +175,7 @@ export function createSemanticInventory(rawOptions: SemanticInventoryOptions): S
     // assertSnapshotCurrent check above; its readers still admit every source epoch on read. Only an
     // extraction or publication needs the later rechecks.
     const recheckPublication = publicationRecheck(published, () => {
-      assertSnapshotCurrent({ db, options: { ...options, root }, overlay }, initialAuthored, population, cohort);
+      assertSnapshotCurrent({ db, options: { ...options, root }, overlay, refresh: !writerCommitted }, initialAuthored, population, cohort);
     });
     recheckPublication();
     db.exec("COMMIT");
@@ -289,7 +291,11 @@ function partitionCurrent(
   return (
     partition !== undefined &&
     partition.descriptorVersion === descriptorVersion(descriptor) &&
-    inputsCurrent(readInventoryInputs(context.db, partition.id), { authored: context.authored, fileSystem: context.fileSystem }) &&
+    inputsCurrent(readInventoryInputs(context.db, partition.id), {
+      authored: context.authored,
+      fileSystem: context.fileSystem,
+      refresh: (input) => refreshInventoryInputStat(context.db, partition.id, input),
+    }) &&
     partitionImplementationsCurrent(context.db, [partition])
   );
 }
@@ -494,6 +500,7 @@ function assertSnapshotCurrent(
     readonly db: ReturnType<typeof openInventoryDatabase>;
     readonly options: SemanticInventoryOptions;
     readonly overlay: InventoryOverlay | undefined;
+    readonly refresh?: boolean;
   },
   authored: string,
   descriptors: readonly InventoryBuildRequest["descriptor"][],
@@ -504,7 +511,14 @@ function assertSnapshotCurrent(
   const unique = uniquePartitions(partitions);
   if (
     authoredVersion(options.root) !== authored ||
-    unique.some((partition) => !inputsCurrent(readInventoryInputs(db, partition.id), { authored: currentAuthored, fileSystem: options.fileSystem })) ||
+    unique.some(
+      (partition) =>
+        !inputsCurrent(readInventoryInputs(db, partition.id), {
+          authored: currentAuthored,
+          fileSystem: options.fileSystem,
+          ...(context.refresh === true ? { refresh: (input: InventoryInput) => refreshInventoryInputStat(db, partition.id, input) } : {}),
+        }),
+    ) ||
     !partitionImplementationsCurrent(db, unique, [captureInventoryRuntime([import.meta.url])])
   ) {
     throw new Error("native semantic inventory inputs changed during extraction; no current verdict");
@@ -592,7 +606,7 @@ function demandShapePartitions(
   }
   const membership = [...partitions.values()];
   const assertCohortCurrent = (): void =>
-    assertSnapshotCurrent({ db, options, overlay }, initialAuthored, descriptors, [...membership, ...partitions.values()]);
+    assertSnapshotCurrent({ db, options, overlay, refresh: true }, initialAuthored, descriptors, [...membership, ...partitions.values()]);
   assertCohortCurrent();
   const shapeOwners = shapeCatalogOwners(options, descriptors, plan.sources, [...partitions.values()]);
   const catalogs = new Set(shapeOwners.values());

@@ -62,6 +62,60 @@ function fileVersion(path: string, fileSystem?: FileSystemHost): string {
   return contentVersion(`${inputPathIdentity(path, fileSystem)}\0${contentVersion(text)}`);
 }
 
+const TIMESTAMP_WINDOW_MS = 1000;
+const NS_PER_MS = 1_000_000n;
+
+function fileStat(path: string): InventoryInput["stat"] {
+  const stat = statSync(path, { bigint: true, throwIfNoEntry: false });
+  return stat?.isFile()
+    ? {
+        physicalPath: realpathSync(path),
+        device: String(stat.dev),
+        inode: String(stat.ino),
+        size: String(stat.size),
+        mtimeNs: String(stat.mtimeNs),
+        ctimeNs: String(stat.ctimeNs),
+        recordedAt: Date.now(),
+      }
+    : undefined;
+}
+
+function sameFileStat(left: InventoryInput["stat"], right: InventoryInput["stat"]): boolean {
+  return (
+    left !== undefined &&
+    right !== undefined &&
+    left.physicalPath === right.physicalPath &&
+    left.device === right.device &&
+    left.inode === right.inode &&
+    left.size === right.size &&
+    left.mtimeNs === right.mtimeNs &&
+    left.ctimeNs === right.ctimeNs
+  );
+}
+
+/** Only the native collector can attest that a supplied host reads physical bytes. */
+export function captureInventoryInput(
+  path: string,
+  kind: Exclude<InventoryInput["kind"], "authored">,
+  fileSystem?: FileSystemHost,
+  physical = fileSystem === undefined,
+): InventoryInput {
+  const before = kind === "file" && physical ? fileStat(path) : undefined;
+  const version = inputVersion(path, kind, fileSystem);
+  const after = before === undefined ? undefined : fileStat(path);
+  return { path, kind, version, ...(sameFileStat(before, after) ? { stat: before } : {}) };
+}
+
+function stableFileStat(input: InventoryInput): boolean {
+  const recorded = input.stat;
+  if (recorded === undefined) {
+    return false;
+  }
+  // A same-tick write may retain coarse timestamps; only a later content check can refresh this observation.
+  const cutoff = BigInt(Math.floor(recorded.recordedAt / TIMESTAMP_WINDOW_MS) * TIMESTAMP_WINDOW_MS) * NS_PER_MS;
+  return BigInt(recorded.mtimeNs) < cutoff && BigInt(recorded.ctimeNs) < cutoff && sameFileStat(recorded, fileStat(input.path));
+}
+
 function directoryVersion(path: string, fileSystem?: FileSystemHost): string {
   const present = fileSystem?.directoryExistsSync(path) ?? (existsSync(path) && statSync(path).isDirectory());
   if (!present) {
@@ -79,11 +133,32 @@ const VERSION_READERS = { file: fileVersion, directory: directoryVersion, exists
 /** A failed lookup becomes stale when its candidate or containing directory changes. */
 export function inputsCurrent(inputs: Iterable<InventoryInput>, context: InventoryInputContext): boolean {
   for (const input of inputs) {
+    if (input.kind === "file" && context.fileSystem === undefined) {
+      if (!nativeFileCurrent(input, context)) {
+        return false;
+      }
+      continue;
+    }
     const version =
       input.kind === "authored" ? inputVersion(input.path, input.kind, context.authored) : inputVersion(input.path, input.kind, context.fileSystem);
     if (version !== input.version) {
       return false;
     }
+  }
+  return true;
+}
+
+function nativeFileCurrent(input: InventoryInput, context: InventoryInputContext): boolean {
+  if (stableFileStat(input)) {
+    return true;
+  }
+  const observed = captureInventoryInput(input.path, "file");
+  if (observed.version !== input.version) {
+    return false;
+  }
+  if (observed.stat !== undefined) {
+    input.stat = observed.stat;
+    context.refresh?.(input);
   }
   return true;
 }
