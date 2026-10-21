@@ -85,8 +85,10 @@ export function extractWithoutReferenceWrappers(
   request: InventoryBuildRequest,
   beforeQuery?: (service: ts.LanguageService) => void,
   observePass?: (pass: ts.ReadonlyReferencePass) => void,
-): { partition: ReturnType<typeof extractInventoryPartition>; queries: string[] } {
+): { partition: ReturnType<typeof extractInventoryPartition>; queries: string[]; fallbackQueries: string[] } {
   const queries: string[] = [];
+  const fallbackQueries: string[] = [];
+  let computedOccurrenceAnswers = 0;
   const restoreQueries: (() => void)[] = [];
   const observed = new Set<LanguageService>();
   const getLanguageService = Project.prototype.getLanguageService;
@@ -98,11 +100,26 @@ export function extractWithoutReferenceWrappers(
       const passCreation = vi.spyOn(service.compilerObject, "createReadonlyReferencePass").mockImplementation(() => {
         const pass = createPass();
         observePass?.(pass);
+        const nativeOccurrences = typeof pass.findReferencesFromOccurrences === "function" ? pass.findReferencesFromOccurrences.bind(pass) : undefined;
+        if (nativeOccurrences !== undefined) {
+          const occurrences = vi.spyOn(pass, "findReferencesFromOccurrences").mockImplementation((requests) => {
+            beforeQuery?.(service.compilerObject);
+            queries.push(...requests.map(({ fileName, position }) => JSON.stringify([fileName, position])));
+            const answers = nativeOccurrences(requests);
+            computedOccurrenceAnswers += answers.filter((answer) => answer.kind !== "native").length;
+            return answers;
+          });
+          restoreQueries.push(() => occurrences.mockRestore());
+        }
         const nativeFind = pass.findReferences.bind(pass);
         const query = vi.spyOn(pass, "findReferences").mockImplementation((file, position, options) => {
           expect(options).toEqual({ includeDefinitionDisplay: false });
           beforeQuery?.(service.compilerObject);
-          queries.push(JSON.stringify([file, position]));
+          const key = JSON.stringify([file, position]);
+          fallbackQueries.push(key);
+          if (nativeOccurrences === undefined) {
+            queries.push(key);
+          }
           return nativeFind(file, position, options);
         });
         restoreQueries.push(() => query.mockRestore());
@@ -119,12 +136,16 @@ export function extractWithoutReferenceWrappers(
     throw new Error("reference spans must not materialize DocumentSpan nodes");
   });
   try {
-    const partition = extractInventoryPartition(request);
+    const partition = extractInventoryPartition({ ...request, referenceDemand: { mode: "complete", queries: [] } });
+    const demand = new Set(queries);
     expect(queries.length).toBeGreaterThan(0);
-    expect(queries.length).toBe(new Set(queries).size);
+    expect(queries.length).toBe(demand.size);
+    expect(fallbackQueries.length).toBe(new Set(fallbackQueries).size);
+    expect(fallbackQueries.every((query) => demand.has(query))).toBe(true);
+    expect(computedOccurrenceAnswers + fallbackQueries.length).toBeGreaterThan(0);
     expect(wrappers).not.toHaveBeenCalled();
     expect(materialization).not.toHaveBeenCalled();
-    return { partition, queries };
+    return { partition, queries, fallbackQueries };
   } finally {
     materialization.mockRestore();
     wrappers.mockRestore();

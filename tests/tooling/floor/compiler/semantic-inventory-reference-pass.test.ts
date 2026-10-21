@@ -16,6 +16,13 @@ import { extractWithoutReferenceWrappers, fixtureValue, nativeInputCase, span } 
 import { copyNativeInventoryImplementation } from "./native-inventory-tree.ts";
 import { instrumentNativeQueryWorker, NATIVE_QUERY_MUTATIONS } from "./native-query-mutation.ts";
 
+function withStatObservationTimeMatchers(partition: ReturnType<typeof extractInventoryPartition>): ReturnType<typeof extractInventoryPartition> {
+  return {
+    ...partition,
+    inputs: partition.inputs.map((input) => (input.stat === undefined ? input : { ...input, stat: { ...input.stat, recordedAt: expect.any(Number) } })),
+  };
+}
+
 test("inventory facts share the reference checker while both native Programs retain their roots and sources", ({ scratch }) => {
   writeFileSync(
     join(scratch, "tsconfig.json"),
@@ -446,7 +453,7 @@ test("identical physical spans share one extraction-local payload across facts a
   expect(spans.length - physical.size).toBeGreaterThan(physical.size);
   const again = extractWithoutReferenceWrappers(request);
   expect(again.queries).toEqual(queries);
-  expect(again.partition).toEqual(partition);
+  expect(again.partition).toEqual(withStatObservationTimeMatchers(partition));
   const origin = fixtureValue(partition.exports.find((entry) => entry.name === "value")?.declarations[0]);
   const nextOrigin = fixtureValue(again.partition.exports.find((entry) => entry.name === "value")?.declarations[0]);
   expect(nextOrigin).not.toBe(origin);
@@ -461,7 +468,7 @@ test("physical span reuse observes symlink retargeting and changed bytes between
   const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
   const request = { root: scratch, descriptor, destination: join(scratch, "unused.sqlite") };
   const { partition: first } = extractWithoutReferenceWrappers(request);
-  const original = JSON.stringify(first);
+  const original = structuredClone(first);
   expect(first.exports.find((entry) => entry.name === "first")?.file).toBe(join(scratch, "first.ts"));
   expect(inputsCurrent(first.inputs, { authored: inventoryAuthoredFiles(scratch) })).toBe(true);
   unlinkSync(join(scratch, "link.ts"));
@@ -477,7 +484,7 @@ test("physical span reuse observes symlink retargeting and changed bytes between
   expect(changed.exports.find((entry) => entry.name === "changed")?.file).toBe(join(scratch, "second.ts"));
   expect(changed.exports.some((entry) => entry.name === "second")).toBe(false);
   expect(inputsCurrent(changed.inputs, { authored: inventoryAuthoredFiles(scratch) })).toBe(true);
-  expect(JSON.stringify(first)).toBe(original);
+  expect(first).toEqual(withStatObservationTimeMatchers(original));
 });
 
 test("physical filename resolution is bounded by distinct paths rather than repeated native spans", async ({ scratch }) => {
@@ -493,7 +500,12 @@ test("physical filename resolution is bounded by distinct paths rather than repe
   const inventoryInputs = await import("@orb/tooling/floor/code-facts/semantic-inventory-inputs");
   const canonical = vi.spyOn(inventoryInputs, "canonicalInventoryPath");
   try {
-    const partition = extractInventoryPartition({ root: scratch, descriptor, destination: join(scratch, "unused.sqlite") });
+    const partition = extractInventoryPartition({
+      root: scratch,
+      descriptor,
+      destination: join(scratch, "unused.sqlite"),
+      referenceDemand: { mode: "complete", queries: [] },
+    });
     expect(partition.bindings.length).toBeGreaterThan(5);
     expect(partition.references.length).toBeGreaterThan(5);
     expect(canonical).toHaveBeenCalled();

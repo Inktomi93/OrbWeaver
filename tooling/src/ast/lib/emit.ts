@@ -251,5 +251,10 @@ export function loadProject(needTypes: boolean, wide = false): SourceCorpus {
 /** Explicit syntax inventory with native facts; unported typed readers use {@link loadProject}. A scope
  *  narrows the corpus to the worlds that can change an answer about its files. */
 export function loadInventoryProject(families: readonly InventoryFamily[] = DEFAULT_INVENTORY_FAMILIES, scope?: InventoryScope): InventorySourceCorpus {
-  return createSemanticInventory({ root: REPO_ROOT, families, ...(scope === undefined ? {} : { scope }) }).sourceCorpus();
+  return createSemanticInventory({
+    root: REPO_ROOT,
+    families,
+    ...(families.includes("references") ? { referenceDemand: { mode: "complete" as const, queries: [] } } : {}),
+    ...(scope === undefined ? {} : { scope }),
+  }).sourceCorpus();
 }
