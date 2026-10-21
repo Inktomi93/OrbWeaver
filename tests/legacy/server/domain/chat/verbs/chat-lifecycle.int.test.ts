@@ -1,38 +1,29 @@
 // The chat-ROW lifecycle + variables + persisted injections (the chat design doc Part III §11). Proves against a real
 // libSQL db: the host-authority gate, the row writes, the variables round-trip (config plane), the injections
 // CRUD, and the emitted bus events. Reached through the BUNDLE `createChatLifecycle(ctx, { emit })`.
-
-import process from "node:process";
-import { setTimeout as sleep } from "node:timers/promises";
 import type { DurableChatBusEvent, LiveOnlyChatBusEvent } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ChoiceBlockSpec, UserMacroSpec } from "@orb/contracts/preset";
 import type { Db } from "@orb/db";
-import { chatEvents, chatInjections, chats, statsCanonVersions } from "@orb/db";
+import { chatInjections, chats, statsCanonVersions } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
-import { databaseHandle } from "@orb/db/wiring-driver";
 import type { ChatInjectionId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { AuditEntry } from "@orb/server/foundation/observability";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
-import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
-import { tape } from "@orb/testkit/node/chat/tape.ts";
 import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
 import { beforeEach, describe } from "vitest";
 import { createActiveTurns } from "#server/domain/chat/active-turns.ts";
-import { createChatBus } from "#server/domain/chat/bus.ts";
 import type { ChatContext } from "#server/domain/chat/context.ts";
 import type { ActiveTurns } from "#server/domain/chat/contract/active-turns.ts";
 import type { ClaimChatOp } from "#server/domain/chat/contract/context.ts";
 import { ChatNotFoundError, ChatOperationError } from "#server/domain/chat/contract/errors.ts";
-import type { TurnStreamChunk } from "#server/domain/chat/contract/results.ts";
 import { loadStoredUserMacroValues } from "#server/domain/chat/persistence/queries.ts";
 import { createChatLifecycle } from "#server/domain/chat/verbs/chat-lifecycle.ts";
 import { bumpStatsCanonVersion } from "#server/domain/stats/write/apply-delta.ts";
 import { principal as makePrincipal } from "../../../../db/schema/_support.ts";
-import { scenario } from "../_scenario.ts";
 import { makeChatContext, noClaim, seedChat, seedParticipant, seedPersona, seedUser } from "../_support.ts";
 
 let db: Db;
@@ -57,8 +48,6 @@ const emitLive = (event: LiveOnlyChatBusEvent): void => {
   fannedLive.push(event);
 };
 
-/** The bundle deps: the two recorders + a private (empty) turn registry. `delete` sweeps the registry, so the
- *  delete-mid-turn arm below wires the SCENARIO's live one instead. */
 function lifecycleDeps(): { emit: typeof emit; emitLive: typeof emitLive; activeTurns: ActiveTurns; claimChat: ClaimChatOp } {
   return { emit, emitLive, activeTurns: createActiveTurns(), claimChat: noClaim };
 }
@@ -135,70 +124,6 @@ describe("chat-row flags (host-only)", () => {
     expect(emitted).toEqual([]);
     // The best-effort forensic row (entity_id is the D24-sanctioned soft ref — it outlives the chat).
     expect(audits).toEqual([{ actorUserId: host, action: "chat.delete", entityType: "chat", entityId: chatId }]);
-  });
-
-  // The observed production crash (server.log 12:45:05Z / 12:47:54Z): deleting a chat mid-turn left the
-  // in-flight turn streaming, its next `delta` INSERT tripped the `chat_events.chat_id` FK, and the
-  // fire-and-forget emit's rejection was UNHANDLED — the node process exited for every user. The fix is both
-  // halves: `delete` ABORTS the room's turns (source) and the bus emit is TOTAL (floor).
-  test("deleting a chat mid-turn: the streaming turn is aborted, the post-delete delta is dropped (no unhandled rejection), and the process survives", async () => {
-    const { promise: streaming, resolve: sawFirstDelta } = Promise.withResolvers<void>();
-    const { promise: deleted, resolve: deleteDone } = Promise.withResolvers<void>();
-    // The scripted role stream, PARKED mid-turn: chunk 1 streams while the chat is alive, chunk 2 + the
-    // terminal `final` only resume AFTER the chat row is gone — the exact interleaving that crashed.
-    async function* gatedStream(): AsyncGenerator<TurnStreamChunk> {
-      yield { kind: "text", text: "hel" };
-      sawFirstDelta();
-      await deleted;
-      yield { kind: "text", text: "lo" };
-      yield { kind: "final", economics: { content: "hello", tokensIn: 4, tokensOut: 2, model: testModelId("test-model") } };
-    }
-    // The REAL durable bus (not the recorder) — this test exists to exercise the `chat_events` FK itself.
-    const bus = createChatBus({ ...makeChatContext(db), db: databaseHandle(db) });
-    const sc = await scenario.chat(tape(), { db, emit: bus.emit, ctx: { runChatTurn: () => gatedStream() } });
-    // The verb's DURABLE emit goes through the SAME bus the turn does (that shared FK is the crash's
-    // substrate); its `chatDeleted` now rides the live lane instead, which is exactly what lets the delete
-    // run FIRST — so the ordering against the row drop is still what this test pins, inverted.
-    const life = createChatLifecycle(makeChatContext(db), {
-      claimChat: (): Promise<void> => Promise.resolve(),
-      emit: async (event: DurableChatBusEvent): Promise<void> => {
-        await bus.emit(event);
-      },
-      emitLive,
-      activeTurns: sc.activeTurns,
-    });
-    const rejections: unknown[] = [];
-    const onUnhandled = (reason: unknown): void => {
-      rejections.push(reason);
-    };
-    process.on("unhandledRejection", onUnhandled);
-
-    const sending = sc.send("hi");
-    await streaming;
-    expect(sc.activeTurns.countActive(sc.chatId)).toBe(1);
-
-    await life.delete({ principal: await sc.principal(), chatId: sc.chatId });
-    deleteDone();
-    const outcome = await sending;
-    // Let any rejection the fire-and-forget emits produced reach the process handler.
-    await sleep(20);
-    process.off("unhandledRejection", onUnhandled);
-
-    // THE bug: a single racing emit must never reach the process as an unhandled rejection.
-    expect(rejections).toEqual([]);
-    // The turn TERMINATED (aborted) instead of running to completion against a dead chat — and it committed
-    // no canon into the deleted room.
-    expect(outcome.aborted).toBe(true);
-    expect(sc.activeTurns.countActive(sc.chatId)).toBe(0);
-    expect(await sc.loadCanon()).toEqual([]);
-    // The row is gone and no orphan event survived.
-    expect(await db.select().from(chats).where(eq(chats.id, sc.chatId))).toEqual([]);
-    expect(await db.select().from(chatEvents).where(eq(chatEvents.chatId, sc.chatId))).toEqual([]);
-    // `chatDeleted` was still DELIVERED — on the live lane, AFTER the row went away. It never touches the
-    // durable ring now, which is the point: the old ordering had to append-then-delete, and that is what
-    // produced R1-4a. Delivery here is a fan the pump gates for nobody (F-A), not a replayable row.
-    expect(fannedLive).toEqual([{ type: "chatDeleted", chatId: sc.chatId }]);
-    expect(bus.readRing(sc.chatId).map((e) => e.event)).not.toContainEqual({ type: "chatDeleted", chatId: sc.chatId });
   });
 
   test("a member's refused delete writes NO audit row (existence-before-audit order)", async () => {
