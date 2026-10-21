@@ -33,7 +33,7 @@ Lifecycle, statistics, greeting, read-budget and memory-build evidence: `07146d4
 
 Compaction, inline-image and fault-outcome evidence: `8b468edc18` and `reports/review/1193-leg4-review.md`, including the restored tracing control.
 
-Turn verbs and required scenario consumers remain open with native legacy errors.
+Turn verbs and required scenario consumers remain open with native legacy errors. Deferred copied-handoff replay remains unqualified.
 
 Persona/cache evidence: `e3b0671492` and `reports/review/1193-persona-cache-review.md`. Native import repair: `c6eb4e713c`.
 
