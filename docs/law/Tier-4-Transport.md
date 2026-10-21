@@ -46,6 +46,14 @@ The `Principal` is resolved ONCE at `entry/auth/seam.ts` and flows down immutabl
 
 Wire schemas DERIVE from contract tuples (`z.enum(WORKLOAD_STATUSES)`, `chatApiSchema`, …) — no router re-spells a union inline (`no-inline-union-redecl`). The identity shape is `@orb/contracts/identity` `Principal`; transport adds no exported identity type. When the `aiTurn` bucket lands, its turn-verb set derives from a typed map of the chat router's $-spending verbs (a missed verb = build error, not a silent free-turn leak); `chat.fork` stays deliberately excluded (copies canon, no $/GPU at fork time).
 
+## Client declaration boundary
+
+`AppRouter` stays beside `appRouter` (D329). The `@orb/server` root export resolves native declarations under `packages/server/dist/router-types/`; server subpaths resolve source. `pnpm --filter @orb/server build:types` uses `tsconfig.router.json`. The compiler strips context members marked `@internal`, not their server source types. Procedure input and output inference remains derived from the router value.
+
+Installation generates declarations for editors and typed lint. Manifest-only container installs skip generation. Native consumer checks regenerate declarations before use. Client bundling erases type imports and does not need declarations. The Vite native checker regenerates them on edits before checking the client. A declaration error stops the consumer check, so old output cannot produce a successful verdict. Other scoped package checks do not build the server.
+
+This boundary excludes server implementation files, not all Node declarations. Upstream `@trpc/client` websocket types reference `@trpc/server/adapters/ws` and `@types/ws`, which imports Node declarations.
+
 ## Esoteric
 
 1. **The rate-limit injectable `now()` clock seam.** The limiter's ONLY impurity: without it, rapid attempts straddling a fixed-window boundary split across two buckets and the N+1th never trips. Tests pin time through the seam. *(origin incident: .)*

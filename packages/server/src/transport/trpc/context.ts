@@ -40,6 +40,7 @@ import type { SocketRegistry } from "./stream/socket-registry.ts";
  * The constructed domain services, wired with their db + cross-feature deps at the entry composition root
  * and handed to each request. A router reaches a domain only through its front-door service here — never
  * \@orb/db/infra/* directly. One key per domain front door.
+ * @internal
  */
 export interface Services {
   readonly admin: AdminService;
@@ -74,7 +75,9 @@ export interface Services {
 }
 
 /** The inputs the rate-limit gate decides on. Which bucket is the injected implementation's concern;
- *  transport hands it the request facts and awaits its verdict. */
+ *  transport hands it the request facts and awaits its verdict.
+ * @internal
+ */
 export interface RateLimitDecision {
   readonly path: string;
   readonly type: "query" | "mutation" | "subscription";
@@ -83,13 +86,18 @@ export interface RateLimitDecision {
 }
 
 /** The rate-limit gate — the injected middleware seam. `enforce` rejects with `DomainRateLimitError` when
- *  over cap (mapped to TOO_MANY_REQUESTS + Retry-After downstream). */
+ *  over cap (mapped to TOO_MANY_REQUESTS + Retry-After downstream).
+ * @internal
+ */
 export interface RateLimitGate {
   readonly enforce: (decision: RateLimitDecision) => Promise<void>;
 }
 
+// Context stays fully typed on the server; declaration emit excludes its server-only closure.
 export interface Context {
+  /** @internal */
   readonly liveBuses: LiveBuses;
+  /** @internal */
   readonly auth: Principal | null;
   /**
    * WHICH cookie session authenticated this request — `null` for every other admission arm (the owner
@@ -98,24 +106,37 @@ export interface Context {
    *
    * ONE consumer, deliberately: `stream.connect` stamps it on the socket cell so a LOGOUT can evict exactly
    * that device's sockets (W7a/F4). No procedure authorizes on it — authorization is the Principal's.
+   * @internal
    */
   readonly sessionId: SessionId | null;
+  /** @internal */
   readonly services: Services;
+  /** @internal */
   readonly rateLimit: RateLimitGate;
-  /** SSE subscriptions call presence.connect(userId, signal) to ref-count device liveness. */
+  /** SSE subscriptions call presence.connect(userId, signal) to ref-count device liveness.
+   * @internal
+   */
   readonly presence: PresenceRegistry;
   /** The multiplexed-socket cells (SSE-1) — one per tab, holding which rooms that tab wants across its own
-   *  reconnects. Composed at entry (it owns the reap clock), read only by the `stream` router. */
+   *  reconnects. Composed at entry (it owns the reap clock), read only by the `stream` router.
+   * @internal
+   */
   readonly sockets: SocketRegistry;
   /** Can ≥2 humans authenticate on this deployment? `multiHumanProcedure` refuses its surfaces with
-   *  NOT_FOUND while false. Derived per-request (the local toggle is a runtime AppSetting). */
+   *  NOT_FOUND while false. Derived per-request (the local toggle is a runtime AppSetting).
+   * @internal
+   */
   readonly multiHumanCapable: boolean;
+  /** @internal */
   readonly csrfHeaderPresent: boolean;
+  /** @internal */
   readonly clientIp: string | null;
 }
 
 /** Pure packaging — the typed seam entry/app.ts calls per request after the auth seam has resolved the
- *  Principal. No db, no header parsing, no identity resolution. */
+ *  Principal. No db, no header parsing, no identity resolution.
+ * @internal
+ */
 export function createContext(parts: {
   readonly liveBuses: LiveBuses;
   readonly auth: Principal | null;

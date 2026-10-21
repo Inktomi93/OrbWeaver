@@ -1,16 +1,35 @@
 #!/usr/bin/env node
-// The root `prepare` script: install the lefthook git hooks inside a git checkout, skip cleanly without one
-// (a source archive or the container build), and keep a real lefthook failure non-zero. Node, not a shell
-// conditional, because pnpm runs lifecycle scripts through `sh` on POSIX and `cmd.exe` on Windows.
+// Prepare editor declarations from a source checkout; manifest-only Docker installs preserve the deps cache.
+// Git hooks belong to the main checkout, while every source checkout needs its own declaration output.
 import { spawnSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { createRequire } from "node:module";
 import { join, resolve } from "node:path";
 import process from "node:process";
 
+const root = process.cwd();
+const hasGit = existsSync(join(root, ".git"));
+const routerConfig = join(root, "packages/server/tsconfig.router.json");
+if (!(hasGit || existsSync(routerConfig))) {
+  console.log("manifest-only install: no server compiler inputs or .git. Skipping declarations and lefthook.");
+  process.exit(0);
+}
+
+const declarations = spawnSync(process.execPath, [join(root, "node_modules/@typescript/native/bin/tsc"), "--project", routerConfig], { stdio: "inherit" });
+if (declarations.error !== undefined) {
+  throw declarations.error;
+}
+if (declarations.signal !== null) {
+  console.error(`router declaration compiler terminated by signal ${declarations.signal}`);
+  process.exit(1);
+}
+if (declarations.status !== 0) {
+  process.exit(declarations.status ?? 1);
+}
+
 // pnpm runs `prepare` with the package root as cwd, and cwd is also where lefthook looks for the repository.
 // `.git` is a directory in a clone and a file in a linked worktree or submodule; both count.
-if (!existsSync(join(process.cwd(), ".git"))) {
+if (!hasGit) {
   // Messages carry no "prepare:" prefix: pnpm already labels every lifecycle output line with the script name.
   console.log("no .git here (a source archive, not a clone), so there are no git hooks to install. Skipping lefthook.");
   process.exit(0);

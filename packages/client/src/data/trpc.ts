@@ -1,8 +1,8 @@
 // The tRPC wiring (UI-Arch §2.1 `data/`): the typed client + the React context + the options
 // proxy. The proxy IS the queryKey/queryFn factory — every read key in the app is
 // `trpc.<router>.<proc>.queryOptions(...)`/`.queryKey(...)` (the `no-restricted-syntax` selector in `eslint.config.js`);
-// hand-written key arrays are banned. `AppRouter` is the one intentional TYPE-ONLY client→server
-// source edge; dependency-cruiser rejects every other backend type edge and every runtime edge.
+// hand-written key arrays are banned. `AppRouter` resolves the server's generated declaration surface,
+// not server implementation; dependency-cruiser rejects other backend type edges and every runtime edge.
 
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";

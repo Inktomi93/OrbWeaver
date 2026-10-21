@@ -5,11 +5,17 @@ import process from "node:process";
 
 const root = resolve(import.meta.dirname, "..");
 const operands = process.argv.slice(2);
+const routerConfig = "packages/server/tsconfig.router.json";
+const routerConsumers = ["packages/client/tsconfig.json", "tooling/tsconfig.json", "tsconfig.json", "tsconfig.tests-dom.json"].map((config) =>
+  resolve(root, config),
+);
 const configs =
   operands.length > 0
     ? operands
     : [
-        ...globSync("packages/*/tsconfig*.json", { cwd: root }).sort(),
+        ...globSync("packages/*/tsconfig*.json", { cwd: root })
+          .filter((config) => config !== routerConfig)
+          .sort(),
         "tooling/tsconfig.json",
         "tsconfig.json",
         "tsconfig.tests-dom.json",
@@ -21,13 +27,27 @@ for (const config of configs) {
   }
 }
 
+// Refresh the public declaration before its consumers, never for an unrelated scoped package check.
+const programs = configs.some((config) => routerConsumers.includes(resolve(root, config))) ? [routerConfig, ...configs] : configs;
 // Independent -p programs cannot share a compiler invocation; serial runs bound their memory footprint.
-for (const config of configs) {
+for (const config of programs) {
   console.log(`typecheck ${config}`);
-  const child = spawn(process.execPath, [resolve(root, "node_modules/@typescript/native/bin/tsc"), "--noEmit", "--incremental", "false", "--project", config], {
-    cwd: root,
-    stdio: "inherit",
-  });
+  const child = spawn(
+    process.execPath,
+    [
+      resolve(root, "node_modules/@typescript/native/bin/tsc"),
+      "--noEmit",
+      String(resolve(root, config) !== resolve(root, routerConfig)),
+      "--incremental",
+      "false",
+      "--project",
+      config,
+    ],
+    {
+      cwd: root,
+      stdio: "inherit",
+    },
+  );
   let interrupted: NodeJS.Signals | undefined;
   const forward = (signal: NodeJS.Signals): void => {
     interrupted = signal;
@@ -52,5 +72,8 @@ for (const config of configs) {
   }
   if (result.code !== 0) {
     process.exitCode ??= result.code ?? 1;
+    if (resolve(root, config) === resolve(root, routerConfig)) {
+      break;
+    }
   }
 }

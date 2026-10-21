@@ -10,6 +10,7 @@
 // `single-stream-transport` gate).
 
 import { ASSET_LIST_LIMIT_MAX, assetIdSchema } from "@orb/contracts/assets";
+import type { ImpersonateStreamDelta } from "@orb/contracts/chat";
 import {
   actionTemplatesPreviewSchema,
   assemblyPreviewSchema,
@@ -60,7 +61,6 @@ import { reportedTimeZoneSchema } from "@orb/kit/time";
 import { TRPCError, tracked } from "@trpc/server";
 import type * as TRPCCore from "@trpc/server/unstable-core-do-not-import";
 import { z } from "zod";
-import type { ImpersonateStreamDelta } from "#domain/chat";
 import { toolRecurseLimitSchema } from "#domain/chat";
 import { chatDetailSchema, chatLineageViewSchema, chatListPageSchema, forkResultSchema, participantViewSchema, startChatResultSchema } from "../role-output.ts";
 import { withSubscriptionErrors } from "../subscriptions.ts";

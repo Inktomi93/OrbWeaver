@@ -17,7 +17,7 @@ const CLIENT = "^packages/client/src/";
 const UI = "^packages/ui/src/";
 const SRV = "^packages/server/src/";
 const CLIENT_TRPC = `${CLIENT}data/trpc\\.ts$`;
-const SERVER_ROOT = `${SRV}index\\.ts$`;
+const SERVER_ROOT = "^packages/server/dist/router-types/packages/server/src/index\\.d\\.ts$";
 const SHOWCASE = "^packages/showcase-plugins/";
 const INFERENCE = "^packages/inference/src/";
 const DEFAULT_CONTENT = "^packages/default-content/";
@@ -1066,8 +1066,10 @@ module.exports = {
       conditionNames: ["import", "require", "node", "default", "types"],
       mainFields: ["module", "main", "types", "typings"],
     },
-    // Generated runtime assets are not first-party dependency graph inputs.
-    exclude: { path: ["^packages/[^/]+/dist/", "^tooling/src/snap/lib/devtools-frontend/"] },
+    // TypeScript owns relative .ts resolution inside emitted declarations; retain only the public graph edge.
+    doNotFollow: { path: ["node_modules", SERVER_ROOT] },
+    // Keep the public declaration edge visible; other generated output is not a source graph input.
+    exclude: { path: ["^packages/[^/]+/dist/(?!router-types/packages/server/src/index\\.d\\.ts$)", "^tooling/src/snap/lib/devtools-frontend/"] },
     reporterOptions: {
       dot: { collapsePattern: COLLAPSE },
       archi: { collapsePattern: COLLAPSE },

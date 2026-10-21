@@ -26,9 +26,9 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { streamAttachInputSchema, streamConnectInputSchema, streamDetachInputSchema } from "@orb/contracts/stream";
 import type * as TRPCCore from "@trpc/server/unstable-core-do-not-import";
 import { getLog } from "#foundation/observability";
+import type { SubscriptionErrorFrame } from "../contract/subscriptions.ts";
 import { roomSourceFor } from "../stream/room-sources.ts";
 import { runSocket } from "../stream/socket.ts";
-import type { SubscriptionErrorFrame } from "../subscriptions.ts";
 import { withSubscriptionErrors } from "../subscriptions.ts";
 import { authedProcedure, t } from "../trpc.ts";
 

@@ -92,20 +92,10 @@ export function nativeTypecheck(root: string): Plugin {
         const started = generation;
         publish({ checking: true, failed: false, text: "Native TypeScript checking" });
         server.config.logger.info("[native TypeScript] checking client program");
-        const child = spawn(
-          process.execPath,
-          [
-            join(root, "node_modules", "@typescript", "native", "bin", "tsc"),
-            "--noEmit",
-            "--incremental",
-            "false",
-            "--pretty",
-            "false",
-            "-p",
-            "packages/client/tsconfig.json",
-          ],
-          { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
-        );
+        const child = spawn(process.execPath, [join(root, "scripts", "typecheck.ts"), "packages/client/tsconfig.json"], {
+          cwd: root,
+          stdio: ["ignore", "pipe", "pipe"],
+        });
         active = child;
         let output = "";
         child.stdout.setEncoding("utf8").on("data", (chunk: string) => {

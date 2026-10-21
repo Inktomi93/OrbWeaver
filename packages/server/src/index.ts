@@ -1,4 +1,3 @@
-// @orb/server — public barrel. TYPE-ONLY surface for `@orb/client`: the client imports AppRouter
-// for end-to-end inference, while dependency-cruiser restricts that exact source/target edge and
-// rejects runtime client→server imports. `AppRouter` is `typeof` a server-owned router value.
+// Native declaration emit publishes this type-only entry for the client. Server implementation and
+// request context members stay behind the generated boundary; AppRouter still derives from the router value.
 export type { AppRouter } from "./transport/trpc/router.ts";

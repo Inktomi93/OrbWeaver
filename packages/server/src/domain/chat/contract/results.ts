@@ -509,12 +509,7 @@ export interface DrainReport {
   readonly dropped: number;
 }
 
-/** `impersonateStream` — ONE text delta yielded by the impersonation stream, appended to the composer as it
- *  arrives (progressive fill). The client accumulates the deltas; the stream completes when the generation
- *  ends (or the caller aborts — the partial text stays in the composer). Nothing is persisted. */
-export interface ImpersonateStreamDelta {
-  readonly delta: string;
-}
+export type { ImpersonateStreamDelta } from "@orb/contracts/chat";
 
 /** `compact` — the portable compaction marker produced: the summary text + the seq it covers through, and
  *  whether this call actually rewrote the marker (`false` for an idempotent no-op / an all-hidden span / an

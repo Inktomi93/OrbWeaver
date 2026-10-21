@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "noEmit": false,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "declarationMap": false,
+    "stripInternal": true,
+    "noEmitOnError": true,
+    "rootDir": "../..",
+    "outDir": "./dist/router-types"
+  },
+  "include": ["src/index.ts", "../../reset.d.ts", "../../platform.d.ts"]
+}

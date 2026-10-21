@@ -155,6 +155,8 @@ export { CONTENT_CLASS_POLICY } from "./content-classes.ts";
 export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { ANCHOR_STATES, chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
 export type { HandoffCardCopy, HandoffCardPair, HandoffHealArgs } from "./handoff-context.ts";
+export type { ImpersonateStreamDelta } from "./impersonation.ts";
+export { impersonateStreamDeltaSchema } from "./impersonation.ts";
 export { chatIdInputSchema, chatListInputSchema, listMessagesInputSchema } from "./inputs.ts";
 export type { ChatLibraryLens } from "./library.ts";
 export { chatCensusInputSchema } from "./library.ts";

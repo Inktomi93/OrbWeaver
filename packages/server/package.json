@@ -7,7 +7,9 @@
     "node": ">=26.3.0"
   },
   "exports": {
-    ".": "./src/index.ts",
+    ".": {
+      "types": "./dist/router-types/packages/server/src/index.d.ts"
+    },
     "./domain/assets": "./src/domain/assets/index.ts",
     "./domain/character": "./src/domain/character/index.ts",
     "./domain/chat": "./src/domain/chat/index.ts",
@@ -53,7 +55,8 @@
   },
   "scripts": {
     "check:media": "node src/entry/check-media.ts",
-    "postinstall": "pnpm check:media"
+    "postinstall": "pnpm check:media",
+    "build:types": "tsc -p tsconfig.router.json"
   },
   "dependencies": {
     "@hono/node-server": "catalog:",

@@ -73,7 +73,7 @@ COPY patches ./patches
 RUN --mount=type=cache,id=orbweaver-pnpm-store,target=/pnpm/store,sharing=shared \
     pnpm fetch
 # The install needs every workspace manifest and the files its lifecycle scripts run, and nothing else: the root
-# `prepare` (scripts/prepare.ts, which skips without a .git) and the server's `postinstall` media check
+# `prepare` (scripts/prepare.ts, which skips manifest-only installs) and the server's `postinstall` media check
 # (src/entry/check-media.ts and the one module it imports). The glob picks up a new workspace package; a new
 # install-time script that reads another file fails this step loudly instead of being cached around.
 COPY --parents package.json packages/*/package.json tooling/package.json scripts/prepare.ts \
