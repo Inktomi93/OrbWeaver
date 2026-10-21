@@ -878,6 +878,30 @@ module.exports = {
       to: { path: "^packages/server/src/transport/trpc/role-output\\.ts$" },
     },
     {
+      name: "system-theme-writes-boot-only",
+      comment:
+        "Ownerless palette writes accept only shipped data and timestamp metadata. Only the boot seeder receives the private query capability; aliases, dynamic imports and forwarding modules do not widen that authority (D328).",
+      severity: "error",
+      from: { pathNot: `${SRV}domain/settings/seed-themes\\.ts$` },
+      to: { path: `${SRV}domain/settings/persistence/system-themes\\.ts$` },
+    },
+    {
+      name: "system-preset-writes-boot-only",
+      comment:
+        "The ownerless default-preset write owns its shipped content and sentinel. Only its boot seeder receives the private query capability, including type-only, namespace and dynamic import edges (D328).",
+      severity: "error",
+      from: { pathNot: `${SRV}domain/preset/seed\\.ts$` },
+      to: { path: `${SRV}domain/preset/persistence/system-default\\.ts$` },
+    },
+    {
+      name: "system-seed-writes-no-forwarding",
+      comment:
+        "Source-bearing exports cannot forward private seed writes. The HARD seed-root syntax fence also blocks local and import-deduplicated exports (D328).",
+      severity: "error",
+      from: {},
+      to: { path: `${SRV}domain/(settings/persistence/system-themes|preset/persistence/system-default)\\.ts$`, dependencyTypes: ["export"] },
+    },
+    {
       name: "principal-mint-owners",
       comment:
         "D1/D40: only the request seam and the frozen-host bridge construct a Principal. The contracts brand makes every other construction a type error, and barrels or re-exports are importers too, so they cannot widen this set.",

@@ -66,6 +66,55 @@ function passOf(
   });
 }
 
+for (const config of [
+  'target: themes.id, setWhere: isNull(themes.ownerId), set: { name: "Shipped" }',
+  'target: [themes.ownerId, themes.id], set: { name: "Shipped" }',
+  'target: themes.id, setWhere: eq(themes.ownerId, "caller"), set: { name: "Shipped" }',
+]) {
+  test(`owner-scoped-upserts: opaque outer config contribution is UNKNOWN before acquitting ${config}`, () => {
+    const result = passOf(ownerScopedUpserts, {
+      "packages/db/src/schema/theme.ts":
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { id: text("id").primaryKey(), ownerId: text("owner_id"), name: text("name") });\n',
+      "packages/server/src/domain/settings/persistence/theme-queries.ts": `import { eq, isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function seed(db: Db) { const config = loadConfig(); return db.insert(themes).values({ id: "shipped", ownerId: null, name: "Shipped" }).onConflictDoUpdate({ ${config}, ...config }); }\n`,
+    });
+    expect(result.toolErrors).toEqual([]);
+    expect(result.factErrors).toEqual([]);
+    expect(result.authority.effectiveFindings).toEqual([]);
+    expect(result.authority.withheldPolicyIds).toEqual([]);
+    expect(result.policies.flatMap(({ analysis }) => analysis?.unknown ?? [])).toEqual([
+      expect.objectContaining({ reason: expect.stringContaining("upsert-config-provenance") }),
+    ]);
+  });
+}
+
+for (const policy of [ownerScopedWrites, ownerScopedUpserts]) {
+  test.each([
+    { label: "clock call", payload: '{ name: "Shipped", updatedAt: now() }' },
+    { label: "timestamp parameter", payload: '{ name: "Shipped", updatedAt: at }' },
+    { label: "escaped composite alias", payload: "patch" },
+  ])(`${policy.id}: $label is explicit UNKNOWN, never caller authority`, ({ payload }) => {
+    const write =
+      policy === ownerScopedWrites
+        ? `db.update(themes).set(${payload}).where(and(eq(themes.id, "shipped"), isNull(themes.ownerId)))`
+        : `db.insert(themes).values({ id: "shipped", ownerId: null, name: "Shipped" }).onConflictDoUpdate({ target: themes.id, setWhere: isNull(themes.ownerId), set: ${payload} })`;
+    const result = passOf(policy, {
+      "packages/db/src/schema/theme.ts":
+        'import { sqliteTable, text } from "drizzle-orm/sqlite-core";\nexport const themes = sqliteTable("themes", { id: text("id").primaryKey(), ownerId: text("owner_id") });\n',
+      "packages/server/src/domain/settings/persistence/theme-queries.ts": `import { and, eq, isNull } from "drizzle-orm";\nimport { themes } from "@orb/db";\nexport function seed(db: Db, now: () => number, at: number) { const patch = { name: "Shipped", updatedAt: 0 }; mutate(patch); return ${write}; }\n`,
+    });
+    expect(result.toolErrors).toEqual([]);
+    expect(result.factErrors).toEqual([]);
+    expect(result.authority.effectiveFindings).toEqual([]);
+    expect(result.authority.withheldPolicyIds).toEqual([]);
+    expect(result.policies.flatMap(({ analysis }) => analysis?.unknown ?? [])).toEqual([
+      expect.objectContaining({
+        file: "packages/server/src/domain/settings/persistence/theme-queries.ts",
+        reason: expect.stringContaining("system-write-provenance"),
+      }),
+    ]);
+  });
+}
+
 // ---------------------------------------------------------------------------------------------------
 // REPORT IDENTITY, POSITIVE ARM. Each of the three by-id tenancy policies has its own waiver position
 // (owner-scoped-reads / -writes / -upserts): a marker that names THIS policy at its own reported position

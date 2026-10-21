@@ -23,17 +23,21 @@ import { readFollowingBuilderChain } from "../../floor/code-facts/drizzle-statem
 import {
   DRIZZLE_CONFLICT_VERBS,
   DRIZZLE_RETURNING_VERB,
+  DRIZZLE_UPSERT_SET_KEY,
   DRIZZLE_UPSERT_VERB,
+  DRIZZLE_VALUES_VERB,
   DRIZZLE_WHERE_VERB,
   DRIZZLE_WRITE_ARGUMENT_VERBS,
 } from "../../floor/code-facts/drizzle-vocabulary.ts";
 import { enclosingFn, readFunctionBodyNodes } from "../../floor/code-facts/function-context.ts";
 import { MEMBER_ACCESS_KINDS } from "../../floor/code-facts/reference-fact-contract.ts";
-import type { SchemaTableIndex, TableRef, TableTarget } from "../contract/tenancy.ts";
+import type { SchemaTableIndex, SystemWriteProof, SystemWriteValue, TableRef, TableTarget } from "../contract/tenancy.ts";
 import { unwrapExpression } from "./ast-read.ts";
+import { combineSystemWriteValues, systemWritePayload, systemWriteValue } from "./tenancy-system-write.ts";
 
 const OWNER_COL = "ownerId";
 const EQ_OPERATOR = "eq";
+const IN_ARRAY_OPERATOR = "inArray";
 const IS_NULL_OPERATOR = "isNull";
 const SCHEMA_DIR = "/packages/db/src/schema/";
 const CALLER_OWNER_BINDING_RE = /^(?:caller|(?:caller|owner|user)[A-Za-z0-9_]*Id)$/u;
@@ -293,9 +297,9 @@ function readsSchemaColumn(operand: Node, bindings: ReadonlyMap<Node, Node>, ind
 }
 
 /** An owner term: `eq` of the owner column against a value that reads no table column, either way round. The
- *  value's provenance is the caller's control flow, which no structural reader proves. `isNull` of the column also
- *  scopes: it reaches only rows no user owns. */
-function isOwnerTerm(fact: DrizzlePredicate, owner: OwnerColumn): boolean {
+ *  value's provenance is the caller's control flow, which no structural reader proves. The read view admits
+ *  `isNull` to select ownerless rows; writeOwnerProof judges system-write data separately from ownership. */
+function isOwnerTerm(fact: DrizzlePredicate, owner: OwnerColumn, includeSystemRows = true): boolean {
   if (fact.kind !== "leaf" || !Node.isCallExpression(fact.node)) {
     return false;
   }
@@ -303,7 +307,7 @@ function isOwnerTerm(fact: DrizzlePredicate, owner: OwnerColumn): boolean {
   const operands = call.getArguments();
   const [left, right] = operands;
   if (callsDrizzleOperator(call, IS_NULL_OPERATOR) && left !== undefined && operands.length === 1) {
-    return namesOwnerColumn(left, fact.bindings, owner);
+    return includeSystemRows && namesOwnerColumn(left, fact.bindings, owner);
   }
   if (!callsDrizzleOperator(call, EQ_OPERATOR) || left === undefined || right === undefined || operands.length !== 2) {
     return false;
@@ -332,6 +336,88 @@ export function predicatesTableColumn(predicate: Node, table: string, column: st
   return holdsConjunctively(readDrizzlePredicate(predicate), (term) => isOwnerTerm(term, owner));
 }
 
+function isSystemOwnerTerm(fact: DrizzlePredicate, owner: OwnerColumn): boolean {
+  if (fact.kind !== "leaf" || !Node.isCallExpression(fact.node) || !callsDrizzleOperator(fact.node, IS_NULL_OPERATOR)) {
+    return false;
+  }
+  const [operand] = fact.node.getArguments();
+  return fact.node.getArguments().length === 1 && operand !== undefined && namesOwnerColumn(operand, fact.bindings, owner);
+}
+
+function systemLeafValue(fact: DrizzlePredicate, owner: OwnerColumn): SystemWriteValue {
+  if (isSystemOwnerTerm(fact, owner)) {
+    return "constant";
+  }
+  if (fact.kind !== "leaf" || !Node.isCallExpression(fact.node)) {
+    return "unknown";
+  }
+  if (fact.bindings.size > 0) {
+    return "unknown";
+  }
+  const equality = callsDrizzleOperator(fact.node, EQ_OPERATOR);
+  if (!(equality || callsDrizzleOperator(fact.node, IN_ARRAY_OPERATOR))) {
+    return "unknown";
+  }
+  const [left, right] = fact.node.getArguments();
+  if (left === undefined || right === undefined || fact.node.getArguments().length !== 2) {
+    return "unknown";
+  }
+  const leftColumn = readsSchemaColumn(left, fact.bindings, owner.index);
+  const rightColumn = readsSchemaColumn(right, fact.bindings, owner.index);
+  if (leftColumn === rightColumn || !(leftColumn || equality)) {
+    return "unknown";
+  }
+  const value = leftColumn ? right : left;
+  const actual = readPredicateArgument(value, fact.bindings);
+  return actual.kind === "resolved" ? systemWriteValue(actual.value) : "unknown";
+}
+
+function systemPredicateValues(fact: DrizzlePredicate, owner: OwnerColumn): readonly SystemWriteValue[] {
+  if (fact.kind === "and" || fact.kind === "or" || fact.kind === "choice") {
+    return fact.terms.flatMap((term) => systemPredicateValues(term, owner));
+  }
+  return [systemLeafValue(fact, owner)];
+}
+
+function systemStatementValues(anchor: Node): readonly SystemWriteValue[] {
+  const calls = readFollowingBuilderChain(anchor).calls;
+  const inputs = calls.flatMap((call) => {
+    const member = staticMemberAccess(call.getExpression());
+    return member !== undefined && DRIZZLE_WRITE_ARGUMENT_VERBS.some((verb) => verb === member.name) ? call.getArguments().slice(0, 1) : [];
+  });
+  const values = inputs.map((input) => systemWritePayload(input));
+  const config = upsertConfigOf(anchor);
+  if (config === undefined) {
+    return values;
+  }
+  const set = config.asKind(SyntaxKind.ObjectLiteralExpression)?.getProperty(DRIZZLE_UPSERT_SET_KEY)?.asKind(SyntaxKind.PropertyAssignment)?.getInitializer();
+  const inserted = calls.some((call) => staticMemberAccess(call.getExpression())?.name === DRIZZLE_VALUES_VERB);
+  return [...values, set === undefined ? "unknown" : systemWritePayload(set), ...(inserted ? [] : ["unknown" as const])];
+}
+
+/** Write ownership does not follow from null ownership. Only authored system data acquits; direct caller
+ *  data is a finding, while calls, callback projections and injected metadata remain explicit uncertainty. */
+export function writeOwnerProof(anchor: Node, predicate: Node, table: string, index: SchemaTableIndex): SystemWriteProof {
+  const owner = { table, column: OWNER_COL, index };
+  const fact = readDrizzlePredicate(predicate);
+  if (holdsConjunctively(fact, (term) => isOwnerTerm(term, owner, false))) {
+    return { kind: "supported", scoped: true, callerDriven: false };
+  }
+  if (!holdsConjunctively(fact, (term) => isSystemOwnerTerm(term, owner))) {
+    return { kind: "supported", scoped: false, callerDriven: false };
+  }
+  const provenance = combineSystemWriteValues([...systemPredicateValues(fact, owner), ...systemStatementValues(anchor)]);
+  if (provenance === "unknown") {
+    return {
+      kind: "unknown",
+      scoped: false,
+      callerDriven: false,
+      reason: "system-write-provenance: keys, content or timestamp metadata are outside the bounded authored-data proof",
+    };
+  }
+  return { kind: "supported", scoped: provenance === "constant", callerDriven: provenance === "caller" };
+}
+
 /** Does an upsert's conflict target, one column or an array of them, list `column` on exactly `table`? */
 export function targetsTableColumn(target: Node, table: string, column: string, index: SchemaTableIndex): boolean {
   const value = unwrapExpression(target);
@@ -350,7 +436,8 @@ export function whereArgOf(anchor: Node): Node | undefined {
 /** The `onConflictDoUpdate({ … })` CONFIG of the statement this `insert(T)` anchor starts, or undefined —
  *  which means a plain insert or an `onConflictDoNothing`, neither of which can overwrite an existing row.
  *  This is the upsert's answer to `whereArgOf`: an upsert's collision is decided by the conflict TARGET (a
- *  unique index) and the optional `targetWhere`/`setWhere`, never by a `.where` on the statement. */
+ *  unique index); only `setWhere` constrains DO UPDATE. `targetWhere` selects a partial conflict index,
+ *  never an owner guard, and a `.where` on the statement does not constrain the update arm either. */
 export function upsertConfigOf(anchor: Node): Node | undefined {
   const upsertCall = readFollowingBuilderChain(anchor).calls.find((call) => staticMemberAccess(call.getExpression())?.name === DRIZZLE_UPSERT_VERB);
   return upsertCall?.getArguments()[0];

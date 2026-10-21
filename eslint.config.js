@@ -9390,6 +9390,13 @@ const ORDINARY_CONFIG = [
 
 export default ORDINARY_CONFIG;
 
+const SERVER_HARD_SYNTAX = [
+  {
+    selector: String.raw`:matches(Literal[value=type(string)][raw=/corsproxy\.io/], TemplateElement[value.raw=/corsproxy\.io/])`,
+    message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
+  },
+];
+
 // HARD rules run separately so their no-inline-config policy cannot invalidate ordinary native exceptions.
 export const hardConfig = [
   ...ORDINARY_CONFIG.filter(
@@ -9409,11 +9416,20 @@ export const hardConfig = [
   {
     files: rootSources("@server", "@inference"),
     rules: {
+      "no-restricted-syntax": ["error", ...SERVER_HARD_SYNTAX],
+    },
+  },
+  {
+    files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
+    rules: {
       "no-restricted-syntax": [
         "error",
+        ...SERVER_HARD_SYNTAX,
         {
-          selector: String.raw`:matches(Literal[value=type(string)][raw=/corsproxy\.io/], TemplateElement[value.raw=/corsproxy\.io/])`,
-          message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
+          selector:
+            "Program > :matches(ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclaration[exportKind!='type'][declaration.type!='FunctionDeclaration'])",
+          message:
+            "System seed roots cannot forward exports through specifiers, defaults, stars or non-function value declarations; keep the declared seed functions. Function-return escape is outside this syntax claim (D328).",
         },
       ],
     },

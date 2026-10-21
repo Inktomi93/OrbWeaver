@@ -1,5 +1,5 @@
 // STRUCTURAL-PAIRING suite (mirror-exempt `.suite` kind — one property spanning three packages): the server
-// seed-theme OVERRIDEs (`packages/server/src/domain/settings/seed-themes.ts`) must stay byte-equal to the
+// seed-theme OVERRIDEs (`packages/server/src/domain/settings/substrate/seed-themes.ts`) must stay byte-equal to the
 // @orb/ui palette values they mirror — Hearth ↔ the base `TOKENS` ramp, every other seed ↔ its
 // `SEED_THEME_VALUE_SETS` vars (the same OKLCH theme.css emits as `[data-theme=…]` blocks). The cake forbids
 // server↔ui imports, so this test is the ONLY thing that keeps the copies from drifting (the Hearth
@@ -23,7 +23,7 @@ import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import { describe } from "vitest";
 import { THEME_HEARTH_NAME } from "#server/domain/settings/constants.ts";
-import { SEED_THEMES } from "#server/domain/settings/seed-themes.ts";
+import { SEED_THEMES } from "#server/domain/settings/substrate/seed-themes.ts";
 
 // The colour field mapping, declared ONCE: each seed override colour field → the `--color-*` custom
 // property it must equal. Bubbles are nested {bg,fg}; the rest are flat strings.

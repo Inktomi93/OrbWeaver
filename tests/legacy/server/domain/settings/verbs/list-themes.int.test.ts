@@ -5,7 +5,8 @@ import { freshDb } from "@orb/testkit/node/db.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { describe } from "vitest";
 import { THEME_HEARTH_ID } from "#server/domain/settings/constants.ts";
-import { ensureSeedThemes, SEED_THEMES } from "#server/domain/settings/seed-themes.ts";
+import { ensureSeedThemes } from "#server/domain/settings/seed-themes.ts";
+import { SEED_THEMES } from "#server/domain/settings/substrate/seed-themes.ts";
 import { makeHarness, principal, seedUser } from "../_support.ts";
 
 describe("listThemes", () => {
