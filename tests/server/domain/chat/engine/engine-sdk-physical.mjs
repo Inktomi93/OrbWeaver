@@ -1,10 +1,7 @@
 // Physical executable bytes only; native Query owns sessions, controls, classification and cancellation.
 import { once } from "node:events";
-import { readdir, readFile, realpath } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { basename, dirname, join } from "node:path";
 import process from "node:process";
-import { readSdkProcessInput, writeSdkControlReply } from "@orb/testkit/node/sdk-process-control.mjs";
+import { readSdkProcessInput, readSdkResumeTranscript, writeSdkControlReply } from "@orb/testkit/node/sdk-process-control.mjs";
 
 export const ENGINE_SDK_MODEL = "claude-opus-5";
 export const ENGINE_SDK_REPLY = "Hi there";
@@ -23,28 +20,8 @@ function frameText(frame) {
 }
 
 async function importedHistory(runtime, sessionId) {
-  if (typeof runtime !== "string") {
-    throw new Error("native history inspection received no captured runtime");
-  }
-  const canonicalRuntime = await realpath(runtime);
-  if (dirname(canonicalRuntime) !== (await realpath(tmpdir())) || !basename(canonicalRuntime).startsWith("claude-resume-")) {
-    throw new Error("native history inspection refuses a runtime outside its query-owned resume temporary directory");
-  }
-  const projectsPath = join(canonicalRuntime, "projects");
-  const projects = (await readdir(projectsPath, { withFileTypes: true })).filter((entry) => entry.isDirectory());
-  if (projects.length !== 1) {
-    throw new Error("the actual native seed import did not materialize exactly one project");
-  }
-  const projectPath = await realpath(join(projectsPath, projects[0].name));
-  const transcriptPath = await realpath(join(projectPath, `${sessionId}.jsonl`));
-  if (dirname(projectPath) !== projectsPath || dirname(transcriptPath) !== projectPath) {
-    throw new Error("native history inspection refuses a transcript outside the imported project");
-  }
-  const rows = (await readFile(transcriptPath, "utf8"))
-    .split("\n")
-    .filter((line) => line.length > 0)
-    .map((line) => JSON.parse(line))
-    .filter((entry) => entry.type === "user" || entry.type === "assistant");
+  const imported = await readSdkResumeTranscript(runtime, sessionId);
+  const rows = imported.frames.filter((entry) => entry.type === "user" || entry.type === "assistant");
   const first = rows.at(0);
   const last = rows.at(-1);
   return { sessionId, rowCount: rows.length, firstText: first === undefined ? "" : frameText(first), lastText: last === undefined ? "" : frameText(last) };

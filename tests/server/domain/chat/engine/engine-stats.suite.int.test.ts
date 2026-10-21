@@ -88,6 +88,22 @@ test("new-slot + swipe + continue + reviewed impersonate commit: no drift vs rec
   if (source === undefined) {
     throw new Error("the real stats generate committed no assistant slot");
   }
+  const firstGeneration = await rollups(h);
+  for (const grain of ["owner", "characters", "days", "models"] as const) {
+    expect(firstGeneration[grain]).toMatchObject([{ tokensIn: 10, tokensOut: 20 }]);
+    expect(firstGeneration[grain]).toHaveLength(1);
+    expect(firstGeneration[grain][0]?.costUsd).toBeCloseTo(0.000_044, 12);
+  }
+  for (const grain of ["owner", "characters", "days"] as const) {
+    expect(firstGeneration[grain]).toMatchObject([{ assistantTurns: 1 }]);
+  }
+  for (const grain of ["owner", "models"] as const) {
+    expect(firstGeneration[grain]).toMatchObject([{ cacheReadTokens: 5, cacheWriteTokens: 3 }]);
+  }
+  expect(firstGeneration.models).toMatchObject([{ generations: 1 }]);
+  expect(firstGeneration.owner[0]?.ownerId).toBe(h.owner.userId);
+  expect(firstGeneration.characters[0]?.characterId).toBe(source.characterId);
+  expect(firstGeneration.models[0]?.model).toBe(connection.model);
   expect((await h.root.services.chat.swipe({ principal: h.owner, chatId: h.chatId, messageId: source.id })).aborted).toBe(false);
   expect((await h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: source.id })).aborted).toBe(false);
   const beforeDraft = await rollups(h);
