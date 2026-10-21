@@ -35,4 +35,4 @@ Compaction, inline-image and fault-outcome replacements are delivered at `8b468e
 
 The wider engine, turn verbs and scenario consumers remain open with native legacy errors.
 
-Persona/cache source review and runtime pass. Required native import qualification waits on [1221](1221-close-native-import-blockers-in-maintained-server-roots.md). Evidence: `reports/review/1193-persona-cache-review.md`.
+Persona/cache source review and runtime pass. Native import repair is integrated at `c6eb4e713c`. Evidence: `reports/review/1193-persona-cache-review.md` and `reports/review/1221-native-import-blockers-review.md`.

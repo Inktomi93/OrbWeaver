@@ -1,13 +1,6 @@
-import type { Db } from "@orb/db";
-import type { SQLiteTable } from "drizzle-orm/sqlite-core";
 import type { Hono } from "hono";
 
-type PortabilitySchema = Db["_"]["fullSchema"];
-
-/** Canonical table exports, excluding relation declarations and other schema values. */
-export type PortabilityTableName = {
-  [Name in keyof PortabilitySchema]: PortabilitySchema[Name] extends SQLiteTable ? Name : never;
-}[keyof PortabilitySchema];
+export type { SchemaTableName as PortabilityTableName } from "@orb/db/wiring";
 
 export const NON_PORTABLE_CLASSES = ["RULED-OUT", "DERIVED", "RUNTIME", "DEFERRED", "ACCEPTED-LOSSY"] as const;
 export type NonPortableClass = (typeof NON_PORTABLE_CLASSES)[number];

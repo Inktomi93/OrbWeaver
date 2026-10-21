@@ -52,8 +52,10 @@ import type { ProcessEntry } from "../host/platform.ts";
 import { listProcesses } from "../host/platform.ts";
 import type { TranscriptTeardown } from "./proc-contract.ts";
 import { exportProcessEnv, processEnvValue } from "./process-env.ts";
-import type { RunMarkerJoinDeps } from "./run-marker-join.ts";
+import type { RunMarkerDeps, RunMarkerJoinDeps, RunMarkerSweep } from "./run-marker-join.ts";
 import { sweepAndJoin } from "./run-marker-join.ts";
+
+export type { RunMarkerDeps, RunMarkerSweep } from "./run-marker-join.ts";
 
 /** The variable every marked child carries. Spelled ONCE; the launchers set it, this module reads it. */
 export const RUN_MARKER_ENV = "ORB_RUN_MARKER";
@@ -71,26 +73,6 @@ const MARKER_VALUE_RE = /^[^\0\s]+/u;
  *  processes this reaches are ALREADY orphans of a dead run, so the grace buys an orderly chromium exit,
  *  not a chance to finish work. Load-scaled like every wall clock in tooling (`tooling-clock-budget`). */
 const SWEEP_GRACE_BASE_MS = 2000;
-
-/** One sweep's receipt. `terminated` got SIGTERM, `killed` were still alive after the grace. */
-export interface RunMarkerSweep {
-  readonly marker: string;
-  readonly terminated: readonly number[];
-  readonly killed: readonly number[];
-}
-
-/** The reads and signals a sweep performs — injected so a test drives the whole decision without a box. */
-export interface RunMarkerDeps {
-  readonly processTable?: () => readonly ProcessEntry[];
-  readonly listPids?: () => readonly number[];
-  /** Every identity one pid carries — its outer RUN marker and its LEASE, either channel, 0-2 values. */
-  readonly identitiesOf?: (pid: number) => readonly string[];
-  readonly parentOf?: (pid: number) => number | null;
-  readonly signal?: (pid: number, signal: NodeJS.Signals) => void;
-  readonly alive?: (pid: number) => boolean;
-  readonly selfPid?: number;
-  readonly sleep?: (ms: number) => Promise<void>;
-}
 
 export function mintRunMarker(pid: number = process.pid, mintedAtMs: number = Date.now()): string {
   // CRYPTO, not Math.random: this nonce is what makes a marker unguessable and un-collidable, and it is

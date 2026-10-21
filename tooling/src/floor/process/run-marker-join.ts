@@ -2,9 +2,28 @@
 
 import process from "node:process";
 import { budget } from "../host/load-budget.ts";
-import type { ProcessCompletion } from "../host/platform.ts";
+import type { ProcessCompletion, ProcessEntry } from "../host/platform.ts";
 import { completionProcesses, processCompletion } from "../host/platform.ts";
-import type { RunMarkerDeps, RunMarkerSweep } from "./run-marker.ts";
+
+/** One sweep's receipt. `terminated` got SIGTERM, `killed` were still alive after the grace. */
+export interface RunMarkerSweep {
+  readonly marker: string;
+  readonly terminated: readonly number[];
+  readonly killed: readonly number[];
+}
+
+/** The reads and signals a sweep performs — injected so a test drives the whole decision without a box. */
+export interface RunMarkerDeps {
+  readonly processTable?: () => readonly ProcessEntry[];
+  readonly listPids?: () => readonly number[];
+  /** Every identity one pid carries — its outer RUN marker and its LEASE, either channel, 0-2 values. */
+  readonly identitiesOf?: (pid: number) => readonly string[];
+  readonly parentOf?: (pid: number) => number | null;
+  readonly signal?: (pid: number, signal: NodeJS.Signals) => void;
+  readonly alive?: (pid: number) => boolean;
+  readonly selfPid?: number;
+  readonly sleep?: (ms: number) => Promise<void>;
+}
 
 export interface RunMarkerJoinDeps extends RunMarkerDeps {
   readonly completionOf?: (pid: number) => ProcessCompletion;
