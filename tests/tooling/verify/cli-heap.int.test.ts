@@ -14,6 +14,24 @@ const NODE_OPTIONS = "NODE_OPTIONS";
 const timeout = scaledBudget(30_000);
 const record = z.object({ heap: z.number(), options: z.string(), argv: z.string().array(), pid: z.number() });
 
+test.for(["ast", "codemod"] as const)("%s applies the heap default before importing its operations", { timeout }, (tool, { scratch, repoRoot }) => {
+  const output = join(scratch, "heap.json");
+  const preload = join(scratch, "observe.mjs");
+  const cli = join(repoRoot, `tooling/src/${tool}/cli.ts`);
+  writeFileSync(
+    preload,
+    `import {registerHooks} from 'node:module';import {writeFileSync} from 'node:fs';import {getHeapStatistics} from 'node:v8';
+registerHooks({resolve(specifier,context,next){if(context.parentURL===${JSON.stringify(pathToFileURL(cli).href)}&&specifier==='./index.ts')writeFileSync(${JSON.stringify(output)},JSON.stringify({heap:getHeapStatistics().heap_size_limit,options:process.env.NODE_OPTIONS??'',argv:process.argv,pid:process.pid}));return next(specifier,context);}});`,
+  );
+  const result = runNicedSync(process.execPath, ["--import", preload, cli, "--help"], {
+    cwd: repoRoot,
+    env: inheritedProcessEnv({ [NODE_OPTIONS]: "" }),
+    timeout,
+  });
+  expect(result.status, result.stderr).toBe(0);
+  expect(record.parse(JSON.parse(readFileSync(output, "utf8"))).heap).toBeGreaterThan(16 * 1024 ** 3);
+});
+
 const owners = [
   { name: "bare", options: "", args: [], boots: 2, minimum: 16, maximum: 17 },
   { name: "unrelated", options: "--conditions=heap-control", args: [], boots: 2, minimum: 16, maximum: 17 },

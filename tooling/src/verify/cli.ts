@@ -44,9 +44,6 @@ const { EXIT } = await import("../floor/cli/exit-contract.ts");
 const { runTool, UsageError } = await import("../floor/cli/run-tool.ts");
 
 await runTool(async () => {
-  const { reexecWithNodeHeapFloor } = await import("../floor/process/node-heap.ts");
-  reexecWithNodeHeapFloor(process.argv.slice(1));
-
   const {
     parse,
     refuseVerbTail,

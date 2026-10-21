@@ -14,11 +14,13 @@ import "../floor/compiler/semantic-inventory-runtime.ts";
 import process from "node:process";
 import type { Flags } from "./contract/types.ts";
 
+const { prepareToolHeap, runTool, UsageError } = await import("../floor/cli/run-tool.ts");
+prepareToolHeap();
+
 const { CodemodError } = await import("../codemod/index.ts");
 const { print } = await import("../floor/artifacts/artifacts.ts");
 const { EXIT } = await import("../floor/cli/exit-contract.ts");
 const { warn } = await import("../floor/cli/log.ts");
-const { runTool, UsageError } = await import("../floor/cli/run-tool.ts");
 const { LivenessRefusalError } = await import("../floor/code-facts/liveness-contract.ts");
 const { SemanticInventoryError } = await import("../floor/code-facts/semantic-inventory-contract.ts");
 const { semanticInventoryOf } = await import("../floor/code-facts/semantic-inventory-reader.ts");

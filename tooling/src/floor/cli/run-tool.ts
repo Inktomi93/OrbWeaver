@@ -11,6 +11,7 @@
 //     anything, violations may only escalate to toolError, misuse/toolError never lower.
 import process from "node:process";
 import { boxLoadKnobError } from "../host/load-budget.ts";
+import { reexecWithNodeHeapFloor } from "../process/node-heap.ts";
 import type { ExitCode } from "./exit-contract.ts";
 import { EXIT } from "./exit-contract.ts";
 
@@ -37,6 +38,15 @@ function crashExit(label: string, e: unknown): never {
   process.exit(process.exitCode ?? EXIT.toolError);
 }
 
+/** Heavy CLI imports follow this boundary so bootstrap failure remains a tool error. */
+export function prepareToolHeap(): void {
+  try {
+    reexecWithNodeHeapFloor(process.argv.slice(1));
+  } catch (error) {
+    crashExit("heap startup", error);
+  }
+}
+
 /** Run a tool's main with the exit contract enforced on every path. `main` returns its ExitCode (or any
  *  number it computed against EXIT); throwing UsageError is the misuse door; any other throw is a tool
  *  error — never a verdict. */
@@ -45,6 +55,7 @@ export async function runTool(main: () => Promise<number> | number): Promise<voi
   process.on("unhandledRejection", (e) => crashExit("unhandled rejection", e));
   // @orb-waive caught-failure-ownership(e): the UsageError branch writes "ARG ERROR" to stderr and sets exit 3 through escalate(EXIT.misuse); every other throw goes to crashExit, typed never. Ends if either branch stops writing stderr or setting the exit code.
   try {
+    prepareToolHeap();
     // THE AMBIENT-KNOB DOOR (#1666). A mis-spelled `ORB_BOX_LOAD` is MISUSE — the same class as bad argv —
     // but it is read lazily by whichever module first needs a budget, which for several instruments is the
     // IMPORT GRAPH: a throw there escapes before these handlers exist and exits 1, i.e. "violations found"
