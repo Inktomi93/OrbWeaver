@@ -13,7 +13,7 @@ import { isolatedTypeFacts, verifyPolicyProofs } from "../../../../tooling/src/v
 import { scaledBudget } from "../../_load-budget.ts";
 
 const ROOT = "/owners";
-const rows = policyProofRows(gate).filter(({ proof }) => proof.why.startsWith("1199 "));
+const rows = policyProofRows(gate).filter(({ proof }) => ["1199 ", "1126 "].some((prefix) => proof.why.startsWith(prefix)));
 
 test("all declared caught-failure regressions retain their exact finding and authority expectations", {
   timeout: scaledBudget(policyProofRows(gate).length * 1000),

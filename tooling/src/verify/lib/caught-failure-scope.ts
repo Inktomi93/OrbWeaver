@@ -19,7 +19,7 @@ import {
   referencesBinding,
   resolvedFunction,
 } from "./caught-failure-core.ts";
-import { isFailureOutcome } from "./caught-failure-outcome.ts";
+import { cannotReturn, isFailureOutcome } from "./caught-failure-outcome.ts";
 import { rawFailureDeclarations } from "./caught-failure-read.ts";
 import { heldFailureRethrown } from "./caught-failure-retained.ts";
 import { isExplicitOwnerCall } from "./caught-failure-sinks.ts";
@@ -288,6 +288,11 @@ function statementOwner(statement: Node, scan: OwnerScan): OwnerVerdict {
     return "owner";
   }
   if (expression.isKind(SyntaxKind.CallExpression) && callOwns(expression, scan)) {
+    return "owner";
+  }
+  const awaited = expression.asKind(SyntaxKind.AwaitExpression);
+  const executed = awaited === undefined ? expression : unwrapExpression(awaited.getExpression());
+  if (statement.isKind(SyntaxKind.ExpressionStatement) && executed.isKind(SyntaxKind.CallExpression) && cannotReturn(executed, awaited !== undefined, reads)) {
     return "owner";
   }
   return statement.isKind(SyntaxKind.ReturnStatement) ? "escape" : "none";
