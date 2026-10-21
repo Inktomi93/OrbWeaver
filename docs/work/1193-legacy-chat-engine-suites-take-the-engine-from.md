@@ -27,14 +27,14 @@ Observe real provider requests, durable rows and production recorders. Warning c
 
 Impersonation is a non-persisting draft followed by an explicit commit. Retain paid observations and owner/model/daily spend; preserve canon, variants, transcript counters and character attribution. Compare live accounting with reconciliation before and after commit, including retained observations.
 
-Attachment, variant, opt-out, round and solo evidence: `reports/review/1193-leg1-review.md` and `reports/review/1193-leg2-review.md`.
+Earlier controls: `reports/review/1193-leg1-review.md`, `reports/review/1193-leg2-review.md` and `reports/review/1193-leg3-review.md`.
 
-Lifecycle, statistics, greeting, read-budget and memory-build evidence: `07146d4fd2` and `reports/review/1193-leg3-review.md`.
-
-Compaction, inline-image and fault-outcome evidence: `8b468edc18` and `reports/review/1193-leg4-review.md`, including the restored tracing control.
+Compaction, inline-image and fault evidence: `8b468edc18` and `reports/review/1193-leg4-review.md`, including the restored tracing control.
 
 Turn verbs and required scenario consumers remain open with native legacy errors. Deferred copied-handoff replay remains unqualified.
 
-Persona/cache evidence: `e3b0671492` and `reports/review/1193-persona-cache-review.md`. Native import repair: `c6eb4e713c`.
+Persona/cache: `e3b0671492` and `reports/review/1193-persona-cache-review.md`; import repair: `c6eb4e713c`.
 
-Wide-engine replacements: `5ece8b58c9`. Review, meaningful-case mapping, obsolete-producer dispositions and restored lock control: `reports/review/1193-core-wave-review.md`. The replaced legacy engine suite is removed after qualification.
+Wide engine: `5ece8b58c9`. Case mapping, obsolete dispositions and restored lock control: `reports/review/1193-core-wave-review.md`. The replaced legacy engine suite is removed.
+
+Turn authority, event, consent and cancellation wave: `5aad0ad8de` and `reports/review/1193-primary-delivered-wave-review.md`. Remaining legacy assemblies stay until full closure.

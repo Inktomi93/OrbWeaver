@@ -18,6 +18,7 @@ import {
 import { makeAsset, makeAssetBytes } from "@orb/testkit/node/factories/asset.ts";
 import { makePluginBundle, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/factories/plugin.ts";
 import { seedAdminProvider } from "@orb/testkit/node/factories/provider.ts";
+import type { ServerHarnessOptions } from "@orb/testkit/node/server.ts";
 import { and, eq } from "drizzle-orm";
 
 export const IMAGE_PROSE = "She unrolls the map.";
@@ -42,20 +43,41 @@ export function nativeTool(): JsonValue {
   return { functionCall: { id: "same", name: IMAGE_TOOL, args: {} }, thoughtSignature: TOOL_SIGNATURE };
 }
 
-function nativeResponse(parts: readonly JsonValue[]): Response {
+interface NativeModalityCount {
+  readonly modality: string;
+  readonly tokenCount: number;
+}
+
+interface NativeImageUsage {
+  readonly promptTokenCount?: number;
+  readonly candidatesTokenCount: number;
+  readonly totalTokenCount: number;
+  readonly thoughtsTokenCount?: number;
+  readonly cachedContentTokenCount?: number;
+  readonly promptTokensDetails?: readonly NativeModalityCount[];
+  readonly candidatesTokensDetails?: readonly NativeModalityCount[];
+}
+
+function nativeResponse(parts: readonly JsonValue[], usageMetadata: NativeImageUsage): Response {
   const frames = [
     ...parts.map((part) => ({ candidates: [{ content: { role: "model", parts: [part] } }] })),
     {
       candidates: [{ content: { role: "model", parts: [] }, finishReason: "STOP" }],
-      usageMetadata: { promptTokenCount: 10, candidatesTokenCount: 4, totalTokenCount: 14 },
+      usageMetadata,
     },
   ];
   return new Response(frames.map((frame) => `data: ${JSON.stringify(frame)}\n\n`).join(""), { headers: { "content-type": "text/event-stream" } });
 }
 
+interface ImagePhysicalOptions extends Pick<ServerHarnessOptions, "db"> {
+  readonly cachedContentTokenCount?: number;
+  readonly usageMetadata?: ReadonlyMap<number, NativeImageUsage>;
+}
+
 export async function imageRoom(
   script: readonly (readonly JsonValue[])[],
   tools = false,
+  physicalOptions: ImagePhysicalOptions = {},
 ): Promise<
   AsyncDisposable & {
     readonly h: Awaited<ReturnType<typeof createChatRoot>>;
@@ -90,15 +112,24 @@ export async function imageRoom(
     await createChatRoot({
       memoryEnabled: false,
       group: { output: "per-speaker", policy: "list", allowSelfResponses: true },
-      server: { secretBoxKey: Buffer.alloc(32, 1), pluginSpawn: spawn },
+      server: { secretBoxKey: Buffer.alloc(32, 1), pluginSpawn: spawn, ...(physicalOptions.db === undefined ? {} : { db: physicalOptions.db }) },
       providerFetch: async (input, init) => {
         const request = new Request(input, init);
         if (request.method === "POST" && new URL(request.url).pathname.endsWith(":streamGenerateContent")) {
-          const parts = script[next++];
+          const exchange = next++;
+          const parts = script[exchange];
           if (parts === undefined) {
             throw new Error("the finite native image completion script is exhausted");
           }
-          return nativeResponse(parts);
+          return nativeResponse(
+            parts,
+            physicalOptions.usageMetadata?.get(exchange) ?? {
+              promptTokenCount: 10,
+              candidatesTokenCount: 4,
+              totalTokenCount: 14,
+              ...(physicalOptions.cachedContentTokenCount === undefined ? {} : { cachedContentTokenCount: physicalOptions.cachedContentTokenCount }),
+            },
+          );
         }
         return await physical.execute(request);
       },
