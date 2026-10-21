@@ -243,7 +243,14 @@ export class Sandbox implements Disposable {
             collectTool: (reg, handler): void => {
               const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;
               state.handlers.set(ref, handler);
-              state.tools.push({ name: reg.name, description: reg.description, parameters: reg.parameters, handler: ref });
+              state.tools.push({
+                name: reg.name,
+                description: reg.description,
+                parameters: reg.parameters,
+                ...(reg.displayName === undefined ? {} : { displayName: reg.displayName }),
+                ...(reg.replayHistory === undefined ? {} : { replayHistory: reg.replayHistory }),
+                handler: ref,
+              });
             },
             collectTransform: (reg, handler): void => {
               const ref = `plugin-handler-${refCounter++}` as PluginHandlerRef;

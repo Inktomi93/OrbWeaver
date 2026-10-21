@@ -20,8 +20,10 @@ The legacy role-swap fixture concealed the interaction between frozen replay aut
 
 ## Done when
 
-Resolve the queued-turn behavior under D19 and D131 from the actual public producers. Preserve frozen funding and assembly authority, single-owned card access, accepted-copy custody and subsequent new-host turns. Qualify the composed regression and relevant negative ownership controls without a waiver, private test API or fabricated role change. Record any required owner decision explicitly rather than weakening the assertion.
+Implement D332 settlement before acceptance under D19 and D131. Preserve frozen funding and assembly authority, single-owned card access, accepted-copy custody and subsequent new-host turns. Qualify queued settlement, failed settlement, claim and admission races, owned continuation work and unchanged normal turn concurrency. Add no waiver, private test API or fabricated role change.
 
 ## Evidence
 
 The public-copy replay fails in `reports/runs/test/codex-persona-cache-1193-3401863-2026-10-21T02-48-39-407Z/test-report.json` within the speaker/funding worktree. The unchanged logger reports `ChatOperationError`, code `speaker_off_roster`, for the persisted pending-turn id. The implementation and review records are `reports/review/1193-speaker-funding-implementation.md` and `reports/review/1193-speaker-funding-review.md`.
+
+[D332](../adr/0332-host-handoff-settles-old-authority-work-before-transfer.md) selects settlement before transfer and retry refusal when settlement fails. Implementation remains open.

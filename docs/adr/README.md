@@ -278,3 +278,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D329 | [Data-layout and portability registry shapes have exact homes](0329-data-layout-and-portability-registry-type-homes.md) | active |
 | D330 | [Multi-human persona resolution is membership-gated, and the first-run persona ask can be opted into on an automation stack](0330-multi-human-persona-resolution-and-first-run-seed-opt-out.md) | active |
 | D331 | [Tooling and test shapes stay beside the function that uses them](0331-tooling-and-test-shapes-stay-beside-their-function.md) | active |
+| D332 | [Host handoff settles old-authority work before transfer](0332-host-handoff-settles-old-authority-work-before-transfer.md) | active |

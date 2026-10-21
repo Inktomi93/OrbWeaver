@@ -29,12 +29,14 @@ Impersonation is a non-persisting draft followed by an explicit commit. Retain p
 
 Earlier controls: `reports/review/1193-leg1-review.md`, `reports/review/1193-leg2-review.md` and `reports/review/1193-leg3-review.md`.
 
-Compaction, inline-image and fault evidence: `8b468edc18` and `reports/review/1193-leg4-review.md`, including the restored tracing control.
+Compaction, inline-image and fault evidence: `8b468edc18` and `reports/review/1193-leg4-review.md`.
 
 Turn verbs and required scenario consumers remain open with native legacy errors. Deferred copied-handoff replay remains unqualified.
 
 Persona/cache: `e3b0671492` and `reports/review/1193-persona-cache-review.md`; import repair: `c6eb4e713c`.
 
-Wide engine: `5ece8b58c9`. Case mapping, obsolete dispositions and restored lock control: `reports/review/1193-core-wave-review.md`. The replaced legacy engine suite is removed.
+Wide engine: `5ece8b58c9`. Case mapping, obsolete dispositions and restored lock control: `reports/review/1193-core-wave-review.md`.
 
 Turn authority, event, consent and cancellation wave: `5aad0ad8de` and `reports/review/1193-primary-delivered-wave-review.md`. Remaining legacy assemblies stay until full closure.
+
+RPG and tool metadata: `4d53b6d835` and `reports/review/1193-turn-rpg-review.md`.
