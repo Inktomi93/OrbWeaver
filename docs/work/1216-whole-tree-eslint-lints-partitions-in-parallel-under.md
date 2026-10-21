@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-20
+status: doing
+updated: 2026-10-21
 priority: P2
+lane: codex/eslint-partition-budget-1216
 plan: test-foundation
 ---
 

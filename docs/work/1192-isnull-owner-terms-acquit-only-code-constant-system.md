@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-20
+updated: 2026-10-21
 priority: P2
 area: security
 plan: test-foundation
@@ -19,8 +19,14 @@ An unowned shared row written from caller input is a tenancy bypass; waivers for
 
 ## Done when
 
-isNull acquits a write only when every key and set value is a code constant with no parameter or caller-derived input (system plane); a caller-driven isNull write is flagged; the three seed writes pass structurally with no new waiver and the budget does not rise; red-first rows for both.
+The bounded write check rejects caller-derived shared-row keys and content. Unclosed provenance is an explicit advisory unknown, not caller authority. Private seed operations construct shipped keys and content without accepting caller rows, configuration or versions; injected time remains metadata. Native import and export restrictions enforce the declared seed boundary. Production-root controls prove shared convergence and owned-row preservation, including an ownership change during reseed. Qualify affected compiler programs, the complete policy population and authority accounting without new waivers, grants or budget growth.
 
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+The constant-only premise conflicts with the injected boot clock and seed producers. D328 governs the bounded native successor and the revised acceptance above; it does not require general callable or escape proof. The implementation and scoped evidence are in `reports/review/1190-1192-tenancy-write-implementation.md`. Independent security review in `reports/review/1190-1192-security-review.md` confirms the bounded source outcome after corrections. Affected native compiler programs pass. Complete-population and authority qualification remain open.
+
+The complete-policy attempt aborts with a controller heap failure during SQLite materialization. Its incomplete output establishes no policy verdict, grant consumption or budget qualification. Evidence: `reports/review/1190-1192-qualification-plan.md`.
+
+The reviewed bounded implementation is integrated at `f08b8ea44d`. Source integration does not close complete-policy and authority qualification. The shared observation repair owns the prerequisite.

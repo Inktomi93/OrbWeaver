@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-20
+updated: 2026-10-21
 priority: P1
 plan: test-foundation
 ---
@@ -25,3 +25,7 @@ The reader recognises each owner pattern with a red-first case and a fooled-owne
 Filled at landing: what ran and where its output is.
 
 After 1049 merged: also relay/execution.ts:42, failures thrown by the returned object's \[Symbol.asyncDispose]; quick-tunnel.ts:69 settled never rejects, so if the RelayProcess contract (relay contract.ts:66) says so, drop the rejection path instead of adding a rule. The AggregateError owner still clears a site where failures.splice(0) empties the collection between push and the guarded throw: add a red-first row.
+
+The complete current-main census and additional sites are recorded in `reports/review/1199-current-population-check.md`. The nomination list is not the whole-policy backlog. The bounded reader batch is integrated at `6dba4c9a53`. Independent review, compiler checks and actual native-site qualification are recorded in `reports/review/1199-caught-failure-implementation.md` and `reports/review/1199-bounded-owner-review.md`. Complete candidate-population qualification remains open. Unsupported owners remain assigned here rather than receiving waivers.
+
+The remaining source dispositions exceed the supported local ownership patterns. D328 bounds further implementation. Evidence: `reports/review/1199-next-owner-batch.md`. The independent predicate-dispatch batch is assigned to the existing escalated-reader item.

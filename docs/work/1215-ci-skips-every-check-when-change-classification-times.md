@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-10-20
+updated: 2026-10-21
 priority: P1
 plan: test-foundation
 ---
@@ -27,3 +27,5 @@ Run-backed discovery avoids unpublished workflow-tree reads. The bounded workflo
 Hosted run `39469280964` completes classification within its budget and executes the application jobs. Smoke and maintained CT pass; other jobs report failures. Static qualification remains incomplete because entry-membership collection refuses a shared helper origin. The reader correction is on main at `bdd658f11f`; hosted acceptance remains open until CI measures the complete static population.
 
 Hosted run `39483788717` completes classification and executes application jobs. Static reaches ESLint, then hits the configured job limit; complete hosted acceptance remains unqualified. Evidence: `reports/review/ci-39483788717/triage.md`.
+
+Hosted run `39620796838` executes the pushed main candidate `a674872615`. The changes job completes through fallback after a historical GitHub API read fails. Application jobs finish with failures; static qualification remains incomplete. This does not establish strict classification or baseline authority. No classifier change is justified. Evidence: `reports/review/1215-current-hosted-qualification.md`. The lint scheduling item owns the independent performance work.

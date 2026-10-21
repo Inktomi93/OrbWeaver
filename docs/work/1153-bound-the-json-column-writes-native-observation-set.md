@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-19
+status: doing
+updated: 2026-10-21
 priority: P1
+lane: codex/ordinary-demand-1153
 plan: test-foundation
 ---
 
