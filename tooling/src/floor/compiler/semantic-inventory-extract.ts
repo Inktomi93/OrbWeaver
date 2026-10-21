@@ -284,7 +284,7 @@ export function extractInventoryPartition(request: InventoryBuildRequest): Inven
         });
   return {
     intent: request.intent ?? "facts",
-    referenceMode: workerReferenceMode(request),
+    referenceMode: families.includes("references") ? workerReferenceMode(request) : "complete",
     available,
     format: INVENTORY_FORMAT,
     families,
@@ -485,7 +485,7 @@ function extractTypedFacts(
 }
 
 function workerReferenceMode(request: InventoryBuildRequest): import("../code-facts/semantic-inventory-contract.ts").InventoryReferenceMode {
-  return request.referenceDemand?.mode ?? "complete";
+  return request.referenceDemand?.mode ?? "closed";
 }
 function workerReferenceQueries(request: InventoryBuildRequest): readonly import("../code-facts/semantic-inventory-contract.ts").InventoryReferencePair[] {
   return request.referenceDemand?.queries ?? [];
@@ -497,7 +497,7 @@ function assertReferenceRequest(request: InventoryBuildRequest, families: readon
   }
 }
 function sourceFamilies(families: readonly InventoryFamily[], request: InventoryBuildRequest): Set<InventoryFamily> {
-  return new Set(families.filter((family) => family !== "references" || request.referenceDemand?.mode !== "closed"));
+  return new Set(families.filter((family) => family !== "references" || workerReferenceMode(request) !== "closed"));
 }
 
 function registerReferenceDeclarations(

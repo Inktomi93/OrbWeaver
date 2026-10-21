@@ -207,7 +207,7 @@ async function run(mode: string, implementation: string, root: string): Promise<
     active = true;
     let refusal: string | null = null;
     try {
-      using _current = createSemanticInventory({ root });
+      using _current = createSemanticInventory({ root, referenceDemand: { mode: "complete", queries: [] } });
     } catch (error) {
       refusal = String(error);
     }
@@ -235,7 +235,10 @@ async function run(mode: string, implementation: string, root: string): Promise<
     };
   };
   try {
-    using previous = createSemanticInventory({ root });
+    using previous = createSemanticInventory({
+      root,
+      ...(mode !== "unrelated-document" && mode !== "sdk-pins" ? { referenceDemand: { mode: "complete" as const, queries: [] } } : {}),
+    });
     using database = openInventoryDatabase(path);
     if (mode === "unrelated-document") {
       return unrelatedDocument(previous, database);

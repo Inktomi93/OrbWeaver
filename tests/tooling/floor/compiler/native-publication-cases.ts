@@ -238,7 +238,7 @@ async function run(mode: string, implementation: string, root: string): Promise<
         },
       });
       try {
-        using current = createSemanticInventory({ root });
+        using current = createSemanticInventory({ root, referenceDemand: { mode: "complete", queries: [] } });
         const before = queries;
         const declaration = current.sourceCorpus().getSourceFile(a)?.getVariableDeclarationOrThrow("a");
         if (declaration === undefined) {

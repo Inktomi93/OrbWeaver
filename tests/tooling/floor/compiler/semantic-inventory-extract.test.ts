@@ -133,7 +133,7 @@ test("Git admission of an ignored native import rebuilds authored facts without 
   execFixtureGit(scratch, ["init", "-q"]);
   const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
   const workers: string[] = [];
-  using previous = nativeInventoryFixture({ root: scratch }, { workers });
+  using previous = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } }, { workers });
   using metadata = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
   const original = capturedMetadata(metadata, previous.generation);
   expect(original.sources.find((source) => source.file === dependency)?.authored).toBe(false);
@@ -150,7 +150,7 @@ test("Git admission of an ignored native import rebuilds authored facts without 
     ),
   ).toBe(true);
   expect(inputsCurrent(original.inputs, context)).toBe(false);
-  using current = nativeInventoryFixture({ root: scratch }, { workers });
+  using current = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } }, { workers });
   expect(workers).toHaveLength(2);
   expect(capturedMetadata(metadata, current.generation).sources.find((source) => source.file === dependency)?.authored).toBe(true);
   const currentValue = fixtureValue(current.sourceCorpus().getSourceFile(dependency)).getVariableDeclarationOrThrow("value");
@@ -178,7 +178,7 @@ test("Git admission of a language-service-only JS declaration invalidates its re
   execFixtureGit(scratch, ["init", "-q"]);
   const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
   const workers: string[] = [];
-  using previous = nativeInventoryFixture({ root: scratch }, { workers });
+  using previous = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } }, { workers });
   using metadata = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
   const original = capturedMetadata(metadata, previous.generation);
   expect(original.sources.some((source) => source.file === dependency)).toBe(false);
@@ -193,7 +193,7 @@ test("Git admission of a language-service-only JS declaration invalidates its re
     ),
   ).toBe(true);
   expect(inputsCurrent(original.inputs, context)).toBe(false);
-  using current = nativeInventoryFixture({ root: scratch }, { workers });
+  using current = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } }, { workers });
   expect(workers).toHaveLength(2);
   const updated = capturedMetadata(metadata, current.generation);
   expect(updated.sources.some((source) => source.file === dependency)).toBe(false);
@@ -225,7 +225,7 @@ test.for(["toward", "away", "add", "remove"] as const)(
     execFixtureGit(scratch, ["init", "-q"]);
     const descriptor = fixtureValue(readCompilerPrograms(scratch)[0]);
     const workers: string[] = [];
-    using previous = nativeInventoryFixture({ root: scratch }, { workers });
+    using previous = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } }, { workers });
     using metadata = openInventoryDatabase(join(scratch, ".cache/semantic-inventory.sqlite"));
     const original = capturedMetadata(metadata, previous.generation);
     expect(original.sources.find((source) => source.file === dependency)?.authored).toBe(before);
@@ -245,7 +245,7 @@ test.for(["toward", "away", "add", "remove"] as const)(
       ),
     ).toBe(true);
     expect(inputsCurrent(original.inputs, context)).toBe(false);
-    using current = nativeInventoryFixture({ root: scratch }, { workers });
+    using current = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } }, { workers });
     expect(workers).toHaveLength(2);
     expect(capturedMetadata(metadata, current.generation).sources.find((source) => source.file === dependency)?.authored).toBe(!before);
     const previousValue = fixtureValue(previous.sourceCorpus().getSourceFile(dependency)).getVariableDeclarationOrThrow("value");
@@ -373,7 +373,7 @@ test.for(["identical", "different", "symlink"] as const)(
         expect(partition.exports.find((entry) => entry.file === path && entry.name === "value")?.declarations).toEqual(declarations);
         expect(declarations[0]?.file).toBe(path === other ? other : left);
         expect(partition.sources.find((entry) => entry.path === path)?.text).toBe(readFileSync(path, "utf8"));
-        expect(partition.inputs).toContainEqual({ path, kind: "file", version: inputVersion(path, "file") });
+        expect(partition.inputs).toContainEqual(expect.objectContaining({ path, kind: "file", version: inputVersion(path, "file") }));
       }
       expect(partition.exports.some((entry) => entry.file === right && entry.name === "unrelated")).toBe(false);
       const origin = fixtureValue(partition.exports.find((entry) => entry.file === right && entry.name === "value")?.declarations[0]);

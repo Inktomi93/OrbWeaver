@@ -27,7 +27,7 @@ function initialize(root: string): void {
   execFixtureGit(root, ["init", "-q"]);
 }
 
-test("scalar-only extraction requests no reference pass while default inventory keeps its existing families", ({ scratch }) => {
+test("scalar-only extraction requests no reference pass while default inventory closes its existing reference family", ({ scratch }) => {
   initialize(scratch);
   const descriptor = readCompilerPrograms(scratch)[0];
   if (descriptor === undefined) {
@@ -72,7 +72,12 @@ test("scalar-only extraction requests no reference pass while default inventory 
     expect(legacy.families).toEqual([...DEFAULT_INVENTORY_FAMILIES].toSorted());
     expect([legacy.declarationOutputs, legacy.runtimeExports]).toEqual([[], []]);
     expect(legacy.exports.length).toBeGreaterThan(0);
-    expect(legacy.references.length).toBeGreaterThan(0);
+    expect(legacy.referenceMode).toBe("closed");
+    expect(legacy.references).toEqual([]);
+    const complete = extractInventoryPartition({ ...request, referenceDemand: { mode: "complete", queries: [] } });
+    expect(passes).toBe(2);
+    expect(complete.referenceMode).toBe("complete");
+    expect(complete.references.length).toBeGreaterThan(0);
   } finally {
     for (const cleanup of restore) {
       cleanup();

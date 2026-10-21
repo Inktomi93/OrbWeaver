@@ -217,7 +217,7 @@ test("strict reference SQL rejects missing, truncated, orphaned and foreign clos
   expect(read()[0]).toEqual(query);
 });
 
-test("closed demand reuse, order, default completeness and failed publication preserve pinned generations", { timeout: scaledBudget(120_000) }, ({
+test("closed demand reuse, order, explicit completeness and failed publication preserve pinned generations", { timeout: scaledBudget(120_000) }, ({
   scratch,
 }) => {
   const options = oneWorld(scratch);
@@ -229,26 +229,42 @@ test("closed demand reuse, order, default completeness and failed publication pr
   using reused = nativeInventoryFixture(options, { workers });
   expect(workers).toEqual([]);
   expect(reused.generation).toBe(first.generation);
-  expect(() =>
-    nativeInventoryFixture(
+  for (const queries of [[...options.referenceDemand.queries].reverse(), []]) {
+    using subset = nativeInventoryFixture(
       {
         ...options,
-        referenceDemand: { ...options.referenceDemand, queries: [...options.referenceDemand.queries].reverse() },
+        referenceDemand: { ...options.referenceDemand, queries },
       },
       { failWorker: true },
-    ),
-  ).toThrow("injected native worker exit");
+    );
+    expect(subset.generation).toBe(first.generation);
+  }
+  const missing = source.getVariableDeclarationOrThrow("outside").getInitializerOrThrow();
   expect(() =>
     nativeInventoryFixture(
       {
         ...options,
-        referenceDemand: { ...options.referenceDemand, queries: [] },
+        referenceDemand: {
+          ...options.referenceDemand,
+          queries: [
+            ...options.referenceDemand.queries,
+            {
+              ...required(options.referenceDemand.queries[0]),
+              node: { file: missing.getSourceFile().getFilePath(), start: missing.getStart(), end: missing.getEnd(), kind: missing.getKind() },
+            },
+          ],
+        },
       },
       { failWorker: true },
     ),
   ).toThrow("injected native worker exit");
   expect(physical(first.references(use, "tsconfig.json", source))).toEqual(before);
-  using complete = nativeInventoryFixture({ root: scratch, programs: options.programs, families: ["references"] });
+  using complete = nativeInventoryFixture({
+    root: scratch,
+    programs: options.programs,
+    families: ["references"],
+    referenceDemand: { mode: "complete", queries: [] },
+  });
   const own = required(complete.sourceCorpus().getSourceFile("shared.ts"));
   expect(complete.references(own.getVariableDeclarationOrThrow("isolated"))).toEqual([]);
   const completeCommon = required(own.getDescendantsOfKind(SyntaxKind.InterfaceDeclaration).find((node) => node.getName() === "Common")).getNameNode();
@@ -279,17 +295,29 @@ test("reference session admits the exact importer-query pair only before one sea
   expect(() => session.references("owner", [query], source)).toThrow("disposed");
 });
 
-test("a malformed exited-worker answer never publishes and transaction bytes retain their own exact query cohort", ({ scratch }) => {
+test("a malformed exited-worker answer never publishes and transaction bytes retain their own exact query cohort", { timeout: scaledBudget(120_000) }, ({
+  scratch,
+}) => {
   const options = oneWorld(scratch);
   using before = nativeInventoryFixture(options);
   const source = required(before.sourceCorpus().getSourceFile("shared.ts"));
   const use = source.getVariableDeclarationOrThrow("use").getInitializerOrThrow();
   const original = physical(before.references(use, "tsconfig.json", source));
+  const missing = source.getVariableDeclarationOrThrow("outside").getInitializerOrThrow();
   expect(() =>
     nativeInventoryFixture(
       {
         ...options,
-        referenceDemand: { ...options.referenceDemand, queries: [...options.referenceDemand.queries].reverse() },
+        referenceDemand: {
+          ...options.referenceDemand,
+          queries: [
+            ...options.referenceDemand.queries,
+            {
+              ...required(options.referenceDemand.queries[0]),
+              node: { file: missing.getSourceFile().getFilePath(), start: missing.getStart(), end: missing.getEnd(), kind: missing.getKind() },
+            },
+          ],
+        },
       },
       { fault: "reference-coverage" },
     ),

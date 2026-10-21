@@ -782,7 +782,7 @@ function assertReferenceCohort(
 
 function referenceDemand(options: SemanticInventoryOptions, program: string): NonNullable<InventoryBuildRequest["referenceDemand"]> {
   return {
-    mode: options.referenceDemand?.mode ?? "complete",
+    mode: options.referenceDemand?.mode ?? "closed",
     queries: [
       ...new Map(
         (options.referenceDemand?.queries ?? [])
@@ -814,11 +814,11 @@ function coversReferenceDemand(
   if (demand === undefined) {
     return true;
   }
-  if (partition.referenceMode !== demand.mode) {
+  if (demand.mode === "complete" && partition.referenceMode !== "complete") {
     return false;
   }
-  const queries = [...readInventoryReferenceQueries(db, partition.id)].map((entry) => referenceQueryKey({ root: entry.root, node: entry.query }));
-  return JSON.stringify(queries) === JSON.stringify(demand.queries.map((pair) => referenceQueryKey(pair)));
+  const queries = new Set([...readInventoryReferenceQueries(db, partition.id)].map((entry) => referenceQueryKey({ root: entry.root, node: entry.query })));
+  return demand.queries.every((pair) => queries.has(referenceQueryKey(pair)));
 }
 
 function exportDemand(options: SemanticInventoryOptions, program: string): readonly InventoryExportDeclarationQuery[] {

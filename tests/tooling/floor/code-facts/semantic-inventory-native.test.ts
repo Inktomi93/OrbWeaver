@@ -79,7 +79,7 @@ function source(inventory: SemanticInventory, path: string): NonNullable<ReturnT
 test("stored native collectors preserve aliases, namespace bindings, lazy members, references and consumer classes", ({ scratch }) => {
   initialize(scratch);
   const native = createSemanticWorkspace({ root: scratch });
-  using stored = nativeInventoryFixture({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } });
   expect(verdicts(stored.sourceCorpus())).toEqual(verdicts(native.sourceCorpus()));
   const base = source(stored, "packages/kit/src/base.ts");
   const alive = base.getVariableDeclarationOrThrow("alive");
@@ -115,7 +115,7 @@ export function consumer(): void { called(); }
 `,
   );
   const workspace = createSemanticWorkspace({ root: scratch });
-  using stored = nativeInventoryFixture({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } });
   const corpus = mode === "native" ? workspace.sourceCorpus() : stored.sourceCorpus();
   const file = fixtureValue(corpus.getSourceFile("packages/kit/src/usage.ts"));
   let queries = 0;
@@ -206,7 +206,7 @@ export function shadows(shadowOnly: () => void): void { shadowOnly(); }
 `,
   );
   const workspace = createSemanticWorkspace({ root: scratch });
-  using stored = nativeInventoryFixture({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } });
   const summarize = (corpus: SourceCorpus): object => {
     const live = buildLiveness(corpus);
     return {
@@ -279,7 +279,7 @@ export function consumer(): void { called(); }
   );
   write(scratch, "packages/kit/src/documented-barrel.ts", "export { unused as renamedUnused } from './documented';\n");
   const native = createSemanticWorkspace({ root: scratch });
-  using stored = nativeInventoryFixture({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } });
   const corpus = stored.sourceCorpus();
   const file = source(stored, "packages/kit/src/documented.ts");
   const live = buildLiveness(corpus);
@@ -353,7 +353,7 @@ test.for(["comparison", "live-origin", "empty-origin", "dead-evidence"] as const
       "packages/kit/src/shifted.ts",
       "export function unused(): void {} export function consumer(): void { unused(); } export function isolated(): void {}\n",
     );
-    using stored = nativeInventoryFixture({ root: scratch });
+    using stored = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } });
     const corpus = stored.sourceCorpus();
     const file = source(stored, "packages/kit/src/shifted.ts");
     const contextual = fixtureValue([...ownExports(file)].find((entry) => entry.name === "unused")).decl;
@@ -650,7 +650,7 @@ test("stored dead evidence refuses unindexed dependency barrel origins instead o
   ).toEqual([join(scratch, "packages/client/src/browser.ts"), join(scratch, "packages/client/src/browser.ts")]);
   expect(deadEvidenceFor(nativeCorpus, nativeOrigin, "native", buildLiveness(nativeCorpus))).toMatchObject({ verdict: "ALIVE" });
 
-  using stored = nativeInventoryFixture({ root: scratch });
+  using stored = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } });
   const corpus = stored.sourceCorpus();
   const live = buildLiveness(corpus);
   const origins = declarationsNamed(corpus.getSourceFiles(), "native");
@@ -711,7 +711,7 @@ for (const carrier of ["references", "exports"] as const) {
       }
     };
     const expected = carrier === "references" ? capture(semanticReferenceNodes(ambient.getInterfaceOrThrow("Map").getNameNode())) : nativeExports();
-    using stored = nativeInventoryFixture({ root: scratch });
+    using stored = nativeInventoryFixture({ root: scratch, referenceDemand: { mode: "complete", queries: [] } });
     const close = vi.spyOn(DatabaseSync.prototype, "close");
     const program = vi.spyOn(Project.prototype, "getProgram").mockImplementation(() => {
       throw new Error("stored syntax hydrated a native Program");

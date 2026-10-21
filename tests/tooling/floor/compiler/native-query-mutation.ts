@@ -27,7 +27,7 @@ function mutateQueryFileSystem(root: string, mode: (typeof NATIVE_QUERY_MUTATION
   }
 }
 
-/** The copied worker's real native query runs exactly once after the closed filesystem intervention. */
+/** Apply the closed filesystem intervention at the copied worker's first native reference lookup. */
 export function installNativeQueryMutation(root: string, mode: (typeof NATIVE_QUERY_MUTATIONS)[number]): () => void {
   const original = Project.prototype.getLanguageService;
   const observed = new Set<ReturnType<Project["getLanguageService"]>>();
@@ -47,29 +47,36 @@ export function installNativeQueryMutation(root: string, mode: (typeof NATIVE_QU
       if (!observed.has(service)) {
         observed.add(service);
         const create = service.compilerObject.createReadonlyReferencePass;
-        Object.defineProperty(service.compilerObject, "createReadonlyReferencePass", {
-          value: (...args: Parameters<typeof create>): ReturnType<typeof create> => {
-            const pass = create.apply(service.compilerObject, args);
-            const find = pass.findReferences;
-            const descriptor = Object.getOwnPropertyDescriptor(pass, "findReferences");
-            Object.defineProperty(pass, "findReferences", {
-              configurable: true,
-              value: (...query: Parameters<typeof find>): ReturnType<typeof find> => {
-                mutate();
-                return find.apply(pass, query);
-              },
-            });
-            restores.push(() => {
-              if (descriptor === undefined) {
-                Reflect.deleteProperty(pass, "findReferences");
-              } else {
-                Object.defineProperty(pass, "findReferences", descriptor);
+        restores.push(
+          plantPrototypeFault(service.compilerObject, "createReadonlyReferencePass", {
+            value: (...args: Parameters<typeof create>): ReturnType<typeof create> => {
+              const pass = create.apply(service.compilerObject, args);
+              const occurrences = pass.findReferencesFromOccurrences;
+              if (typeof occurrences === "function") {
+                restores.push(
+                  plantPrototypeFault(pass, "findReferencesFromOccurrences", {
+                    configurable: true,
+                    value: (...queries: Parameters<typeof occurrences>): ReturnType<typeof occurrences> => {
+                      mutate();
+                      return occurrences.apply(pass, queries);
+                    },
+                  }),
+                );
               }
-            });
-            return pass;
-          },
-        });
-        restores.push(() => Object.defineProperty(service.compilerObject, "createReadonlyReferencePass", { value: create }));
+              const find = pass.findReferences;
+              restores.push(
+                plantPrototypeFault(pass, "findReferences", {
+                  configurable: true,
+                  value: (...query: Parameters<typeof find>): ReturnType<typeof find> => {
+                    mutate();
+                    return find.apply(pass, query);
+                  },
+                }),
+              );
+              return pass;
+            },
+          }),
+        );
       }
       return service;
     },

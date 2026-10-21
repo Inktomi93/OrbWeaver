@@ -721,7 +721,7 @@ test("indexed records round-trip every native partition field and raw reference 
   }
   const destination = join(scratch, ".cache/native.sqlite");
   using database = openInventoryDatabase(destination);
-  const native = extractInventoryPartition({ root: scratch, descriptor, destination });
+  const native = extractInventoryPartition({ root: scratch, descriptor, destination, referenceDemand: { mode: "complete", queries: [] } });
   for (const facts of [native.sources, native.exports, native.modules, native.bindings, native.references, native.referenceNames ?? [], native.witnesses]) {
     expect(facts.length).toBeGreaterThan(0);
   }
