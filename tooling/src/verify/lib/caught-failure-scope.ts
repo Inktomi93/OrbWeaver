@@ -21,6 +21,7 @@ import {
 } from "./caught-failure-core.ts";
 import { isFailureOutcome } from "./caught-failure-outcome.ts";
 import { rawFailureDeclarations } from "./caught-failure-read.ts";
+import { heldFailureRethrown } from "./caught-failure-retained.ts";
 import { isExplicitOwnerCall } from "./caught-failure-sinks.ts";
 
 // ── framework provenance ────────────────────────────────────────────────────────────────────────────────
@@ -148,6 +149,9 @@ function assignmentOwns(expression: Node, errorBinding: Node | undefined, reads?
     return false;
   }
   const left = expression.getLeft();
+  if (heldFailureRethrown(expression, errorBinding, reads)) {
+    return true;
+  }
   const member = literalMember(left, reads);
   if (member === undefined) {
     return false;

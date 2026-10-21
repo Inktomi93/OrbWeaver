@@ -256,3 +256,22 @@ function typeIsFailureOutcome(node: Node, reads?: CaughtFailureReadServices): bo
   }
   return false;
 }
+
+/** The caught binding itself, a wrapper chaining it as `cause`, or a conditional whose every arm is one of those. */
+export function carriesFailure(node: Node, errorBinding: Node, reads?: CaughtFailureReadServices): boolean {
+  const value = unwrapExpression(node);
+  if (directlyCarriesBinding(value, errorBinding, reads)) {
+    return true;
+  }
+  if (value.isKind(SyntaxKind.ConditionalExpression)) {
+    return carriesFailure(value.getWhenTrue(), errorBinding, reads) && carriesFailure(value.getWhenFalse(), errorBinding, reads);
+  }
+  const options = value.asKind(SyntaxKind.NewExpression)?.getArguments() ?? [];
+  return options.some((argument) =>
+    (argument.asKind(SyntaxKind.ObjectLiteralExpression)?.getProperties() ?? []).some((property) => {
+      const cause = property.asKind(SyntaxKind.PropertyAssignment);
+      const initializer = cause?.getInitializer();
+      return cause?.getName() === "cause" && initializer !== undefined && directlyCarriesBinding(initializer, errorBinding, reads);
+    }),
+  );
+}

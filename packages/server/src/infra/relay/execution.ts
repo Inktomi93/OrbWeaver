@@ -9,7 +9,6 @@ export function createOwnedRelayLauncher(deps: RelayExecutionDeps): OwnedRelayLa
   const pending = new Set<Promise<RelayProcess>>();
   const children = new Set<OwnedRelayProcess>();
   const legacyChildren = new Set<RelayProcess>();
-  const failures: Error[] = [];
   let disposal: Promise<void> | undefined;
   const cancel = (): void => {
     abort.abort();
@@ -39,13 +38,7 @@ export function createOwnedRelayLauncher(deps: RelayExecutionDeps): OwnedRelayLa
         // biome-ignore lint/nursery/useDisposables: this exact child transfers to the launcher owner until its native close event.
         const child = spawnQuickTunnel(executable, origin, events);
         children.add(child);
-        void child.settled.then(
-          () => children.delete(child),
-          (error: unknown) => {
-            children.delete(child);
-            failures.push(error instanceof Error ? error : new Error("native relay close failed", { cause: error }));
-          },
-        );
+        void child.settled.then(() => children.delete(child));
         return child;
       });
       pending.add(operation);
@@ -61,9 +54,6 @@ export function createOwnedRelayLauncher(deps: RelayExecutionDeps): OwnedRelayLa
         cancel();
         await Promise.allSettled([...pending]);
         await Promise.all([...children].map((child) => child[Symbol.asyncDispose]()));
-        if (failures.length > 0) {
-          throw new AggregateError(failures, "native relay disposal failed");
-        }
       })();
       return disposal;
     },

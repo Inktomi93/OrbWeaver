@@ -5,10 +5,10 @@ import type { CallExpression, Node } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { CaughtFailureReadServices } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
+import { COLLECTING_METHODS, collectionIsAggregated } from "./caught-failure-collection.ts";
 import {
   ambientIdentifier,
   calleeName,
-  directlyCarriesBinding,
   FUNCTION_KINDS,
   hasInterveningWrite,
   importedName,
@@ -16,9 +16,11 @@ import {
   OBSERVABILITY_MODULES,
   originatesFromFactory,
   referencesBinding,
+  sourceDeclaresName,
+  sourceNameImports,
   staticStringValue,
 } from "./caught-failure-core.ts";
-import { isFailureOutcome } from "./caught-failure-outcome.ts";
+import { carriesFailure, isFailureOutcome } from "./caught-failure-outcome.ts";
 import { rawFailureDeclarations } from "./caught-failure-read.ts";
 
 // ── the EXPLICIT governed-sink recognizers ─────────────────────────────────────────────────────────────
@@ -42,13 +44,39 @@ function contextualLogMessage(node: Node | undefined): boolean {
   return message.length > 0 && !/^(?:error|failed|failure|exception)$/iu.test(message) && (message.split(/\s+/u).length > 1 || /[:./-]/u.test(message));
 }
 
+function canonicalLogReceiverStable(node: Node, reads?: CaughtFailureReadServices): boolean {
+  let value = unwrapExpression(node);
+  for (;;) {
+    if (value.isKind(SyntaxKind.ThisKeyword)) {
+      return true;
+    }
+    const declaration = rawFailureDeclarations(value, reads)[0];
+    if (declaration !== undefined && hasInterveningWrite(value, declaration, reads)) {
+      return false;
+    }
+    const member = literalMember(value, reads);
+    if (member === undefined) {
+      return value.isKind(SyntaxKind.Identifier) && declaration !== undefined;
+    }
+    value = member.receiver;
+  }
+}
+
 function isStructuredLog(call: CallExpression, errorBinding: Node | undefined, reads?: CaughtFailureReadServices): boolean {
   const name = calleeName(call, reads);
   if (name === undefined || !LOG_METHODS.has(name) || errorBinding === undefined) {
     return false;
   }
   const member = literalMember(call.getExpression(), reads);
-  if (member === undefined || !loggerReceiverOwns(member.receiver, undefined, reads)) {
+  const inferenceLog = rawFailureDeclarations(call.getExpression(), reads, true).some(
+    (declaration) =>
+      declaration.getSourceFile().getFilePath().endsWith("/packages/inference/src/contract/runtime.ts") &&
+      declaration.getParentIfKind(SyntaxKind.InterfaceDeclaration)?.getName() === "InferenceLog",
+  );
+  if (
+    member === undefined ||
+    !((inferenceLog && canonicalLogReceiverStable(member.receiver, reads)) || loggerReceiverOwns(member.receiver, undefined, reads))
+  ) {
     return false;
   }
   const [context, message] = call.getArguments();
@@ -210,6 +238,83 @@ function securityEventOwns(call: CallExpression, reads?: CaughtFailureReadServic
   return name !== undefined && name.trim().length > 0;
 }
 
+/** A locally shadowed native name cannot lend the built-in constructor or imported port its contract. */
+function shadowedNative(source: Node, name: string): boolean {
+  return sourceDeclaresName(source.getSourceFile(), name);
+}
+
+/** The controller parameter of a native stream's own source callback, not a controller-shaped argument. */
+function nativeStreamController(receiver: Node, reads?: CaughtFailureReadServices): boolean {
+  const parameter = rawFailureDeclarations(receiver, reads)[0]?.asKind(SyntaxKind.Parameter);
+  const callback = parameter?.getParentIfKind(SyntaxKind.MethodDeclaration);
+  const source = callback?.getParentIfKind(SyntaxKind.ObjectLiteralExpression);
+  const construct = source?.getParentIfKind(SyntaxKind.NewExpression);
+  if (callback === undefined || construct === undefined) {
+    return false;
+  }
+  return (
+    parameter !== undefined &&
+    !hasInterveningWrite(receiver, parameter, reads) &&
+    parameter === callback.getParameters()[0] &&
+    ["pull", "start"].includes(callback.getName()) &&
+    construct?.getArguments()[0] === source &&
+    construct.getExpression().getText() === "ReadableStream" &&
+    !shadowedNative(construct.getSourceFile(), "ReadableStream") &&
+    sourceNameImports(construct.getSourceFile(), "ReadableStream").every(
+      (declaration) =>
+        declaration.getModuleSpecifierValue() === "node:stream/web" &&
+        declaration.getNamedImports().some((specifier) => specifier.getName() === "ReadableStream" && specifier.getAliasNode() === undefined),
+    )
+  );
+}
+
+function streamErrorOwns(call: CallExpression, errorBinding: Node | undefined, reads?: CaughtFailureReadServices): boolean {
+  const member = literalMember(call.getExpression(), reads);
+  return (
+    member?.name === "error" &&
+    errorBinding !== undefined &&
+    call.getArguments().some((argument) => carriesFailure(argument, errorBinding, reads)) &&
+    nativeStreamController(member.receiver, reads)
+  );
+}
+
+const DNS_LOOKUP_CALLBACK_INDEX = 2;
+
+/** The native LookupFunction error slot, established by the returned callback's explicit Node port. */
+function nativeLookupCallback(call: CallExpression, errorBinding: Node | undefined, reads?: CaughtFailureReadServices): boolean {
+  if (errorBinding === undefined || !call.getExpression().isKind(SyntaxKind.Identifier)) {
+    return false;
+  }
+  const parameter = rawFailureDeclarations(call.getExpression(), reads)[0]?.asKind(SyntaxKind.Parameter);
+  const callback = parameter?.getParentIfKind(SyntaxKind.ArrowFunction);
+  const returned = callback?.getParentIfKind(SyntaxKind.ReturnStatement);
+  const owner = returned?.getFirstAncestorByKind(SyntaxKind.FunctionDeclaration);
+  const type = owner?.getReturnTypeNode()?.asKind(SyntaxKind.TypeReference);
+  const port = type?.getTypeName().getText();
+  const first = call.getArguments()[0];
+  return (
+    callback !== undefined &&
+    parameter !== undefined &&
+    !hasInterveningWrite(call.getExpression(), parameter, reads) &&
+    parameter === callback.getParameters()[DNS_LOOKUP_CALLBACK_INDEX] &&
+    returned?.getExpression() === callback &&
+    port !== undefined &&
+    first !== undefined &&
+    carriesFailure(first, errorBinding, reads) &&
+    !shadowedNative(call.getSourceFile(), port) &&
+    call
+      .getSourceFile()
+      .getImportDeclarations()
+      .some(
+        (declaration) =>
+          declaration.getModuleSpecifierValue() === "node:net" &&
+          declaration
+            .getNamedImports()
+            .some((specifier) => specifier.getName() === "LookupFunction" && (specifier.getAliasNode() ?? specifier.getNameNode()).getText() === port),
+      )
+  );
+}
+
 export function isExplicitOwnerCall(call: CallExpression, errorBinding: Node | undefined, reads?: CaughtFailureReadServices): boolean {
   if (isSkippableCall(call)) {
     return false;
@@ -218,7 +323,12 @@ export function isExplicitOwnerCall(call: CallExpression, errorBinding: Node | u
   if (name === undefined) {
     return false;
   }
-  if (isStructuredLog(call, errorBinding, reads) || securityEventOwns(call, reads)) {
+  if (
+    isStructuredLog(call, errorBinding, reads) ||
+    securityEventOwns(call, reads) ||
+    nativeLookupCallback(call, errorBinding, reads) ||
+    streamErrorOwns(call, errorBinding, reads)
+  ) {
     return true;
   }
   const member = literalMember(call.getExpression(), reads);
@@ -304,138 +414,4 @@ function zodIssueOwns(call: CallExpression, receiver: Node, reads?: CaughtFailur
     ZOD_REFINEMENT_METHODS.has(method.getName()) &&
     namesZodImport(chainRoot(method.getExpression()))
   );
-}
-
-const COLLECTING_METHODS: ReadonlySet<string> = new Set(["add", "push"]);
-const AGGREGATE_ERROR = "AggregateError";
-const COUNT_MEMBERS: ReadonlySet<string> = new Set(["length", "size"]);
-const NONEMPTY_OPERATORS: ReadonlySet<string> = new Set([">", "!==", "!="]);
-const EQUALITY_OPERATORS: ReadonlySet<string> = new Set(["===", "=="]);
-const MANY_OPERATORS: ReadonlySet<string> = new Set([">"]);
-const LEAVING_KINDS: ReadonlySet<SyntaxKind> = new Set([
-  SyntaxKind.ReturnStatement,
-  SyntaxKind.ThrowStatement,
-  SyntaxKind.BreakStatement,
-  SyntaxKind.ContinueStatement,
-]);
-
-/** The caught binding itself, a wrapper chaining it as `cause`, or a conditional whose every arm is one of those. */
-function carriesFailure(node: Node, errorBinding: Node, reads?: CaughtFailureReadServices): boolean {
-  const value = unwrapExpression(node);
-  if (directlyCarriesBinding(value, errorBinding, reads)) {
-    return true;
-  }
-  if (value.isKind(SyntaxKind.ConditionalExpression)) {
-    return carriesFailure(value.getWhenTrue(), errorBinding, reads) && carriesFailure(value.getWhenFalse(), errorBinding, reads);
-  }
-  const options = value.asKind(SyntaxKind.NewExpression)?.getArguments() ?? [];
-  return options.some((argument) =>
-    (argument.asKind(SyntaxKind.ObjectLiteralExpression)?.getProperties() ?? []).some((property) => {
-      const cause = property.asKind(SyntaxKind.PropertyAssignment);
-      const initializer = cause?.getInitializer();
-      return cause?.getName() === "cause" && initializer !== undefined && directlyCarriesBinding(initializer, errorBinding, reads);
-    }),
-  );
-}
-
-/** `new AggregateError(failures, …)` or `new AggregateError([...failures], …)`. */
-function aggregateOf(thrown: Node | undefined, name: string): boolean {
-  const value = thrown === undefined ? undefined : unwrapExpression(thrown).asKind(SyntaxKind.NewExpression);
-  const first = value?.getArguments()?.[0];
-  if (value?.getExpression().getText() !== AGGREGATE_ERROR || first === undefined) {
-    return false;
-  }
-  const collected = unwrapExpression(first);
-  const spread = collected.asKind(SyntaxKind.ArrayLiteralExpression)?.getElements() ?? [];
-  return collected.getText() === name || spread.some((element) => element.asKind(SyntaxKind.SpreadElement)?.getExpression().getText() === name);
-}
-
-/** `failures.length` or `failures.size`, compared against `bound` by one of `operators`. */
-function countGuard(condition: Node, name: string, operators: ReadonlySet<string>, bound: string): boolean {
-  const comparison = unwrapExpression(condition).asKind(SyntaxKind.BinaryExpression);
-  const count = comparison === undefined ? undefined : unwrapExpression(comparison.getLeft()).asKind(SyntaxKind.PropertyAccessExpression);
-  return (
-    comparison !== undefined &&
-    count !== undefined &&
-    COUNT_MEMBERS.has(count.getName()) &&
-    unwrapExpression(count.getExpression()).getText() === name &&
-    operators.has(comparison.getOperatorToken().getText()) &&
-    unwrapExpression(comparison.getRight()).getText() === bound
-  );
-}
-
-/** The thrown expression of a branch that is exactly one `throw`. */
-function onlyThrow(branch: Node | undefined): Node | undefined {
-  if (branch === undefined) {
-    return;
-  }
-  const statements = branch.isKind(SyntaxKind.Block) ? branch.getStatements() : [branch];
-  return statements.length === 1 ? statements[0]?.asKind(SyntaxKind.ThrowStatement)?.getExpression() : undefined;
-}
-
-/** `if (<guard>) throw <value>` with no else, as the guard and the thrown value. */
-function guardedThrow(statement: Node | undefined): { readonly guard: Node; readonly thrown: Node } | undefined {
-  const branch = statement?.asKind(SyntaxKind.IfStatement);
-  const thrown = branch === undefined || branch.getElseStatement() !== undefined ? undefined : onlyThrow(branch.getThenStatement());
-  return branch === undefined || thrown === undefined ? undefined : { guard: branch.getExpression(), thrown };
-}
-
-/** Does this statement (with its successor) throw the collection on every nonempty count? `throw new AggregateError`
- *  outright, behind `.length > 0` / `!== 0` (or `.size`), or the pair `=== 1 → throw c[0]` then `> 1 → aggregate`. */
-function throwsEveryFailure(statement: Node, next: Node | undefined, name: string): boolean {
-  if (aggregateOf(statement.asKind(SyntaxKind.ThrowStatement)?.getExpression(), name)) {
-    return true;
-  }
-  const guarded = guardedThrow(statement);
-  if (guarded !== undefined && countGuard(guarded.guard, name, NONEMPTY_OPERATORS, "0") && aggregateOf(guarded.thrown, name)) {
-    return true;
-  }
-  const single =
-    guarded !== undefined && countGuard(guarded.guard, name, EQUALITY_OPERATORS, "1") && unwrapExpression(guarded.thrown).getText() === `${name}[0]`;
-  const rest = guardedThrow(next);
-  return single && rest !== undefined && countGuard(rest.guard, name, MANY_OPERATORS, "1") && aggregateOf(rest.thrown, name);
-}
-
-/** Can control leave `statement` (outside any nested function) by return, throw, break or continue? */
-function canLeave(statement: Node): boolean {
-  return [statement, ...statement.getDescendants()].some(
-    (node) => LEAVING_KINDS.has(node.getKind()) && (node === statement || enclosingFunction(node) === enclosingFunction(statement)),
-  );
-}
-
-/** A RETAINED failure: a `const` collection, pushed to in the very function that declares it, which a later
- *  top-level statement of that function throws as an `AggregateError` on every nonempty count, with nothing
- *  between the push and that throw able to leave. The throw sits outside the catch, so it is read by name inside
- *  that one function, where nothing else declares the name. */
-function collectionIsAggregated(call: CallExpression, receiver: Node, reads?: CaughtFailureReadServices): boolean {
-  const collection = unwrapExpression(receiver);
-  const declaration = collection.isKind(SyntaxKind.Identifier) ? rawFailureDeclarations(collection, reads)[0] : undefined;
-  if (declaration?.isKind(SyntaxKind.VariableDeclaration) !== true || declaration.getVariableStatement()?.getDeclarationKind() !== "const") {
-    return false;
-  }
-  const scope = enclosingFunction(declaration);
-  const body = scope?.getChildrenOfKind(SyntaxKind.Block)[0];
-  if (scope === undefined || body === undefined || enclosingFunction(call) !== scope) {
-    return false;
-  }
-  const name = collection.getText();
-  const shadowed = [...scope.getDescendantsOfKind(SyntaxKind.VariableDeclaration), ...scope.getDescendantsOfKind(SyntaxKind.Parameter)].some(
-    (other) => other !== declaration && other.getNameNode().getText() === name,
-  );
-  const source = declaration.getSourceFile();
-  const localAggregate = [...source.getDescendantsOfKind(SyntaxKind.ClassDeclaration), ...source.getDescendantsOfKind(SyntaxKind.VariableDeclaration)].some(
-    (other) => other.getNameNode()?.getText() === AGGREGATE_ERROR,
-  );
-  const statements = body.getStatements();
-  const at = statements.findIndex((statement) => statement.getStart() <= call.getStart() && statement.getEnd() >= call.getEnd());
-  if (shadowed || localAggregate || at < 0) {
-    return false;
-  }
-  for (let index = at + 1; index < statements.length; index += 1) {
-    const statement = statements[index];
-    if (statement !== undefined && throwsEveryFailure(statement, statements[index + 1], name)) {
-      return !statements.slice(at, index).some(canLeave);
-    }
-  }
-  return false;
 }

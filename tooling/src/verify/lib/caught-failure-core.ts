@@ -2,7 +2,7 @@
 // identity (`referencesBinding`/`directlyCarriesBinding`), import provenance, and the intervening-write
 // guard every ownership predicate needs before trusting an identifier's declaration. No ownership verdicts
 // live here — every function is a pure syntactic reader with no domain vocabulary.
-import type { BindingElement, CallExpression, Node } from "ts-morph";
+import type { BindingElement, CallExpression, ImportDeclaration, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { CaughtFailureReadServices, CaughtFailureTraversal } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
@@ -207,6 +207,41 @@ function declaresName(name: Node, text: string): boolean {
     return name.getText() === text;
   }
   return name.getDescendantsOfKind(SyntaxKind.Identifier).some((id) => id.getText() === text);
+}
+
+/** One lexical binding only; destructured or nested shadows make textual continuation reads ambiguous. */
+export function uniqueLexicalBinding(scope: Node, name: string): Node | undefined {
+  const declarations = [...scope.getDescendantsOfKind(SyntaxKind.VariableDeclaration), ...scope.getDescendantsOfKind(SyntaxKind.Parameter)].filter(
+    (declaration) => declaresName(declaration.getNameNode(), name),
+  );
+  return declarations.length === 1 ? declarations[0] : undefined;
+}
+
+/** Lexical declarations that shadow a native value or a port's imported type name. */
+export function sourceDeclaresName(source: SourceFile, name: string): boolean {
+  return [
+    ...source.getDescendantsOfKind(SyntaxKind.VariableDeclaration),
+    ...source.getDescendantsOfKind(SyntaxKind.Parameter),
+    ...source.getDescendantsOfKind(SyntaxKind.ClassDeclaration),
+    ...source.getDescendantsOfKind(SyntaxKind.FunctionDeclaration),
+    ...source.getDescendantsOfKind(SyntaxKind.TypeAliasDeclaration),
+    ...source.getDescendantsOfKind(SyntaxKind.InterfaceDeclaration),
+  ].some((declaration) => {
+    const binding = declaration.getNameNode();
+    return binding !== undefined && declaresName(binding, name);
+  });
+}
+
+/** Every import form that binds a local name, including renamed, namespace and default imports. */
+export function sourceNameImports(source: SourceFile, name: string): readonly ImportDeclaration[] {
+  return source
+    .getImportDeclarations()
+    .filter(
+      (declaration) =>
+        declaration.getDefaultImport()?.getText() === name ||
+        declaration.getNamespaceImport()?.getText() === name ||
+        declaration.getNamedImports().some((specifier) => (specifier.getAliasNode() ?? specifier.getNameNode()).getText() === name),
+    );
 }
 
 /** The LAST declaration of this name textually before `value`, walking outward through enclosing function

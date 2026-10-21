@@ -12,8 +12,9 @@
 // primitives — literal reads, binding identity, import/write provenance), -outcome.ts (is a value itself
 // failure-shaped), -sinks.ts (the explicit governed-sink recognizers), -scope.ts (framework provenance and the
 // statement-level `hasExplicitOwner` block walk), -handler.ts (catch/promise-handler verdicts), -promise.ts
-// (recognizing a rejection-handler invocation in every spelling), -retained.ts (a rejection the function still
-// returns to its caller). This file keeps only the ARMS
+// (recognizing a rejection-handler invocation in every spelling), -retained.ts (returned rejections, held rethrows
+// and the executed returned disposer), -collection.ts (preserved native collections and aggregate settlement).
+// This file keeps only the ARMS
 // (`catchClauseSite`/`promiseAbsorberSite`) and the anchor/site assembly its consumers import.
 //
 // ── THE FINITE BLOCKING CLAIM (D328) ────────────────────────────────────────────────────────────────────
@@ -59,10 +60,16 @@
 // binding handed to a one-statement, non-async, non-generator helper whose body owns that parameter, one hop
 // only · a zod issue added directly in a synchronous `superRefine`/`transform` callback on its context
 // parameter, which fails the parse · a RETAINED failure: a `const` collection the binding is pushed into in the
-// function declaring it, which a later top-level statement throws on every nonempty count as an `AggregateError` · a
+// function declaring it, which a later top-level statement or the executed returned async disposer throws on every
+// nonempty count as an `AggregateError`; aliasing, destructive use and collection escapes refuse · a
 // RETAINED rejection: a discarding handler on a top-level `const` promise the function returns, through
 // handler-free links, as its last statement, or a rejection forwarded into a native `Promise.withResolvers()`
-// deferred whose promise is returned that way · an error-as-data outcome that a real consumer reads (a
+// deferred whose promise is returned that way, or a native collection joined by the returned async disposer's
+// exact allSettled/rejected-reason aggregation · a held local whose value preserves the binding and is non-undefined
+// (a new wrapper, or a native Error instanceof branch with a preserving wrapper fallback), whose later guard rethrows
+// it without resetting it or taking an earlier exit · canonical InferenceLog methods carrying contextual failure metadata · a
+// native LookupFunction's error-first callback slot and a native ReadableStream source controller's error method ·
+// an error-as-data outcome that a real consumer reads (a
 // `return`, or a generator's plain `yield`), including a TYPED REFUSAL: a call whose
 // type admits only failure literals in every discriminant member, or whose single-return factory body is a
 // failure outcome without its parameter, owns without the caught binding (a body failure-valued only through
@@ -113,6 +120,7 @@ import type { CallExpression, CatchClause, Node, SourceFile } from "ts-morph";
 import { SyntaxKind } from "ts-morph";
 import type { CaughtFailureArm, CaughtFailureReadServices } from "../contract/caught-failure.ts";
 import { unwrapExpression } from "./ast-read.ts";
+import { rejectionRetainedByDisposal } from "./caught-failure-collection.ts";
 import { FUNCTION_KINDS, hasInterveningWrite, importedName, literalMember, OBSERVABILITY_MODULES, PROMISE_CHAIN_LINKS } from "./caught-failure-core.ts";
 import {
   handlerPropagatesRejection,
@@ -218,7 +226,7 @@ export function promiseAbsorberSite(call: CallExpression, reads?: CaughtFailureR
     handlerPropagatesRejection(handler, reads) ||
     !isDiscardingHandler(handler, reads) ||
     (!isDiscardedExpression(call, reads) && handlerReturnsOwnedFailure(handler, reads) && recoveredFailureIsConsumed(call, reads)) ||
-    (invocation.direct && rejectionRetainedByReturn(call, receiver, reads))
+    (invocation.direct && (rejectionRetainedByReturn(call, receiver, reads) || rejectionRetainedByDisposal(call, receiver, reads)))
   ) {
     return;
   }

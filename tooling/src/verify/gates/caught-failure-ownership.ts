@@ -188,6 +188,355 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "tooling/src/probe/undefined-held-failure.ts":
+          "class Error {static [Symbol.hasInstance](_value:unknown):boolean{return true}} export function thrown(){let failure:unknown;try{throw undefined}catch(error){failure=error}if(failure!==undefined){throw failure}return 'success'} export async function rejected(){let failure:unknown;try{await Promise.reject()}catch(error){failure=error}if(failure!==undefined){throw failure}return 'success'} export async function fakeGuard(){let failure:unknown;try{await Promise.reject()}catch(error){failure=error instanceof Error?error:new globalThis.Error('work failed',{cause:error})}if(failure!==undefined){throw failure}return 'success'}",
+      },
+      expect: { count: 3, token: "error" },
+      why: "1199 an undefined sentinel cannot own arbitrary caught values: throw undefined, Promise.reject(), and a fake instanceof Error guard must not become successful returns",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/deferred-unknown-rethrow.ts":
+          "export async function run(work:()=>Promise<number>,meta:()=>Promise<number>){let named=0;let failure:unknown;try{named=await work()}catch(error){failure=error;named=2}const verdict=Math.max(named,await meta());if(failure!==undefined){throw failure}return verdict}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 the ESLint-shaped direct unknown binding remains unsupported: its separate tool-error return contract is not generic non-undefined retained-error evidence",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/deferred-rethrow-near-misses.ts":
+          "export function reset(work:()=>void,meta:()=>number){let failure:unknown;try{work()}catch(error){failure=error}failure=undefined;const verdict=meta();if(failure!==undefined){throw failure}return verdict} export function early(work:()=>void,meta:()=>number,skip:boolean){let failure:unknown;try{work()}catch(error){failure=error}if(skip){return 0}const verdict=meta();if(failure!==undefined){throw failure}return verdict} export function other(work:()=>void,meta:()=>number){let failure:unknown;try{work()}catch(error){failure=error}const other=undefined;const verdict=meta();if(failure!==undefined){throw other}return verdict}",
+      },
+      expect: { count: 3, token: "error" },
+      why: "1199 deferred guarded rethrow still refuses reset state, an earlier normal escape, and a throw of another binding before the final return",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/held-replaced-throw.ts":
+          "export function run(work:()=>void){let failure:unknown;try{work()}catch(error){failure=error}throw new Error('different failure');if(failure!==undefined){throw failure}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 held-local rethrow cannot own a caught failure when an earlier unrelated throw replaces it",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/wrapped-held-reset.ts":
+          "export function run(work:()=>void){let failure:unknown;try{work()}catch(error){failure=error}(failure)=undefined;if(failure!==undefined){throw failure}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 held-local preservation treats a parenthesized assignment target as the same binding reset",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/wrapped-count-reset.ts":
+          "export function run(work:()=>void){const failures:unknown[]=[];try{work()}catch(error){failures.push(error)}(failures.length)=0;if(failures.length>0){throw new AggregateError(failures,'cleanup failed')}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 collection preservation treats a parenthesized length assignment as destructive rather than a count read",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/disposal-spread.ts":
+          "export function owner(work:()=>Promise<void>,replacement:AsyncDisposable){const failures:unknown[]=[];return {run:()=>{void work().then(()=>undefined,error=>{failures.push(error)})},async [Symbol.asyncDispose](){if(failures.length>0){throw new AggregateError(failures,'cleanup failed')}},...replacement}}",
+      },
+      expect: { count: 1, token: "work" },
+      why: "1199 returned disposal identity ends when a later spread can replace the native disposal method",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/retained-set-shadow.ts":
+          "export function owner(work:()=>Promise<void>){const terminations=new Set<Promise<void>>();return {run:({terminations}:{terminations:Set<Promise<void>>})=>{const stopped=work();terminations.add(stopped);void stopped.catch(()=>undefined)},async [Symbol.asyncDispose](){const results=await Promise.allSettled([...terminations]);const failures=results.filter(result=>result.status === 'rejected').map(result=>result.reason);if(failures.length>0){throw new AggregateError(failures,'cleanup failed')}}}}",
+      },
+      expect: { count: 1, token: "stopped" },
+      why: "1199 retained collection identity refuses a destructured parameter that shadows the actual native collection joined by disposal",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "export function owner(work:()=>Promise<void>,skip:boolean){const terminations=new Set<Promise<void>>();return {run:()=>{const stopped=work();terminations.add(stopped);void stopped.catch(()=>undefined);},async [Symbol.asyncDispose](){if(skip){return;}const results=await Promise.allSettled([...terminations]);const failures=results.filter(result=>result.status === \"rejected\").map(result=>result.reason);if(failures.length>0){throw new AggregateError(failures,'cleanup failed');}}}}",
+      },
+      expect: { count: 1, token: "stopped" },
+      why: "1199 retained promise disposal refuses a normal return before the settled results are collected",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "export function owner(work:()=>Promise<void>,AggregateError:new(errors:unknown[],message:string)=>Error){const terminations=new Set<Promise<void>>();return {run:()=>{const stopped=work();terminations.add(stopped);void stopped.catch(()=>undefined);},async [Symbol.asyncDispose](){const results=await Promise.allSettled([...terminations]);const failures=results.filter(result=>result.status === \"rejected\").map(result=>result.reason);if(failures.length>0){throw new AggregateError(failures,'cleanup failed');}}}}",
+      },
+      expect: { count: 1, token: "stopped" },
+      why: "1199 retained promise disposal refuses a parameter-shaped AggregateError impostor",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/cached-shadow.ts":
+          "export function owner(work:()=>Promise<void>,disposal:Promise<void>){function unused(){let disposal:Promise<void>|undefined;void disposal;}const failures:unknown[]=[];return {run:()=>{void work().then(()=>undefined,error=>{failures.push(error)})},[Symbol.asyncDispose](){disposal??=(async()=>{if(failures.length>0){throw new AggregateError(failures,'cleanup failed')}})();return disposal;}}}",
+      },
+      expect: { count: 1, token: "work" },
+      why: "1199 cached disposal identity: an unrelated nested local must not prove a returned factory parameter is the once-cached disposal promise",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/reassigned-native-ports.ts":
+          "import type {LookupFunction} from 'node:net'; import type {InferenceLog} from '../../../inference/src/contract/runtime.ts'; export function lookup(work:()=>void):LookupFunction{return (_host,_options,callback)=>{callback=()=>undefined;try{work()}catch(error){callback(error,[],0)}}} export function stream(work:()=>void){return new ReadableStream({pull(controller){controller={close(){},enqueue(){},error(){},desiredSize:null};try{work()}catch(error){controller.error(error)}}})} export function logged(log:InferenceLog,other:InferenceLog,work:()=>void){log=other;try{work()}catch(error){log.warn({error},'work failed')}}",
+        "node_modules/@types/node/net.d.ts":
+          "declare module 'node:net' {type LookupFunction=(hostname:string,options:object,callback:(err:Error|null,address:string|object[],family?:number)=>void)=>void;}",
+        "packages/inference/src/contract/runtime.ts":
+          "export interface InferenceLog {readonly warn:(fields:Readonly<Record<string,unknown>>,message:string)=>void;}",
+      },
+      expect: { count: 3, token: "error" },
+      why: "1199 canonical logger, native callback and controller provenance ends when an assignment replaces the actual owner parameter",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/provenance.ts":
+          "export function owner(work:()=>Promise<void>){const terminations=new Set<Promise<void>>();return {run:()=>{const stopped=work();const later=()=>terminations.add(stopped);void stopped.catch(()=>undefined);},async [Symbol.asyncDispose](){const results=await Promise.allSettled([...terminations]);const failures=results.filter(result=>result.status === \"rejected\").map(result=>result.reason);if(failures.length>0){throw new AggregateError(failures,'cleanup failed');}}}}",
+        "packages/server/src/probe/fake.ts":
+          "export const fake={asyncDispose:Symbol()}; export default class StandIn {constructor(...args:unknown[]){} add(_value:unknown):void{} [Symbol.iterator](){return [][Symbol.iterator]();}}",
+      },
+      expect: { count: 1, token: "stopped" },
+      why: "1199 provenance unrun retain closure",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/provenance.ts":
+          "export function owner(work:()=>Promise<void>){const terminations=new Set<Promise<void>>();return {run:()=>{const stopped=work();if(Math.random()>0.5){terminations.add(stopped)};void stopped.catch(()=>undefined);},async [Symbol.asyncDispose](){const results=await Promise.allSettled([...terminations]);const failures=results.filter(result=>result.status === \"rejected\").map(result=>result.reason);if(failures.length>0){throw new AggregateError(failures,'cleanup failed');}}}}",
+        "packages/server/src/probe/fake.ts":
+          "export const fake={asyncDispose:Symbol()}; export default class StandIn {constructor(...args:unknown[]){} add(_value:unknown):void{} [Symbol.iterator](){return [][Symbol.iterator]();}}",
+      },
+      expect: { count: 1, token: "stopped" },
+      why: "1199 provenance conditional retention",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/provenance.ts":
+          'import Set from "./fake.ts";export function owner(work:()=>Promise<void>){const terminations=new Set<Promise<void>>();return {run:()=>{const stopped=work();terminations.add(stopped);void stopped.catch(()=>undefined);},async [Symbol.asyncDispose](){const results=await Promise.allSettled([...terminations]);const failures=results.filter(result=>result.status === "rejected").map(result=>result.reason);if(failures.length>0){throw new AggregateError(failures,\'cleanup failed\');}}}}',
+        "packages/server/src/probe/fake.ts":
+          "export const fake={asyncDispose:Symbol()}; export default class StandIn {constructor(...args:unknown[]){} add(_value:unknown):void{} [Symbol.iterator](){return [][Symbol.iterator]();}}",
+      },
+      expect: { count: 1, token: "stopped" },
+      why: "1199 provenance foreign default Set",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/provenance.ts":
+          "import {fake as Symbol} from \"./fake.ts\";export function owner(work:()=>Promise<void>){const failures:unknown[]=[];let disposal:Promise<void>|undefined;return {run:()=>{void work().then(()=>undefined,error=>{failures.push(error);})},[Symbol.asyncDispose](){disposal??=(async()=>{if(failures.length>0){throw new AggregateError(failures,'cleanup failed')}})();return disposal;}}}",
+        "packages/server/src/probe/fake.ts":
+          "export const fake={asyncDispose:Symbol()}; export default class StandIn {constructor(...args:unknown[]){} add(_value:unknown):void{} [Symbol.iterator](){return [][Symbol.iterator]();}}",
+      },
+      expect: { count: 1, token: "work" },
+      why: "1199 provenance foreign renamed Symbol",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/provenance.ts":
+          'import ReadableStream from "./fake.ts";export function run(work:()=>void){return new ReadableStream({pull(controller){try{work()}catch(error){controller.error(error)}}})}',
+        "packages/server/src/probe/fake.ts":
+          "export const fake={asyncDispose:Symbol()}; export default class StandIn {constructor(...args:unknown[]){} add(_value:unknown):void{} [Symbol.iterator](){return [][Symbol.iterator]();}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 provenance foreign default stream",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/provenance.ts":
+          'import * as ReadableStream from "./fake.ts";export function run(work:()=>void){return new ReadableStream({pull(controller){try{work()}catch(error){controller.error(error)}}})}',
+        "packages/server/src/probe/fake.ts":
+          "export const fake={asyncDispose:Symbol()}; export default class StandIn {constructor(...args:unknown[]){} add(_value:unknown):void{} [Symbol.iterator](){return [][Symbol.iterator]();}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 provenance foreign namespace stream",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "export function owner(work:()=>Promise<void>){const failures:unknown[]=[];let disposal:Promise<void>|undefined;return {run:()=>{void work().then(()=>undefined,error=>{failures.push(error);})},[\"close\"](){disposal??=(async()=>{if(failures.length>0){throw new AggregateError(failures,'cleanup failed')}})();return disposal;}}}",
+      },
+      expect: { count: 1, token: "work" },
+      why: "1199 lifetime ordinary returned method",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "export function owner(work:()=>Promise<void>){const failures:unknown[]=[];let disposal:Promise<void>|undefined;return {run:()=>{void work().then(()=>undefined,error=>{failures.push(error);})},[Symbol.asyncDispose](){disposal??=(async()=>{if(failures.length>0){throw new AggregateError(failures,'cleanup failed')}})();return Promise.resolve();}}}",
+      },
+      expect: { count: 1, token: "work" },
+      why: "1199 lifetime unreturned disposal promise",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "export function owner(work:()=>Promise<void>){const failures:unknown[]=[];let disposal:Promise<void>|undefined;return {run:()=>{void work().then(()=>undefined,error=>{failures.push(error);})},[Symbol.asyncDispose](){disposal??=(async()=>{failures.splice(0);if(failures.length>0){throw new AggregateError(failures,'cleanup failed')}})();return disposal;}}}",
+      },
+      expect: { count: 1, token: "work" },
+      why: "1199 lifetime reset disposal failures",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "export function owner(work:()=>Promise<void>){const terminations=new Set<Promise<void>>();return {run:()=>{const stopped=work();terminations.add(stopped);void stopped.catch(()=>undefined);},async [Symbol.asyncDispose](){terminations.clear();const results=await Promise.allSettled([...terminations]);const failures=results.filter(result=>result.status === \"rejected\").map(result=>result.reason);if(failures.length>0){throw new AggregateError(failures,'cleanup failed');}}}}",
+      },
+      expect: { count: 1, token: "stopped" },
+      why: "1199 lifetime reset retained promise set",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "export function owner(work:()=>Promise<void>){const terminations=new Set<Promise<void>>();return {run:()=>{const stopped=work();terminations.add(stopped);void stopped.catch(()=>undefined);},async [Symbol.asyncDispose](){const results=await Promise.allSettled([...terminations]);const failures=results.filter(result=>result.status === \"fulfilled\").map(result=>result.reason);if(failures.length>0){throw new AggregateError(failures,'cleanup failed');}}}}",
+      },
+      expect: { count: 1, token: "stopped" },
+      why: "1199 lifetime success settled filter",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "export function owner(work:()=>Promise<void>){const terminations=new Set<Promise<void>>();return {run:()=>{const stopped=work();terminations.add(stopped);void stopped.catch(()=>undefined);},async [Symbol.asyncDispose](){const results=await Promise.allSettled([...terminations]);const failures=results.filter(result=>result.status === \"rejected\").map(result=>undefined);if(failures.length>0){throw new AggregateError(failures,'cleanup failed');}}}}",
+      },
+      expect: { count: 1, token: "stopped" },
+      why: "1199 lifetime discard settled reason",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "declare function reset(values:unknown[]):string;export function run(work:()=>void){const failures:unknown[]=[];try{work()}catch(error){failures.push(error)}if(failures.length>0){throw new AggregateError(failures,reset(failures))}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 lifetime aggregate argument mutates collection",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "declare function fake():unknown[];export function run(work:()=>void){const failures=fake();try{work()}catch(error){failures.push(error)}if(failures.length>0){throw new AggregateError(failures,'failed')}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 lifetime fake collection initializer",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "export function run(work:()=>void,AggregateError:new(values:unknown[],message:string)=>Error){const failures:unknown[]=[];try{work()}catch(error){failures.push(error)}if(failures.length>0){throw new AggregateError(failures,'failed')}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 lifetime shadowed aggregate constructor",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "declare function reset(value: unknown[]): void;\nexport function run(work:()=>void):void {\n const failures:unknown[]=[];\n try { work(); } catch(error) { failures.push(error); }\n failures.splice(0);\n if(failures.length>0) { throw new AggregateError(failures,'work failed'); }\n}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 collection mutation failures.splice(0);",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "declare function reset(value: unknown[]): void;\nexport function run(work:()=>void):void {\n const failures:unknown[]=[];\n try { work(); } catch(error) { failures.push(error); }\n failures.length = 0;\n if(failures.length>0) { throw new AggregateError(failures,'work failed'); }\n}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 collection mutation failures.length = 0;",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "declare function reset(value: unknown[]): void;\nexport function run(work:()=>void):void {\n const failures:unknown[]=[];\n try { work(); } catch(error) { failures.push(error); }\n const alias = failures; alias.splice(0);\n if(failures.length>0) { throw new AggregateError(failures,'work failed'); }\n}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 collection mutation const alias = failures; alias.splice(0);",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "declare function reset(value: unknown[]): void;\nexport function run(work:()=>void):void {\n const failures:unknown[]=[];\n try { work(); } catch(error) { failures.push(error); }\n reset(failures);\n if(failures.length>0) { throw new AggregateError(failures,'work failed'); }\n}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 collection mutation reset(failures);",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "interface InferenceLog {warn:(fields:object,message:string)=>void}\nexport function run(log:InferenceLog,work:()=>void):void {try{work()}catch(error){log.warn({error},'work failed')}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 impostor logger",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "export function run(controller:{error:(error:unknown)=>void},work:()=>void):void {try{work()}catch(error){controller.error(error)}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 impostor stream controller",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "type LookupFunction=(host:string,options:object,callback:(error:unknown,address:unknown,family:number)=>void)=>void;\nexport function lookup(work:()=>void):LookupFunction {return (_host,_options,callback)=>{try{work()}catch(error){callback(error,[],0)}}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 impostor DNS callback",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "export function run(work:()=>void,skip:boolean):void {let failure:unknown;try{work()}catch(error){failure=error;}\nfailure=undefined;\nif(failure!==undefined){throw failure;}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 held-local broken failure=undefined;",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "export function run(work:()=>void,skip:boolean):void {let failure:unknown;try{work()}catch(error){failure=error;}\nif(skip){return;}\nif(failure!==undefined){throw failure;}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1199 held-local broken if(skip){return;}",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          'export function run(work:()=>void,skip:boolean):void {let failure:unknown;try{work()}catch(error){failure=error;}\nfailure = new Error("different");\nif(failure!==undefined){throw failure;}}',
+      },
+      expect: { count: 1, token: "error" },
+      why: '1199 held-local broken failure = new Error("different");',
+    },
+    {
+      mode: "types",
+      files: {
         "packages/client/src/features/probe/shadowed-native-reporter.ts":
           "export function shadowed(p: Promise<void>, globalThis: { reportError: (error: unknown) => void }): void {\n  const report = globalThis.reportError;\n  void p.catch(globalThis.reportError);\n  void p.catch(globalThis['reportError']);\n  void p.catch(report);\n}\n",
       },
@@ -1019,6 +1368,74 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/deferred-rethrow.ts":
+          "export async function run(work:()=>Promise<number>,meta:()=>Promise<number>){let named=0;let failure:Error|undefined;try{named=await work()}catch(error){failure=error instanceof Error?error:new Error('work failed',{cause:error});named=2}const verdict=Math.max(named,await meta());if(failure!==undefined){throw failure}return verdict}",
+      },
+      why: "1199 deferred preserved-error propagation retains a non-undefined Error before its later guard and returns its verdict only after that guard",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "export function owner(work:()=>Promise<void>){const failures:unknown[]=[];let disposal:Promise<void>|undefined;return {run:()=>{void work().then(()=>undefined,error=>{failures.push(error);})},[Symbol.asyncDispose](){disposal??=(async()=>{if(failures.length>0){throw new AggregateError(failures,'cleanup failed')}})();return disposal;}}}",
+      },
+      why: "1199 lifetime returned async disposal",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/lifetime.ts":
+          "export function owner(work:()=>Promise<void>){const terminations=new Set<Promise<void>>();return {run:()=>{const stopped=work();terminations.add(stopped);void stopped.catch(()=>undefined);},async [Symbol.asyncDispose](){const results=await Promise.allSettled([...terminations]);const failures=results.filter(result=>result.status === \"rejected\").map(result=>result.reason);if(failures.length>0){throw new AggregateError(failures,'cleanup failed');}}}}",
+      },
+      why: "1199 lifetime all settled retained promise disposal",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "export function run(work:()=>void):void {const failures:unknown[]=[];try{work()}catch(error){failures.push(error);}if(failures.length>0){throw new AggregateError(failures,'work failed');}}",
+      },
+      why: "1199 retained collection control",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "export function run(work:()=>void):void {let failure:Error|undefined;try{work()}catch(error){failure=error instanceof Error?error:new Error('cleanup failed',{cause:error});} const cleanup=1;void cleanup;if(failure!==undefined){throw failure;}}",
+      },
+      why: "1199 held local rethrow",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "import type {InferenceLog} from '../../../inference/src/contract/runtime.ts';\nexport function run(log:InferenceLog,work:()=>void):void {try{work()}catch(error){log.warn({error},'work failed')}}",
+        "packages/inference/src/contract/runtime.ts":
+          "export interface InferenceLog {readonly warn:(fields:Readonly<Record<string,unknown>>,message:string)=>void;}",
+      },
+      why: "1199 canonical inference log",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "export function run(work:()=>void):ReadableStream {return new ReadableStream({pull(controller){try{work()}catch(error){controller.error(error)}}})}",
+      },
+      why: "1199 native stream controller",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/server/src/probe/owners.ts":
+          "import type {LookupFunction} from 'node:net';\nexport function lookup(work:()=>void):LookupFunction {return (_host,_options,callback)=>{try{work()}catch(error){callback(error,[],0)}}}",
+        "node_modules/@types/node/net.d.ts":
+          'declare module "node:net" {type LookupFunction=(hostname:string,options:object,callback:(err:Error|null,address:string|object[],family?:number)=>void)=>void;}',
+      },
+      why: "1199 native DNS callback",
+    },
     {
       mode: "types",
       files: {
