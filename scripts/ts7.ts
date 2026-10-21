@@ -9,6 +9,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { admitTs7Run, TS7_POOL_NAME, TS7_SLOT_BUSY_EXIT, ts7SlotLabel } from "@orb/tooling/floor/host/ts7-admission";
 import { killPidGroup } from "@orb/tooling/floor/process/proc";
+import { ensureNodeHeapEnvironment, nodeHeapArguments } from "../tooling/src/floor/process/node-heap.ts";
 
 const INCREMENTAL_OPTION = "--incremental";
 const INCREMENTAL_SHORT_OPTION = "-i";
@@ -75,6 +76,7 @@ function withoutIncremental(rawArgs: readonly string[]): string[] {
 
 const args = withoutIncremental(process.argv.slice(2));
 const tscPath = resolve(import.meta.dirname, "../node_modules/ts7/bin/tsc");
+ensureNodeHeapEnvironment();
 
 // THE CHECKER CAP COMES FROM THE ONE PROFILE (tooling/concurrency-profile.json, #1835), derived for this
 // machine under its ceiling. It is injected HERE rather than spelled in package.json because
@@ -130,7 +132,7 @@ try {
     try {
       stop.signal.throwIfAborted();
       // The Windows JS launcher owns a native grandchild; termination must cover the whole compiler tree.
-      child = spawn(process.execPath, ["--max-old-space-size=16384", tscPath, ...checkers, ...args], {
+      child = spawn(process.execPath, [...nodeHeapArguments(), tscPath, ...checkers, ...args], {
         stdio: "inherit",
         detached: managedByIpc && process.platform !== "win32",
       });

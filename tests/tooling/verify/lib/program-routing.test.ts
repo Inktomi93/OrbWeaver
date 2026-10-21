@@ -1,6 +1,8 @@
 // Typecheck routing is derived from native compiler roots; intent only selects a primary among real roots.
-import { chmodSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { isLegacyTestProgram } from "@orb/tooling/floor/compiler/project-worlds";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
@@ -89,7 +91,7 @@ test("ambient and inherited tsconfig edits select every native dependent program
   const deleted = planTypecheckPrograms(repoRoot, [{ path: "tests/deleted.test.ts", status: "deleted", previousPath: null }], "affected");
   expect(deleted.subjects[0]?.reason).toBe("deleted-conservative");
   // An affected plan leaves the legacy programs to CI unless the deleted path was itself a legacy file.
-  expect(deleted.programs).toEqual(ambient?.filter((program) => !isLegacyTestProgram(program)));
+  expect(deleted.programs).toEqual(ambient?.filter((config) => !isLegacyTestProgram(config)));
   expect(ambient).toContain("tsconfig.tests-legacy.json");
   const deletedLegacy = planTypecheckPrograms(repoRoot, [{ path: "tests/legacy/deleted.test.ts", status: "deleted", previousPath: null }], "affected");
   expect(deletedLegacy.programs).toEqual(ambient);
@@ -168,6 +170,78 @@ function containedBy(plan: ReturnType<typeof planTypecheckPrograms>): Readonly<R
   return Object.fromEntries(plan.subjects.map((subject) => [subject.path, subject.containedBy]));
 }
 
+test("closure planning preserves the caller runtime and heap without a nested package manager", { timeout: scaledBudget(30_000) }, async ({
+  scratch,
+  repoRoot,
+}) => {
+  const observed = join(scratch, "scripts/context.txt");
+  const heapMiB = 8192;
+  const nodeOptions = `--max-old-space-size=${String(heapMiB)}`;
+  closureFixture(scratch, repoRoot, {
+    "tsconfig.json": program(["entry.ts"]),
+    "entry.ts": 'import "./target.ts";\n',
+    "target.ts": "export const target = true;\n",
+    "bin/pnpm": '#!/bin/sh\necho "unexpected nested package manager" >&2\nexit 91\n',
+    "bin/pnpm.cmd": "@echo unexpected nested package manager >&2\r\n@exit /b 91\r\n",
+    "scripts/ts7.ts": `import { writeFileSync } from "node:fs";
+import { getHeapStatistics } from "node:v8";
+writeFileSync(${JSON.stringify(observed)}, [process.execPath, process.env.NODE_OPTIONS, getHeapStatistics().heap_size_limit / 1048576].join("\\n"));
+await import(${JSON.stringify(pathToFileURL(join(repoRoot, "scripts/ts7.ts")).href)});
+`,
+  });
+  chmodSync(join(scratch, "bin/pnpm"), 0o755);
+  await withProcessEnv("NODE_OPTIONS", nodeOptions, async () => {
+    await withProcessEnv("PATH", `${join(scratch, "bin")}${process.platform === "win32" ? ";" : ":"}${processEnvValue("PATH") ?? ""}`, () => {
+      const plan = planTypecheckPrograms(scratch, [present("target.ts")], "affected");
+      expect(plan.subjects[0]).toMatchObject({ rootedBy: [], containedBy: ["tsconfig.json"], selectedPrograms: ["tsconfig.json"] });
+      return Promise.resolve();
+    });
+  });
+  const [runtime, options, limit] = readFileSync(observed, "utf8").split("\n");
+  expect(runtime).toBe(process.execPath);
+  expect(options).toBe(nodeOptions);
+  expect(Number(limit)).toBeGreaterThanOrEqual(heapMiB);
+  expect(Number(limit)).toBeLessThan(heapMiB + 1024);
+});
+
+test.for(["bridge edit", "resolution candidate", "package metadata"] as const)(
+  "affected routing refreshes ignored compiler inputs: %s",
+  { timeout: scaledBudget(30_000) },
+  (control, { scratch, repoRoot }) => {
+    const entry = control === "package metadata" ? "./generated/pkg" : "./generated/bridge";
+    closureFixture(scratch, repoRoot, {
+      ".gitignore": "node_modules\nscripts/\ngenerated/\n",
+      "tsconfig.json": program(["entry.ts"]),
+      "tsconfig.leaf.json": program(["target.ts"]),
+      "entry.ts": `import ${JSON.stringify(entry)};\n`,
+      "target.ts": "export const target = true;\n",
+      "generated/bridge/index.ts": "export {};\n",
+      "generated/pkg/package.json": '{"types":"first.d.ts"}',
+      "generated/pkg/first.d.ts": "export {};\n",
+      "generated/pkg/second.d.ts": 'export { target } from "../../target";\n',
+    });
+    symlinkSync(join(repoRoot, "scripts/ts7.ts"), join(scratch, "scripts/ts7.ts"), "file");
+    const selected = (): readonly string[] => planTypecheckPrograms(scratch, [present("target.ts")], "affected").programs;
+    expect(selected()).toEqual(["tsconfig.leaf.json"]);
+    if (control === "bridge edit") {
+      writeFileSync(join(scratch, "generated/bridge/index.ts"), 'import "../../target";\n');
+    } else if (control === "resolution candidate") {
+      writeFileSync(join(scratch, "generated/bridge.ts"), 'import "../target";\n');
+    } else {
+      writeFileSync(join(scratch, "generated/pkg/package.json"), '{"types":"second.d.ts"}');
+    }
+    expect(selected()).toEqual(["tsconfig.json", "tsconfig.leaf.json"]);
+    if (control === "resolution candidate") {
+      rmSync(join(scratch, "generated/bridge.ts"));
+    } else if (control === "bridge edit") {
+      writeFileSync(join(scratch, "generated/bridge/index.ts"), "export {};\n");
+    } else {
+      writeFileSync(join(scratch, "generated/pkg/package.json"), '{"types":"first.d.ts"}');
+    }
+    expect(selected()).toEqual(["tsconfig.leaf.json"]);
+  },
+);
+
 // The repository's world split in miniature: the root program's test glob matches the DOM test and excludes it, and
 // only the package program roots the leaf file, so the other two programs reach it through imports alone.
 // Three cold native closure reads. MEASURED: 1.4 s to 1.6 s at per-core load 0.5. The base matches the sibling closure cases.
@@ -202,10 +276,7 @@ test("affected routing includes native imported consumers while direct DOM roots
 
 // Three cold native closure reads per plan. MEASURED: 2.7 s, and 4.1 s at per-core load 0.8 to 1.4.
 // The base matches the sibling closure cases.
-test("the membership snapshot invalidates on a tracked edit against HEAD and on an untracked edit", { timeout: scaledBudget(30_000) }, ({
-  scratch,
-  repoRoot,
-}) => {
+test("planning reacquires membership after tracked and untracked edits", { timeout: scaledBudget(30_000) }, ({ scratch, repoRoot }) => {
   closureFixture(scratch, repoRoot, {
     "tsconfig.json": program(["a.ts", "c.ts"]),
     "tsconfig.b.json": program(["b.ts"]),
@@ -252,7 +323,7 @@ process.exit(result.status ?? 1);
 
 // Three planning attempts over two cold native closure reads each. MEASURED: 2.2 s, and 2.9 s at per-core load 0.8 to
 // 1.4. The base matches the sibling closure cases.
-test("an unstable membership read refuses and leaves no snapshot behind for its key", { timeout: scaledBudget(30_000) }, ({ scratch, repoRoot }) => {
+test("an unstable membership read refuses and a later stable read recovers", { timeout: scaledBudget(30_000) }, ({ scratch, repoRoot }) => {
   closureFixture(scratch, repoRoot, {
     "tsconfig.json": program(["a.ts"]),
     "tsconfig.b.json": program(["b.ts"]),
@@ -267,7 +338,7 @@ test("an unstable membership read refuses and leaves no snapshot behind for its 
   expect(containedBy(planTypecheckPrograms(scratch, [present("b.ts")], "affected"))).toEqual({ "b.ts": ["tsconfig.b.json", "tsconfig.json"] });
 });
 
-test("the in-process membership snapshot invalidates when authored bytes add a root", ({ scratch }) => {
+test("planning rediscovers roots after authored config changes", ({ scratch }) => {
   execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
   mkdirSync(join(scratch, "src"), { recursive: true });
   writeFileSync(join(scratch, "tsconfig.json"), '{"include":["src/one.ts"]}\n');
@@ -278,10 +349,7 @@ test("the in-process membership snapshot invalidates when authored bytes add a r
   expect(planTypecheckPrograms(scratch, [present("src/two.ts")], "primary").programs).toEqual(["tsconfig.json"]);
 });
 
-test("a warm membership snapshot rechecks authored bytes before returning an affected plan", { timeout: scaledBudget(30_000) }, async ({
-  scratch,
-  repoRoot,
-}) => {
+test("a later plan observes an importer removed during its authored-input read", { timeout: scaledBudget(30_000) }, async ({ scratch, repoRoot }) => {
   execFixtureGit(scratch, ["init", "--quiet", "--template=", "--initial-branch=main"]);
   mkdirSync(join(scratch, "scripts"));
   mkdirSync(join(scratch, "bin"));

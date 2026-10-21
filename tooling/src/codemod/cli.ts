@@ -16,7 +16,9 @@ import "../floor/compiler/semantic-inventory-runtime.ts";
 import process from "node:process";
 
 const { EXIT } = await import("../floor/cli/exit-contract.ts");
-const { runTool, UsageError } = await import("../floor/cli/run-tool.ts");
+const { prepareToolHeap, runTool, UsageError } = await import("../floor/cli/run-tool.ts");
+prepareToolHeap();
+
 const { deepImportsOp, migrateMacroBlocksOp, printHelp, printList, printRecipe, printRecipes, relocateOp, searchHelpers, testSubpathsOp } = await import(
   "./index.ts"
 );

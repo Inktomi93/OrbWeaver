@@ -4,13 +4,14 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import process from "node:process";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import { isLegacyTestProgram, isTypeWorldSource, predictedProgram, requiresExclusiveRoot } from "@orb/tooling/floor/compiler/project-worlds";
 import { GIT_READ_PREFIX, runGit } from "@orb/tooling/floor/git/git";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { isLegacyTestPath } from "@orb/tooling/floor/testing/test-population";
 import { readCompilerProgramsFromInventory } from "../../floor/compiler/compiler-programs.ts";
-import type { CompilerProgram, PolicyRepositoryInventory, PolicySemanticPath } from "../contract/policy-scope.ts";
+import type { CompilerProgram, PolicySemanticPath } from "../contract/policy-scope.ts";
 import type { TypecheckPlan, TypecheckPlanMode, TypecheckPlanSubject } from "../contract/typecheck-plan.ts";
 import { resolvePolicyPathOwnership } from "./policy-program-membership.ts";
 import { readPolicyRepositoryInventory } from "./policy-repo-inventory.ts";
@@ -39,9 +40,7 @@ function gitOutput(root: string, args: readonly string[]): string {
   return result.stdout;
 }
 
-/** Content identity for the native membership snapshot. Paths alone are insufficient: an import edit can
- * change closure membership without changing Git status. The key reads Git's path lists itself rather
- * than the validated inventory, whose per-file stat walk is most of a warm plan's cost. */
+// Authored bytes can change while native listings run; Git status alone does not identify those bytes.
 function snapshotKey(root: string): string {
   const headResult = runGit(root, [...GIT_READ_PREFIX, "rev-parse", "HEAD"]);
   const head = headResult.status === 0 ? headResult.stdout.trim() : "no-head";
@@ -63,33 +62,6 @@ function snapshotKey(root: string): string {
   return `${head}:${digest.digest("hex")}`;
 }
 
-interface PlanningSnapshot {
-  readonly root: string;
-  readonly key: string;
-  readonly programs: readonly CompilerProgram[];
-  readonly contained?: ReadonlyMap<string, readonly string[]>;
-}
-
-// The one process-wide snapshot. It holds only a snapshot whose key was read again, unchanged, after its
-// membership was read, so a key always names the bytes its snapshot came from.
-let planningMemo: PlanningSnapshot | undefined;
-
-/** The memo when it already answers this key and mode. A hit reads nothing from the tree; the caller reads
- *  the key once more after planning, so a hit never answers for bytes that moved under the first read. */
-function warmSnapshot(root: string, key: string, needsClosures: boolean): PlanningSnapshot | undefined {
-  const memo = planningMemo;
-  return memo?.root === root && memo.key === key && (!needsClosures || memo.contained !== undefined) ? memo : undefined;
-}
-
-/** Read membership for `key`, reusing the memo's programs when only its closures are missing. The caller
- *  commits the result only after the key reads the same again. */
-function readSnapshot(root: string, key: string, inventory: PolicyRepositoryInventory, needsClosures: boolean): PlanningSnapshot {
-  const reusable = planningMemo?.root === root && planningMemo.key === key ? planningMemo : undefined;
-  const programs = reusable?.programs ?? readCompilerProgramsFromInventory(inventory);
-  const contained = needsClosures ? closuresByFile(root, programs) : reusable?.contained;
-  return { root, key, programs, ...(contained === undefined ? {} : { contained }) };
-}
-
 function repoRelative(root: string, file: string, config: string): string | undefined {
   const absolute = isAbsolute(file) ? file : resolve(root, file);
   let canonical: string;
@@ -107,7 +79,7 @@ function repoRelative(root: string, file: string, config: string): string | unde
 /** One native program's authored import closure. Cold by construction: incremental state is never read. */
 function readProgramClosure(root: string, program: CompilerProgram): ReadonlySet<string> {
   const wrapper = join(root, "scripts", "ts7.ts");
-  const result = runNicedSync("pnpm", ["exec", "node", wrapper, "--noEmit", "--pretty", "false", "--listFilesOnly", "-p", program.config], {
+  const result = runNicedSync(process.execPath, [wrapper, "--noEmit", "--pretty", "false", "--listFilesOnly", "-p", program.config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,
     supervised: true,
@@ -266,16 +238,7 @@ function nonTypePlan(paths: readonly PolicySemanticPath[], mode: TypecheckPlanMo
   };
 }
 
-/** Plan the native programs that can judge the selected semantic paths.
- *
- * `primary` runs the authored root's intended primary program and every program affected by config or
- * ambient input. It is intentionally an editor advisory. `affected` expands authored files through each
- * compiler's native import closure and is the complete selection used by scoped verification.
- *
- * One plan reads the inventory once and the key twice. A cold plan reads the key again after its membership
- * read and keeps the snapshot only if the key is unchanged; a warm plan reads it again after planning and
- * retries when the memo it answered from no longer names the tree. The key is read before the inventory, so
- * the second read spans every tree read the plan depends on. */
+// Reacquire compiler membership: authored Git bytes omit generated imports and failed resolution candidates.
 function planStableSnapshot(root: string, paths: readonly PolicySemanticPath[], mode: TypecheckPlanMode, retries: number): TypecheckPlan {
   const key = snapshotKey(root);
   const inventory = readPolicyRepositoryInventory(root);
@@ -290,27 +253,15 @@ function planStableSnapshot(root: string, paths: readonly PolicySemanticPath[], 
     return direct;
   }
   const needsClosures = mode === "affected" && paths.some((path) => path.status !== "deleted" && isTypeWorldSource(path.path));
-  const warm = warmSnapshot(root, key, needsClosures);
-  let snapshot = warm;
-  if (snapshot === undefined) {
-    const read = readSnapshot(root, key, inventory, needsClosures);
-    if (snapshotKey(root) !== key) {
-      return replanOrRefuse(root, paths, mode, retries);
-    }
-    planningMemo = read;
-    snapshot = read;
-  }
-  const programs = snapshot.programs;
+  const programs = readCompilerProgramsFromInventory(inventory);
   const everyProgram = programs.map((program) => program.id).toSorted(compare);
   const rooted = rootsByFile(programs);
-  const contained = snapshot.contained ?? new Map<string, readonly string[]>();
+  const contained = needsClosures ? closuresByFile(root, programs) : new Map<string, readonly string[]>();
   const context: SubjectContext = { programs, everyProgram, rooted, contained, mode };
   const subjects = resolvePolicyPathOwnership(programs, paths).map(({ path, status, previousPath, programIds }) =>
     planSubject(context, { path, status, previousPath }, programIds),
   );
-  // A warm hit read nothing after its key, so the key is read once more here: bytes that moved while the key was
-  // being read would otherwise return a plan for the memo's tree, not this one.
-  if (warm !== undefined && snapshotKey(root) !== key) {
+  if (snapshotKey(root) !== key) {
     return replanOrRefuse(root, paths, mode, retries);
   }
 
