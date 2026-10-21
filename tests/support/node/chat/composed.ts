@@ -1,7 +1,7 @@
 // A room is authored through the real server graph; only physical provider execution is scripted.
 import type { CharacterDetail, CreateCharacterInput } from "@orb/contracts/character";
 import { createCharacterSchema } from "@orb/contracts/character";
-import type { GroupConfig } from "@orb/contracts/chat";
+import type { GroupConfigInput } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { MemoryDefaults } from "@orb/contracts/settings";
@@ -16,7 +16,7 @@ export interface ChatRootOptions {
   readonly server?: Omit<ServerHarnessOptions, "providerFetch">;
   readonly characters?: readonly CreateCharacterInput[];
   readonly promptConfig?: PromptConfig;
-  readonly group?: Partial<GroupConfig>;
+  readonly group?: GroupConfigInput;
   readonly memoryEnabled?: boolean;
   readonly memoryDefaults?: MemoryDefaults;
 }
