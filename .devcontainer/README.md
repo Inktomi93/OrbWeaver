@@ -18,6 +18,7 @@ Ported from neo-tavern's sandbox with one load-bearing fix — see "pnpm store" 
 ## Quick start
 
 ### VS Code (daily driver)
+
 1. `code .` (open orbweaver), or open the folder in VS Code.
 2. Bottom-left `><` → **Reopen in Container** (first build ~a few min; after that it's fast).
 3. Open the integrated terminal → you're `node@…` in `/workspace`.
@@ -28,6 +29,7 @@ Ported from neo-tavern's sandbox with one load-bearing fix — see "pnpm store" 
    `defaultMode: bypassPermissions` and pre-accepts the one-time bypass dialog).
 
 ### Pure CLI (no VS Code)
+
 ```bash
 cd development/orbweaver
 npx @devcontainers/cli up --workspace-folder .            # build + start
@@ -35,6 +37,7 @@ npx @devcontainers/cli exec --workspace-folder . zsh      # shell inside
 # inside:
 claude --dangerously-skip-permissions
 ```
+
 Or attach to a running container directly: `docker exec -it <id> zsh`
 (`docker ps --filter label=devcontainer.local_folder=$PWD`).
 
@@ -46,7 +49,7 @@ host sessions keep whatever the host user settings say.
 
 ## Daily workflow
 
-- **Code + checks run IN the container:** `pnpm check`, `pnpm test`, `pnpm dev`, etc.
+- **Code + checks run IN the container:** follow [CONTRIBUTING.md](../CONTRIBUTING.md) for native checks and scoped tests. Start the dev stack with `pnpm dev`.
   Deps live in isolated `node_modules` volumes (see below).
 - **`git push` from the HOST**, not the container. No SSH keys are mounted inside (by
   design — credentials stay on the host, never exposed to a permissive sandbox).
@@ -64,7 +67,7 @@ host sessions keep whatever the host user settings say.
 ## What's in here
 
 | File | Purpose |
-|------|---------|
+| - | - |
 | `devcontainer.json` | Container definition: image build, mounts, run args, lifecycle commands, container-only VS Code settings. |
 | `Dockerfile` | The sandbox image: `node:26` + Claude Code + ast-grep + pnpm + git/gh/delta/zsh/iptables + the baked Playwright Chromium. |
 | `tools/package.json`, `tools/package-lock.json` | Exact coding-tool versions and integrity-locked dependencies, installed with `npm ci`. The pnpm version matches the repository's `packageManager`. |
@@ -113,6 +116,6 @@ Plus the per-container `claude-code-config-*` (login/settings) and
 ## Separation of concerns
 
 | Purpose | Where Claude writes code | How orbweaver's model stack runs |
-|---------|--------------------------|----------------------------------|
+| - | - | - |
 | Sandbox (this folder) | in the container, firewalled | not here — no GPU |
-| GPU/vLLM + local-light | — | on the host (`.models/`; the vLLM launcher is the owner's own tooling) |
+| External model servers | — | Managed outside this repository and configured as app connections. |

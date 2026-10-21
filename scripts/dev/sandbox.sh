@@ -4,7 +4,7 @@
 # a NEW terminal window shelled into it with Claude already started in permissive mode
 # (`--dangerously-skip-permissions` — the container + firewall are the boundary; owner ruling
 # 2026-09-01: the point of the dev container is to run without prompts). When Claude exits, the window
-# drops to a zsh inside the container instead of closing (so `pnpm check` etc. are one keystroke
+# drops to a zsh inside the container instead of closing (so contributor commands are one keystroke
 # away). HOST-side script — never run inside the container ($DEVCONTAINER guard).
 #
 #   pnpm sandbox              build/start + open Claude in a new terminal window

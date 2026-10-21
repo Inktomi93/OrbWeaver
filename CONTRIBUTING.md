@@ -52,20 +52,23 @@ written with an AI assistant end with its `Co-Authored-By:` trailer; for one you
 ## Before you open a PR
 
 ```bash
-pnpm check   # the static tier: lint, typecheck, structural gates
+pnpm lint
+pnpm lint:eslint
+pnpm lint:css
+pnpm typecheck
+pnpm depcruise
 ```
 
-Run the behavior tests your change touches with `pnpm test:scoped <paths>` or `pnpm test:ct <paths>`. The
-pre-commit hook runs the static checks on what you staged, and the pre-push hook checks GitHub synchronization. CI runs
-the rest on every PR: node tests, component tests and the e2e smoke suite. `pnpm verify --push` runs all of
-it locally if you'd rather know first.
+Run the affected suites with `pnpm test <paths>`, `pnpm test:tools <paths>` or `pnpm test:ct <paths>`. The
+pre-commit hook runs Biome on staged files. The pre-push hook checks GitHub synchronization. CI runs the
+application checks on pushes to `main` and pull requests.
 
 ## Native proof workflows
 
 Two manual workflows prove the paths that matter on real runners:
 
 - [contributor](.github/workflows/contributor.yml) does a fresh checkout and install on macOS and Windows,
-  starts `pnpm dev`, captures Home with Snap, runs `pnpm check` and one component test, and uploads the logs
+  starts `pnpm dev`, captures Home with Snap, runs native static checks and one component test, and uploads the logs
   even when it fails.
 - [install](.github/workflows/install.yml) proves the README's source and Docker launches and the plugin
   broker. Its `windows_proof_only` input repeats the Windows broker proofs alone, and

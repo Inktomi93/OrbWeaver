@@ -166,14 +166,13 @@ Install Git and pnpm as "From source" under "Run it" says. On Windows, install G
 pnpm install                               # deps (hard-linked from pnpm's global store) + git hooks (lefthook, via `prepare`)
 pnpm runtime set node 26 -g                 # Node on PATH for Git hooks that invoke it directly
 pnpm exec playwright install chromium      # once: the browser build the component and e2e tests run in
-pnpm check                                 # biome lint + tsc typecheck across all packages
 ```
 
 On Linux, `pnpm exec playwright install --with-deps chromium` also installs the browser's system libraries.
 
-The contributor commands use native Node on macOS and Windows; WSL2 is optional. The [contributor workflow](.github/workflows/contributor.yml) proves a fresh install, `pnpm dev`, Snap, `pnpm check` and a fixed component test on native runners. It supports manual runs and weekly checks of changed `main`. The [install workflow](.github/workflows/install.yml) checks changed `main` nightly; its Docker proof uses the published release's source. Read completed artifacts before claiming native contributor parity.
+The contributor commands use native Node on macOS and Windows; WSL2 is optional. The [contributor workflow](.github/workflows/contributor.yml) proves a fresh install, `pnpm dev`, Snap, native static checks and a fixed component test on macOS and Windows. It supports manual runs and weekly checks of `main`. See [CONTRIBUTING.md](CONTRIBUTING.md) for the commands. The [install workflow](.github/workflows/install.yml) checks changed `main` nightly; its Docker proof uses the published release's source.
 
-The [application workflow](.github/workflows/ci.yml) distributes nightly full verification across native partitions. It qualifies only complete successful results for the same commit. Checker qualification remains weekly. Bug-specific captures live in the dispatch-only [diagnostics workflow](.github/workflows/diagnostics.yml).
+The [application workflow](.github/workflows/ci.yml) runs native static checks, Node tests, component tests and e2e smoke on pushes to `main` and pull requests. Bug-specific captures live in the dispatch-only [diagnostics workflow](.github/workflows/diagnostics.yml).
 
 Timing budgets qualify on named hardware under [D308](docs/adr/0308-hardware-scoped-timing-budgets.md). Hosted runners retain measurements without asserting timing budgets; behavior remains blocking. [Owner-machine timing setup](docs/law/owner-timing.md) uses a local main-only controller, not a GitHub self-hosted runner.
 
