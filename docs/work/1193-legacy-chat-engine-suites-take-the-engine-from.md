@@ -29,10 +29,12 @@ Impersonation is a non-persisting draft followed by an explicit commit. Retain p
 
 Attachment, variant, opt-out, round and solo evidence: `reports/review/1193-leg1-review.md` and `reports/review/1193-leg2-review.md`.
 
-Lifecycle, statistics, greeting, read-budget and memory-build controls are delivered at `07146d4fd2`. Evidence: `reports/review/1193-leg3-review.md` and `reports/review/1193-third-leg-worktree-evidence/`.
+Lifecycle, statistics, greeting, read-budget and memory-build evidence: `07146d4fd2` and `reports/review/1193-leg3-review.md`.
 
-Compaction, inline-image and fault-outcome replacements are delivered at `8b468edc18`; their standalone legacy suites are removed after qualification. Runtime results, the restored tracing control and independent review: `reports/review/1193-leg4-review.md` and `reports/review/1193-leg4-worktree-evidence/`.
+Compaction, inline-image and fault-outcome evidence: `8b468edc18` and `reports/review/1193-leg4-review.md`, including the restored tracing control.
 
-The wider engine, turn verbs and scenario consumers remain open with native legacy errors.
+Turn verbs and required scenario consumers remain open with native legacy errors.
 
-Persona/cache replacements are delivered at `e3b0671492`; their legacy originals are removed. Review and control: `reports/review/1193-persona-cache-review.md`. Native import repair: `c6eb4e713c`.
+Persona/cache evidence: `e3b0671492` and `reports/review/1193-persona-cache-review.md`. Native import repair: `c6eb4e713c`.
+
+Wide-engine replacements: `5ece8b58c9`. Review, meaningful-case mapping, obsolete-producer dispositions and restored lock control: `reports/review/1193-core-wave-review.md`. The replaced legacy engine suite is removed after qualification.

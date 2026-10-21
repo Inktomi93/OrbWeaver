@@ -1,6 +1,5 @@
 // Physical CLI protocol only; native Query imports seed bytes and owns transcript mirroring.
 import { once } from "node:events";
-import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import process from "node:process";
 import {
@@ -14,7 +13,7 @@ import {
   CORPUS_SDK_REPLY,
   CORPUS_SDK_REUSE,
 } from "./corpus-sdk-protocol.ts";
-import { readSdkProcessInput, writeSdkControlReply } from "./sdk-process-control.mjs";
+import { readSdkProcessInput, readSdkResumeTranscript, writeSdkControlReply } from "./sdk-process-control.mjs";
 
 function write(value) {
   process.stdout.write(`${JSON.stringify(value)}\n`);
@@ -24,25 +23,7 @@ async function importedSeed(config, resume, sessionId) {
   if (resume === null) {
     return { file: join(config, "projects", "physical-corpus", `${sessionId}.jsonl`), frames: [] };
   }
-  const projects = join(config, "projects");
-  for (const project of await readdir(projects)) {
-    const file = join(projects, project, `${resume}.jsonl`);
-    try {
-      return {
-        file,
-        frames: (await readFile(file, "utf8"))
-          .trim()
-          .split("\n")
-          .filter(Boolean)
-          .map((line) => JSON.parse(line)),
-      };
-    } catch (error) {
-      if (!(error instanceof Error && "code" in error) || error.code !== "ENOENT") {
-        throw error;
-      }
-    }
-  }
-  throw new Error("native Query did not import its requested resume transcript");
+  return await readSdkResumeTranscript(config, resume);
 }
 
 function promptOf(input) {
