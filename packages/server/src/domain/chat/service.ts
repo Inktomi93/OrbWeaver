@@ -12,9 +12,11 @@ import type { ChatService } from "./contract/service.ts";
 import type { SignupInviteOps } from "./contract/signup.ts";
 import type { ChatAssemblyContext } from "./contract/wiring.ts";
 import { createTurnEngine } from "./engine/engine.ts";
+import { createHandoffBarrier } from "./handoff-barrier.ts";
 import { buildTurnMemory } from "./memory/generate/turn.ts";
 import { loadWitnessHorizons } from "./memory/persistence/queries.ts";
 import { recallMemory } from "./memory/recall/recall.ts";
+import { createAdmittedChatOperations } from "./verbs/admission.ts";
 import { createChatLifecycle } from "./verbs/chat-lifecycle.ts";
 import { createClaimChat } from "./verbs/claim-chat.ts";
 import { createCompaction } from "./verbs/compaction.ts";
@@ -32,7 +34,7 @@ import { createReactions } from "./verbs/reactions.ts";
 import { createRead } from "./verbs/read.ts";
 import { createSignupInvite } from "./verbs/signup-invite.ts";
 import { createStartChat } from "./verbs/start-chat.ts";
-import { createRequestTurn, createTurn } from "./verbs/turn.ts";
+import { createDeferredSettlement, createRequestTurn, createTurn } from "./verbs/turn.ts";
 import { createQuietExtractionInputs, createVisibleExtractQuietGate } from "./verbs/visible-extract-quiet.ts";
 
 export function createVisibleExtractQuiet(deps: DbAssemblyInput<VisibleExtractQuietDeps>): VisibleExtractQuiet {
@@ -58,7 +60,14 @@ export function createChatService(
   input: ChatAssemblyContext,
   deps: ChatServiceDeps,
 ): { readonly service: ChatService; readonly requestTurn: RequestTurnOp; readonly signupInvites: SignupInviteOps; readonly claimChat: ClaimChatOp } {
-  const ctx = createChatContext(input);
+  const admission = createHandoffBarrier();
+  const ctx = createChatContext({
+    ...input,
+    trackBackground: (work, chatId): void => {
+      admission.track(chatId, work);
+      input.trackBackground?.(work, chatId);
+    },
+  });
   // The quiet-generation seam: a non-canon generation through the chat's OWN resolved connection (the marker
   // build's model access — never the summarizer rail). Standalone factory, the ExtractQuiet precedent.
   const quietGenerate = createQuietGenerate({ runChatTurn: ctx.runChatTurn, resolveChatPresetParams: ctx.resolveChatPresetParams });
@@ -119,6 +128,7 @@ export function createChatService(
   // same substrate a human send does.
   const turnDeps = {
     engine,
+    admission,
     activeTurns: deps.activeTurns,
     emit: deps.emit,
     prng: deps.prng,
@@ -154,6 +164,11 @@ export function createChatService(
   const startChat = createStartChat(ctx, { emit: deps.emit, prepareCreationEvent: deps.prepareCreationEvent, loadParticipantViews });
   const chatLifecycle = createChatLifecycle(ctx, { emit: deps.emit, emitLive: deps.emitLive, activeTurns: deps.activeTurns, claimChat });
   const participants = createParticipants(ctx, { emit: deps.emitChecked, claimChat });
+  const admitted = createAdmittedChatOperations(ctx, {
+    barrier: admission,
+    operations: { ...turn, ...imageGen, compact, acceptHostHandoff: participants.acceptHostHandoff },
+    settleDeferredTurns: createDeferredSettlement(ctx, turnDeps),
+  });
   // B6 — the reaction plane. NO `claimChat`: a reaction is a read-adjacent act on canon that already exists,
   // so it cannot be the first activity in a room (a husk has no committed variant to react to).
   const reactions = createReactions(ctx, { emit: deps.emit });
@@ -171,7 +186,7 @@ export function createChatService(
       ...chatLifecycle,
       ...participants,
       ...reactions,
-      compact,
+      ...admitted,
     },
     requestTurn,
     signupInvites,

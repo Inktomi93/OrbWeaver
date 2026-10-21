@@ -46,6 +46,7 @@ import type { ChatRpgGatherResult, ClaimChatOp } from "../contract/context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
 import type { ChatBehaviorInputs, ForeignInputs, HumanSeatPersona, ResolveForeignInputsOp, TurnTrigger, TurnVoice } from "../contract/foreign.ts";
 import { DEFAULT_CHAT_BEHAVIOR } from "../contract/foreign.ts";
+import type { HandoffBarrier } from "../contract/handoff-barrier.ts";
 import type { MemoryConfig, MemoryRecallInputs } from "../contract/memory.ts";
 import type {
   AbortParams,
@@ -74,6 +75,7 @@ import type {
 import { KIND_TO_INTENT } from "../contract/results.ts";
 import type { ChatService } from "../contract/service.ts";
 import { requireHost, requireParticipant } from "../guard.ts";
+import { refuseHandoffAdmission } from "../handoff-barrier.ts";
 import {
   buildCommittedMessageView,
   combineReasoning,
@@ -83,7 +85,7 @@ import {
   isRetainedParentFenceViolation,
 } from "../persistence/canon-write.ts";
 import { loadChatIdentityProducer } from "../persistence/identity.ts";
-import { claimPendingTurn, insertPendingTurn, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
+import { claimPendingTurn, insertPendingTurn, loadPendingTurns, loadPendingTurnsForHost, loadPendingTurnsForReclaim } from "../persistence/invites.ts";
 import { classifyParticipant, isArbiterEligible } from "../persistence/participant.ts";
 import { loadParticipants, loadPresentRole } from "../persistence/participants-read.ts";
 import {
@@ -141,6 +143,7 @@ type RoundBase = Parameters<typeof driveRoundVia>[0]["base"];
 /** Collaborators not on `ChatContext` (the second factory arg). */
 interface TurnDeps {
   readonly engine: TurnEngine;
+  readonly admission: HandoffBarrier;
   readonly activeTurns: ActiveTurns;
   readonly emit: (event: DurableChatBusEvent) => Promise<void>;
   readonly prng: () => number;
@@ -1574,9 +1577,10 @@ function rpgUserCommitRequestId(messageId: MessageId): string {
 function fireRpgUserCommit(ctx: ChatContext, chatId: ChatId, messageId: MessageId): void {
   if (ctx.rpg !== null) {
     const rpg = ctx.rpg;
-    void withRequestSpan(rpgUserCommitRequestId(messageId), RPG_USER_COMMIT_SPAN, { chatId, messageId }, () => rpg.onUserCommit(chatId, messageId)).catch(
-      () => undefined,
-    );
+    const settled = withRequestSpan(rpgUserCommitRequestId(messageId), RPG_USER_COMMIT_SPAN, { chatId, messageId }, () =>
+      rpg.onUserCommit(chatId, messageId),
+    ).catch(() => undefined);
+    ctx.trackBackground?.(settled, chatId);
   }
 }
 
@@ -2436,6 +2440,14 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
       // Close the drain on completion OR failure so the consumer never hangs; a real fault re-throws below.
       .then(() => undefined)
       .finally(() => bridge.close());
+    // The consumer still receives/logs the original fault below; root and handoff join its settlement.
+    ctx.trackBackground?.(
+      run.then(
+        () => undefined,
+        () => undefined,
+      ),
+      chatId,
+    );
     let drained = false;
     try {
       for await (const delta of bridge.drain()) {
@@ -2687,7 +2699,7 @@ async function runDeferredRound(
   ctx: ChatContext,
   deps: TurnDeps,
   row: { readonly chatId: ChatId; readonly triggeredBy: UserId; readonly runAsUserId: UserId; readonly timeZone: IanaTimeZone | null },
-): Promise<void> {
+): Promise<TurnOutcome> {
   const chat = await loadChatRow(ctx.db, row.chatId);
   if (chat === undefined) {
     throw new ChatNotFoundError(row.chatId);
@@ -2730,13 +2742,17 @@ async function runDeferredRound(
     signal: handle.signal,
   };
   // A drain answers a human send, but nobody is live to name a speaker: it bans like an AI-chained round.
-  await runAiRound(ctx, deps, { base, group, room, signal: handle.signal, banLast: banLastFor(group, false) });
+  return await runAiRound(ctx, deps, { base, group, room, signal: handle.signal, banLast: banLastFor(group, false) });
 }
 
 /** Process ONE queued row: CLAIM it atomically (the exactly-once serializer), then RUN it · DROP it on a
  *  permanent verdict (the claim already deleted it) · or RE-QUEUE it (re-insert) on a transient fault. A lost
  *  claim ("skipped") means a concurrent drain owns the row. Isolated — the fault never escapes the sweep. */
-async function drainOne(ctx: ChatContext, deps: TurnDeps, row: { readonly id: PendingTurnId }): Promise<"ran" | "dropped" | "requeued" | "skipped"> {
+async function drainOne(
+  ctx: ChatContext,
+  row: { readonly id: PendingTurnId },
+  run: (claimed: NonNullable<Awaited<ReturnType<typeof claimPendingTurn>>>) => Promise<void>,
+): Promise<"ran" | "dropped" | "requeued" | "skipped"> {
   // Atomic claim-before-run: the `DELETE … RETURNING` is the ONLY serializer (a drained turn is not
   // lock-held), so the boot reclaim ∥ host-return overlap can't double-run or double-spend a row.
   const claimed = await claimPendingTurn(ctx.db, row.id);
@@ -2747,7 +2763,7 @@ async function drainOne(ctx: ChatContext, deps: TurnDeps, row: { readonly id: Pe
   // `isDrainVerdictDrop`) notifies the member via `notifyDeferredTurnDropped` and logs at info; every other
   // error re-inserts the row and `getLog().warn`s it with `err`. Ends if a third fault class needs its own handling.
   try {
-    await runDeferredRound(ctx, deps, claimed);
+    await run(claimed);
     return "ran";
   } catch (err) {
     if (isDrainVerdictDrop(err)) {
@@ -2802,12 +2818,17 @@ async function notifyDeferredTurnDropped(
  *  gone) — both consume the row; a transient fault leaves it queued. Rows drain oldest-first + SEQUENTIALLY
  *  (each takes the per-chat lock, and a drained turn spends the host's connection like any other). */
 function createDrainDeferredTurns(ctx: ChatContext, deps: TurnDeps): ChatService["drainDeferredTurns"] {
+  const run = createOwedRound(ctx, deps);
   return async (scope: DrainDeferredTurnsScope): Promise<DrainReport> => {
     const rows = "all" in scope ? await loadPendingTurnsForReclaim(ctx.db) : await loadPendingTurnsForHost(ctx.db, scope.hostUserId);
     let ran = 0;
     let dropped = 0;
     for (const row of rows) {
-      const outcome = await drainOne(ctx, deps, row);
+      using custody = deps.admission.tryEnter(row.chatId);
+      if (custody === null) {
+        continue;
+      }
+      const outcome = await drainOne(ctx, row, run);
       if (outcome === "ran") {
         ran += 1;
       } else if (outcome === "dropped") {
@@ -2815,6 +2836,48 @@ function createDrainDeferredTurns(ctx: ChatContext, deps: TurnDeps): ChatService
       }
     }
     return { ran, dropped };
+  };
+}
+
+function createOwedRound(ctx: ChatContext, deps: TurnDeps): (row: NonNullable<Awaited<ReturnType<typeof claimPendingTurn>>>) => Promise<void> {
+  const settlementDeps: TurnDeps = {
+    ...deps,
+    engine: {
+      ...deps.engine,
+      runTurn: async (prep): Promise<TurnOutcome> => {
+        try {
+          return await deps.engine.runTurn(prep);
+        } catch (error) {
+          // A normal round may yield a busy engine; owed handoff work must remain owed instead.
+          if (error instanceof ChatOperationError && error.code === CHAT_OP_CODES.locked) {
+            const refusal = new ChatOperationError(CHAT_OP_CODES.aborted, "the owed reply is still locked and must be retried");
+            refusal.cause = error;
+            throw refusal;
+          }
+          throw error;
+        }
+      },
+    },
+  };
+  return async (claimed): Promise<void> => {
+    const completed = await runDeferredRound(ctx, settlementDeps, claimed);
+    if (completed.aborted) {
+      throw new ChatOperationError(CHAT_OP_CODES.aborted, "the owed reply was aborted and must be retried");
+    }
+  };
+}
+
+/** The accepting room's debt runs under its already-closed transition, never a host-wide drain. */
+export function createDeferredSettlement(ctx: ChatContext, deps: TurnDeps): (chatId: ChatId) => Promise<void> {
+  const run = createOwedRound(ctx, deps);
+  return async (chatId): Promise<void> => {
+    const rows = await loadPendingTurns(ctx.db, chatId);
+    for (const row of rows) {
+      const outcome = await drainOne(ctx, row, run);
+      if (outcome === "requeued") {
+        throw new ChatOperationError(CHAT_OP_CODES.aborted, "the owed reply could not settle before host handoff; accept it again");
+      }
+    }
   };
 }
 
@@ -2850,6 +2913,25 @@ interface RequestTurnResolved {
 /** requestTurn WALLS 1+2 + room/host/connection resolution. Throws the coded refusal on any wall breach; else
  *  returns the resolved substrate. Split out so the round-driver closure stays under the complexity bar. */
 async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: RequestTurnParams): Promise<RequestTurnResolved> {
+  await requireRequestTurn(ctx, params);
+  const { chatId, triggeredBy } = params;
+  const chat = await loadChatRow(ctx.db, chatId);
+  if (chat === undefined) {
+    throw new ChatNotFoundError(chatId);
+  }
+  // Resolves the FUNDING host from canon (never a caller-supplied id); hostless is unusable (leak-free).
+  const room = await loadRoom(ctx, chatId);
+  // Freeze the room's host once for funding and assembly; the responsible human remains the initiator.
+  const identity = { triggeredBy, funderUserId: room.hostUserId, runAsUserId: room.hostUserId };
+  const connection = await deps.resolveConnection({
+    funderUserId: identity.funderUserId,
+    chatId,
+    ...(params.actor !== undefined ? { actor: params.actor } : {}),
+  });
+  return { chat, room, connection, identity };
+}
+
+async function requireRequestTurn(ctx: ChatContext, params: RequestTurnParams): Promise<void> {
   const { chatId, initiator, triggeredBy, automationDepth } = params;
   // WALL 1 (write side). `"human"` is never a requestTurn origin (it would forge a human turn); refuse it.
   if (initiator === "human") {
@@ -2861,30 +2943,21 @@ async function resolveRequestTurn(ctx: ChatContext, deps: TurnDeps, params: Requ
       `chat ${chatId}: turn depth ${automationDepth} exceeds the cascade cap ${AUTOMATION_DEPTH_HARD_CAP}`,
     );
   }
-  const chat = await loadChatRow(ctx.db, chatId);
-  if (chat === undefined) {
-    throw new ChatNotFoundError(chatId);
-  }
-  // Resolves the FUNDING host from canon (never a caller-supplied id); hostless is unusable (leak-free).
-  const room = await loadRoom(ctx, chatId);
   // WALL 2 — the initiator must be a PRESENT participant (leak-free NOT_FOUND). The upstream callers additionally
   // require HOST (automation's holdsAuthority; the membrane's canWrite); this is the defense-in-depth backstop.
   if ((await loadPresentRole(ctx.db, chatId, triggeredBy)) === null) {
     throw new ChatNotFoundError(chatId);
   }
-  // Freeze the room's host once for funding and assembly; the responsible human remains the initiator.
-  const identity = { triggeredBy, funderUserId: room.hostUserId, runAsUserId: room.hostUserId };
-  const connection = await deps.resolveConnection({
-    funderUserId: identity.funderUserId,
-    chatId,
-    ...(params.actor !== undefined ? { actor: params.actor } : {}),
-  });
-  return { chat, room, connection, identity };
 }
 
 export function createRequestTurn(ctx: ChatContext, deps: TurnDeps): RequestTurnOp {
   return async (params: RequestTurnParams): Promise<TurnOutcome> => {
     const { chatId, initiator, automationDepth, speakerCharacterId, guided, timeZone } = params;
+    using custody = deps.admission.tryEnter(chatId);
+    if (custody === null) {
+      await requireRequestTurn(ctx, params);
+      refuseHandoffAdmission();
+    }
     const { chat, room, connection, identity } = await resolveRequestTurn(ctx, deps, params);
     // A forced speaker coerces the round to per-speaker so a narrator room still voices the named character.
     const baseGroup = chat.metadata.group ?? DEFAULT_GROUP_CONFIG;

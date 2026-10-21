@@ -20,9 +20,11 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId } from "@orb/kit/ids";
 import type { ChatContext } from "./context.ts";
-import { ChatNotFoundError } from "./contract/errors.ts";
+import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "./contract/errors.ts";
+import type { HandoffAcceptance } from "./contract/handoff-barrier.ts";
 import type { ParticipantRow } from "./contract/participant-row.ts";
-import { loadMemberChat } from "./persistence/queries.ts";
+import { loadHandoffResumption } from "./persistence/handoff-resume.ts";
+import { loadMemberChat, loadPendingHandoff } from "./persistence/queries.ts";
 import { assertAuthorOrHost, assertHost, assertParticipant, resolveHistoryFloorSeq } from "./substrate/auth/index.ts";
 import { hostSeatOf } from "./substrate/participants-host.ts";
 
@@ -67,6 +69,23 @@ export async function requireHost(ctx: GuardCtx, principal: Principal, chatId: C
   const membership = await requireParticipant(ctx, principal, chatId);
   assertHost(ctx.can, principal, membership.role, chatId);
   return membership;
+}
+
+/** The same nominee/resumption authority gates both admission and the actual transfer. */
+export async function requireHandoffAcceptance(ctx: GuardCtx, principal: Principal, chatId: ChatId): Promise<HandoffAcceptance> {
+  await requireParticipant(ctx, principal, chatId);
+  const resumable = await loadHandoffResumption(ctx.db, chatId);
+  if (resumable !== null) {
+    if (resumable.acceptedByUserId !== principal.userId) {
+      throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: only the accepted host may resume the host handoff`);
+    }
+    return { kind: "resume", resumption: resumable };
+  }
+  const { pendingHostUserId, offer } = await loadPendingHandoff(ctx.db, chatId);
+  if (pendingHostUserId === null || pendingHostUserId !== principal.userId) {
+    throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: only the nominated member may accept the host handoff`);
+  }
+  return { kind: "pending", offer };
 }
 
 /**

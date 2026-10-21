@@ -316,14 +316,7 @@ export async function claimPendingTurn(db: Db, id: PendingTurnId): Promise<typeo
   return rows.at(0);
 }
 
-/** The deferred turns queued for ONE chat, oldest-first. NOT the production drain scope — the host-return
- *  drain (chat Part III §5, wired at `transport/trpc/routers/stream.ts`'s `connect`) scopes by the
- *  returning host across ALL their chats via {@link loadPendingTurnsForHost}, since a host's reconnect
- *  should reclaim every chat they fund at once, not one chat at a time. This chat-scoped sibling is the
- *  precise read for asserting a single chat's queue state (used throughout the `turn`/`invites` int
- *  suites) and remains available for a future per-chat "reply pending" surface.
- * @public Test-anchored module surface; focused tests pin this production-local behavior.
- */
+/** The accepting room's owed turns, oldest-first; host-return drains retain their host-wide scope. */
 export async function loadPendingTurns(db: Db, chatId: ChatId): Promise<(typeof pendingTurns.$inferSelect)[]> {
   return await db.select().from(pendingTurns).where(eq(pendingTurns.chatId, chatId)).orderBy(asc(pendingTurns.createdAt));
 }

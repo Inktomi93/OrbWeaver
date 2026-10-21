@@ -68,11 +68,11 @@ import type { ParticipantRow } from "../contract/participant-row.ts";
 import type { HostTierRegexAllow } from "../contract/regex.ts";
 import type { ChatService } from "../contract/service.ts";
 import type { ParticipantData } from "../contract/views.ts";
-import { requireHandoffNominee, requireHost, requireParticipant } from "../guard.ts";
+import { requireHandoffAcceptance, requireHandoffNominee, requireHost, requireParticipant } from "../guard.ts";
 import { carriedBackgroundAvailable, ownedBackgroundAvailable } from "../persistence/background-write.ts";
 import { isRetainedParentFenceViolation, restampChatCharacterStatement, retainedChatFenceStatement } from "../persistence/canon-write.ts";
 import { chatMetadataSetStatement } from "../persistence/chat-metadata-write.ts";
-import { clearHandoffResumptionStatement, insertHandoffResumptionStatement, loadHandoffResumption } from "../persistence/handoff-resume.ts";
+import { clearHandoffResumptionStatement, insertHandoffResumptionStatement } from "../persistence/handoff-resume.ts";
 import {
   acceptHostHandoffSwapStatements,
   assertForcedCharacterMember,
@@ -85,7 +85,7 @@ import {
   setPendingHostStatement,
 } from "../persistence/participant.ts";
 import { captureParticipantRow, characterEverSeatedInChat, characterSeatedInAnotherChat, loadParticipants } from "../persistence/participants-read.ts";
-import { loadHasUserMessage, loadMaxMessageSeq, loadPendingHandoff } from "../persistence/queries.ts";
+import { loadHasUserMessage, loadMaxMessageSeq } from "../persistence/queries.ts";
 import { buildGreetingSeed } from "../substrate/greeting-seed.ts";
 import { previewHandoffCopyPlan, resolveHandoffCopyPlan } from "../substrate/handoff-copy.ts";
 import { viewerHoldsHost } from "../substrate/member-visibility.ts";
@@ -1179,19 +1179,12 @@ async function prepareHandoffRebase(
  *  row records what fired, so the transfer stays inspectable rather than silent. */
 function createAcceptHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatService["acceptHostHandoff"] {
   return async ({ principal, chatId }: AcceptHostHandoffParams): Promise<void> => {
-    await requireParticipant(ctx, principal, chatId);
-    const resumable = await loadHandoffResumption(ctx.db, chatId);
-    if (resumable !== null) {
-      if (resumable.acceptedByUserId !== principal.userId) {
-        throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: only the accepted host may resume the host handoff`);
-      }
-      await completeHandoffResumption(ctx, emit, resumable);
+    const acceptance = await requireHandoffAcceptance(ctx, principal, chatId);
+    if (acceptance.kind === "resume") {
+      await completeHandoffResumption(ctx, emit, acceptance.resumption);
       return;
     }
-    const { pendingHostUserId, offer } = await loadPendingHandoff(ctx.db, chatId);
-    if (pendingHostUserId === null || pendingHostUserId !== principal.userId) {
-      throw new ChatOperationError(CHAT_OP_CODES.notTurnOwner, `chat ${chatId}: only the nominated member may accept the host handoff`);
-    }
+    const { offer } = acceptance;
     // The previous host (for the post-swap notification) may be absent if they left after nominating.
     const participants = await loadParticipants(ctx.db, chatId);
     const oldHostUserId = hostUserIdOf(participants);
