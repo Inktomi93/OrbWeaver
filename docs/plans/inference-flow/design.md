@@ -22,7 +22,7 @@ Read this plan for runtime dependencies and correctness work scheduled by test-f
 
 ### Execution dependencies
 
-The [test-foundation plan](../test-foundation/design.md) owns the combined program order. Compose cleanup (964) moves runtime ports and reads to owning domains before the server harness (958) is built. Only dependencies required by a selected product test block its reconstruction. Parked tooling work does not.
+The [test-foundation plan](../test-foundation/design.md) owns the combined program order. Compose cleanup (964) moves runtime ports and reads to owning domains before the server harness (958) is built. Only dependencies required by a selected product test block its reconstruction.
 
 Typed discovery authority is integrated. Runtime funding, dispatched-material strike-out and identity enforcement are qualified on real composed callers. Ownerless workload funding, settings ownership and connection capabilities are integrated with their scoped production controls. Remaining owner-read adjudication and law alignment (970) remain production work. Route identity-sensitive changes to the security role.
 

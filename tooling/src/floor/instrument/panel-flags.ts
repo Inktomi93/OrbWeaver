@@ -42,7 +42,7 @@ interface PresetFile {
 /** Null when the committed file is missing or unparseable — the caller turns that into an ARG ERROR naming
  *  the path, never a silent "no such preset" that blames the caller for a broken file. */
 function readPresetFile(): PresetFile | null {
-  // @orb-waive caught-failure-ownership(catch): an unreadable or invalid preset file answers null, and loadPanelPreset turns null into an { error } that applyPanelPresetFlag pushes onto the flag parser's errors, so no nav action is queued. Ends if a caller reads null without refusing.
+  // an unreadable or invalid preset file answers null, and loadPanelPreset turns null into an { error } that applyPanelPresetFlag pushes onto the flag parser's errors, so no nav action is queued. Ends if a caller reads null without refusing.
   try {
     return JSON.parse(readFileSync(PRESETS_PATH, "utf8")) as PresetFile;
   } catch {

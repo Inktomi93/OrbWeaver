@@ -82,7 +82,7 @@ export function CharacterActionsMenu({ characterId }: CharacterActionsMenuProps)
    *  destructive slot with the confirm copy below. */
   const handlers: Readonly<Record<OpenActionId, (() => void) | null>> = {
     openInRefinery: (): void => {
-      // @orb-waive caught-failure-ownership(openRefinery): openRefinery's one failing call is `start.mutateAsync` (use-open-refinery.ts:103), whose mutation sets `errorToast` (use-open-refinery.ts:46); MutationCache.onError calls `toastFromMeta` (query-client.ts:81-83), which calls `notify.error`. Ends if that errorToast is dropped.
+      // openRefinery's one failing call is `start.mutateAsync` (use-open-refinery.ts:103), whose mutation sets `errorToast` (use-open-refinery.ts:46); MutationCache.onError calls `toastFromMeta` (query-client.ts:81-83), which calls `notify.error`. Ends if that errorToast is dropped.
       void openRefinery(characterId).catch(() => undefined);
     },
     // Outside a chat there is no room to scope to, so the gallery opens without its "This chat" filter. The

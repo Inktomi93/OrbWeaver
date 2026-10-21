@@ -9,7 +9,7 @@ export function createPluginWorldInfoReads(deps: PluginWorldInfoReadDeps): Plugi
   const { worldInfo, resolveOwnerPrincipal } = deps;
   return {
     isBookAttachedToChat: async (ownerId, chatId, bookId): ReturnType<PluginWorldInfoReads["isBookAttachedToChat"]> => {
-      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: a refusal
+      // FAIL-CLOSED — documented above: a refusal
       // (kicked between admission and write) resolves to "not attached", never a leak. Ends if this needs
       // to tell a raced-kick apart from an infra failure.
       try {
@@ -24,7 +24,7 @@ export function createPluginWorldInfoReads(deps: PluginWorldInfoReadDeps): Plugi
       return rows.map((row) => row.title);
     },
     listBooksForChat: async (ownerId, chatId): ReturnType<PluginWorldInfoReads["listBooksForChat"]> => {
-      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: a
+      // FAIL-CLOSED — documented above: a
       // refusal (kicked between admission and read) resolves to `[]`, so a non-member never learns the
       // room's book list. Ends if this needs to tell a raced-kick apart from an infra failure.
       try {
@@ -35,7 +35,7 @@ export function createPluginWorldInfoReads(deps: PluginWorldInfoReadDeps): Plugi
       }
     },
     listEntries: async (ownerId, bookId): ReturnType<PluginWorldInfoReads["listEntries"]> => {
-      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: `[]` if
+      // FAIL-CLOSED — documented above: `[]` if
       // the installer does not own the book — leak-free, indistinguishable from an empty one. Ends if this
       // needs to tell a not-owned book apart from an infra failure.
       try {

@@ -59,7 +59,7 @@ async function loadScopedDependencyStatuses(
   dependsOn: readonly WorkloadId[],
   ownerId: UserId | null,
 ): Promise<readonly { readonly id: WorkloadId; readonly status: WorkloadStatus }[]> {
-  // @orb-waive owner-scoped-reads(workloads): every arm is scoped — the dependent row's owner by `eq(workloads.ownerId, ownerId)`, or a system workload's ownerless dependencies by `isNull(workloads.ownerId)` when that resolved owner is null. Ends if the null arm admits owned rows.
+  // every arm is scoped — the dependent row's owner by `eq(workloads.ownerId, ownerId)`, or a system workload's ownerless dependencies by `isNull(workloads.ownerId)` when that resolved owner is null. Ends if the null arm admits owned rows.
   return await db
     .select({ id: workloads.id, status: workloads.status })
     .from(workloads)
@@ -154,7 +154,7 @@ export function toView(contributions: WorkloadContributions, row: WorkloadDecode
   const base = toRowBase(row);
   const result = workloadResultSchemaOf(row.kind).nullable().parse(row.result);
   let params: Record<string, unknown>;
-  // @orb-waive caught-failure-ownership(catch): owned by the poison flag: the catch returns the row with poison true, and the Jobs list reads it (workload-row.tsx renders the Unreadable badge). Ends if no consumer reads poison.
+  // owned by the poison flag: the catch returns the row with poison true, and the Jobs list reads it (workload-row.tsx renders the Unreadable badge). Ends if no consumer reads poison.
   try {
     params = contributions[row.kind].params.parse(row.params) as Record<string, unknown>;
   } catch {
@@ -247,7 +247,7 @@ export async function findActiveAdmittedWorkloadId(
 }
 
 /** Claim `queued → running` with persisted ownership; a lost race or deleted original owner returns null. */
-// @orb-waive owner-scoped-writes(workloads): THE ENGINE PLANE (D20 un-principal) — the idempotent queued→running claim. The id is one the engine itself polled/enumerated (`scanRunnableWorkloads`), never caller input, and these writes must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
+// THE ENGINE PLANE (D20 un-principal) — the idempotent queued→running claim. The id is one the engine itself polled/enumerated (`scanRunnableWorkloads`), never caller input, and these writes must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
 export async function markStarted(db: Db, id: WorkloadId, now: number): Promise<WorkloadClaim | null> {
   const moved = await db
     .update(workloads)
@@ -267,7 +267,7 @@ export async function markStarted(db: Db, id: WorkloadId, now: number): Promise<
 /** The lease tick: bump `updatedAt` for the in-flight statuses (the reaper's stale key), and — when the run
  *  has reported one — persist the latest progress snapshot in the SAME UPDATE. One write path: the engine
  *  throttles both to the lease cadence, so a chatty `report()` never turns into a second write stream. */
-// @orb-waive owner-scoped-writes(workloads): THE ENGINE PLANE (D20 un-principal) — the lease tick + progress snapshot. The id is one the engine itself polled/enumerated (the row the runner is executing), never caller input, and these writes must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
+// THE ENGINE PLANE (D20 un-principal) — the lease tick + progress snapshot. The id is one the engine itself polled/enumerated (the row the runner is executing), never caller input, and these writes must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
 export async function heartbeat(db: Db, id: WorkloadId, now: number, progress?: WorkloadProgress): Promise<void> {
   await db
     .update(workloads)
@@ -281,7 +281,7 @@ export async function heartbeat(db: Db, id: WorkloadId, now: number, progress?: 
 /** Stamp a terminal state — status-guarded, returns whether it actually moved the row (a zombie runner whose
  *  row was already reaped writes nothing). `succeeded` is allowed only from `running`; failure terminals move
  *  from either in-flight state. */
-// @orb-waive owner-scoped-writes(workloads): THE ENGINE PLANE (D20 un-principal) — the status-guarded terminal stamp. The id is one the engine itself polled/enumerated (the runner's own row, or `findStaleInFlight` in the reaper), never caller input, and these writes must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
+// THE ENGINE PLANE (D20 un-principal) — the status-guarded terminal stamp. The id is one the engine itself polled/enumerated (the runner's own row, or `findStaleInFlight` in the reaper), never caller input, and these writes must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
 export async function markTerminal(
   db: Db,
   args: {
@@ -307,7 +307,7 @@ export async function markTerminal(
 }
 
 /** The raw status of one row (`undefined` when absent). */
-// @orb-waive owner-scoped-reads(workloads): the engine's own status probe (cancel/worker plane). The user-facing authorization is F3-AUTHZ at the verb — `isVisibleToCaller(isAdmin, caller, row.ownerId)` in `verbs/get.ts` — which is the POST-FETCH arm this gate recognizes; the engine reads have no caller at all. Ends if a door calls this.
+// the engine's own status probe (cancel/worker plane). The user-facing authorization is F3-AUTHZ at the verb — `isVisibleToCaller(isAdmin, caller, row.ownerId)` in `verbs/get.ts` — which is the POST-FETCH arm this gate recognizes; the engine reads have no caller at all. Ends if a door calls this.
 export async function loadWorkloadStatus(db: Db, id: WorkloadId): Promise<WorkloadStatus | undefined> {
   const rows = await db.select({ status: workloads.status }).from(workloads).where(eq(workloads.id, id)).limit(1);
   return rows[0]?.status;
@@ -316,7 +316,7 @@ export async function loadWorkloadStatus(db: Db, id: WorkloadId): Promise<Worklo
 /** Race-safe, idempotent cancel: tries `queued → cancelled`, then `running → cancelling` on 0 rows. No
  *  SELECT-then-act gap — each arm is a status-guarded UPDATE. */
 export async function markCancelling(db: Db, id: WorkloadId, now: number): Promise<CancelWorkloadResult> {
-  // @orb-waive owner-scoped-writes(workloads): the two status-guarded UPDATEs are the write half of the read marker below — `verbs/cancel.ts` loads the row and runs the F3-AUTHZ `isVisibleToCaller` check before calling this, so the owner predicate lives one frame up (and must, for the admin arm). Ends if cancel stops loading-and-checking.
+  // the two status-guarded UPDATEs are the write half of the read marker below — `verbs/cancel.ts` loads the row and runs the F3-AUTHZ `isVisibleToCaller` check before calling this, so the owner predicate lives one frame up (and must, for the admin arm). Ends if cancel stops loading-and-checking.
   const cancelledQueued = await db
     .update(workloads)
     .set({ status: "cancelled", updatedAt: now })
@@ -325,7 +325,7 @@ export async function markCancelling(db: Db, id: WorkloadId, now: number): Promi
   if (cancelledQueued.length > 0) {
     return { status: "cancelled" };
   }
-  // @orb-waive owner-scoped-writes(workloads): the two status-guarded UPDATEs are the write half of the read marker below — `verbs/cancel.ts` loads the row and runs the F3-AUTHZ `isVisibleToCaller` check before calling this, so the owner predicate lives one frame up (and must, for the admin arm). Ends if cancel stops loading-and-checking.
+  // the two status-guarded UPDATEs are the write half of the read marker below — `verbs/cancel.ts` loads the row and runs the F3-AUTHZ `isVisibleToCaller` check before calling this, so the owner predicate lives one frame up (and must, for the admin arm). Ends if cancel stops loading-and-checking.
   const cancellingRunning = await db
     .update(workloads)
     .set({ status: "cancelling", updatedAt: now })
@@ -334,14 +334,14 @@ export async function markCancelling(db: Db, id: WorkloadId, now: number): Promi
   if (cancellingRunning.length > 0) {
     return { status: "cancelling" };
   }
-  // @orb-waive owner-scoped-reads(workloads): the tail SELECT reports which terminal the two status-guarded UPDATEs landed on; the caller (`verbs/cancel.ts`) has already run the F3-AUTHZ visibility check on the loaded row, so the owner predicate lives one frame up. Ends if cancel stops loading-and-checking before it calls this.
+  // the tail SELECT reports which terminal the two status-guarded UPDATEs landed on; the caller (`verbs/cancel.ts`) has already run the F3-AUTHZ visibility check on the loaded row, so the owner predicate lives one frame up. Ends if cancel stops loading-and-checking before it calls this.
   const current = await db.select({ status: workloads.status }).from(workloads).where(eq(workloads.id, id)).limit(1);
   return { status: current[0]?.status === "cancelling" ? "cancelling" : null };
 }
 
 /** Fail a queued row in place (poison-row + dependency-failed paths) — `markTerminal` only transitions
  *  from in-flight states. Returns whether it moved. */
-// @orb-waive owner-scoped-writes(workloads): THE ENGINE PLANE (D20 un-principal) — the poison-row / dependency-failed fail-in-place. The id is one the engine itself polled/enumerated (`nextRunnableWorkload`), never caller input, and these writes must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
+// THE ENGINE PLANE (D20 un-principal) — the poison-row / dependency-failed fail-in-place. The id is one the engine itself polled/enumerated (`nextRunnableWorkload`), never caller input, and these writes must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
 /** @public Test-anchored module surface; focused tests pin this production-local behavior. */
 export async function failQueuedRow(db: Db, id: WorkloadId, error: string, now: number): Promise<boolean> {
   const moved = await db
@@ -354,7 +354,7 @@ export async function failQueuedRow(db: Db, id: WorkloadId, error: string, now: 
 
 /** Load one typed row by id, or `null` (absent, or a kind this build doesn't ship). A row with unparseable
  *  params comes back POISON — visible, not vanished. */
-// @orb-waive owner-scoped-reads(workloads): THE F3-AUTHZ POST-FETCH ARM. The owner predicate deliberately lives at the verb (`verbs/get.ts`/`cancel.ts`/`retry.ts`: `isVisibleToCaller(isAdmin, caller, row.ownerId)` collapsing a foreign row to the SAME leak-free NOT_FOUND as an absent one) because the ADMIN and system-caller arms must see any row — an ownerId in this WHERE would make them unrepresentable. Ends if the admin arm goes.
+// THE F3-AUTHZ POST-FETCH ARM. The owner predicate deliberately lives at the verb (`verbs/get.ts`/`cancel.ts`/`retry.ts`: `isVisibleToCaller(isAdmin, caller, row.ownerId)` collapsing a foreign row to the SAME leak-free NOT_FOUND as an absent one) because the ADMIN and system-caller arms must see any row — an ownerId in this WHERE would make them unrepresentable. Ends if the admin arm goes.
 export async function loadWorkload(
   db: Db,
   contributions: WorkloadContributions,
@@ -372,7 +372,7 @@ export async function loadWorkload(
 /** The RAW (unparsed) params blob of one row — what `retry` clones for a POISON row, whose typed view carries
  *  `params: null`. Cloning the blob verbatim is what makes a poison row honestly retryable: the operator's
  *  original input survives, and a build that fixed the schema re-runs it unchanged. */
-// @orb-waive owner-scoped-reads(workloads): `verbs/retry.ts` calls this only AFTER `loadWorkload` + the F3-AUTHZ visibility check on the same id — the blob clone rides an already-authorized row. Ends if a caller reaches it without that.
+// `verbs/retry.ts` calls this only AFTER `loadWorkload` + the F3-AUTHZ visibility check on the same id — the blob clone rides an already-authorized row. Ends if a caller reaches it without that.
 export async function loadRawWorkloadParams(db: Db, id: WorkloadId): Promise<Record<string, unknown> | null> {
   const rows = await db.select({ params: workloads.params }).from(workloads).where(eq(workloads.id, id)).limit(1);
   return rows[0]?.params ?? null;
@@ -490,7 +490,7 @@ async function scanRunnablePage(input: QueueScanInput, cursor: QueueCursor | nul
           and(eq(workloads.scheduledAt, cursor.scheduledAt), gt(workloads.createdAt, cursor.createdAt)),
           and(eq(workloads.scheduledAt, cursor.scheduledAt), eq(workloads.createdAt, cursor.createdAt), gt(workloads.id, cursor.id)),
         );
-  // @orb-waive owner-scoped-reads(workloads): the queue runner's lane scan over every owner's queued rows — a trusted system read with no Principal (D20), whose rows feed only the engine's dispatch. The `workloads.id` term is the keyset cursor's tie-break, not a selection by a caller's id. Ends if a Principal-bearing caller reaches this scan.
+  // the queue runner's lane scan over every owner's queued rows — a trusted system read with no Principal (D20), whose rows feed only the engine's dispatch. The `workloads.id` term is the keyset cursor's tie-break, not a selection by a caller's id. Ends if a Principal-bearing caller reaches this scan.
   const page = await input.db
     .select(WORKLOAD_READ_COLUMNS)
     .from(workloads)
@@ -542,7 +542,7 @@ export async function findInFlightForBootReclaim(db: Db): Promise<WorkloadInFlig
  *  longer in a failure state, and `progress` is KEPT (a re-run's UI should not lose the last known position).
  *  No unique-index risk: `queued` and `running` are both in `ACTIVE_WORKLOAD_STATUSES`, so the row never
  *  leaves and never re-enters its single-active slot. */
-// @orb-waive owner-scoped-writes(workloads): THE ENGINE PLANE (D20 un-principal) — the boot reclaim's status-guarded re-queue. The id is one the engine itself enumerated (`findInFlightForBootReclaim`), never caller input, and this write must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
+// THE ENGINE PLANE (D20 un-principal) — the boot reclaim's status-guarded re-queue. The id is one the engine itself enumerated (`findInFlightForBootReclaim`), never caller input, and this write must move ADMIN and system rows too, so an ownerId in the WHERE would make that unrepresentable. The user-facing rung is F3-AUTHZ at the verb (`isVisibleToCaller(isAdmin, caller, row.ownerId)`), the POST-FETCH arm the read half recognizes. Ends if a door writes a workload row without that check.
 export async function requeueInFlight(db: Db, args: { id: WorkloadId; now: number }): Promise<boolean> {
   const moved = await db
     .update(workloads)

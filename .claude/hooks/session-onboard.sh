@@ -84,9 +84,9 @@ echo "    (2) The orchestrator skill is INJECTED into this context by a SessionS
 echo "    (3) READ IN FULL (cat): ~/.claude/bridge/SESSIONS.md, each unacked note the bridge block lists, and the scratch dispatch map if the line below found it."
 echo "    (4) Honor every MERGE HOLD / sequencing line in the notes; resume live lanes by SendMessage to their agentIds, NEVER respawn."
 if [ "$WHO" = "claude-b" ]; then
-  echo "    (5) ROLE: you are the second LANE DRIVER on your own account — you write ONLY claim --lane cb-<x>, file --ready, and file --kind decision + needs-owner; primary does every other transition, every fold, every memory write. If no unacked assignment note is in your inbox, write a QUESTION note to primary asking for your lanes (state a DEFAULT + deadline), pre-derive the default set while waiting, and fill your own lanes up to the skill's lane cap. Owner-word items: ask in chat ONCE and tell primary 'asked in chat — do not re-ask'."
+  echo "    (5) ROLE: you are the second LANE DRIVER on your own account — you implement assigned work in your worktree; primary owns integration. If no unacked assignment note is in your inbox, write a QUESTION note to primary asking for your lanes (state a DEFAULT + deadline), pre-derive the default set while waiting, and fill your own lanes up to the skill's lane cap. Owner-word items: ask in chat ONCE and tell primary 'asked in chat — do not re-ask'."
 else
-  echo "    (5) ROLE: claude-b claims and files under cb-*; you review / verify / land / re-price its rows and fold its worktree branches; answer its QUESTION notes before their deadline (an unanswered question fires its stated default)."
+  echo "    (5) ROLE: claude-b works under cb-*; you review and integrate its worktree branches; answer its QUESTION notes before their deadline (an unanswered question fires its stated default)."
 fi
 SID=$(printf '%s' "$HOOK_IN" | jq -r '.session_id // empty' 2>/dev/null)
 SCRATCH_MAP="/tmp/claude-$(id -u)/$(pwd | tr '/' '-')/${SID:-none}/scratchpad/dispatch-map.md"
@@ -103,21 +103,6 @@ if [ -n "$SID" ] && [ -f "$SCRATCH_MAP" ]; then
 else
   echo "--- scratch dispatch map: none for this session (fresh session, or purged) — your SELF note in the bridge block is the digest"
 fi
-
-# WORK-ITEM DRIFT (docs/work/, a plan's `docs/plans/<slug>/design.md`). `pnpm doc drift` prints NOTHING when the
-# item state agrees with the tree, else one line per drift with its exact fixing command: a doing item with
-# no live worktree or unmerged branch, a main commit whose Closes trailer names an unlanded item, a blocked-on
-# item whose blocker is done, a met wake condition. Never the full board — that is `pnpm doc overview`.
-# A broken tool must never read as "consistent": its exit code is checked and its stderr is shown.
-DRIFT_ERR=$(mktemp)
-DRIFT=$(node tooling/src/doc/cli.ts drift 2>"$DRIFT_ERR"); DRIFT_RC=$?
-if [ "$DRIFT_RC" -ne 0 ]; then
-  echo "!!! WORK-ITEM DRIFT CHECK FAILED (pnpm doc drift exit ${DRIFT_RC}) — not a clean verdict: $(tr '\n' ' ' <"$DRIFT_ERR" | cut -c1-400)"
-elif [ -n "$DRIFT" ]; then
-  echo "!!! WORK-ITEM DRIFT (each line names its fix):"
-  echo "$DRIFT"
-fi
-rm -f "$DRIFT_ERR"
 
 # POINTERS (each one line; the content is re-derivable on demand).
 WT_COUNT=$(git worktree list 2>/dev/null | tail -n +2 | wc -l | tr -d ' ')

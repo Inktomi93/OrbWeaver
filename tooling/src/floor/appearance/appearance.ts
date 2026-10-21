@@ -81,7 +81,7 @@ async function seedAppearanceBootHint(context: BrowserContext, patch: Appearance
   await context.addInitScript(
     ({ axes: requested, key, version }) => {
       let current: unknown;
-      // @orb-waive caught-failure-ownership(catch): a malformed boot hint holds no readable state, so it reads as absent and the setItem below rewrites it with the requested axes. Ends if the hint is read for anything but this overwrite.
+      // a malformed boot hint holds no readable state, so it reads as absent and the setItem below rewrites it with the requested axes. Ends if the hint is read for anything but this overwrite.
       try {
         current = JSON.parse(localStorage.getItem(key) ?? "null") as unknown;
       } catch {
@@ -91,7 +91,7 @@ async function seedAppearanceBootHint(context: BrowserContext, patch: Appearance
         typeof current === "object" && current !== null && "state" in current && typeof current.state === "object" && current.state !== null
           ? current.state
           : {};
-      // @orb-waive caught-failure-ownership(catch): an opaque-origin bootstrap page has no localStorage; the settings-response shim remains authoritative after navigation. Ends if the boot hint becomes the authoritative appearance source.
+      // an opaque-origin bootstrap page has no localStorage; the settings-response shim remains authoritative after navigation. Ends if the boot hint becomes the authoritative appearance source.
       try {
         localStorage.setItem(key, JSON.stringify({ state: { ...state, ...requested }, version }));
       } catch {
@@ -134,7 +134,7 @@ export function mergeAppearancePatches(base: AppearancePatch | null, next: Appea
  */
 export function trpcProcedureIndex(rawUrl: string, procedure: string = SETTINGS_PROCEDURE): number | null {
   let pathname: string;
-  // @orb-waive caught-failure-ownership(catch): an unparseable URL carries no settings procedure, so null sends the request on through route.fallback in installSettingsShim to the real network. Ends if a caller reads null as anything but 'not a settings request'.
+  // an unparseable URL carries no settings procedure, so null sends the request on through route.fallback in installSettingsShim to the real network. Ends if a caller reads null as anything but 'not a settings request'.
   try {
     pathname = new URL(rawUrl).pathname;
   } catch {
@@ -240,7 +240,7 @@ async function fulfilPatched(
  *  intercepted request went to, so a `--base`/stage port never has to be re-derived here. `listThemes` takes
  *  no input, so the batch URL carries an empty input map. */
 function themeListUrl(requestUrl: string): string | null {
-  // @orb-waive caught-failure-ownership(catch): a URL with no origin returns null, and themeResolver warns on stderr before it resolves no theme. Ends if the caller stops warning on null.
+  // a URL with no origin returns null, and themeResolver warns on stderr before it resolves no theme. Ends if the caller stops warning on null.
   try {
     return `${new URL(requestUrl).origin}${TRPC_PATH_PREFIX}${LIST_THEMES_PROCEDURE}?batch=1&input=${encodeURIComponent("{}")}`;
   } catch {
@@ -291,7 +291,7 @@ function themeResolver(request: ThemeRequest): (route: Route, context: BrowserCo
       return null;
     }
     let entries: readonly ThemeEntry[] | null = null;
-    // @orb-waive caught-failure-ownership(e): the catch passes the read failure to warn (stderr) and resolves no catalog, so the run reports the unresolved theme instead of measuring another one. Ends if the catch stops calling warn with the failure.
+    // the catch passes the read failure to warn (stderr) and resolves no catalog, so the run reports the unresolved theme instead of measuring another one. Ends if the catch stops calling warn with the failure.
     try {
       const response = await context.request.get(url);
       entries = response.ok() ? readThemeList((await response.json()) as unknown) : null;
@@ -380,7 +380,7 @@ export async function installSettingsShim(context: BrowserContext, shim: Setting
       await route.fallback();
       return;
     }
-    // @orb-waive caught-failure-ownership(catch): the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget.
+    // the primary route failure is owned by the awaited fallback route, whose own rejection propagates to the command. Ends if fallback becomes fire-and-forget.
     try {
       // No --theme, or a resolution that FAILED (the warning already said so) → no theme key at all, never
       // a fabricated selection. A resolved `none` IS a selection: `selectedThemeId: null`.

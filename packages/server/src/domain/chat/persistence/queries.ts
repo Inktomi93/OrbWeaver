@@ -172,7 +172,7 @@ function activeToolCalls(raw: readonly ToolCallRecord[] | null, metadata: Varian
 
 /** Legacy records gain deterministic ordinals at the read boundary; tombstones keep their positions. */
 export function normalizeToolOrdinals(records: readonly ToolCallRecord[]): readonly ToolCallRecord[] {
-  // @orb-waive persistence-no-in-memory-state(Map): call-local index over this selected variant's parsed records; no state survives the read. Ends if the index escapes this normalization.
+  // call-local index over this selected variant's parsed records; no state survives the read. Ends if the index escapes this normalization.
   const next = new Map<ToolCallRecord["turnId"], number>();
   for (const record of records) {
     if (record.callOrdinal !== undefined) {
@@ -512,7 +512,7 @@ export async function loadForkChildren(db: Db, parentChatId: ChatId): Promise<Ch
  *  there is no non-message canon row left to exclude (a count-inflation class — "7 messages" over 3 real
  *  ones — is unrepresentable now, not filtered). */
 export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): Promise<Map<ChatId, { messageCount: number; lastMessageAt: number | null }>> {
-  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for chat message stats. Ends if it outlives the call.
+  // query-local lookup map for chat message stats. Ends if it outlives the call.
   const out = new Map<ChatId, { messageCount: number; lastMessageAt: number | null }>();
   if (chatIds.length === 0) {
     return out;
@@ -536,7 +536,7 @@ export async function loadChatMessageStats(db: Db, chatIds: readonly ChatId[]): 
 /** When the viewer last spoke in each of a set of rooms: the newest visible message they typed there. Batched in
  *  ONE read like {@link loadChatMessageStats}; a room they never spoke in is absent from the map. */
 export async function loadViewerLastTurns(db: Db, chatIds: readonly ChatId[], userId: UserId): Promise<Map<ChatId, number>> {
-  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for the viewer's per-chat last turn. Ends if it outlives the call.
+  // query-local lookup map for the viewer's per-chat last turn. Ends if it outlives the call.
   const out = new Map<ChatId, number>();
   if (chatIds.length === 0) {
     return out;
@@ -560,7 +560,7 @@ export async function loadChatLastMessages(
   db: Db,
   chatIds: readonly ChatId[],
 ): Promise<Map<ChatId, Pick<MessageView, "seq" | "content" | "characterId" | "personaId">>> {
-  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for the per-chat last message. Ends if it outlives the call.
+  // query-local lookup map for the per-chat last message. Ends if it outlives the call.
   const out = new Map<ChatId, Pick<MessageView, "seq" | "content" | "characterId" | "personaId">>();
   if (chatIds.length === 0) {
     return out;
@@ -593,7 +593,7 @@ export async function loadChatLastMessages(
  *  by the verb). Returns rows self-first; the `visited` set + `maxDepth` cap defend against a cycle. */
 export async function loadAncestorChain(db: Db, chatId: ChatId, maxDepth = 64): Promise<ChatRow[]> {
   const chain: ChatRow[] = [];
-  // @orb-waive persistence-no-in-memory-state(Set): query-local visited Set for ancestor chain cycle guard. Ends if it outlives the call.
+  // query-local visited Set for ancestor chain cycle guard. Ends if it outlives the call.
   const visited = new Set<ChatId>();
   let current: ChatId | undefined = chatId;
   while (current !== undefined && !visited.has(current) && chain.length < maxDepth) {
@@ -695,7 +695,7 @@ export async function loadCanonContentSignatures(db: Db, chatId: ChatId): Promis
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(eq(messages.chatId, chatId));
-  // @orb-waive persistence-no-in-memory-state(Map): this call-local projection returns selected SQL rows to one generation request; it retains no state between queries. Ends if the map is retained across calls.
+  // this call-local projection returns selected SQL rows to one generation request; it retains no state between queries. Ends if the map is retained across calls.
   return new Map(
     rows.flatMap((row) => {
       const signatures = signaturesForContent(parseVariantMetadata(row.metadata).contentSignatures, row.content);
@@ -720,7 +720,7 @@ export async function loadCanonReasoningParts(db: Db, chatId: ChatId): Promise<R
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(eq(messages.chatId, chatId));
-  // @orb-waive persistence-no-in-memory-state(Map): query-local regrouping of the variant rows this query just returned. Ends if it outlives the call.
+  // query-local regrouping of the variant rows this query just returned. Ends if it outlives the call.
   const out = new Map<MessageId, readonly ChatReasoningPart[]>();
   for (const row of rows) {
     const parsed = reasoningPartsSchema.safeParse(row.reasoningParts);
@@ -740,7 +740,7 @@ export async function loadCanonCues(db: Db, chatId: ChatId): Promise<ReadonlyMap
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .where(eq(messages.chatId, chatId));
-  // @orb-waive persistence-no-in-memory-state(Map): query-local regrouping of the variant rows this query just returned. Ends if it outlives the call.
+  // query-local regrouping of the variant rows this query just returned. Ends if it outlives the call.
   const out = new Map<MessageId, DeliveredCue>();
   for (const row of rows) {
     if (row.cue !== null && row.role !== null) {

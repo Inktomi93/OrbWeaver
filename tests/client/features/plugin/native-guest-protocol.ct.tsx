@@ -5,7 +5,7 @@ import { brandedId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
 import { LOG_BYTES_PER_INVOCATION, LOG_LINES_PER_INVOCATION } from "@orb/server/infra/plugin-host";
-import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
+import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/factories/plugin-view.ts";
 import { routeTrpc, trpcError } from "@orb/testkit/node/route-trpc.ts";

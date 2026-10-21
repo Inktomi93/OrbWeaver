@@ -34,7 +34,7 @@ Take the first step that applies:
 
 ## Budgets
 
-- A file header is 3 lines or fewer: what the file is and its non-obvious invariant. A file whose name and exports explain it gets none. A gate header in `tooling/src/verify/gates/` may take 5 lines, because it is the gate's contract.
+- A file header is 3 lines or fewer: state the file purpose and its non-obvious invariant. Omit it when the name and exports explain both.
 - A reason is one line. A security or deliberate-surprise warning may be as long as it must be to stop a wrong fix.
 - No history: no dates, no "was a bug", no audit or campaign notes, no comparison with SillyTavern or another project (D141).
 - Cite only a stable anchor beside a self-contained statement: a `D<n>` id or a named law section. Never cite a doc line number, an issue or board number, or an inventory count (D141).
@@ -55,7 +55,6 @@ Exported API uses `/** */` TSDoc; a non-exported helper uses `//`. The `tsdoc/sy
 | `@defaultValue` | only when the signature does not show the default |
 | `@example` | only for non-obvious use; it must compile against the current API |
 | `@internal`, `@see` | allowed |
-| `@public` family: `@public twin: <Value>`, `@public future: <consumer>`, `@public <reason>` for a test-anchored export | only with the target or reason. `pnpm ast` (orphans, chains, apisurface) reads it; the spellings are in `tooling/src/ast/lib/public-markers.ts` |
 | `@packageDocumentation` | at most one per package entry point |
 | every other tag, for example `{@inheritDoc}`, `@alpha`, `@override`, `@privateRemarks` | forbidden: no tool here reads it |
 

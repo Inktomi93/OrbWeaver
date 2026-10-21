@@ -43,7 +43,6 @@ export function openSectionInPrompt(sectionId: string): void {
   selectPresetSection(sectionId);
 }
 
-// @orb-waive no-vanity-alias(PRESET_EDITOR_VIEWS): baselined when the gate widened; burn-down item 906.
 /** The ONE tab strip's views, in render order. `[0]` is the default the strip resolves an unset store
  *  read to — the default lives WITH the vocabulary, never re-spelled in the state store. */
 export const PRESET_EDITOR_VIEWS: readonly PresetEditorView[] = PRESET_EDITOR_VIEW_TUPLE;

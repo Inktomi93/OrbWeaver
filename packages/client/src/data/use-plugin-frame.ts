@@ -38,7 +38,7 @@ export function pluginFrameMintBody(request: PluginFrameRequest): PluginFrameMin
 /** POST one serialized mint body; ANY failure resolves to `undefined` (the caller renders nothing). */
 export async function mintPluginFrame(body: string): Promise<string | undefined> {
   let parsed: PluginFrameMintResponse;
-  // @orb-waive caught-failure-ownership(catch): documented in the JSDoc above — any failure resolves to undefined and the caller renders nothing. Ends if rendering nothing stops being an acceptable fallback.
+  // documented in the JSDoc above — any failure resolves to undefined and the caller renders nothing. Ends if rendering nothing stops being an acceptable fallback.
   try {
     const response = await fetch(PLUGIN_FRAME_ROUTE, {
       method: "POST",
@@ -57,7 +57,7 @@ export async function mintPluginFrame(body: string): Promise<string | undefined>
 
 /** Revoke a minted frame handle. Best-effort: teardown must never surface an error into React cleanup. */
 export async function revokePluginFrame(url: string): Promise<void> {
-  // @orb-waive caught-failure-ownership(catch): a failed DELETE strands only a server-side handle, which the frame-handle store expires on its own (`live()` drops an entry past `expiresAt`, `packages/server/src/entry/http/frame-handle-store.ts:116`, set from `FRAME_HANDLE_TTL_MS` at `plugin-frame.ts:209`). Ends if the store stops expiring unrevoked handles.
+  // a failed DELETE strands only a server-side handle, which the frame-handle store expires on its own (`live()` drops an entry past `expiresAt`, `packages/server/src/entry/http/frame-handle-store.ts:116`, set from `FRAME_HANDLE_TTL_MS` at `plugin-frame.ts:209`). Ends if the store stops expiring unrevoked handles.
   try {
     await fetch(url, { method: "DELETE", headers: { [CSRF_HEADER]: "1" } });
   } catch {

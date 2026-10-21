@@ -113,7 +113,7 @@ export function BundleWorkloadTracker({ workloadId, onProgress, onSucceeded, onF
   };
 
   const reconcile = (attempt: number): void => {
-    // @orb-waive caught-failure-ownership(query): the `.catch` below owns the rejection: it schedules the next
+    // the `.catch` below owns the rejection: it schedules the next
     // `reconcile(attempt + 1)` from RECONCILE_RETRY_BACKOFF_MS, and the stream's `onSocketLive` re-arms `reconcile(0)`.
     // A failed read is never turned into a terminal claim about the run. Ends if a read failure needs its own UI state.
     void trpcClient.workloads.get

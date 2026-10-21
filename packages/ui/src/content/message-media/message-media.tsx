@@ -35,7 +35,7 @@ function isDataUri(url: string): boolean {
 }
 
 function hostOf(url: string): string {
-  // @orb-waive caught-failure-ownership(catch): MessageMedia renders hostOf(src.url) inside the click-to-load
+  // MessageMedia renders hostOf(src.url) inside the click-to-load
   // button ("External media — load from …?"), so a malformed url shows the "external source" label to the
   // reader. Ends if that button stops rendering the returned string.
   try {

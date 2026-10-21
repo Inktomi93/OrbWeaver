@@ -381,7 +381,7 @@ async function resolveEndSessionUrl(
   if (oidc === undefined) {
     return null;
   }
-  // @orb-waive caught-failure-ownership(catch): `null` is the DOCUMENTED degraded arm this function's JSDoc above describes — an unreachable IdP discovery means we send no end-session param and the user lands on our own `/login` instead of the IdP's logged-out page. The LOCAL logout has already happened either way, so this can only cost a redirect, never a session. Ends if end-session becomes required for correct logout.
+  // `null` is the DOCUMENTED degraded arm this function's JSDoc above describes — an unreachable IdP discovery means we send no end-session param and the user lands on our own `/login` instead of the IdP's logged-out page. The LOCAL logout has already happened either way, so this can only cost a redirect, never a session. Ends if end-session becomes required for correct logout.
   try {
     const endpoint = (await oidc.getConfig()).serverMetadata().end_session_endpoint;
     if (typeof endpoint !== "string" || endpoint.length === 0) {
@@ -800,7 +800,7 @@ async function carriesLiveSession(c: Context, signup: SignupRouteDeps): Promise<
  *  the schema answers it as an invalid request like any other miss. */
 async function readSignupRequest(c: Context): Promise<unknown> {
   let raw: unknown;
-  // @orb-waive caught-failure-ownership(catch): owned by the strict schema refusal: raw stays undefined, so both callers' safeParse refuses it with the invalid_request 400 the caller sees. Ends if body decoding gains a server fault worth telling apart from bad input.
+  // owned by the strict schema refusal: raw stays undefined, so both callers' safeParse refuses it with the invalid_request 400 the caller sees. Ends if body decoding gains a server fault worth telling apart from bad input.
   try {
     raw = await c.req.json();
   } catch {
@@ -1333,7 +1333,7 @@ async function admitPendingConfirm(
     return c.json({ error: "already_signed_in" satisfies PendingJoinErrorCode }, CONFLICT);
   }
   let raw: unknown;
-  // @orb-waive caught-failure-ownership(catch): owned by the strict schema refusal: raw stays undefined, so the safeParse right below refuses it with the invalid_request 400 the caller sees. Ends if body decoding gains a server fault worth telling apart from bad input.
+  // owned by the strict schema refusal: raw stays undefined, so the safeParse right below refuses it with the invalid_request 400 the caller sees. Ends if body decoding gains a server fault worth telling apart from bad input.
   try {
     raw = await c.req.json();
   } catch {

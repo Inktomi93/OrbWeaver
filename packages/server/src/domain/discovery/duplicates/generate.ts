@@ -32,7 +32,6 @@ import { pairsAboveThreshold } from "../substrate/pair-cosine.ts";
  *  must still BE a near-dup, so the gate is on raw cosine; `cslsScore` only ranks). */
 export const DEFAULT_DUP_THRESHOLD = 0.92;
 
-// @orb-waive no-vanity-alias(MAX_DUPLICATE_VECTORS_PER_SPACE): baselined when the gate widened; burn-down item 906.
 /** Maximum content-distinct representatives admitted in one owner/model cosine space.
  *
  *  @public Test-anchored module surface; focused tests pin this production-local behavior. */

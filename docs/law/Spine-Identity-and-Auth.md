@@ -92,10 +92,7 @@ Code comments cite the numbered invariants below as "invariant N":
    `application/json` (with or without `; charset=utf-8`) still runs on every path. Only the cookie
    path is refused (403) when `x-orb-csrf` is missing; the fallback path with `application/json` and no
    `x-orb-csrf` still runs (200) — the un-cookied loopback dev tooling relies on that. GET is untouched —
-   tRPC's method map admits GET for queries and subscriptions only. Enforcer:
-   `tests/legacy/server/entry/app.test.ts`, the describe covering the tRPC mount's refusal of a non-JSON
-   mutation, driven through the real mount. The tRPC gate rests on this: `application/json` is not a
-   CORS-simple content-type, and this app mounts no CORS middleware.
+   tRPC's method map admits GET for queries and subscriptions only. The external legacy source contains a test of the non-JSON refusal through the real mount. It is reference-only. The runtime content-type guard remains required because `application/json` is not a CORS-simple content-type and this app mounts no CORS middleware.
 10. **One chokepoint for external identity.** Every SSO mode reaches `users` through the
     `provisionIdentity` verb (`domain/sessions`); a new mode adds a caller, never a second upsert. The
     production census is two: the `oidc` callback (`entry/http/auth-routes.ts`: verified claims through
@@ -150,8 +147,7 @@ variants inherit through `assets.ownerId`. Authorization lives at the verb (`fet
 `requireParticipant`, `requireHost` on the root row); everything below flows down. Adding a redundant
 owner stamp to a child table is a defect — two sources of truth that can disagree (D20: derive, never
 stamp). Before flagging "missing scope" on a table or query, walk the FK chain to its root and find the
-verb gate. The cross-tenant IDOR sweep (`cross-tenant-sweep.suite.int.test.ts`) proves this holds at the
-transport boundary.
+verb gate. The external legacy source contains a cross-tenant transport sweep. It is reference-only and does not run in this repository.
 
 A D23 satellite gives no scope to the owned row it points at; a read that joins that row from it needs an owner predicate.
 
@@ -165,12 +161,11 @@ An owner term can take its value from a column or a subselect. That term scopes 
 
 A plain value is an `eq` or `inArray` operand whose type is a string id or an array of string ids. A column, a query builder or an untyped value is not plain.
 
-The `owner-scoped-reads` gate checks only direct SELECT chains on imported schema tables (D328). In that scope it reports a by-id read of an ownerId-class table with no `eq` or `inArray` owner term or post-fetch owner compare. It also reports a join with neither an owner term nor a declared FK pointing at the joined table, and a join scoped only by a satellite. It reports a helper, alias, raw SQL, relational, stored-builder, subquery or column-valued owner term as UNKNOWN, never as clean. It does not check an owner term's type, so it does not prove that the value is a string id. It treats a value bound from a call or an `await` as data and does not inspect what the call returns. The class pin rules above are not gate-enforced. The cross-tenant sweep (`cross-tenant-sweep.suite.int.test.ts`) and the verb gates hold them.
+D333 ends custom owner-scoped static analysis and its gate claims. The ownership rules remain product architecture law. Verify changed authorization behavior through native application tests with distinct principals and ids.
 
 The `/blob/:hash` route is the sharpest instance: it resolves the caller from the session cookie and
 runs `fetchOwned` (or the roster-avatar membership exception) — it never serves on bare row existence —
-and answers with `Cache-Control: private`. This is a per-request control-flow property, so it is held
-by the behavioural suite above rather than a structural gate.
+and answers with `Cache-Control: private`. This is a per-request control-flow property. Keep the owner check in the request path.
 
 ## 2c. The three layers (read this before filing a permission finding)
 
@@ -221,10 +216,10 @@ This page never duplicates the ownership map; it names where the machine-checked
 | Question | The answer's home |
 | - | - |
 | Which tables may stamp an `ownerId` at all? | `packages/db/src/tenancy/index.ts` — `TABLE_SCOPING`, one row per schema table export, typed against that table's columns. An `ownerId` row carries its D23 justification in `stamp` (true producer, parentless per-user aggregate, or sanctioned scope-subject). `tsc` reds a table with no row, a row for a deleted table, a wrong SQL name, and a class the columns contradict. `tests/db/tenancy/index.test.ts` repeats those checks on the live schema and adds the foreign-key counts. |
-| Which domain owns which table? | `tooling/src/verify/gates/own-tables-only.ts` — the map is read off `packages/db/src/schema/<file>.ts` at run time (schema file to same-named domain), total, with `SCHEMA_OWNERS`/`TABLE_OWNERS` for the non-1:1 rows. A foreign write is unconditionally red; a foreign read belongs in `persistence/` or an injected op. |
+| Which domain owns which table? | Schema ownership follows `packages/db/src/schema/<file>.ts` and the domain law. Cross-domain reads belong in `persistence/` or an injected op. D333 ends custom static ownership checks. |
 | Who owns a row with no `ownerId`? | §2b — the FK chain to the owning root, gated at the producer verb. Walk the chain before flagging "missing scope". |
 | Who owns a chat? | Nobody (D18). Membership is the scope; host is the transferable role — see §2c. |
-| Which principal classes exist, and which are enforcement-gated? | The principal-flow census and its gate paths (the class-(a) ownership stamp is held by `TABLE_SCOPING` and its schema test; the membership step is behavioral-only — the cross-tenant sweep, `cross-tenant-sweep.suite.int.test.ts`, is the proof, by design). |
+| Which principal classes exist? | The request seam and the Principal type define the current classes. D333 ends custom principal-flow census requirements. |
 
 ## 2e. By design — the do-not-re-flag register
 

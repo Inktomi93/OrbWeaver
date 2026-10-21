@@ -167,7 +167,7 @@ function liftString(node: Record<string, unknown>, path: string): RuntimeGenerat
 /** Compile a guest `pattern` to a RegExp, or `null` when it is malformed (the caller turns null into a typed
  *  refusal — a guest regex is untrusted input, never a thrown SyntaxError). */
 function compilePattern(pattern: string): RegExp | null {
-  // @orb-waive caught-failure-ownership(catch): liftString, the sole caller, throws a typed JsonSchemaLiftError
+  // liftString, the sole caller, throws a typed JsonSchemaLiftError
   // ("pattern (invalid regex)") when this returns null. Ends if liftString stops checking for null.
   try {
     return new RegExp(pattern, "u");

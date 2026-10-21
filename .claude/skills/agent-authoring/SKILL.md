@@ -1,11 +1,11 @@
 ---
 name: agent-authoring
-description: "Author, convert, audit, or debug Orbweaver subagents for Claude Code and Codex, including Claude Markdown frontmatter, Codex TOML manifests, explicit model and reasoning routing, instruction inheritance, skill preloads, sync validation, and hook or trust interactions. Use before changing agent definitions or the Claude-to-Codex sync machinery."
+description: "Author or audit Orbweaver subagents for Claude Code and Codex, including role instructions, explicit model and reasoning routing, instruction inheritance, skill preloads, and hook or trust interactions. Use before changing agent definitions."
 ---
 
 # Authoring agents for Claude Code and Codex
 
-Claude is the role-prose source; Codex manifests are generated from it. Re-verify field behavior
+Maintain the Claude role files and Codex manifests directly. Re-verify field behavior
 against the official subagents documentation before trusting this on a newer Claude Code or Codex
 release — field defaults change between releases.
 
@@ -79,39 +79,29 @@ Write the body as instructions to the agent, not documentation about it. Front-l
 non-negotiables — an agent reads its prompt once. State what a correct refusal looks like: a lane that
 refuses an impossible task is a success, and an agent that does not know that will improvise instead.
 
-## Codex target
+## Codex manifests
 
-Codex project agents live at `.codex/agents/*.toml`, generated from `.claude/agents/*.md`. Never
-hand-edit a generated TOML; edit the Claude source and re-run the sync. Model families live in
-`tooling/src/agent-sync/lib/paths.ts`. Sync resolves each family from the model catalog maintained by the local Codex installation.
-A standalone manifest needs
-`name`, `description`, `developer_instructions`. The converter also emits `model` and `model_reasoning_effort`.
-Other session settings inherit from the parent. Claude-only fields (`permissionMode`, `tools`,
-`disallowedTools`, `color`, `memory`, the YAML `skills` list) do not exist in Codex TOML. Preserve each
-role's `effort` as `model_reasoning_effort` unless `tooling/src/agent-sync/lib/paths.ts` declares a Codex-only effort override.
+Codex project agents live at `.codex/agents/*.toml` and are maintained directly. Keep their
+`name`, `description`, and `developer_instructions` fields current. Set `model` and
+`model_reasoning_effort` to the values assigned to the role. Claude-only fields (`permissionMode`,
+`tools`, `disallowedTools`, `color`, `memory`, and YAML `skills`) do not belong in Codex TOML.
 
-`pnpm agents:sync` selects the newest visible stable numeric version in each configured family and preserves each role's reasoning effort.
-Run Codex to refresh its model catalog before syncing. Sync reports the catalog it used and refuses missing models or unsupported efforts.
-Generated agents keep that selection until the next sync; running agents keep their startup configuration.
-`pnpm check:agents` checks the generated selections against their families and source instructions without reading a local model catalog.
-
+Running agents keep the role definitions they loaded at startup. Start a fresh session to validate
+changes to an agent definition.
 Codex project hooks live in `.codex/hooks.json`; `.codex/hooks` points at the Claude-owned
 implementations. A hook change can require the user to re-trust the project in a fresh Codex session —
 do not bypass that prompt.
 
 Skills follow the same one-source shape: author under `.claude/skills/`. `.agents/skills` is a tracked
-symlink to it. Codex has no automatic skill preload; the generated TOML preamble names each listed
-skill's path under `.agents/skills/` and tells Codex to read it before the role body. Never create a
+symlink to it. Codex roles name preloaded skills in `developer_instructions`; read each skill before using the role. Never create a
 second copied skill tree.
 
 ## Authoring workflow
 
-1. Read the `orchestrator` skill, the complete source role, and every skill it preloads.
-2. Edit the Claude source. Change the converter only when the host translation itself changes.
-3. Run `pnpm agents:sync`; inspect the generated TOML and its model/effort routing.
-4. Run `pnpm check:agents` and `pnpm test:scoped tests/tooling/agent-sync`.
-5. Start a fresh Codex session to validate discovery — an existing session can retain its startup
-   agent catalog.
+1. Read the `orchestrator` skill, the complete role definition, and every skill it preloads.
+2. Edit each host's role file directly. Keep model and reasoning settings consistent with the assigned role.
+3. Review both role files for correct instructions, tools and skill paths.
+4. Start a fresh session to validate discovery; an existing session retains its startup agent catalog.
 
 Treat delegation briefs as self-contained in both hosts: never assume a subagent inherits the main
 session's memory, output style, prior file reads, or an unstated decision.

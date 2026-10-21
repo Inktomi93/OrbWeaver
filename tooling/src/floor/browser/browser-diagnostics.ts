@@ -312,7 +312,7 @@ export async function wirePageDiagnostics(
   });
   await cdp.send("Log.enable");
   await wirePageNetwork(cdp, page, identity, options.network);
-  // @orb-waive caught-failure-ownership(error): recordLimit pushes the caught message into the diagnostics ring as an instrument-limit warning; Log capture stays live. Ends if recordLimit stops pushing the message into the ring.
+  // recordLimit pushes the caught message into the diagnostics ring as an instrument-limit warning; Log capture stays live. Ends if recordLimit stops pushing the message into the ring.
   try {
     await cdp.send("Audits.enable");
   } catch (error) {

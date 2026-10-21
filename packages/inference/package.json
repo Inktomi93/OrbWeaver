@@ -15,15 +15,15 @@
     "#src/*": "./src/*"
   },
   "dependencies": {
-    "@orb/kit": "workspace:*",
-    "@orb/contracts": "workspace:*",
-    "@ai-sdk/google": "catalog:",
     "@ai-sdk/anthropic": "catalog:",
+    "@ai-sdk/google": "catalog:",
     "@ai-sdk/openai-compatible": "catalog:",
     "@ai-sdk/provider": "catalog:",
     "@anthropic-ai/claude-agent-sdk": "catalog:",
     "@huggingface/transformers": "catalog:",
     "@openrouter/ai-sdk-provider": "catalog:",
+    "@orb/contracts": "workspace:*",
+    "@orb/kit": "workspace:*",
     "ai": "catalog:",
     "zod": "catalog:"
   }

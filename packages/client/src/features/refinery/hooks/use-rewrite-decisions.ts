@@ -48,7 +48,7 @@ function enqueueSheetWrite(sheetWrite: SheetWrite, write: (vars: SheetWrite) => 
     return;
   }
   queue.writing = true;
-  // @orb-waive caught-failure-ownership(write): `write` is `save.mutateAsync` from `send` below, and
+  // `write` is `save.mutateAsync` from `send` below, and
   // useDecideRefineryRewrite (use-refinery-mutations.ts) carries `errorToast: "Couldn't save that decision."`;
   // onRefused also reverts the overlay to the server's copy. Ends if that errorToast is dropped.
   write(sheetWrite).then(

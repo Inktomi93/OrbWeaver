@@ -11,10 +11,6 @@ import {
   TYPE_TEST_SUFFIXES,
   timingCapabilityForTestFamily,
   VITEST_RUNTIME_FAMILY_GROUPS,
-  VITEST_RUNTIME_ONLY_GROUP_FILTER,
-  VITEST_TYPECHECK_GROUP_NAMES,
-  vitestLegacyTypecheckGroupName,
-  vitestTypecheckGroupName,
 } from "@orb/tooling/floor/testing/test-kinds";
 import { vitestConfig } from "../../../../vitest.config.ts";
 
@@ -22,12 +18,10 @@ interface ProjectShape {
   readonly test?: { readonly include?: readonly string[]; readonly typecheck?: { readonly include?: readonly string[] } };
 }
 
-/** The three entry points the repo ships: `vitest.config.ts` (full), `vitest.runtime.config.ts` (runtime only, what
- *  `test:scoped` and the CI node shards run) and `vitest.product.config.ts` (application only). */
+// Application-only configuration excludes tooling while keeping the same runtime kinds.
 const CONFIG_VARIANTS = [
   ["vitest.config.ts", vitestConfig()],
-  ["vitest.runtime.config.ts", vitestConfig(true)],
-  ["vitest.product.config.ts", vitestConfig(false, true)],
+  ["vitest.product.config.ts", vitestConfig(true)],
 ] as const;
 
 /** Every positive include glob that selects a suffix Vitest cannot execute. A negated glob only excludes. */
@@ -125,13 +119,6 @@ test("derived selectors and runtime dispatch cover the registry without duplicat
   ]);
   expect(TEST_RESOURCE_NAMES).toEqual(["repository", "semantic-corpus"]);
   expect(VITEST_RUNTIME_FAMILY_GROUPS).toEqual(["contract", "integration", "unit"]);
-  expect(VITEST_TYPECHECK_GROUP_NAMES).toEqual([
-    vitestTypecheckGroupName("browser"),
-    vitestLegacyTypecheckGroupName("browser"),
-    vitestLegacyTypecheckGroupName("node"),
-    vitestTypecheckGroupName("node"),
-  ]);
-  expect(VITEST_RUNTIME_ONLY_GROUP_FILTER).toBe("!types-*");
   expect(runtimeForTestFamily("type")).toBe("vitest-typecheck");
   expect(runtimeForTestFamily("component")).toBe("playwright-ct");
   expect(runtimeForTestFamily("e2e")).toBe("playwright-e2e");

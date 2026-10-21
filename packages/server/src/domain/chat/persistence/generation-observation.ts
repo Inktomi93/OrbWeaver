@@ -242,7 +242,7 @@ function appendRetainedVariantEconomics(
   const now = ctx.now();
   const selected = args.slot.selectedVariantId === args.before.id;
   for (const ownerId of args.scope.ownerIds) {
-    // @orb-waive membership-enforcer(ownerId): D167 accounting grains compare the canonical character owner, never room authority; ends if this comparison admits an operation.
+    // D167 accounting grains compare the canonical character owner, never room authority; ends if this comparison admits an operation.
     const ownerSlot = { ...args.slot, characterId: ownerId === args.scope.characterOwnerId ? args.slot.characterId : null };
     for (const [row, sign] of [
       [args.before, -1],

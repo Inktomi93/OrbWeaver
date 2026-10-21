@@ -118,7 +118,7 @@ export const untrustedUrlTransform: UrlTransform = (url) => {
     return value;
   }
   let parsed: URL;
-  // @orb-waive caught-failure-ownership(catch): the empty string is this gate's block verdict. Markdown passes
+  // the empty string is this gate's block verdict. Markdown passes
   // untrustedUrlTransform as Streamdown's urlTransform, which drops a url that transforms to "", and
   // policy.test.ts pins the unparseable case. Ends if the catch returns anything but "".
   try {

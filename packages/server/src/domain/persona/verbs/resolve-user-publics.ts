@@ -18,7 +18,7 @@ export function createResolveUserPublics(input: DbAssemblyInput<Pick<PersonaCont
     const persona = personaId === null ? undefined : await loadOwnedPersonaPublic(ctx.db, userId, personaId);
     let avatarAssetId: AssetId | null = persona?.avatarAssetId ?? null;
     if (avatarAssetId === null) {
-      // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — a persona/handle
+      // optional-read-as-absent — a persona/handle
       // display fact was already resolved above; this is the LAST-resort avatar enrichment, and a failed
       // read just leaves `avatarAssetId` at its already-established `null`. Ends if this read becomes the
       // only source of `displayName`/`handle`.

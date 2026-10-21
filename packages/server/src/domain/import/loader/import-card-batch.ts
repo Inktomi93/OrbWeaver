@@ -7,7 +7,7 @@ export async function importCardBatch({ files, service }: ImportCardBatchDeps): 
 
   for (const file of files) {
     const filename = file.filename ?? null;
-    // @orb-waive caught-failure-ownership(err): the catch pushes `{ filename, error }` onto `failed`, which
+    // the catch pushes `{ filename, error }` onto `failed`, which
     // `importCardBatch` returns in `CardImportResult.failed`. Ends if `failed` stops being returned.
     try {
       const result = await service.importCharacter({

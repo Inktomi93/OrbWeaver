@@ -69,7 +69,7 @@ export function resolvePort(fileEnv: Readonly<Record<string, string | undefined>
 // ── probes ───────────────────────────────────────────────────────────────────────────────────────────
 
 async function probeHealthz(port: number): Promise<{ healthy: boolean; harness: boolean | null }> {
-  // @orb-waive caught-failure-ownership(catch): healthy:false is data classifyInstance reads: nothing listening and unhealthy is absent (identity.ts:23), a live recorded pid that does not answer is ours-unhealthy (identity.ts:40), and status prints healthz unreachable (prod-down.ts:118). Ownership comes from pid identity, never from health. Ends if unhealthy can authorize ownership.
+  // healthy:false is data classifyInstance reads: nothing listening and unhealthy is absent (identity.ts:23), a live recorded pid that does not answer is ours-unhealthy (identity.ts:40), and status prints healthz unreachable (prod-down.ts:118). Ownership comes from pid identity, never from health. Ends if unhealthy can authorize ownership.
   try {
     const res = await fetch(`http://127.0.0.1:${port}/healthz`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
     if (!res.ok) {
@@ -98,7 +98,7 @@ function readDebugToken(): string | null {
 
 /** Credential-free posture classification — never presents the token (see {@link observe} #1). */
 export async function probeDebugPosture(port: number): Promise<DebugPosture> {
-  // @orb-waive caught-failure-ownership(catch): an unanswered probe is the "unknown" posture: debugPostureText words it for the operator (verdicts.ts:231, printed at prod-down.ts:125 and prod-support.ts:100), and observe presents no token unless the posture is token or open (prod-state.ts:172). Ends if unknown can authorize control.
+  // an unanswered probe is the "unknown" posture: debugPostureText words it for the operator (verdicts.ts:231, printed at prod-down.ts:125 and prod-support.ts:100), and observe presents no token unless the posture is token or open (prod-state.ts:172). Ends if unknown can authorize control.
   try {
     const res = await fetch(`http://127.0.0.1:${port}/api/_debug/info`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
     return classifyDebugPosture(res.status);

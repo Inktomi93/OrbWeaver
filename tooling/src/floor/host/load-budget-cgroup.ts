@@ -78,7 +78,7 @@ function readCgroupFile(path: string): string | undefined {
   // ONE TAIL RETURN (the `pass.ts` accumulator idiom): biome's noUselessReturn refuses a bare `return` in
   // the catch and tsc's noImplicitReturns refuses falling out of it, so the verdict is a binding.
   let body: string | undefined;
-  // @orb-waive caught-failure-ownership(catch): ABSENCE IS THE ANSWER — a cgroup path that does not exist (v1, or a host without the controller) or is unreadable under this uid means exactly "no ceiling is declared here", the same verdict `cpu.max` spells `max`. Ends if this reader ever needs to tell "unbounded" from "could not ask"; the absence then becomes a value and this catch becomes a branch.
+  // ABSENCE IS THE ANSWER — a cgroup path that does not exist (v1, or a host without the controller) or is unreadable under this uid means exactly "no ceiling is declared here", the same verdict `cpu.max` spells `max`. Ends if this reader ever needs to tell "unbounded" from "could not ask"; the absence then becomes a value and this catch becomes a branch.
   try {
     body = readFileSync(path, "utf8");
   } catch {

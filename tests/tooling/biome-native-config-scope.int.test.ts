@@ -15,14 +15,11 @@ const PROTECTED_PATHS = [
   "node_modules/native-config.ts",
   "reports/native-config.ts",
   "coverage/native-config.ts",
-  ".stryker-tmp/native-config.ts",
   "playwright/.cache/native-config.ts",
   "packages/kit/src/__dc_native-config.ts",
   "packages/ui/src/tokens/index.ts",
   "packages/ui/src/tokens/themes.gen.ts",
   "tooling/src/snap/lib/devtools-frontend/native-config.ts",
-  "scripts/probes/openrouter/native-config.ts",
-  "scripts/probes/rpg-extraction/native-config.ts",
 ];
 const ORDINARY_PATH = "tooling/src/native-config.ts";
 const SCRIPT_PATH = "scripts/native-config.ts";

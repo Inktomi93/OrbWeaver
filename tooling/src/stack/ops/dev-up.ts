@@ -77,7 +77,7 @@ function armDebug(invocation: StackInvocation): Readonly<Record<string, string>>
 }
 
 function tailFile(path: string, lines: number): string {
-  // @orb-waive caught-failure-ownership(catch): the "(no log)" sentinel is printed to the operator after a failed boot (dev-up.ts:127, dev-up.ts:134). Ends if log content becomes a control verdict.
+  // the "(no log)" sentinel is printed to the operator after a failed boot (dev-up.ts:127, dev-up.ts:134). Ends if log content becomes a control verdict.
   try {
     return readFileSync(path, "utf8").split(LINE_BREAK_RE).slice(-lines).join("\n");
   } catch {

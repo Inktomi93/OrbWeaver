@@ -133,7 +133,7 @@ async function pingOk(socketPath: string, root: string): Promise<boolean> {
     force: false,
     exportOut: null,
   };
-  // @orb-waive caught-failure-ownership(catch): a refused or silent socket is a false ping; bootSession keeps polling until the daemon exits (session-client.ts:226) or the budget prints SESSION BOOT FAILED and returns EXIT.toolError (:234). Ends if the poll stops being bounded.
+  // a refused or silent socket is a false ping; bootSession keeps polling until the daemon exits (session-client.ts:226) or the budget prints SESSION BOOT FAILED and returns EXIT.toolError (:234). Ends if the poll stops being bounded.
   try {
     return (await sessionRequest(socketPath, ping, () => undefined, SESSION_PING_SILENCE_MS)) === EXIT.clean;
   } catch {
@@ -144,7 +144,7 @@ async function pingOk(socketPath: string, root: string): Promise<boolean> {
 /** Print the daemon's log bytes past `offset` (its stage boot, its own refusals) so a boot is watchable
  *  from the client's terminal; returns the new offset. */
 function relayLog(logPath: string, offset: number): number {
-  // @orb-waive caught-failure-ownership(catch): the log does not exist until the daemon's first write — an absent file is "nothing to relay yet" (the offset is handed back unchanged) and the poll reads again next tick. Ends if a missing log must be reported instead.
+  // the log does not exist until the daemon's first write — an absent file is "nothing to relay yet" (the offset is handed back unchanged) and the poll reads again next tick. Ends if a missing log must be reported instead.
   try {
     const size = statSync(logPath).size;
     if (size <= offset) {
@@ -266,7 +266,7 @@ async function forwardRequest(kind: SessionRequestKind, ctx: SessionCallContext,
     force: false,
     exportOut: kind === "export" ? ctx.exportOut : null,
   };
-  // @orb-waive caught-failure-ownership(error): the catch prints SESSION DEAD or SESSION ERROR (session-client.ts:293) and returns EXIT.toolError (:294) as the call's exit. Ends if either goes.
+  // the catch prints SESSION DEAD or SESSION ERROR (session-client.ts:293) and returns EXIT.toolError (:294) as the call's exit. Ends if either goes.
   try {
     return await sessionRequest(
       sessionSocketPath(home, name),

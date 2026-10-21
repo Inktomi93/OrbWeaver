@@ -45,7 +45,7 @@ export function StartSessionDoor({ trigger }: { readonly trigger: (busy: boolean
           onEscape={(): void => setPickerOpen(false)}
           onSelect={(id): void => {
             setPickerOpen(false);
-            // @orb-waive caught-failure-ownership(openRefinery): openRefinery rejects only from its `start.mutateAsync`
+            // openRefinery rejects only from its `start.mutateAsync`
             // (packages/client/src/data/use-open-refinery.ts), whose mutation carries `errorToast: "Couldn't start a
             // refinery session for that card."`. Ends if that errorToast is dropped.
             void openRefinery(id).catch(() => undefined);

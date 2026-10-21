@@ -12,7 +12,6 @@ import type { SelectItems, SelectOption, SelectOptionGroup } from "./items.ts";
 import { createSelectOpeningObserver } from "./opening.ts";
 import { selectVariants } from "./variants.ts";
 
-// @orb-waive no-vanity-alias(POPUP_SIDE_OFFSET): baselined when the gate widened; burn-down item 906.
 // Breathing room between trigger and popup.
 const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
 
@@ -125,7 +124,7 @@ export interface SelectProps<Value = string, Multiple extends boolean = false> e
    * The options — flat (`{ label, value }[]`) or grouped (`{ label, items }[]`). `Select.Value`
    * renders the selected option's label(s) automatically (comma-joined when `multiple`).
    */
-  // eslint-disable-next-line orb/baseui-derives-not-respells -- SelectItems<Value> is the renderer-owned flat/group option model; Base UI accepts broader record/collection inputs that this renderer does not implement. Ends when the seal stops rendering its own items.
+  // SelectItems<Value> is the renderer-owned flat/group option model; Base UI accepts broader record/collection inputs that this renderer does not implement. Ends when the seal stops rendering its own items.
   items: SelectItems<Value>;
   placeholder?: ReactNode;
   /** Applied to the trigger (the in-flow element). */

@@ -30,12 +30,12 @@ export async function loadInlineReplyAssetIds(db: Db, chatId: ChatId): Promise<R
     .from(messageAssets)
     .innerJoin(messages, eq(messages.id, messageAssets.messageId))
     .where(and(eq(messages.chatId, chatId), eq(messageAssets.origin, INLINE_REPLY_ORIGIN)));
-  // @orb-waive persistence-no-in-memory-state(Map): query-local regrouping of the link rows this query just returned. Ends if it outlives the call.
+  // query-local regrouping of the link rows this query just returned. Ends if it outlives the call.
   const out = new Map<MessageId, Set<AssetId>>();
   for (const row of rows) {
     const existing = out.get(row.messageId);
     if (existing === undefined) {
-      // @orb-waive persistence-no-in-memory-state(Set): the per-slot asset bucket of that same query-local regrouping. Ends if it outlives the call.
+      // the per-slot asset bucket of that same query-local regrouping. Ends if it outlives the call.
       out.set(row.messageId, new Set([row.assetId]));
     } else {
       existing.add(row.assetId);

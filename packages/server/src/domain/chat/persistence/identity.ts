@@ -65,7 +65,7 @@ const CHAT_IDENTITY_ID_SOURCES = {
 /** Collect ONE kind's DISTINCT covered ids from whichever of the two optional sources the caller has
  *  loaded. Pure — no I/O; `loadChatIdentityProducer` runs the queries. */
 function collectIdentityIds<Id extends string>(args: ChatIdentityLoadArgs, source: ChatIdentityIdSource<Id>): Id[] {
-  // @orb-waive persistence-no-in-memory-state(Set): query-local dedup Set for collecting covered ids. Ends if it outlives the call.
+  // query-local dedup Set for collecting covered ids. Ends if it outlives the call.
   const ids = new Set<Id>();
   for (const p of args.participants ?? []) {
     const id = source.participant(p);
@@ -95,8 +95,8 @@ export async function loadChatIdentityProducer(db: Db, args: ChatIdentityLoadArg
   const coveredPersonaIds = collectIdentityIds(args, CHAT_IDENTITY_ID_SOURCES.persona);
   const pin = args.anchorPersonaId ?? null;
   const personaIds = pin === null || coveredPersonaIds.includes(pin) ? coveredPersonaIds : [...coveredPersonaIds, pin];
-  // @orb-waive owner-scoped-reads(characters): the id union is derived from the room's OWN canon (`CHAT_IDENTITY_ID_SOURCES` over roster seats + per-message attribution stamps), never from caller input, and the read returns only display names, the persona description the transcript already renders, and CAS hashes — the member-gated vocabulary a room's transcript already shows (D18; a seated card's avatar is room-visible by construction, D18/D64). Ends if the producer ever accepts an id set from a request.
-  // @orb-waive owner-scoped-reads(personas): the id union is derived from the room's OWN canon (`CHAT_IDENTITY_ID_SOURCES` over roster seats + per-message attribution stamps), never from caller input, and the read returns only display names, the persona description the transcript already renders, and CAS hashes — the member-gated vocabulary a room's transcript already shows (D18; a seated card's avatar is room-visible by construction, D18/D64). Ends if the producer ever accepts an id set from a request.
+  // the id union is derived from the room's OWN canon (`CHAT_IDENTITY_ID_SOURCES` over roster seats + per-message attribution stamps), never from caller input, and the read returns only display names, the persona description the transcript already renders, and CAS hashes — the member-gated vocabulary a room's transcript already shows (D18; a seated card's avatar is room-visible by construction, D18/D64). Ends if the producer ever accepts an id set from a request.
+  // the id union is derived from the room's OWN canon (`CHAT_IDENTITY_ID_SOURCES` over roster seats + per-message attribution stamps), never from caller input, and the read returns only display names, the persona description the transcript already renders, and CAS hashes — the member-gated vocabulary a room's transcript already shows (D18; a seated card's avatar is room-visible by construction, D18/D64). Ends if the producer ever accepts an id set from a request.
   const [characterRows, personaRows] = await Promise.all([
     characterIds.length === 0
       ? Promise.resolve([])

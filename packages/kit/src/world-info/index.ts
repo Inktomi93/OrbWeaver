@@ -184,7 +184,7 @@ function compileKeyPattern(key: string, onCompileFailure?: (key: string, reason:
     onCompileFailure?.(key, complexity);
     return null;
   }
-  // @orb-waive caught-failure-ownership(err): reported to the optional onCompileFailure, which matchEntryKeys passes down from its options;
+  // reported to the optional onCompileFailure, which matchEntryKeys passes down from its options;
   // the only chat caller (assembly/context.ts keyMatchOptions) wires it to getLog().warn. The null makes keyRegex compile the key literally, and
   // isDelimitedKeyPattern reads it as "not a pattern". Ends if a matchEntryKeys caller omits onKeyCompileFailure.
   try {
@@ -263,7 +263,7 @@ export function matchEntryKeys(keys: readonly string[], haystack: string, option
         return false;
       }
       const compiled = keyRegex(key, "regex", options.onKeyCompileFailure);
-      // @orb-waive caught-failure-ownership(err): a throw is a non-match (fail-closed) and is reported to the optional
+      // a throw is a non-match (fail-closed) and is reported to the optional
       // onKeyCompileFailure, which the only chat caller (assembly/context.ts keyMatchOptions) wires to getLog().warn.
       // Ends if the report call is removed or a matchEntryKeys caller omits the sink.
       try {

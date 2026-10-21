@@ -157,9 +157,9 @@ export async function seedLocalLightConnections(input: DbAssemblyInput<LocalLigh
     .select({ task: connectionBindings.task })
     .from(connectionBindings)
     .where(and(eq(connectionBindings.actorKind, "user"), eq(connectionBindings.userId, ownerId), inArray(connectionBindings.task, SEED_TASKS)));
-  // @orb-waive persistence-no-in-memory-state(Set): query-local membership set over the binding rows this query just returned. Ends if it outlives the call.
+  // query-local membership set over the binding rows this query just returned. Ends if it outlives the call.
   const boundTasks = new Set(bound.map((row) => row.task));
-  // @orb-waive persistence-no-in-memory-state(Map): query-local slot→id index over the row set this query just returned. Ends if it outlives the call.
+  // query-local slot→id index over the row set this query just returned. Ends if it outlives the call.
   const rowBySlot = new Map(rows.map((row) => [row.seedSlot, row]));
   const missing = SEED_BINDINGS.flatMap((seed) => {
     const row = rowBySlot.get(seed.slot);

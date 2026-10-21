@@ -9,5 +9,5 @@ change: two unrelated fixes are two PRs. -->
 
 <!-- Commands you ran and what you checked by hand. -->
 
-- [ ] `pnpm check` passes.
-- [ ] Tests for the changed behavior ran (`pnpm test:scoped <paths>` or `pnpm test:ct <paths>`).
+- [ ] Applicable native lint and typecheck commands pass.
+- [ ] Tests for the changed behavior ran (`pnpm test <paths>` or `pnpm test:ct <paths>`).

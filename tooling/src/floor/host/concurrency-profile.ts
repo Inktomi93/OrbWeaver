@@ -17,27 +17,17 @@ export const CONCURRENCY_PROFILE_NAMES = ["shared", "dedicated"] as const;
 export type ConcurrencyProfileName = (typeof CONCURRENCY_PROFILE_NAMES)[number];
 
 /** Caps priced per UNIT of work: a worker, a checker, a pool slot. Each names its unit in {@link UNIT_OF}. */
-export const UNIT_PRICED_CAPS = [
-  "vitestMaxWorkers",
-  "semanticCorpusMaxWorkers",
-  "ctWorkers",
-  "ts7Checkers",
-  "eslintConcurrency",
-  "strykerConcurrency",
-  "cpdWorkers",
-  "hookPoolSlots",
-  "hookTs7Checkers",
-] as const;
+export const UNIT_PRICED_CAPS = ["vitestMaxWorkers", "semanticCorpusMaxWorkers", "ctWorkers", "eslintConcurrency", "cpdWorkers", "hookPoolSlots"] as const;
 export type UnitPricedCap = (typeof UNIT_PRICED_CAPS)[number];
 
 /** Caps priced per whole RUN of another cap: N programs, N CT runners, N whole-program typechecks. */
-export const RUN_PRICED_CAPS = ["pnpmWorkspaceConcurrency", "ctRunnersHostWide", "ts7RunnersHostWide"] as const;
+export const RUN_PRICED_CAPS = ["ctRunnersHostWide"] as const;
 export type RunPricedCap = (typeof RUN_PRICED_CAPS)[number];
 
 export type DerivedCap = UnitPricedCap | RunPricedCap;
 
 /** The measured kinds of work. The JSON's `unitCosts` row carries one cost per name. */
-export const UNIT_COST_NAMES = ["vitestWorker", "semanticCorpusWorker", "ctWorker", "ts7Checker", "eslintWorker", "cpdWorker", "hookLeg"] as const;
+export const UNIT_COST_NAMES = ["vitestWorker", "semanticCorpusWorker", "ctWorker", "eslintWorker", "cpdWorker", "hookLeg"] as const;
 export type UnitCostName = (typeof UNIT_COST_NAMES)[number];
 
 /** One unit's measured cost: the cores it keeps busy, the resident memory it adds, and the resident memory
@@ -55,47 +45,22 @@ export interface Machine {
   readonly memoryMiB: number;
 }
 
-/** Which unit prices each unit cap. Stryker's worker pool is Vitest runner processes. */
+/** Which unit prices each unit cap. */
 const UNIT_OF: Readonly<Record<UnitPricedCap, UnitCostName>> = {
   vitestMaxWorkers: "vitestWorker",
   semanticCorpusMaxWorkers: "semanticCorpusWorker",
-  strykerConcurrency: "vitestWorker",
   ctWorkers: "ctWorker",
-  ts7Checkers: "ts7Checker",
-  hookTs7Checkers: "ts7Checker",
   eslintConcurrency: "eslintWorker",
   cpdWorkers: "cpdWorker",
   hookPoolSlots: "hookLeg",
 };
 
-/** Which cap sizes one run of each run cap, and whether that run's cores bound the count. A whole-program
- *  typecheck past the core count only time-slices, while its memory is additive and an overrun is an OOM
- *  kill, so the two ts7 run caps are bounded by memory alone. */
+/** Worker resource costs that bound concurrent CT runs. */
 const RUN_OF: Readonly<Record<RunPricedCap, { readonly of: UnitPricedCap; readonly coreBound: boolean }>> = {
-  pnpmWorkspaceConcurrency: { of: "ts7Checkers", coreBound: false },
-  ts7RunnersHostWide: { of: "ts7Checkers", coreBound: false },
   ctRunnersHostWide: { of: "ctWorkers", coreBound: true },
 };
 
-/** One profile's caps as a reader applies them. Every field has a reader:
- *  · `vitestMaxWorkers`        → vitest.config.ts `maxWorkers` (a CLI `--maxWorkers` still overrides)
- *  · `semanticCorpusMaxWorkers` → vitest.config.ts isolated full-corpus project
- *  · `ctWorkers`               → playwright-ct.config.ts `workers` (a CLI `--workers` still overrides)
- *  · `ts7Checkers`             → scripts/ts7.ts injects `--checkers` when the caller named none
- *  · `pnpmWorkspaceConcurrency`→ verify/ops/typecheck.ts's native-program execution pool
- *  · `eslintConcurrency`       → scripts/eslint.ts `--concurrency` (ESLint's own default is `off`, i.e.
- *                                SINGLE-THREADED — the one cap here that RAISES parallelism)
- *  · `strykerConcurrency`      → the shared Stryker config factory's worker-process pool
- *  · `cpdWorkers`              → scripts/cpd.ts `--workers` (jscpd's auto default uses every core)
- *  · `hookPoolSlots`           → the edit hook's host-wide pool, shared by its file-scoped legs
- *  · `hookTs7Checkers`         → the `--checkers` the edit hook's whole-program ts7 leg passes (smaller than
- *                                `ts7Checkers`: it fires on every edit, beside whatever else is running)
- *  · `ctRunnersHostWide`       → floor/host/host-slots.ts's CT pool: CT runs and snap session daemons at once
- *  · `ts7RunnersHostWide`      → scripts/ts7.ts's host slot pool: whole-program typechecks on this box at once
- *  · `stageCap`                → snap's live-stage cap, the BASE `resolveStageLimits` starts from
- *                                (`ORB_STAGE_CAP` still overrides it). Committed, not derived: no stage cost
- *                                has been measured.
- *  · `wholeVerifyQueue`        → verify/ops/run.ts's host-wide whole-run queue */
+/** Machine-derived native worker caps and retained process limits. */
 export interface ConcurrencyProfile extends Readonly<Record<DerivedCap, number>> {
   readonly name: ConcurrencyProfileName;
   readonly stageCap: number;
@@ -188,15 +153,10 @@ function ceilingsFrom(file: Record<string, unknown>, name: ConcurrencyProfileNam
     vitestMaxWorkers: intField(row, where, "vitestMaxWorkers"),
     semanticCorpusMaxWorkers: intField(row, where, "semanticCorpusMaxWorkers"),
     ctWorkers: intField(row, where, "ctWorkers"),
-    ts7Checkers: intField(row, where, "ts7Checkers"),
-    pnpmWorkspaceConcurrency: intField(row, where, "pnpmWorkspaceConcurrency"),
     eslintConcurrency: intField(row, where, "eslintConcurrency"),
-    strykerConcurrency: intField(row, where, "strykerConcurrency"),
     cpdWorkers: intField(row, where, "cpdWorkers"),
     hookPoolSlots: intField(row, where, "hookPoolSlots"),
-    hookTs7Checkers: intField(row, where, "hookTs7Checkers"),
     ctRunnersHostWide: intField(row, where, "ctRunnersHostWide"),
-    ts7RunnersHostWide: intField(row, where, "ts7RunnersHostWide"),
     stageCap: intField(row, where, "stageCap"),
     wholeVerifyQueue: queue,
   };
@@ -222,7 +182,6 @@ function unitCostsFrom(file: Record<string, unknown>): UnitCosts {
     vitestWorker: unitCostFrom(row, "vitestWorker"),
     semanticCorpusWorker: unitCostFrom(row, "semanticCorpusWorker"),
     ctWorker: unitCostFrom(row, "ctWorker"),
-    ts7Checker: unitCostFrom(row, "ts7Checker"),
     eslintWorker: unitCostFrom(row, "eslintWorker"),
     cpdWorker: unitCostFrom(row, "cpdWorker"),
     hookLeg: unitCostFrom(row, "hookLeg"),
@@ -269,12 +228,9 @@ export function deriveConcurrencyProfile(committed: ProfileCeilings, costs: Unit
     vitestMaxWorkers: unit("vitestMaxWorkers"),
     semanticCorpusMaxWorkers: unit("semanticCorpusMaxWorkers"),
     ctWorkers: unit("ctWorkers"),
-    ts7Checkers: unit("ts7Checkers"),
     eslintConcurrency: unit("eslintConcurrency"),
-    strykerConcurrency: unit("strykerConcurrency"),
     cpdWorkers: unit("cpdWorkers"),
     hookPoolSlots: unit("hookPoolSlots"),
-    hookTs7Checkers: unit("hookTs7Checkers"),
   };
   const run = (cap: RunPricedCap): number => {
     const { of, coreBound } = RUN_OF[cap];
@@ -285,9 +241,7 @@ export function deriveConcurrencyProfile(committed: ProfileCeilings, costs: Unit
   return {
     name: committed.name,
     ...units,
-    pnpmWorkspaceConcurrency: run("pnpmWorkspaceConcurrency"),
     ctRunnersHostWide: run("ctRunnersHostWide"),
-    ts7RunnersHostWide: run("ts7RunnersHostWide"),
     stageCap: committed.stageCap,
     wholeVerifyQueue: committed.wholeVerifyQueue,
   };
@@ -312,10 +266,7 @@ export function readMachine(): Machine {
  *                    the wait a run may spend and the ceiling that must cover it cannot drift apart).
  *  · `verifyHostSlotWaitMs` → how long a whole verify run may queue before starting as an overflow run.
  *  · `vitestHardCeilingMs` → Vitest's absolute no-output backstop, even while its process tree burns CPU.
- *  · `ts7HostWaitMs` → how long a whole-program typecheck may queue for a host-wide ts7 slot before the head
- *                    of the queue runs as an overflow run (scripts/ts7.ts).
- *  · `mutationGateMs` → the Stryker mutation stage: a whole-corpus mutant run is measured in HOURS, not
- *                    minutes; owner-ruled ~2 h. */
+ */
 export interface StageBudgets {
   readonly defaultMs: number;
   readonly ctSuiteMs: number;
@@ -323,8 +274,6 @@ export interface StageBudgets {
   readonly ctHostWaitMs: number;
   readonly verifyHostSlotWaitMs: number;
   readonly vitestHardCeilingMs: number;
-  readonly ts7HostWaitMs: number;
-  readonly mutationGateMs: number;
 }
 
 const MS_PER_MINUTE = 60_000;
@@ -364,8 +313,6 @@ export function stageBudgetsFor(profile: ConcurrencyProfile, body: string): Stag
     ctHostWaitMs: hostWaitMinutes * MS_PER_MINUTE,
     verifyHostSlotWaitMs: positiveField(budgets, "verifyHostSlotWaitMinutes") * MS_PER_MINUTE,
     vitestHardCeilingMs: positiveField(budgets, "vitestHardCeilingMinutes") * MS_PER_MINUTE,
-    ts7HostWaitMs: positiveField(budgets, "ts7HostSlotWaitMinutes") * MS_PER_MINUTE,
-    mutationGateMs: Math.max(defaultMinutes, positiveField(budgets, "mutationGateMinutes")) * MS_PER_MINUTE,
   };
 }
 

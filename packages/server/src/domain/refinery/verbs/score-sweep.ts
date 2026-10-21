@@ -296,7 +296,7 @@ async function runWave(
 async function parseOneScore(rc: RoleClients, item: SweepItem, batchText: string, sampleOpts: StructuredOptions): Promise<RefineryScorePayload | null> {
   const run = (correction?: string): Promise<string> =>
     correction === undefined ? Promise.resolve(batchText) : retryScoreOne(rc, item, correction, sampleOpts);
-  // @orb-waive caught-failure-ownership(catch): the sole caller `runWave` counts every `null` payload into `failed`
+  // the sole caller `runWave` counts every `null` payload into `failed`
   // (score-sweep.ts:290), which `runScoreSweep` returns in `RefineryScoreSweepResult.failed`. Ends if a per-card cause
   // needs to travel past this boundary or `runWave` stops counting `null`.
   try {

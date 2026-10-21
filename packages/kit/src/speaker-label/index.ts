@@ -30,7 +30,6 @@ const CODE_FENCE = "```";
  *  not a fence. Bounds what counts as a fence LINE (the anchor that stray inline backticks lack). */
 const MAX_FENCE_INDENT = 3;
 
-// @orb-waive no-vanity-alias(NAME_WORD_CHARS): baselined when the gate widened; burn-down item 906.
 /** The name-boundary class — `#strings`'s {@link UNICODE_WORD_CHARS}, which is its ONE home (#1543 moved it
  *  there when `#world-info`'s key compile turned out to be a fourth spelling of the same question; the three
  *  failure modes it fixes are documented at that home). Aliased here only so the three uses below read as

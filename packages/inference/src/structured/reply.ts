@@ -176,7 +176,7 @@ export function normalizeStructuredValue(value: unknown, format: Pick<PlannedRes
 function parseReply(text: string): unknown {
   try {
     return JSON.parse(text);
-    // @orb-waive caught-failure-ownership(catch): a reply that is not bare JSON falls to the tolerant `extractJsonObject`, and a reply with no object is returned unchanged by `normalizeStructuredText`, so the caller's own parse (`parseStructured` in runStructuredTurn, which throws StructuredOutputError) is what refuses it. Ends if normalization starts failing the call.
+    // a reply that is not bare JSON falls to the tolerant `extractJsonObject`, and a reply with no object is returned unchanged by `normalizeStructuredText`, so the caller's own parse (`parseStructured` in runStructuredTurn, which throws StructuredOutputError) is what refuses it. Ends if normalization starts failing the call.
   } catch {
     return extractJsonObject(text);
   }

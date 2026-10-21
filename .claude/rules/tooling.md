@@ -8,20 +8,16 @@ paths:
   - "knip.ts"
   - "lefthook.yml"
   - "tsconfig*.json"
-  - "scripts/vitest-supervised.ts"
 ---
 
 # Tooling and root configs
 
 ## Two config mechanisms
 
-TypeScript configs are generated: `tooling/src/floor/compiler/type-config-intent.ts` is the source, `pnpm
-typecheck` and `verify baseline type-configs --check` verify freshness. Never hand-edit a generated
-field; change the intent.
+TypeScript configs are checked-in configuration. Edit the owning config directly and validate with `pnpm typecheck`.
 
 `biome.json`, `eslint.config.js` and `.dependency-cruiser.cjs` are hand-authored on purpose, so a
-current violation cannot mint its own permission. Fix a rotted per-config liveness gate — never
-regenerate the config.
+current violation cannot mint its own permission. Fix the native lint or dependency-cruiser rule that owns the constraint.
 
 ## Biome and tsc
 
@@ -46,15 +42,7 @@ digit and can kill the wrong group — use `killPidGroup` (`tooling/src/floor/pr
 check can purge the real directory through the symlink. A test-run watchdog kills on silence and zero
 CPU across the process tree, never silence alone.
 
-## Gates and freshness checks
-
-A ledger's freshness check (`pnpm check:ledgers-fresh`) runs the same derivation as its regenerator and
-exits 2 on an empty result. The orchestrator regenerates it on the merged tree; a lane hand-edits only
-its own row.
-
-Gate authoring and the lying-instrument fix contract live in `rules/verify-and-gates.md`; this file does
-not restate them. Retiring a command or flag: delete it and grep-fix every spelling across code, docs
-and rules in the same change; never add a refusal path or alias shim.
+D333 ends custom gate authoring and checker qualification. Use native lint, typecheck, dependency-cruiser and application tests.
 
 ## Shared code facts and readers
 
@@ -63,7 +51,6 @@ Before you fold two readers or code facts into one, compare every version case b
 ## Workspace packages
 
 Declare `sideEffects` on every new workspace `package.json` at birth, or prod tree-shaking cannot reach
-consumers below the cake. A new `packages/*` package also needs a population root and an entry in
-`tooling/src/floor/compiler/project-worlds.ts`, a dep-cruiser rule pair, `package.json`/`tsconfig`, and a knip
+consumers below the cake. A new `packages/*` package also needs a population root, a dep-cruiser rule pair, `package.json`/`tsconfig`, and a knip
 entry. Scope a `pnpm-workspace.yaml` override to its parent
 chain when a name is shared across major lines; a bare-name override collapses every instance onto one version.

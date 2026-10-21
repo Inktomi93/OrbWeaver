@@ -175,7 +175,7 @@ const STATUS_LINE_RE = /^(?:Name|State|Threads|PPid):/u;
 const LINE_RE = /\r?\n/u;
 
 function readFileOrNull(path: string): string | null {
-  // @orb-waive caught-failure-ownership(catch): a `/proc` entry that vanished or is hidden answers null, and every reader here treats null as "not observed", never as a verdict. Ends if null ever authorizes a signal.
+  // a `/proc` entry that vanished or is hidden answers null, and every reader here treats null as "not observed", never as a verdict. Ends if null ever authorizes a signal.
   try {
     return readFileSync(path, "utf8");
   } catch {
@@ -184,7 +184,7 @@ function readFileOrNull(path: string): string | null {
 }
 
 function readLinkOrNull(path: string): string | null {
-  // @orb-waive caught-failure-ownership(catch): an unreadable /proc/<pid>/cwd or fd link answers null and authorizes nothing: socketOwners leaves the socket unowned so listeningPids records the port as { kind: "unknown" } and dev-status and dev-down refuse on it, and pidIsStageRooted falls back to argv and answers false (no signal) when argv names no stage. Ends if null ever authorizes a signal.
+  // an unreadable /proc/<pid>/cwd or fd link answers null and authorizes nothing: socketOwners leaves the socket unowned so listeningPids records the port as { kind: "unknown" } and dev-status and dev-down refuse on it, and pidIsStageRooted falls back to argv and answers false (no signal) when argv names no stage. Ends if null ever authorizes a signal.
   try {
     return readlinkSync(path);
   } catch {
@@ -193,7 +193,7 @@ function readLinkOrNull(path: string): string | null {
 }
 
 function readDirOrEmpty(path: string): readonly string[] {
-  // @orb-waive caught-failure-ownership(catch): a `/proc` that cannot be listed yields no processes, which a sweep reads as "nothing observed" and signals nothing. Ends if an empty list ever reads as a verdict.
+  // a `/proc` that cannot be listed yields no processes, which a sweep reads as "nothing observed" and signals nothing. Ends if an empty list ever reads as a verdict.
   try {
     return readdirSync(path);
   } catch {

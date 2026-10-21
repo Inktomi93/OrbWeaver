@@ -17,8 +17,7 @@ findings is a valid result. If later evidence overturns a finding, publish a ret
 
 ## Checks to run
 
-Follow the `lane` skill's completion policy when selecting checks. Read the last whole-tree result from
-`reports/verify.json`, checking its scope and revision. Start a whole-tree run only when the assignment requires it and the box is quiet.
+Follow the `lane` skill's completion policy when selecting checks. Read completed native-check or CI results, checking their scope and revision. Start a whole-tree run only when the assignment requires it and the box is quiet.
 
 Review the completed change, then batch confirmed findings. Limit follow-up review to those fixes and their affected behavior. Reopen broader review only for a concrete new risk.
 

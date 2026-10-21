@@ -72,7 +72,6 @@ export interface RowMacroNameContext {
 // The ultimate `{{char}}` floor when NEITHER the producer map NOR `speakerCharName` resolves —
 // mirrors the codebase's existing "unknown character" convention elsewhere.
 const UNKNOWN_CHARACTER_NAME = "Character";
-// @orb-waive no-vanity-alias(UNKNOWN_PERSONA_NAME): baselined when the gate widened; burn-down item 906.
 // The ultimate `{{user}}`/`{{persona}}`-name floor (matches every existing consumer).
 const UNKNOWN_PERSONA_NAME = DEFAULT_PERSONA_NAME;
 

@@ -11,7 +11,7 @@ import type { EmbeddingConnectionSnapshot, EmbeddingsService } from "../contract
 import { readGenerationTargets } from "../persistence/space-state.ts";
 
 async function currentConnection(ctx: EmbeddingsContext, ownerId: UserId, via: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
-  // @orb-waive caught-failure-ownership(catch): an owner whose binding cannot resolve at boot has nothing a re-index could embed with; their next store or sweep raises the same failure where it is owned. Ends if this read ever gates a write.
+  // an owner whose binding cannot resolve at boot has nothing a re-index could embed with; their next store or sweep raises the same failure where it is owned. Ends if this read ever gates a write.
   try {
     return await ctx.resolveEmbeddingConnection(ownerId, via);
   } catch {

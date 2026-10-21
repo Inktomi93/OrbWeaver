@@ -53,7 +53,7 @@ export function validateAppearancePatch(patch: AppearancePatch, source: string):
 /** Null when the committed file is missing or unparseable — the caller turns that into an ARG ERROR naming
  *  the path, never a silent "no such preset" that blames the caller for a broken file. */
 function readPresetFile(): PresetFile | null {
-  // @orb-waive caught-failure-ownership(catch): null means the presets file is missing or unparseable; loadAppearancePreset turns null into an { error } that applyAppearanceFlag pushes onto the CLI errors (ARG ERROR, EXIT.misuse), so the first use refuses. Ends if loadAppearancePreset stops refusing on null.
+  // null means the presets file is missing or unparseable; loadAppearancePreset turns null into an { error } that applyAppearanceFlag pushes onto the CLI errors (ARG ERROR, EXIT.misuse), so the first use refuses. Ends if loadAppearancePreset stops refusing on null.
   try {
     return JSON.parse(readFileSync(PRESETS_PATH, "utf8")) as PresetFile;
   } catch {

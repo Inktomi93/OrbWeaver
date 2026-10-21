@@ -139,7 +139,7 @@ async function resolvePolicy(
     return FRAME_POLICY_FLOOR;
   }
   let participants: Awaited<ReturnType<CardFrameParticipantsPort["listParticipants"]>>;
-  // @orb-waive caught-failure-ownership(catch): a LEAK-FREE COLLAPSE to the SAFE FLOOR, stated in the comment below — a non-participant throwing out of the membership gate and an unknown character must land on the identical restrictive policy, or the frame's permissiveness reveals chat membership. Every failure arm here tightens, never widens. Ends if the floor stops being the safe posture.
+  // a LEAK-FREE COLLAPSE to the SAFE FLOOR, stated in the comment below — a non-participant throwing out of the membership gate and an unknown character must land on the identical restrictive policy, or the frame's permissiveness reveals chat membership. Every failure arm here tightens, never widens. Ends if the floor stops being the safe posture.
   try {
     participants = await deps.participants.listParticipants({ principal, chatId: selector.chatId });
   } catch {
@@ -189,7 +189,7 @@ export function registerCardFrame(app: Hono<PrincipalEnv>, deps: CardFrameDeps):
       return c.json({ error: "missing CSRF header" }, FORBIDDEN);
     }
     let raw: unknown;
-    // @orb-waive caught-failure-ownership(catch): the CLIENT is the owner and the 400 is the surface — an unparseable request body is the caller's error, answered with `invalid JSON body`, exactly as the schema-parse failure two lines below is. A malformed inbound payload is not an operator event. Ends if body decoding gains a server-side fault worth distinguishing from bad input.
+    // the CLIENT is the owner and the 400 is the surface — an unparseable request body is the caller's error, answered with `invalid JSON body`, exactly as the schema-parse failure two lines below is. A malformed inbound payload is not an operator event. Ends if body decoding gains a server-side fault worth distinguishing from bad input.
     try {
       raw = await c.req.json();
     } catch {

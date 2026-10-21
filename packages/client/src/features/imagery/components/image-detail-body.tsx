@@ -51,7 +51,7 @@ function ImageDetail({ subject }: { readonly subject: ImageSubject }): ReactElem
     setResolvingBackground(true);
     // The background wire needs the asset's HASH + mime (the URL resolver builds `blobUrl(hash)`); the
     // owner-scoped resolver returns them for an image the host owns, absent otherwise (never a leak).
-    // @orb-waive caught-failure-ownership(query): the resolver failure emits the existing "Couldn't set the background" toast; the nested mutation failure owns its separate errorToast. Ends if either failure loses its toast.
+    // the resolver failure emits the existing "Couldn't set the background" toast; the nested mutation failure owns its separate errorToast. Ends if either failure loses its toast.
     void queryClient
       .query(trpc.assets.resolveBlobRefs.queryOptions({ assetIds: [subject.assetId] }))
       .then(async (refs) => {

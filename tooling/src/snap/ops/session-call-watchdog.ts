@@ -108,9 +108,9 @@ export function sessionTapeBaseMs(actions: readonly SnapAction[]): number {
 async function terminatePageExecution(session: ProbeSession): Promise<void> {
   const cdp = await session.page.context().newCDPSession(session.page);
   try {
-    // @orb-waive caught-failure-ownership(cdp.send): a failed terminateExecution leaves the call unsettled, so recovery loses the race to sleep(recoveryWaitMs) (session-call-watchdog.ts:178) and throws TerminalSessionCallError (:180). Ends if that race or throw goes.
+    // a failed terminateExecution leaves the call unsettled, so recovery loses the race to sleep(recoveryWaitMs) (session-call-watchdog.ts:178) and throws TerminalSessionCallError (:180). Ends if that race or throw goes.
     await Promise.race([cdp.send("Runtime.terminateExecution").catch(() => undefined), sleep(budget(TERMINATION_ACK_WAIT_BASE_MS))]);
-    // @orb-waive caught-failure-ownership(session.page.reload): a failed reload leaves the call unsettled, so recovery loses the race to sleep(recoveryWaitMs) (session-call-watchdog.ts:178) and throws TerminalSessionCallError (:180). Ends if that race or throw goes.
+    // a failed reload leaves the call unsettled, so recovery loses the race to sleep(recoveryWaitMs) (session-call-watchdog.ts:178) and throws TerminalSessionCallError (:180). Ends if that race or throw goes.
     await session.page.reload({ waitUntil: "commit", timeout: budget(RELOAD_COMMIT_BASE_MS) }).catch(() => undefined);
   } finally {
     await cdp.detach();
@@ -146,7 +146,7 @@ export async function runSessionCallWithinBudget(
         `SESSION RELOAD  ${state.name}: the page reloaded during \`${op}\` (a vite re-optimise or the app's own navigation) — the call budget now ends ${String(deadlineAt - startedAt)}ms after it started. In-page state reset; re-drive before trusting this call's surface.`,
       );
     }) ?? null;
-  // @orb-waive caught-failure-ownership(Promise.resolve): the rejection is retained in the discriminated work outcome and the rejected arm below rethrows the original binding; timeout recovery also awaits this owned outcome. Ends if the rejected arm stops propagating the original failure.
+  // the rejection is retained in the discriminated work outcome and the rejected arm below rethrows the original binding; timeout recovery also awaits this owned outcome. Ends if the rejected arm stops propagating the original failure.
   const work = Promise.resolve()
     .then(run)
     .then(
@@ -167,7 +167,7 @@ export async function runSessionCallWithinBudget(
   // is still live would allow the timed-out call to mutate the same page concurrently with its successor.
   // Both promises are rejection-owned here; the deadline remains the caller-visible error.
   const recovery = Promise.all([
-    // @orb-waive caught-failure-ownership(then): a failed cancellation becomes false, `recovered` goes false (session-call-watchdog.ts:178) and :180 throws TerminalSessionCallError, which the daemon reports as SESSION DEAD. Ends if false stops forcing that throw.
+    // a failed cancellation becomes false, `recovered` goes false (session-call-watchdog.ts:178) and :180 throws TerminalSessionCallError, which the daemon reports as SESSION DEAD. Ends if false stops forcing that throw.
     ("recover" in state ? state.recover() : terminatePageExecution(state.session)).then(
       () => true,
       () => false,

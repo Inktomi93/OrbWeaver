@@ -56,7 +56,7 @@ async function readSelectedCostSamples(db: Db, ownerId: UserId): Promise<Selecte
   const cost = createSelectedCostAccumulator(ownerId);
   let lastId = "";
   for (;;) {
-    // @orb-waive no-await-db-in-loop(limit): keyset pagination bounds the selected canon corpus at COST_PAGE_ROWS, never one query per entity; ends if this reader stops paging.
+    // keyset pagination bounds the selected canon corpus at COST_PAGE_ROWS, never one query per entity; ends if this reader stops paging.
     const rows = await db
       .select({
         id: messageVariants.id,

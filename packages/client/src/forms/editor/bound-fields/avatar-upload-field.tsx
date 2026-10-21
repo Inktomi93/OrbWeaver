@@ -53,7 +53,7 @@ export function AvatarUploadField(props: AvatarUploadFieldProps): ReactElement {
     setLoading(true);
     setSuccess(false);
     setUploadError(null);
-    // @orb-waive caught-failure-ownership(catch): the catch calls setUploadError and `error = uploadError ?? fieldProps.error` renders it in the Field error slot; a superseded upload is dropped because the newer upload resets uploadError and owns the field. Ends if uploadError stops being rendered.
+    // the catch calls setUploadError and `error = uploadError ?? fieldProps.error` renders it in the Field error slot; a superseded upload is dropped because the newer upload resets uploadError and owns the field. Ends if uploadError stops being rendered.
     try {
       const stored = await upload(file);
       if (epoch !== uploadEpoch.current) {

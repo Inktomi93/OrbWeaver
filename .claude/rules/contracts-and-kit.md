@@ -28,7 +28,7 @@ holds cross-boundary wire shapes and depends only on `kit`. Both packages are is
 - Before adding a view field to a wire type in `character/index.ts`, check it does not collide with an
   existing SillyTavern V2/V3 card field name.
 - Widening a snake_case vocabulary used as Record or zod-schema keys touches every exhaustive consumer.
-  Sweep consumers with `pnpm ast`, not grep alone.
+  Sweep callers with CodeGraph and structural searches with `ast-grep`; use `rg` for literal spellings.
 
 ## kit
 

@@ -36,7 +36,7 @@ function parseDiceResult(raw: string | null): RollDiceToolResult | null {
     return null;
   }
   let json: unknown;
-  // @orb-waive caught-failure-ownership(catch): a malformed blob leaves `json` undefined, `safeParse` rejects it and this function returns null, and RpgDiceToolCard renders the generic `ToolCallBlock` for a null result so the canon record is never dropped. Ends if the caller stops rendering that block on null.
+  // a malformed blob leaves `json` undefined, `safeParse` rejects it and this function returns null, and RpgDiceToolCard renders the generic `ToolCallBlock` for a null result so the canon record is never dropped. Ends if the caller stops rendering that block on null.
   try {
     json = JSON.parse(raw);
   } catch {

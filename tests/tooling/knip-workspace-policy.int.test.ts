@@ -39,7 +39,7 @@ test("native Knip checks tooling by default while production keeps the applicati
   expect(production.stdout).toContain("unused-app-dependency");
 });
 
-test("production symbol liveness has one judge: the default run defers shipped files and keeps author-time files", ({ repoRoot, scratch }) => {
+test("native Knip checks shipped and author-time symbols without baseline suppression", ({ repoRoot, scratch }) => {
   const ui = "packages/ui";
   writeFileSync(join(scratch, "package.json"), JSON.stringify({ name: "knip-symbol-owner-control", private: true, workspaces: ["packages/*"] }));
   writeFileSync(join(scratch, "pnpm-workspace.yaml"), 'packages:\n  - "packages/*"\n');
@@ -67,7 +67,7 @@ test("production symbol liveness has one judge: the default run defers shipped f
   const normal = run({}, []);
   expect(normal.status, `${normal.stdout}\n${normal.stderr}`).toBe(1);
   expect(normal.stdout).toContain("buildOrphan");
-  expect(normal.stdout).not.toContain("shippedTestOnly");
+  expect(normal.stdout).toContain("shippedTestOnly");
 
   const production = run({ production: true, strict: true }, ["--production", "--strict"]);
   expect(production.status, `${production.stdout}\n${production.stderr}`).toBe(1);

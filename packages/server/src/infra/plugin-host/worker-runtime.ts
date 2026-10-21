@@ -267,7 +267,7 @@ port.on("message", (message: BrokerWorkerMessage) => {
     return;
   }
   openLease(message.authorityId);
-  // @orb-waive caught-failure-ownership(run): a command rejection is posted to the broker as a response with the same command id and rpcError(error), which the parent rejects through handleResponse. Ends if the error response stops carrying the rejection.
+  // a command rejection is posted to the broker as a response with the same command id and rpcError(error), which the parent rejects through handleResponse. Ends if the error response stops carrying the rejection.
   void commandAuthority
     .run(message.authorityId, () => run(message))
     .then(

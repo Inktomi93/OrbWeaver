@@ -37,7 +37,7 @@ process.on("message", (value: unknown) => {
   if (message.generation !== activeGeneration || brokerSender === undefined) {
     return;
   }
-  // @orb-waive caught-failure-ownership(catch): a relay failure SIGKILLs the broker; its exit settles superviseOneBroker, which sends the app a stopped frame carrying rpcError, and process-runtime's onDisconnect rejects pending work. Ends if the stopped send is removed or onDisconnect stops rejecting pending work.
+  // a relay failure SIGKILLs the broker; its exit settles superviseOneBroker, which sends the app a stopped frame carrying rpcError, and process-runtime's onDisconnect rejects pending work. Ends if the stopped send is removed or onDisconnect stops rejecting pending work.
   try {
     brokerSender.send(message);
   } catch {
@@ -85,7 +85,7 @@ function forwardBrokerFrame(value: unknown, generation: string, broker: ChildPro
     broker.kill("SIGKILL");
     return true;
   }
-  // @orb-waive caught-failure-ownership(catch): an unusable app channel calls stopBroker, which ends the watchdog; the app's child exit handler (onWatchdogGone) runs onDisconnect and rejects pending work. Ends if stopBroker stops ending the broker or the exit handler is removed.
+  // an unusable app channel calls stopBroker, which ends the watchdog; the app's child exit handler (onWatchdogGone) runs onDisconnect and rejects pending work. Ends if stopBroker stops ending the broker or the exit handler is removed.
   try {
     appSender.send(message);
   } catch {
@@ -179,7 +179,7 @@ async function superviseOneBroker(): Promise<string> {
     brokerSender = undefined;
   }
   if (process.connected) {
-    // @orb-waive caught-failure-ownership(catch): a failed stopped-frame delivery calls stopBroker, which ends the watchdog and its broker; the app's child exit handler (onWatchdogGone) runs onDisconnect and rejects pending work. Ends if stopBroker stops ending the broker or the exit handler is removed.
+    // a failed stopped-frame delivery calls stopBroker, which ends the watchdog and its broker; the app's child exit handler (onWatchdogGone) runs onDisconnect and rejects pending work. Ends if stopBroker stops ending the broker or the exit handler is removed.
     try {
       appSender.send({ kind: "stopped", generation, error: rpcError(new Error(result)) });
     } catch {

@@ -215,7 +215,7 @@ export async function launchProbeSession(opts: ProbeLaunchOptions): Promise<Prob
   const cookies = opts.contextCookies ?? [];
   const contexts: ProbeContext[] = [];
   const ownedContexts: { readonly context: BrowserContext }[] = [];
-  // @orb-waive caught-failure-ownership(error): closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.
+  // closeProbeSessionAfterError is typed Promise<never> — it always rethrows the primary error (wrapped with any cleanup failure), never returns. Ends if that function stops rethrowing unconditionally.
   try {
     for (let i = 0; i < contextCount; i += 1) {
       const built = await buildProbeContext({

@@ -111,7 +111,7 @@ const scripted = addressed.extend<Pick<Fixtures, "providerFetch">>({
   },
 });
 
-// @orb-waive audit-client-tests(describe): NOT empty — it holds one test declared through `scripted`, a
+// NOT empty — it holds one test declared through `scripted`, a
 // `test.extend` fixture alias. `tooling/src/verify/lib/test-call-shape.ts` reads a runner by ROOT NAME and
 // its declared limit admits only `test`/`it`, so a fixture alias is invisible to it. The alias CANNOT be
 // renamed into that set here: `it` is refused by biome `lint/nursery/useConsistentTestIt` (this repo prefers

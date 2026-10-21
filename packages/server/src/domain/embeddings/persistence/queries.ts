@@ -82,7 +82,7 @@ const IMAGE_CAPTION_LENS: ImageLens = "image-captioned";
 
 /** Resolve the funder for a post-ingest prune. This is an un-principaled worker read: databank has already
  * authorized and selected the document before calling the injected embeddings verb. */
-// @orb-waive owner-scoped-reads(documents): same D20 un-principal seam as domain/databank/persistence/queries.ts::loadDocument — ingest/reindex runs after the enqueue authority check and this read derives the owner needed to pin the generation. Ends if ingest takes a documentId straight off a request.
+// same D20 un-principal seam as domain/databank/persistence/queries.ts::loadDocument — ingest/reindex runs after the enqueue authority check and this read derives the owner needed to pin the generation. Ends if ingest takes a documentId straight off a request.
 export async function loadDocumentOwnerForPrune(db: Db, documentId: DocumentId): Promise<UserId | null> {
   const rows = await db.select({ ownerId: documents.ownerId }).from(documents).where(eq(documents.id, documentId)).limit(LIMIT_ONE);
   return rows[0]?.ownerId ?? null;

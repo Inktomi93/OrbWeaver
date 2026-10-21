@@ -133,11 +133,11 @@ export function usePrefetchDisplayScripts(chatId: ChatId): void {
     const own = ownDisplayScriptQuery(trpc);
     const room = roomDisplayScriptQuery(trpc, chatId);
     if (peekQueryData(queryClient, own.queryKey) === undefined) {
-      // @orb-waive caught-failure-ownership(queryClient.query): a failed warm-up leaves this key errored in the query cache, and regex-section.tsx:127 reads the same key with `useSuspenseQuery(trpc.regex.listScripts.queryOptions())`, which throws it to the error boundary. Ends if that suspense reader stops sharing this key.
+      // a failed warm-up leaves this key errored in the query cache, and regex-section.tsx:127 reads the same key with `useSuspenseQuery(trpc.regex.listScripts.queryOptions())`, which throws it to the error boundary. Ends if that suspense reader stops sharing this key.
       void queryClient.query(own).catch(() => undefined);
     }
     if (peekQueryData(queryClient, room.queryKey) === undefined) {
-      // @orb-waive caught-failure-ownership(queryClient.query): useDisplayScripts' optional room transforms fall back to NO_SCRIPTS without changing canonical text; the native query cache retains error/retry state. Ends if the optional fallback or query-error ownership changes.
+      // useDisplayScripts' optional room transforms fall back to NO_SCRIPTS without changing canonical text; the native query cache retains error/retry state. Ends if the optional fallback or query-error ownership changes.
       void queryClient.query(room).catch(() => undefined);
     }
   }, [queryClient, trpc, chatId]);

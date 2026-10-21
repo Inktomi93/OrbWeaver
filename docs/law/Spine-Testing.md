@@ -6,11 +6,11 @@ updated: 2026-10-17
 
 # Orbweaver — Spine: Testing
 
-Testing policy: central directory mirrors, presence by reach, registered test kinds, isolated fixtures, and native runner verification. `Core-0-Architecture-and-Structure.md` §5 owns layout. `tooling/src/floor/testing/test-kinds.ts` owns the executable kind vocabulary; native runner configs own execution, and the verification registry owns tier admission.
+Testing policy: mirrored tests, isolated fixtures and production composition. `Core-0-Architecture-and-Structure.md` §5 owns layout. Native runner configs own execution.
 
 ## 0. The principle
 
-Tests prove behavior or type contracts. Their filenames declare kind and compiler intent; they do not substitute for assertions. Gates enforce layout, required presence, fixture boundaries, determinism, and runner/compiler membership. A rule that prevents a known silent regression needs a planted failing control and a valid passing control.
+Tests prove behavior or type contracts. Their filenames declare kind and compiler intent; they do not substitute for assertions. D333 retires custom static test gates. The rules below remain guidance, not automated gate guarantees. A rule that prevents a known silent regression needs a planted failing control and a valid passing control.
 
 Measurement-budget qualification follows [D308](../adr/0308-hardware-scoped-timing-budgets.md). Use the test-kind capability policy rather than treating shared-hardware timing as a behavioral assertion.
 
@@ -22,33 +22,25 @@ Measurement-budget qualification follows [D308](../adr/0308-hardware-scoped-timi
 | `.dom.test.ts` | DOM + Node | Vitest in Node | Browser-subject behavior that needs DOM declarations but no browser execution |
 | `.int.test.ts` | Node | Vitest | Real persistence, I/O or composed service behavior |
 | `.repo.int.test.ts` | Node | Vitest | Integration behavior that requires the repository resource |
-| `.suite.corpus.int.test.ts` | Node | Vitest | Real-corpus proof with an isolated semantic workspace |
+| `.suite.corpus.int.test.ts` | Node | Vitest | Corpus-backed integration behavior with isolated fixtures |
 | `.contract.test.ts` | Node | Vitest | Parsing, serialization and wire contracts |
-| `.test-d.ts` | Node | Vitest typecheck through the shared TS7 wrapper | Type-only contracts |
-| `.dom.test-d.ts` | DOM + Node | Vitest typecheck through the shared TS7 wrapper | Browser type contracts |
+| `.test-d.ts` | Node | Native TypeScript compiler | Type-only contracts |
+| `.dom.test-d.ts` | DOM + Node | Native TypeScript compiler | Browser type contracts |
 | `.ct.tsx` | DOM + Node | Playwright CT | Rendered component behavior |
 | `.spec.ts` | DOM + Node | Playwright E2E | Full-stack behavior |
 
-`.repo.int.test.ts` is the registered integration/Node/module-mirror kind for tests that require the repository resource. `.suite.test.ts`, `.suite.int.test.ts` and `.suite.ct.tsx` mark a property spanning multiple source modules. They use the same executor as their family and may sit in any directory of their package tree. Unsupported test-shaped filenames fail `test-layout`; registering a kind must update every relevant consumer and prove native collection before adoption.
+`.repo.int.test.ts` marks integration tests that use shared repository resources. `.suite.test.ts`, `.suite.int.test.ts` and `.suite.ct.tsx` mark a property spanning multiple source modules. They use the same executor as their family and may sit in any directory of their package tree.
 
 Compiler world follows the contract being checked. Component props, element identities, refs and browser events require real DOM declarations. A successful Node compile alone is insufficient: React provides fallback DOM declarations that can make distinct browser types indistinguishable. Pure logic can remain Node-owned even inside a UI package. Do not classify every test by package directory or maintain per-component exceptions.
 
-Runtime and compiler ownership are separate. A `.dom.test.ts` has DOM declarations but no DOM runtime; code that needs a rendered browser belongs in CT. Test-only helpers live in a world directory of the test kit (§2) according to their dependency needs, and that world's program proves it. Browser stories and component tests retain the DOM compiler world.
+Runtime and compiler ownership are separate. A `.dom.test.ts` has DOM declarations but no DOM runtime; code that needs a rendered browser belongs in CT. Test-only helpers live in a test-kit world directory according to their dependency needs. Browser stories and component tests retain the DOM compiler world.
 
-- `pnpm test:node` runs product Vitest projects. `pnpm test` composes product Node tests and the full CT run. Type-only projects use `pnpm test:types`; each world has a `types-<world>` group and a `types-legacy-<world>` group for the legacy folder (§2).
+- `pnpm test <paths>` runs named Node tests. `pnpm test` runs the Node suite. `pnpm test:ct <paths>` runs named CTs; no path runs the full CT suite.
 - `pnpm e2e:corpus:matrix` runs corpus smoke across authentication modes, chat styles and viewport projects. The runner clones canonical fixtures; Playwright configuration owns the matrix. CI runs one job per project with `pnpm e2e:corpus:matrix --project=<project>`.
 - A local run on a copy of owner data never reaches CI. Disable the copy's enabled schedules, because intake refuses them. Write the private fixture with `pnpm exec node scripts/corpus-fixture.ts private <data-dir>`, then run `pnpm exec node scripts/corpus-fixture.ts matrix <fixture-dir>`. Run both in a loopback-only network and PID namespace; the private runner refuses any other network.
-- `pnpm test:tooling` enters weekly checker proof. Automatic product tiers cannot select exhaustive or affected tooling recertification; named focused tests remain available.
-- Application types, world purity, architecture and test membership remain required regardless of the checker implementation directory. Verification ownership is `UNIFIED-VERIFICATION-DESIGN.md` §3.2.
-- `pnpm typecheck [--config <repo-relative-tsconfig>]...` is the one native compiler door. With no configs it discovers every runnable program through the shared compiler reader; scoped verification forwards every affected program as repeated configs through the single `types:native` stage. Type assertions and ownership reconciliation remain separate stages.
-- `pnpm check` selects the static verification tier. `pnpm verify --push` adds the product behavioral battery, CT and E2E smoke. The verification registry is authoritative for current stage admission.
-- Native compiler membership reports distinguish authored roots, imported closures and intended ownership. Merely appearing in some import closure does not prove that a test has the correct compiler owner.
-- Native Vitest and Playwright collection is the execution oracle. Reconciliation must detect unclaimed tests, duplicate claims and empty views; duplicating config globs in the checker is not independent proof.
-- Integration fixtures default to isolated resources and parallel execution under the shared capacity profile. Scheduling restrictions require a current resource or measurement reason; historical slowness does not establish serialization or mutation ineligibility.
-- Vitest execution groups (called projects by the Vitest API) derive their selectors from `tooling/src/floor/testing/test-kinds.ts`; there is no hand-maintained filename roster. Normal groups run at `sequence.groupOrder: 0`. The `repository` group selects registered kinds whose resource is `repository`, runs after them at group order 1, and uses `fileParallelism: false` to serialize files within that group.
-- The `semantic-corpus` group selects its registered resource after the repository group. Independent files run concurrently under measured corpus memory limits from `tooling/concurrency-profile.json`.
-
-Ownership enforcement claims require planted positive and negative controls through the real verification path. The linked type-world program owns migration and acceptance state.
+- `pnpm typecheck` runs the native compiler over checked-in TypeScript projects, including `.test-d.ts` assertions.
+- Vitest and Playwright configs own collection and execution. Do not copy their file globs into another runner.
+- Integration fixtures default to isolated resources and parallel execution under the shared capacity profile. Scheduling restrictions require a current resource or measurement reason; historical slowness does not establish serialization.
 
 ## 2. The tree
 
@@ -59,22 +51,21 @@ tests/
 │   ├── node/                   fixtures.ts and tool-fixtures.ts, factories/, the chat tape, db and Node drivers
 │   └── browser/                browser helpers, the CT door and providers
 ├── <package>/                  mirror packages/<package>/src directories for registered workspaces
-├── legacy/<package>/           tests not yet rebuilt, at their old mirror paths
 ├── tooling/                    mirror tooling/src directories where a tool home exists
 └── e2e/                        full-stack Playwright tests
 ```
 
-A test lives in the directory that mirrors the source directory it covers, and its file name says the behaviour it proves. One file may cover several modules of its directory; prefer one feature suite over a thin file per module. `support/` and `e2e/` mirror nothing, but tests there still require valid kinds and runner/compiler ownership. A tooling test sits in its tool's mirrored directory when that tool exists; flat config tests and research subjects without a tool directory retain their documented exemption. `test-layout` enforces the kinds and the directory placement.
+A test lives in the directory that mirrors the source directory it covers, and its file name says the behaviour it proves. One file may cover several modules of its directory; prefer one feature suite over a thin file per module. `support/` and `e2e/` mirror nothing. A tooling test sits in its tool's mirrored directory when that tool exists; flat config tests and research subjects without a tool directory retain their documented exemption. D333 retires custom layout and presence enforcement.
 
-`legacy/` holds every product test not yet rebuilt (`docs/plans/test-foundation/design.md`). The folder is its own ledger and must only shrink; a new test goes in the mirror. `test-layout` compares legacy filename membership with founded Git history through `git-path-history`. It refuses additions, replacements and returned filenames. Retained-file edits and deletions remain allowed. Missing or shallow history refuses admission. A legacy test compiles in its own world programs (`LEGACY_TEST_WORLD_PROGRAMS` in `tooling/src/floor/compiler/project-worlds.ts`) and runs in CI's legacy jobs. It stays out of the inner loop. Compiler and runtime selections drop it; structure selections retain its filename admission subjects. An affected typecheck skips its programs. `pnpm test:scoped` and `pnpm test:ct` refuse it without `--legacy`. The strict gates do not judge it: the `@legacy-tests` population root is nested in `@tests` and carved out of it, and its waiver markers bind nothing. Strict `test-reach` accepts neither legacy tests nor helper paths crossing legacy modules; other test-id and presence policies own their evidence populations. A legacy test reaches package internals through the root `#<package>/*` map without a grant. A domain's legacy folder is deleted when its rebuilt suite carries every case.
+The sibling legacy source at /home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21 is reference-only. It is not compiled or run by this repository. Use it to identify meaningful cases for rebuilt tests.
 
-`support/` is the test kit, the workspace package `@orb/testkit`. A test imports it through a world subpath, such as `@orb/testkit/node/fixtures.ts`; the kit has no root entry, and its files import each other by relative path. Every kit module lives in exactly one world directory: `iso/` needs neither Node nor DOM declarations, `node/` may use Node and the runners, and `browser/` holds browser and CT helpers. An ambient declaration that the test programs name directly, such as `tests/support/vitest-tags.d.ts`, sits at the kit root instead: it exports nothing, so no world imports it, and the node and browser programs both include it (`AMBIENT_INTENT` in `tooling/src/floor/compiler/type-config-intent.ts`). `Core-0-Architecture-and-Structure.md` §5 owns the kit's doors and the two named exceptions.
+`support/` is the test kit, the workspace package `@orb/testkit`. A test imports it through a world subpath, such as `@orb/testkit/node/fixtures.ts`; the kit has no root entry, and its files import each other by relative path. Every kit module lives in exactly one world directory: `iso/` needs neither Node nor DOM declarations, `node/` may use Node and the runners, and `browser/` holds browser and CT helpers.  `Core-0-Architecture-and-Structure.md` §5 owns the kit's doors and the two named exceptions.
 
 `tests/support/node/server.ts` owns the server test composition root and delegates to production composition. Rebuilt server cases use this graph or call pure production functions directly. Builders use deterministic defaults or actual production operations. External-edge adapters and recorders belong in the kit; copied domain rules and alternate domain assemblies do not.
 
 ## 3. Determinism + mock doctrine
 
-**Determinism — no wall-clock, no randomness in a test or factory.** The frozen clock is a plain injected DI object (`support/iso/clock.ts`: `createFrozenClock(startMs?)` returns `{ now, advance, frozenAt }` — `now()` reads a mutable counter, `advance(ms)` moves it, `frozenAt` is the fixed start; `FROZEN_AT_MS` is the shared epoch every factory stamps rows from). It is NOT global-timer interception — there is no Luxon `Settings.now`, no `vi.useFakeTimers`; the composition root takes `now` as a dep exactly like production (`docs/law/Tier-5-Entry.md`), so tests exercise the real injection seam rather than a monkey-patched global. Seeded ids come the same way (`support/iso/ids.ts`, counter-backed). Ambient `Date.now()`/`Math.random()`/unseeded `typeid()` under `tests/` is RED (gate: `test-determinism`); a test needing time to move calls `advance()`, never a real timer. The one `vi.useFakeTimers` this doctrine sanctions is a test whose SUBJECT is a real `setTimeout` window the production code owns, that no injected clock can drive: `packages/inference/src/backends/http/idle-timeout.ts` is unpinned, and a re-pinned one earns the same sanction. Every `@orb-waive test-determinism(vi.useFakeTimers)` marker on the tree today carries the legacy reason instead, not this one: `tests/tooling/cpu-profile/boot-trace.suite.int.test.ts` and `tests/legacy/client/data/bus/room-registry.test.ts`, each ending when it adopts the frozen clock. §6 carries no such sanction. Every other timer bound is driven through an injected TIMER seam — the house `ScheduleOp` shape `(fn, ms) => cancel`, e.g. `WorkloadRunnerDeps.scheduleInterval`, `AgentSdkDeps.scheduleTimeout`, `createRpgFlushBarrier`'s third argument — and a test trips it by hand with `support/iso/clock.ts`'s `createManualTimer`, never by replacing the global clock.
+**Determinism — no wall-clock, no randomness in a test or factory.** The frozen clock is a plain injected DI object (`support/iso/clock.ts`: `createFrozenClock(startMs?)` returns `{ now, advance, frozenAt }` — `now()` reads a mutable counter, `advance(ms)` moves it, `frozenAt` is the fixed start; `FROZEN_AT_MS` is the shared epoch every factory stamps rows from). It is NOT global-timer interception — there is no Luxon `Settings.now`, no `vi.useFakeTimers`; the composition root takes `now` as a dep exactly like production (`docs/law/Tier-5-Entry.md`), so tests exercise the real injection seam rather than a monkey-patched global. Seeded ids come the same way (`support/iso/ids.ts`, counter-backed). Do not use ambient `Date.now()`, `Math.random()` or unseeded `typeid()` in tests. A test needing time to move calls `advance()`, never a real timer. A test whose subject is a real `setTimeout` window that no injected clock can drive may use `vi.useFakeTimers`. Drive other timer bounds through an injected timer seam and trigger it directly in tests.
 
 **Non-vacuity control — prove the guard path FIRES before trusting a negative assert.** A test whose whole point is "X is refused / dropped / blocked" is worthless if the setup silently never reached the guard — the negative assertion passes vacuously. The pattern: a POSITIVE control in the same test (or its sibling) that drives the guarded path to its allowed outcome under the same wiring, so a mis-wired fixture fails the control instead of green-washing the refusal. Exemplars: `db-batch-atomicity.suite` (proves the batch COMMITS before proving a mid-batch failure rolls the whole thing back) and `touch-target-floor.suite` (proves a compliant target PASSES before asserting an undersized one is flagged). Reach for a control whenever the assertion is an absence.
 
@@ -88,28 +79,27 @@ For signed external-protocol test inputs, use native timestamp defaults and veri
 
 Injected clocks model product time. External process, socket and browser completion require their actual lifecycle signals; a frozen clock does not establish physical completion.
 
-`vi.mock` of an internal module is gated (`test-mock-doctrine`); its only legitimate use is an unavoidable third-party node edge, justified in a comment. The same gate flags `vi.spyOn` on an internal module namespace, because the spy replaces that export for every importer. A spy on an object the composition root hands over stays legal.
+Do not use `vi.mock` or `vi.spyOn` on an internal module namespace: they replace behavior for every importer. A spy on an object the composition root hands over stays legal.
 
 ## 4. The fixture + factory contract
 
-**Fixture doctrine:** composed `test.extend`, never `beforeEach` sprinkled per file. `tests/support/node/fixtures.ts` exports the project `test` (typed, lazily-initialized — a fixture only runs if destructured); import `{ test, expect }` from there, never raw fixture modules (gate: `test-fixture-imports`). Fixtures grow as needs land (clock + ids today; a scoped `db` and caller fixtures join the same composed `test`, not per-file setup).
+**Fixture doctrine:** composed `test.extend`, never `beforeEach` sprinkled per file. `tests/support/node/fixtures.ts` exports the project `test` (typed, lazily-initialized — a fixture only runs if destructured); import `{ test, expect }` from there, never raw fixture modules. Fixtures grow as needs land (clock + ids today; a scoped `db` and caller fixtures join the same composed `test`, not per-file setup).
 
 **Custom matchers (cap at 5):** each must appear in ≥10 sites or encode a domain invariant whose diff message beats a generic `toEqual`. No generic equality/impl-detail/framework wrappers. (Root config already enforces `expect.requireAssertions` — no assertion-free tests.)
 
-**Factory contract** (every `support/node/factories/*.ts`; gate: `test-factory-contract`):
+**Factory contract** (every `support/node/factories/*.ts`):
 
 - Pure builders derive valid deterministic defaults from canonical types and schemas. They use seeded ids and the frozen clock, never database or external I/O.
 - Persisted producers call actual production operations, then capture canonical rows and outputs. A database parameter supports readback; it does not authorize copying domain queries or business rules.
 - Database-subject fixtures may construct valid rows from derived defaults and insert them directly. These fixtures do not replace production behavior in composed domain cases.
 - Overrides preserve valid relations and schema constraints. Factories live in `support/node/factories/`; private corpus orchestration calls those homes.
 
-`test-factory-contract` judges the pure/persisted parameter distinction for its declared function forms. A naming signature alone does not prove derivation or production execution.
 
 ## 5. The presence rule — what MUST have a test
 
-`test-reach` (`tooling/src/verify/gates/`) enforces that each surface below is reached by a test of the kind it owes, on exactly the surfaces where an untested change silently breaks behavior. There is no blanket per-file coverage; that breeds assertion-free filler.
+The checklist below names product surfaces that need behavioral tests. D333 retires custom presence gates; no module is automatically checked for test reach. There is no blanket per-file coverage; it breeds assertion-free filler.
 
-**Presence is reach.** A test reaches a module when the test, or a test-tree helper it imports (a story module, a harness, a fixture), references one of the module's value exports through an import, a re-export, a barrel or a dynamic import. A type-only import is not reach, and neither is a mocked module: a `vi.mock` call, or a binding imported from a module the same file mocks. Reach stops at the first product module: a test that drives a verb through its feature's `service.ts` or the composition root reaches that root, not the verb. Such a test names the modules it proves in an `@subject <repo path>` line in its leading comment block, and the header counts as presence. A header naming no source module is a finding. A file at a computed path proves nothing.
+Prefer tests that import and call the production behavior they exercise. A type-only import or a mock of the subject does not exercise runtime behavior.
 
 | Surface | Reached by |
 | - | - |
@@ -125,47 +115,9 @@ Injected clocks model product time. External process, socket and browser complet
 | every non-primitive `@orb/ui` logic module (`charts/`, `markdown/`, `stream/`, `content/`, `code-editor/`, `diff/`, `fuzzy-search/`) with a callable export | a unit or component test |
 | every action a client `state/` file exports when it mints a store (a `use*` read-hook is not an action) | a unit or component test that calls it |
 
-The surfaces are demand-by-default: every slot the template grows is demanded the day it appears. There is no enumerated slot list. A suite kind reaches a module exactly as a module test does.
+Each behavior surface should have tests for its contract and important failure paths. A test for a state action asserts the resulting state, including every channel a dual-write changes.
 
-A test kind reaches only the source extensions its definition holds (`tooling/src/floor/testing/test-kinds.ts`): a `.test.ts` does not reach a `.tsx` module. A store action is reached by a call in a test, or in a story or helper the test imports. An import that is never called does not reach it.
-
-Modules that no test reached when presence became reach are reviewed-grant rows in `tooling/src/verify/lib/reviewed-grants-test-reach-modules.ts` and `tooling/src/verify/lib/reviewed-grants-test-reach-client.ts`. A row reds stale once a test reaches its module; delete it then. A new module gets a test or an `@subject` header, never a row. The waiver ratchet in `docs/law/gate-runtime-standardization.md` §5 holds the table's size.
-
-A pure spread-forwarding DI bridge is exempt by SHAPE — the same shape the `entry/`/`transport/` exemption
-below covers — because the behavior belongs to its target and is demanded there, and the only test
-expressible over one either asserts that a forwarder forwards (the §5 tautology) or mocks an internal
-module (§3, banned). A forwarder that grows a guard, a second statement, or a computed argument loses the
-exemption and is demanded again; the policy's proof rows hold the shape from both sides.
-
-The `entry/` and `transport/` tiers get the same demand-by-default treatment: every file with runtime
-logic in either tier is demanded, including the opaque frame-handle store — a security primitive whose
-owner check is the whole no-existence-leak property. The exemption is derived from what the tier law
-allows these tiers to contain (`docs/law/Tier-5-Entry.md` invariant 1: "`entry/` owns no business logic —
-only wiring/boot/HTTP-edge"; `docs/law/Tier-4-Transport.md`: a router is "validate → call the verb → map
-the error, zero business logic"), so wiring is exempt and behavior is not. A router is demanded because its
-procedure table is the client's whole contract with the verbs.
-
-Exempt by nature — all detected on SHAPE, never a path list, so a file that grows logic loses the exemption:
-`index.ts` barrels in the server, the zero-logic `service.ts` composition root and `context.ts` DI bundle at a
-feature root, a `contract/` file declaring only error classes (and a pure-type one, which carries no runtime logic
-at all), a D58 no-op stub runner, and an inference module with no emitted export of its own. In the tiers,
-additionally: a `.d.ts` declaration file (no runtime to assert) and a PASS-THROUGH wiring file — every exported
-callable's body reducing to ONE expression that is a delegating call, a DI-bundle object literal over its own
-parameters, or a factory returning one of those. A second statement, a branch (including a ternary), or a computed
-argument is behavior and stays demanded.
-
-`tests/tooling/standing-contrast-ct.test.ts` holds the one named-file floor: the standing `worst-legal-art-contrast.suite.ct.tsx`
-must exist, because deleting it restores a known blind class across every theme polarity at once.
-
-Missing, empty, or unreadable source/test corpora refuse evaluation rather than returning a clean zero. So does a
-test tree that resolves no reference into the demanded modules, and so does a real tree that scans no inference,
-client or ui module.
-
-**Presence is not coverage:** `test-reach` confirms a test calls each store action — NOT that the call is ASSERTED.
-Every NEW `#state` action / projection / non-trivial behavior gets an assertion in the test that drives it (assert
-the resulting store state — a dual-write writes BOTH channels). Old tests passing ≠ new behavior tested.
-
-**Coverage: REPORT-ONLY.** v8 provider, `pnpm test:coverage`, NEVER inside `pnpm check`; no `thresholds` block until a real baseline exists — then pin GLOBAL thresholds and ratchet UP as a backslide floor. For "do these tests catch bugs?" use mutation testing (§9), not a coverage number.
+Coverage remains report-only. A coverage number does not prove that a test asserts correct behavior.
 
 ## 6. The "what to test" obligations, gathered
 
@@ -176,7 +128,7 @@ the resulting store state — a dual-write writes BOTH channels). Old tests pass
 
 ## 7. Client / browser tests — Playwright, NOT Vitest browser
 
-Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Two Playwright lanes, neither in `pnpm check`:
+Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Use Playwright CT and E2E:
 
 - **Component — Playwright CT** (`@playwright/experimental-ct-react`): `*.ct.tsx` at the mirror, `playwright-ct.config.ts`, `pnpm test:ct`. `CtProviders` supplies UI-only chrome. Client component mounts use `CtClientProviders` from `tests/support/browser/ct-data-providers.tsx`: production data defaults, registry factories, provider order and notification mapping. Each mount retains its runtime until teardown. Primitive isolation uses the named `CtIsolation` exception; registry variants use `isolationRegistry`. Stub tRPC at the **network** boundary with Playwright `page.route`, never by replacing client modules. Node-side closures cannot execute inside the browser worker. Story wrappers hold the components CT mounts.
 
@@ -226,7 +178,7 @@ Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Two Playw
   started before the interaction), never a poll that races it.
 
 - **Prove an ABSENCE with a round-trip barrier, never a monotonic counter** (a poll passes on a transited
-  value); `page.waitForTimeout` is gate-banned. And barrier on a SETTLED rendered state — a node-side
+  value); avoid `page.waitForTimeout`. And barrier on a SETTLED rendered state — a node-side
   request count is not a browser-side settle.
 
 - **A stub at the seam under test is a tautology.** A fixed-array responder passes every FILTER test while
@@ -239,97 +191,42 @@ Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Two Playw
   imports compile fresh; for bare-import wiring tests, prove the bite with in-test rendered pre/post
   controls.
 
-- **Lane invocation** (the whole-tree `pnpm test:ct` is the orchestrator's instrument on a quiesced tree):
-  `pnpm test:ct <paths>`. The supervisor owns run/cache coordination and build identity. A CT report with
+- **Lane invocation**: `pnpm test:ct <paths>`. The supervisor owns run/cache coordination and build identity. A CT report with
   ONE suite means the BUNDLE FAILED TO BUILD, not that the named spec failed.
 
-- **`pnpm test:node` does not run CT.** A shared provider or registry Context change can break rendered
+- **`pnpm test` does not run CT.** A shared provider or registry Context change can break rendered
   stories while Node tests remain green. Such changes require the relevant `pnpm test:ct` coverage;
-  `pnpm test` includes the full CT run after its Node run.
+  run `pnpm test:ct` for the full CT suite.
 
 ## 8. Tags (Vitest 4.1+) — the runtime axis, orthogonal to suffix
 
 `tooling/src/floor/testing/test-tags.ts` owns the registered Vitest tag names and options. The runtime uses `strictTags: true`; the test-only ambient augmentation derives the same closed name union for TypeScript. Register a tag when a real test needs it, rather than reserving hypothetical categories. The `slow` tag preserves a 30-second timeout without adding retries. Select tagged cases through native `--tagsFilter=slow` or a negated expression.
 
-Tags describe cross-cutting test requirements; suffixes retain test kind and compiler-world meaning. Mutation filtering uses declared capabilities rather than filename lists. Tags filter callbacks after module import, so they cannot isolate import-time side effects or supply repository/process capabilities missing from the runner. A capability exemption needs a native runner proof and must remain visible in collected/executed test accounting.
+Tags describe cross-cutting test requirements; suffixes retain test kind and compiler-world meaning. Tags filter callbacks after module import, so they cannot isolate import-time side effects or supply repository/process capabilities missing from the runner.
 
-Vitest live-provider suites carry `live` and are excluded unless `E2E_LIVE=1`; local ONNX suites carry `local-model-cache` and require `ORB_LOCAL_LIGHT_E2E=1`. Backend construction and live model discovery happen inside selected callbacks, so default collection cannot activate them. Pure backend-matrix checks remain untagged. The mutation overlay excludes both categories even when those environment opt-ins are present.
+
 
 Playwright uses its own `@smoke`/`@live` tags: `pnpm e2e:smoke` selects smoke cases, while real-provider cases remain opt-in through its live entry point. The shared `E2E_LIVE` spelling expresses operator intent; each runner retains its native selection mechanism.
 
-## 9. Mutation testing (Stryker) — the test-quality ratchet
-
-Coverage proves a line *ran*; a **surviving mutant** is a line a test covered but never actually checked — a test that asserts presence-of-behavior without asserting correctness. Two lanes, both on-demand / CI, never in `pnpm check` (runs are minutes):
-
-- `pnpm test:mutation` (`stryker.config.js`) — exploratory, `break:null`; broaden scope via `--mutate`.
-- `pnpm test:mutation:gate` (`stryker.gate.config.js`) — the calibrated ratchet. Its native config owns the target set and break threshold; changing either requires a fresh calibration.
-
-Both run the node lanes via the `vitest` runner (`vitest.stryker.config.ts`) + the `typescript` checker, on
-the **native TypeScript 7 preview** (`typescriptChecker.experimentalNativePreview`) over a **patched**
-`@stryker-mutator/typescript-checker`.
-
-**The checker is part of the calibration, not a performance knob.** It decides which mutants are
-`CompileError`, i.e. which mutants are in the DENOMINATOR — so a `break` calibrated under one checker and
-enforced under another is a mis-calibration. The patch exists because the stock preview is silently wrong
-here: it registers the *sanitized* tsconfig (the `allowUnreachableCode`/`noUnusedLocals`/`noUnusedParameters`
-overrides mutation testing requires — mutants violate all three by construction) under the raw
-`tsconfigFile` string while the compiler opens the *resolved* path, so the lookup misses and it falls back
-to the strict on-disk config. Unpatched, the whole `if (cond)` → `if (false)` mutant class is disqualified
-via TS7027 and leaves the score. Measured on one file, 47 mutants: stock native 57.89 in 9m41s; patched
-native **66.67 in 2m50s**; classic **66.67 in 3m17s** — same verdict, slightly faster.
-
-**An ARID mutant is not a test failure.** `tooling/src/mutation-arid/` (a `PluginKind.Ignore` plugin,
-wired through `ignorers: ["arid"]` in BOTH configs) drops two families that are unkillable BY DESIGN:
-
-1. **Observability sinks** — string-literal mutants whose only destination is a trace recorder,
-   trace-collection append, trace assignment, trace-carrying payload object, or a logger call. The "fix"
-   would be a test pinning a debug label byte-for-byte, i.e. the tautology this doc bans.
-2. **Compile-time-unreachable branches** — every mutant inside a `default:` case (or block) that declares a
-   `never`-typed binding. `tsc` has already proved the branch cannot execute, so no test can reach it; the
-   exhaustive-dispatch discipline (`Spine-TypeScript-and-Patterns.md`) puts one in EVERY dispatch site,
-   which makes this dead weight under every score computed over a dispatching file.
-
-Family 2 matches the unreachable-branch node, so Stryker's whole-subtree ignore is the point; family 1 matches the leaf,
-because matching the enclosing call would swallow real mutants among its arguments. The predicate is
-STRUCTURAL — there is no in-source annotation an author can add to silence their own mutant — and it is
-bite-proved in BOTH directions by `tests/tooling/mutation-arid/`. Adding or removing it CHANGES THE
-DENOMINATOR, so it is part of the gate's calibration, never a cosmetic: `pnpm mutation:arid <report.json>`
-prints the ignored count per reason, and a change in that count means `break` must be re-measured.
-
-**A reported survivor is not ground truth either.** `pnpm mutation:probe <report.json> <source-rel>` plants
-each reported mutant and runs the source's mirror suite, naming the tests that kill it. perTest coverage
-credits module-load-scope mutants to whichever unrelated test loaded the module first, so a reported
-survivor list can include mutants already killed by tests on the tree. Adjudicate before writing
-kill-tests for a survivor list.
-
-**The gate's `mutate` list is frozen to its calibrated set; new candidates enter the EXPLORATORY config as
-sentinels** (`stryker.config.js` — currently the runtime-string-key and shipped-inversion classes: chat
-stats-delta, stats rebuild-from-canon, chat canon-write, chat memory recall). Promoting a sentinel into the
-gate requires a fresh calibration run, because `break` is bound to the measured set.
-
-## 10. Tests run the product
+## 9. Tests run the product
 
 A test proves what ships. Helpers, stories and fixtures must follow a product change without edits.
 
-This section governs tests of the product, including the shared builders under `tests/support`. Tests under `tests/tooling` prove the tools and follow `.claude/rules/tooling.md` (D325); the value-cast judgement of `no-test-fabrication` does not reach them, while the fabrication double-cast and production-clone judgements do.
+This section governs product tests, including the shared builders under `tests/support`. Tests for retained application-development tools belong in their tool mirrors.
 
-- **Call production; never copy it.** A harness, fixture or story calls the production function, query, predicate, reducer or default. If the rule is private to a compose closure or a `.tsx` file, export it or move it to `@orb/contracts` or `@orb/kit` first. A test-side copy of production logic is a defect. `test-production-clone` flags a test-tree function whose body has the shape of an exported production function.
-- **Derive types.** Take wire and row shapes from the contract, `inferOutput`, `TrpcInput`, `TrpcWireOutput` or the `AppRouter` type. Never hand-declare a shape production owns. Cast only to feed a refusal path bad input, with the reason beside the cast. `test-hand-shape` flags a handwritten shape in an e2e or support module when a direct production boundary types its use: an annotated initializer (variable, class property or parameter default) or assignment, a resolved call argument, or an annotated return (D328). The boundary resolves through local aliases. An interface that extends only handwritten shapes is itself a hand. Wrappers, containers, unions and intersections are walked to a fixed depth. Resemblance alone is not a finding. A hand inside a container, union or intersection, a function value, a constructor argument, a constrained generic production parameter, or an identity the walk cannot see, is reported as UNKNOWN. Object literals and their properties, test classes and workspace production `.d.ts` types are outside the claim. `no-test-fabrication` flags a cast the checker cannot prove.
+- **Call production; never copy it.** A harness, fixture or story calls the production function, query, predicate, reducer or default. If the rule is private to a compose closure or a `.tsx` file, export it or move it to `@orb/contracts` or `@orb/kit` first. A test-side copy of production logic is a defect.
+- **Derive types.** Take wire and row shapes from the contract, `inferOutput`, `TrpcInput`, `TrpcWireOutput` or the `AppRouter` type. Never hand-declare a shape production owns. Cast only to feed a refusal path bad input, with the reason beside the cast.
 - **Import constants.** Labels, ids, defaults, limits, tokens, timings and contrast floors come from their production home. If a CT cannot import a `.tsx` value, move the value to a zero-import `.ts` module.
-- **Seed through real builders.** Write rows through the production verb or a factory in `tests/support/node/factories`. Never mint a state production cannot produce. `test-factory-contract` holds the factory signatures (§4).
-- **Mount the real door.** CT harnesses call production registry factories and mount their actual provider stack. Equal copied lists are not the production door. Stories mount the real surface and stub only the network edge. `ct-config-mirror-parity` verifies forwarding and factory identity, then admits maintained browser-package mounts through `CtClientProviders` or a named `CtIsolation`. A registry variant uses `isolationRegistry(name, isolates, members)` from `tests/support/browser/ct-isolation.ts`; its name identifies the production registry and its reason states what it keeps apart. Browser-world stories, fixtures and support cannot value-import server implementation; native dependency-cruiser owns that boundary and preserves the type-only bridge.
+- **Seed through real builders.** Write rows through the production verb or a factory in `tests/support/node/factories`. Never mint a state production cannot produce.
+- **Mount the real door.** CT harnesses call production registry factories and mount their actual provider stack. Equal copied lists are not the production door. Stories mount the real surface and stub only the network edge. Browser-world stories, fixtures and support cannot value-import server implementation; native dependency-cruiser owns that boundary and preserves the type-only bridge.
 - **Snapshot the product.** Build an aria or text snapshot from what production renders, never from a hand-listed roster.
 - **Smoke the running app.** e2e specs drive the real stack headless for the core flows. They run on a committed synthetic corpus written by the seed tool, so CI needs no private data. A local run may point at a copy of the owner's data; that copy is never committed.
-- **Share setup.** Move repeated setup to a builder in the same file or in `tests/support`. Split a test file by concern before it is too large to review. ESLint `max-lines` in `eslint.config.js` caps maintained test files; existing native bulk migration debt only shrinks. `pnpm cpd:tests` holds the duplicated share of `tests/` at the ratchet in `jscpd.tests.json`.
-- **A mirror is an import, not a filename.** A mirrored test imports its module and exercises its exports. A file at the mirrored path proves only that the file exists. `test-reach` enforces it (§5).
-
-The antipatterns these rules forbid, with their detectors and burn-down items, are in [enforcement-antipatterns.md](enforcement-antipatterns.md).
+- **Share setup.** Move repeated setup to a builder in the same file or in `tests/support`. Split a test file by concern before it is too large to review. ESLint `max-lines` in `eslint.config.js` caps maintained test files.
+- **A mirror is an import, not a filename.** A mirrored test imports its module and exercises its exports. A file at the mirrored path proves only that the file exists.
 
 ## Esoterica (must-preserve facts)
 
 - The fixture is the composed *production* wiring with the model scripted — tests exercise the real injection graph, not a parallel test-only assembly. A divergence between test and prod wiring is a bug.
 - **`isolate: true` for all Node projects** (the Vitest default): each test file receives a fresh module graph. Root mock/global/environment cleanup remains inherited by every project. Database integration fixtures own their in-memory databases; resource isolation is what makes parallel execution correct.
-- Repository-resource tests declare that requirement through their registered kind rather than a hand-maintained filename roster. `vitest.config.ts` derives the `repository` execution group from that data and serializes its files after the ordinary groups. Other integration tests remain parallel under the shared capacity profile. The dependency-cruiser battery uses an isolated scratch corpus. Appearance/theme suites assert structural state and pass concurrently in tooling.
-- Semantic-corpus partitions retain the complete selected policy and control population. Each owns its workspace and restores interventions before reuse. Baseline checks precede its interventions, and every partition uses the same selected authority roster. A shared baseline or proof failure retains its original error for later consumers; failed prefixes are never replayed. Independent controls remain executable only while restoration preserves the corpus.
 - **Timeout scaling and measurement validity differ.** `scaledBudget` stretches completion deadlines. `labelRateLoad` flags a measured test as `load-suspect` when contention prevents judging its threshold; the measurement still runs and its number remains available. The supervisor surfaces the task metadata. A wider deadline cannot make a dropped-frame percentage valid, and a browser dependency alone does not make an assertion a measured-rate test.
 - Determinism is a *correctness* property: the frozen clock is what makes the rolling-pair breakpoint and memory-recall ordering assertions stable turn-to-turn.

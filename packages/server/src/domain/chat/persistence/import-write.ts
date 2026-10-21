@@ -40,7 +40,7 @@ const SCOPED_FILTER_BIND_BUDGET = 2;
 
 /** The distinct inline `asset:<id>` refs in a message's content, across all its variants. */
 function assetRefsInMessage(message: BulkImportChatInput["messages"][number]): AssetId[] {
-  // @orb-waive persistence-no-in-memory-state(Set): query-local dedup Set for asset refs in a message. Ends if it outlives the call.
+  // query-local dedup Set for asset refs in a message. Ends if it outlives the call.
   return [...new Set(message.variants.flatMap((v) => assetIdsInContent(v.content)))];
 }
 
@@ -56,12 +56,12 @@ interface PendingParent {
  *  single-character. Bounded reads preserve the first missing id's input order. */
 async function assertOwnedCharacters(db: Db, ownerId: UserId, characterIds: readonly CharacterId[]): Promise<void> {
   for (const ids of chunkRows(characterIds, SCOPED_FILTER_BIND_BUDGET)) {
-    // @orb-waive no-await-db-in-loop(where): parameter-safe chunks complete the ownership gate before any canon write. Ends if the driver lifts its bind cap.
+    // parameter-safe chunks complete the ownership gate before any canon write. Ends if the driver lifts its bind cap.
     const owned = await db
       .select({ id: characters.id })
       .from(characters)
       .where(and(inArray(characters.id, ids), eq(characters.ownerId, ownerId)));
-    // @orb-waive persistence-no-in-memory-state(Set): query-local membership Set over this chunk's returned rows. Ends if it outlives the call.
+    // query-local membership Set over this chunk's returned rows. Ends if it outlives the call.
     const ownedIds = new Set(owned.map((row) => row.id));
     for (const characterId of ids) {
       if (!ownedIds.has(characterId)) {
@@ -87,7 +87,7 @@ function namedSpeaker(m: BulkImportChatInput["messages"][number]): CharacterId |
  *  could stamp `messages.characterId` with an owned-but-unrostered card — a row every roster-joined read
  *  (transcript speaker names, member cards, the group arbitration feed) would then resolve to a ghost. */
 function assertSeatedSpeakers(ci: BulkImportChatInput, primary: CharacterId): void {
-  // @orb-waive persistence-no-in-memory-state(Set): call-local membership Set over one input's seats (a pure precondition check, no state survives the call). Ends if it outlives the call.
+  // call-local membership Set over one input's seats (a pure precondition check, no state survives the call). Ends if it outlives the call.
   const seated = new Set(seatedCharacterIds(primary, ci.characterIds));
   for (const m of ci.messages) {
     const named = namedSpeaker(m);
@@ -104,7 +104,7 @@ function assertSeatedKnobs(ci: BulkImportChatInput, primary: CharacterId): void 
   if (ci.seatKnobs === undefined || ci.seatKnobs.length === 0) {
     return;
   }
-  // @orb-waive persistence-no-in-memory-state(Set): call-local membership Set over one input's seats (a pure precondition check, no state survives the call). Ends if it outlives the call.
+  // call-local membership Set over one input's seats (a pure precondition check, no state survives the call). Ends if it outlives the call.
   const seated = new Set(seatedCharacterIds(primary, ci.characterIds));
   for (const knob of ci.seatKnobs) {
     if (!seated.has(knob.characterId)) {
@@ -125,10 +125,10 @@ interface ExistingImport {
  *  room never got one. */
 async function loadExistingImports(db: Db, characterId: CharacterId, hashes: readonly string[]): Promise<Record<string, ExistingImport>> {
   const seen: Record<string, ExistingImport> = {};
-  // @orb-waive persistence-no-in-memory-state(Set): query-local dedup of requested import identities. Ends if it outlives the call.
+  // query-local dedup of requested import identities. Ends if it outlives the call.
   const uniqueHashes = new Set(hashes);
   for (const chunk of chunkRows([...uniqueHashes], SCOPED_FILTER_BIND_BUDGET)) {
-    // @orb-waive no-await-db-in-loop(where): each chunk reserves the character-scope bind under the driver cap. Ends if the driver lifts its bind cap.
+    // each chunk reserves the character-scope bind under the driver cap. Ends if the driver lifts its bind cap.
     const rows = await db
       .select({ id: chats.id, importHash: chatImportClaims.importHash, anchorPersonaId: chats.anchorPersonaId })
       .from(chatImportClaims)
@@ -452,7 +452,7 @@ async function resolveBranches(ctx: ChatImportContext, ownerId: UserId, characte
     .from(chats)
     .innerJoin(chatParticipants, eq(chatParticipants.chatId, chats.id))
     .where(eq(chatParticipants.characterId, characterId));
-  // @orb-waive persistence-no-in-memory-state(Map): query-local dedup Map for import-from linkage. Ends if it outlives the call.
+  // query-local dedup Map for import-from linkage. Ends if it outlives the call.
   const byFile = new Map<string, ChatId>();
   const candidates = all
     .filter((c): c is { id: ChatId; importedFrom: string; createdAt: number } => c.importedFrom !== null)
@@ -612,7 +612,7 @@ function buildChatStatements(args: OneChatArgs): {
  *  named speaker. Ownership-gated in one pass before any write, so a foreign id anywhere refuses the whole
  *  run rather than landing a partially-correct room. */
 function everyReferencedCharacter(primary: CharacterId, input: readonly BulkImportChatInput[]): CharacterId[] {
-  // @orb-waive persistence-no-in-memory-state(Set): call-local first-seen ownership set across the complete import input. Ends if it outlives the call.
+  // call-local first-seen ownership set across the complete import input. Ends if it outlives the call.
   const ids = new Set<CharacterId>([primary]);
   for (const c of input) {
     for (const id of c.characterIds ?? []) {
@@ -634,7 +634,7 @@ function everyReferencedCharacter(primary: CharacterId, input: readonly BulkImpo
 }
 
 async function filterImportedAssetIds(ctx: ChatImportContext, ownerId: UserId, ci: BulkImportChatInput): Promise<AssetId[]> {
-  // @orb-waive persistence-no-in-memory-state(Set): call-local dedup of the complete chat's inline references. Ends if it outlives the call.
+  // call-local dedup of the complete chat's inline references. Ends if it outlives the call.
   const requested = new Set(ci.messages.flatMap(assetRefsInMessage));
   const existing: AssetId[] = [];
   for (const ids of chunkRows([...requested], SCOPED_FILTER_BIND_BUDGET)) {
@@ -695,7 +695,7 @@ async function loadImportedIdentity(db: Db, chatId: ChatId): Promise<ImportedCha
     .innerJoin(messages, eq(messages.id, messageVariants.messageId))
     .where(eq(messages.chatId, chatId))
     .orderBy(asc(messageVariants.idx));
-  // @orb-waive persistence-no-in-memory-state(Map): query-local regrouping of the variant rows just loaded. Ends if it outlives the call.
+  // query-local regrouping of the variant rows just loaded. Ends if it outlives the call.
   const variantsByMessage = new Map<MessageId, MessageVariantId[]>();
   for (const variant of variants) {
     const pool = variantsByMessage.get(variant.messageId) ?? [];

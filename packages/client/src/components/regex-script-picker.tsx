@@ -291,7 +291,7 @@ function PickerRow({
         aria-label={`Attach ${name}`}
         checked={attached}
         onCheckedChange={(next): void => {
-          // @orb-waive caught-failure-ownership(toggle): `toggle` returns the `mutateAsync` promise of one of the six `createEntityMutation` hooks at the end of this file, each with failure-copy `errorToast` that the MutationCache toasts. Ends if any of those hooks loses its errorToast.
+          // `toggle` returns the `mutateAsync` promise of one of the six `createEntityMutation` hooks at the end of this file, each with failure-copy `errorToast` that the MutationCache toasts. Ends if any of those hooks loses its errorToast.
           toggle(script.id, next).catch(() => undefined); // The selected mutation's errorToast owns failure.
         }}
       />

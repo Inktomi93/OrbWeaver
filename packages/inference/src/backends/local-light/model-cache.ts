@@ -296,7 +296,7 @@ function createMemo<T>(
     entries.set(id, entry);
     // The memo caches the RESOLVED model, never a rejection: a rejected entry evicts itself once settled, so the
     // next call retries the load.
-    // @orb-waive caught-failure-ownership(created): every caller receives the original rejection through `entry.promise` (model-cache.ts:329); the rejection arm only records the failed id and evicts the entry. Ends if either behavior changes.
+    // every caller receives the original rejection through `entry.promise` (model-cache.ts:329); the rejection arm only records the failed id and evicts the entry. Ends if either behavior changes.
     void created.then(
       () => {
         failedIds.delete(id);

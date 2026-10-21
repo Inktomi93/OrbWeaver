@@ -105,7 +105,7 @@ packages/ui/
   import) — the generated `@theme` rides inside it.
 - **Package layout:** `ui` is in the package list of `tests/kit/package-layout.suite.test.ts` (no loose
   `.ts` at `src/` root except nothing — even `index.ts` doesn't exist here) and `test-layout.ts`
-  gains `tests/legacy/ui`.
+  gains `/home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21/ui`.
 
 ## 3. Dependencies — the sealed satellites (each lib seals ONE dir)
 
@@ -159,7 +159,7 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
     coarse (meets the touch floor), narrowing to 32/34/40px at `@media(pointer:fine)` via the token's
     `orb.pointerFine` extension. FLAG\[registry]: D62 P1 is the authority on the
     per-pointer floor (the fine floor was raised 28→32 after side-eye/design-audit passes; the
-    per-pointer tap-target CHECK lives in the design-audit probe, not the `pnpm check` battery — see §8
+    per-pointer tap-target CHECK lives in the design-audit probe, not the native application checks — see §8
     `touch-target-floor`). `data-density="compact"` tightens orthogonally to pointer. Avatar/switch
     display sizes are pointer-INDEPENDENT (never narrow — §13.9 D62 delta).
   - **container breakpoints** — `--cq-sm/md/lg` (§3 — container queries use named tokens).
@@ -170,7 +170,7 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
   API) emits BOTH `src/styles/theme.css` (the Tailwind v4 `@theme` block → utility namespaces) and
   `src/tokens/index.ts` (the typed TS map). Both are **committed, generated artifacts** with a
   DO-NOT-EDIT header.
-- **Freshness is machine-enforced:** `tests/legacy/ui/tokens/index.test.ts` re-runs the codegen
+- **Freshness is machine-enforced:** the external legacy source (`/home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21/ui/tokens/index.test.ts`) re-runs the codegen
   in-memory and diffs against the committed artifacts — hand-editing the theme or letting it drift
   from `tokens.json` FAILS `pnpm test`. ("Derived, never hand-authored" as a test, not a hope.)
 - **Themes are value-sets over these names** (D44 §12.1): Hearth is `:root`. NO structural mode exists.
@@ -181,14 +181,14 @@ Node token-authoring homes and type-only reexports follow [Spine-TypeScript §7.
 
 ## 5. Variants — the tailwind-variants conventions
 
-> **Button defaults to `intent="primary"`** (`defaultVariants`) — a bare `<Button>` renders ember. Every accent audit must sweep `<Button $$$>` structurally (ast-grep / `pnpm ast jsx Button`), never text-grep `intent="primary"`. (D66.)
+> **Button defaults to `intent="primary"`** (`defaultVariants`) — a bare `<Button>` renders ember. Inspect rendered button variants when auditing accents; do not infer behavior from a text match. (D66.)
 
 - Every styled primitive has a `variants.ts` exporting a `tv()` config; multi-part primitives use
   **`slots`** (D54). Component props extend `VariantProps<typeof x>` — **a bad variant is a `tsc`
   error**; ad-hoc `className` styling on a primitive is lint-flagged (§8).
 - Class values reference THEME tokens only (`bg-primary`, `text-foreground`, `h-control-md`,
   `gap-row`, `rounded-control`, `z-overlay`) — raw values (`bg-[#…]`, `gap-[13px]`, `z-50`,
-  `bg-black/50`) are gate-RED in ui exactly as in features (D43: **no `components/ui/` exemption**).
+  `bg-black/50`) are not custom-statically enforced in ui after D333 exactly as in features (D43: **no `components/ui/` exemption**).
 - `cn` = tailwind-variants' merge, re-exported from `@orb/ui/lib` — the one class-merge home.
 - `lib/index.ts` ALSO exports `tv` — a `createTV`-CONFIGURED factory (NOT the raw `tailwind-variants`
   export). Every primitive MUST import `tv` from `@orb/ui/lib`, never straight from the package:
@@ -228,9 +228,7 @@ factories are inventoried here because this package is their substrate and their
 ### 6.2 Client-side (Phase 6 — inventoried so the homes are pre-decided; DO NOT build in ui)
 
 > Every factory below exists at its pre-decided home (`client/src/{forms,data,state,lib}` — the code
-> is now the doc for the built shapes). The table is the obligations spec the builds were verified
-> against; some obligations hold by construction and review, not yet by gate — `Core-Enforcement-Active-Gates.md`
-> is the truth for which are wired.
+> is now the doc for the built shapes). The table records the design contract for these client factories. D333 ends custom static enforcement; use the relevant application tests and review.
 
 | Factory | Home | Why client-side | Signature + the baked obligations (canonical spec cite) |
 | - | - | - | - |
@@ -267,22 +265,9 @@ CT tests assert the CONTAINMENT properties, not just rendering:
 - **Theming** = `<ThemeScope>` — the ui-local Zod clamp (§1 note); CSP headers + the
   `forbidExternalMedia` resolution are SERVER/entry concerns (D44 §12.5), not ui's.
 
-## 8. The gate story for ui
+## 8. Verification
 
-| Tier | Gate | Status |
-| - | - | - |
-| resolver | ui's `package.json` omits contracts/db/server/client + client's omits the satellites | scaffold (done at package birth) |
-| lint (biome) | `noUndeclaredDependencies` / `noUnresolvedImports` on ui | free (repo-wide already) |
-| dep-cruiser | `ui-cake` (ui ⇏ contracts/db/server/client) · `ui-no-node-builtins` · `ui-satellite-seals` (echarts→`charts/` only; react-virtual→`virtual-list\|message-list\|media-grid` only; codemirror→`code-editor/`; streamdown/remark→`markdown/`; cmdk→`command/`; @dnd-kit→`sortable/`; diff→`diff/`; lucide→`icons/`). Client's "no raw satellites" is a DELIBERATE non-rule (resolver physics + biome `noUndeclaredDependencies` — a dep-cruiser twin would be unfireable-by-construction), not a wired rule. | scaffold |
-| native ESLint restrictions | `orb/no-color-literals` · `orb/no-arbitrary-tw-values` · `orb/no-media-queries-in-features` · `orb/no-pointer-variants-in-features` · `orb/no-raw-container-widths` in `eslint.config.js`; raw literals and rule-specific template spans with per-ID scopes | active |
-| z-index restrictions | native ESLint `orb/no-raw-z-index` · `orb/no-unknown-z-index-token`; `tests/tooling/z-index-implementation-homes.test.ts` checks sanctioned implementation homes | active |
-| semantic token gates (ts-morph) | `no-raw-spacing-in-features` · `no-raw-typography-in-features`; UI layout and markdown retain their declared exclusions | active |
-| test | tokens **freshness** test (§4) — the derived-theme invariant; the CT containment tests (§7) | per chunk |
-| runner split | Playwright CT (`.ct.tsx` under `tests/ui/**` mirror) on its OWN runner (`pnpm test:ct`) — **NOT in `pnpm check`** (browser tests never gate check; Spine-Testing §7) | scaffold |
-
-**CT wiring:** the root `playwright-ct.config.ts` gains `testDir: "tests"` (covers `tests/legacy/ui`,
-`tests/legacy/client`) and the real `ctViteConfig` (react plugin + `@tailwindcss/vite` + a CT-side css
-entry importing `@orb/ui/styles/globals.css` so token utilities resolve in-browser).
+D333 ends custom static UI checks. Keep the product rules in this document. Verify changed runtime behavior with native tests and rendered checks. `pnpm test:ct` runs component tests.
 
 ## 9. Build order
 
@@ -306,14 +291,9 @@ The Streamdown security-API gotcha (the real surface is `allowedElements`/`disal
 `urlTransform`, not the assumed `allowedImagePrefixes`/`allowDataImages`) now self-documents at the top
 of `markdown/policy.ts` — no doc copy needed.
 
-## 11. Gate coverage — the active-gate registry is the truth
+## 11. Static enforcement
 
-The LIVE gate set (which grit/dep-cruiser/`tooling/src/verify/gates` rules are wired) is standing law in
-`Core-Enforcement-Active-Gates.md` — read it there, not here (one home). The gates specific to
-`@orb/ui`: the cake/seal rules of §8; the `no-raw-value` token family widened to `packages/ui/src` and
-its `tv()` calls; `design-token-parity`, SUPERSEDED-BY-CONSTRUCTION (the §4 codegen + freshness test);
-`touch-target-floor`, ◐ PARTIAL (token floor test-locked; the per-pointer per-component check rides
-the design-audit probe, D62 P1).
+D333 ends custom static gate and checker enforcement. This document states product design law; it does not claim a custom checker enforces it.
 
 ## 12. Neo-parity primitive coverage
 
@@ -380,10 +360,7 @@ the codebase.
 WebFetch `https://base-ui.com/react/components/<name>`. Record any API delta in the component
 doc-comment — factually, no theories.
 
-> **Enforcement:** R1/R3/R4/R6 are review-caught (a hand-rolled part or an untested claim is a
-> reject); R2 is the per-seal completion checklist (below); R5 is grep-checkable (`extends Base…`);
-> R7 is CT-enforced. The native class restrictions, semantic token gates and `no-inline-union-redecl` catch the
-> styling/type classes machine-side.
+> **Review:** Use R1–R9 when building or extending a primitive. Verify behavior with the required CT cases.
 
 **R9 — DERIVE, NEVER RE-SPELL, any prop that shadows a Base UI prop name.** A sealed prop that reuses
 a Base UI prop's NAME must take its TYPE from Base UI — `extends` / `Pick<>` / `Omit<>` /

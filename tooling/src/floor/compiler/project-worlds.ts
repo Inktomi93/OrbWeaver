@@ -1,7 +1,6 @@
-// Intended worlds are data; compiler membership is owned by verify/lib/policy-program-membership.ts.
+// Compiler environments follow package homes and authored test suffixes.
 import type { TestCompilerWorld } from "../testing/test-kinds.ts";
 import { classifyTestFilename } from "../testing/test-kinds.ts";
-import { isLegacyTestPath, LEGACY_ANALYSIS_EXCLUSION_REASON } from "../testing/test-population.ts";
 
 export const WORLDS = ["iso", "node", "browser"] as const;
 export type World = (typeof WORLDS)[number];
@@ -65,7 +64,7 @@ export const BROWSER_PACKAGES: ReadonlySet<string> = new Set(
 );
 
 /** Browser-context harnesses by nature; temporary client/ui test-directory containment is not intent. */
-export const BROWSER_SURFACE_DIRS: readonly string[] = Object.freeze(["tests/e2e", "tests/support/browser", "playwright", "scripts/probes/st-goldens"]);
+export const BROWSER_SURFACE_DIRS: readonly string[] = Object.freeze(["tests/e2e", "tests/support/browser", "playwright"]);
 
 /** Target owners; an absent program remains visible as migration debt when its first file appears. */
 export const TEST_WORLD_PROGRAMS = {
@@ -73,29 +72,6 @@ export const TEST_WORLD_PROGRAMS = {
   node: "tsconfig.json",
   browser: "tsconfig.tests-dom.json",
 } as const satisfies Readonly<Record<World, string>>;
-
-/** The legacy folder compiles in its own programs, so the inner loop's affected typecheck can leave it to CI. A
- *  legacy test is a node or browser test; the iso world holds only test-kit helpers. */
-export const LEGACY_TEST_WORLD_PROGRAMS = {
-  node: "tsconfig.tests-legacy.json",
-  browser: "tsconfig.tests-legacy-dom.json",
-} as const satisfies Readonly<Record<TestCompilerWorld, string>>;
-
-export function isLegacyTestProgram(config: string): boolean {
-  return Object.values(LEGACY_TEST_WORLD_PROGRAMS).some((path) => path === config);
-}
-
-/** Legacy compiler owners remain runnable and typechecked, but never supply semantic analysis (D320). */
-export function isSemanticAnalysisProgram(config: string): boolean {
-  return !isLegacyTestProgram(config);
-}
-
-/** Explicit semantic requests cannot silently discard a requested compiler world. */
-export function assertSemanticAnalysisProgram(config: string): void {
-  if (!isSemanticAnalysisProgram(config)) {
-    throw new Error(`${LEGACY_ANALYSIS_EXCLUSION_REASON}: ${config}`);
-  }
-}
 
 const PKG_SRC_RE = /^packages\/([^/]+)\/src\//u;
 const PKG_TOOL_RE = /^packages\/([^/]+)\/[^/]+$/u;
@@ -203,7 +179,7 @@ export function predictedProgram(rel: string): string | undefined {
   if (toolPackage !== undefined && packageWorld(toolPackage) === "node") {
     return `packages/${toolPackage}/tsconfig.json`;
   }
-  return isLegacyTestPath(rel) ? LEGACY_TEST_WORLD_PROGRAMS[testSourceWorld(rel)] : TEST_WORLD_PROGRAMS[world];
+  return TEST_WORLD_PROGRAMS[world];
 }
 
 /** A test or harness must have one root owner even though its imports can enter other closures. */

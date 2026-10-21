@@ -42,7 +42,6 @@ const CURATED: readonly CompiledRow[] = [
   ...compileRows("curated/local-servers.ts", localServerRows),
 ];
 
-// @orb-waive no-vanity-alias(CuratedQuery): baselined when the gate widened; burn-down item 906.
 type CuratedQuery = RowQuery;
 
 /** Every curated row that matches, in composition order. Empty ⇒ nothing curated for this model. */

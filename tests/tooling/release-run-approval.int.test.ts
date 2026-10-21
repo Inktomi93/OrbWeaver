@@ -15,7 +15,7 @@ const repo={full_name:'Inktomi93/OrbWeaver'};
 const bot={login:'github-actions[bot]',id:41898282,type:'Bot'};
 const app = mode !== 'plugin';
 const plugin = mode === 'plugin' || mode === 'combined';
-const candidate={id:17,event:'pull_request',head_sha:head,path:'.github/workflows/ci.yml',conclusion:'action_required',actor:bot,head_repository:repo,pull_requests:[{number:42}]};
+const candidate={id:17,event:'pull_request',head_sha:head,path:'.github/workflows/codeql.yml',conclusion:'action_required',actor:bot,head_repository:repo,pull_requests:[{number:42}]};
 const pr={number:42,state:'open',user:bot,head:{sha:head,ref:'release-please--branches--release--components--orbweaver',repo},base:{sha:base,ref:'release',repo},changed_files:2};
 const paths=['.release-please-manifest.json',...(app?['package.json']:[]),...(plugin?['packages/plugin-authoring-version.txt','packages/plugin-sdk/package.json','packages/plugin-toolchain/package.json']:[])];
 pr.changed_files=paths.length;
@@ -23,6 +23,7 @@ if(mode==='fork') {pr.head.repo={full_name:'outsider/OrbWeaver'};candidate.head_
 if(mode==='wrong-author') pr.user={...bot,id:99};
 if(mode==='wrong-actor') candidate.actor={...bot,login:'outsider'};
 if(mode==='wrong-path') candidate.path='.github/workflows/release.yml';
+if(mode==='retired-ci') candidate.path='.github/workflows/ci.yml';
 if(mode==='wrong-head') candidate.head_sha='c'.repeat(40);
 if(mode==='wrong-base') pr.base.ref='main';
 if(mode==='extra-file') {paths.push('.github/workflows/ci.yml');pr.changed_files++;}
@@ -63,6 +64,7 @@ for (const [scenario, status, approvals] of [
   ["wrong-author", 0, 0],
   ["wrong-actor", 0, 0],
   ["wrong-path", 0, 0],
+  ["retired-ci", 0, 0],
   ["wrong-head", 0, 0],
   ["wrong-base", 0, 0],
   ["code-change", 2, 0],

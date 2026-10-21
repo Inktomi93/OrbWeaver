@@ -5,7 +5,7 @@ import { expectTypeOf, test } from "vitest";
 test("the actual tRPC client accepts string tag ids and rejects non-string wire values", () => {
   const proveUpdateTag = async (
     client: TrpcClient,
-    // eslint-disable-next-line orb/brand-in-name-position -- the parameter is DELIBERATELY bare string — this test PROVES the wire accepts string, not TagId; ends when tRPC infers branded input natively
+    // the parameter is DELIBERATELY bare string — this test PROVES the wire accepts string, not TagId; ends when tRPC infers branded input natively
     tagId: string,
   ): Promise<TagId> => {
     const tag = await client.tag.updateTag.mutate({ tagId, patch: { name: "name" } });

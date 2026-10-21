@@ -983,7 +983,7 @@ function preTurnCoveragePoint(args: {
 /** Emit a bus event, swallowing any failure — a background warning/update must never re-throw out of the
  *  fire-and-forget compaction body (and a nested `.catch` trips noNestedPromises). */
 async function emitQuiet(deps: EngineDeps, event: DurableChatBusEvent): Promise<void> {
-  // @orb-waive caught-failure-ownership(catch): `deps.emit` is the chat bus, which already
+  // `deps.emit` is the chat bus, which already
   // classifies + reports a dropped append (FLAG[emit-is-total], bus.ts) and never rejects in practice — this
   // is the fire-and-forget background-hook's own belt. Ends if `emit` grows a path that can actually reject.
   try {
@@ -1906,7 +1906,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
 
     return committedOutcome([view]);
   } catch (err) {
-    // @orb-waive caught-failure-ownership(deltaErr): a `deltaErr` that is `err` is owned by this catch (`captureTurnFault`,
+    // a `deltaErr` that is `err` is owned by this catch (`captureTurnFault`,
     // the `turnAborted` emit, then `throw err` or `abortedOutcome`); a distinct one is logged by the `getLog().warn`
     // in the handler. Ends if the `deltaErr !== err` warn is dropped.
     try {
@@ -2036,7 +2036,7 @@ async function runInLockWithHeartbeat(ctx: EngineContext, deps: OwnedEngineDeps,
     return await Promise.race([releasedBody, lockLostBarrier]);
   } finally {
     cancelBeat();
-    // @orb-waive caught-failure-ownership(releasedBody): this is the SAME promise the `await Promise.race` above returns, so a body rejection that wins is thrown to the caller; when the barrier wins, the caller gets `aborted` and the lock loss was already logged by `tick` (`getLog().error`). Ends if the release moves off this promise.
+    // this is the SAME promise the `await Promise.race` above returns, so a body rejection that wins is thrown to the caller; when the barrier wins, the caller gets `aborted` and the lock loss was already logged by `tick` (`getLog().error`). Ends if the release moves off this promise.
     trackSettledWork(
       ctx,
       prep.chatId,

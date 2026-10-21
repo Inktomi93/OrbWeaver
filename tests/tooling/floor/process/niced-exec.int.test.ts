@@ -5,8 +5,8 @@
 // who called it (the depcruise defect: a script that never goes through `runTool` still needs the floor).
 //
 // Leg 5's proof (owner-ruled, refuting leg 4's `detached` shape): the real child now shares the LAUNCHER's
-// own process group, never a group of its own — a caller that group-kills the launcher (the
-// scripts/vitest-supervised.ts wedge watchdog and Ctrl-C) must reach the real command too, or it orphans.
+// own process group, never a group of its own — a caller that group-kills the launcher must reach
+// the real command too, or it orphans.
 // SIGINT/SIGQUIT/SIGHUP reach the shared group directly and the launcher only ignores them; SIGTERM,
 // typically aimed at one pid, is relayed directly to the child.
 import { execFileSync, spawn } from "node:child_process";
@@ -49,9 +49,9 @@ function pgrpOf(pid: number): number {
 }
 
 async function waitGone(pid: number, budgetMs: number): Promise<boolean> {
-  // @orb-waive test-determinism(Date.now): the SUBJECT is real wall-clock time — polling a real OS process's liveness after a real signal has no injectable clock.
+  // the SUBJECT is real wall-clock time — polling a real OS process's liveness after a real signal has no injectable clock.
   const deadline = Date.now() + budgetMs;
-  // @orb-waive test-determinism(Date.now): see the waiver above; the same real-time polling loop.
+  // The same real-time polling loop described above.
   while (pidAlive(pid) && Date.now() < deadline) {
     await sleep(50);
   }

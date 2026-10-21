@@ -31,7 +31,7 @@ export function createResolveRetainedChatAccountingScope(input: DatabaseHandle):
   return async (chatId, characterId) => {
     const owners = await retainedOwners(db, chatId);
     const ownerIds = owners.map((row) => row.ownerId);
-    // @orb-waive owner-scoped-reads(characters): compose-private retained canon accounting; chat's admitted operation supplies the canonical voice id, and this returns only its actual owner while the write fence pins that owner. Ends if external ids or an unbounded reader can reach this op.
+    // compose-private retained canon accounting; chat's admitted operation supplies the canonical voice id, and this returns only its actual owner while the write fence pins that owner. Ends if external ids or an unbounded reader can reach this op.
     const voice = characterId === null ? [] : await db.select({ ownerId: characters.ownerId }).from(characters).where(eq(characters.id, characterId)).limit(1);
     const characterOwnerId = voice[0]?.ownerId ?? null;
     return {
@@ -82,7 +82,7 @@ export function createResolveRetainedChatRebase(
       .innerJoin(messages, eq(messages.id, messageVariants.messageId))
       .where(eq(messages.chatId, rekeys.chatId))
       .orderBy(messageVariants.id);
-    // @orb-waive owner-scoped-reads(characters): chat's admitted copy/rekey plan supplies copied ids; all other ids derive from this retained room's seats/canon. The immutable accepted-plan fence pins the owner projection. Ends if external or unbounded ids can reach this private op.
+    // chat's admitted copy/rekey plan supplies copied ids; all other ids derive from this retained room's seats/canon. The immutable accepted-plan fence pins the owner projection. Ends if external or unbounded ids can reach this private op.
     const cardQuery = db
       .select({ id: characters.id, ownerId: characters.ownerId, tuple: sql<string>`json_array(${characters.id}, ${characters.ownerId})`.as(TUPLE_ALIAS) })
       .from(characters)

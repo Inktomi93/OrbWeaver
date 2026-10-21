@@ -110,7 +110,7 @@ export function parseCel(source: string): CelProgram | CelParseError {
   if (utf8ByteLength(source) > CEL_MAX_SOURCE_BYTES) {
     return { kind: "cel-parse-error", code: "source-too-long", message: `CEL source exceeds the ${CEL_MAX_SOURCE_BYTES}-byte cap` };
   }
-  // @orb-waive caught-failure-ownership(err): the parse error is returned as a CelParseError value, and each caller branches on
+  // the parse error is returned as a CelParseError value, and each caller branches on
   // isCelParseError: validate.ts throws RuleValidationError("bad_cel"), dry-run.ts evaluatePredicate returns { error }, macro/registry.ts reports it
   // through pushExprError. Ends if a caller drops that branch.
   try {

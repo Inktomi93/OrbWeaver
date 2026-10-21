@@ -83,7 +83,7 @@ export function RefineryStartPane(): ReactElement {
         // The flow owns the whole outcome — resume or mint, then the selection write. Errors are already
         // toasted by the mutation's own `errorToast`, and a failed open leaves the user on this pane with
         // the picker still in front of them, which is the honest place to be.
-        // @orb-waive caught-failure-ownership(openRefinery): openRefinery rejects only from its `start.mutateAsync`
+        // openRefinery rejects only from its `start.mutateAsync`
         // (packages/client/src/data/use-open-refinery.ts), whose mutation carries `errorToast: "Couldn't start a
         // refinery session for that card."`. Ends if that errorToast is dropped.
         void openRefinery(characterId).catch(() => undefined);

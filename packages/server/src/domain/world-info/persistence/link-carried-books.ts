@@ -58,7 +58,7 @@ export function createLinkCarriedBooks(input: DbAssemblyInput<WorldInfoDuplicate
           ),
         ),
       );
-    // @orb-waive persistence-no-in-memory-state(Set): query-local membership Set for the owned-source gate. Ends if it outlives the call.
+    // query-local membership Set for the owned-source gate. Ends if it outlives the call.
     const ownedIds = new Set(owned.map((r) => r.id));
     const linkable = refs.filter((r) => ownedIds.has(r.worldBookId));
     if (linkable.length === 0) {

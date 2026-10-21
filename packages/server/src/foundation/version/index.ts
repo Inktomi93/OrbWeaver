@@ -59,7 +59,7 @@ const SAFE_REF_RE = /^refs\/(?!.*\.\.)[A-Za-z0-9._\-/]+$/u;
 /** A path's stat, or `null` when it is absent or the process may not look at it. A permission wall throws from the
  *  stat itself: an unsearchable directory, and every path outside the plugin broker's permission-model grants. */
 function statOrNull(path: string): Stats | null {
-  // @orb-waive caught-failure-ownership(catch): owned by the `unknown` identity: a denied path reads as absent, `readCheckout` turns the missing commit or version into UNKNOWN_COMMIT or UNKNOWN_VERSION, `entry/lifecycle.ts` prints it on the first boot line, and `compareToMainHead` reports "this build carries no commit". Ends if a caller must tell a denied path from a missing one.
+  // owned by the `unknown` identity: a denied path reads as absent, `readCheckout` turns the missing commit or version into UNKNOWN_COMMIT or UNKNOWN_VERSION, `entry/lifecycle.ts` prints it on the first boot line, and `compareToMainHead` reports "this build carries no commit". Ends if a caller must tell a denied path from a missing one.
   try {
     return statSync(path, { throwIfNoEntry: false }) ?? null;
   } catch {
@@ -74,7 +74,7 @@ function readText(path: string): string | null {
   if (stat === null || !stat.isFile()) {
     return null;
   }
-  // @orb-waive caught-failure-ownership(catch): owned by the `unknown` identity: a file lost to a race between the stat and the read gives null, which `readCheckout` renders as UNKNOWN_COMMIT or UNKNOWN_VERSION on the first boot line (`entry/lifecycle.ts`). Ends if a caller must treat an unreadable file as an error.
+  // owned by the `unknown` identity: a file lost to a race between the stat and the read gives null, which `readCheckout` renders as UNKNOWN_COMMIT or UNKNOWN_VERSION on the first boot line (`entry/lifecycle.ts`). Ends if a caller must treat an unreadable file as an error.
   try {
     return readFileSync(path, "utf8");
   } catch {
@@ -165,7 +165,7 @@ export function readPackageVersion(root: string): string | null {
   if (text === null) {
     return null;
   }
-  // @orb-waive caught-failure-ownership(catch): owned by the `unknown` version: a manifest that is not JSON returns null, and `readCheckout` (`version ?? UNKNOWN_VERSION`) puts "unknown" on the first boot line (`entry/lifecycle.ts`). Ends if a corrupt manifest must be told apart from an absent one.
+  // owned by the `unknown` version: a manifest that is not JSON returns null, and `readCheckout` (`version ?? UNKNOWN_VERSION`) puts "unknown" on the first boot line (`entry/lifecycle.ts`). Ends if a corrupt manifest must be told apart from an absent one.
   try {
     const parsed: unknown = JSON.parse(text);
     const version = typeof parsed === "object" && parsed !== null ? (parsed as { readonly version?: unknown }).version : undefined;
@@ -182,7 +182,7 @@ export function readVersionStamp(root: string): VersionStamp | null {
   if (text === null) {
     return null;
   }
-  // @orb-waive caught-failure-ownership(catch): owned by the fallthrough in `readVersionIdentity`: a stamp that is not JSON returns null, the identity is read from the checkout and reports `source: "checkout"` (or UNKNOWN_COMMIT with no `.git`), which the first boot line prints. Ends if a corrupt stamp must be reported apart from a missing one.
+  // owned by the fallthrough in `readVersionIdentity`: a stamp that is not JSON returns null, the identity is read from the checkout and reports `source: "checkout"` (or UNKNOWN_COMMIT with no `.git`), which the first boot line prints. Ends if a corrupt stamp must be reported apart from a missing one.
   try {
     const parsed = versionStampSchema.safeParse(JSON.parse(text));
     return parsed.success ? parsed.data : null;

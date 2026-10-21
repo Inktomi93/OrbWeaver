@@ -89,7 +89,7 @@ async function applyBounded(
       resolve({ kind: "skip", cause: "deadline" });
     }, budget.ms);
   });
-  // @orb-waive caught-failure-ownership(catch): D53 — a throw resolves to SKIP exactly like a
+  // D53 — a throw resolves to SKIP exactly like a
   // timeout (the type-level BoundedOutcome comment above), never manufactures an abort; the caller keeps the
   // prior draft and warns. Ends if a transform failure needs to abort the turn instead of degrading.
   try {

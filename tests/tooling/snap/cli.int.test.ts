@@ -297,12 +297,7 @@ test("--upload misuse (no '=', or an empty path list) refuses before any browser
 // cancels) and its threshold is far below the nominal 8×, so the pin measures "the CPU is throttled at
 // all", never the host's mood.
 //
-// WHY THE FRAME TIMESTAMP AND NOT `performance.now()`: the `test-determinism` gate bans every ambient
-// clock spelling under tests/, and it CANNOT be suppressed — it reports through the Finding overload
-// (file+line, no node), which lib/pass.ts's `@orb-gate-ignore` resolver never sees. Its two sanctioned
-// live-clock tiers (tests/support/, tests/e2e/) are scanRoot exclusions, and this proof belongs with the
-// tool it proves. rAF's timestamp argument is the frame clock, which is also the more honest instrument
-// for "did the main thread get slower".
+// rAF's timestamp argument measures the frame clock directly, including main-thread work between frames.
 
 const CPU_LOOP_HTML = `<!doctype html><html data-app-ready="settled"><body style="background:#000">
 <p style="color:#fff;font-size:16px">load arm</p></body></html>`;

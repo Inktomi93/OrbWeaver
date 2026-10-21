@@ -1,102 +1,7 @@
-// Orbweaver's ESLint gate — the NARROW supplement to Biome.
-//
-// WHY THIS FILE IS JAVASCRIPT (work item 0036 converted every other script to TypeScript): ESLint 10 loads an
-// `eslint.config.ts` under Node only through the `jiti` package, which is not a dependency here, or behind its
-// `unstable_native_nodejs_ts_config` flag, which every caller would have to pass: the CLI adapter, the
-// programmatic `new ESLint()` readers in tooling, vite-plugin-checker and the editor integration
-// (`node_modules/eslint/lib/config/config-loader.js#loadConfigFile`). Revisit when ESLint loads TypeScript
-// configs natively without a flag.
-//
-// Biome owns formatting + 400+ correctness rules (biome.json, ~20 grit plugins). ESLint exists ONLY
-// for the rules Biome can't do yet, and is intentionally explicit-rules-only: every rule is listed by
-// name (never `...recommended` bundles) so a plugin upgrade can't silently add a new gate to
-// `pnpm check`. What each plugin gives us:
-//
-//   1. eslint-plugin-react-hooks (v7 — ships the React Compiler diagnostics)
-//      • rules-of-hooks + exhaustive-deps + the full Rules-of-React correctness set (purity,
-//        immutability, refs, set-state-in-{effect,render}, static-components, use-memo, …).
-//      • This IS the recommended set — every rule is rules-of-hooks-adjacent or a Compiler diagnostic
-//        (a CORRECTNESS bundle, not a style bundle) — so we spread it, and `--max-warnings 0` turns its
-//        warn-level rules (exhaustive-deps, …) into hard gates. THE FLAG DOES NOT LIVE IN A SCRIPT: it is
-//        `CHILD_FLAGS` in `tooling/src/verify/ops/eslint.ts` (what `pnpm lint:eslint` runs) and the scoped
-//        argv in `tooling/src/verify/lib/registry-argv.ts`; `package.json`'s `lint:eslint` carries no flag.
-//
-//   2. @tanstack/eslint-plugin-query — queryKey/queryFn discipline (client only; LIVE since the
-//      client-foundation wave landed Query code — NOT dormant).
-//      • exhaustive-deps · no-unstable-deps · no-void-query-fn · stable-query-client · prefer-query-options
-//      • mutation-property-order · infinite-query-property-order — once dropped here as "ordering →
-//        Biome", turned ON at the wave (2026-07-03): Biome has no TanStack-aware ordering rule and both
-//        are TYPE-INFERENCE correctness per their own meta. The block's own comment states it.
-//
-//   3. @tanstack/eslint-plugin-router — code-based route discipline (client only; LIVE — the hand-written
-//      createRoute tree lives in `packages/client/src/routes/`)
-//      • create-route-property-order ONLY. Its meta: "define route options in a specific order to ensure
-//        the type inference works correctly" — a TYPE-INFERENCE correctness rule (not ergonomic; Biome
-//        can't do it) that applies to the hand-written createRoute/createRootRoute tree we DO use.
-//
-//   4. eslint-plugin-better-tailwindcss — validates class strings against the classes the v4 engine
-//      ACTUALLY registers for our @theme (entryPoint: the package's own globals.css). TWO blocks: @orb/ui,
-//      and @orb/client since 2026-08-19 — not ui-only.
-//      • no-unknown-classes · enforce-consistent-variable-syntax(shorthand) · no-deprecated-classes
-//
-//   5. @typescript-eslint/no-deprecated (type-aware) — makes the doctrine's `@deprecated` tag a gate.
-//
-//   6. Custom no-restricted-syntax — LIVE (`packages/client/src/state/` is populated). Selector sets: the
-//      client-only zustand escape-hatch guard, the COMPOSE-ONLY KEYSTONE (no className/style on a raw
-//      intrinsic element), and the syntax bans (decorators, `defaultProps`, inline `queryKey` arrays) over
-//      the populations of the structural gates they replaced. Flat config REPLACES this rule per file, so
-//      the later blocks re-list the layers beneath them.
-//
-//   7. eslint-plugin-react-web-api — eslint-react's LEAK family: a Web-API subscription created in a
-//      component that outlives it (listener/interval/timeout/fetch/IntersectionObserver/ResizeObserver
-//      with no cleanup). Nothing else in the stack can see this: Biome is syntactic, react-hooks checks
-//      deps not disposal, tsc has no notion of a lifetime. All six rules ON (shipped source only).
-//
-//   8. eslint-plugin-react-you-might-not-need-an-effect — SEMANTIC unnecessary-effect analysis (state
-//      derived in an effect, effect chains, prop-change state adjustment, …). 6 of its 9 rules ON; the
-//      other 3 are deliberately OFF with a measured receipt — see the block for the triage.
-//
-//   9. eslint-plugin-jsx-a11y — the a11y constraints Biome does not natively cover (shipped source only).
-//      • The SECOND sanctioned bundle spread, on react-hooks' terms and no looser: `flatConfigs.strict`
-//        is an audited CORRECTNESS set from an EXACT-pinned catalog entry (`6.10.2`, not `^`), so the
-//        "a plugin upgrade can't silently add a gate" property above is held by the PIN rather than by
-//        enumeration. See the TRIPWIRE at the block itself for what the pin is load-bearing for.
-//
-//  10. eslint-plugin-tsdoc — `tsdoc/syntax`, the official TSDoc parser: malformed doc comments and
-//      non-standard tags are a gate, which is how the TSDoc rules in .claude/rules/comments.md are enforced.
-//      ON for shipped source (ui/client), the typed-API packages, and tooling/src + tests/tooling.
-//
-// What we INTENTIONALLY DROP (Biome owns them, or ergonomic-only):
-//   • query/no-rest-destructuring — destructure style → ergonomic. (The two query property-order rules
-//     were once dropped here; they are ON — see item 2. Do not re-drop them.)
-//   • router/route-param-names — file-based `$param`↔useParams naming; we hand-write a code-based tree
-//     (UI-Arch §6.1) so there are no `$param` route files for it to match → pure no-op.
-//   • better-tailwindcss stylistic rules (enforce-consistent-class-order/-line-wrapping/-variant-order,
-//     enforce-canonical/shorthand/logical, no-duplicate/-unnecessary-whitespace) — Biome owns class
-//     style/format/order. (no-conflicting-classes / no-duplicate-classes are correctness-adjacent and
-//     available; deferred until @orb/ui's class surface stabilizes — revisit then.)
-//   • typescript-eslint's recommended RULE set — tsc + Biome own type/style; we take the PARSER only.
-import { createHash } from "node:crypto";
-import { readFileSync } from "node:fs";
-import { join, relative } from "node:path";
+// ESLint supplements Biome with maintained plugins and self-contained syntax, scope and parser-checker rules.
+import { relative } from "node:path";
 import { fileURLToPath } from "node:url";
-import eslintComments from "@eslint-community/eslint-plugin-eslint-comments";
-import {
-  SERVER_FACTORY_TIER_REFERENCE_POLICY_ID,
-  serverFactoryTier,
-  serverTypeTier,
-  TYPE_HOME_NATIVE_POLICY_ID,
-  UI_TOKEN_AUTHORING_CONTRACT_HOME,
-  unjudgedServerFile,
-} from "@orb/tooling/floor/code-facts/type-home";
-import { readAuthoredRepositoryInventory } from "@orb/tooling/floor/compiler/authored-repository";
-import { BROWSER_PACKAGES, HELPER_WORLD_DIRS, NODE_TOOL_SURFACE_GLOBS, PACKAGE_WORLDS, TEST_WORLD_PROGRAMS } from "@orb/tooling/floor/compiler/project-worlds";
-import { RESERVED_PORT_NUMBERS, STAGE_BAND_PORT_NUMBERS } from "@orb/tooling/floor/host/ports";
-import { AMBIENT_SOURCE_PATTERNS } from "@orb/tooling/floor/testing/ambient-source-patterns";
-import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
-import { LEGACY_TEST_ROOT } from "@orb/tooling/floor/testing/test-population";
 import { BUTTON_SIZE_OVERFLOW } from "@orb/ui/button/size-hit-area";
-import { Z_TOKEN_SCOPES } from "@orb/ui/z-scope";
 import pluginQuery from "@tanstack/eslint-plugin-query";
 import pluginRouter from "@tanstack/eslint-plugin-router";
 import vitest from "@vitest/eslint-plugin";
@@ -110,342 +15,35 @@ import reactX from "eslint-plugin-react-x";
 import reactNoEffect from "eslint-plugin-react-you-might-not-need-an-effect";
 import regexp from "eslint-plugin-regexp";
 import tsdoc from "eslint-plugin-tsdoc";
-import zod from "eslint-plugin-zod";
-import { createWrappedNode } from "ts-morph";
 import ts from "typescript";
 import tseslint from "typescript-eslint";
-import { CHROME_ZONES } from "./packages/client/src/state/chrome-registry.ts";
-import { CONFIG_GROUP_IDS } from "./packages/client/src/state/config-group-ids.ts";
-import { MODAL_SLOT_IDS } from "./packages/client/src/state/modal-slot-ids.ts";
-import { SECTION_IDS } from "./packages/client/src/state/section-ids.ts";
-import { BUS_SUBUNIONS, BUSES } from "./packages/contracts/src/bus-registry/index.ts";
-import { connectionApiSchema } from "./packages/contracts/src/inference/connection.ts";
-import { STRUCTURED_VEHICLES, WIRE_SCHEMA_KEYWORD_VOCABULARY } from "./packages/contracts/src/inference/wire-subset.ts";
-import { wireSchema } from "./packages/contracts/src/inference/wires.ts";
-import { TABLE_SCOPING } from "./packages/db/src/tenancy/index.ts";
-import {
-  deriveCanonicalBrandTypeNames,
-  ID_BRAND_HOME,
-  nativeCanonicalIdBrand,
-  requireEntityIdTypeNames,
-  SANDBOX_WIRE_ID_TYPE,
-} from "./tooling/src/floor/code-facts/id-brand.ts";
-import { nativeModulePositionSpecifier, relativeClimb, resolveRelativeImport, TOOLING_PREFIX } from "./tooling/src/floor/code-facts/module-specifier.ts";
-import { readMemberReference, resolveGlobalMemberOrigin, resolveStableExpression } from "./tooling/src/floor/code-facts/reference-fact.ts";
-import { resolveCallableOrigin } from "./tooling/src/floor/code-facts/reference-fact-call.ts";
-import { signatureTypeHome } from "./tooling/src/floor/code-facts/server-factory-type-home.ts";
-import { readServerAugmentationBoundary, readServerPublicBoundary } from "./tooling/src/floor/code-facts/server-public-boundary.ts";
-import { isZodShapeCall } from "./tooling/src/floor/code-facts/shape-declaration.ts";
-import { readStaticAuthoredScalar } from "./tooling/src/floor/code-facts/static-authored-value.ts";
-import {
-  declaredByPackage,
-  resolveTypeIdentityChain,
-  resolveTypeIdentityOrigin,
-  resolveTypeMemberOrigin,
-} from "./tooling/src/floor/code-facts/type-member-origin.ts";
-import { nativeUncastReceiver } from "./tooling/src/floor/code-facts/type-member-origin-core.ts";
-import { isFactoryCallFromPackage, zodCandidateCall } from "./tooling/src/floor/code-facts/zod-origin.ts";
-import { moduleScopeCalls } from "./tooling/src/floor/compiler/module-entry.ts";
-import { INSTRUMENT_TOOLS } from "./tooling/src/floor/instrument/instruments.ts";
-import { BASE_UI_NATIVE_INPUT_PATHS } from "./tooling/src/verify/contract/baseui.ts";
-import {
-  ENTRY_DRIVER_GLOBS,
-  ENTRY_PROCESS_PROPERTIES,
-  ENTRY_WIRING_GLOBS,
-  QUERY_FREE_BOOT_GLOBS,
-} from "./tooling/src/verify/contract/compose-query-capability.ts";
-import { ROOT_SPAN_OPENERS } from "./tooling/src/verify/contract/detached-work.ts";
-import { FS_SPECIFIERS, FS_WRITE_VERBS } from "./tooling/src/verify/contract/fs-write-verbs.ts";
-import { MANUAL_MEMO_CUSTOM_HOMES, MANUAL_MEMO_EXPORTS } from "./tooling/src/verify/contract/manual-memo.ts";
-import { MODEL_PROSE_SEAM_FILES, MODEL_PROSE_SEAM_PREFIXES } from "./tooling/src/verify/contract/model-prose-seam.ts";
-import { POPULATION_ROOTS, POPULATION_SETS } from "./tooling/src/verify/contract/population.ts";
-import { DEFINITION_SLOTS } from "./tooling/src/verify/contract/registry-definition-home.ts";
-import { JSON_RESOURCE_PATHS } from "./tooling/src/verify/contract/resource-json.ts";
-import { DOMAIN_ROOT, PNG_CHUNK_SPECIFIER_PATTERN, PNG_CHUNK_SYMBOL_NAMES, SANCTIONED_DOMAINS } from "./tooling/src/verify/contract/serde-core-seal.ts";
-import { possibleAmbientCall, readAmbientInvocation } from "./tooling/src/verify/lib/ambient-determinism.ts";
-import { surfaceManifestFrom } from "./tooling/src/verify/lib/baseui-manifest.ts";
-import { CLIENT_LEXICAL_NATIVE_INPUT_PATHS } from "./tooling/src/verify/lib/client-lexical-native.ts";
-import { CLIENT_MAP_NATIVE_INPUT_PATHS, CLIENT_MAP_NATIVE_RULE } from "./tooling/src/verify/lib/client-map-native.ts";
-import { DEFINE_CONTEXT_REGION, DEFINE_CONTEXT_TABS, REGISTRY_CONTRACTS_RE } from "./tooling/src/verify/lib/context-definition-shape.ts";
-import { createKitIdCallMatcher } from "./tooling/src/verify/lib/id-brand.ts";
-import { classifyOriginRefusal, referenceNamesExport } from "./tooling/src/verify/lib/origin-verdict.ts";
-import {
-  classifyPackageMemberOrigin,
-  classifyProjectHomeOrigin,
-  locateProjectHome,
-  readsAmbientGlobalPath,
-} from "./tooling/src/verify/lib/project-home-origin.ts";
-import { TIER_IMPLEMENTATION_HOMES as SPACING_HOMES } from "./tooling/src/verify/lib/raw-spacing-tier.ts";
-import { TIER_IMPLEMENTATION_HOMES as TYPOGRAPHY_HOMES } from "./tooling/src/verify/lib/raw-typography-tier.ts";
-import { isDefinitionHome } from "./tooling/src/verify/lib/registry-definition-home.ts";
-import {
-  SOURCE_TYPE_SUPPRESSION_EXCLUSIONS,
-  SOURCE_TYPE_SUPPRESSION_GLOBS,
-  SOURCE_TYPE_SUPPRESSION_RULE,
-} from "./tooling/src/verify/lib/source-type-suppression-native.ts";
-import { readTailwindClassTokens } from "./tooling/src/verify/lib/tailwind-class-token.ts";
-import { FIXTURE_NAMES, readFixtureDoor, registersSnapshotSerializer } from "./tooling/src/verify/lib/test-runner-door.ts";
-import {
-  CONFIG_ANCHOR_FORMATTER,
-  CONFIG_ANCHOR_OWNER,
-  TEST_IMPORT_EXCLUSIONS,
-  TEST_IMPORT_GLOBS,
-  TEST_PACKAGE_SUBPATH_RULE,
-  TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS,
-  TOOLING_IMPORT_GLOBS,
-  TOOLING_ROOT_CONFIG_IMPORT_RULE,
-} from "./tooling/src/verify/lib/test-tooling-imports-native.ts";
-import { TOOLING_ENTRY_HOMES } from "./tooling/src/verify/lib/tooling-entry-native.ts";
-import {
-  TYPED_NATIVE_POLICIES,
-  typedNativeCompilerContext,
-  typedNativeInputIdentity,
-  typedNativeInputPaths,
-} from "./tooling/src/verify/lib/typed-native-inputs.ts";
-import { waivableCoordinate } from "./tooling/src/verify/lib/waivable-coordinate.ts";
-import { Z_INDEX_IMPLEMENTATION_HOMES } from "./tooling/src/verify/lib/z-index-homes.ts";
+import biomeConfig from "./biome.json" with { type: "json" };
 
-// This config lives at the repo root; projectService/tsconfig discovery is rooted here.
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
-const NATIVE_TYPED_COMPILER_CONTEXT = typedNativeCompilerContext(ROOT);
-
-// The linted TS surface. @orb/ui is gated NOW (its components must be React-Compiler-clean, D54);
-// @orb/client is skeletal but wired so the gate is live the moment code lands.
-const UI_SRC = "packages/ui/src/**/*.{ts,tsx}";
-const CLIENT_SRC = "packages/client/src/**/*.{ts,tsx}";
-
-// ── Author classes: the DERIVED half of `no-unknown-classes` (#249) ─────────────────────────────
-// A hand-written CSS class (`orb-skeleton-shimmer`, `shell-rail`) is real paint but not a Tailwind
-// utility, so the unknown-class check would red it. It is fed the class names BY NAME, parsed out of
-// the sanctioned stylesheets themselves — NEVER a `^shell-`/`^orb-` prefix wildcard. A wildcard is a
-// rubber stamp that silently passes `shell-raill`, which is EXACTLY the compiles-to-nothing defect the
-// rule exists to catch (`inset-block-0` shipped a band 490px short; `z-base` reached the train gate).
-// Two-sided by construction: a sheet that moves makes this file throw at lint startup rather than
-// silently widening the ignore set, and a deleted class stops being ignored the run after it dies.
-const UI_STYLESHEET = "packages/ui/src/styles/globals.css";
-// The client's entry `@import`s @orb/ui's, so its authored surface is the union of all three sheets;
-// `shell.css` is the ONE sanctioned feature-tier stylesheet (client-architecture-lockdown §4, gated by
-// `feature-css-files`).
-const CLIENT_STYLESHEETS = [UI_STYLESHEET, "packages/client/src/styles/globals.css", "packages/client/src/features/app-shell/surfaces/shell.css"];
-
-/** Class names authored as CSS SELECTORS in `sheets`, as anchored `ignore` regex strings. Comments are
- *  blanked and only the selector half of each rule is read — a `.foo` named in prose or inside a
- *  declaration value must not widen the ignore set (the permissive direction is the dangerous one). */
-function authorClassIgnores(sheets) {
-  const names = new Set();
-  for (const rel of sheets) {
-    const css = readFileSync(join(ROOT, rel), "utf8").replace(/\/\*[\s\S]*?\*\//g, "");
-    for (const chunk of css.split("{")) {
-      const selector = chunk.slice(chunk.lastIndexOf("}") + 1);
-      for (const m of selector.matchAll(/\.(-?[_a-zA-Z][\w-]*)/g)) {
-        names.add(m[1]);
-      }
-    }
-  }
-  return [...names].map((name) => `^${name}$`);
-}
-// Browser component tests (the ones @orb/ui's / @orb/client's tsconfigs own — real components +
-// hooks). The node `tests/ui/**/*.test.ts` (tokens, etc.) are NOT matched here — no hooks/components.
-const COMPONENT_TEST_SUFFIXES = TEST_KIND_DEFINITIONS.filter(
-  ({ family, suffix }) =>
-    family === "component" && !TEST_KIND_DEFINITIONS.some((other) => other.family === family && other.suffix !== suffix && suffix.endsWith(other.suffix)),
-).map(({ suffix }) => suffix);
-const componentTestGlobs = (root) => COMPONENT_TEST_SUFFIXES.map((suffix) => `${root}/**/*${suffix}`);
-// Native compiler owners still choose the parser world; authored membership admits each populated mirror automatically.
-const AUTHORED_NATIVE_INPUT_PATHS = readAuthoredRepositoryInventory(ROOT).paths;
-const AUTHORED_TEST_PATHS = AUTHORED_NATIVE_INPUT_PATHS.filter((path) => path.startsWith("tests/") && (path.endsWith(".ts") || path.endsWith(".tsx")));
-const testHomes = (pkg) => [`${LEGACY_TEST_ROOT}/${pkg}`, `tests/${pkg}`].filter((home) => AUTHORED_TEST_PATHS.some((path) => path.startsWith(`${home}/`)));
-const homeGlobs = (pkg, glob) => testHomes(pkg).map((home) => `${home}/${glob}`);
-const UI_CT = testHomes("ui").flatMap((home) => componentTestGlobs(home));
-const UI_FIXTURES = homeGlobs("ui", "**/*.fixtures.tsx");
-// #1590: `tests/ui/**` grew underscore-prefixed story modules (the same "not a real test file" naming
-// convention as `_ct-stories.tsx` elsewhere) and a `.stories.tsx` suffix of its own — neither had a home
-// here, so `pnpm exec eslint <file>` answered "File ignored" for both (a real defect: the CT surface's
-// react-hooks/Compiler/jsx-a11y rules never reached them). Both are directory globs, not a filename list,
-// same doctrine as CLIENT_STORIES below.
-const UI_STORIES = homeGlobs("ui", "**/_*.tsx");
-const UI_STORIES_SUFFIX = homeGlobs("ui", "**/*.stories.tsx");
-const CLIENT_CT = testHomes("client").flatMap((home) => componentTestGlobs(home));
-// #1590: widened from the exact `_ct-stories.tsx` filename to every underscore-prefixed `.tsx` under
-// `tests/client/**` — story/fixture modules share that naming convention regardless of their suffix
-// (`_cascade-fixtures.tsx`, `_slash-command-stories.tsx`, …), and a per-filename list here would rot the
-// same way the exact-name-only version already had (32 files, none of them named `_ct-stories.tsx`,
-// were "File ignored" before this widened). Still matches the original `_ct-stories.tsx` files too.
-const CLIENT_STORIES = homeGlobs("client", "**/_*.tsx");
-// #1590: `*.fixtures.tsx` under `tests/client/**` had no home (only `tests/ui/**/*.fixtures.tsx` did) —
-// 12 files (11 `components/*.fixtures.tsx` + `state/config-row-annotation.fixtures.tsx`) were uncovered.
-const CLIENT_FIXTURES = [...homeGlobs("client", "**/*.fixtures.tsx"), ...homeGlobs("client", "**/*-fixtures.tsx")];
-// tests/tooling grew a browser tree of its own (the design-audit walker + snap's overflow op are
-// in-page instruments, so their proofs MOUNT), and tests/support/browser carries the shared CT providers.
-// Both are React under playwright-ct exactly like the ui/client trees — without these rows the
-// react-hooks/Compiler rules stop at the tests/{ui,client} border while `.ct.tsx` files elsewhere
-// render unchecked. Syntactic parse, same as the rest of CT_SURFACE (no program needed).
-const TOOLING_CT = componentTestGlobs("tests/tooling");
-const TOOLING_STORIES = "tests/tooling/**/_ct-stories.tsx";
-const SUPPORT_CT = "tests/support/browser/**/*.tsx";
-// The showcase plugins mount their frame surfaces under playwright-ct like the ui and client trees.
-const SHOWCASE_CT = testHomes("showcase-plugins").flatMap((home) => componentTestGlobs(home));
-const SHOWCASE_STORIES = homeGlobs("showcase-plugins", "**/_*.tsx");
-const CT_SURFACE = [
-  ...UI_CT,
-  ...UI_FIXTURES,
-  ...UI_STORIES,
-  ...UI_STORIES_SUFFIX,
-  ...CLIENT_CT,
-  ...CLIENT_STORIES,
-  ...CLIENT_FIXTURES,
-  ...TOOLING_CT,
-  TOOLING_STORIES,
-  SUPPORT_CT,
-  ...SHOWCASE_CT,
-  ...SHOWCASE_STORIES,
+const SOURCE = ["packages/*/src/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}"];
+const REACT_SOURCE = ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"];
+const REACT_TEST_SOURCE = [
+  "tests/**/*.ct.tsx",
+  "tests/{ui,client,showcase-plugins}/**/_*.tsx",
+  "tests/ui/**/*.fixtures.tsx",
+  "tests/ui/**/*.stories.tsx",
+  "tests/client/**/*.fixtures.tsx",
+  "tests/client/**/*-fixtures.tsx",
+  "tests/tooling/**/_ct-stories.tsx",
+  "tests/support/browser/**/*.tsx",
 ];
-
-const REACT_SURFACE = [UI_SRC, CLIENT_SRC, ...CT_SURFACE];
-const SHIPPED_SRC = [UI_SRC, CLIENT_SRC];
-
-// ── The TOOLING surface (#459) ──────────────────────────────────────────────────────────────────────
-// `@orb/tooling` + its test mirror were DOUBLY uncovered by eslint until 2026-08-22, and the two halves
-// have to be fixed together or the surface stays dark: the `lint:eslint` SCRIPT argv named only
-// `packages/{ui,client,server,kit,db,contracts}` + `tests/{ui,client}`, AND no config object's `files`
-// pattern matched `tooling/**` — so even an explicit `eslint tooling/src/foo.ts` answered "File ignored
-// because no matching configuration was supplied". Both are repaired: this block, and the script's argv.
-// (The scoped verify lane drops an ignored explicit path at discovery, so the ignore was silent there too.)
-//
-// THE MEASUREMENT that justifies the block, taken over 591 files before anything was enabled:
-// no-floating-promises 36 · switch-exhaustiveness-check 7 · no-deprecated 1 · restrict-template-expressions 1
-// · no-misused-promises / require-await / await-thenable 0. The 36 were ONE class and a LYING-TEST class:
-// `expect(res).toExitWith(N)` with no `await` — `toExitWith` is an ASYNC matcher (tests/support/node/matchers.ts),
-// so a wrong exit code surfaced as an unhandled rejection attributed to a DIFFERENT test while the real
-// test reported PASS (planted-control receipt: 2 passed, 1 unhandled error, wrong test named). Biome is
-// syntactic and structurally cannot see any of these. All live violations were fixed in the landing lane;
-// nothing here is suppressed or allowlisted.
-//
-// THE THREE DEFERRED RULES ARE BEING LANDED BY THE #472 SWEEP, one family per commit. They were REAL
-// findings, never false positives — the deferral was about the fix wave's shape (behaviour-touching
-// nullable-conditional rewrites; 111 comment edits), not about whether the rules belong here.
-//   tsdoc/syntax — LANDED. Re-measured 111 on the current tree (the survey said 110); all 111 fixed and
-//     the rule is ON below for tooling/src + tests/tooling. Every finding was in tooling/src; tests/tooling
-//     measured 0, and the rule is on there anyway so the zero cannot rot. Four classes, no suppressions:
-//     a bare `@orb/…` package name in prose (→ a code span, the packages/**  house spelling), an unescaped
-//     `<`/`>`/`{`/`}` that TSDoc reads as an HTML tag or an inline-tag opener (→ a code span, or `\>` where
-//     the text is a genuine comparison), a code span WRAPPED across two comment lines (TSDoc code spans are
-//     single-line — reflowed, never truncated), and a markdown ``…`` double-backtick span (TSDoc has no
-//     such form and no in-span escape — rewritten as backslash-escaped prose).
-//   no-unnecessary-condition — LANDED, all 41 fixed, ON below for tooling/src + tests/tooling. Two
-//     classes, and telling them apart was the whole job. (a) A GENUINELY dead check: ts-morph's
-//     `getParent()`/`getExpression()`/`getDeclarations()` are non-optional on the node types these
-//     call sites hold, a `matchAll` match always carries `.index`, and `exec` returns `null` and never
-//     `undefined` — those guards are deleted. (b) A check the rule called dead because THE TYPE LIED,
-//     which is a type-modelling defect and NOT a delete: node types `spawnSync`'s stdout/stderr as
-//     `string` though a spawn that never starts returns null (the two int-test helpers now annotate
-//     `SpawnSyncReturns<string | null>`), `process.stdout.columns` is typed non-optional but only
-//     exists on a tty, and `MeterWindow.__perfMeter` was non-optional even though #409 exists BECAUSE
-//     the in-page meter can be absent. Those seams were re-typed and every guard kept.
-//   strict-boolean-expressions — LANDED. 61 at the survey, 59 after the no-unnecessary-condition pass
-//     removed two of them; all 59 fixed, ON below for tooling/src + tests/tooling. This is the
-//     behaviour-adjacent family, so every rewrite names the ARM the site wants: an optional `boolean`
-//     flag wants "explicitly true" (`=== true`), a `x?.pred()` guard wants "present AND true"
-//     (`x !== undefined && x.pred()` — spelled out so the ts-morph type predicate still narrows), and
-//     an optional STRING used as a presence switch wants "present AND non-empty" (`""` stays falsey —
-//     a mechanical `!== undefined` there would have been a defect: an empty `--mask ""` would start
-//     pushing an empty selector, and a blank plan note would render an empty pair of parens). The 17
-//     copies of that last shape in `codemod/lib` collapsed into one `noteSuffix()` in `lib/plans.ts`.
-//   THE WAVE IS COMPLETE — all three rules are on and there is no deferred tooling population left.
-//
-// Scope note: the react/tailwind/query/router blocks above stay off tooling by construction (node-context
-// tools render nothing). What tooling gets is the ASYNC-SAFETY + dispatch + deprecation set — exactly the
-// eslint-only category, and the highest-value one for code that spawns processes and walks trees.
-//
-// ── WIDENED TO THE WHOLE TEST TREE (#473, 2026-08-22) ───────────────────────────────────────────────
-// #459 fixed `tooling/**`; the same hole was still open over EVERY other node test dir. `tests/server`
-// (1,025 files), `tests/kit`, `tests/db`, `tests/contracts`, `tests/support` and `tests/e2e` were all
-// outside both halves of the surface, so the class #459 caught in tooling — an async assertion that
-// could not fail its own test — had nowhere to be caught here either.
-//
-// SURVEY over the 1,276 newly-covered files, before anything was enabled:
-//   require-await 182 (server 180 · contracts 2) · no-deprecated 11 (server 5 · contracts 4 · kit 2)
-//   await-thenable 1 (server) · unused-eslint-disable 3 (server)
-//   no-floating-promises / no-misused-promises / switch-exhaustiveness-check /
-//   restrict-template-expressions: 0
-// Everything except require-await was FIXED in the landing lane. no-floating-promises measuring 0 is
-// the independent confirmation of #473's census: the 36 un-awaited matchers really were the whole
-// population, and there is no second reservoir outside tooling.
-//
-// `require-await` IS DELIBERATELY OFF FOR `tests/**`, WITH A RECEIPT — it is a rule/surface mismatch,
-// NOT a deferred sweep, so do not open a cleanup row for it. A 26-site spread sample of the 182 (every
-// 7th site across 37 files) was 26/26 the SAME legitimate shape: an async TEST DOUBLE conforming to an
-// interface whose method returns a Promise —
-//   `vi.fn<ChatService["listChats"]>(async () => page)` · `generateSegments: async () => ({ written: 0 })`
-//   · `async *exportAll(): AsyncIterable<PortableFile>`
-// The `async` is REQUIRED by the contract being stubbed; there is nothing to await because a stub has no
-// work. "Fixing" all 182 means `Promise.resolve(...)` boilerplate that is semantically identical and
-// strictly less readable. The rule stays ON for `tooling/src/**` (real tool code, where an async
-// function with no await IS a mis-signaled sync function — measured 0 there) and ON for `packages/**`
-// via the async-safety block above. Same posture, same evidence standard, as the
-// react-you-might-not-need-an-effect triage below.
-//
-// TWO PARSER PROGRAMS, because the test tree has two owners. Most of it resolves upward to the ROOT
-// `tsconfig.json` (which `include`s `tests`), so `projectService` finds it. But `tests/e2e/**` is
-// EXCLUDED from the root program and `tests/support/browser/**` is claimed only by
-// `tsconfig.tests-dom.json` — under projectService those answer "was not found by
-// the project service" (measured: 3 parse errors). The escapee block hands the parser BOTH configs as
-// an array so each file is owned by whichever program includes it, WITHOUT duplicating tests-dom's
-// filename list here (that list moves; a copy of it would rot silently).
-const TOOLING_SRC = "tooling/src/**/*.ts";
-const TOOLING_TESTS = "tests/tooling/**/*.ts";
-const NODE_TOOL_SURFACE = [...NODE_TOOL_SURFACE_GLOBS];
-/** The NESTED `scripts/` trees (#2290) — what `NODE_TOOL_SURFACE_GLOBS`'s `scripts/*` deliberately does not
- *  reach. Enumerated rather than `scripts/**` so a NEW top-level scripts directory is a decision someone
- *  makes, not a surface that silently absorbs it: the block's rule set is type-aware and its parser is the
- *  root program, and a tree outside that program (the st-goldens browser world) must not be swept in. */
-const SCRIPTS_NESTED_SURFACE = [
-  "scripts/ci/**/*.{ts,mts,cts}",
-  "scripts/codemods/**/*.{ts,mts,cts}",
-  "scripts/probes/**/*.{ts,mts,cts}",
-  "scripts/research/**/*.{ts,mts,cts}",
-];
-const NON_BROWSER_PACKAGES = Object.keys(PACKAGE_WORLDS).filter((name) => !BROWSER_PACKAGES.has(name));
-const NON_BROWSER_PACKAGE_SRC = NON_BROWSER_PACKAGES.map((name) => `packages/${name}/src/**/*.ts`);
-// Node test dirs — root-owned since the type-worlds split (#1351: no per-file escapee lives in
-// tsconfig.tests-dom.json any more). They keep riding the escapee parser below rather than
-// projectService, because the parser is handed BOTH root programs and picks whichever owns a file.
-const NODE_TEST_DIRS = NON_BROWSER_PACKAGES.flatMap((name) => homeGlobs(name, "**/*.ts"));
-// The trees the root program does NOT own — see the parser note above; every one of them is rooted by
-// `tsconfig.tests-dom.json`, which is why they share the escapee parser.
-//
-// #1574: `tests/client/**/*.ts` and `tests/ui/**/*.ts` were added 2026-09-04. They matched NO config
-// object at all, so `pnpm exec eslint <one of them> --max-warnings 0` answered "File ignored because no
-// matching configuration was supplied" — which the scoped verify lane drops silently at discovery, so
-// the hole was silent there and RED elsewhere. Census at the time: 2642 tracked `tests/**` ts+tsx files,
-// 274 uncovered — 202 `tests/client/**/*.ts`, 41 `tests/ui/**/*.ts` (both closed here), plus 32 `.tsx`
-// story/fixture modules the CT surface's narrower globs missed — a REACT-surface question, deliberately
-// left for its own row rather than folded in here. CLOSED by #1590: `UI_STORIES`/`UI_STORIES_SUFFIX`/
-// `CLIENT_FIXTURES` above, and `CLIENT_STORIES` widened from the exact `_ct-stories.tsx` filename to
-// every underscore-prefixed `.tsx` under `tests/client/**`.
-// These two trees are exactly what tsconfig.tests-dom.json claims wholesale (#1243), so the escapee
-// parser already has their program; no tsconfig moves with this.
-const TESTS_DOM_OWNED = ["tests/support/**/*.ts", "tests/e2e/**/*.ts", ...homeGlobs("client", "**/*.ts"), ...homeGlobs("ui", "**/*.ts")];
-// Every TS program that ROOTS a file under tests/**: the node world, the browser-tests world (type-worlds
-// program, #1351 — the package programs check nothing under tests/ any more), and the ISOMORPHIC helper
-// world. The escapee parser is handed all of them and uses whichever one owns the file, so no block here
-// ever restates a tsconfig's include list.
-//
-// `tsconfig.tests-iso.json` joined the list on 2026-09-13 (#2300), and its absence was invisible until
-// then for one reason: `tests/support/iso/` was a DECLARED world with no files in it (a tsconfig, a
-// dep-cruiser direction rule, a helper-world root — and an empty directory). The first module landed
-// there and its sibling test answered `Parsing error: … The file was not found in any of the provided
-// project(s)`, because a helper module that something imports is pulled into the importer's program while
-// a test that nothing imports is rooted only by its own world.
-// Legacy worlds remain typecheck programs, not type-aware lint inputs (D320).
-const TEST_TREE_PROJECTS = [TEST_WORLD_PROGRAMS.node, TEST_WORLD_PROGRAMS.browser, TEST_WORLD_PROGRAMS.iso];
-const LEGACY_TEST_LINT_GLOB = `${LEGACY_TEST_ROOT}/**/*.{ts,tsx}`;
-const PROJECT_SERVICE_SURFACE = [TOOLING_SRC, TOOLING_TESTS, ...NODE_TEST_DIRS];
-// Every file the async-safety + dispatch + deprecation rules apply to.
-const SAFETY_SURFACE = [...PROJECT_SERVICE_SURFACE, ...TESTS_DOM_OWNED];
-// The real-type twins of Biome's type-inference rules. Biome's partial inference misread drizzle builders (thenable),
-// `useRef().current` and TanStack status flags, so these run on the TypeScript checker's types instead.
-const REAL_TYPE_RULES = {
+const REACT_HOOK_RULES = {
+  ...reactHooks.configs["recommended-latest"].rules,
+  "react-hooks/exhaustive-deps": "error",
+  "react-hooks/unsupported-syntax": "error",
+  "react-hooks/incompatible-library": "warn",
+};
+const PLAYWRIGHT_TESTS = ["tests/**/*.ct.tsx", "tests/**/*.spec.ts", "tests/e2e/**/*.{ts,tsx}"];
+const TEST_PROJECTS = ["tsconfig.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
+const NODE_TOOL_SOURCE = ["*.{ts,mts,cts}", "packages/*/*.{ts,mts,cts}", "scripts/**/*.{ts,mts,cts}"];
+const ASYNC_SAFETY_RULES = {
+  "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
+  "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
   "@typescript-eslint/await-thenable": "error",
   "@typescript-eslint/no-unnecessary-condition": "error",
   "@typescript-eslint/require-array-sort-compare": ["error", { ignoreStringArrays: true }],
@@ -455,254 +53,88 @@ const REAL_TYPE_RULES = {
   "@typescript-eslint/prefer-regexp-exec": "error",
   "@typescript-eslint/prefer-nullish-coalescing": "error",
   "@typescript-eslint/prefer-string-starts-ends-with": "error",
-};
-const ASYNC_SAFETY_RULES = {
-  // The headline rule here: 36 un-awaited async `toExitWith` matchers, all of them assertions that
-  // could not fail their own test. Nothing else in the stack can see a dropped Promise.
-  "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
-  "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
-  ...REAL_TYPE_RULES,
-  // The §5.5 string-union dispatch law: a default catch-all lets a new member inherit an arm silently.
   "@typescript-eslint/switch-exhaustiveness-check": "error",
-  // Caught a real object interpolation that would have rendered `[object Object]` in gate output.
   "@typescript-eslint/restrict-template-expressions": "error",
   "@typescript-eslint/no-deprecated": "error",
 };
-
-// Generic typed correctness + TSDoc checks cover every non-browser package source. This
-// includes showcase-plugins' standalone guest packer, without placing its guest runtime content in an
-// app-specific brand/domain group. ui/client retain their browser/React policy above.
-const TSDOC_SURFACE = NON_BROWSER_PACKAGE_SRC;
-
-// Reused restricted-syntax selectors. ESLint flat-config REPLACES `no-restricted-syntax` per matching
-// file (it does NOT merge across config objects), so any block that wins for a file must re-list every
-// selector that should apply there — hence these are shared consts, not inline.
-const NO_STORE_STATICS = {
-  selector: "CallExpression[callee.object.name=/^use.*Store$/][callee.property.name=/^(setState|getState)$/]",
-  message: "Don't reach into a zustand store's static setState/getState from outside state/. Define an action in the store file and call that.",
-};
-// COMPOSE-ONLY KEYSTONE — a feature ASSEMBLES @orb/ui primitives + the layout kit; it never PAINTS.
-// No className/style on a raw intrinsic (lowercase-tag) element. The kit is the only painter (§1.1/§4).
-const INTRINSIC_EL = "JSXOpeningElement[name.type='JSXIdentifier'][name.name=/^[a-z]/]";
-const NO_CLASSNAME_ON_INTRINSIC = {
-  selector: `${INTRINSIC_EL} > JSXAttribute[name.name='className']`,
-  message:
-    "No className on a raw HTML element in a feature — compose @orb/ui primitives + <Stack>/<Row>/<Section>/<Container>. A styled element belongs in @orb/ui (the kit is the only painter — UI-Arch §1.1/§4).",
-};
-const NO_STYLE_ON_INTRINSIC = {
-  selector: `${INTRINSIC_EL} > JSXAttribute[name.name='style']`,
-  message: "No inline style on a raw HTML element in a feature — styling lives in @orb/ui, tokens only (UI-Arch §1.1).",
-};
-// SYNTAX BANS, each over the population of the structural gate it replaced. The selector sets are layered
-// (authored → shipped → client) because a later `no-restricted-syntax` block replaces an earlier one per file.
-const NO_DECORATORS = {
-  selector: "Decorator",
-  message:
-    "Decorators are not erasable syntax — tsx/node type-stripping has no decorator runtime (a runtime error) and the erasableSyntaxOnly flag does not catch them. Use function composition or a zod schema (Spine-TypeScript-and-Patterns.md §5).",
-};
-const NO_DEFAULT_PROPS = {
-  selector: ":matches(MemberExpression[computed=false][property.type='Identifier'], JSXMemberExpression)[property.name='defaultProps']",
-  message: "defaultProps is deprecated in modern React — use default parameters in the component signature instead.",
-};
-// An inline `queryKey: [...]` array diverges from the key the tRPC options proxy mints. esquery cannot recurse,
-// so the `as`/`satisfies` wrapper chain around the array literal is unrolled to a fixed depth.
-const QUERY_KEY_PROPERTY = "Property[computed=false][key.type='Identifier'][key.name='queryKey']";
-const QUERY_KEY_WRAPPER = ":matches(TSAsExpression, TSSatisfiesExpression)";
-const QUERY_KEY_WRAPPER_DEPTH = 8;
-const NO_ARRAY_LITERAL_QUERYKEY = {
-  selector: Array.from({ length: QUERY_KEY_WRAPPER_DEPTH + 1 }, (_, depth) =>
-    [QUERY_KEY_PROPERTY, ...Array.from({ length: depth }, () => QUERY_KEY_WRAPPER), "ArrayExpression"].join(" > "),
-  ).join(", "),
-  message:
-    "Inline array-literal queryKey — client query keys are 100% tRPC-proxy-derived (trpc.<router>.<proc>.queryKey()/.queryFilter()/.pathFilter()); a hand-written key array silently diverges from the reader/invalidator's key (UI-Gates-and-Lessons.md §11.1).",
-};
-const AUTHORED_SYNTAX = [NO_DECORATORS];
-const SHIPPED_SYNTAX = [...AUTHORED_SYNTAX, NO_DEFAULT_PROPS];
-const ENTRY_LOADER_SYNTAX = [
-  {
-    selector: "ImportExpression:not([source.type='Literal'][source.value=type(string)])",
-    message: "Entry wiring uses resolved literal imports; dynamic host loading cannot bypass the native query frontier.",
-  },
-  {
-    selector: "TSImportEqualsDeclaration",
-    message: "Entry wiring uses ESM imports checked by the native query frontier, not CommonJS loader aliases.",
-  },
-  {
-    selector:
-      "ImportDeclaration[source.value=/^(node:)?process$/] > :matches(ImportNamespaceSpecifier, ImportDefaultSpecifier[local.name!='process'], ImportSpecifier)",
-    message: "Entry wiring keeps process as the checked direct binding, not a renamed, namespace or named host capability.",
-  },
-  {
-    selector: `Identifier[name='process']:not(ImportDefaultSpecifier > Identifier.local):not(MemberExpression[computed=false][property.name=/^(${ENTRY_PROCESS_PROPERTIES.join("|")})$/] > Identifier.object)`,
-    message: "Entry wiring may read its direct process status/stream fields, but cannot capture or compute a host process capability.",
-  },
-];
-const CLIENT_SYNTAX = [...SHIPPED_SYNTAX, NO_ARRAY_LITERAL_QUERYKEY];
-/** Source globs of a population root, derived from the gate runtime's own root table so the two cannot drift. */
-const rootSources = (...refs) => refs.flatMap((ref) => POPULATION_ROOTS[ref].map((root) => `${root}**/*.{ts,tsx}`));
-const AUTHORED_SRC = POPULATION_SETS["@authored"].flatMap((ref) => rootSources(ref));
-
-// These are the native source groups configured before restriction-only inputs were admitted.
-const MAINTAINED_GLOBAL_SURFACES = [
-  { files: ["**/*.{js,cjs,mjs}", ...AUTHORED_SRC, ...TSDOC_SURFACE, "scripts/probes/st-goldens/**/*.ts"] },
-  { files: NODE_TOOL_SURFACE, ignores: ["**/*.d.{ts,mts,cts}"] },
-  { files: SCRIPTS_NESTED_SURFACE, ignores: ["scripts/probes/st-goldens/**"] },
-];
-
-const GENERATED_SOURCE = ["**/*.gen.ts", "packages/ui/src/tokens/index.ts"];
-const STRICT_SYNTAX_IGNORES = [`${LEGACY_TEST_ROOT}/**`];
-const CALLER_SRC = rootSources("@client", "@ui", "@server", "@db", "@contracts", "@kit", "@inference", "@tooling", "@tests", "@scripts");
-const CALLER_IGNORES = [...STRICT_SYNTAX_IGNORES, "tooling/src/verify/gates/**"];
-const GROUP_IGNORES = [...STRICT_SYNTAX_IGNORES, "**/tests/**", "**/tools/**", "**/scripts/**", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"];
-const NO_CALLER_USER_ID = {
-  selector: ":matches(Identifier, JSXIdentifier)[name='callerUserId']",
-  message: "D19: use triggeredBy, funderUserId or runAsUserId for turn identity; the authenticated caller is Principal.userId.",
-};
-const GROUP_NAME = "/^(isGroup|isGroupChat|isGroupMode|is_group)$/";
-const NO_GROUP_BRANCH = {
-  selector: `:matches(VariableDeclarator > Identifier.id, IfStatement > Identifier.test, ConditionalExpression > Identifier.test)[name=${GROUP_NAME}]`,
-  message: "D16: group chat is data, never a branch. Gate on the roster's character count and no-op at one.",
-};
-const NO_LAYOUT_CONTEXT_PROPS = {
-  selector: "JSXAttribute[name.name=/^(compact|inDrawer|isSheet|density)$/]",
-  message: "Query the container or use data-density instead of layout-context props (UI-Architecture-and-Layout §4).",
-};
-const NO_MAIN_DOM_HTML = {
-  selector: "JSXAttribute[name.name='dangerouslySetInnerHTML']",
-  message: "D294: render raw HTML through SandboxFrame, never inject it into the main document. New injection permissions require security review.",
-};
-// The all-tag selector keeps HTML policy independent of Biome's DOM tag recognition.
-const NO_AS_CHILD_COMPOSITION = {
-  selector:
-    "JSXAttribute[name.type='JSXIdentifier'][name.name='asChild'], " +
-    "TSPropertySignature[computed=false][key.type='Identifier'][key.name='asChild'], " +
-    "TSPropertySignature[key.type='Literal'][key.value='asChild'], " +
-    "TSPropertySignature[key.type='TemplateLiteral'][key.expressions.length=0][key.quasis.0.value.cooked='asChild']",
-  message: "asChild is Radix's composition prop, not Base UI's. Use the render prop instead.",
-};
-const BROWSER_SYNTAX = [NO_LAYOUT_CONTEXT_PROPS, NO_MAIN_DOM_HTML, NO_AS_CHILD_COMPOSITION];
-const memberNamed = (name, prefix = "") =>
-  `:matches([${prefix}computed=false][${prefix}property.name='${name}'], [${prefix}computed=true][${prefix}property.type='Literal'][${prefix}property.value='${name}'], [${prefix}computed=true][${prefix}property.type='TemplateLiteral'][${prefix}property.expressions.length=0][${prefix}property.quasis.0.value.cooked='${name}'])`;
-const EFFECT_CALL = `CallExpression[arguments.length=2]:matches([callee.type='Identifier'][callee.name='useEffect'], [callee.type='MemberExpression']${memberNamed("useEffect", "callee.")})`;
-const FORM_READ = `:matches(MemberExpression${memberNamed("store")}, MemberExpression${memberNamed("values")}[object.type='MemberExpression']${memberNamed("state", "object.")})`;
-const NO_FORM_DEPENDENCY = {
-  selector: `${EFFECT_CALL} > ArrayExpression.arguments:nth-child(2) ${FORM_READ}`,
-  message: "Use form listeners.onChange or form.Subscribe, not form.store/state.values in an effect dependency array.",
-};
-const FORM_SYNTAX_SRC = [
-  "*.ts",
-  "packages/*/*.ts",
-  "packages/*/bundles/**/*.ts",
-  "packages/*/src/**/*.{ts,tsx}",
-  "playwright/**/*.{ts,tsx}",
-  "tooling/src/**/*.{ts,tsx}",
-  "tests/**/*.{ts,tsx}",
-  "scripts/**/*.{ts,tsx}",
-];
-const MUTATION_HOME = "packages/client/src/data/create-entity-mutation.ts";
-const COLLECTION_HOME = "packages/client/src/data/create-collection-surface.ts";
-const QUERY_HOMES = [MUTATION_HOME, COLLECTION_HOME];
-const queryImport = (names) => ({
-  selector: `ImportDeclaration[source.value='@tanstack/react-query'] > ImportSpecifier[imported.name=/^(${names.join("|")})$/]`,
-  message: "Use createEntityMutation or createCollectionSurface; only the owning factory imports its raw query hook.",
-});
-const NO_RAW_QUERY_HOOKS = queryImport(["useMutation", "useInfiniteQuery"]);
-const ROUTES_SRC = "packages/client/src/routes/**/*.{ts,tsx}";
-const APP_ROOT = "packages/client/src/routes/app-root.tsx";
-const AUTH_ROUTES = ["packages/client/src/routes/login-page.tsx", "packages/client/src/routes/router.tsx"];
-const routeImports = (doors = []) => ({
-  selector: `ImportDeclaration[source.value=/^#features\\u002F/]${doors.map((door) => `:not([source.value='#features/${door}'])`).join("")}`,
-  message: "A route mounts the registry-assembled shell, not a feature. Only exact composition and pre-authentication doors are permitted.",
-});
-
-const NO_MANUAL_MEMO_IMPORT = {
-  selector: `ImportDeclaration[source.value='react'] > ImportSpecifier[imported.name=/^(${MANUAL_MEMO_EXPORTS.join("|")})$/]`,
-  message: "React Compiler owns memoization; remove the manual useMemo/useCallback/memo import.",
-};
-const NO_LITERAL_RESERVATION = {
-  selector:
-    "JSXOpeningElement[name.type='JSXIdentifier'][name.name='QueryBoundary'][selfClosing=false]:not(:has(> JSXAttribute[name.name='reserveKey'])) > " +
-    "JSXAttribute[name.name='fallback'] > JSXExpressionContainer > JSXElement[openingElement.selfClosing=true][openingElement.name.type='JSXIdentifier'][openingElement.name.name='SkeletonRows'] > " +
-    "JSXOpeningElement > JSXAttribute[name.name='count'] > JSXExpressionContainer > Literal[value=type(number)]",
-  message: "A direct static SkeletonRows count guesses the settled box. Add reserveKey to QueryBoundary.",
-};
-const MEMO_NATIVE_SRC = rootSources("@client", "@ui", "@tests");
-// Native brace unions preserve OR membership without multiplying the AND alternatives below.
-const CALLER_SRC_UNION = `{${CALLER_SRC.join(",")}}`;
-const AUTHORED_SRC_UNION = `{${AUTHORED_SRC.join(",")}}`;
-const MEMO_NATIVE_SRC_UNION = `{${MEMO_NATIVE_SRC.join(",")}}`;
-
-// Flat config replaces rule arrays. Repeat the applicable native layers in each existing override partition.
-function syntaxBlocks(files, selectors, ignores = []) {
-  const base = [...selectors, NO_FORM_DEPENDENCY];
-  const blocks = [
-    { files, ...(ignores.length === 0 ? {} : { ignores }), rules: { "no-restricted-syntax": ["error", ...selectors] } },
-    { files, ignores: [...ignores, ...STRICT_SYNTAX_IGNORES], rules: { "no-restricted-syntax": ["error", ...base] } },
-    {
-      files: files.map((file) => [file, CALLER_SRC_UNION]),
-      ignores: [...ignores, ...CALLER_IGNORES],
-      rules: { "no-restricted-syntax": ["error", ...base, NO_CALLER_USER_ID] },
-    },
-    {
-      files: files.map((file) => [file, AUTHORED_SRC_UNION]),
-      ignores: [...ignores, ...GROUP_IGNORES],
-      rules: { "no-restricted-syntax": ["error", ...base, NO_GROUP_BRANCH] },
-    },
-    {
-      files: files.map((file) => [file, CALLER_SRC_UNION]),
-      ignores: [...ignores, ...CALLER_IGNORES, ...GROUP_IGNORES],
-      rules: { "no-restricted-syntax": ["error", ...base, NO_CALLER_USER_ID, NO_GROUP_BRANCH] },
-    },
-  ];
-  const layered = blocks.flatMap((block) => [
-    block,
-    {
-      files: block.files.map((file) => [...(Array.isArray(file) ? file : [file]), AUTHORED_SRC_UNION]),
-      ignores: [...(block.ignores ?? []), ...STRICT_SYNTAX_IGNORES, "**/*.test.{ts,tsx}", ...QUERY_HOMES],
-      rules: { "no-restricted-syntax": [...block.rules["no-restricted-syntax"], NO_RAW_QUERY_HOOKS] },
-    },
-  ]);
-  return layered.flatMap((block) => [
-    block,
-    {
-      ...block,
-      files: block.files.map((file) => [...(Array.isArray(file) ? file : [file]), MEMO_NATIVE_SRC_UNION]),
-      ignores: [...(block.ignores ?? []), ...STRICT_SYNTAX_IGNORES, ...Object.values(MANUAL_MEMO_CUSTOM_HOMES)],
-      rules: { "no-restricted-syntax": [...block.rules["no-restricted-syntax"], NO_MANUAL_MEMO_IMPORT] },
-    },
-    {
-      ...block,
-      files: block.files.map((file) => [...(Array.isArray(file) ? file : [file]), CLIENT_SRC]),
-      rules: { "no-restricted-syntax": [...block.rules["no-restricted-syntax"], NO_MANUAL_MEMO_IMPORT, NO_LITERAL_RESERVATION] },
-    },
-  ]);
-}
-
-// ── RESTRICTIONS: one core restriction rule per structural gate it replaced ─────────────────────────────
-// Each entry publishes ESLint's own `no-restricted-syntax` / `no-restricted-globals` under the former gate's id
-// (`orb/<id>`), so a ban carries its own scope and its own HOME list. Flat config replaces a rule's options
-// per file, which would make two bans on one core rule fight; one rule name per ban makes that impossible.
-//
-// A `homes` entry is the one module that legitimately OWNS the capability the ban fences (the matchMedia
-// reader, the persist factory); `why` says so. A `deferred` entry is a site that still breaks the ban and
-// cannot be fixed locally; `item` is its proposed work item, so the list only shrinks. Neither is ever an
-// inline `eslint-disable`. A path that stops existing reds `eslint-grant-liveness`.
-const TEST_FILES = "**/*.test.{ts,tsx}";
-const CLIENT_FEATURES = "packages/client/src/features/**/*.{ts,tsx}";
-const CLIENT_FEATURES_TSX = "packages/client/src/features/**/*.tsx";
-const SERVER_TRANSPORT = "packages/server/src/transport/**/*.{ts,tsx}";
-const alternation = (names) => `/^(${names.join("|")})$/`;
-const TANSTACK_FORM_MINTS = ["useForm", "createFormHook", "createFormHookContexts"];
-const MATCH_MEDIA = "matchMedia";
-const SESSION_CHANNEL_CONSTRUCTORS = new Set(["BroadcastChannel"]);
-const SESSION_CHANNEL_MESSAGE =
-  "A BroadcastChannel outside packages/client/src/lib/session-channel.ts: cross-tab messaging has one typed home that carries session lifecycle and durable-local pokes, never server truth (D138). Add the message kind to SessionMessage and post it through postSessionMessage.";
-const FIREHOSE_SYMBOL = "subscribeAllChatEvents";
 const SETTINGS_TABLE_IMPORT = {
   regex: "^@orb/db(?:/(?:schema|index))?$",
   importNames: ["settings"],
   message: "The settings domain owns this table; inject its registered prefix-scoped KV port.",
 };
+const PNG_CHUNK_IMPORT = {
+  regex: "^@orb/kit/png-card-chunk(?:/|$)",
+  importNames: ["readCardChunk", "writeCardChunk", "isPng"],
+  message: "Use the import or export domain for PNG card-chunk operations.",
+};
+const SERVER_SYNTAX = [
+  {
+    selector: String.raw`:matches(Literal[value=type(string)][raw=/corsproxy\.io/], TemplateElement[value.raw=/corsproxy\.io/])`,
+    message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
+  },
+];
+
+const LEGACY_TEST_ROOT = "tests/legacy";
+
+const ROOT_SPAN_OPENERS = ["withRequestSpan", "superviseDetached", "superviseSettled"];
+
+const PRODUCT_SOURCE = rootSources("@client", "@ui", "@server", "@db", "@contracts", "@kit", "@showcase", "@default-content", "@inference");
+
+const CLIENT_SRC = "packages/client/src/**/*.{ts,tsx}";
+
+function rootSources(...refs) {
+  return refs.map((ref) => {
+    const root =
+      { "@tooling": "tooling/src", "@tests": "tests", "@scripts": "scripts", "@ui-authoring": "packages/ui", "@showcase": "packages/showcase-plugins/src" }[
+        ref
+      ] ?? `packages/${ref.slice(1)}/src`;
+    return `${root}/**/*.{ts,tsx}`;
+  });
+}
+
+const AUTHORED_SRC = rootSources(
+  "@client",
+  "@ui",
+  "@ui-authoring",
+  "@server",
+  "@db",
+  "@contracts",
+  "@kit",
+  "@showcase",
+  "@plugin-toolchain",
+  "@default-content",
+  "@inference",
+  "@tooling",
+  "@tests",
+  "@scripts",
+);
+
+const STRICT_SYNTAX_IGNORES = [`${LEGACY_TEST_ROOT}/**`];
+
+const memberNamed = (name, prefix = "") =>
+  `:matches([${prefix}computed=false][${prefix}property.name='${name}'], [${prefix}computed=true][${prefix}property.type='Literal'][${prefix}property.value='${name}'], [${prefix}computed=true][${prefix}property.type='TemplateLiteral'][${prefix}property.expressions.length=0][${prefix}property.quasis.0.value.cooked='${name}'])`;
+
+const TEST_FILES = "**/*.test.{ts,tsx}";
+
+const CLIENT_FEATURES = "packages/client/src/features/**/*.{ts,tsx}";
+
+const CLIENT_FEATURES_TSX = "packages/client/src/features/**/*.tsx";
+
+const SERVER_TRANSPORT = "packages/server/src/transport/**/*.{ts,tsx}";
+
+const alternation = (names) => `/^(${names.join("|")})$/`;
+
+const TANSTACK_FORM_MINTS = ["useForm", "createFormHook", "createFormHookContexts"];
+
+const MATCH_MEDIA = "matchMedia";
+
+const SESSION_CHANNEL_CONSTRUCTORS = new Set(["BroadcastChannel"]);
+
+const SESSION_CHANNEL_MESSAGE =
+  "A BroadcastChannel outside packages/client/src/lib/session-channel.ts: cross-tab messaging has one typed home that carries session lifecycle and durable-local pokes, never server truth (D138). Add the message kind to SessionMessage and post it through postSessionMessage.";
+
+const FIREHOSE_SYMBOL = "subscribeAllChatEvents";
+
 const POST_ROW_IDENTITY_NAMES = alternation([
   "Principal",
   "Can",
@@ -748,23 +180,30 @@ const INFRA_AUTH_RESTRICTIONS = [
   },
 ];
 
-// Table names are matched from any source, so an unreadable or relabelled door is refused rather than admitted.
-// A whole-db namespace, star or dynamic door is refused outright, because its members cannot be told apart here.
-// The re-export rows have no homes: a home that re-exported a table would launder it through a namespace import.
 const DB_MODULE_SOURCE = String.raw`/^@orb\/db(\/|$)|\/db\/src(\/|$)/`;
+
 const SERVER_SRC = rootSources("@server");
+
 const tableImportDoor = (names) => `ImportSpecifier:matches([imported.name=${names}], [imported.value=${names}])`;
+
 const tableExportDoor = (names) => `ExportSpecifier:matches([local.name=${names}], [local.value=${names}])`;
+
 const DB_STAR_EXPORT = `ExportAllDeclaration[source.value=${DB_MODULE_SOURCE}]`;
+
 const DB_WHOLE_MODULE_DOORS = `:matches(ImportDeclaration[source.value=${DB_MODULE_SOURCE}] > ImportNamespaceSpecifier, ExportAllDeclaration[source.value=${DB_MODULE_SOURCE}], ImportExpression[source.value=${DB_MODULE_SOURCE}])`;
+
 const STATS_ROLLUP_TABLES = alternation(["ownerStats", "characterStats", "dailyStats", "modelStats"]);
-// The vector substrate's primary tables (D20, Knowledge-Cluster inv 1-2).
+
 const VECTOR_TABLES = alternation(["characterEmbeddings", "imageEmbeddings", "chatDigests", "chatSegments", "chatDigestSpeakers", "documentChunks"]);
+
 const VECTOR_WRITE_METHODS = alternation(["insert", "update", "delete"]);
+
 const USERS_MESSAGE =
   "The users table is read and written only by domain/sessions and domain/admin (Spine-Identity-and-Auth §1, invariant 10). Take userId from the resolved Principal instead.";
+
 const VECTOR_MESSAGE =
   "A vector table is named only by its import roles: embeddings (owner), search/persistence (retrieval), chat/memory/persistence (bookkeeping), discovery/persistence (analytics) and the debug probes (D20). Go through the search engine with a producer scope.";
+
 const TABLE_IMPORT_RESTRICTIONS = [
   {
     // Knowledge-Cluster.md §7 #7: discovery is semantics; usage economics arrive only as injected stats ops.
@@ -854,96 +293,96 @@ const TABLE_IMPORT_RESTRICTIONS = [
   },
 ];
 
-// A registered instrument reports a verdict about the app, where a blind zero reads as a pass, so its result enters
-// the shared printVerdict denominator door. Banning the NAME stops an alias, a barrel and a re-export alike; the
-// namespace and star forms are banned on the artifacts door itself because they carry no name to match.
-const ARTIFACTS_DOOR_SOURCE = "/artifacts(\\.ts)?$/";
-const PRINT_RESULT_NAME = "printResult";
-const INSTRUMENT_VERDICT_RESTRICTIONS = [
-  {
-    id: "instrument-verdict-door",
-    scope: INSTRUMENT_TOOLS.map((tool) => `tooling/src/${tool}/**/*.{ts,tsx}`),
-    homes: [],
-    selectors: [
-      {
-        selector: `ImportDeclaration > ImportSpecifier:matches([imported.name='${PRINT_RESULT_NAME}'], [imported.value='${PRINT_RESULT_NAME}'])`,
-        message: "A registered instrument enters the shared verdict door; route its RESULT through printVerdict with declared denominators, never printResult.",
-      },
-      {
-        selector: `ExportNamedDeclaration[source] > ExportSpecifier:matches([local.name='${PRINT_RESULT_NAME}'], [local.value='${PRINT_RESULT_NAME}'])`,
-        message: "A registered instrument cannot re-export printResult; route its RESULT through printVerdict with declared denominators.",
-      },
-      {
-        selector: `ImportDeclaration[source.value=${ARTIFACTS_DOOR_SOURCE}] > ImportNamespaceSpecifier`,
-        message: "A namespace import of the artifacts door reaches printResult; import print by name and route the RESULT through printVerdict.",
-      },
-      {
-        selector: `ExportAllDeclaration[source.value=${ARTIFACTS_DOOR_SOURCE}]`,
-        message: "A star re-export of the artifacts door reaches printResult; route the RESULT through printVerdict.",
-      },
-    ],
-  },
-];
-
-// ── IDENTITY WRITERS: invariant 10's bind-once chokepoint and D257's key-beside-handle rule ─────────────────
-// HARD (`hardConfig` only): an inline directive cannot excuse a third subject writer. These rules match the users
-// table, its write verbs and the subject column by name and spelling, so `users-write-plain-spelling` refuses the
-// import alias, the type wrappers and the computed verbs that would hide a users write from them.
 const SESSIONS_SRC = "packages/server/src/domain/sessions";
+
 const USERS_PERSISTENCE = `${SESSIONS_SRC}/persistence/users.ts`;
+
 const LINK_CAPABILITY = `${SESSIONS_SRC}/verbs/link-external-id.ts`;
+
 const PROVISION_CAPABILITY = `${SESSIONS_SRC}/verbs/provision-identity.ts`;
+
 const PENDING_SIGNUP_CAPABILITY = `${SESSIONS_SRC}/verbs/pending-signup.ts`;
+
 const CLAIM_WRITER = "claimExternalIdIfUnbound";
+
 const PENDING_JOIN_WRITER = "insertPendingSignupUserStatement";
+
 const SUBJECT_WRITER_NAMES = alternation([CLAIM_WRITER, PENDING_JOIN_WRITER]);
+
 const SUBJECT_KEYS = alternation(["externalId", "external_id"]);
+
 const IDENTITY_WRITER_MESSAGE =
   "Invariant 10: bind users.externalId only through the registered sessions capabilities (provisionIdentity, linkExternalId, the D259 pending-join confirm) and their writers in sessions/persistence/users.ts.";
+
 const PLAIN_SPELLING_MESSAGE =
   "Spell the users table and its write chain plainly: an import alias, a type wrapper or a computed verb hides the write from the identity-writer rules.";
+
 const memberAt = (path, name) => memberNamed(name, path === "" ? "" : `${path}.`);
-// `value` is an esquery value, a quoted name or a regex. Each covers the plain, string and template spellings.
+
 const memberSpelledAt = (path, value) =>
   `:matches([${path}.computed=false][${path}.property.name=${value}], [${path}.computed=true][${path}.property.type='Literal'][${path}.property.value=${value}], [${path}.computed=true][${path}.property.type='TemplateLiteral'][${path}.property.expressions.length=0][${path}.property.quasis.0.value.cooked=${value}])`;
+
 const keySpelled = (value) =>
   `:matches([computed=false][key.type='Identifier'][key.name=${value}], [key.type='Literal'][key.value=${value}], [computed=true][key.type='TemplateLiteral'][key.expressions.length=0][key.quasis.0.value.cooked=${value}])`;
+
 const stringSpelled = (value) =>
   `:matches(Literal[value=${value}]:not(TSLiteralType > Literal), TemplateLiteral[expressions.length=0]:not(TSLiteralType > TemplateLiteral) > TemplateElement[value.cooked=${value}])`;
+
 const TYPE_WRAPPER = ":matches(TSAsExpression, TSSatisfiesExpression, TSNonNullExpression, TSTypeAssertion)";
+
 const DATA_WRAPPER = ":matches(TSAsExpression, TSSatisfiesExpression, TSTypeAssertion)";
+
 const usersTableAt = (path) => `:matches([${path}.type='Identifier'][${path}.name='users'], [${path}.type='MemberExpression']${memberAt(path, "users")})`;
+
 const USERS_TABLE_CALL = `CallExpression:matches(${memberAt("callee", "insert")}, ${memberAt("callee", "update")})${usersTableAt("arguments.0")}`;
+
 const USERS_INSERT_VALUES = `CallExpression${memberAt("callee", "values")}[callee.object.type='CallExpression']${memberAt("callee.object.callee", "insert")}${usersTableAt("callee.object.arguments.0")}`;
+
 const USERS_UPDATE_SET = `CallExpression${memberAt("callee", "set")}[callee.object.type='CallExpression']${memberAt("callee.object.callee", "update")}${usersTableAt("callee.object.arguments.0")}`;
+
 const USERS_ROW_WRITE = `:matches(${USERS_INSERT_VALUES}, ${USERS_UPDATE_SET})`;
+
 const USERS_UPSERT = `CallExpression${memberAt("callee", "onConflictDoUpdate")}[callee.object.type='CallExpression']${memberAt("callee.object.callee", "values")}[callee.object.callee.object.type='CallExpression']${memberAt("callee.object.callee.object.callee", "insert")}${usersTableAt("callee.object.callee.object.arguments.0")}`;
+
 const UPSERT_SET_KEY = `Property${keySpelled("'set'")}`;
+
 const USERS_POSITIONAL_INSERT = `CallExpression${memberAt("callee", "select")}[callee.object.type='CallExpression']${memberAt("callee.object.callee", "insert")}${usersTableAt("callee.object.arguments.0")}[arguments.length>0]`;
+
 const PERSISTENCE_VERB = (name) => `CallExpression:matches([callee.name='${name}'], ${memberAt("callee", name)})`;
+
 const USERS_DATA_CALL = `:matches(${USERS_ROW_WRITE}, ${USERS_UPSERT}, ${PERSISTENCE_VERB("insertUser")}, ${PERSISTENCE_VERB("updateUser")})`;
-// A key or member computed from a binding: a constant can carry the subject column or a write verb under no visible name.
+
 const DYNAMIC_KEY = "Property[computed=true]:not([key.type='Literal'], [key.type='TemplateLiteral'][key.expressions.length=0])";
+
 const DYNAMIC_KEY_WRITE = `${USERS_DATA_CALL} ObjectExpression > ${DYNAMIC_KEY}`;
+
 const DYNAMIC_CALLEE =
   "[callee.type='MemberExpression'][callee.computed=true]:not([callee.property.type='Literal'], [callee.property.type='TemplateLiteral'][callee.property.expressions.length=0])";
+
 const USERS_WRITE_CALL = `CallExpression:matches([callee.name=/^(insertUser|updateUser)$/], ${["insertUser", "updateUser", "set", "values", "onConflictDoUpdate"].map((name) => memberAt("callee", name)).join(", ")})`;
-// `externalId: null` and `= undefined` bind no subject (the local-user default).
+
 const nonNullish = (path) =>
   `:not([${path}.type='Literal'][${path}.raw='null']):not([${path}.type='Identifier'][${path}.name='undefined']):not([${path}.type=/^TS(As|Satisfies)Expression$/][${path}.expression.raw='null'])`;
+
 const SUBJECT_KEYED_WRITE = `${USERS_WRITE_CALL} ObjectExpression > Property${keySpelled(SUBJECT_KEYS)}${nonNullish("value")}`;
+
 const SUBJECT_ASSIGNMENT = `AssignmentExpression:matches([operator='='], [operator='??='], [operator='||='], [operator='&&='])[left.type='MemberExpression']${memberSpelledAt("left", SUBJECT_KEYS)}${nonNullish("right")}`;
+
 const INSIDE_SUBJECT_WRITER = `:matches(FunctionDeclaration[id.name=${SUBJECT_WRITER_NAMES}], VariableDeclarator[id.name=${SUBJECT_WRITER_NAMES}]) *`;
+
 const SUBJECT_STRING_MESSAGE = `${IDENTITY_WRITER_MESSAGE} A string spelling of the subject column hides the bind from these rules.`;
-// A string spelling of a writer name reaches it through a bracket read, a string import name or a const key.
+
 const writerReference = (name) => [
   { selector: `Identifier[name='${name}']`, message: IDENTITY_WRITER_MESSAGE },
   { selector: stringSpelled(`'${name}'`), message: IDENTITY_WRITER_MESSAGE },
 ];
-// Any string that reads as a users write: a `sql` template, a `sql.raw` argument, or a const either one reads.
+
 const RAW_USERS_WRITE_TEXT = "/\\b(?:insert(?:\\s+or\\s+\\w+)?\\s+into|replace\\s+into|update(?:\\s+or\\s+\\w+)?)\\s+[`\"']?users[`\"']?(?!\\w)/i";
+
 const RAW_USERS_WRITE_HEAD = "/\\b(?:insert(?:\\s+or\\s+\\w+)?\\s+into|replace\\s+into|update(?:\\s+or\\s+\\w+)?)\\s+[`\"']?$/i";
+
 const HANDLE_WITHOUT_KEY = `ObjectExpression:has(> Property${keySpelled("'handle'")}):not(:has(> Property${keySpelled("'handleKey'")}))`;
+
 const IDENTITY_WRITER_RESTRICTIONS = [
   {
     id: "external-id-claim-writer-callers",
@@ -1072,20 +511,31 @@ const IDENTITY_WRITER_RESTRICTIONS = [
 ];
 
 const CLASS_LITERAL_START = String.raw`(?:^["']|\s)`;
+
 const CLASS_LITERAL_END = String.raw`(?=\s|["']$)`;
+
 const CLASS_SPAN_START = String.raw`(?:^|\s)`;
+
 const CLASS_SPAN_END = String.raw`(?=\s|$)`;
+
 const STATIC_CLASS_SPAN = "TemplateLiteral[expressions.length=0] > TemplateElement";
+
 const ARBITRARY_CLASS = String.raw`(?:[^\s]*:)?(?:[whz]|min-w|min-h|max-w|max-h|size|p[xytrbles]?|m[xytrbles]?|gap(-x|-y)?|space-[xy]|inset(-x|-y)?|top|left|right|bottom|start|end|translate(-x|-y|-z)?|grid-(cols|rows)|text|leading|tracking|rounded)-\[(?!(?:--|var\(|calc\())[^\s:]+\]`;
+
 const NAMED_COLOR = String.raw`\b(bg|text|border|ring|fill|stroke)-(black|white)(\/\d+)?\b`;
+
 const PALETTE_COLOR = String.raw`\b(?:bg|text|border|ring|fill|stroke|from|via|to|outline|decoration|accent|caret|divide|placeholder|shadow|ring-offset)-(?:slate|gray|zinc|neutral|stone|red|orange|amber|yellow|lime|green|emerald|teal|cyan|sky|blue|indigo|violet|purple|fuchsia|pink|rose)-\d{2,3}(?:\/\d+)?\b`;
+
 const HEX_COLOR = String.raw`-\[#[0-9a-fA-F]{3,8}\]`;
+
 const VIEWPORT_CLASS = String.raw`(?:(?:max-|min-)?(?:sm|md|lg|xl|2xl)|(?:min|max)-\[[^\s\]]+\]):`;
+
 const POINTER_CLASS = String.raw`(?:any-)?pointer-(?:coarse|fine):`;
+
 const CAPABILITY_MEDIA_CLASS = String.raw`\[@media\([^\s)]*(?:any-pointer|pointer|hover):[^\s)]*\)\]:`;
+
 const WIDTH_CLASS = String.raw`(?:(?:max-|min-)?w-\[[^\s\]]+\]|(?:max-)?w-(?:[1-9]\d*|\d+\.\d+))`;
 
-// These unfenced lexical bans also judge generated declarations; carrier-aware Tailwind rules do not.
 const CLASS_RESTRICTIONS = [
   {
     id: "ui-skin-fragment-purity",
@@ -1171,7 +621,6 @@ const CLASS_RESTRICTIONS = [
   },
 ];
 
-// These decoders have a closed value API. Their native incoming doors cannot be laundered through a new export.
 const ROLE_DATA_EXPORTS = [
   { path: "primitives/role-data/index.ts", names: ["captureUserRole", "captureParticipantRole"] },
   { path: "primitives/role-data/registry.ts", names: ["userRoleCodes", "participantRoleCodes"] },
@@ -1338,6 +787,7 @@ const ROLE_DATA_EXPORTS = [
   { path: "domain/chat/verbs/read.ts", names: ["createRead"] },
   { path: "domain/chat/verbs/participants.ts", names: ["createParticipants", "setParticipantActivePersona"] },
 ];
+
 const ROLE_DATA_RESTRICTIONS = ROLE_DATA_EXPORTS.map(({ path, names }, index) => ({
   id: `role-data-export-surface-${index}`,
   scope: [`packages/server/src/${path}`],
@@ -1354,6 +804,7 @@ const ROLE_DATA_RESTRICTIONS = ROLE_DATA_EXPORTS.map(({ path, names }, index) =>
     },
   ],
 }));
+
 const TURN_IDENTITY_RESTRICTIONS = [
   {
     id: "turn-identity-name",
@@ -1388,22 +839,24 @@ const TURN_IDENTITY_RESTRICTIONS = [
   },
 ];
 
-// ── PRINCIPAL CONSTRUCTION (D1/D40)───────────────────────────────────────────────────────────────────────
-// SECURITY: the contracts brand makes a literal, a spread or a `satisfies` check a type error. tsc still accepts an
-// `any` value, an Object.assign intersection and any value asserted past the brand, so these rules refuse those
-// spellings in server and inference code. HARD (`hardConfig` only): no inline directive or bulk suppression excuses
-// one. Each rule exempts registered functions, never a whole file, so a new mint site is a reviewed edit here.
 const PRINCIPAL_SCOPE = rootSources("@server", "@inference");
+
 const PRINCIPAL_MINT_HOME = "packages/server/src/entry/auth/principal-mint.ts";
+
 const AUTH_SEAM = "packages/server/src/entry/auth/seam.ts";
+
 const HOST_BRIDGE = "packages/server/src/entry/compose/chat.ts";
+
 const PRINCIPAL_MINT_NAME = "mintPrincipal";
+
 const PRINCIPAL_CONSTRUCTOR = { path: PRINCIPAL_MINT_HOME, name: PRINCIPAL_MINT_NAME };
+
 const ROW_MAPPER = { path: AUTH_SEAM, name: "principalFromRow" };
+
 const HOST_FLOOR = { path: HOST_BRIDGE, name: "hostPrincipal" };
-/** Functions that may return a bare Principal: the constructor, the row mapper (D135) and the host floor (invariant 1). */
+
 const PRINCIPAL_RETURN_SITES = [PRINCIPAL_CONSTRUCTOR, ROW_MAPPER, HOST_FLOOR];
-/** Functions that may call the constructor: the three request paths of the seam, the row mapper and the host floor. */
+
 const PRINCIPAL_MINT_CALLERS = [
   PRINCIPAL_CONSTRUCTOR,
   { path: AUTH_SEAM, name: "resolveCookiePrincipal" },
@@ -1411,12 +864,15 @@ const PRINCIPAL_MINT_CALLERS = [
   ROW_MAPPER,
   HOST_FLOOR,
 ];
+
 const PRINCIPAL_TYPE_REFERENCE = "TSTypeReference:matches([typeName.name='Principal'], [typeName.right.name='Principal'])";
+
 const PRINCIPAL_FUNCTIONS = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
+
 const PRINCIPAL_CASTS = new Set(["TSAsExpression", "TSTypeAssertion"]);
+
 const PRINCIPAL_WRAPPERS = new Set([...PRINCIPAL_CASTS, "TSSatisfiesExpression", "TSNonNullExpression"]);
-// The children an expression's value or leading `{` can come from. The walk has no depth bound, so stacking
-// assertions, parentheses or a member read cannot carry a literal past it.
+
 const PRINCIPAL_VALUE_SOURCES = {
   TSAsExpression: ["expression"],
   TSSatisfiesExpression: ["expression"],
@@ -1433,6 +889,7 @@ const PRINCIPAL_VALUE_SOURCES = {
   CallExpression: ["callee"],
   TaggedTemplateExpression: ["tag"],
 };
+
 const PRINCIPAL_LITERAL_MESSAGE =
   "D1/D40: an object literal in a Principal position is a hand-built identity; tsc accepts it only when the literal is any-typed or asserted past the brand. Receive the caller's Principal or resolve one through the entry mint.";
 
@@ -1441,7 +898,6 @@ const isPrincipalType = (type) =>
   ((type.typeName.type === "Identifier" && type.typeName.name === "Principal") ||
     (type.typeName.type === "TSQualifiedName" && type.typeName.right.name === "Principal"));
 
-/** The declared name of a function: its own id, or the binding, property or method key that holds it. */
 function principalFunctionName(fn) {
   if (fn.id?.type === "Identifier") {
     return fn.id.name;
@@ -1454,7 +910,6 @@ function principalFunctionName(fn) {
   return keyed && parent.key.type === "Identifier" ? parent.key.name : null;
 }
 
-/** Whether the function nearest `node` (or `node` itself) is one of `sites` in this file. A nested callback is not. */
 function inPrincipalSite(context, node, sites) {
   const path = relative(context.cwd, context.filename).replaceAll("\\", "/");
   const fn = PRINCIPAL_FUNCTIONS.has(node.type) ? node : context.sourceCode.getAncestors(node).findLast((ancestor) => PRINCIPAL_FUNCTIONS.has(ancestor.type));
@@ -1462,7 +917,6 @@ function inPrincipalSite(context, node, sites) {
   return sites.some((site) => site.path === path && site.name === name);
 }
 
-/** Every object literal the value of `expression` can be built from, at any depth. */
 function principalLiterals(expression) {
   if (expression === null || expression === undefined) {
     return [];
@@ -1495,7 +949,6 @@ const principalAssertionRule = {
   },
 };
 
-// tsc accepts an `any` value (JSON.parse, an untyped row) in a Principal return position, so each return site is registered.
 const principalReturnSiteRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -1582,7 +1035,6 @@ const principalLiteralRule = {
   },
 };
 
-// At a call such as `actAs({ ...caller, userId } as never)` no Principal annotation exists for principal-literal to read.
 const principalBrandLaunderRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -1612,12 +1064,14 @@ const principalBrandLaunderRule = {
 };
 
 const PRINCIPAL_NAME = "Principal";
+
 const PRINCIPAL_ALIAS_MESSAGE =
   "D1/D40: every Principal rule keys on the name `Principal`, so a renamed spelling would walk past all of them. Name the type `Principal` where it is used.";
+
 const isPrincipalName = (node) => (node?.type === "Identifier" && node.name === PRINCIPAL_NAME) || (node?.type === "Literal" && node.value === PRINCIPAL_NAME);
+
 const isPrincipalExpression = (node) => isPrincipalName(node) || (node?.type === "MemberExpression" && isPrincipalName(node.property));
 
-/** Whether `type` is a Principal, or lists, unions, wraps or indexes one. A function or object type only uses it. */
 function namesPrincipal(type) {
   switch (type?.type) {
     case "TSTypeReference":
@@ -1641,7 +1095,6 @@ function namesPrincipal(type) {
   }
 }
 
-/** Whether `identifier` binds, in its own file, a variable or parameter annotated as a Principal. */
 function principalTypedBinding(context, identifier) {
   for (let scope = context.sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
     const variable = scope.set.get(identifier.name);
@@ -1714,62 +1167,10 @@ const PRINCIPAL_RULES = [
   },
 ];
 
-// D22 member-card clamp, D16/D18 chat member fan, and the injected-op scope boundary (Spine-Identity-and-Auth §2b).
 const MEMBER_CARD_VIEW = "MemberCardView";
+
 const MEMBER_CARD_CLAMPS = alternation(["clampMemberCard", "resolveCardVisibility"]);
-const INJECTED_OP_RULE = "injected-op-caller-param";
-/** A param name, destructured element, member name or type spelling that carries the caller scope. */
-const INJECTED_OP_SCOPE_NAMES = [
-  "principal",
-  "caller",
-  "actor",
-  "userId",
-  "ownerId",
-  "chatId",
-  "actorUserId",
-  "recipientUserId",
-  "forUserId",
-  "runAsUserId",
-  "hostUserId",
-  "subjectUserId",
-  "triggeredBy",
-  "Principal",
-  "UserId",
-];
-/** Ops whose authority is not the caller's. Each row says why and what ends it; the native suite reds a row
- *  that no longer excuses a live contract declaration, so a stale name cannot license the next op. */
-const CALLER_FREE_OPS = [
-  {
-    op: "ReapAssetsOp",
-    why:
-      "the authority is structural, not the caller's: `reapIfOrphan` purges an id only when the whole asset-ref registry holds no " +
-      "reference to it (`selectReferencedAmong`), so a foreign id that is still referenced is skipped and a foreign id referenced by " +
-      "nothing is an orphan blob `collectGarbage` would reap anyway. Un-principal by design (D20, `assets/verbs/reap-if-orphan.ts`) " +
-      "and it returns no row data. Ends the day the reap stops consulting the reference registry first.",
-  },
-  {
-    op: "LoadAssetBytesOp",
-    why:
-      "D20 un-principal blob read for the databank ingest path, which runs after the enqueue authority check (the workload row's " +
-      "owner is the gate). `assets/contract/service.ts` names it the un-principal read, distinct from the principal-carrying door. " +
-      "Ends if ingest ever runs on caller-supplied ids.",
-  },
-  {
-    op: "LoadCardText",
-    why:
-      "the embeddings card-text read: the indexer and corpus passes read ids they enumerated themselves (`listEmbeddableCharacterIds`, " +
-      "D20 un-principal), and the admin inline embed (`admin/verbs/card-embed.ts`) reaches it only after `getCard({ principal, characterId })` " +
-      "owner-verified the id. Ends when the op takes the owner scope, or when a caller reaches it without an owner check first.",
-  },
-];
-// Settings carry the derived vocabulary so a TypeIdOf change in the ids home invalidates cached lint results.
-const INJECTED_OP_SETTINGS = {
-  [`orb/${INJECTED_OP_RULE}`]: {
-    entityIds: requireEntityIdTypeNames(readFileSync(join(ROOT, ID_BRAND_HOME), "utf8")),
-    scopeNames: INJECTED_OP_SCOPE_NAMES,
-    callerFreeOps: CALLER_FREE_OPS,
-  },
-};
+
 const SERVER_SCOPE_RESTRICTIONS = [
   {
     id: "member-card-clamped",
@@ -1822,100 +1223,48 @@ const SERVER_SCOPE_RESTRICTIONS = [
       },
     ],
   },
-  { id: INJECTED_OP_RULE, scope: ["packages/server/src/domain/*/contract/**/*.{ts,tsx}"], homes: [] },
 ];
 
-/** Every identifier name in a parameter subtree, the parameter's own binding name included. */
-function parameterNames(node, visitorKeys, names = []) {
-  if (node.type === "Identifier") {
-    names.push(node.name);
-  }
-  for (const key of visitorKeys[node.type] ?? []) {
-    for (const child of [node[key]].flat()) {
-      if (typeof child?.type === "string") {
-        parameterNames(child, visitorKeys, names);
-      }
-    }
-  }
-  return names;
-}
-
-// A Promise-returning function type in a contract is an I/O door; the scope must ride its parameters, because
-// otherwise the op is safe only by its call sites' discipline. A sync function type is a computation, and an id
-// reached through a named parameter type is outside this syntactic check.
-const injectedOpCallerParamRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const { entityIds, scopeNames, callerFreeOps } = context.settings[`orb/${INJECTED_OP_RULE}`];
-    const entity = new Set(entityIds);
-    const scope = new Set(scopeNames);
-    const exempt = new Set(callerFreeOps.map(({ op }) => op));
-    return {
-      "TSTypeAliasDeclaration[typeAnnotation.type='TSFunctionType']"(node) {
-        const fn = node.typeAnnotation;
-        const returned = fn.returnType?.typeAnnotation;
-        if (returned?.type !== "TSTypeReference" || returned.typeName.type !== "Identifier" || returned.typeName.name !== "Promise") {
-          return;
-        }
-        const names = fn.params.flatMap((param) => parameterNames(param, context.sourceCode.visitorKeys));
-        if (!names.some((name) => entity.has(name)) || names.some((name) => scope.has(name)) || exempt.has(node.id.name)) {
-          return;
-        }
-        context.report({
-          node: node.id,
-          message:
-            `${node.id.name}: a cross-domain op takes an entity id but no caller. The op is the domain boundary, so it must carry the scope: ` +
-            "a `principal: Principal`, an `ownerId`/`userId: UserId`, or the `chatId` the membership check runs on, applied in the implementing " +
-            "factory's WHERE. A genuinely un-principal op (D20) takes a CALLER_FREE_OPS row in eslint.config.js with its reason and end condition.",
-        });
-      },
-    };
-  },
-};
-
-// Ambient doors with one owner each: network egress (D61 B5a), the process environment (Tier-2-Foundation.md
-// invariant 1) and the stateful hidden-span scrubber (D118). The egress and env rules follow bindings, not
-// spellings: a shadowing local passes, while an alias, a destructure or a TypeScript cast of the global is
-// still the global. They judge one file at a time, so exporting or re-exporting a door is itself a finding.
-//
-// SECURITY: a value imported from another module may be the process or its bag under any name, and a rule
-// that reads one file cannot see what that module exports, so the env rule fails closed on an `env` key
-// read anywhere on an imported value. A TypeScript `declare` emits no code, so a declared `fetch`, `process`
-// or global root is still the global, and an `env` read off any other declared name fails closed.
-//
-// NOT CLAIMED by the env rule: a written alias cycle with no `process` origin (`const a = b; const b = a;
-// a.env.X = 1`), which throws in its temporal dead zone before the read; a per-key grain inside the sole
-// reader, which is one whole-file home; and an `env` key taken off an imported value or a declared global
-// through a computed key no `const` binds to a string literal (`door[k]` with `k` a parameter, a `let`, a
-// pattern binding or a call). A key a `const` chain binds to a string literal is read as that name. Failing
-// closed on the unreadable key needs the receiver's type: without it every keyed lookup into an imported
-// registry (`RPG_RULESET_PROFILE[ruleset]`) is the same syntax as a laundered door, and the live tree has
-// dozens of them.
 const AMBIENT_ROOTS = new Set(["globalThis", "global", "self", "window"]);
+
 const VALUE_WRAPPERS = new Set(["TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression", "TSTypeAssertion"]);
+
 const RAW_FETCH = "fetch";
+
 const RAW_EGRESS_PACKAGES = /^(?:undici|node-fetch|cross-fetch)$/u;
+
 const NODE_HTTP_CLIENT_DOORS = new Map([
   ["http", new Set(["request", "get"])],
   ["https", new Set(["request", "get"])],
   ["http2", new Set(["connect"])],
 ]);
+
 const PROCESS_MODULE = /^(?:node:)?process$/u;
+
 const PROCESS_GLOBAL = "process";
+const BROWSER_NODE_GLOBALS = new Set([
+  ...Object.keys(
+    biomeConfig.overrides.find(({ includes, linter }) => includes?.includes("packages/client/**") && linter?.rules?.style?.noRestrictedGlobals !== undefined)
+      .linter.rules.style.noRestrictedGlobals.options.deniedGlobals,
+  ),
+  PROCESS_GLOBAL,
+]);
+
 const ENV_MEMBER = "env";
+
 const MODULE_DEFAULT = "default";
+
 const REFLECT_GLOBAL = "Reflect";
+
 const REFLECT_GET = "get";
+
 const SCRUBBER_FACTORY = "createHiddenSpanStreamScrubber";
+
 const RAW_EGRESS_MESSAGE =
   "D61 B5a: server and inference egress goes through infra/network (`safeFetch` or the configured-endpoint capability); a raw fetch or HTTP client skips the scheme pin, host allowlist, resolve-validate-pin and deadline.";
+
 const SOLE_ENV_MESSAGE = "Tier-2-Foundation.md invariant 1: foundation/env is the only process.env reader; import the frozen `env` and dot-access a typed key.";
 
-/**
- * The outermost expression that may still denote `node`'s value; a cast, a non-null assertion, an `await` (of
- * a promise for it, or of the value itself), an optional chain, a sequence that ends with it, a branch of a
- * conditional and either operand of a logical do not change it.
- */
 function valueCarrier(node) {
   let carrier = node;
   for (;;) {
@@ -1934,7 +1283,6 @@ function valueCarrier(node) {
   }
 }
 
-/** A module specifier written as a string or a substitution-free template, or `undefined` when computed. */
 function staticSource(source) {
   if (source.type === "Literal" && typeof source.value === "string") {
     return source.value;
@@ -1942,7 +1290,6 @@ function staticSource(source) {
   return source.type === "TemplateLiteral" && source.expressions.length === 0 ? source.quasis[0].value.cooked : undefined;
 }
 
-/** A static key's name, or `undefined` when the key is computed at run time. */
 function writtenKeyName(key, computed) {
   if (key.type === "Literal") {
     return String(key.value);
@@ -1953,11 +1300,6 @@ function writtenKeyName(key, computed) {
   return key.type === "TemplateLiteral" && key.expressions.length === 0 ? key.quasis[0].value.cooked : undefined;
 }
 
-/**
- * A member's key name, also through a computed key a `const` binds to a string literal, directly or through other
- * such `const` bindings (`const K = "env"; x[K]`). Any other computed key stays unknown: a `let`, a reassigned or
- * pattern binding, a parameter or a call.
- */
 function memberKeyName(sourceCode, member) {
   const written = writtenKeyName(member.property, member.computed);
   return written !== undefined || !member.computed ? written : constKeyName(sourceCode, member.property, new Set());
@@ -1981,7 +1323,6 @@ function constKeyName(sourceCode, key, seen) {
   return value.type === "Identifier" ? constKeyName(sourceCode, value, new Set(seen).add(key)) : writtenKeyName(value, true);
 }
 
-/** Whether a destructure can take `name` off its source: by key, by a run-time key, or through a rest element. */
 function patternTakes(pattern, name) {
   return (
     pattern.type === "ObjectPattern" &&
@@ -2007,20 +1348,14 @@ function inTypeQuery(node) {
   return parent?.type === "TSTypeQuery";
 }
 
-/**
- * Whether every declaration of a binding is a TypeScript `declare`. A `declare` emits no code, so at run time
- * the name still resolves to the global of that name: the declaration describes a global, it never shadows one.
- */
 function declaredOnly(variable) {
   return variable.defs.length > 0 && variable.defs.every(({ node, parent }) => node.declare === true || parent?.declare === true);
 }
 
-/** A binding the rules judge as a global: none in this file, a TypeScript lib or configured global, or one declared only with `declare`. */
 function isGlobalBinding(variable) {
   return variable === null || variable.defs.length === 0 || declaredOnly(variable);
 }
 
-/** Value references to the named globals: unresolved, bound only by a TypeScript lib or configured global, or bound only by a `declare`. */
 function ambientReferences(sourceCode, names) {
   const { globalScope, scopes } = sourceCode.scopeManager;
   const references = globalScope.through.filter(({ identifier }) => names.has(identifier.name));
@@ -2032,7 +1367,6 @@ function ambientReferences(sourceCode, names) {
   return references.map(({ identifier }) => identifier).filter((identifier) => !inTypeQuery(identifier));
 }
 
-/** The later reads of a binding declared from a value, so an alias of a door is judged as the door. */
 function aliasReads(sourceCode, declarator) {
   return sourceCode
     .getDeclaredVariables(declarator)
@@ -2041,7 +1375,6 @@ function aliasReads(sourceCode, declarator) {
     );
 }
 
-/** The reads of the binding a pattern identifier declares, such as a parameter or a destructured name with a default. */
 function boundReads(sourceCode, identifier) {
   for (let scope = sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
     const variable = scope.set.get(identifier.name);
@@ -2052,7 +1385,6 @@ function boundReads(sourceCode, identifier) {
   return [];
 }
 
-/** The variable an identifier reference resolves to, or `null` for an undeclared name. */
 function referencedVariable(sourceCode, identifier) {
   for (let scope = sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
     const reference = scope.references.find((candidate) => candidate.identifier === identifier);
@@ -2063,16 +1395,15 @@ function referencedVariable(sourceCode, identifier) {
   return null;
 }
 
-/** The other reads of the binding an assignment writes, so a reassigned alias of a door is judged as the door. */
 function assignedReads(sourceCode, target) {
   const variable = referencedVariable(sourceCode, target);
   return (variable?.references ?? []).filter((reference) => reference.identifier !== target && reference.isRead()).map(({ identifier }) => identifier);
 }
 
 const DESTRUCTURES = new Set(["ObjectPattern", "ArrayPattern"]);
-/** Assignments whose result can be the assigned value itself. */
+
 const ALIAS_ASSIGNMENTS = new Set(["=", "||=", "&&=", "??="]);
-/** Expressions that always produce a new value, so a binding written only with them never holds a door. */
+
 const FRESH_VALUES = new Set([
   "ArrayExpression",
   "ArrowFunctionExpression",
@@ -2087,7 +1418,6 @@ const FRESH_VALUES = new Set([
   "UpdateExpression",
 ]);
 
-/** Expressions whose value is picked or computed at run time, so no binding names what they hold. */
 const OPAQUE_VALUES = new Set([
   "AwaitExpression",
   "CallExpression",
@@ -2107,7 +1437,6 @@ function unwrapValue(node) {
   return value;
 }
 
-/** Whether a destructure names `name` with a static key. */
 function patternNames(pattern, name) {
   return (
     pattern.type === "ObjectPattern" &&
@@ -2115,16 +1444,10 @@ function patternNames(pattern, name) {
   );
 }
 
-/** Whether a destructure of a global root takes a nested root, such as `globalThis.globalThis`, which is the root again. */
 function takesAmbientRoot(pattern) {
   return [...AMBIENT_ROOTS].some((root) => patternNames(pattern, root));
 }
 
-/**
- * Whether a reassigned binding may hold a value the rules cannot follow: a destructuring or loop write, or a
- * write whose value is not freshly built. Its identity is then unknowable, so a door-shaped read of it fails
- * closed. A write of a door itself is followed precisely by `judgeDoorUses`.
- */
 function unknowablyReassigned(variable) {
   const writes = variable?.references.filter((reference) => reference.isWrite()) ?? [];
   if (writes.every((reference) => reference.init === true)) {
@@ -2139,11 +1462,6 @@ function unknowablyReassigned(variable) {
   });
 }
 
-/**
- * Whether an expression may hold a door the rules cannot see: a run-time result (a helper may return the
- * door), a run-time-keyed element, a binding reassigned with such a value, or a global declared outside this
- * file. A literal dynamic import names its module, and a static member path is judged at its root.
- */
 function unknowableValue(sourceCode, expression) {
   const value = unwrapValue(expression);
   if (value.type === "Identifier") {
@@ -2163,7 +1481,6 @@ function unknowableValue(sourceCode, expression) {
   return OPAQUE_VALUES.has(value.type) && !namedModule;
 }
 
-/** Whether `node` is `Reflect.get(target, key)` on the global `Reflect` with `target` as its target: it reads `target[key]`. */
 function isReflectGet(sourceCode, node, target) {
   const callee = node.type === "CallExpression" && node.arguments[0] === target ? node.callee : undefined;
   return (
@@ -2180,7 +1497,6 @@ function reflectKeyName(sourceCode, call) {
   return key === undefined ? undefined : (writtenKeyName(key, true) ?? constKeyName(sourceCode, key, new Set()));
 }
 
-/** Parents that use a value without handing it on: a comparison, arithmetic, a test or a discarded statement. */
 const CONSUMING_PARENTS = new Set([
   "BinaryExpression",
   "DoWhileStatement",
@@ -2204,13 +1520,6 @@ function consumesValue(carrier) {
   );
 }
 
-/**
- * Where a value flows: a member read of it, a destructure of it, or the reads of a binding declared, assigned
- * or defaulted from it. SECURITY: every other position that does not consume the value is an escape, because
- * it hands the value on where no binding in this file names it: an export, a call or tagged-template argument,
- * a return, a copy into an array, an object or a member, a class field. Listing the escapes instead would let
- * each unlisted position launder the door.
- */
 function flowOf(sourceCode, carrier) {
   const { parent } = carrier;
   if (parent.type === "MemberExpression") {
@@ -2231,8 +1540,6 @@ function flowOf(sourceCode, carrier) {
   return inTypeQuery(carrier) || consumesValue(carrier) ? {} : { escape: parent };
 }
 
-/** The flow into an assignment's target: a destructure, the reads of an identifier, or an escape into a member. An
- * arithmetic or string compound assignment stores a fresh value. */
 function assignmentFlow(sourceCode, assignment) {
   return ALIAS_ASSIGNMENTS.has(assignment.operator) ? targetFlow(sourceCode, assignment, assignment.left, assignedReads) : {};
 }
@@ -2254,7 +1561,6 @@ function declaratorFlow(sourceCode, declarator) {
   return { aliases: declarator.id.type === "Identifier" ? aliasReads(sourceCode, declarator) : [] };
 }
 
-/** Judge every use of a value, following bindings declared or assigned from it. */
 function judgeDoorUses(sourceCode, start, judge) {
   const seen = new Set();
   const visit = (node) => {
@@ -2279,7 +1585,6 @@ function judgeDoorUses(sourceCode, start, judge) {
   visit(start);
 }
 
-/** A report callback that reports each node once, however many arms reach it. */
 function reportOnce(context, message) {
   const reported = new Set();
   return (node) => {
@@ -2290,11 +1595,45 @@ function reportOnce(context, message) {
   };
 }
 
+const browserNoNodeGlobalsRule = {
+  meta: { type: "problem", schema: [] },
+  create(context) {
+    const { sourceCode } = context;
+    const report = reportOnce(context, "Browser source cannot use Node globals, including global-object members and aliases; use browser APIs.");
+    const fromGlobal = {
+      member(member, name) {
+        if (BROWSER_NODE_GLOBALS.has(name)) {
+          report(member);
+        } else if (AMBIENT_ROOTS.has(name)) {
+          judgeDoorUses(sourceCode, member, fromGlobal);
+        }
+      },
+      pattern(pattern) {
+        if ([...BROWSER_NODE_GLOBALS].some((name) => patternNames(pattern, name)) || takesAmbientRoot(pattern)) {
+          report(pattern);
+        }
+      },
+      escape() {
+        // Passing the browser global object alone does not name a Node capability.
+      },
+    };
+    return {
+      "Program:exit"() {
+        for (const reference of ambientReferences(sourceCode, BROWSER_NODE_GLOBALS)) {
+          report(reference);
+        }
+        for (const root of ambientReferences(sourceCode, AMBIENT_ROOTS)) {
+          judgeDoorUses(sourceCode, root, fromGlobal);
+        }
+      },
+    };
+  },
+};
+
 function moduleExportName(node) {
   return node.type === "Identifier" ? node.name : String(node.value);
 }
 
-/** The client doors a node HTTP module exposes, or `undefined` for any other module. */
 function httpClientDoors(source) {
   return NODE_HTTP_CLIENT_DOORS.get(source.replace(/^node:/u, ""));
 }
@@ -2303,7 +1642,6 @@ function namesFetch(specifier) {
   return specifier.local.name === RAW_FETCH || (specifier.type === "ImportSpecifier" && moduleExportName(specifier.imported) === RAW_FETCH);
 }
 
-/** The parts of a value import that open a raw egress door: an egress package, or a binding named fetch. */
 function egressImportDoors(node) {
   const values = node.specifiers.filter((specifier) => specifier.importKind !== "type");
   if (RAW_EGRESS_PACKAGES.test(String(node.source.value))) {
@@ -2312,10 +1650,6 @@ function egressImportDoors(node) {
   return values.filter(namesFetch);
 }
 
-/**
- * The bindings a value import of the process module opens: `env` itself, the process object, or the module
- * namespace, which carries both as its `env` and `default` members.
- */
 function processImportBindings(node) {
   const values = node.specifiers.filter((specifier) => specifier.importKind !== "type");
   const exportOf = (specifier) => (specifier.type === "ImportSpecifier" ? moduleExportName(specifier.imported) : MODULE_DEFAULT);
@@ -2326,7 +1660,6 @@ function processImportBindings(node) {
   };
 }
 
-/** Whether a value re-export forwards one of `doors` (or the module default) from its source module. */
 function reExportsDoor(node, doors) {
   if (node.exportKind === "type") {
     return false;
@@ -2394,7 +1727,6 @@ const rawEgressRule = {
   },
 };
 
-/** Reads of a local named `fetch` reassigned with a value the rule cannot follow; it may hold the global. */
 function reassignedFetchReads(sourceCode) {
   return sourceCode.scopeManager.scopes
     .flatMap(({ variables }) => variables)
@@ -2403,7 +1735,6 @@ function reassignedFetchReads(sourceCode) {
     .map(({ identifier }) => identifier);
 }
 
-// A separate rule from no-raw-egress so the D275 TLS listener's home exempts only its loopback client door.
 const rawHttpClientRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -2433,7 +1764,6 @@ const rawHttpClientRule = {
   },
 };
 
-/** The nodes a destructure target binds through; a member-expression target binds nothing. */
 const DESTRUCTURE_CHILDREN = {
   AssignmentPattern: (node) => [node.left],
   RestElement: (node) => [node.argument],
@@ -2442,7 +1772,6 @@ const DESTRUCTURE_CHILDREN = {
   Property: (node) => [node.value],
 };
 
-/** The `env`-keyed properties a destructure takes and the identifiers it binds from everything else, at any depth. */
 function destructureParts(target, parts = { envKeys: [], bound: [] }) {
   if (target.type === "Identifier") {
     parts.bound.push(target);
@@ -2456,7 +1785,6 @@ function destructureParts(target, parts = { envKeys: [], bound: [] }) {
   return parts;
 }
 
-/** The env rule's judge for an imported value: an `env` key read anywhere on it, at any depth, fails closed. */
 function importedValueJudge(sourceCode, report) {
   const judge = {
     member: (member, name) => {
@@ -2629,7 +1957,7 @@ const AMBIENT_GLOBAL_RESTRICTIONS = [
   },
   {
     id: "scrubber-home",
-    scope: POPULATION_SETS["@product"].flatMap((ref) => rootSources(ref)),
+    scope: PRODUCT_SOURCE,
     homes: [
       {
         path: "packages/server/src/domain/chat/substrate/member-visibility.ts",
@@ -2656,18 +1984,7 @@ const AMBIENT_GLOBAL_RESTRICTIONS = [
   },
 ];
 
-const CONTEXT_NATIVE_SETTINGS = {
-  "orb/context-vocabulary": {
-    mintHome: { source: REGISTRY_CONTRACTS_RE.source, flags: REGISTRY_CONTRACTS_RE.flags },
-    tabs: DEFINE_CONTEXT_TABS,
-    region: DEFINE_CONTEXT_REGION,
-  },
-  "orb/context-implementation": createHash("sha256")
-    .update(readFileSync(new URL(import.meta.url), "utf8"))
-    .digest("hex"),
-};
 const CLIENT_CONTEXT_RESTRICTIONS = [
-  { id: "context-definition-shape", scope: [CLIENT_SRC], homes: [] },
   {
     id: "context-shell-chrome",
     scope: [CLIENT_FEATURES],
@@ -2694,141 +2011,18 @@ const CLIENT_CONTEXT_RESTRICTIONS = [
   },
 ];
 
-const PARALLEL_MAP_VOCABULARIES = [
-  { name: "SectionId", ids: SECTION_IDS, slot: DEFINITION_SLOTS.section },
-  { name: "ModalSlotId", ids: MODAL_SLOT_IDS, slot: DEFINITION_SLOTS.modal },
-  { name: "ConfigGroupId", ids: CONFIG_GROUP_IDS, slot: DEFINITION_SLOTS.group },
-];
-for (const { name, ids } of [...PARALLEL_MAP_VOCABULARIES, { name: "CHROME_ZONES", ids: CHROME_ZONES }]) {
-  if (!Array.isArray(ids) || ids.length === 0 || [...ids].some((id) => typeof id !== "string")) {
-    throw new Error(`Native parallel-map vocabulary ${name} must be a nonempty string array`);
-  }
-}
-const CLIENT_MAP_NATIVE_SETTINGS = {
-  "orb/parallel-map-vocabulary": {
-    ids: PARALLEL_MAP_VOCABULARIES,
-    zones: CHROME_ZONES,
-    chromeSlot: DEFINITION_SLOTS.chrome,
-  },
-  "orb/parallel-map-inputs": createHash("sha256")
-    .update(JSON.stringify(CLIENT_MAP_NATIVE_INPUT_PATHS.map((path) => [path, readFileSync(new URL(path, import.meta.url), "utf8")])))
-    .digest("hex"),
-};
-const CLIENT_MAP_RESTRICTIONS = [{ id: CLIENT_MAP_NATIVE_RULE.slice("orb/".length), scope: [CLIENT_SRC], homes: [] }];
-
-// The membership-class table exports, read from the schema-owned registry; the settings value keys the lint cache.
-const MEMBERSHIP_TABLE_EXPORTS = Object.entries(TABLE_SCOPING)
-  .filter(([, row]) => row.scope === "membership")
-  .map(([name]) => name);
-if (MEMBERSHIP_TABLE_EXPORTS.length === 0) {
-  throw new Error("TABLE_SCOPING declares no membership-class table; orb/membership-write-fan would match nothing");
-}
-// Inside domain/chat the stronger membership-fan-guard bans the per-person emit outright.
-const MEMBERSHIP_WRITE_FAN_RESTRICTIONS = [
-  { id: "membership-write-fan", scope: ["packages/server/src/domain/**/*.{ts,tsx}"], notUnder: ["packages/server/src/domain/chat/**"], homes: [] },
-];
-
-const CLIENT_LEXICAL_RESTRICTIONS = [
-  { id: "zustand-selector-derived", scope: [CLIENT_SRC], homes: [] },
-  {
-    id: "no-raw-spacing-in-features",
-    scope: rootSources("@client", "@ui"),
-    homes: Object.entries(SPACING_HOMES).map(([path, { why }]) => ({ path: path.endsWith("/") ? `${path}**` : path, why })),
-  },
-  {
-    id: "no-raw-typography-in-features",
-    scope: rootSources("@client", "@ui"),
-    homes: Object.entries(TYPOGRAPHY_HOMES).map(([path, { why }]) => ({ path: path.endsWith("/") ? `${path}**` : path, why })),
-  },
-  { id: "no-hover-display-swap", scope: rootSources("@client", "@ui"), homes: [] },
-  { id: "no-floorless-control-in-wrap", scope: rootSources("@client", "@ui"), homes: [] },
-  { id: "ui-size-via-variant", scope: rootSources("@client", "@ui"), homes: [] },
-  { id: "testid-typed-only", scope: [CLIENT_SRC], homes: [] },
-  { id: "scroll-container-positioned", scope: rootSources("@client", "@ui"), homes: [] },
-];
-const CLIENT_LEXICAL_NATIVE_SETTINGS = {
-  "orb/client-lexical-inputs": createHash("sha256")
-    .update(JSON.stringify(CLIENT_LEXICAL_NATIVE_INPUT_PATHS.map((path) => [path, readFileSync(new URL(path, import.meta.url), "utf8")])))
-    .digest("hex"),
-};
-
 const CLIENT_STYLE_RESTRICTIONS = [
   { id: "no-off-token-inline-style", scope: rootSources("@client", "@ui"), homes: [] },
   { id: "theme-override-only-via-scope", scope: rootSources("@client", "@ui"), homes: [] },
-  {
-    id: "no-unruled-flip-inversion",
-    scope: rootSources("@client", "@ui"),
-    homes: [
-      {
-        path: "packages/ui/src/primitives/tabs/tabs.tsx",
-        why: "glideIndicator is the ruled FLIP site: the delta is the difference between two runtime boxes, so no CSS value expresses it (motion-and-animation-guide.md §1.5). A third site is a ruling to amend there first.",
-      },
-    ],
-    // The home owns exactly one ruled pair: a second one in the file is a finding, and the home reports itself stale at none.
-    homedOptions: { allowed: 1 },
-  },
-  {
-    id: "sub-floor-disclosure",
-    scope: rootSources("@client", "@ui"),
-    homes: [
-      {
-        path: "packages/client/src/features/rpg/components/rpg-beat-row.tsx",
-        why: "The trigger's box is the rendered Button's own (`render` merges the trigger class onto it): an inline Button carries its ::after touch floor, and a control min-h here would inflate the beat row's compact rest state.",
-      },
-      {
-        path: "packages/client/src/features/rpg/components/turn-tool-calls-disclosure.tsx",
-        why: "Recorded ruling (pointer-variants.ts DISCLOSURE_TOUCH_FLOOR_AT_COARSE): coarse takes the 44px floor via the fragment, fine stays a 16px line in a dense transcript footer; a control box there is the density cost that ruling priced and declined.",
-      },
-    ],
-    // Each home owns exactly one ruled mount: a homed file reports a second one and reports itself stale at none.
-    homedOptions: { allowed: 1 },
-  },
-  {
-    id: "surface-a11y-focus",
-    scope: ["packages/client/src/features/*/surfaces/**/*.tsx"],
-    notUnder: ["packages/client/src/features/app-shell/**", "packages/client/src/features/topbar/**"],
-    // A homed surface reports itself stale the day it takes arrival focus itself.
-    homedOptions: { homed: true },
-    homes: [
-      {
-        path: "packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx",
-        why: "The picker body owns arrival focus: CharacterPicker's own autoFocusSearch lands the caret in the search combobox, and a useFocusOnMount here parked focus on a dead wrapper and swallowed keystrokes. Ends when this surface stops delegating to CharacterPicker.",
-      },
-      {
-        path: "packages/client/src/features/discovery/surfaces/corpus-artifact-surface.tsx",
-        why: "CorpusArtifactFrame and CorpusDossierSurface own their Back controls; corpus-artifact-surface.ct.tsx asserts the frame arrival target.",
-      },
-      {
-        path: "packages/client/src/features/discovery/surfaces/corpus-home-surface.tsx",
-        why: "The corpus list pane's omnibox owns this section's arrival focus; this content surface mounts second and must not steal it. Ends when it becomes a section's sole pane.",
-      },
-      {
-        path: "packages/client/src/features/discovery/surfaces/corpus-moment-surface.tsx",
-        why: "CorpusArtifactFrame owns Back to Explore focus; corpus-moment-surface.ct.tsx asserts that arrival target.",
-      },
-      {
-        path: "packages/client/src/features/tag/surfaces/tag-member-surface.tsx",
-        why: "TagEditorBody owns editor arrival focus via useFocusOnMount; the tag-member-surface CT pins the Name-field arrival for creation.",
-      },
-    ],
-  },
 ];
-const MODAL_DEFINITION_HOME = `packages/client/src/features/*/lib/*${DEFINITION_SLOTS.modal}.{ts,tsx}`;
-// A type names the definition bare (`ModalDefinition`), through a namespace import (`S.ModalDefinition`), or as an
-// import type (`import("x").ModalDefinition`, whose name sits under `qualifier` rather than `typeName`).
-const typeReferenceNamed = (path, name) =>
-  `:matches([${path}.typeName.name='${name}'], [${path}.typeName.right.name='${name}'], [${path}.qualifier.name='${name}'], [${path}.qualifier.right.name='${name}'])`;
-const MODAL_DEFINITION_DECLARATOR = `VariableDeclarator${typeReferenceNamed("id.typeAnnotation.typeAnnotation", "ModalDefinition")}`;
 
-// Brand bans read by syntax. The cast roster comes from the kit ids home itself, so a new brand is named the day it lands.
-const CANONICAL_BRAND_TYPE_NAMES = deriveCanonicalBrandTypeNames(readFileSync(new URL(ID_BRAND_HOME, import.meta.url), "utf8"));
-const ID_BRAND_NATIVE_SETTINGS = { "orb/id-brand-roster": createHash("sha256").update(JSON.stringify(CANONICAL_BRAND_TYPE_NAMES)).digest("hex") };
 const CAST_ID_CALL = `CallExpression:matches([callee.name='castId'], [callee.computed=false][callee.property.name='castId'], [callee.computed=true][callee.property.value='castId'])`;
+
 const EMPTY_ID_ARGUMENT =
   ":matches([arguments.0.value=''], [arguments.0.expressions.length=0][arguments.0.quasis.0.value.cooked=''], [arguments.0.expression.value=''], " +
   "[arguments.0.expression.expressions.length=0][arguments.0.expression.quasis.0.value.cooked=''], [arguments.0.expression.expression.value=''], " +
   "[arguments.0.expression.expression.expressions.length=0][arguments.0.expression.expression.quasis.0.value.cooked=''])";
-const CANONICAL_BRAND_TARGET = alternation(CANONICAL_BRAND_TYPE_NAMES);
+
 const ID_BRAND_RESTRICTIONS = [
   {
     id: "no-fake-disabled-id",
@@ -2846,199 +2040,12 @@ const ID_BRAND_RESTRICTIONS = [
       },
     ],
   },
-  {
-    id: "no-loose-id-cast",
-    scope: [...POPULATION_SETS["@product"].flatMap((ref) => rootSources(ref)), ...rootSources("@tests")],
-    homes: [],
-    selectors: [
-      {
-        selector: "TSAsExpression[typeAnnotation.type='TSNeverKeyword']",
-        message: "A cast to never disables every assignability check; use the owning mint, parser or castId seam.",
-      },
-      {
-        selector:
-          "TSAsExpression[expression.type='TSAsExpression'][expression.typeAnnotation.type='TSUnknownKeyword']" +
-          `:matches([typeAnnotation.type='TSTypeReference'][typeAnnotation.typeName.name=${CANONICAL_BRAND_TARGET}], ` +
-          `[typeAnnotation.type='TSTypeReference'][typeAnnotation.typeName.type='TSQualifiedName'][typeAnnotation.typeName.right.name=${CANONICAL_BRAND_TARGET}])`,
-        message: "A double cast through unknown launders a value into a canonical id brand; use the owning mint, parser or castId seam.",
-      },
-    ],
-  },
   { id: "no-raw-id", scope: AUTHORED_SRC, homes: [] },
   { id: "wire-json-parsed-at-consumer", scope: rootSources("@client", "@server", "@inference"), homes: [] },
 ];
 
-const CLIENT_REGISTRY_RESTRICTIONS = [
-  ...["sections", "modals"].map((name) => ({
-    id: name === "sections" ? "section-route-registry-map" : "modal-route-registry-map",
-    scope: ["packages/client/src/routes/**/*.{ts,tsx}"],
-    homes: [],
-    selectors: [
-      {
-        selector: `JSXAttribute[name.name='${name}'][value.type='JSXExpressionContainer'][value.expression.type='ObjectExpression']`,
-        message: "Routes forward assembled registries; they do not reconstruct registry override maps.",
-      },
-    ],
-  })),
-  {
-    id: "modal-definition-home",
-    scope: [CLIENT_SRC],
-    notUnder: [MODAL_DEFINITION_HOME],
-    homes: [],
-    selectors: [
-      {
-        selector: MODAL_DEFINITION_DECLARATOR,
-        message: "A ModalDefinition is declared in its feature's lib/<id>-modal.{ts,tsx} (client-architecture-lockdown.md §6d).",
-      },
-      {
-        selector: `:matches(FunctionDeclaration, FunctionExpression, ArrowFunctionExpression)${typeReferenceNamed("returnType.typeAnnotation", "ModalDefinition")}`,
-        message: "A function that returns a ModalDefinition belongs in its feature's lib/<id>-modal.{ts,tsx} (client-architecture-lockdown.md §6d).",
-      },
-    ],
-  },
-  {
-    id: "modal-definition-literal",
-    scope: [MODAL_DEFINITION_HOME],
-    homes: [],
-    selectors: [
-      {
-        selector: `${MODAL_DEFINITION_DECLARATOR}:not([init.type='ObjectExpression']):not([init.type='TSSatisfiesExpression'][init.expression.type='ObjectExpression'])`,
-        message: "A ModalDefinition is written as an inline object literal in its home, not imported, aliased or built (client-architecture-lockdown.md §6d).",
-      },
-    ],
-  },
-  {
-    id: "modal-definition-spelling",
-    scope: [CLIENT_SRC],
-    homes: [],
-    selectors: [
-      {
-        selector: `TSTypeAliasDeclaration${typeReferenceNamed("typeAnnotation", "ModalDefinition")}`,
-        message: "Annotate a modal with ModalDefinition itself; an alias hides the definition from the home rules (client-architecture-lockdown.md §6d).",
-      },
-      {
-        selector:
-          ":matches(ImportSpecifier[imported.name='ModalDefinition']:not([local.name='ModalDefinition']), ExportSpecifier[local.name='ModalDefinition']:not([exported.name='ModalDefinition']))",
-        message:
-          "Import and re-export ModalDefinition under its own name; a renamed binding hides the definition from the home rules (client-architecture-lockdown.md §6d).",
-      },
-    ],
-  },
-  {
-    // Only the shell's own components and surfaces render the placeholder; any other module a modal body can
-    // reach is therefore banned from it, which covers a body written as a reference to an imported component.
-    id: "modal-body-not-placeholder",
-    scope: [CLIENT_SRC],
-    notUnder: ["packages/client/src/features/app-shell/components/**", "packages/client/src/features/app-shell/surfaces/**"],
-    homes: [],
-    selectors: [
-      {
-        selector: `:matches(ImportSpecifier[imported.name='SectionPlaceholder'], ImportSpecifier[imported.value='SectionPlaceholder'], ExportSpecifier[local.name='SectionPlaceholder'], MemberExpression[property.name='SectionPlaceholder'], JSXMemberExpression[property.name='SectionPlaceholder'])`,
-        message:
-          'An unbuilt modal declares `body: { planned: "<reason>" }`; a modal body never renders SectionPlaceholder (client-architecture-lockdown.md §6d).',
-      },
-    ],
-  },
-];
-
-// A bus event union is a root listed in `@orb/contracts/bus-registry` (it owns a belt there), a listed sub-union,
-// or an `Extract`/`Exclude` carve-out of a root. Any other `*BusEvent` / `DomainEvent` alias is unregistered, and so
-// is any belt-shaped `*_EVENT_TYPES` const (`satisfies Record<X["type"], …>` or `readonly X["type"][]`). A name
-// is identity only inside its registered file, so one `bus-home-<bus>` restriction per bus refuses the same
-// alias or belt name declared anywhere else in contracts.
-const BUS_ROOT_ALIASES = Object.values(BUSES).map(({ alias }) => alias);
-const BUS_ALIASES = [...BUS_ROOT_ALIASES, ...Object.values(BUS_SUBUNIONS).map(({ alias }) => alias)];
-const BUS_BELTS = Object.values(BUSES).map(({ belt }) => belt);
-const BUS_BELT_INDEX = "TSIndexedAccessType[indexType.type='TSLiteralType'][indexType.literal.value='type']";
-const BUS_BELT_SHAPE = `TSSatisfiesExpression :matches(TSTypeReference[typeName.name='Record'] > TSTypeParameterInstantiation > ${BUS_BELT_INDEX}, TSArrayType > ${BUS_BELT_INDEX})`;
-const BUS_REGISTRY_RESTRICTIONS = [
-  {
-    id: "bus-union-registered",
-    scope: rootSources("@contracts"),
-    homes: [],
-    selectors: [
-      {
-        selector:
-          `TSTypeAliasDeclaration[id.name=/^(?:DomainEvent|.*BusEvent)$/]:not([id.name=${alternation(BUS_ALIASES)}])` +
-          `:not([typeAnnotation.typeName.name=/^(?:Extract|Exclude)$/][typeAnnotation.typeArguments.params.0.typeName.name=${alternation(BUS_ROOT_ALIASES)}])`,
-        message:
-          "A bus event union in @orb/contracts belongs in packages/contracts/src/bus-registry/index.ts, which ties it to its `*_EVENT_TYPES` belt; add it there, or derive it with Extract/Exclude from a registered root.",
-      },
-      {
-        selector: `VariableDeclarator[id.name=/_EVENT_TYPES$/]:not([id.name=${alternation(BUS_BELTS)}]) > ${BUS_BELT_SHAPE}`,
-        message:
-          'A `*_EVENT_TYPES` belt over a `Union["type"]` in @orb/contracts belongs in packages/contracts/src/bus-registry/index.ts beside its union; an unregistered belt is invisible to the totality check.',
-      },
-    ],
-  },
-  ...Object.entries(BUSES).map(([name, { alias, belt, file }]) => ({
-    id: `bus-home-${name}`,
-    scope: rootSources("@contracts"),
-    homes: [{ path: file, why: `the registered home of \`${alias}\` and its belt \`${belt}\`` }],
-    selectors: [
-      {
-        selector: `TSTypeAliasDeclaration[id.name='${alias}']`,
-        message: `\`${alias}\` is the registered ${name} bus union declared in ${file}; a same-named alias elsewhere in @orb/contracts hides a beltless bus from the registry.`,
-      },
-      {
-        selector: `VariableDeclarator[id.name='${belt}']`,
-        message: `\`${belt}\` is the registered ${name} belt declared in ${file}; a same-named const elsewhere in @orb/contracts hides a bus from the registry.`,
-      },
-    ],
-  })),
-  ...Object.entries(BUS_SUBUNIONS).map(([name, { alias, file }]) => ({
-    id: `bus-home-${name}`,
-    scope: rootSources("@contracts"),
-    homes: [{ path: file, why: `the registered home of the \`${alias}\` sub-union` }],
-    selectors: [
-      {
-        selector: `TSTypeAliasDeclaration[id.name='${alias}']`,
-        message: `\`${alias}\` is the registered sub-union declared in ${file}; a same-named alias elsewhere in @orb/contracts hides a beltless bus from the registry.`,
-      },
-    ],
-  })),
-];
-
-// A registry definition is declared in its owning feature's co-located `<id>-<slot>` file and nowhere else, and
-// there it is an object literal written in place. The subject is the annotation's type NAME, so an alias of the
-// type or a same-named local type is outside it.
-const annotatedAs = (path, name) => `[${path}.type='TSTypeReference'][${path}.typeName.name='${name}']`;
-const declaredAs = (type) => `VariableDeclarator[id.type='Identifier']${annotatedAs("id.typeAnnotation.typeAnnotation", type)}`;
-const DEFINITION_TYPES = [
-  { id: "chrome-definition-home", type: "ChromeEntry", slot: DEFINITION_SLOTS.chrome },
-  { id: "home-tile-definition-home", type: "HomeTileContribution", slot: DEFINITION_SLOTS.tile },
-  { id: "section-definition-home", type: "SectionDefinition", slot: DEFINITION_SLOTS.section, factory: true },
-  { id: "config-group-definition-home", type: "ConfigGroupDefinition", slot: DEFINITION_SLOTS.group },
-  { id: "collection-definition-home", type: "CollectionContribution", slot: DEFINITION_SLOTS.collection },
-].map((definition) => ({ ...definition, home: `packages/client/src/features/*/lib/*${definition.slot}.{ts,tsx}` }));
-const CLIENT_DEFINITION_HOME_RESTRICTIONS = DEFINITION_TYPES.map(({ id, type, slot, home, factory = false }) => ({
-  id,
-  scope: [CLIENT_SRC],
-  homes: [{ path: home, why: `The owning feature's co-located ${slot} file is the one home of a ${type} definition.` }],
-  selectors: [
-    { selector: declaredAs(type), message: `A ${type} is declared only in packages/client/src/features/<owner>/lib/<id>${slot}.{ts,tsx}.` },
-    ...(factory
-      ? [
-          {
-            selector: `:matches(FunctionDeclaration, FunctionExpression, ArrowFunctionExpression)${annotatedAs("returnType.typeAnnotation", type)}`,
-            message: `A ${type} factory is declared only in packages/client/src/features/<owner>/lib/<id>${slot}.{ts,tsx}.`,
-          },
-        ]
-      : []),
-  ],
-}));
-const CLIENT_DEFINITION_LITERAL_RESTRICTIONS = [
-  {
-    id: "registry-definition-literal",
-    scope: DEFINITION_TYPES.map(({ home }) => home),
-    homes: [],
-    selectors: DEFINITION_TYPES.map(({ type, slot }) => ({
-      selector: `${declaredAs(type)}:not([init.type='ObjectExpression'])`,
-      message: `A ${type} definition is an object literal written in its ${slot} file, not an imported or computed value.`,
-    })),
-  },
-];
 const CLIENT_CONFIG_HOST = "packages/client/src/features/config/surfaces/config-content-surface.tsx";
+
 const CLIENT_CONFIG_HOST_RESTRICTIONS = [
   {
     id: "config-host-no-feature-import",
@@ -3054,38 +2061,43 @@ const CLIENT_CONFIG_HOST_RESTRICTIONS = [
   },
 ];
 
-// Client seals: one door per capability. These match the written name of the sealed symbol (its import
-// specifier, a namespace or computed member read), so a barrel that renames the symbol on re-export is not followed.
 const BOUND_FIELDS_ROOT = "packages/client/src/forms/editor/bound-fields";
+
 const STATE_ROOT = "packages/client/src/state";
+
 const REGISTRY_FACTORY_NAMES = ["createRegistry", "createContributorRegistry"];
+
 const REGISTRY_FACTORIES = alternation(REGISTRY_FACTORY_NAMES);
-// The written name read three ways: an import specifier, a member read (dotted, bracketed or template), and a destructured binding.
+
 const sealedName = (name) =>
   `ImportSpecifier[imported.name='${name}'], MemberExpression${memberNamed(name)}, ObjectPattern > Property[computed=false][key.name='${name}']`;
+
 const REGISTRY_CONTEXT_MESSAGE =
   "A createContext typed over a registry belongs in the createRegistryContext mint (packages/client/src/lib/create-registry-context.tsx); a hand-rolled context, hook and provider trio drifts from the one shape.";
+
 const REGISTRY_CONTEXT_UNREADABLE =
   "This createContext call is on a receiver that is not an import, so whether it is React's context constructor cannot be established. Reported rather than passed; call createContext through a named React import.";
+
 const REGISTRY_NAME = /Registry$/u;
+
 const REGISTRY_ALIAS_HOPS = 8;
-// Identity is read from the file's own imports: React's createContext, or a project module's re-export of it (named, renamed, or off a namespace), and every
-// *Registry type imported under any local name, plus the local type aliases that reach one. A *Registry type that a
-// different module declares under a name without "Registry" in it is not followed.
+
 function writtenTypeNames(type) {
   if (type.type === "TSUnionType") {
     return type.types.flatMap(writtenTypeNames);
   }
   return type.type === "TSTypeReference" ? [type.typeName] : [];
 }
+
 function namesRegistry(typeName, registryNames) {
   if (typeName.type === "Identifier") {
     return registryNames.has(typeName.name);
   }
   return typeName.type === "TSQualifiedName" && REGISTRY_NAME.test(typeName.right.name);
 }
-// A module of this project (relative, `#` or `@orb/`) that re-exports React's createContext keeps its identity; another package's does not.
+
 const PROJECT_MODULE = /^(?:\.|#|@orb\/)/u;
+
 function recordRegistryImport(node, imports) {
   const react = node.source.value === "react" || PROJECT_MODULE.test(node.source.value);
   for (const specifier of node.specifiers) {
@@ -3103,7 +2115,7 @@ function recordRegistryImport(node, imports) {
     }
   }
 }
-// A computed member is the constructor when it is a string literal or a template without substitutions that spells the name.
+
 function isCreateContextMember(callee) {
   if (callee.type !== "MemberExpression") {
     return false;
@@ -3117,6 +2129,7 @@ function isCreateContextMember(callee) {
   }
   return property.type === "Literal" && property.value === "createContext";
 }
+
 function createContextVerdict(callee, imports) {
   if (callee.type === "Identifier") {
     return imports.constructors.has(callee.name) ? "react" : "other";
@@ -3130,6 +2143,7 @@ function createContextVerdict(callee, imports) {
   }
   return receiver !== undefined && imports.others.has(receiver) ? "other" : "unreadable";
 }
+
 function closeRegistryAliases(aliases, registryNames) {
   for (let hop = 0; hop < REGISTRY_ALIAS_HOPS; hop += 1) {
     const known = registryNames.size;
@@ -3143,6 +2157,7 @@ function closeRegistryAliases(aliases, registryNames) {
     }
   }
 }
+
 const registryContextRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -3176,10 +2191,15 @@ const registryContextRule = {
     };
   },
 };
+
 const STATE_MINT_NAMES = ["create", "createStore", "createGatedStore", "createEntityDraftStore"];
+
 const STATE_MINT = alternation(STATE_MINT_NAMES);
+
 const STATE_MAX_FIELDS = 10;
+
 const STATE_FIELD_CAP_MESSAGE = `A state store initializer declares more than ${STATE_MAX_FIELDS} top-level fields; the store is doing several jobs, so split it.`;
+
 const STATE_FILES_SELECTORS = [
   {
     selector: `CallExpression[callee.name=${STATE_MINT}] > ArrowFunctionExpression[body.type='ObjectExpression'][body.properties.length>${STATE_MAX_FIELDS}]`,
@@ -3190,8 +2210,7 @@ const STATE_FILES_SELECTORS = [
     message: STATE_FIELD_CAP_MESSAGE,
   },
 ];
-// The selector arms plus two walks esquery cannot express: the per-file mint tally (the second mint is the finding) and
-// the exported-handle spine, which follows the callee chain of `create<T>()(...)` to any depth.
+
 const stateFilesRule = (() => {
   const selectorRule = restrictionRule({ selectors: STATE_FILES_SELECTORS });
   return {
@@ -3222,6 +2241,7 @@ const stateFilesRule = (() => {
     },
   };
 })();
+
 const CLIENT_SEAL_RESTRICTIONS = [
   {
     id: "bound-field-via-hook",
@@ -3325,6 +2345,7 @@ const CLIENT_SEAL_RESTRICTIONS = [
 ];
 
 const BANNED_UTILITY = String.raw`(?:[^\s]*:)?!?max-w-prose!?`;
+
 const CLASS_TOKEN_RESTRICTIONS = [
   {
     id: "no-banned-tw-utility",
@@ -3340,90 +2361,16 @@ const CLASS_TOKEN_RESTRICTIONS = [
   },
 ];
 
-const Z_INDEX_HOMES = Object.entries(Z_INDEX_IMPLEMENTATION_HOMES).map(([path, { why }]) => ({ path: `${path}**`, why }));
-const GOVERNED_Z_NAMES = Object.keys(Z_TOKEN_SCOPES)
-  .map((path) => RegExp.escape(path.slice("z.".length)))
-  .join("|");
-const UNKNOWN_SEMANTIC_Z = String.raw`\bz-\(--z-(?!(?:${GOVERNED_Z_NAMES})\))[a-z0-9-]+\)`;
-const Z_INDEX_RESTRICTIONS = [
-  { id: "no-raw-z-index", scope: rootSources("@client", "@ui"), homes: Z_INDEX_HOMES },
-  {
-    id: "no-unknown-z-index-token",
-    scope: rootSources("@client", "@ui"),
-    homes: Z_INDEX_HOMES,
-    selectors: [
-      {
-        selector: `:matches(Literal[value=type(string)][raw=/${UNKNOWN_SEMANTIC_Z}/], TemplateElement[value.raw=/${UNKNOWN_SEMANTIC_Z}/])`,
-        message: "Unknown semantic z-index token; use the canonical vocabulary in packages/ui/src/tokens/z-scope.ts.",
-      },
-    ],
-  },
-];
-
-const DETERMINISM_TEST_SOURCES = ["tests/**/*.{ts,tsx}", `${HELPER_WORLD_DIRS.node}/**/*.mjs`];
-const ESCAPE_MINT_NAMES = "/^(escapeRegExp|escapeRegex)$/";
-const DETERMINISM_RESTRICTIONS = [
-  {
-    id: "platform-escape-mint",
-    scope: [...POPULATION_SETS["@product"].flatMap((ref) => rootSources(ref)), ...DETERMINISM_TEST_SOURCES],
-    notUnder: [`${LEGACY_TEST_ROOT}/**`],
-    homes: [],
-    selectors: [
-      `FunctionDeclaration[id.name=${ESCAPE_MINT_NAMES}]`,
-      `TSDeclareFunction[id.name=${ESCAPE_MINT_NAMES}]`,
-      `VariableDeclarator[id.type='Identifier'][id.name=${ESCAPE_MINT_NAMES}][init.type=/^(ArrowFunctionExpression|FunctionExpression)$/]`,
-      `Property[computed=false][kind='init'][key.type='Identifier'][key.name=${ESCAPE_MINT_NAMES}][value.type=/^(ArrowFunctionExpression|FunctionExpression)$/]`,
-      `:matches(MethodDefinition, TSAbstractMethodDefinition)[computed=false][kind='method'][key.type='Identifier'][key.name=${ESCAPE_MINT_NAMES}]`,
-    ].map((selector) => ({ selector, message: "Use the native RegExp.escape API instead of declaring an escapeRegExp/escapeRegex function." })),
-  },
-  {
-    id: "test-ambient-source-string",
-    scope: DETERMINISM_TEST_SOURCES,
-    notUnder: [`${LEGACY_TEST_ROOT}/**`, "tests/e2e/**"],
-    homes: [],
-    selectors: AMBIENT_SOURCE_PATTERNS.map(({ re, what }) => ({
-      selector: `:matches(Literal[value=type(string)][raw=/${re.source}/], TemplateElement[value.raw=/${re.source}/])`,
-      message: `Ambient nondeterminism in source text: ${what}`,
-    })),
-  },
-  {
-    id: "test-wait-for-timeout",
-    scope: DETERMINISM_TEST_SOURCES,
-    notUnder: [`${LEGACY_TEST_ROOT}/**`, "tests/e2e/**"],
-    homes: [],
-    selectors: [
-      {
-        selector: "CallExpression[callee.type='MemberExpression'][callee.computed=false][callee.property.name='waitForTimeout']",
-        message: "Use a locator assertion or expect.poll instead of a fixed waitForTimeout delay.",
-      },
-    ],
-  },
-];
-
-// These joins are file-local syntax over the adjudicated vendor surface, never semantic type queries.
-const BASEUI_RESTRICTIONS = [
-  { id: "baseui-derives-not-respells", scope: [UI_SRC], homes: [] },
-  { id: "baseui-state-data-attributes", scope: [UI_SRC], homes: [] },
-];
-const baseUiManifestRead = surfaceManifestFrom(JSON.parse(readFileSync(new URL(JSON_RESOURCE_PATHS["baseui-manifest"], import.meta.url), "utf8")));
-if (!baseUiManifestRead.ok) {
-  throw new Error(`Native Base UI policies cannot read the surface manifest: ${baseUiManifestRead.reason}`);
-}
-const BASEUI_SURFACE = baseUiManifestRead.manifest;
-const BASEUI_INPUT_REVISION = createHash("sha256")
-  .update(JSON.stringify(BASE_UI_NATIVE_INPUT_PATHS.map((path) => [path, readFileSync(new URL(path, import.meta.url), "utf8")])))
-  .digest("hex");
-
-// A `page.route` is buried by a LATER `routeTrpc` registered as a sibling statement: Playwright resolves routes LIFO and
-// `routeTrpc`'s handler never falls back, so the earlier route never runs. Each side is a statement whose leading call
-// (optionally awaited, bound or returned) is the registration; the finding lands on the burying `routeTrpc` statement.
 const TRPC_ROUTE_PATTERN = String.raw`/^\*\*\/api\/trpc/`;
+
 const PAGE_ROUTE_CALL = "CallExpression[callee.object.name='page'][callee.property.name='route']";
+
 const TRPC_PAGE_ROUTES = [
   `${PAGE_ROUTE_CALL}[arguments.0.value=${TRPC_ROUTE_PATTERN}]`,
   `${PAGE_ROUTE_CALL}[arguments.0.expressions.length=0][arguments.0.quasis.0.value.cooked=${TRPC_ROUTE_PATTERN}]`,
   `${PAGE_ROUTE_CALL}[arguments.0.expression.value=${TRPC_ROUTE_PATTERN}]`,
 ];
+
 const leadingCallStatements = (calls) =>
   `:matches(${calls
     .flatMap((call) => [
@@ -3433,6 +2380,7 @@ const leadingCallStatements = (calls) =>
       `VariableDeclaration:has(> VariableDeclarator:has(> AwaitExpression:has(> ${call})))`,
     ])
     .join(", ")})`;
+
 const CT_SPEC_RESTRICTIONS = [
   {
     id: "testid-typed-only-stories",
@@ -3455,418 +2403,12 @@ const CT_SPEC_RESTRICTIONS = [
   },
 ];
 
-const PROTOTYPE_NATIVE_IGNORES = [...STRICT_SYNTAX_IGNORES, "**/*.d.{ts,mts,cts}", "tooling/src/snap/lib/devtools-frontend/**"];
-const PROTOTYPE_MUTATION_SELECTORS = [
-  {
-    selector: [
-      ["Object", ["defineProperty", "defineProperties", "assign"]],
-      ["Reflect", ["defineProperty", "set", "deleteProperty"]],
-    ]
-      .map(
-        ([owner, methods]) =>
-          `CallExpression[callee.type='MemberExpression'][callee.object.name='${owner}'][arguments.0.type='MemberExpression']` +
-          ":matches([arguments.0.computed=false][arguments.0.property.name='prototype'], " +
-          "[arguments.0.computed=true][arguments.0.property.value='prototype'], " +
-          "[arguments.0.computed=true][arguments.0.property.expressions.length=0][arguments.0.property.quasis.0.value.cooked='prototype'])" +
-          `:matches([callee.computed=false][callee.property.name=${alternation(methods)}], ` +
-          `[callee.computed=true][callee.property.value=${alternation(methods)}], ` +
-          `[callee.computed=true][callee.property.expressions.length=0][callee.property.quasis.0.value.cooked=${alternation(methods)}])`,
-      )
-      .join(", "),
-    message: "Prototype mutation invalidates native own-data provenance; define data on the owning object instead.",
-  },
-];
-
-// One-home bans: each names the module that owns a capability, and the rest of the product stays out of it.
-const INFERENCE_MODULE = String.raw`[source.value=/(^|\x2f|#)inference(\x2f|$)/]`;
-const PLANNER_INTERNALS = alternation(["scrubWireSchema", "scrubViolations", "countWireSchemas", "acceptsNamedToolChoice", "acceptsRequiredToolChoice"]);
-const STRUCTURED_VEHICLE_VALUES = alternation(STRUCTURED_VEHICLES);
-const TOOL_CHOICE_KEY = "toolChoice";
-const STRUCTURED_PLAN_MESSAGE =
-  "How a schema, a vehicle or a tool choice goes out is the structured planner's alone (packages/inference/src/structured/plan.ts); state the need through planStructuredFor, carriesStructured or forcesToolRound.";
-const MACRO_RESOLVER_NAMES = alternation(["resolveRowMacros", "processMacros", "createMacroContext", "evaluateMacros", "renderMessageForDisplay"]);
-const MACRO_RESOLUTION_MESSAGE =
-  "Macro resolution must stay read-only: saving a resolved field destroys its template. Editable surfaces display and persist the raw template text; a read-only display home is declared on this row.";
-const CONTENT_PART_NAME = "ChatContentPart";
-const CONTENT_PART_MESSAGE =
-  "ChatContentPart is named outside the D51 seam: it is produced once at the request seam's conversion (domain/chat/substrate/wire-history.ts) and consumed by the sealed runner tier; everything upstream stays `content: string`.";
-const WIRE_VOCABULARY_MESSAGE =
-  "A JSON-Schema wire keyword table is spelled outside the one scrub engine and its inverse lift reader (D93); call scrubWireSchema with the mode this wire speaks, and add a new subset as a mode in packages/contracts/src/inference/wire-subset.ts.";
-const MODEL_PROSE_MESSAGE =
-  "Model-facing prose is hardcoded at a prompt-assembly seam. Every string whose bytes reach a model is a PROSE-1 slot (a shipped default in a contracts prose catalog, resolved with resolveProse), not a constant (D132).";
-const MODEL_PROSE_MIN_WORDS = 12;
-const MODEL_PROSE_LOWER_RUN = /[a-z]{3,}/u;
-const MODEL_PROSE_OPERATOR_CALLEE = /^(?:logger|log|console)\b|getLog\(\)/u;
-// The two vocabularies below come off the wire-subset engine; carrying their digest in the block settings makes a
-// vocabulary change invalidate ESLint's result cache for every file these bans judge.
-const SERVER_ONE_HOME_SETTINGS = {
-  "orb/server-one-home-vocabulary": createHash("sha256")
-    .update(JSON.stringify([STRUCTURED_VEHICLES, WIRE_SCHEMA_KEYWORD_VOCABULARY]))
-    .digest("hex"),
-};
-
-const SERVER_ONE_HOME_RESTRICTIONS = [
-  {
-    id: "structured-plan-one-home",
-    scope: rootSources("@server", "@client", "@contracts", "@kit"),
-    notUnder: [TEST_FILES, "packages/contracts/src/inference/**"],
-    homes: [],
-    selectors: [
-      {
-        selector: `:matches(ImportDeclaration, ExportNamedDeclaration)${INFERENCE_MODULE} > :matches(ImportSpecifier:matches([imported.name=${PLANNER_INTERNALS}], [imported.value=${PLANNER_INTERNALS}]), ExportSpecifier:matches([local.name=${PLANNER_INTERNALS}], [local.value=${PLANNER_INTERNALS}]))`,
-        message: STRUCTURED_PLAN_MESSAGE,
-      },
-      {
-        selector: `MemberExpression:matches([computed=false][property.name=${PLANNER_INTERNALS}], [computed=true][property.value=${PLANNER_INTERNALS}])`,
-        message: STRUCTURED_PLAN_MESSAGE,
-      },
-      {
-        selector: `:matches(Literal[value=${STRUCTURED_VEHICLE_VALUES}], TemplateLiteral[expressions.length=0][quasis.0.value.cooked=${STRUCTURED_VEHICLE_VALUES}])`,
-        message: STRUCTURED_PLAN_MESSAGE,
-      },
-    ],
-  },
-  {
-    id: "wire-schema-vocab-one-home",
-    scope: rootSources("@server", "@kit", "@inference"),
-    notUnder: [TEST_FILES],
-    homes: [
-      {
-        path: "packages/kit/src/json-schema/lift.ts",
-        why: "the inverse reader paired with the canonical wire-subset scrub engine (D93); it must recognise the same keyword vocabulary the engine strips",
-      },
-    ],
-  },
-  {
-    id: "macro-resolution-home",
-    scope: rootSources("@client", "@ui"),
-    homes: [
-      {
-        path: "packages/client/src/features/chat/components/ghost-message-row.tsx",
-        why: "renders the streaming ghost's read-only content and reasoning through the display pipeline used after commit",
-      },
-      {
-        path: "packages/client/src/features/chat/components/message-content.tsx",
-        why: "renders the transcript's read-only Markdown; its edit path swaps to the raw-text textarea before resolution",
-      },
-      {
-        path: "packages/client/src/lib/message-render.ts",
-        why: "the canonical client display pipeline: it resolves the kit row atom into Markdown output, never into a writable field",
-      },
-      {
-        path: "packages/client/src/features/chat/components/message-row-parts.tsx",
-        why: "resolves settled reasoning and content for the transcript row; its editing branch returns the raw-text textarea first",
-      },
-    ],
-    selectors: [
-      {
-        selector: `ImportSpecifier:matches([imported.name=${MACRO_RESOLVER_NAMES}], [imported.value=${MACRO_RESOLVER_NAMES}])`,
-        message: MACRO_RESOLUTION_MESSAGE,
-      },
-      { selector: `CallExpression[callee.type='Identifier'][callee.name=${MACRO_RESOLVER_NAMES}]`, message: MACRO_RESOLUTION_MESSAGE },
-    ],
-  },
-  {
-    id: "content-part-seam",
-    scope: POPULATION_SETS["@product"].flatMap((ref) => rootSources(ref)),
-    homes: [
-      {
-        path: "packages/server/src/domain/chat/contract/results.ts",
-        why: "the domain-side request DTO the seam populates: `content: ChatContentPart[]` handed to the runner",
-      },
-      {
-        path: "packages/server/src/domain/chat/substrate/wire-history.ts",
-        why: "the one producer: the CONVERT step that turns shaped history into content parts (D51)",
-      },
-      {
-        path: "packages/inference/src/contract/chat.ts",
-        why: "the sealed runner tier's request contract, and the shapes derived from it with Extract",
-      },
-      {
-        path: "packages/inference/src/backends/wire/history.ts",
-        why: "the shared history converter every openai-shaped backend calls: it maps content parts onto its wire",
-      },
-      {
-        path: "packages/inference/src/backends/v4/prompt.ts",
-        why: "the V4 prompt converter reads the parts to lift outbound media before the vendor converter drops what its spec type merely permits",
-      },
-    ],
-    selectors: [
-      { selector: `ImportSpecifier:matches([imported.name='${CONTENT_PART_NAME}'], [imported.value='${CONTENT_PART_NAME}'])`, message: CONTENT_PART_MESSAGE },
-      { selector: `TSQualifiedName[right.name='${CONTENT_PART_NAME}']`, message: CONTENT_PART_MESSAGE },
-      { selector: `TSImportType[qualifier.name='${CONTENT_PART_NAME}']`, message: CONTENT_PART_MESSAGE },
-    ],
-  },
-  {
-    id: "no-hardcoded-model-prose",
-    scope: [...MODEL_PROSE_SEAM_PREFIXES.map((prefix) => `${prefix}**/*.{ts,tsx}`), ...MODEL_PROSE_SEAM_FILES],
-    homes: [],
-  },
-];
-
-// A file that spells two distinct JSON-Schema keywords is a second keyword table, wherever the strings sit.
-const wireSchemaVocabularyRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const vocabulary = new Set(WIRE_SCHEMA_KEYWORD_VOCABULARY);
-    const spelled = new Map();
-    const note = (node, value) => {
-      if (vocabulary.has(value) && !spelled.has(value)) {
-        spelled.set(value, node);
-      }
-    };
-    return {
-      Literal: (node) => {
-        if (typeof node.value === "string") {
-          note(node, node.value);
-        }
-      },
-      TemplateLiteral: (node) => {
-        if (node.expressions.length === 0) {
-          note(node, node.quasis[0].value.cooked);
-        }
-      },
-      "Program:exit": () => {
-        if (spelled.size >= 2) {
-          const anchor = [...spelled.values()].toSorted((left, right) => left.range[0] - right.range[0])[0];
-          context.report({ node: anchor, message: WIRE_VOCABULARY_MESSAGE });
-        }
-      },
-    };
-  },
-};
-
-/** The string a literal or a substitution-free template spells. */
-function staticLiteralText(node) {
-  if (node.type === "Literal") {
-    return typeof node.value === "string" ? node.value : undefined;
-  }
-  return node.type === "TemplateLiteral" && node.expressions.length === 0 ? node.quasis[0].value.cooked : undefined;
-}
-
-/** The string a same-file `const` is bound to, when its initializer is a string literal. */
-function constantText(name, scope) {
-  for (let current = scope; current !== null; current = current.upper) {
-    const definition = current.set.get(name)?.defs[0];
-    if (current.set.has(name)) {
-      // A `for (const key of …)` binding has no initializer.
-      let init = definition?.type === "Variable" && definition.parent.kind === "const" ? (definition.node.init ?? undefined) : undefined;
-      while (init?.type === "TSAsExpression" || init?.type === "TSSatisfiesExpression") {
-        init = init.expression;
-      }
-      return init === undefined ? undefined : staticLiteralText(init);
-    }
-  }
-}
-
-/** The string a member or property key spells statically: a plain name, a literal, or a const-bound computed key. */
-function staticKeyText(key, computed, scopeOf) {
-  if (key.type !== "Identifier") {
-    return staticLiteralText(key);
-  }
-  return computed ? constantText(key.name, scopeOf()) : key.name;
-}
-
-// A tool choice is decided by the structured plan; any write of one outside it is a second decider.
-const structuredPlanRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const entry = SERVER_ONE_HOME_RESTRICTIONS.find(({ id }) => id === "structured-plan-one-home");
-    const writes = (key, computed, node) => {
-      if (staticKeyText(key, computed, () => context.sourceCode.getScope(node)) === TOOL_CHOICE_KEY) {
-        context.report({ node: key, message: STRUCTURED_PLAN_MESSAGE });
-      }
-    };
-    return {
-      ...restrictionRule(entry).create(context),
-      Property: (node) => {
-        if (node.parent.type === "ObjectExpression") {
-          writes(node.key, node.computed, node);
-        }
-      },
-      AssignmentExpression: (node) => {
-        if (node.operator === "=" && node.left.type === "MemberExpression") {
-          writes(node.left.property, node.left.computed, node);
-        }
-      },
-    };
-  },
-};
-
-function modelProseText(node) {
-  switch (node.type) {
-    case "Literal":
-      return typeof node.value === "string" ? node.value : "";
-    case "TemplateLiteral":
-      return node.quasis.map((quasi) => quasi.value.cooked ?? quasi.value.raw).join(" ");
-    case "BinaryExpression":
-      return `${modelProseText(node.left)} ${modelProseText(node.right)}`;
-    case "ArrayExpression":
-      return node.elements.map((element) => (element === null ? "" : modelProseText(element))).join(" ");
-    case "CallExpression":
-      return node.callee.type === "MemberExpression" && node.callee.object.type === "ArrayExpression" ? modelProseText(node.callee.object) : "";
-    default:
-      return "";
-  }
-}
-
-/** Climb from a literal to the outermost same-unit aggregation (`+` chain or `[…].join(…)`), so a chunk-split dodge is one unit. */
-function modelProseUnit(literal) {
-  let top = literal;
-  for (;;) {
-    const parent = top.parent;
-    if (parent?.type === "BinaryExpression" && parent.operator === "+") {
-      top = parent;
-    } else if (
-      parent?.type === "ArrayExpression" &&
-      parent.parent?.type === "MemberExpression" &&
-      !parent.parent.computed &&
-      parent.parent.property.name === "join" &&
-      parent.parent.parent?.type === "CallExpression"
-    ) {
-      top = parent.parent.parent;
-    } else {
-      return top;
-    }
-  }
-}
-
-// A refusal, a log line or a thrown error faces an operator, never a model.
-function isOperatorFacing(node, sourceCode) {
-  for (let current = node; current !== undefined && current !== null; current = current.parent) {
-    if (current.type === "ThrowStatement") {
-      return true;
-    }
-    if (current.type === "NewExpression" && sourceCode.getText(current.callee).endsWith("Error")) {
-      return true;
-    }
-    if (current.type === "CallExpression" && MODEL_PROSE_OPERATOR_CALLEE.test(sourceCode.getText(current.callee))) {
-      return true;
-    }
-  }
-  return false;
-}
-
-const modelProseRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const judged = new Set();
-    const check = (node) => {
-      const top = modelProseUnit(node);
-      if (judged.has(top)) {
-        return;
-      }
-      judged.add(top);
-      const text = modelProseText(top);
-      if ((text.match(/\S+/gu) ?? []).length >= MODEL_PROSE_MIN_WORDS && MODEL_PROSE_LOWER_RUN.test(text) && !isOperatorFacing(top, context.sourceCode)) {
-        context.report({ node: top, message: MODEL_PROSE_MESSAGE });
-      }
-    };
-    return {
-      Literal: (node) => {
-        if (typeof node.value === "string") {
-          check(node);
-        }
-      },
-      TemplateLiteral: check,
-    };
-  },
-};
-
-// HARD bans on the verify framework's own gate modules. They are registered on `restrictionPlugin` and enabled
-// only by `hardConfig`: never spread into RESTRICTIONS, so no inline disable, bulk suppression or home can excuse them.
-const GATE_MODULES = ["tooling/src/verify/gates/**/*.{ts,tsx}"];
-const GATE_PROOF_FIXTURES = ["tooling/src/verify/gates/_proof/**"];
-const BINDING_RESOLUTION_MESSAGE =
-  "A gate module resolves no binding or origin itself (docs/law/gate-runtime-standardization.md §3): read through floor/code-facts/reference-fact.ts (resolveStableExpression, resolveModuleMemberOrigin, resolveGlobalMemberOrigin) or lib/origin-verdict.ts, or add the missing question to a shared reader.";
-const bindingMember = (name) => ({
-  selector: `:matches(MemberExpression${memberNamed(name)}, ObjectPattern > Property[computed=false][key.name='${name}'])`,
-  message: `${BINDING_RESOLUTION_MESSAGE} Member: \`${name}\`.`,
-});
-// `Symbol#getDeclarations` shares its name with the syntax accessors on variable statements, so only the chain that
-// starts at a symbol read is a resolution.
-const symbolRead = (prefix) =>
-  `[${prefix}type='CallExpression'][${prefix}callee.type='MemberExpression']:matches(${memberNamed("getSymbol", `${prefix}callee.`)}, ${memberNamed("getSymbolOrThrow", `${prefix}callee.`)})`;
-// A gate family test writes only through the scratch writers in tests/support/node/tool-fixtures.ts. A raw fs write
-// verb is the way a probe lands in the checkout and blinds the gate it was probing, so the ban names every door.
-// A specifier is a string literal or a substitution-free template literal at `path`.
-const fsDoor = (path) =>
-  FS_SPECIFIERS.flatMap((specifier) => [
-    `[${path}.value=${JSON.stringify(specifier)}]`,
-    `[${path}.type='TemplateLiteral'][${path}.expressions.length=0][${path}.quasis.0.value.cooked=${JSON.stringify(specifier)}]`,
-  ]).join(", ");
-const FS_DOOR = fsDoor("source");
-const FS_REQUIRE_DOOR = fsDoor("arguments.0");
-const FS_WRITE_VERB_PATTERN = `/^(?:${FS_WRITE_VERBS.join("|")})$/`;
-const RAW_FS_WRITE_MESSAGE =
-  "A gate family test writes only through the scratch writers (plantFile, plantDir, plantLink, removePlanted, or the `scratch` and `plantedTree` fixtures in tests/support/node/tool-fixtures.ts); a raw fs write verb can land a probe in the checkout and blind the gate under test. Read with readFileSync, existsSync or readdirSync.";
-const VERIFY_HARD_RESTRICTIONS = [
-  {
-    id: "no-raw-fs-write-in-gate-tests",
-    scope: ["tests/tooling/verify/gates/**/*.{ts,tsx}"],
-    homes: [],
-    selectors: [
-      `ImportDeclaration:matches(${FS_DOOR}) > ImportSpecifier[imported.name=${FS_WRITE_VERB_PATTERN}]`,
-      `ImportDeclaration:matches(${FS_DOOR}) > :matches(ImportNamespaceSpecifier, ImportDefaultSpecifier)`,
-      `ExportNamedDeclaration:matches(${FS_DOOR}) > ExportSpecifier[local.name=${FS_WRITE_VERB_PATTERN}]`,
-      `ExportAllDeclaration:matches(${FS_DOOR})`,
-      `ImportExpression:matches(${FS_DOOR})`,
-      `CallExpression[callee.name='require']:matches(${FS_REQUIRE_DOOR})`,
-      `CallExpression[callee.type='MemberExpression'][callee.object.name='process'][callee.property.name='getBuiltinModule']:matches(${FS_REQUIRE_DOOR})`,
-      `TSImportEqualsDeclaration > TSExternalModuleReference:matches(${fsDoor("expression")})`,
-    ].map((selector) => ({ selector, message: RAW_FS_WRITE_MESSAGE })),
-  },
-  {
-    id: "policy-binding-resolution",
-    scope: GATE_MODULES,
-    notUnder: GATE_PROOF_FIXTURES,
-    homes: [],
-    selectors: [
-      ...["getDefinitionNodes", "getDefinitions", "findReferences", "findReferencesAsNodes", "getImplementations"].map(bindingMember),
-      ...["getValueDeclaration", "getValueDeclarationOrThrow", "getAliasedSymbol", "getAliasedSymbolOrThrow"].map(bindingMember),
-      {
-        selector: `MemberExpression${memberNamed("getDeclarations")}:matches(${symbolRead("object.")}, [object.type='TSNonNullExpression']${symbolRead("object.expression.")})`,
-        message: `${BINDING_RESOLUTION_MESSAGE} Member: \`getDeclarations\`.`,
-      },
-    ],
-  },
-];
-
-// HARD server structure bans, enabled only by `hardConfig` like the verify bans above.
-// A domain consumes the runtime's operation capability; it never branches on an inference wire or API value. The
-// vocabularies are the contracts' own schemas, so a new wire or API widens the ban without an edit here.
-const inferenceAxisValue = (value) => typeof value === "string" && (wireSchema.safeParse(value).success || connectionApiSchema.safeParse(value).success);
-function staticStringOf(node) {
-  if (node.type === "Literal") {
-    return node.value;
-  }
-  return node.type === "TemplateLiteral" && node.expressions.length === 0 ? node.quasis[0].value.cooked : undefined;
-}
-const INFERENCE_DISPATCH_MESSAGE =
-  "A domain dispatches on an inference wire or API value; ask the runtime for the operation capability through its public door and keep the domain's own policy local.";
-const domainInferenceDispatchRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const report = (node) => context.report({ node, message: INFERENCE_DISPATCH_MESSAGE });
-    return {
-      "BinaryExpression[operator=/^[!=]==?$/]"(node) {
-        for (const operand of [node.left, node.right]) {
-          if (inferenceAxisValue(staticStringOf(operand))) {
-            report(operand);
-          }
-        }
-      },
-      "SwitchCase[test!=null]"(node) {
-        if (inferenceAxisValue(staticStringOf(node.test))) {
-          report(node.test);
-        }
-      },
-    };
-  },
-};
 const SERDE_CARD_MAPPERS = alternation(["cardContentHash", "cardFromJson", "buildCardV3"]);
+
 const SERDE_CARD_HOME = "packages/server/src/primitives/serde/card/index.ts";
+
 const SERDE_CARD_MESSAGE = `A second declaration of a serde-core card mapper; each of cardContentHash, cardFromJson and buildCardV3 is declared once, in ${SERDE_CARD_HOME}. Import it from #primitives/serde/card.`;
+
 const SERVER_HARD_RESTRICTIONS = [
   {
     id: "types-in-contract",
@@ -3890,10 +2432,8 @@ const SERVER_HARD_RESTRICTIONS = [
       `ExportNamedDeclaration > VariableDeclaration > VariableDeclarator[id.type='Identifier'][id.name=${SERDE_CARD_MAPPERS}]`,
     ].map((selector) => ({ selector, message: SERDE_CARD_MESSAGE })),
   },
-  { id: "domain-inference-dispatch", scope: ["packages/server/src/domain/**/*.{ts,tsx}"], homes: [], rule: domainInferenceDispatchRule },
 ];
 
-// D34: the db never re-spells a union. The runtime half (tests/db/schema/enum-tuples.suite.test.ts) judges the values.
 const DB_SCHEMA_RESTRICTIONS = [
   {
     id: "db-enum-from-tuple",
@@ -3909,59 +2449,10 @@ const DB_SCHEMA_RESTRICTIONS = [
   },
 ];
 
-// ── Tooling plumbing literals (Core-Tooling-Law §4.4): ONE port registry, ONE load-budget policy ──────────────
-// A number has no declaration to resolve, so both laws are syntax: a numeric literal and the NAME of its position.
-// The registry values are IMPORTED, so a new reserved row or stage band widens the port law without an edit here.
-// The root runner configs take the same selectors in the HARD profile (`hardConfig`).
-const PORT_POSITION_NAMES = String.raw`/^port$|Port$|_PORT$|^PORT$/`;
-const WALL_CLOCK_OPTION_NAMES = alternation(["timeout", "timeoutMs", "testTimeout", "hookTimeout", "actionTimeout", "navigationTimeout"]);
-const keyNamed = (names) => `:matches(Property[computed=false][key.type='Identifier'][key.name=${names}], Property[key.type='Literal'][key.value=${names}])`;
-const REGISTRY_PORT_VALUES = [...new Set([...RESERVED_PORT_NUMBERS, ...STAGE_BAND_PORT_NUMBERS])].map((port) => `[value=${port}]`).join(", ");
-const PORT_LITERAL_SELECTOR = `Literal[value=type(number)]:matches(${REGISTRY_PORT_VALUES}, ${keyNamed(PORT_POSITION_NAMES)} > .value, VariableDeclarator[id.type='Identifier'][id.name=${PORT_POSITION_NAMES}] > .init)`;
-const PORT_LITERAL_MESSAGE =
-  "A TCP port outside the one registry: read the named row from floor/host/ports.ts or allocate a stage band; a new port is a new reserved row there, never a number picked at the call site (Core-Tooling-Law §4.4).";
-// A name carrying BASE is the sanctioned quiet-box declaration; `*_BUDGET_MS` is a verdict threshold, not a clock.
-const WALL_CLOCK_SELECTORS = [
-  `${keyNamed(WALL_CLOCK_OPTION_NAMES)} > Literal.value[value=type(number)]`,
-  "VariableDeclarator[id.type='Identifier'][id.name=/(?:_TIMEOUT_MS|TimeoutMs)$/]:not([id.name=/BASE|Base/]) > Literal.init[value=type(number)]",
-  "CallExpression[callee.type='Identifier'][callee.name='setTimeout'][arguments.1.type='Literal'][arguments.1.value=type(number)][arguments.1.value>=5000]",
-];
-const WALL_CLOCK_MESSAGE =
-  "A fixed wall clock reads as a false red on a contended box: name the quiet-box literal <X>_BASE_MS and derive the ceiling with budget(<X>_BASE_MS) (tooling) or scaledBudget(<X>_BASE_MS) (tests/tooling/_load-budget.ts) (Core-Tooling-Law §4.4).";
-const VENDORED_DEVTOOLS = "tooling/src/snap/lib/devtools-frontend/**";
-const TOOLING_LITERAL_RESTRICTIONS = [
-  {
-    id: "tooling-clock-budget",
-    scope: ["tooling/src/**/*.{ts,tsx}", "tests/tooling/**/*.{ts,tsx}"],
-    notUnder: [VENDORED_DEVTOOLS],
-    homes: [],
-    selectors: WALL_CLOCK_SELECTORS.map((selector) => ({ selector, message: WALL_CLOCK_MESSAGE })),
-  },
-  {
-    id: "tooling-port-registry",
-    scope: ["tooling/src/**/*.{ts,tsx}", "tests/e2e/support/**/*.{ts,tsx}"],
-    notUnder: [VENDORED_DEVTOOLS],
-    homes: [{ path: "tooling/src/floor/host/ports.ts", why: "the registry is the one module that spells port numbers; every other file reads a named row" }],
-    selectors: [{ selector: PORT_LITERAL_SELECTOR, message: PORT_LITERAL_MESSAGE }],
-  },
-];
-const RUNNER_CONFIG_FILES = ["vitest.config.ts", "playwright*.config.ts"];
-// The retired `@orb-gate-ignore` grammar suppresses nothing; a comment that opens with it reads like protection it
-// no longer gives. `location: "start"` is the mention fence: prose and string fixtures that quote it stay inert.
-const RETIRED_GATE_MARKER = { terms: ["@orb-gate-ignore"], location: "start" };
-// The node helper executables are `.mjs`; the retired gate's harness corpus loaded them beside the TS sources.
-const RETIRED_GATE_MARKER_FILES = ["packages/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}", `${HELPER_WORLD_DIRS.node}/**/*.mjs`];
-
-// ── UI primitive walls ─────────────────────────────────────────────────────────────────────────────────
-// Variant constructors stay private and SVG geometry goes through the icon API: ordinary rules. CT color, CT inline
-// providers and overlay anatomy are HARD: the retired gate took its exceptions as central reviewed grants, so no
-// inline disable may excuse them. They are registered with the plugin below and enabled only in `hardConfig`.
-// The retired gate judged a CT color per source line: a color call opened on a line whose text reaches a digit before
-// any `)`, or a hex literal. A line-text test follows a call split across concatenation operands, template chunks or a
-// `.join` array, which no node-shaped selector can. Comments and test narration (a title, an `expect` message) are
-// blanked first; template substitutions stay executable evidence.
 const CT_COLOR_LINE = /(?:oklch|\brgba?)\\?\((?=[^)\n]*\d)|#[0-9a-fA-F]{3,8}\b/u;
+
 const CT_NARRATION_CALLEES = new Set(["test", "it", "describe", "suite", "bench"]);
+
 const calleeRoot = (callee) => {
   let node = callee;
   while (node.type === "MemberExpression" && !node.computed) {
@@ -3969,12 +2460,14 @@ const calleeRoot = (callee) => {
   }
   return node.type === "Identifier" ? node.name : undefined;
 };
+
 const narrationArgIndex = (root) => {
   if (root === "expect") {
     return 1;
   }
   return CT_NARRATION_CALLEES.has(root) ? 0 : -1;
 };
+
 const uiCtColorRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -4004,9 +2497,13 @@ const uiCtColorRule = {
     };
   },
 };
+
 const OVERLAY_PART = (part) => `:matches(MemberExpression[computed=false], JSXMemberExpression)[property.name='${part}']`;
+
 const OVERLAY_DIRS = { anchored: ["popover", "menu", "select", "autocomplete", "tooltip"], modal: ["dialog", "alert-dialog", "drawer"] };
+
 const overlayScope = (names) => names.map((name) => `packages/ui/src/primitives/${name}/${name}.tsx`);
+
 const UI_PRIMITIVE_RESTRICTIONS = [
   {
     id: "ui-variants-barrel-private",
@@ -4032,7 +2529,7 @@ const UI_PRIMITIVE_RESTRICTIONS = [
     ],
   },
 ];
-const UI_CT_COLOR_RESTRICTION = { id: "ui-ct-no-color-literal", scope: ["tests/ui/**/*.ct.tsx"] };
+
 const UI_HARD_RESTRICTIONS = [
   {
     id: "ui-ct-no-inline-provider",
@@ -4067,10 +2564,9 @@ const UI_HARD_RESTRICTIONS = [
     ],
   },
 ];
-// An alias is an axis only when every member is a string literal; any other member makes it a type, not a vocabulary.
+
 const STRING_LITERAL_MEMBER = "TSLiteralType[literal.type='Literal'][literal.value=type(string)]";
-// `orb/type-home-direct-export` owns every authored declaration in its admitted population; the package interface row keeps
-// what that population excludes: generated files, the server entry module and the ui authoring files.
+
 const TYPE_SHAPE_RESTRICTIONS = [
   {
     id: "no-inline-union-alias",
@@ -4086,19 +2582,7 @@ const TYPE_SHAPE_RESTRICTIONS = [
       },
     ],
   },
-  {
-    id: "no-inline-package-interface",
-    scope: ["packages/server/**/*.gen.ts", "packages/inference/**/*.gen.ts", "packages/server/src/index.ts", ...rootSources("@ui-authoring")],
-    // `@ui-authoring` is the ui package outside `src/`; `src/` is `@ui`, which this ban never judged.
-    notUnder: [UI_SRC, "packages/server/src/domain/**", "packages/server/src/primitives/**", "**/contract/**", UI_TOKEN_AUTHORING_CONTRACT_HOME],
-    notNamed: ["**/contract.ts"],
-    homes: [],
-  },
 ];
-const TYPE_SHAPE_MESSAGES = {
-  "no-inline-package-interface":
-    "An exported interface belongs in its canonical type home; ui token authoring declares its shapes in packages/ui/token-contract.ts (D324; Spine-TypeScript-and-Patterns.md §7.4).",
-};
 
 const RESTRICTIONS = [
   {
@@ -4118,55 +2602,6 @@ const RESTRICTIONS = [
     ],
   },
   {
-    id: "no-prototype-mutation",
-    scope: MAINTAINED_GLOBAL_SURFACES.flatMap(({ files }) => files),
-    notUnder: PROTOTYPE_NATIVE_IGNORES,
-    homes: [],
-    selectors: PROTOTYPE_MUTATION_SELECTORS,
-  },
-  ...DB_SCHEMA_RESTRICTIONS,
-  ...Z_INDEX_RESTRICTIONS,
-  ...BASEUI_RESTRICTIONS,
-  ...UI_PRIMITIVE_RESTRICTIONS,
-  ...CLASS_TOKEN_RESTRICTIONS,
-  ...DETERMINISM_RESTRICTIONS,
-  ...INFRA_AUTH_RESTRICTIONS,
-  ...TABLE_IMPORT_RESTRICTIONS,
-  ...INSTRUMENT_VERDICT_RESTRICTIONS,
-  ...CLASS_RESTRICTIONS,
-  ...ROLE_DATA_RESTRICTIONS,
-  ...TURN_IDENTITY_RESTRICTIONS,
-  ...SERVER_SCOPE_RESTRICTIONS,
-  ...AMBIENT_GLOBAL_RESTRICTIONS,
-  ...CLIENT_REGISTRY_RESTRICTIONS,
-  ...BUS_REGISTRY_RESTRICTIONS,
-  ...CLIENT_DEFINITION_HOME_RESTRICTIONS,
-  ...CLIENT_DEFINITION_LITERAL_RESTRICTIONS,
-  ...CLIENT_CONFIG_HOST_RESTRICTIONS,
-  ...CLIENT_CONTEXT_RESTRICTIONS,
-  ...CLIENT_MAP_RESTRICTIONS,
-  ...CLIENT_LEXICAL_RESTRICTIONS,
-  ...TYPE_SHAPE_RESTRICTIONS,
-  ...MEMBERSHIP_WRITE_FAN_RESTRICTIONS,
-  ...SERVER_ONE_HOME_RESTRICTIONS,
-  ...CT_SPEC_RESTRICTIONS,
-  ...TOOLING_LITERAL_RESTRICTIONS,
-  ...ID_BRAND_RESTRICTIONS,
-  // Only tooling drives browser pages, so app code may close over module scope.
-  { id: "evaluate-no-scope-capture", scope: rootSources("@tooling"), homes: [] },
-  { id: "assumes-single-replica", scope: rootSources("@server", "@inference"), notUnder: ["packages/server/src/**/persistence/**"], homes: [] },
-  { id: "detached-work-traced", scope: rootSources("@server", "@inference"), homes: [] },
-  { id: "receded-ink-integrity", scope: rootSources("@client", "@ui"), homes: [] },
-  // infra translates a resolved posture onto a provider body; specs spell the posture they expect.
-  {
-    id: "no-hardcoded-side-gen-sampling",
-    scope: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}"],
-    notNamed: ["**/*.test.ts", "**/*.test.tsx"],
-    homes: [],
-  },
-  ...CLIENT_SEAL_RESTRICTIONS,
-  ...CLIENT_STYLE_RESTRICTIONS,
-  {
     id: "class-token-splice",
     scope: rootSources("@client", "@ui"),
     homes: [],
@@ -4177,8 +2612,6 @@ const RESTRICTIONS = [
       },
     ],
   },
-  { id: "no-tailwind-dark-variant", scope: rootSources("@client", "@ui"), homes: [] },
-
   {
     id: "no-raw-zustand-persist",
     scope: rootSources("@client"),
@@ -4345,16 +2778,6 @@ const RESTRICTIONS = [
     ],
   },
   {
-    id: "session-channel-boundary",
-    scope: rootSources("@client"),
-    homes: [
-      {
-        path: "packages/client/src/lib/session-channel.ts",
-        why: "the one typed cross-tab session channel (D138): session lifecycle and durable-local pokes, never server truth",
-      },
-    ],
-  },
-  {
     id: "windowed-infinite-query",
     scope: rootSources("@client"),
     homes: [],
@@ -4438,10 +2861,6 @@ const RESTRICTIONS = [
   },
 ];
 
-/** A rule that reports each esquery selector and each unresolved global of one RESTRICTIONS entry. It is the
- *  body of core `no-restricted-syntax` / `no-restricted-globals` with the options closed over, because ESLint
- *  keeps one options list per rule and file, and the core rules are reachable only through an API ESLint
- *  marks deprecated. */
 function restrictionRule({ selectors = [], globals = [] }) {
   return {
     meta: { type: "problem", schema: [] },
@@ -4466,8 +2885,6 @@ function restrictionRule({ selectors = [], globals = [] }) {
   };
 }
 
-// Erased wrappers preserve the ambient receiver; a same-named parameter or local object does not.
-// Cross-module constructor provenance is outside this per-file native claim (D328).
 const sessionChannelBoundaryRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -4493,62 +2910,9 @@ const sessionChannelBoundaryRule = {
     };
   },
 };
-const RAW_Z_INDEX_REGEX = /\bz-(?:\d+|\[\d+\])/u;
-const Z_CLASS_COMPOSERS = new Set(["cn", "clsx", "cva", "tv"]);
-// The nearest carrier is significant; a descendant selector would reclaim nested foreign calls or attributes.
-const rawZIndexRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const report = (node) => {
-      if (!RAW_Z_INDEX_REGEX.test(context.sourceCode.getText(node))) {
-        return;
-      }
-      const ancestors = context.sourceCode.getAncestors(node);
-      const attribute = ancestors.findLast((ancestor) => ancestor.type === "JSXAttribute");
-      const call = ancestors.findLast((ancestor) => ancestor.type === "CallExpression");
-      if (
-        (attribute?.name.type === "JSXIdentifier" && attribute.name.name === "className") ||
-        (call?.callee.type === "Identifier" && Z_CLASS_COMPOSERS.has(call.callee.name))
-      ) {
-        context.report({ node, message: "Raw z-index in a class carrier; use a governed semantic token from packages/ui/src/tokens/z-scope.ts." });
-      }
-    };
-    return {
-      "Literal[value=type(string)]"(node) {
-        report(node);
-      },
-      "TemplateLiteral[expressions.length=0]"(node) {
-        report(node);
-      },
-    };
-  },
-};
-
-// These two policies retain authored regexes, static templates and the nearest carrier, not class extraction.
-function rawTierClassRule(pattern, message) {
-  return {
-    meta: { type: "problem", schema: [] },
-    create(context) {
-      const report = (node) => {
-        if (!pattern.test(context.sourceCode.getText(node))) {
-          return;
-        }
-        const ancestors = context.sourceCode.getAncestors(node);
-        const attribute = ancestors.findLast((ancestor) => ancestor.type === "JSXAttribute");
-        const call = ancestors.findLast((ancestor) => ancestor.type === "CallExpression");
-        if (
-          (attribute?.name.type === "JSXIdentifier" && attribute.name.name === "className") ||
-          (call?.callee.type === "Identifier" && call.range[0] === call.callee.range[0] && Z_CLASS_COMPOSERS.has(call.callee.name))
-        ) {
-          context.report({ node, message });
-        }
-      };
-      return { "Literal[value=type(string)]": report, "TemplateLiteral[expressions.length=0]": report };
-    },
-  };
-}
 
 const TS_VALUE_WRAPPERS = new Set(["TSAsExpression", "TSSatisfiesExpression", "TSNonNullExpression", "TSTypeAssertion"]);
+
 const unwrapTsValue = (node) => {
   let current = node;
   while (TS_VALUE_WRAPPERS.has(current.type)) {
@@ -4556,12 +2920,13 @@ const unwrapTsValue = (node) => {
   }
   return current;
 };
+
 const STATIC_CONST_DEPTH = 8;
 
 const variableNamed = (scope, name) => (scope === null ? undefined : (scope.set.get(name) ?? variableNamed(scope.upper, name)));
+
 const STABLE_DECLARATION_KINDS = new Set(["const", "let"]);
-/** The initializer of the same-file `const`, or `let` never written after its declaration, an identifier names; a
- *  reassigned let, parameter, import or destructured binding has none. */
+
 function constantInitializer(context, identifier) {
   const variable = variableNamed(context.sourceCode.getScope(identifier), identifier.name);
   const [definition] = variable?.defs ?? [];
@@ -4578,8 +2943,9 @@ const SIGNED = new Map([
   ["-", (value) => -value],
   ["+", (value) => value],
 ]);
+
 const joinStatic = (left, right) => (typeof left === "number" && typeof right === "number" ? left + right : `${left}${right}`);
-// Each reader gets the node, a reader for its children and a lookup for the const an identifier names.
+
 const STATIC_TEXT_READERS = new Map([
   ["Literal", (expression) => (typeof expression.value === "string" || typeof expression.value === "number" ? expression.value : undefined)],
   [
@@ -4613,8 +2979,7 @@ const STATIC_TEXT_READERS = new Map([
     },
   ],
 ]);
-/** The string or number an authored expression spells, or undefined. It follows same-file `const` bindings, so a
- *  name standing for a literal reads as that literal; anything dynamic (props, calls, imports) stays undefined. */
+
 function staticTextValue(context, node, depth = 0) {
   const expression = unwrapTsValue(node);
   const read = STATIC_TEXT_READERS.get(expression.type);
@@ -4624,7 +2989,7 @@ function staticTextValue(context, node, depth = 0) {
 }
 
 const spelledName = (value) => (value === undefined ? undefined : String(value));
-// The member name an access spells: `.name`, `["name"]`, or a computed key a same-file const reduces to a literal.
+
 function accessedName(context, member) {
   const { property } = member;
   if (!member.computed) {
@@ -4632,12 +2997,12 @@ function accessedName(context, member) {
   }
   return spelledName(staticTextValue(context, property));
 }
+
 function isStyleMember(context, node) {
   const member = unwrapTsValue(node);
   return member.type === "MemberExpression" && accessedName(context, member) === "style";
 }
-// The name an object literal property is written under: a plain or quoted key, or a computed key a same-file const
-// reduces to a literal.
+
 function staticKeyName(context, property) {
   const { key } = property;
   if (property.computed) {
@@ -4646,8 +3011,6 @@ function staticKeyName(context, property) {
   return key.type === "Identifier" ? key.name : spelledName(key.value);
 }
 
-// The token vocabulary tokens.json closes: radius, shadow, colour, motion and the box spacing axes, in both the
-// camelCase object-key and the kebab-case setProperty spellings.
 const TOKEN_BACKED_STYLE_PROPS = new Set(
   [
     "borderRadius",
@@ -4674,11 +3037,15 @@ const TOKEN_BACKED_STYLE_PROPS = new Set(
     "marginLeft",
   ].flatMap((name) => [name, name.replaceAll(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`)]),
 );
+
 const RAW_STYLE_UNIT = /\d(?:\.\d+)?\s*(?:px|rem|em|%|ms|s|vh|vw|vmin|vmax|ch|cqh|cqw|fr|deg)\b/u;
+
 const RAW_STYLE_COLOR = /#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch|color)\s*\(/u;
+
 const RAW_STYLE_EASING = /\b(?:ease-in-out|ease-in|ease-out|ease|linear|cubic-bezier)\b/u;
+
 const BARE_STYLE_NUMBER = /^-?\d+(?:\.\d+)?$/u;
-// A var(--…) value is on-token; a bare zero is the no-op keyword, not a magic value.
+
 function isRawStyleValue(value) {
   const text = value === undefined ? "" : String(value).trim();
   if (text.includes("var(--")) {
@@ -4692,10 +3059,12 @@ function isRawStyleValue(value) {
 
 const OFF_TOKEN_STYLE_MESSAGE =
   "A token-backed CSS property (radius, shadow, colour, motion, spacing) is written as a raw literal inline; use a Tailwind token utility or reference a var(--…) token from tokens.json.";
+
 const styleObjectOf = (container) => {
   const expression = container.expression.type === "JSXEmptyExpression" ? undefined : unwrapTsValue(container.expression);
   return expression?.type === "ObjectExpression" ? expression : undefined;
 };
+
 const offTokenInlineStyleRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -4731,10 +3100,10 @@ const offTokenInlineStyleRule = {
 };
 
 const COLOR_TOKEN_PREFIX = "--color-";
-// A computed template key is judged by its static head, so `[`--color-${n}`]` still spells a colour token.
+
 const keyHead = (context, property) =>
   property.computed && property.key.type === "TemplateLiteral" ? property.key.quasis[0]?.value.cooked : staticKeyName(context, property);
-// Reads the object a style prop is given: a literal, a same-file const, or a spread of either.
+
 function overridesColorToken(context, node, depth = 0) {
   const expression = unwrapTsValue(node);
   const initializer = expression.type === "Identifier" && depth < STATIC_CONST_DEPTH ? constantInitializer(context, expression) : undefined;
@@ -4747,12 +3116,14 @@ function overridesColorToken(context, node, depth = 0) {
     expression.properties.some((property) => overridesColorKey(context, property, depth))
   );
 }
+
 function overridesColorKey(context, property, depth) {
   if (property.type === "SpreadElement") {
     return overridesColorToken(context, property.argument, depth + 1);
   }
   return property.type === "Property" && (keyHead(context, property) ?? "").startsWith(COLOR_TOKEN_PREFIX);
 }
+
 const themeOverrideRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -4777,7 +3148,7 @@ const VARIANT_CLOSERS = new Map([
   [")", "("],
   ["}", "{"],
 ]);
-// Quotes and escapes are data inside an arbitrary candidate; true when the character was consumed by them.
+
 function consumesQuoteOrEscape(state, char) {
   if (state.escaped) {
     state.escaped = false;
@@ -4797,6 +3168,7 @@ function consumesQuoteOrEscape(state, char) {
   }
   return false;
 }
+
 function consumesBracket(state, char) {
   if (char === "[" || char === "(" || char === "{") {
     state.open.push(char);
@@ -4808,7 +3180,7 @@ function consumesBracket(state, char) {
   }
   return opener !== undefined;
 }
-// Splits a Tailwind candidate on its top-level colons only; a colon inside an arbitrary selector or function is data.
+
 function topLevelVariantParts(candidate) {
   const state = { open: [], quote: "", escaped: false };
   const parts = [];
@@ -4826,11 +3198,9 @@ function topLevelVariantParts(candidate) {
   parts.push(candidate.slice(start));
   return parts;
 }
-// A part of the text the rule cannot read (a prop, a call, an import) stands in as this character, so a variant
-// chain split around it is still judged on the characters that are known.
+
 const UNREAD_TEXT = "\u0000";
-// `dark` is banned as a VARIANT, so the utility position (last part) never counts. A trailing `dark:` is only a
-// runtime prefix when an unread part follows it.
+
 function spellsDarkVariant(text) {
   return text
     .split(/\s+/u)
@@ -4842,7 +3212,7 @@ function spellsDarkVariant(text) {
       }),
     );
 }
-// Each reader gets the node, a reader for its children and a lookup for the const an identifier names.
+
 const JOINED_TEXT_READERS = new Map([
   ["Literal", (expression) => (typeof expression.value === "string" || typeof expression.value === "number" ? String(expression.value) : UNREAD_TEXT)],
   [
@@ -4861,8 +3231,7 @@ const JOINED_TEXT_READERS = new Map([
     },
   ],
 ]);
-/** The text a string, template or `+` chain spells with its same-file `const` parts substituted, and the unread
- *  stand-in for every part it cannot read. */
+
 function joinedText(context, node, depth = 0) {
   const expression = unwrapTsValue(node);
   const read = JOINED_TEXT_READERS.get(expression.type);
@@ -4870,7 +3239,7 @@ function joinedText(context, node, depth = 0) {
   const initializerOf = (identifier) => (depth >= STATIC_CONST_DEPTH ? undefined : constantInitializer(context, identifier));
   return read === undefined ? UNREAD_TEXT : read(expression, next, initializerOf);
 }
-// A text is judged once, at its outermost string, template or `+` chain; the parts inside it are read through it.
+
 function isOutermostText(node) {
   let current = node;
   let parent = current.parent;
@@ -4881,6 +3250,7 @@ function isOutermostText(node) {
   const joined = (parent.type === "BinaryExpression" && parent.operator === "+") || (parent.type === "TemplateLiteral" && parent.expressions.includes(current));
   return !joined;
 }
+
 const darkVariantRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -4893,247 +3263,10 @@ const darkVariantRule = {
   },
 };
 
-const FORCED_REFLOW_READS = new Set(["offsetWidth", "offsetHeight", "getBoundingClientRect"]);
-const FUNCTION_NODE_TYPES = new Set(["FunctionDeclaration", "FunctionExpression", "ArrowFunctionExpression"]);
-// A FLIP inversion is an inline transform write followed, in the same function, by a forced-reflow read. Either half
-// alone is ordinary styling or measurement; the pair is the JS-moves-pixels tell. A reasoned home allows exactly the pairs its
-// ruling names (`allowed`), in source order; the rest are findings, and a home with fewer pairs than it allows is stale.
-const flipInversionRule = {
-  meta: { type: "problem", schema: [{ type: "object", properties: { allowed: { type: "integer", minimum: 1 } }, additionalProperties: false }] },
-  create(context) {
-    const allowed = context.options[0]?.allowed ?? 0;
-    const writes = [];
-    const reads = [];
-    const functionOf = (node) => context.sourceCode.getAncestors(node).findLast((ancestor) => FUNCTION_NODE_TYPES.has(ancestor.type));
-    return {
-      "MemberExpression[property]": (node) => {
-        const scope = FORCED_REFLOW_READS.has(accessedName(context, node)) ? functionOf(node) : undefined;
-        if (scope !== undefined) {
-          reads.push({ scope, start: node.range[0] });
-        }
-      },
-      "AssignmentExpression[operator='='][left.type='MemberExpression']": (node) => {
-        const scope = accessedName(context, node.left) === "transform" && isStyleMember(context, node.left.object) ? functionOf(node) : undefined;
-        if (scope !== undefined) {
-          writes.push({ scope, start: node.range[0], anchor: node.left.property });
-        }
-      },
-      "Program:exit": (program) => {
-        const pairs = writes.filter((write) => reads.some((read) => read.scope === write.scope && read.start > write.start));
-        for (const write of pairs.slice(allowed)) {
-          context.report({
-            node: write.anchor,
-            message:
-              "A FLIP inversion outside the ruled exception class: an inline transform write flushed by a forced layout read is JS moving pixels. Stamp a data attribute and let CSS own the distance (use-list-track-flip.ts).",
-          });
-        }
-        if (pairs.length < allowed) {
-          context.report({
-            node: program,
-            message:
-              "This file is a reasoned home of orb/no-unruled-flip-inversion but holds fewer FLIP pairs than its ruling names; delete or amend its home on the row in eslint.config.js and the ruling in motion-and-animation-guide.md §1.5.",
-          });
-        }
-      },
-    };
-  },
-};
-
-const AUTO_FOCUS_PRIMITIVES = new Set(["Popover", "Dialog", "Tooltip", "Dropdown", "Sheet"]);
-const LIFECYCLE_HOOKS = new Set(["useEffect", "useLayoutEffect"]);
-const FUNCTION_VALUE_TYPES = new Set(["ArrowFunctionExpression", "FunctionExpression"]);
-// useFocusOnMount lands arrival focus; a hand-rolled `.focus()` counts only as the direct body of a lifecycle callback,
-// never an event handler.
-function landsArrivalFocus(context, call) {
-  const { callee } = call;
-  if (callee.type === "Identifier") {
-    return callee.name === "useFocusOnMount";
-  }
-  if (callee.type !== "MemberExpression" || callee.computed || callee.property.name !== "focus") {
-    return false;
-  }
-  const callback = context.sourceCode.getAncestors(call).findLast((ancestor) => FUNCTION_VALUE_TYPES.has(ancestor.type));
-  const hook = callback?.parent;
-  return hook?.type === "CallExpression" && hook.arguments[0] === callback && hook.callee.type === "Identifier" && LIFECYCLE_HOOKS.has(hook.callee.name);
-}
-// The names a module exports without declaring them in the export statement: `export { A as B }` and `export default A`.
-function reexportedNames(program) {
-  return new Set(
-    program.body.flatMap((statement) => {
-      if (statement.type === "ExportNamedDeclaration" && statement.source === null) {
-        return statement.specifiers.map((specifier) => specifier.local.name);
-      }
-      return statement.type === "ExportDefaultDeclaration" && statement.declaration.type === "Identifier" ? [statement.declaration.name] : [];
-    }),
-  );
-}
-// The surface's own component name: the first exported function declaration, else the first exported function-valued const.
-function exportedComponentName(program) {
-  const reexported = reexportedNames(program);
-  const entries = program.body.flatMap((statement) => {
-    const wrapped = statement.type === "ExportNamedDeclaration" || statement.type === "ExportDefaultDeclaration";
-    if (!wrapped) {
-      return [{ declaration: statement, exported: false }];
-    }
-    return statement.declaration ? [{ declaration: statement.declaration, exported: true }] : [];
-  });
-  const isExported = (entry, id) => entry.exported || reexported.has(id.name);
-  const declared = entries.find((entry) => entry.declaration.type === "FunctionDeclaration" && entry.declaration.id && isExported(entry, entry.declaration.id));
-  const valued = entries
-    .flatMap((entry) => (entry.declaration.type === "VariableDeclaration" ? entry.declaration.declarations.map((declarator) => ({ entry, declarator })) : []))
-    .find(
-      ({ entry, declarator }) => declarator.id.type === "Identifier" && FUNCTION_VALUE_TYPES.has(declarator.init?.type) && isExported(entry, declarator.id),
-    );
-  return declared?.declaration.id ?? valued?.declarator.id;
-}
-const surfaceA11yFocusRule = {
-  meta: { type: "problem", schema: [{ type: "object", properties: { homed: { type: "boolean" } }, additionalProperties: false }] },
-  create(context) {
-    const homed = context.options[0]?.homed === true;
-    let managesFocus = false;
-    return {
-      "JSXOpeningElement[name.type='JSXIdentifier']": (opening) => {
-        managesFocus = managesFocus || AUTO_FOCUS_PRIMITIVES.has(opening.name.name);
-      },
-      "CallExpression[callee]": (call) => {
-        managesFocus = managesFocus || landsArrivalFocus(context, call);
-      },
-      "Program:exit": (program) => {
-        if (homed) {
-          if (managesFocus) {
-            context.report({
-              node: exportedComponentName(program) ?? program,
-              message:
-                "This surface is a reasoned home of orb/surface-a11y-focus but now takes its own arrival focus; delete its home from the row in eslint.config.js.",
-            });
-          }
-          return;
-        }
-        const name = managesFocus ? undefined : exportedComponentName(program);
-        if (name !== undefined) {
-          context.report({
-            node: name,
-            message:
-              "A surface must take its section's arrival focus: useFocusOnMount, a .focus() in a mount lifecycle, or a focus-trapping root (Popover, Dialog, Tooltip, Dropdown, Sheet). When another pane owns arrival focus, give the file a reasoned home on this row in eslint.config.js (UI-Gates-and-Lessons.md §8).",
-          });
-        }
-      },
-    };
-  },
-};
-// A size="text" CollapsibleTrigger is the sub-floor opt-out. A home allows exactly the mounts its ruling names (`allowed`),
-// in source order; the rest are findings, and a home that mounts fewer than it allows is stale.
-const SUB_FLOOR_TRIGGER =
-  "JSXOpeningElement[name.name='CollapsibleTrigger'] > JSXAttribute[name.name='size']:matches([value.value='text'], [value.expression.value='text'])";
-// A home allows exactly `allowed` matches of `selector`, in source order; every other match is a finding, and a home
-// with fewer matches than it allows reports itself stale. Outside a home `allowed` is zero.
-function homedCountRule({ selector, message, staleMessage }) {
-  return {
-    meta: { type: "problem", schema: [{ type: "object", properties: { allowed: { type: "integer", minimum: 1 } }, additionalProperties: false }] },
-    create(context) {
-      const allowed = context.options[0]?.allowed ?? 0;
-      const matches = [];
-      return {
-        [selector]: (node) => {
-          matches.push(node);
-        },
-        "Program:exit": (program) => {
-          for (const node of matches.slice(allowed)) {
-            context.report({ node, message });
-          }
-          if (matches.length < allowed) {
-            context.report({ node: program, message: staleMessage });
-          }
-        },
-      };
-    },
-  };
-}
-const subFloorDisclosureRule = homedCountRule({
-  selector: SUB_FLOOR_TRIGGER,
-  message:
-    'A size="text" CollapsibleTrigger is the sub-floor opt-out (no control box, no hit pseudo); take the control default, or give the file a reasoned home on this row in eslint.config.js saying why the disclosure sits in running content.',
-  staleMessage:
-    'This file is a reasoned home of orb/sub-floor-disclosure but mounts fewer size="text" CollapsibleTriggers than its ruling names; delete or amend its home on the row in eslint.config.js.',
-});
-// D119: the CONTEXT pane's head band has one region claimant and one geometry-probe writer. A HARD single writer:
-// the claimant file is its home with one allowed occurrence; a renamed claimant is a finding at its new path.
-const CONTEXT_MINT_HOME = "packages/client/src/lib/registry-contracts.ts";
-const CONTEXT_SINGLE_WRITERS = [
-  {
-    id: "context-region-single-claimant",
-    home: "packages/client/src/features/rpg/lib/rpg-hud-region.tsx",
-    rule: homedCountRule({
-      selector: `CallExpression:matches([callee.type='Identifier'][callee.name='${DEFINE_CONTEXT_REGION}'], [callee.type='MemberExpression'][callee.property.name='${DEFINE_CONTEXT_REGION}'])`,
-      message:
-        "A second defineContextRegion call site: the CONTEXT pane's head band has one owner, or which claimant wins is a declaration-order accident (D119).",
-      staleMessage:
-        "This file is the one defineContextRegion claimant on orb/context-region-single-claimant but no longer calls it; move the home to the new claimant in eslint.config.js.",
-    }),
-  },
-  {
-    id: "context-bracket-single-writer",
-    home: "packages/client/src/features/app-shell/components/context-bracket.tsx",
-    rule: homedCountRule({
-      selector: "JSXAttribute[name.name='data-context-bracket']",
-      message:
-        "A second writer of data-context-bracket: the geometry probe attribute has one writer, the context bracket, so a probe never resolves to two elements (D119).",
-      staleMessage:
-        "This file is the one data-context-bracket writer on orb/context-bracket-single-writer but no longer writes it; move the home to the new writer in eslint.config.js.",
-    }),
-  },
-];
-
-const DISPLAY_UTILITIES = new Set([
-  "block",
-  "inline-block",
-  "inline",
-  "flex",
-  "inline-flex",
-  "grid",
-  "inline-grid",
-  "table",
-  "inline-table",
-  "table-caption",
-  "table-cell",
-  "table-column",
-  "table-column-group",
-  "table-footer-group",
-  "table-header-group",
-  "table-row-group",
-  "table-row",
-  "flow-root",
-  "list-item",
-  "contents",
-  "hidden",
-]);
-const HOVER_VARIANT_RE = /^(?:not-)?(?:group-|peer-)?hover(?:\/[A-Za-z0-9_-]+)?$/u;
-const ARBITRARY_HOVER_VARIANT_RE = /^\[&[^\]]*:hover[^\]]*\]$/u;
-const hoverDisplayRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const report = (node) => {
-      for (const part of readTailwindClassTokens(context.sourceCode.getText(node))) {
-        if (
-          DISPLAY_UTILITIES.has(part.utility) &&
-          part.variants.some((variant) => HOVER_VARIANT_RE.test(variant) || ARBITRARY_HOVER_VARIANT_RE.test(variant))
-        ) {
-          context.report({
-            loc: {
-              start: context.sourceCode.getLocFromIndex(node.range[0] + part.offset),
-              end: context.sourceCode.getLocFromIndex(node.range[0] + part.offset + part.token.length),
-            },
-            message: "Hover-keyed display swaps move the hit-test boundary; reserve the box and swap visibility or opacity instead.",
-          });
-        }
-      }
-    };
-    return { "Literal[value=type(string)]": report, TemplateElement: report };
-  },
-};
-
 const STORE_HOOK_RE = /^use[A-Z].*Store$/u;
+
 const STORE_ARRAY_REBUILDS = new Set(["map", "filter", "flatMap", "slice", "concat", "toSorted", "toReversed", "toSpliced"]);
+
 const STORE_OBJECT_DERIVATIONS = new Set(["keys", "values", "entries"]);
 
 function storeSelector(call, sourceCode) {
@@ -5228,33 +3361,6 @@ const storeDerivedRule = {
     };
   },
 };
-function baseUiIdentifiers(node, sourceCode) {
-  const identifiers = new Map();
-  const pending = [node];
-  while (pending.length > 0) {
-    const part = pending.pop();
-    if (part === null || part === undefined) {
-      continue;
-    }
-    if (part.type === "Identifier" || part.type === "JSXIdentifier") {
-      identifiers.set(part.range.join(":"), part);
-    }
-    for (const key of sourceCode.visitorKeys[part.type] ?? []) {
-      const children = part[key];
-      pending.push(...(Array.isArray(children) ? children : [children]));
-    }
-  }
-  return [...identifiers.values()].toSorted((left, right) => left.range[0] - right.range[0]);
-}
-
-function baseUiSignatureArity(node) {
-  if (node?.type === "TSFunctionType") {
-    return node.params.length;
-  }
-  if (node?.type === "TSUnionType") {
-    return node.types.map(baseUiSignatureArity).find((arity) => arity !== undefined);
-  }
-}
 
 function baseUiBindings(program) {
   return program.body.flatMap((node) =>
@@ -5267,223 +3373,6 @@ function baseUiBindings(program) {
             exported: specifier.imported.name ?? specifier.imported.value,
             typeOnly: node.importKind === "type" || specifier.importKind === "type",
           })),
-  );
-}
-
-function baseUiExported(iface, exports, sourceCode) {
-  if (iface.parent.type === "ExportNamedDeclaration" || iface.parent.type === "ExportDefaultDeclaration") {
-    return true;
-  }
-  const declared = sourceCode.getDeclaredVariables(iface);
-  return exports.some((identifier) => {
-    for (let scope = sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
-      const variable = scope.set.get(identifier.name);
-      if (variable !== undefined) {
-        return declared.includes(variable);
-      }
-    }
-    return false;
-  });
-}
-
-function baseUiFoldPart(surface, binding, part, { name, isRoot }) {
-  for (const [prop, arity] of Object.entries(part.handlers)) {
-    if (!surface.handlers.has(prop)) {
-      surface.handlers.set(prop, { arity, owner: `${binding.exported}.${name}` });
-    }
-  }
-  if (!isRoot) {
-    return;
-  }
-  for (const prop of part.props) {
-    if (!(prop in part.handlers || surface.rootProps.has(prop))) {
-      surface.rootProps.set(prop, `${binding.exported}.${name}`);
-    }
-  }
-}
-
-function baseUiFoldBinding(surface, binding, tags) {
-  const component = BASEUI_SURFACE.components[binding.exported];
-  if (component === undefined) {
-    return;
-  }
-  surface.sawValue = true;
-  for (const [name, part] of Object.entries(component.parts)) {
-    const tag = component.namespaced ? `${binding.local}.${name}` : binding.local;
-    const isRoot = name === (component.namespaced ? "Root" : binding.exported);
-    if (part.kind === "part" && part.state.length > 0) {
-      surface.stateful.set(tag, part.state);
-    }
-    if (isRoot || tags.has(tag)) {
-      surface.baseTags.add(tag);
-      baseUiFoldPart(surface, binding, part, { name, isRoot });
-    }
-  }
-}
-
-function baseUiForwardedProps(elements, surface, sourceCode) {
-  const forwarded = new Set();
-  for (const element of elements) {
-    if (!surface.baseTags.has(sourceCode.getText(element.name))) {
-      continue;
-    }
-    for (const attribute of element.attributes) {
-      if (attribute.type === "JSXAttribute") {
-        forwarded.add(sourceCode.getText(attribute.name));
-      } else {
-        for (const prop of [...surface.handlers.keys(), ...surface.rootProps.keys()]) {
-          forwarded.add(prop);
-        }
-      }
-    }
-  }
-  return forwarded;
-}
-
-function baseUiFileSurface(program, elements, sourceCode) {
-  const surface = { sawValue: false, handlers: new Map(), rootProps: new Map(), baseTags: new Set(), baseTypes: new Set(), stateful: new Map() };
-  const tags = new Set(elements.map((element) => sourceCode.getText(element.name)));
-  for (const binding of baseUiBindings(program)) {
-    if (binding.typeOnly) {
-      surface.baseTypes.add(binding.local);
-    } else {
-      baseUiFoldBinding(surface, binding, tags);
-    }
-  }
-  return { ...surface, forwarded: baseUiForwardedProps(elements, surface, sourceCode) };
-}
-
-function baseUiRespelledMember(member, file, derived, sourceCode) {
-  if (member.type !== "TSPropertySignature" || member.computed) {
-    return;
-  }
-  const name = member.key.name ?? member.key.value;
-  const type = member.typeAnnotation?.typeAnnotation;
-  if (!file.forwarded.has(name) || baseUiIdentifiers(type, sourceCode).some((id) => file.baseTypes.has(id.name) || derived.has(id.name))) {
-    return;
-  }
-  return { name, arity: baseUiSignatureArity(type), handler: file.handlers.get(name), rootOwner: file.rootProps.get(name) };
-}
-
-function baseUiJudgeInterface(context, iface, file, { derived, handlersOnly }) {
-  for (const member of iface.body.body) {
-    const hit = baseUiRespelledMember(member, file, derived, context.sourceCode);
-    if (hit === undefined) {
-      continue;
-    }
-    if (handlersOnly && hit.arity !== undefined && hit.handler !== undefined) {
-      context.report({
-        node: member.key,
-        message: `Derive ${hit.name} from ${hit.handler.owner}'s props type; a hand-written handler loses native event details or future capability (${hit.arity}/${hit.handler.arity} arguments).`,
-      });
-    } else if (!handlersOnly && hit.arity === undefined && iface.id.name.endsWith("Props") && hit.rootOwner !== undefined) {
-      context.report({
-        node: member.key,
-        message: `Derive ${hit.name} from ${hit.rootOwner}'s props type; a deliberate narrower item model requires a reasoned native permission.`,
-      });
-    }
-  }
-}
-
-function baseUiDerivesRule(handlersOnly) {
-  return {
-    meta: { type: "problem", schema: [] },
-    create(context) {
-      const sourceCode = context.sourceCode;
-      const elements = [];
-      const interfaces = [];
-      const aliases = [];
-      const exports = [];
-      return {
-        "JSXOpeningElement:exit": (node) => elements.push(node),
-        "TSInterfaceDeclaration:exit": (node) => interfaces.push(node),
-        "TSTypeAliasDeclaration:exit"(node) {
-          if (node.parent.type === "Program" || (node.parent.type === "ExportNamedDeclaration" && node.parent.parent.type === "Program")) {
-            aliases.push(node);
-          }
-        },
-        "ExportNamedDeclaration:exit"(node) {
-          if (node.source === null) {
-            exports.push(...node.specifiers.map((specifier) => specifier.local));
-          }
-        },
-        "ExportDefaultDeclaration:exit"(node) {
-          if (node.declaration.type === "Identifier") {
-            exports.push(node.declaration);
-          }
-        },
-        "Program:exit"(program) {
-          const file = baseUiFileSurface(program, elements, sourceCode);
-          if (!file.sawValue) {
-            return;
-          }
-          const derived = new Set(
-            aliases
-              .filter((alias) => baseUiIdentifiers(alias.typeAnnotation, sourceCode).some(({ name }) => file.baseTypes.has(name)))
-              .map((alias) => alias.id.name),
-          );
-          for (const iface of interfaces) {
-            if (baseUiExported(iface, exports, sourceCode)) {
-              baseUiJudgeInterface(context, iface, file, { derived, handlersOnly });
-            }
-          }
-        },
-      };
-    },
-  };
-}
-
-function baseUiStateRead(id) {
-  const parent = id.parent;
-  return !(
-    (parent.type === "MemberExpression" && parent.property === id && !parent.computed) ||
-    (parent.type === "Property" && parent.key === id && !parent.computed && !parent.shorthand)
-  );
-}
-
-function baseUiJudgeState(context, element, keys, local) {
-  const attribute = element.attributes.find((attr) => attr.type === "JSXAttribute" && attr.name.name === "className");
-  if (keys === undefined || attribute?.value?.type !== "JSXExpressionContainer") {
-    return;
-  }
-  for (const id of baseUiIdentifiers(attribute, context.sourceCode)) {
-    if (local.has(id.name) && keys.includes(id.name) && baseUiStateRead(id)) {
-      context.report({ node: id, message: `Use Base UI's data attribute for ${id.name}, not a parallel React state read in this part's className.` });
-    }
-  }
-}
-
-const baseUiStateRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const sourceCode = context.sourceCode;
-    const elements = [];
-    const local = new Set();
-    return {
-      "JSXOpeningElement:exit": (node) => elements.push(node),
-      "VariableDeclarator:exit"(node) {
-        const init = node.init?.type === "ChainExpression" ? node.init.expression : node.init;
-        if (init?.type === "CallExpression" && /^use[A-Z]/u.test(sourceCode.getText(init.callee))) {
-          for (const { name } of baseUiIdentifiers(node.id, sourceCode)) {
-            local.add(name);
-          }
-        }
-      },
-      "Program:exit"(program) {
-        const file = baseUiFileSurface(program, elements, sourceCode);
-        for (const element of elements) {
-          baseUiJudgeState(context, element, file.stateful.get(sourceCode.getText(element.name)), local);
-        }
-      },
-    };
-  },
-};
-
-const CONTEXT_BODIES_RECORD = /^(?:readonly\s+)?(?:Partial<\s*)?Record<\s*string\s*,\s*ReactNode\s*>>?$/u;
-
-function contextProperty(object, name) {
-  return object.properties.find(
-    (property) => property.type === "Property" && !property.computed && property.key.type === "Identifier" && property.key.name === name,
   );
 }
 
@@ -5500,7 +3389,6 @@ function contextLiteral(node) {
   }
 }
 
-// Native ESTree erases parentheses; supplied tokens distinguish the call's own delimiter from a wrapper.
 function contextDirectArgument(call, argument, sourceCode) {
   const index = call.arguments.indexOf(argument);
   const before = sourceCode.getTokenBefore(argument);
@@ -5509,71 +3397,6 @@ function contextDirectArgument(call, argument, sourceCode) {
     : index > 0 && before.value === ",";
 }
 
-function contextBareCall(call, name) {
-  return call.callee.type === "Identifier" && call.callee.name === name && call.range[0] === call.callee.range[0];
-}
-
-function contextObject(context, object) {
-  if (REGISTRY_CONTRACTS_RE.test(context.filename)) {
-    return;
-  }
-  const sourceCode = context.sourceCode;
-  const kind = contextProperty(object, "kind");
-  const resolved = contextProperty(object, "useResolved");
-  if (kind?.kind === "init" && !kind.method && contextLiteral(kind.value) === "tabs" && resolved?.kind === "init") {
-    context.report({ node: resolved.key, message: "Mint tabs renderers through defineContextTabs, not a hand-rolled kind/useResolved object." });
-  }
-  const claims = contextProperty(object, "claims");
-  const band = contextProperty(object, "band");
-  const parent = object.parent;
-  const minted = parent.type === "CallExpression" && contextBareCall(parent, DEFINE_CONTEXT_REGION) && contextDirectArgument(parent, object, sourceCode);
-  if (claims?.kind === "init" && band !== undefined && !minted) {
-    context.report({ node: claims.key, message: "Mint region claims through defineContextRegion, not a hand-rolled claims/band object." });
-  }
-}
-
-const contextDefinitionRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const sourceCode = context.sourceCode;
-    return {
-      "ObjectExpression:exit": (node) => contextObject(context, node),
-      "CallExpression:exit"(node) {
-        const argument = node.arguments[0];
-        if (!contextBareCall(node, DEFINE_CONTEXT_TABS) || argument?.type !== "ObjectExpression" || !contextDirectArgument(node, argument, sourceCode)) {
-          return;
-        }
-        const tabs = contextProperty(argument, "tabs");
-        if (
-          tabs?.kind === "init" &&
-          !tabs.method &&
-          tabs.value.type === "ArrayExpression" &&
-          tabs.value.elements.length === 0 &&
-          sourceCode.getTokenBefore(tabs.value).value === ":" &&
-          contextProperty(argument, "contributors") === undefined
-        ) {
-          context.report({ node: tabs.key, message: "A tabs:[] context mint needs a contributors registry so it has reachable content." });
-        }
-      },
-      "JSXAttribute[name.name='bodies']:exit"(node) {
-        context.report({ node: node.name, message: "Keep tab identity and body together, not a separate bodies map." });
-      },
-      "TSPropertySignature:exit"(node) {
-        if (node.computed || node.key.type !== "Identifier" || node.key.name !== "bodies" || node.typeAnnotation === undefined) {
-          return;
-        }
-        const colon = sourceCode.getFirstToken(node.typeAnnotation);
-        if (sourceCode.getTokenAfter(colon).value === "(") {
-          return;
-        }
-        const text = sourceCode.getText(node.typeAnnotation.typeAnnotation).replace(/\s+/gu, " ").trim();
-        if (CONTEXT_BODIES_RECORD.test(text)) {
-          context.report({ node: node.key, message: "Keep tab identity and body together, not a separate bodies Record." });
-        }
-      },
-    };
-  },
-};
 const registerApiRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -5586,92 +3409,6 @@ const registerApiRule = {
           context.sourceCode.getTokenBefore(node.init).value === "="
         ) {
           context.report({ node: node.id, message: "Export definition values for door assembly, not a mutating register API." });
-        }
-      },
-    };
-  },
-};
-
-const PARALLEL_MAP_TUPLE_HOMES = ["/state/shell-store.ts", "/state/section-ids.ts", "/state/config-group-ids.ts", "/state/modal-slot-ids.ts"];
-
-function parallelMapDoor(path) {
-  return path.endsWith("/client/src/main.tsx") || path.includes("/client/src/compose/");
-}
-
-function parallelMapHome(path, slot) {
-  return PARALLEL_MAP_TUPLE_HOMES.some((home) => path.endsWith(home)) || parallelMapDoor(path) || isDefinitionHome(path, slot);
-}
-
-function parallelMapField(object, name) {
-  const property = contextProperty(object, name);
-  const value = property?.kind === "init" && !property.method ? contextLiteral(property.value) : undefined;
-  return value === undefined ? undefined : { value, node: property.value };
-}
-
-function parallelMapArrayAnchor(array, ids, sourceCode) {
-  const objects =
-    array.elements.length > 0 &&
-    array.elements.every((element) => element?.type === "ObjectExpression" && ["[", ","].includes(sourceCode.getTokenBefore(element).value));
-  const entries = array.elements.map((element) => (objects ? parallelMapField(element, "id") : { value: contextLiteral(element), node: element }));
-  if (entries.some((entry) => entry === undefined || !ids.includes(entry.value))) {
-    return;
-  }
-  return new Set(entries.map(({ value }) => value)).size >= 2 ? entries[0]?.node : undefined;
-}
-
-const parallelMapRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const sourceCode = context.sourceCode;
-    const path = relative(context.cwd, context.filename).replaceAll("\\", "/");
-    const report = (node, shape) => context.report({ node, message: `${shape} is a parallel registry map; derive it from the registry instead.` });
-    return {
-      "ObjectExpression:exit"(node) {
-        const properties = node.properties.filter((property) => property.type === "Property" && property.kind === "init" && !property.method);
-        for (const { ids, slot, name } of PARALLEL_MAP_VOCABULARIES) {
-          if (
-            !parallelMapHome(path, slot) &&
-            properties.length >= 2 &&
-            properties.every((property) => !property.computed && property.key.type === "Identifier" && ids.includes(property.key.name))
-          ) {
-            report(properties[0].key, `A per-id ${name} object literal`);
-          }
-        }
-      },
-      "ArrayExpression:exit"(node) {
-        for (const { ids, slot, name } of PARALLEL_MAP_VOCABULARIES) {
-          if (!parallelMapHome(path, slot)) {
-            const anchor = parallelMapArrayAnchor(node, ids, sourceCode);
-            if (anchor !== undefined) {
-              report(anchor, `An array covering multiple ${name}s`);
-            }
-          }
-        }
-        if (parallelMapDoor(path) || path.endsWith("/state/assemble-chrome.ts") || isDefinitionHome(path, DEFINITION_SLOTS.chrome)) {
-          return;
-        }
-        const zones = node.elements.map((element) =>
-          element?.type === "ObjectExpression" && ["[", ","].includes(sourceCode.getTokenBefore(element).value) ? parallelMapField(element, "zone") : undefined,
-        );
-        if (zones.length >= 2 && zones.every((zone) => zone !== undefined && CHROME_ZONES.includes(zone.value))) {
-          report(zones[0].node, "A hand-maintained chrome list");
-        }
-      },
-      "VariableDeclarator:exit"(node) {
-        const statement = node.parent;
-        const parent = statement.parent.type === "ExportNamedDeclaration" ? statement.parent.parent : statement.parent;
-        const annotation = node.id.typeAnnotation;
-        if (parent.type !== "Program" || annotation?.typeAnnotation.type !== "TSTypeReference") {
-          return;
-        }
-        if (sourceCode.getTokenAfter(sourceCode.getFirstToken(annotation)).value === "(") {
-          return;
-        }
-        const text = sourceCode.getText(annotation.typeAnnotation);
-        for (const { slot, name } of PARALLEL_MAP_VOCABULARIES) {
-          if (!parallelMapHome(path, slot) && new RegExp(`\\bRecord<\\s*${name}\\b`, "u").test(text)) {
-            report(node.id, `A module-level Record<${name}, …> value`);
-          }
         }
       },
     };
@@ -5693,11 +3430,9 @@ const typedTestIdRule = (message) => ({
   },
 });
 
-// Playwright's poll loop pops the interval array it is handed, so a schedule shared by reference leaves every later
-// poll on the 1000ms default. Only a module-scope object that carries `intervals` is resolvable as shared; a function-local
-// options object is minted per call.
 const POLL_SCHEDULE_MESSAGE =
   "A poll `intervals` schedule shared by identifier is drained by the first poll; mint it inline (`intervals: [50, 100]`) or from a factory call such as evidencePoll().";
+
 function moduleScopeIntervalsObject(sourceCode, identifier) {
   for (let scope = sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
     const variable = scope.set.get(identifier.name);
@@ -5715,6 +3450,7 @@ function moduleScopeIntervalsObject(sourceCode, identifier) {
   }
   return false;
 }
+
 const ctPollIntervalsSharedRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -5754,113 +3490,16 @@ const ctPollIntervalsSharedRule = {
   },
 };
 
-const VERTICAL_SCROLL_UTILITIES = new Set(["overflow-auto", "overflow-scroll", "overflow-y-auto", "overflow-y-scroll"]);
-const POSITION_UTILITIES = new Set(["relative", "absolute", "fixed", "sticky"]);
-const scrollContainerRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const report = (node) => {
-      const parts = readTailwindClassTokens(context.sourceCode.getText(node));
-      const scroll = parts.find(({ utility }) => VERTICAL_SCROLL_UTILITIES.has(utility));
-      if (scroll !== undefined && !parts.some(({ utility }) => POSITION_UTILITIES.has(utility))) {
-        context.report({
-          loc: {
-            start: context.sourceCode.getLocFromIndex(node.range[0] + scroll.offset),
-            end: context.sourceCode.getLocFromIndex(node.range[0] + scroll.offset + scroll.token.length),
-          },
-          message: "A vertical scroll literal must supply relative, absolute, fixed or sticky in the SAME literal.",
-        });
-      }
-    };
-    return { "Literal[value=type(string)]": report, TemplateElement: report };
-  },
-};
-
-// Unsized APIs explicitly give geometry to callers; VirtualList requires a bounded caller height.
-const UNSIZED_UI_MODULES = new Set([
-  "@orb/ui/layout",
-  "@orb/ui/skeleton",
-  "@orb/ui/theme-scope",
-  "@orb/ui/crossfade-image",
-  "@orb/ui/background-video",
-  "@orb/ui/virtual-list",
-]);
-const SEALED_SIZE_UTILITY = /^(?<axis>h|min-h|size|w)-(?<value>[a-z0-9./-]+)$/u;
-const LAYOUT_SIZE_VALUE = /^(?:full|fit|min|max|screen|[sld]v[hw]|\d+\/\d+)$/u;
-const SEALED_SIZE_VALUE = /^(?:\d+(?:\.\d+)?|[a-z][a-z0-9-]*)$/u;
-function isSealedSizeUtility(utility) {
-  const match = SEALED_SIZE_UTILITY.exec(utility);
-  return (
-    match !== null &&
-    !LAYOUT_SIZE_VALUE.test(match.groups.value) &&
-    !(match.groups.axis === "min-h" && match.groups.value === "0") &&
-    SEALED_SIZE_VALUE.test(match.groups.value)
-  );
-}
-function uiSizeLiteral(attribute, sourceCode) {
-  const literal = attribute?.value?.type === "JSXExpressionContainer" ? attribute.value.expression : attribute?.value;
-  if (!((literal?.type === "Literal" && typeof literal.value === "string") || (literal?.type === "TemplateLiteral" && literal.expressions.length === 0))) {
-    return;
-  }
-  // Native ESTree drops parentheses; the original carrier accepts only an unwrapped literal.
-  if (attribute.value.type === "JSXExpressionContainer" && sourceCode.getTokenAfter(sourceCode.getFirstToken(attribute.value)).range[0] !== literal.range[0]) {
-    return;
-  }
-  return literal;
-}
-const uiSizeRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const imports = new Set();
-    return {
-      Program: (program) => {
-        for (const node of program.body) {
-          if (node.type !== "ImportDeclaration" || !/^@orb\/ui(?:\/|$)/u.test(node.source.value) || UNSIZED_UI_MODULES.has(node.source.value)) {
-            continue;
-          }
-          for (const specifier of node.specifiers) {
-            if (specifier.type === "ImportSpecifier") {
-              imports.add(specifier.local.name);
-            }
-          }
-        }
-      },
-      "JSXOpeningElement:exit"(node) {
-        if (node.name.type !== "JSXIdentifier" || !imports.has(node.name.name)) {
-          return;
-        }
-        const attribute = node.attributes.find((part) => part.type === "JSXAttribute" && part.name.name === "className");
-        const literal = uiSizeLiteral(attribute, context.sourceCode);
-        if (literal === undefined) {
-          return;
-        }
-        for (const part of readTailwindClassTokens(context.sourceCode.getText(literal))) {
-          if (!isSealedSizeUtility(part.utility)) {
-            continue;
-          }
-          context.report({
-            loc: {
-              start: context.sourceCode.getLocFromIndex(literal.range[0] + part.offset),
-              end: context.sourceCode.getLocFromIndex(literal.range[0] + part.offset + part.token.length),
-            },
-            message: "Sizes come from primitive variants; a call-site sizing utility overrides the sealed box.",
-          });
-        }
-      },
-    };
-  },
-};
-
 const FLOORLESS_BUTTON_SIZES = new Set(
   Object.entries(BUTTON_SIZE_OVERFLOW)
     .filter(([, overflows]) => overflows)
     .map(([size]) => size),
 );
-if (FLOORLESS_BUTTON_SIZES.size === 0) {
-  throw new Error("Native floorless-control vocabulary resolved no overflowing Button sizes");
-}
+
 const FLOORLESS_WRAP = /\bflex-wrap\b/u;
+
 const FLOORLESS_ROW_FLOOR = /\bmin-h-touch-target\b|\bmin-h-control-[a-z]+\b|pointer-coarse:min-h-[a-z-]+/u;
+
 const FLOORLESS_STACK_CONTROL = /rows\s*=\s*(?:\{\s*)?["']control["']/u;
 
 function floorlessVariableBody(declaration, sourceCode) {
@@ -6020,216 +3659,6 @@ const floorlessControlRule = {
   },
 };
 
-const MEMBERSHIP_TABLE_MODULE = /^@orb\/db(?:\/schema)?$/u;
-const MEMBERSHIP_WRITE_VERBS = new Set(["insert", "update", "delete"]);
-// The chained calls only a drizzle statement carries; `cache.delete(key)` has the same call shape and none of these.
-const DRIZZLE_WRITE_CHAIN = new Set(["set", "values", "returning", "where", "onConflictDoUpdate", "onConflictDoNothing"]);
-// Both address one human: the user bus, and the durable inbox delivered to one recipient.
-const PER_PERSON_EMITS = new Set(["emitUserEvent", "emitNotification"]);
-const DOCUMENT_ROOM_FAN = "fanDatabankRoomsForDocument";
-
-function staticPropertyName(member) {
-  if (!member.computed && member.property.type === "Identifier") {
-    return member.property.name;
-  }
-  return member.computed && member.property.type === "Literal" && typeof member.property.value === "string" ? member.property.value : undefined;
-}
-
-function unchained(node) {
-  return node.type === "ChainExpression" ? node.expression : node;
-}
-
-/** The callee name of `emitX(…)`, `ctx.emitX(…)`, `ctx?.emitX(…)` and `ctx["emitX"](…)`, with its report anchor. */
-function calleeNameOf(call) {
-  const callee = unchained(call.callee);
-  if (callee.type === "Identifier") {
-    return { name: callee.name, anchor: callee };
-  }
-  if (callee.type === "MemberExpression") {
-    const name = staticPropertyName(callee);
-    return name === undefined ? undefined : { name, anchor: callee.property };
-  }
-}
-
-// Walks `.insert(T).values(…).returning(…)`: the statement is a drizzle write when a chained call is a builder step.
-function followsDrizzleWriteChain(call) {
-  let current = call;
-  for (;;) {
-    const member = current.parent;
-    if (member?.type !== "MemberExpression" || member.object !== current) {
-      return false;
-    }
-    if (DRIZZLE_WRITE_CHAIN.has(staticPropertyName(member))) {
-      return true;
-    }
-    const next = member.parent;
-    if (next?.type !== "CallExpression" || next.callee !== member) {
-      return false;
-    }
-    current = next;
-  }
-}
-
-// The exported name a value import binds; a type-only specifier binds no runtime table.
-function importedValueName(specifier) {
-  return specifier.type === "ImportSpecifier" && specifier.importKind !== "type" ? (specifier.imported.name ?? specifier.imported.value) : undefined;
-}
-
-function isAwaited(call) {
-  const parent = call.parent?.type === "ChainExpression" ? call.parent.parent : call.parent;
-  return parent?.type === "AwaitExpression";
-}
-
-// One finding per file: a membership-class write whose only announcement is a per-person emit. Any other emit,
-// or an awaited document room fan, puts the write on a shared plane and acquits the file.
-const membershipWriteFanRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const tables = new Set(context.settings["orb/membership-tables"] ?? []);
-    if (tables.size === 0) {
-      throw new Error("orb/membership-write-fan needs the orb/membership-tables setting");
-    }
-    const locals = new Set();
-    const namespaces = new Set();
-    let writes = false;
-    let perPerson;
-    let roomFan = false;
-    const isMembershipTable = (node) => {
-      const target = unchained(node);
-      if (target.type === "Identifier") {
-        return locals.has(target.name);
-      }
-      return (
-        target.type === "MemberExpression" &&
-        target.object.type === "Identifier" &&
-        namespaces.has(target.object.name) &&
-        tables.has(staticPropertyName(target))
-      );
-    };
-    return {
-      ImportDeclaration: (node) => {
-        if (node.importKind === "type" || !MEMBERSHIP_TABLE_MODULE.test(String(node.source.value))) {
-          return;
-        }
-        for (const specifier of node.specifiers) {
-          if (specifier.type === "ImportNamespaceSpecifier") {
-            namespaces.add(specifier.local.name);
-          }
-          if (tables.has(importedValueName(specifier))) {
-            locals.add(specifier.local.name);
-          }
-        }
-      },
-      CallExpression: (node) => {
-        const callee = calleeNameOf(node);
-        if (callee === undefined) {
-          return;
-        }
-        if (callee.name === DOCUMENT_ROOM_FAN) {
-          roomFan ||= isAwaited(node);
-          return;
-        }
-        if (callee.name.startsWith("emit")) {
-          if (PER_PERSON_EMITS.has(callee.name)) {
-            perPerson ??= callee.anchor;
-          } else {
-            roomFan = true;
-          }
-          return;
-        }
-        const table = node.arguments[0];
-        if (
-          MEMBERSHIP_WRITE_VERBS.has(callee.name) &&
-          unchained(node.callee).type === "MemberExpression" &&
-          table !== undefined &&
-          isMembershipTable(table) &&
-          followsDrizzleWriteChain(node)
-        ) {
-          writes = true;
-        }
-      },
-      "Program:exit": () => {
-        if (writes && perPerson !== undefined && !roomFan) {
-          context.report({
-            node: perPerson,
-            message:
-              "A membership-class write is announced only to its actor: every other member keeps the pre-write projection. Emit a room fan beside the per-person emit (the chat bus, the domain's injected room-fan op, or roomEntityChanged).",
-          });
-        }
-      },
-    };
-  },
-};
-
-// Use the maintained module-position grammar with the native parser's existing node maps, never a Program.
-function nativeImportLiteral(context, node) {
-  const services = context.sourceCode.parserServices;
-  const compilerNode = services.esTreeNodeToTSNodeMap?.get(node);
-  if (compilerNode === undefined) {
-    throw new Error("Native import boundaries require the TypeScript parser's node maps");
-  }
-  const specifier = nativeModulePositionSpecifier(compilerNode);
-  if (specifier === undefined) {
-    return null;
-  }
-  const literal = services.tsNodeToESTreeNodeMap.get(specifier);
-  return literal?.type === "Literal" && typeof literal.value === "string" ? literal : null;
-}
-
-const testPackageSubpathRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const importer = relative(context.cwd, context.filename).replaceAll("\\", "/");
-    const check = (node) => {
-      const literal = nativeImportLiteral(context, node);
-      if (literal !== null && relativeClimb(importer, literal.value) !== undefined) {
-        context.report({ node: literal, message: "Tests use package public entries and @orb/testkit world doors, not relative source reaches." });
-      }
-    };
-    return {
-      ImportDeclaration: check,
-      ExportNamedDeclaration: check,
-      ExportAllDeclaration: check,
-      CallExpression: check,
-      ImportExpression: check,
-      TSImportType: check,
-    };
-  },
-};
-
-const toolingRootConfigImportRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const importer = relative(context.cwd, context.filename).replaceAll("\\", "/");
-    return {
-      ImportDeclaration: (node) => {
-        const target = resolveRelativeImport(importer, node.source.value);
-        if (target === null || target.startsWith(TOOLING_PREFIX)) {
-          return;
-        }
-        // Both operations execute the one maintained Knip config; neither may borrow any other root target.
-        if (
-          target === "knip.ts" &&
-          (importer === "tooling/src/verify/ops/application-knip.ts" || importer === "tooling/src/verify/ops/knip-negative-liveness.ts")
-        ) {
-          return;
-        }
-        context.report({
-          node: node.source,
-          message: "Tooling relative imports stay inside tooling/src; root-config access requires its exact maintained subject and target.",
-        });
-      },
-    };
-  },
-};
-
-const TEST_TOOLING_IMPORT_NATIVE_SETTINGS = {
-  "orb/test-tooling-import-inputs": createHash("sha256")
-    .update(JSON.stringify(TEST_TOOLING_IMPORT_NATIVE_INPUT_PATHS.map((path) => [path, readFileSync(join(ROOT, path), "utf8")])))
-    .digest("hex"),
-};
-
-// These rules consume only the parser's owning native Program; no secondary compiler world is built.
 function nativeDeclarationContext(context) {
   const services = context.sourceCode.parserServices;
   if (
@@ -6302,52 +3731,6 @@ const testFactoryContractRule = {
   },
 };
 
-function nativeFixtureSubject(declaration, checker) {
-  if (ts.isFunctionDeclaration(declaration)) {
-    return nativeDeclarationExported(declaration, checker) ? { output: declaration, annotation: declaration.type } : null;
-  }
-  if (!ts.isVariableDeclaration(declaration)) {
-    throw new Error("Native fixture output selected another declaration kind");
-  }
-  const statement = declaration.parent.parent;
-  if (!(ts.isVariableStatement(statement) && statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword))) {
-    return null;
-  }
-  const initializer = declaration.initializer;
-  const output = initializer !== undefined && (ts.isArrowFunction(initializer) || ts.isFunctionExpression(initializer)) ? initializer : declaration;
-  return { output, annotation: output.type };
-}
-
-const opaqueTestFixtureRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    const check = (node) => {
-      const declaration = native.esTreeNodeToTSNodeMap.get(node);
-      const subject = nativeFixtureSubject(declaration, native.checker);
-      if (subject === null) {
-        return;
-      }
-      const { output, annotation } = subject;
-      const signature = ts.isFunctionLike(output) ? native.checker.getSignatureFromDeclaration(output) : undefined;
-      const type = signature === undefined ? native.checker.getTypeAtLocation(output) : native.checker.getReturnTypeOfSignature(signature);
-      if (type.flags !== ts.TypeFlags.Unknown) {
-        return;
-      }
-      const anchor = annotation ?? declaration.name;
-      const token = anchor === undefined ? undefined : waivableCoordinate(anchor.getText());
-      if (token !== undefined) {
-        const start = anchor.getStart();
-        context.report({
-          loc: { start: context.sourceCode.getLocFromIndex(start), end: context.sourceCode.getLocFromIndex(start + token.length) },
-          message: "An exported fixture output is unknown; return its real contract instead of erasing the consumer's field obligations.",
-        });
-      }
-    };
-    return { FunctionDeclaration: check, TSDeclareFunction: check, VariableDeclarator: check };
-  },
-};
-
 const contextReturnTypeRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -6392,944 +3775,7 @@ const contextReturnTypeRule = {
   },
 };
 
-function verifyNativeCompilerContext(context, native) {
-  const roster = typedNativeCompilerContext(context.cwd).configs;
-  if (roster === undefined) {
-    return;
-  }
-  const config = native.program.getCompilerOptions().configFilePath;
-  if (typeof config !== "string" || !roster.includes(relative(context.cwd, config).replaceAll("\\", "/"))) {
-    throw new Error("Native typed parser Program does not match the admitted compiler cache context");
-  }
-}
-
-const typeHomeDeclarationRule = {
-  meta: {
-    type: "problem",
-    schema: [],
-    messages: {
-      misplacedType:
-        "An exported type belongs in its canonical domain, wire, package, foundation, tool or test home unless a local function signature owns it (D324, D331; Spine-TypeScript §7.4).",
-      misplacedSchema: "An exported zod shape schema belongs in its canonical domain, wire, package, foundation, tool or test home (Spine-TypeScript §7.4).",
-    },
-  },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    verifyNativeCompilerContext(context, native);
-    const path = relative(context.cwd, context.filename).replaceAll("\\", "/");
-    const checkType = (node) => {
-      const declaration = native.esTreeNodeToTSNodeMap.get(node);
-      const shape = ts.isInterfaceDeclaration(declaration) || ts.isTypeAliasDeclaration(declaration);
-      if (!(shape && nativeDeclarationExported(declaration, native.checker))) {
-        return;
-      }
-      if (signatureTypeHome(declaration, path, { kind: "parser", checker: native.checker, program: native.program, source: declaration.getSourceFile() })) {
-        return;
-      }
-      context.report({ node: native.tsNodeToESTreeNodeMap.get(declaration.name), messageId: "misplacedType" });
-    };
-    const checkSchema = (node) => {
-      const declaration = native.esTreeNodeToTSNodeMap.get(node);
-      const candidate = ts.isVariableDeclaration(declaration) && ts.isIdentifier(declaration.name) && declaration.initializer !== undefined;
-      if (!(candidate && nativeDeclarationExported(declaration, native.checker) && isZodShapeCall(nativeWrappedNode(declaration.initializer, native)))) {
-        return;
-      }
-      context.report({ node: native.tsNodeToESTreeNodeMap.get(declaration.name), messageId: "misplacedSchema" });
-    };
-    return { TSInterfaceDeclaration: checkType, TSTypeAliasDeclaration: checkType, VariableDeclarator: checkSchema };
-  },
-};
-
-/** The names a module publishes from its own scope: `export { A, B as C }` and `export default A`. */
-function locallyListedNames(program) {
-  const listed = new Set();
-  for (const statement of program.body) {
-    if (statement.type === "ExportNamedDeclaration" && statement.source === null && statement.declaration === null) {
-      for (const specifier of statement.specifiers) {
-        listed.add(specifier.local.name);
-      }
-    } else if (statement.type === "ExportDefaultDeclaration" && statement.declaration.type === "Identifier") {
-      listed.add(statement.declaration.name);
-    }
-  }
-  return listed;
-}
-
-// An interface a module publishes, directly or through a local export list. The row scope is the population the typed
-// `type-home-direct-export` rule does not admit, so this rule never judges a file that rule already owns.
-function interfacePlacementRule(message) {
-  return {
-    meta: { type: "problem", schema: [] },
-    create(context) {
-      const direct = (node) => {
-        if (node.declaration?.type === "TSInterfaceDeclaration") {
-          context.report({ node: node.declaration.id, message });
-        }
-      };
-      const listed = (program) => {
-        const names = locallyListedNames(program);
-        for (const statement of program.body) {
-          if (statement.type === "TSInterfaceDeclaration" && names.has(statement.id.name)) {
-            context.report({ node: statement.id, message });
-          }
-        }
-      };
-      return { ExportNamedDeclaration: direct, ExportDefaultDeclaration: direct, Program: listed };
-    },
-  };
-}
-
-const serverFactoryPublicBoundaryRule = {
-  meta: {
-    type: "problem",
-    schema: [],
-    messages: {
-      crossTierFactoryType:
-        "Factory type {{name}} is local to {{owner}} but exposed to {{consumer}}; move the shared API to its sanctioned owner contract (D324).",
-      unreadableFactoryExposure: "Cross-tier factory exposure cannot be established: {{detail}}.",
-    },
-  },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    verifyNativeCompilerContext(context, native);
-    const consumer = relative(context.cwd, context.filename).replaceAll("\\", "/");
-    const reportSubjects = (declarations, reported, seen) => {
-      for (const declaration of declarations) {
-        if (seen.has(declaration)) {
-          continue;
-        }
-        seen.add(declaration);
-        context.report({
-          node: reported,
-          messageId: "crossTierFactoryType",
-          data: {
-            name: declaration.name?.text ?? "default",
-            owner: relative(context.cwd, declaration.getSourceFile().fileName),
-            consumer,
-          },
-        });
-      }
-    };
-    const inspect = (raw, reported, seen, projectDoor) => {
-      const symbol = native.checker.getSymbolAtLocation(raw);
-      const target = symbol !== undefined && nativeAliasFlag(symbol) ? native.checker.getAliasedSymbol(symbol) : symbol;
-      const declarations = target?.declarations ?? [];
-      if (declarations.length === 0) {
-        if (projectDoor) {
-          context.report({ node: reported, messageId: "unreadableFactoryExposure", data: { detail: "the native public reference has no declaration" } });
-        }
-        return;
-      }
-      // A domain or primitives target exposes a factory shape only through its own import, judged in that file.
-      // A file this rule does not lint judges nothing itself, so it is walked from every importer, same tier included.
-      if (
-        !declarations.some((declaration) => {
-          const owner = relative(context.cwd, declaration.getSourceFile().fileName).replaceAll("\\", "/");
-          return unjudgedServerFile(owner) || (serverFactoryTier(owner) && serverTypeTier(owner) !== serverTypeTier(consumer));
-        })
-      ) {
-        return;
-      }
-      const boundary = readServerPublicBoundary(
-        raw,
-        {
-          kind: "parser",
-          program: native.program,
-          checker: native.checker,
-          source: raw.getSourceFile(),
-        },
-        context.cwd,
-        consumer,
-      );
-      reportSubjects(boundary.trace.declarations, reported, seen);
-      if (boundary.kind === "unresolved") {
-        context.report({ node: reported, messageId: "unreadableFactoryExposure", data: { detail: boundary.detail } });
-      }
-    };
-    const moduleExports = (literal, reported, seen) => {
-      const symbol = native.checker.getSymbolAtLocation(literal);
-      if (symbol === undefined) {
-        context.report({ node: reported, messageId: "unreadableFactoryExposure", data: { detail: "the native module reference has no declaration" } });
-        return;
-      }
-      for (const exported of native.checker.getExportsOfModule(symbol)) {
-        const target = nativeAliasFlag(exported) ? native.checker.getAliasedSymbol(exported) : exported;
-        for (const declaration of target.declarations ?? []) {
-          inspect(declaration.name ?? declaration, reported, seen, true);
-        }
-      }
-    };
-    const importDeclaration = (node) => {
-      const raw = native.esTreeNodeToTSNodeMap.get(node);
-      const projectDoor = node.source.value.startsWith(".") || node.source.value.startsWith("#") || node.source.value.startsWith("@orb/");
-      for (const specifier of node.specifiers) {
-        const seen = new Set();
-        if (specifier.type === "ImportNamespaceSpecifier") {
-          moduleExports(raw.moduleSpecifier, specifier.local, seen);
-        } else {
-          inspect(native.esTreeNodeToTSNodeMap.get(specifier.local), specifier.local, seen, projectDoor);
-        }
-      }
-    };
-    const exportNamedDeclaration = (node) => {
-      for (const specifier of node.specifiers) {
-        inspect(native.esTreeNodeToTSNodeMap.get(specifier.local), specifier.local, new Set(), node.source !== null);
-      }
-    };
-    const exportAllDeclaration = (node) => {
-      moduleExports(native.esTreeNodeToTSNodeMap.get(node).moduleSpecifier, node.source, new Set());
-    };
-    const importExpression = (node) => {
-      const raw = native.esTreeNodeToTSNodeMap.get(node);
-      if (ts.isCallExpression(raw) && raw.arguments[0] !== undefined && ts.isStringLiteral(raw.arguments[0])) {
-        moduleExports(raw.arguments[0], node, new Set());
-      } else {
-        context.report({ node, messageId: "unreadableFactoryExposure", data: { detail: "a computed dynamic import has no explicit public boundary" } });
-      }
-    };
-    const importType = (node) => {
-      const raw = native.esTreeNodeToTSNodeMap.get(node);
-      if (raw.qualifier === undefined) {
-        moduleExports(raw.argument.literal, node, new Set());
-      } else {
-        inspect(raw.qualifier, node, new Set(), true);
-      }
-    };
-    const augmentation = (node) => {
-      const raw = native.esTreeNodeToTSNodeMap.get(node);
-      if (!(serverFactoryTier(consumer) && ts.isSourceFile(raw.parent))) {
-        return;
-      }
-      const boundary = readServerAugmentationBoundary(
-        raw,
-        { kind: "parser", program: native.program, checker: native.checker, source: raw.getSourceFile() },
-        context.cwd,
-      );
-      const seen = new Set();
-      for (const declaration of boundary.trace.declarations) {
-        if (seen.has(declaration)) {
-          continue;
-        }
-        seen.add(declaration);
-        context.report({
-          node,
-          messageId: "crossTierFactoryType",
-          data: {
-            name: declaration.name?.text ?? "default",
-            owner: relative(context.cwd, declaration.getSourceFile().fileName),
-            consumer: `every tier through the ambient augmentation in ${consumer}`,
-          },
-        });
-      }
-      if (boundary.kind === "unresolved") {
-        context.report({ node, messageId: "unreadableFactoryExposure", data: { detail: boundary.detail } });
-      }
-    };
-    return {
-      ImportDeclaration: importDeclaration,
-      ExportNamedDeclaration: exportNamedDeclaration,
-      ExportAllDeclaration: exportAllDeclaration,
-      ImportExpression: importExpression,
-      TSImportType: importType,
-      TSModuleDeclaration: augmentation,
-    };
-  },
-};
-
-function nativeWrappedNode(node, native) {
-  return createWrappedNode(node, { typeChecker: native.checker, sourceFile: node.getSourceFile() });
-}
-
-function toolingEntryRule(ops) {
-  return {
-    meta: { type: "problem", schema: [] },
-    create(context) {
-      const native = nativeDeclarationContext(context);
-      if (typedNativeCompilerContext(context.cwd).configs === undefined) {
-        throw new Error("HARD tool entry requires an admitted native compiler context");
-      }
-      verifyNativeCompilerContext(context, native);
-      const homes = [TOOLING_ENTRY_HOMES.runner, ...(ops ? [TOOLING_ENTRY_HOMES.guard] : [])].map((home) => {
-        const source = native.program.getSourceFile(join(context.cwd, home.path));
-        const located = locateProjectHome(
-          source === undefined ? [] : [nativeWrappedNode(source, native)],
-          (file) => relative(context.cwd, file.getFilePath()).replaceAll("\\", "/"),
-          home,
-        );
-        if (located.members === 0 || located.unresolved !== 0) {
-          throw new Error(`HARD tool entry home/export unavailable: ${home.path} (${home.names.join(", ")})`);
-        }
-        return located;
-      });
-      let entered = false;
-      const entersHome = (callee) => homes.some((home) => classifyProjectHomeOrigin(callee, home) === "home");
-      const callExpression = (node) => {
-        if (!ops) {
-          entered ||= entersHome(nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node.callee), native));
-        }
-      };
-      return {
-        CallExpression: callExpression,
-        "Program:exit"(node) {
-          const source = native.esTreeNodeToTSNodeMap.get(node);
-          if (native.program.getSourceFile(source.fileName) !== source) {
-            throw new Error("HARD tool entry parser source does not belong to its admitted native Program");
-          }
-          if (ops) {
-            entered = moduleScopeCalls(nativeWrappedNode(source, native)).some((call) => entersHome(call.getExpression()));
-          }
-          if (!entered) {
-            context.report({
-              node,
-              loc: { line: 1, column: 0 },
-              message: ops
-                ? "An ops library requires a module-scope call to canonical refuseDirectInvocation or runTool; no proven entry exists."
-                : "A tool cli.ts must call the canonical runTool export; no proven entry exists.",
-            });
-          }
-        },
-      };
-    },
-  };
-}
-
-function ambientDeterminismRule(clock) {
-  const memberName = clock ? "now" : "random";
-  const globalName = clock ? "Date" : "Math";
-  const message = clock
-    ? "Read time from the injected clock (@orb/kit/time), not Date.now() or zero-argument new Date()."
-    : "Draw entropy from an injected seeded PRNG, not Math.random().";
-  const candidate = (node, wrapped) => {
-    if (node.type === "NewExpression") {
-      return clock && node.arguments.length === 0 && referenceNamesExport(wrapped.getExpression(), "Date");
-    }
-    if (!possibleAmbientCall(wrapped, memberName)) {
-      return false;
-    }
-    if (ts.isIdentifier(wrapped.getExpression().compilerNode)) {
-      return true;
-    }
-    const member = readMemberReference(wrapped.getExpression());
-    return member.kind === "resolved" && member.value.name === memberName;
-  };
-  return {
-    meta: { type: "problem", schema: [] },
-    create(context) {
-      const native = nativeDeclarationContext(context);
-      let found;
-      const inspect = (node) => {
-        const wrapped = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node), native);
-        if (!candidate(node, wrapped)) {
-          return;
-        }
-        const verdict = readAmbientInvocation(wrapped, [
-          { globalName, memberPath: node.type === "NewExpression" ? [] : [memberName], token: `${globalName}.${memberName}` },
-        ]);
-        if (verdict.kind === "other" || found !== undefined) {
-          return;
-        }
-        found = { node, unreadable: verdict.kind === "unreadable" };
-      };
-      return {
-        CallExpression: inspect,
-        NewExpression: inspect,
-        "Program:exit"() {
-          if (found !== undefined) {
-            context.report({
-              node: found.node,
-              message: found.unreadable ? "Whether this call reads the ambient clock or generator CANNOT be established; its callee is unreadable." : message,
-            });
-          }
-        },
-      };
-    },
-  };
-}
-
-const MINT_MODULE_GENERATORS = new Map([
-  ["node:crypto", new Set(["randomUUID"])],
-  ["crypto", new Set(["randomUUID"])],
-  ["nanoid", new Set(["nanoid"])],
-  ["uuid", new Set(["v4"])],
-  ["@paralleldrive/cuid2", new Set(["createId"])],
-]);
-
-const mintViaCastRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    const castId = createKitIdCallMatcher("castId");
-    const generator = (origin) => {
-      if (origin.kind === "unresolved") {
-        return false;
-      }
-      const target = origin.value.target;
-      if (target.kind === "global") {
-        return target.globalName === "crypto" && target.memberPath.join(".") === "randomUUID";
-      }
-      const module = target.canonical.kind === "external-door" ? target.canonical.moduleSpecifier : target.moduleSpecifier;
-      return target.memberPath.length === 0 && MINT_MODULE_GENERATORS.get(module)?.has(target.exportedName) === true;
-    };
-    const mintedArgument = (argument) => {
-      const direct = resolveCallableOrigin(argument);
-      let minted = generator(direct);
-      let receiver = argument;
-      while (!minted) {
-        const callee = receiver.getExpression();
-        if (!ts.isPropertyAccessExpression(callee.compilerNode)) {
-          break;
-        }
-        const next = callee.getExpression();
-        if (!ts.isCallExpression(next.compilerNode)) {
-          break;
-        }
-        receiver = next;
-        minted = generator(resolveCallableOrigin(receiver));
-      }
-      return { minted, unreadable: !minted && direct.kind === "unresolved" && classifyOriginRefusal(direct.reason, argument.getExpression()) === "unreadable" };
-    };
-    return {
-      CallExpression: (node) => {
-        const call = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node), native);
-        const seam = castId(call);
-        if (seam === "other") {
-          return;
-        }
-        let unreadable = seam === "unreadable";
-        let minted = false;
-        const argument = call.getArguments()[0];
-        if (!unreadable && argument !== undefined && ts.isCallExpression(argument.compilerNode)) {
-          ({ minted, unreadable } = mintedArgument(argument));
-        }
-        if (minted || unreadable) {
-          context.report({
-            node: native.tsNodeToESTreeNodeMap.get(call.getExpression().compilerNode),
-            message: minted
-              ? "castId wraps a fresh-id generator; use mintTypeId or the canonical prefixless newId mint."
-              : "Whether this cast seam launders a fresh-id generator CANNOT be established; its seam or argument is unreadable.",
-          });
-        }
-      },
-    };
-  },
-};
-
-const zustandSelectorStabilityRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    const metadata = TYPED_NATIVE_POLICIES.find((entry) => entry.id === "zustand-selector-stability");
-    const home = native.program.getSourceFiles().find((source) => source.fileName.replaceAll("\\", "/").endsWith(`/${metadata.home}`));
-    const module = home === undefined ? undefined : native.checker.getSymbolAtLocation(home);
-    const configFile = native.program.getCompilerOptions().configFilePath;
-    const clientOwner = typeof configFile === "string" && configFile.replaceAll("\\", "/").endsWith("/packages/client/tsconfig.json");
-    if (
-      (home !== undefined || clientOwner) &&
-      (module === undefined || !native.checker.getExportsOfModule(module).some((symbol) => symbol.getName() === metadata.exportedName))
-    ) {
-      throw new Error("GatedStoreHook home/export is unavailable; store-hook identity cannot be established");
-    }
-    const storeIdentity = (identity) =>
-      (identity.name === metadata.exportedName &&
-        identity.declarations.length > 0 &&
-        identity.declarations.every((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").endsWith(`/${metadata.home}`))) ||
-      (identity.name === "UseBoundStore" && declaredByPackage(identity.declarations, "zustand"));
-    const literalSelector = (argument) => {
-      if (argument === undefined || !ts.isArrowFunction(argument.compilerNode) || argument.getParameters().length !== 1) {
-        return false;
-      }
-      let body = argument.getBody();
-      while (
-        ts.isParenthesizedExpression(body.compilerNode) ||
-        ts.isAsExpression(body.compilerNode) ||
-        ts.isSatisfiesExpression(body.compilerNode) ||
-        ts.isNonNullExpression(body.compilerNode)
-      ) {
-        body = body.getExpression();
-      }
-      return ts.isObjectLiteralExpression(body.compilerNode) || ts.isArrayLiteralExpression(body.compilerNode);
-    };
-    return {
-      CallExpression: (node) => {
-        const call = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node), native);
-        const argument = call.getArguments()[0];
-        if (!literalSelector(argument)) {
-          return;
-        }
-        const callee = call.getExpression();
-        const type = callee.getType();
-        const unreadable = type.isAny() || type.isUnknown();
-        const chain = unreadable ? undefined : resolveTypeIdentityChain(callee);
-        const store = chain?.kind === "resolved" && chain.value.some(storeIdentity);
-        if (store || unreadable) {
-          context.report({
-            node: native.tsNodeToESTreeNodeMap.get(callee.compilerNode),
-            message: unreadable
-              ? "Whether this fresh-literal selector belongs to a store hook CANNOT be established; its callee type is erased."
-              : "A zustand selector returns a fresh object or array; select a stored reference, a stable default, or useShallow.",
-          });
-        }
-      },
-    };
-  },
-};
-
-function nativeReviewedReport(context) {
-  const groups = new Map();
-  return {
-    add(operation, node, verdict) {
-      const group = groups.get(operation) ?? [];
-      group.push({ node, verdict });
-      groups.set(operation, group);
-    },
-    flush(message, unreadable) {
-      for (const [operation, group] of [...groups].toSorted(([left], [right]) => left.localeCompare(right))) {
-        const anchor = group.find((candidate) => candidate.verdict !== "unreadable") ?? group[0];
-        context.report({
-          node: anchor.node,
-          message: `${anchor.verdict === "unreadable" ? unreadable : message} Operation: ${operation}; line(s): ${[...new Set(group.map((candidate) => candidate.node.loc.start.line))].join(", ")}.`,
-        });
-      }
-    },
-  };
-}
-
 const AMBIENT_GLOBAL_RECEIVERS = new Set(["globalThis", "self", "window"]);
-const TIME_FORMATTERS = new Set(["DateTimeFormat", "RelativeTimeFormat"]);
-const TIME_LOCALE_MEMBERS = new Set(["toLocaleDateString", "toLocaleString", "toLocaleTimeString"]);
-
-function nativeIntlFormatterOrigin(wrapped, name) {
-  const origin = resolveGlobalMemberOrigin(wrapped);
-  if (origin.kind === "resolved") {
-    return origin.value.globalName === "Intl" && origin.value.memberPath.length === 1 ? "home" : "other";
-  }
-  if (readsAmbientGlobalPath(wrapped, AMBIENT_GLOBAL_RECEIVERS, ["Intl", name])) {
-    return "home";
-  }
-  return classifyOriginRefusal(origin.reason, wrapped);
-}
-
-const rawIntlTimeRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    const report = nativeReviewedReport(context);
-    const check = (node, formatter) => {
-      const value = native.esTreeNodeToTSNodeMap.get(node);
-      const name = nativeCalledMemberName(value);
-      if (!(formatter ? TIME_FORMATTERS : TIME_LOCALE_MEMBERS).has(name)) {
-        return;
-      }
-      const wrapped = nativeWrappedNode(value, native);
-      const verdict = formatter ? nativeIntlFormatterOrigin(wrapped, name) : classifyPackageMemberOrigin(wrapped, ["typescript"]);
-      if (verdict !== "other") {
-        const member = readMemberReference(wrapped);
-        report.add(formatter ? "intl-formatter" : "tolocale", native.tsNodeToESTreeNodeMap.get(member.value.nameNode.compilerNode), verdict);
-      }
-    };
-    return {
-      MemberExpression: (node) => {
-        check(node, true);
-      },
-      CallExpression: (node) => {
-        check(node.callee, false);
-      },
-      "Program:exit"() {
-        report.flush(
-          "Render time through the memoized @orb/kit/time seam, not raw Intl or toLocale formatting.",
-          "Whether this expression is the ECMAScript time API CANNOT be established; its binding cannot be placed.",
-        );
-      },
-    };
-  },
-};
-
-const listRowAdoptionRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    const surfaceNames = new Set(["LibrarySurfaceShell", "LibraryListLayout", "createCollectionSurface"]);
-    const rowNames = new Set(["ListRow", "LibraryRow"]);
-    const renderNames = new Set(["renderItem", "renderRow"]);
-    const callbacks = [];
-    const returns = [];
-    let surface = false;
-    const unwrap = (value) => (ts.isParenthesizedExpression(value) ? value.expression : value);
-    const returnedRoot = (callback) => {
-      const returned = ts.isArrowFunction(callback)
-        ? callback.body
-        : returns.find(
-            (statement) =>
-              statement.getSourceFile() === callback.getSourceFile() &&
-              statement.getStart() >= callback.getStart() &&
-              statement.end <= callback.end &&
-              statement.expression !== undefined,
-          )?.expression;
-      if (returned === undefined) {
-        return;
-      }
-      const root = unwrap(returned);
-      if (ts.isJsxElement(root)) {
-        return root.openingElement;
-      }
-      return ts.isJsxSelfClosingElement(root) ? root : undefined;
-    };
-    const interactive = (opening) =>
-      opening.attributes.properties.some((property) => ts.isJsxAttribute(property) && ["onClick", "role", "href"].includes(property.name.getText()));
-    return {
-      ImportSpecifier: (node) => {
-        const imported = native.esTreeNodeToTSNodeMap.get(node);
-        surface ||= surfaceNames.has((imported.propertyName ?? imported.name).text);
-      },
-      ReturnStatement: (node) => {
-        returns.push(native.esTreeNodeToTSNodeMap.get(node));
-      },
-      CallExpression: (node) => {
-        const call = native.esTreeNodeToTSNodeMap.get(node);
-        if (ts.isPropertyAccessExpression(call.expression) && call.expression.name.text === "map" && call.arguments[0] !== undefined) {
-          callbacks.push(call.arguments[0]);
-        }
-      },
-      JSXAttribute: (node) => {
-        const attribute = native.esTreeNodeToTSNodeMap.get(node);
-        if (!renderNames.has(attribute.name.getText()) || attribute.initializer === undefined || !ts.isJsxExpression(attribute.initializer)) {
-          return;
-        }
-        let expression = attribute.initializer.expression;
-        if (expression === undefined) {
-          return;
-        }
-        if (ts.isIdentifier(expression)) {
-          const origin = resolveStableExpression(nativeWrappedNode(expression, native));
-          if (origin.kind !== "resolved" || origin.value.getSourceFile().compilerNode !== expression.getSourceFile()) {
-            return;
-          }
-          expression = unwrap(origin.value.compilerNode);
-        }
-        if (ts.isArrowFunction(expression)) {
-          callbacks.push(expression);
-        }
-      },
-      "Program:exit"() {
-        if (!surface) {
-          return;
-        }
-        for (const callback of callbacks) {
-          const opening = returnedRoot(callback);
-          if (opening === undefined || rowNames.has(opening.tagName.getText())) {
-            continue;
-          }
-          if (interactive(opening)) {
-            context.report({
-              node: native.tsNodeToESTreeNodeMap.get(opening.tagName),
-              message: "Root an interactive LIST-region row render in ListRow or LibraryRow.",
-            });
-          }
-        }
-      },
-    };
-  },
-};
-
-const testFixtureImportsRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    const tooling = context.filename.replaceAll("\\", "/").includes("/tests/tooling/");
-    const invalidDoor = (door, imported) =>
-      door.kind === "runner" ||
-      (door.kind === "unresolved" && imported) ||
-      (door.kind === "project" && tooling && !registersSnapshotSerializer(door.sourceFile));
-    const check = (node) => {
-      const wrapped = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node), native);
-      const imported = ts.isImportSpecifier(wrapped.compilerNode);
-      const member = imported ? undefined : readMemberReference(wrapped);
-      const memberName = member?.kind === "resolved" ? member.value.name : undefined;
-      const name = imported ? wrapped.getName() : memberName;
-      if (!FIXTURE_NAMES.has(name)) {
-        return;
-      }
-      const door = readFixtureDoor(wrapped);
-      if (invalidDoor(door, imported)) {
-        context.report({
-          node: imported ? node.imported : native.tsNodeToESTreeNodeMap.get(member.value.nameNode.compilerNode),
-          message: "Enter test/it/expect through the composed fixture door; tooling tests require the door that installs the RESULT snapshot serializer.",
-        });
-      }
-    };
-    return { ImportSpecifier: check, MemberExpression: check };
-  },
-};
-
-const zodModernSpellingsRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    const zodCall = (node, name) => isFactoryCallFromPackage(node, name, "zod");
-    const boolEnum = (call, members) => {
-      const texts = members.filter((member) => ts.isStringLiteral(member.compilerNode)).map((member) => member.getLiteralText());
-      return (
-        zodCall(call, "enum") &&
-        members.length === 2 &&
-        texts.length === 2 &&
-        texts[0] !== texts[1] &&
-        texts.every((text) => text === "true" || text === "false")
-      );
-    };
-    const arraySpelling = (call, name, members) => {
-      if (name === "union") {
-        return zodCall(call, "union") && members.length >= 2 && members.every((member) => zodCall(member, "literal"));
-      }
-      return name === "enum" && boolEnum(call, members);
-    };
-    return {
-      CallExpression: (node) => {
-        const call = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node), native);
-        const candidate = zodCandidateCall(call);
-        if (candidate === undefined) {
-          return;
-        }
-        const args = call.getArguments();
-        const first = args[0];
-        let invalid = false;
-        if (candidate.name === "strict" && args.length === 0) {
-          const member = readMemberReference(call.getExpression());
-          invalid = member.kind === "resolved" && zodCall(member.value.receiver, "object");
-        } else if (args.length === 1 && first !== undefined && ts.isArrayLiteralExpression(first.compilerNode)) {
-          invalid = arraySpelling(call, candidate.name, first.getElements());
-        }
-        if (invalid) {
-          context.report({
-            node: native.tsNodeToESTreeNodeMap.get(candidate.nameNode.compilerNode),
-            message: "Use the modern zod spelling: strictObject, multi-value literal, or the pinned envBool codec; preserve the existing accepted vocabulary.",
-          });
-        }
-      },
-    };
-  },
-};
-
-const manualAutosaveFlushRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    const bodies = new Map();
-    const arrayOps = new Set(["pushFieldValue", "removeFieldValue", "insertFieldValue", "moveFieldValues"]);
-    const ownerBody = (call) => {
-      let body = call.parent;
-      while (
-        !(ts.isSourceFile(body) || ts.isFunctionDeclaration(body) || ts.isFunctionExpression(body) || ts.isArrowFunction(body) || ts.isMethodDeclaration(body))
-      ) {
-        body = body.parent;
-      }
-      return body;
-    };
-    const formOrigin = (wrapped) => {
-      const origin = resolveTypeMemberOrigin(wrapped);
-      if (origin.kind === "resolved") {
-        return declaredByPackage(origin.value.declarations, "@tanstack/form-core") ? "form" : "other";
-      }
-      return classifyOriginRefusal(origin.reason, wrapped);
-    };
-    return {
-      CallExpression: (node) => {
-        const call = native.esTreeNodeToTSNodeMap.get(node);
-        const wrapped = nativeWrappedNode(call.expression, native);
-        const member = readMemberReference(wrapped);
-        if (member.kind !== "resolved" || !(arrayOps.has(member.value.name) || member.value.name === "handleSubmit")) {
-          return;
-        }
-        const verdict = formOrigin(wrapped);
-        if (verdict === "other") {
-          return;
-        }
-        const body = ownerBody(call);
-        const state = bodies.get(body) ?? {};
-        const slot = member.value.name === "handleSubmit" ? "submit" : "array";
-        state[slot] ??= { node: native.tsNodeToESTreeNodeMap.get(member.value.nameNode.compilerNode), proven: verdict === "form" };
-        bodies.set(body, state);
-      },
-      "Program:exit"() {
-        for (const { array, submit } of bodies.values()) {
-          if (array !== undefined && submit !== undefined) {
-            context.report({
-              node: array.node,
-              message:
-                array.proven && submit.proven
-                  ? "A structural form array edit and handleSubmit share one body; the autosave driver's store subscription already persists the edit."
-                  : "Whether both calls belong to the form API CANNOT be established; a manual structural-edit flush cannot be admitted.",
-            });
-          }
-        }
-      },
-    };
-  },
-};
-
-const chatTrpcSurfaceRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    const proxyChain = (wrapped) => {
-      const segments = [];
-      let root = wrapped;
-      let readable = true;
-      while (ts.isPropertyAccessExpression(root.compilerNode) || ts.isElementAccessExpression(root.compilerNode)) {
-        const read = readMemberReference(root);
-        if (read.kind !== "resolved") {
-          readable = false;
-          break;
-        }
-        segments.unshift(read.value.name);
-        root = read.value.receiver;
-      }
-      return { segments, readable, identity: resolveTypeIdentityOrigin(root) };
-    };
-    const check = (node) => {
-      const wrapped = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(node), native);
-      const member = readMemberReference(wrapped);
-      if (member.kind !== "resolved" || member.value.name !== "mutationOptions") {
-        return;
-      }
-      const origin = resolveTypeMemberOrigin(wrapped);
-      if (origin.kind === "resolved" && !declaredByPackage(origin.value.declarations, "@trpc/tanstack-react-query")) {
-        return;
-      }
-      if (origin.kind === "unresolved" && classifyOriginRefusal(origin.reason, wrapped) === "other") {
-        return;
-      }
-      const { segments, readable, identity } = proxyChain(wrapped);
-      const proven =
-        origin.kind === "resolved" &&
-        readable &&
-        identity.kind === "resolved" &&
-        identity.value.name === "TRPCOptionsProxy" &&
-        declaredByPackage(identity.value.declarations, "@trpc/tanstack-react-query");
-      if (proven && segments[0] !== "chat") {
-        return;
-      }
-      context.report({
-        node: native.tsNodeToESTreeNodeMap.get(member.value.nameNode.compilerNode),
-        message: proven
-          ? "Chat mutation dispatch belongs in features/chat/hooks; surfaces compose the verb hook."
-          : "Whether this mutationOptions chain names the chat router CANNOT be established; its proxy root is unreadable.",
-      });
-    };
-    return { MemberExpression: check };
-  },
-};
-
-const multiplexedMutationErrorRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    const metadata = TYPED_NATIVE_POLICIES.find((entry) => entry.id === "no-multiplexed-mutation-error");
-    const home = native.program.getSourceFiles().find((source) => source.fileName.replaceAll("\\", "/").endsWith(`/${metadata.home}`));
-    const module = home === undefined ? undefined : native.checker.getSymbolAtLocation(home);
-    if (module === undefined || !native.checker.getExportsOfModule(module).some((symbol) => symbol.getName() === metadata.exportedName)) {
-      throw new Error("EntityMutationResult home/export is unavailable; mutation error identity cannot be established");
-    }
-    const operand = (value) => {
-      const wrapped = nativeWrappedNode(native.esTreeNodeToTSNodeMap.get(value), native);
-      const member = readMemberReference(wrapped);
-      if (member.kind === "unresolved" || member.value.name !== "error") {
-        return { verdict: "other" };
-      }
-      const origin = resolveTypeMemberOrigin(wrapped);
-      if (origin.kind === "unresolved") {
-        return { verdict: classifyOriginRefusal(origin.reason, wrapped), member: member.value };
-      }
-      const declarations = origin.value.declarations;
-      const owned = declarations.length > 0 && declarations.every((declaration) => declaration.getSourceFile().compilerNode === home);
-      const vendor =
-        declarations.length > 0 &&
-        declarations.every((declaration) => declaration.getSourceFile().getFilePath().replaceAll("\\", "/").includes("/node_modules/@tanstack/query-core/"));
-      return { verdict: owned || vendor ? "mutation" : "other", member: member.value };
-    };
-    const check = (node) => {
-      if (node.operator !== "??" && node.operator !== "||") {
-        return;
-      }
-      const left = operand(node.left);
-      const right = operand(node.right);
-      if (left.verdict === "other" || right.verdict === "other") {
-        return;
-      }
-      context.report({
-        node: native.tsNodeToESTreeNodeMap.get(left.member.nameNode.compilerNode),
-        message:
-          left.verdict === "unreadable" || right.verdict === "unreadable"
-            ? "Whether both errors are sticky mutation slots CANNOT be established: an operand's receiver is unreadable."
-            : "Do not multiplex sticky mutation errors; render each mutation's own error slot.",
-      });
-    };
-    return { LogicalExpression: check };
-  },
-};
-
-// The existing authored-value primitive receives this parser's checker, never a second semantic owner.
-function nativeAuthoredScalar(node, native) {
-  return readStaticAuthoredScalar(nativeWrappedNode(node, native));
-}
-
-const INTERACTIVE_WIDGET_ROLES = new Set([
-  "button",
-  "link",
-  "checkbox",
-  "radio",
-  "switch",
-  "slider",
-  "spinbutton",
-  "tab",
-  "option",
-  "menuitem",
-  "menuitemcheckbox",
-  "menuitemradio",
-  "combobox",
-  "textbox",
-  "searchbox",
-  "listbox",
-  "menu",
-  "menubar",
-  "radiogroup",
-  "tablist",
-  "tree",
-  "treeitem",
-  "grid",
-  "gridcell",
-  "scrollbar",
-]);
-
-const interactiveFeatureRoleRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    const check = (node) => {
-      if (node.name.type !== "JSXIdentifier" || node.name.name !== "role") {
-        return;
-      }
-      const attribute = native.esTreeNodeToTSNodeMap.get(node);
-      const containsWidget = nativeSubtreeSome(attribute, (value) => {
-        if (!(ts.isStringLiteral(value) || ts.isNoSubstitutionTemplateLiteral(value) || ts.isIdentifier(value))) {
-          return false;
-        }
-        let owner = value.parent;
-        while (owner !== undefined && !ts.isJsxAttribute(owner)) {
-          owner = owner.parent;
-        }
-        if (owner !== attribute) {
-          return false;
-        }
-        const fact = nativeAuthoredScalar(value, native);
-        return fact.kind === "resolved" && typeof fact.value === "string" && INTERACTIVE_WIDGET_ROLES.has(fact.value);
-      });
-      if (containsWidget) {
-        context.report({ node: node.name, message: "Interactive ARIA roles in features must come from an @orb/ui widget, not a hand-rolled layout element." });
-      }
-    };
-    return { JSXAttribute: check };
-  },
-};
 
 function nativeUnwrapExpression(raw) {
   let node = raw;
@@ -7431,189 +3877,8 @@ const baseUiPortalContainerRule = {
   },
 };
 
-function nativeCalledMemberName(callee) {
-  if (ts.isPropertyAccessExpression(callee)) {
-    return callee.name.text;
-  }
-  if (
-    ts.isElementAccessExpression(callee) &&
-    (ts.isStringLiteral(callee.argumentExpression) || ts.isNoSubstitutionTemplateLiteral(callee.argumentExpression))
-  ) {
-    return callee.argumentExpression.text;
-  }
-}
-
-function nativePackageCallRule(methods, grouped) {
-  return {
-    meta: { type: "problem", schema: [] },
-    create(context) {
-      const native = nativeDeclarationContext(context);
-      const groups = new Map();
-      const propertyDeclarations = (receiver, name) =>
-        native.checker.getNonNullableType(native.checker.getTypeAtLocation(receiver)).getProperty(name)?.declarations ?? [];
-      const isHome = (declarations) =>
-        declarations.length > 0 &&
-        declarations.every((declaration) => declaration.getSourceFile().fileName.replaceAll("\\", "/").includes("/node_modules/@tanstack/query-core/"));
-      const verdictFor = (receiver, name) => {
-        const direct = propertyDeclarations(receiver, name);
-        const uncast = propertyDeclarations(nativeUncastReceiver(receiver, native.checker), name);
-        if (isHome(direct) || isHome(uncast)) {
-          return "home";
-        }
-        return direct.length > 0 ? "other" : "unreadable";
-      };
-      const report = (candidate, sites = [candidate]) => {
-        const text = context.sourceCode.getText(candidate.node);
-        const start = candidate.node.range[0] + Math.max(text.lastIndexOf(candidate.name), 0);
-        context.report({
-          loc: { start: context.sourceCode.getLocFromIndex(start), end: context.sourceCode.getLocFromIndex(start + candidate.name.length) },
-          message:
-            candidate.verdict === "unreadable"
-              ? `Whether ${candidate.name} is TanStack Query's client member CANNOT be established: the checker cannot place this receiver.`
-              : `Imperative ${candidate.name} belongs in the central data seam, not inline at the caller. Line(s): ${sites.map((site) => site.node.loc.start.line).join(", ")}.`,
-        });
-      };
-      const check = (node) => {
-        const callee = native.esTreeNodeToTSNodeMap.get(node.callee);
-        const name = nativeCalledMemberName(callee);
-        if (name === undefined || !methods.includes(name)) {
-          return;
-        }
-        const verdict = verdictFor(callee.expression, name);
-        if (verdict === "other") {
-          return;
-        }
-        const candidate = { node: node.callee, name, verdict };
-        if (!grouped) {
-          report(candidate);
-        } else {
-          const sites = groups.get(name) ?? [];
-          sites.push(candidate);
-          groups.set(name, sites);
-        }
-      };
-      return {
-        CallExpression: check,
-        "Program:exit"() {
-          for (const [, sites] of [...groups].toSorted(([left], [right]) => left.localeCompare(right))) {
-            report(sites.find((site) => site.verdict === "home") ?? sites[0], sites);
-          }
-        },
-      };
-    },
-  };
-}
-
-function nativeReferencedAlias(reference, checker) {
-  const symbol = checker.getSymbolAtLocation(reference.typeName);
-  const target = symbol !== undefined && nativeAliasFlag(symbol) ? checker.getAliasedSymbol(symbol) : symbol;
-  return target?.declarations?.find(ts.isTypeAliasDeclaration);
-}
-
-function nativeInIdsHome(declaration) {
-  return declaration.getSourceFile().fileName.replaceAll("\\", "/").endsWith(`/${ID_BRAND_HOME}`);
-}
-
-// A type reference's arms: the ids home's sandbox wire id as `{ wire: <brand type name | null> }`; any other alias is
-// followed to its declared type, so a renamed `string` stays `string`.
-function nativeReferenceArms(type, checker) {
-  const alias = nativeReferencedAlias(type, checker);
-  if (alias === undefined) {
-    return [null];
-  }
-  if (alias.name.text !== SANDBOX_WIRE_ID_TYPE || !nativeInIdsHome(alias)) {
-    return nativeTextArms(alias.type, checker);
-  }
-  const argument = type.typeArguments?.[0];
-  const carried = argument !== undefined && ts.isTypeReferenceNode(argument) ? nativeReferencedAlias(argument, checker) : undefined;
-  return [{ wire: carried !== undefined && nativeInIdsHome(carried) ? carried.name.text : null }];
-}
-
-// Each arm of a name-position type as `string`, `nullable`, a sandbox wire id, or `null` when the arm is not text.
-function nativeTextArms(type, checker) {
-  if (ts.isParenthesizedTypeNode(type)) {
-    return nativeTextArms(type.type, checker);
-  }
-  if (ts.isUnionTypeNode(type)) {
-    return type.types.flatMap((arm) => nativeTextArms(arm, checker));
-  }
-  if (type.kind === ts.SyntaxKind.StringKeyword) {
-    return ["string"];
-  }
-  if (type.kind === ts.SyntaxKind.UndefinedKeyword || (ts.isLiteralTypeNode(type) && type.literal.kind === ts.SyntaxKind.NullKeyword)) {
-    return ["nullable"];
-  }
-  return ts.isTypeReferenceNode(type) ? nativeReferenceArms(type, checker) : [null];
-}
-
-// The parameter or property that declares a typed identifier name position, or undefined.
-function nativeNamePosition(mapped) {
-  const declaration = ts.isIdentifier(mapped) && ts.isParameter(mapped.parent) && mapped.parent.name === mapped ? mapped.parent : mapped;
-  return (ts.isParameter(declaration) || ts.isPropertySignature(declaration) || ts.isPropertyDeclaration(declaration)) &&
-    ts.isIdentifier(declaration.name) &&
-    declaration.type !== undefined
-    ? declaration
-    : undefined;
-}
-
-// Why a text-typed position violates its canonical brand, or undefined when it does not.
-function nativeBrandPositionViolation(name, arms, expected) {
-  if (arms.includes(null)) {
-    return;
-  }
-  if (arms.includes("string")) {
-    return `${name} is bare string, but canonical ${expected.typeName} (${expected.brand}) owns this position. (@orb/kit/ids)`;
-  }
-  const stray = arms.find((arm) => typeof arm === "object" && arm.wire !== expected.typeName);
-  return stray === undefined
-    ? undefined
-    : `${name} carries ${SANDBOX_WIRE_ID_TYPE}<${stray.wire ?? "a non-canonical id"}>, but canonical ${expected.typeName} (${expected.brand}) owns this position. (@orb/kit/ids)`;
-}
-
-const brandNamePositionRule = {
-  meta: { type: "problem", schema: [] },
-  create(context) {
-    const native = nativeDeclarationContext(context);
-    const ids = native.program.getSourceFiles().find((source) => source.fileName.replaceAll("\\", "/").endsWith(`/${ID_BRAND_HOME}`));
-    if (ids === undefined) {
-      throw new Error("Native canonical brand vocabulary is absent from the owning Program");
-    }
-    if (!ids.statements.some((statement) => ts.isTypeAliasDeclaration(statement) && statement.name.text === SANDBOX_WIRE_ID_TYPE)) {
-      throw new Error(`Native canonical brand vocabulary declares no ${SANDBOX_WIRE_ID_TYPE}; sandbox wire positions would read as bare string`);
-    }
-    const brands = new Map();
-    for (const declaration of ids.statements) {
-      if (!ts.isTypeAliasDeclaration(declaration)) {
-        continue;
-      }
-      const brand = nativeCanonicalIdBrand(native.checker.getTypeAtLocation(declaration.type), declaration.type, native.checker);
-      if (brand !== null) {
-        const typeName = declaration.name.text;
-        const name = typeName.charAt(0).toLowerCase() + typeName.slice(1);
-        if (brands.has(name)) {
-          throw new Error(`Duplicate canonical id-brand position ${name}`);
-        }
-        brands.set(name, { typeName, brand });
-      }
-    }
-    const check = (node) => {
-      const declaration = nativeNamePosition(native.esTreeNodeToTSNodeMap.get(node));
-      const expected = declaration === undefined ? undefined : brands.get(declaration.name.text);
-      if (expected === undefined) {
-        return;
-      }
-      const message = nativeBrandPositionViolation(declaration.name.text, nativeTextArms(declaration.type, native.checker), expected);
-      if (message !== undefined) {
-        context.report({ node: native.tsNodeToESTreeNodeMap.get(declaration.name), message });
-      }
-    };
-    return { Identifier: check, TSPropertySignature: check, PropertyDefinition: check };
-  },
-};
-
 const COMMENTED_CODE = /^\s*(?:import|export|const|let|var|function|class|interface|type|return|if|for|while|switch|throw|await)\b.*[;{}]\s*$/u;
 
-// Prose routinely opens with a statement keyword; only a line comment that also ENDS like a statement is parked code.
 const commentedCodeRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -7633,11 +3898,11 @@ const commentedCodeRule = {
 };
 
 const CT_STORY_MODULE = /(?:_ct-stories|\.fixtures)(?:\.tsx)?$/u;
+
 const CT_JSX_TREE = new Set(["JSXElement", "JSXFragment", "JSXOpeningElement", "JSXAttribute", "JSXExpressionContainer"]);
+
 const CT_REWRITE_SCOPES = new Set(["ArrowFunctionExpression", "FunctionDeclaration", "FunctionExpression"]);
 
-// playwright-ct rewrites each JSX/array reference of an imported story into a generated const, so one binding with
-// two rewrite sites in a scope fails the whole bundle at eval. Separate test callbacks and mount trees are separate scopes.
 const ctStorySingleImportRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -7695,6 +3960,7 @@ const ctStorySingleImportRule = {
 };
 
 const EVALUATE_METHODS = new Set(["evaluate", "evaluateAll"]);
+
 const FUNCTION_NODES = new Set(["FunctionDeclaration", "ArrowFunctionExpression", "FunctionExpression"]);
 
 function evaluateMethodName(callee) {
@@ -7707,7 +3973,6 @@ function evaluateMethodName(callee) {
   return callee.property.type === "Identifier" ? callee.property.name : "";
 }
 
-/** A binding is module-scoped when no function boundary lies between it and the file: a top-level block or loop binding counts, a local of any function does not. */
 function isModuleScoped(scope) {
   for (let current = scope; current !== null; current = current.upper) {
     if (current.type === "function" || current.type === "function-expression-name") {
@@ -7717,14 +3982,11 @@ function isModuleScoped(scope) {
   return true;
 }
 
-/** ESLint seeds builtins and browser globals as global-scope variables with no definitions, so only a defined variable is a capture. */
 function isModuleCapture(reference, self) {
   const variable = reference.resolved;
   return variable !== null && variable !== self && variable.defs.length > 0 && reference.isValueReference && isModuleScoped(variable.scope);
 }
 
-// Playwright serializes an evaluate callback with Function.prototype.toString(); a module-scope binding it names does not
-// exist in the page, so the call dies in-browser as a silent ReferenceError.
 const evaluateNoScopeCaptureRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -7779,11 +4041,11 @@ const evaluateNoScopeCaptureRule = {
 };
 
 const SINGLE_REPLICA_ANNOTATION = "ASSUMES(single-replica)";
+
 const STATE_CONSTRUCTORS = new Set(["Map", "Set", "WeakMap", "WeakSet"]);
+
 const ARRAY_MUTATORS = new Set(["push", "shift", "splice", "unshift"]);
 
-// What a module-scope `new X(...)` holds: a non-literal-seeded Map/Set/WeakMap/WeakSet, or an instance of a class declared
-// in this file with a non-readonly field. An imported factory is out of structural reach, a declared limit.
 function singleReplicaConstruction(init, classes) {
   if (init.callee.type !== "Identifier") {
     return "";
@@ -7799,8 +4061,6 @@ function singleReplicaConstruction(init, classes) {
   return mutable === true ? `an instance of the locally-declared class \`${name}\` with a non-readonly field` : "";
 }
 
-// Module-scope per-process state needs a file-level ASSUMES(single-replica) comment naming its replacement seam. Array
-// literal seeds that are never mutated and classes whose fields are all readonly are immutable, so they stay silent.
 const assumesSingleReplicaRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -7855,7 +4115,6 @@ const assumesSingleReplicaRule = {
   },
 };
 
-// The variable a name resolves to from the node's scope outward, or undefined when it is global.
 function lexicalVariable(context, identifier) {
   for (let scope = context.sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
     const variable = scope.set.get(identifier.name);
@@ -7865,14 +4124,13 @@ function lexicalVariable(context, identifier) {
   }
 }
 
-// The side-gen ladder seal: a domain or entry call site never authors a sampling number; it folds
-// SIDE_GEN_POSTURES through resolveSideGenSampling. `maxTokens` also names the canon-window budget, so it is a
-// sampling knob only beside an unambiguous one. An imported binding is data from its home and passes.
 const SIDE_GEN_KNOBS = new Set(["temperature", "maxOutputTokens", "topP"]);
+
 const SIDE_GEN_SHARED_KNOB = "maxTokens";
+
 const SIDE_GEN_MESSAGE =
   "Hardcoded side-gen sampling value: resolve the posture through resolveSideGenSampling and SIDE_GEN_POSTURES from @orb/contracts/preset; a buried constant is a value the user's preset params can never override.";
-// A numeric literal, a signed one, or a same-file const one binding hop at a time.
+
 function authoredNumber(context, node, hops = 4) {
   if (node.type === "Literal") {
     return typeof node.value === "number";
@@ -7891,6 +4149,7 @@ function authoredNumber(context, node, hops = 4) {
     authoredNumber(context, definition.node.init, hops - 1)
   );
 }
+
 const sideGenSamplingRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -7909,11 +4168,10 @@ const sideGenSamplingRule = {
   },
 };
 
-// The imported RECEDED_INK constant is used unprefixed: a Tailwind variant before it (`hover:`, `md:`, `[&:hover]:`)
-// says nothing about the rest state the recession ruling governs (packages/ui/src/lib/receded-ink.ts). A same-named
-// local constant is a different contract. A later overriding ink is not judged: ink and size share the `text-` spelling.
 const RECEDED_INK_NAME = "RECEDED_INK";
+
 const VARIANT_PREFIX_END = /\S:$/u;
+
 function importedRecededInk(context, expression) {
   if (expression.type === "Identifier") {
     return expression.name === RECEDED_INK_NAME && lexicalVariable(context, expression)?.defs[0]?.node.type === "ImportSpecifier";
@@ -7924,6 +4182,7 @@ function importedRecededInk(context, expression) {
     lexicalVariable(context, expression.object)?.defs[0]?.node.type === "ImportNamespaceSpecifier"
   );
 }
+
 const recededInkRule = {
   meta: { type: "problem", schema: [] },
   create(context) {
@@ -7943,7 +4202,6 @@ const recededInkRule = {
   },
 };
 
-// `x.name`, `x["name"]` or a substitution-free template key: the member name, else undefined.
 function staticMemberName(member) {
   if (member.type !== "MemberExpression") {
     return;
@@ -7958,11 +4216,13 @@ function staticMemberName(member) {
 }
 
 const ZOD_MODULE = /^zod(?:\/|$)/u;
+
 const ZOD_STRING_BUILDER = "string";
+
 const ZOD_COERCE = "coerce";
+
 const ZOD_OBJECT_NAMES = new Set(["z", "*", "default"]);
 
-// What a zod import declared the name as: the imported name, "*" for a namespace, "default" for a default import.
 function zodImportName(context, identifier) {
   const definition = lexicalVariable(context, identifier)?.defs[0];
   if (definition?.type !== "ImportBinding" || !ZOD_MODULE.test(definition.parent.source.value)) {
@@ -7975,7 +4235,6 @@ function zodImportName(context, identifier) {
   return specifier.type === "ImportSpecifier" ? (specifier.imported.name ?? specifier.imported.value) : "default";
 }
 
-// One hop through a binding that is written once, by its own initializer.
 function singleInitializer(context, identifier) {
   const variable = identifier.type === "Identifier" ? lexicalVariable(context, identifier) : undefined;
   const declarator = variable?.defs.length === 1 && variable.defs[0].type === "Variable" ? variable.defs[0].node : undefined;
@@ -7983,7 +4242,6 @@ function singleInitializer(context, identifier) {
   return declarator?.id.type === "Identifier" && declarator.init !== null && unwritten ? declarator.init : undefined;
 }
 
-// The `z` object: a named `z`, a namespace or a default import, or `<that>.z`.
 function isZodObject(context, node) {
   if (node.type === "Identifier") {
     return ZOD_OBJECT_NAMES.has(zodImportName(context, node));
@@ -7991,7 +4249,6 @@ function isZodObject(context, node) {
   return staticMemberName(node) === "z" && node.object.type === "Identifier" && ZOD_OBJECT_NAMES.has(zodImportName(context, node.object));
 }
 
-// The `coerce` namespace, whose `string` builder yields the same raw string: `z.coerce` or a bare `coerce` import.
 function isZodCoerce(context, node) {
   if (node.type === "Identifier") {
     return zodImportName(context, node) === ZOD_COERCE;
@@ -8001,7 +4258,6 @@ function isZodCoerce(context, node) {
 
 const ZOD_ALIAS_HOPS = 4;
 
-// Zod's `string` builder as an expression: the bare export, `z.string`, `z.coerce.string`, or a const bound to one.
 function isZodStringBuilder(context, node, hops = ZOD_ALIAS_HOPS) {
   if (node.type === "Identifier") {
     if (zodImportName(context, node) === ZOD_STRING_BUILDER) {
@@ -8013,7 +4269,6 @@ function isZodStringBuilder(context, node, hops = ZOD_ALIAS_HOPS) {
   return staticMemberName(node) === ZOD_STRING_BUILDER && (isZodObject(context, node.object) || isZodCoerce(context, node.object));
 }
 
-// The first call of a builder chain: `z.string().optional()` reaches `z.string()`.
 function builderRoot(node) {
   let current = node;
   while (current.type === "CallExpression") {
@@ -8025,7 +4280,6 @@ function builderRoot(node) {
   }
 }
 
-// An identifier or string-literal key; a computed key names nothing statically.
 function staticPropertyKey(property) {
   if (property.computed) {
     return "";
@@ -8055,11 +4309,13 @@ const rawIdRule = {
 };
 
 const JSON_METHOD = "json";
+
 const TEXT_METHOD = "text";
+
 const THEN_METHOD = "then";
+
 const PARSE_METHOD = "parse";
 
-// `unknown`, `Promise<unknown>`, or a type literal whose every member is (recursively) unknown: the body stays unparsed data.
 function keepsUnknown(type) {
   if (type.type === "TSUnknownKeyword") {
     return true;
@@ -8076,7 +4332,6 @@ function keepsUnknown(type) {
   );
 }
 
-// Through what hands the body on unchanged: `await`, a chain, and an `as unknown` / `satisfies unknown` step.
 function unwrapBody(node) {
   let current = node;
   for (;;) {
@@ -8148,23 +4403,17 @@ const wireJsonRule = {
   },
 };
 
-// Fire-and-forget work whose failure is invisible. The request root has sealed by the time detached work runs, so an
-// absorbed rejection reaches no log, trace or caller (A1); and a catch inside an opener callback that does not rethrow
-// seals the detached root `ok` on every failure (A2). Openers are the declared ROOT_SPAN_OPENERS tuple.
-// Declared narrowings: the rule is syntactic. A line-scoped `eslint-disable-next-line` waives EVERY statement on that
-// line, not one dispatch. A promise-link key known only from a literal TYPE (a parameter typed 'catch') is not read;
-// a literal, a `+` concatenation or a binding written once is. A promise kept by a callee (the callee records the
-// failure itself) is not seen; only one bound to a name and handed to a collection whose elements later reach an await
-// or a return is kept. A value handed to an unrelated call (`ignore(Promise.allSettled(kept))`) counts as handed on:
-// the callee's handling is not read.
 const ROOT_SPAN_OPENER_NAMES = new Set(ROOT_SPAN_OPENERS);
+
 const PROMISE_LINKS = new Set(["then", "catch", "finally"]);
-// Which argument of a promise link is its rejection handler.
+
 const REJECTION_HANDLER_ARGUMENT = new Map([
   ["catch", 0],
   ["then", 1],
 ]);
+
 const DISCARD_BODIES = new Set(["undefined", "null", "void 0"]);
+
 const DETACHED_MESSAGES = {
   untraced:
     "Fire-and-forget work with a discarded rejection is invisible: the request root has sealed, so the failure reaches no log, trace or caller. " +
@@ -8190,7 +4439,6 @@ function unwrapTransparent(node) {
   return current;
 }
 
-// The ORDERED runtime string of a statically knowable key: a literal, a `+` concatenation, or a binding written once.
 function staticDetachedKey(context, node, hops = 4) {
   const value = unwrapTransparent(node);
   if (value.type === "Literal") {
@@ -8208,7 +4456,6 @@ function staticDetachedKey(context, node, hops = 4) {
   return initializer === undefined ? undefined : staticDetachedKey(context, initializer, hops - 1);
 }
 
-// `p.catch` and `p["catch"]` are the same read.
 function literalMember(context, node) {
   const member = unwrapTransparent(node);
   if (member.type !== "MemberExpression") {
@@ -8236,14 +4483,12 @@ function isDiscardingHandler(context, node) {
     : DISCARD_BODIES.has(context.sourceCode.getText(unwrapTransparent(handler.body)));
 }
 
-// The call that is itself a `.catch(<discard>)` / `.then(_, <discard>)` link.
 function discardsRejection(context, call) {
   const link = literalMember(context, call.callee);
   const index = link === undefined ? undefined : REJECTION_HANDLER_ARGUMENT.get(link.name);
   return index !== undefined && isDiscardingHandler(context, call.arguments[index]);
 }
 
-// Walk inward through promise links to the first discarding one; a non-link callee ends the chain.
 function hasAbsorbingLink(context, expression) {
   let current = unwrapTransparent(expression);
   while (current.type === "CallExpression") {
@@ -8259,14 +4504,12 @@ function hasAbsorbingLink(context, expression) {
   return false;
 }
 
-// A promise bound to a name and handed to a collection (`set.add(p)`, `list.push(p)`, `map.set(k, p)`) that is later
-// read as a whole (spread, iterated, passed to `Promise.all`-style combinators, `.values()`) is kept: its failure is read
-// at the join, so the discarding link on the statement is not the only owner. Retention inside a callee is not read.
 const COLLECTING_MEMBERS = new Set(["add", "push", "set", "unshift"]);
+
 const COLLECTION_READ_MEMBERS = new Set(["values", "entries", "forEach"]);
+
 const COMBINATOR_MEMBERS = new Set(["all", "allSettled", "race", "any", "from"]);
 
-// The name a promise chain starts from: `p` in `p.catch(h)`, or undefined when the chain starts at a call.
 function chainRootName(context, expression) {
   let current = unwrapTransparent(expression);
   while (current.type === "CallExpression") {
@@ -8279,26 +4522,22 @@ function chainRootName(context, expression) {
   return current.type === "Identifier" ? current : undefined;
 }
 
-// Does the value of `node` reach an await, a return, or a call that takes it on? A `void`, a bare statement, a binding
-// nothing consumes, and a chain that ends in one of those keep nothing. Passing a value to an unrelated call counts as
-// handing it on (a declared narrowing): the callee's own handling is not read.
 const PROMISE_CHAIN_MEMBERS = new Set(["then", "catch", "finally"]);
+
 const FLOW_DEPTH = 4;
+
 const TRANSPARENT_PARENTS = new Set(["ChainExpression", "TSAsExpression", "TSNonNullExpression", "TSSatisfiesExpression"]);
 
-// A binding is consumed when one of its reads is itself consumed.
 function bindingConsumed(context, id, depth) {
   const variable = lexicalVariable(context, id);
   return variable?.references.some((reference) => reference.isRead() && flowConsumed(context, reference.identifier, depth)) === true;
 }
 
-// Does a `for...of` over the carrier consume its elements: `for await`, or an element binding whose reads are consumed?
 function loopConsumes(context, loop, depth) {
   const declarator = loop.left.type === "VariableDeclaration" ? loop.left.declarations[0] : undefined;
   return loop.await || declarator?.id.type !== "Identifier" || bindingConsumed(context, declarator.id, depth);
 }
 
-// A `forEach` callback consumes its elements when its first parameter is consumed; a callback it cannot see is handed on.
 function callbackConsumes(context, callback, depth) {
   if (callback?.type !== "ArrowFunctionExpression" && callback?.type !== "FunctionExpression") {
     return callback !== undefined;
@@ -8307,7 +4546,6 @@ function callbackConsumes(context, callback, depth) {
   return first !== undefined && (first.type !== "Identifier" || bindingConsumed(context, first, depth));
 }
 
-// A value used as a call argument: where does the call's result go?
 function callFlowConsumed(context, parent, current, depth) {
   if (parent.callee === current) {
     return false;
@@ -8327,7 +4565,6 @@ function memberFlowConsumed(context, parent, current, depth) {
   return (COLLECTION_READ_MEMBERS.has(member) || PROMISE_CHAIN_MEMBERS.has(member)) && flowConsumed(context, call, depth);
 }
 
-// A value bound by a declaration or assignment is consumed when a read of the bound name is.
 function boundFlowConsumed(context, parent, current, depth) {
   const target = parent.type === "VariableDeclarator" ? parent.id : parent.left;
   const source = parent.type === "VariableDeclarator" ? parent.init : parent.right;
@@ -8369,7 +4606,6 @@ function flowConsumed(context, node, depth = FLOW_DEPTH) {
   }
 }
 
-// A collection is read whole, and the elements reach a consumer, when any read of it flows on.
 function readsWhole(context, collection) {
   const variable = lexicalVariable(context, collection);
   return variable?.references.some(({ identifier }) => identifier !== collection && flowConsumed(context, identifier)) === true;
@@ -8391,7 +4627,6 @@ function isRetainedPromise(context, name) {
   );
 }
 
-// A throw escapes only the nearest catch clause that holds it, unless a function or a guarded try block intervenes.
 function escapedCatchClause(thrown) {
   for (let node = thrown.parent; node !== null && node !== undefined; node = node.parent) {
     if (node.type === "CatchClause") {
@@ -8456,28 +4691,26 @@ const detachedWorkRule = {
   },
 };
 
-const DECLARATION_NATIVE_RESTRICTIONS = TYPED_NATIVE_POLICIES.filter(({ ruleId, hard }) => !hard && ruleId.startsWith("orb/"));
-
-// D46: `ctx.dump` walks a guest value on the HOST stack, so a deep value overflows it and corrupts the shared
-// WASM runtime for every plugin in the process. The membrane names `dump` only inside its one top-level
-// helper, and inside it only in a statement after `if (!handleSafeToDump(...)) { return }`, the module's own
-// iterative depth/node guard. Every `dump` spelling is judged, including a string key bound elsewhere in the
-// module. The int test over the real snippet path proves the guard's effect: same handle, every refusal exits.
 const PLUGIN_MEMBRANE = "packages/server/src/infra/plugin-host/membrane.ts";
+
 const PLUGIN_DUMP_HELPER = "Program > FunctionDeclaration[id.name='tryDumpGuestValue']";
-// esquery 1.7 mis-parses a chained `:has(> A > B)`, so the exit test nests one `:has` per level.
+
 const PLUGIN_DUMP_GUARD_EXIT =
   "IfStatement[test.operator='!'][test.argument.type='CallExpression'][test.argument.callee.name='handleSafeToDump']" +
   ":has(> BlockStatement.consequent:has(> :matches(ReturnStatement, ThrowStatement)))";
+
 const PLUGIN_DUMP_SPELLINGS = [
   "MemberExpression[property.name='dump']",
   "Property[key.name='dump']",
   ":matches(Literal[value='dump'], TemplateElement[value.cooked='dump'])",
 ];
+
 const PLUGIN_DUMP_MESSAGE =
   "A QuickJS membrane `dump` outside `tryDumpGuestValue` can materialize guest-controlled recursive structure without the iterative handle depth/node guard; the walk runs on the HOST stack, so an overflow corrupts the shared WASM runtime for every plugin in the process (D46). Route guest values through `tryDumpGuestValue`.";
+
 const PLUGIN_DUMP_ORDER_MESSAGE =
   "Inside `tryDumpGuestValue`, `dump` may appear only after `if (!handleSafeToDump(ctx, handle)) { return ... }`: a guard after the materialization cannot stop the host-stack walk that already ran (D46).";
+
 const PLUGIN_DUMP_SELECTORS = [
   ...PLUGIN_DUMP_SPELLINGS.map((spelling) => ({ selector: `${spelling}:not(${PLUGIN_DUMP_HELPER} *)`, message: PLUGIN_DUMP_MESSAGE })),
   ...PLUGIN_DUMP_SPELLINGS.flatMap((spelling) => [
@@ -8491,90 +4724,55 @@ const PLUGIN_DUMP_SELECTORS = [
   },
 ];
 
-const restrictionPlugin = {
+const LOCAL_RESTRICTIONS = [
+  RESTRICTIONS,
+  INFRA_AUTH_RESTRICTIONS,
+  TABLE_IMPORT_RESTRICTIONS,
+  IDENTITY_WRITER_RESTRICTIONS,
+  CLASS_RESTRICTIONS,
+  ROLE_DATA_RESTRICTIONS,
+  TURN_IDENTITY_RESTRICTIONS,
+  SERVER_SCOPE_RESTRICTIONS,
+  AMBIENT_GLOBAL_RESTRICTIONS,
+  CLIENT_CONTEXT_RESTRICTIONS,
+  CLIENT_STYLE_RESTRICTIONS,
+  CLIENT_CONFIG_HOST_RESTRICTIONS,
+  CLIENT_SEAL_RESTRICTIONS,
+  CLASS_TOKEN_RESTRICTIONS,
+  CT_SPEC_RESTRICTIONS,
+  SERVER_HARD_RESTRICTIONS,
+  DB_SCHEMA_RESTRICTIONS,
+  UI_PRIMITIVE_RESTRICTIONS,
+  UI_HARD_RESTRICTIONS,
+  ID_BRAND_RESTRICTIONS,
+  TYPE_SHAPE_RESTRICTIONS,
+].flat();
+const localPlugin = {
   rules: {
-    "tooling-cli-entry": toolingEntryRule(false),
-    "tooling-ops-direct-invocation": toolingEntryRule(true),
-    ...Object.fromEntries(RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
-    ...Object.fromEntries(VERIFY_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
-    ...Object.fromEntries(SERVER_HARD_RESTRICTIONS.map((entry) => [entry.id, entry.rule ?? restrictionRule(entry)])),
-    ...Object.fromEntries(CONTEXT_SINGLE_WRITERS.map(({ id, rule }) => [id, rule])),
-    ...Object.fromEntries(IDENTITY_WRITER_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
-    ...Object.fromEntries(UI_HARD_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
-    [UI_CT_COLOR_RESTRICTION.id]: uiCtColorRule,
+    ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)])),
     ...Object.fromEntries(PRINCIPAL_RULES.map(({ id, rule }) => [id, rule])),
+    "ui-ct-no-color-literal": uiCtColorRule,
     "no-raw-egress": rawEgressRule,
     "no-raw-http-client": rawHttpClientRule,
     "sole-env-reader": soleEnvReaderRule,
-    [TYPE_HOME_NATIVE_POLICY_ID]: typeHomeDeclarationRule,
-    [SERVER_FACTORY_TIER_REFERENCE_POLICY_ID]: serverFactoryPublicBoundaryRule,
-    "no-inline-invalidate-outside-seam": nativePackageCallRule(["invalidateQueries"], true),
-    "client-cache-surgery-only-in-data": nativePackageCallRule(
-      ["invalidateQueries", "setQueryData", "cancelQueries", "getQueryData", "removeQueries", "resetQueries"],
-      true,
-    ),
-    "no-inline-optimistic-in-surface": nativePackageCallRule(["cancelQueries", "setQueryData"], false),
     "baseui-portal-container-seam": baseUiPortalContainerRule,
-    "no-interactive-role-in-features": interactiveFeatureRoleRule,
-    "no-multiplexed-mutation-error": multiplexedMutationErrorRule,
-    "no-raw-clock": ambientDeterminismRule(true),
-    "no-raw-random": ambientDeterminismRule(false),
-    "no-manual-autosave-flush": manualAutosaveFlushRule,
-    "no-chat-trpc-in-surface": chatTrpcSurfaceRule,
-    "no-mint-via-cast": mintViaCastRule,
-    "zustand-selector-stability": zustandSelectorStabilityRule,
-    "test-fixture-imports": testFixtureImportsRule,
-    "zod-modern-spellings": zodModernSpellingsRule,
-    "no-raw-intl-time": rawIntlTimeRule,
-    "list-row-adoption": listRowAdoptionRule,
-    "brand-in-name-position": brandNamePositionRule,
-    [INJECTED_OP_RULE]: injectedOpCallerParamRule,
     "test-factory-contract": testFactoryContractRule,
-    "no-opaque-test-fixture": opaqueTestFixtureRule,
     "no-context-returntype": contextReturnTypeRule,
-    "no-inline-package-interface": interfacePlacementRule(TYPE_SHAPE_MESSAGES["no-inline-package-interface"]),
-    "no-raw-z-index": rawZIndexRule,
     "no-raw-id": rawIdRule,
     "wire-json-parsed-at-consumer": wireJsonRule,
-    "no-raw-spacing-in-features": rawTierClassRule(
-      /\b(?:gap|p[xytrbl]?|m[xytrbl]?|space-[xy])-(?:[1-9]\d*|\d+\.\d+|\[[^\]]+\])/u,
-      "Raw spacing in a class carrier; use a layout primitive or spacing intent token.",
-    ),
-    "no-raw-typography-in-features": rawTierClassRule(
-      /\btext-(?:xs|sm|base|lg|xl|2xl|3xl|4xl|5xl|6xl|7xl|8xl|9xl|\[[^\]]+\])/u,
-      "Raw typography in a class carrier; use a typography intent token.",
-    ),
-    "no-hover-display-swap": hoverDisplayRule,
     "no-off-token-inline-style": offTokenInlineStyleRule,
     "theme-override-only-via-scope": themeOverrideRule,
-    "no-unruled-flip-inversion": flipInversionRule,
     "no-tailwind-dark-variant": darkVariantRule,
-    "surface-a11y-focus": surfaceA11yFocusRule,
-    "sub-floor-disclosure": subFloorDisclosureRule,
     "zustand-selector-derived": storeDerivedRule,
-    "baseui-derives-not-respells": baseUiDerivesRule(false),
-    "baseui-derives-not-respells-health": baseUiDerivesRule(true),
-    "plugin-dump-guard": restrictionRule({ selectors: PLUGIN_DUMP_SELECTORS }),
-    "baseui-state-data-attributes": baseUiStateRule,
-    "context-definition-shape": contextDefinitionRule,
     "no-mutating-register-api": registerApiRule,
-    "structured-plan-one-home": structuredPlanRule,
-    "wire-schema-vocab-one-home": wireSchemaVocabularyRule,
-    "no-hardcoded-model-prose": modelProseRule,
     "state-files": stateFilesRule,
     "registry-context-via-mint": registryContextRule,
-    [CLIENT_MAP_NATIVE_RULE.slice("orb/".length)]: parallelMapRule,
     "testid-typed-only": typedTestIdRule('Freeform data-testid string; use the typed registry via testId("key").'),
     "testid-typed-only-stories": typedTestIdRule(
       'Freeform data-testid string in a CT story; use storyTestId("key") for a story-only id or testId("key") for a production id.',
     ),
     "ct-poll-intervals-shared": ctPollIntervalsSharedRule,
-    "scroll-container-positioned": scrollContainerRule,
-    "ui-size-via-variant": uiSizeRule,
     "no-floorless-control-in-wrap": floorlessControlRule,
-    "membership-write-fan": membershipWriteFanRule,
-    [TEST_PACKAGE_SUBPATH_RULE.slice("orb/".length)]: testPackageSubpathRule,
-    [TOOLING_ROOT_CONFIG_IMPORT_RULE.slice("orb/".length)]: toolingRootConfigImportRule,
     "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,
     "assumes-single-replica": assumesSingleReplicaRule,
     "no-hardcoded-side-gen-sampling": sideGenSamplingRule,
@@ -8583,517 +4781,131 @@ const restrictionPlugin = {
     "detached-work-traced": detachedWorkRule,
     "commented-code": commentedCodeRule,
     "ct-story-single-import": ctStorySingleImportRule,
+    "plugin-dump-guard": restrictionRule({ selectors: PLUGIN_DUMP_SELECTORS }),
+    "browser-no-node-globals": browserNoNodeGlobalsRule,
   },
 };
-function typedNativeSettings(entry) {
-  return {
-    [`orb/typed-native-inputs/${entry.id}`]: createHash("sha256")
-      .update(typedNativeInputIdentity(entry, NATIVE_TYPED_COMPILER_CONTEXT.identity))
-      .update(
-        JSON.stringify(
-          typedNativeInputPaths(entry, AUTHORED_NATIVE_INPUT_PATHS, ROOT, NATIVE_TYPED_COMPILER_CONTEXT.configs).map((path) => [
-            path,
-            readFileSync(join(ROOT, path), "utf8"),
-          ]),
-        ),
-      )
-      .digest("hex"),
-  };
-}
+const LOCAL_RULE_BLOCKS = LOCAL_RESTRICTIONS.map(({ id, scope, notNamed = [], notUnder = [], homes = [] }) => ({
+  files: scope,
+  ...(notNamed.length + notUnder.length + homes.length === 0 ? {} : { ignores: [...notNamed, ...notUnder, ...homes.map(({ path }) => path)] }),
+  plugins: { orb: localPlugin },
+  rules: { [`orb/${id}`]: "error" },
+}));
 
-const RESTRICTION_BLOCKS = [...RESTRICTIONS, ...DECLARATION_NATIVE_RESTRICTIONS].flatMap(
-  ({ id, scope, notNamed = [], notUnder = [], homes, deferred = [], homedOptions }) => {
-    const ignores = [...notNamed, ...notUnder, ...homes.map(({ path }) => path), ...deferred.map(({ path }) => path)];
-    // A rule with `homedOptions` still runs on its homes, in the mode those options name, so a home cannot go stale unseen.
-    const homed =
-      homedOptions === undefined
-        ? []
-        : [{ files: homes.map(({ path }) => path), plugins: { orb: restrictionPlugin }, rules: { [`orb/${id}`]: ["error", homedOptions] } }];
-    return [
-      {
-        files: scope,
-        // A flat-config `ignores` array must not be empty.
-        ...(ignores.length === 0 ? {} : { ignores }),
-        plugins: { orb: restrictionPlugin },
-        ...(BASEUI_RESTRICTIONS.some((entry) => entry.id === id)
-          ? { settings: { "orb/baseui-surface": BASEUI_SURFACE, "orb/baseui-input-revision": BASEUI_INPUT_REVISION } }
-          : {}),
-        ...(CLIENT_CONTEXT_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CONTEXT_NATIVE_SETTINGS } : {}),
-        ...(TYPED_NATIVE_POLICIES.some((entry) => entry.id === id)
-          ? {
-              settings: typedNativeSettings(TYPED_NATIVE_POLICIES.find((entry) => entry.id === id)),
-            }
-          : {}),
-        ...(CLIENT_MAP_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_MAP_NATIVE_SETTINGS } : {}),
-        ...(CLIENT_LEXICAL_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: CLIENT_LEXICAL_NATIVE_SETTINGS } : {}),
-        ...(id === INJECTED_OP_RULE ? { settings: INJECTED_OP_SETTINGS } : {}),
-        ...(MEMBERSHIP_WRITE_FAN_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: { "orb/membership-tables": MEMBERSHIP_TABLE_EXPORTS } } : {}),
-        ...(SERVER_ONE_HOME_RESTRICTIONS.some((entry) => entry.id === id) ? { settings: SERVER_ONE_HOME_SETTINGS } : {}),
-        ...(id === "no-loose-id-cast" ? { settings: ID_BRAND_NATIVE_SETTINGS } : {}),
-        rules: { [`orb/${id}`]: "error" },
-      },
-      ...homed,
-    ];
-  },
-);
-
-// react-x: React 19 retired these APIs. Its rules take no options. `no-class-component` already passes an error
-// boundary (a class with `getDerivedStateFromError` / `componentDidCatch`), which has no function equivalent.
-const REACT_X_BLOCKS = [
-  {
-    files: AUTHORED_SRC,
-    plugins: { "react-x": reactX },
-    rules: {
-      "react-x/no-forward-ref": "error",
-      "react-x/no-use-context": "error",
-      "react-x/no-context-provider": "error",
-      "react-x/no-clone-element": "error",
-      "react-x/no-create-ref": "error",
-      "react-x/no-children-count": "error",
-      "react-x/no-children-for-each": "error",
-      "react-x/no-children-map": "error",
-      "react-x/no-children-only": "error",
-      "react-x/no-class-component": "error",
-    },
-  },
-  {
-    files: AUTHORED_SRC,
-    ignores: ["packages/ui/src/markdown/dialogue-paragraph.tsx"],
-    plugins: { "react-x": reactX },
-    rules: { "react-x/no-children-to-array": "error" },
-  },
-];
-
-const STANDARD_CONFIG = tseslint.config(
+const NATIVE_CONFIG = [
   {
     ignores: [
       "**/node_modules/**",
       "**/dist/**",
-      "reports/**",
-      // Mutation sandboxes contain rewritten source and generated runner setup, never authored inputs.
-      ".stryker-tmp/**",
-      // Local tool caches are derived scratch artifacts, never authored inputs. THE `**/` PREFIX IS
-      // LOAD-BEARING and was missing until #2213: a flat-config `ignores` glob is anchored at the CONFIG
-      // DIRECTORY, so bare `.cache/**` covered the root cache and missed every NESTED one — while the
-      // identical-looking `.gitignore` row (`.cache/`) matches at ANY depth, because gitignore patterns and
-      // flat-config globs do not share anchoring rules. The two disagreed silently, and a pattern
-      // transliterated from one into the other is the shape to distrust. `playwright/.cache` (the
-      // Playwright CT build bundles) was therefore invisible to git and LINTED by eslint, supplying 106 of
-      // the 117 errors in this stage's first whole-repo verdict after #2211 restored its discovery.
-      // `.stryker-tmp/**` above carries the same missing prefix; it is root-only on today's tree, so it has
-      // no nested instance to control in either direction and is deliberately left alone.
       "**/.cache/**",
-      // Agent worktrees (#2281). `.gitignore` has carried `.claude/worktrees/` all along and it protects
-      // NOTHING here — flat config reads no VCS ignore file at all, which is why biome (fenced twice over:
-      // `vcs.useIgnoreFile: true` PLUS an explicit `"!.claude"`) never showed the symptom and this went
-      // unnoticed in the sibling tool. Discovery is `eslint.lintFiles(["."])` (ops/eslint-discovery.ts:49),
-      // ESLint's own walk of the repo root, so every live lane was WALKED: 42 worktrees carrying 316,809
-      // `.ts`/`.tsx` on disk against 7,574 authored (2026-09-13). Almost none of that is lintable — a
-      // flat-config `files:` glob is anchored at the config DIRECTORY, so
-      // `.claude/worktrees/<id>/tooling/src/x.ts` matches no surface at all — but the default-linted
-      // extensions still land: of the 15,994 files ESLint ADMITTED on main, **7,896 were other lanes'
-      // worktrees**, about half the population, every one of them a file no rule could usefully judge.
-      // THE REASON IS CORRECTNESS, NOT COST. Whole-run timings were load-confounded and did not reproduce;
-      // discovery itself changes materially with the live worktree count. What the fence removes is the
-      // stage's inability to return a VERDICT — a lane swept mid-run, which is routine, turns an enumerated path into ENOENT and
-      // the stage exits 2, the tool-error class, never a verdict (reproduced live on
-      // `agent-afe8e5ce74da79230`). That is exactly the concurrent-lifecycle phantom the retired `**/__g_*` entry was
-      // reasoned through for, never carried across to the larger, more frequently mutated case.
-      // `**/`-PREFIXED per the #2213 note above: a worktree CONTAINS a `.claude/` of its own, so unlike
-      // `.stryker-tmp/**` a nested instance is structurally possible and root anchoring would miss it.
       "**/.claude/worktrees/**",
-      // The SillyTavern parity rig's captured runtime (#2282) — vendored third-party source the repository
-      // deliberately does not track (`.gitignore:121`) — and the THIRD instance of this class, after
-      // `playwright/.cache` (#2213) and the worktrees above. Unlike those two, these files DO get rules,
-      // because they sit under `scripts/`, a real lint surface. COUNT THE ADMITTED POPULATION, NOT THE DISK:
-      // 17,053 `.js`/`.ts` live under it, but ~16.7k of those are the runtime's OWN `node_modules` and were
-      // already fenced — ESLint admitted **353** of them (measured on main, 2026-09-13). Those 353 were the
-      // entire content of this stage's exit 1: four `Unused eslint-disable directive` errors — SillyTavern's own
-      // directives, written for SillyTavern's config, reported unused under ours. There is nothing to fix in
-      // them; the defect is that we lint them at all.
-      // ROOT-ANCHORED, NOT `**/`-prefixed, and the asymmetry with the row above is deliberate: this is one
-      // repo-relative path with exactly one home, `.gitignore` anchors its own row the same way (leading
-      // `/`), and the only structurally possible nesting is inside a worktree — which the row above already
-      // covers. SCOPED TO `sillytavern-runtime/` ALONE, because the rig's own tracked files sit at the
-      // directory's top level and are not ours to fence. They are all `.ts` since work item 0036 converted
-      // `write-v2-png.cjs`, and the `.ts` ones match no `files:` surface (the nested-scripts block ignores the
-      // browser-world rig), but a `.js`/`.cjs` script added there would be admitted, and the broader spelling
-      // `scripts/probes/st-goldens/**` would swallow it. The three sibling generated dirs
-      // (`fixtures/`, `output/`, `orbweaver-output/`) hold ZERO lintable files (measured 2026-09-13), so a
-      // selector naming them would be precisely the dead grant `eslint-grant-liveness` exists to refuse.
+      "reports/**",
+      "coverage/**",
+      "playwright-report/**",
+      "test-results/**",
+
+      "packages/ui/src/tokens/index.ts",
       "scripts/probes/st-goldens/sillytavern-runtime/**",
-      "packages/ui/src/styles/theme.css",
+      "tooling/src/snap/lib/devtools-frontend/**",
     ],
   },
   {
-    // Restriction-only inputs must not acquire unrelated directive diagnostics.
-    linterOptions: { reportUnusedDisableDirectives: "off" },
-  },
-  ...MAINTAINED_GLOBAL_SURFACES.map((surface) => ({ ...surface, linterOptions: { reportUnusedDisableDirectives: "error" } })),
-  {
-    files: FORM_SYNTAX_SRC,
-    languageOptions: { parser: tseslint.parser, parserOptions: { ecmaFeatures: { jsx: true }, sourceType: "module" } },
-  },
-  {
-    // Type-aware parser for shipped source. `projectService` builds one TS program per package so
-    // `no-deprecated` can see types; each file resolves upward to its own package tsconfig (ui/client).
-    files: SHIPPED_SRC,
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: {
-        projectService: true,
-        tsconfigRootDir: ROOT,
-        ecmaFeatures: { jsx: true },
-        sourceType: "module",
-      },
-    },
-  },
-  {
-    // JSX syntax options compose with the maintained-test owning Programs below.
-    files: CT_SURFACE,
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: { ecmaFeatures: { jsx: true }, sourceType: "module" },
-    },
-  },
-  {
-    // @deprecated enforcement (type-aware, shipped source only): any USE of a @deprecated symbol
-    // (ours OR a third-party API) errors — the doctrine's tag becomes a gate, not an editor strikethrough.
-    // tsdoc/syntax joined at the client-foundation wave (2026-07-03): ui/client now carry a real
-    // exported-API surface (the factories/seals), so their doc comments get the same TSDoc
-    // gate as server/kit/db/contracts.
-    files: SHIPPED_SRC,
-    plugins: { "@typescript-eslint": tseslint.plugin, tsdoc },
-    rules: { "@typescript-eslint/no-deprecated": "error", "tsdoc/syntax": "error" },
-  },
-  {
-    // Type-aware parser for the exported-API packages (server/kit/db/contracts) — projectService builds
-    // one TS program per package so no-deprecated can see types; each file resolves to its own tsconfig.
-    files: TSDOC_SURFACE,
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: { projectService: true, tsconfigRootDir: ROOT, sourceType: "module" },
-    },
-  },
-  {
-    // The TSDoc doc-comment gates on the typed API surface — both hard gates. `no-deprecated`
-    // (type-aware, rides the parser block above) rejects any USE of a `@deprecated` symbol. `tsdoc/syntax`
-    // (eslint-plugin-tsdoc — the official parser) rejects malformed doc comments + non-standard tags: a
-    // `{...}` prose token wants backticks (TSDoc reads `{` as an inline-tag opener), a bare `@orb/...`
-    // package name wants `{@link}`. The tag rules: .claude/rules/comments.md §TSDoc.
-    files: TSDOC_SURFACE,
-    plugins: { "@typescript-eslint": tseslint.plugin, tsdoc },
+    files: ["**/*.{js,mjs,cjs,ts,tsx,mts,cts}"],
+    linterOptions: { reportUnusedDisableDirectives: "error" },
     rules: {
-      "@typescript-eslint/no-deprecated": "error",
-      "tsdoc/syntax": "error",
-    },
-  },
-  {
-    // ASYNC-SAFETY (type-aware — rides the projectService programs the two parser blocks above build for
-    // SHIPPED_SRC + TSDOC_SURFACE). These are the genuine eslint-only category: Biome is syntactic and
-    // structurally cannot see a dropped/misused Promise. Uniform across the WHOLE type-aware surface
-    // (server/kit/db/contracts AND ui/client) — an unawaited server db-write/bus-emit is the highest-value
-    // catch, not just a frontend concern. Measured 2026-07-04 on the current tree: no-floating-promises 0,
-    // no-misused-promises 0, require-await 0, await-thenable 0 (zero false-positive cost). These rules remain shipped-source-only;
-    // maintained tests receive their own native policies. (`await-thenable` was adopted once the db-layer seam was
-    // fixed: the 3 standalone-run sites returning `BatchStmt` — which erases the drizzle builder's
-    // thenability — now return `AwaitableBatchStmt<T>` (`@orb/db/query`: `BatchStmt & PromiseLike<T>`), so the
-    // bare `await` is type-honest; `BatchStmt` stays the erased multi-table batch-INPUT type.)
-    files: [...SHIPPED_SRC, ...TSDOC_SURFACE],
-    plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: {
-      // A dropped Promise silently swallows the error/race — the standout catch Biome can't structurally see.
-      "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
-      // A Promise where a void/boolean is expected. `checksVoidReturn.attributes: false` is load-bearing:
-      // without it this nags idiomatic `onClick={async …}` (TanStack `mutateAsync`) JSX handlers — forward-
-      // necessary once chat wires those, kept even though the current tree has zero such sites.
-      "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
-      // An `async` fn with no `await` is a mis-signaled sync fn (a caller may skip awaiting it). 0 FP today.
-      "@typescript-eslint/require-await": "error",
-      ...REAL_TYPE_RULES,
-      "@typescript-eslint/switch-exhaustiveness-check": "error",
-      "@typescript-eslint/strict-boolean-expressions": "error",
-      "@typescript-eslint/restrict-template-expressions": "error",
-    },
-  },
-  {
-    files: [LEGACY_TEST_LINT_GLOB],
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: { project: false, projectService: false, ecmaFeatures: { jsx: true }, sourceType: "module" },
-    },
-  },
-  {
-    // Type-aware parser for the root-program-owned half of the tooling + test surface (#459/#473).
-    // `tooling/src` resolves upward to `tooling/tsconfig.json` (which `include`s `src`); the node test
-    // dirs resolve to the ROOT `tsconfig.json` (which `include`s `tests`). All real programs, so
-    // `projectService` finds an owner for every file here.
-    files: PROJECT_SERVICE_SURFACE,
-    ignores: [LEGACY_TEST_LINT_GLOB],
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: { projectService: true, tsconfigRootDir: ROOT, sourceType: "module" },
-    },
-  },
-  {
-    // Test worlds overlap; the parser selects the actual owner instead of upward project-service discovery.
-    files: rootSources("@tests"),
-    ignores: [LEGACY_TEST_LINT_GLOB],
-    languageOptions: {
-      parser: tseslint.parser,
-      // `projectService: false` is LOAD-BEARING, not tidiness: flat-config `languageOptions` MERGE, so the
-      // earlier PROJECT_SERVICE_SURFACE block's `projectService: true` survives into this one for any file
-      // both match (every `tests/tooling/**/*.ts`), and typescript-eslint then refuses the pair outright
-      // ("Enabling \"project\" does nothing when \"projectService\" is enabled") — a PARSE error, so the
-      // whole file goes unlinted exactly like the gap this block closes.
-      parserOptions: { project: TEST_TREE_PROJECTS, projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
-    },
-  },
-  {
-    files: ["tests/**/*.{ts,tsx}"],
-    ignores: [LEGACY_TEST_LINT_GLOB],
-    plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: {
-      "@typescript-eslint/consistent-type-assertions": [
+      "no-extend-native": "error",
+      "no-proto": "error",
+      "no-restricted-properties": [
         "error",
-        { assertionStyle: "as", objectLiteralTypeAssertions: "never", arrayLiteralTypeAssertions: "never" },
+        { object: "Object", property: "setPrototypeOf", message: "Create the intended object without replacing its prototype." },
+        { object: "Reflect", property: "setPrototypeOf", message: "Create the intended object without replacing its prototype." },
       ],
     },
   },
   {
-    files: ["tests/**/*.{ts,tsx}"],
-    ignores: [LEGACY_TEST_LINT_GLOB, TOOLING_TESTS],
-    plugins: { "@typescript-eslint": tseslint.plugin },
-    settings: typedNativeSettings(TYPED_NATIVE_POLICIES.find(({ ruleId }) => ruleId === "@typescript-eslint/no-unsafe-type-assertion")),
-    rules: { "@typescript-eslint/no-unsafe-type-assertion": "error" },
-  },
-  {
-    // Root, package-root, and direct scripts/ TypeScript files are Node-executed build/config tools.
-    // Their structural population comes from the same world classifier used by compiler routing;
-    // declarations are ambient contracts, so this block excludes them rather than treating them as tools.
-    files: NODE_TOOL_SURFACE,
-    ignores: ["**/*.d.{ts,mts,cts}"],
+    files: ["**/*.{ts,tsx,mts,cts}"],
     languageOptions: {
       parser: tseslint.parser,
-      parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
+      parserOptions: { ecmaFeatures: { jsx: true }, sourceType: "module" },
     },
-    plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: ASYNC_SAFETY_RULES,
+    plugins: { "@typescript-eslint": tseslint.plugin, tsdoc },
   },
   {
-    // THE NESTED `scripts/` TREES (#2290) — the COVERAGE half of the block above, landed 2026-09-13.
-    //
-    // `NODE_TOOL_SURFACE_GLOBS` is `scripts/*.{ts,mts,cts}`: DIRECT children only. So 42 of the 44 tracked
-    // `.ts` files under `scripts/` — codemods 10, probes 30, research 2 — matched NO `files:` glob at all,
-    // and only the no-`files` global block reached them: zero substantive rules. This is a COVERAGE hole
-    // and NOT a fence question, which is the distinction the two are easiest to confuse: #2281/#2282 fence
-    // directories OUT of discovery because they are untracked vendor or transient trees; these are
-    // authored, tracked, first-party TypeScript that nobody linted. `scripts/` is treated as first-party
-    // everywhere else — `scripts/depcruise.ts` hands `HELPER_WORLD_DIRS` to dependency-cruiser and
-    // `@scripts` is a named population root in the gate runtime's own vocabulary.
-    //
-    // IT IS A SEPARATE BLOCK RATHER THAN A WIDER `NODE_TOOL_SURFACE_GLOBS`, deliberately: that constant is
-    // the ESLint spelling of `isNodeToolSource`/`NODE_TOOL_RE` in `floor/compiler/project-worlds.ts`, which is a
-    // statement about COMPILER routing ("root, package-root, and direct scripts/ tools"). Widening the
-    // glob alone would silently desync the two halves of one identity; widening both would change compiler
-    // routing to close a lint hole. The surface this block names is a lint surface and says so.
-    //
-    // MEASURED BEFORE LANDING, the way the async-safety family was (591 files at #459, 1,276 more at #473
-    // — see the SAFETY_SURFACE header): the full `ASYNC_SAFETY_RULES` set over this population reported
-    // **3 findings**, all `restrict-template-expressions` on an `unknown` interpolation, all FIXED in the
-    // landing lane with none suppressed. A surface that arrives red is a surface someone disables, so the
-    // count is stated rather than discovered. `require-await` was measured separately (1 more finding, an
-    // async generator) and is NOT in this set — same rule/surface mismatch, and the same receipt, as
-    // `tests/**` above.
-    //
-    // `scripts/probes/st-goldens/**` IS EXCLUDED, and not as a convenience: it is BROWSER world
-    // (`BROWSER_SURFACE_DIRS`), the root `tsconfig.json` EXCLUDES it, and this block's parser is that
-    // program — so a file from there would parse-error rather than lint. Its own surface is its own row.
-    // NO `**/*.d.{ts,mts,cts}` ignore, unlike the block above — and that is a MEASUREMENT, not an
-    // oversight. These trees carry ZERO declaration files (`git ls-files 'scripts/**/*.d.ts'` → 0), and
-    // `eslint-grant-liveness` reds a selector with zero members in its native scope: copying the sibling's
-    // ignore shipped a dead one and the gate caught it in this lane's own before/after drive. The
-    // st-goldens ignore stays because it has 5 members.
-    files: SCRIPTS_NESTED_SURFACE,
-    ignores: ["scripts/probes/st-goldens/**"],
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
-    },
-    plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: ASYNC_SAFETY_RULES,
-  },
-  {
-    // ASYNC-SAFETY + dispatch + deprecation over the tooling + test surface — see the SAFETY_SURFACE
-    // header for the mechanism of the old gap, both measurements (591 files at #459, 1,276 more at
-    // #473), the three rules tracked at #472, and why require-await is off for `tests/**`.
-    files: SAFETY_SURFACE,
-    ignores: [LEGACY_TEST_LINT_GLOB],
-    plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: ASYNC_SAFETY_RULES,
-  },
-  {
-    // #472 family 2, TOOLING ONLY — not the whole SAFETY_SURFACE. A condition the type system says can
-    // never flip is either a dead guard or a LIE in the type, and on a tool tree that walks ASTs and
-    // spawns processes it is regularly the second (the SAFETY_SURFACE header names the three seams it
-    // caught that way). Measured 41 here, all fixed, none suppressed. The #473 dirs (tests/server &
-    // co, 1,276 files) were NEVER surveyed for this rule, so they stay outside until someone measures
-    // them — turning it on there sight-unseen is how a rule lands with a suppression wave attached.
-    files: [TOOLING_SRC, TOOLING_TESTS],
-    plugins: { "@typescript-eslint": tseslint.plugin },
+    files: ["**/*.{ts,tsx,mts,cts}"],
     rules: {
+      "@typescript-eslint/ban-ts-comment": ["error", { "ts-expect-error": true, "ts-ignore": true, "ts-nocheck": true, "ts-check": false }],
+      "tsdoc/syntax": "error",
+    },
+  },
+  {
+    files: ["**/*.{js,cjs,mjs}", ...AUTHORED_SRC, ...NODE_TOOL_SOURCE],
+    plugins: { regexp },
+    rules: {
+      ...Object.fromEntries(
+        Object.entries(regexp.configs["flat/recommended"].rules)
+          .filter(([id]) => id.startsWith("regexp/"))
+          .map(([id, setting]) => [id, Array.isArray(setting) ? ["error", ...setting.slice(1)] : "error"]),
+      ),
+      // Spelling and unused-capture suggestions are not semantic correctness policies.
+      "regexp/prefer-w": "off",
+      "regexp/use-ignore-case": "off",
+      "regexp/no-unused-capturing-group": "off",
+    },
+  },
+  {
+    files: [".claude/**", "tooling/**", "tests/**", "scripts/**"],
+    rules: { "regexp/no-super-linear-backtracking": "off" },
+  },
+  { files: SOURCE, ignores: ["**/*.d.ts"], languageOptions: { parserOptions: { projectService: true, tsconfigRootDir: ROOT } } },
+  {
+    files: SOURCE,
+    ignores: ["**/*.d.ts"],
+    rules: {
+      "@typescript-eslint/no-floating-promises": ["error", { ignoreVoid: false }],
+      // JSX event handlers may return a Promise; non-JSX void callbacks still require correct handling.
+      "@typescript-eslint/no-misused-promises": ["error", { checksVoidReturn: { attributes: false } }],
+      "@typescript-eslint/await-thenable": "error",
+      "@typescript-eslint/require-await": "error",
       "@typescript-eslint/no-unnecessary-condition": "error",
-      // #472 family 3. JS truthiness collapses "absent" and "empty"/"zero" into one arm, which on this
-      // tree is regularly NOT what the site means — the rewrites had to state the arm each time (see
-      // the SAFETY_SURFACE header). Measured 59 at the landing, all fixed, none suppressed. Same
-      // tooling-only scope and the same reason: the #473 dirs were never surveyed for it.
+      "@typescript-eslint/require-array-sort-compare": ["error", { ignoreStringArrays: true }],
+      "@typescript-eslint/no-base-to-string": "error",
+      "@typescript-eslint/no-unnecessary-type-conversion": "error",
+      "@typescript-eslint/switch-exhaustiveness-check": "error",
       "@typescript-eslint/strict-boolean-expressions": "error",
+      "@typescript-eslint/restrict-template-expressions": "error",
+      "@typescript-eslint/no-deprecated": "error",
     },
   },
   {
-    // require-await is TOOL-SOURCE ONLY, never `tests/**` — the 26/26 test-double triage in the
-    // SAFETY_SURFACE header. Here it keeps its real meaning: a tool function declared `async` with
-    // nothing to await is a mis-signaled sync function, and a caller may skip awaiting it.
-    files: [TOOLING_SRC],
-    plugins: { "@typescript-eslint": tseslint.plugin },
-    rules: { "@typescript-eslint/require-await": "error" },
+    files: ["tests/**/*.{ts,tsx,mts,cts}", "scripts/**/*.tsx"],
+    ignores: ["**/*.d.{ts,mts,cts}"],
+    languageOptions: { parserOptions: { project: TEST_PROJECTS, projectService: false, tsconfigRootDir: ROOT } },
+    // Async test doubles implement Promise contracts without asynchronous work.
+    rules: ASYNC_SAFETY_RULES,
   },
   {
-    // The TSDoc doc-comment gate over the tooling surface and every test tree (#472, the first family of the
-    // deferred wave — see the SAFETY_SURFACE header for the four fix classes). Same rule the typed-API
-    // packages carry above: tooling's file headers ARE its per-domain law (the per-domain prose was
-    // gutted), so a malformed doc comment there is exactly as load-bearing as one in `packages/server`.
-    // Purely syntactic (the TSDoc parser), so it needs no program — but these files have one anyway.
-    files: [...SAFETY_SURFACE, ...CT_SURFACE],
-    plugins: { tsdoc },
-    rules: { "tsdoc/syntax": "error" },
+    files: NODE_TOOL_SOURCE,
+    ignores: ["**/*.d.{ts,mts,cts}"],
+    languageOptions: { parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: ROOT } },
+    rules: ASYNC_SAFETY_RULES,
   },
   {
-    // react-hooks: rules-of-hooks + React Compiler diagnostics. The full recommended set IS what we
-    // want — every rule is a correctness check, not a style pick. `recommended-latest` is v7's
-    // flat-config bundle. Gated on @orb/ui NOW: a rules-of-hooks/Compiler flag here is a real fix.
-    // TRIPWIRE — why we SPREAD here despite our "list every rule by name" doctrine: `recommended-latest`
-    // includes `void-use-memo` (a RecommendedLatest-ONLY rule) that the plugin's OWN README manual-config
-    // example omits (that example is the plain `recommended` set). Hand-listing to satisfy the doctrine
-    // would silently drop it — if you ever de-bundle this, enumerate from the SHIPPED SOURCE, not the
-    // README. (Each rule also accepts the babel compiler options as `options[0]`; we pass none — the
-    // build compiler runs all-defaults too, so mirror them here ONLY if the babel preset ever gets a
-    // non-default option, else lint drifts from the build.)
-    files: REACT_SURFACE,
-    plugins: { "react-hooks": reactHooks },
-    rules: {
-      ...reactHooks.configs["recommended-latest"].rules,
-      // The recommended set ships three rules at "warn". Two are real defects → hard-gate them:
-      "react-hooks/exhaustive-deps": "error",
-      "react-hooks/unsupported-syntax": "error",
-      // …the third, `incompatible-library`, is INFORMATIONAL, not a defect: it fires when the Compiler
-      // CORRECTLY skips compiling a component that wraps a third-party API it can't memoize — i.e. our
-      // sealed satellites (virtual-list wraps TanStack Virtual's `useVirtualizer`, which returns
-      // non-memoizable functions by design). Un-sealing to satisfy it is impossible + wrong. Stays at
-      // "warn" HERE so a NEW seal still surfaces — and with `--max-warnings 0` (every lint run passes it —
-      // the verify `eslint` op's CHILD_FLAGS) a
-      // new one is a HARD gate that must be explicitly acked (off-by-path) in the block below, exactly like
-      // the three known seals. This keeps the tree warning-free while forcing every seal to be a conscious
-      // architectural ack rather than silent noise.
-      "react-hooks/incompatible-library": "warn",
-    },
+    files: ["packages/*/src/**/*.{ts,tsx,mts,cts}", "tooling/src/**/*.{ts,tsx,mts,cts}", "tests/**/*.{ts,mts,cts}", ...NODE_TOOL_SOURCE],
+    ignores: [...REACT_SOURCE, ...PLAYWRIGHT_TESTS, "tests/**/*.dom.test.ts", "tests/**/*.dom.test-d.ts", "tests/support/browser/**"],
+    rules: { "@typescript-eslint/triple-slash-reference": ["error", { lib: "never", types: "never", path: "never" }] },
   },
   {
-    // The KNOWN Compiler-incompatible seals — acked OFF by exact path (see the reasoning above). Each is a
-    // sealed satellite that wraps a third-party hook the Compiler can't memoize; the skip is the intended
-    // architecture, so the notice is pure noise here. A NEW incompatible-library seal is deliberately NOT
-    // covered by this list — it stays "warn" → hard-fails under `--max-warnings=0` until added here with intent.
-    files: [
-      "packages/ui/src/primitives/virtual-list/virtual-list.tsx",
-      "packages/ui/src/primitives/message-list/message-list.tsx",
-      "packages/ui/src/primitives/media-grid/media-grid.tsx",
-    ],
-    plugins: { "react-hooks": reactHooks },
-    rules: { "react-hooks/incompatible-library": "off" },
+    files: ["packages/plugin-sdk/main.d.ts", "packages/plugin-sdk/ui.d.ts"],
+    rules: { "@typescript-eslint/triple-slash-reference": ["error", { lib: "never", types: "never", path: "always" }] },
   },
   {
-    // react-web-api — the LEAK family. A Web-API subscription created inside a component that is never
-    // torn down (no removeEventListener / clearInterval / clearTimeout / observer.disconnect / fetch
-    // abort) outlives its component: a stale handler firing against an unmounted tree, or N listeners
-    // after N remounts. This is the genuine eslint-only category alongside async-safety — Biome is
-    // syntactic, react-hooks checks DEPS not DISPOSAL, and tsc has no notion of a lifetime. All six ON.
-    // Measured 2026-08-03 on the live tree: ZERO hits across ui + client — these are pure guard-rails
-    // (forward protection against a future component that subscribes and forgets), not a cleanup wave.
-    // SHIPPED_SRC only, deliberately NOT the CT surface: harness glue legitimately opens listeners it
-    // never removes (the page tears down instead), which would be false-positive noise.
-    files: SHIPPED_SRC,
-    plugins: { "react-web-api": reactWebApi },
-    rules: {
-      "react-web-api/no-leaked-event-listener": "error",
-      "react-web-api/no-leaked-fetch": "error",
-      "react-web-api/no-leaked-intersection-observer": "error",
-      "react-web-api/no-leaked-interval": "error",
-      "react-web-api/no-leaked-resize-observer": "error",
-      "react-web-api/no-leaked-timeout": "error",
-    },
-  },
-  {
-    // react-you-might-not-need-an-effect — SEMANTIC unnecessary-effect analysis. An effect that only
-    // computes state from props/state is a render-phase expression wearing an effect costume: it costs
-    // an extra commit, can tear (one render shows the stale value), and hides the real data flow. Six
-    // rules ON — each flags a shape with a mechanical render-phase rewrite (derive in render / lift the
-    // computation / useSyncExternalStore).
-    //
-    // THREE ARE DELIBERATELY OFF, with a receipt. A full 25-site triage of this tree (2026-08-03) over
-    // `no-event-handler`, `no-pass-live-state-to-parent` and `no-pass-data-to-parent` found 25/25 sites
-    // LEGITIMATE and 0 real antipatterns: imperative DOM work (focus/scroll/measure) that cannot happen
-    // in render, registration-with-host mount effects, TanStack Form's reset-after-submit constraint
-    // (the reset must follow the submit commit), and external-system sync. These three rules cannot
-    // distinguish "notify the parent as a side effect of state" from "run the imperative sink React has
-    // no render-phase seam for", so enabling them buys nothing but suppression rot: ~25 permanent
-    // `eslint-disable` comments smeared across documented load-bearing patterns, each of which then rots
-    // silently. Re-triage before turning any of them on; a receipt, not a preference.
-    //
-    // SHIPPED_SRC only — same reason as the leak block: CT harness glue lands state in effects by design.
-    files: SHIPPED_SRC,
-    plugins: { "react-you-might-not-need-an-effect": reactNoEffect },
-    rules: {
-      "react-you-might-not-need-an-effect/no-derived-state": "error",
-      "react-you-might-not-need-an-effect/no-chain-state-updates": "error",
-      "react-you-might-not-need-an-effect/no-adjust-state-on-prop-change": "error",
-      "react-you-might-not-need-an-effect/no-reset-all-state-on-prop-change": "error",
-      "react-you-might-not-need-an-effect/no-initialize-state": "error",
-      "react-you-might-not-need-an-effect/no-external-store-subscription": "error",
-    },
-  },
-  {
-    // jsx-a11y: enforcing accessibility constraints that Biome does not natively cover yet
-    // (most notably `control-has-associated-label`). We use the strict config as a baseline.
-    //
-    // NO DOC CARRIES THIS RULE, and the sentence that claimed one is gone (#1331). It cited a root-level
-    // agent-navigability doc added by `f075271678` and deleted two days later by `31425ede14` (2026-07-09);
-    // the pointer outlived it by two months and was the LAST reference to that filename in the repo,
-    // which is why the row's done-check bans the spelling outright — naming it again, even to explain it,
-    // re-creates the dangling reference. The provenance is the two SHAs. The live authority for "every
-    // interactive element carries an accessible name" is THIS block plus the `surface-a11y-focus` gate.
-    //
-    // TRIPWIRE — why the `...strict` spread below is allowed when the file's own rule is "every rule
-    // listed by name, never a `...recommended` bundle". Same terms react-hooks got, and no looser: this
-    // is an audited CORRECTNESS bundle (33 rules at 6.10.2; `recommended` carries 34 and `strict` adds no
-    // rule name it lacks — the two differ by severity and options), and the "a plugin upgrade can't
-    // silently add a gate" property is held by an EXACT catalog pin (`eslint-plugin-jsx-a11y: 6.10.2` in
-    // pnpm-workspace.yaml), not by enumeration. Every lint run passes `--max-warnings 0` (the verify
-    // `eslint` op's CHILD_FLAGS, which `pnpm lint:eslint` runs), so a rule a 6.x
-    // MINOR added to `strict` would land as a hard `pnpm check` gate with no config change and no review.
-    // THE PIN IS WHAT MAKES THE ACK HONEST: loosen it back to `^6.10.2` and this spread becomes the
-    // unguarded door again — enumerate the 33 rules by name instead if the pin ever has to float.
-    //
-    // Scoped to SHIPPED_SRC so we don't force boilerplate aria-labels into isolated component tests.
-    files: SHIPPED_SRC,
+    files: REACT_SOURCE,
     plugins: {
+      "react-hooks": reactHooks,
+      "react-web-api": reactWebApi,
+      "react-x": reactX,
+      "react-you-might-not-need-an-effect": reactNoEffect,
       "jsx-a11y": jsxA11y,
-    },
-    languageOptions: {
-      parserOptions: {
-        ecmaFeatures: {
-          jsx: true,
-        },
-      },
     },
     settings: {
       "jsx-a11y": {
@@ -9101,20 +4913,7 @@ const STANDARD_CONFIG = tseslint.config(
           Button: "button",
           IconButton: "button",
           Toggle: "button",
-          // #1633: `input`, not `button`, and the difference is load-bearing. Base UI's `Switch.Root`
-          // renders a `<button role="switch">` plus a hidden checkbox input, so BOTH spellings are a
-          // semantic proxy — the same proxy `Checkbox` has taken since #579 (Base UI's Checkbox is also a
-          // button). `button` made `control-has-associated-label` RED at every `<Switch>` inside a
-          // `<Field>`, because the rule resolves the tag through THIS map before testing `ignoreElements`
-          // (source: eslint-plugin-jsx-a11y 6.10.2 `lib/rules/control-has-associated-label.js` —
-          // `var tag = elementType(node.openingElement)` then `newIgnoreElements.has(tag)`), and the rule
-          // is structurally blind to the render-time `FieldRootContext` `aria-labelledby` injection that
-          // actually names the control. `input` is in that rule's ignore list, so the six call sites no
-          // longer owe a dead `aria-label`. Measured alternatives, all rejected with planted controls:
-          // DROPPING this entry also silences `role-supports-aria-props` and
-          // `no-interactive-element-to-noninteractive-role` on `<Switch>`; adding `"button"` to
-          // `ignoreElements` blinds the rule to an unlabelled `<Toggle>`, `<Button>`, `<IconButton>` and
-          // native `<button>` — which is the coverage this rule is turned on for.
+          // Field context supplies the accessible name of these composite input controls at runtime.
           Switch: "input",
           Checkbox: "input",
           Input: "input",
@@ -9126,44 +4925,54 @@ const STANDARD_CONFIG = tseslint.config(
       },
     },
     rules: {
+      ...REACT_HOOK_RULES,
+      "react-web-api/no-leaked-event-listener": "error",
+      "react-web-api/no-leaked-fetch": "error",
+      "react-web-api/no-leaked-intersection-observer": "error",
+      "react-web-api/no-leaked-interval": "error",
+      "react-web-api/no-leaked-resize-observer": "error",
+      "react-web-api/no-leaked-timeout": "error",
+      "react-x/no-forward-ref": "error",
+      "react-x/no-use-context": "error",
+      "react-x/no-context-provider": "error",
+      "react-x/no-clone-element": "error",
+      "react-x/no-create-ref": "error",
+      "react-x/no-children-count": "error",
+      "react-x/no-children-for-each": "error",
+      "react-x/no-children-map": "error",
+      "react-x/no-children-only": "error",
+      "react-x/no-class-component": "error",
+      "react-you-might-not-need-an-effect/no-derived-state": "error",
+      "react-you-might-not-need-an-effect/no-chain-state-updates": "error",
+      "react-you-might-not-need-an-effect/no-adjust-state-on-prop-change": "error",
+      "react-you-might-not-need-an-effect/no-reset-all-state-on-prop-change": "error",
+      "react-you-might-not-need-an-effect/no-initialize-state": "error",
+      "react-you-might-not-need-an-effect/no-external-store-subscription": "error",
       ...jsxA11y.flatConfigs.strict.rules,
-      // control-has-associated-label is actually turned off in strict by default due to noise,
-      // but it is the primary rule we need for agent-navigability (accessible names on all interactive elements).
-      // #579: `labelAttributes` teaches the rule the house `label` prop (`@orb/ui/select`'s own `label`,
-      // e.g. `<Select label="…">`) — a literal JSX attribute the rule can check directly, so a Select that
-      // names itself no longer needs a suppression. This does NOT reach every house association: `SelectField`
-      // / `SwitchField` (`packages/client/src/forms/editor/bound-fields/`) associate through Base UI's
-      // `FieldRootContext` — `<Select>`/`<Switch>` consume `BaseField.Control`, which injects
-      // `aria-labelledby` at RENDER time from React context, never as a literal prop in this file's JSX
-      // (source-verified: `packages/ui/src/primitives/select/select.tsx` — the trigger's `aria-labelledby`
-      // comes from Field.Control's context merge, not a prop passed here). No `labelAttributes`/
-      // `controlComponents`/`depth` combination sees a context injection — AST inspection only ever sees
-      // this file's own JSX. Their suppressions stay (see each site's comment).
       "jsx-a11y/control-has-associated-label": [
         "error",
-        {
-          labelAttributes: ["label"],
-          ignoreElements: ["audio", "canvas", "embed", "input", "textarea", "tr", "video"],
-        },
+        { labelAttributes: ["label"], ignoreElements: ["audio", "canvas", "embed", "input", "textarea", "tr", "video"] },
       ],
-      // Tell jsx-a11y that nesting our custom Checkbox inside a label is sufficient (just like native inputs).
-      "jsx-a11y/label-has-associated-control": [
-        "error",
-        {
-          controlComponents: ["Checkbox", "Switch", "Toggle", "Input"],
-          assert: "either",
-        },
-      ],
+      "jsx-a11y/label-has-associated-control": ["error", { controlComponents: ["Checkbox", "Switch", "Toggle", "Input"], assert: "either" }],
     },
   },
   {
-    // @tanstack/query — queryKey + queryFn discipline (LIVE since the client-foundation wave landed
-    // Query code). no-rest-destructuring stays dropped (ergonomic). The two property-order rules were
-    // originally dropped as "ordering → Biome", but Biome has NO TanStack-aware ordering rule and both
-    // are TYPE-INFERENCE correctness per their own meta (a mis-ordered onMutate loses the context
-    // type) — turned ON at the wave (2026-07-03).
-    files: [CLIENT_SRC],
-    plugins: { "@tanstack/query": pluginQuery },
+    files: REACT_TEST_SOURCE,
+    plugins: { "react-hooks": reactHooks },
+    rules: REACT_HOOK_RULES,
+  },
+  {
+    // The React compiler deliberately skips these third-party virtualizer wrappers.
+    files: [
+      "packages/ui/src/primitives/virtual-list/virtual-list.tsx",
+      "packages/ui/src/primitives/message-list/message-list.tsx",
+      "packages/ui/src/primitives/media-grid/media-grid.tsx",
+    ],
+    rules: { "react-hooks/incompatible-library": "off" },
+  },
+  {
+    files: ["packages/client/src/**/*.{ts,tsx}"],
+    plugins: { "@tanstack/query": pluginQuery, "@tanstack/router": pluginRouter },
     rules: {
       "@tanstack/query/exhaustive-deps": "error",
       "@tanstack/query/no-unstable-deps": "error",
@@ -9172,259 +4981,79 @@ const STANDARD_CONFIG = tseslint.config(
       "@tanstack/query/prefer-query-options": "error",
       "@tanstack/query/mutation-property-order": "error",
       "@tanstack/query/infinite-query-property-order": "error",
+      "@tanstack/router/create-route-property-order": "error",
     },
   },
-  {
-    // @tanstack/router — code-based route discipline (see header for why this one rule, not the other).
-    files: [CLIENT_SRC],
-    plugins: { "@tanstack/router": pluginRouter },
-    rules: { "@tanstack/router/create-route-property-order": "error" },
-  },
-  {
-    // Tailwind correctness gate — validates class strings against the classes the v4 engine ACTUALLY
-    // registers for our @theme (entryPoint). Catches unknown utilities (wrong token namespace), v3 var
-    // syntax the browser silently drops (`w-[--v]` → must be `w-(--v)`), and dropped v3 utilities.
-    // Stylistic rules from this plugin are deliberately OFF (Biome owns class style/order).
-    files: [UI_SRC],
+  ...["ui", "client"].map((name) => ({
+    files: [`packages/${name}/src/**/*.{ts,tsx}`],
     plugins: { "better-tailwindcss": betterTailwindcss },
-    settings: {
-      // Absolute — `entryPoint` is resolved against ESLint's `ctx.cwd`, which is repo root for
-      // `pnpm check`/bare `eslint` but the VITE ROOT (`packages/client`) when vite-plugin-checker
-      // spawns eslint out-of-process for the dev overlay (main.js `configureServer({ root })` →
-      // `cwd: root`). A repo-root-relative string only resolves under the first cwd — under the
-      // second it silently mis-resolves and the plugin reports "No tailwind css entry point found"
-      // on every lint (#275). Absolute is cwd-invariant.
-      "better-tailwindcss": { entryPoint: join(ROOT, UI_STYLESHEET) },
-    },
+    settings: { "better-tailwindcss": { entryPoint: fileURLToPath(new URL(`./packages/${name}/src/styles/globals.css`, import.meta.url)) } },
     rules: {
-      // `orb-*` are the kit's own bespoke component classes (keyframe animations Tailwind utilities
-      // can't express — e.g. `orb-skeleton-shimmer`, D62 UIP-309), defined in globals.css and composed
-      // by name; they are legitimately not Tailwind utilities, so the unknown-class check ignores them —
-      // BY NAME, derived from that same stylesheet (see `authorClassIgnores`).
-      "better-tailwindcss/no-unknown-classes": ["error", { ignore: authorClassIgnores([UI_STYLESHEET]) }],
       "better-tailwindcss/enforce-consistent-variable-syntax": ["error", { syntax: "shorthand" }],
       "better-tailwindcss/no-deprecated-classes": "error",
     },
+  })),
+  {
+    files: ["packages/server/src/**/*.ts", "packages/db/src/**/*.ts"],
+    plugins: { drizzle },
+    rules: {
+      "drizzle/enforce-delete-with-where": ["error", { drizzleObjectName: ["db"] }],
+      "drizzle/enforce-update-with-where": ["error", { drizzleObjectName: ["db"] }],
+    },
   },
   {
-    // The SAME correctness gate over @orb/client (#249). It was ui-only until 2026-08-19, which is the
-    // whole reason `inset-block-0` had to be caught by rendered geometry and `z-base` by the train gate:
-    // client code carries class strings too (it composes @orb/ui primitives by passing `className`), and
-    // nothing was checking them against the engine's actual utility set. Its entry point is the CLIENT
-    // stylesheet — the one that `@import`s @orb/ui's — so the known set is exactly what the client bundle
-    // registers. Measured at landing: 37 findings, all of them authored `shell-*`/`ctx-tab-*` classes,
-    // zero real dead utilities; the derived ignore set absorbs the 37 by name and nothing else.
-    files: [CLIENT_SRC],
-    plugins: { "better-tailwindcss": betterTailwindcss },
+    files: ["tests/**/*.{ts,tsx}"],
+    ignores: PLAYWRIGHT_TESTS,
+    plugins: { vitest },
     settings: {
-      // Absolute — see the UI_SRC block's comment above (#275): `ctx.cwd` is repo root for
-      // `pnpm check` but `packages/client` when vite-plugin-checker spawns eslint for the dev
-      // overlay, so a repo-root-relative string mis-resolves under the checker specifically.
-      "better-tailwindcss": { entryPoint: join(ROOT, "packages/client/src/styles/globals.css") },
-    },
-    rules: {
-      "better-tailwindcss/no-unknown-classes": ["error", { ignore: authorClassIgnores(CLIENT_STYLESHEETS) }],
-      "better-tailwindcss/enforce-consistent-variable-syntax": ["error", { syntax: "shorthand" }],
-      "better-tailwindcss/no-deprecated-classes": "error",
-    },
-  },
-  {
-    // The st-goldens rig's own tracked scripts are browser-world TypeScript the root program does not own, so they
-    // match no parser block above. The browser test program is the one that includes them, and the typed native
-    // rules the authored-source blocks enable here (orb/no-raw-intl-time, orb/zustand-selector-stability) need
-    // its checker: a syntax-only parser crashes those rules and leaves the file with no native compiler owner.
-    files: ["scripts/probes/st-goldens/**/*.ts"],
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: { project: [TEST_WORLD_PROGRAMS.browser], projectService: false, tsconfigRootDir: ROOT, sourceType: "module" },
-    },
-  },
-  ...syntaxBlocks(FORM_SYNTAX_SRC, []),
-  ...syntaxBlocks(AUTHORED_SRC, AUTHORED_SYNTAX),
-  ...syntaxBlocks(rootSources("@server"), SHIPPED_SYNTAX),
-  ...syntaxBlocks(ENTRY_WIRING_GLOBS, [...SHIPPED_SYNTAX, ...ENTRY_LOADER_SYNTAX], ENTRY_DRIVER_GLOBS),
-  ...syntaxBlocks(QUERY_FREE_BOOT_GLOBS, [...SHIPPED_SYNTAX, ...ENTRY_LOADER_SYNTAX]),
-  ...[{ files: ENTRY_WIRING_GLOBS, ignores: ENTRY_DRIVER_GLOBS }, { files: QUERY_FREE_BOOT_GLOBS }].map((scope) => ({
-    ...scope,
-    rules: {
-      "no-restricted-globals": [
-        "error",
-        ...["require", "module", "global", "globalThis"].map((name) => ({
-          name,
-          message: "Entry wiring cannot capture an ambient host loader or global object.",
-        })),
-      ],
-      "no-new-func": "error",
-    },
-  })),
-  ...syntaxBlocks([UI_SRC], [...SHIPPED_SYNTAX, ...BROWSER_SYNTAX]),
-  ...syntaxBlocks([CLIENT_SRC], [...CLIENT_SYNTAX, ...BROWSER_SYNTAX]),
-  ...RESTRICTION_BLOCKS,
-  ...REACT_X_BLOCKS,
-  ...syntaxBlocks([CLIENT_SRC], [NO_STORE_STATICS, ...CLIENT_SYNTAX, ...BROWSER_SYNTAX], ["packages/client/src/state/**"]),
-  ...syntaxBlocks(
-    [CLIENT_SRC],
-    [NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX, ...BROWSER_SYNTAX],
-    ["packages/client/src/features/app-shell/**", "packages/client/src/state/**", "packages/client/src/components/weave-glyph.tsx"],
-  ),
-  ...syntaxBlocks(
-    [MUTATION_HOME],
-    [NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX, ...BROWSER_SYNTAX, queryImport(["useInfiniteQuery"])],
-  ),
-  ...syntaxBlocks(
-    [COLLECTION_HOME],
-    [NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX, ...BROWSER_SYNTAX, queryImport(["useMutation"])],
-  ),
-  ...syntaxBlocks(
-    [ROUTES_SRC],
-    [NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX, ...BROWSER_SYNTAX, routeImports()],
-    [APP_ROOT, ...AUTH_ROUTES],
-  ),
-  // The app root assembles registries before the shell exists; auth runs before any authenticated registry.
-  ...syntaxBlocks(
-    [APP_ROOT],
-    [NO_STORE_STATICS, NO_CLASSNAME_ON_INTRINSIC, NO_STYLE_ON_INTRINSIC, ...CLIENT_SYNTAX, ...BROWSER_SYNTAX, routeImports(["app-shell", "chat", "persona"])],
-  ),
-  ...syntaxBlocks(AUTH_ROUTES, [
-    NO_STORE_STATICS,
-    NO_CLASSNAME_ON_INTRINSIC,
-    NO_STYLE_ON_INTRINSIC,
-    ...CLIENT_SYNTAX,
-    ...BROWSER_SYNTAX,
-    routeImports(["auth"]),
-  ]),
-  ...maintainedRulePacks(),
-);
-
-// Size scopes stay outside generated-source exclusions: token output and tooling/test generators still have caps.
-const SIZE_IGNORED_DIRS = ["**/node_modules/**", "**/dist/**", "**/__screenshots__/**"];
-const CLIENT_SIZE_IGNORES = [...SIZE_IGNORED_DIRS, "**/*.{test,spec,gen}.{ts,tsx}", "**/*.d.ts"];
-const UI_SIZE_IGNORES = [...CLIENT_SIZE_IGNORES, "**/*.{ct,fixtures}.{ts,tsx}"];
-const FILE_SIZE_BLOCKS = [
-  { files: [CLIENT_SRC], ignores: CLIENT_SIZE_IGNORES, rules: { "max-lines": ["error", { max: 450, skipBlankLines: false, skipComments: false }] } },
-  {
-    files: ["packages/client/src/routes/**/*.{ts,tsx}"],
-    ignores: CLIENT_SIZE_IGNORES,
-    rules: { "max-lines": ["error", { max: 500, skipBlankLines: false, skipComments: false }] },
-  },
-  { files: [UI_SRC], ignores: UI_SIZE_IGNORES, rules: { "max-lines": ["error", { max: 450, skipBlankLines: false, skipComments: false }] } },
-  {
-    files: ["tests/**/*.{ts,tsx}", "tests/support/node/**/*.mjs"],
-    ignores: ["tests/legacy/**"],
-    rules: { "max-lines": ["error", { max: 1000, skipBlankLines: false, skipComments: false }] },
-  },
-  {
-    files: ["tooling/src/**/*.{ts,tsx}"],
-    ignores: ["tooling/src/verify/gates/**"],
-    rules: { "max-lines": ["error", { max: 450, skipBlankLines: false, skipComments: false }] },
-  },
-  {
-    files: ["tooling/src/**/cli.ts"],
-    ignores: ["tooling/src/verify/gates/**"],
-    rules: { "max-lines": ["error", { max: 200, skipBlankLines: false, skipComments: false }] },
-  },
-];
-
-// Read-only outputs retain their other-rule exclusion while the migrated restrictions still judge their source.
-const ORDINARY_CONFIG = [
-  {
-    files: SOURCE_TYPE_SUPPRESSION_GLOBS,
-    ignores: SOURCE_TYPE_SUPPRESSION_EXCLUSIONS,
-    languageOptions: { parser: tseslint.parser, parserOptions: { ecmaFeatures: { jsx: true }, sourceType: "module" } },
-  },
-  ...FILE_SIZE_BLOCKS,
-  ...STANDARD_CONFIG.map((block) =>
-    block.rules === undefined ||
-    Object.hasOwn(block.rules, "orb/no-test-fabrication") ||
-    Object.hasOwn(block.rules, "@typescript-eslint/consistent-type-assertions") ||
-    Object.hasOwn(block.rules, "@typescript-eslint/no-unsafe-type-assertion") ||
-    [
-      ...INFRA_AUTH_RESTRICTIONS,
-      ...TABLE_IMPORT_RESTRICTIONS,
-      ...CLASS_RESTRICTIONS,
-      ...ROLE_DATA_RESTRICTIONS,
-      ...TURN_IDENTITY_RESTRICTIONS,
-      ...SERVER_SCOPE_RESTRICTIONS,
-      ...AMBIENT_GLOBAL_RESTRICTIONS,
-      ...DETERMINISM_RESTRICTIONS,
-      ...CLASS_TOKEN_RESTRICTIONS,
-      ...Z_INDEX_RESTRICTIONS,
-      ...BASEUI_RESTRICTIONS,
-      ...CLIENT_CONTEXT_RESTRICTIONS,
-      ...CLIENT_MAP_RESTRICTIONS,
-      ...CLIENT_LEXICAL_RESTRICTIONS,
-      ...TYPE_SHAPE_RESTRICTIONS,
-      ...DECLARATION_NATIVE_RESTRICTIONS,
-    ].some(({ id }) => Object.hasOwn(block.rules, `orb/${id}`))
-      ? block
-      : { ...block, ignores: [...(block.ignores ?? []), ...GENERATED_SOURCE] },
-  ),
-  ...[...syntaxBlocks(FORM_SYNTAX_SRC, []), ...syntaxBlocks([CLIENT_SRC, UI_SRC], BROWSER_SYNTAX)].map((block) => ({
-    ...block,
-    files: block.files.flatMap((file) => GENERATED_SOURCE.map((generated) => [...(Array.isArray(file) ? file : [file]), generated])),
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: { project: false, projectService: false, ecmaFeatures: { jsx: true }, sourceType: "module" },
-    },
-    linterOptions: { reportUnusedDisableDirectives: "off" },
-  })),
-  // Generated subjects keep the same owning compiler routes; only unrelated lint rules remain excluded.
-  ...DECLARATION_NATIVE_RESTRICTIONS.flatMap(({ scope, notUnder = [], notNamed = [] }) => [
-    {
-      files: scope.flatMap((file) => GENERATED_SOURCE.map((generated) => [...(Array.isArray(file) ? file : [file]), generated])),
-      ignores: [...notUnder, ...notNamed, "tests/**"],
-      languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: true, tsconfigRootDir: ROOT, ecmaFeatures: { jsx: true } } },
-      linterOptions: { reportUnusedDisableDirectives: "error" },
-    },
-    {
-      files: scope.flatMap((file) => GENERATED_SOURCE.map((generated) => [...(Array.isArray(file) ? file : [file]), generated, "tests/**"])),
-      ignores: [...notUnder, ...notNamed, "tests/legacy/**"],
-      languageOptions: {
-        parser: tseslint.parser,
-        parserOptions: { project: TEST_TREE_PROJECTS, projectService: false, tsconfigRootDir: ROOT, ecmaFeatures: { jsx: true } },
+      vitest: {
+        vitestImports: [
+          "@orb/testkit/node/fixtures.ts",
+          "@orb/testkit/node/tool-fixtures.ts",
+          /(?:^|\/)(?:_fixtures|_support|fixtures|tool-fixtures|[\w-]+\.fixtures)\.ts$/u,
+        ],
       },
-      linterOptions: { reportUnusedDisableDirectives: "error" },
     },
-  ]),
-];
-
-export default ORDINARY_CONFIG;
-
-const SERVER_HARD_SYNTAX = [
-  {
-    selector: String.raw`:matches(Literal[value=type(string)][raw=/corsproxy\.io/], TemplateElement[value.raw=/corsproxy\.io/])`,
-    message: "D61 B5a: the rejected third-party CORS proxy cannot be spelled in server or inference literals; use the guarded network owner directly.",
-  },
-];
-
-// HARD rules run separately so their no-inline-config policy cannot invalidate ordinary native exceptions.
-export const hardConfig = [
-  ...ORDINARY_CONFIG.filter(
-    (block) => block.rules === undefined || block.files === undefined || Object.keys(block).some((key) => !["files", "ignores", "name", "rules"].includes(key)),
-  ).map((block) => ({
-    ...block,
-    ...(block.rules === undefined ? {} : { rules: {} }),
-    ...(block.languageOptions === undefined
-      ? {}
-      : {
-          languageOptions: {
-            ...block.languageOptions,
-            parserOptions: { ...block.languageOptions.parserOptions, project: false, projectService: false, programs: null },
-          },
-        }),
-  })),
-  {
-    files: rootSources("@server", "@inference"),
     rules: {
-      "no-restricted-syntax": ["error", ...SERVER_HARD_SYNTAX],
+      "vitest/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"], additionalTestBlockFunctions: ["auditRuleTest", "cellTest"] }],
+      "vitest/valid-expect": ["error", { maxArgs: 2 }],
+      "vitest/no-standalone-expect": ["error", { additionalTestBlockFunctions: ["auditRuleTest", "cellTest"] }],
+      "vitest/valid-title": ["error", { allowArguments: true }],
     },
   },
+  {
+    files: PLAYWRIGHT_TESTS,
+    plugins: { playwright },
+    rules: {
+      "playwright/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"] }],
+      "playwright/no-skipped-test": ["error", { allowConditional: true }],
+      "playwright/prefer-to-have-count": "error",
+    },
+  },
+];
+
+export default [
+  ...NATIVE_CONFIG.map((block) =>
+    block.files === undefined || block.rules === undefined ? block : { ...block, ignores: [...(block.ignores ?? []), "**/*.gen.{ts,tsx}"] },
+  ),
+  ...LOCAL_RULE_BLOCKS,
+  {
+    files: ["packages/server/src/**/*.{ts,tsx}"],
+    ignores: ["packages/server/src/domain/import/**", "packages/server/src/domain/export/**", "packages/server/src/domain/settings/**"],
+    rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT, PNG_CHUNK_IMPORT] }] },
+  },
+  {
+    files: ["packages/server/src/domain/import/**/*.{ts,tsx}", "packages/server/src/domain/export/**/*.{ts,tsx}"],
+    rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT] }] },
+  },
+  { files: ["packages/server/src/domain/settings/**/*.{ts,tsx}"], rules: { "no-restricted-imports": ["error", { patterns: [PNG_CHUNK_IMPORT] }] } },
+  { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": ["error", ...SERVER_SYNTAX] } },
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {
       "no-restricted-syntax": [
         "error",
-        ...SERVER_HARD_SYNTAX,
+        ...SERVER_SYNTAX,
         {
           selector:
             "Program > :matches(ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclaration[exportKind!='type'][declaration.type!='FunctionDeclaration'])",
@@ -9434,350 +5063,62 @@ export const hardConfig = [
       ],
     },
   },
-  { files: [UI_SRC], rules: { "orb/baseui-derives-not-respells-health": "error" } },
-  ...[UI_CT_COLOR_RESTRICTION, ...UI_HARD_RESTRICTIONS].map(({ id, scope }) => ({
-    files: scope,
-    plugins: { orb: restrictionPlugin },
-    rules: { [`orb/${id}`]: "error" },
-  })),
-  ...IDENTITY_WRITER_RESTRICTIONS.map(({ id, scope, notUnder = [], homes }) => ({
-    files: scope,
-    ...(notUnder.length + homes.length === 0 ? {} : { ignores: [...notUnder, ...homes.map(({ path }) => path)] }),
-    plugins: { orb: restrictionPlugin },
-    rules: { [`orb/${id}`]: "error" },
-  })),
-  {
-    files: ["tests/**/*.{ts,tsx}"],
-    ignores: [`${LEGACY_TEST_ROOT}/**`],
-    plugins: { orb: restrictionPlugin },
-    languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
-    rules: { "orb/ct-poll-intervals-shared": "error" },
-  },
-  {
-    files: RUNNER_CONFIG_FILES,
-    rules: {
-      "no-restricted-syntax": [
-        "error",
-        ...WALL_CLOCK_SELECTORS.map((selector) => ({ selector, message: WALL_CLOCK_MESSAGE })),
-        { selector: PORT_LITERAL_SELECTOR, message: PORT_LITERAL_MESSAGE },
-      ],
-    },
-  },
-  { files: RETIRED_GATE_MARKER_FILES, rules: { "no-warning-comments": ["error", RETIRED_GATE_MARKER] } },
-  { files: [PLUGIN_MEMBRANE], plugins: { orb: restrictionPlugin }, rules: { "orb/plugin-dump-guard": "error" } },
-  {
-    files: SOURCE_TYPE_SUPPRESSION_GLOBS,
-    ignores: SOURCE_TYPE_SUPPRESSION_EXCLUSIONS,
-    plugins: { "@typescript-eslint": tseslint.plugin },
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true }, sourceType: "module" },
-    },
-    rules: {
-      [SOURCE_TYPE_SUPPRESSION_RULE]: ["error", { "ts-expect-error": true, "ts-ignore": true, "ts-nocheck": true, "ts-check": false }],
-    },
-  },
-  {
-    files: TEST_IMPORT_GLOBS,
-    ignores: TEST_IMPORT_EXCLUSIONS,
-    plugins: { orb: restrictionPlugin },
-    languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
-    settings: TEST_TOOLING_IMPORT_NATIVE_SETTINGS,
-    rules: { [TEST_PACKAGE_SUBPATH_RULE]: "error" },
-  },
-  {
-    files: TOOLING_IMPORT_GLOBS,
-    plugins: { orb: restrictionPlugin },
-    settings: TEST_TOOLING_IMPORT_NATIVE_SETTINGS,
-    rules: { [TOOLING_ROOT_CONFIG_IMPORT_RULE]: "error" },
-  },
-  {
-    files: [CONFIG_ANCHOR_OWNER],
-    settings: TEST_TOOLING_IMPORT_NATIVE_SETTINGS,
-    rules: {
-      "no-restricted-exports": ["error", { restrictedNamedExports: [CONFIG_ANCHOR_FORMATTER] }],
-      "no-restricted-syntax": [
-        "error",
-        {
-          selector: `ExportNamedDeclaration > ExportSpecifier[local.name='${CONFIG_ANCHOR_FORMATTER}']:not([exported.name='${CONFIG_ANCHOR_FORMATTER}'])`,
-          message: "The registry formatter stays private; registry-owned bodies receive their anchor id.",
-        },
-        {
-          selector: `ExportDefaultDeclaration > :matches(Identifier[name='${CONFIG_ANCHOR_FORMATTER}'], FunctionDeclaration[id.name='${CONFIG_ANCHOR_FORMATTER}'])`,
-          message: "The registry formatter stays private; registry-owned bodies receive their anchor id.",
-        },
-      ],
-    },
-  },
-  // These two syntax-only blocks sit BEFORE the typed hard blocks below: a later block's parserOptions win the merge, and the
-  // tooling-entry rules those blocks enable need the compiler context on the files both cover.
-  {
-    // Gate modules quote the parked-code shapes in their own prose and fixtures. The node helper executables are `.mjs`.
-    files: ["**/*.{ts,tsx}", `${HELPER_WORLD_DIRS.node}/**/*.mjs`],
-    ignores: ["tooling/src/verify/gates/**", `${LEGACY_TEST_ROOT}/**`],
-    plugins: { orb: restrictionPlugin },
-    languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
-    rules: { "orb/commented-code": "error" },
-  },
-  {
-    files: ["tests/**/*.ct.tsx", "tests/**/*_ct-stories.tsx"],
-    ignores: [`${LEGACY_TEST_ROOT}/**`],
-    plugins: { orb: restrictionPlugin },
-    languageOptions: { parser: tseslint.parser, parserOptions: { project: false, projectService: false, programs: null, ecmaFeatures: { jsx: true } } },
-    rules: { "orb/ct-story-single-import": "error" },
-  },
-  ...TYPED_NATIVE_POLICIES.filter((entry) => entry.hard).map((entry) => ({
-    files: entry.scope,
-    plugins: { orb: restrictionPlugin },
-    languageOptions: {
-      parser: tseslint.parser,
-      parserOptions: { project: false, projectService: true, programs: null, tsconfigRootDir: ROOT, sourceType: "module" },
-    },
-    settings: typedNativeSettings(entry),
-    rules: { [entry.ruleId]: "error" },
-  })),
   ...PRINCIPAL_RULES.map(({ id, notUnder }) => ({
     files: PRINCIPAL_SCOPE,
     ...(notUnder === undefined ? {} : { ignores: notUnder }),
-    plugins: { orb: restrictionPlugin },
+    plugins: { orb: localPlugin },
     rules: { [`orb/${id}`]: "error" },
   })),
-  ...CONTEXT_SINGLE_WRITERS.flatMap(({ id, home }) => [
-    { files: [CLIENT_SRC], ignores: [home, CONTEXT_MINT_HOME], plugins: { orb: restrictionPlugin }, rules: { [`orb/${id}`]: "error" } },
-    { files: [home], plugins: { orb: restrictionPlugin }, rules: { [`orb/${id}`]: ["error", { allowed: 1 }] } },
-  ]),
-  ...[...VERIFY_HARD_RESTRICTIONS, ...SERVER_HARD_RESTRICTIONS].map(({ id, scope, notUnder }) => ({
-    files: scope,
-    // A flat-config `ignores` array must not be empty or absent-as-undefined.
-    ...(notUnder === undefined ? {} : { ignores: notUnder }),
-    plugins: { orb: restrictionPlugin },
-    rules: { [`orb/${id}`]: "error" },
-  })),
-  { linterOptions: { noInlineConfig: true, reportUnusedDisableDirectives: "off", reportUnusedInlineConfigs: "off" } },
+  {
+    files: ["**/*.{ts,tsx}", "tests/support/node/**/*.mjs"],
+    ignores: ["tests/legacy/**"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/commented-code": "error" },
+  },
+  {
+    files: rootSources("@server", "@inference"),
+    ignores: ["packages/server/src/**/persistence/**"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/assumes-single-replica": "error" },
+  },
+  { files: rootSources("@server", "@inference"), plugins: { orb: localPlugin }, rules: { "orb/detached-work-traced": "error" } },
+  { files: rootSources("@tooling"), plugins: { orb: localPlugin }, rules: { "orb/evaluate-no-scope-capture": "error" } },
+  {
+    files: ["packages/server/src/domain/**/*.{ts,tsx}", "packages/server/src/entry/**/*.{ts,tsx}"],
+    ignores: ["**/*.test.{ts,tsx}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-hardcoded-side-gen-sampling": "error" },
+  },
+  {
+    files: rootSources("@client", "@ui"),
+    plugins: { orb: localPlugin },
+    rules: {
+      "orb/receded-ink-integrity": "error",
+      "orb/no-tailwind-dark-variant": "error",
+      "orb/no-floorless-control-in-wrap": "error",
+      "orb/browser-no-node-globals": "error",
+    },
+  },
+  { files: [CLIENT_SRC], plugins: { orb: localPlugin }, rules: { "orb/zustand-selector-derived": "error", "orb/testid-typed-only": "error" } },
+  {
+    files: [CLIENT_SRC],
+    ignores: ["packages/client/src/lib/session-channel.ts"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/session-channel-boundary": "error" },
+  },
+  { files: ["tests/**/*.{ts,tsx}"], plugins: { orb: localPlugin }, rules: { "orb/ct-poll-intervals-shared": "error" } },
+  { files: ["tests/**/*.ct.tsx", "tests/**/*_ct-stories.tsx"], plugins: { orb: localPlugin }, rules: { "orb/ct-story-single-import": "error" } },
+  { files: ["tests/ui/**/*.ct.tsx"], plugins: { orb: localPlugin }, rules: { "orb/ui-ct-no-color-literal": "error" } },
+  { files: [PLUGIN_MEMBRANE], plugins: { orb: localPlugin }, rules: { "orb/plugin-dump-guard": "error" } },
+  { files: ["packages/ui/src/**/*.{ts,tsx}"], plugins: { orb: localPlugin }, rules: { "orb/baseui-portal-container-seam": "error" } },
+  {
+    files: ["tests/support/node/factories/**/*.{ts,tsx}", "**/tests/support/node/factories/**/*.{ts,tsx}"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/test-factory-contract": "error" },
+  },
+  {
+    files: AUTHORED_SRC.map((glob) => [glob, "**/context.ts"]),
+    plugins: { orb: localPlugin },
+    rules: { "orb/no-context-returntype": "error" },
+  },
 ];
-
-// ── MAINTAINED RULE PACKS: the plugins that replace custom gates ───────────────────────────────────────
-// Six plugins, each configured on the population it judges. They are SPREAD from the plugin's own
-// recommended set, which the "list every rule by name" doctrine at the top of this file allows only on the
-// react-hooks/jsx-a11y terms: the catalog entries are EXACT pins (pnpm-workspace.yaml), so an upgrade cannot
-// add a gate unreviewed. A rule that is OFF below says why; a rule a plugin does not recommend is not on.
-// The section is a hoisted function at the end of the file so the blocks above stay untouched.
-function maintainedRulePacks() {
-  /** A plugin config's rules whose id starts with `prefix`, all at `error` with their recommended options.
-   *  The prefix drops the core ESLint rules some recommended sets also switch on. */
-  const packRules = (config, prefix) =>
-    Object.fromEntries(
-      Object.entries(config.rules)
-        .filter(([id]) => id.startsWith(prefix))
-        .map(([id, setting]) => [id, Array.isArray(setting) ? ["error", ...setting.slice(1)] : "error"]),
-    );
-  // Playwright runs the component (`*.ct.tsx`) and e2e (`*.spec.ts`) suffixes; Vitest runs every other file
-  // under tests/. Both lists derive from the test-kind registry, so a new suffix lands in one of them.
-  const playwrightTests = TEST_KIND_DEFINITIONS.filter(({ family }) => family === "component" || family === "e2e").map(({ suffix }) => `tests/**/*${suffix}`);
-  const vitestTests = ["tests/**/*.{ts,tsx}"];
-
-  const globalRules = {
-    ...packRules(eslintComments.configs.recommended, "@eslint-community/eslint-comments/"),
-    "@eslint-community/eslint-comments/require-description": "error",
-    ...packRules(regexp.configs["flat/recommended"], "regexp/"),
-    // Spelling and unused-capture suggestions are not semantic correctness policies.
-    "regexp/prefer-w": "off",
-    "regexp/use-ignore-case": "off",
-    "regexp/no-unused-capturing-group": "off",
-  };
-  const prototypeRules = {
-    "no-extend-native": "error",
-    "no-proto": "error",
-    "no-restricted-properties": [
-      "error",
-      ...["Object", "Reflect"].map((object) => ({
-        object,
-        property: "setPrototypeOf",
-        message: "Prototype mutation invalidates native own-data provenance; create the intended object without replacing its prototype.",
-      })),
-    ],
-  };
-
-  return [
-    {
-      // Playwright. Rules Biome already enforces (biome.json: noPlaywright*, noConditionalExpect,
-      // noFocusedTests, usePlaywrightValidDescribeCallback) stay off here: a second copy of an enabled
-      // native rule is a duplicate report (GATE-AUTHORING §10).
-      files: playwrightTests,
-      plugins: { playwright },
-      rules: {
-        ...packRules(playwright.configs["flat/recommended"], "playwright/"),
-        "playwright/no-element-handle": "off",
-        "playwright/no-eval": "off",
-        "playwright/no-force-option": "off",
-        "playwright/missing-playwright-await": "off",
-        "playwright/no-networkidle": "off",
-        "playwright/no-page-pause": "off",
-        "playwright/no-useless-await": "off",
-        "playwright/no-wait-for-navigation": "off",
-        "playwright/no-wait-for-selector": "off",
-        "playwright/no-wait-for-timeout": "off",
-        "playwright/valid-describe-callback": "off",
-        "playwright/no-conditional-expect": "off",
-        "playwright/no-focused-test": "off",
-        // Noise for us: a component test narrows a nullable `boundingBox()` or locator with `if (box === null)
-        // throw …` before it measures, and a ternary builds an expected value. Neither is a test that
-        // branches on the product's state, which is what the rule polices.
-        "playwright/no-conditional-in-test": "off",
-        // Formatting: Biome owns blank lines.
-        "playwright/consistent-spacing-between-blocks": "off",
-        // Style only: `.length` on a plain array reads the same as `toHaveLength`, and the rule has no defect
-        // class. (Its count twin, `prefer-to-have-count`, stays on: a one-shot locator count races the DOM.)
-        "playwright/prefer-to-have-length": "off",
-        // `test.skip(condition, reason)` is the runtime guard for a missing backend or a chat style a suite
-        // does not cover; only an unconditional skip is a disabled test.
-        "playwright/no-skipped-test": ["error", { allowConditional: true }],
-        // Replaces the `test-no-stubs` gate, with the assertion roots the gate counted.
-        "playwright/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"] }],
-      },
-    },
-    {
-      // Vitest, on every test file Playwright does not run. Replaces the `test-no-stubs` gate (expect-expect
-      // with the gate's own assertion roots). Biome owns focused tests and conditional expects.
-      // `valid-expect` takes Vitest's optional message argument (`expect(value, "why")`).
-      files: vitestTests,
-      ignores: playwrightTests,
-      plugins: { vitest },
-      // The plugin knows `test`/`expect` only by import source. Besides the two testkit doors, the test-local
-      // doors re-export or `.extend()` that same `test`: the relative testkit spellings inside `tests/support`,
-      // a suite's `_fixtures.ts` or `<name>.fixtures.ts`, and the legacy rpg `_support.ts`. Every module under
-      // `tests/` that exports `test`, `it`, `expect` or `describe` is one of these, so the pattern names no
-      // other API. An unlisted door turns every vitest rule off for its importers' assertions.
-      settings: {
-        vitest: {
-          vitestImports: [
-            "@orb/testkit/node/fixtures.ts",
-            "@orb/testkit/node/tool-fixtures.ts",
-            /(?:^|\/)(?:_fixtures|_support|fixtures|tool-fixtures|[\w-]+\.fixtures)\.ts$/u,
-          ],
-        },
-      },
-      rules: {
-        ...packRules(vitest.configs.recommended, "vitest/"),
-        "vitest/expect-expect": ["error", { assertFunctionNames: ["expect", "expectTypeOf"], additionalTestBlockFunctions: ["auditRuleTest", "cellTest"] }],
-        "vitest/valid-expect": ["error", { maxArgs: 2 }],
-        // The suites' own case wrappers each call `test` with the caller's body, so the body's expects are
-        // inside a test block the plugin cannot see through the wrapper.
-        "vitest/no-standalone-expect": ["error", { additionalTestBlockFunctions: ["auditRuleTest", "cellTest"] }],
-        "vitest/no-conditional-expect": "off",
-        "vitest/no-focused-tests": "off",
-      },
-    },
-    {
-      // These suites title each case from a typed `string` parameter or loop binding (a case wrapper or a
-      // table). tsc already refuses a non-string title on `test`, the only defect the literal-only arm catches,
-      // so identifier titles are admitted here and nowhere else.
-      files: [
-        "tests/tooling/ui-audit/**/*.test.ts",
-        "tests/tooling/review-mirror/index.test.ts",
-        "tests/tooling/floor/code-facts/drizzle-helper-origins.test.ts",
-        "tests/tooling/floor/code-facts/drizzle-native-provenance.test.ts",
-        "tests/tooling/floor/code-facts/drizzle-settled-reads.test.ts",
-        "tests/legacy/inference/conformance/_harness.ts",
-        "tests/legacy/server/infra/network/safefetch-selfenforcing.suite.test.ts",
-      ],
-      plugins: { vitest },
-      rules: { "vitest/valid-title": ["error", { allowArguments: true }] },
-    },
-    {
-      // Zod, on the two packages that author schemas. `prefer-enum-over-literal-union` is not in the
-      // recommended set and stays off: the repository rules an all-literal union into the multi-value
-      // `z.literal([…])` (zod-modern-spellings arm B), and that rule asks for `z.enum` instead.
-      files: ["packages/contracts/src/**/*.ts", "packages/server/src/**/*.ts"],
-      plugins: { zod },
-      rules: {
-        ...packRules(zod.configs.recommended, "zod/"),
-        // Style: the repository imports `{ z }`, and import shape is not a zod defect.
-        "zod/consistent-import": "off",
-        // Style: schema variable naming is Biome's `useNamingConvention` territory.
-        "zod/consistent-schema-var-name": "off",
-        "zod/no-number-schema-with-int": "error",
-      },
-    },
-    {
-      files: ["packages/server/src/**/*.{ts,tsx}"],
-      ignores: [...SANCTIONED_DOMAINS.map((domain) => `${DOMAIN_ROOT}${domain}/**`), `${DOMAIN_ROOT}settings/**`],
-      rules: {
-        "no-restricted-imports": [
-          "error",
-          {
-            patterns: [
-              SETTINGS_TABLE_IMPORT,
-              {
-                regex: PNG_CHUNK_SPECIFIER_PATTERN,
-                importNames: [...PNG_CHUNK_SYMBOL_NAMES],
-                message: "Use the import or export domain for PNG card-chunk operations.",
-              },
-            ],
-          },
-        ],
-      },
-    },
-    {
-      files: SANCTIONED_DOMAINS.map((domain) => `${DOMAIN_ROOT}${domain}/**/*.{ts,tsx}`),
-      rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT] }] },
-    },
-    {
-      files: [`${DOMAIN_ROOT}settings/**/*.{ts,tsx}`],
-      rules: {
-        "no-restricted-imports": [
-          "error",
-          {
-            patterns: [
-              {
-                regex: PNG_CHUNK_SPECIFIER_PATTERN,
-                importNames: [...PNG_CHUNK_SYMBOL_NAMES],
-                message: "Use the import or export domain for PNG card-chunk operations.",
-              },
-            ],
-          },
-        ],
-      },
-    },
-    {
-      // Drizzle. The rule matches any `.delete()`/`.update()` unless told the handle's name, and a Map or Set
-      // `.delete()` is not a SQL statement: every persistence call goes through `db` (or `ctx.db`).
-      files: ["packages/server/src/**/*.ts", "packages/db/src/**/*.ts"],
-      plugins: { drizzle },
-      rules: {
-        "drizzle/enforce-delete-with-where": ["error", { drizzleObjectName: ["db"] }],
-        "drizzle/enforce-update-with-where": ["error", { drizzleObjectName: ["db"] }],
-      },
-    },
-    ...MAINTAINED_GLOBAL_SURFACES.map((surface) => ({
-      ...surface,
-      // The captured DevTools frontend is vendored; its regexes are not ours to rewrite.
-      ignores: [...(surface.ignores ?? []), "tooling/src/snap/lib/devtools-frontend/**"],
-      plugins: { "@eslint-community/eslint-comments": eslintComments, regexp },
-      rules: globalRules,
-    })),
-    ...MAINTAINED_GLOBAL_SURFACES.map((surface) => ({
-      ...surface,
-      ignores: [...(surface.ignores ?? []), ...PROTOTYPE_NATIVE_IGNORES],
-      rules: prototypeRules,
-    })),
-    {
-      // The guard's operand-tail regex ends in `>\S*` and `\d*>>?&?\d*`, which overlap on `>>&1`. The two
-      // alternatives accept different digit-prefixed redirects (`2>file` matches only one), so merging them
-      // changes what the guard strips; tests/tooling/tool-guard.int.test.ts pins the behaviour.
-      files: [".claude/hooks/tool-guard.mjs"],
-      rules: { "regexp/no-dupe-disjunctions": "off" },
-    },
-    {
-      // The regex guard's own test feeds it a catastrophic pattern on purpose.
-      files: ["tests/legacy/server/primitives/regex.test.ts"],
-      rules: { "regexp/no-misleading-capturing-group": "off" },
-    },
-    {
-      // Helper/test exemptions do not establish bounded input. Maintained review-mirror, AST and codemod tools keep the native backtracking rule.
-      files: [".claude/**", "tooling/**", "tests/**", "scripts/**"],
-      ignores: ["tooling/src/review-mirror/**", "tooling/src/ast/**", "tooling/src/codemod/**"],
-      rules: { "regexp/no-super-linear-backtracking": "off" },
-    },
-  ];
-}

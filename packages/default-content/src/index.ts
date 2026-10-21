@@ -60,7 +60,7 @@ export const SEED_AVATAR_MIME = "image/png";
 /** The shipped avatar PNG for a character HANDLE / the persona key (`persona-you`), or `null` when this
  *  package ships none for it — so a missing file seeds ONE card art-less instead of failing the whole seed. */
 export async function readSeedAvatar(handle: CharacterHandle): Promise<SeedAssetBytes | null> {
-  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — a missing/unreadable
+  // optional-read-as-absent — a missing/unreadable
   // shipped avatar means "this pack ships none for this handle" (`null`), so the caller skips ONE seed item
   // instead of failing the whole seed. Ends if the pack becomes required rather than best-effort.
   try {
@@ -96,7 +96,7 @@ export const SEED_BACKGROUND_PLATES: readonly SeedBackgroundPlate[] = [
 /** The shipped scene plate's bytes for a `slug`, or `null` when this package ships none — so a missing file
  *  seeds ONE plate short instead of failing the whole background seed. */
 export async function readSeedBackground(slug: string): Promise<SeedAssetBytes | null> {
-  // @orb-waive caught-failure-ownership(catch): optional-read-as-absent — a missing/unreadable shipped
+  // optional-read-as-absent — a missing/unreadable shipped
   // plate means "this pack ships none for this slug" (`null`), so the caller skips ONE seed item instead of
   // failing the whole seed. Ends if the pack becomes required rather than best-effort.
   try {

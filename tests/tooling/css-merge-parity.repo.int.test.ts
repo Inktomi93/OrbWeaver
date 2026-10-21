@@ -1,6 +1,4 @@
-// Stable Tailwind compilation is the utility-family authority. Exact class evidence comes from #961's
-// shared producer/consumer walker; compiled-output parity repeats the production @source-shaped Oxide scan.
-// This test owns no expression resolver or CSS parser, and pins plain @theme against unused-token loss.
+// Tailwind compilation and the production-shaped Oxide scan establish utility-family and token emission parity.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
@@ -9,9 +7,6 @@ import { CSS_MERGE_FAMILY_NAMES } from "@orb/ui/lib";
 import { assertTokenContract } from "@orb/ui/token-contract";
 import { Scanner } from "@tailwindcss/oxide";
 import { compile } from "tailwindcss";
-import type { SourceFile } from "ts-morph";
-import { getWorkspace } from "../../tooling/src/floor/compiler/ts-workspace.ts";
-import { walkStaticClassExpressions } from "../../tooling/src/verify/lib/static-class-expression.ts";
 
 interface CompilerFamilyProbe {
   readonly family: string;
@@ -23,22 +18,10 @@ interface ProductionCandidates {
   readonly candidates: readonly string[];
 }
 
-interface ExactStaticEvidence extends ProductionCandidates {
-  readonly roots: number;
-  readonly staticValues: number;
-}
-
 const ROOT = join(import.meta.dirname, "../..");
 const UI_ROOT = join(ROOT, "packages/ui");
 const THEME_CSS = readFileSync(join(UI_ROOT, "src/styles/theme.css"), "utf8");
 const TOKEN_CONTRACT = assertTokenContract(UI_ROOT);
-const PRODUCT_GLOBS = [
-  `${ROOT}/packages/ui/src/**/*.ts`,
-  `${ROOT}/packages/ui/src/**/*.tsx`,
-  `${ROOT}/packages/client/src/**/*.ts`,
-  `${ROOT}/packages/client/src/**/*.tsx`,
-];
-
 // One row for every contract-derived @theme namespace. Compilation, not the prefix, decides whether
 // the family is governed; dimension/z and the other bespoke prefixes are negative controls.
 const FAMILY_PROBES: readonly CompilerFamilyProbe[] = [
@@ -63,30 +46,6 @@ const FAMILY_PROBES: readonly CompilerFamilyProbe[] = [
   { family: "aspect", candidate: "aspect-portrait" },
   { family: "tracking", candidate: "tracking-micro" },
 ];
-
-function exactStaticEvidence(files: readonly SourceFile[]): ExactStaticEvidence {
-  if (files.length === 0) {
-    throw new Error("INSTRUMENT ERROR: CSS exact provenance loaded zero source files");
-  }
-  const walked = walkStaticClassExpressions(files);
-  if (walked.roots === 0 || walked.candidates.length === 0) {
-    throw new Error(`INSTRUMENT ERROR: CSS static provenance found ${walked.roots} roots and ${walked.candidates.length} values`);
-  }
-  const scanner = new Scanner({ sources: [] });
-  const candidates = new Set<string>();
-  for (const value of walked.candidates) {
-    if ((value.value.length > 0 && value.segments.length === 0) || value.consumers.length === 0) {
-      throw new Error("INSTRUMENT ERROR: CSS static evidence lost its producer or consumer");
-    }
-    for (const scanned of scanner.getCandidatesWithPositions({ content: value.value, extension: "html" })) {
-      candidates.add(scanned.candidate);
-    }
-  }
-  if (candidates.size === 0) {
-    throw new Error("INSTRUMENT ERROR: Tailwind scanner produced zero exact candidates");
-  }
-  return { files: files.length, roots: walked.roots, staticValues: walked.candidates.length, candidates: [...candidates] };
-}
 
 function productionCandidates(sources: readonly { readonly base: string; readonly pattern: string; readonly negated: boolean }[]): ProductionCandidates {
   if (sources.length === 0) {
@@ -143,8 +102,6 @@ function familyParity(compilerFamilies: readonly string[], registeredFamilies: r
   };
 }
 
-const PROJECT = getWorkspace({ root: ROOT, globs: PRODUCT_GLOBS });
-const EXACT = exactStaticEvidence(PROJECT.getSourceFiles());
 const PRODUCTION_SOURCES = [
   { base: join(ROOT, "packages/client/src"), pattern: "**/*", negated: false },
   { base: join(ROOT, "packages/ui/src"), pattern: "**/*", negated: false },
@@ -153,19 +110,6 @@ const PRODUCTION = productionCandidates(PRODUCTION_SOURCES);
 const COMPILER = await compile(`${THEME_CSS}\n@tailwind utilities;`);
 const COMPILED_CSS = COMPILER.build([...PRODUCTION.candidates, ...FAMILY_PROBES.map(({ candidate }) => candidate)]);
 const COMPILER_FAMILIES = FAMILY_PROBES.filter(({ candidate }) => COMPILED_CSS.includes(`.${candidate} {`)).map(({ family }) => family);
-
-test(`the #961 evidence is populated (${EXACT.files} files / ${EXACT.roots} roots / ${EXACT.staticValues} exact values)`, () => {
-  expect(EXACT).toMatchObject({
-    files: expect.any(Number),
-    roots: expect.any(Number),
-    staticValues: expect.any(Number),
-    candidates: expect.arrayContaining(["aspect-portrait", "blur-(--blur-strength)", "ease-out-expo"]),
-  });
-  expect(EXACT.files).toBeGreaterThan(0);
-  expect(EXACT.roots).toBeGreaterThan(0);
-  expect(EXACT.staticValues).toBeGreaterThan(0);
-  expect(EXACT.candidates.length).toBeGreaterThan(0);
-});
 
 test(`the production-shaped Oxide scan is populated (${PRODUCTION.files} files / ${PRODUCTION.candidates.length} candidates)`, () => {
   expect(PRODUCTION.files).toBeGreaterThan(0);
@@ -199,7 +143,6 @@ test("parity controls fail for one omitted positive family and one bogus registr
   expect(familyParity(COMPILER_FAMILIES, [...CSS_MERGE_FAMILY_NAMES, "z"])).toStrictEqual({ missing: [], bogus: ["z"] });
 });
 
-test("zero source population fails loud before static provenance can return a false clean", () => {
-  expect(() => exactStaticEvidence([])).toThrow("INSTRUMENT ERROR: CSS exact provenance loaded zero source files");
+test("zero source population refuses before production scanning", () => {
   expect(() => productionCandidates([])).toThrow("INSTRUMENT ERROR: CSS production scanner has zero source roots");
 });

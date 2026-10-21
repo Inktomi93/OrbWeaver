@@ -7,7 +7,6 @@ import { ANCHOR_GAP_INPUT, cn, formatResultCount, removeActionName, usePortalCon
 import { Icon, X } from "#primitives/icons";
 import { comboboxVariants } from "./variants.ts";
 
-// @orb-waive no-vanity-alias(POPUP_SIDE_OFFSET): baselined when the gate widened; burn-down item 906.
 // Breathing room between the input and the popup.
 const POPUP_SIDE_OFFSET = ANCHOR_GAP_INPUT;
 
@@ -39,7 +38,7 @@ export interface ComboboxProps extends ComboboxPassthrough {
    * popup renders at all. Passing `[]` keeps the popup capability mounted for a list that may
    * populate later.
    */
-  // eslint-disable-next-line orb/baseui-derives-not-respells -- The seal accepts string chips only; its separate groups prop owns grouped suggestions, while Base UI accepts richer collection models. Ends when the seal accepts object-backed collections.
+  // The seal accepts string chips only; its separate groups prop owns grouped suggestions, while Base UI accepts richer collection models. Ends when the seal accepts object-backed collections.
   items?: readonly string[];
   /**
    * Grouped suggestions — each group renders a `GroupLabel` header over its items, the same shape

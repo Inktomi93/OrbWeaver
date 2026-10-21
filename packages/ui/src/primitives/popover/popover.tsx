@@ -17,7 +17,6 @@ import { popoverVariants } from "./variants.ts";
 
 const slots = popoverVariants();
 
-// @orb-waive no-vanity-alias(DEFAULT_SIDE_OFFSET): baselined when the gate widened; burn-down item 906.
 // Base UI Positioner offsets are px numbers, not classes.
 const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
 

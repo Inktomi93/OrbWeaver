@@ -22,23 +22,6 @@ test("Scorecard runs only on the repository default branch, including manual dis
   }
 });
 
-test("install-free CI gates use slim without moving the native qualification planner", ({ repoRoot }) => {
-  const { jobs } = z
-    .object({
-      jobs: z.record(z.string(), z.object({ ["runs-on"]: z.string(), steps: z.array(z.object({ uses: z.string().optional(), run: z.string().optional() })) })),
-    })
-    .parse(parse(readFileSync(join(repoRoot, ".github/workflows/ci.yml"), "utf8")));
-  for (const name of ["ci-ok", "weekly-head", "weekly-ok"]) {
-    const job = jobs[name];
-    expect(job?.["runs-on"]).toBe("ubuntu-slim");
-    for (const step of job?.steps ?? []) {
-      expect(step.uses ?? "").not.toContain("/setup");
-      expect(step.run ?? "").not.toMatch(/\b(?:pnpm|docker|apt-get)\b/u);
-    }
-  }
-  expect(jobs["qualification-head"]?.["runs-on"]).toBe("ubuntu-24.04");
-});
-
 test("CodeQL skips only Dependabot PRs and keeps weekly and dispatch security coverage", ({ repoRoot }) => {
   const workflow = z
     .object({

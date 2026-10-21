@@ -16,10 +16,10 @@ reading router. Read only the docs the router names for your task.
 
 ## 1. Doctrine
 
-- Get it right the first time: full architecture, one home per concept, FK-enforced boundaries, complete tests and gates.
+- Get it right the first time: full architecture, one home per concept, FK-enforced boundaries and complete tests.
 - The owner chose this shape on purpose. Do not argue it again.
 - The authors are agents with no memory of earlier sessions. They drift toward the shortest path.
-- The ledger, gates and boundaries replace that missing memory. Their job is to make a shortcut fail, not only discourage it.
+- The ledger and boundaries preserve shared decisions. Keep product behavior correct even when no custom static check exists.
 - Banned shortcuts: a stubbed return, a swallowed error, a weakened test, an assertion-free test, a sideways import.
 - When the correct path is tedious, do it correctly or stop and report.
 - An engine is pure and lives in `kit`. The data it runs on lives in a domain. One engine gives every caller the same behavior.
@@ -39,11 +39,9 @@ Root `AGENTS.md` "Where code goes" owns the placement table. The full outcome ta
 rule are in `Core-0-Architecture-and-Structure.md` §6. Look up which word names a concept in
 `docs/law/vocabulary-map.md`; never decide it locally.
 
-## 4. Build and verify
+## 4. Build and test
 
-Root `AGENTS.md` owns the verification tiers, the harness artifacts and the escape-hatch ban. Lane commit,
-probe and floor rules are in the `lane` skill (`.claude/skills/lane/SKILL.md`). The orchestrator runs the
-whole-tree check once on main before the owner pushes; CI is the verdict (D317).
+Root `AGENTS.md` owns scoped tests, typechecks and lint. Lane rules are in the `lane` skill (`.claude/skills/lane/SKILL.md`). CI is the application verdict (D317). D333 retires custom static gates and verify tiers.
 
 ## 5. Cross-cutting threads
 
@@ -102,7 +100,7 @@ Each domain lives at `packages/server/src/domain/<name>/` and follows the folder
 - `connection` resolves per task. The task list is `TASKS` in `packages/contracts/src/inference/tasks.ts`.
 - `tag` holds labels only. Analytics facets belong to `discovery`.
 - Game words (`party`, `npcs`, `quest`, `encounter`) name only `rpg` concepts. An rpg surface names a chat concept with the chat word.
-- No gate checks that word rule. Fix a crossed word on sight.
+- D333 retires custom static checks for this word rule. Fix a crossed word on sight.
 
 ### Participants, agents and identity
 
@@ -125,19 +123,16 @@ exports map has one entry, so no domain can reach a backend.
 
 | Topic | Home |
 | - | - |
-| Packages, server tiers, the domain template, partitioning, the legibility gates | `Core-0-Architecture-and-Structure.md` |
-| The tooling tree above the packages | `Core-0-Architecture-and-Structure.md` §9, then `Core-Tooling-Law.md`, `../../scripts/README.md` |
+| Packages, server tiers, the domain template and partitioning | `Core-0-Architecture-and-Structure.md` |
+| Retained tooling | `Core-0-Architecture-and-Structure.md` §9, `../../scripts/README.md` |
 | The decision ledger | `../adr/README.md` (one decision per file) |
-| Active gates | `Core-Enforcement-Active-Gates.md` |
-| Writing a gate | `docs/law/gate-runtime-read-first.md`, then `../../tooling/src/verify/gates/GATE-AUTHORING.md` |
 | Writing a ui-audit rule | `../../tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md` |
-| Verification design and report layout | `UNIFIED-VERIFICATION-DESIGN.md` |
 | Server tier law | `Tier-1-DB.md`, `Tier-2-Foundation.md`, `Tier-3-Infra.md`, `Tier-3b-Providers.md`, `Tier-4-Transport.md`, `Tier-5-Entry.md` |
-| UI law | `UI-Architecture-and-Layout.md`, `UI-Gates-and-Lessons.md`, `UI-Primitives-and-Reuse.md`, `UI-Theming-and-Content.md`, `UI-Density-Law.md`, `ui-package-design.md`, `motion-and-animation-guide.md` |
+| UI law | `UI-Architecture-and-Layout.md`, `UI-Primitives-and-Reuse.md`, `UI-Theming-and-Content.md`, `UI-Density-Law.md`, `ui-package-design.md`, `motion-and-animation-guide.md` |
 | Client composition | `client-architecture-lockdown.md` |
 | SillyTavern parity rulings | `../adr/README.md` (D46, D47, D49) |
 | Open work | `docs/work/README.md` |
-| Docs and comments | `.claude/rules/writing.md`, `.claude/rules/comments.md`, `.claude/rules/docs.md` |
+| Docs and comments | `.claude/rules/writing.md`, `.claude/rules/comments.md` |
 | Which word names a concept | `docs/law/vocabulary-map.md` |
 | Mission | `../Mission.md` |
 

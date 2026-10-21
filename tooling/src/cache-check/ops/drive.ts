@@ -35,7 +35,7 @@ export class ProbeRows {
   async release(): Promise<readonly string[]> {
     const failures: string[] = [];
     for (const undo of this.#undo.splice(0).reverse()) {
-      // @orb-waive caught-failure-ownership(error): every teardown failure is returned to the run, which prints it and exits as a tool error; one failure must not strand the rows after it.
+      // every teardown failure is returned to the run, which prints it and exits as a tool error; one failure must not strand the rows after it.
       try {
         await undo();
       } catch (error) {
@@ -159,7 +159,7 @@ async function openRoom(api: OrbApi, roomRun: RoomRun, probe: { readonly tag: st
 export async function runRoom(api: OrbApi, roomRun: RoomRun, probe: { readonly tag: string; readonly rows: ProbeRows }): Promise<RoomResult> {
   let chatId: ChatId;
   let prefix: CaseRun;
-  // @orb-waive caught-failure-ownership(error): the failure becomes an `error` result on every case in the room; judgeRoom (run.ts) maps each to a verdict "ERROR" outcome, runRoute prints it with formatOutcome, and exitFor returns EXIT.toolError for any ERROR outcome. Ends if a room-open failure stops producing ERROR outcomes.
+  // the failure becomes an `error` result on every case in the room; judgeRoom (run.ts) maps each to a verdict "ERROR" outcome, runRoute prints it with formatOutcome, and exitFor returns EXIT.toolError for any ERROR outcome. Ends if a room-open failure stops producing ERROR outcomes.
   try {
     chatId = await openRoom(api, roomRun, probe);
     prefix = await runSteps(api, chatId, ROOMS[roomRun.room].prefixSteps);
@@ -169,7 +169,7 @@ export async function runRoom(api: OrbApi, roomRun: RoomRun, probe: { readonly t
   const cases: RoomCaseResult[] = [];
   let opening = prefix.calls;
   for (const c of roomRun.cases) {
-    // @orb-waive caught-failure-ownership(error): the failure becomes this case's `error` result with its message; judgeRoom (run.ts) maps it to a verdict "ERROR" outcome, runRoute prints it with formatOutcome, and exitFor returns EXIT.toolError for any ERROR outcome. Ends if a step failure stops producing an ERROR outcome.
+    // the failure becomes this case's `error` result with its message; judgeRoom (run.ts) maps it to a verdict "ERROR" outcome, runRoute prints it with formatOutcome, and exitFor returns EXIT.toolError for any ERROR outcome. Ends if a step failure stops producing an ERROR outcome.
     try {
       const run = await runSteps(api, chatId, CASE_PLANS[c].steps);
       cases.push({ case: c, run: { calls: [...opening, ...run.calls], replyCosts: run.replyCosts } });

@@ -3,7 +3,7 @@
 // opaque: keys and values pass through as written, and nothing here reads one to change what the app does.
 
 /** A parse of pasted text: the value it reads as, or why it reads as nothing. */
-// @orb-waive no-inline-types(PastedParse): the reader's own result, read only beside it in this feature's lib.
+// the reader's own result, read only beside it in this feature's lib.
 export type PastedParse<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly reason: string };
 
 const FORMATS_HINT = "Paste one JSON object, YAML (key: value, nested by indenting) or key=value lines.";

@@ -45,8 +45,8 @@ done
 git push "$@" origin main
 if [ "$release" = 1 ]; then
   sha=$(git rev-parse HEAD)
-  # Promotion cannot inherit a weak or old-generation green workflow.
-  pnpm exec node scripts/ci-qualification.ts release "$sha"
+  passed_sha=$(gh run list --workflow ci.yml --branch main --commit "$sha" --event push --status success --limit 1 --json headSha --jq '.[0].headSha')
+  [ "$passed_sha" = "$sha" ] || { echo "release: CI has not passed on $sha"; exit 1; }
   git push "$@" origin main:release
   echo "release: pushed. Merge the release PR on GitHub to publish; it updates within a minute or two:"
   echo "         https://github.com/Inktomi93/orbweaver/pulls?q=is%3Aopen+label%3A%22autorelease%3A+pending%22"

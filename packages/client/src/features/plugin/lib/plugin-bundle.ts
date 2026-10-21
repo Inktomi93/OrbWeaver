@@ -43,12 +43,9 @@ import {
 import { unzipSync, zipSync } from "fflate";
 import { z } from "zod";
 
-// @orb-waive no-vanity-alias(MANIFEST_MAX_BYTES): baselined when the gate widened; burn-down item 906.
 /** Mirrors the funnel's decompressed `manifest.json` cap. */
 const MANIFEST_MAX_BYTES = PLUGIN_MANIFEST_ENTRY_MAX_BYTES;
-// @orb-waive no-vanity-alias(MANIFEST_ENTRY): baselined when the gate widened; burn-down item 906.
 const MANIFEST_ENTRY = PLUGIN_MANIFEST_ENTRY;
-// @orb-waive no-vanity-alias(MAIN_ENTRY): baselined when the gate widened; burn-down item 906.
 const MAIN_ENTRY = PLUGIN_MAIN_ENTRY;
 
 /** A preview failure, already phrased for the person holding the file. */

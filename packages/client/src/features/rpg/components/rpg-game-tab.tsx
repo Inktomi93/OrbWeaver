@@ -314,7 +314,7 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
   // Sequential by necessity (restamp → rebuild). A failed restamp ABORTS the rebuild: the mutation's own
   // error toast has already spoken, and rebuilding on the old stamps is exactly what the host didn't ask for.
   const onResync = async (): Promise<void> => {
-    // @orb-waive caught-failure-ownership(catch): both awaited mutations toast their own failure:
+    // both awaited mutations toast their own failure:
     // `errorToast: "Couldn't restamp your messages."` (packages/client/src/data/use-reattribute-persona.ts) and
     // `errorToast: "Couldn't resync from the story."` (useResyncFromStory, use-rpg-mutations.ts). Ends if either errorToast is dropped.
     try {

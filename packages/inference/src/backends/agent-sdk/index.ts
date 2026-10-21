@@ -111,7 +111,7 @@ export function createAgentSdkBackend(deps: AgentSdkBackendDeps): AgentSdkBacken
       try {
         const models = await fetchAgentSdkModels(req.connection, resolved, logFor(req.connection));
         return listingOf(models.map(agentSdkCatalogEntry));
-        // @orb-waive caught-failure-ownership(err): the failure becomes `{ listed: false, reason }` through failedListing (wire/model-listing.ts:53), which the model pane reads; generation stays usable with an explicit model. Ends if callers require a successful catalog.
+        // the failure becomes `{ listed: false, reason }` through failedListing (wire/model-listing.ts:53), which the model pane reads; generation stays usable with an explicit model. Ends if callers require a successful catalog.
       } catch (err) {
         return failedListing(err, resolvedScrubSet({ credential: req.connection.credential, transport: null }));
       }

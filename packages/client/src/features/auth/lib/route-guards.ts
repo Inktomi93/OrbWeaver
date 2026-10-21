@@ -35,7 +35,7 @@ const realWait: WaitOp = (ms) =>
 /** This request's auth state, or null only when the server stays unreachable across a short retry window.
  *  A completed fetch (authed OR anon) short-circuits immediately — retries cover a THROWN read only. */
 async function meOrNull(wait: WaitOp, retriesLeft = UNREACHABLE_RETRIES): Promise<AuthMe | null> {
-  // @orb-waive caught-failure-ownership(catch): a thrown read retries, then returns null after
+  // a thrown read retries, then returns null after
   // the window; requireAuthed turns null into `throw redirect({ to: "/login" })` (route-guards.ts:55-58) and redirectIfAuthed
   // (:64) leaves the caller on /login, the surface it guards. Ends if a caller treats null as an authed state.
   try {

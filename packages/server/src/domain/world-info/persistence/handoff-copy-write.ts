@@ -70,7 +70,7 @@ export function createCopyHandoffBooks(input: DbAssemblyInput<WorldInfoHandoffCo
     const mints: BatchStmt[] = [];
     // A book attached to two seated cards must become ONE copy shared by both, exactly as the originals
     // shared it — a per-card mint would silently fork the room's lore into divergent duplicates.
-    // @orb-waive persistence-no-in-memory-state(Map): call-local source→copy book map. Ends if it outlives the call.
+    // call-local source→copy book map. Ends if it outlives the call.
     const copyOf = new Map<WorldBookId, WorldBookId>();
 
     /** Mint a book + its entries under the recipient, once per source book. */
@@ -90,7 +90,7 @@ export function createCopyHandoffBooks(input: DbAssemblyInput<WorldInfoHandoffCo
     // ── the CARD half. A card copy that already carries junctions is a completed prior attempt: leave it.
     const copiesNeedingBooks = await pendingCardCopies(db, toOwnerId, cardCopies);
     const sourceIds = copiesNeedingBooks.map((c) => c.sourceCharacterId);
-    // @orb-waive persistence-no-in-memory-state(Map): query-local source→copy character lookup. Ends if it outlives the call.
+    // query-local source→copy character lookup. Ends if it outlives the call.
     const targetOf = new Map(copiesNeedingBooks.map((c) => [c.sourceCharacterId, c.characterId]));
     for (const attachment of await ownedCharacterAttachments(db, fromOwnerId, sourceIds)) {
       const characterId = targetOf.get(attachment.characterId);
@@ -143,7 +143,7 @@ export function createCountHandoffBooks(handle: DatabaseHandle): CountHandoffBoo
       ownedChatAttachments(db, fromOwnerId, chatId),
       recipientBookNamesOnChat(db, toOwnerId, chatId),
     ]);
-    // @orb-waive persistence-no-in-memory-state(Set): call-local dedup of source book ids. Ends if it outlives the call.
+    // call-local dedup of source book ids. Ends if it outlives the call.
     const minted = new Set<WorldBookId>(cardHalf.map((attachment) => attachment.book.id));
     for (const source of roomHalf) {
       if (!alreadyOnChat.has(source.name)) {
@@ -181,9 +181,9 @@ async function pendingCardCopies<T extends { readonly characterId: CharacterId }
         eq(characters.ownerId, toOwnerId),
       ),
     );
-  // @orb-waive persistence-no-in-memory-state(Set): query-local set of the RECIPIENT's own copy ids. Ends if it outlives the call.
+  // query-local set of the RECIPIENT's own copy ids. Ends if it outlives the call.
   const owned = new Set(rows.map((r) => r.characterId));
-  // @orb-waive persistence-no-in-memory-state(Set): query-local set of already-served copy ids. Ends if it outlives the call.
+  // query-local set of already-served copy ids. Ends if it outlives the call.
   const done = new Set(rows.flatMap((r) => (r.attachedBookId === null ? [] : [r.characterId])));
   return cardCopies.filter((c) => owned.has(c.characterId) && !done.has(c.characterId));
 }
@@ -196,7 +196,7 @@ async function recipientBookNamesOnChat(db: Db, toOwnerId: UserId, chatId: ChatI
     .from(chatBooks)
     .innerJoin(worldBooks, eq(chatBooks.worldBookId, worldBooks.id))
     .where(and(eq(chatBooks.chatId, chatId), eq(worldBooks.ownerId, toOwnerId)));
-  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map keyed by book name. Ends if it outlives the call.
+  // query-local lookup map keyed by book name. Ends if it outlives the call.
   return new Map(rows.map((r) => [r.name, r.id]));
 }
 

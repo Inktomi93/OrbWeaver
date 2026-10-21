@@ -85,7 +85,7 @@ async function summarizeBatchIsolated(
     return [];
   }
   const call = { funderUserId, opts: await summarizerOpts(ctx, funderUserId) };
-  // @orb-waive caught-failure-ownership(batchErr): the handler re-runs each unfinished item alone through
+  // the handler re-runs each unfinished item alone through
   // `summarizeAlone`, and an item that fails alone reaches `onItemError`, which all three callers log with
   // `getLog().error`. Items the batch finished are kept from `partialItems`. Ends if a caller stops logging `onItemError`.
   try {
@@ -110,7 +110,7 @@ async function summarizeAlone(
   input: SummarizeInput,
   onError: (err: unknown) => void,
 ): Promise<string | null> {
-  // @orb-waive caught-failure-ownership(err): `onError(err)` is `onItemError` from `summarizeBatchIsolated`, which all three
+  // `onError(err)` is `onItemError` from `summarizeBatchIsolated`, which all three
   // callers (`summarizeDigestBatch`, `consolidateOneTier`, `summarizeConsolidationBatch`) implement as `getLog().error`
   // with `err`. The `null` is the retried-next-pass result the store steps read. Ends if a caller stops logging.
   try {
@@ -147,7 +147,7 @@ interface PassCounts {
 const EMPTY_TIER0_COUNTS: Tier0Counts = { written: 0, skipped: 0, skippedTokenGuard: 0, skippedEmpty: 0 };
 
 function assertStoreSpace(expected: MemoryEmbedSpace, actual: MemoryEmbedSpace): void {
-  // @orb-waive membership-enforcer(ownerId): receipt integrity, not chat authority — `expected.ownerId` is the embedding-generation principal (the room's roster-resolved present host in production), while `actual.ownerId` is the store receipt; equality rejects a cross-principal result during the sweep. Ends when the store receipt type makes owner mismatch unrepresentable.
+  // receipt integrity, not chat authority — `expected.ownerId` is the embedding-generation principal (the room's roster-resolved present host in production), while `actual.ownerId` is the store receipt; equality rejects a cross-principal result during the sweep. Ends when the store receipt type makes owner mismatch unrepresentable.
   if (actual.ownerId !== expected.ownerId) {
     throw new Error(`memory digest embed space changed during sweep for owner ${expected.ownerId}`);
   }

@@ -136,7 +136,7 @@ async function fileInputFacts(input: Locator): Promise<FileInputFacts> {
 /** A direct file input or first descendant. Sibling/label/button triggers deliberately return null so
  * the caller takes the Playwright filechooser arm instead of guessing a DOM association. */
 export async function resolveFileInputLocator(loc: Locator): Promise<Locator | null> {
-  // @orb-waive caught-failure-ownership(evaluate): a failed probe reads as "not a direct input", and its only caller driveFileUpload then takes the chooser arm, whose target.click failure is rethrown. Ends if resolveFileInputLocator gains a caller that does not run that click or if the click error stops being rethrown.
+  // a failed probe reads as "not a direct input", and its only caller driveFileUpload then takes the chooser arm, whose target.click failure is rethrown. Ends if resolveFileInputLocator gains a caller that does not run that click or if the click error stops being rethrown.
   const direct = await loc
     .evaluate((element) => {
       const node = element as unknown as { tagName: string; getAttribute: (name: string) => string | null };
@@ -201,7 +201,7 @@ export async function driveFileUpload(target: Locator, selector: string, rawPath
   try {
     await target.click({ timeout: timeoutMs });
   } catch (error) {
-    // @orb-waive caught-failure-ownership(chooserPromise): the click error is rethrown by the `throw error` on the next line; this drain only stops the paired chooser timeout from becoming an unhandled rejection. Ends if the `throw error` below is removed.
+    // the click error is rethrown by the `throw error` on the next line; this drain only stops the paired chooser timeout from becoming an unhandled rejection. Ends if the `throw error` below is removed.
     await chooserPromise.catch(() => undefined);
     throw error;
   }

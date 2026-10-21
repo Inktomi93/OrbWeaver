@@ -51,7 +51,7 @@ async function buildFoldedTurnSafely(
   baseState: RpgSnapshotState,
   prose: ProseOverrides,
 ): Promise<Awaited<ReturnType<RpgContext["buildFoldedTurn"]>> | null> {
-  // @orb-waive caught-failure-ownership(err): `ctx.onFoldBuildFailed` is wired to the `logger.warn` at
+  // `ctx.onFoldBuildFailed` is wired to the `logger.warn` at
   // tools/rounds/observers.ts:44 (event `rpg.extraction.fold_build_failed`, carrying `err`), and the returned `null` is
   // the terminal channel the flush's fallback post-commit round checks. Ends if that observer stops logging `err`.
   try {

@@ -134,7 +134,7 @@ function parseBody(body: unknown): unknown {
 function safeJsonParse(text: string): unknown {
   try {
     return JSON.parse(text);
-    // @orb-waive caught-failure-ownership(catch): a non-JSON body is not a moderation block: isModerationBlock at error-classify.ts:148 reads the null as false, and the original provider error is still classified and thrown by the caller. Ends if null can begin authorizing a more specific classification.
+    // a non-JSON body is not a moderation block: isModerationBlock at error-classify.ts:148 reads the null as false, and the original provider error is still classified and thrown by the caller. Ends if null can begin authorizing a more specific classification.
   } catch {
     return null;
   }

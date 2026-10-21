@@ -339,7 +339,7 @@ export async function resolveHoverStates(page: Page, samples: RawSamples, hoverC
     return notRunPass(samples, { kind: "not-applicable", reason: "no-hover-media" }, Date.now() - started);
   }
   const cdp = await page.context().newCDPSession(page);
-  // @orb-waive caught-failure-ownership(e): the catch prints `HOVER REFUSED <why>` and returns a `broke` outcome; design-audit-walk.ts:303 turns it into the `forced-state pass` evidence gap, which design-audit-walk.ts:325 lists in `gaps` so the run reports NO-VERDICT (design-audit-report.ts:268). Ends if a broke outcome stops producing a gap.
+  // the catch prints `HOVER REFUSED <why>` and returns a `broke` outcome; design-audit-walk.ts:303 turns it into the `forced-state pass` evidence gap, which design-audit-walk.ts:325 lists in `gaps` so the run reports NO-VERDICT (design-audit-report.ts:268). Ends if a broke outcome stops producing a gap.
   try {
     await cdp.send("DOM.enable");
     await cdp.send("CSS.enable");

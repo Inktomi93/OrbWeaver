@@ -167,7 +167,7 @@ export async function runSideGen(req: SummarizeRequest | StructuredRequest, deps
       state.next += 1;
       try {
         items[index] = await runItem(index);
-        // @orb-waive caught-failure-ownership(err): the first item failure is held in `state.failure` so the items already running settle, then `runSideGen` throws it after `Promise.all` (a ProviderError carries the finished items); `runItem` has already logged the failed item. Ends if that throw is removed.
+        // the first item failure is held in `state.failure` so the items already running settle, then `runSideGen` throws it after `Promise.all` (a ProviderError carries the finished items); `runItem` has already logged the failed item. Ends if that throw is removed.
       } catch (err) {
         state.failure ??= err;
       }

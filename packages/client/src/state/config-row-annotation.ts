@@ -33,7 +33,6 @@ export interface ConfigRowAnnotation {
 
 const ConfigRowAnnotationContext = createContext<ConfigRowAnnotation | null>(null);
 
-// @orb-waive no-vanity-alias(ConfigRowAnnotationProvider): baselined when the gate widened; burn-down item 906.
 /** The provider element type — `SettingRow` publishes with it, and re-publishes `null` around the
  *  secondary content of a composite row so one address never renders its gloss twice. */
 export const ConfigRowAnnotationProvider = ConfigRowAnnotationContext;

@@ -6,7 +6,6 @@ description: Preloaded by every build and review role. The one home for lane com
 # Lane
 
 A lane owns a related batch of work in its own worktree. These rules bind every lane.
-`.claude/hooks/tool-guard.mjs` refuses unsafe command spellings and names the correct form; use that form.
 
 ## Start
 
@@ -43,7 +42,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 - Commit implementation work through the hooks. Review-only assignments never commit.
 - Allow the commit command to finish: killing it can leave its hook running. Follow "Long runs" for your host.
-- Pre-commit runs `pnpm verify --static --changed staged`. Commit-msg runs `scripts/commit-msg-check.sh`.
+- Pre-commit runs staged Biome under D317. Commit-msg runs `scripts/commit-msg-check.sh`.
 - Write the header as `type(scope): subject`, name the floor you ran, and end with a `Co-Authored-By` trailer.
 - Keep your own checks scoped. Do not run the full battery only to commit.
 - Bypass a hook only when the user or orchestrator names the exception. Use `LEFTHOOK_EXCLUDE=check git commit ...`, which keeps the commit-msg check, and record the reason and the owed checks.
@@ -60,7 +59,6 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ## Probes
 
-- Probe a gate with a `mustFlag` or `mustPass` row in its module, in your own worktree, then run `pnpm check:policy-conformance`. The row runs in memory.
 - Probe any other tool only inside your own worktree. A file planted in a shared checkout breaks every run that reads the tree meanwhile.
 - Never create or edit a tree file to probe on a shared checkout, including main's. Report the question to the orchestrator instead.
 - Never undo a probe with `git stash`, `git checkout <path>` or `git restore`. They destroy uncommitted work.
@@ -75,30 +73,28 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ## Regenerators and shared files
 
-- Never run a whole-tree regenerator in a lane, for example `pnpm prose:baseline` or a ledger freshness regeneration. The orchestrator runs it on the merged tree.
-- Hand-edit your own row only, or use the gate's line-adjacent escape marker.
+- Do not generate repository-wide metadata in a lane. Update shared instructions and indexes only with their related content.
+- Remove obsolete records instead of adding an exception or marker.
 - Run `pnpm format:docs` on a shared file only before your edit. A later format turns sibling context into your diff.
 - Two lanes may edit one file when both declared their hunk regions through main. Do not move hunks to dodge a merge.
 
 ## Running tools
 
-- Run tests with `pnpm test:scoped <paths>` and `pnpm test:ct <paths>` through `env -C <worktree>`.
+- Run named Node tests with `pnpm test <paths>` and CTs with `pnpm test:ct <paths>`.
 - Use a named pnpm script, else `pnpm exec <tool>`. `npx` and a bare `node tooling/src/...` lose the heap floor.
-- Check admission before `pnpm lint:eslint-scoped <files>`; it can select dependency-wide foundation checks. The orchestrator schedules those checks or authorizes an exact native run. Derive compiler contexts through `readEslintFileAdmissions` and `typedNativeCompilerConfigs`, never directory proximity. `pnpm lint:eslint` is whole-repo and takes no paths.
+- Run `pnpm lint:eslint <files>` for affected ESLint files.
 - Run scoped Biome as `pnpm exec biome check <paths> --diagnostic-level=error`. A scoped `--write` is fine.
 - Pass a worker flag only to go below the values in `tooling/concurrency-profile.json`.
-- Get a long mutation or calibration run approved by the orchestrator before you start it.
 
 ### Typecheck
 
-- `pnpm typecheck` checks every program. For a scoped run, pass `--config <tsconfig>` once per affected program.
-- `pnpm test:types` runs the `.test-d.ts` assertions separately.
+- Run `pnpm typecheck <tsconfig paths...>` for affected TypeScript programs. Native compiler checks include `.test-d.ts` assertions.
 - A floor claims only the configs it ran. If unsure, plant a type error and see it fail.
-- A worktree typecheck cannot prove an `@orb/*` exports-subpath removal. Say so, and leave it to the barrier.
+- A project typecheck reads the checked-in tsconfig and package export maps.
 
 ## Floor
 
-Choose the floor from the changed behavior and the completion policy below. For code, run the tests named for the change and a typecheck of the affected programs. CI is the verdict for the rest of the static tier (D317). For prose-only changes, use the instruction or documentation checker. Run affected CTs when rendered behavior changes; static checks never run a CT.
+Choose the floor from the changed behavior. For code, run the named tests and typecheck affected programs. CI is the verdict for whole-application checks (D317). For prose-only changes, use the documentation formatter and link checks. Run affected CTs when rendered behavior changes.
 
 Review-only assignments follow the `review` skill's checks. Questions and investigations run the checks needed to support their answer.
 
@@ -110,28 +106,28 @@ List each command and its result in the report. The whole-tree check is the orch
 - Use automatic edit feedback for routine lint, imports and types. Run explicit checks for uncovered files or skipped checks.
 - Complete implementation before final verification. Count completed hook and lane checks toward the floor when their scope and files still match.
 - Reuse matching completed checks. Do not repeat static checks manually for unchanged files, dependencies and scope.
-- Report deferred whole-tree and integration checks. The orchestrator runs the whole-tree check once on main before the owner pushes, not per lane commit.
+- Report deferred application checks. CI is the full application verdict.
 - Before another check, name the unresolved question and how its answer could change the result. Extra confidence alone is insufficient.
 - Repeat only checks affected by a relevant edit, failure or conflicting result. Read existing artifacts instead of rerunning for their output.
 - Report unrelated findings separately. If they block a required check, state the blocked verdict without expanding the assignment.
 - Add hashes, manifests or verification machinery only when the task or an existing contract requires artifact identity or integrity.
 - Stop when the requested outcome and applicable checks are complete. Hand back the result or the precise remaining blocker.
 
-## Checker failures
+## Run failures
 
 - Exit 134 or 137, a heap abort, a kill or a timeout means no verdict.
 - Prove contention with a quiet re-run at fewer workers. Otherwise the failure is a finding, as is an OOM under the shipped CT ceiling.
-- Prove a CT flake with `pnpm test:ct <paths> --repeat-each=<n>`. Prove a node-suite flake with sequential runs.
+- Prove a CT flake with repeated named CT runs. Prove a node-suite flake with sequential runs.
 
 ## Long runs
 
-- Run a harness bare: `pnpm check`, `pnpm verify …`, `pnpm test:scoped …`. Its exit code is the verdict.
+- Run the named test or lint command directly. Read its completed result before reporting.
 - In Claude, use the Bash tool's `run_in_background` for long commands and read its completion notification.
 - In Codex, retain the running command's session identifier and collect its completion through the available shell tool.
 - A running command has no verdict. Read its completed artifact before reporting success or failure.
-- Read results with `pnpm check:show` and the artifacts `AGENTS.md` names, not a log you wrote.
+- Read the test report at `reports/test-report.json` and other artifacts named in `AGENTS.md`.
 - Never wait on `pgrep` of a harness name. It matches every checkout on the box, so a sibling's run blocks you.
-- Stop your own verify with the orchestrator skill's checkout-scoped stop. Killing `git commit` leaves its hook running.
+- Stop only a process you started. Killing `git commit` leaves its hook running.
 
 ## Shell shapes in a worktree
 
@@ -181,7 +177,7 @@ These restrictions apply to Claude's guarded worktree shell. Codex uses its own 
 
 ## When to message the orchestrator
 
-Send a mid-run message only when you are about to change a real file on a shared tree, your premise is refuted, you hit a ruling fork, or the environment is lying: a stale server, a wrong build, a thin stage db, a held port, or a checker OOM or timeout.
+Send a mid-run message only when you are about to change a real file on a shared tree, your premise is refuted, you hit a ruling fork, or the environment is lying: a stale server, a wrong build, a thin stage db, a held port, or a test process OOM or timeout.
 
 Name your lane, state your default, and keep working. Send nothing else.
 

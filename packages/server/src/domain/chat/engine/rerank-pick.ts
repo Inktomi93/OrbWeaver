@@ -145,7 +145,7 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
   }
 
   let ranked: readonly string[] | null;
-  // @orb-waive caught-failure-ownership(catch): `ranked = null` becomes `degraded: true` in the returned result, and
+  // `ranked = null` becomes `degraded: true` in the returned result, and
   // `arbitrate` in `verbs/turn.ts` emits the `speaker_rerank_unavailable` warning for it (`if (smart.degraded)`); an
   // abort returns `CANCELLED` instead. Ends if `arbitrate` stops emitting that warning.
   try {

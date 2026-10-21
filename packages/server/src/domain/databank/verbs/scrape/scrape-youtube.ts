@@ -35,7 +35,7 @@ function videoIdFrom(input: string): string | undefined {
     return input;
   }
   let url: URL;
-  // @orb-waive caught-failure-ownership(catch): the try holds only `new URL(input)`; the `undefined` returned
+  // the try holds only `new URL(input)`; the `undefined` returned
   // here is read by `createScrapeYoutube`, which throws `ScrapeFailedError` when `videoId === undefined`.
   // Ends if that caller stops throwing on `undefined`.
   try {

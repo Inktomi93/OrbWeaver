@@ -61,7 +61,7 @@ async function liftPresetScripts(args: {
   // discarding the counts and notes of every preset the run had already imported and handing the operator an
   // exception instead of a partial report (#1469 item 7). The preset itself landed; only its scripts did not,
   // and that is exactly one recorded skip.
-  // @orb-waive caught-failure-ownership(err): the catch pushes the lift's reason onto `skippedPresets`, the
+  // the catch pushes the lift's reason onto `skippedPresets`, the
   // array `importPresets` returns in `ImportPresetsResult.skippedPresets`. Ends if that array stops being returned.
   try {
     return await profile.importPresetScripts({ ownerId: ctx.ownerId, presetId, scripts: p.parsed.regexScripts });

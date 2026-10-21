@@ -24,7 +24,7 @@ import { warn } from "../cli/log.ts";
  *  about a marker from THIS box (a run slot's, a session row's daemon), so a pid from another machine can
  *  never be misread as live. */
 export function pidAlive(pid: number): boolean {
-  // @orb-waive caught-failure-ownership(catch): ESRCH is the answer, the pid is gone, and false is the dead answer every caller acts on (censusRow reports the slot abandoned; the stage keeper, session registry and niced-exec read it as a dead owner). Ends if a marker can come from another user, where EPERM would read as dead.
+  // ESRCH is the answer, the pid is gone, and false is the dead answer every caller acts on (censusRow reports the slot abandoned; the stage keeper, session registry and niced-exec read it as a dead owner). Ends if a marker can come from another user, where EPERM would read as dead.
   try {
     process.kill(pid, 0);
     return true;
@@ -118,7 +118,7 @@ export function recordPrunedRuns(base: string, rows: readonly PrunedRun[]): void
     return;
   }
   const path = join(base, PRUNE_LEDGER);
-  // @orb-waive caught-failure-ownership(catch): bookkeeping ABOUT a deletion that already happened — the run's own verdict has been published and must not be lost to a ledger write, and the next publish re-appends its own rows. Ends if a reader starts requiring the ledger to be complete rather than best-effort.
+  // bookkeeping ABOUT a deletion that already happened — the run's own verdict has been published and must not be lost to a ledger write, and the next publish re-appends its own rows. Ends if a reader starts requiring the ledger to be complete rather than best-effort.
   try {
     writeFileSync(path, rows.map((row) => `${JSON.stringify(row)}\n`).join(""), { flag: "a" });
     const kept = readPrunedRuns(base);

@@ -107,7 +107,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
       return;
     }
     const { name } = state.preview.manifest;
-    // @orb-waive caught-failure-ownership(distribute.mutateAsync): useDistributePlugin (lib/plugin-mutations.ts) carries
+    // useDistributePlugin (lib/plugin-mutations.ts) carries
     // errorToast serverReason("Couldn't distribute that plugin."), which always returns a message. Ends if it drops its errorToast.
     distribute.mutateAsync({ bundleBase64: toBundleBase64(state.preview.bytes) }).then(
       (result) => {

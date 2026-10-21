@@ -96,7 +96,7 @@ async function runToSettlement(state: GuestState, cpuMs: number, produce: () => 
   // a real monotonic clock so a frozen guest clock can never disable the kill.
   const startMs = performance.now();
   ctx.runtime.setInterruptHandler(() => performance.now() - startMs > cpuMs);
-  // @orb-waive caught-failure-ownership(err): the message is the return value; boot posts it as `ready: false` and deliver as
+  // the message is the return value; boot posts it as `ready: false` and deliver as
   // `settled: false`, and the host kills the guest and reports the crash. Ends if a caller stops posting the return value.
   try {
     const result = produce();
@@ -195,7 +195,7 @@ function settleHostCall(message: Extract<UiGuestInbound, { kind: "hostResult" }>
 globalThis.onmessage = (event: MessageEvent<UiGuestInbound>): void => {
   const message = event.data;
   if (message.kind === "boot") {
-    // @orb-waive caught-failure-ownership(boot): the handler posts `ready: false` or `unavailable`; the host kills the guest and
+    // the handler posts `ready: false` or `unavailable`; the host kills the guest and
     // reports the crash, or calls onUnavailable (globalThis.reportError). Ends if the post is removed.
     void boot(message).catch((err: unknown) => {
       const text = err instanceof Error ? err.message : String(err);
@@ -204,7 +204,7 @@ globalThis.onmessage = (event: MessageEvent<UiGuestInbound>): void => {
     return;
   }
   if (message.kind === "event") {
-    // @orb-waive caught-failure-ownership(deliver): the handler posts `settled: false` with the message; the host kills the
+    // the handler posts `settled: false` with the message; the host kills the
     // guest and reports the crash. Ends if the post is removed.
     void deliver(message).catch((err: unknown) => {
       post({ kind: "settled", ok: false, message: err instanceof Error ? err.message : String(err) });

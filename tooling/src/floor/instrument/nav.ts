@@ -110,7 +110,7 @@ const READY_TIMEOUT_MS = budget(READY_TIMEOUT_MS_BASE);
 export async function runNav(page: Page, method: NavMethod, target: string): Promise<NavOutcome> {
   try {
     await page.locator("html[data-app-ready]").waitFor({ state: "attached", timeout: READY_TIMEOUT_MS });
-    // @orb-waive caught-failure-ownership(page.evaluate): the readiness ping is advisory and the bridge call below it is the check: a missing bridge or a navigation mid-call comes back from runNav as { ok: false, reason }, which motion-nav prints as NAV FAILED. Ends if the ping becomes the only readiness check.
+    // the readiness ping is advisory and the bridge call below it is the check: a missing bridge or a navigation mid-call comes back from runNav as { ok: false, reason }, which motion-nav prints as NAV FAILED. Ends if the ping becomes the only readiness check.
     await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
     // #1004: the bridge's answer is VALIDATED at the seam, not asserted. An absent `ok` used to read as
     // falsy and report a nav failure that never happened; a truthy non-boolean read as success.

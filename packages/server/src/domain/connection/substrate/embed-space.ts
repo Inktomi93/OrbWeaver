@@ -42,7 +42,7 @@ export async function vectorResolutionOf(
   through: { readonly connectionId?: UserConnectionId | undefined; readonly cachedFacts?: boolean } = {},
 ): Promise<{ readonly space: EmbedSpace; readonly servesImages: boolean } | null> {
   const { connectionId, cachedFacts = false } = through;
-  // @orb-waive caught-failure-ownership(catch): a refused resolve IS the "no space" answer this comparison
+  // a refused resolve IS the "no space" answer this comparison
   // needs; nothing is swallowed, and a throw here would fail a connection write over an unrelated task.
   try {
     const { resolved } = await ctx.runtime.resolve({

@@ -91,7 +91,7 @@ function parseRequest(arg: string): FireRequest {
 async function waitForReady(baseUrl: string, deadlineMs: number): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < deadlineMs) {
-    // @orb-waive caught-failure-ownership(catch): a refused or failed fetch while the server boots is retried; when deadlineMs passes the loop ends in the explicit throw at fire.ts:106, which fails the op. Ends if the loop stops throwing on the deadline.
+    // a refused or failed fetch while the server boots is retried; when deadlineMs passes the loop ends in the explicit throw at fire.ts:106, which fails the op. Ends if the loop stops throwing on the deadline.
     try {
       // Orb's liveness route is /healthz (entry/http/healthz.ts) — NOT neo's /api/healthz.
       const res = await fetch(`${baseUrl}/healthz`);
@@ -205,7 +205,7 @@ export async function fireOp(argv: readonly string[]): Promise<number> {
 
   const teardown = (): void => {
     child.killGroup("SIGTERM");
-    // @orb-waive caught-failure-ownership(catch): best-effort teardown of a scratch tempDir on process exit — force:true already tolerates a missing path, and there is no caller left to hand a failure to at this point. Ends if this tempDir starts holding anything a later step depends on existing/not-existing.
+    // best-effort teardown of a scratch tempDir on process exit — force:true already tolerates a missing path, and there is no caller left to hand a failure to at this point. Ends if this tempDir starts holding anything a later step depends on existing/not-existing.
     try {
       rmSync(tempDir, { recursive: true, force: true });
     } catch {

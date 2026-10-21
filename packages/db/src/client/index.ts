@@ -148,7 +148,7 @@ export async function createDb(url: string, wrap?: LibSqlWrap): Promise<Db> {
  */
 async function isCompleteBackup(path: string): Promise<boolean> {
   const client = createClient({ url: pathToFileURL(path).href });
-  // @orb-waive caught-failure-ownership(catch): this asks "does the file read as a complete db?"; `false` is the answer for
+  // this asks "does the file read as a complete db?"; `false` is the answer for
   // an unreadable file. `backupBeforeMigrate` is the only caller: it removes the debris and retries `VACUUM INTO`,
   // and that retry's own failure throws with the cause and aborts boot.
   // Ends if a caller needs the reason rather than the verdict.
@@ -678,7 +678,7 @@ export async function resetDevDatabase(db: Db): Promise<void> {
     // `exec` stops at the failing statement and leaves the transaction OPEN; without this the connection
     // would carry a half-applied teardown into whatever the caller does next. Rolling back restores the
     // schema the boot step is about to re-migrate, and the original failure is what propagates.
-    // @orb-waive caught-failure-ownership(client.execute): the rollback is best-effort: with no open transaction
+    // the rollback is best-effort: with no open transaction
     // (the BEGIN itself failed) `ROLLBACK` errors, and that error must not mask the script failure, which the
     // `throw err` on the next line propagates to the boot step.
     // Ends if that rethrow goes away.

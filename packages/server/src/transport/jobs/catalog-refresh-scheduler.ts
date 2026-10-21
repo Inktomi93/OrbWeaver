@@ -17,13 +17,10 @@ import type { BackgroundWork } from "#infra/tasks";
 
 const LOG_COMPONENT = "catalog-refresh-scheduler";
 
-// @orb-waive no-vanity-alias(DEFAULT_CHECK_INTERVAL_MS): baselined when the gate widened; burn-down item 906.
 const DEFAULT_CHECK_INTERVAL_MS = MS_PER_HOUR;
-// @orb-waive no-vanity-alias(DEFAULT_REFRESH_EVERY_MS): baselined when the gate widened; burn-down item 906.
 /** Refresh cadence FLOOR after a success — once a day (item 5: now the born-in-DB admin floor
  *  AppSettings.catalogRefreshIntervalMs; entry injects a live getter, this is the fallback). */
 const DEFAULT_REFRESH_EVERY_MS = MS_PER_DAY;
-// @orb-waive no-vanity-alias(RETRY_AFTER_MS): baselined when the gate widened; burn-down item 906.
 /** Retry cadence after a failure/cancel — within the hour, so a transient OR outage recovers fast. */
 const RETRY_AFTER_MS = MS_PER_HOUR;
 

@@ -601,7 +601,7 @@ function setUi(ctx: QuickJSContext, surface: QuickJSHandle, runtime: MembraneRun
     using composerDraftH = ctx.getProp(defHandle, "composerDraft");
     const onRun = ctx.getProp(defHandle, "onRun");
     let parsed: ReturnType<typeof pluginCommandRegistrationMetaSchema.safeParse>;
-    // @orb-waive caught-failure-ownership(err): a guest command definition that fails to dump or validate is refused: the onRun handle is disposed and runtime.logWarn records the message into the sandbox log (Sandbox.create's logWarn pushes a warn line), then ctx.undefined is returned so no live command registers. Ends if logWarn stops reaching the sandbox log or a dump failure returns a live command.
+    // a guest command definition that fails to dump or validate is refused: the onRun handle is disposed and runtime.logWarn records the message into the sandbox log (Sandbox.create's logWarn pushes a warn line), then ctx.undefined is returned so no live command registers. Ends if logWarn stops reaching the sandbox log or a dump failure returns a live command.
     try {
       const name = tryDumpGuestValue(ctx, nameH);
       const describe = tryDumpGuestValue(ctx, describeH);
@@ -1801,11 +1801,11 @@ function attachAsync(ctx: QuickJSContext, target: QuickJSHandle, spec: AsyncFnSp
       inFlight.controllers?.delete(controller);
       inFlight.settlements?.delete(settlement);
     };
-    // @orb-waive caught-failure-ownership(running): bookkeeping barrier only: both arms release the in-flight slot once. The rejection of `running` is owned by the Promise.race chain below, which routes it to deferred.reject(err) and so to the guest. Ends if this chain becomes the only reader of `running`.
+    // bookkeeping barrier only: both arms release the in-flight slot once. The rejection of `running` is owned by the Promise.race chain below, which routes it to deferred.reject(err) and so to the guest. Ends if this chain becomes the only reader of `running`.
     settlement = running.then(releaseSlot, releaseSlot);
     inFlight.settlements?.add(settlement);
 
-    // @orb-waive caught-failure-ownership(Promise.race): the rejection arm builds the guest error (name preserved) and calls deferred.reject(err), so the guest promise receives the failure. The !ctx.alive guard drops it on purpose: the guest promise no longer exists and touching a disposed context is a use-after-free. Ends if a disposed context gains a safe late-failure sink.
+    // the rejection arm builds the guest error (name preserved) and calls deferred.reject(err), so the guest promise receives the failure. The !ctx.alive guard drops it on purpose: the guest promise no longer exists and touching a disposed context is a use-after-free. Ends if a disposed context gains a safe late-failure sink.
     void Promise.race([running, timeout])
       .then(
         (result) => {

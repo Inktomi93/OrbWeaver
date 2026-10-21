@@ -80,7 +80,7 @@ export function buildRunToolRound(inputDeps: RpgRoundsAssemblyDeps): RpgRunToolR
       signal,
     };
     let calls: readonly RpgToolCall[];
-    // @orb-waive caught-failure-ownership(err): `failedToolRoundDelta` (tool-round.ts:20) logs every non-cancel failure with
+    // `failedToolRoundDelta` (tool-round.ts:20) logs every non-cancel failure with
     // `logger.warn` at tool-round.ts:29, rethrows a generation-observation failure, and returns the user-visible
     // `failure` text at tool-round.ts:30. Ends if that warn or the `failure` field is removed.
     try {

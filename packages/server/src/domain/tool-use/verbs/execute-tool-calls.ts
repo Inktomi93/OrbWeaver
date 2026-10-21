@@ -36,7 +36,7 @@ function serializeOutcome(name: string, outcome: RunOutcome): CallOutcome {
 
 async function runCall(ctx: ToolUseContext, entry: RegisteredTool, call: ToolCallInput, exec: ToolExecutionContext): Promise<CallOutcome> {
   let parsedJson: unknown;
-  // @orb-waive caught-failure-ownership(catch): owned by errorOutcome, whose isError true result lands in the tool-call record the model reads and can retry. Ends if a malformed-arguments call stops producing an isError record.
+  // owned by errorOutcome, whose isError true result lands in the tool-call record the model reads and can retry. Ends if a malformed-arguments call stops producing an isError record.
   try {
     parsedJson = JSON.parse(call.arguments);
   } catch {

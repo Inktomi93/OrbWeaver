@@ -1,6 +1,6 @@
 {
   "$schema": "https://json.schemastore.org/tsconfig",
-  // Abstract strictness base. Generated world templates compose environment options; generated leaves
+  // Abstract strictness base. World templates compose environment options; leaf configs
   // own roots and ambient scopes. `files: []` keeps this out of the program roster.
   "compilerOptions": {
     // --- emit: tsc is the type ORACLE only. tsx runs TS directly; the bundler builds the client. ---
@@ -43,7 +43,7 @@
     // explicit resource management — `using`/`await using` execute natively under node 26 — but TS's
     // es2025 lib does not declare `Symbol.dispose`/`Disposable`, so the spelling W5 adopts is UNTYPED
     // without this. `esnext.disposable` is the MINIMAL delta that takes it (probe-verified: switching the
-    // whole lib to `esnext` clears the same thing and nothing else we need). The generated browser-world
+    // whole lib to `esnext` clears the same thing and nothing else we need). The browser-world
     // template composes its lib array from this authoritative common list plus the DOM delta. The V8 14.6 surfaces TS ships in NO lib yet
     // (Map.getOrInsert, Error.isError, Iterator.concat) come from the root platform.d.ts instead.
     // `esnext.temporal` (2026-08-21): `@orb/kit/time` runs on the platform `Temporal` API. Node 26 and

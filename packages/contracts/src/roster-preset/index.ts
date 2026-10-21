@@ -31,7 +31,6 @@ export const ROSTER_PRESET_MEMBER_MAX = 25;
 const NAME_MAX = 200;
 const DESCRIPTION_MAX = 2000;
 
-// @orb-waive no-vanity-alias(rosterPresetMemberSchema): baselined when the gate widened; burn-down item 906.
 /** One saved seat on the wire — chat's D80 character-member spec, verbatim (kind + characterId +
  *  position + the optional seat knobs). The preset write verb normalizes `position` (sort, re-stamp
  *  dense 0..n-1), so wire positions only need to ORDER, not to be contiguous. */

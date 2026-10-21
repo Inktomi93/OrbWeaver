@@ -37,7 +37,7 @@ function tabStorage(): Storage | undefined {
 
 /** Record where to land after the IdP round trip. A no-op where sessionStorage is unavailable. */
 export function writeSessionResume(snapshot: SessionResumeSnapshot): void {
-  // @orb-waive caught-failure-ownership(catch): storage refused (private mode / disabled) — the bounce still works, it just lands on the landing view. Ends if the resume target becomes required for the bounce to work.
+  // storage refused (private mode / disabled) — the bounce still works, it just lands on the landing view. Ends if the resume target becomes required for the bounce to work.
   try {
     tabStorage()?.setItem(RESUME_KEY, JSON.stringify(snapshot));
   } catch {
@@ -52,7 +52,7 @@ export function takeSessionResume(): SessionResumeSnapshot | null {
     return null;
   }
   let raw: string | null = null;
-  // @orb-waive caught-failure-ownership(catch): storage access refused — the resume target degrades to null (the landing view), same as no snapshot ever written. Ends if the resume target becomes required.
+  // storage access refused — the resume target degrades to null (the landing view), same as no snapshot ever written. Ends if the resume target becomes required.
   try {
     raw = storage.getItem(RESUME_KEY);
     storage.removeItem(RESUME_KEY);
@@ -62,7 +62,7 @@ export function takeSessionResume(): SessionResumeSnapshot | null {
   if (raw === null) {
     return null;
   }
-  // @orb-waive caught-failure-ownership(catch): a corrupt blob is discarded, never trusted (#11 autosave doctrine) — degrades to null, same as no snapshot.
+  // a corrupt blob is discarded, never trusted (#11 autosave doctrine) — degrades to null, same as no snapshot.
   try {
     const parsed = JSON.parse(raw) as { readonly chatId?: unknown };
     return { chatId: typeof parsed.chatId === "string" ? castId<ChatId>(parsed.chatId) : null };
@@ -73,7 +73,7 @@ export function takeSessionResume(): SessionResumeSnapshot | null {
 
 /** Stash a signed-out visit's raw invite token for the sign-in round trip. A no-op where storage is refused. */
 export function stashJoinToken(token: string): void {
-  // @orb-waive caught-failure-ownership(catch): storage refused (private mode / disabled) — the visitor still reaches /login, and the invite link still works once they open it signed in. Ends if the stash becomes the only way to join.
+  // storage refused (private mode / disabled) — the visitor still reaches /login, and the invite link still works once they open it signed in. Ends if the stash becomes the only way to join.
   try {
     tabStorage()?.setItem(JOIN_KEY, token);
   } catch {
@@ -83,7 +83,7 @@ export function stashJoinToken(token: string): void {
 
 /** Read the stashed invite token without consuming it (the login surface decides which form to offer). */
 export function peekJoinStash(): string | null {
-  // @orb-waive caught-failure-ownership(catch): storage access refused reads as no stash, the same as a tab that never had one. Ends if the stash becomes the only way to join.
+  // storage access refused reads as no stash, the same as a tab that never had one. Ends if the stash becomes the only way to join.
   try {
     const token = tabStorage()?.getItem(JOIN_KEY) ?? null;
     return token !== null && token.length > 0 ? token : null;
@@ -94,7 +94,7 @@ export function peekJoinStash(): string | null {
 
 /** Drop the stashed invite token: the visitor dismissed the offer, signed up through it, or signed out. */
 export function clearJoinStash(): void {
-  // @orb-waive caught-failure-ownership(catch): storage access refused means nothing was stashed to clear. Ends if the stash becomes the only way to join.
+  // storage access refused means nothing was stashed to clear. Ends if the stash becomes the only way to join.
   try {
     tabStorage()?.removeItem(JOIN_KEY);
   } catch {

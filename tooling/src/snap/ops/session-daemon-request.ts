@@ -95,7 +95,7 @@ function touchRow(state: SessionDaemonState, patch: Partial<SessionRow>): void {
  *  throws; this catch is the last-resort REPORT on the daemon log, never a swallow — a teardown that failed
  *  quietly is exactly the row-reads-live-forever class §3.8 exists to make loud. */
 export function detachSessionShutdown(work: Promise<void>, name: string, reason: string): void {
-  // @orb-waive caught-failure-ownership(work): a timer or signal boundary has no caller for an exit code, so the catch warns (session-daemon-request.ts:100) to stderr, the daemon log (floor/cli/log.ts:37). Ends if shutdown's failure stops being warned.
+  // a timer or signal boundary has no caller for an exit code, so the catch warns (session-daemon-request.ts:100) to stderr, the daemon log (floor/cli/log.ts:37). Ends if shutdown's failure stops being warned.
   work.catch((unhandled: unknown) => {
     warn(`session      ${name}: shutdown (${reason}) failed — ${errorMessage(unhandled)}`);
   });
@@ -146,7 +146,7 @@ async function serveSerialized(state: SessionDaemonState, request: SessionReques
   });
   let exit: number = EXIT.toolError;
   let terminalReason: string | null = null;
-  // @orb-waive caught-failure-ownership(error): the catch prints SESSION CALL ERROR (session-daemon-request.ts:160) and sets exit = EXIT.toolError (:165), which the done event carries to the client (:176). Ends if the done event stops carrying exit.
+  // the catch prints SESSION CALL ERROR (session-daemon-request.ts:160) and sets exit = EXIT.toolError (:165), which the done event carries to the client (:176). Ends if the done event stops carrying exit.
   try {
     const call = request.kind === "call" ? parseSnapArgs([...request.argv], { sessionDevice: state.bootArgs.device }) : null;
     const navigates = call !== null && (sessionCallTarget(call) !== "live" || call.matrix || call.scenario !== null);

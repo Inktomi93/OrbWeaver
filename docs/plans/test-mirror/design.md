@@ -20,13 +20,13 @@ Preserve useful migration cases and production contract concerns for the test-fo
 
 ### Scope
 
-Tooling, semantic engines, checker migrations, global cleanup and performance experiments are outside both test-rebuild plans. Parked tooling work does not block replacement cases.
+Choose work by the actual test dependency and missing case coverage. Re-derive findings against current production and use the sibling legacy source only to identify meaningful cases.
 
-Choose work by the actual test dependency and missing case coverage. Re-derive historical findings against current production and preserve meaningful regressions until their replacements qualify.
+The sibling source at /home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21 is reference-only. It is not part of this repository's tests, typecheck or CI.
 
 ### Using the inventory
 
-Each site below is an investigation lead, not a current verdict or assignment. Re-derive it against the current product and its work item before editing. Keep meaningful regression cases in legacy CI until replacement carries them.
+Each site below is an investigation lead, not a current verdict or assignment. Re-derive it against the current product and its work item before editing. Use the external source only to identify meaningful cases; it is not run or compiled in CI.
 
 A product rule copied into a harness moves to its owning production domain under compose cleanup. The replacement test then calls the real composition root. Do not export a function solely to preserve a copied legacy harness, repair the widest old harnesses first, or split disposable suites for size compliance.
 
@@ -34,24 +34,24 @@ Contract shapes, typed responders, production constants and real shared helpers 
 
 ### Existing verification
 
-Follow D317 for existing verification and D318 for public package doors. Use the maintained test runner and applicable repository checks for the changed cases; do not create a checker or analyzer workstream here.
+Follow D317 for existing verification and D318 for public package doors. Use the maintained test runner and repository checks for changed cases.
 
 A replacement proves product behavior, preserves meaningful cases and catches a production defect. Unrelated tool failures are reported separately, not repaired as a new migration phase.
 
 ### Known violations by item
 
-Each row names a candidate test site and production counterpart. These sites require current-tree confirmation before assignment. Audit material supplies cases for replacement, not instructions to retrofit legacy harnesses.
+Each row names a candidate test site and production counterpart. These sites require current-tree confirmation before assignment. The sibling legacy source is reference material only; it is not run, compiled or included in CI.
 
 **889, CT door.**
 
 - `tests/support/browser/ct-data-providers.tsx:214` lists one tool renderer; production `packages/client/src/compose/authed-app.tsx:210` registers the dice renderer too. Derive from the door list.
 - `ct-data-providers.tsx:223` lists four home tiles; `compose/home-tiles.ts:27-35` ships seven. Import the production list.
 - `ct-data-providers.tsx:400` lacks the plugin commands and bug report widgets that `authed-app.tsx:344` registers.
-- `tests/legacy/client/features/chat/_ct-stories.tsx:204` and `:208` mount with empty surface and tool-renderer registries; `authed-app.tsx:168-197` and `:210` register them. Derive both.
+- `legacy-source/client/features/chat/_ct-stories.tsx:204` and `:208` mount with empty surface and tool-renderer registries; `authed-app.tsx:168-197` and `:210` register them. Derive both.
 - `chat/_ct-stories.tsx:1946`, `chat/hooks/_slash-command-stories.tsx:80` and `:1969` omit imagery and plugin slash commands and two palette sources (`authed-app.tsx:223-240`).
-- `tests/legacy/client/state/config-section-partition.dom.test.ts:235-280` omits five door sections from `compose/config-sections.ts:54-132`.
-- `tests/legacy/client/state/chrome-registry-context.ct.tsx:27` and `context-tabs-panel.ct.tsx:78-84` snapshot rosters the product no longer ships. Build them from production.
-- Rebuilt mounting cases should prove observable registry order and supported entries through the production door, not a new parity checker.
+- `legacy-source/client/state/config-section-partition.dom.test.ts:235-280` omits five door sections from `compose/config-sections.ts:54-132`.
+- `legacy-source/client/state/chrome-registry-context.ct.tsx:27` and `context-tabs-panel.ct.tsx:78-84` snapshot rosters the product no longer ships. Build them from production.
+- Rebuilt mounting cases should prove observable registry order and supported entries through the production door.
 
 **888, e2e shapes.**
 
@@ -63,23 +63,23 @@ Each row names a candidate test site and production counterpart. These sites req
 
 - Server harness queries copied from un-exported compose closures (the 879 class): the automation harness copies `getMessageFact` and `getTurnOrigin` without the chat scope; the gallery import re-link copy drops the owner scope; the workloads registry copy omits refinery; a hand `isAdmin` excludes the owner. Rows A4, A5, A6, A20 and A21 in the server report.
 
-- Compose closures copied into server harnesses, already drifted: `tests/legacy/server/domain/embeddings/space-completion.suite.int.test.ts:96-132` and `target-move-rebuild.suite.int.test.ts:378-418` hand-write the vector-sweep ops from `packages/server/src/entry/compose/services.ts:1267-1319` (rebuild through the production root, without publishing a legacy-only helper); `target-move-rebuild.suite.int.test.ts:1074-1085` swallows errors where `services.ts:614-631` rethrows; `tests/legacy/server/domain/chat/memory/_support.ts:311-363` drops the host-coherence guard and error type of `compose/chat.ts:1405-1459`; `tests/legacy/server/domain/chat/_support.ts:633-644` prunes every generation where `domain/embeddings/verbs/prune-memory-blocks.ts:29` prunes only the target generation; `tests/legacy/server/domain/stats/persistence/latency.int.test.ts:134-162` plans a hand query instead of `stats/persistence/latency.ts:65-74` (run the real read on a counted db and explain its recorded statement).
+- Compose closures copied into server harnesses, already drifted: `legacy-source/server/domain/embeddings/space-completion.suite.int.test.ts:96-132` and `target-move-rebuild.suite.int.test.ts:378-418` hand-write the vector-sweep ops from `packages/server/src/entry/compose/services.ts:1267-1319` (rebuild through the production root, without publishing a legacy-only helper); `target-move-rebuild.suite.int.test.ts:1074-1085` swallows errors where `services.ts:614-631` rethrows; `legacy-source/server/domain/chat/memory/_support.ts:311-363` drops the host-coherence guard and error type of `compose/chat.ts:1405-1459`; `legacy-source/server/domain/chat/_support.ts:633-644` prunes every generation where `domain/embeddings/verbs/prune-memory-blocks.ts:29` prunes only the target generation; `legacy-source/server/domain/stats/persistence/latency.int.test.ts:134-162` plans a hand query instead of `stats/persistence/latency.ts:65-74` (run the real read on a counted db and explain its recorded statement).
 
 - Compose closures copied into legacy harnesses (rebuild through production composition, not new legacy-only public helpers): `characterOwned` and `loadCoParticipantOwner` (`compose/assets-character.ts:179-262`), the gallery character ops (`assets-character.ts:376-383`, the import copy also drops the owner scope), `verifyPersonaOwned` and `verifyCharactersOwned` (`compose/chat.ts:1385-1388`, `compose/roster-preset.ts:45-59`), `resolveUserEnabled` (`compose/chat.ts:1321-1324`), the seed avatar ops (`assets-character.ts:442-509`), the rpg trace inspector (`entry/lifecycle.ts:930-950`).
 
 - The wide server harnesses under automation, assets, workloads and search contain candidate cases. Replace their assemblies through the real root rather than repairing them as a prerequisite.
 
-- `tests/legacy/db/schema/rate-limit.int.test.ts:46-56,95-98` copies `packages/server/src/transport/rate-limit.ts:57-73` and never calls the limiter.
+- `legacy-source/db/schema/rate-limit.int.test.ts:46-56,95-98` copies `packages/server/src/transport/rate-limit.ts:57-73` and never calls the limiter.
 
-- Client fixtures: `tests/legacy/client/features/chat/fixtures.ts:46-77` (list paging and search) and `character/fixtures.ts:179-221` (sort cursors) still stand in for server code a test cannot call: the page and cursor policy is inline in `domain/chat/verbs/read.ts` and `domain/character/verbs/list.ts`, and the search is SQL. Move the cursor mint and the page rule to `@orb/contracts`, call them from the verb and from the responder, and add a sort-aware cursor for every character sort.
+- Client fixtures: `legacy-source/client/features/chat/fixtures.ts:46-77` (list paging and search) and `character/fixtures.ts:179-221` (sort cursors) still stand in for server code a test cannot call: the page and cursor policy is inline in `domain/chat/verbs/read.ts` and `domain/character/verbs/list.ts`, and the search is SQL. Move the cursor mint and the page rule to `@orb/contracts`, call them from the verb and from the responder, and add a sort-aware cursor for every character sort.
 
-- Inference and plugins: `tests/legacy/inference/capability/synthesize.test.ts:12` and `resolve/resolve-task.suite.test.ts:346` copy `requireGenerationCapability`; two showcase plugin suites copy a toast floor that has diverged from `ui-outbox.ts:85`.
+- Inference and plugins: `legacy-source/inference/capability/synthesize.test.ts:12` and `resolve/resolve-task.suite.test.ts:346` copy `requireGenerationCapability`; two showcase plugin suites copy a toast floor that has diverged from `ui-outbox.ts:85`.
 
-- Contracts: `tests/legacy/contracts/rpg/_extraction-support.ts:24` and `rpg/tracker.contract.test.ts:34` copy the actor-key scheme from `packages/contracts/src/rpg/actor.ts:138-146`; `rpg/structured-patch.contract.test.ts:47-65` copies the tool builder from `packages/server/src/entry/compose/rpg.ts:1082-1120` (move it to contracts); `prose/index.contract.test.ts:37,116-130` uses handmade hash and version fixtures; rebuild those cases with production-derived prose inputs; `rpg/extraction-wire-subset.contract.test.ts:25-48` copies the name-map walker from `packages/contracts/src/inference/wire-subset.ts:95`.
+- Contracts: `legacy-source/contracts/rpg/_extraction-support.ts:24` and `rpg/tracker.contract.test.ts:34` copy the actor-key scheme from `packages/contracts/src/rpg/actor.ts:138-146`; `rpg/structured-patch.contract.test.ts:47-65` copies the tool builder from `packages/server/src/entry/compose/rpg.ts:1082-1120` (move it to contracts); `prose/index.contract.test.ts:37,116-130` uses handmade hash and version fixtures; rebuild those cases with production-derived prose inputs; `rpg/extraction-wire-subset.contract.test.ts:25-48` copies the name-map walker from `packages/contracts/src/inference/wire-subset.ts:95`.
 
-- UI: `tests/legacy/ui/content/sandbox-frame/sandbox-frame.ct.tsx:325` carries a stale copy of the app CSP. Derive it from `securityHeaders` once its directive table lives in a package a CT can import (kit): a CT cannot import `@orb/server/entry/http`, because the babel transform of `domain/chat/contract/errors.ts` rejects its `declare` fields.
+- UI: `legacy-source/ui/content/sandbox-frame/sandbox-frame.ct.tsx:325` carries a stale copy of the app CSP. Derive it from `securityHeaders` once its directive table lives in a package a CT can import (kit): a CT cannot import `@orb/server/entry/http`, because the babel transform of `domain/chat/contract/errors.ts` rejects its `declare` fields.
 
-- Tests that assert their own literal, and so test nothing: `tests/legacy/contracts/chat/index.contract.test.ts:18-31,152-199` (the server and client sides call one function twice), `chat/messages.contract.test.ts:57-101`, `session/index.contract.test.ts:19-44`, `search/index.contract.test.ts:60-149`, `portability/index.contract.test.ts:85-125`, `stats/index.contract.test.ts:226-247`, `identity/index.contract.test.ts:73-117`, `rpg/bus.contract.test.ts:25-57`. Parse each fixture through its real schema, move compile-only checks to `.test-d.ts`, or delete. Fixtures with fake ids (`tag/index.contract.test.ts:19`, `assets/index.contract.test.ts:70`) must be minted, because the strict schemas reject them.
+- Tests that assert their own literal, and so test nothing: `legacy-source/contracts/chat/index.contract.test.ts:18-31,152-199` (the server and client sides call one function twice), `chat/messages.contract.test.ts:57-101`, `session/index.contract.test.ts:19-44`, `search/index.contract.test.ts:60-149`, `portability/index.contract.test.ts:85-125`, `stats/index.contract.test.ts:226-247`, `identity/index.contract.test.ts:73-117`, `rpg/bus.contract.test.ts:25-57`. Parse each fixture through its real schema, move compile-only checks to `.test-d.ts`, or delete. Fixtures with fake ids (`tag/index.contract.test.ts:19`, `assets/index.contract.test.ts:70`) must be minted, because the strict schemas reject them.
 
 **891, typed recorder.**
 
@@ -88,13 +88,13 @@ Each row names a candidate test site and production counterpart. These sites req
 
 **892, constants.** Also the private constants tests re-spell: the touch floor (`SNAPPED_LENGTH_BASE_PX` in `packages/ui/src/tokens/index.ts`), contract caps and defaults kept private in `settings/appearance.ts`, `character/index.ts`, `refinery/index.ts` and `databank/index.ts` (export them), and token px literals in the layout primitive CTs. The AA floor, the talkativeness default, max output tokens, max image bytes, blur surfaces, chat styles, owned settings keys, the frozen clock, config anchor ids, the CSRF header, chat-with names, test ids, the chat width default (`chat/_ct-stories.tsx:2104-2107` measures at 50dvw against a production default of 60), and the inline e2e timeouts.
 
-**893, contrast cases.** Also `tests/legacy/ui/charts/chart/use-chart-theme.ct.tsx`, `content/theme-scope/theme-scope.ct.tsx`, `primitives/switch/switch.ct.tsx`, `primitives/toast/toast.ct.tsx`, `markdown/markdown.ct.tsx` and `tokens/index.test.ts`; `palette-contrast.suite.test.ts` copies five kit colour functions. Copies in `rules-section.ct.tsx:1154-1161`, `appearance-sizing-section.ct.tsx:171-173`, `app-shell.ct.tsx:5377-5391`, `home-surface.ct.tsx:1372-1374` (diverging knee), `tests/support/browser/part-vs-surface.ts:44-56`, `badge.ct.tsx:77-86` and `tests/legacy/ui/content/theme-scope/palette-contrast.suite.test.ts:35`. Reuse the existing canonical contrast helper when rebuilding renderer cases; do not start a new tooling project.
+**893, contrast cases.** Also `legacy-source/ui/charts/chart/use-chart-theme.ct.tsx`, `content/theme-scope/theme-scope.ct.tsx`, `primitives/switch/switch.ct.tsx`, `primitives/toast/toast.ct.tsx`, `markdown/markdown.ct.tsx` and `tokens/index.test.ts`; `palette-contrast.suite.test.ts` copies five kit colour functions. Copies in `rules-section.ct.tsx:1154-1161`, `appearance-sizing-section.ct.tsx:171-173`, `app-shell.ct.tsx:5377-5391`, `home-surface.ct.tsx:1372-1374` (diverging knee), `tests/support/browser/part-vs-surface.ts:44-56`, `badge.ct.tsx:77-86` and `legacy-source/ui/content/theme-scope/palette-contrast.suite.test.ts:35`. Reuse the canonical contrast helper when rebuilding renderer cases.
 
-**894, seeders.** Local seeders in `tests/legacy/db/schema` with a fake content hash; raw settings and preset mutations in two live specs where `trpc.ts` helpers exist.
+**894, seeders.** Local seeders in `legacy-source/db/schema` with a fake content hash; raw settings and preset mutations in two live specs where `trpc.ts` helpers exist.
 
 ## Rejected
 
-Whole-tree mutation and a separate legacy retrofit campaign. Replacing one copied assembly with another does not prove production behavior.
+A separate legacy retrofit campaign. Replacing one copied assembly with another does not prove product behavior.
 
 ## Coupled sites
 

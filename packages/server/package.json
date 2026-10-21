@@ -8,9 +8,6 @@
   },
   "exports": {
     ".": "./src/index.ts",
-    "./router-types": {
-      "types": "./dist/router-types/index.d.ts"
-    },
     "./domain/assets": "./src/domain/assets/index.ts",
     "./domain/character": "./src/domain/character/index.ts",
     "./domain/chat": "./src/domain/chat/index.ts",
@@ -55,17 +52,10 @@
     "#src/*": "./src/*"
   },
   "scripts": {
-    "build:router-types": "node --import ../../tooling/src/floor/compiler/semantic-inventory-runtime.ts ../../tooling/src/router-types/cli.ts",
     "check:media": "node src/entry/check-media.ts",
     "postinstall": "pnpm check:media"
   },
   "dependencies": {
-    "@orb/kit": "workspace:*",
-    "@orb/contracts": "workspace:*",
-    "@orb/db": "workspace:*",
-    "@orb/inference": "workspace:*",
-    "@orb/default-content": "workspace:*",
-    "@orb/showcase-plugins": "workspace:*",
     "@hono/node-server": "catalog:",
     "@jitl/quickjs-ng-wasmfile-release-sync": "catalog:",
     "@opentelemetry/api": "catalog:",
@@ -73,10 +63,16 @@
     "@opentelemetry/resources": "catalog:",
     "@opentelemetry/sdk-trace-base": "catalog:",
     "@opentelemetry/semantic-conventions": "catalog:",
+    "@orb/contracts": "workspace:*",
+    "@orb/db": "workspace:*",
+    "@orb/default-content": "workspace:*",
+    "@orb/inference": "workspace:*",
+    "@orb/kit": "workspace:*",
+    "@orb/showcase-plugins": "workspace:*",
     "@trpc/server": "catalog:",
+    "@types/html-to-text": "catalog:",
     "acme-client": "catalog:",
     "cloudflared": "catalog:",
-    "@types/html-to-text": "catalog:",
     "drizzle-orm": "catalog:",
     "fflate": "catalog:",
     "hono": "catalog:",

@@ -39,7 +39,6 @@ import type { StreamDataFrame } from "@orb/contracts/stream";
 
 import type { RoomSourceDef } from "../room-source.ts";
 
-// @orb-waive no-vanity-alias(REPLAY_PAGE): baselined when the gate widened; burn-down item 906.
 // The replay's page size. TIED to the read's own ceiling on purpose: `replaySince` clamps to
 // `NOTIFICATIONS_LIST_MAX_LIMIT`, and the loop below reads a SHORT page as "the durable log is exhausted" —
 // so asking for more than the clamp would make every page look short and end the replay after one.

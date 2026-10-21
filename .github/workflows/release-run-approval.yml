@@ -2,7 +2,7 @@ name: Release metadata run approval
 
 on:
   workflow_run: # zizmor: ignore[dangerous-triggers] Only trusted main executes; triggering code is closed metadata data, never checked out or run.
-    workflows: [CI, CodeQL]
+    workflows: [CodeQL]
     types: [completed]
 
 permissions: {}

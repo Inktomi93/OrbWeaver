@@ -21,7 +21,7 @@ export function createResolveStreamAuthority(ctx: AutomationContext): Automation
     if (role === undefined) {
       throw new AutomationChatNotFoundError(chatId);
     }
-    // @orb-waive caught-failure-ownership(catch): the `member` tier is the refusal's result: `decideChat` in
+    // the `member` tier is the refusal's result: `decideChat` in
     // `admin/guard.ts` throws only `DomainForbiddenError` for the role `loadCallerRole` captured, and
     // `transport/trpc/stream/sources/automation.ts` reads the tier to filter the hidden-hand events. Ends if
     // `can()` gains a throw that is not a refusal.

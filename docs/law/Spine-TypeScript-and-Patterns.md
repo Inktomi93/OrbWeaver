@@ -6,7 +6,7 @@ updated: 2026-10-17
 
 # Orbweaver — Spine: TypeScript & Patterns (Types, Schemas, Dispatch)
 
-Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch) — cited elsewhere as "the §7.4 rule" / "spine §7.5"; `Constitution.md` §5 points here. The gates are LIVE: the §7.4 table below, `no-inline-union-redecl` (`tooling/src/verify/gates/`), `exhaustive-dispatch` (compile-time by construction — the mapped-`Record`/`assertNever` pattern below; constitution row in `Core-0-Architecture-and-Structure.md §7`).
+Canonical doc for spine §7.4 (types & schemas) and §7.5 (string-union dispatch) — cited elsewhere as "the §7.4 rule" / "spine §7.5"; `Constitution.md` §5 points here. D333 retires custom static type-home and union-redeclaration gates. The type homes remain architecture law; the compiler still checks mapped `Record` and `assertNever` dispatch.
 
 ## Types & schemas — one home, one direction, no inline (spine §7.4)
 
@@ -30,7 +30,7 @@ The rule: **one home per shape, derived by who needs it; flows DOWN only.** An a
 | **entry request env** | `packages/server/src/entry/http/contract/request-env.ts` under [D329](../adr/0329-data-layout-and-portability-registry-type-homes.md) | entry route registrars |
 | **tRPC router type bridge** | `packages/server/src/transport/trpc/router.ts` under [D329](../adr/0329-data-layout-and-portability-registry-type-homes.md) | the client, type-only |
 | **server-only pure primitive shape** | `packages/server/src/primitives/` | server callers |
-| **tooling result, config and exit shape** | the tool's `contract/`, or `tooling/src/floor/` for plumbing ([Core-Tooling-Law](Core-Tooling-Law.md) §2.4, §2.5) | the tool and its tests |
+| **tooling result, config and exit shape** | the tool's `contract/`, or `tooling/src/floor/` for retained shared plumbing | the tool and its tests |
 | **tooling helper API** (a function's options, handle and result shapes) | the file that declares the function under [D331](../adr/0331-tooling-and-test-shapes-stay-beside-their-function.md) | the function's callers |
 | **shared test shape** | the test kit under `tests/support/`, a `fixtures.ts`, `*.fixtures.ts`, `*-fixtures.ts` or `_support.ts` module, or a `contract/` folder | suites in maintained tests |
 | **test helper API** | the file that declares the helper function under [D331](../adr/0331-tooling-and-test-shapes-stay-beside-their-function.md) | the helper's callers |
@@ -46,35 +46,21 @@ Component-owned prop and render APIs may stay beside their component. Derive nat
 
 D42 and D54 place domain-agnostic component, DOM and string-math primitives in UI; [UI-Primitives section 13.9](UI-Primitives-and-Reuse.md#139-homing--the-parked-list) owns that boundary. Their options, handles and supporting shapes stay with the actual primitive API. Establish ownership from its production signature and dependency graph, not a package path or shape name. Unrelated pure engines stay in kit. Generated vocabulary and Node build APIs require their own owner; browser component evidence does not qualify them.
 
-A server factory shape is owned by its production signature: it is a parameter, return type or member of a function declared in the same file (D324). A plain-data shape with a wire-vocabulary name is wire data, not a factory shape, and takes the wire home. Inline application data shapes in `verbs/`, `persistence/`, `service.ts` or transport remain violations. D331 applies the same signature ownership to tooling and maintained tests; legacy tests stay outside type-aware lint (D320).
+A server factory shape is owned by its production signature: it is a parameter, return type or member of a function declared in the same file (D324). A plain-data shape with a wire-vocabulary name is wire data, not a factory shape, and takes the wire home. Inline application data shapes in `verbs/`, `persistence/`, `service.ts` or transport remain violations. D331 applies the same signature ownership to retained tooling and maintained tests. The sibling legacy source is reference-only and is outside this repository's typecheck population.
 
-No placement gate yet judges these: client exported interfaces other than wire-named plain data, `ui` component APIs, `showcase-plugins`, and exported zod schemas built by a method chain or a non-shape factory. `scripts/` is the research zone ([Core-Tooling-Law](Core-Tooling-Law.md) §2.7) and has no type home. `erasableSyntaxOnly` in `tsconfig.base.json` makes every enum and value namespace a compile error. Ambient `declare global` and module augmentations stay where they augment.
+Custom static placement checks no longer cover these cases: client exported interfaces other than wire-named plain data, `ui` component APIs, `showcase-plugins`, and exported zod schemas built by a method chain or a non-shape factory. `scripts/` remains a research zone and has no type home. `erasableSyntaxOnly` in `tsconfig.base.json` makes every enum and value namespace a compile error. Ambient `declare global` and module augmentations stay where they augment.
 
-**The enforcers:**
+D333 retires custom static placement and union-redeclaration checks. These type-home rules remain architecture law without a custom static check. The compiler still catches missing members in mapped `Record` dispatch.
 
-| Gate | What it judges |
-| - | - |
-| ESLint `orb/type-home-direct-export` | exported aliases, interfaces and proven zod shape schemas, direct or export-listed, outside their homes in inference, default-content, plugin-toolchain, every server tier except primitives, `tooling/src` and maintained tests; the D324 signature reader (`tooling/src/floor/code-facts/server-factory-type-home.ts`) admits signature-owned shapes in the server factory tiers, tooling and tests; generated declarations and domain test mirrors retain custom ownership |
-| ESLint `orb/server-factory-tier-reference` | a server factory shape that a file in another tier imports or exposes (D324) |
-| `no-inline-types` | exported aliases and proven Zod schema origins outside sanctioned homes in client and UI authoring, plus generated declarations, server root modules such as `packages/server/src/index.ts`, schemas in the transport API homes and server-domain test mirrors; the native population is subtracted |
-| ESLint `orb/no-inline-package-interface` | exported interfaces, direct or export-listed, in generated server and inference files, `packages/server/src/index.ts` and the UI authoring files outside `packages/ui/token-contract.ts` |
-| ESLint `orb/no-inline-union-alias` | an inline string-literal union type alias of three or more members in authored code |
-| `no-inline-wire-interface` | an exported interface in the client, outside a home, whose name is in the wire vocabulary (`View`, `Result`, `Summary`, `Row`, `Input`, `Request`, `Response`, `Wire`) and whose type is plain data (no callable member anywhere in it); the client `data` tier is included |
-| `contract-structural-copy` | any interface, object-literal alias or inline type literal, exported or local, in client, server or inference, whose data fields are a subset of a contract export's with agreeing types |
-| `tests/tooling/verify/ops/contract-derives-native.test.ts` | a domain `contract/` shape whose name collides with an `@orb/contracts` export or a drizzle table |
-| ESLint `orb/types-in-contract`, `orb/no-context-returntype` | each feature's `contract/service.ts` declares its exported service interface; no exported `ReturnType<typeof fn>` in `context.ts` |
-| ESLint `orb/no-loose-id-cast`, `no-mint-via-cast` | ID-brand construction and cast claims; the lint rule reads `as never` and the `as unknown as <brand>` pair by syntax over the kit roster |
-| ESLint `orb/no-test-fabrication`, `@typescript-eslint/consistent-type-assertions`, `@typescript-eslint/no-unsafe-type-assertion` | maintained tests reject fabricated literal construction and unsafe narrowing; tooling value casts follow D325, while double-cast fabrication remains forbidden |
-
-Production structural assertions outside the named claims require review. Maintained application tests also use native assertion enforcement; D325 owns tooling-test scope. Wire values that cross a boundary are parsed, not cast: ESLint `orb/wire-json-parsed-at-consumer`, `json-column-read-parsed`, `trpc-input-declarations`. The antipattern classes, their detectors and their burn-down items are in [enforcement-antipatterns.md](enforcement-antipatterns.md).
+Wire values that cross a boundary must be parsed, not cast. Use zod schemas at trust boundaries.
 
 ## House TypeScript style
 
-The opinionated conventions (TS 6.0.x, strict everything, ESM, `erasableSyntaxOnly`, branded `typeid` IDs, zod, the package cake). `pnpm typecheck` runs on **tsgo** — the TS7 native-preview compiler (`@typescript/native-preview`), not classic `tsc`. Raw `tsc <file>` is a hard TS5112 error since TS 6, so per-file type checks are project-scoped `tsgo -p <owning tsconfig>` (the `.claude/hooks/biome-check.mjs` type leg). ⚙️ = gate- or biome-enforced; the enforcement machinery is catalogued in `Core-Enforcement-Active-Gates.md`. This section is the "how we write it" reference those gates protect.
+The opinionated conventions (strict TypeScript, ESM, `erasableSyntaxOnly`, branded `typeid` IDs, zod and package direction). Typecheck a whole program with `pnpm exec tsc --noEmit --project <tsconfig>`; raw `tsc <file>` is a hard TS5112 error since TS 6. These conventions remain guidance unless the compiler or retained native lint rule enforces them.
 
 ## 1. The keystone
 
-A string axis is an `as const` tuple; its union is **derived**, never re-spelled; dispatch is a total `Record` or ends in `assertNever` (⚙️ `no-inline-union-redecl` + `exhaustive-dispatch` — see the home-rule + gates above).
+A string axis is an `as const` tuple; its union is **derived**, never re-spelled; dispatch is a total `Record` or ends in `assertNever`. The compiler catches missing members in a mapped `Record`; D333 retires custom duplicate-union detection.
 
 ## 2. Utility types — the policy
 
@@ -84,13 +70,13 @@ A string axis is an `as const` tuple; its union is **derived**, never re-spelled
 
 **AVOID.**
 
-- `ReturnType<typeof fn>` as an **exported** type — ⚙️ banned for `context.ts` (`orb/no-context-returntype`); author the boundary type by hand. OK only as a module-local alias or to mirror a third-party fn.
+- `ReturnType<typeof fn>` as an **exported** type — avoid it for `context.ts`; author the boundary type by hand. OK only as a module-local alias or to mirror a third-party fn.
 - `Omit<T,K>` — two traps: (1) **does not distribute over unions** → silently flattens a discriminated union, dropping variant fields; (2) keys aren't validated. Prefer **`Pick` (allow-list)** in `contract/`.
 - `ThisType`/`ThisParameterType`/`OmitThisParameter` — OOP/`this`-binding tools orthogonal to our functional+zod style.
 
 ## 3. Narrowing — house style
 
-**ADOPT.** Discriminated unions (literal `kind` per variant — the canonical model shape; `z.discriminatedUnion` infers straight into them; always over one-type-with-optional-fields) · `assertNever` in every `switch` default ⚙️ (`exhaustive-dispatch`) · **`satisfies`** broadly (validate-without-widening; replaces most `as`) · user-defined guards `x is T` (but at a **trust boundary use a zod `.safeParse`** guard — predicates can lie, zod validates) · `in` / `typeof` / `instanceof` (remember `typeof null === "object"`).
+**ADOPT.** Discriminated unions (literal `kind` per variant — the canonical model shape; `z.discriminatedUnion` infers straight into them; always over one-type-with-optional-fields) · `assertNever` in every `switch` default · **`satisfies`** broadly (validate-without-widening; replaces most `as`) · user-defined guards `x is T` (but at a **trust boundary use a zod `.safeParse`** guard — predicates can lie, zod validates) · `in` / `typeof` / `instanceof` (remember `typeof null === "object"`).
 
 **CONSIDER.** Assertion functions `asserts x is T` for invariants (`assertDefined`) — compiler trusts them blindly, keep bodies honest, prefer zod at I/O edges · loose `!= null` (strips null+undefined in one check — the sanctioned `==` exception).
 
@@ -103,12 +89,12 @@ A string axis is an `as const` tuple; its union is **derived**, never re-spelled
 - **`?` vs `| undefined` are NOT interchangeable under `exactOptionalPropertyTypes`**: `x?: T` = may be **absent** (can't pass explicit `undefined`); `x: T | undefined` = must be **present**, may be undefined. Choose by intent — default `?` for genuinely-absent fields.
 - **Make a field required and nullable (`x: T | null`) when a reader would take its absence as a default.** Every producer then states the value, even as `null`. Example: `ChatResult.appliedEffort` in `packages/inference/src/contract/chat.ts`. As an optional field, an absent value would read as the requested effort.
 - **`interface` for hand-authored object shapes, `type` for unions/aliases** — but in practice most domain models are `z.infer<typeof schema>` (a `type`). `interface extends` over `&` for composition (`extends` errors on conflicts; `&` silently → `never`).
-- **Banned habits:** `any` ⚙️ (use `unknown` + narrow — `catch` is already `unknown`) · non-null `!` ⚙️ (`noNonNullAssertion`; use a guard / `?? throw`) · `as` assertions by review (prefer `satisfies`/narrowing/zod; ID casts gated by ESLint `orb/no-loose-id-cast` and the `no-mint-via-cast` gate); `as any as T` is a hard no.
+- **Banned habits:** `any` (use `unknown` + narrow — `catch` is already `unknown`) · non-null `!` (use a guard / `?? throw`) · `as` assertions by review (prefer `satisfies`/narrowing/zod; ID casts need a clear boundary reason); `as any as T` is a hard no.
 - **`@total-typescript/ts-reset` is on** — one root `reset.d.ts` pulled into every package's compilation via `tsconfig.base.json`'s `include` (`${configDir}/../../reset.d.ts`). It hardens dishonest built-ins: `JSON.parse()` / `Response.json()` return `unknown` (you MUST narrow — pairs with the zod-at-the-boundary rule), `[].filter(Boolean)` strips `null`/`undefined` from the result type, `Array.includes`/`Set.has` widen correctly. Write code expecting these stricter signatures. Declaration-only, zero runtime cost. Its sibling `platform.d.ts` rides the same mechanism for the opposite job — declaring runtime surfaces the lib is MISSING (§9).
 
 ## 5. `erasableSyntaxOnly` — the forbidden set (+ erasable replacement)
 
-The compiler flag catches most of these; **decorators it does NOT catch** — they need a lint gate.
+The compiler flag catches most of these; it does not catch decorators. Do not use decorators: Node's type stripping does not provide their runtime.
 
 | Forbidden | Why | Replacement |
 | - | - | - |
@@ -117,7 +103,7 @@ The compiler flag catches most of these; **decorators it does NOT catch** — th
 | constructor **parameter properties** (`constructor(public x)`) | generates field assignments | declare the field + assign in the body |
 | `import x = require()` / `export =` | CommonJS, not ESM (also fights `verbatimModuleSyntax`) | `import`/`export` (+ `import type`) |
 | `<T>expr` angle-bracket assertion | not erasable; illegal in `.tsx` anyway | `expr as T` |
-| **decorators — legacy AND Stage-3** ⚙️ | not erasable; node's type-stripping has no decorator runtime → **runtime error**. The `erasableSyntaxOnly` flag does NOT flag them | function composition / zod validation; **NO `reflect-metadata` DI**. Gated by the `Decorator` selector of `no-restricted-syntax` in `eslint.config.js` (the compiler is silent here). |
+| **decorators — legacy AND Stage-3** | not erasable; node's type-stripping has no decorator runtime → **runtime error**. The `erasableSyntaxOnly` flag does NOT flag them | function composition / zod validation; **NO `reflect-metadata` DI**. |
 
 ## 6. Classes vs factory services
 
@@ -163,33 +149,9 @@ From the handbook's `.d.ts` do's-and-don'ts — worth enforcing even though we a
 
 **Not our realm:** the QuickJS membrane's guest values are `ctx.dump()` products, not `Error` instances of any realm — `Error.isError` is WRONG there, and its deferreds are `ctx.newPromise()`, not `Promise.withResolvers` candidates.
 
-## 10. Compiler worlds and derived tool configuration
+## 10. Compiler worlds
 
-Every authored TypeScript file has an intended world (ISO, Node or DOM) and exactly one primary compiler program. The facts have one home each:
-
-| Fact | Home |
-| - | - |
-| Intended world and primary owner | `tooling/src/floor/compiler/project-worlds.ts` |
-| Test kinds, compiler intent and mirror rules | `tooling/src/floor/testing/test-kinds.ts` |
-| Generated world templates and runnable configs | `tooling/src/floor/compiler/type-config-intent.ts` |
-| Compiler roots, references and inherited inputs | `tooling/src/floor/compiler/compiler-programs.ts` |
-| Native import closures and the membership report | `tooling/src/verify/ops/tests-type-membership.ts` |
-| File-to-program routing for the hook and scoped verification | `tooling/src/verify/ops/typecheck-plan.ts` |
-
-Why the worlds are separate programs:
-
-- Being in some program does not prove the file is in the right one, and a correct root does not prove its import closure fits the world. The membership stage (`pnpm check:type-ownership`) checks roots, closures and ambient sets against intent, and rejects Node declarations in an ISO program and DOM libraries in an ISO or Node program.
-- `types: []` stops automatic ambient inclusion only. An imported declaration can still add Node globals, so ISO acceptance reads the actual declaration closure.
-- A Node compile cannot prove a browser contract. React ships fallback DOM declarations that make distinct element, event and ref types look the same, so those contracts need the DOM world.
-- A barrel front door such as `#lib`, `#state` or `@orb/ui/lib` must not import a DOM module into a Node-safe closure. Move the DOM half to its owning feature or primitive; never add a generic browser barrel.
-
-How tool configuration is derived:
-
-- Generate only the fields TypeScript forces a child config to restate; hand-author the intent. `node tooling/src/verify/cli.ts baseline type-configs --check` proves the generated configs are fresh.
-- Vitest, Playwright, ESLint, dependency-cruiser, Knip, CPD and Stryker read the shared world, test-kind and population facts. A shared glob string does not prove shared meaning; compare each tool's native resolved population with the intended facts.
-- A native-config check that cannot follow a moved or generated selector refuses or reads the effective config through the tool's own loader (`node tooling/src/verify/cli.ts config-snapshot vitest <config>`). It never passes silently.
-- Keep cheap intent data apart from expensive observations, and never add a second compiler parser in a config or a codemod.
-- Compiler world, executor, test purpose and resource needs are separate axes. A long test is not a serial test, and a browser type check runs no browser.
+Typecheck each file under the environment its code uses. Node, ISO and DOM declarations are not interchangeable. Component type contracts require DOM declarations; browser behavior requires a browser test. Use the owning TypeScript project rather than compiling a source file in isolation.
 
 ## String-union dispatch discipline (spine §7.5)
 
@@ -203,16 +165,13 @@ and updating every dispatch site by hand.
 Record**, so a missing kind is a hard compile error. `routing.api`/`source` runner switches use
 typed-return / `assertNever`.
 
-**The rule:** every axis has (a) ONE importable canonical union/tuple (no inline re-spelling — gated),
+**The rule:** every axis has (a) ONE importable canonical union/tuple (no inline re-spelling),
 and (b) a mapped-type Record or exhaustive `assertNever` dispatch (a new member fails the build).
-Orbweaver's axes are born this shape (`MESSAGE_ROLES`, `USER_ROLES`, `AUTH_MODES` + `MODE_RESOLVERS`, `WorkloadKind` + `WorkloadContributions`, …). Gates: **`no-inline-union-redecl` + `exhaustive-dispatch`**
-(`Core-0-Architecture-and-Structure.md §7`; catalog: `Core-Enforcement-Active-Gates.md`).
+Orbweaver's axes use this shape (`MESSAGE_ROLES`, `USER_ROLES`, `AUTH_MODES` + `MODE_RESOLVERS`, `WorkloadKind` + `WorkloadContributions`, …). D333 retires custom duplicate-union detection; the compiler still catches missing mapped-`Record` members.
 
 **Coincident axes still get two tuples.** Two axes whose members happen to coincide (for example a
 contracts-side tuple and its `@orb/ui` counterpart) each get their own `as const` tuple; neither derives
 from the other. The coincidence is exactly what breaks the day one axis grows and the other does not. A
 contracts-to-ui pair is forced apart by the package cake regardless (`@orb/ui` depends only on
 `@orb/kit`, so it cannot import the `@orb/contracts` half at resolve time even if it wanted to derive
-from it). `no-inline-union-redecl` flags an inline union or a `z.enum([…])` re-spelling a canonical
-tuple; it does not flag a second, independent tuple with the same members
-(`docs/adr/0220-rejected-neo-and-report-only-gates.md` records why that case was rejected).
+from it). Keep independent tuples when two axes happen to have the same members.

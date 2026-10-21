@@ -11,26 +11,17 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 
 | Law | Status |
 | - | - |
-| [caught-failure-ownership waiver rejudgment playbook](caught-failure-waiver-playbook.md) | active |
 | [Chat macro/persona resolution — the one home](Chat-Macro-Resolution.md) | active |
 | [Client Architecture Lockdown](client-architecture-lockdown.md) | active |
-| [Client architecture: state, data, error handling, sync spine and the gate spec](client-architecture-state-and-gates.md) | active |
+| [Client architecture: state, data, error handling and sync spine](client-architecture-state-and-gates.md) | active |
 | [Orbweaver constitution](Constitution.md) | active |
 | [Container deployment security: the deployed surface and its review](container-deployment-security.md) | active |
-| [Orbweaver — structure & enforcement (the constitution)](Core-0-Architecture-and-Structure.md) | active |
-| [Orbweaver — Enforcement Registry: Active Gates](Core-Enforcement-Active-Gates.md) | active |
-| [`@orb/tooling` — tooling-tree law](Core-Tooling-Law.md) | active |
-| [Core tooling: census hazards and the move playbook](core-tooling-move-playbook.md) | active |
-| [Docs and work items](docs-and-work.md) | active |
-| [Enforcement antipattern catalog](enforcement-antipatterns.md) | active |
-| [Gate-runtime read first](gate-runtime-read-first.md) | active |
-| [Gate-runtime standardization law](gate-runtime-standardization.md) | active |
+| [Orbweaver — structure and placement](Core-0-Architecture-and-Structure.md) | active |
 | [Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)](integer-line-boxes.md) | active |
 | [Knowledge cluster — the producer → store → consumer boundary](Knowledge-Cluster.md) | active |
 | [Motion & Animation Guide](motion-and-animation-guide.md) | active |
 | [Run timing qualification on the owner machine](owner-timing.md) | active |
 | [Plugin system](plugin-system.md) | active |
-| [The resource-policy contract — what a closed-ResourceHost policy OWES](resource-policy-contract.md) | active |
 | [Orbweaver — Spine: Config, Settings, and Serialization](Spine-Config-and-Serialization.md) | active |
 | [Orbweaver — Spine: Identity, Auth, and Permission](Spine-Identity-and-Auth.md) | active |
 | [Orbweaver — Spine: Testing](Spine-Testing.md) | active |
@@ -44,10 +35,8 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [UI-Architecture-and-Layout](UI-Architecture-and-Layout.md) | active |
 | [UI-Architecture-and-Layout: state and the stack (keep/dump)](ui-architecture-state-and-stack.md) | active |
 | [UI density law — the assignment law for the token scales](UI-Density-Law.md) | active |
-| [UI-Gates-and-Lessons](UI-Gates-and-Lessons.md) | active |
 | [`@orb/ui` — the package design (structure · factories · seals · tokens)](ui-package-design.md) | active |
 | [UI-Primitives-and-Reuse](UI-Primitives-and-Reuse.md) | active |
 | [UI-Theming-and-Content](UI-Theming-and-Content.md) | active |
-| [Unified Verification Design](UNIFIED-VERIFICATION-DESIGN.md) | active |
 | [User docs](user-docs.md) | active |
 | [THE VOCABULARY MAP — one concept, one word](vocabulary-map.md) | active |

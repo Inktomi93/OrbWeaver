@@ -130,7 +130,7 @@ const RING_CAPACITY = 256;
 async function classifyFailedAppend(db: Db, event: ChatBusEvent): Promise<"chat-gone" | "live-fault"> {
   const chatId = event.chatId;
   let chatGone = false;
-  // @orb-waive caught-failure-ownership(catch): a failed probe leaves `chatGone` false, so the verdict is `live-fault`,
+  // a failed probe leaves `chatGone` false, so the verdict is `live-fault`,
   // which both callers log with the original append error: `handleAppendFailure` (warn on retry, `reportTerminalDrop`
   // error on the last attempt) and `emitAfterClaim` (error). Ends if a caller stops logging `live-fault`.
   try {
@@ -184,7 +184,7 @@ type AppendOutcome =
  *  FLAG discussion and `handleAppendFailure`'s doc for why re-using the id is what makes the DB the arbiter. */
 async function appendWithRetry(deps: ChatBusDeps, id: ChatEventId, event: ChatBusEvent): Promise<AppendOutcome> {
   for (let attempt = 1; attempt <= LIVE_APPEND_ATTEMPTS; attempt += 1) {
-    // @orb-waive caught-failure-ownership(err): `err` goes to `handleAppendFailure`, which logs it on every live-chat
+    // `err` goes to `handleAppendFailure`, which logs it on every live-chat
     // arm: `getLog().warn` while attempts remain, `getLog().error` through `reportTerminalDrop` on the last. The
     // `chat-gone` arm drops a benign delete-mid-turn race at debug. Ends if `handleAppendFailure` stops logging `err`.
     try {
@@ -219,7 +219,7 @@ const LIVE_APPEND_ATTEMPTS = 2;
  *  error code. Never throws: a probe that fails leaves the loud arm, which is the honest answer when the db
  *  is too unwell to say. */
 async function committedRowSeq(db: Db, id: ChatEventId, event: ChatBusEvent): Promise<number | null> {
-  // @orb-waive caught-failure-ownership(catch): a failed probe returns `null`, "cannot prove it landed", and the
+  // a failed probe returns `null`, "cannot prove it landed", and the
   // only caller `reportTerminalDrop` then logs the original append error at error level with the dropped-event
   // message. Ends if another caller reads `null` without logging.
   try {
@@ -325,7 +325,7 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
   const emitAfterClaim: EmitChatEventAfterClaim = async (raw, claimStatement) => {
     const chatId = raw.chatId;
     const event = stamper.stamp(raw);
-    // @orb-waive caught-failure-ownership(err): the catch below logs `err` with `getLog().error` whenever
+    // the catch below logs `err` with `getLog().error` whenever
     // `classifyFailedAppend` says `live-fault`; the other verdict is the benign delete-mid-turn race, logged at debug
     // there. Not retried: the batch carries a single-consumption claim. Ends if the `live-fault` log is dropped.
     try {

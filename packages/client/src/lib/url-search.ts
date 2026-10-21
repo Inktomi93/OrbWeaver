@@ -4,7 +4,7 @@ export function withoutUrlSearchParam(location: { readonly pathname: string; rea
   const remainingFields = fields.filter((field) => {
     const equalsIndex = field.indexOf("=");
     const rawKey = equalsIndex === -1 ? field : field.slice(0, equalsIndex);
-    // @orb-waive caught-failure-ownership(catch): malformed percent-encoding compares the raw key so a
+    // malformed percent-encoding compares the raw key so a
     // garbled unrelated field cannot prevent the scrub. Ends if raw comparison changes valid-key behavior.
     try {
       return decodeURIComponent(rawKey.replaceAll("+", " ")) !== key;

@@ -234,10 +234,10 @@ test("a later heartbeat that cannot take the table lock is skipped without waiti
   writeFileSync(join(lockDir, "pid"), `${process.pid}\n`);
   try {
     // Beats keep firing against the held lock; a waiting beat would block this timer for its whole budget.
-    // @orb-waive test-determinism(Date.now): the subject is elapsed real time — a beat that waits blocks the event loop.
+    // the subject is elapsed real time — a beat that waits blocks the event loop.
     const started = Date.now();
     await sleep(200);
-    // @orb-waive test-determinism(Date.now): the same elapsed-time measurement's end.
+    // the same elapsed-time measurement's end.
     expect(Date.now() - started).toBeLessThan(2000);
     expect(readBands(home)[0]?.holders).toEqual([expect.objectContaining({ pid: process.pid })]);
   } finally {

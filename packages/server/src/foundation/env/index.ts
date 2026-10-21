@@ -115,7 +115,7 @@ function loadEnvFileWithOverride(override: boolean): void {
     return;
   }
   let raw: string;
-  // @orb-waive caught-failure-ownership(catch): a missing .env is a normal deploy state —
+  // a missing .env is a normal deploy state —
   // envFileKeys stays empty, correctly read by the #301 superRefine as "not declared". Ends
   // if the loader stops treating a missing file as absence rather than an error.
   try {

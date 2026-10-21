@@ -44,7 +44,7 @@ export type SessionMessage =
   | { readonly kind: "session-recovering" }
   | {
       readonly kind: "session-recovered";
-      // eslint-disable-next-line orb/brand-in-name-position -- an origin-wide BroadcastChannel payload is untrusted wire data; the authenticated sender brand is deliberately erased until the receiving tab compares it with its own Handle. Ends if this field becomes trusted without parsing.
+      // an origin-wide BroadcastChannel payload is untrusted wire data; the authenticated sender brand is deliberately erased until the receiving tab compares it with its own Handle. Ends if this field becomes trusted without parsing.
       readonly handle: string | null;
     }
   | { readonly kind: "durable-local-written"; readonly storeName: string };

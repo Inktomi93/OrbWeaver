@@ -288,7 +288,7 @@ async function buildDistillWrites(
  *  and throws the retryable {@link DistillFailedError}, whose copy covers both causes honestly. */
 async function parseOneDistill(target: DistillTarget, batchText: string, pass: DistillPass): Promise<CharacterDistillation | null> {
   const run = (correction?: string): Promise<string> => (correction === undefined ? Promise.resolve(batchText) : retryDistillOne(target, correction, pass));
-  // @orb-waive caught-failure-ownership(catch): the `null` is counted by `buildDistillWrites` (`failed += 1`),
+  // the `null` is counted by `buildDistillWrites` (`failed += 1`),
   // returned as `DistillStats.failed`, and the on-demand arm throws `DistillFailedError` when `writes.failed > 0`.
   // Ends if either path stops reading `failed`.
   try {
@@ -317,7 +317,7 @@ async function commitSummaries(db: Db, stmts: readonly BatchStmt[]): Promise<voi
     if (chunk.length === 0) {
       continue;
     }
-    // @orb-waive no-await-db-in-loop(batch): bounded per-chunk batch — deliberate backpressure over the libSQL bound-variable cap (mirrors every bulk-write in the slice). Ends if the driver lifts the cap.
+    // bounded per-chunk batch — deliberate backpressure over the libSQL bound-variable cap (mirrors every bulk-write in the slice). Ends if the driver lifts the cap.
     await db.batch(batchMany(chunk));
   }
 }

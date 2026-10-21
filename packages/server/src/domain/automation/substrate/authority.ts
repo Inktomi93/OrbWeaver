@@ -34,7 +34,7 @@ export async function holdsChatHostAuthority(deps: AuthorityDeps, chatId: ChatId
   if (principal === null || role === undefined) {
     return false;
   }
-  // @orb-waive caught-failure-ownership(catch): the `false` is the denial verdict itself: `decideChat` in
+  // the `false` is the denial verdict itself: `decideChat` in
   // `admin/guard.ts` throws only `DomainForbiddenError` for the role `loadCallerRole` already captured, and every
   // caller reads the boolean (`dispatch.ts` records `authority_refused`; `confirm-suggestion.ts` refuses
   // `author_lost_authority`). Ends if `can()` gains a throw that is not a refusal.

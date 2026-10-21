@@ -72,7 +72,7 @@ async function probeOnce(deps: ReachabilityDeps, target: ProbeTarget, signal?: A
     }
     await readJson(deps, target, { url: openAiPath(target.baseUrl, "/models"), label: "reachability probe" }, signal);
     return "up";
-    // @orb-waive caught-failure-ownership(catch): every probe failure is the returned `down` state, which the availability fold in resolve/availability.ts maps to `endpoint-unreachable`; reachability is advisory and never authorizes a request. Ends if callers need the failure cause.
+    // every probe failure is the returned `down` state, which the availability fold in resolve/availability.ts maps to `endpoint-unreachable`; reachability is advisory and never authorizes a request. Ends if callers need the failure cause.
   } catch {
     return "down";
   }
@@ -110,7 +110,7 @@ function joinWake(flight: WakeFlight, signal: AbortSignal | undefined): Promise<
     if (signal?.aborted === true) {
       onAbort();
     }
-    // @orb-waive caught-failure-ownership(flight.run): the rejection arm calls `reject(err)` at reachability.ts:121 on this task's own promise, which its caller awaits. Ends if the handler stops rejecting with the error.
+    // the rejection arm calls `reject(err)` at reachability.ts:121 on this task's own promise, which its caller awaits. Ends if the handler stops rejecting with the error.
     flight.run.then(
       (woke) => {
         leave();
@@ -152,7 +152,7 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
   };
 
   const asleep = async (target: SleepTarget, signal: AbortSignal | undefined): Promise<boolean> => {
-    // @orb-waive caught-failure-ownership(err): a sleep read the server does not answer is `false`, and `wakeBeforeSend` in openai-compat/index.ts then lets the task run: the task meets the same server and rejects with its own classified ProviderError. A cancel is rethrown here as `wakeAborted`. Ends if a caller needs the read's own failure.
+    // a sleep read the server does not answer is `false`, and `wakeBeforeSend` in openai-compat/index.ts then lets the task run: the task meets the same server and rejects with its own classified ProviderError. A cancel is rethrown here as `wakeAborted`. Ends if a caller needs the read's own failure.
     try {
       return readsAsleep(await readJson(deps, target, { url: sleepUrl(target.baseUrl, target.sleepPath), label: "sleep probe" }, signal));
     } catch (err) {
@@ -166,7 +166,7 @@ export function createReachabilityProber(deps: ReachabilityDeps): ReachabilityPr
   const wakeOnce = async (target: SleepTarget, signal: AbortSignal): Promise<boolean> => {
     invalidate(target.baseUrl);
     const post = deadlineSignal(signal, SERVER_READ_TIMEOUT_MS, deps.scheduleTimeout);
-    // @orb-waive caught-failure-ownership(fetch): a failed wake POST falls through to the bounded probe loop below, whose final `false` makes `wakeBeforeSend` (openai-compat/index.ts) throw a retryable `model_unavailable` ProviderError, and whose cancel check throws `wakeAborted`. Ends if the loop stops deciding success or timeout.
+    // a failed wake POST falls through to the bounded probe loop below, whose final `false` makes `wakeBeforeSend` (openai-compat/index.ts) throw a retryable `model_unavailable` ProviderError, and whose cancel check throws `wakeAborted`. Ends if the loop stops deciding success or timeout.
     await deps
       .fetch(sleepUrl(target.baseUrl, target.wakePath), {
         method: "POST",

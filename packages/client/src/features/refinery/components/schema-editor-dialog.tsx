@@ -95,7 +95,7 @@ function previewEmptyTextOf(schemaText: string): string {
 }
 
 function parseDraft(text: string): Record<string, unknown> | null {
-  // @orb-waive caught-failure-ownership(catch): null is the caller's "not parsing yet" signal: SchemaEditorDialog
+  // null is the caller's "not parsing yet" signal: SchemaEditorDialog
   // renders `previewEmptyTextOf(schemaText)` ("That JSON doesn't parse yet") when `schema === null` and disables
   // Save on it. Ends if the dialog stops branching on a null parse.
   try {

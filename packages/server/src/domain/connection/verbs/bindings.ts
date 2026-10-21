@@ -105,7 +105,7 @@ async function bindingReadout(
   binding: ConnectionBinding | null,
 ): Promise<BindingView> {
   const args = { task, principal: params.principal, ...(params.actor !== undefined ? { actor: params.actor } : {}) };
-  // @orb-waive caught-failure-ownership(catch): a resolve REFUSAL is the readout's other arm — the availability
+  // a resolve REFUSAL is the readout's other arm — the availability
   // read names the cause the pane renders; nothing is swallowed. Ends if a non-refusal error class needs to surface.
   try {
     const outcome = await ctx.runtime.resolve(args);

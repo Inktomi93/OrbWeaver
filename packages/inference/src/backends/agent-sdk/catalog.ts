@@ -79,7 +79,7 @@ export async function fetchAgentSdkModels(connection: SpawnIdentity, deps: Agent
     // Billing cleanup for a turn that never started — best-effort AND BOUNDED; logged, never thrown.
     try {
       await withTimeout(stream.interrupt(), deps, INTERRUPT_TIMEOUT_MS, "discovery turn teardown");
-      // @orb-waive caught-failure-ownership(err): the catch logs a structured warning with the scrubbed teardown error (`log.warn` at catalog.ts:83); the discovery result or primary failure stays authoritative. Ends if that warning is removed.
+      // the catch logs a structured warning with the scrubbed teardown error (`log.warn` at catalog.ts:83); the discovery result or primary failure stays authoritative. Ends if that warning is removed.
     } catch (err) {
       log.warn({ err: new Error(lease.safeErrorMessage(err)) }, "agent-sdk model discovery: turn teardown did not complete — the spawn may already be gone");
     }
@@ -123,7 +123,7 @@ async function probeAccountInfo(query: Query, deps: AgentSdkDeps): Promise<Verif
   try {
     const info = await Promise.race([query.accountInfo(), timeout]);
     account = info !== undefined ? verifyAuthAccountSchema.parse(info) : undefined;
-    // @orb-waive caught-failure-ownership(catch): account identity is an optional verify diagnostic and `undefined` is its documented miss result. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if account identity becomes part of the auth verdict.
+    // account identity is an optional verify diagnostic and `undefined` is its documented miss result. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if account identity becomes part of the auth verdict.
   } catch {
     // A rejected control call is a diagnostic miss, never a probe failure.
   } finally {

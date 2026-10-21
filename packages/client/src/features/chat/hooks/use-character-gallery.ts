@@ -10,7 +10,6 @@ import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createCollectionSurface, createEntityMutation } from "#data";
 
-// @orb-waive no-vanity-alias(GALLERY_PAGE_LIMIT): baselined when the gate widened; burn-down item 906.
 // Rows per keyset page: the wire's own ceiling, for both reads. The grids virtualize, so a full page costs the DOM nothing.
 const GALLERY_PAGE_LIMIT = ASSET_LIST_LIMIT_MAX;
 

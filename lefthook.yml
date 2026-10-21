@@ -1,74 +1,17 @@
-# Lefthook — git hooks, worktree-safe by construction.
-#
-# The root `prepare` script (`scripts/prepare.ts`) installs the hooks with `lefthook install --force`,
-# and only from the main checkout; a linked worktree shares the main checkout's `.git/hooks` and skips
-# its own install. Git resolves a worktree's hooks from the common gitdir, and this file is tracked, so
-# hooks fire in every worktree with zero per-worktree setup. `--force` survives a stray `core.hooksPath`
-# in `.git/config`, under which a plain `lefthook install` refuses. Commands run from the worktree root
-# (lefthook resolves it per-worktree), so a fresh worktree just needs `pnpm install` (or `pnpm run
-# worktree:bootstrap`) and the gates work.
-#
-# D317: commit hooks run only staged Biome and affected native-program typecheck.
-# Lefthook hides unstaged hunks while the hook runs; untracked files stay out of the selection.
-# The orchestrator runs the application check once on main before an owner-authorized push.
-# CI owns application qualification; nightly full and weekly checker proof keep their schedules.
-# The sanctioned bypass is `LEFTHOOK_EXCLUDE=check`, authorized by the owner or orchestrator.
-# It retains commit-msg; never use `--no-verify`.
-#
-# OUTPUT is tuned for agent/CI consumption: `colors:false` drops lefthook's own ANSI, which otherwise
-# blows the commit output to an ANSI wall that truncates to a useless preview; `output` keeps only the
-# summary and a failed command's output; `follow:true` on each long gate forwards its compact progress
-# as it happens instead of withholding every byte until the command exits. `NO_COLOR:"1"` on each command
-# makes the gate tools emit plain, greppable text. An interactive `pnpm check` in a TTY is unaffected.
 min_version: 2.1.10
-
 colors: false
-output:
-  - summary
-  - failure
-  - execution_out
+output: [summary, failure, execution_out]
 
 pre-commit:
-  follow: true
   commands:
-    check:
-      run: pnpm verify --static --changed staged
-      env:
-        NO_COLOR: "1"
+    biome:
+      run: pnpm exec biome check --staged --diagnostic-level=error --no-errors-on-unmatched
 
-# The merge-commit twin of pre-commit: git runs `pre-merge-commit`, not `pre-commit`, for a
-# non-conflicted auto-merge commit (`git merge <branch>` that commits by itself), so a clean merge would
-# otherwise skip the gate. A conflicted merge concluded via `git commit` already runs pre-commit. Same
-# body as pre-commit: the merge result is staged when the hook fires, and the index against HEAD is
-# everything the merge brings in.
 pre-merge-commit:
-  follow: true
   commands:
-    check:
-      run: pnpm verify --static --changed staged
-      env:
-        NO_COLOR: "1"
+    biome:
+      run: pnpm exec biome check --staged --diagnostic-level=error --no-errors-on-unmatched
 
-# A worktree added by hand (not through the WorktreeCreate agent hook) gets a tree with no
-# `node_modules`, and every gate then runs against nothing. Git fires `post-checkout` in the new
-# worktree, so this is the one place that gap closes generically.
-#
-# Guarded to a no-op on every normal checkout: this hook also fires on `git checkout <file>`, and its
-# exit status is `git checkout`'s, so it must never be slow and never be red.
-#   • `{3}` is git's third post-checkout argument: 1 for a branch checkout (a switch, or a new
-#     worktree), 0 for a file checkout.
-#   • `node_modules` present means nothing to do, so a plain branch switch on an installed tree does
-#     zero work and the install only runs on a tree that genuinely has no deps.
-# The `if` exits 0 when the guard is false; a failing install must stay visible, not be swallowed into a
-# green checkout.
-#
-# A hand-added worktree with no `node_modules` also has no lefthook binary path to resolve, so this hook
-# prints "Can't find lefthook in PATH" and exits 0; `pnpm install --prefer-offline` by hand is the
-# fallback for that case.
-# The commit-message contract runs pure bash with no toolchain, so it stays on even when a lane bypasses
-# the pre-commit check with `LEFTHOOK_EXCLUDE=check`. The orchestrator runs the same script at landing
-# (`scripts/commit-msg-check.sh --range main..<branch>`). Rules and the owner trailer waiver are in the
-# script header.
 commit-msg:
   commands:
     message-contract:
@@ -78,45 +21,8 @@ post-checkout:
   commands:
     bootstrap-deps:
       run: if [ "{3}" = "1" ] && [ ! -d node_modules ]; then pnpm install --prefer-offline; fi
-      env:
-        NO_COLOR: "1"
-
-# Auto-lands the in-repo work items (docs/work/, a plan's `docs/plans/<slug>/design.md`). After a merge
-# into main that `git merge` itself completes, `pnpm doc land --merged` reads the `Closes: 12, 14`
-# trailers of the commits the merge brought in, deletes those items with the merge commit as evidence,
-# regenerates the indexes and commits only those paths through git plumbing, so a sibling's staged file
-# never rides along. Plumbing, because this hook runs while git's MERGE_HEAD still exists and a
-# porcelain pathspec commit there is refused as a partial commit during a merge; the message contract is
-# checked by running `scripts/commit-msg-check.sh` on the message first, since no commit-msg hook fires
-# on that path. On any other branch, or when no merged commit carries a trailer, it writes and prints
-# nothing. An id already landed is skipped; an id neither on the tree nor landed in git refuses the
-# whole batch and names the by-hand landing.
-#
-# A merge finished by a separate `git commit` (`--no-ff --no-commit` + `git commit`, or a conflict
-# resolved the same way) fires no post-merge hook; git only fires post-commit for it. The post-commit
-# command below covers that gap: it is a no-op unless HEAD itself is a merge commit, so an ordinary
-# feature commit never touches it. It passes `--head-merge`, which reads `HEAD^1..HEAD` instead of
-# post-merge's `ORIG_HEAD..HEAD`, because the range is picked by which hook fired, never by HEAD's
-# shape: a fast-forward onto a branch whose tip is already a merge commit still fires post-merge, and
-# `HEAD^1..HEAD` there would see only that merge's second-parent side. `land --merged` is idempotent, so
-# the rare case where both hooks fire for the same merge costs nothing.
-post-merge:
-  commands:
-    land-work-items:
-      run: node tooling/src/doc/cli.ts land --merged
-      env:
-        NO_COLOR: "1"
-
-post-commit:
-  commands:
-    land-merged-commit:
-      run: if git rev-parse --verify -q HEAD^2 >/dev/null; then node tooling/src/doc/cli.ts land --merged --head-merge; fi
-      env:
-        NO_COLOR: "1"
 
 pre-push:
-  follow: true
   commands:
-    # Remote merges must enter local main before promotion; CI cannot reconcile a local branch.
     github-sync-check:
       run: bash scripts/github-sync.sh --check

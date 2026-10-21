@@ -8,8 +8,7 @@
 // memory; this tool is what it points at.
 //
 // NOT AN INSTRUMENT, deliberately: it publishes no verdict about the app, files no artifact, and opens no run
-// slot, so it is correctly absent from `floor/instrument/instruments.ts`'s `INSTRUMENT_TOOLS` (whose members owe
-// bite/absence proofs because a blind zero from them would read as a pass). Its own blind-zero risk is real
+// slot. Its own blind-zero risk is real
 // but different in kind and handled in-band: a zero-report listing is a NAMED empty that states the directory
 // and how a capture is made, never a bare "nothing".
 //

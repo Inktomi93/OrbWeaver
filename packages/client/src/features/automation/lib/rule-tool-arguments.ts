@@ -11,7 +11,7 @@ export function ruleToolArgumentGuidance(source: string, tool: AutomationRuleToo
   if (!rendered && scanMacroRuns(source).some((run) => run.kind === "macro")) {
     return "This template contains macros. Test the saved rule to inspect rendered arguments; future events can produce different values.";
   }
-  // @orb-waive caught-failure-ownership(error): both catch arms return a guidance string, and rule-tool-fields.tsx:101 renders `ruleToolArgumentGuidance(...)` in a Text (rule-row.tsx:164 renders it for the saved rule). Ends if callers stop rendering the returned string.
+  // both catch arms return a guidance string, and rule-tool-fields.tsx:101 renders `ruleToolArgumentGuidance(...)` in a Text (rule-row.tsx:164 renders it for the saved rule). Ends if callers stop rendering the returned string.
   try {
     const result = liftJsonSchema(tool.parameters).safeParse(JSON.parse(source));
     return result.success ? `${rendered ? "Rendered" : "Literal"} arguments match the current tool schema.` : z.prettifyError(result.error);

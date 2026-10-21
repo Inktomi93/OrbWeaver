@@ -112,7 +112,7 @@ export function FirstModelSetup({
         });
       }
     };
-    // @orb-waive caught-failure-ownership(chatBinding): `settled` writes `setChatState({ failure })`, which `chatAssignmentText` renders as the inline alert, while mounted and raises `notify.error` after unmount; both rejection and refusal route through it. Ends if `settled` stops surfacing either outcome.
+    // `settled` writes `setChatState({ failure })`, which `chatAssignmentText` renders as the inline alert, while mounted and raises `notify.error` after unmount; both rejection and refusal route through it. Ends if `settled` stops surfacing either outcome.
     void chatBinding.then(settled, (error: unknown): void => settled(errorMessage(error)));
     return (): void => {
       mounted = false;
@@ -148,7 +148,7 @@ export function FirstModelSetup({
   const finish = (): void => {
     setFailure(null);
     setSaving(true);
-    // @orb-waive caught-failure-ownership(bindRoles): owned by the step's inline failure line (`first-model-setup-failure`, role=alert), which stays open as the retry surface. Ends if that line is removed.
+    // owned by the step's inline failure line (`first-model-setup-failure`, role=alert), which stays open as the retry surface. Ends if that line is removed.
     bindRoles()
       .then((): void => {
         setSaving(false);

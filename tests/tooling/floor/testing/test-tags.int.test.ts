@@ -1,27 +1,11 @@
-import { existsSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, symlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
-import { descendantsOfKind, getWorkspace } from "@orb/tooling/floor/compiler/ts-workspace";
-import { TYPE_CONFIG_EXCLUDES } from "@orb/tooling/floor/compiler/type-config-intent";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
-import { classifyTestFilename, runtimeForTestFamily, TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
-import type { SourceFile } from "ts-morph";
-import { Node, Project, SyntaxKind } from "ts-morph";
 import { testTagFilters } from "../../../../vitest.config.ts";
 
 const TEST_FILE = "tagged.test.js";
-const VITEST_RUNTIME_KINDS = TEST_KIND_DEFINITIONS.filter(({ family }) => runtimeForTestFamily(family) === "vitest");
-
-function vitestRuntimeGlobs(root: string): readonly string[] {
-  return [...VITEST_RUNTIME_KINDS.map(({ suffix }) => `${root}/tests/**/*${suffix}`), ...TYPE_CONFIG_EXCLUDES.map((pattern) => `!${root}/${pattern}`)];
-}
-
-function isVitestRuntimeModule(sourceFile: SourceFile): boolean {
-  const classified = classifyTestFilename(sourceFile.getBaseName());
-  return classified !== undefined && runtimeForTestFamily(classified.definition.family) === "vitest";
-}
-
 function writeHarness(root: string, repoRoot: string, tag = "slow"): void {
   const registry = pathToFileURL(join(repoRoot, "tooling/src/floor/testing/test-tags.ts")).href;
   writeFileSync(join(root, "package.json"), '{"name":"vitest-tag-control","private":true,"type":"module"}\n');
@@ -38,64 +22,6 @@ function writeHarness(root: string, repoRoot: string, tag = "slow"): void {
 
 function run(root: string, ...args: readonly string[]): ReturnType<typeof runNicedSync> {
   return runNicedSync("pnpm", ["exec", "vitest", "run", "--config", "vitest.config.ts", ...args], { cwd: root });
-}
-
-function processChdirCalls(sourceFile: SourceFile): number {
-  const processNames = new Set(["process"]);
-  const chdirNames = new Set<string>();
-  for (const declaration of sourceFile.getImportDeclarations()) {
-    if (declaration.getModuleSpecifierValue() !== "node:process") {
-      continue;
-    }
-    const defaultImport = declaration.getDefaultImport();
-    const namespaceImport = declaration.getNamespaceImport();
-    if (defaultImport !== undefined) {
-      processNames.add(defaultImport.getText());
-    }
-    if (namespaceImport !== undefined) {
-      processNames.add(namespaceImport.getText());
-    }
-    for (const namedImport of declaration.getNamedImports()) {
-      if (namedImport.getName() === "chdir") {
-        chdirNames.add(namedImport.getAliasNode()?.getText() ?? "chdir");
-      }
-    }
-  }
-
-  return descendantsOfKind(sourceFile, SyntaxKind.CallExpression).filter((call) => {
-    const expression = call.getExpression();
-    if (Node.isIdentifier(expression)) {
-      return chdirNames.has(expression.getText());
-    }
-    if (Node.isPropertyAccessExpression(expression)) {
-      return expression.getName() === "chdir" && Node.isIdentifier(expression.getExpression()) && processNames.has(expression.getExpression().getText());
-    }
-    if (!(Node.isElementAccessExpression(expression) && Node.isIdentifier(expression.getExpression()))) {
-      return false;
-    }
-    const argument = expression.getArgumentExpression();
-    return processNames.has(expression.getExpression().getText()) && Node.isStringLiteral(argument) && argument.getLiteralText() === "chdir";
-  }).length;
-}
-
-function hasModuleTag(sourceFile: SourceFile, tag: string): boolean {
-  const source = sourceFile.getFullText();
-  // Vitest reads the tag from a leading docblock line or a leading `//` line; a `//` tag keeps `tsdoc/syntax` out of it.
-  const lineHeader = /^(?:[ \t]*\/\/[^\n]*\n)+/u.exec(source)?.[0] ?? "";
-  const end = source.startsWith("/**") ? source.indexOf("*/") : -1;
-  const header = end >= 0 ? source.slice(0, end) : lineHeader;
-  return new RegExp(`^\\s*(?:\\*|//)\\s*@module-tag\\s+${tag}\\s*$`, "mu").test(header);
-}
-
-function directProcessChdirModules(sourceFiles: readonly SourceFile[]): readonly SourceFile[] {
-  return sourceFiles.filter((sourceFile) => isVitestRuntimeModule(sourceFile) && processChdirCalls(sourceFile) > 0);
-}
-
-function unregisteredProcessChdirModules(directModules: readonly SourceFile[]): readonly string[] {
-  return directModules
-    .filter((sourceFile) => !hasModuleTag(sourceFile, "requires-process-chdir"))
-    .map((sourceFile) => sourceFile.getFilePath())
-    .toSorted();
 }
 
 test("the native runner applies the configured slow timeout and positive tag filter", ({ repoRoot, scratch }) => {
@@ -127,54 +53,6 @@ test("existing opt-in flags remove only their corresponding default tag exclusio
   expect(testTagFilters(flags(["E2E_LIVE", "1"]))).toEqual(["!local-model-cache"]);
   expect(testTagFilters(flags(["ORB_LOCAL_LIGHT_E2E", "1"]))).toEqual(["!live"]);
   expect(testTagFilters(flags(["E2E_LIVE", "1"], ["ORB_LOCAL_LIGHT_E2E", "1"]))).toEqual([]);
-});
-
-test("every test module that directly invokes process.chdir registers the worker-thread capability", { tags: "slow" }, ({ repoRoot }) => {
-  const sourceFiles = getWorkspace({ root: repoRoot, globs: vitestRuntimeGlobs(repoRoot) }).getSourceFiles();
-  const directModules = directProcessChdirModules(sourceFiles);
-
-  expect(directModules.length).toBeGreaterThan(0);
-  expect(unregisteredProcessChdirModules(directModules)).toEqual([]);
-});
-
-// The `__g_*` transient-namespace exclusion retired at #2176 Phase F (2026-09-14,
-// type-config-intent.ts:80-86): its only producer was the LEGACY gate self-test materializing `__g_`
-// files inside the real tree for the length of its own child run, and that planter retired with the
-// legacy runtime. A `__g_`-prefixed module under tests/ is now an ORDINARY module with no special
-// census treatment — this pins that both a plain module and a `__g_`-prefixed one register alike.
-test("the runtime census includes both an ordinary and a __g_-prefixed module — the transient namespace has no producer anymore", ({ scratch }) => {
-  const dir = join(scratch, "tests", "tooling");
-  mkdirSync(dir, { recursive: true });
-  writeFileSync(join(dir, "new.test.ts"), 'process.chdir("/tmp");\n');
-  writeFileSync(join(dir, "__g_transient.test.ts"), 'process.chdir("/tmp");\n');
-
-  const sourceFiles = getWorkspace({ root: scratch, globs: vitestRuntimeGlobs(scratch) }).getSourceFiles();
-  expect(sourceFiles.map((sourceFile) => sourceFile.getBaseName()).toSorted()).toEqual(["__g_transient.test.ts", "new.test.ts"]);
-  expect(unregisteredProcessChdirModules(directProcessChdirModules(sourceFiles)).toSorted()).toEqual(
-    [join(dir, "__g_transient.test.ts"), join(dir, "new.test.ts")].toSorted(),
-  );
-});
-
-test("the process.chdir census rejects an unregistered direct call, including an aliased node:process import", () => {
-  const project = new Project({ useInMemoryFileSystem: true });
-  const missing = project.createSourceFile(
-    "/missing.test.ts",
-    'import runtimeProcess from "node:process";\ntest("moves", () => runtimeProcess.chdir("/tmp"));\n',
-  );
-  const registered = project.createSourceFile(
-    "/registered.test.ts",
-    '/**\n * @module-tag requires-process-chdir\n */\nimport process from "node:process";\ntest("moves", () => process.chdir("/tmp"));\n',
-  );
-  const tooling = project.createSourceFile("/tests/tooling/untagged.test.ts", 'process.chdir("/tmp");\n');
-  const repository = project.createSourceFile("/tests/tooling/untagged.repo.int.test.ts", 'process.chdir("/tmp");\n');
-  const component = project.createSourceFile("/nonapplicable.ct.tsx", 'process.chdir("/tmp");\n');
-  const typeOnly = project.createSourceFile("/nonapplicable.test-d.ts", 'process.chdir("/tmp");\n');
-
-  expect(unregisteredProcessChdirModules(directProcessChdirModules([missing, registered, tooling, repository, component, typeOnly]))).toEqual([
-    "/missing.test.ts",
-    "/tests/tooling/untagged.repo.int.test.ts",
-    "/tests/tooling/untagged.test.ts",
-  ]);
 });
 
 test("the native thread runner skips a process.chdir module while executing an ordinary module", ({ repoRoot, scratch }) => {

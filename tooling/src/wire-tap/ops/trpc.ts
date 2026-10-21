@@ -80,7 +80,7 @@ export async function trpcOp(argv: readonly string[]): Promise<number> {
   });
   const text = await res.text();
   let pretty = text;
-  // @orb-waive caught-failure-ownership(catch): the catch leaves pretty as the raw response text and trpcOp still prints it with print(pretty); only the pretty-print is skipped. Ends if print(pretty) stops running after this try.
+  // the catch leaves pretty as the raw response text and trpcOp still prints it with print(pretty); only the pretty-print is skipped. Ends if print(pretty) stops running after this try.
   try {
     pretty = JSON.stringify(JSON.parse(text), null, 2);
   } catch {

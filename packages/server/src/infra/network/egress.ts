@@ -604,7 +604,7 @@ function envEgressAllowlist(): Set<string> {
   );
   // Always allow the OIDC issuer host (LAN/private IP) — otherwise enabling the firewall breaks oidc mode.
   if (env.OIDC_ISSUER !== undefined) {
-    // @orb-waive caught-failure-ownership(catch): a malformed OIDC_ISSUER URL is simply NOT added to the egress allowlist — the restrictive direction that never widens egress; env refinement already rejects a malformed issuer in oidc mode, so this only fires harmlessly in non-oidc mode. Ends if the allowlist ever becomes a denylist.
+    // a malformed OIDC_ISSUER URL is simply NOT added to the egress allowlist — the restrictive direction that never widens egress; env refinement already rejects a malformed issuer in oidc mode, so this only fires harmlessly in non-oidc mode. Ends if the allowlist ever becomes a denylist.
     try {
       allowlist.add(new URL(env.OIDC_ISSUER).hostname.toLowerCase());
     } catch {
@@ -962,7 +962,7 @@ function closeAgentFor(context: EgressContext, agent: Agent | undefined): void {
 // (cancels the in-flight download when the initiating turn/workload aborts). Returns null on any
 // block/non-2xx/cap/timeout/network failure; the caller drops that one image.
 async function fetchImageBytesFor(context: EgressContext, url: string, maxBytes?: number, signal?: AbortSignal): Promise<Uint8Array | null> {
-  // @orb-waive caught-failure-ownership(catch): fetchImageBytes returns null as data: generate-core's materialize drops that image, and when no image decodes it throws GenerationFailedError ("zero decodable images") to the caller; an SSRF block is securityEvent'd at the connector before this catch. Ends if materialize stops treating null as a dropped image or the zero-decodable throw is removed.
+  // fetchImageBytes returns null as data: generate-core's materialize drops that image, and when no image decodes it throws GenerationFailedError ("zero decodable images") to the caller; an SSRF block is securityEvent'd at the connector before this catch. Ends if materialize stops treating null as a dropped image or the zero-decodable throw is removed.
   try {
     const res = await safeFetchFor(context, url, {
       allowedHosts: ANY_HOST,

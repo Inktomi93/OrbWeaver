@@ -45,8 +45,7 @@ jobs:
           config: |
             paths-ignore:
               - tests/**
-              # One-off research scripts and a vendored copy of Chrome DevTools: neither ships.
-              - scripts/probes/**
+              # Vendored Chrome DevTools does not ship.
               - tooling/src/snap/lib/devtools-frontend/**
               - "**/*.test.ts"
               - "**/*.test.tsx"

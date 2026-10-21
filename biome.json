@@ -18,15 +18,11 @@
       "!packages/ui/src/tokens/themes.gen.ts",
       "!packages/ui/src/styles/theme.css",
       "!tooling/src/snap/lib/devtools-frontend",
-      "!**/__dc_*",
       "!**/node_modules",
       "!**/.git",
-      "!**/.stryker-tmp",
       "!**/reports",
       "!**/coverage",
-      "!playwright/.cache",
-      "!scripts/probes/openrouter",
-      "!scripts/probes/rpg-extraction"
+      "!playwright/.cache"
     ]
   },
   "formatter": {
@@ -130,7 +126,7 @@
             "paths": {
               "tailwind-variants": {
                 "importNames": ["cn", "cnMerge", "tv"],
-                "message": "These three read tailwind-variants' MODULE-LEVEL twMerge config, which only a called tv() factory writes — so they merge with an UNCONFIGURED tailwind-merge until some unrelated module happens to load, silently dropping our custom --text-*/--leading-*/--tracking-* classes. Import cn/tv from @orb/ui/lib (packages/ui/src/lib/class-merge.ts owns the ONE config). createTV is deliberately NOT banned — class-merge.ts is its one caller."
+                "message": "These three read tailwind-variants' MODULE-LEVEL twMerge config, which only a called tv() factory writes \u2014 so they merge with an UNCONFIGURED tailwind-merge until some unrelated module happens to load, silently dropping our custom --text-*/--leading-*/--tracking-* classes. Import cn/tv from @orb/ui/lib (packages/ui/src/lib/class-merge.ts owns the ONE config). createTV is deliberately NOT banned \u2014 class-merge.ts is its one caller."
               }
             },
             "patterns": [
@@ -140,15 +136,15 @@
               },
               {
                 "group": ["@dnd-kit/core", "@dnd-kit/core/**", "@dnd-kit/sortable", "@dnd-kit/sortable/**", "@dnd-kit/utilities", "@dnd-kit/utilities/**"],
-                "message": "Dead legacy dnd-kit stack. Use @dnd-kit/react + @dnd-kit/helpers (ui-package-design §3, work-order item 15)."
+                "message": "Dead legacy dnd-kit stack. Use @dnd-kit/react + @dnd-kit/helpers (ui-package-design \u00a73, work-order item 15)."
               },
               {
                 "group": ["@orb/contracts/sessions", "@orb/contracts/sessions/**"],
-                "message": "D12 (the contract namespace is `session` singular; there is no `sessions`). The ledger killed this specifier by name — a reintroduction is banned; drop it or contest the D-cite in its docs/adr/ decision. Pinned by tests/tooling/verify/lib/ledger-banned-shapes.int.test.ts."
+                "message": "D12 (the contract namespace is `session` singular; there is no `sessions`). The ledger killed this specifier by name \u2014 a reintroduction is banned; drop it or contest the D-cite in its docs/adr/ decision. Pinned by tests/tooling/verify/lib/ledger-banned-shapes.int.test.ts."
               },
               {
                 "group": ["dotenv", "dotenv/**", "dotenv-expand", "dotenv-expand/**"],
-                "message": "dotenv was killed 2026-08-03 (node-26 adoption program §3) and is no longer installed. node:util's parseEnv IS the platform .env parser; foundation/env/index.ts owns the ONE loader (and the override merge process.loadEnvFile() cannot express). Nothing else reads a .env."
+                "message": "dotenv was killed 2026-08-03 (node-26 adoption program \u00a73) and is no longer installed. node:util's parseEnv IS the platform .env parser; foundation/env/index.ts owns the ONE loader (and the override merge process.loadEnvFile() cannot express). Nothing else reads a .env."
               }
             ]
           }
@@ -908,12 +904,7 @@
       }
     },
     {
-      "includes": [
-        "tests/legacy/server/foundation/env/_support.ts",
-        "tests/legacy/server/foundation/env/env-file-load.test.ts",
-        "tests/legacy/server/foundation/env/floor-defaults.test.ts",
-        "tests/support/node/snap-out.ts"
-      ],
+      "includes": ["tests/support/node/snap-out.ts"],
       "linter": {
         "rules": {
           "style": {
@@ -1102,174 +1093,6 @@
               "level": "error",
               "options": {
                 "allow": ["info", "warn", "error"]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
-      "includes": ["tests/legacy/contracts/inference/**", "tests/legacy/inference/**"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": {
-              "level": "error",
-              "options": {
-                "strictCase": false,
-                "requireAscii": true,
-                "conventions": [
-                  {
-                    "match": "[_$]+|[_$]*(.+?)[_$]*"
-                  },
-                  {
-                    "selector": {
-                      "kind": "objectLiteralProperty"
-                    },
-                    "match": "[_$]*(.+?)[_$]*",
-                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeProperty"
-                    },
-                    "match": "[_$]*(.+?)[_$]*",
-                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "classProperty",
-                      "modifiers": ["static"]
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "classGetter",
-                      "modifiers": ["static"]
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "function",
-                      "scope": "global"
-                    },
-                    "match": "[A-Z][A-Z0-9_]*|(.+)",
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "const",
-                      "scope": "global"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "var",
-                      "scope": "global"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeLike"
-                    },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "enumMember"
-                    },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "function"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "namespaceLike"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "importAlias"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "exportAlias"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "variable"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "functionParameter"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "catchParameter"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "indexParameter"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeParameter"
-                    },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "classMember"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeProperty",
-                      "modifiers": ["readonly"]
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeGetter"
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeMember"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "objectLiteralMember"
-                    },
-                    "formats": ["camelCase"]
-                  }
-                ]
               }
             }
           }
@@ -2141,167 +1964,6 @@
       }
     },
     {
-      "includes": ["tooling/src/verify/gates/owner-scoped-reads.ts"],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": {
-              "level": "error",
-              "options": {
-                "strictCase": false,
-                "requireAscii": true,
-                "conventions": [
-                  {
-                    "match": "[_$]+|[_$]*(.+?)[_$]*"
-                  },
-                  {
-                    "selector": {
-                      "kind": "objectLiteralProperty"
-                    },
-                    "match": "[_$]*(.+?)[_$]*",
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "classProperty",
-                      "modifiers": ["static"]
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "classGetter",
-                      "modifiers": ["static"]
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "function",
-                      "scope": "global"
-                    },
-                    "match": "[A-Z][A-Z0-9_]*|(.+)",
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "const",
-                      "scope": "global"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "var",
-                      "scope": "global"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeLike"
-                    },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "enumMember"
-                    },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "function"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "namespaceLike"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "importAlias"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "exportAlias"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "variable"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "functionParameter"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "catchParameter"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "indexParameter"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeParameter"
-                    },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "classMember"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeProperty",
-                      "modifiers": ["readonly"]
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeGetter"
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeMember"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "objectLiteralMember"
-                    },
-                    "formats": ["camelCase"]
-                  }
-                ]
-              }
-            }
-          }
-        }
-      }
-    },
-    {
       "includes": [
         "**/*.config.ts",
         "**/*.config.js",
@@ -2724,20 +2386,6 @@
       }
     },
     {
-      "includes": [
-        "tooling/src/verify/ops/ct-flaky-reporter.ts",
-        "tooling/src/verify/ops/required-live-evidence-reporter.ts",
-        "tooling/src/verify/ops/vitest-progress-reporter.ts"
-      ],
-      "linter": {
-        "rules": {
-          "style": {
-            "noDefaultExport": "off"
-          }
-        }
-      }
-    },
-    {
       "includes": ["tooling/src/seed/lib/fake-local-light.ts"],
       "linter": {
         "rules": {
@@ -2944,392 +2592,11 @@
       }
     },
     {
-      "includes": ["tests/legacy/**", "tests/support/**", "tests/tooling/**", "tests/e2e/support/**", "tests/db/client/native-ownership-control.mjs"],
+      "includes": ["tests/support/**", "tests/tooling/**", "tests/e2e/support/**", "tests/db/client/native-ownership-control.mjs"],
       "linter": {
         "rules": {
           "suspicious": {
             "noConsole": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["scripts/probes/st-goldens/**"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noExcessiveCognitiveComplexity": "off",
-            "useMaxParams": "off"
-          },
-          "nursery": {
-            "useExplicitReturnType": "off",
-            "noFloatingPromises": "off"
-          },
-          "style": {
-            "noNonNullAssertion": "off",
-            "noMagicNumbers": "off",
-            "useNamingConvention": {
-              "level": "error",
-              "options": {
-                "strictCase": false,
-                "requireAscii": true,
-                "conventions": [
-                  {
-                    "match": "[_$]+|[_$]*(.+?)[_$]*"
-                  },
-                  {
-                    "selector": {
-                      "kind": "objectLiteralProperty"
-                    },
-                    "match": "latestRecordSuccessOn2026_09_02|[_$]*(.+?)[_$]*",
-                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeProperty"
-                    },
-                    "match": "[_$]*(.+?)[_$]*",
-                    "formats": ["camelCase", "PascalCase", "snake_case", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "classProperty",
-                      "modifiers": ["static"]
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "classGetter",
-                      "modifiers": ["static"]
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "function",
-                      "scope": "global"
-                    },
-                    "match": "[A-Z][A-Z0-9_]*|(.+)",
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "const",
-                      "scope": "global"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "var",
-                      "scope": "global"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeLike"
-                    },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "enumMember"
-                    },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "function"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "namespaceLike"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "importAlias"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "exportAlias"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "variable"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "functionParameter"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "catchParameter"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "indexParameter"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeParameter"
-                    },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "classMember"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeProperty",
-                      "modifiers": ["readonly"]
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeGetter"
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeMember"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "objectLiteralMember"
-                    },
-                    "formats": ["camelCase"]
-                  }
-                ]
-              }
-            }
-          },
-          "suspicious": {
-            "useAwait": "off",
-            "noEmptyBlockStatements": "off",
-            "noShadow": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": [
-        "tests/legacy/contracts/preset/st-preset-import.contract.test.ts",
-        "tests/legacy/contracts/preset/user-intent-and-guided-actions.contract.test.ts",
-        "tests/legacy/server/domain/import/substrate/appearance.test.ts",
-        "tests/legacy/server/domain/import/substrate/card.test.ts",
-        "tests/legacy/server/domain/import/substrate/chat-input.test.ts",
-        "tests/legacy/server/domain/import/substrate/persona.test.ts",
-        "tests/legacy/server/primitives/serde/theme/st.test.ts",
-        "tests/legacy/server/domain/import/verbs/import-character.int.test.ts",
-        "tests/legacy/server/domain/import/verbs/import-character.test.ts",
-        "tests/legacy/server/domain/import/verbs/import-chats.test.ts",
-        "tests/legacy/server/domain/import/verbs/import-group-chats.test.ts",
-        "tests/legacy/server/entry/http/auth-routes.test.ts",
-        "tests/legacy/server/entry/import/_profile-dir-import-support.ts",
-        "tests/legacy/server/entry/import/run-profile-dir-import-groups.test.ts",
-        "tests/legacy/server/entry/import/run-profile-dir-import-partial-run.test.ts",
-        "tests/legacy/server/entry/import/run-profile-dir-import-presets.test.ts",
-        "tests/legacy/server/entry/import/run-profile-dir-import.test.ts",
-        "tests/legacy/server/entry/import/st-chat-fidelity.suite.int.test.ts",
-        "tests/legacy/server/foundation/env/_support.ts",
-        "tests/legacy/server/foundation/env/auth-fallback-pairing.test.ts",
-        "tests/legacy/server/foundation/env/auth-mode-boot.test.ts",
-        "tests/legacy/server/foundation/env/auth-mode-source.test.ts",
-        "tests/legacy/server/foundation/env/bind-posture.test.ts",
-        "tests/legacy/server/foundation/env/broker-limits-and-secret-files.test.ts",
-        "tests/legacy/server/foundation/env/env-file-load.test.ts",
-        "tests/legacy/server/foundation/env/floor-defaults.test.ts",
-        "tests/legacy/server/foundation/env/host-and-peer-allowlists.test.ts",
-        "tests/legacy/server/primitives/serde/card/index.test.ts",
-        "tests/legacy/server/primitives/serde/chat/index.test.ts"
-      ],
-      "linter": {
-        "rules": {
-          "style": {
-            "useNamingConvention": {
-              "level": "error",
-              "options": {
-                "strictCase": false,
-                "requireAscii": true,
-                "conventions": [
-                  {
-                    "match": "[_$]+|[_$]*(.+?)[_$]*"
-                  },
-                  {
-                    "selector": {
-                      "kind": "objectLiteralProperty"
-                    },
-                    "match": "_*(.+?)_*",
-                    "formats": ["camelCase", "snake_case", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeProperty"
-                    },
-                    "match": "_*(.+?)_*",
-                    "formats": ["camelCase", "snake_case", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "classProperty",
-                      "modifiers": ["static"]
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "classGetter",
-                      "modifiers": ["static"]
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "function",
-                      "scope": "global"
-                    },
-                    "match": "[A-Z][A-Z0-9_]*|(.+)",
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "const",
-                      "scope": "global"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "var",
-                      "scope": "global"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeLike"
-                    },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "enumMember"
-                    },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "function"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "namespaceLike"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "importAlias"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "exportAlias"
-                    },
-                    "formats": ["camelCase", "PascalCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "variable"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "functionParameter"
-                    },
-                    "formats": ["camelCase", "PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "catchParameter"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "indexParameter"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeParameter"
-                    },
-                    "formats": ["PascalCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "classMember"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeProperty",
-                      "modifiers": ["readonly"]
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeGetter"
-                    },
-                    "formats": ["camelCase", "CONSTANT_CASE"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "typeMember"
-                    },
-                    "formats": ["camelCase"]
-                  },
-                  {
-                    "selector": {
-                      "kind": "objectLiteralMember"
-                    },
-                    "formats": ["camelCase"]
-                  }
-                ]
-              }
-            }
           }
         }
       }
@@ -3343,15 +2610,15 @@
               "level": "error",
               "options": {
                 "deniedGlobals": {
-                  "Buffer": "`Buffer` is a node global that does not exist in a browser bundle — referencing it ships a ReferenceError to users. tsc will NOT stop you: `types: []` (tsconfig.base.json) only suppresses AUTO-inclusion of `@types/*`, and it cannot suppress the `/// <reference types=\"node\" />` that DEPENDENCY .d.ts files inject — vite's own index.d.ts for the @orb/ui program, pino-std-serializers/undici-types (reached through the client->server `import type { AppRouter }` edge) for @orb/client. Measured 2026-09-05 (#1312): every global denied here typechecks clean in both programs. Use Uint8Array / TextEncoder / TextDecoder / atob / btoa.",
-                  "setImmediate": "`setImmediate` is a node global that does not exist in a browser bundle — referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry for why `types: []` is not a program-level guarantee). Use queueMicrotask() for a microtask or setTimeout(fn, 0) for a macrotask.",
-                  "clearImmediate": "`clearImmediate` is a node global that does not exist in a browser bundle — referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Pair setTimeout() with clearTimeout() instead.",
-                  "global": "`global` is the node global object and does not exist in a browser bundle — referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use `globalThis`.",
-                  "__dirname": "`__dirname` is a node CommonJS global that does not exist in a browser bundle — referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Browser code has no filesystem path; use `import.meta.url` when you need module-relative resolution.",
-                  "__filename": "`__filename` is a node CommonJS global that does not exist in a browser bundle — referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Browser code has no filesystem path; use `import.meta.url` when you need module-relative resolution.",
-                  "require": "`require` is a node CommonJS global that does not exist in this ESM browser bundle — referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use a static `import`, or `await import()` when the load must be lazy.",
-                  "module": "`module` is a node CommonJS global that does not exist in this ESM browser bundle — referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use ESM `export`. (A LOCAL binding named `module` resolves to that binding, not the global, and is not flagged.)",
-                  "exports": "`exports` is a node CommonJS global that does not exist in this ESM browser bundle — referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use ESM `export`. (A LOCAL binding named `exports` resolves to that binding, not the global, and is not flagged.)"
+                  "Buffer": "`Buffer` is a node global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users. tsc will NOT stop you: `types: []` (tsconfig.base.json) only suppresses AUTO-inclusion of `@types/*`, and it cannot suppress the `/// <reference types=\"node\" />` that DEPENDENCY .d.ts files inject \u2014 vite's own index.d.ts for the @orb/ui program, pino-std-serializers/undici-types (reached through the client->server `import type { AppRouter }` edge) for @orb/client. Measured 2026-09-05 (#1312): every global denied here typechecks clean in both programs. Use Uint8Array / TextEncoder / TextDecoder / atob / btoa.",
+                  "setImmediate": "`setImmediate` is a node global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry for why `types: []` is not a program-level guarantee). Use queueMicrotask() for a microtask or setTimeout(fn, 0) for a macrotask.",
+                  "clearImmediate": "`clearImmediate` is a node global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Pair setTimeout() with clearTimeout() instead.",
+                  "global": "`global` is the node global object and does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use `globalThis`.",
+                  "__dirname": "`__dirname` is a node CommonJS global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Browser code has no filesystem path; use `import.meta.url` when you need module-relative resolution.",
+                  "__filename": "`__filename` is a node CommonJS global that does not exist in a browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Browser code has no filesystem path; use `import.meta.url` when you need module-relative resolution.",
+                  "require": "`require` is a node CommonJS global that does not exist in this ESM browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use a static `import`, or `await import()` when the load must be lazy.",
+                  "module": "`module` is a node CommonJS global that does not exist in this ESM browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use ESM `export`. (A LOCAL binding named `module` resolves to that binding, not the global, and is not flagged.)",
+                  "exports": "`exports` is a node CommonJS global that does not exist in this ESM browser bundle \u2014 referencing it ships a ReferenceError to users, and tsc accepts it (see the `Buffer` entry). Use ESM `export`. (A LOCAL binding named `exports` resolves to that binding, not the global, and is not flagged.)"
                 }
               }
             }
@@ -3368,10 +2635,10 @@
               "level": "error",
               "options": {
                 "elements": {
-                  "img": "Raw `<img>` in a feature — media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md §12.3).",
-                  "video": "Raw `<video>` in a feature — media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md §12.3).",
-                  "audio": "Raw `<audio>` in a feature — media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md §12.3).",
-                  "source": "Raw `<source>` in a feature — media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md §12.3)."
+                  "img": "Raw `<img>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
+                  "video": "Raw `<video>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
+                  "audio": "Raw `<audio>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3).",
+                  "source": "Raw `<source>` in a feature \u2014 media goes through `<MessageMedia>` (`@orb/ui/content`): asset-vs-external dispatch, external-source gating, autoplay-off on untrusted, broken-media fallback (D44, UI-Theming-and-Content.md \u00a712.3)."
                 }
               }
             }
@@ -3380,48 +2647,7 @@
       }
     },
     {
-      "includes": [".claude/hooks/biome-check.mjs", ".claude/hooks/codex-edit-advisory.mjs", ".claude/hooks/tool-guard.mjs"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noExcessiveCognitiveComplexity": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": [".claude/hooks/biome-check.mjs", ".claude/hooks/tool-guard.mjs"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "useSimplifiedLogicExpression": "off",
-            "useMaxParams": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": [".claude/hooks/tool-guard.mjs"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noUselessUndefined": "off",
-            "useOptionalChain": "off"
-          },
-          "style": {
-            "noNestedTernary": "off",
-            "useNumericSeparators": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": [
-        ".claude/hooks/biome-check.mjs",
-        ".claude/hooks/codex-edit-advisory.mjs",
-        ".claude/hooks/playwright-revision-shim.mjs",
-        ".claude/hooks/tool-guard.mjs"
-      ],
+      "includes": [".claude/hooks/playwright-revision-shim.mjs"],
       "linter": {
         "rules": {
           "style": {
@@ -3431,12 +2657,7 @@
       }
     },
     {
-      "includes": [
-        ".claude/hooks/biome-check.mjs",
-        ".claude/hooks/codex-edit-advisory.mjs",
-        ".claude/hooks/orchestrator-inject.mjs",
-        ".claude/hooks/tool-guard.mjs"
-      ],
+      "includes": [".claude/hooks/orchestrator-inject.mjs"],
       "linter": {
         "rules": {
           "style": {

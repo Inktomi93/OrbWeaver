@@ -121,7 +121,7 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
       return;
     }
     let parsed: unknown;
-    // @orb-waive caught-failure-ownership(catch): `kill` terminates the worker and calls options.events.onCrash, which collapses
+    // `kill` terminates the worker and calls options.events.onCrash, which collapses
     // the surface and reports it through useReportUiCrash (components/plugin-scripted-surface.tsx). Ends if this catch stops calling `kill`.
     try {
       parsed = JSON.parse(treeJson);
@@ -145,7 +145,7 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
     // The relay. Note what is NOT here: any decision about whether the call is allowed. The server re-gates
     // every one against the caller's own row, and duplicating that judgment here would create a second,
     // divergeable copy of the rule — the client's view of its grants is display-only by design.
-    // @orb-waive caught-failure-ownership(err): the failure goes to the guest as an `ok: false` hostResult carrying the
+    // the failure goes to the guest as an `ok: false` hostResult carrying the
     // error's message; the worker's settleHostCall rejects the guest's pending promise with it. Ends if the send drops the message.
     try {
       const resultJson = await options.events.onHostCall(fn, argsJson);
@@ -190,7 +190,7 @@ export function startPluginUiGuest(options: PluginUiGuestOptions): PluginUiGuest
       return;
     }
     if (message.kind === "hostCall") {
-      // @orb-waive caught-failure-ownership(handleHostCall): handleHostCall already catches its
+      // handleHostCall already catches its
       // own await internally and always resolves (it sends a rejected hostResult instead of throwing) — this
       // outer catch is belt-and-suspenders. Ends if handleHostCall stops catching internally.
       void handleHostCall(message.callId, message.fn, message.argsJson).catch(() => undefined);

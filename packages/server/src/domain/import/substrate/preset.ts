@@ -108,7 +108,7 @@ export function stPresetFromJson(raw: unknown, name: string, powerUser?: unknown
 /** Parse one saved `OpenAI Settings/<stem>.json` upload. Null on unparseable bytes / a non-preset object. */
 export function parseStPresetFile(bytes: Uint8Array, stem: string): ParsedStPreset | null {
   let raw: unknown;
-  // @orb-waive caught-failure-ownership(catch): the try holds only decode + `JSON.parse`; the `null` is read by
+  // the try holds only decode + `JSON.parse`; the `null` is read by
   // `collectPresetDir`, which pushes the file onto `unreadablePresets` (the report's `unreadablePresets`). Ends
   // if `collectPresetDir` stops recording `null`.
   try {

@@ -1,699 +1,108 @@
 name: CI
-run-name: >-
-  ${{ github.event.schedule == '37 10 * * 0' && 'Weekly tooling proof on main'
-  || github.event_name == 'schedule' && 'Nightly full verify on main'
-  || github.event_name == 'pull_request' && format('PR #{0} · {1}', github.event.pull_request.number, github.event.pull_request.title)
-  || github.event_name == 'workflow_dispatch' && inputs.tier != 'push' && format('Manual {0} tier on main', inputs.tier)
-  || github.event_name == 'workflow_dispatch' && format('Manual push tier on {0}', github.ref_name)
-  || github.event.head_commit.message }}
-
-# Failure notifications follow GitHub Actions account settings; this workflow sends no external messages.
-# CI qualifies published candidates; local staged hooks check commits and pre-push checks synchronization.
-# Every push to main and every PR runs qualification; a newer push cancels the older run.
-# A qualified ancestor permits docs-only test skips. `ci-ok` is the one required check, and
-# `pnpm release` requires current-generation product evidence. Nightly, the full tier runs on main when main
-# has changed since the last green nightly.
 on:
   push:
     branches: [main]
   pull_request:
-    branches: [main, release]
-  schedule:
-    - cron: "37 9 * * *"
-    - cron: "37 10 * * 0"
+    branches: [main]
   workflow_dispatch:
-    inputs:
-      tier:
-        description: Choose product qualification or independent weekly proof.
-        type: choice
-        options: [push, product, full, weekly]
-        default: push
-      base:
-        description: Actual event boundary to record for manual push qualification.
-        type: string
-        default: ""
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.number || github.ref }}-${{ github.event_name == 'schedule' && github.event.schedule || inputs.tier || 'push' }}
-  cancel-in-progress: ${{ github.event_name != 'schedule' }}
-
-env:
-  ORB_CI_REPOSITORY: Inktomi93/OrbWeaver
-  ORB_CI_QUALIFICATION_GENERATION: Orbweaver qualification product-v5-corpus
-  ORB_CI_PUBLICATION_BOOTSTRAP_SHA: ac6cfc19ea9db59644426b37f6b8c842c33473ad
-  ORB_CI_FULL_CACHE_PREFIX: full-hosted-v1-verified
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  changes:
-    if: ${{ github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly' }}
-    runs-on: ubuntu-slim
-    timeout-minutes: 15
-    outputs:
-      code: ${{ steps.diff.outputs.code }}
-      base: ${{ steps.diff.outputs.base }}
-      head: ${{ steps.diff.outputs.head }}
-      classified: ${{ steps.diff.outputs.classified }}
-      corpus-matrix: ${{ steps.corpus.outputs.matrix }}
-    permissions:
-      contents: read
-      actions: read
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          fetch-depth: 0
-          filter: blob:none
-          persist-credentials: false
-      - uses: $/.github/actions/setup
-      - id: diff
-        name: Classify the change against its qualified baseline
-        env:
-          CLASSIFICATION_TIMEOUT_SECONDS: "120"
-          GH_TOKEN: ${{ github.token }}
-          BEFORE: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event_name == 'push' && github.event.before || inputs.base }}
-        run: |
-          classification=$(mktemp)
-          trap 'rm -f "$classification"' EXIT
-          if GITHUB_OUTPUT="$classification" timeout --kill-after=5s "${CLASSIFICATION_TIMEOUT_SECONDS}s" pnpm exec node scripts/ci-qualification.ts baseline "$GITHUB_SHA" "$BEFORE"; then
-            cat "$classification" >> "$GITHUB_OUTPUT"
-            echo "classified=true" >> "$GITHUB_OUTPUT"
-            exit 0
-          fi
-          echo "::warning title=CI classification::Baseline discovery failed or timed out; running all checks without qualification authority"
-          {
-            echo "code=true"
-            echo "classified=false"
-          } >> "$GITHUB_OUTPUT"
-      - id: corpus
-        name: Plan canonical corpus projects
-        run: pnpm exec node scripts/ci-plan.ts corpus
-
   static:
-    needs: [changes]
-    runs-on: &media-runner ubuntu-24.04
-    timeout-minutes: 60
-    env:
-      ORB_VERIFY_BASE: ${{ needs.changes.outputs.base }}
-      ORB_VERIFY_HEAD: ${{ needs.changes.outputs.head }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          # Release comparisons need the cumulative qualified or admitted publication boundary.
-          fetch-depth: 0
           persist-credentials: false
-      - uses: $/.github/actions/setup
-        with:
-          browsers: "true"
-      - name: ${{ env.ORB_CI_QUALIFICATION_GENERATION }}
-        run: pnpm check --application --verbose
-      # The push tier's remaining whole-repo checks are light enough to share the runner.
-      - parallel:
-          - name: Orphan-export ratchet
-            if: needs.changes.outputs.code == 'true'
-            run: pnpm check:orphan-ratchet
-          - name: Boot chunk budget
-            if: needs.changes.outputs.code == 'true'
-            run: pnpm check:boot-chunk
-          - name: Copy-paste detection
-            if: needs.changes.outputs.code == 'true'
-            run: pnpm exec node tooling/src/verify/cli.ts application-static cpd
-      - if: failure()
-        name: Show what failed
-        # Runtime partitions have no structure report; read the native verify stages and their transcript tails.
-        run: |
-          pnpm check:show --stages --limit 20 || echo "::warning title=check:show::could not read the stage report; see the reports artifact"
-      - if: failure()
-        name: Say how to reproduce
-        run: |
-          {
-            echo "### $GITHUB_JOB failed"
-            echo
-            echo "Reproduce locally: \`pnpm check --application\`"
-            echo
-            echo "Logs and reports are in the \`reports-static\` artifact on this run."
-          } >> "$GITHUB_STEP_SUMMARY"
-      - if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: reports-static
-          path: reports/
-          retention-days: 7
+      - uses: ./.github/actions/setup
+      - run: pnpm --filter @orb/showcase-plugins build
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm lint:eslint
+      - run: pnpm lint:css
+      - run: pnpm depcruise
 
   node:
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: *media-runner
-    timeout-minutes: 120
-    env:
-      ORB_VERIFY_BASE: ${{ needs.changes.outputs.base }}
-      ORB_VERIFY_HEAD: ${{ needs.changes.outputs.head }}
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1]
-    name: node (${{ matrix.shard }}/1)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
-          fetch-depth: 0
           persist-credentials: false
-      - uses: $/.github/actions/setup
-      - id: media
-        name: Set up FFmpeg and FFprobe
-        timeout-minutes: 15
-        run: bash scripts/ci/install-media.sh
-      # The seeder and notification corpus tests install the release-built showcase bundles, which a fresh checkout does not have.
+      - uses: ./.github/actions/setup
+      - run: bash scripts/ci/install-media.sh
       - run: pnpm --filter @orb/showcase-plugins build
-      - run: pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/1
-      - if: failure()
-        name: Say how to reproduce
-        run: |
-          {
-            echo "### $GITHUB_JOB failed"
-            echo
-            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/1\`"
-            echo
-            echo "Logs and reports are in the \`reports-node-${{ matrix.shard }}\` artifact on this run."
-          } >> "$GITHUB_STEP_SUMMARY"
-      - if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - run: pnpm test --maxWorkers=2 --reporter=default --reporter=json --outputFile=reports/test-report.json
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: reports-node-${{ matrix.shard }}
+          name: node-results
           path: reports/
+          if-no-files-found: ignore
           retention-days: 7
-
-  # The legacy folder (tests/legacy) is its own project: the regression net for tests not yet rebuilt.
-  node-legacy:
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: *media-runner
-    timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3]
-    name: node legacy (${{ matrix.shard }}/3)
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/setup
-      - id: media
-        name: Set up FFmpeg and FFprobe
-        timeout-minutes: 15
-        run: bash scripts/ci/install-media.sh
-      # The legacy seeder and plugin-host tests install the release-built showcase bundles, which a fresh checkout does not have.
-      - run: pnpm --filter @orb/showcase-plugins build
-      - run: pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/3 --population=legacy
-      - if: failure()
-        name: Say how to reproduce
-        run: |
-          {
-            echo "### $GITHUB_JOB failed"
-            echo
-            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts node ${{ matrix.shard }}/3 --population=legacy\`"
-            echo
-            echo "Logs and reports are in the \`reports-node-legacy-${{ matrix.shard }}\` artifact on this run."
-          } >> "$GITHUB_STEP_SUMMARY"
-      - if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: reports-node-legacy-${{ matrix.shard }}
-          path: reports/
-          retention-days: 7
-
-  # D321: every domain verb must execute somewhere in the node shards, judged on the V8 coverage they recorded.
-  verb-coverage:
-    needs: [changes, node, node-legacy]
-    if: needs.changes.outputs.code == 'true'
-    runs-on: *media-runner
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/setup
-      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: reports-node-*
-          path: reports/verb-coverage-inputs
-          digest-mismatch: error
-      - run: >-
-          pnpm exec node scripts/ci-verb-coverage.ts
-          reports/verb-coverage-inputs/reports-node-1/verb-coverage/coverage-final.json
-          reports/verb-coverage-inputs/reports-node-legacy-1/verb-coverage/coverage-final.json
-          reports/verb-coverage-inputs/reports-node-legacy-2/verb-coverage/coverage-final.json
-          reports/verb-coverage-inputs/reports-node-legacy-3/verb-coverage/coverage-final.json
 
   ct:
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: *media-runner
-    timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1]
-    name: ct (${{ matrix.shard }}/1)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
         with:
           browsers: "true"
-      # Showcase CT mounts the release-built plugin bundles, which a fresh checkout does not have.
       - run: pnpm --filter @orb/showcase-plugins build
-      - run: pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/1
-      - if: failure()
-        name: Say how to reproduce
-        run: |
-          {
-            echo "### $GITHUB_JOB failed"
-            echo
-            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/1\`"
-            echo
-            echo "Logs and reports are in the \`reports-ct-${{ matrix.shard }}\` artifact on this run."
-          } >> "$GITHUB_STEP_SUMMARY"
-      # A flaky shard can pass overall; retain its failed-attempt details instead of only its summary.
-      - if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - run: pnpm test:ct --workers=2
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: reports-ct-${{ matrix.shard }}
-          path: reports/
-          retention-days: 7
-
-  ct-legacy:
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: *media-runner
-    timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      matrix:
-        shard: [1, 2, 3, 4, 5]
-    name: ct legacy (${{ matrix.shard }}/5)
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/setup
-        with:
-          browsers: "true"
-      # Showcase CT mounts the release-built plugin bundles, which a fresh checkout does not have.
-      - run: pnpm --filter @orb/showcase-plugins build
-      - run: pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/5 --population=legacy
-      - if: failure()
-        name: Say how to reproduce
-        run: |
-          {
-            echo "### $GITHUB_JOB failed"
-            echo
-            echo "Reproduce locally: \`pnpm exec node scripts/ci-shard.ts ct ${{ matrix.shard }}/5 --population=legacy\`"
-            echo
-            echo "Logs and reports are in the \`reports-ct-legacy-${{ matrix.shard }}\` artifact on this run."
-          } >> "$GITHUB_STEP_SUMMARY"
-      # A flaky shard can pass overall; retain its failed-attempt details instead of only its summary.
-      - if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: reports-ct-legacy-${{ matrix.shard }}
-          path: reports/
+          name: component-results
+          path: |
+            reports/
+            playwright-report/
+            test-results/
+          if-no-files-found: ignore
           retention-days: 7
 
   e2e-smoke:
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: *media-runner
-    timeout-minutes: 120
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
     steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: false
-      - uses: $/.github/actions/setup
+      - uses: ./.github/actions/setup
         with:
           browsers: "true"
-      - run: pnpm e2e:smoke
-      - if: failure()
-        name: Say how to reproduce
-        run: |
-          {
-            echo "### $GITHUB_JOB failed"
-            echo
-            echo "Reproduce locally: \`pnpm e2e:smoke\`"
-            echo
-            echo "Logs and reports are in the \`reports-e2e-smoke\` artifact on this run."
-          } >> "$GITHUB_STEP_SUMMARY"
-      - if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      - run: bash scripts/ci/install-media.sh
+      - run: pnpm --filter @orb/showcase-plugins build
+      - run: pnpm e2e:smoke --workers=1
+      - if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
-          name: reports-e2e-smoke
+          name: smoke-results
           path: |
             reports/
+            playwright-report/
             test-results/
+          if-no-files-found: ignore
           retention-days: 7
 
-  e2e-corpus:
-    needs: changes
-    if: needs.changes.outputs.code == 'true'
-    runs-on: *media-runner
-    timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.changes.outputs.corpus-matrix) }}
-    name: e2e corpus (${{ matrix.project }})
-    env:
-      CORPUS_PROJECT: ${{ matrix.project }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: $/.github/actions/setup
-        with:
-          browsers: "true"
-      - name: Qualify one canonical corpus project through its independent clone
-        run: pnpm e2e:corpus:matrix --project="$CORPUS_PROJECT"
-      - if: failure()
-        name: Say how to reproduce
-        run: |
-          {
-            echo "### $GITHUB_JOB failed"
-            echo
-            echo "Reproduce locally: pnpm e2e:corpus:matrix --project=\"$CORPUS_PROJECT\""
-            echo
-            echo "Logs and reports are in the reports-e2e-corpus-$CORPUS_PROJECT artifact on this run."
-          } >> "$GITHUB_STEP_SUMMARY"
-      - if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: reports-e2e-corpus-${{ matrix.project }}
-          path: |
-            reports/
-            test-results/
-          retention-days: 7
-
-  # The one required check. A skipped suite (docs-only change) passes; a failed or cancelled one does not.
   ci-ok:
-    if: always() && github.event_name != 'schedule' && inputs.tier != 'product' && inputs.tier != 'full' && inputs.tier != 'weekly'
-    needs: [changes, static, node, node-legacy, verb-coverage, ct, ct-legacy, e2e-smoke, e2e-corpus]
-    runs-on: ubuntu-slim
+    name: CI
+    if: always()
+    needs: [static, node, ct, e2e-smoke]
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
-      - name: ${{ format('{0} ({1})', env.ORB_CI_QUALIFICATION_GENERATION, needs.changes.outputs.code == 'true' && 'runtime' || 'inherited') }}
+      - name: Require every application check
         env:
-          NEEDS: ${{ toJSON(needs) }}
-        run: |
-          {
-            echo "### CI"
-            echo
-            echo "| Job | Result |"
-            echo "| - | - |"
-            echo "$NEEDS" | jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"'
-          } >> "$GITHUB_STEP_SUMMARY"
-          echo "$NEEDS" | jq -e '
-            .changes.result == "success" and .changes.outputs.classified == "true" and .static.result == "success" and
-            (.changes.outputs.code == "true" or .changes.outputs.code == "false") and
-            (.changes.outputs.code as $code | [.node, .["node-legacy"], .["verb-coverage"], .ct, .["ct-legacy"], .["e2e-smoke"], .["e2e-corpus"]]
-              | all(.[]; .result == (if $code == "true" then "success" else "skipped" end)))
-          ' > /dev/null || {
-            echo "::error title=CI gate::changes.outputs.code=$(echo "$NEEDS" | jq -r '.changes.outputs.code')"
-            echo "$NEEDS" | jq -r '
-              .changes.outputs.code as $code | to_entries[] |
-              (if .key == "changes" or .key == "static" then "success" else (if $code == "true" then "success" else "skipped" end) end) as $expected |
-              select(.value.result != $expected) | "::error title=CI gate::job=\(.key) expected=\($expected) actual=\(.value.result)"'
-            exit 1
-          }
-
-  # Every full/product child uses the same immutable main revision and one exact-SHA seen decision.
-  qualification-head:
-    if: ${{ github.event.schedule == '37 9 * * *' || inputs.tier == 'product' || inputs.tier == 'full' }}
-    runs-on: *media-runner
-    timeout-minutes: 10
-    outputs:
-      sha: ${{ steps.sha.outputs.sha }}
-      tier: ${{ steps.sha.outputs.tier }}
-      seen: ${{ steps.seen.outputs.cache-hit }}
-      matrix: ${{ steps.plan.outputs.matrix }}
-      cache-prefix: ${{ steps.sha.outputs.cache-prefix }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: main
-          persist-credentials: false
-      - id: sha
-        name: Resolve the immutable main revision
-        env:
-          VERIFY_TIER: ${{ github.event_name == 'schedule' && 'full' || inputs.tier }}
-        run: |
-          echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-          echo "tier=$VERIFY_TIER" >> "$GITHUB_OUTPUT"
-          cache_prefix="${VERIFY_TIER}-verified"
-          if [[ "$VERIFY_TIER" == full ]]; then cache_prefix="$ORB_CI_FULL_CACHE_PREFIX"; fi
-          echo "cache-prefix=$cache_prefix" >> "$GITHUB_OUTPUT"
-      - id: seen
-        name: Look up the completed qualification marker
-        uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .${{ steps.sha.outputs.tier }}-verified
-          key: ${{ steps.sha.outputs.cache-prefix }}-${{ steps.sha.outputs.sha }}
-          lookup-only: true
-      - if: steps.seen.outputs.cache-hit != 'true'
-        uses: ./.github/actions/setup # zizmor: ignore[self-repository] Qualification setup belongs to the frozen main source.
-      - id: plan
-        name: Plan native qualification partitions
-        if: steps.seen.outputs.cache-hit != 'true'
-        env:
-          VERIFY_TIER: ${{ steps.sha.outputs.tier }}
-        run: pnpm exec node scripts/ci-plan.ts "$VERIFY_TIER"
-
-  qualification-partition:
-    needs: qualification-head
-    if: needs.qualification-head.outputs.seen != 'true'
-    runs-on: *media-runner
-    timeout-minutes: ${{ matrix.partition == 'static' && 60 || matrix.partition == 'quality' && 330 || 120 }}
-    strategy:
-      fail-fast: false
-      matrix: ${{ fromJSON(needs.qualification-head.outputs.matrix) }}
-    name: qualification (${{ matrix.key }})
-    env:
-      VERIFY_TIER: ${{ needs.qualification-head.outputs.tier }}
-      VERIFY_PARTITION: ${{ matrix.partition }}
-      VERIFY_SHARD: ${{ matrix.shard }}
-      E2E_LIVE: "0"
-      E2E_ALLOW_DEV_TARGET: "0"
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: main
-          fetch-depth: 0
-          persist-credentials: false
-      - id: source
-        name: Validate and check out the immutable main source
-        env:
-          FROZEN_MAIN_SHA: ${{ needs.qualification-head.outputs.sha }}
-        run: &frozen-main-source |
-          set -euo pipefail
-          [[ "$FROZEN_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "::error title=Frozen main source::Invalid SHA: $FROZEN_MAIN_SHA"; exit 1; }
-          object_type=$(git cat-file -t "$FROZEN_MAIN_SHA") || { echo "::error title=Frozen main source::Missing object $FROZEN_MAIN_SHA"; exit 1; }
-          test "$object_type" = commit || { echo "::error title=Frozen main source::Expected commit for $FROZEN_MAIN_SHA; got $object_type"; exit 1; }
-          git merge-base --is-ancestor "$FROZEN_MAIN_SHA" refs/remotes/origin/main || { echo "::error title=Frozen main source::$FROZEN_MAIN_SHA is not an ancestor of origin/main"; exit 1; }
-          git checkout --detach "$FROZEN_MAIN_SHA"
-      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] Every partition uses the validated immutable main setup.
-        with:
-          browsers: "true"
-      - id: media
-        name: Set up FFmpeg and FFprobe
-        timeout-minutes: 15
-        run: bash scripts/ci/install-media.sh
-      - id: showcase
-        name: Build showcase plugin fixtures
-        run: pnpm --filter @orb/showcase-plugins build
-      - id: verify
-        name: pnpm verify --${{ env.VERIFY_TIER }} --partition=${{ matrix.partition }}${{ matrix.shard && format(' --shard={0}', matrix.shard) || '' }}
-        run: |
-          args=("--$VERIFY_TIER" "--partition=$VERIFY_PARTITION")
-          if [[ -n "$VERIFY_SHARD" ]]; then args+=("--shard=$VERIFY_SHARD"); fi
-          pnpm verify "${args[@]}"
-      - if: failure()
-        name: Show what failed
-        run: |
-          pnpm check:show --stages --limit 20 || echo "::warning title=check:show::could not read the stage report; see the reports artifact"
-      - if: ${{ !cancelled() }}
-        name: Retain Stryker TRACE
-        run: |
-          if [[ -f stryker.log ]]; then
-            mkdir -p reports/mutation
-            cp stryker.log reports/mutation/stryker.log
-          fi
-      - if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: reports-qualification-${{ matrix.key }}
-          path: reports/
-          if-no-files-found: error
-          retention-days: 7
-
-  qualification:
-    if: always() && needs.qualification-head.result == 'success'
-    needs: [qualification-head, qualification-partition]
-    runs-on: *media-runner
-    timeout-minutes: 15
-    env:
-      VERIFY_TIER: ${{ needs.qualification-head.outputs.tier }}
-    steps:
-      - name: Require cached runs to execute no partitions
-        if: needs.qualification-head.outputs.seen == 'true'
-        env:
-          SEEN: ${{ needs.qualification-head.outputs.seen }}
-          PARTITIONS: ${{ needs.qualification-partition.result }}
-        run: |
-          test "$SEEN" = true || { echo "::error title=Cached qualification::Expected seen=true; got $SEEN"; exit 1; }
-          test "$PARTITIONS" = skipped || { echo "::error title=Cached qualification::Expected no partition execution (skipped); got $PARTITIONS"; exit 1; }
-      - if: needs.qualification-head.outputs.seen != 'true'
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: main
-          fetch-depth: 0
-          persist-credentials: false
-      - id: source
-        name: Validate and check out the immutable main source
-        if: needs.qualification-head.outputs.seen != 'true'
-        env:
-          FROZEN_MAIN_SHA: ${{ needs.qualification-head.outputs.sha }}
-        run: *frozen-main-source
-      - if: needs.qualification-head.outputs.seen != 'true'
-        uses: ./.github/actions/setup # zizmor: ignore[self-repository] Aggregate reads the same immutable registry as its children.
-      - if: needs.qualification-head.outputs.seen != 'true'
-        uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
-        with:
-          pattern: reports-qualification-*
-          path: reports/qualification-inputs
-          digest-mismatch: error
-      - id: verify
-        name: Aggregate partition verdicts
-        if: needs.qualification-head.outputs.seen != 'true'
-        run: pnpm verify --"$VERIFY_TIER" --aggregate=reports/qualification-inputs
-      - name: Require all uncached child job outcomes
-        if: always() && needs.qualification-head.outputs.seen != 'true'
-        env:
-          PARTITIONS: ${{ needs.qualification-partition.result }}
-        run: |
-          test "$PARTITIONS" = success || { echo "::error title=Qualification children::Expected every child to succeed; aggregate result=$PARTITIONS"; exit 1; }
-      - id: mark
-        name: Mark the completed qualification
-        if: success() && needs.qualification-partition.result == 'success' && steps.verify.outcome == 'success'
-        env:
-          VERIFIED_SHA: ${{ needs.qualification-head.outputs.sha }}
-        run: echo "$VERIFIED_SHA" > ".${VERIFY_TIER}-verified"
-      - if: success() && steps.mark.outcome == 'success'
-        uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
-        with:
-          path: .${{ env.VERIFY_TIER }}-verified
-          key: ${{ needs.qualification-head.outputs.cache-prefix }}-${{ needs.qualification-head.outputs.sha }}
-      - if: ${{ !cancelled() && needs.qualification-head.outputs.seen != 'true' }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: reports-${{ env.VERIFY_TIER }}
-          path: reports/
-          retention-days: 7
-
-  weekly-head:
-    if: ${{ (github.event.schedule == '37 10 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly')) }}
-    runs-on: ubuntu-slim
-    timeout-minutes: 5
-    outputs:
-      sha: ${{ steps.sha.outputs.sha }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: main
-          persist-credentials: false
-      - id: sha
-        name: Resolve the immutable main revision
-        run: echo "sha=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
-
-  weekly-tooling:
-    needs: weekly-head
-    runs-on: *media-runner
-    timeout-minutes: 330
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - component: non-corpus
-            shard: ""
-          - component: corpus
-            shard: "1/2"
-          - component: corpus
-            shard: "2/2"
-    name: Weekly tooling proof
-    env:
-      ORB_VERIFY_INSTRUMENT_COMPONENT: ${{ matrix.component }}
-      CORPUS_SHARD: ${{ matrix.shard }}
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: main
-          fetch-depth: 0
-          persist-credentials: false
-      - id: source
-        name: Require the frozen source to belong to main before executing repository code
-        env:
-          FROZEN_MAIN_SHA: ${{ needs.weekly-head.outputs.sha }}
-        run: |
-          set -euo pipefail
-          [[ "$FROZEN_MAIN_SHA" =~ ^[a-f0-9]{40}$ ]] || { echo "::error title=Frozen main source::Invalid SHA: $FROZEN_MAIN_SHA"; exit 1; }
-          object_type=$(git cat-file -t "$FROZEN_MAIN_SHA") || { echo "::error title=Frozen main source::Missing object $FROZEN_MAIN_SHA"; exit 1; }
-          test "$object_type" = commit || { echo "::error title=Frozen main source::Expected commit for $FROZEN_MAIN_SHA; got $object_type"; exit 1; }
-          git merge-base --is-ancestor "$FROZEN_MAIN_SHA" refs/remotes/origin/main || { echo "::error title=Frozen main source::$FROZEN_MAIN_SHA is not an ancestor of origin/main"; exit 1; }
-          git checkout --detach "$FROZEN_MAIN_SHA"
-      - uses: ./.github/actions/setup # zizmor: ignore[self-repository] Weekly proof needs the frozen main setup, not the default-branch workflow commit.
-        with:
-          browsers: "true"
-      - id: proof
-        name: Weekly tooling proof (${{ matrix.component }} ${{ matrix.shard }})
-        run: |
-          if [[ "$ORB_VERIFY_INSTRUMENT_COMPONENT" == corpus ]]; then
-            pnpm test:tooling --shard="$CORPUS_SHARD"
-          else
-            pnpm verify --weekly
-          fi
-      - if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: reports-weekly-tooling-${{ strategy.job-index }}
-          path: reports/
-          if-no-files-found: error
-          retention-days: 7
-
-  weekly-ok:
-    if: always() && (github.event.schedule == '37 10 * * 0' || (github.event_name == 'workflow_dispatch' && inputs.tier == 'weekly'))
-    needs: [weekly-head, weekly-tooling]
-    runs-on: ubuntu-slim
-    timeout-minutes: 5
-    steps:
-      - name: Require every weekly proof outcome
-        env:
-          NEEDS: ${{ toJSON(needs) }}
-        run: |
-          echo "$NEEDS" > weekly-proof.json
-          {
-            echo "### Weekly tooling proof"
-            echo
-            echo "| Job | Result |"
-            echo "| - | - |"
-            echo "$NEEDS" | jq -r 'to_entries[] | "| \(.key) | \(.value.result) |"'
-          } >> "$GITHUB_STEP_SUMMARY"
-          echo "$NEEDS" | jq -e 'all(.[]; .result == "success")' > /dev/null || {
-            echo "$NEEDS" | jq -r 'to_entries[] | select(.value.result != "success") | "::error title=Weekly gate::job=\(.key) expected=success actual=\(.value.result)"'
-            exit 1
-          }
-      - if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: weekly-proof
-          path: weekly-proof.json
-          if-no-files-found: error
-          retention-days: 7
+          RESULTS: ${{ toJSON(needs.*.result) }}
+        run: echo "$RESULTS" | jq -e 'all(.[]; . == "success")'

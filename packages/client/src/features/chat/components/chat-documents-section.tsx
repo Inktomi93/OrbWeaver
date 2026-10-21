@@ -90,7 +90,7 @@ function useSlotState(): { readonly slot: SlotState; readonly recheck: () => voi
       settings.refetch().catch(() => undefined);
       return;
     }
-    // @orb-waive caught-failure-ownership(Promise.all): each TanStack Query observer owns its rejection in `settings.isError`/`preset.isError`; this event only starts the paired retry. Ends if either refetch stops updating query error state.
+    // each TanStack Query observer owns its rejection in `settings.isError`/`preset.isError`; this event only starts the paired retry. Ends if either refetch stops updating query error state.
     Promise.all([settings.refetch(), preset.refetch()]).catch(() => undefined);
   };
 
@@ -165,7 +165,7 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
     const next = nextHiddenSet(base, id, hide);
     pendingHiddenRef.current = next;
     queuedWritesRef.current += 1;
-    // @orb-waive caught-failure-ownership(visibilityChainRef.current): the chain's own catch, never the mutation's: the write's failure is owned by `useSetChatDocumentVisibility`'s `errorToast` and optimistic `onError` rollback (hooks/use-chat-document-mutations.ts), and this catch only keeps one rejected write from wedging the queue for every later toggle. Ends if that mutation drops its errorToast.
+    // the chain's own catch, never the mutation's: the write's failure is owned by `useSetChatDocumentVisibility`'s `errorToast` and optimistic `onError` rollback (hooks/use-chat-document-mutations.ts), and this catch only keeps one rejected write from wedging the queue for every later toggle. Ends if that mutation drops its errorToast.
     visibilityChainRef.current = visibilityChainRef.current
       .then(async () => setVisibility.mutateAsync({ chatId, visibility: { hidden: next } }))
       .catch(() => undefined)

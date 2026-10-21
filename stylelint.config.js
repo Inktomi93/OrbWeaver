@@ -1,12 +1,12 @@
 import tokens from "./packages/ui/src/tokens/tokens.json" with { type: "json" };
-import { THEME } from "./tooling/src/verify/contract/css-family.ts";
-import { CSS_RULES } from "./tooling/src/verify/lib/stylelint-css-rules.ts";
+import { CSS_RULES } from "./stylelint-rules.js";
 
 const leadings = Object.keys(tokens.leading)
   .filter((name) => !name.startsWith("$"))
   .map((name) => `var(--leading-${name})`);
 
 export default {
+  ignoreFiles: ["**/dist/**", "**/node_modules/**"],
   plugins: CSS_RULES,
   reportNeedlessDisables: true,
   reportDescriptionlessDisables: true,
@@ -23,6 +23,9 @@ export default {
     },
   },
   overrides: [
-    { files: [THEME], rules: { "orb/no-raw-color-in-css": null, "property-disallowed-list": null, "declaration-property-value-allowed-list": null } },
+    {
+      files: ["packages/ui/src/styles/theme.css"],
+      rules: { "orb/no-raw-color-in-css": null, "property-disallowed-list": null, "declaration-property-value-allowed-list": null },
+    },
   ],
 };

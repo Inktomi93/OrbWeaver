@@ -1,3 +1,10 @@
 {
-  "recommendations": ["biomejs.biome", "davidanson.vscode-markdownlint", "EditorConfig.EditorConfig", "vitest.explorer", "ms-playwright.playwright"]
+  "recommendations": [
+    "biomejs.biome",
+    "davidanson.vscode-markdownlint",
+    "EditorConfig.EditorConfig",
+    "vitest.explorer",
+    "ms-playwright.playwright",
+    "TypeScriptTeam.native-preview"
+  ]
 }

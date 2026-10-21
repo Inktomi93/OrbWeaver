@@ -82,7 +82,7 @@ const MIN_SECRET_LENGTH = 8;
 const ID_PREFIX_HINT = 8;
 
 function gitOutput(repoRoot: string, args: readonly string[]): string | null {
-  // @orb-waive caught-failure-ownership(catch): git being absent, or the cwd not being a
+  // git being absent, or the cwd not being a
   // checkout, is a legitimate answer here — the report says `sha: null` instead of failing the capture. Ends if
   // a caller starts treating null as an error rather than as "git could not answer".
   try {

@@ -31,7 +31,6 @@ import type { DatabankContext, DatabankService } from "../contract/service.ts";
 import { countOwnedDocuments, listOwnedMeta, toDocumentView } from "../persistence/queries.ts";
 import { activeSpaceModel } from "../substrate/active-space.ts";
 
-// @orb-waive no-vanity-alias(MAX_LIMIT): baselined when the gate widened; burn-down item 906.
 // The default page size lives in `@orb/contracts/databank`: a client surface that SUMMARIZES the returned
 // rows has to know the page it was served. The ceiling is the same number — it mirrors
 // `UserSettings.library.pageSize`'s own max, so the paging surface can never ask for a page the verb will

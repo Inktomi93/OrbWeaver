@@ -253,7 +253,7 @@ function PluginSurfaceForm({ pluginId, surfaceId, spec, anchor, chatId, sink, st
         sink.submit(actionId, merged);
         return;
       }
-      // @orb-waive caught-failure-ownership(mutateAsync): useInvokeUiAction (lib/plugin-mutations.ts) carries errorToast
+      // useInvokeUiAction (lib/plugin-mutations.ts) carries errorToast
       // serverReason("That plugin action couldn't run."); applyPluginUiOutcome is the notify door and a dialog-store setter.
       // Ends if the mutation drops its errorToast.
       void invoke

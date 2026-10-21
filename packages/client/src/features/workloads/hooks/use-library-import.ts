@@ -161,7 +161,7 @@ export function useLibraryImport(): LibraryImport {
     }
     const epoch = ++requestEpoch.current;
     // The plan reads group definitions, so it is async; the picker's files are staged the moment it lands.
-    // @orb-waive caught-failure-ownership(planServedTreeImport): the .catch below calls fail(), whose
+    // the .catch below calls fail(), whose
     // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
     planServedTreeImport(files, treeCaps(caps), [])
       .then(async (reviewed) => {
@@ -195,7 +195,7 @@ export function useLibraryImport(): LibraryImport {
     const epoch = ++requestEpoch.current;
     setState({ status: "uploading", filename: first.name });
     if (isZip(first)) {
-      // @orb-waive caught-failure-ownership(importBundle): the .catch below calls fail(), whose
+      // the .catch below calls fail(), whose
       // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
       importBundle(first)
         .then(({ workloadId }) => {
@@ -206,7 +206,7 @@ export function useLibraryImport(): LibraryImport {
         .catch((error: unknown) => fail(epoch, errorMessage(error)));
       return;
     }
-    // @orb-waive caught-failure-ownership(importCharacters): the .catch below calls fail(), whose
+    // the .catch below calls fail(), whose
     // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
     importCharacters(files)
       .then((result) => finish(epoch, summarizeCardImport(result)))
@@ -222,7 +222,7 @@ export function useLibraryImport(): LibraryImport {
       return;
     }
     setState({ status: "uploading", filename: relativePathOf(first) });
-    // @orb-waive caught-failure-ownership(importTree): the .catch below calls fail(), whose
+    // the .catch below calls fail(), whose
     // `setState({ status: "error", message })` and `notify.error` surface the failure (it skips only a superseded epoch). Ends if fail() stops writing that state.
     importTree(batch, run.choices, run.plan.layout)
       .then(({ workloadId }) => {

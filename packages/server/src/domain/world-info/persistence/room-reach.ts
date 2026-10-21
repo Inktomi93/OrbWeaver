@@ -33,7 +33,7 @@ async function resolveWorldInfoRooms(db: Db, bookId: WorldBookId): Promise<ChatI
         and(
           inArray(
             chatParticipants.userId,
-            // @orb-waive owner-scoped-reads(worldBooks): the global-book lookup reads only its owner id to select present host room ids, held server-side until fan. Book removal fans only after its owner-scoped DELETE RETURNING succeeded; attachment removals fan only after their owner-gated parent/book junction DELETE RETURNING succeeded; content events follow committed owner-gated writes. Foreign/missing/no-op writes discard the capture. Ends if a capture can fan without the confirmed scoped write, or these ids leave the server by another path.
+            // the global-book lookup reads only its owner id to select present host room ids, held server-side until fan. Book removal fans only after its owner-scoped DELETE RETURNING succeeded; attachment removals fan only after their owner-gated parent/book junction DELETE RETURNING succeeded; content events follow committed owner-gated writes. Foreign/missing/no-op writes discard the capture. Ends if a capture can fan without the confirmed scoped write, or these ids leave the server by another path.
             db
               .select({ ownerId: worldBooks.ownerId })
               .from(globalBooks)

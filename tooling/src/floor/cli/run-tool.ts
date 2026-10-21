@@ -53,7 +53,7 @@ export function prepareToolHeap(): void {
 export async function runTool(main: () => Promise<number> | number): Promise<void> {
   process.on("uncaughtException", (e) => crashExit("uncaught", e));
   process.on("unhandledRejection", (e) => crashExit("unhandled rejection", e));
-  // @orb-waive caught-failure-ownership(e): the UsageError branch writes "ARG ERROR" to stderr and sets exit 3 through escalate(EXIT.misuse); every other throw goes to crashExit, typed never. Ends if either branch stops writing stderr or setting the exit code.
+  // the UsageError branch writes "ARG ERROR" to stderr and sets exit 3 through escalate(EXIT.misuse); every other throw goes to crashExit, typed never. Ends if either branch stops writing stderr or setting the exit code.
   try {
     prepareToolHeap();
     // THE AMBIENT-KNOB DOOR (#1666). A mis-spelled `ORB_BOX_LOAD` is MISUSE — the same class as bad argv —

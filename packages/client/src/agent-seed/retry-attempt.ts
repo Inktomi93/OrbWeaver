@@ -50,7 +50,7 @@ export class GameSeedFlights {
       () => this.release(flight),
       () => this.release(flight),
     );
-    // @orb-waive caught-failure-ownership(Promise.resolve): feeds the deferred's resolve/reject, which settles `result.promise` — the same object as the returned `flight.promise` the caller awaits. Ends if `result`/`flight.promise` stop being the same object.
+    // feeds the deferred's resolve/reject, which settles `result.promise` — the same object as the returned `flight.promise` the caller awaits. Ends if `result`/`flight.promise` stop being the same object.
     void Promise.resolve().then(start).then(result.resolve, result.reject);
     return flight.promise;
   }

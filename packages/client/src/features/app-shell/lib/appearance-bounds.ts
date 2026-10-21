@@ -9,7 +9,6 @@
 // the hard clamp; these are just the input affordances.
 import { BACKGROUND_DIM_MIN as SCHEMA_BACKGROUND_DIM_MIN } from "@orb/contracts/settings/appearance";
 
-// @orb-waive no-vanity-alias(BACKGROUND_DIM_MIN): baselined when the gate widened; burn-down item 906.
 // THE ONE BOUND THAT IS NOT A MIRROR (#487). Every other constant here re-spells an input affordance; the
 // wallpaper dim floor is a DERIVED legibility guarantee (the derivation, and the plate-alpha arm D144(d)
 // refuses, live on the contract), so it is ALIASED off the schema's own constant rather than re-spelled —

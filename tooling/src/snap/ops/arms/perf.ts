@@ -33,7 +33,7 @@ export async function capturePerfEvidence(page: Pick<Page, "evaluate">, ratePost
     print(`LOAD-SUSPECT (${disposition.reason})`);
   }
   const status = disposition.disposition === "load-suspect" ? ("load-suspect" as const) : ("measured" as const);
-  // @orb-waive caught-failure-ownership(catch): a null read publishes the RESULT pair app-snapshot=absent (appSnapshotResultPair) and counts into the arm fact's `unavailable`. Ends if either stops reading outcome.perf.
+  // a null read publishes the RESULT pair app-snapshot=absent (appSnapshotResultPair) and counts into the arm fact's `unavailable`. Ends if either stops reading outcome.perf.
   try {
     // #1004 — validated so a malformed payload reaches the `catch → null` arm below (optional read,
     // absent is fine) instead of landing in the report as fabricated navigation numbers.

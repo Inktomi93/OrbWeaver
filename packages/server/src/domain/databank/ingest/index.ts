@@ -130,7 +130,7 @@ async function ingestOne(ctx: DatabankContext, doc: LoadedDocument, signal: Abor
  *  mode:'re-extract' predicate). A purged blob or a bytesless origin ('text') is skipped (nothing better to
  *  extract from). Returns the refreshed row when it re-extracted, else the original. The skip test's SQL twin is
  *  `countStaleExtractionDocuments`, the census behind the databank re-extract banner; change both together. */
-// @orb-waive owner-scoped-writes(documents): the ingest plane's own row — `doc` came from `loadDocument`, which carries the twin read marker: reindex runs AFTER the enqueue authority check (the workload row's owner is the gate) over ids the enqueue itself resolved. The write refreshes derived extraction text, never user-authored content. Ends the day ingest takes a documentId straight off a request.
+// the ingest plane's own row — `doc` came from `loadDocument`, which carries the twin read marker: reindex runs AFTER the enqueue authority check (the workload row's owner is the gate) over ids the enqueue itself resolved. The write refreshes derived extraction text, never user-authored content. Ends the day ingest takes a documentId straight off a request.
 async function maybeReExtract(ctx: DatabankContext, doc: LoadedDocument, acc: IngestAccumulator, signal: AbortSignal): Promise<LoadedDocument> {
   if (isAborted(signal) || doc.sourceAssetId === null || doc.extractorVersion === ctx.extractorVersion) {
     return doc;
@@ -191,7 +191,7 @@ export function createDatabankIngest(input: DbAssemblyInput<DatabankContext>): D
     }
     acc.addDocument();
     touchedOwners.add(doc.ownerId);
-    // @orb-waive caught-failure-ownership(error): the failure is stored by `acc.addFailure(documentId, error)` in the catch below, which pushes onto `failed[]`; `acc.result()` returns that list as `IngestRunResult.failed` to the ingest/reindex caller. A cancelled pass drops it on purpose (the rerun resumes the document). Ends if `result()` stops returning `failed`.
+    // the failure is stored by `acc.addFailure(documentId, error)` in the catch below, which pushes onto `failed[]`; `acc.result()` returns that list as `IngestRunResult.failed` to the ingest/reindex caller. A cancelled pass drops it on purpose (the rerun resumes the document). Ends if `result()` stops returning `failed`.
     try {
       const source = mode === "re-extract" ? await maybeReExtract(ctx, doc, acc, signal) : doc;
       if (!isAborted(signal)) {

@@ -133,7 +133,7 @@ async function previousRunWithSameName(root: string, current: SnapRunIndex): Pro
   const name = runOutName(current);
   let best: SnapRunIndex | null = null;
   for (const path of await localSnapRunIndexPaths(root)) {
-    // @orb-waive caught-failure-ownership(catch): a neighbouring run's corruption is not this report's verdict — the subject index is read by the strict door in printSnapReport, and a skipped neighbour only means no delta row. Ends if this reader becomes the only read of those files.
+    // a neighbouring run's corruption is not this report's verdict — the subject index is read by the strict door in printSnapReport, and a skipped neighbour only means no delta row. Ends if this reader becomes the only read of those files.
     try {
       const candidate = await readSnapRunIndex(path);
       const older = candidate.process.finishedAt < current.process.finishedAt;
@@ -149,7 +149,7 @@ async function previousRunWithSameName(root: string, current: SnapRunIndex): Pro
 }
 
 export async function printSnapReport(root: string, query: SnapReportQuery): Promise<number> {
-  // @orb-waive caught-failure-ownership(error): the catch prints RUN INDEX REFUSED and returns EXIT.toolError (run-report.ts:164), the report command's exit code. Ends if either goes.
+  // the catch prints RUN INDEX REFUSED and returns EXIT.toolError (run-report.ts:164), the report command's exit code. Ends if either goes.
   try {
     const path = await resolveSnapRunIndex(root, query.target);
     const index = await readSnapRunIndex(path);
@@ -172,7 +172,7 @@ async function scanSnapRunIndices(root: string): Promise<SnapRunIndexScan> {
   for (const worktree of snapWorktreeRoots(root)) {
     for (const path of await localSnapRunIndexPaths(worktree)) {
       scanned += 1;
-      // @orb-waive caught-failure-ownership(error): the catch keeps path and reason in `invalid` (run-report.ts:179), returned in the scan and printed as RUN INDEX SKIPPED by renderSnapRunList (run-report-render.ts:285). Ends if either goes.
+      // the catch keeps path and reason in `invalid` (run-report.ts:179), returned in the scan and printed as RUN INDEX SKIPPED by renderSnapRunList (run-report-render.ts:285). Ends if either goes.
       try {
         rows.push(await readSnapRunIndex(path));
       } catch (error) {

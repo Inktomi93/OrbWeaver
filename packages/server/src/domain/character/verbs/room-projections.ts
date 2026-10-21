@@ -8,7 +8,7 @@ export function createCharacterRoomProjections(deps: CharacterRoomProjectionDeps
     // through the character domain (chat stays character-table-blind, the getCard precedent); a gone card
     // fail-closes to [] rather than throwing into the member-card read.
     resolveCharacterTags: async ({ ownerId, characterId }): ReturnType<CharacterRoomProjections["resolveCharacterTags"]> => {
-      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.
+      // FAIL-CLOSED — documented above: a gone card fail-closes to `[]` rather than throwing into the member-card read. Ends if a gone card needs to surface distinctly from an infra failure.
       try {
         const detail = await deps.get({ principal: deps.principalForUser(ownerId), characterId });
         return detail.tags.map(({ id, name }) => ({ id, name }));
@@ -33,7 +33,7 @@ export function createCharacterRoomProjections(deps: CharacterRoomProjectionDeps
       if (characterId === null || ownerId === null) {
         return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };
       }
-      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — the comment block above states
+      // FAIL-CLOSED — the comment block above states
       // the contract: a no-host/unreadable-card seat resolves to the bare global floor + a null card, never
       // a throw into roster assembly. Ends if an unreadable card needs to surface distinctly from absence.
       try {

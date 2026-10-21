@@ -41,7 +41,7 @@ export function AddConnectionDialog({ open, onOpenChange, trpc, invalidation }: 
     setCloseTarget({ open, chat: open ? false : closeTarget.chat });
   }
   const setBinding = useSetBinding({ trpc, invalidation, failureShownInline: true });
-  // @orb-waive caught-failure-ownership(setBinding.mutateAsync): the mutation's toast is off (`failureShownInline`), so the refusal string is returned to FirstModelSetup, whose `settled` writes it to `setChatState` (inline alert) while mounted or to `notify.error` after close; ends if either path stops reaching that component.
+  // the mutation's toast is off (`failureShownInline`), so the refusal string is returned to FirstModelSetup, whose `settled` writes it to `setChatState` (inline alert) while mounted or to `notify.error` after close; ends if either path stops reaching that component.
   const bindChat = (chat: ConnectionView): Promise<string | null> =>
     setBinding.mutateAsync({ task: "chat", connectionId: chat.id }).then(() => null, errorMessage);
   // Every close starts the next open at the add form.

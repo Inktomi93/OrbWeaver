@@ -218,13 +218,13 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
     });
   } catch (error) {
     const failures: unknown[] = [];
-    // @orb-waive caught-failure-ownership(cleanup): the observer-cleanup failure is pushed to failures and thrown beside the start error as startCleanupError once detach has also been tried. Ends if that throw stops carrying failures.
+    // the observer-cleanup failure is pushed to failures and thrown beside the start error as startCleanupError once detach has also been tried. Ends if that throw stops carrying failures.
     try {
       await cleanupObserver();
     } catch (cleanup) {
       failures.push(cleanup);
     }
-    // @orb-waive caught-failure-ownership(cleanup): the detach failure is pushed to failures and thrown beside the start error as startCleanupError. Ends if that throw stops carrying failures.
+    // the detach failure is pushed to failures and thrown beside the start error as startCleanupError. Ends if that throw stops carrying failures.
     try {
       await detach();
     } catch (cleanup) {
@@ -237,9 +237,9 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
   }
   let active = true;
   const detachReported = async (): Promise<void> => {
-    // @orb-waive caught-failure-ownership(cleanupObserver): the rejection handler passes the failure to warn, which writes it to stderr as BOOT LCP CLEANUP. Ends if the handler stops passing the error to warn.
+    // the rejection handler passes the failure to warn, which writes it to stderr as BOOT LCP CLEANUP. Ends if the handler stops passing the error to warn.
     await cleanupObserver().catch((error: unknown) => warn(`BOOT LCP CLEANUP     ${errorMessage(error)}`));
-    // @orb-waive caught-failure-ownership(detach): the rejection handler passes the failure to warn, which writes it to stderr as BOOT TRACE DETACH. Ends if the handler stops passing the error to warn.
+    // the rejection handler passes the failure to warn, which writes it to stderr as BOOT TRACE DETACH. Ends if the handler stops passing the error to warn.
     await detach().catch((error: unknown) => warn(`BOOT TRACE DETACH   ${errorMessage(error)}`));
   };
   const abort = async (): Promise<void> => {
@@ -247,7 +247,7 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
       active = false;
       // Cleanup cannot replace the navigation/analyzer failure already leaving this block, but it is
       // still operator-visible: a failed Tracing.end can leave Chromium recording until session close.
-      // @orb-waive caught-failure-ownership(stopTrace): the rejection handler passes the failure to warn, which writes it to stderr as BOOT TRACE CLEANUP; the navigation or analyzer failure already leaving abort stays the primary error. Ends if the handler stops passing the error to warn.
+      // the rejection handler passes the failure to warn, which writes it to stderr as BOOT TRACE CLEANUP; the navigation or analyzer failure already leaving abort stays the primary error. Ends if the handler stops passing the error to warn.
       await stopTrace(cdp, complete.promise).catch((error: unknown) => warn(`BOOT TRACE CLEANUP  ${errorMessage(error)}`));
     }
     await detachReported();
@@ -262,7 +262,7 @@ export async function beginBootTrace(page: Page): Promise<ActiveBootTrace> {
       try {
         let presentation: BootLcpState | undefined;
         const failures: unknown[] = [];
-        // @orb-waive caught-failure-ownership(error): the presentation failure is pushed to failures and handed to stopAndRetainTrace as earlierFailures, whose tail throws it. Ends if earlierFailures stops being thrown.
+        // the presentation failure is pushed to failures and handed to stopAndRetainTrace as earlierFailures, whose tail throws it. Ends if earlierFailures stops being thrown.
         try {
           presentation = await awaitBootPresentation(page);
         } catch (error) {

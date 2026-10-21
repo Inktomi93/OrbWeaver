@@ -80,7 +80,6 @@ const PAYLOAD_TOO_LARGE = 413;
 const UNSUPPORTED_MEDIA_TYPE = 415;
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
-// @orb-waive no-vanity-alias(TRPC_BODY_MAX_BYTES): baselined when the gate widened; burn-down item 906.
 // tRPC bodies are JSON (a batched call's inputs + params). 1 MiB is generous for that; oversized binary
 // rides the upload/import routes with their own larger caps. Bounds a malicious oversized mutation body.
 const TRPC_BODY_MAX_BYTES = BYTES_PER_MIB;
@@ -172,7 +171,6 @@ export function rateLimitResponseMeta(errors: readonly TRPCError[]): ResponseMet
   return {};
 }
 
-// @orb-waive no-vanity-alias(AppEnv): baselined when the gate widened; burn-down item 906.
 /** The request-context surface the routes read — the SAME shape every principal-reading registrar types its
  *  `app` against (`PrincipalEnv`, whose docblock owns the vars), because Hono's env generic is invariant and
  *  a second spelling would make this app instance unassignable to half its own registrars. */

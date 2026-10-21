@@ -87,7 +87,7 @@ export async function stopTrace(capture: TraceCapture): Promise<string | null> {
     return null;
   }
   let endSent = false;
-  // @orb-waive caught-failure-ownership(error): stopTrace returns the caught failure text; ops/arms/profile.ts:225 stores it as traceError, react-profile-receipt.ts:194 files the artifact as `bounded`, and :299 prints it as `track limit`. Ends if stopTrace stops returning the failure or the receipt stops printing it.
+  // stopTrace returns the caught failure text; ops/arms/profile.ts:225 stores it as traceError, react-profile-receipt.ts:194 files the artifact as `bounded`, and :299 prints it as `track limit`. Ends if stopTrace stops returning the failure or the receipt stops printing it.
   try {
     await capture.cdp.send("Tracing.end");
     endSent = true;
@@ -118,7 +118,7 @@ export async function stopTrace(capture: TraceCapture): Promise<string | null> {
     capture.started = false;
     // Tracing.end above owns browser-side trace shutdown; detaching releases the transport. The retained
     // traceError remains explicit without replacing independently valid Fiber evidence.
-    // @orb-waive caught-failure-ownership(capture.cdp.detach): Tracing.end is the terminal browser-side cleanup owner; the caught measurement/retry detail above is retained for the operator. Ends if stopTrace stops sending Tracing.end before detach.
+    // Tracing.end is the terminal browser-side cleanup owner; the caught measurement/retry detail above is retained for the operator. Ends if stopTrace stops sending Tracing.end before detach.
     await capture.cdp.detach().catch(() => undefined);
   }
 }
@@ -152,7 +152,7 @@ export async function startTrace(
     return { capture, error: null };
   } catch (error) {
     if (cdp !== null) {
-      // @orb-waive caught-failure-ownership(cdp.detach): a failed trace start owns no later measurement; detaching is best-effort and the caught start error is returned as the operator-visible track limit. Ends if this catch stops returning the start error.
+      // a failed trace start owns no later measurement; detaching is best-effort and the caught start error is returned as the operator-visible track limit. Ends if this catch stops returning the start error.
       await cdp.detach().catch(() => undefined);
     }
     return { capture: null, error: errorMessage(error) };

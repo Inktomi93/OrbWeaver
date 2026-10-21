@@ -1,4 +1,4 @@
-import { createCorpusReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
+import { createCorpusReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";
 import { ConfigAnchorStory } from "./_anchor-stories.tsx";

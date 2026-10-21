@@ -130,7 +130,7 @@ function IncludeBodyField({
   const [error, setError] = useState<string | null>(null);
 
   const read = (): void => {
-    // @orb-waive caught-failure-ownership(parseIncludeBody): the only rejection is the lazy reader chunk failing to load; it lands in this field's error, and nothing is saved. Ends if the reader stops loading lazily.
+    // the only rejection is the lazy reader chunk failing to load; it lands in this field's error, and nothing is saved. Ends if the reader stops loading lazily.
     parseIncludeBody(text).then(
       (parsed) => {
         if (!parsed.ok) {

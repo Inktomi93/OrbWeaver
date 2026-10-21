@@ -142,7 +142,7 @@ function releaseWorkerSlot(runtime: Runtime): void {
 }
 
 function terminateDetached(worker: Worker): void {
-  // @orb-waive caught-failure-ownership(worker.terminate): the handler rethrows inside queueMicrotask, which raises an uncaught exception that ends the broker process; the watchdog sees the exit and the app rejects pending work through onDisconnect. Ends if the queued rethrow is removed or an uncaughtException handler absorbs it.
+  // the handler rethrows inside queueMicrotask, which raises an uncaught exception that ends the broker process; the watchdog sees the exit and the app rejects pending work through onDisconnect. Ends if the queued rethrow is removed or an uncaughtException handler absorbs it.
   worker.terminate().catch((error: unknown) => {
     queueMicrotask(() => {
       throw error;
@@ -274,7 +274,7 @@ function handleWorkerCommandResponse(runtimeId: string, runtime: Runtime, messag
   if (operation === "snippet" || operation === "dispose" || (operation === "create" && !createActivated)) {
     // Capacity is a count of physical Workers, not map entries. Do not acknowledge a terminal command until
     // termination has completed: the parent may reserve the returned slot immediately after this response.
-    // @orb-waive caught-failure-ownership(terminateRuntime): the rejection arm sends an ok:false response carrying rpcError(error) to the parent, whose handleResponse rejects the command promise; success is not acknowledged before the physical Worker exits. Ends if that arm stops carrying the error.
+    // the rejection arm sends an ok:false response carrying rpcError(error) to the parent, whose handleResponse rejects the command promise; success is not acknowledged before the physical Worker exits. Ends if that arm stops carrying the error.
     terminateRuntime(runtimeId).then(
       () => send(message),
       (error: unknown) => send({ kind: "response", id: message.id, ok: false, error: rpcError(error) }),
@@ -304,7 +304,7 @@ function handleCommand(message: Extract<ParentBrokerMessage, { readonly kind: "c
       value: message.value,
     };
     runtime.worker.postMessage(workerMessage);
-    // @orb-waive caught-failure-ownership(error): malformed, stale, or capacity-refused commands are sent to the parent as an ok:false response carrying rpcError(error), which handleResponse rejects. Ends if this send stops carrying the caught error.
+    // malformed, stale, or capacity-refused commands are sent to the parent as an ok:false response carrying rpcError(error), which handleResponse rejects. Ends if this send stops carrying the caught error.
   } catch (error) {
     send({ kind: "response", id: message.id, ok: false, error: rpcError(error) });
   }
@@ -350,7 +350,7 @@ process.on("message", (value: unknown) => {
     abandon();
     return;
   }
-  // @orb-waive caught-failure-ownership(catch): invalid inherited-channel input calls abandon(), which ends the broker; the watchdog reports the exit as a stopped frame and process-runtime's consumeWatchdogMessage runs onDisconnect, which rejects pending app commands. Ends if abandon stops ending the broker or onDisconnect stops rejecting pending work.
+  // invalid inherited-channel input calls abandon(), which ends the broker; the watchdog reports the exit as a stopped frame and process-runtime's consumeWatchdogMessage runs onDisconnect, which rejects pending app commands. Ends if abandon stops ending the broker or onDisconnect stops rejecting pending work.
   try {
     const message = parseParentBrokerMessage(parseMessageLine(envelope.frame));
     if (message === null) {

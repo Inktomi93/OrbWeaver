@@ -1,7 +1,7 @@
 import { REFINERY_SCORE_MODES, refineryRunViewSchema, refineryScorePayloadSchema } from "@orb/contracts/refinery";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { createCorpusReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
 import { FROZEN_AT_MS } from "@orb/testkit/iso/clock.ts";
+import { createCorpusReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
 import { createSeededIds } from "@orb/testkit/iso/ids.ts";
 import { testModelId } from "@orb/testkit/iso/inference-identities.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";

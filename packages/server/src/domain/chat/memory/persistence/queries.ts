@@ -102,7 +102,7 @@ export async function loadDigestHashes(db: Db, chatId: ChatId, scopedCharacterId
     })
     .from(chatDigests)
     .where(and(eq(chatDigests.chatId, chatId), eq(chatDigests.scopedCharacterId, scopedCharacterId), eq(chatDigests.generationId, generationId)));
-  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for digest hashes. Ends if it outlives the call.
+  // query-local lookup map for digest hashes. Ends if it outlives the call.
   const out = new Map<string, string>();
   for (const r of rows) {
     out.set(`${r.tier}:${r.blockIdx}`, r.contentHash);
@@ -119,7 +119,7 @@ export async function loadSegmentHashes(db: Db, chatId: ChatId, generationId: Em
     .select({ blockIdx: chatSegments.blockIdx, chunkIdx: chatSegments.chunkIdx, contentHash: chatSegments.contentHash })
     .from(chatSegments)
     .where(and(eq(chatSegments.chatId, chatId), eq(chatSegments.generationId, generationId)));
-  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for segment hashes. Ends if it outlives the call.
+  // query-local lookup map for segment hashes. Ends if it outlives the call.
   const out = new Map<string, string>();
   for (const r of rows) {
     out.set(`${r.blockIdx}:${r.chunkIdx}`, r.contentHash);
@@ -171,7 +171,7 @@ export async function loadDigestsForScope(
 /** The `digestId → contained character ids` map (the `chat_digest_speakers` join) for a set of digests — the
  *  consolidation unions its children's speakers up a tier. No-op (empty) on an empty id list. */
 export async function loadDigestSpeakers(db: Db, digestIds: readonly ChatDigestId[]): Promise<Map<ChatDigestId, CharacterId[]>> {
-  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for digest speakers. Ends if it outlives the call.
+  // query-local lookup map for digest speakers. Ends if it outlives the call.
   const out = new Map<ChatDigestId, CharacterId[]>();
   if (digestIds.length === 0) {
     return out;
@@ -218,7 +218,7 @@ export async function loadSegmentSpans(db: Db, chatId: ChatId): Promise<Map<numb
     .from(chatSegments)
     .where(eq(chatSegments.chatId, chatId))
     .groupBy(chatSegments.blockIdx);
-  // @orb-waive persistence-no-in-memory-state(Map): query-local lookup map for segment spans. Ends if it outlives the call.
+  // query-local lookup map for segment spans. Ends if it outlives the call.
   const out = new Map<number, { seqStart: number; seqEnd: number }>();
   for (const r of rows) {
     if (r.seqStart !== null && r.seqEnd !== null) {

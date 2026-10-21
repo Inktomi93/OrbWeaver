@@ -845,7 +845,6 @@ export type PluginSurfaceNode =
   | PluginIconNode
   | PluginTabsNode;
 
-// @orb-waive no-vanity-alias(PluginSurfaceSpec): baselined when the gate widened; burn-down item 906.
 /** A registered surface's spec: the root node of its declarative tree (the whole tree is bounded by the
  *  global caps below). */
 export type PluginSurfaceSpec = PluginSurfaceNode;
@@ -1465,7 +1464,6 @@ export const PLUGIN_COMMAND_DESCRIBE_MAX = 200;
  *  is a control affordance, not a paste target — a plugin that needs a document takes it through its own surface. */
 export const PLUGIN_COMMAND_ARGS_MAX = 2000;
 export const PLUGIN_COMMAND_PLACEMENT_TARGETS = ["composer-action", "composer-media"] as const;
-// @orb-waive no-vanity-alias(PLUGIN_COMMAND_PLACEMENT_LABEL_MAX): baselined when the gate widened; burn-down item 906.
 /** A placement label shares the vocabulary's label bound: it renders as one menu item beside host labels. */
 export const PLUGIN_COMMAND_PLACEMENT_LABEL_MAX = LABEL_MAX;
 export type PluginCommandPlacementTarget = (typeof PLUGIN_COMMAND_PLACEMENT_TARGETS)[number];

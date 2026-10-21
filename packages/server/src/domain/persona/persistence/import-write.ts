@@ -72,14 +72,14 @@ export function createBulkImportPersonas(assembly: DbAssemblyInput<PersonaImport
       ownerId,
       input.map((pi) => pi.avatarAssetId).filter((id): id is AssetId => id !== null),
     );
-    // @orb-waive persistence-no-in-memory-state(Set): call-local collision scan for the free-name mint over the rows this call just read. Ends if it outlives the call.
+    // call-local collision scan for the free-name mint over the rows this call just read. Ends if it outlives the call.
     const takenNames = new Set(candidates.map((c) => foldPersonaName(c.name)));
 
     // `idByName` keys the INPUT's folded name (what a transcript's `user_name` says) to the row it resolved
     // to; the first input under a name wins, as the chat attribution map it feeds keeps one id per name.
     const idByName: Record<string, PersonaId> = {};
     const counts = { created: 0, skipped: 0 };
-    // @orb-waive persistence-no-in-memory-state(Set): call-local record of the merged names for this run's result. Ends if it outlives the call.
+    // call-local record of the merged names for this run's result. Ends if it outlives the call.
     const mergedKeys = new Set<string>();
     let defaultPersonaId: PersonaId | null = null;
     const inserts: BatchStmt[] = [];

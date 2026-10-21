@@ -201,7 +201,7 @@ interface LifecycleOptions {
 /** Construct the lifecycle. Side-effect-free until `boot()` runs (so `index.ts` can wire signals first). */
 export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   const log = getLog();
-  // eslint-disable-next-line orb/no-raw-clock -- The composition root constructs the clock it injects; remove when a platform seam supplies that clock instead.
+  // The composition root constructs the clock it injects; remove when a platform seam supplies that clock instead.
   const now = (): number => Date.now();
 
   let isShuttingDown = false;

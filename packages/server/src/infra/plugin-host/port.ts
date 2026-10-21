@@ -302,7 +302,7 @@ export function createLocalPluginHost(seams: PluginHostSeamDeps): {
       // Advance the tail on BOTH settle arms (a rejected/deadlined invoke cannot wedge the chain). The tail is a
       // `void`-typed barrier that never rejects — it swallows this run's outcome so the NEXT invoke's `.then`
       // always fires; the caller's own `run` promise still carries the real result/rejection.
-      // @orb-waive caught-failure-ownership(run): the tail is a void barrier that must never reject, or one failed invoke wedges the chain for later ones; the caller receives the real outcome from `return await run` on the next lines. Ends if the tail becomes the only reader of `run`.
+      // the tail is a void barrier that must never reject, or one failed invoke wedges the chain for later ones; the caller receives the real outcome from `return await run` on the next lines. Ends if the tail becomes the only reader of `run`.
       resident.tail = run.then(
         () => {
           resident.queueDepth -= 1;

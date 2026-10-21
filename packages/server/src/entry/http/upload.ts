@@ -176,7 +176,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     // kind (document/plugin bundle) keeps the fixed route cap. Keyed on the mime family the store's magic
     // sniff verifies anyway, so the cap matches the bytes actually being stored.
     const maxBytes = mime.startsWith(IMAGE_MIME_PREFIX) ? Math.min(ASSET_UPLOAD_MAX_BYTES, deps.maxImageBytes()) : ASSET_UPLOAD_MAX_BYTES;
-    // @orb-waive caught-failure-ownership(err): owned by uploadRefusal: it answers AssetContentRejectedError and the too-large refusal as 4xx and rethrows every other error to the app's onError. Ends if uploadRefusal stops rethrowing.
+    // owned by uploadRefusal: it answers AssetContentRejectedError and the too-large refusal as 4xx and rethrows every other error to the app's onError. Ends if uploadRefusal stops rethrowing.
     try {
       const stored = await deps.assets.store({
         principal,
@@ -221,7 +221,7 @@ export function registerUpload(app: Hono<PrincipalEnv>, deps: UploadDeps): void 
     if (!destination.success) {
       return c.json({ error: "invalid document destination" }, BAD_REQUEST);
     }
-    // @orb-waive caught-failure-ownership(err): owned by documentUploadRefusal: it answers asset refusals and classified domain errors as 4xx and rethrows unclassified errors to the app's onError. Ends if documentUploadRefusal stops rethrowing.
+    // owned by documentUploadRefusal: it answers asset refusals and classified domain errors as 4xx and rethrows unclassified errors to the app's onError. Ends if documentUploadRefusal stops rethrowing.
     try {
       const result = await deps.databank.upload({
         principal,

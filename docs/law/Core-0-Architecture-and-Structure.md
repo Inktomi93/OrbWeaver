@@ -4,10 +4,9 @@ status: active
 updated: 2026-10-16
 ---
 
-# Orbweaver — structure & enforcement (the constitution)
+# Orbweaver — structure and placement
 
-> **Status: authoritative.** The canonical structure for Orbweaver. Every rule below has a gate that
-> goes RED when violated — enforced, not aspirational. Read this before creating any file.
+> **Status: authoritative.** The canonical structure for Orbweaver. Read this before creating any file.
 
 **North star:** you can figure out where anything lives, and what may import what, **from the file tree
 alone** — you *derive* the layout instead of *remembering* it. The structure is self-documenting and the
@@ -34,14 +33,14 @@ boundaries are physics, not policy.
    prefix-swap of the src path; kind is a filename suffix. More work, but agent-enforceable and the
    src tree stays clean.
 
-Agents (the only contributors here) respect only what fails *early*. Push enforcement up the ladder:
+Put each boundary at the earliest available check:
 
 | Tier | Mechanism | Fires | Agent-proof |
 | - | - | - | - |
 | 1 Resolve-time | package deps (undeclared import won't resolve) | as written | **yes — physics** |
 | 2 Compile-time | types: branded types, exhaustive unions, `satisfies never` | `tsc` | strong |
-| 3 Lint-time | dependency-cruiser, biome, `tooling/src/verify` | `check` (must be run) | weak |
-| 4 Test-time | tests | later | weakest |
+| 3 Lint-time | retained native lint and dependency-cruiser rules | CI and focused lint | guidance |
+| 4 Test-time | product and testkit tests | test runner | behavior |
 
 The cake → tier 1 (packages). Invariants → tier 2 (types). dependency-cruiser → tier 3 backstop only.
 
@@ -182,21 +181,17 @@ is RED.
 prefix swap (`packages/<pkg>/src/` ↔ `tests/<pkg>/`); the file name says the behaviour the test proves, not the
 module it touches. One test file may cover several modules of its directory, and one module may be proved by several
 files. `tests/tooling/<tool>/<dir>/` mirrors `tooling/src/<tool>/<dir>/` when that tool exists (§9); flat
-`tests/tooling` files and directories with no tool twin are exempt. `support/` and `e2e/` mirror nothing. `legacy/`
-holds the tests not yet rebuilt and takes no new file (`Spine-Testing.md` §2). A
+`tests/tooling` files and directories with no tool twin are exempt. `support/` and `e2e/` mirror nothing. The sibling legacy source is reference-only (`Spine-Testing.md` §2). A
 `.suite.*` kind asserts one property across many modules, so it may sit anywhere in its package tree. **Kind by
 suffix**: `.test.ts` (unit) · `.int.test.ts` (integration/db) · `.contract.test.ts` (golden/surface) · `.test-d.ts`
 (types) · `.suite.test.ts`/`.suite.int.test.ts` (cross-cutting property suites). The node lanes are Vitest
 `test.projects` selected by suffix in ONE config. **Browser lanes are Playwright, not Vitest** (Vitest browser-mode
-hangs): `.ct.tsx` (component, Playwright CT) · `.spec.ts` (e2e) — separate runners, not in the fast `check`.
+hangs): `.ct.tsx` (component, Playwright CT) · `.spec.ts` (e2e) — separate runners.
 
-**Presence is reach, not a path.** A file at a computed path proves only that the file exists. A module counts as
-tested when a test, or a test-tree helper it imports, references one of the module's value exports through the
-import graph, or when a test names the module in an `@subject <path>` header. `Spine-Testing.md` §5 owns which
-modules must be reached and by which kind.
+**Presence is behavior, not a path.** Tests should import and exercise the production behavior they claim to cover. `Spine-Testing.md` §5 describes the product surfaces that need behavioral tests. D333 retires custom static presence enforcement.
 
-Why central plus a directory mirror over colocation: an agent can drop a colocated test anywhere, while the mirrored
-directory gives every test one home a gate can check, and the src tree stays clean. The fixture doctrine is composed
+Why central plus a directory mirror over colocation: the mirrored
+directory gives each test one home, and the src tree stays clean. The fixture doctrine is composed
 `test.extend` (over `beforeEach`/`freshDb()`).
 
 **The test kit is a package.** `tests/support` is the workspace package `@orb/testkit`. It sits above the cake
@@ -207,19 +202,14 @@ keeps the direction: iso imports no other world, node imports iso, browser impor
 
 The kit holds deterministic inputs, production-derived builders, external-edge adapters and recorders. Product logic stays in its owning layer behind its public API. `Spine-Testing.md` §2 owns the server test composition home; rebuilt tests do not assemble another domain graph.
 
-**Tests enter packages through their doors.** A test or the kit imports a package through its public entry
-(`@orb/<package>` or a subpath its `exports` map declares) or its testing door. A testing door is a package module
-that exports only test-only seams; none is built yet. A raw reach through the root `#<package>/*` imports map
-(`#server/domain/chat/verbs/send.ts`) in a maintained test needs a reviewed grant (`tests-raw-package-reach`). Legacy reaches follow `Spine-Testing.md` §2 without grants. The map lives in the root
-`package.json`, so product code and the kit cannot resolve it. A relative climb into a package's `src` or, from
-outside, into the kit is banned (`tests-package-subpath`).
+**Tests enter packages through their doors.** Tests import workspace packages through their public entry (`@orb/<package>`) or an exported subpath. They use the production composition root for integration behavior. D333 ends custom test-reach grants and enforcement; package direction remains in workspace dependencies and runtime composition.
 
 Two named exceptions replace copies. The browser world re-exports the client door's registry lists from
 `@orb/client/compose`, the reviewed exception in `client-compose-door-only`. The kit takes tRPC types from the
 `@orb/server` root, the type-only `AppRouter` bridge the client uses (`testkit-app-router-bridge`).
 
-> **Authority: `Spine-Testing.md`.** This section is the mirror rule and the `test-layout` gate only. The full
-> policy — the tree (§2 there), the lanes/projects, presence (`test-reach`), the mock/determinism doctrine, the
+> **Authority: `Spine-Testing.md`.** This section is the mirror rule. The full
+> policy — the tree (§2 there), the test projects, the mock/determinism doctrine, the
 > factory contract, and the homes for the oracle + the esoterica + memory's 6 semantics — lives there.
 
 ---
@@ -243,36 +233,9 @@ The rot mode is a concept with no single home. Each of these has exactly one, up
 
 ---
 
-## 7. The legibility gates (each keeps a rule true)
+## 7. Static assurance
 
-| Rule | Gate |
-| - | - |
-| Tiers flow one way; packages can't import undeclared deps | packages (resolver) + dep-cruiser backstop |
-| Every feature is the identical 8-slot template; the server root is the six tiers plus `index.ts` | `tests/server/layout.suite.test.ts` |
-| A package `src/` root holds `index.ts` and directories only | `tests/kit/package-layout.suite.test.ts` |
-| One verb per file, named for the verb | `verb-naming` |
-| Exported feature types live only in `contract/`; `service.ts` interface always present | ESLint `orb/types-in-contract` |
-| Tests live in the mirrored source directory, kind by suffix | `test-layout` |
-| Tests and the test kit enter a package through its declared entries; a raw reach carries a reviewed grant | `tests-package-subpath` · `tests-raw-package-reach` |
-| **Verbs, routers, schemas and persistence are each reached by the test kind they owe** (presence by reach, not blanket coverage) | `test-reach` (§5 `spine/testing`) |
-| **No ambient clock/random/unseeded-id under `tests/`** (inject the frozen clock + seeded ids) | `test-determinism` (§3 `spine/testing`) |
-| **Tests run the product**: no copy of an exported production function, no hand shape in e2e or support, no unproven cast, no mock or spy of an internal module, no test file over the cap | `test-production-clone` · `test-hand-shape` · `no-test-fabrication` · `test-mock-doctrine` · ESLint `max-lines` (§10 `spine/testing`) |
-| `kit/` = pure primitives + isomorphic engines; **no `node:*`/domain/contracts/db import** (isomorphic npm OK) | `kit-purity` |
-| **No exported `type`/`interface`/`z.object`/structural-cast outside `db` schema / `contracts` / a domain's `contract/` / `kit`** (incl. `context.ts` = explicit interface, not `ReturnType<>`) | `no-inline-types` (§7.4 spine) |
-| **Every string-union axis has ONE importable union — no inline re-spelling** | `no-inline-union-redecl` (§7.5 spine) |
-| **Every union dispatch is a mapped-type Record or `assertNever` — a new member fails `tsc`** | `tsc` itself — compile-time by construction, no gate file (house label: `exhaustive-dispatch`; §7.5 spine) |
-| **`persistence/` is queries only — no `fetch`/`http`/`node:*` I/O** | `persistence-no-io` |
-| **`persistence/` holds no module-scope `Map`/`Set` (in-memory state lives in a named subsystem)** | `persistence-no-in-memory-state` |
-| **A parent-relative import climbs at most one directory; another module is entered through its front door** | `package-deep-import` · `package-subpath-crossing` |
-
-When these hold, **the structure is the documentation**: a new feature is "copy the template,"
-finding anything is a path derivation, and "where does this go?" has exactly one answer.
-
-> Every row above is ENFORCED (dep-cruiser rules and the ts-morph gates in `tooling/src/verify/gates/`, plus
-> `tsc` for the union-dispatch row, which has no gate file); `no-internal-mocks` stays advisory in `Spine-Testing.md §3`, not a hard gate.
-> **This table is the constitution; the full live-gate catalog is `Core-Enforcement-Active-Gates.md`**
-> (the single enforcement source of truth; a not-yet-buildable gate is a `docs/work` decision item, and a
-> rejected gate proposal is a rejected ADR, for example `docs/adr/0220-rejected-neo-and-report-only-gates.md`).
+D333 retires the custom static gate catalog. Package resolution, TypeScript, dependency-cruiser and retained native lint remain. The architecture and product laws above still apply, but custom gate enforcement is no longer available.
 
 ## 8. Cross-cutting invariants (the laws no single file shows)
 
@@ -286,83 +249,8 @@ Promoted here from code comments so they are discoverable; the code stays the so
 | **`notifications.record` is the ONE recipient chokepoint** — every producer routes through it, and it REFUSES an agent-principal recipient (agents never hold an inbox). Enforced once, inherited by all producers. | `domain/notifications` |
 | **Wire event unions are secret-unrepresentable** — the chat/notification event unions are closed discriminated unions of strict objects carrying only ids + literals; a secret/credential field is not expressible, so it cannot leak onto the bus. | `@orb/contracts/{chat,notifications}` |
 | **Settings has one writer.** `domain/settings` owns its KV table and exposes an opaque, registered-prefix port; each tenant owns its values' meaning. | `domain/settings/persistence/kv.ts`; `SETTINGS_TENANT_PREFIXES` in `@orb/contracts/settings` |
-| **`users`-read chokepoint + audit-ordering** — only `admin` + `sessions` read the `users` table (every admin read gates first); audit ordering is check→write→audit, so a refused write leaves NO phantom audit row. | `domain/admin` (read side: the `orb/no-direct-users-read` lint rule) |
+| **`users`-read chokepoint + audit-ordering** — only `admin` + `sessions` read the `users` table (every admin read checks authorization first); audit ordering is check→write→audit, so a refused write leaves NO phantom audit row. | `domain/admin` |
 
-## 9. The tooling tree — `@orb/tooling`, ABOVE the cake
+## 9. Retained tooling
 
-`tooling/` is a ROOT tree beside `packages/`, one private workspace package (`@orb/tooling`) holding the
-entire durable tool fleet: the verification system, the rendered-surface instruments, the AST/codemod
-engines, the operator CLIs, the dev-stack launchers. It is deliberately NOT inside `packages/`, so every
-`packages/*` glob in the repo keeps meaning "the cake" unchanged and "tools sit above the cake" is legible
-from the path alone.
-
-**One-way glass.** `@orb/tooling` may import ANY app package; **nothing in `packages/**` may ever import
-tooling.** Primary enforcement is resolver physics (no package declares the dep, so the import cannot
-resolve); the `packages-no-tooling` dep-cruiser stanza is the deep-relative-escape backstop, the `ui-cake`
-posture. The one surface still sealed AGAINST tooling is the provider FAMILIES
-(`packages/inference/src/backends/<x>`, where the agent-sdk credential firewall lives) plus the package's
-contract internals — `tooling-no-provider-families`. The package FRONT DOOR is legal; its families are
-not.
-
-**The test kit sits beside tooling.** `@orb/testkit` (`tests/support`, §5) is a package above the cake.
-It may import any app package and tooling's public doors: a tool's front door (`@orb/tooling/<tool>`) and the
-floor modules (`@orb/tooling/floor/*`), such as the contrast and timing engines. A tool's internals stay closed to it
-(`testkit-tooling-doors`). Tests, the test runner configs (`playwright-ct.config.ts`, `playwright/`) and scripts
-import the kit. Nothing in `packages/**` imports it (`not-to-test`), and tooling never imports it
-(`tooling-no-testkit`), so a tool's verdict never depends on a test fixture.
-
-**The five-slot tool template** (`tooling/src/<tool>/` — the domain template's tooling twin; learn one,
-know all):
-
-```
-tooling/src/<tool>/
-├── cli.ts        argv parse + dispatch ONLY (cap 200 lines; enters through floor/cli/run-tool.ts)
-├── index.ts      programmatic API — tests import THIS; cli.ts consumes it
-├── contract/     result shapes, config schemas, typed exit data
-├── ops/          one file per command family / capability
-└── lib/          tool-internal pure helpers
-```
-
-Two sanctioned departures: **`floor/`** is the ONE plumbing floor, role-subfoldered and never a flat drawer
-(`browser/` holds the browser bootstrap, `compiler/` the ts-morph workspace loader, `artifacts/` the artifact
-filer, `cli/` the exit contract, `process/` the process door, and so on), and it reaches UP to no tool
-(`tooling-shared-floor`); **`gates/`** is a SIXTH slot inside `verify/` only — the fs-discovered gate
-corpus is neither a command family nor tool-internal helpers, and it is cap-exempt. A bash-fronted tool
-(`stack/`) carries its `.sh` entrypoints at the tool root under a typed exemption row, and its node half is
-an `ops/*-entry.ts`, never a second `cli.ts`.
-
-Revisioned non-TS runtime data lives under the owning tool's `ops/` or `lib/`, never at the tool root.
-The exact DevTools frontend exception is `tooling/src/snap/lib/devtools-frontend/`: generated official
-runtime bytes plus a closed hash/MIME/license manifest, owned and updated by Snap's maintainer subcommand.
-
-**Every tool is reached by its pnpm script name, never by path** — the script names are the front door and
-did not change when the fleet moved.
-
-| Rule | Enforcer |
-| - | - |
-| top-level entries are tool DIRS; each carries `cli.ts` + `index.ts`; tool roots admit only the five slots | `tests/tooling/tool-slot-template.int.test.ts` |
-| a cross-tool import enters through the sibling's front door (`#<tool>`), never its `ops`/`lib`/`contract` | `tooling-front-door` (shape) + `tooling-internal-direction` + `tooling-cli-via-index` (resolved edges) |
-| no file >450 lines; no `cli.ts` >200 (`verify/gates/**` cap-exempt) | ESLint `max-lines` in `eslint.config.js` |
-| ONE home per plumbing capability: the ts-morph project, the browser launch, the artifact dir, `process.exit`, the `cli.ts` `runTool` entry, the `node:child_process` door, the un-niced spawn census | `tooling-project-home` · `tooling-browser-door` · `tooling-artifact-path-home` · `tooling-artifact-run-slot` · `tooling-process-exit-home` · `tooling-cli-entry` · `tooling-child-process-door` (the `tooling-shared-plumbing` split, `Core-Tooling-Law.md` §4.4) |
-| every instrument whose output is a VERDICT about the app owns a planted-defect proof AND a planted-absence proof | `tests/tooling/instrument-proof.int.test.ts` (keyed off `floor/instrument/instruments.ts`) + the `orb/instrument-verdict-door` restriction |
-| `packages/** ⇏ tooling/**`; provider families stay sealed | `packages-no-tooling` · `tooling-no-provider-families` |
-| `packages/**` and `tooling/**` ⇏ the test kit; the kit enters tooling only through its public doors | `not-to-test` · `tooling-no-testkit` · `testkit-tooling-doors` |
-
-**Two fleet-wide doors, both in `floor/cli/`.** `exit-contract.ts` owns `EXIT = { clean: 0, violations: 1,
-toolError: 2, misuse: 3 }` and `run-tool.ts` is the exit-honesty runner every `cli.ts` enters through:
-crash ≠ verdict (an uncaught throw becomes a hard `toolError`, never a silent 1), verdicts set
-`process.exitCode` so stdout drains, and a verdict never downgrades. `proc.ts` is the ONE
-`node:child_process` door — every niced spawn runs its child at `TOOLING_PRIORITY` (10, every OS),
-because the box co-hosts other services; an un-niced spawn needs a cited census row stating why that priority is wrong
-there.
-
-**`scripts/` is the research zone, not a second tool tree** — explicitly throwaway probes, one-shot
-inspectors, launcher shims, and operator scripts; KISS/YAGNI apply there and only there. It MAY import
-`@orb/tooling` (the glass is one-way against `packages/`, not against research). Roster + retention
-rationale: `scripts/README.md`. A research script that becomes essential for verification is promoted
-into `tooling/src/<tool>/` under the template, original deleted — never a compat stub.
-
-> The detail home is `Core-Tooling-Law.md` (the tool roster, the plumbing floor, the per-gate
-> contracts, the coupled-site census, the move playbook) plus the code's own file headers. Gate authoring law:
-> `../../tooling/src/verify/gates/GATE-AUTHORING.md`. Live gate catalog:
-> `Core-Enforcement-Active-Gates.md`.
+D333 retains Snap, design audit, motion tools, CPU capture and application development commands. Keep retained tools outside product packages. Keep shared infrastructure only when a retained consumer needs it. Do not restore the verify or gate framework.

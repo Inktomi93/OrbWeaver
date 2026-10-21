@@ -334,7 +334,6 @@ export interface CommittedChatContext {
   readonly background: ThemeBackground | null;
 }
 
-// @orb-waive no-vanity-alias(ChatContextState): baselined when the gate widened; burn-down item 906.
 /** The Chats CONTEXT-panel state projection (O5 strict) — what `defineContextTabs<ChatContextState>` and
  *  every chat-context CONTRIBUTOR (`ContextTabDef<ChatContextState>`) are typed against.
  *  IT IS A SINGLE-ARM UNION ON PURPOSE. `DraftChatContext` (a rowless room carrying founding CHARACTER ids —

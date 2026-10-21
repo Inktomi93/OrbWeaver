@@ -26,8 +26,8 @@ Follow `docs/law/Spine-Testing.md` §10. Call production, derive types, import c
 
 - Retrofit work on a fake-heavy server harness stops. Those rows move to the rebuild.
 - Complete foundation qualification remains open; the plan's work items own its current state.
-- `tests/legacy/` holds every test not yet rebuilt. Add no file there; a new test goes in the mirror. `docs/law/Spine-Testing.md` §2 owns its rules.
-- `pnpm test:scoped` and `pnpm test:ct` refuse a legacy path. Pass `--legacy` to run one on purpose.
+- The external legacy source at `/home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21` is reference-only. It is not typechecked or run by this repository.
+- Run named Node suites with `pnpm test <paths>` and component suites with `pnpm test:ct <paths>`.
 - For testkit import changes, run native dependency-cruiser on the changed helper entries. Typechecking alone does not prove world purity.
 
 ## Fixtures and timeouts
@@ -61,8 +61,7 @@ resource and cascades failures into later tests in the same file.
   control before trusting the red.
 - Before blaming your change for a failure, run it three ways: full change, a half change isolating the
   suspect boundary, and restored source. An identical failure across all three is inherited.
-- `vitest --typecheck` caches its verdict on the spec file and misses edits in a `///`-referenced `.d.ts`.
-  Touch the spec, or run cold.
+- Native `pnpm typecheck` owns `.test-d.ts` assertions. Runtime Vitest does not run type tests.
 
 ## Preset prose slots
 

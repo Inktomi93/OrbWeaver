@@ -149,7 +149,7 @@ const bugReportJsonOnly: MiddlewareHandler = (c, next) => {
 
 /** The POSTed body, or `null` when it was not JSON at all — which `safeParse` then reports as invalid. */
 async function readJsonBody(c: Context): Promise<unknown> {
-  // @orb-waive caught-failure-ownership(catch): owned by the POST handler, which feeds this null to `bugReportInput.safeParse` and answers 400 `invalid bug report` to the caller (`z.object` refuses null). Ends if the null stops reaching that safeParse or its 400.
+  // owned by the POST handler, which feeds this null to `bugReportInput.safeParse` and answers 400 `invalid bug report` to the caller (`z.object` refuses null). Ends if the null stops reaching that safeParse or its 400.
   try {
     return await c.req.json();
   } catch {
@@ -245,7 +245,7 @@ export function createDebugAuthMiddleware(opts: DebugAuthOptions | string | unde
   return async (c: Context, next: Next) => {
     const adminArmConsulted = config.adminAuth !== undefined;
     if (config.adminAuth !== undefined) {
-      // @orb-waive caught-failure-ownership(catch): documented below — a checker error falls
+      // documented below — a checker error falls
       // through to the token check, never opening the gate. Ends if the fallthrough is removed.
       try {
         if (config.adminAuth.isAdmin(c)) {

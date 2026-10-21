@@ -24,7 +24,7 @@ const ALWAYS_REVEALED = "opacity-100";
  *  reveals on hover and keyboard focus only, so at a touch pointer it stays hidden: stock SillyTavern shows
  *  an earlier row's buttons nowhere on a phone, and a tap focuses the row item, not the reveal group. */
 const ACTIONS_REVEALS = ["expanded", "focus", "hover"] as const;
-// @orb-waive no-inline-types(ActionsReveal): a three-member UI reveal mode the row, its header and the actions cluster share; not a wire or domain shape.
+// a three-member UI reveal mode the row, its header and the actions cluster share; not a wire or domain shape.
 export type ActionsReveal = (typeof ACTIONS_REVEALS)[number];
 
 const REVEAL_CLASS: Record<ActionsReveal, string> = { expanded: ALWAYS_REVEALED, focus: FOCUS_REVEAL, hover: HOVER_REVEAL };

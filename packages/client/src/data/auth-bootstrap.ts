@@ -51,7 +51,7 @@ export async function fetchAuthMe(): Promise<AuthMe> {
 
 /** An unreadable optional body is absent; each caller supplies its visible fallback. */
 async function optionalAuthBody<T>(response: Response, schema: z.ZodType<T>): Promise<T | null> {
-  // @orb-waive caught-failure-ownership(catch): each caller owns its null: login and firstRunSetup still throw LoginFailedError with the HTTP status line, signUpWithInvite and confirmPendingJoin still return `{ ok: false, code: null }`, and logout reads it as the documented no-end-session fallback after `res.ok` passed. Ends if a caller reads null as success copy.
+  // each caller owns its null: login and firstRunSetup still throw LoginFailedError with the HTTP status line, signUpWithInvite and confirmPendingJoin still return `{ ok: false, code: null }`, and logout reads it as the documented no-end-session fallback after `res.ok` passed. Ends if a caller reads null as success copy.
   try {
     const parsed = schema.safeParse(await response.json());
     return parsed.success ? parsed.data : null;

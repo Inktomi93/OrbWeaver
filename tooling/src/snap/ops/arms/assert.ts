@@ -129,7 +129,7 @@ async function runAssertion(page: Page, assertion: Assertion, includeHidden: boo
 async function runAssertions(page: Page, assertions: readonly Assertion[], includeHidden: boolean): Promise<AssertionOutcome[]> {
   const outcomes: AssertionOutcome[] = [];
   for (const assertion of assertions) {
-    // @orb-waive caught-failure-ownership(error): the ERROR outcome (failed: true) joins the returned outcomes; assertionFailures counts it into assertion-fails and the evidence file records its line. Ends if assertionFailures stops reading entry.failed.
+    // the ERROR outcome (failed: true) joins the returned outcomes; assertionFailures counts it into assertion-fails and the evidence file records its line. Ends if assertionFailures stops reading entry.failed.
     try {
       outcomes.push(await runAssertion(page, assertion, includeHidden));
     } catch (error) {

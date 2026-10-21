@@ -439,7 +439,7 @@ async function probeContextUsage(query: Query, scheduleTimeout: AgentSdkDeps["sc
   try {
     const res = await Promise.race([query.getContextUsage(), timeout]);
     usage = res !== undefined ? toContextUsage(res) : undefined;
-    // @orb-waive caught-failure-ownership(catch): context fill is an optional bounded diagnostic and `undefined` omits only that sidecar. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if the probe starts governing the turn result.
+    // context fill is an optional bounded diagnostic and `undefined` omits only that sidecar. Precedent: packages/client/src/lib/perf-marks.ts accepts the same best-effort diagnostic loss. Ends if the probe starts governing the turn result.
   } catch {
     // diagnostic miss, not a turn failure
   } finally {
@@ -453,7 +453,7 @@ async function probeContextUsage(query: Query, scheduleTimeout: AgentSdkDeps["sc
 export async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: TurnStreamContext, log: AgentSdkLog): Promise<ChatResult> {
   const acc = new TurnAccumulator(ctx, log);
   let streamFailure: unknown;
-  // @orb-waive caught-failure-ownership(error): the stream failure is held in `streamFailure` and returned through finishTurnWithError at runner.ts:474 (typed Promise<never>) once the observed result is captured. Ends if capture stops preceding that refusal.
+  // the stream failure is held in `streamFailure` and returned through finishTurnWithError at runner.ts:474 (typed Promise<never>) once the observed result is captured. Ends if capture stops preceding that refusal.
   try {
     for await (const message of stream) {
       assertSdkMessageRead(message);

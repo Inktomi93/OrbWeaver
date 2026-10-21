@@ -19,7 +19,7 @@ async function resolveConnection(
   task: EmbeddingTask,
   connectionId?: UserConnectionId,
 ): Promise<EmbeddingConnectionSnapshot | null> {
-  // @orb-waive caught-failure-ownership(catch): same leak-free collapse ownership as entry/http/plugin-frame.ts — by-id resolution fails closed and the public require*Space boundary turns null into a named SearchError. Ends if null can leave this module without that refusal.
+  // same leak-free collapse ownership as entry/http/plugin-frame.ts — by-id resolution fails closed and the public require*Space boundary turns null into a named SearchError. Ends if null can leave this module without that refusal.
   try {
     return await ctx.resolveEmbeddingConnection(ownerId, task, connectionId);
   } catch {

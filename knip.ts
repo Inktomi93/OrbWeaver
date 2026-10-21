@@ -1,5 +1,4 @@
 import type { KnipConfig, KnipConfiguration } from "knip";
-import { BASELINED_TYPES } from "./knip-baseline.config.ts";
 
 // The resolver owns public doors; Knip owns unused files, symbols and dependencies (D318).
 export const config = {
@@ -39,39 +38,25 @@ export const config = {
   },
   workspaces: {
     ".": {
-      // Every scripts/ tool is directly runnable (node runs .ts source); gate files were DYNAMICALLY discovered by
-      // the check harness loader, so they must be entries or knip calls the whole gate corpus dead.
-      // The ST-parity rig's CAPTURED RUNTIME (gitignored, 26k files) sits under scripts/probes/ — the
-      // negation is knip's fence. A planted bare .ts proved too weak to test this fence: knip's
-      // dependency lens only fires on a file that IMPORTS something (the runtime's own index.d.ts
-      // imports csrf-sync), so the fence's probe must plant an import, not an empty file.
+      // Operator scripts are direct Node entry points.
       entry: [
-        "eslint-hard.config.js",
         "scripts/**/*.ts",
-        "!scripts/probes/st-goldens/sillytavern-runtime/**",
         "playwright/**/*.{ts,tsx}",
         // The CT Vite transform reads this stylesheet as text rather than through an ESM import.
         "playwright/index.css",
-        "tests/legacy/server/infra/plugin-host/_broker-containment-proof.ts",
       ],
-      project: ["scripts/**/*.ts", "!scripts/probes/st-goldens/sillytavern-runtime/**", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx,css}"],
+      project: ["scripts/**/*.ts", "tests/**/*.{ts,tsx}", "playwright/**/*.{ts,tsx,css}"],
       // The full binary analysis sees these deliberately fake executables in missing-binary and PATH-shim controls.
       // mkfifo is the POSIX coreutils binary the orchestrator-inject hook test uses to plant a FIFO transcript path;
       // it is an OS tool, never an npm dependency, so knip has no package to credit it to.
       ignoreBinaries: ["orb-nonexistent-binary-xyz-123", "mkfifo"],
       // pino-pretty is a root devDependency the dev launcher's pretty log rides; its importer is the tooling
       // workspace (tooling/src/dev/ops/dev.ts), which knip credits to that workspace, not to the root.
-      // ts7 (npm:typescript@7) is resolved by PATH STRING in scripts/ts7.ts (node_modules/ts7/bin/tsc) —
+      // @typescript/native (npm:typescript@7) is resolved by PATH STRING in scripts/typecheck.ts (node_modules/@typescript/native/bin/tsc) —
       // invisible to import analysis.
-      // @typescript/native (npm:typescript@7) is imported by stryker's typescript-checker itself when
-      // experimentalNativePreview is on (its loader imports `@typescript/native/unstable/sync`) — a
-      // node_modules-internal consumer knip cannot see. Rides the checker patch + pin set on any bump.
       // @anthropic-ai/sdk is never imported; it is the peer pin for @anthropic-ai/claude-agent-sdk (pnpm-workspace.yaml).
       // typeid-js is resolved through the root node_modules by fixtures that copy packages/kit/src/ids (testkit-enforcement nativeProgram).
-      ignoreDependencies: ["pino-pretty", "ts7", "@typescript/native", "@anthropic-ai/sdk", "typeid-js"],
-      // knip's Stryker plugin only globs `.js`/`.mjs`/`.cjs`/`.json` configs; naming the `.ts` configs is
-      // what lets it read `testRunner`/`checkers` and credit the runner and checker packages.
-      stryker: { config: ["stryker.config.ts", "stryker.gate.config.ts"] },
+      ignoreDependencies: ["pino-pretty", "@typescript/native", "@anthropic-ai/sdk", "typeid-js"],
     },
     // @orb/testkit: every world module is a package subpath export, so each one is an entry.
     "tests/support": {
@@ -81,20 +66,9 @@ export const config = {
       ignoreDependencies: ["@anthropic-ai/sdk"],
     },
     // @orb/tooling: every tool's cli.ts + index.ts are entries; floor modules are entries too
-    // (research-zone scripts import them by subpath until their tools promote).
+    // Shared floor modules are exported package entry points.
     tooling: {
-      // The GATE CORPUS is an entry glob for the same reason one level up: `verify`'s loader IS the registry
-      // — it `globSync`s `gates/*.ts` and imports each by URL at runtime (Core-Tooling-Law.md §4.3), so every
-      // descriptor is a plugin nothing statically imports. Without this row knip reads all 219 `export const
-      // gate` as dead, and drops every helper they alone consume with them.
-      entry: [
-        "src/*/cli.ts",
-        "src/*/index.ts",
-        "src/floor/*/*.ts",
-        "src/verify/gates/*.ts",
-        "src/verify/ops/required-live-evidence-reporter.ts",
-        "src/snap/lib/budgets.ts",
-      ],
+      entry: ["src/*/cli.ts", "src/*/index.ts", "src/floor/*/*.ts", "src/snap/lib/budgets.ts"],
       project: ["src/**/*.ts"],
       // The heap arm loads chrome-devtools-mcp's browser-free parser through a version-pinned dynamic
       // subpath held in a constant. Knip cannot resolve that indirection, while the heap suite exercises
@@ -177,17 +151,9 @@ function patternList(patterns: string | readonly string[] | undefined): readonly
   return typeof patterns === "string" ? [patterns] : patterns;
 }
 
-// D318: the production run is the one judge of symbol and file liveness for production files, with its
-// shrink-only baseline. Without this, the default run re-reports that same debt with no baseline, and
-// test-only consumers decide liveness. Files outside the `!` patterns keep their default symbol checks.
-function defaultWorkspace(workspace: WorkspaceConfig): WorkspaceConfig {
-  const shipped = patternList(workspace.project).flatMap((pattern) => (pattern.endsWith("!") ? [pattern.slice(0, -1)] : []));
-  return shipped.length === 0 ? workspace : { ...workspace, ignoreIssues: Object.fromEntries(shipped.map((pattern) => [pattern, [...BASELINED_TYPES]])) };
-}
-
 function configFor({ production = false, strict = false }: KnipModeArgs): KnipConfiguration {
   if (!(production || strict)) {
-    return { ...config, workspaces: Object.fromEntries(Object.entries(config.workspaces).map(([name, workspace]) => [name, defaultWorkspace(workspace)])) };
+    return config;
   }
   const workspaces: Record<string, WorkspaceConfig> = { ...config.workspaces };
   for (const [name, entries] of Object.entries(PRODUCTION_SCRIPT_ENTRIES)) {

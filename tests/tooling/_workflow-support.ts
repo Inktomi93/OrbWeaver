@@ -2,7 +2,6 @@ import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { parse } from "yaml";
 import { z } from "zod";
-import { INSTRUMENT_EXECUTION_COMPONENTS } from "../../tooling/src/verify/contract/instrument-affected.ts";
 
 export function read(repoRoot: string, rel: string): string {
   return readFileSync(join(repoRoot, rel), "utf8");
@@ -37,7 +36,7 @@ const workflowConfig = z.object({
             z.string(),
             z.object({
               shard: z.array(z.number()).optional(),
-              include: z.array(z.object({ component: z.enum(INSTRUMENT_EXECUTION_COMPONENTS).optional(), shard: z.string().optional() })).optional(),
+              include: z.array(z.object({ shard: z.string().optional() })).optional(),
             }),
           ]),
         })

@@ -4,7 +4,6 @@ import { dirname, join } from "node:path";
 import { isPlainObject } from "@orb/kit/guards";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
-import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { describe } from "vitest";
 import type { TokenContractTexts } from "../../packages/ui/token-contract.ts";
 import {
@@ -16,11 +15,9 @@ import {
   readTokenRemovalBaseline,
   validateTokenContractTexts,
 } from "../../packages/ui/token-contract.ts";
-import { resolveMeasurementBoundary } from "../../tooling/src/verify/index.ts";
 
 const UI_ROOT = join(import.meta.dirname, "../../packages/ui");
 const REPO_ROOT = join(import.meta.dirname, "../..");
-const BASE_REF = resolveMeasurementBoundary(REPO_ROOT, inheritedProcessEnv())?.base ?? "origin/main";
 const BASELINE_TARGETS = new Set(
   readFileSync(join(import.meta.dirname, "../../packages/ui/src/tokens/index.ts"), "utf8")
     .matchAll(/cssVar: "(--[a-z0-9-]+)"/gu)
@@ -159,8 +156,7 @@ test("the official schemas are hash-pinned and a complete conformant fixture pas
 });
 
 test("the real vault is conformant and preserves the exact generated target surface", () => {
-  const result = validateTokenContractTexts(readTokenContractTexts(UI_ROOT, REPO_ROOT), REPO_ROOT, BASE_REF);
-  expect(readTokenRemovalBaseline(REPO_ROOT, BASE_REF).status).toBe("ready");
+  const result = validateTokenContractTexts(readTokenContractTexts(UI_ROOT, REPO_ROOT));
   const countTokens = (value: unknown): number => {
     if (!isPlainObject(value)) {
       return 0;
@@ -318,39 +314,6 @@ describe("Orb semantic controls", () => {
       runtime["value"] = "{dimension.runtime-blur}";
     });
     expect(codes(inputOnly)).toContain("orb.cssValues.alias.nonportable");
-  });
-
-  test("the Git merge-base ratchet refuses a portable token deletion without a removed-ledger row", () => {
-    const current = readTokenContractTexts(UI_ROOT);
-    const deleted = mutate(current, "base", (base) => {
-      descend(base, "motion")["ambient"] = undefined;
-    });
-    const result = validateTokenContractTexts(deleted, REPO_ROOT, BASE_REF);
-    expect(result.diagnostics.map((item) => item.code)).toContain("removed.unrecorded");
-    expect(result.diagnostics.map((item) => item.message)).toContain("portable token motion.ambient was removed without a ledger row");
-  });
-
-  test("the Git merge-base ratchet refuses a same-count runtime CSS target substitution", () => {
-    const current = readTokenContractTexts(UI_ROOT);
-    const original = validateTokenContractTexts(current, REPO_ROOT, BASE_REF);
-    const swapped = mutate(current, "base", (base) => {
-      const cssValues = descend(descend(base, "$extensions"), "orb.cssValues");
-      const portrait = cssValues["--aspect-portrait"];
-      if (portrait === undefined) {
-        throw new Error("fixture lost --aspect-portrait");
-      }
-      cssValues["--aspect-portrait"] = undefined;
-      cssValues["--aspect-portrait-renamed"] = portrait;
-    });
-    const result = validateTokenContractTexts(swapped, REPO_ROOT, BASE_REF);
-    expect(original.diagnostics).toEqual([]);
-    expect(result.cssTargets.size).toBe(original.cssTargets.size);
-    expect(result.diagnostics.map((item) => item.code)).toContain("removed.target.unrecorded");
-
-    const avatar = readFileSync(join(UI_ROOT, "src/primitives/avatar/variants.ts"), "utf8");
-    const media = readFileSync(join(UI_ROOT, "src/primitives/media-tile-grid/variants.ts"), "utf8");
-    expect(avatar).toContain("aspect-portrait");
-    expect(media).toContain("aspect-portrait");
   });
 
   test("zero scanned tokens fails loud instead of reporting a blind clean", () => {

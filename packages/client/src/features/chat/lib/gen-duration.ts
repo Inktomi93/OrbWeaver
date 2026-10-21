@@ -6,7 +6,6 @@ import { MS_PER_SECOND } from "@orb/kit/time";
 // present AND ordered — the stats gen-time axis uses the same guard (`domain/chat/substrate/stats-delta`).
 // Kept pure + prop-driven so it unit-tests without a render.
 
-// @orb-waive no-vanity-alias(SUB_SECOND_MAX_MS): baselined when the gate widened; burn-down item 906.
 const SUB_SECOND_MAX_MS = MS_PER_SECOND;
 
 /** The completed generation window in ms (`gf − gs`) when both bounds are present and ordered, else null

@@ -56,7 +56,7 @@ async function persistInsert(writer: SessionEntryWriter | undefined, log: Infere
   }
   try {
     await writer.insert(entry);
-    // @orb-waive caught-failure-ownership(err): the failed persist is reported by the injected `log.warn` at store.ts:61 with the op and sdkSessionId; the in-memory session stays authoritative. Ends if that warning is removed or the cache stops being the authority.
+    // the failed persist is reported by the injected `log.warn` at store.ts:61 with the op and sdkSessionId; the in-memory session stays authoritative. Ends if that warning is removed or the cache stops being the authority.
   } catch (err) {
     log.warn({ err, op: "insert", sdkSessionId: entry.sdkSessionId }, "agent-sdk: session_entries persist failed (best-effort, cache unaffected)");
   }
@@ -70,7 +70,7 @@ async function persistUpdate(writer: SessionEntryWriter | undefined, log: Infere
   }
   try {
     await writer.update(entry);
-    // @orb-waive caught-failure-ownership(err): the failed persist is reported by the injected `log.warn` at store.ts:75 with the op and sdkSessionId; the in-memory session stays authoritative. Ends if that warning is removed or the cache stops being the authority.
+    // the failed persist is reported by the injected `log.warn` at store.ts:75 with the op and sdkSessionId; the in-memory session stays authoritative. Ends if that warning is removed or the cache stops being the authority.
   } catch (err) {
     log.warn({ err, op: "update", sdkSessionId: entry.sdkSessionId }, "agent-sdk: session_entries persist failed (best-effort, cache unaffected)");
   }

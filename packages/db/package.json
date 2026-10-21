@@ -21,9 +21,9 @@
     "#src/*": "./src/*"
   },
   "dependencies": {
-    "@orb/kit": "workspace:*",
-    "@orb/contracts": "workspace:*",
     "@libsql/client": "catalog:",
+    "@orb/contracts": "workspace:*",
+    "@orb/kit": "workspace:*",
     "drizzle-orm": "catalog:",
     "zod": "catalog:"
   },

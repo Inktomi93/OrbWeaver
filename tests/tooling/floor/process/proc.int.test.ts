@@ -49,7 +49,7 @@ test("every door spawns through cross-spawn on win32 and through node's own spaw
 
 // WALL CLOCK, through ONE door: the subject of the arms below is a real deadline settling on real time (a
 // socket that says nothing, a child that hangs) — there is no clock to inject into the other side.
-// @orb-waive test-determinism(Date.now): the SUBJECT is a real deadline measured on real time — the far side (a mute socket / a hung child) has no injectable clock
+// the SUBJECT is a real deadline measured on real time — the far side (a mute socket / a hung child) has no injectable clock
 const wallNowMs = (): number => Date.now();
 
 /** The child body: fork a DESCENDANT, publish both pids, then hang forever. The descendant is spawned
@@ -113,8 +113,7 @@ function killTree(pids: ChildPids | null): void {
       process.kill(pid, "SIGKILL");
     } catch {
       // The test owns these disposable pids and the door under test may already have reaped them — the
-      // same cleanup posture as the stack fixtures. No `@orb-gate-ignore`: caught-failure-ownership does
-      // not scan tests/, so a marker here would suppress nothing and read as residue to the retired-marker lint rule.
+      // same cleanup posture as the stack fixtures.
     }
   }
 }

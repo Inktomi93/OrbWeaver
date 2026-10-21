@@ -163,7 +163,7 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       return c.json({ error: "missing CSRF header" }, FORBIDDEN);
     }
     let raw: unknown;
-    // @orb-waive caught-failure-ownership(catch): client-input — a malformed JSON body answers the caller a leak-free 400, the standard HTTP body-parse refusal. Ends if this stops being an entry-point body parse.
+    // client-input — a malformed JSON body answers the caller a leak-free 400, the standard HTTP body-parse refusal. Ends if this stops being an entry-point body parse.
     try {
       raw = await c.req.json();
     } catch {
@@ -175,7 +175,7 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
     }
     const body = parsed.data;
     let frame: PluginFrameBody | null;
-    // @orb-waive caught-failure-ownership(catch): leak-free collapse — documented below: a foreign/unknown pluginId, "no such surface", and "grant revoked" all answer the SAME NOT_FOUND, the card-frame doorway's fail-closed posture. Ends if a caller needs to distinguish those causes.
+    // leak-free collapse — documented below: a foreign/unknown pluginId, "no such surface", and "grant revoked" all answer the SAME NOT_FOUND, the card-frame doorway's fail-closed posture. Ends if a caller needs to distinguish those causes.
     try {
       frame = await deps.surfaces.getFrameBody({ caller: principal, pluginId: body.pluginId, surfaceId: body.surfaceId });
     } catch {
@@ -229,7 +229,7 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       return c.body(null, NOT_FOUND);
     }
     let asset: Awaited<ReturnType<PluginFrameSurfacePort["getFrameAsset"]>>;
-    // @orb-waive caught-failure-ownership(catch): every stale/removed/foreign asset condition is the same
+    // every stale/removed/foreign asset condition is the same
     // leak-free 404 at this passive resource boundary. Ends if this route starts returning typed errors.
     try {
       // A handle names one live frame surface, not the plugin's entire asset namespace. An upgrade can remove
@@ -281,7 +281,7 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       // A handle is not a snapshot of consent. Recheck current residency/grant so disable and uninstall revoke
       // the document as well as its assets before the sliding TTL expires.
       let live: PluginFrameBody | null;
-      // @orb-waive caught-failure-ownership(catch): a frame-body failure closes this passive handle read as the
+      // a frame-body failure closes this passive handle read as the
       // same leak-free miss as a revoked grant or removed surface. Ends if this route returns typed errors.
       try {
         live = await deps.surfaces.getFrameBody({ caller: entry.plugin.caller, pluginId: entry.plugin.pluginId, surfaceId: entry.plugin.surfaceId });

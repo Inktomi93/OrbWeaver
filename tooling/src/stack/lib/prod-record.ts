@@ -11,7 +11,7 @@ export function serializeProdRecord(record: ProdRecord): string {
  *  never as a crash, exactly like snap-stage's `readActive`. */
 export function parseProdRecord(text: string): ProdRecord | null {
   let parsed: unknown;
-  // @orb-waive caught-failure-ownership(catch): null is data: classifyInstance reads a null record as foreign when something listens (identity.ts:26) and absent when nothing does (identity.ts:23), and decideUp/decideDown refuse a foreign holder. Ends if a null record can classify as ours.
+  // null is data: classifyInstance reads a null record as foreign when something listens (identity.ts:26) and absent when nothing does (identity.ts:23), and decideUp/decideDown refuse a foreign holder. Ends if a null record can classify as ours.
   try {
     parsed = JSON.parse(text);
   } catch {

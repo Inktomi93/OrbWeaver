@@ -172,7 +172,7 @@ export function createRoomRegistry(): RoomRegistry {
     // previous attempt was in flight. What goes on the wire is what the dedupe records.
     const wanted = lowestSinceSeq(entry);
     entry.announced = wanted;
-    // @orb-waive caught-failure-ownership(wire.attach): the handler calls retryAnnounce, which re-attempts on the backoff ladder and, once it is spent, calls reportAnnounceFailure, which calls every subscriber's onError. Ends if retryAnnounce stops reaching reportAnnounceFailure.
+    // the handler calls retryAnnounce, which re-attempts on the backoff ladder and, once it is spent, calls reportAnnounceFailure, which calls every subscriber's onError. Ends if retryAnnounce stops reaching reportAnnounceFailure.
     void wire.attach(entry.ref, wanted).catch(() => retryAnnounce(entry, attempt));
   }
 
@@ -217,7 +217,7 @@ export function createRoomRegistry(): RoomRegistry {
     if (transport === null) {
       return;
     }
-    // @orb-waive caught-failure-ownership(transport.detach): best-effort teardown of an already-retiring room — the server-side cell ages out on its own if this never lands. Ends if detach failure must block the retire.
+    // best-effort teardown of an already-retiring room — the server-side cell ages out on its own if this never lands. Ends if detach failure must block the retire.
     void transport.detach(entry.ref).catch(() => undefined);
   }
 

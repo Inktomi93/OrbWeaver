@@ -99,7 +99,7 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
     // promise, where a state read would be the stale capture that causes this class in the first place.
     const token = pickToken.current + 1;
     pickToken.current = token;
-    // @orb-waive caught-failure-ownership(text): the read failure lands in the `.catch` below as
+    // the read failure lands in the `.catch` below as
     // `setError("That file couldn't be read…")`, which the dialog renders; that handler returns silently only for
     // a superseded pick, whose error state a later pick owns. Ends if the handler stops writing setError for the current pick.
     void file

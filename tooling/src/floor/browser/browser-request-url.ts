@@ -8,7 +8,7 @@ const redactedRequestUrlSchema = z.string().min(1).brand<"RedactedRequestUrl">()
 export type RedactedRequestUrl = z.infer<typeof redactedRequestUrlSchema>;
 
 export function redactedRequestUrl(raw: string): RedactedRequestUrl {
-  // @orb-waive caught-failure-ownership(catch): the returned "[UNPARSEABLE URL OMITTED]" is the visible url value in CapturedRequest and the request-summary key, so the omission is shown, and redaction never falls back to raw bytes. Ends if the fallback value stops being a visible sentinel.
+  // the returned "[UNPARSEABLE URL OMITTED]" is the visible url value in CapturedRequest and the request-summary key, so the omission is shown, and redaction never falls back to raw bytes. Ends if the fallback value stops being a visible sentinel.
   try {
     const url = new URL(raw);
     if (url.username !== "" || url.password !== "") {

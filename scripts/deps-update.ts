@@ -41,7 +41,7 @@ function compareVersions(a: string, b: string): number {
 const workspace = readWorkspace();
 // A patch is keyed to one exact version, so bumping a patched package would silently drop its patch.
 const patched = Object.keys(workspace.patchedDependencies ?? {}).map(packageName);
-// TypeScript also rides aliases (`ts7: npm:typescript@7.0.2`); those move with the TypeScript migration.
+// Keep native compiler aliases pinned alongside the compatibility API.
 const typescriptAliases = Object.entries(workspace.catalog)
   .filter(([, spec]) => spec.startsWith(`npm:${TYPESCRIPT}@`))
   .map(([name]) => name);

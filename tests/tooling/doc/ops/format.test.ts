@@ -175,18 +175,10 @@ test("SOURCE FIDELITY: contiguous code-template-code fragments are conservativel
 });
 
 test("WIDENING: class 2 is admitted, and only the bytes this repo does not AUTHOR are fenced", () => {
-  // Class 2 (#2144) is the skills tree plus the `tooling/` guides the constitution cites as law. ONE
-  // exclusion survives: the DevTools closure is vendored AND hash-validated, so formatting the one `.md`
-  // in it fails native DevTools asset validation rather than tidying a doc.
-  //
-  // The GENERATED `flags.md` was the second, until #2178. It is asserted PRESENT here now: its deadlock
-  // (`check:docs` wanting escapes that `check:ledgers-fresh` would overwrite) was closed at the SOURCE —
-  // code spans in `snap/ops/flags-metadata.ts` — rather than by widening the fence, so admitting it is the
-  // state to defend. `tests/tooling/verify/ops/gen/snap-flags-index.test.ts` holds the other half: the
-  // derived index must keep the literals (`__orb`, `path[,path]`) that escaping would have destroyed.
+  // Authored tool guides and skills are formatted; the vendored DevTools closure is not.
   const targets = formatTargets([]);
 
-  expect(targets).toContain("tooling/src/verify/gates/GATE-AUTHORING.md");
+  expect(targets).toContain("tooling/src/ui-audit/ops/walker/RULE-AUTHORING.md");
   expect(targets).toContain(".claude/skills/orchestrator/SKILL.md");
   expect(targets).toContain(".claude/skills/snap-driving/reference/flags.md");
   expect(targets.filter((path) => path.startsWith("tooling/src/snap/lib/devtools-frontend/"))).toStrictEqual([]);

@@ -259,7 +259,7 @@ function linkStageAssets(devAssets: string, stageAssets: string): void {
     return;
   }
   mkdirSync(dirname(stageAssets), { recursive: true });
-  // @orb-waive caught-failure-ownership(catch): documented degraded-but-non-fatal floor — the stage renders without avatars/cards rather than aborting the stage build, per the trailing comment. Ends if a caller starts requiring assetsDir to exist.
+  // documented degraded-but-non-fatal floor — the stage renders without avatars/cards rather than aborting the stage build, per the trailing comment. Ends if a caller starts requiring assetsDir to exist.
   try {
     symlinkSync(devAssets, stageAssets, "dir");
   } catch {

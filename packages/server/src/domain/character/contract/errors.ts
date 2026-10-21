@@ -27,14 +27,11 @@ export class AssetNotFoundError extends DomainNotFoundError {
   }
 }
 
-// @orb-waive no-vanity-alias(CHARACTER_HANDLE_CONFLICT): baselined when the gate widened; burn-down item 906.
 // DERIVED, never re-spelled (#542, the `CHAT_OP_CODES` precedent): a refusal code is WIRE vocabulary, so it
 // is homed in `@orb/contracts/character` where the client can key on it off `data.reason` — the server side
 // is an alias so the two can never drift into two spellings of one refusal.
 export const CHARACTER_HANDLE_CONFLICT = CHARACTER_HANDLE_CONFLICT_OP_CODE;
-// @orb-waive no-vanity-alias(CHARACTER_HANDLE_RESERVED): baselined when the gate widened; burn-down item 906.
 export const CHARACTER_HANDLE_RESERVED = CHARACTER_HANDLE_RESERVED_OP_CODE;
-// @orb-waive no-vanity-alias(CHARACTER_STALE_BASIS): baselined when the gate widened; burn-down item 906.
 export const CHARACTER_STALE_BASIS = CHARACTER_STALE_BASIS_OP_CODE;
 
 /** `update` was given a `kind:"external"` carried-background URL that could not be materialized into an owned

@@ -9,7 +9,6 @@ import { scaledBudget } from "./_load-budget.ts";
 
 const RUN_BUDGET_MS = scaledBudget(30_000);
 const CONFIG = join(process.cwd(), "jscpd.json");
-const TESTS_CONFIG = join(process.cwd(), "jscpd.tests.json");
 
 interface JscpdReport {
   readonly duplicates: readonly {
@@ -126,35 +125,6 @@ test("native CPD covers package and tooling implementation while excluding non-i
     const exposedReport = readReport(exposedOutput);
     expect(exposedReport.statistics.total.sources).toBe(6);
     expect(duplicatePairs(exposedReport)).toContain("vendor-a.css ↔ vendor-b.css");
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
-});
-
-test("the tests-only ratchet scans tests/ alone and fails a copy above its threshold", { timeout: RUN_BUDGET_MS }, async () => {
-  const root = mkdtempSync(join(tmpdir(), "orb-cpd-tests-"));
-  try {
-    const fixtureConfig = join(root, "jscpd.tests.json");
-    writeFileSync(fixtureConfig, readFileSync(TESTS_CONFIG));
-    plant(root, "tests/client/unique.ct.tsx", TOOLING_CLONE);
-    plant(root, "tests/legacy/server/legacy-a.int.test.ts", PACKAGE_CLONE);
-    plant(root, "tests/legacy/server/legacy-b.int.test.ts", PACKAGE_CLONE);
-    plant(root, "packages/example/src/package-a.ts", PACKAGE_CLONE);
-    plant(root, "packages/example/src/package-b.ts", PACKAGE_CLONE);
-
-    // The passing control: the package twins are jscpd.json's population, so a tests tree with no copy is clean.
-    const clean = await runCpd(root, fixtureConfig, join(root, "clean-report"));
-    expect(clean.code, clean.stderr || clean.stdout).toBe(0);
-    const cleanReport = readReport(join(root, "clean-report"));
-    expect(cleanReport.statistics.total.sources).toBe(1);
-
-    plant(root, "tests/server/domain/a.int.test.ts", PACKAGE_CLONE);
-    plant(root, "tests/server/domain/b.int.test.ts", PACKAGE_CLONE);
-    const copied = await runCpd(root, fixtureConfig, join(root, "copied-report"));
-    expect(copied.code, copied.stderr || copied.stdout).toBe(1);
-    const copiedReport = readReport(join(root, "copied-report"));
-    expect(copiedReport.statistics.total.sources).toBe(3);
-    expect(duplicatePairs(copiedReport)).toEqual(["a.int.test.ts ↔ b.int.test.ts"]);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

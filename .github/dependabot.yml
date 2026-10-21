@@ -37,7 +37,7 @@ updates:
         patterns: ["*"]
         update-types: [major]
     # TypeScript moves by hand. The checker runs two compilers side by side (6.x as `typescript`, 7.x through
-    # the `ts7` and `@typescript/native` catalog aliases), and typescript-eslint caps its peer below 6.1, so
+    # the `ts7` catalog alias), and typescript-eslint caps its peer below 6.1, so
     # anything past a 6.0 patch breaks lint while every resolver still calls it compatible.
     ignore:
       - dependency-name: typescript
@@ -48,8 +48,6 @@ updates:
       # The runner and CT package share a pinned Chromium revision; update them together by hand.
       - dependency-name: "@playwright/*"
       # Version-keyed patches must be ported before a dependency bump; unused patches fail installation.
-      # Stryker's core, runner, checker and API are a pinned lockstep suite.
-      - dependency-name: "@stryker-mutator/*"
       - dependency-name: "@ts-morph/common"
       - dependency-name: chrome-devtools-mcp
       - dependency-name: isomorphic-git
@@ -79,8 +77,6 @@ updates:
       # The runner and CT package share a pinned Chromium revision; update them together by hand.
       - dependency-name: "@playwright/*"
       # Version-keyed patches must be ported before a dependency bump; unused patches fail installation.
-      # Stryker's core, runner, checker and API are a pinned lockstep suite.
-      - dependency-name: "@stryker-mutator/*"
       - dependency-name: "@ts-morph/common"
       - dependency-name: chrome-devtools-mcp
       - dependency-name: isomorphic-git

@@ -38,7 +38,7 @@ export function PersonaList(): ReactElement {
   const setExpandedId = selectPersonaEditor;
   const [fromCharacterOpen, setFromCharacterOpen] = useState(false);
   const onCreate = async (): Promise<void> => {
-    // @orb-waive caught-failure-ownership(catch): useCreatePersona (hooks/use-persona-mutations.ts) carries errorToast "Couldn't create the persona."; this catch only keeps the callers' own notify from toasting it twice. Ends if useCreatePersona drops its errorToast.
+    // useCreatePersona (hooks/use-persona-mutations.ts) carries errorToast "Couldn't create the persona."; this catch only keeps the callers' own notify from toasting it twice. Ends if useCreatePersona drops its errorToast.
     try {
       const created = await create.mutateAsync({ input: { name: "New persona", description: "" } });
       setExpandedId(created.id);

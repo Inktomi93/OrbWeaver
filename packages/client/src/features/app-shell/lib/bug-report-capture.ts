@@ -218,7 +218,7 @@ export function captureBugReportBundle(input: BugReportCaptureInput): BugReportC
 
 /** What the server answered. A refusal is DATA, never a throw: this runs from a submit handler and the surface
  *  shows the reason. */
-// @orb-waive no-inline-types(BugReportSubmission): local to this module's submit fn + the hook that calls it; no cross-boundary consumer; ends when a second consumer appears
+// local to this module's submit fn + the hook that calls it; no cross-boundary consumer; ends when a second consumer appears
 export type BugReportSubmission = { readonly ok: true; readonly id: string; readonly json: string } | { readonly ok: false; readonly reason: string };
 
 /** The gate's own words for WHICH arm refused (`foundation/observability/debug/routes.ts` — it names the
@@ -227,7 +227,7 @@ export type BugReportSubmission = { readonly ok: true; readonly id: string; read
  *  non-gate failure (a proxy 502, an HTML error page) has no such body — then the status alone is the honest
  *  answer, and inventing a cause for it would be worse than saying less. */
 async function refusalReason(response: Response): Promise<string | null> {
-  // @orb-waive caught-failure-ownership(catch): the refusal itself is owned by the only caller, submitBugReport, which returns `{ ok: false, reason: "HTTP <status> from <route>" }` (bug-report-capture.ts:250) and bug-report-button.tsx:157 stores that reason as the failed status. This try only reads an optional body suffix; a non-JSON body yields null and the status line still renders. Ends if the failed status stops rendering reason.
+  // the refusal itself is owned by the only caller, submitBugReport, which returns `{ ok: false, reason: "HTTP <status> from <route>" }` (bug-report-capture.ts:250) and bug-report-button.tsx:157 stores that reason as the failed status. This try only reads an optional body suffix; a non-JSON body yields null and the status line still renders. Ends if the failed status stops rendering reason.
   try {
     const body = (await response.json()) as { reason?: unknown; error?: unknown };
     // `reason` names the ARM; `error` is the gate's older one-word shape — take whichever the server sent.

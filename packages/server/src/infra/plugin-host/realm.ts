@@ -31,11 +31,9 @@ export interface HostSeams {
   readonly mintId: () => string;
 }
 
-// @orb-waive no-vanity-alias(LOG_LEVELS): baselined when the gate widened; burn-down item 906.
 // The guest log levels ARE the contract's `PluginLogLevel` set (`@orb/contracts/plugin` — the ONE home the
 // domain's `PluginLogView.level` + this ring share; no re-spelled tuple).
 const LOG_LEVELS = PLUGIN_LOG_LEVELS;
-// @orb-waive no-vanity-alias(LogLevel): baselined when the gate widened; burn-down item 906.
 type LogLevel = PluginLogLevel;
 
 /** A per-line mirror the host may attach to a ring (a structural-injection port, the `AssetInspector` shape):

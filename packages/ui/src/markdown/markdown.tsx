@@ -288,7 +288,7 @@ export function Markdown({
             // as its border-top, so padding puts the whole gap on one side of it). House token, never the
             // vendor's `my-6`.
             "[&_hr]:my-row",
-            // @orb-waive integer-line-boxes(text-code): inline code INSIDE prose — the line's box is the surrounding paragraph's strut (a smaller inline box never grows an integer line), so pairing a leading here would be inert. Ends if this selector stops targeting inline (non-pre) code.
+            // inline code INSIDE prose — the line's box is the surrounding paragraph's strut (a smaller inline box never grows an integer line), so pairing a leading here would be inert. Ends if this selector stops targeting inline (non-pre) code.
             "[&_:not(pre)>code]:px-tight [&_:not(pre)>code]:py-tight [&_:not(pre)>code]:text-code",
             className,
           ) ?? ""

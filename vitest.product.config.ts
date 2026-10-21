@@ -1,3 +1,3 @@
 import { vitestConfig } from "./vitest.config.ts";
 
-export default vitestConfig(false, true);
+export default vitestConfig(true);

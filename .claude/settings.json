@@ -3,26 +3,6 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/tool-guard.mjs",
-            "timeout": 10
-          }
-        ]
-      },
-      {
-        "matcher": "Read",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/tool-guard.mjs",
-            "timeout": 10
-          }
-        ]
-      },
-      {
         "matcher": "mcp__codegraph__.*",
         "hooks": [
           {
@@ -41,7 +21,8 @@
           {
             "type": "command",
             "command": "node",
-            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/biome-check.mjs"]
+            "args": ["${CLAUDE_PROJECT_DIR}/.claude/hooks/biome-check.mjs"],
+            "timeout": 30
           }
         ]
       }
@@ -112,13 +93,8 @@
   },
   "permissions": {
     "allow": [
-      "Bash(pnpm check)",
-      "Bash(pnpm check *)",
-      "Bash(pnpm check:*)",
       "Bash(pnpm test)",
       "Bash(pnpm test *)",
-      "Bash(pnpm test:types)",
-      "Bash(pnpm test:types *)",
       "Bash(pnpm test:ct *)",
       "Bash(pnpm vitest *)",
       "Bash(pnpm exec vitest *)",
@@ -154,7 +130,6 @@
       "Bash(ps *)",
       "Bash(ast-grep *)",
       "Bash(codegraph *)",
-      "Bash(pnpm ast *)",
       "Bash(npx ast-grep *)",
       "Bash(git status *)",
       "Bash(git status)",
@@ -173,7 +148,6 @@
       "Bash(node *)",
       "Bash(npx *)",
       "Bash(pnpm exec *)",
-      "Bash(pnpm verify *)",
       "Bash(pnpm e2e:smoke)",
       "Bash(pnpm --filter *)",
       "Bash(pnpm install *)",

@@ -50,7 +50,7 @@ export async function superviseStart(deps: StartSupervisorDeps): Promise<number>
     state.child = child;
     const alive = new AbortController();
     if (pending.open) {
-      // @orb-waive caught-failure-ownership(openWhenServed): the open has no awaiter, because an opener can outlive the server; the handler prints through deps.notice, which start.ts:217 wires to warn(`start: …`), and the server keeps running because a browser is a convenience. Ends if the open gains an awaiter or notice stops printing.
+      // the open has no awaiter, because an opener can outlive the server; the handler prints through deps.notice, which start.ts:217 wires to warn(`start: …`), and the server keeps running because a browser is a convenience. Ends if the open gains an awaiter or notice stops printing.
       openWhenServed(deps, spawn.port, alive.signal, pending).catch((error: unknown) => {
         deps.notice(`could not open a browser — ${error instanceof Error ? error.message : String(error)}`);
       });

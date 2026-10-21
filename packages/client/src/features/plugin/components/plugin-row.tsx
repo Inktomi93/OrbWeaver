@@ -138,7 +138,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
   };
 
   const applyUpgrade = async (preview: PluginBundlePreview): Promise<void> => {
-    // @orb-waive caught-failure-ownership(upgrade.mutateAsync): useUpgradePlugin (lib/plugin-mutations.ts) carries
+    // useUpgradePlugin (lib/plugin-mutations.ts) carries
     // errorToast serverReason("Couldn't update that plugin."); undefined ends this handler. Ends if it drops its errorToast.
     const updated = await upgrade.mutateAsync({ pluginId: plugin.id, bundleBase64: toBundleBase64(preview.bytes) }).catch(() => undefined);
     if (updated === undefined) {

@@ -43,16 +43,8 @@ coverage/
 .vitest/
 *.lcov
 
-# --- quality tooling output (jscpd reports, stryker sandbox + reports) ---
-# mutation-probe's crash-recovery marker: it carries a PRISTINE source body and only exists while a
-# probe is mid-plant. Committing one would be committing a half-finished experiment's state.
-/.mutation-probe-active.json
-# Root-anchored: ignores the tool-output dir at repo root only.
+# Tool output
 /reports/
-.stryker-tmp/
-# Stryker's per-worker setup files leak to the repo root (the mutation runner); generated + transient,
-# never committed. Biome (useIgnoreFile) skips them too, so they stop reddening the gate.
-/stryker-setup-*.js
 
 # --- caches ---
 .turbo/
@@ -113,25 +105,8 @@ scratch/
 # SillyTavern data snapshot (copied from neo-tavern) — import fodder for the ST-profile loader; never committed
 .st-data/
 
-# --- reserved throwaway-fixture sentinels (transient test artifacts; a crashed run can orphan them, and
-# they must never reach git).
-# `__dc*` is the dependency-cruiser self-test's live planter (tests/tooling/dependency-cruiser.int.test.ts).
-**/__dc*
-# Scratch probes planted at `features/__probe/...` and removed after, and
-# the cp-probe backup discipline (`cp f f.bak; ...; mv f.bak f`) — transient by definition; visible
-# untracked, they read as mystery files to sibling lanes (owner, 2026-08-21).
-**/__probe*
+# Local editor backups
 *.bak
-
-# st-parity goldens rig: the runtime AND everything generated (fixtures are emitted by
-# build-fixtures.ts + the run-demo scripts; outputs are captures). Only scripts + README are tracked.
-# The runtime is ALSO fenced from the ts-morph search project by glob (scripts/ts-workspace.ts) — a
-# gitignore alone does not stop `addSourceFilesAtPaths`.
-/scripts/probes/st-goldens/sillytavern-runtime/
-/scripts/probes/st-goldens/fixtures/
-/scripts/probes/st-goldens/output/
-/scripts/probes/st-goldens/orbweaver-output/
-/scripts/probes/st-goldens/debug-st.png
 
 # vite --profile output (`vite build --profile` / `vite --profile`) — a ~25 MB V8 CPU profile written
 # to the invoking package root, for speedscope.app. An instrument's output, never an artifact we keep;

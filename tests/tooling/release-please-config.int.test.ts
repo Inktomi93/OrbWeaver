@@ -63,11 +63,7 @@ test("version-keyed patches cannot be invalidated by automatic dependency update
     })
     .parse(parse(read(repoRoot, ".github/dependabot.yml")));
   const ignored = dependabot.updates.find((entry) => entry["package-ecosystem"] === "npm")?.ignore ?? [];
-  const names = [
-    ...Object.keys(workspace.patchedDependencies).map((key) => key.slice(0, key.lastIndexOf("@"))),
-    "@stryker-mutator/api",
-    "@stryker-mutator/vitest-runner",
-  ];
+  const names = Object.keys(workspace.patchedDependencies).map((key) => key.slice(0, key.lastIndexOf("@")));
   for (const name of names) {
     const held = ignored.find(
       (entry) => entry["dependency-name"] === name || (entry["dependency-name"].endsWith("/*") && name.startsWith(entry["dependency-name"].slice(0, -1))),

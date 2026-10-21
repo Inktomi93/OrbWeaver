@@ -88,7 +88,7 @@ async function main(port: MessagePort, options: LocalLightWorkerOptions): Promis
       post({ type: "progress", progress });
     },
     detach: (name, fn) => {
-      // @orb-waive caught-failure-ownership(fn): a detached disposal has no caller; the `log.warn` at model-worker.ts:93 posts a structured log message to the host logger. Ends if a disposal gains a caller.
+      // a detached disposal has no caller; the `log.warn` at model-worker.ts:93 posts a structured log message to the host logger. Ends if a disposal gains a caller.
       fn().catch((err: unknown) => {
         log.warn({ name, err: String(err) }, "local-light: a detached model task failed");
       });
@@ -111,7 +111,7 @@ async function main(port: MessagePort, options: LocalLightWorkerOptions): Promis
     }
     const { id, call } = message;
     inFlight += 1;
-    // @orb-waive caught-failure-ownership(run): the rejection arm posts a failure message (model-worker.ts:121) that worker-cache.ts:163 turns into `pending.reject(...)` for the waiting caller. Ends if the failure message stops rejecting the host call.
+    // the rejection arm posts a failure message (model-worker.ts:121) that worker-cache.ts:163 turns into `pending.reject(...)` for the waiting caller. Ends if the failure message stops rejecting the host call.
     run(cache, call)
       .then(
         (value) => {

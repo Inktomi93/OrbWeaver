@@ -1,14 +1,10 @@
 // FullPriorityChild signal ownership: an already-exited/ESRCH child is idempotent teardown; every other
 // child.kill failure stays loud so invalid signals and permission failures cannot masquerade as success.
 import { EventEmitter } from "node:events";
-import { readdirSync, readFileSync } from "node:fs";
-import { join } from "node:path";
 import process from "node:process";
 import { PassThrough } from "node:stream";
-import { fileURLToPath } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { vi } from "vitest";
-import { noVerdictStages, ownScheme } from "../../../../tooling/src/verify/lib/exit-classifiers.ts";
 
 // The ambient-env WINDOW pins live beside their door in process-env.test.ts (#1848 moved the door out of
 // proc.ts at its line cap); what stays here is the SPAWN/SIGNAL half — the only half proc.ts still owns.
@@ -130,36 +126,11 @@ test("killPidGroup signals the NEGATIVE pgid through the syscall, never a shell"
   }
 });
 
-const EXTERNAL_KILL =
-  /\b(?:runNicedSync|spawnNiced|spawnNicedChild|spawnNicedTranscript|execNicedSync|execNicedSyncBuffer|spawnFullPrioritySync|spawnFullPriorityChild)\(\s*"kill"/;
-
-function walkTs(dir: string, out: string[]): string[] {
-  for (const entry of readdirSync(dir, { withFileTypes: true })) {
-    const path = join(dir, entry.name);
-    if (entry.isDirectory()) {
-      if (entry.name !== "node_modules") {
-        walkTs(path, out);
-      }
-    } else if (entry.name.endsWith(".ts")) {
-      out.push(path);
-    }
-  }
-  return out;
-}
-
-test("no tooling source spawns the external kill binary (planted control: the old spelling is caught)", () => {
-  expect(EXTERNAL_KILL.test('runNicedSync("kill", ["-TERM", `-${pgid}`], { stdio: "ignore" });')).toBe(true);
-  const files = walkTs(fileURLToPath(new URL("../../../../tooling/src/", import.meta.url)), []);
-  expect(files.length).toBeGreaterThan(100);
-  const offenders = files.filter((file) => EXTERNAL_KILL.test(readFileSync(file, "utf8")));
-  expect(offenders, "signal a process group through killPidGroup (tooling/src/floor/process/proc.ts), never `kill -SIG -<pgid>`").toEqual([]);
-});
-
 /** Virtual-timer fixture data the test advances explicitly; no real clock waits on it. */
 const VIRTUAL_WINDOW_MS = 100;
 
 test("a timed-out transcript remains no verdict when a terminated Windows child closes with 0 or 1", async ({ scratch }) => {
-  // @orb-waive test-determinism(vi.useFakeTimers): the subject is the proc door's native setTimeout window, which an injected data clock cannot drive; ends if the door exposes an injected timer seam.
+  // the subject is the proc door's native setTimeout window, which an injected data clock cannot drive; ends if the door exposes an injected timer seam.
   vi.useFakeTimers();
   const options = { cwd: scratch, env: {}, timeoutMs: VIRTUAL_WINDOW_MS };
   const kill = vi.spyOn(process, "kill").mockImplementation(() => true);
@@ -171,25 +142,6 @@ test("a timed-out transcript remains no verdict when a terminated Windows child 
       const captured = await result;
       expect(captured.code).toBeNull();
       expect(captured.transcript).toContain(`TIMED OUT after ${String(VIRTUAL_WINDOW_MS)}ms`);
-      const exitCode = ownScheme(captured.code);
-      expect(exitCode).toBe(2);
-      expect(
-        noVerdictStages([
-          {
-            name: "structure:full",
-            group: "structure",
-            mode: "full",
-            ok: false,
-            exitCode,
-            childExit: captured.code,
-            durationMs: VIRTUAL_WINDOW_MS,
-            logFile: null,
-            failureExcerpt: captured.transcript,
-            runsAt: null,
-            notices: [],
-          },
-        ]),
-      ).toEqual(["structure:full"]);
     }
     for (const code of [0, 1]) {
       const result = spawnNicedTranscript("probe", [], options);

@@ -482,7 +482,7 @@ async function failedResponse(res: Response): Promise<Response> {
   try {
     const parsed: unknown = JSON.parse(text);
     message = isRecord(parsed) && typeof parsed["error"] === "string" ? parsed["error"] : text;
-    // @orb-waive caught-failure-ownership(catch): a non-JSON error body is still the server's message: it is handed on as `message` in the error Response built at ollama-native.ts:489, which the SDK raises. Ends if a body here could be anything but an error.
+    // a non-JSON error body is still the server's message: it is handed on as `message` in the error Response built at ollama-native.ts:489, which the SDK raises. Ends if a body here could be anything but an error.
   } catch {
     message = text;
   }

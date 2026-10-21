@@ -30,7 +30,7 @@ const lifecycle = createLifecycle();
 // is stopped; without a handler Node exits on it at once, so it drains too, on the shorter hangup budget.
 for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) {
   process.on(signal, () => {
-    // @orb-waive caught-failure-ownership(shutdown): owned: the handler logs through getLog and exits non-zero; getLog is imported after the env parse, where this policy cannot resolve it as the logger. Ends if getLog returns to a static import.
+    // owned: the handler logs through getLog and exits non-zero; getLog is imported after the env parse, where this policy cannot resolve it as the logger. Ends if getLog returns to a static import.
     lifecycle
       .shutdown(signal === "SIGHUP" ? { drainMs: HANGUP_DRAIN_MS } : {})
       .then(() => {
@@ -43,7 +43,7 @@ for (const signal of ["SIGTERM", "SIGINT", "SIGHUP"] as const) {
   });
 }
 
-// @orb-waive caught-failure-ownership(lifecycle.boot): owned: the handler logs through getLog and exits non-zero; getLog is imported after the env parse, where this policy cannot resolve it as the logger. Ends if getLog returns to a static import.
+// owned: the handler logs through getLog and exits non-zero; getLog is imported after the env parse, where this policy cannot resolve it as the logger. Ends if getLog returns to a static import.
 lifecycle.boot().catch((err: unknown) => {
   getLog().error({ err }, "entry: boot failed — exiting");
   process.exit(EXIT_BOOT_FAILURE);

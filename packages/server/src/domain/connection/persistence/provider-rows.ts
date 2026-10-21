@@ -63,7 +63,7 @@ function valuesOf(args: {
 
 /** Unlink every claim whose install is no longer enabled, then reap the plugin definitions no claim holds. The
  *  listing below also joins on `enabled`, so an interrupted reconciliation still serves nothing it should not. */
-// @orb-waive owner-scoped-reads(plugins): the deployment-global provider registry's system reconciliation reads plugin ids authorized by the claim's required FK, across every owner; no request-controlled id reaches this query. Ends if a user-facing door calls this helper or the claim stops FK-anchoring pluginId.
+// the deployment-global provider registry's system reconciliation reads plugin ids authorized by the claim's required FK, across every owner; no request-controlled id reaches this query. Ends if a user-facing door calls this helper or the claim stops FK-anchoring pluginId.
 async function reconcilePluginClaims(db: Db): Promise<void> {
   const enabledPlugin = db
     .select({ id: plugins.id })
@@ -116,7 +116,7 @@ export async function deleteAdminProviderRow(db: Db, id: ProviderId): Promise<bo
   return removed.length > 0;
 }
 
-// @orb-waive owner-scoped-reads(plugins): resolves the OWNER a claim is written for; the pluginId is the lifecycle lane's own install, never request input, and the owner comes from this row rather than from any caller. Ends if a user-facing door passes a pluginId here directly.
+// resolves the OWNER a claim is written for; the pluginId is the lifecycle lane's own install, never request input, and the owner comes from this row rather than from any caller. Ends if a user-facing door passes a pluginId here directly.
 async function pluginOwner(db: Db, pluginId: PluginId): Promise<UserId> {
   const [row] = await db.select({ ownerId: plugins.ownerId }).from(plugins).where(eq(plugins.id, pluginId));
   if (row === undefined) {

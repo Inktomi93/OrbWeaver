@@ -1,16 +1,10 @@
-// @instrument-proof: the sole rendered-instrument CLI owns one selective analyzer vocabulary, one
-// argv-ordered tape, explicit interference refusals, and — since #1315 — the only argv door in the
-// fleet. The browser arm below plants real motion/perf subjects; the corpus arm plants a retired
-// command spelling in the same invocation so a zero cannot pass for a search that never looked.
-import { readFile, stat, writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import process from "node:process";
 import type { CliResult } from "@orb/testkit/node/tool-fixtures.ts";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import type { MeterData, StepReport } from "@orb/tooling/cpu-profile";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { BOX_LOAD_ENV } from "@orb/tooling/floor/host/load-budget";
-import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import type { AuditData } from "@orb/tooling/motion-audit";
 import { beforeEach, vi } from "vitest";
 import { buildReports } from "../../../../tooling/src/cpu-profile/ops/report.ts";
@@ -478,104 +472,4 @@ test("the CPU arm profiles the shared action tape and refuses an empty tape", as
   expect(empty.stdout).toContain("CPU PROFILE REFUSED");
   expect(empty.stdout).toContain("no non-pause action");
   expect(empty.stdout).toContain("cpu-profile=REFUSED");
-});
-
-// ── THE FOLD'S OWN RECEIPTS (#1315) ─────────────────────────────────────────────────────────────────
-// The four sibling CLIs are not programs any more, and — owner ruling 2026-09-04 — they are not doors
-// either: no argv translation, no alias table, no retirement census. What replaces all of that is these
-// two proofs. The first is that each argv door REFUSES and opens no run slot (the old failure mode was a
-// library module run as a program: it executed nothing and exited 0, a green that never ran). The second
-// is that the retired spellings are actually GONE from the corpus, which is the whole premise of
-// grep-fixing instead of keeping a door.
-
-const FOLDED_TOOLS: readonly (readonly [string, string])[] = [
-  ["ui-audit", "--design-audit"],
-  ["motion-audit", "--motion"],
-  ["cpu-profile", "--perf"],
-];
-
-test("the folded tool dirs are NOT programs: no argv door exists at all — only the engine index, and the arm is snap's", async () => {
-  // The refusing stub `cli.ts` files were deleted, so the proof is no longer "the door refuses" but "there is no door".
-  // The four-hop shape that survives: the dir has an `index.ts` (an engine snap imports), it has NO `cli.ts`
-  // (nothing the argv front door could run as a program), and the spelling that replaced it is a REAL snap
-  // flag — `parseSnapArgs` must not reject it as unknown.
-  const { parseSnapArgs } = await import("../../../../tooling/src/snap/index.ts");
-  for (const [tool, arm] of FOLDED_TOOLS) {
-    const dir = join(process.cwd(), "tooling", "src", tool);
-    await expect(stat(join(dir, "index.ts")), `${tool}/index.ts`).resolves.toBeDefined();
-    await expect(stat(join(dir, "cli.ts")), `${tool}/cli.ts must not exist`).rejects.toMatchObject({ code: "ENOENT" });
-    const errors = parseSnapArgs(["/chats", arm, "body"]).errors.join("\n");
-    expect(errors, `${tool} → ${arm}`).not.toMatch(/unknown (flag|option)/iu);
-  }
-});
-
-/** The spellings that no longer name anything runnable. `pnpm snap` is deliberately absent — it is the
- *  one that survived — and each is anchored on `pnpm ` so a prose mention of the ENGINE dir (which is
- *  still called `ui-audit`, and still carries the rules) is not a false positive. */
-const RETIRED_COMMANDS = ["pnpm design-audit", "pnpm motion-audit", "pnpm perf-meter", "pnpm record"] as const;
-
-/** WHERE A RETIRED SPELLING IS STILL TRUE. The owner's ruling (2026-09-04) is that an unlaunched product
- *  grep-fixes the spellings rather than shipping a door — but it draws the line at a RECIPE A READER
- *  WOULD TYPE. A DATED RECEIPT is a statement about what was run on its date, and rewriting it would
- *  falsify the record rather than fix it. `.claude/`/`.codex/` are excluded for a different reason and it
- *  is not a semantic one: they are the orchestrator's files, outside every lane's write scope (the fold's
- *  brief lists them for the orchestrator instead), so this sweep would be asserting over a corpus it is
- *  forbidden to repair. Each prefix is the WHOLE reason it is here — do not add one without one. */
-const RECEIPT_PREFIXES = [".claude/", ".codex/"] as const;
-
-/** A LINE THAT NAMES THE SPELLING AS DEAD IS NOT A RECIPE. "the retired pnpm design-audit" is exactly
- *  the sentence the fold's own headers and doc edits needed to write, and a sweep that refused it would
- *  force the codebase to stop explaining its own history. The marker has to be ON THE LINE, so a stale
- *  recipe three paragraphs below a retirement note is still a hit. */
-const RETIREMENT_MARKERS = ["retire", "no longer", "ceased to exist", "replaced by", "used to be", "was `pnpm", "predecessor"] as const;
-
-/** A `$ `-PREFIXED LINE IS A TRANSCRIPT, NOT A RECIPE. The population and subject-accounting designs
- *  quote dozens of dated `$ pnpm design-audit …` runs with their real stdout underneath; each is a
- *  receipt of what was typed on its date, and rewriting the command while leaving the output would make
- *  the doc claim a run that never happened. Same class as the `docs/history/` carve-out, applied at line
- *  granularity because these receipts live inside an otherwise-live design doc. An instruction a reader
- *  would follow is written as prose or a bare fenced command, and both still red. */
-function isRecordedTranscript(line: string): boolean {
-  return line.trimStart().startsWith("$ ");
-}
-
-function retiredCommandHits(path: string, text: string): readonly string[] {
-  const hits: string[] = [];
-  for (const [index, line] of text.split("\n").entries()) {
-    if (isRecordedTranscript(line) || RETIREMENT_MARKERS.some((marker) => line.toLowerCase().includes(marker))) {
-      continue;
-    }
-    for (const command of RETIRED_COMMANDS) {
-      if (line.includes(command)) {
-        hits.push(`${path}:${String(index + 1)}: ${command}`);
-      }
-    }
-  }
-  return hits;
-}
-
-test("no tracked file still tells a reader to run a retired instrument command, and the sweep can see one when it is there", async ({ repoRoot }) => {
-  const listed = runNicedSync("git", ["ls-files", "-z"], { cwd: repoRoot, maxBuffer: 64 * 1024 * 1024 });
-  expect(listed.status).toBe(0);
-  const files = listed.stdout.split("\0").filter((path) => path !== "");
-  // THIS FILE IS ITS OWN EXCEPTION and says so: the rosters above are the literal sets being searched for.
-  const corpus = files.filter(
-    (path) => path !== "tests/tooling/snap/ops/unified-instrument.suite.int.test.ts" && !RECEIPT_PREFIXES.some((prefix) => path.startsWith(prefix)),
-  );
-  expect(corpus.length).toBeGreaterThan(6000);
-  const hits: string[] = [];
-  for (const path of corpus) {
-    hits.push(...retiredCommandHits(path, await readFile(join(repoRoot, path), "utf8").catch(() => "")));
-  }
-  expect(hits).toEqual([]);
-  // THE PLANTED POSITIVE CONTROLS, in the same invocation: a bare zero above must mean "it is not there",
-  // never "the search could not look" (floor/verdict/evidence.ts's law, applied to a corpus sweep). BOTH
-  // directions are planted, because an over-broad marker would silence the sweep just as completely as a
-  // broken read: the recipe line is SEEN and the retirement-note line is NOT.
-  const planted = [
-    "Run `pnpm design-audit /chats --fail-on P2` and then `pnpm perf-meter /`.",
-    "The retired `pnpm motion-audit` is now `--motion`.",
-    "$ pnpm design-audit config --goto config:appearance",
-  ].join("\n");
-  expect(retiredCommandHits("planted.md", planted)).toEqual(["planted.md:1: pnpm design-audit", "planted.md:1: pnpm perf-meter"]);
 });

@@ -20,7 +20,7 @@ export function isDocumentHidden(transitionDocument: { readonly visibilityState?
 export function observeViewTransition(transition: ViewTransitionSettlement | undefined): void {
   const surfacedFailures = new Set<unknown>();
   const observe = (settled: Promise<unknown> | undefined, absorbSkipped: boolean): void => {
-    // @orb-waive caught-failure-ownership(settled): only a platform skip (AbortError/TimeoutError/InvalidStateError on ready/finished) is absorbed; every other unique rejection, and any updateCallbackDone rejection, is rethrown on a queued microtask, which becomes a window "error" event that installSafeErrorRing records. Ends if callers begin awaiting settlement or the ring stops listening to "error".
+    // only a platform skip (AbortError/TimeoutError/InvalidStateError on ready/finished) is absorbed; every other unique rejection, and any updateCallbackDone rejection, is rethrown on a queued microtask, which becomes a window "error" event that installSafeErrorRing records. Ends if callers begin awaiting settlement or the ring stops listening to "error".
     settled?.catch((error: unknown) => {
       if ((absorbSkipped && isSkippedTransition(error)) || surfacedFailures.has(error)) {
         return;

@@ -8,17 +8,9 @@ paths:
 # Writing instruction files and docs
 
 Rules for every instruction file (`AGENTS.md`, `.claude/rules`, agents, skills, memory) and for every
-doc under `docs/**`. The docs mechanics (the tree, `pnpm doc`, frontmatter) are in
-`.claude/rules/docs.md`. Code comments follow `.claude/rules/comments.md`.
+doc under `docs/**`. Code comments follow `.claude/rules/comments.md`.
 
-Owner-voice sections — personality, communication, and philosophy written in the owner's own words —
-are exempt from this style. Never rewrite them into plain style. Wrap one in `<!-- owner-voice -->` and
-`<!-- /owner-voice -->` so the check skips it.
-
-`pnpm check:agents` checks `AGENTS.md`, every `.claude/**` Markdown file and the governed docs tree
-against rules 1, 2, 4 and 12, and checks that every link and backticked repository path exists. It
-skips frontmatter, code spans, code blocks and link targets, so quote a literal name in backticks. The
-legacy docs folders are exempt from rules 1, 2 and 4 until they migrate.
+Keep owner-voice sections in the owner's own words. Do not rewrite them into plain style.
 
 ## Writing
 
@@ -50,8 +42,8 @@ legacy docs folders are exempt from rules 1, 2 and 4 until they migrate.
 ## Structure
 
 7. One home per rule. Other files link to it and never restate it. Two copies that disagree are a bug.
-8. Enforced beats written. If a hook or check blocks it, the prose gets one pointer line or nothing.
-9. Every rule is checkable or carries a reason. Otherwise delete it.
+8. State product and architecture rules clearly. Name enforcement only when a retained native tool or test provides it.
+9. Keep a rule only when it solves a real problem and its reason is clear.
 10. Add a rule only when a mistake repeats. A one-off gets fixed in code.
 11. Edit in place. Deleting is normal. Never write a correction beside the original.
 12. Always-on text stays small. `AGENTS.md` with its imports, plus any rule without `paths:`, stays
@@ -69,7 +61,7 @@ by a tool, or denser than prose.
 - Use a task list (`- [ ]`) only in `docs/plans/` and `docs/work/`.
 - Never use footnotes, definition lists, inline HTML other than the owner-voice markers, decorative rules, emoji headings, badges or ASCII art.
 - Do not wrap lines for style. The formatter keeps line breaks as written.
-- `pnpm format:docs <files>` writes the one style and `pnpm check:docs` checks it. Never format markdown with Prettier. A backslash escape the formatter writes, such as `F32\_BLOB`, is expected.
+- Use the repository Markdown formatter when available. Never format Markdown with Prettier. A backslash escape such as `F32\_BLOB` is expected.
 
 ## Decisions
 

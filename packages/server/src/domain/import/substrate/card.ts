@@ -132,7 +132,7 @@ function extractCardTags(raw: unknown): string[] {
 }
 
 function fromText(text: string, fallbackName: string, artHash: string | null): ParsedCard | null {
-  // @orb-waive caught-failure-ownership(catch): the `null` is read by every caller: `createImportCharacter`
+  // the `null` is read by every caller: `createImportCharacter`
   // throws `ImportCardError("card_unreadable")`, `restoreCharacterBook` answers `ok: false`, and `collectCards`
   // pushes the file onto `unreadableCards`. The try holds no I/O. Ends if a caller stops checking `null`.
   try {

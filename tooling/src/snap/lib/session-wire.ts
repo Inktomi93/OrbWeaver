@@ -23,7 +23,7 @@ function isStringArray(value: unknown): value is readonly string[] {
 }
 
 function parseJsonObject(text: string): Record<string, unknown> | null {
-  // @orb-waive caught-failure-ownership(catch): a torn line returns null; the daemon answers a null request with `SESSION PROTOCOL ERROR` and a toolError `done` (ops/session-daemon.ts:220), the client rejects a null event line (ops/session-client.ts:88), and a null row reads as an absent session (ops/session-registry.ts:66). Ends if a caller needs the parse error text.
+  // a torn line returns null; the daemon answers a null request with `SESSION PROTOCOL ERROR` and a toolError `done` (ops/session-daemon.ts:220), the client rejects a null event line (ops/session-client.ts:88), and a null row reads as an absent session (ops/session-registry.ts:66). Ends if a caller needs the parse error text.
   try {
     const value: unknown = JSON.parse(text);
     return isRecord(value) ? value : null;

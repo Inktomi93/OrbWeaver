@@ -51,7 +51,7 @@ function LinkSsoBody({ userId, onDone }: { readonly userId: UserId; readonly onD
     if (trimmed.length === 0) {
       return;
     }
-    // @orb-waive caught-failure-ownership(catch): the failure is rendered by the `link.error !== null` line in this
+    // the failure is rendered by the `link.error !== null` line in this
     // component and toasted by useLinkSsoIdentity's `errorToast` (use-admin-mutations.ts); the dialog just stays open.
     // Ends if both stop.
     try {

@@ -34,8 +34,6 @@ import {
   stageBudgetsFor,
   UNIT_PRICED_CAPS,
 } from "@orb/tooling/floor/host/concurrency-profile";
-import { HOST_POOL_ROOT_ENV, tryAcquireHostSlot } from "@orb/tooling/floor/host/host-slots";
-import { TS7_ADMISSION_ENV, TS7_POOL_NAME, TS7_SLOT_BUSY_EXIT } from "@orb/tooling/floor/host/ts7-admission";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 
 const BODY = readFileSync(CONCURRENCY_PROFILE_PATH, "utf8");
@@ -82,18 +80,13 @@ test("SHARED is the default and its CEILINGS carry the exact numbers the doctrin
   // 5121 cases), so 2 workers made the push bar ~95 min and 4 makes it ~51; the box-wide bound is
   // `ctRunnersHostWide` (<=8 Chromiums), not this per-run number.
   expect(shared.ctWorkers, "playwright CT workers default").toBe(4);
-  expect(shared.ts7Checkers, "ts7 --checkers default").toBe(4);
-  expect(shared.pnpmWorkspaceConcurrency, "pnpm -r --workspace-concurrency default").toBe(1);
   // The ONE cap here that RAISES parallelism: ESLint ships `--concurrency off` (single-threaded), so this
   // row is a speed-up we are choosing to spend, not a ceiling we are imposing. Each worker loads every typed
   // program its files span, so three is what the 24 GB share holds at the measured worker price.
   expect(shared.eslintConcurrency, "eslint --concurrency default").toBe(3);
-  expect(shared.strykerConcurrency, "Stryker calibration-preserving worker pool").toBe(6);
   expect(shared.cpdWorkers, "jscpd workers on the shared host").toBe(4);
   expect(shared.hookPoolSlots, "the edit hook's HOST-WIDE pool, shared by its file-scoped legs").toBe(4);
-  expect(shared.hookTs7Checkers, "the edit hook's whole-program TS leg fires on every edit — it takes fewer checkers than a batch run").toBe(2);
   expect(shared.ctRunnersHostWide, "concurrent CT runners allowed across the whole host").toBe(2);
-  expect(shared.ts7RunnersHostWide, "concurrent whole-program typechecks allowed across the whole host").toBe(3);
   expect(shared.stageCap, "live snap stages per box — 3 on a host that also serves the dev stack and the homelab").toBe(3);
 });
 
@@ -104,7 +97,6 @@ test("DEDICATED is never STRICTER than shared", () => {
     expect(dedicated[cap], `dedicated.${cap} must not be lower than shared.${cap} — the opt-in is an UNLOCK`).toBeGreaterThanOrEqual(shared[cap]);
   }
   expect(dedicated.machineShare, "a box that is yours alone is yours to size to").toBeGreaterThanOrEqual(shared.machineShare);
-  expect(dedicated.strykerConcurrency, "Stryker's calibrated concurrency is profile-independent").toBe(6);
   expect(dedicated.cpdWorkers, "jscpd may use the whole dedicated 24-core box").toBe(24);
 });
 
@@ -133,27 +125,18 @@ test("a 4-core/13.4 GB box derives SMALLER caps, and the host-wide typecheck poo
     }
     const cores = committed.machineShare * SMALL_BOX.cores;
     expect(small.vitestMaxWorkers, `${name}: vitest workers fit the cores`).toBeLessThanOrEqual(cores);
-    expect(small.ts7Checkers, `${name}: checkers fit the cores`).toBeLessThanOrEqual(cores);
-    // THE 0176 SYMPTOM: several whole-program typechecks each sized to the whole box. The pool admits only
-    // as many runs as the profile's memory share holds at the derived checker count.
-    const run = COSTS.ts7Checker.baseMemoryMiB + small.ts7Checkers * COSTS.ts7Checker.memoryMiB;
-    expect(small.ts7RunnersHostWide * run, `${name}: the concurrent typechecks fit the memory share`).toBeLessThanOrEqual(
-      committed.machineShare * SMALL_BOX.memoryMiB,
-    );
   }
   const shared = deriveConcurrencyProfile(parseConcurrencyProfile(BODY, "shared"), COSTS, SMALL_BOX);
   const committed = parseConcurrencyProfile(BODY, "shared");
-  for (const cap of ["vitestMaxWorkers", "ctWorkers", "ts7Checkers", "eslintConcurrency", "cpdWorkers", "ctRunnersHostWide", "ts7RunnersHostWide"] as const) {
+  for (const cap of ["vitestMaxWorkers", "ctWorkers", "eslintConcurrency", "cpdWorkers", "ctRunnersHostWide"] as const) {
     expect(shared[cap], `shared.${cap} is strictly smaller on the small box`).toBeLessThan(committed[cap]);
   }
-  expect(shared.ts7RunnersHostWide, "one whole-program typecheck at a time on the small box").toBe(1);
 });
 
 const FLAT_COSTS: UnitCosts = {
   vitestWorker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
   semanticCorpusWorker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
   ctWorker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
-  ts7Checker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 4000 },
   eslintWorker: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
   cpdWorker: { cores: 1, memoryMiB: 0, baseMemoryMiB: 0 },
   hookLeg: { cores: 1, memoryMiB: 1000, baseMemoryMiB: 0 },
@@ -169,8 +152,6 @@ test("each cap is the smallest of its ceiling, its core bound and its memory bou
   expect(deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 512, memoryMiB: 10_000_000 }).vitestMaxWorkers).toBe(whole.vitestMaxWorkers);
   // A unit that prices no memory is bounded by cores alone.
   expect(deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 6, memoryMiB: 1 }).cpdWorkers).toBe(6);
-  // The base is paid before the first unit: 6000 MiB less a 4000 base leaves room for two checkers.
-  expect(deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 64, memoryMiB: 6000 }).ts7Checkers).toBe(2);
   // A machine too small for one unit still runs one: a zero-sized pool never runs at all.
   const tiny = deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 1, memoryMiB: 100 });
   for (const cap of DERIVED_CAPS) {
@@ -218,19 +199,9 @@ test("a 48 GiB shared machine admits one full corpus without changing the two-wo
   expect(deriveConcurrencyProfile(dedicated, COSTS, LEGACY_BOX)).toStrictEqual(capsOf(dedicated));
 });
 
-test("a run cap prices one run at its inner cap's DERIVED size, and only the CT runs are core-bound", () => {
+test("concurrent CT runs fit their worker core cost", () => {
   const whole = { ...parseConcurrencyProfile(BODY, "dedicated"), machineShare: 1 };
-  // 64 cores, 30000 MiB: 8 checkers (the dedicated ceiling) => a 12000 MiB run => two runs fit.
-  const roomy = deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 64, memoryMiB: 30_000 });
-  expect(roomy.ts7Checkers).toBe(8);
-  expect(roomy.ts7RunnersHostWide).toBe(2);
-  expect(roomy.pnpmWorkspaceConcurrency).toBe(2);
-  // 4 cores: the checkers drop to 4, a run to 8000 MiB, and three runs fit the same memory — the typecheck
-  // run caps ignore cores, because past the core count a typecheck only time-slices.
   const fewCores = deriveConcurrencyProfile(whole, FLAT_COSTS, { cores: 4, memoryMiB: 30_000 });
-  expect(fewCores.ts7Checkers).toBe(4);
-  expect(fewCores.ts7RunnersHostWide).toBe(3);
-  // A CT run is 4 workers x 1 core, so 4 cores hold exactly one run whatever the memory.
   expect(fewCores.ctRunnersHostWide).toBe(1);
 });
 
@@ -286,18 +257,12 @@ test("the CT ceiling FOLLOWS ctWorkers, covers the host-slot wait, and never dip
   // (ct-runner-lock.ts reads `ctHostWaitMs` from this same row — one number, two readers).
   expect(budgets.ctSuiteMs, "the ceiling must exceed the wait a run is allowed to spend queueing").toBeGreaterThan(budgets.ctHostWaitMs);
   expect(budgets.ctSuiteMs, "…and the default floor").toBeGreaterThanOrEqual(budgets.defaultMs);
-  // A typecheck queued for a host slot waits inside its stage too, so its wait stays under the stage default.
-  expect(budgets.ts7HostWaitMs, "the typecheck queue wait fits inside a stage").toBeLessThan(budgets.defaultMs);
   // An absurdly cheap suite must still not shrink a stage's ceiling below the default.
   const cheap = BODY.replace(/"ctSuiteWorkerMinutes": \d+/u, '"ctSuiteWorkerMinutes": 1').replace(
     /"ctHostSlotWaitMinutes": \d+/u,
     '"ctHostSlotWaitMinutes": 1',
   );
   expect(stageBudgetsFor(shared, cheap).ctSuiteMs).toBe(stageBudgetsFor(shared, cheap).defaultMs);
-  // The mutation ceiling is its own row, floored at the default like every other ceiling.
-  expect(budgets.mutationGateMs, "a mutant run is measured in hours").toBeGreaterThan(budgets.defaultMs);
-  const cheapMutation = BODY.replace(/"mutationGateMinutes": \d+/u, '"mutationGateMinutes": 1');
-  expect(stageBudgetsFor(shared, cheapMutation).mutationGateMs).toBe(stageBudgetsFor(shared, cheapMutation).defaultMs);
 });
 
 test("a broken stageBudgets row REFUSES loudly — never a defaulted ceiling", () => {
@@ -307,9 +272,6 @@ test("a broken stageBudgets row REFUSES loudly — never a defaulted ceiling", (
   expect(() => stageBudgetsFor(shared, BODY.replace(/"ctSuiteWorkerMinutes": \d+/u, '"ctSuiteWorkerMinutes": "165"'))).toThrow(
     /field "ctSuiteWorkerMinutes" is "165"/u,
   );
-  expect(() => stageBudgetsFor(shared, BODY.replace(/"ts7HostSlotWaitMinutes": \d+/u, '"ts7HostSlotWaitMinutes": 0'))).toThrow(
-    /field "ts7HostSlotWaitMinutes" is 0/u,
-  );
   expect(() => stageBudgetsFor(shared, BODY.replace(/"verifyHostSlotWaitMinutes": \d+,\n/u, ""))).toThrow(/field "verifyHostSlotWaitMinutes" is undefined/u);
   expect(() => stageBudgetsFor(shared, BODY.replace(/"verifyHostSlotWaitMinutes": \d+/u, '"verifyHostSlotWaitMinutes": 0'))).toThrow(
     /field "verifyHostSlotWaitMinutes" is 0/u,
@@ -318,7 +280,6 @@ test("a broken stageBudgets row REFUSES loudly — never a defaulted ceiling", (
   expect(() => stageBudgetsFor(shared, BODY.replace(/"vitestHardCeilingMinutes": \d+/u, '"vitestHardCeilingMinutes": 0'))).toThrow(
     /field "vitestHardCeilingMinutes" is 0/u,
   );
-  expect(() => stageBudgetsFor(shared, BODY.replace(/"mutationGateMinutes": \d+/u, '"mutationGateMinutes": -1'))).toThrow(/field "mutationGateMinutes" is -1/u);
 });
 
 test("the budget door reads the committed file end to end, per profile and machine", () => {
@@ -361,18 +322,14 @@ test("worker and slot ceilings reject zero, and the machine share must be a frac
 
 test("a broken unit-cost row REFUSES loudly — never an unbounded cap", () => {
   expect(() => parseUnitCosts('{"profiles":{}}')).toThrow(/has no "unitCosts" object/u);
-  expect(() => parseUnitCosts(bodyWith(["unitCosts", "ts7Checker"], "memoryMiB", -1))).toThrow(/"unitCosts.ts7Checker" field "memoryMiB" is -1/u);
   expect(() => parseUnitCosts(bodyWith(["unitCosts", "ctWorker"], "cores"))).toThrow(/"unitCosts.ctWorker" field "cores" is undefined/u);
   const free = JSON.parse(BODY) as { unitCosts: Record<string, unknown> };
   free.unitCosts["hookLeg"] = { cores: 0, memoryMiB: 0, baseMemoryMiB: 0 };
   expect(() => parseUnitCosts(JSON.stringify(free)), "a unit that costs nothing derives no cap").toThrow(/prices neither cores nor memory/u);
 });
 
-// Both spawn doors are captured, because the wrappers use both: eslint and cpd block on spawnSync, while ts7 spawns
-// asynchronously so its host slot's lease keeps beating. The async fake settles on the next tick, as a real child does.
 const CAPTURE_PRELOAD = `
 const fs = require("node:fs");
-const { EventEmitter } = require("node:events");
 const childProcess = require("node:child_process");
 function capture(command, args, options) {
   fs.writeFileSync(process.env.ORB_WRAPPER_CAPTURE, JSON.stringify({ command, args, cwd: options?.cwd ?? null }));
@@ -383,16 +340,6 @@ childProcess.spawnSync = (command, args, options) => {
   if (outcome === "spawn-error") return { status: null, signal: null, error: new Error("planted spawn failure") };
   if (outcome === "signal") return { status: null, signal: "SIGTERM" };
   return { status: Number(outcome), signal: null };
-};
-childProcess.spawn = (command, args, options) => {
-  const outcome = capture(command, args, options);
-  const child = new EventEmitter();
-  process.nextTick(() => {
-    if (outcome === "spawn-error") child.emit("error", new Error("planted spawn failure"));
-    else if (outcome === "signal") { child.emit("exit", null, "SIGTERM"); child.emit("close", null, "SIGTERM"); }
-    else { child.emit("exit", Number(outcome), null); child.emit("close", Number(outcome), null); }
-  });
-  return child;
 };
 const moduleApi = require("node:module");
 moduleApi.syncBuiltinESMExports();
@@ -410,13 +357,11 @@ interface WrapperCapture {
   readonly cwd: string | null;
 }
 
-/** Runs one wrapper with its spawn captured. The host pool root is the scratch dir, so a ts7 run never
- *  contends with — or blocks — an operator's live typecheck; `prepare` may plant pool state there first. */
 function runWrapper(
-  script: "ts7.ts" | "eslint.ts" | "cpd.ts",
+  script: "cpd.ts",
   args: readonly string[],
   box: string | undefined,
-  extra: { readonly outcome?: string; readonly env?: NodeJS.ProcessEnv; readonly prepare?: (runtime: NodeJS.ProcessEnv) => void } = {},
+  extra: { readonly outcome?: string; readonly env?: NodeJS.ProcessEnv } = {},
 ): {
   readonly status: number | null;
   readonly stderr: string;
@@ -428,9 +373,7 @@ function runWrapper(
   writeFileSync(preload, CAPTURE_PRELOAD);
   const env = inheritedProcessEnv(Object.fromEntries([["ORB_WRAPPER_CAPTURE", captureFile]]));
   env["ORB_WRAPPER_OUTCOME"] = extra.outcome ?? "0";
-  env[HOST_POOL_ROOT_ENV] = dir;
   Object.assign(env, extra.env);
-  extra.prepare?.({ [HOST_POOL_ROOT_ENV]: dir });
   if (box === undefined) {
     delete env[DEDICATED_BOX_ENV];
   } else {
@@ -454,18 +397,7 @@ function optionValue(args: readonly string[] | undefined, option: string): strin
   return at === -1 ? undefined : args[at + 1];
 }
 
-test("all worker wrappers reject a malformed box switch before spawning, even with an explicit worker override", () => {
-  const cases = [
-    ["ts7.ts", ["--checkers", "1", "--version"], 1],
-    ["eslint.ts", ["--concurrency", "off", "--version"], 2],
-  ] as const;
-  for (const [script, args, expectedStatus] of cases) {
-    const result = runWrapper(script, args, "true");
-    expect(result.status, script).toBe(expectedStatus);
-    expect(result.stderr, script).toContain(`${DEDICATED_BOX_ENV}="true"`);
-    expect(result.capture, `${script} must refuse before spawning`).toBeNull();
-  }
-
+test("the CPD wrapper rejects a malformed box switch before spawning, even with an explicit worker override", () => {
   const cpd = runWrapper("cpd.ts", ["--workers", "1", "--version"], "true");
   expect(cpd.status).toBe(2);
   expect(cpd.stderr).toContain("launcher configuration refused the run");
@@ -473,56 +405,16 @@ test("all worker wrappers reject a malformed box switch before spawning, even wi
   expect(cpd.capture).toBeNull();
 });
 
-test("worker wrappers inject the door's derived shared/dedicated caps and preserve explicit native worker overrides", () => {
+test("the CPD wrapper injects derived shared/dedicated caps and preserves explicit native worker overrides", () => {
   // The child runs on this same machine, so the door's answer here IS the value the wrapper must inject.
   const shared = readConcurrencyProfile({});
   const dedicated = readConcurrencyProfile({ [DEDICATED_BOX_ENV]: "1" });
-  const tsShared = runWrapper("ts7.ts", ["--version"], undefined).capture;
-  const tsDedicated = runWrapper("ts7.ts", ["--version"], "1").capture;
-  const tsExplicit = runWrapper("ts7.ts", ["--checkers", "1", "--version"], "1").capture;
-  expect(optionValue(tsShared?.args, "--checkers")).toBe(String(shared.ts7Checkers));
-  expect(optionValue(tsDedicated?.args, "--checkers")).toBe(String(dedicated.ts7Checkers));
-  expect(tsExplicit?.args.filter((arg) => arg === "--checkers")).toHaveLength(1);
-  expect(optionValue(tsExplicit?.args, "--checkers")).toBe("1");
-
-  const eslintShared = runWrapper("eslint.ts", ["--version"], undefined).capture;
-  const eslintDedicated = runWrapper("eslint.ts", ["--version"], "1").capture;
-  const eslintExplicit = runWrapper("eslint.ts", ["--concurrency", "off", "--version"], "1").capture;
-  expect(optionValue(eslintShared?.args, "--concurrency")).toBe(String(shared.eslintConcurrency));
-  expect(optionValue(eslintDedicated?.args, "--concurrency")).toBe(String(dedicated.eslintConcurrency));
-  expect(eslintExplicit?.args.filter((arg) => arg === "--concurrency")).toHaveLength(1);
-  expect(optionValue(eslintExplicit?.args, "--concurrency")).toBe("off");
-
   const cpdShared = runWrapper("cpd.ts", ["-c", "jscpd.json"], undefined).capture;
   const cpdDedicated = runWrapper("cpd.ts", ["-c", "jscpd.json"], "1").capture;
   const cpdExplicit = runWrapper("cpd.ts", ["--workers=2", "-c", "jscpd.json"], "1").capture;
   expect(optionValue(cpdShared?.args, "--workers")).toBe(String(shared.cpdWorkers));
   expect(optionValue(cpdDedicated?.args, "--workers")).toBe(String(dedicated.cpdWorkers));
   expect(cpdExplicit?.args.filter((arg) => arg === "--workers=2" || arg === "--workers")).toEqual(["--workers=2"]);
-});
-
-test("the TS7 wrapper holds a host slot for a program run, and an advisory run with every slot live exits busy without spawning", () => {
-  // A program run takes a slot and gives it back: the capture proves the compiler was spawned, and the
-  // pool is empty again afterwards (checked through the next arm, which needs every slot free to fill).
-  expect(runWrapper("ts7.ts", ["--noEmit", "-p", "tsconfig.json"], undefined).capture?.args).toContain("--noEmit");
-  const slots = readConcurrencyProfile({}).ts7RunnersHostWide;
-  const fill = (runtime: NodeJS.ProcessEnv): void => {
-    // The holder is THIS test process: live for the whole wrapper run, and never a reused pid.
-    for (let slot = 0; slot < slots; slot += 1) {
-      tryAcquireHostSlot({ name: TS7_POOL_NAME, label: "a live typecheck", slots }, { env: runtime });
-    }
-  };
-  const busy = runWrapper("ts7.ts", ["--noEmit", "-p", "tsconfig.json"], undefined, { env: { [TS7_ADMISSION_ENV]: "try" }, prepare: fill });
-  expect(busy.status).toBe(TS7_SLOT_BUSY_EXIT);
-  expect(busy.stderr).toContain("SKIPPED");
-  expect(busy.capture, "a skipped advisory run never reaches the compiler").toBeNull();
-  // …and a run that builds no program is never pooled, so it answers even with the pool full.
-  expect(runWrapper("ts7.ts", ["--version"], undefined, { env: { [TS7_ADMISSION_ENV]: "try" }, prepare: fill }).capture).not.toBeNull();
-  // A malformed admission switch refuses before spawning rather than silently queueing.
-  const bogus = runWrapper("ts7.ts", ["--noEmit", "-p", "tsconfig.json"], undefined, { env: { [TS7_ADMISSION_ENV]: "yes" } });
-  expect(bogus.status).not.toBe(0);
-  expect(bogus.stderr).toContain(`${TS7_ADMISSION_ENV}="yes"`);
-  expect(bogus.capture).toBeNull();
 });
 
 test("the CPD wrapper preserves native verdicts and makes every abnormal child outcome a loud tool error", () => {
@@ -541,69 +433,6 @@ test("the CPD wrapper preserves native verdicts and makes every abnormal child o
   expect(failed.status).toBe(2);
   expect(failed.stderr).toContain("failed to spawn");
   expect(failed.stderr).toContain("planted spawn failure");
-});
-
-test("the TS7 wrapper removes valid incremental cache options without dropping unrelated compiler argv", () => {
-  const cases = [
-    {
-      argv: ["--incremental", "--tsBuildInfoFile", "/tmp/vitest-build-info", "--noEmit", "-p", "tsconfig.json"],
-      preserved: ["--noEmit", "-p", "tsconfig.json"],
-    },
-    {
-      argv: ["--incremental", "true", "--tsBuildInfoFile=/tmp/vitest-build-info", "--pretty", "false"],
-      preserved: ["--pretty", "false"],
-    },
-    {
-      argv: ["--incremental=false", "--tsBuildInfoFile", "/tmp/vitest-build-info", "--listFilesOnly"],
-      preserved: ["--listFilesOnly"],
-    },
-    {
-      argv: ["--INCREMENTAL=TRUE", "--TSBUILDINFOFILE=/tmp/vitest-build-info", "--version"],
-      preserved: ["--version"],
-    },
-    {
-      argv: ["-i", "--tsBuildInfoFile", "/tmp/vitest-build-info", "--noEmit"],
-      preserved: ["--noEmit"],
-    },
-    {
-      argv: ["-I", "FALSE", "--tsBuildInfoFile=/tmp/vitest-build-info", "--pretty", "false"],
-      preserved: ["--pretty", "false"],
-    },
-  ] as const;
-  for (const { argv, preserved } of cases) {
-    const result = runWrapper("ts7.ts", argv, undefined);
-    expect(result.status).toBe(0);
-    expect(result.capture).not.toBeNull();
-    expect(
-      result.capture?.args.some((arg) => {
-        const normalized = arg.toLowerCase();
-        return normalized === "--incremental" || normalized.startsWith("--incremental=") || normalized === "-i" || normalized.startsWith("-i=");
-      }),
-    ).toBe(false);
-    expect(result.capture?.args.some((arg) => arg.toLowerCase() === "--tsbuildinfofile" || arg.toLowerCase().startsWith("--tsbuildinfofile="))).toBe(false);
-    for (const arg of preserved) {
-      expect(result.capture?.args).toContain(arg);
-    }
-  }
-});
-
-test("the TS7 wrapper rejects malformed incremental cache options before spawning", () => {
-  const cases = [
-    ["--incremental=maybe"],
-    ["--incremental="],
-    ["-i=true"],
-    ["-I=false"],
-    ["--tsBuildInfoFile"],
-    ["--tsBuildInfoFile", ""],
-    ["--tsBuildInfoFile", "--noEmit"],
-    ["--tsBuildInfoFile="],
-  ] as const;
-  for (const argv of cases) {
-    const result = runWrapper("ts7.ts", argv, undefined);
-    expect(result.status).not.toBe(0);
-    expect(result.stderr).toMatch(/--incremental expects true or false|-i does not accept an equals-form value|--tsBuildInfoFile requires a path value/u);
-    expect(result.capture).toBeNull();
-  }
 });
 
 test("a broken profile file REFUSES loudly and names itself — never a defaulted cap", () => {

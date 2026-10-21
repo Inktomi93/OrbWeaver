@@ -116,7 +116,7 @@ async function readProfilePages(session: ProbeSession): Promise<ReactProfilePage
       continue;
     }
     for (const [pageIndex, page] of context.pages.entries()) {
-      // @orb-waive caught-failure-ownership(error): the caught read becomes a hookInstalled:false page row from missingPage; profileGaps (lib/react-profile-receipt.ts) turns that row into a gap and the arm's exit returns EXIT.toolError. Ends if missingPage stops carrying the caught detail or profileGaps stops refusing the row.
+      // the caught read becomes a hookInstalled:false page row from missingPage; profileGaps (lib/react-profile-receipt.ts) turns that row into a gap and the arm's exit returns EXIT.toolError. Ends if missingPage stops carrying the caught detail or profileGaps stops refusing the row.
       try {
         pages.push(pageEvidence(await readProfilePayload(page), contextIndex, pageIndex, page.url()));
       } catch (error) {
@@ -137,14 +137,14 @@ async function prepareProfile(
     if (context.owned === false) {
       continue;
     }
-    // @orb-waive caught-failure-ownership(error): the caught install failure is pushed to errors, returned from prepareProfile and passed to writeReactProfileReceipt as prepareErrors; profileGaps makes each one a gap and the arm's exit returns EXIT.toolError. Ends if errors stops reaching profileGaps.
+    // the caught install failure is pushed to errors, returned from prepareProfile and passed to writeReactProfileReceipt as prepareErrors; profileGaps makes each one a gap and the arm's exit returns EXIT.toolError. Ends if errors stops reaching profileGaps.
     try {
       await context.context.addInitScript({ content: reactProfileInitScript(windowId) });
     } catch (error) {
       errors.push(`context ${String(contextIndex)} addInitScript failed: ${errorMessage(error)}`);
     }
     for (const [pageIndex, page] of context.pages.entries()) {
-      // @orb-waive caught-failure-ownership(error): the caught call-window mark failure is pushed to errors, returned from prepareProfile and passed to writeReactProfileReceipt as prepareErrors; profileGaps makes it a gap and the arm's exit returns EXIT.toolError. Ends if errors stops reaching profileGaps.
+      // the caught call-window mark failure is pushed to errors, returned from prepareProfile and passed to writeReactProfileReceipt as prepareErrors; profileGaps makes it a gap and the arm's exit returns EXIT.toolError. Ends if errors stops reaching profileGaps.
       try {
         await page.evaluate(`globalThis.__ORB_SNAP_REACT_PROFILE__?.beginWindow(${JSON.stringify(windowId)})`);
       } catch (error) {

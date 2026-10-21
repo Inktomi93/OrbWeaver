@@ -56,7 +56,7 @@ export function RpgPopulateControl({ chatId, actor, canPopulate }: RpgPopulateCo
   // real fill announces itself by repainting the panel — so this arm is the only one with no signal of its
   // own. The host paid for a model call; say what it found.
   const onFill = async (): Promise<void> => {
-    // @orb-waive caught-failure-ownership(catch): usePopulateFromCharacter (use-rpg-mutations.ts) carries
+    // usePopulateFromCharacter (use-rpg-mutations.ts) carries
     // `errorToast: "Couldn't fill this character from their card."`, which toasts the awaited mutation's failure. Ends if that errorToast is dropped.
     try {
       const verdict = await populate.mutateAsync({ chatId, actorRef: actor.actorRef });

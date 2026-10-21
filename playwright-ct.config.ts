@@ -11,12 +11,11 @@ import {
   SELECT_CPU_PROFILING_ENV,
   SELECT_NATIVE_TRACE_ENV,
 } from "@orb/testkit/node/select-native-sources.ts";
-import { adoptRunSlot } from "@orb/tooling/floor/artifacts/artifact-out";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { CT_VITE_PORT } from "@orb/tooling/floor/host/ports";
 import { currentRunLease, inheritedRunMarker, runLeaseArg, runMarkerArg } from "@orb/tooling/floor/process/run-marker";
-import { CT_CACHE_DIR_ENV, CT_RUN_RACING_ENV, CT_RUN_SLOT_ENV } from "@orb/tooling/floor/testing/ct-run-slot";
+import { CT_CACHE_DIR_ENV } from "@orb/tooling/floor/testing/ct-run-slot";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { applicationTestExclusions } from "@orb/tooling/floor/testing/test-population";
 import type { PlaywrightTestConfig } from "@playwright/experimental-ct-react";
@@ -61,7 +60,7 @@ const BASE_EXPECT_TIMEOUT_MS = 5000;
 const BASE_ACTION_TIMEOUT_MS = 15_000;
 const CT_ESBUILD_TARGET = "es2024";
 const CLIENT_PACKAGE_ROOT = path.resolve(import.meta.dirname, "packages/client");
-// Strict mirrors and explicit legacy runs share this matcher; the launcher filters legacy selection.
+// Component suffixes share the maintained test-kind vocabulary.
 const CT_TEST_MATCH = TEST_KIND_DEFINITIONS.filter(({ family }) => family === "component").map(({ suffix }) => `**/*${suffix}`);
 // SPELLED WHOLE, DELIBERATELY. `tests/tooling/playwright-ct-css-front-door.test.ts` proves that the
 // source-extension transform targets CLIENT GLOBALS by finding that exact repo-relative path in this file's
@@ -207,17 +206,6 @@ const CT_ROLLUP_ONWARN: CtOnWarn = (...[warning, defaultHandler]: Parameters<CtO
   defaultHandler(warning);
 };
 
-// The one-per-invocation launcher opens the slot. Config evaluation is deliberately adoption-only:
-// Playwright can load this file in several processes, so minting here creates orphan sibling slots.
-const ctSlotDir = process.env[CT_RUN_SLOT_ENV];
-const ctSlot =
-  ctSlotDir === undefined
-    ? null
-    : {
-        ...adoptRunSlot(process.cwd(), "ct", ctSlotDir),
-        racing: (process.env[CT_RUN_RACING_ENV] ?? "").split("\n").filter((label) => label.length > 0),
-      };
-
 export function ctConfig(applicationOnly = false): PlaywrightTestConfig<CtCorpusOptions> {
   const exclusions = applicationTestExclusions(applicationOnly);
   return defineConfig<CtCorpusOptions>({
@@ -260,21 +248,10 @@ export function ctConfig(applicationOnly = false): PlaywrightTestConfig<CtCorpus
     // config decodes (the CT_GATE env retired 2026-07-17 with the lefthook-step era that needed it).
     // `trace: on-first-retry` (below) still captures a failing retried run.
     retries: 0,
-    // The flake announcer (tooling/src/verify/ops/ct-flaky-reporter.ts): the gate runs with `--retries=2`, so a
-    // failed-then-passed test scores green and hides. This reporter surfaces every retry-masked pass — a loud
-    // end-of-run block + reports/ct-flaky.json. DEFAULT = WARN (suite stays green on transient infra);
-    // `CT_NO_FLAKES=1` (this config owns env-decode) flips it STRICT → nonzero exit on any retried test, for
-    // the orchestrator's flake-hunt passes.
     reporter: [
       ...(process.env["GITHUB_ACTIONS"] ? [["github"] as const] : []),
-      // json = machine-readable results — extracting the 2 failing names from a 1211-test run without it
-      // cost two full re-runs (2026-07-24); the custom flake announcer stays the human-facing summary.
       ["json", { outputFile: "reports/ct-report.json" }],
       ["html", { outputFolder: "reports/ct-report", open: "never" }],
-      [
-        "./tooling/src/verify/ops/ct-flaky-reporter.ts",
-        { strict: process.env["CT_NO_FLAKES"] === "1", ...(ctSlot === null ? {} : { slotDir: ctSlot.dir, racing: ctSlot.racing }) },
-      ],
     ],
     use: {
       corpusDirectory: process.env["CT_CORPUS_FIXTURE"],

@@ -7,7 +7,7 @@
  *  body as text (never fails — a malformed/absent body degrades to no suffix) so the server's real
  *  `{error}` message (or whatever it sent) reaches the caller instead of a bare status line. */
 export async function throwHttpError(prefix: string, response: Response): Promise<never> {
-  // @orb-waive caught-failure-ownership(response.text): an unreadable body only drops the message suffix; the line after it always throws the status-line Error that the upload seams' callers receive. Ends if that throw becomes conditional.
+  // an unreadable body only drops the message suffix; the line after it always throws the status-line Error that the upload seams' callers receive. Ends if that throw becomes conditional.
   const detail = await response.text().catch(() => "");
   const suffix = detail === "" ? "" : ` — ${detail}`;
   throw new Error(`${prefix}: ${response.status} ${response.statusText}${suffix}`);

@@ -11,7 +11,6 @@
 import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import type { MemoryConfig, ResolvedMemoryConfig } from "./types.ts";
 
-// @orb-waive no-vanity-alias(DEFAULTS): baselined when the gate widened; burn-down item 906.
 /** The baked-in resolver floor — the docs/law/Knowledge-Cluster.md §5 grounded defaults. ONE home: the values
  *  live in `@orb/contracts/settings` `DEFAULT_MEMORY_DEFAULTS` (so the admin surface reads the same floor it
  *  displays); this re-exports under the subsystem's `ResolvedMemoryConfig` type (every knob present).

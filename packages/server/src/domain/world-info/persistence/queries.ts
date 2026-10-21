@@ -86,7 +86,7 @@ export async function listOwnedBooks(db: Db, ownerId: UserId): Promise<BookRow[]
 
 /** Count junction rows per BOOK for the given book ids, on one junction's `worldBookId` column. */
 async function countByBook(db: Db, table: SQLiteTable, bookCol: SQLiteColumn, ids: readonly WorldBookId[]): Promise<Record<string, number>> {
-  // @orb-waive owner-scoped-reads(table): `countByBook` is called only with the book junction tables, and its ids are the caller's owned books `listOwnedBooks` already resolved, so every count is keyed to an owned book. Ends if a caller-supplied table or id reaches it.
+  // `countByBook` is called only with the book junction tables, and its ids are the caller's owned books `listOwnedBooks` already resolved, so every count is keyed to an owned book. Ends if a caller-supplied table or id reaches it.
   const rows = await db
     .select({ bookId: bookCol, n: sql<number>`count(*)` })
     .from(table)

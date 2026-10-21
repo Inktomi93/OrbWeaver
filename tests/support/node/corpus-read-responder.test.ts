@@ -1,4 +1,4 @@
-import { createCorpusReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
+import { createCorpusReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
 import "@orb/testkit/node/composed-real.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";

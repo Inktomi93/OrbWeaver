@@ -142,7 +142,7 @@ async function ownerCanonSnapshot(db: Db, ownerId: string): Promise<string> {
 async function scanMessages(db: Db, ownerId: string, a: Accums): Promise<void> {
   let lastId = "";
   for (;;) {
-    // @orb-waive no-await-db-in-loop(all): keyset PAGINATION over the owner's whole message corpus — the loop exists to bound memory, and one round trip per page is what streaming means. Ends if the rebuild folds server-side.
+    // keyset PAGINATION over the owner's whole message corpus — the loop exists to bound memory, and one round trip per page is what streaming means. Ends if the rebuild folds server-side.
     const rows = await db.all<CanonMessage>(sql`
       SELECT m.id AS mid, m.character_id AS cid, m.role AS role, m.created_at AS createdAt,
              ch.created_at AS chatCreatedAt, v.content AS content,
@@ -178,7 +178,7 @@ async function scanMessages(db: Db, ownerId: string, a: Accums): Promise<void> {
 async function scanSwipes(db: Db, ownerId: string, a: Accums): Promise<void> {
   let lastId = "";
   for (;;) {
-    // @orb-waive no-await-db-in-loop(all): keyset PAGINATION over the owner's swipe variants, the sibling of the message scan above. Ends if the rebuild folds server-side.
+    // keyset PAGINATION over the owner's swipe variants, the sibling of the message scan above. Ends if the rebuild folds server-side.
     const rows = await db.all<SwipeRow>(sql`
       SELECT mv.id AS svid, m.character_id AS cid, m.created_at AS msgCreatedAt, mv.content AS content,
              mv.tokens_in AS ti, mv.tokens_out AS tout, mv.token_provenance AS tokenProvenance,
@@ -251,8 +251,8 @@ async function scanCompactionSpend(db: Db, ownerId: string, a: Accums): Promise<
 async function scanEmbeddingSpend(db: Db, ownerId: string, a: Accums): Promise<void> {
   let lastId = "";
   for (;;) {
-    // @orb-waive no-await-db-in-loop(limit): keyset pagination bounds the retained embedding-call corpus per page, matching the message/swipe scans. Ends if rebuild folds server-side.
-    // @orb-waive owner-scoped-reads(embeddingCalls): owner-scoped inside the raw `sql` template (`embedding_calls.owner_id = ownerId`); the `id >` term is the keyset cursor, not a selection by a caller's id. Ends if the template loses its owner term.
+    // keyset pagination bounds the retained embedding-call corpus per page, matching the message/swipe scans. Ends if rebuild folds server-side.
+    // owner-scoped inside the raw `sql` template (`embedding_calls.owner_id = ownerId`); the `id >` term is the keyset cursor, not a selection by a caller's id. Ends if the template loses its owner term.
     const calls = await db
       .select()
       .from(embeddingCalls)

@@ -80,7 +80,7 @@ export class PluginNoGitSourceError extends DomainOperationError {
  *  leaks across tenants — a stranger gets NOT_FOUND first) and BEFORE any fetch. Maps to BAD_REQUEST. */
 export class PluginNoSourceUrlError extends DomainOperationError {
   constructor(
-    // eslint-disable-next-line orb/brand-in-name-position -- echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
+    // echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
     pluginId: string,
   ) {
     super(
@@ -100,7 +100,7 @@ export class PluginNoSourceUrlError extends DomainOperationError {
  *  would surface this distinguishable BAD_REQUEST instead of the leak-free NOT_FOUND the probe pins. */
 export class PluginNotShowcaseError extends DomainOperationError {
   constructor(
-    // eslint-disable-next-line orb/brand-in-name-position -- echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
+    // echoes the caller's OWN pluginId (owner-scoped load ran first) into an operator-facing message; no foreign existence is oracled — a stranger's id NOT_FOUNDs before this throws.
     pluginId: string,
   ) {
     super(

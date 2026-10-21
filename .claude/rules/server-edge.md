@@ -12,15 +12,8 @@ paths:
 
 ## Routers and transport
 
-- A new tRPC router or procedure needs a PROBED or EXEMPT(reason) row in
-  `tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts`; the sweep fails on an unclassified
-  procedure. A procedure with no foreign id is not automatically EXEMPT. Probe it with a marker or a
-  two-distinct-value seed. An owner-scoped update or void-returning write also needs a post-sweep
-  re-read of the owner's row; the sweep's marker-leak check proves read authority only.
-- A new router or procedure also needs three coupled sites in the same change: the `transport/trpc/
-  context.ts` Services member, the `router.ts` mount, and the compose services key-count test
-  (`tests/legacy/server/entry/compose/services.test.ts`). Miss one and the router is unreachable or the count
-  test fails.
+- Treat every route as potentially cross-tenant. Use distinct principals and ids in application tests. An owner-scoped write test also reads the owner's row after the write and confirms no foreign row changed.
+- Wire each router through the request context and composition root. Verify the route through the native application tests.
 - The client turn surface (`transport/trpc/stream/**`) is bus-driven: send/swipe/continue carry no read
   data. Advance a resume cursor at delivery, never at enqueue, so a shed frame stays replayable.
 
@@ -30,8 +23,7 @@ paths:
   attribute string. Give each cookie name its own attribute string, and read only the request transport's name.
 - Never send `post_logout_redirect_uri` to the OIDC end-session endpoint without `id_token_hint`
   (`entry/http/auth-routes.ts`). Authentik 400s before invalidating the session.
-- A gate that admits a custom header or an ambient session is only as CSRF-safe as the session case.
-  Enumerate mutating routes by registration, not by the gate's own doc.
+- CSRF protection must cover every mutating route, including requests authenticated by ambient sessions.
 - A route serving a document with its own response CSP adds its path prefix to `servesOwnPolicy`
   (`entry/http/security-headers.ts`), gated on the actual response header, never a context flag.
 - In `entry/rate-limit-gate.ts`, guards run in order and each later guard only fires if the earlier ones

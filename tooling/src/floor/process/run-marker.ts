@@ -178,7 +178,7 @@ function markerIn(blob: string | null, prefix: string): string | null {
 }
 
 function aliveBySignal(pid: number): boolean {
-  // @orb-waive caught-failure-ownership(catch): kill(pid, 0) asks whether this process can signal the pid, and ESRCH (gone) and EPERM (foreign) both answer false: abandonedMarkers reads false as a dead owner, and every signal in this module goes through signalPid, which rethrows anything but ESRCH. Ends if a sweep must tell a live foreign owner from a dead one.
+  // kill(pid, 0) asks whether this process can signal the pid, and ESRCH (gone) and EPERM (foreign) both answer false: abandonedMarkers reads false as a dead owner, and every signal in this module goes through signalPid, which rethrows anything but ESRCH. Ends if a sweep must tell a live foreign owner from a dead one.
   try {
     process.kill(pid, 0);
     return true;

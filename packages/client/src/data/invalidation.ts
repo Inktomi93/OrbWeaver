@@ -266,7 +266,7 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
           busDupCheck(filterKeyName(filter));
         }
         // Without `throwOnError` the aggregate promise does not reject on a failed refetch (it lands on the query's own error state and the QueryCache `onError`); `.catch` owns anything else.
-        // eslint-disable-next-line orb/client-cache-surgery-only-in-data, orb/no-inline-invalidate-outside-seam -- This event-to-filter seam issues the central invalidation call; remove when the query client consumes the event mapping directly.
+        // This event-to-filter seam issues the central invalidation call; remove when the query client consumes the event mapping directly.
         deps.queryClient.invalidateQueries(filter).catch(surfaceDeferredFailure);
       }
     });

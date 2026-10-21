@@ -36,7 +36,7 @@ export async function runAudit(
     });
 
     if (measuredClick !== null) {
-      // @orb-waive caught-failure-ownership(e): a failed click prints STEP FAILED and sets stepFailed, which runAudit returns in AuditData and evaluateMotionAudit, motion-problems and the matrix verdict read. Ends if stepFailed stops being read from the returned AuditData.
+      // a failed click prints STEP FAILED and sets stepFailed, which runAudit returns in AuditData and evaluateMotionAudit, motion-problems and the matrix verdict read. Ends if stepFailed stops being read from the returned AuditData.
       try {
         await page.mouse.click(measuredClick.x, measuredClick.y);
         measuredInput = true;
@@ -58,7 +58,7 @@ export async function runAudit(
     await cdp.send("Tracing.end");
     await completed;
   } finally {
-    // @orb-waive caught-failure-ownership(page.evaluate): unpausing in-page drop tracking is best-effort cleanup in a finally: the flag is a module variable that a reload resets, and a dead page fails the readMotion read after this block (the pause call above is not swallowed). Ends if the pause flag gates anything after the window on a live page.
+    // unpausing in-page drop tracking is best-effort cleanup in a finally: the flag is a module variable that a reload resets, and a dead page fails the readMotion read after this block (the pause call above is not swallowed). Ends if the pause flag gates anything after the window on a live page.
     await page.evaluate("globalThis.__orb?.setMotionAuditDropTrackingPaused(false)").catch(() => undefined);
   }
 

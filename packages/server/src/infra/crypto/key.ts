@@ -72,7 +72,7 @@ function readKeyfile(keyPath: string): Buffer | null {
   return key;
 }
 
-// @orb-waive caught-failure-ownership(err): owned by `reportKeyfile`, which the catch calls with the fault text and which writes it to process.stderr (silent only under NODE_ENV=test). The key is already linked with its bytes fsynced, so the fault costs only crash durability of the directory entry. Ends if the directory fsync becomes required for the key to be valid.
+// owned by `reportKeyfile`, which the catch calls with the fault text and which writes it to process.stderr (silent only under NODE_ENV=test). The key is already linked with its bytes fsynced, so the fault costs only crash durability of the directory entry. Ends if the directory fsync becomes required for the key to be valid.
 function fsyncDirectory(dir: string): void {
   try {
     const fd = openSync(dir, "r");
@@ -124,7 +124,7 @@ function publishKeyfile(keyPath: string, key: Buffer): boolean {
  *  key that won the path. `generate` is the entropy source, injectable so a test can interleave a second
  *  creator between the absence check and the publish. */
 export function loadOrCreateKeyfile(keyPath: string, generate: () => Buffer = () => randomBytes(CREDENTIALS_KEY_BYTES)): Buffer | null {
-  // @orb-waive caught-failure-ownership(err): owned by `reportKeyfile` (the fault goes to process.stderr, silent only under NODE_ENV=test) and by the null return: `settleBootSecrets` hands it to `entry/lifecycle.ts`, which refuses a cookie mode whose session secret is null, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null.
+  // owned by `reportKeyfile` (the fault goes to process.stderr, silent only under NODE_ENV=test) and by the null return: `settleBootSecrets` hands it to `entry/lifecycle.ts`, which refuses a cookie mode whose session secret is null, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null.
   try {
     // lstat, not exists: a dangling symlink is an entry, and it must fail closed rather than read as absent.
     if (lstatSync(keyPath, { throwIfNoEntry: false }) === undefined) {
@@ -144,7 +144,7 @@ export function loadOrCreateKeyfile(keyPath: string, generate: () => Buffer = ()
 // Read a keyfile that is known to exist. The same fail-closed contract as `loadOrCreateKeyfile`'s read arm:
 // a corrupt, unreadable or dangling entry is null and is never touched.
 function readExistingKeyfile(keyPath: string): Buffer | null {
-  // @orb-waive caught-failure-ownership(err): owned by `reportKeyfile` (the fault goes to process.stderr, silent only under NODE_ENV=test) and by the null return: `resolveKeyfile` hands it to `resolveSessionSecret`, where `entry/lifecycle.ts` refuses a cookie mode with a null secret, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null.
+  // owned by `reportKeyfile` (the fault goes to process.stderr, silent only under NODE_ENV=test) and by the null return: `resolveKeyfile` hands it to `resolveSessionSecret`, where `entry/lifecycle.ts` refuses a cookie mode with a null secret, and a null credentials key leaves the SecretBox disabled. Fail-closed so no caller re-keys over the only recovery copy. Ends if a caller stops receiving the null.
   try {
     return readKeyfile(keyPath);
   } catch (err) {

@@ -17,7 +17,7 @@ export function useEmbedRefusalToastAfterUnmount(): (write: Promise<unknown>, te
     };
   }, []);
   return (write, text) => {
-    // @orb-waive caught-failure-ownership(write): this adds only the unmounted-refusal toast. Both callers (connection-role-slot.tsx, connection-editor.tsx) pass a
+    // this adds only the unmounted-refusal toast. Both callers (connection-role-slot.tsx, connection-editor.tsx) pass a
     // `mutateAsync` promise whose failure is shown by its inline refusal state or the mutation's errorToast. Ends if a caller passes a write with neither.
     void write.catch((error: unknown) => {
       const refusal = embedRefusalOf(error);

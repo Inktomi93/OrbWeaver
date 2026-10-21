@@ -1,5 +1,5 @@
 import { PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
-import { createCorpusReadResponder } from "@orb/testkit/browser/corpus-read-responder.ts";
+import { createCorpusReadResponder } from "@orb/testkit/iso/corpus-read-responder.ts";
 import { expect, test } from "@orb/testkit/node/ct-corpus.ts";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/factories/plugin-view.ts";
 import { routeTrpc, trpcHold } from "@orb/testkit/node/route-trpc.ts";

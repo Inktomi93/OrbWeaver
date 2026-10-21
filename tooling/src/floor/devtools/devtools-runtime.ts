@@ -428,10 +428,10 @@ export async function prepareDevToolsCascadeRuntime(assetRoot: string): Promise<
   } catch (error) {
     const failures: unknown[] = [error];
     if (server !== null) {
-      // @orb-waive caught-failure-ownership(server.close): the handler pushes the cleanup error onto `failures`, which initializationFailure wraps in the AggregateError thrown below. Ends if the push or that throw is removed.
+      // the handler pushes the cleanup error onto `failures`, which initializationFailure wraps in the AggregateError thrown below. Ends if the push or that throw is removed.
       await server.close().catch((cleanupError: unknown) => failures.push(cleanupError));
     }
-    // @orb-waive caught-failure-ownership(rm): the handler pushes the cleanup error onto `failures`, which initializationFailure wraps in the AggregateError thrown on the next line. Ends if the push or that throw is removed.
+    // the handler pushes the cleanup error onto `failures`, which initializationFailure wraps in the AggregateError thrown on the next line. Ends if the push or that throw is removed.
     await rm(tempRoot, { recursive: true, force: true }).catch((cleanupError: unknown) => failures.push(cleanupError));
     throw initializationFailure(failures, error);
   }

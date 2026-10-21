@@ -8,9 +8,9 @@ updated: 2026-10-17
 
 > **UI law**, split from the D42 spec. The ledger entries (D42–D44, D52, D54, D58) are the decision records; these docs are the expansion, and win on any conflict with another copy.
 >
-> **Reading order:** UI-Architecture-and-Layout (§0–§6) → UI-Gates-and-Lessons (§7–§11) → UI-Theming-and-Content (§12) → UI-Primitives-and-Reuse (§13) → `ui-package-design.md` → `motion-and-animation-guide.md`.
+> **Reading order:** UI-Architecture-and-Layout → `UI-Theming-and-Content.md` → `UI-Primitives-and-Reuse.md` → `ui-package-design.md` → `motion-and-animation-guide.md`.
 >
-> **§-map:** §0–§4b → `UI-Architecture-and-Layout.md` · §5–§6.3.1 → `ui-architecture-state-and-stack.md` · §7–§11.8 → `UI-Gates-and-Lessons.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.10 → `UI-Primitives-and-Reuse.md`.
+> **§-map:** §0–§4b → `UI-Architecture-and-Layout.md` · §5–§6.3.1 → `ui-architecture-state-and-stack.md` · §12–§12.8 → `UI-Theming-and-Content.md` · §13–§13.10 → `UI-Primitives-and-Reuse.md`.
 >
 > **Build state:** code owns landed truth; this doc states the rule, not the build percentage. `packages/ui/src` is the inventory of built primitives; `packages/ui/package.json#exports` is the public surface.
 >
@@ -109,7 +109,7 @@ packages/client/
     sw.ts / manifest    # PWA: workbox precache of the app shell + web-app-manifest.
                         #   offline scope = the shell + last-opened chat; live data still needs the server (SSE bus)
     main.tsx            # entry / composition root + THE REGISTRATION DOOR: the one place feature
-                        #   definitions + contributors are imported and assembled (lockdown §7, gate G8)
+                        #   definitions + contributors are imported and assembled (lockdown §7)
     agent-nav/ agent-seed/
                         # dev-only agent-bridge impls that compose feature FRONT DOORS + #state actions.
                         #   main.tsx is their ONLY importer (dep-cruiser client-composition-tier-door-only)
@@ -117,7 +117,7 @@ packages/client/
                         #   is a group in the Settings SECTION at /, NOT a standalone route (§6.1)
     components/         # tier 2 — domain-AWARE cross-feature composites with no single feature owner
                         #   (ConfirmDialog · LibraryRow · CharacterPicker · QueryBoundary · WeaveGlyph …);
-                        #   composition-tier DIRECTORY MODULES (lockdown §3), gate G5
+                        #   composition-tier DIRECTORY MODULES (lockdown §3)
     data/               # the data-layer primitives (TanStack Query + tRPC) — §13.1
       trpc.ts · query-client.ts · invalidation.ts · create-entity-mutation.ts ·
       create-collection-surface.ts · use-gated-query.ts · bus/
@@ -154,10 +154,10 @@ BUILT. The highest-leverage enforcement move, engine-agnostic:
 
 - Design values live ONCE in **W3C DTCG `packages/ui/src/tokens/tokens.json`** (`$value`/`$type`).
 - **Style Dictionary v5** codegen (`packages/ui/tokens.build.ts`) emits BOTH the Tailwind v4 `@theme` block (`src/styles/theme.css`) AND the typed TS map (`src/tokens/index.ts`) — committed, generated, DO-NOT-EDIT artifacts.
-- The Tailwind theme is therefore **DERIVED, never hand-authored**; "add a token" has one home. **Freshness is machine-enforced:** `tests/legacy/ui/tokens/index.test.ts` re-runs the codegen and diffs the committed artifacts — hand-edits and drift FAIL `pnpm test`.
+- The Tailwind theme is therefore **DERIVED, never hand-authored**; "add a token" has one home. D333 ends custom token-freshness certification. The external legacy source contains the former token test as reference-only; checked-in output has no custom freshness guarantee.
 - The scale includes a **container-breakpoint scale** (`--cq-sm/md/lg`, §4), the **`--scrim`** token (§11.4), **control heights** with the ≥44px touch floor (§4b axis 3), and the D44 prose/bubble semantics (§12.1 ThemeScope targets) — the full set is `tokens.json` itself.
 - **STACKING ORDER lives in the `z` block of `tokens.json` and NOWHERE ELSE.** No other doc defines an ordering; the values are the law — `base 0 < raised 10 < overlay 40 < modal 50 < popover 65 < toast 68 < tooltip 70` — with each non-obvious rank carrying its reason in that token's own `$description` (see `z.toast`). Re-ranking a tier is a `tokens.json` edit + `pnpm --filter @orb/ui tokens:build`, never a per-component z override.
-- **STACKING SCOPE — where a tier may be used — is the second fact, and it is also data:** `packages/ui/src/tokens/z-scope.ts` (`Z_TOKEN_SCOPES`, total by `satisfies` so a new z token cannot skip declaring one). Order and scope are different questions. `base`/`raised` are `in-context` tiers, `overlay` is the `app-frame` tier, and `modal`/`popover`/`toast`/`tooltip` are `portal-float` — legal ONLY at a surface that leaves its subtree by mount position. A `portal-float` token named inside an isolated scope claims a reach that scope cannot grant. Enforcers: the source-key type constraint and shell CSS test (`tests/legacy/ui/styles/css-structure.suite.test.ts`). `orb/no-raw-z-index` and `orb/no-unknown-z-index-token` check spellings outside declared homes; a Node test checks home presence. TSX portal-mount checks remain unbuilt.
+- **STACKING SCOPE — where a tier may be used — is the second fact, and it is also data:** `packages/ui/src/tokens/z-scope.ts` (`Z_TOKEN_SCOPES`, total by `satisfies` so a new z token cannot skip declaring one). Order and scope are different questions. `base`/`raised` are `in-context` tiers, `overlay` is the `app-frame` tier, and `modal`/`popover`/`toast`/`tooltip` are `portal-float` — legal ONLY at a surface that leaves its subtree by mount position. A `portal-float` token named inside an isolated scope claims a reach that scope cannot grant. D333 ends custom static z-index and portal-mount certification. These placement constraints remain product architecture law.
 
 **DEFERRED-with-a-default (token enforcement level):** default = Tailwind v4 + DTCG + the raw-value gates (sufficient). **Panda CSS `strictTokens`** (raw value = `tsc` error) is the deferred upgrade — adopt only if gate-bypass becomes a real, observed problem; the same DTCG source wires into Panda `theme.tokens`. (ledger D42.)
 
@@ -269,7 +269,7 @@ This subsection defines no ORDER (that is the `z` scale, §3) and no SCOPE VOCAB
 2. **The SHELL scope is isolated.** `.shell-grid` carries `isolation: isolate`, so every z-index written in `shell.css` orders that box's own children (rail · CONTENT · scrim · panels) and nothing outside it. The shell may therefore use only `in-context` and `app-frame` tiers; naming a `portal-float` token there mis-states the reach.
 3. **The PORTAL-FLOAT scope is where cross-boundary order is decided.** Dialogs, the ⌘K palette, menus, tooltips and toasts portal to `[data-slot="portal-root"]` — the grid's `display: contents` SIBLING — and paint in the document's own stacking context, above the whole shell. **A float escapes by MOUNT POSITION, never by z-index escalation.** The carrier stays box-less deliberately: giving it isolation or a z-index would mint a context the floats must then escape in turn. Its ordering-among-themselves is the token scale, and the reason the scale exists is that DOM/mount order alone does not survive a mount-order change — that is the mechanism to reach for when something must cover the frame.
 
-Enforcers: `isolation: isolate` + the portal carrier are pinned by `tests/legacy/client/features/app-shell/surfaces/app-shell.ct.tsx` (`"MOBILE: the CONTEXT sheet rides the shell's OWN overlay rung…"` — rendered `elementFromPoint`, both scopes); the shell's token vocabulary by `tests/legacy/ui/styles/css-structure.suite.test.ts`; the map's totality by `tsc`.
+The external legacy source contains rendered checks for the isolation and overlay behavior. It is reference-only. Keep shell ownership and token vocabulary explicit.
 
 #### 4.2 The region map — what lives where (ledger D62)
 
@@ -321,7 +321,7 @@ Preset numeric sampling controls, effective labels and unsupported-value clearin
 
 #### 4.3 Interaction & visual grammar — the ten UX rules (ledger D62)
 
-Testable law; enforcement tiering per gate lives in `UI-Gates-and-Lessons.md` §8. When a build instinct conflicts with a rule, the rule wins.
+These are product rules. D333 ends custom static UI enforcement; native tests and review verify changed behavior.
 
 1. **No dead ends.** Every reachable state renders ≥1 enabled next-step affordance (empty teaches, error retries, draft offers a character).
 2. **Character-first entry.** Every "new chat" affordance goes through choosing/confirming a character; a characterless draft is an explicit "Blank chat" pick, never the default.
@@ -332,7 +332,7 @@ Testable law; enforcement tiering per gate lives in `UI-Gates-and-Lessons.md` §
 7. **Perceived performance.** Optimistic send, shape-matched skeletons, streaming text as the arrival motion. Never a centered spinner; never layout shift on data arrival.
 8. **Empty, loading, error are designed states** — every surface ships all three (the `QueryBoundary` battery forces the slots; D62 makes them worth looking at).
 9. **Chrome is quiet; content is loud.** Micro-caps muted section labels; mono data accents; the accent color on ≤10% of any viewport. If a screenshot's loudest element is chrome, the hierarchy is inverted.
-10. **Same action, same home** — this rule is the ONE HOME of the more-than-one-door IA class. One store action / verb per action regardless of entry point; identical label + icon everywhere (icon home = the registry). The structural half: one tRPC mutation invoked from more than one component inside a SINGLE rail section is the same verb wearing N doors on a plane the user sees whole — `duplicate-action-doors` reds it, and a deliberately-multi-door set is an exact reviewed grant naming that door set. Cite THIS rule for the class; `client-architecture-state-and-gates.md` §13 is the event/sync spine, not this rule's home.
+10. **Same action, same home** — this rule is the ONE HOME of the more-than-one-door IA class. One store action / verb per action regardless of entry point; identical label + icon everywhere (icon home = the registry). The structural half: one tRPC mutation invoked from more than one component inside a SINGLE rail section is the same verb wearing N doors on a plane the user sees whole — D333 ends custom multi-door enforcement and reviewed grants; keep the action and label consistent across controls. Cite THIS rule for the class; `client-architecture-state-and-gates.md` §13 is the event/sync spine, not this rule's home.
 
 **Voice table:** section labels = `Text` micro-caps (10.5px equiv token, weight 600, tracked) · data accents (scores, counts, timestamps, kbd) = mono · labels sentence-case · placeholder copy per-section from the ONE registry map (distinct per `SectionId`, asserted over the real registry). The Weave glyph appears at most ONCE per screen (DESIGN.md restraint rule), only in empty states / loading / corpus.
 
@@ -357,7 +357,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 - **THE LIFETIME RULE.** A float whose SUBJECT is the content being left (an image lightbox for a message in this room) is CONTENT-SCOPED and does not outlive the swap. A float reachable from — and about — anywhere (the ⌘K palette, the You sheet, an ingest or creation ceremony, a plugin round-trip's outcome, a session-recovery prompt) is GLOBAL and survives it. For the shell's modal slots this is DECLARED, never remembered: `MODAL_CONTENT_LIFETIME` (`packages/client/src/state/modal-slot-ids.ts`) is a `Record<ModalSlotId, …>`, so a new slot fails `tsc` until it says which it is, and it is APPLIED in exactly one place, `withContentSwap` (`state/shell-store.ts`) — every content-swapping action (`setActiveSection` · `selectChat`/`enterCreatedChat`/`goToLanding` · `selectCharacter`/`clearCharacterSelection`) runs its write through it instead of calling `withViewTransition` itself, so the float's removal and the new content land in one commit.
 - **WHO ACTUALLY STRANDS A FLOAT.** A house modal inerts and `aria-hidden`s the whole background, so the swap that strands a float is always a PROGRAMMATIC one — the `__orb.nav` bridge, an async mutation completion, a slash/plugin command runner, the session-recovery resume.
 - **A FEATURE-OWNED FLOAT CLOSES ITSELF.** A popover/menu is not a modal slot, so `withContentSwap` does not reach it, and Base UI's outside-press close does not fire when the navigation was raised by a control INSIDE the float. It closes in the same handler that navigates. A hidden `<Activity>` pane stays MOUNTED, so a float anchored in it keeps painting from the portal root while its anchor is `display:none`.
-- **Enforcer tiers:** compile-time for the classification (the mapped `Record`), test-time for the behaviour — `tests/legacy/client/state/shell-store.ct.tsx`, three cases (rail swap · room swap · the door alone), each asserting the rendered dialog's accessible name.
+- The external legacy source contains rendered dialog checks for rail and room changes. It is reference-only.
 
 **SKIP (redundant with TanStack — do NOT bolt on):**
 
@@ -375,7 +375,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 | Axis | What varies | Tool | Where it's written |
 | - | - | - | - |
 | **1 — component layout** | a surface in a wide pane vs a narrow drawer | container utilities and variants (`@container` at the `@orb/ui` primitive boundary) + container-query units (`cqi`) + `clamp()` | **`@orb/ui` primitives**; features compose their variants and never author CSS ([paint law §4](client-architecture-lockdown.md#4-the-paint-law--who-may-write-css-and-why)) |
-| **2 — macro structure** | rail+list+content+context desktop ⇄ single-column mobile; panels dock⇄overlay (the §11.1 clamp) | **`@media`** (viewport) | **the shell tier + the styles tier's exact complement** — `shell.css`'s `@media (max-width: 48rem)` and `client/styles/globals.css`'s `@media (width > 48rem)` glass block are one ruling in two order-proof halves, sync-enforced by `tests/legacy/ui/styles/css-structure.suite.test.ts`; never a feature ([paint law §4](client-architecture-lockdown.md#4-the-paint-law--who-may-write-css-and-why)) |
+| **2 — macro structure** | rail+list+content+context desktop ⇄ single-column mobile; panels dock⇄overlay (the §11.1 clamp) | **`@media`** (viewport) | **the shell tier + the styles tier's exact complement** — `shell.css`'s `@media (max-width: 48rem)` and `client/styles/globals.css`'s `@media (width > 48rem)` glass block are one ruling in two order-proof halves, kept as a product stylesheet rule; never a feature ([paint law §4](client-architecture-lockdown.md#4-the-paint-law--who-may-write-css-and-why)) |
 | **3 — device capability** | touch targets; hover affordances | **`@media (pointer/hover)`** + token sizing | **token/shell layer** (never features) |
 | **4 — mobile platform** | keyboard, safe-area, overscroll, viewport height | **CSS primitives** (`dvh`/`svh`, `env()`, viewport meta) | **shell + composer/scroll primitives** (once) |
 
@@ -383,7 +383,7 @@ The client targets **React 19 + the React Compiler** (the compiler runs full-com
 
 **Axis 2.** The one genuinely viewport-dependent reflow, in the SHELL: 3-pane ⇄ stack, drawer ⇄ sheet. Tiny (neo: one `clamp()` width var + the overlay model, §11.2). `orb/no-media-queries-in-features` in `eslint.config.js` also keeps viewport breakpoint class spellings out of features except `app-shell`.
 
-**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 34px · `control-lg` 40px · icon 34px — emitted as a token-layer `pointer: fine` override (THIS layer, never features). An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free. Enforced as CT — `tests/legacy/ui/touch-target-floor.suite.ct.tsx` — asserting the floor per-pointer.
+**Axis 3 — capability, NOT size.** hover/pointer are media-query-only (container queries can't see them). **Pointer-conditional floor:** interactive primitives meet the ≥44px touch floor at `@media (pointer: coarse)` via token control-heights; fine pointers get the desktop scale — `control-sm` 32px · `control-md` 34px · `control-lg` 40px · icon 34px — emitted as a token-layer `pointer: fine` override (THIS layer, never features). An interactive element with a sub-44px visual box on coarse pointers wraps in a ≥44px hit area. `data-density="compact"` remains the separate spacing axis (ship COMFORTABLE; never build a parallel compact path). Hover is only ever an *enhancement* (`@media (hover:hover)`); **every hover action has a tap-equivalent** (and a `:focus-within` keyboard equivalent, §4.3 rule 4). Base UI suppresses tooltips on touch for free. The external legacy source contains per-pointer rendered checks; it is reference-only.
 
 The same rule binds Tailwind capability variants: `pointer-coarse:`/`pointer-fine:`, their `any-pointer-*` twins, and raw `[@media(pointer|hover:…)]:` variants belong at the **token/shell layer**, never in a feature class string. A feature composes a pointer-conditional token or a shared component-layer constant from `#components` (`packages/client/src/components/pointer-variants.ts`: `HIDE_AT_COARSE`, `REVEAL_AT_COARSE`, `FINE_INERT_UNTIL_HOVER`). The `:hover` pseudo-class (`hover:bg-accent`) is an interaction state and stays legal in features. `orb/no-pointer-variants-in-features` in `eslint.config.js` enforces this on raw literals and static template chunks outside `app-shell`; a reasoned line exception follows D321#3.
 

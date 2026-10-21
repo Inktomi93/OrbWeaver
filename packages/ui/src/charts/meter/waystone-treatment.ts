@@ -32,7 +32,6 @@ import type { WeatherType } from "@orb/kit/weather";
 export const WAYSTONE_PHASES = ["dawn", "morning", "afternoon", "evening", "night", "midnight"] as const;
 export type WaystonePhase = (typeof WAYSTONE_PHASES)[number];
 
-// @orb-waive no-vanity-alias(WaystoneWeather): baselined when the gate widened; burn-down item 906.
 export type WaystoneWeather = WeatherType;
 
 /** The identity of a weather's air-layer stack (`none` = the unveiled sky IS the treatment, not a fallback) —
@@ -212,7 +211,6 @@ export function waystoneSkyAt(hour: number): WaystoneSky {
   };
 }
 
-// @orb-waive no-vanity-alias(WAYSTONE_SKY_STOPS): baselined when the gate widened; burn-down item 906.
 /** The stop table, exported so the test can pin each stop's hour + tokens (the palette IS the design). */
 export const WAYSTONE_SKY_STOPS = SKY_STOPS;
 

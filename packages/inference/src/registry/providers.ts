@@ -58,11 +58,11 @@ export async function createProviderRegistry(store: ProviderStore): Promise<Prov
     let read: Promise<ProviderSnapshot>;
     try {
       read = store.list();
-      // @orb-waive caught-failure-ownership(error): a synchronous `store.list()` throw becomes `read`'s rejection; `snapshot` holds it as `ok: false` and the ordered publication below throws `listed.error` to the `refresh` caller. Ends if the `!listed.ok` arm stops throwing `listed.error`.
+      // a synchronous `store.list()` throw becomes `read`'s rejection; `snapshot` holds it as `ok: false` and the ordered publication below throws `listed.error` to the `refresh` caller. Ends if the `!listed.ok` arm stops throwing `listed.error`.
     } catch (error) {
       read = Promise.reject(error);
     }
-    // @orb-waive caught-failure-ownership(read): the rejection is held as the `ok: false` snapshot and `listed.error` is thrown inside `publishInOrder`, whose promise `refresh` returns to its caller; it is never read as an empty provider list. Ends if the `!listed.ok` arm stops throwing.
+    // the rejection is held as the `ok: false` snapshot and `listed.error` is thrown inside `publishInOrder`, whose promise `refresh` returns to its caller; it is never read as an empty provider list. Ends if the `!listed.ok` arm stops throwing.
     const snapshot = read.then(
       (value) => ({ ok: true as const, value }),
       (error: unknown) => ({ ok: false as const, error }),

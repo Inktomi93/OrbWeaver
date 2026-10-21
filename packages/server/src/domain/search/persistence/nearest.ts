@@ -101,9 +101,9 @@ export async function nearestDocumentChunks(
   if (params.generationFingerprint !== undefined) {
     generationCondition = and(eq(embedGenerations.fingerprint, params.generationFingerprint), eq(embedSpaceState.activeGenerationId, embedGenerations.id));
   }
-  // @orb-waive owner-scoped-reads(documents): databank's compose-injected resolveActiveDocumentScope supplies the independent current WHERE after query embedding; its shared junction subqueries preserve D85 room credits, and personal scope binds documents.ownerId. The gate cannot inspect this injected SQL. Ends if currentScope leaves the WHERE or the scope operation no longer comes from databank.
-  // @orb-waive owner-scoped-reads(embedGenerations): the generation is pinned to documents.ownerId, whose independent current databank WHERE admits the row before ranking; room credits may belong to another present member, not the query funder. Ends if currentScope or the owner match is dropped.
-  // @orb-waive owner-scoped-reads(embedSpaceState): the active documents space is pinned to the same admitted document owner through embedGenerations.ownerId. Ends if currentScope or either owner match is dropped.
+  // databank's compose-injected resolveActiveDocumentScope supplies the independent current WHERE after query embedding; its shared junction subqueries preserve D85 room credits, and personal scope binds documents.ownerId. The gate cannot inspect this injected SQL. Ends if currentScope leaves the WHERE or the scope operation no longer comes from databank.
+  // the generation is pinned to documents.ownerId, whose independent current databank WHERE admits the row before ranking; room credits may belong to another present member, not the query funder. Ends if currentScope or the owner match is dropped.
+  // the active documents space is pinned to the same admitted document owner through embedGenerations.ownerId. Ends if currentScope or either owner match is dropped.
   const rows = await db
     .select({
       chunkId: documentChunks.id,

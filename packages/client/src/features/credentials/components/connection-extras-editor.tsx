@@ -118,7 +118,7 @@ function ExtraRowView({
       return;
     }
     event.preventDefault();
-    // @orb-waive caught-failure-ownership(parsePastedObject): the only rejection is the lazy reader chunk failing to load; it lands in the Field error under the paste. Ends if the reader stops loading lazily.
+    // the only rejection is the lazy reader chunk failing to load; it lands in the Field error under the paste. Ends if the reader stops loading lazily.
     parsePastedObject(text).then(
       (read) => {
         setPasteError(read.ok ? null : read.reason);

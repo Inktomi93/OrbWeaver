@@ -38,7 +38,7 @@ export const statsRouter = t.router({
     .query(({ ctx, input }) => ctx.services.stats.leaderboard(ctx.auth.userId, { sort: input?.sort, limit: input?.limit, search: input?.search })),
 
   // The window bounds are bucket-start instants, never calendar days: the viewer's day is decided on the
-  // client, so the server takes no zone (docs/law/UI-Gates-and-Lessons.md §11.5).
+  // client, so the server takes no zone.
   timeseries: authedProcedure
     .output(z.array(activityBucketSchema))
     .input(statsTimeseriesInputSchema)

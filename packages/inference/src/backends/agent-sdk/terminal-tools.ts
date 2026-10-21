@@ -41,7 +41,7 @@ function liftShapes(
   for (const wire of tools) {
     try {
       lifted.push({ wire, shape: liftJsonSchema(wire.parameters).shape });
-      // @orb-waive caught-failure-ownership(err): the error becomes the returned `unliftable` refusal at terminal-tools.ts:47, which the caller logs as an unmounted surface at terminal-tools.ts:75. Ends if the caller stops refusing a partial mount.
+      // the error becomes the returned `unliftable` refusal at terminal-tools.ts:47, which the caller logs as an unmounted surface at terminal-tools.ts:75. Ends if the caller stops refusing a partial mount.
     } catch (err) {
       const lift = err instanceof JsonSchemaLiftError ? { construct: err.construct, path: err.path } : { construct: String(err), path: "#" };
       return { unliftable: { tool: wire.name, ...lift } };

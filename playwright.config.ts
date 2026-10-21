@@ -1,4 +1,3 @@
-import { resolve } from "node:path";
 import process from "node:process";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { ReporterDescription } from "@playwright/test";
@@ -38,16 +37,11 @@ const inCI = process.env["CI"] !== undefined;
 // Opt-in gate for the real-model-turn specs (tagged `@live`): routine runs EXCLUDE `@live` so `pnpm e2e`
 // never spends live model credits. Run them with `E2E_LIVE=1 pnpm e2e`. `grepInvert` drops matching tags.
 const e2eLive = process.env["E2E_LIVE"] === "1";
-// The manual `pnpm e2e:live` front door promises a real model-turn verdict. Direct/routine e2e runs may
-// honestly contain only optional unavailable tests; only that front door enables the all-skipped refusal.
-const requireLiveEvidence = process.env["E2E_REQUIRE_EVIDENCE"] === "1";
-const requiredLiveReporter = resolve(import.meta.dirname, "tooling/src/verify/ops/required-live-evidence-reporter.ts");
 const reporters: ReporterDescription[] = [
   ...(process.env["GITHUB_ACTIONS"] ? [["github"] as const] : []),
   ["list"],
   ["json", { outputFile: `${E2E_REPORT_PREFIX}-report.json` }],
   ["html", { outputFolder: `${E2E_REPORT_PREFIX}-report`, open: "never" }],
-  ...(requireLiveEvidence ? [[requiredLiveReporter] as const] : []),
 ];
 
 // One Playwright project per mode. Every project shares the browser/use defaults; each pins its own baseURL

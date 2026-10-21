@@ -45,7 +45,7 @@ export function createVariantCache(rootDir: string): VariantCache {
   return {
     read(ownerId, hash, variant): Promise<Uint8Array | undefined> {
       // Best-effort: a miss, unreadable file, or malformed key all resolve to undefined (recompute).
-      // @orb-waive caught-failure-ownership(Promise.resolve): undefined is the cache-miss answer. resolve-variant (the only variants.read caller) treats it as a miss, rereads the CAS original and recomputes, and its variants.put still throws on a storage fault. Ends if a caller stops treating undefined as a plain miss.
+      // undefined is the cache-miss answer. resolve-variant (the only variants.read caller) treats it as a miss, rereads the CAS original and recomputes, and its variants.put still throws on a storage fault. Ends if a caller stops treating undefined as a plain miss.
       return Promise.resolve()
         .then(() => readFile(variantPath(ownerId, hash, variant)))
         .catch(() => undefined);

@@ -165,7 +165,7 @@ export async function capturePageCssEvidence(ask: CssEvidenceAsk): Promise<CssEv
     return { status: "instrument-error", merge: null, cascade: queries.map((query) => errorReceipt(query, error)), repositoryDeclarations: 0, error };
   }
   let merge: CssEvidenceReceipt["merge"] = null;
-  // @orb-waive caught-failure-ownership(error): the returned receipt (status "instrument-error") is counted by the verdict's css member (ops/verdict.ts) and filed by fileCssEvidence. Ends if the css member stops reading cssEvidence.status.
+  // the returned receipt (status "instrument-error") is counted by the verdict's css member (ops/verdict.ts) and filed by fileCssEvidence. Ends if the css member stops reading cssEvidence.status.
   try {
     merge = await readMergeReceipt(session, pageIndex);
     const raw = await runtime.query(

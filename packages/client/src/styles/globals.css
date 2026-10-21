@@ -426,7 +426,7 @@ body {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
     }
     /* The footer only blurs: the popup already paints the fill, and a second one reads as a slab. */
-    /* @orb-waive over-art-plate-arm([data-slot="dialog-footer"]): the footer sits inside the dialog popup, whose own fill and plate arm lie beneath it, so it never composites over the wallpaper. */
+    /* the footer sits inside the dialog popup, whose own fill and plate arm lie beneath it, so it never composites over the wallpaper. */
     html[data-blur-modals] [data-slot="dialog-footer"] {
       backdrop-filter: blur(var(--blur-strength)) saturate(var(--blur-saturate));
       background-color: transparent;

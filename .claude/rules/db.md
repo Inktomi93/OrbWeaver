@@ -5,22 +5,16 @@ paths:
 
 # Database
 
-## Schema changes follow the launch state
+## Schema changes use forward migrations
 
-Use `docs/law/Tier-1-DB.md` "Regime 1" while the owner declares the program prelaunch and its data disposable.
-Back up local data before regenerating the baseline. The boot guard never resets a diverged database automatically.
-After launch, preserve every applied migration and use "Regime 2" forward migrations.
+Every schema change ships as a numbered migration. Never regenerate the baseline. The boot guard never resets a diverged database automatically.
 
 1. For a postlaunch schema change, edit the schema file, then run
    `pnpm --filter @orb/db exec drizzle-kit generate --name <what-changed> --config=drizzle.config.ts`.
 2. Commit the generated SQL, snapshot, and journal. Review the SQL by hand.
 3. Put any data backfill in the same migration file, after the DDL.
-4. Run `pnpm check:drizzle-kit`, `pnpm check:db-baseline`, and a scoped `biome --write` on the
-   meta files.
-5. Read the `[verify-notice]` line in the output. A green run can still carry a boot refusal.
-
-A pre-launch drift check compares the applied migration against every shipped chain entry, not
-only the newest, or the first forward migration boot-bricks as fatal.
+4. Run `pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts` and `pnpm exec biome check --write` on the meta files.
+5. Preserve the numbered migration and review its SQL before commit.
 
 `pnpm seed:demo --fresh` is the only wipe. Never open the live db with the `sqlite3` CLI while
 the server runs; it can checkpoint and delete the WAL out from under libSQL. Read live state

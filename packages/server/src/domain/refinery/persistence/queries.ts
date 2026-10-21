@@ -168,7 +168,7 @@ const verdictCoreSchema = z.object({ verdict: refineryVerdictSchema });
 /** The newest analyze VERDICT per session (the roster badge) — one query, grouped in JS (a per-owner
  *  roster is small; the newest-first scan takes the first verdict it sees per session). */
 export async function latestVerdictsOf(db: Db, sessionIds: readonly RefinerySessionId[]): Promise<Map<RefinerySessionId, RefineryVerdict>> {
-  // @orb-waive persistence-no-in-memory-state(Map): query-local sessionId → newest-verdict map. Ends if it outlives the call.
+  // query-local sessionId → newest-verdict map. Ends if it outlives the call.
   const map = new Map<RefinerySessionId, RefineryVerdict>();
   if (sessionIds.length === 0) {
     return map;
@@ -315,7 +315,7 @@ function customRunViewOf(
   base: RunViewBase,
 ): RefineryRun | null {
   let lifted: z.ZodObject;
-  // @orb-waive caught-failure-ownership(catch): self-heal — a lift failure means the stored custom schema no longer parses; `healedRun` emits the `HEAL_EVENT` span (observable) and the row reads as absent rather than crashing the run view. Ends if the heal event stops being read anywhere.
+  // self-heal — a lift failure means the stored custom schema no longer parses; `healedRun` emits the `HEAL_EVENT` span (observable) and the row reads as absent rather than crashing the run view. Ends if the heal event stops being read anywhere.
   try {
     lifted = liftJsonSchema(config.schema);
   } catch {

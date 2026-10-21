@@ -48,7 +48,7 @@ export function ringLineLevel(record: Record<string, unknown>): number {
 
 /** Parse ONE serialized ring line. `null` ⇒ skip it (a non-JSON or non-object line). */
 export function parseLogRingLine(line: string): Record<string, unknown> | null {
-  // @orb-waive caught-failure-ownership(catch): owned by the null the readers consume: `routes.ts::collectLogs` and `collectErrors`, `bug-report.ts::errorLines` and `bug-report-diagnostics.ts::serverErrors` each filter it out. The only writer, `logger.ts` ringStream, pushes whole pino JSON lines. Ends if a reader stops filtering the null or a non-JSON writer joins the ring.
+  // owned by the null the readers consume: `routes.ts::collectLogs` and `collectErrors`, `bug-report.ts::errorLines` and `bug-report-diagnostics.ts::serverErrors` each filter it out. The only writer, `logger.ts` ringStream, pushes whole pino JSON lines. Ends if a reader stops filtering the null or a non-JSON writer joins the ring.
   try {
     const value: unknown = JSON.parse(line);
     return typeof value === "object" && value !== null ? (value as Record<string, unknown>) : null;

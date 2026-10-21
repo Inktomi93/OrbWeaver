@@ -51,7 +51,7 @@ export function holdStageUse(home: string, bound: StageRow, checkout: string, in
   let held = false;
   let lastError: unknown = null;
   for (let attempt = 0; attempt < FIRST_BEAT_ATTEMPTS && !held; attempt += 1) {
-    // @orb-waive caught-failure-ownership(error): retried; after FIRST_BEAT_ATTEMPTS the loop falls to the throw at stage-holders.ts:66, which carries lastError's message and fails the bind. Ends if the retry or the throw goes.
+    // retried; after FIRST_BEAT_ATTEMPTS the loop falls to the throw at stage-holders.ts:66, which carries lastError's message and fails the bind. Ends if the retry or the throw goes.
     try {
       held = stampHolder(home, bound, { holder: holder(), release: false });
       if (!held) {
@@ -68,7 +68,7 @@ export function holdStageUse(home: string, bound: StageRow, checkout: string, in
     );
   }
   const beat = (releasing: boolean, lockWaitMs: number): boolean => {
-    // @orb-waive caught-failure-ownership(error): the catch warns "use heartbeat skipped" (stage-holders.ts:75) to stderr (floor/cli/log.ts:37) and the next interval retries. Ends if a missed heartbeat must fail the run.
+    // the catch warns "use heartbeat skipped" (stage-holders.ts:75) to stderr (floor/cli/log.ts:37) and the next interval retries. Ends if a missed heartbeat must fail the run.
     try {
       return stampHolder(home, bound, { holder: holder(), release: releasing, lockWaitMs });
     } catch (error) {

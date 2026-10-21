@@ -14,7 +14,7 @@ import type { PluginToolCardState } from "@orb/contracts/plugin";
  *  verbatim — a plugin that returns prose legitimately has prose here), and a card binding `{ $state: "result" }`
  *  against prose should render that prose, not an empty node. */
 function parseJsonOrRaw(raw: string): unknown {
-  // @orb-waive caught-failure-ownership(catch): a non-JSON argument or result is data, not a failure; the raw string is the binding-root value and toolCardResultLine returns it for the tool card (components/plugin-tool-card.tsx) to render. Ends if the card stops rendering the raw string.
+  // a non-JSON argument or result is data, not a failure; the raw string is the binding-root value and toolCardResultLine returns it for the tool card (components/plugin-tool-card.tsx) to render. Ends if the card stops rendering the raw string.
   try {
     return JSON.parse(raw) as unknown;
   } catch {

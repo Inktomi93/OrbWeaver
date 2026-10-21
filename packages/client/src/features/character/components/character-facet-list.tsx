@@ -89,7 +89,6 @@ function facetPreview(id: CharacterCardFacet["id"], values: CharacterCardFormVal
   }
 }
 
-// @orb-waive no-vanity-alias(EMPTY_SUMMARY): baselined when the gate widened; burn-down item 906.
 /** The house empty word (#502, `lib/empty-vocabulary.ts`) — BOTH what the row shows and what a screen reader
  *  hears, since the facet row renders this same string as its visible state word (see its `fillSummary`
  *  node). Aliased locally because the two summary builders below read it in every arm. */

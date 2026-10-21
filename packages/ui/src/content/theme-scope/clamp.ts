@@ -45,9 +45,7 @@ type ThemeFont = (typeof THEME_FONT_ALLOWLIST)[number];
 // THEME_CHAT_STYLES — nothing here ever stamped a `data-chat-style` any selector read.
 export const THEME_SCOPE_DENSITIES = ["comfortable", "compact"] as const;
 export const THEME_SCOPE_RADII = ["base", "control", "card", "full"] as const;
-// @orb-waive no-vanity-alias(DENSITIES): baselined when the gate widened; burn-down item 906.
 const DENSITIES = THEME_SCOPE_DENSITIES;
-// @orb-waive no-vanity-alias(RADII): baselined when the gate widened; burn-down item 906.
 const RADII = THEME_SCOPE_RADII;
 
 const colorToken = z.string().refine(isSafeColor).optional().catch(undefined);

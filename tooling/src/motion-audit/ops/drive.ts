@@ -44,7 +44,7 @@ export async function prepareMeasuredClick(page: Page, selector: string | null):
   if (selector === null) {
     return null;
   }
-  // @orb-waive caught-failure-ownership(e): a failed click preparation prints STEP FAILED and returns null; runAudit sets stepFailed when a selector was asked for and the click is null, and evaluateMotionAudit reads stepFailed into budgetsPass. Ends if stepFailed stops being read.
+  // a failed click preparation prints STEP FAILED and returns null; runAudit sets stepFailed when a selector was asked for and the click is null, and evaluateMotionAudit reads stepFailed into budgetsPass. Ends if stepFailed stops being read.
   try {
     const loc = page.locator(selector).first();
     await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });

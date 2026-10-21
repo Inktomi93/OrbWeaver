@@ -6,7 +6,9 @@ updated: 2026-09-13
 
 # UI density law — the assignment law for the token scales
 
-> Scope: visual density in `packages/ui/src` + `packages/client/src`. Not IA, not color (D71 owns palettes), not motion. § numbers are STABLE — code comments, gate messages and the `density-tier` reviewed-grant rows cite them by number.
+> Scope: visual density in `packages/ui/src` + `packages/client/src`. Not IA, not color (D71 owns palettes), not motion. Section numbers are stable because code comments and design decisions cite them.
+
+D333 retires the custom static density gate and its reviewed-grant framework. The visual rules remain product law, but no custom static checker enforces them.
 
 ## 1. Why this law exists
 
@@ -51,7 +53,7 @@ This law follows the 8pt grid with a 4pt sub-grid (4pt inside a component, 8pt b
 
 The seven type sizes are correct and are NOT re-derived (D4 — no measured defect, and a re-derivation churns every surface).
 
-The defect was the KNOB SPACE: `size` (7) × `weight` (4) × `tone` (6) × `transform` (2) = 336 legal combinations, chosen per call site by taste — the mechanism by which nothing recedes. **The law is one CLOSED `voice` axis.** `size`/`weight`/`tone`/`transform` are `@orb/ui`-INTERNAL; a feature passes `voice` and nothing else (enforced: `density-tier` case A3).
+The defect was the KNOB SPACE: `size` (7) × `weight` (4) × `tone` (6) × `transform` (2) = 336 legal combinations, chosen per call site by taste — the mechanism by which nothing recedes. **The law is one CLOSED `voice` axis.** `size`/`weight`/`tone`/`transform` are `@orb/ui`-INTERNAL; a feature passes `voice` and nothing else.
 
 The founding grammar — a surface's copy is one of four things:
 
@@ -64,7 +66,7 @@ The founding grammar — a surface's copy is one of four things:
 
 **The tuple in `packages/ui/src/primitives/text/variants.ts` is the truth, not a list here** — the axis has grown past four (the content voice, the display voices, the receded twins, the decorative monogram), and a doc table of entries rots the day a voice lands. Each entry's meaning and its discriminator live beside its class string in that file.
 
-**Adding a voice is a RULING, not a convenience.** A new entry enters only with a stated discriminator against its NEAREST existing neighbour — which axis differs (step · face · tabularity · ink · weight · tracking) and why the neighbour's entry is wrong for the case. A voice that resolves to an existing entry's class set is a rename, not a voice. The failure this prevents is real and recurring: a feature one axis short of an existing voice spells `size`/`weight` through `className` instead, which case A3 structurally cannot see.
+**Adding a voice is a RULING, not a convenience.** A new entry enters only with a stated discriminator against its NEAREST existing neighbour — which axis differs (step · face · tabularity · ink · weight · tracking) and why the neighbour's entry is wrong for the case. A voice that resolves to an existing entry's class set is a rename, not a voice. The failure this prevents is real and recurring: a feature one axis short of an existing voice spells `size`/`weight` through `className` instead, which bypasses the semantic voice contract.
 
 `datum` rides `text-label` rather than a new 11px step (D5): 11px is a 4.8% ratio move off `micro` — too fine to be a real scale step, and mono + tabular already separates it visually.
 
@@ -123,7 +125,7 @@ Two properties make it a SEAL rather than a suggestion:
 1. **Unlayered beats layered.** Tailwind emits utilities into `@layer utilities`; unlayered CSS wins over any layered rule regardless of specificity (`theme.css` already relies on this). A primitive's own utility default is the tier-LESS fallback; the tier layer overrides it.
 2. **`data-slot` already exists** on every primitive, so the map needs no new plumbing.
 
-**The mechanism is proven by COMPUTED VALUE, never by reading this file or the stylesheet** — mount the primitive and assert `getComputedStyle(...)` equals the document-RESOLVED custom property, never a hardcoded px (§5.3).
+Check the rendered value with `getComputedStyle(...)` against the document-resolved custom property, never a hardcoded px (§5.3).
 
 ### 4.3 Primitive API deltas the law forced
 
@@ -145,30 +147,17 @@ Features keep composing `<Stack gap>` / `<Row gap>` explicitly — the gap union
 
 ## 5. Enforcement
 
-### 5.1 The `density-tier` policy family
+### 5.1 Static enforcement status
 
-The final `defineGate` policy `density-tier` reads `tooling/src/verify/lib/density-tier.ts`. It makes RED, in one line each: `rounded-card` at a class-string site (A1) · a border+radius+background triple nested inside another (A2, = CD2) · a `features/**` call site passing the `@orb/ui`-internal type axes to `<Text>`/`<Heading>` instead of `voice` (A3) · `data-surface-tier` wherever it is written (A4) — each a reviewed grant where the site is a ruling. The slot-map half (A6) is the Node test `tests/ui/styles/tier-slot-map.suite.test.ts`: a tier-mapped `data-slot` stamped outside `packages/ui/src`, or a mapped slot no primitive emits. **The case-by-case contract is `Core-Enforcement-Active-Gates.md`'s row plus the module's own header** — not restated here.
+D333 ends custom density census enforcement. The visual rules remain product law.
 
-Two standing properties of its construction:
+### 5.2 Grant policy
 
-- **The population is the two declared roots `@client` + `@ui`**, which is where the fixtures' shallow and deeply nested `files` paths come from. A wrong path format must never read as a silent green instead of a red, so the fixtures keep both path depths.
-- **The slot vocabulary is parsed out of `tiers.css` AT RUN TIME**, through the declared `product-css` resource, so the policy can never police a stale copy of the map. Comments are blanked before the sheet is parsed, so an illustrative `[data-slot="…"]` selector in a comment is not a mapping.
-
-**Declared blind spot (also in the gate header):** a className assembled from a variable, a conditional, or a `cn(cond && X)` expression is INVISIBLE to a literal-shape reader — the gate scans string literals, template parts, and `tv()`/`cva()` object literals only. An AST reader blind to computed shapes reports a silent GREEN, which is why §5.3's computed-value CTs are a REQUIRED second check, not a nice-to-have.
-
-### 5.2 The ruled sites are reviewed grants
-
-A ruled call site is one exact `(subject, operation)` row in `tooling/src/verify/lib/reviewed-grants.ts` — the file it lives in and the act it performs — carrying a `why` and an `endsWhen`. A file ruled for two axes is two ruled acts. A grant names one exact file; no directory or path prefix is honored.
-
-- **An unruled site is a blocking finding with no door.** There is no budget to land inside.
-- **A ruled act with no live site is consumed zero times.** Central reconciliation raises `stale-reviewed-grant` for it.
-- **A grant matching more than one finding is over-broad.** Central reconciliation raises `over-broad-reviewed-grant` for it.
-- **A grant retires when its `endsWhen` comes true and its last live site disappears.**
-- **Grants carry no per-file count.** Another site of an already-granted act in the same file is licensed by the existing grant; the gate header records this as a measured trade.
+D333 ends custom density allowlists and waiver markers. No custom static checker enforces these visual rules.
 
 ### 5.3 Computed-value CT assertions
 
-`tests/legacy/ui/density-tier.suite.ct.tsx`. Authored-STRING assertions stay green through visual regressions; every assertion here reads back the RENDERED value:
+The external legacy source contains `ui/density-tier.suite.ct.tsx` as a reference. It is not part of this repository's test or CI population. Rebuilt CTs should read rendered values:
 
 1. `getComputedStyle(card).paddingTop` equals the document-resolved `--spacing-row` under `tier="instrument"` — resolve the var from the same document, never compare to a hardcoded px.
 2. RELATIONAL: for the same primitive, form-tier padding > instrument-tier padding. This survives any future token retune; an absolute assertion does not.
@@ -186,8 +175,8 @@ Adding a surface class, a step, or a voice touches a fixed set. Land them togeth
 | - | - |
 | a surface class row (§3.1) | the §3.1 row · the `tiers.css` rules for its slots · the surface's `<Surface tier>` call site · a §5.3 CT case if the class introduces a new slot |
 | a token step (§2.1/§2.2) | `packages/ui/src/tokens/tokens.json` (with its `$description` stating the assignment) · `pnpm --filter @orb/ui tokens:build` (theme.css + tokens/index.ts are GENERATED) · the §2 table · the primitive variant union that exposes it. **A dead/unused token is a build error** |
-| a `voice` entry (§2.3) | `text/variants.ts` (the tuple IS the truth) with the discriminator stated beside the class string · the §2.3 discriminator rule, NOT a new doc row · the `density-tier` grants that entry retires struck from `lib/reviewed-grants.ts` in the same commit |
-| a `data-slot` the map keys on | the primitive that EMITS it · the `tiers.css` rule · A6 reds either half alone |
+| a `voice` entry (§2.3) | `text/variants.ts` (the tuple IS the truth) with the discriminator stated beside the class string · the §2.3 discriminator rule, NOT a new doc row · state the product discriminator beside the voice entry |
+| a `data-slot` the map keys on | the primitive that EMITS it · the `tiers.css` rule  |
 
 A sweep stage that converts call sites ends with a `side-eye` pass against the surface, and side-eye findings are fixed in full before the stage closes — side-eye is the polish authority here, not an advisory.
 

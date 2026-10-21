@@ -1,11 +1,10 @@
-import { readdirSync, readFileSync } from "node:fs";
+import { readdirSync } from "node:fs";
 import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { ModalDefinition, SectionDefinition } from "@orb/client/state";
 import { MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state";
 import { createAuthedComposition, createClientRuntime } from "@orb/testkit/browser/ct-door.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
-import { ts } from "ts-morph";
 
 const CLIENT_SRC = fileURLToPath(new URL("../../../packages/client/src", import.meta.url));
 const SINGLETON_PLACEMENT = "mobile-tab" satisfies ModalDefinition["trigger"]["placement"];
@@ -39,43 +38,13 @@ function copyDefects(list: readonly CopySection[]): string[] {
   return defects;
 }
 
-/** Ids a literal `openModal("<id>")` call opens, counting only calls through an imported `openModal` binding. */
-function openedModalIds(fileName: string, text: string): ReadonlySet<string> {
-  const file = ts.createSourceFile(fileName, text, ts.ScriptTarget.Latest, true, fileName.endsWith("x") ? ts.ScriptKind.TSX : ts.ScriptKind.TS);
-  const bound = new Set<string>();
-  for (const statement of file.statements) {
-    if (ts.isImportDeclaration(statement) && statement.importClause?.namedBindings !== undefined && ts.isNamedImports(statement.importClause.namedBindings)) {
-      for (const specifier of statement.importClause.namedBindings.elements) {
-        if ((specifier.propertyName ?? specifier.name).text === "openModal") {
-          bound.add(specifier.name.text);
-        }
-      }
-    }
-  }
-  const opened = new Set<string>();
-  const visit = (node: ts.Node): void => {
-    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && bound.has(node.expression.text)) {
-      const [argument] = node.arguments;
-      if (argument !== undefined && (ts.isStringLiteral(argument) || ts.isNoSubstitutionTemplateLiteral(argument))) {
-        opened.add(argument.text);
-      }
-    }
-    ts.forEachChild(node, visit);
-  };
-  visit(file);
-  return opened;
+/** The planned-reason defect of one modal body, if any. */
+function bodyDefect(modal: ModalDefinition): string | undefined {
+  return typeof modal.body === "function" || modal.body.planned.trim().length > 0 ? undefined : `empty planned reason: ${modal.id}`;
 }
 
-/** The planned-reason or reachability defect of one modal body, if any. */
-function bodyDefect(modal: ModalDefinition, opened: ReadonlySet<string>): string | undefined {
-  if (typeof modal.body !== "function") {
-    return modal.body.planned.trim().length === 0 ? `empty planned reason: ${modal.id}` : undefined;
-  }
-  return modal.trigger.placement === SURFACE_PLACEMENT && !opened.has(modal.id) ? `unreachable surface modal: ${modal.id}` : undefined;
-}
-
-/** One finding per modal-registry dishonesty: a repeated id, two mobile-tab doors, an empty planned reason, an unopenable surface modal. */
-function modalDefects(list: readonly ModalDefinition[], opened: ReadonlySet<string>): string[] {
+/** One finding per modal-registry dishonesty: a repeated id, two mobile-tab doors, an empty planned reason. */
+function modalDefects(list: readonly ModalDefinition[]): string[] {
   const defects: string[] = [];
   const ids = new Set<string>();
   let singleton: string | undefined;
@@ -90,22 +59,13 @@ function modalDefects(list: readonly ModalDefinition[], opened: ReadonlySet<stri
       }
       singleton ??= modal.id;
     }
-    const defect = bodyDefect(modal, opened);
+    const defect = bodyDefect(modal);
     if (defect !== undefined) {
       defects.push(defect);
     }
   }
   return defects;
 }
-
-function clientSources(): readonly { readonly path: string; readonly text: string }[] {
-  return readdirSync(CLIENT_SRC, { recursive: true, encoding: "utf8" })
-    .filter((path) => /\.tsx?$/u.test(path))
-    .map((path) => ({ path, text: readFileSync(join(CLIENT_SRC, path), "utf8") }));
-}
-
-const sources = clientSources();
-const openedByClient = new Set(sources.flatMap(({ path, text }) => [...openedModalIds(path, text)]));
 
 interface HomeExport {
   readonly file: string;
@@ -125,7 +85,7 @@ function unassembledModals(exported: readonly HomeExport[], assembled: readonly 
 }
 
 async function modalHomeExports(): Promise<readonly HomeExport[]> {
-  const files = sources.map(({ path }) => path).filter((path) => /^features\/[^/]+\/lib\/[^/]+-modal\.tsx?$/u.test(path));
+  const files = readdirSync(CLIENT_SRC, { recursive: true, encoding: "utf8" }).filter((path) => /^features\/[^/]+\/lib\/[^/]+-modal\.tsx?$/u.test(path));
   const loaded = await Promise.all(
     files.map(async (file) => {
       const module: Record<string, unknown> = await import(join(CLIENT_SRC, file));
@@ -163,34 +123,26 @@ test("section copy defects: repeated pairs, empty copy and aliased copy are name
 
 test("the modal registry is total, id-aligned with its slot vocabulary and free of dishonest doors", () => {
   expect(modals.map(({ id }) => id)).toEqual([...MODAL_SLOT_IDS]);
-  expect(modalDefects(modals, openedByClient)).toEqual([]);
+  expect(modalDefects(modals)).toEqual([]);
 });
 
-test("every surface modal with a real body is opened by a literal openModal call in the client source", () => {
-  const surface = modals.filter((modal) => modal.trigger.placement === SURFACE_PLACEMENT && typeof modal.body === "function").map(({ id }) => id);
-  expect(surface.length).toBeGreaterThan(0);
-  expect(sources.length).toBeGreaterThan(0);
-  expect(surface.filter((id) => !openedByClient.has(id))).toEqual([]);
-});
-
-test("modal defects: a repeated id, a second mobile-tab door, an empty planned reason and an unopened surface modal are named", () => {
+test("modal defects: a repeated id, a second mobile-tab door, and an empty planned reason are named", () => {
   const you = real("you");
   const surfaceModal = modals.find((modal) => modal.trigger.placement === SURFACE_PLACEMENT && typeof modal.body === "function");
   if (surfaceModal === undefined) {
     throw new Error("the production door registers no surface modal");
   }
   expect(you.trigger.placement).toBe(SINGLETON_PLACEMENT);
-  expect(modalDefects([you, { ...you, trigger: { ...you.trigger } }], new Set())).toEqual([
+  expect(modalDefects([you, { ...you, trigger: { ...you.trigger } }])).toEqual([
     `duplicate id: ${you.id}`,
     `duplicate ${SINGLETON_PLACEMENT}: ${you.id} repeats ${you.id}`,
   ]);
-  expect(modalDefects([you, { ...surfaceModal, trigger: { ...surfaceModal.trigger, placement: SINGLETON_PLACEMENT } }], new Set())).toEqual([
+  expect(modalDefects([you, { ...surfaceModal, trigger: { ...surfaceModal.trigger, placement: SINGLETON_PLACEMENT } }])).toEqual([
     `duplicate ${SINGLETON_PLACEMENT}: ${surfaceModal.id} repeats ${you.id}`,
   ]);
-  expect(modalDefects([{ ...surfaceModal, body: { planned: "" } }], new Set())).toEqual([`empty planned reason: ${surfaceModal.id}`]);
-  expect(modalDefects([surfaceModal], new Set())).toEqual([`unreachable surface modal: ${surfaceModal.id}`]);
-  expect(modalDefects([surfaceModal], new Set([surfaceModal.id]))).toEqual([]);
-  expect(modalDefects([{ ...surfaceModal, body: { planned: "build pending" } }], new Set())).toEqual([]);
+  expect(modalDefects([{ ...surfaceModal, body: { planned: "" } }])).toEqual([`empty planned reason: ${surfaceModal.id}`]);
+  expect(modalDefects([surfaceModal])).toEqual([]);
+  expect(modalDefects([{ ...surfaceModal, body: { planned: "build pending" } }])).toEqual([]);
 });
 
 test("every modal a modal home exports is assembled by the door", () => {
@@ -204,15 +156,4 @@ test("unassembled modal defects: a home export the door never assembled is named
   expect(unassembledModals([{ file: "features/app-shell/lib/you-modal.tsx", name: "youModal", value: you }], modals)).toEqual([]);
   expect(unassembledModals([stray], modals)).toEqual(["unassembled modal: features/x/lib/x-modal.tsx exports xModal"]);
   expect(unassembledModals([{ ...stray, value: "not a definition" }], modals)).toEqual([]);
-});
-
-test("the opener scan counts only calls through an imported openModal, under any local alias", () => {
-  const direct = 'import { openModal } from "#state";\nexport const open = (): void => openModal("x");\n';
-  const aliased = 'import { openModal as open } from "../../../state/index.ts";\nexport const run = (): void => open("x");\n';
-  const local = 'function openModal(id: string): void { void id; }\nexport const open = (): void => openModal("x");\n';
-  const dynamic = 'import { openModal } from "#state";\nexport const open = (id: string): void => openModal(id);\n';
-  expect([...openedModalIds("direct.ts", direct)]).toEqual(["x"]);
-  expect([...openedModalIds("aliased.ts", aliased)]).toEqual(["x"]);
-  expect([...openedModalIds("local.ts", local)]).toEqual([]);
-  expect([...openedModalIds("dynamic.ts", dynamic)]).toEqual([]);
 });

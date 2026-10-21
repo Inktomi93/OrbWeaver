@@ -86,7 +86,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
     const run = async (): Promise<void> => {
       await retryWorkload.mutateAsync({ id: workload.id });
     };
-    // @orb-waive caught-failure-ownership(confirmThen): a failed retry is toasted by useRetryWorkload's `errorToast`
+    // a failed retry is toasted by useRetryWorkload's `errorToast`
     // (use-workload-mutations.ts), and a failed estimate by the `notify.error` inside confirmThen (components/use-model-run-confirm.ts).
     // Ends if either stops.
     paidRetry

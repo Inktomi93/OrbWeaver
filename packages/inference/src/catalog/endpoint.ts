@@ -133,7 +133,7 @@ async function probeNativeWithin(args: EndpointFetchArgs, path: string, body: un
     return { status: res.status, json: null };
   }
   const text = await res.text();
-  // @orb-waive caught-failure-ownership(catch): only JSON.parse of the text above can throw; a non-JSON answer is `{ status, json: null }` and every caller (`llamaCppKind`, `measuredWidth`, `ollamaPrefill`, `llamaCppPrefill`, `llamaCppEmbedLimit`)
+  // only JSON.parse of the text above can throw; a non-JSON answer is `{ status, json: null }` and every caller (`llamaCppKind`, `measuredWidth`, `ollamaPrefill`, `llamaCppPrefill`, `llamaCppEmbedLimit`)
   // reads the status or a zod `safeParse` of `json`. Ends if a probed route can answer a fact in a non-JSON body.
   try {
     return { status: res.status, json: JSON.parse(text) as unknown };
@@ -178,7 +178,7 @@ async function measuredWidth(args: EndpointFetchArgs, model: string): Promise<nu
 /** One native read. A server that does not answer it (an older build, a proxy exposing only `/v1`) still
  *  lists its models; the reason goes to the warn sink and the facts stay unreported. */
 async function nativeRead<T>(args: EndpointFetchArgs, run: () => Promise<T>): Promise<T | null> {
-  // @orb-waive caught-failure-ownership(err): the native read is optional evidence beside a list that already answered; the failure goes to `args.warn`,
+  // the native read is optional evidence beside a list that already answered; the failure goes to `args.warn`,
   // which both builders (`warmEndpoint` in index.ts, `endpointListing` in listing.ts) wire to the structured warn line, and the facts degrade to "not reported", which the capability marks assumed.
   // Ends if a caller needs the native facts to list a model, or builds EndpointFetchArgs without `warn`.
   try {

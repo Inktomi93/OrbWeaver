@@ -86,7 +86,7 @@ function frameToken(dropped: number, total: number): string {
 }
 
 async function applicationMotionEvidence(session: ProbeSession, opts: Args): Promise<AuditData["applicationMotion"]> {
-  // @orb-waive caught-failure-ownership(catch): a null applicationMotion fails exactApplicationMotion in motion-audit/ops/matrix-verdict.ts (evidence !== null), so a matrix cell that needs it gets an instrument-error verdict. Ends if exactApplicationMotion stops requiring non-null evidence.
+  // a null applicationMotion fails exactApplicationMotion in motion-audit/ops/matrix-verdict.ts (evidence !== null), so a matrix cell that needs it gets an instrument-error verdict. Ends if exactApplicationMotion stops requiring non-null evidence.
   try {
     const contract = await readRuntimeAppearanceContract(session.page);
     const row = contract.rows.find((candidate) => candidate.key === "reducedMotion");
@@ -141,7 +141,7 @@ async function measureMotionAction(
     return { timing: ratePosture.timing, data: null, gaps: [gap, ...hints], pass: false, artifact: null, loadSuspect: null };
   }
   const cdp = await page.context().newCDPSession(page);
-  // @orb-waive caught-failure-ownership(error): the failure is returned as an evidence gap; report() prints it through printEvidenceGaps and exit() returns EXIT.toolError while gaps.length > 0. Ends if exit() stops reading measurement.gaps.
+  // the failure is returned as an evidence gap; report() prints it through printEvidenceGaps and exit() returns EXIT.toolError while gaps.length > 0. Ends if exit() stops reading measurement.gaps.
   try {
     if (opts.motionThrottle) {
       await cdp.send("Emulation.setCPUThrottlingRate", { rate: MOTION_THROTTLE_RATE });

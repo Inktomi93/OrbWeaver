@@ -61,7 +61,7 @@ async function healOneUserBackgroundPins(db: Db, userId: UserId, storedConfig: U
     .select({ id: assets.id })
     .from(assets)
     .where(and(eq(assets.ownerId, userId), eq(assets.kind, BACKGROUND_ASSET_KIND), inArray(assets.id, [...ids])));
-  // @orb-waive persistence-no-in-memory-state(Set): query-local lookup over THIS call's own SELECT result (a membership test for the ids just read), not module state — discarded when the function returns. Ends if it outlives the call.
+  // query-local lookup over THIS call's own SELECT result (a membership test for the ids just read), not module state — discarded when the function returns. Ends if it outlives the call.
   const validIds = new Set<AssetId>(owned.map((row) => row.id));
   if (ids.every((id) => validIds.has(id))) {
     return false;
@@ -80,7 +80,7 @@ export async function healLegacyBackgroundPins(db: Db): Promise<number> {
   const rows = await db.select({ userId: userSettings.userId, config: userSettings.config, schemaVersion: userSettings.schemaVersion }).from(userSettings);
   let healed = 0;
   for (const row of rows) {
-    // @orb-waive caught-failure-ownership(catch): an unreadable row is #471's territory, not
+    // an unreadable row is #471's territory, not
     // this heal's — `requireIntactStoredConfig` throwing here is the SAME refusal `writeUserConfig` raises
     // at the user's own next write, so silently skipping it here duplicates no owner and drops no signal;
     // the boot wrapper (`entry/boot/heal-legacy-background-pins.ts`) already logs the count this heal DID
@@ -90,7 +90,7 @@ export async function healLegacyBackgroundPins(db: Db): Promise<number> {
         healed++;
       }
     } catch {
-      // Skipped — see the @orb-waive above the try.
+      // Skipped — see the explanation above the try.
     }
   }
   return healed;

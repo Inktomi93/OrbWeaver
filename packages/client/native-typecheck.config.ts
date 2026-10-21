@@ -1,4 +1,4 @@
-// Cold native checks release their host lease between edits; typed ESLint keeps its own dev worker.
+// Cold native checks run per edit; typed ESLint keeps its own dev worker.
 import { spawn } from "node:child_process";
 import { watch } from "node:fs";
 import { join, relative } from "node:path";
@@ -50,7 +50,7 @@ if (import.meta.hot) {
 }
 `;
 
-/** Vite owns edit notifications and presentation; the canonical native launcher owns compiler admission. */
+/** Vite owns native compiler edits, diagnostics and process teardown. */
 export function nativeTypecheck(root: string): Plugin {
   let close = async (): Promise<void> => undefined;
   return {
@@ -92,17 +92,26 @@ export function nativeTypecheck(root: string): Plugin {
         const started = generation;
         publish({ checking: true, failed: false, text: "Native TypeScript checking" });
         server.config.logger.info("[native TypeScript] checking client program");
-        const child = spawn(process.execPath, [join(root, "scripts", "ts7.ts"), "--noEmit", "--pretty", "false", "-p", "packages/client/tsconfig.json"], {
-          cwd: root,
-          detached: process.platform !== "win32",
-          stdio: ["ignore", "pipe", "pipe", "ipc"],
-        });
+        const child = spawn(
+          process.execPath,
+          [
+            join(root, "node_modules", "@typescript", "native", "bin", "tsc"),
+            "--noEmit",
+            "--incremental",
+            "false",
+            "--pretty",
+            "false",
+            "-p",
+            "packages/client/tsconfig.json",
+          ],
+          { cwd: root, stdio: ["ignore", "pipe", "pipe"] },
+        );
         active = child;
         let output = "";
-        child.stdout?.setEncoding("utf8").on("data", (chunk: string) => {
+        child.stdout.setEncoding("utf8").on("data", (chunk: string) => {
           output += chunk;
         });
-        child.stderr?.setEncoding("utf8").on("data", (chunk: string) => {
+        child.stderr.setEncoding("utf8").on("data", (chunk: string) => {
           output += chunk;
         });
         const exit = new Promise<number | null>((resolve) => {
@@ -115,17 +124,14 @@ export function nativeTypecheck(root: string): Plugin {
         let streamFailed = false;
         const drained = Promise.all(
           [child.stdout, child.stderr].map(async (stream) => {
-            if (stream !== null) {
-              try {
-                await finished(stream, { cleanup: true });
-              } catch (error) {
-                streamFailed = true;
-                output += error instanceof Error ? error.message : String(error);
-              }
+            try {
+              await finished(stream, { cleanup: true });
+            } catch (error) {
+              streamFailed = true;
+              output += error instanceof Error ? error.message : String(error);
             }
           }),
         );
-        // Node can omit ChildProcess.close after an IPC disconnect; exit plus drained pipes owns completion.
         completion = Promise.all([exit, drained]).then(([code]) => {
           active = undefined;
           if (!stopped && started === generation) {
@@ -166,8 +172,8 @@ export function nativeTypecheck(root: string): Plugin {
       rootWatch.on("error", (error) => {
         stopped = true;
         clearTimeout(timer);
-        if (active?.connected) {
-          active.disconnect();
+        if (active !== undefined) {
+          active.kill("SIGTERM");
         }
         server.config.logger.error(`[native TypeScript] root watch failed: ${error.message}`);
         publish({ checking: false, failed: true, text: `Type checker watch failed; no verdict\n${error.message}` });
@@ -178,9 +184,8 @@ export function nativeTypecheck(root: string): Plugin {
         rootWatch.close();
         server.watcher.off("all", changed);
         server.ws.off(REQUEST, replay);
-        // Disconnect also fires when Vite dies; the wrapper owns compiler-tree termination and lease release.
-        if (active?.connected) {
-          active.disconnect();
+        if (active !== undefined) {
+          active.kill("SIGTERM");
         }
         await completion;
       };

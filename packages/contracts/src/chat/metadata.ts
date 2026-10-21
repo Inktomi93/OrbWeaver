@@ -261,7 +261,6 @@ export const DEFAULT_GROUP_CONFIG: GroupConfig = {
 export const openingPolicySchema = z.enum(["greet-all", "generate", "none", "first-message"]);
 export type OpeningPolicy = z.infer<typeof openingPolicySchema>;
 
-// @orb-waive no-vanity-alias(GUIDED_STEER_INPUT_MAX): baselined when the gate widened; burn-down item 906.
 // ── The guided-steer wire contract (F6 — the transport trust boundary for the composer wand) ──
 // The one-turn typed steer every generating chat verb accepts. DERIVED, never re-spelled: `action` from
 // `guidedActionKindSchema` (#preset), `person` from `GUIDED_IMPERSONATE_PERSONS` (#preset), the inject

@@ -123,7 +123,7 @@ export async function provisionRatedStageThemes(baseUrl: string, staged: boolean
       throw error;
     }
     let cleanupFailure: unknown = null;
-    // @orb-waive caught-failure-ownership(cleanupError): the cleanup failure is kept in cleanupFailure and thrown beside the primary error as provisioningCleanupError right after this block. Ends if that throw stops carrying cleanupFailure.
+    // the cleanup failure is kept in cleanupFailure and thrown beside the primary error as provisioningCleanupError right after this block. Ends if that throw stops carrying cleanupFailure.
     try {
       await removeAndProveAbsent(baseUrl, created);
     } catch (cleanupError) {

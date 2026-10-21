@@ -217,7 +217,7 @@ function preserveStageLogs(dir: string): string | null {
     return null;
   }
   const target = join(slot.dir, "stage-logs");
-  // @orb-waive caught-failure-ownership(catch): documented best-effort evidence copy — the doc comment above states the teardown must proceed regardless of it, and the OWNER of the failure is the printed teardown line, which says "No stack log was found to preserve" rather than naming a path it does not have. Ends if a caller starts requiring the copy to have happened.
+  // documented best-effort evidence copy — the doc comment above states the teardown must proceed regardless of it, and the OWNER of the failure is the printed teardown line, which says "No stack log was found to preserve" rather than naming a path it does not have. Ends if a caller starts requiring the copy to have happened.
   try {
     cpSync(source, target, { recursive: true });
     return target;

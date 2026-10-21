@@ -70,7 +70,7 @@ export async function migrateSeededRoomBackgrounds(
   for (const row of rows) {
     const plate = row.slug === null || row.slug.length === 0 ? null : await resolve(row.slug);
     const metadata: ChatMetadata = { ...parseChatMetadata(row.metadata), background: canonicalBackgroundSource(plate ?? NO_BACKGROUND) };
-    // @orb-waive no-await-db-in-loop(where): one UPDATE per AFFECTED room, each with a DIFFERENT resolved
+    // one UPDATE per AFFECTED room, each with a DIFFERENT resolved
     // source (its own plate), so the rewrite cannot collapse into one statement. Bounded by the rooms one
     // host carries a retired background on, once.
     await db.update(chats).set({ metadata, updatedAt: at }).where(eq(chats.id, row.id));

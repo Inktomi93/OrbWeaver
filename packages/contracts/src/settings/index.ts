@@ -193,7 +193,6 @@ export const DEFAULT_MAX_IMAGE_BYTES = 5_000_000;
 // value drops at parse (fail-safe: a widen attempt never loosens the route/store cap). Floor 100 KB keeps a
 // fat-fingered near-zero cap from bricking every document upload.
 const MAX_DATABANK_BYTES_FLOOR = 100_000;
-// @orb-waive no-vanity-alias(MAX_DATABANK_BYTES_CEIL): baselined when the gate widened; burn-down item 906.
 const MAX_DATABANK_BYTES_CEIL = DATABANK_UPLOAD_MAX_BYTES;
 
 // ── Prompt-cache depth floor (findings §5) ───────────────────────────────────────────────────────────────
@@ -222,7 +221,6 @@ const MAX_DATABANK_BYTES_CEIL = DATABANK_UPLOAD_MAX_BYTES;
 /** The schema bound AND the born-in-DB default, deliberately the same constant: 0 = "use the turn's own
  *  computed minimum" is both the shallowest meaningful value and the shipped behavior, byte-identical. */
 export const PROMPT_CACHE_MIN_DEPTH_FLOOR = 0;
-// @orb-waive no-vanity-alias(PROMPT_CACHE_MIN_DEPTH_CEIL): baselined when the gate widened; burn-down item 906.
 export const PROMPT_CACHE_MIN_DEPTH_CEIL = PROMPT_CACHE_DEPTH_CEIL;
 
 // Every field `.nullable()` AS WELL AS `.optional().catch(undefined)`: null is the CLEAR sentinel.
@@ -456,7 +454,6 @@ const databankSchema = z
   })
   .prefault({});
 
-// @orb-waive no-vanity-alias(STREAM_SCROLL_MODES): baselined when the gate widened; burn-down item 906.
 // Stream-display scroll behavior (client-honored — the `@orb/ui/message-list` `scrollMode` prop).
 // The axis is homed in `@orb/kit/scroll-mode` (reachable by both `contracts` and the `ui` prop, which may
 // import kit ONLY); re-exported here under the settings-facing name so existing consumers keep their

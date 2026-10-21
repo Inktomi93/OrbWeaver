@@ -17,7 +17,6 @@ import type { InboxView } from "../contract/views.ts";
 import { selectInboxSince } from "../persistence/queries.ts";
 import { asksNothing, NO_STANDING_ASKS, standingAsksOf, withActionable } from "../substrate/actionable.ts";
 
-// @orb-waive no-vanity-alias(DEFAULT_LIMIT): baselined when the gate widened; burn-down item 906.
 // The resume's own default page. The ceiling below it is the shared one, so a caller asking for more than
 // `NOTIFICATIONS_LIST_MAX_LIMIT` gets a clamped page — which a caller detecting "the log is exhausted" by a
 // SHORT page would read as exhaustion. Callers page at the ceiling for that reason.

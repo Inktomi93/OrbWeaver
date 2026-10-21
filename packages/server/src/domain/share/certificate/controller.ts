@@ -192,7 +192,7 @@ export function createCertificateController(deps: CertificateControllerDeps): Ow
     }
     if (listener === null) {
       let opened: TlsTerminator;
-      // @orb-waive caught-failure-ownership(err): owned by `fail`, which sets the `failed` status the Share card shows and logs the security line naming plain http. Ends if `fail` stops setting that status.
+      // owned by `fail`, which sets the `failed` status the Share card shows and logs the security line naming plain http. Ends if `fail` stops setting that status.
       try {
         opened = await deps.startHttps({ port: current.httpsPort, certificatePem: certificate.certificatePem, keyPem: certificate.keyPem });
       } catch (err) {
@@ -250,7 +250,7 @@ export function createCertificateController(deps: CertificateControllerDeps): Ow
       return;
     }
     const signal = orderAbort.signal;
-    // @orb-waive caught-failure-ownership(err): owned by `orderFailed`, which sets the status the Share card shows (a renewal failure beside the live certificate, or the `failed` fallback) and logs it. Ends if `orderFailed` stops setting that status.
+    // owned by `orderFailed`, which sets the status the Share card shows (a renewal failure beside the live certificate, or the `failed` fallback) and logs it. Ends if `orderFailed` stops setting that status.
     try {
       const accountKeyPem = await accountKey();
       if (gen !== generation) {

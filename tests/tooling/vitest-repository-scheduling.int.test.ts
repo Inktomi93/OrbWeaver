@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
-import { SEMANTIC_CORPUS_RESOURCE, vitestTypecheckGroupName } from "@orb/tooling/floor/testing/test-kinds";
+import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/floor/testing/test-kinds";
 import base from "../../vitest.config.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
@@ -17,11 +17,6 @@ interface NativeProject {
   readonly groupOrder?: number;
   readonly fileParallelism?: boolean;
   readonly maxWorkers?: number;
-  readonly typecheck?: {
-    readonly enabled: boolean;
-    readonly only: boolean;
-    readonly include: readonly string[];
-  };
 }
 
 function source(events: string, label: string, waitFor?: string): string {
@@ -57,7 +52,6 @@ function config(root: string, projects: readonly NativeProject[]): string {
           ...(project.groupOrder === undefined ? {} : { sequence: { groupOrder: project.groupOrder } }),
           ...(project.fileParallelism === undefined ? {} : { fileParallelism: project.fileParallelism }),
           ...(project.maxWorkers === undefined ? {} : { maxWorkers: project.maxWorkers }),
-          ...(project.typecheck === undefined ? {} : { typecheck: project.typecheck }),
         },
       })),
     },
@@ -187,7 +181,6 @@ test("native runtime realms execute product and tooling repository kinds in thei
     { name: "product", include: ["tests/**/*.test.ts", "!tests/**/*.repo.int.test.ts", "!tests/tooling/**"], groupOrder: 0 },
     { name: "tooling", include: ["tests/tooling/**/*.test.ts", "!tests/tooling/**/*.repo.int.test.ts"], groupOrder: 0 },
     { name: "repository", include: ["tests/**/*.repo.int.test.ts"], groupOrder: 1, fileParallelism: false },
-    { name: vitestTypecheckGroupName("node"), include: [], typecheck: { enabled: true, only: true, include: ["tests/**/*.test-d.ts"] } },
   ];
 
   const product = await runNative(scratch, projects, ["--exclude", "tests/tooling/**", "--project=product", "--project=repository"]);
@@ -198,10 +191,4 @@ test("native runtime realms execute product and tooling repository kinds in thei
   const tooling = await runNative(scratch, projects, ["tests/tooling", "--project=tooling", "--project=repository"]);
   expect(tooling.toSorted()).toEqual(["tooling-normal:start", "tooling-normal:end", "tooling-repository:start", "tooling-repository:end"].toSorted());
   expect(tooling).not.toContain("type-only:executed");
-});
-
-test("package runtime scripts use the proven native realms and quote shell globs", () => {
-  const packageJson = JSON.parse(readFileSync(join(process.cwd(), "package.json"), "utf8")) as { readonly scripts?: Record<string, string> };
-  expect(packageJson.scripts?.["test:node"]).toContain("run --exclude 'tests/tooling/**' --runtime-only");
-  expect(packageJson.scripts?.["test:tooling"]).toBe("node tooling/src/verify/cli.ts instrument-affected --weekly");
 });

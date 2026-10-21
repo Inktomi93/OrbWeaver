@@ -117,7 +117,7 @@ function objectEntries(value: object, cursor: ValueCursor): readonly [string, un
   return Object.keys(value)
     .toSorted()
     .map((key) => {
-      // @orb-waive caught-failure-ownership(catch): a throwing getter is recorded by unreadableValue (browser-evidence-redaction.ts:108, an `unreadable` limit event) and the field becomes [OMITTED]; ops/manifest.ts:290 turns any incomplete receipt into `bounded` artifact completeness. The thrown value stays out of the artifact because it can hold a page secret. Ends if unreadableValue stops pushing the event.
+      // a throwing getter is recorded by unreadableValue (browser-evidence-redaction.ts:108, an `unreadable` limit event) and the field becomes [OMITTED]; ops/manifest.ts:290 turns any incomplete receipt into `bounded` artifact completeness. The thrown value stays out of the artifact because it can hold a page secret. Ends if unreadableValue stops pushing the event.
       try {
         return [key, Reflect.get(value, key)] as const;
       } catch {
@@ -213,7 +213,7 @@ export function redactBrowserPageError(input: BrowserPageError, overrides: Parti
 
 export function redactBrowserDiagnostic(input: BrowserDiagnostic, overrides: Partial<NetworkEvidenceLimits> = {}): DiskSafeBrowserDiagnostic {
   const limits = resolveNetworkEvidenceLimits(overrides);
-  // @orb-waive caught-failure-ownership(catch): a hostile diagnostic fails closed to fallback() (browser-evidence-redaction.ts:176, an `unreadable` event on a category `unreadable` record); run-bundle-diagnostics.ts:43 counts those events into the run's diagnostic limit state. The thrown value is dropped on purpose because it can hold a page secret. Ends if fallback stops carrying the event.
+  // a hostile diagnostic fails closed to fallback() (browser-evidence-redaction.ts:176, an `unreadable` event on a category `unreadable` record); run-bundle-diagnostics.ts:43 counts those events into the run's diagnostic limit state. The thrown value is dropped on purpose because it can hold a page secret. Ends if fallback stops carrying the event.
   try {
     const context: RedactionContext = { limits, events: [] };
     return {
@@ -245,7 +245,7 @@ export function redactBrowserDiagnostic(input: BrowserDiagnostic, overrides: Par
 
 export function redactBrowserDiagnostics(input: readonly BrowserDiagnostic[], overrides: Partial<NetworkEvidenceLimits> = {}): DiskSafeBrowserDiagnostics {
   const limits = resolveNetworkEvidenceLimits(overrides);
-  // @orb-waive caught-failure-ownership(catch): a hostile collection returns an empty batch whose receipt holds an `unreadable` event (browser-evidence-redaction.ts:259); run-bundle-diagnostics.ts:43 counts the batch receipt and manifest.ts:177 files it as diagnosticRedaction. The thrown value is dropped on purpose because it can hold a page secret. Ends if that receipt event is removed.
+  // a hostile collection returns an empty batch whose receipt holds an `unreadable` event (browser-evidence-redaction.ts:259); run-bundle-diagnostics.ts:43 counts the batch receipt and manifest.ts:177 files it as diagnosticRedaction. The thrown value is dropped on purpose because it can hold a page secret. Ends if that receipt event is removed.
   try {
     const retained = input.slice(0, limits.maxEntries).map((entry) => redactBrowserDiagnostic(entry, limits));
     const events: NetworkLimitEvent[] =
@@ -263,7 +263,7 @@ export function redactBrowserDiagnostics(input: readonly BrowserDiagnostic[], ov
 
 export function redactCapturedConsole(input: CapturedConsole, overrides: Partial<NetworkEvidenceLimits> = {}): DiskSafeCapturedConsole {
   const limits = resolveNetworkEvidenceLimits(overrides);
-  // @orb-waive caught-failure-ownership(catch): a hostile console entry returns the OMITTED record whose receipt holds an `unreadable` event (browser-evidence-redaction.ts:282); ops/manifest.ts:290 turns that receipt into `bounded` artifact completeness. The thrown value is dropped on purpose because it can hold a page secret. Ends if that receipt event is removed.
+  // a hostile console entry returns the OMITTED record whose receipt holds an `unreadable` event (browser-evidence-redaction.ts:282); ops/manifest.ts:290 turns that receipt into `bounded` artifact completeness. The thrown value is dropped on purpose because it can hold a page secret. Ends if that receipt event is removed.
   try {
     const context: RedactionContext = { limits, events: [] };
     return {
@@ -286,7 +286,7 @@ export function redactCapturedConsole(input: CapturedConsole, overrides: Partial
 
 export function redactCapturedRequest(input: CapturedRequest, overrides: Partial<NetworkEvidenceLimits> = {}): DiskSafeCapturedRequest {
   const limits = resolveNetworkEvidenceLimits(overrides);
-  // @orb-waive caught-failure-ownership(catch): a hostile request summary returns the OMITTED record whose receipt holds an `unreadable` event (browser-evidence-redaction.ts:307); ops/manifest.ts:290 turns that receipt into `bounded` artifact completeness. The thrown value is dropped on purpose because it can hold a page secret. Ends if that receipt event is removed.
+  // a hostile request summary returns the OMITTED record whose receipt holds an `unreadable` event (browser-evidence-redaction.ts:307); ops/manifest.ts:290 turns that receipt into `bounded` artifact completeness. The thrown value is dropped on purpose because it can hold a page secret. Ends if that receipt event is removed.
   try {
     const context: RedactionContext = { limits, events: [] };
     return {

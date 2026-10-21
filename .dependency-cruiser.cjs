@@ -1,80 +1,14 @@
-/**
- * dependency-cruiser — the import-graph backstop for the layer cake + the server tier order.
- *
- * WHY THIS FILE IS COMMONJS (work item 0036 converted every other script to TypeScript): dependency-cruiser
- * 18 imports a config only for the `.js`/`.cjs`/`.mjs` extensions and parses every other extension as JSON5
- * (`node_modules/dependency-cruiser/src/config-utl/extract-depcruise-config/read-config.mjs`), so a `.ts`
- * config fails to parse. Revisit when that reader accepts TypeScript.
- *
- * The cake (kit ← contracts ← db ← server ← client) is PRIMARILY resolver-physics (a package can't
- * import an undeclared dep). dep-cruiser is the tier-3 backstop that (a) catches deep relative `../../`
- * escapes that dodge the package boundary, (b) distinguishes type-only edges (the client→server tRPC
- * AppRouter bridge, drivers' param types), and (c) enforces everything INSIDE @orb/server — the server
- * tier order + per-feature isolation — which the resolver cannot see (it's all one package).
- *
- * Scanned via `pnpm depcruise` = `node scripts/depcruise.ts`, which cruises `packages`, `tooling`, and
- * every helper world root that exists (`HELPER_WORLD_DIRS` — tests/support/{iso,node,browser}). The scope
- * is DERIVED there, not spelled here, so a new helper world joins the cruise without a header edit; this
- * file's own tooling section (tooling-cli-via-index, tooling-shared-floor, tooling-no-provider-families,
- * the tooling/src/<tool>/ slot rules) is inside that reach. Cross-package `@orb/*` imports resolve through
- * the workspace into `packages/<pkg>/src/...`, so the path regexes below match resolved edges.
- * Authoritative rule sources: Core-0-Architecture-and-Structure.md (the cake, the server tier order, the
- * 8-slot feature template), the Tier-* docs under docs/law/, and Constitution.md §6 (the domain
- * map). Each rule's own `comment` carries its citation.
- *
- * HOUSE STYLE (from neo, kept): generic-over-enumerated (one capture-group rule auto-covers future
- * features); `dependencyTypesNot: ["type-only"]` is the contract-vs-coupling discriminator (a type-only
- * import declares an injected dep's SHAPE, wired at a composition root — allowed; a value import is real
- * coupling — blocked); every rule carries a `comment` saying WHY (it's what surfaces on a violation).
- *
- * NOT here (enforced elsewhere, by shape): assets-single-writer / discovery-no-vector-write /
- * serde-core-single-mapper / ASSUMES(single-replica) presence — all method-call or comment shapes, so they
- * are structural gates under tooling/src/verify/gates/, not import edges; persistence-no-in-memory-state
- * (also a gate — the GritQL layer it used to be was retired in aa1750c1e5 and every plugin recreated as a
- * ts-morph gate); no-inline-types / exhaustive-dispatch (biome + gates); "runner/family never leave
- * providers" (compile-time + a gate). CLIENT LAYERING IS HERE, not deferred — 17 `client-*` rules carry
- * the client's own tier order, decided at the client-foundation wave (see the section note at the
- * client-lib-floor rule). `no-orphans` is ACTIVE at `severity: "warn"` (re-enabled 2026-07-13 when its own
- * stated trigger arrived); knip remains the full dead-code/dead-export authority.
- *
- * CYCLES — THIS FILE IS THE AUTHORITY OF RECORD, AND IT IS NOT THE ONLY GATE (#1332). `no-circular` comes
- * from the `recommended-strict` preset (which is why the word "circular" appears in no rule below), and an
- * exemption is granted HERE because this is the only one of the three with a rule-level `pathNot` seam.
- * knip has already deferred in writing (`knip.ts`, `cycles: "warn"` — the report twin). biome's
- * `suspicious/noImportCycles` is "error" repo-wide with NO per-rule seam, and its SCOPE IS WIDER than this
- * file's: `pnpm depcruise` cruises the roots in `IMPORT_ENTRY_ROOTS` (`tooling/src/floor/compiler/import-population.ts`),
- * so biome is the only cycle gate over the rest of `tests/`, `scripts/` and `playwright/`. Layered enforcement is doctrine (constitution §2), so three gates on one true
- * invariant is intended — do not turn one off to de-duplicate. biome carries no comment of its own beside
- * either rule because it CANNOT: measured 2026-09-19 with `biome rage --linter` in both directions, a `//`
- * line in `biome.json` makes biome 2.5.1 silently skip the file and load an ancestor config with no parse
- * error and exit 0 (`json.parser.allowComments` governs the .json files biome LINTS, not its own loader).
- * The declared-dependency question has the same shape and is already answered below at `no-duplicate-dep-types`:
- * biome's `noUndeclaredDependencies` and knip's `unlisted` answer it with INDEPENDENT allowlists — knip
- * carries `ignoreDependencies`, biome carries none — which is recorded so it is not rediscovered, and needs
- * no change while nothing can fire.
- *
- * FEATURES USED beyond the forbidden-list: `reachable` (the transitive credential firewall),
- * `dependencyTypesNot:["type-only"]` (the contract-vs-coupling discriminator), `tsPreCompilationDeps`
- * (so type-only edges exist to discriminate), `skipAnalysisNotInRules` (speed),
- * the `archi`/`dot` collapse reporters + the package.json graph scripts (`depcruise:graph` mermaid,
- * `:focus`, `:reaches`, `:affected`), and `--output-type err-long` on the validator so a violation prints
- * its WHY (the rule comment) — load-bearing since agents are the authors.
- *
- * DELIBERATE feature non-adoptions (evaluated, declined — don't re-litigate without new evidence):
- * `metrics`/instability gates (churn every edit → noisy advisory, not a stable invariant); baseline /
- * known-violations / `--ignore-known` (that's for adopting on a DIRTY codebase — we're green-to-ship);
- * `scope:"folder"` cycle rules (neo MEASURED 161 phantom cycles from the type-only client→server bridge;
- * the one-directional rules already encode the acyclicity that matters); `allowed`/whitelist mode (a
- * forbidden-list fits a known cake); `required` rules (no current "must-import" invariant the structural
- * gates don't already cover).
- *
- * @type {import('dependency-cruiser').IConfiguration}
- */
-
+// Native import boundaries for package tiers, feature doors, helper worlds and runtime authority.
 const { BROWSER_TEST_SUFFIXES, TEST_KIND_SUFFIXES } = require("./tooling/src/floor/testing/test-kinds.ts");
 const { BROWSER_SURFACE_DIRS, HELPER_WORLD_DIRS } = require("./tooling/src/floor/compiler/project-worlds.ts");
-const { ENTRY_DRIVER_PATTERN, ENTRY_SOURCE } = require("./tooling/src/verify/contract/compose-query-capability.ts");
-const { GROUPING_DIRS } = require("./tooling/src/floor/code-facts/package-module.ts");
+const ENTRY_SOURCE = "^packages/server/src/entry/";
+const ENTRY_DRIVER_PATTERN = `${ENTRY_SOURCE}(?:(?:index|lifecycle)\\.ts$|boot/(?!(?:seed-example-plugins|seed-user-content|seed-local-light)\\.ts$))`;
+const GROUPING_DIRS = {
+  server: ["entry", "transport", "domain", "infra", "foundation", "primitives"],
+  inference: ["backends"],
+  client: ["features"],
+  ui: ["*"],
+};
 
 const KIT = "^packages/kit/src/";
 const CONTRACTS = "^packages/contracts/src/";
@@ -106,7 +40,7 @@ const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
  *  feature dir is a named SUBSYSTEM (engine/ assembly/ memory/ themes/ …) — substrate-mediated. */
 const FIXED_SLOTS = "(contract|verbs|persistence|substrate)";
 
-/** The importable modules of each workspace package, from the floor module map: a grouping dir (a server tier, client
+/** The importable modules of each workspace package, from the native package grouping map: a grouping dir (a server tier, client
  *  `features/`, inference `backends/`, every ui group) holds modules, any other top-level dir is one, and a file at the
  *  grouping or package root is a single-file module entered by its own path. `own` matches the module an importer sits
  *  in; `internal` matches a file inside a directory module. */
@@ -173,29 +107,16 @@ module.exports = {
     {
       name: "client-persisted-store-implementation",
       severity: "error",
-      comment: "Production persistence names enter through the typed factory; raw names belong only to the private legacy seam (D321).",
-      from: { pathNot: "^packages/client/src/state/(create-persisted-store\\.ts|legacy-test-factories/index\\.ts)$" },
+      comment: "Production persistence names enter through the typed factory (D321).",
+      from: { pathNot: "^packages/client/src/state/create-persisted-store\\.ts$" },
       to: { path: "^packages/client/src/state/persisted-store-implementation\\.ts$" },
     },
     {
       name: "client-persisted-draft-implementation",
       severity: "error",
-      comment: "Production draft names enter through the typed factory; raw names belong only to the private legacy seam (D321).",
-      from: { pathNot: "^packages/client/src/state/(create-entity-draft-store\\.ts|legacy-test-factories/index\\.ts)$" },
+      comment: "Production draft names enter through the typed factory (D321).",
+      from: { pathNot: "^packages/client/src/state/create-entity-draft-store\\.ts$" },
       to: { path: "^packages/client/src/state/entity-draft-store-implementation\\.ts$" },
-    },
-    {
-      name: "client-persisted-legacy-only",
-      severity: "error",
-      comment: "Existing legacy fixtures preserve arbitrary storage keys without exposing a production or new-test factory bypass (D318, D321).",
-      from: {
-        pathNot: [
-          "^tests/legacy/client/state/(create-persisted-store|create-entity-draft-store|durable-local)\\.test\\.ts$",
-          "^tests/legacy/client/forms/entity-form-base\\.test\\.ts$",
-          "^tests/legacy/client/forms/editor/_(ct-stories|draft-completion-stories)\\.tsx$",
-        ],
-      },
-      to: { path: "^packages/client/src/state/legacy-test-factories/index\\.ts$" },
     },
     {
       name: "browser-tests-no-server-runtime",
@@ -241,7 +162,7 @@ module.exports = {
     {
       name: "kit-purity",
       comment:
-        "@orb/kit is the isomorphic leaf: pure primitives + engines. It MAY use isomorphic npm (zod, typeid-js, luxon, remend) but NOT any higher package — and NOT Node built-ins (the kit-no-node-builtins rule below). Node-only-pure code goes to @orb/server/primitives (e.g. the node:vm regex guard). (DECISIONS-LEDGER §0.6 — the kit-purity ruling: 'zero runtime deps' = zero domain/I-O/Node deps, not zero npm.)",
+        "@orb/kit is the isomorphic leaf: pure primitives + engines. It MAY use isomorphic npm (zod, typeid-js, luxon, remend) but NOT any higher package — and NOT Node built-ins (the browser-and-iso-no-node-builtins rule below). Node-only-pure code goes to @orb/server/primitives (e.g. the node:vm regex guard). (DECISIONS-LEDGER §0.6 — the kit-purity ruling: 'zero runtime deps' = zero domain/I-O/Node deps, not zero npm.)",
       severity: "error",
       from: { path: KIT },
       // NOTE: conditions WITHIN a single `to` are AND'd by dep-cruiser, so node:* (a separate concern)
@@ -249,11 +170,11 @@ module.exports = {
       to: { path: [CONTRACTS, DB, INFERENCE, "^packages/server/", CLIENT] },
     },
     {
-      name: "kit-no-node-builtins",
+      name: "browser-and-iso-no-node-builtins",
       comment:
-        "@orb/kit must not import node:* — it is browser-safe (isomorphic). The node:vm ReDoS guard and any other Node-only-pure helper live in @orb/server/primitives, not here. (Core-0-Architecture-and-Structure.md §2.)",
+        "Browser source and isomorphic source/helpers cannot import Node built-ins, including type-only edges. Browser test programs intentionally retain Node APIs. (Core-0-Architecture-and-Structure.md §2.)",
       severity: "error",
-      from: { path: KIT },
+      from: { path: [KIT, CONTRACTS, CLIENT, UI, "^tests/support/iso/"] },
       to: { dependencyTypes: ["core"] },
     },
     {
@@ -424,14 +345,6 @@ module.exports = {
       to: { path: [CONTRACTS, DB, "^packages/server/", CLIENT] },
     },
     {
-      name: "ui-no-node-builtins",
-      comment:
-        "@orb/ui is browser code — no node:* imports (same posture as kit; the tokens.build.ts codegen script lives at the package ROOT, outside src/, precisely so src/ stays browser-pure).",
-      severity: "error",
-      from: { path: UI },
-      to: { dependencyTypes: ["core"] },
-    },
-    {
       name: "ui-satellite-seals",
       comment:
         "Each satellite lib is sealed behind ONE @orb/ui group (D52/D54; UI-Gates §11.3): echarts→charts/ · react-virtual→primitives/{virtual-list,message-list,media-grid}/ · codemirror→code-editor/ · streamdown/remark/shiki→markdown/ · cmdk→primitives/command/ · @dnd-kit→primitives/sortable/ · diff→diff/ · lucide→primitives/icons/ · minisearch→{primitives/macro-textarea/, fuzzy-search/} (the macro autocomplete seal + the generic browse-search hook — ONE lib, TWO sanctioned homes). Importing a sealed lib from any OTHER ui module is a seal breach.",
@@ -592,8 +505,7 @@ module.exports = {
     },
     {
       name: "client-compose-door-only",
-      comment:
-        "client/src/compose/ is the DOOR'S OWN half, not a tier: it holds every registry assembly (the `orb/registry-assembly-at-door-only` lint rule names main.tsx OR a compose/ module as the two legal call sites) and therefore imports every feature front door — the whole app. Since the #43 boot code-split it is reached through routes/router.tsx's lazy `/` boundary, which is what keeps the 3.4 MB feature graph out of the boot chunk an unauthenticated visitor downloads. Exactly four importers: main.tsx (the boot half), routes/router.tsx (the lazy boundary), a compose/ sibling, and the browser-CT support world (tests/support/browser/, the reviewed exception: it re-exports the door's registries so CT mounts the app that ships). Everything else cruised — features, tooling, node and iso test helpers, and the stories and specs under tests/legacy/client (an entry root, so they are judged too) — stays behind the wall. Without this wall a feature could reach another feature's front door THROUGH the assembly module (features/x -> compose/authed-app -> features/chat) with every individual hop passing client-feature-front-door AND client-features-no-cross — the same backdoor client-composition-tier-door-only closes for agent-nav/agent-seed. (client-architecture-lockdown.md §5/§7.)",
+      comment: "Only the client boot, router, composition modules and browser test support may import the application composition door.",
       severity: "error",
       from: { pathNot: [`${CLIENT}main\\.tsx$`, `${CLIENT}routes/router\\.tsx$`, `${CLIENT}compose/`, TEST_BROWSER_SUPPORT] },
       to: { path: `${CLIENT}compose/` },
@@ -895,8 +807,7 @@ module.exports = {
     },
     {
       name: "system-seed-writes-no-forwarding",
-      comment:
-        "Source-bearing exports cannot forward private seed writes. The HARD seed-root syntax fence also blocks local and import-deduplicated exports (D328).",
+      comment: "Source-bearing exports cannot forward private seed writes (D328).",
       severity: "error",
       from: {},
       to: { path: `${SRV}domain/(settings/persistence/system-themes|preset/persistence/system-default)\\.ts$`, dependencyTypes: ["export"] },
@@ -912,7 +823,7 @@ module.exports = {
     {
       name: "chat-engine-authority-context",
       comment:
-        "The turn engine receives frozen facts and bound execution ports, never chat request authority or guards, including through barrels and type-only edges. D19; `orb/turn-identity-principal` keeps the Principal type itself out of the engine.",
+        "The turn engine receives frozen facts and bound execution ports, never chat request authority or guards, including through barrels and type-only edges. D19.",
       severity: "error",
       from: { path: "^packages/server/src/domain/chat/engine/" },
       to: { path: "^packages/server/src/domain/chat/(context|contract/context|guard)\\.ts$", reachable: true },
@@ -934,19 +845,6 @@ module.exports = {
     },
 
     // ══════════════════ @orb/inference — the sealed provider executor (was infra/providers) ══════════
-    // ALL FOUR STANZAS BELOW WERE RE-POINTED 2026-09-20 (the `@orb/inference`
-    // extraction): the provider runtime moved WHOLE out of
-    // `packages/server/src/infra/providers/` into `packages/inference/src/`, and every one of these rules
-    // was still aimed at the deleted tree — a `pathNot` exemption over an empty set is an over-grant nobody
-    // can see, which `depcruise-grant-liveness` is what caught. The program's own §12 names the successor
-    // posture verbatim: "Resolve-time: package boundary; BackendKey, backends, credentials never leave
-    // index.ts; dep-cruiser backstop" — so these are the BACKSTOP half, the `ui-cake`/`packages-no-tooling`
-    // posture, with the resolver (a one-entry `exports` map) as the primary.
-    // A FIFTH, `vllm-surface-isolation`, was DELETED rather than re-pointed, by the same document's
-    // ruling: "there is no vllm module left to isolate" — the five role surfaces are gone, vLLM is a
-    // provider ROW on the openai-compat wire, and the owner's fleet left the repo (ADR 0007).
-    // Following it there would have widened a provider-execution seal into the instrument tree by side
-    // effect, which is the mistake the `orb/no-raw-egress` scope already refuses to make.
     {
       name: "providers-public-surface-only",
       comment:
@@ -985,7 +883,7 @@ module.exports = {
     {
       name: "persistence-no-io",
       comment:
-        "persistence/ is db queries ONLY — no node:* I/O (no node:fs / node:net / raw fetch). A raw fetch against a user URL is an infra adapter reached through an injected op; the live precedent is DatabankContext.fetchUrl → entry/compose/databank.ts → infra/network.fetchWebDocument. (Core-0-Architecture-and-Structure.md §3; Tier-3-Infra.md.) The no-module-scope-Map half is a structural gate (persistence-no-in-memory-state) — it was a GritQL plugin until aa1750c1e5 retired that layer.",
+        "persistence/ is db queries ONLY — no node:* I/O (no node:fs / node:net / raw fetch). A raw fetch against a user URL is an infra adapter reached through an injected op; the live precedent is DatabankContext.fetchUrl → entry/compose/databank.ts → infra/network.fetchWebDocument. (Core-0-Architecture-and-Structure.md §3; Tier-3-Infra.md.)",
       severity: "error",
       from: { path: `${SRV}domain/[^/]+/persistence/` },
       to: { dependencyTypes: ["core"] },
@@ -993,18 +891,11 @@ module.exports = {
     {
       name: "stats-no-vector-tables",
       comment:
-        "stats is ECONOMICS (tokens/cost/cache/timing) — it touches ZERO vector tables. discovery is SEMANTICS (themes/hubness/facets). The line is type-enforced: domain/stats must not import the embeddings vector schema. (Constitution.md §6 domain map, stats vs discovery; Knowledge-Cluster.md invariant 5.) LIVE since db/schema/embeddings landed (was a forward rule; regex-liveness verified 2026-08-03).",
+        "stats is ECONOMICS (tokens/cost/cache/timing) — it touches ZERO vector tables. discovery is SEMANTICS (themes/hubness/facets). The line is type-enforced: domain/stats must not import the embeddings vector schema. (Constitution.md §6 domain map, stats vs discovery; Knowledge-Cluster.md invariant 5.)",
       severity: "error",
       from: { path: `${SRV}domain/stats/` },
       to: { path: `${DB}schema/embeddings` },
     },
-    // NOTE (2026-07-13): the discovery↔stats rollup seal is NOT a dep-cruiser rule — every `@orb/db`
-    // import resolves to the barrel (exports map "." → src/index.ts), so a `to: schema/stats` regex can
-    // never fire (empirically verified: a probe `import { ownerStats }` in discovery cruised green). The
-    // real enforcement is the ts-morph structure gate `discovery-no-stats-rollups`
-    // (scripts/check/gates/) which matches the named table symbols at the ImportSpecifier level — the
-    // same import-name level the orb/vector-scope-derived and orb/no-direct-users-read lint rules use.
-
     // ════════════════════ @orb/tooling — the tool fleet ABOVE the cake (docs/law/Core-Tooling-Law.md §4.6) ════════════════════
     {
       name: "packages-no-tooling",
@@ -1137,7 +1028,7 @@ module.exports = {
     {
       name: "no-orphans",
       comment:
-        "A module without an import edge needs a runtime or tooling consumer. Knip is the full dead-code authority. The instrument-proof test and eslint.config.js read instruments.ts. Showcase guest entries are consumed as source bytes by compilePluginDirectory: main.ts and ui.ts compile into guest artifacts, and frame.ts embeds into main.ts at its required frame-script marker.",
+        "A module without an import edge needs a runtime or tooling consumer. Knip is the full dead-code authority. Showcase guest entries are consumed as source bytes by compilePluginDirectory: main.ts and ui.ts compile into guest artifacts, and frame.ts embeds into main.ts at its required frame-script marker.",
       severity: "warn",
       from: {
         // Helper entry roots omit their test consumers; native runner/Knip discovery owns their liveness.
@@ -1146,7 +1037,6 @@ module.exports = {
         pathNot: [
           "\\.d\\.ts$",
           "(^|/)index\\.ts$",
-          "^tooling/src/floor/instrument/instruments\\.ts$",
           // Verified byte-consumed entries only; a sibling helper.ts remains an orphan.
           "^packages/showcase-plugins/bundles/[^/]+/(main|ui|frame)\\.ts$",
         ],
@@ -1156,19 +1046,12 @@ module.exports = {
   ],
 
   options: {
-    // No `tsConfig` — VERIFIED unneeded (2026-06-26, three tests: cross-package relative resolution,
-    // the type-only-vs-value discriminator, AND `#` subpath resolution all behave IDENTICALLY with and
-    // without it). We have zero tsconfig `paths`, and enhancedResolveOptions + tsPreCompilationDeps below
-    // do the real work. (Per the options reference, tsConfig only applies `paths` aliases.) The root
-    // tsconfig.json exists for vitest's type lane + Stryker's typescript-checker (Phase 4), not this.
-    //
-    // REQUIRED for the `dependencyTypesNot: ["type-only"]` discriminator (client→server bridge, drivers'
-    // param types, cross-feature/verb type shapes) — surfaces pre-compilation (type-only) edges.
+    // Include erased type edges so runtime-vs-type rules can distinguish them.
     tsPreCompilationDeps: true,
     // depcruise derives which analyses (cycles/orphans/reachability) the ruleset needs — free speed.
     skipAnalysisNotInRules: true,
-    // A `process.getBuiltinModule("fs")` call dodges every import-edge rule (kit-no-node-builtins /
-    // ui-no-node-builtins / persistence-no-io all key on core IMPORT edges). This makes such calls
+    // A `process.getBuiltinModule("fs")` call dodges import-edge rules (browser-and-iso-no-node-builtins /
+    // persistence-no-io key on core IMPORT edges). This makes such calls
     // core deps too — closing the dodge (installed-surface audit 2026-08-03; v18 option).
     detectProcessBuiltinModuleCalls: true,
     enhancedResolveOptions: {
@@ -1183,27 +1066,8 @@ module.exports = {
       conditionNames: ["import", "require", "node", "default", "types"],
       mainFields: ["module", "main", "types", "typings"],
     },
-    // TanStack Router codegen (client, Phase 6) — not ours to police. The `(^|/)__g_` exclude left at #2176
-    // Phase F (2026-09-14) with its reviewed-grant row `depcruise-grant-liveness:g-fixture`: it covered the
-    // LEGACY gate self-test's transient real-tree plants, and those planters are deleted — a final policy
-    // proves itself on a virtual overlay and writes nothing to the tree.
-    // The DevTools frontend root is an exact-revision GENERATED RUNTIME CLOSURE, not first-party source:
-    // its path-closed manifest + hashes + licenses are governed by devtools-frontend-assets, and the
-    // materialized subset deliberately contains imports outside the 477-resource runtime closure. Graphing
-    // it creates false unresolvable edges and subjects third-party bytes to Orb's package cake. Keep this
-    // exclusion anchored to that one generated root (Core-Tooling-Law.md §2.6 / #950).
-    // The dist exclude is ANCHORED to workspace packages (`^packages/*/dist/`): a bare `(^|/)dist/` also
-    // matches `node_modules/<lib>/dist/`, dropping the sealed-lib import edges (minisearch/echarts/shiki/…)
-    // so the satellite-seal rules silently stop firing on their fixtures.
+    // Generated runtime assets are not first-party dependency graph inputs.
     exclude: { path: ["^packages/[^/]+/dist/", "^tooling/src/snap/lib/devtools-frontend/"] },
-    // NO RESULT CACHE (removed 2026-08-22, #393 P6 — planted-control receipt below). It was
-    // `cache: { strategy: "content" }`, and a WARM cruise is BLIND TO A NEWLY-ADDED FILE: planting
-    // `packages/kit/src/__dc/node.ts` with `import "node:fs"` and cruising warm reported 0 violations;
-    // dropping the cache dir and cruising the SAME tree reported exactly 1 — `kit-no-node-builtins`. That
-    // is a false green in the `imports:depcruise` COMMIT stage (a new boundary-violating file is the most
-    // common shape there is), and it is what made tests/tooling/dependency-cruiser.int.test.ts — which
-    // plants 60-odd fixtures and cruises — fail 59/60 whenever any earlier cruise had warmed the cache.
-    // MEASURED before removing: warm 4.25s vs cold 4.28s over `packages tooling`. The cache bought 0.03s.
     reporterOptions: {
       dot: { collapsePattern: COLLAPSE },
       archi: { collapsePattern: COLLAPSE },

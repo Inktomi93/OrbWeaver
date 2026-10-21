@@ -15,7 +15,7 @@ const CHILD_OVERHEAD_MS = 5000;
 
 /** Does `url` answer a 2xx within the load-scaled budget? Any failure to answer is `false`. */
 export async function httpOk(url: string): Promise<boolean> {
-  // @orb-waive caught-failure-ownership(catch): a refused connection, a timeout and a non-2xx all answer false, and each caller states what false means: dev-status prints "healthz unreachable" and runDevChildren warns when the server never answered /healthz. Ends if a caller needs the failure kind.
+  // a refused connection, a timeout and a non-2xx all answer false, and each caller states what false means: dev-status prints "healthz unreachable" and runDevChildren warns when the server never answered /healthz. Ends if a caller needs the failure kind.
   try {
     return (await fetch(url, { signal: AbortSignal.timeout(budget(PROBE_TIMEOUT_BASE_MS)) })).ok;
   } catch {
@@ -56,7 +56,7 @@ export function httpJsonSync(url: string): unknown {
   if (!res.ok) {
     return null;
   }
-  // @orb-waive caught-failure-ownership(catch): a 2xx body that is not JSON answers null, and its one caller fixtureStatus turns null into config === null, so fixtureVerdict returns { up: false, reason } naming /api/auth/config as unreachable. Ends if a second caller reads null as anything but a refusal.
+  // a 2xx body that is not JSON answers null, and its one caller fixtureStatus turns null into config === null, so fixtureVerdict returns { up: false, reason } naming /api/auth/config as unreachable. Ends if a second caller reads null as anything but a refusal.
   try {
     return JSON.parse(res.stdout);
   } catch {

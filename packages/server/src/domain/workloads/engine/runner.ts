@@ -101,7 +101,7 @@ function createLeaseWriter(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, c
       return;
     }
     let next: Promise<void>;
-    // @orb-waive caught-failure-ownership(err): owned by the reject handler on the next.then chain below, which rejects lease.failure with a LeaseFailure that runWorkload races against the contribution. Ends if that handler stops rejecting lease.failure.
+    // owned by the reject handler on the next.then chain below, which rejects lease.failure with a LeaseFailure that runWorkload races against the contribution. Ends if that handler stops rejecting lease.failure.
     try {
       // Preserve report()'s existing contract: the first durable write starts synchronously. Later monitor
       // work chains behind it so heartbeat/cancel reads cannot reorder or escape the runner lifecycle.
@@ -111,7 +111,7 @@ function createLeaseWriter(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, c
     }
     idle = false;
     tail = next;
-    // @orb-waive caught-failure-ownership(next): owned by this reject handler, which sets failed, aborts the controller and rejects lease.failure with a LeaseFailure that runWorkload's Promise.race records as a failed row. Ends if the handler stops rejecting lease.failure.
+    // owned by this reject handler, which sets failed, aborts the controller and rejects lease.failure with a LeaseFailure that runWorkload's Promise.race records as a failed row. Ends if the handler stops rejecting lease.failure.
     next.then(
       () => {
         if (tail === next) {
@@ -311,7 +311,7 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
   );
   let leaseFailed = false;
   let outcome: { readonly kind: "success"; readonly result: unknown } | { readonly kind: "failure"; readonly err: unknown; readonly aborted: boolean };
-  // @orb-waive caught-failure-ownership(err): owned by outcome: the catch classifies the throw into outcome.kind "failure", and finalizeFailure marks the row failed and audits it. Ends if outcome stops reaching finalizeFailure.
+  // owned by outcome: the catch classifies the throw into outcome.kind "failure", and finalizeFailure marks the row failed and audits it. Ends if outcome stops reaching finalizeFailure.
   try {
     const result = await Promise.race([contribution, lease.failure]);
     outcome = { kind: "success", result };
@@ -332,10 +332,10 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
   if (leaseFailed) {
     // A lease failure aborts the contribution, but abort is cooperative. Do not stamp a terminal row while
     // the contribution is still unwinding (or still able to write); the runner owns that Promise to settlement.
-    // @orb-waive caught-failure-ownership(contribution): owned by withRequestSpan, which sets the span ERROR status with the message before it rethrows (foundation/observability/tracing.ts); the row's recorded cause is the LeaseFailure in outcome. Ends if the contribution's own rejection must reach the row or the log.
+    // owned by withRequestSpan, which sets the span ERROR status with the message before it rethrows (foundation/observability/tracing.ts); the row's recorded cause is the LeaseFailure in outcome. Ends if the contribution's own rejection must reach the row or the log.
     await contribution.catch(() => undefined);
   }
-  // @orb-waive caught-failure-ownership(err): owned by outcome: a drain failure becomes outcome.kind "failure", which the finalizeFailure branch right below marks failed on the row and audits. Ends if outcome stops reaching finalizeFailure.
+  // owned by outcome: a drain failure becomes outcome.kind "failure", which the finalizeFailure branch right below marks failed on the row and audits. Ends if outcome stops reaching finalizeFailure.
   try {
     await lease.drain();
   } catch (err) {
@@ -345,7 +345,7 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
     await finalizeFailure(deps, row, { aborted: outcome.aborted, err: outcome.err });
     return;
   }
-  // @orb-waive caught-failure-ownership(err): owned by finalizeFailure, called from this catch: it marks the row failed, emits the failed event and audits it. Ends if the catch stops calling finalizeFailure.
+  // owned by finalizeFailure, called from this catch: it marks the row failed, emits the failed event and audits it. Ends if the catch stops calling finalizeFailure.
   try {
     await finalizeSuccess(deps, row, { aborted: controller.signal.aborted, result: outcome.result });
   } catch (err) {

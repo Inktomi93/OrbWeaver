@@ -13,7 +13,7 @@ export function createPluginAssetReads(deps: PluginAssetReadDeps): PluginAssetRe
   return {
     read: async ({ installerUserId, assetId }): ReturnType<PluginAssetReads["read"]> => {
       const caller = await resolveOwnerPrincipal(installerUserId);
-      // @orb-waive caught-failure-ownership(catch): FAIL-CLOSED — documented above: any
+      // FAIL-CLOSED — documented above: any
       // unreadable asset (a foreign/absent id, `AssetNotFoundError`) collapses to `null`, leak-free (no
       // existence oracle). Ends if this needs to tell "foreign" apart from an infra failure.
       try {

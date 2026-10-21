@@ -6,7 +6,7 @@ description: "Orchestration for orbweaver: role routing, briefs, lane cap, merge
 # Orchestrator
 
 The orchestrator plans, decides, and judges. Lanes do the volume and the execution.
-Quality comes from verification, not from model size.
+Use native application checks and CI for the verdict.
 
 Do not delegate a single read you need now, a decision, or anything the user asked you to judge.
 
@@ -63,12 +63,12 @@ Run at most three lanes at once. Raise the cap only on an explicit owner ruling,
 
 Owner ruling: at most six `sonnet-executor` lanes plus three Opus agents at once. Every Opus agent counts toward the cap: executor, security-executor, verifier and side-eye alike. Never dispatch forge (owner).
 
-Owner ruling for Codex: run at most five lanes beside the primary agent, within the runtime's available slots. This replaces the model-specific cap above for Codex. Schedule compiler and gate-heavy runs through the primary agent; extra lanes do not authorize concurrent heavy checks. Claude primary is optional additional capacity outside the Codex lane cap; dispatch to the existing peer at your discretion.
+Owner ruling for Codex: run at most five lanes beside the primary agent, within the runtime's available slots. This replaces the model-specific cap above for Codex. Schedule compiler and broad application runs through the primary agent; extra lanes do not authorize concurrent heavy checks. Claude primary is optional additional capacity outside the Codex lane cap; dispatch to the existing peer at your discretion.
 
 Owner ruling for Claude primary on Codex assignments: run at most four peer lanes. This peer limit replaces the model-specific cap above. Codex owns integration, independent review and shared-host scheduling. The peer does not dispatch forge or stickler.
 
 - Let over-cap lanes finish. Never refill above the cap.
-- Start gate-heavy lanes minutes apart. Simultaneous verification spikes load and makes gates flaky.
+- Start broad compiler or application runs minutes apart to limit shared-host load.
 - Before the first dispatch or whole-tree run of a session, do the pre-flight below.
 
 ## Pre-flight
@@ -136,31 +136,26 @@ Scoped lane green does not prove the combined tree, including a fast-forward wit
 
 - Freeze the batch before the barrier. A merge or edit changes the tested tree and invalidates affected evidence.
 - A merge that combines shared-interface edits needs typechecking. The barrier covers it; run a separate typecheck only for earlier feedback.
-- A merge touching `packages/server/src/transport/trpc/routers/**` runs `tests/legacy/server/transport/cross-tenant-sweep.suite.int.test.ts` first, through `pnpm test:scoped --legacy`.
+- A merge touching `packages/server/src/transport/trpc/routers/**` runs the affected native integration tests first. Legacy test files outside the repository are reference-only.
 - The sweep does not cover a room's resume read. A merge touching a room's `authorizeAttach` or replay verb also runs that room's recipient-scope test, for example `tests/server/domain/notifications/verbs/durable-resume.int.test.ts`.
 - A merge restarts the dev server and clears the in-memory recorders. Never merge while a live drive depends on them.
-- `pnpm check:ledgers-fresh` fails when a merge shifts the lines a ledger row cites. Run the regeneration yourself on the merged tree. Lanes only hand-edit their own row.
 
 ## The barrier
 
-The barrier is the whole-tree check on main before the owner pushes. Run it once per push batch, never after each train (D317).
-It is separate from the pre-push hook, which checks GitHub synchronization.
+CI runs the native application checks before release. The pre-push hook checks GitHub synchronization.
 
 1. Check that main is clean and that no whole-tree check is reading the checkout.
-2. Run `pnpm check --application`.
-3. Run `pnpm test:ratchets`, or credit matching completed broader evidence that actually includes its current member population.
-4. Run affected integration and rendered checks not established by matching lane evidence.
-5. Read completed artifacts from the printed slots. Return concrete failures to their owning lanes together.
-6. Recheck only changed behavior or invalidated evidence after corrections.
+2. Run `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm test:ct` as applicable.
+3. Run affected integration and rendered checks not established by matching lane evidence.
+4. Read completed results. Return concrete failures to their owning lanes together.
+5. Recheck only changed behavior or invalidated evidence after corrections.
 
-CI qualifies the push and is the verdict. Follow `UNIFIED-VERIFICATION-DESIGN.md` §4.4 for the qualification boundary.
-Run broad application qualification with `pnpm verify --product` when the batch requires it.
-Nightly full verification is a backstop, not a replacement for pre-release event qualification.
+CI runs the native lint, typecheck, Node, CT and smoke jobs. No custom checker qualification is required.
 
 ## Stopping checks and commits
 
-- Stop a running check only in its own checkout; other checkouts and the other account share the box and the host verify slot. Send SIGTERM to each verify process whose working directory is under the checkout; the runner stops its own stage tree. The first `case` pattern keeps the main checkout's recipe off its nested worktrees: `C=/abs/path/to/checkout; for p in $(pgrep -f 'verify/cli\.[t]s'); do case "$(readlink /proc/$p/cwd)" in "$C"/.claude/worktrees/*) ;; "$C" | "$C"/*) kill -TERM "$p" ;; esac; done`
-- A task notification that says "stopped by main session" comes from the Claude Code stop path: `TaskStop`, the task dialog, or a remote stop request. No repository hook or verify path produces it. Check your own session before you look for a killer in the tree.
+- Stop a running check only in its own checkout; other checkouts and the other account share the box and the shared compiler slot. Send SIGTERM to each check process whose working directory is under the checkout; the runner stops its own stage tree. Never stop a process you did not start. Stop your own check process from its checkout.
+- A task notification that says "stopped by main session" comes from the Claude Code stop path: `TaskStop`, the task dialog, or a remote stop request. No repository hook produces it. Check your own session before you look for a killer in the tree.
 - An amend with nothing staged makes pre-commit a no-op. It is not evidence that any check ran.
 - Start one background git chain at a time. Wait for it to finish before you start another.
 - Never chain another write behind a merge that can conflict. A conflict mid-chain commits conflict markers.
@@ -214,37 +209,15 @@ Run autonomously only when the user says overnight, finish, or keep going.
 - In that mode, re-derive, dispatch and merge while safe work exists. Run the barrier when a batch is ready for the owner to push.
 - Stop only for a destructive or irreversible action, an owner-reserved product choice, a scope change, or a push.
 - The engines and the dev stack are yours to start and stop without asking.
-- Before a decision becomes a question for the owner, try in order: a `stickler` pass, `pnpm ast` on the code, the docs and the ledger, then your own judgment.
+- Before a decision becomes a question for the owner, try in order: a `stickler` pass, CodeGraph, `ast-grep` and `rg` on the code, the docs and the ledger, then your own judgment.
 - When the authorized queue is complete, report the result and stop. Run a broader UI audit only when requested.
 - When the owner is present, batch questions and put the recommended option first.
-
-## Tracking work
-
-The board is `docs/work/`, and you own every state change on it. Read `.claude/rules/docs.md` "Work items" before your first board write in a session; it holds the states, the `blocked` grammar and the landing rules.
-
-1. At session start, act on each `drift` line the onboarding prints. Each line names its fix.
-2. At dispatch, run `pnpm doc set <id> doing --lane <branch>`. The lane value is the lane's exact branch, `wt/agent-<id>` for a worktree lane.
-3. Tell the lane to end its closing commit with a `Closes: <id>` trailer. The merge hook lands the item on `main`.
-4. Land related ready items together with `pnpm doc land <ids...> --evidence <sha>` after their required reviews. Process the returned drift corrections, including folding a finished plan into an ADR or law.
-5. File a lane's out-of-scope finding with `pnpm doc item "<title>" --kind … --what … --why … --done …`. The title is positional.
-6. When a lane stops with its item unfinished, set the item back to `open` with the reason in its Evidence section.
-
-Run `pnpm doc <verb> --help` for one verb's flags. Read `pnpm doc overview` and `pnpm doc drift` bare; their output is short.
-
-- For any `gh` write, use `--body-file`. `gh` runs backticks inside `--body`.
-
-### Documentation batches
-
-- Batch related board, plan, law, evidence and generated-index updates into the merge train's documentation commit.
-- Keep board state current through `pnpm doc`; collect its edits before committing.
-- Reuse automatic landing commits; do not add a bookkeeping commit for each landed item.
-- Split documentation commits only for a necessary dependency, separate rollback, or explicit owner request. State the reason.
 
 ## Lying instruments
 
 Diagnose an instrument failure far enough to identify its effect on the requested verdict. Repair it within the task's scope, or report the blocker separately. The tooling path rule owns instrument repairs.
 
-- Assign a blocking gate repair explicitly before dispatching work that depends on it.
+- Assign a blocking native-tool repair explicitly before dispatching work that depends on it.
 - Commit requested implementation after its applicable checks and review. Do not add review rounds after completion.
 - File a review finding outside the item's done criteria as a new item, then land the item. Otherwise review rounds never end.
 

@@ -14,7 +14,6 @@ import type {
   AccentBorderInput,
   ActionDoorInput,
   Backdrop,
-  Finding,
   IconTileInput,
   RawSamples,
   RulePopulationAccounting,
@@ -58,7 +57,6 @@ import {
   checkZIndex,
   classifyTextStyle,
   collectFindings,
-  DESIGN_AUDIT_RULES,
   fontCensusPopulations,
   INTERACTIVE_TEXT_FLOOR_PX,
   isAtOrAboveSeverity,
@@ -82,83 +80,6 @@ function auditRuleTest(proofs: readonly AuditRuleProof[], title: string, fn: () 
     return fn();
   });
 }
-
-type Equal<Left, Right> = (<Value>() => Value extends Left ? 1 : 2) extends <Value>() => Value extends Right ? 1 : 2 ? true : false;
-type Assert<Condition extends true> = Condition;
-type ContrastSeverityIsOnlyP1 = Assert<Equal<Extract<Finding, { readonly rule: "contrast" }>["severity"], "P1">>;
-const CONTRAST_SEVERITY_IS_ONLY_P1: ContrastSeverityIsOnlyP1 = true;
-
-test("the design-audit rule denominator is closed at the 63 live ids", () => {
-  expect(CONTRAST_SEVERITY_IS_ONLY_P1).toBe(true);
-  expect(DESIGN_AUDIT_RULES).toHaveLength(63);
-  expect(new Set(DESIGN_AUDIT_RULES.map((rule) => rule.id)).size).toBe(63);
-  expect(DESIGN_AUDIT_RULES.filter((rule) => rule.id === "side-tab" || rule.id === "border-accent-on-rounded")).toHaveLength(2);
-  expect(DESIGN_AUDIT_RULES.map(({ id, severity }) => `${id}:${severity.join("/")}`)).toEqual([
-    "tap-target:P1/P2",
-    "reveal-coverage:P3",
-    "control-aspect:P2",
-    "obscured-target:P0/P1",
-    "aria-name:P1",
-    "border-contrast:P2",
-    "landmark-missing:P2",
-    "tabindex-positive:P2",
-    "skipped-heading:P2",
-    "unreachable-hint:P2",
-    "text-over-art:P0/P1",
-    "contrast:P1",
-    "hover-contrast:P1",
-    "inactive-control-legibility:P3",
-    "gray-on-color:P2",
-    "border-accent-on-rounded:P3",
-    "side-tab:P3",
-    "glow-shadow:P3",
-    "distorted-image:P1/P2",
-    "canvas-ink:P3",
-    "broken-image:P1",
-    "radial-halo:P2",
-    "radial-spotlight-glow:P3",
-    "stripe-background:P3",
-    "grid-line-background:P3",
-    "icon-tile-stack:P3",
-    "layout-transition:P3",
-    "bounce-easing:P2",
-    "text-overflow:P1",
-    "truncated-to-nothing:P1",
-    "repeated-container-text:P3",
-    "clipped-overflow:P1/P2",
-    "edge-flush-cards:P3",
-    "script-error:P0",
-    "duplicate-action-door:P3",
-    "headline-overhang:P2",
-    "inline-padding-leak:P1",
-    "z-index-escalation:P2/P3",
-    "nested-card:P3",
-    "gradient-text:P3",
-    "animated-img-hover:P3",
-    "cohort-anatomy:P2",
-    "row-void:P2",
-    "selection-idiom:P2",
-    "pane-ink:P3",
-    "quiet-state:P2",
-    "double-empty-state:P2",
-    "text-below-ramp:P2",
-    "undersized-ui-text:P2",
-    "line-length:P3",
-    "tight-leading:P3",
-    "justified-text:P3",
-    "all-caps-body:P3",
-    "wide-tracking:P3",
-    "crushed-tracking:P3",
-    "caveat-outweighed:P2",
-    "off-theme-font:P2",
-    "flat-type-hierarchy:P3",
-    "buried-raster:P1",
-    "tier-drift:P2",
-    "off-grid-text:P2",
-    "promoted-layer-offset:P2",
-    "off-grid-transform:P3",
-  ]);
-});
 
 // ── #1 contrast ───────────────────────────────────────────────────────────────
 

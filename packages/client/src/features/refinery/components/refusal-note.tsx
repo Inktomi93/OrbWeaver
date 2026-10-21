@@ -11,7 +11,7 @@ import { testId } from "#lib";
 /** The teaching sentences carried by a refusal — one per belt issue, or the raw message as a single line. */
 function refusalLines(error: unknown): readonly string[] {
   const raw = (error as { message?: string }).message ?? "That schema was refused.";
-  // @orb-waive caught-failure-ownership(catch): a non-JSON message falls through to the `return [raw]` after the
+  // a non-JSON message falls through to the `return [raw]` after the
   // try, and RefusalNote below renders every returned line in a Text. Ends if either the fallback return or that render goes.
   try {
     const parsed: unknown = JSON.parse(raw);

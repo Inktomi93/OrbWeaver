@@ -113,7 +113,7 @@ function scriptAttribution(sourceURL: string): ScriptAttribution {
     return "unknown";
   }
   let pathname: string;
-  // @orb-waive caught-failure-ownership(catch): new URL throws only for a sourceURL that is not absolute, and the raw string then goes through the same path checks below; one they do not recognise is "unknown", which hasUnrelatedScriptAttribution reads as no veto, per this function's veto-not-proof contract. Ends if callers need a real URL pathname.
+  // new URL throws only for a sourceURL that is not absolute, and the raw string then goes through the same path checks below; one they do not recognise is "unknown", which hasUnrelatedScriptAttribution reads as no veto, per this function's veto-not-proof contract. Ends if callers need a real URL pathname.
   try {
     pathname = new URL(sourceURL).pathname;
   } catch {

@@ -49,7 +49,7 @@ export function cardFrameMintBody(request: CardFrameRequest): CardFrameMintReque
 /** POST one serialized mint body; ANY failure resolves to `undefined` (the caller renders the floor). */
 export async function mintCardFrame(body: string): Promise<string | undefined> {
   let parsed: CardFrameMintResponse;
-  // @orb-waive caught-failure-ownership(catch): documented in the JSDoc above — any failure resolves to undefined and the caller renders the floor. Ends if the floor stops being an acceptable fallback UI.
+  // documented in the JSDoc above — any failure resolves to undefined and the caller renders the floor. Ends if the floor stops being an acceptable fallback UI.
   try {
     const response = await fetch(CARD_FRAME_ROUTE, {
       method: "POST",

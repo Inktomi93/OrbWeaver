@@ -101,7 +101,7 @@ export interface DataLayoutMigrationReport {
 
 const NO_MIGRATION: DataLayoutMigrationReport = { moved: [], leftInPlace: [], resumed: false };
 
-// @orb-waive caught-failure-ownership(err): `kill(pid, 0)` ASKS a question and throws to answer it — ESRCH is "dead", and EPERM is a live process under another uid, which must read as alive so its journal is never resumed under it. Ends if the answer needs more than alive/dead.
+// `kill(pid, 0)` ASKS a question and throws to answer it — ESRCH is "dead", and EPERM is a live process under another uid, which must read as alive so its journal is never resumed under it. Ends if the answer needs more than alive/dead.
 function pidAlive(pid: number): boolean {
   try {
     process.kill(pid, 0);

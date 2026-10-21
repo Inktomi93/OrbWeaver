@@ -53,7 +53,7 @@ function pinsLine(ctx: StackContext, read: LeaderRead, state: LeaderState): stri
 
 /** The auth mode the server resolved after `.env`: the one honest answer to "what is running". */
 async function effectiveAuthMode(serverPort: number): Promise<string | null> {
-  // @orb-waive caught-failure-ownership(catch): null renders as AUTH_MODE=? in the status line (dev-status.ts:119) beside the healthz line and decides nothing. Ends if this value drives a verdict.
+  // null renders as AUTH_MODE=? in the status line (dev-status.ts:119) beside the healthz line and decides nothing. Ends if this value drives a verdict.
   try {
     const res = await fetch(authConfigUrl(serverPort), { signal: AbortSignal.timeout(budget(PROBE_TIMEOUT_BASE_MS)) });
     const body = (await res.json()) as { mode?: unknown };
@@ -127,7 +127,7 @@ export async function doDevStatus(ctx: StackContext, deps: DevPortDeps = REAL_PO
 }
 
 function tail(path: string, lines: number): string {
-  // @orb-waive caught-failure-ownership(catch): the "(no log)" sentinel is printed to the operator by doDevLogs (dev-status.ts:158). Ends if log content becomes a control verdict.
+  // the "(no log)" sentinel is printed to the operator by doDevLogs (dev-status.ts:158). Ends if log content becomes a control verdict.
   try {
     return readFileSync(path, "utf8").split(LINE_BREAK_RE).slice(-lines).join("\n");
   } catch {

@@ -288,7 +288,7 @@ async function readCoreDrafts(artifact: SnapRunArtifact, diagnostics: readonly F
 export async function coreFindingDrafts(artifacts: readonly SnapRunArtifact[], diagnostics: readonly FindingDraft[]): Promise<FindingDraft[]> {
   const drafts: FindingDraft[] = [];
   for (const artifact of artifacts.filter((candidate) => candidate.relativePath === "evidence/core-capture.json")) {
-    // @orb-waive caught-failure-ownership(error): composite display files parser drift as a finding: run-finding-common.ts:81 malformedFinding keeps the caught error in `conflicts` on an error-severity finding that collectSnapFindings files in run.json (ops/run-bundle.ts:154). Ends if malformedFinding stops retaining the caught error.
+    // composite display files parser drift as a finding: run-finding-common.ts:81 malformedFinding keeps the caught error in `conflicts` on an error-severity finding that collectSnapFindings files in run.json (ops/run-bundle.ts:154). Ends if malformedFinding stops retaining the caught error.
     try {
       drafts.push(...(await readCoreDrafts(artifact, diagnostics)));
     } catch (error) {
@@ -357,7 +357,7 @@ async function readHarDrafts(artifact: SnapRunArtifact): Promise<readonly Findin
 export async function harFindingDrafts(artifacts: readonly SnapRunArtifact[]): Promise<FindingDraft[]> {
   const drafts: FindingDraft[] = [];
   for (const artifact of artifacts.filter((candidate) => candidate.relativePath.endsWith(".har"))) {
-    // @orb-waive caught-failure-ownership(error): composite display files parser drift as a finding: run-finding-common.ts:81 malformedFinding keeps the caught error in `conflicts` on an error-severity finding that collectSnapFindings files in run.json (ops/run-bundle.ts:154). Ends if malformedFinding stops retaining the caught error.
+    // composite display files parser drift as a finding: run-finding-common.ts:81 malformedFinding keeps the caught error in `conflicts` on an error-severity finding that collectSnapFindings files in run.json (ops/run-bundle.ts:154). Ends if malformedFinding stops retaining the caught error.
     try {
       drafts.push(...(await readHarDrafts(artifact)));
     } catch (error) {

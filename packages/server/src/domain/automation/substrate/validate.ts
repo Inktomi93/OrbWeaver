@@ -37,7 +37,6 @@ import { AutomationReservedTriggerError, BudgetValidationError, RuleValidationEr
 import type { AutomationOps } from "../contract/ops.ts";
 import { hasActiveGame, isBookAttachedToChat, isBookOwnedBy } from "../persistence/canon-reads.ts";
 
-// @orb-waive no-vanity-alias(POST_NOTIFICATION_COOLDOWN_FLOOR): baselined when the gate widened; burn-down item 906.
 /** The per-rule cooldown floor (seconds) enforced when a `post_notification` arm is present — inbox spam
  *  trains dismissal. DERIVED from the notice's own wire vocabulary (one home, two enforcers: this authoring
  *  gate and the plugin `notify` call-time floor), never a second literal. */
@@ -189,7 +188,6 @@ async function assertBooksWritable(deps: ValidateDeps, scope: RuleScope, actions
 // could only ever fail is never stored, so the fire log never fills with `action_error` rows explaining a
 // mistake the author made once at authoring time.
 
-// @orb-waive no-vanity-alias(CHAT_LESS_IMAGE_MODES): baselined when the gate widened; burn-down item 906.
 /** The CAPTION image modes — the only ones a chat-less `generate_image` can run. `MULTIMODAL_MODES` is the
  *  contracts home; this alias exists so the refusal below can NAME the set it enforces. */
 const CHAT_LESS_IMAGE_MODES: readonly string[] = MULTIMODAL_MODES;

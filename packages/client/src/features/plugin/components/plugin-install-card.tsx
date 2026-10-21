@@ -271,7 +271,7 @@ export function PluginInstallCard(): ReactElement {
       git: (url, expectedCommit) => installFromGit.mutateAsync({ url, expectedCommit, grant }),
       url: (url, expectedBundleHash) => installFromUrl.mutateAsync({ url, expectedBundleHash, grant }),
     });
-    // @orb-waive caught-failure-ownership(settled): `settled` is one of useInstallPlugin or useInstallPluginFromUrl
+    // `settled` is one of useInstallPlugin or useInstallPluginFromUrl
     // (lib/plugin-mutations.ts) or useInstallPluginFromGit (lib/plugin-distribution-mutations.ts), each with an errorToast;
     // the dialog stays open for retry. Ends if any of them drops its errorToast.
     settled.then(onDone, () => undefined);

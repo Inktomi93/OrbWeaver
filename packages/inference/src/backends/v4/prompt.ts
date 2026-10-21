@@ -66,7 +66,7 @@ function mediaOf(content: readonly ChatContentPart[]): OutboundMedia[] {
 function toolInput(raw: string): unknown {
   try {
     return JSON.parse(raw);
-    // @orb-waive caught-failure-ownership(catch): malformed model-emitted arguments are replayed as the raw string in the tool-call `input` (`toolCallPart`), so the model's bytes reach the wire instead of the call being dropped; the v4 prompt test pins that arm. Ends if raw stops being sent.
+    // malformed model-emitted arguments are replayed as the raw string in the tool-call `input` (`toolCallPart`), so the model's bytes reach the wire instead of the call being dropped; the v4 prompt test pins that arm. Ends if raw stops being sent.
   } catch {
     return raw;
   }

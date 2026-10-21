@@ -90,7 +90,7 @@ function stringList(value: unknown): string[] {
 }
 
 async function readGroupShape(file: File, readText: (file: File) => Promise<string>): Promise<GroupShape> {
-  // @orb-waive caught-failure-ownership(catch): the group definition is still packed and sent (`planTreeImport`'s `packer.add`), and the server parse
+  // the group definition is still packed and sent (`planTreeImport`'s `packer.add`), and the server parse
   // (`collectGroups` in loader/collect.ts) lists it in `unreadableGroups`, which the import report prints. Ends if the server stops reporting unreadable groups.
   try {
     const raw: unknown = JSON.parse(await readText(file));

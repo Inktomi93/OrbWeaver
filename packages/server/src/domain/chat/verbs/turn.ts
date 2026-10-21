@@ -348,7 +348,7 @@ function joinedCandidateName(speakerCandidates: readonly SpeakerCandidate[]): st
 
 /** The last-assistant speaker (ban-last seed) + the trailing canon rows the `smart` arbiter reads. */
 async function canonFacts(ctx: ChatContext, chatId: ChatId): Promise<{ lastSpeaker: SpeakerRef | null; recentRows: readonly MessageView[] }> {
-  // @orb-waive chat-viewer-plane-canon-reads(loadCanonHistory): turn assembly for `send` — the prompt is the ROOM's. A turn is one shared utterance broadcast to every member, so per-reader assembly is incoherent; the reply's BYTES reach each member through the clamped bus/read paths.
+  // turn assembly for `send` — the prompt is the ROOM's. A turn is one shared utterance broadcast to every member, so per-reader assembly is incoherent; the reply's BYTES reach each member through the clamped bus/read paths.
   const canon = await loadCanonHistory(ctx.db, chatId);
   return {
     lastSpeaker: lastSpeakerRef(canon.findLast((m) => m.role === "assistant")),
@@ -1438,7 +1438,7 @@ function isAutoSwipeRejected(content: string, cfg: ChatBehaviorInputs["autoSwipe
 /** Runs ONE auto-behavior follow-up (swipe/continue) and returns its committed tip, or null on any failure —
  *  non-fatal, mirroring neo: the already-committed reply stands and the loop stops. */
 async function runAutoFollowUp(run: () => Promise<TurnOutcome>): Promise<MessageView | null> {
-  // @orb-waive caught-failure-ownership(catch): documented above — non-fatal, mirrors neo: the
+  // documented above — non-fatal, mirrors neo: the
   // already-committed reply stands and the loop stops; the `null` is the consumed result the caller checks.
   // Ends if a follow-up failure needs to surface to the turn's own caller.
   try {
@@ -1671,7 +1671,7 @@ async function commitUserTurn(
   // Keep this existence check in the same selected-canon domain as loadCanonHistory, but do not materialize
   // the transcript for established rooms; only the first-user branch needs greeting rows to freeze.
   const isFirstUserTurn = !(await loadHasSelectedCanonUserMessage(ctx.db, chatId));
-  // @orb-waive chat-viewer-plane-canon-reads(loadCanonHistory): the first-user-turn greeting-freeze probe, reached by BOTH `send` and the D56 post-without-generate `commitMessage`, which shares `send`'s COMMIT half (`commitUserTurn`). Its product is a BOOLEAN (`isFirstUserTurn`) + a server-side greeting-volatile freeze — NO canon bytes flow to the caller (it returns only the just-committed user row, §3.6-projected); the prompt is the ROOM's.
+  // the first-user-turn greeting-freeze probe, reached by BOTH `send` and the D56 post-without-generate `commitMessage`, which shares `send`'s COMMIT half (`commitUserTurn`). Its product is a BOOLEAN (`isFirstUserTurn`) + a server-side greeting-volatile freeze — NO canon bytes flow to the caller (it returns only the just-committed user row, §3.6-projected); the prompt is the ROOM's.
   const priorCanon = isFirstUserTurn ? await loadCanonHistory(ctx.db, chatId) : [];
 
   const body = composeBodyWithAttachments(sendOut.sendUserText ?? content, attachments);
@@ -2460,7 +2460,7 @@ function createImpersonateStream(ctx: ChatContext, deps: TurnDeps): ChatService[
         // The consumer walked away mid-draft (a `break`, a closed subscription, a thrown yield). Cancel the
         // generation it abandoned — nothing else will.
         cancellation.abort();
-        // @orb-waive caught-failure-ownership(run): the fault has NOWHERE to go — this generator
+        // the fault has NOWHERE to go — this generator
         // is being finalized, so `await run` below is unreachable and the consumer that would have received a
         // throw is gone. The run is cancelled above and its settlement is logged rather than dropped silently.
         // Ends if a cancelled draft gains a surface (a bus warning) that could carry the fault instead.
@@ -2759,7 +2759,7 @@ async function drainOne(
   if (claimed === undefined) {
     return "skipped"; // a concurrent drain already claimed this row.
   }
-  // @orb-waive caught-failure-ownership(err): both arms report: the permanent verdict (`ChatNotFoundError` only,
+  // both arms report: the permanent verdict (`ChatNotFoundError` only,
   // `isDrainVerdictDrop`) notifies the member via `notifyDeferredTurnDropped` and logs at info; every other
   // error re-inserts the row and `getLog().warn`s it with `err`. Ends if a third fault class needs its own handling.
   try {

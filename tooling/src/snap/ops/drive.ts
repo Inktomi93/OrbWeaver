@@ -35,14 +35,14 @@ const NOT_FOUND_FAILURE_KIND = "not-found";
  *  `useAuthConfig` (`data/auth-config.ts`), so a settled app has read something. `__orb` is dev-only — a
  *  build without the bridge answers `null` and we make no claim rather than a false one. */
 async function everReadAnything(page: Page): Promise<boolean | null> {
-  // @orb-waive caught-failure-ownership(page.evaluate): probe-whose-failure-is-its-return-value — a build without the __orb bridge, or a probe that throws, returns null and the caller "makes no claim rather than a false one" (doc comment above). Ends if a caller starts trusting null as a positive settle.
+  // probe-whose-failure-is-its-return-value — a build without the __orb bridge, or a probe that throws, returns null and the caller "makes no claim rather than a false one" (doc comment above). Ends if a caller starts trusting null as a positive settle.
   const count = await page.evaluate("window.__orb ? window.__orb.queries().length : null").catch(() => null);
   return typeof count === "number" ? count > 0 : null;
 }
 
 async function appReadiness(page: Page, timeoutMs: number): Promise<AppReadiness> {
   const flag = page.locator("html[data-app-ready]");
-  // @orb-waive caught-failure-ownership(waitFor): a failed wait converts to attached=false and appReadiness returns absent; navigate maps absent to UNSETTLED_REASON and returns it as navError, which capture.ts stores in outcome.navError for verdict.ts and report.ts. Ends if absent stops mapping to a navError.
+  // a failed wait converts to attached=false and appReadiness returns absent; navigate maps absent to UNSETTLED_REASON and returns it as navError, which capture.ts stores in outcome.navError for verdict.ts and report.ts. Ends if absent stops mapping to a navError.
   const attached = await flag
     .waitFor({ state: "attached", timeout: timeoutMs })
     .then(() => true)
@@ -55,7 +55,7 @@ async function appReadiness(page: Page, timeoutMs: number): Promise<AppReadiness
   // that never got a read — the exact shape `dataless` exists to catch, but this is the app correctly
   // saying "there is nothing here", not a boot placeholder. Checked BEFORE degraded/dataless so neither
   // arm ever mislabels it.
-  // @orb-waive caught-failure-ownership(page.evaluate): probe-whose-failure-is-its-return-value — a build without the __orb-free declare, or a probe that throws, reads null and falls through to the ordinary ladder below. Ends if a caller starts trusting null as "not not-found".
+  // probe-whose-failure-is-its-return-value — a build without the __orb-free declare, or a probe that throws, reads null and falls through to the ordinary ladder below. Ends if a caller starts trusting null as "not not-found".
   const failureKind = await page.evaluate(READ_FAILURE_SURFACE_JS).catch(() => null);
   if (failureKind === NOT_FOUND_FAILURE_KIND) {
     return "notFound";
@@ -192,7 +192,7 @@ export async function settlePage(page: Page, opts: Args): Promise<void> {
   if (opts.idle) {
     // Wait for the network to go quiet (bounded) — a real settle for routes whose
     // content lands via deferred queries, instead of guessing a timeout.
-    // @orb-waive caught-failure-ownership(page.waitForLoadState): bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.
+    // bounded best-effort settle — a chatty stream must never block the shot, per the trailing comment. Ends if the timeout bound is removed.
     // biome-ignore lint/nursery/noPlaywrightNetworkidle: explicit opt-in (--idle) with a hard bound — settling on network-quiet IS the flag's contract.
     await page.waitForLoadState("networkidle", { timeout: NETWORKIDLE_TIMEOUT_MS }).catch(() => {
       /* bounded — a chatty stream must never block the shot */

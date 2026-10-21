@@ -213,7 +213,7 @@ async function proveSelectors(page: Page, findings: readonly Finding[]): Promise
   const distinct = askable.slice(0, designAuditSelectorProofCap());
   const proofs: SelectorProof[] = [];
   for (const selector of distinct) {
-    // @orb-waive caught-failure-ownership(catch): a selector the browser refuses to count is stored as matches -1; design-audit-problems.ts and design-audit-report.ts print it as unparseable and count every proof with matches !== 1 as ambiguous. Ends if -1 stops counting as not proven.
+    // a selector the browser refuses to count is stored as matches -1; design-audit-problems.ts and design-audit-report.ts print it as unparseable and count every proof with matches !== 1 as ambiguous. Ends if -1 stops counting as not proven.
     try {
       proofs.push({ selector, matches: await page.locator(selector).count() });
     } catch {
@@ -224,7 +224,7 @@ async function proveSelectors(page: Page, findings: readonly Finding[]): Promise
 }
 
 async function readSamples(page: Page): Promise<{ readonly samples: RawSamples; readonly population: DomPopulation } | { readonly walkError: string }> {
-  // @orb-waive caught-failure-ownership(error): the walk failure is returned as walkError; walkDesignAudit turns it into a terminalMeasurement carrying walkFailureGap, and arms/design-audit.ts exit returns EXIT.toolError for any terminalGap. Ends if walkError stops reaching terminalMeasurement.
+  // the walk failure is returned as walkError; walkDesignAudit turns it into a terminalMeasurement carrying walkFailureGap, and arms/design-audit.ts exit returns EXIT.toolError for any terminalGap. Ends if walkError stops reaching terminalMeasurement.
   try {
     const samples = rawSamples(await page.evaluate(COLLECT_SAMPLES_JS));
     const accounting = samples.subjectAccounting;

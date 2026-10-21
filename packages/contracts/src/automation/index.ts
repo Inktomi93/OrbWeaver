@@ -910,7 +910,6 @@ export interface RewriteCardDetail {
   readonly before: string;
   readonly after: string;
 }
-// @orb-waive no-vanity-alias(SuggestionCardDetail): baselined when the gate widened; burn-down item 906.
 export type SuggestionCardDetail = RewriteCardDetail;
 
 export type AutomationBusEvent =

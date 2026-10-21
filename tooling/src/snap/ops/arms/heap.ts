@@ -116,7 +116,7 @@ function rawMetadata(receipt: HeapSnapshotReceipt): InstrumentArtifactMetadata {
 
 async function registerPartialRaw(path: string, ctx: ArmPageContext, label: string, detail: string): Promise<void> {
   let bytes: number | null = null;
-  // @orb-waive caught-failure-ownership(catch): a missing file means the capture failed before writing; captureOne rethrows the primary capture error right after this call. Ends if captureOne stops rethrowing.
+  // a missing file means the capture failed before writing; captureOne rethrows the primary capture error right after this call. Ends if captureOne stops rethrowing.
   try {
     bytes = await heapRawFileBytes(path);
   } catch {
@@ -270,7 +270,7 @@ async function runHeapPage(ctx: ArmPageContext): Promise<void> {
   const state = contextState(ctx.page.context());
   const base = artifactKey(ctx.plan.out);
   for (const capture of request.captures) {
-    // @orb-waive caught-failure-ownership(error): the capture failure enters `errors`, which runHeapPage prints as HEAP REFUSED. Ends if that print loop stops reading errors.
+    // the capture failure enters `errors`, which runHeapPage prints as HEAP REFUSED. Ends if that print loop stops reading errors.
     try {
       snapshots.push(await captureOne(ctx, state, capture, base));
     } catch (error) {
@@ -278,7 +278,7 @@ async function runHeapPage(ctx: ArmPageContext): Promise<void> {
     }
   }
   for (const [index, comparison] of request.comparisons.entries()) {
-    // @orb-waive caught-failure-ownership(error): the comparison failure enters `errors`, which lands on ctx.outcome.heap and publishes heap=REFUSED in pairs(). Ends if pairs() stops counting row.errors.
+    // the comparison failure enters `errors`, which lands on ctx.outcome.heap and publishes heap=REFUSED in pairs(). Ends if pairs() stops counting row.errors.
     try {
       comparisons.push(await compareOne(state, comparison, base, index));
     } catch (error) {
@@ -286,7 +286,7 @@ async function runHeapPage(ctx: ArmPageContext): Promise<void> {
     }
   }
   for (const [index, retainer] of request.retainers.entries()) {
-    // @orb-waive caught-failure-ownership(error): the retainer failure enters `errors`, which lands on ctx.outcome.heap and forces EXIT.toolError in exit(). Ends if exit() stops reading row.errors.
+    // the retainer failure enters `errors`, which lands on ctx.outcome.heap and forces EXIT.toolError in exit(). Ends if exit() stops reading row.errors.
     try {
       retainers.push(await retainOne(state, retainer, base, index));
     } catch (error) {
@@ -317,7 +317,7 @@ export const HEAP_ARM = {
       group: "Measure",
       summary: "force GC and capture the settled page's V8 heap plus parsed sidecar",
       handler: (args, rest, page): void => {
-        // @orb-waive caught-failure-ownership(error): the grammar detail enters Args.errors; printCliPreamble in snap/cli.ts checks opts.errors.length before any browser work. Ends if printCliPreamble stops refusing on opts.errors.
+        // the grammar detail enters Args.errors; printCliPreamble in snap/cli.ts checks opts.errors.length before any browser work. Ends if printCliPreamble stops refusing on opts.errors.
         try {
           args.heapCaptures.push(parseHeapCapture(rest.shift() ?? "", page));
         } catch (error) {
@@ -332,7 +332,7 @@ export const HEAP_ARM = {
       group: "Measure",
       summary: "left=right — growth/detached findings between two heap labels or snapshot paths (diagnostic, never a budget gate)",
       handler: (args, rest, page): void => {
-        // @orb-waive caught-failure-ownership(error): the grammar detail enters Args.errors; printCliPreamble in snap/cli.ts prints each as ARG ERROR. Ends if printCliPreamble stops printing opts.errors.
+        // the grammar detail enters Args.errors; printCliPreamble in snap/cli.ts prints each as ARG ERROR. Ends if printCliPreamble stops printing opts.errors.
         try {
           args.heapComparisons.push(parseHeapComparison(rest.shift() ?? "", page));
         } catch (error) {
@@ -347,7 +347,7 @@ export const HEAP_ARM = {
       group: "Measure",
       summary: "snapshot=selector — retaining paths, dominators and outgoing edges for a snapshot node",
       handler: (args, rest, page): void => {
-        // @orb-waive caught-failure-ownership(error): the grammar detail enters Args.errors; printCliPreamble in snap/cli.ts exits EXIT.misuse on a non-empty opts.errors. Ends if printCliPreamble stops returning EXIT.misuse.
+        // the grammar detail enters Args.errors; printCliPreamble in snap/cli.ts exits EXIT.misuse on a non-empty opts.errors. Ends if printCliPreamble stops returning EXIT.misuse.
         try {
           args.heapRetainers.push(parseHeapRetainer(rest.shift() ?? "", page));
         } catch (error) {

@@ -22,7 +22,6 @@ import type { BackgroundWork } from "#infra/tasks";
 
 const LOG_COMPONENT = "oidc-gc-scheduler";
 
-// @orb-waive no-vanity-alias(OIDC_GC_INTERVAL_MS): baselined when the gate widened; burn-down item 906.
 /** Sweep cadence. PKCE transactions are short-lived (10-min TTL); an hourly reap is generous — an abandoned row
  *  is at most ~1h past its (already-rejected) expiry before it is deleted, which only bounds table growth. */
 const OIDC_GC_INTERVAL_MS = MS_PER_HOUR;

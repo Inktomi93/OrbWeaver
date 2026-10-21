@@ -168,7 +168,7 @@ async function providerActivationError(
   try {
     await providerLifecycle.activate(rows, { pluginId, pluginName });
     return null;
-    // @orb-waive caught-failure-ownership(err): the error string is owned by the sole caller at activate.ts:285, where a non-null result goes to `activationFailed` (activate.ts:197), which logs it through `logPluginFailure`, persists it as `plugins.lastError` and returns `{ok:false,error}`. Ends if that caller stops logging and recording a non-null result.
+    // the error string is owned by the sole caller at activate.ts:285, where a non-null result goes to `activationFailed` (activate.ts:197), which logs it through `logPluginFailure`, persists it as `plugins.lastError` and returns `{ok:false,error}`. Ends if that caller stops logging and recording a non-null result.
   } catch (err) {
     return errorMessage(err);
   }

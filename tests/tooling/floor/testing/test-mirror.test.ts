@@ -25,7 +25,7 @@ test("a TSX source only derives registry kinds that declare TSX source compatibi
 });
 
 test("a tooling source derives against the tests/tooling mirror", () => {
-  expect(mirrorCandidates("tooling/src/mutation-probe/lib/offsets.ts")).toContain("tests/tooling/mutation-probe/lib/offsets.test.ts");
+  expect(mirrorCandidates("tooling/src/floor/testing/test-mirror.ts")).toContain("tests/tooling/floor/testing/test-mirror.test.ts");
 });
 
 test("a path outside either mirrored tree yields NO candidates rather than a guess", () => {

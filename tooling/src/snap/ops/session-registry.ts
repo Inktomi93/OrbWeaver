@@ -131,7 +131,7 @@ function reservationNames(home: string): readonly string[] {
     return [];
   }
   return readdirSync(dir).filter((name) => {
-    // @orb-waive caught-failure-ownership(catch): an unreadable reservation cannot hold capacity; the lock owner removes that exact file below before returning false. Ends if malformed reservations must block acquisition instead of being reclaimed.
+    // an unreadable reservation cannot hold capacity; the lock owner removes that exact file below before returning false. Ends if malformed reservations must block acquisition instead of being reclaimed.
     try {
       const reservation = bootReservation(JSON.parse(readFileSync(reservationPath(home, name), "utf8")));
       if (reservation?.name === name && pidAlive(reservation.pid)) {

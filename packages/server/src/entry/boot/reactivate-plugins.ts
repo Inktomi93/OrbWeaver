@@ -66,7 +66,7 @@ async function restoreOne(
     const principal = principals.getOrInsertComputed(row.ownerId, () => deps.resolvePrincipal(row.ownerId));
     await deps.setEnabled({ caller: await principal, pluginId: row.pluginId, enabled: true });
     return true;
-    // @orb-waive caught-failure-ownership(err): a refused activation (`PluginCrashedError`) was already logged by `activate` with its plugin and cause, and every other throw is logged in this catch; the `failed` count is the summary. Ends if `activate` stops logging a refusal.
+    // a refused activation (`PluginCrashedError`) was already logged by `activate` with its plugin and cause, and every other throw is logged in this catch; the `failed` count is the summary. Ends if `activate` stops logging a refusal.
   } catch (err: unknown) {
     // A refused activation (`PluginCrashedError`) was already logged by `activate` with its plugin and cause, and
     // the row is `errored`; anything else threw outside activation's own arms and is logged here, once.

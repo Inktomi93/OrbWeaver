@@ -133,7 +133,7 @@ async function readSelectedRequestBody(controller: NetworkController, record: Mu
     };
     return;
   }
-  // @orb-waive caught-failure-ownership(error): the catch stores unavailableReason on record.requestBody, which snap/lib/network-har.ts and har-redaction.ts (omittedBody) write as a HAR omission. Ends if the reason stops reaching omittedBody.
+  // the catch stores unavailableReason on record.requestBody, which snap/lib/network-har.ts and har-redaction.ts (omittedBody) write as a HAR omission. Ends if the reason stops reaching omittedBody.
   try {
     const result = await boundedBodyRead(controller.cdp.send("Network.getRequestPostData", { requestId: record.requestId }), controller.bodyReadTimeoutMs);
     record.requestBody = {
@@ -159,7 +159,7 @@ async function readSelectedResponseBody(controller: NetworkController, record: M
     record.responseBody = { text: null, base64Encoded: false, unavailableReason: "body-too-large", truncatedAt: MAX_BODY_BYTES };
     return;
   }
-  // @orb-waive caught-failure-ownership(error): the catch stores timeout/evicted/failed on record.responseBody.unavailableReason, which snap/lib/network-har.ts and har-redaction.ts (omittedBody) write as a HAR omission. Ends if the reason stops reaching omittedBody.
+  // the catch stores timeout/evicted/failed on record.responseBody.unavailableReason, which snap/lib/network-har.ts and har-redaction.ts (omittedBody) write as a HAR omission. Ends if the reason stops reaching omittedBody.
   try {
     const result = await boundedBodyRead(controller.cdp.send("Network.getResponseBody", { requestId: record.requestId }), controller.bodyReadTimeoutMs);
     record.responseBody = {
@@ -211,7 +211,7 @@ function queueBodyRead(controller: NetworkController, record: MutableNetworkReco
     after?.();
     controller.completed.trim();
   };
-  // @orb-waive caught-failure-ownership(pending): the same promise sits in controller.pending and networkRecordsForPages awaits it with Promise.all, so a rejection reaches that caller; this continuation only releases retention state. Ends if pending stops being awaited there.
+  // the same promise sits in controller.pending and networkRecordsForPages awaits it with Promise.all, so a rejection reaches that caller; this continuation only releases retention state. Ends if pending stops being awaited there.
   void pending.then(finish, finish);
 }
 

@@ -8,7 +8,7 @@ updated: 2026-10-21
 
 ## Goal
 
-Rebuild the legacy test population through production composition, production-derived builders, the shared corpus and real client mounting. Preserve meaningful regression cases and delete copied legacy assemblies when qualified replacements land.
+Rebuild meaningful legacy cases through production composition, production-derived builders, the shared corpus and real client mounting. Delete copied assemblies when qualified replacements land.
 
 ## Shape
 
@@ -20,11 +20,11 @@ This plan owns the test rebuild and its execution order. The [test-mirror invent
 
 The program covers testkit, production-root test composition, builders, corpus data, the client mounting door and replacement suites. Change production only when a selected replacement exposes a real defect or needs a genuine composition seam.
 
-Semantic engines, fact stores, AST and codemod development, compiler experiments, checker migrations, checker recertification, global lint/export cleanup and performance projects are outside this plan. Their unfinished work is parked independently and is not a prerequisite for this rebuild.
+The sibling source at /home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21 is reference-only. It is not part of this repository's tests, typecheck or CI.
 
-Testkit support and runner configuration needed to execute a concrete replacement remain in scope. Add only machinery required by that case. Report unrelated tooling failures separately instead of expanding their implementation or qualification here.
+Testkit support and runner configuration needed to execute a concrete replacement remain in scope. Add only machinery required by that case.
 
-Use existing repository checks for changed behavior. Parking tooling work does not remove production rules or authorize new suppressions.
+Use existing repository checks for changed behavior. Keep unrelated failures separate from replacement work.
 
 ### Execution sequence
 
@@ -36,13 +36,13 @@ Use existing repository checks for changed behavior. Parking tooling work does n
 | Corpus flows | Complete corpus-backed e2e smoke across the required authentication, provider and viewport modes. | The actual wires and user-visible results pass without private owner data in artifacts. |
 | Replacement suites | Rebuild server domains, component CTs and remaining cases in substantial related batches. | Meaningful cases survive, a production defect control fails, and the replaced legacy assembly is deleted. |
 
-Independent replacement batches may run in parallel once their actual harness dependencies are available. Do not wait for parked analyzer or checker projects.
+Start a replacement batch when its actual harness dependencies are available.
 
 ### Current foundation
 
 The production server graph, world-split testkit, builders, corpus and client mounting door already exist. Their existence does not complete replacement coverage or runtime qualification.
 
-Use these foundations rather than rebuilding their tooling. Qualify remaining corpus and support lifetimes through actual maintained cases. Keep source delivery, passing runtime cases and unqualified acceptance distinct.
+Use these foundations for the remaining cases. Qualify corpus and support lifetimes through maintained cases. Keep source delivery, passing runtime cases and unqualified acceptance distinct.
 
 ### Rules
 
@@ -50,11 +50,10 @@ Use these foundations rather than rebuilding their tooling. Qualify remaining co
 - Keep business decisions in their production domains; testkit supplies composition machinery and external-edge adapters, not copied rules.
 - Derive inputs and response shapes from production contracts, builders or the corpus.
 - Inject business clocks, IDs, randomness and timers through composition. Keep native protocol and physical timing under [Spine-Testing section 3](../../law/Spine-Testing.md#3-determinism--mock-doctrine).
-- Preserve meaningful legacy regression execution until the replacement carries its cases.
 - Retire legacy-only support with its replacement rather than making it a new foundation dependency.
 - Add no production export or testkit door solely to keep a legacy harness compiling.
 - Stop fake-heavy legacy fixture retrofits; rebuild the cases in their correct layer.
-- Keep unrelated architecture, export and checker cleanup outside the replacement assignment.
+- Keep unrelated architecture and export cleanup outside the replacement assignment.
 
 ### Each layer answers one question
 
@@ -105,19 +104,19 @@ Qualify query teardown, document and notification bindings, nested mounts, sessi
 
 Follow D318 and the existing public package doors. Rebuilt tests use production entries and testkit world subpaths.
 
-Delete test-only production hooks and legacy-only helper exports with the cases that replace them. This is local replacement work, not a global export census or a new lint project.
+Delete test-only production hooks and legacy-only helper exports with the cases that replace them.
 
-Keep the existing legacy CI and native typecheck obligations under D320. Legacy extraction, analyzer expansion and checker qualification are not migration phases.
+Use the sibling legacy source only to identify cases. It is not part of this repository's tests, typecheck or CI.
 
 ### Completion and verification
 
 A batch completes when its replacement preserves meaningful cases, exercises the real entry, qualifies its defect controls and removes the replaced assembly. Match evidence to the actual source, selected population and runtime.
 
-Use D317 and the orchestrator/lane completion policy for existing verification. A timeout or tool failure supplies no behavioral verdict. Record unrelated limitations without silently restarting parked tooling work.
+Use D317 and the orchestrator/lane completion policy for existing verification. A timeout or tool failure supplies no behavioral verdict. Record unrelated limitations separately.
 
 ## Rejected
 
-Copied production assemblies, fake-heavy legacy retrofits, test-only production doors, and unrelated architecture or tooling campaigns as prerequisites. Moving tests out of the repository also discards the regression net needed during replacement.
+Copied production assemblies, fake-heavy legacy retrofits, test-only production doors, and unrelated architecture campaigns as prerequisites.
 
 ## Coupled sites
 

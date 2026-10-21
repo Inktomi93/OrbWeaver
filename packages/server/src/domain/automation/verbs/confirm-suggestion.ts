@@ -150,7 +150,7 @@ async function runAnalysisAct(ctx: AutomationContext, pending: PendingSuggestion
   const nowMs = ctx.now();
   let outcome: AutomationRunOutcome;
   let error: string | null = null;
-  // @orb-waive caught-failure-ownership(err): the owner is the fire row written below: `error` carries the caught
+  // the owner is the fire row written below: `error` carries the caught
   // message into `insertFireWithRuleStamp`'s `detail.error`, and `ctx.notify` raises `ruleErrored` for the
   // `action_error` outcome the verb returns. Ends if the `error` detail or the `ruleErrored` notify is dropped.
   try {

@@ -151,7 +151,7 @@ async function shootWithRetry(
   clip: Clip,
 ): Promise<{ readonly ok: true; readonly buffer: Buffer } | { readonly ok: false; readonly reason: string }> {
   for (let attempt = 1; attempt <= SHOT_ATTEMPTS; attempt += 1) {
-    // @orb-waive caught-failure-ownership(error): a mid-retry attempt is replaced by the next attempt; the last attempt returns { ok: false, reason } from this catch, readEdge maps it to capture-failed and measureEdgeContrast returns failed: true with status instrument-error. Ends if the last attempt stops returning ok: false.
+    // a mid-retry attempt is replaced by the next attempt; the last attempt returns { ok: false, reason } from this catch, readEdge maps it to capture-failed and measureEdgeContrast returns failed: true with status instrument-error. Ends if the last attempt stops returning ok: false.
     try {
       return { ok: true, buffer: await page.screenshot({ clip, animations: "disabled" }) };
     } catch (error) {

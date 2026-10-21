@@ -251,7 +251,7 @@ function parseLsofCwd(output: string): string | null {
 function win32Processes(deps: PlatformDeps, filter: string | null): readonly ProcessEntry[] {
   const query = filter === null ? "Get-CimInstance Win32_Process" : `Get-CimInstance Win32_Process -Filter "${filter}"`;
   const output = stdoutOf(runOf(deps)(POWERSHELL, [...POWERSHELL_FLAGS, `${query} | Select-Object ${CIM_FIELDS} | ConvertTo-Json -Compress`]));
-  // @orb-waive caught-failure-ownership(catch): PowerShell output that is not the JSON asked for is "nothing observed" to every caller, and nothing observed signals nothing. Ends if an empty list ever reads as a verdict.
+  // PowerShell output that is not the JSON asked for is "nothing observed" to every caller, and nothing observed signals nothing. Ends if an empty list ever reads as a verdict.
   try {
     return parseCimProcesses(output);
   } catch {

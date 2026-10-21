@@ -7,9 +7,7 @@ updated: 2026-10-17
 # Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)
 
 Every line box the app produces must be a whole CSS pixel at every font scale, on every device and
-orientation. This document defines the type and leading scale that makes line boxes integer (Law 1),
-the `integer-line-boxes` gate that enforces it, and three related rules on transforms and promoted
-layers (Laws 2-4, §9-§12).
+orientation. This document defines the type and leading scale for integer line boxes (Law 1) and three related visual rules for transforms and promoted layers (Laws 2-4, §9-§12). D333 ends custom static enforcement and proof-marker requirements.
 
 ## 1. Integer line boxes
 
@@ -39,7 +37,7 @@ Every multiplier that touches a line box, re-derived from the tree:
    0.8–1.6) — chat reading surface only (`packages/client/src/styles/globals.css:527`
    `line-height: var(--reading-line-height)` on message prose). A user-authored continuous
    multiplier on a user-editable surface is a declared residual (Law 4's honest limit), carried as
-   a typed exemption in the gate (§11). Guarding the reading surface is a separate client-globals
+   a declared product exception (§11). Guarding the reading surface is a separate client-globals
    change.
 5. The 16px rem root. Browser zoom and DPR are Law 4's territory (§11).
 
@@ -162,9 +160,7 @@ its CURRENT resolved value:
    current 1.55).
 3. **Bare `text-*` with no leading class** (boxes currently decided by preflight's inherited 1.5 →
    19.5/22.5px, fractional TODAY): each gains its voice's leading
-   (`leading-body`/`leading-label`/`leading-label-relaxed`). SVG text classes (`charts/meter`
-   ×3) take a reasoned `@orb-gate-ignore` (line-height is inert in SVG); the markdown
-   nested-selector inline-code site keeps parent-box semantics with a reasoned marker.
+   (`leading-body`/`leading-label`/`leading-label-relaxed`). SVG text classes (`charts/meter`) do not use line-height; the markdown nested-selector inline-code site keeps parent-box semantics.
 
 `tailwind-merge` must learn the two new leading members (`packages/ui/src/lib/class-merge.ts`
 `CUSTOM_CLASS_GROUPS.leading`) or a voice override keeps BOTH classes and the winner is stylesheet
@@ -191,53 +187,9 @@ order (that file's own warning).
   sites, never a hand-list); the pairing census and the blindness check already achieve
   two-sidedness, and the ramp floor derives from the tokens directly (§6). Rejected as decoration.
 
-## 5. Part B — the `integer-line-boxes` gate
+## 5. Current enforcement
 
-**Legacy design record.** The descriptor fields and coupled sites below record the original gate
-design; current gate-policy authoring follows `tooling/src/verify/gates/GATE-AUTHORING.md`. A
-conversion of this descriptor must preserve its four checks and their evidence while replacing the
-archived legacy mechanisms.
-
-`tooling/src/verify/gates/integer-line-boxes.ts` (scaffold `pnpm gate:new`), `scopeSafety:
-"whole-project"`, `fsBacked: true` (reads `tokens.json` + the CSS homes off disk), a `run` check
-over the shared project, and a descriptor carrying ≥1 `mustFlag`/`mustPass` per check (fractional
-token fixture, unpaired text fixture, banned-vocab fixture, marker-honoured pass, SVG-marker pass).
-Four checks:
-
-- **Token arithmetic:** parse `packages/ui/src/tokens/tokens.json`; every `leading.*`
-  except `none` must be a dimension carrying `orb.output: snapped` whose resolved px at the 16px
-  root is an integer; `leading.none` must be exactly the number 1. A fractional authored leading is
-  RED at `pnpm check`.
-- **Pairing census:** ride the neutral static-class walker
-  (`tooling/src/verify/lib/static-class-expression.ts`, the `css-length-tokens` consumption
-  pattern) over `packages/ui/src` + `packages/client/src`. Per resolved candidate, after top-level
-  variant-prefix stripping: (a) any leading utility outside the token vocabulary — Tailwind's
-  unitless `leading-(none…loose)` core scale (except our own `leading-none`), numeric
-  `leading-<n>`, arbitrary `leading-[…]` — is RED; (b) a candidate naming a `text-<step>` with no
-  `leading-<step>` is RED (an inheritance-decided box is a latent fraction) — escapes via the
-  shared `@orb-gate-ignore` marker with reason (SVG text, inline-in-prose); (c) each (text ×
-  leading) pair present must satisfy box ≥ font px (mispairing/clip guard), and `text-<step>` +
-  `leading-none` is RED unless the step resolves integer. Unresolved walker output fails loud
-  (the sibling's `unresolved:` pattern).
-- **CSS homes:** read every committed `.css` under `packages/ui/src` +
-  `packages/client/src` (glob-derived, no hand-list): a `line-height:` declaration must resolve to
-  the leading vocabulary (`var(--leading-*)` / the tiers.css `--orb-tier-*-leading` indirection,
-  which itself must alias `var(--leading-*)`); a `--leading-*:` definition outside generated
-  theme.css is RED. Typed exemption row (why + stale check): the reading-surface rule
-  (`packages/client/src/styles/globals.css` `var(--reading-line-height)`) — the §2 declared
-  exemption.
-- **Blindness:** zero walker roots, zero CSS files, or zero leading tokens → RED
-  (real-tree anchor `packages/ui/src/lib/class-merge.ts`, outside every conformance example's
-  path); plus a distinct-pairing floor (found pairings below the known population → RED "census
-  blind, not clean").
-
-The gate int test is `tests/tooling/verify/gates/integer-line-boxes.int.test.ts`, coupled to its
-`docs/law/Core-Enforcement-Active-Gates.md` row. Comment posture: the pairing check is AST-side
-(comment-safe via the walker); the CSS check routes CSS text through `blankCssComments`.
-Ratification: a planted real-tree violation REDs `pnpm check:structure`; the
-clean tree GREENs with a non-trivial scan denominator. Current final policies use the guide's
-declared proof, family and coordinated-production surfaces rather than the archived manual count
-and `writeFixtures()` route.
+D333 ends custom static line-box certification, whole-corpus checks and exemption markers. The visual rules remain product law; this document does not claim a custom checker enforces them.
 
 ## 6. Instrument coherence — ramp.ts stays derived
 
@@ -260,39 +212,13 @@ alone. `ramp.ts` sits outside this gate's own scope: this edit routes through th
 made by this lane, and it must land in the same era as the `snapped` leading tokens, or the
 tight-leading check goes blind.
 
-## 7. Test plan
+## 7. Current test source
 
-- **Red-first:** run the DPR-1 grid probe against the isolated stage (`--dirty`); target ≈ 0
-  off-grid text on the config list panel, plus a DPR-1 screenshot pair.
-- **Gate:** conformance fixtures (must-flag / must-pass), the `check-gates.int` fixture, a planted
-  real-tree violation that REDs then is removed.
-- **Freshness:** `pnpm --filter @orb/ui tokens:build` regenerated artifacts committed together;
-  `tests/legacy/ui/tokens` suite.
-- **Behavioral tier:** `tests/legacy/ui/density-tier.suite.ct.tsx` (computed-voice pins),
-  `tests/legacy/ui/lib/class-merge.test.ts` (new leading members), `touch-target-floor.suite.ct.tsx`,
-  plus every CT a literal grep finds for the changed values (16.25/20.15/23.25/13.125/21.6/16.4062/
-  1.55/1.35/`leading-tight`/`leading-body` across `tests/**`).
-- **Types:** `node scripts/ts7.cjs --noEmit -p tsconfig.json` and per-package `pnpm typecheck`
-  (the only program that sees `.ct.tsx`); scoped biome on touched files; `pnpm check:structure`.
-- **Design-audit baseline:** the config surface must not gain a design-audit finding. If a
-  `tight-leading` row shifts, report it with numbers (§6); never tune it away.
+Legacy rendered cases are in the external source at `/home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21/ui`. They are reference-only and do not run in this repository.
 
 ## 8. Scope
 
-1. **Files outside the named scope that the outcome forces** — ui variant re-pairs (every call
-   site the report names in `packages/ui/src`), `class-merge.ts` group extension,
-   `token-contract.ts` outputRole extension. Default: fix every file the report names; the §3c
-   sweep is unreachable without them.
-2. **ramp.ts** (§6) is a required companion edit, not an optional follow-up: the lane does not touch
-   it — it routes through the orchestrator and lands in the same era, or the tight-leading check
-   goes blind.
-3. **Adjacent work:** other in-flight changes may read surfaces this change moves. Coordinate
-   before landing.
-
-Memory lessons applied: `gate-authoring-hub`, `whole-project-arms-need-scope-self-guard`,
-`gate-authoring-three-new-traps`, `merge-floor-owes-the-literal-pinning-cts`,
-`tailwind-merge-custom-token-override`, `degraded-instrument-fixes-now`,
-`instruments-lie-verify-the-verifier`.
+D333 does not require rebuilding custom static enforcement or its certification framework.
 
 ## 9. Law 2 — rest-state transform identity
 
@@ -302,35 +228,7 @@ TRANSLATION that lands the box between device pixels offsets the same raster. A 
 MOTION — a state variant or a `@keyframes` stop — never to rest. Law 2 judges translate and scale
 only; a rotation is out of scope.
 
-**Gate vs. runtime.** `ops/walker/census-tier.ts` states the deciding question: not "is this value
-legal" (a source-side gate already proves the authored value is a token), but "did the resolved
-pixel match". Law 2 splits across that line:
-
-- **Authorship-provable → a gate.** `tooling/src/verify/gates/rest-transform-grid.ts`. A rest-state
-  `scale-*` other than `scale-100` is unprovable-by-construction: whatever the layout does, a
-  non-identity scale resamples. The native `orb/no-arbitrary-tw-values` restriction in
-  `eslint.config.js` recognizes arbitrary `translate(-x|-y|-z)?` utilities but not `scale`, so an
-  arbitrary `scale-[1.02]` needs this gate. The CSS check carries the same claim into stylesheets: a `transform`/`translate`/`scale`
-  declaration outside `@keyframes` whose value carries a fractional px length or a percentage is RED.
-- **Resolved-only → a runtime rule.** `off-grid-transform` in ui-audit. Whether a legal token
-  translate LANDS on the grid depends on the live root font-size (§2's continuous `--font-scale`
-  slider), the element's own box, and the DPR — none of which authorship can see. A centred child's
-  offset — the halved difference between two guarded `--spacing-*` lengths (§2) — can still land on
-  a half pixel regardless of line boxes; full-grid alignment at those offsets is Law 2/3/4
-  territory.
-
-**What REST means.** A class token is rest when EVERY variant prefix is a non-state one (breakpoint,
-container query, polarity, media feature, pseudo-element, structural position). `hover:`, `active:`,
-`data-*:`, `group-*:`, `aria-*:`, `peer-*:`, `starting:`, and any unrecognised prefix are MOTION and
-are skipped. A missed state prefix costs coverage the blindness check still catches; a
-mis-classified state prefix would red legitimate motion (the live `active:scale-95` press idiom) —
-so the classification stays conservative in that direction.
-
-**Declared limits**, each a `mustPass` row: a fractional-px arbitrary TRANSLATE is already RED under
-`orb/no-arbitrary-tw-values`; a PERCENTAGE translate is a runtime fraction of the element's own box and
-is unprovable from a class string (the live `before:-translate-x-1/2` centring idiom); a
-`var()`/`calc()` indirection carries the token's own contract. All three land at resolved-pixel time
-on `off-grid-transform`.
+D333 ends custom static transform checks and their certification. The visual rule remains product law; runtime pixels depend on the element box, root font size and device pixel ratio.
 
 ## 10. Law 3 — promoted-layer grid alignment
 
@@ -366,19 +264,10 @@ slider's stops produce a non-integer root).
 | reason | disposition | why |
 | - | - | - |
 | no promoting ancestor | EXCLUDED `snapped` | the browser re-snaps that baseline every paint — a measurement proving INAPPLICABILITY, so the verdict survives |
-| inside the reading surface | EXCLUDED `readingSurface` | the typed mirror of the `integer-line-boxes` gate's CSS-check exemption row (§5) |
+| inside the reading surface | EXCLUDED `readingSurface` | the typed mirror of the product exception in §2 |
 | non-finite rect / unusable DPR | WITHHELD `unmeasurable` | the instrument could not judge — fails loud, never a clean pass |
 
-**The reading-surface exemption is MIRRORED, never re-decided.** The `integer-line-boxes` gate
-exempts `packages/client/src/styles/globals.css::var(--reading-line-height)`; that declaration sits
-on `[data-slot="message-bubble"]`, so the same user-owned continuous multiplier
-(`appearance.readingLineHeight` 1.2–2.2) decides every text landing inside the bubble.
-`tooling/src/ui-audit/lib/checks-grid.ts`'s `GRID_EXEMPTIONS` carries the selector, the `why` and the
-SAME end condition (it ends when the reading rule gains its own `round()` guard at the consuming
-declaration), and interpolates the selector into the walker so it is spelled exactly once across the
-Node verdict layer and the in-page census. **Two-sidedness at runtime is the ACCOUNTING:** the
-exclusion must be counted and printed, so an audit of a surface with bubbles and a zero
-`readingSurface` count is a visible instrument problem.
+D333 ends custom static waiver markers. The reading surface remains a product exception because its user-owned continuous multiplier intentionally permits fractional line boxes.
 
 **The DPR matrix.** Every fraction is normalized to DEVICE pixels IN THE PAGE
 (`value * devicePixelRatio - round(value * devicePixelRatio)`), which is what makes one Node-side
@@ -387,16 +276,6 @@ perfectly crisp one at DPR 2. `design-audit` has no `--dpr` flag and does not ad
 1 / 1.25 / 2 DPR values are taken by a scratch playwright probe that sets `deviceScaleFactor` per
 DPR value, and pinned permanently in `tests/tooling/ui-audit/lib/checks-grid.test.ts`.
 
-## 12. Laws 2–4 coupled sites
+## 12. Laws 2–4
 
-- Gate: `tooling/src/verify/gates/rest-transform-grid.ts` and its `Core-Enforcement-Active-Gates.md`
-  row. Current final-policy coupled sites and proof ownership follow
-  `tooling/src/verify/gates/GATE-AUTHORING.md` §§2 and 5.
-- Instrument: `tooling/src/ui-audit/ops/walker/census-grid.ts` (post-cohort, after `census-tier`) ·
-  `ops/walker.ts`'s composition · `ops/walker/returns.ts` · `contract/samples-grid.ts` ·
-  `contract/samples-populations.ts` (the `RelationalSamples` + accounting join) · `contract/rules.ts`
-  (three rule ids) · `lib/checks-grid.ts` · `lib/collect.ts` (the `rung-4` accounting,
-  `authoredDecisionKey`) ·
-  `lib/evidence.ts`'s `RELATIONAL_SAMPLE_FAMILIES` mapped-type record.
-- Proofs: `tests/tooling/ui-audit/lib/checks-grid.test.ts` (the
-  fires/silent rows for all three rules, plus the DPR matrix).
+D333 retires custom gate authoring and checker certification. The laws above state the product behavior; they do not claim blanket custom static enforcement.

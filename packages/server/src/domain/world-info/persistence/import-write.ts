@@ -153,7 +153,7 @@ async function loadOwnedBooksForDedup(db: Db, ownerId: UserId): Promise<DedupCan
     })
     .from(worldEntries)
     .where(inArray(worldEntries.worldBookId, bookIds));
-  // @orb-waive persistence-no-in-memory-state(Map): query-local grouping of candidate entries by book for the content-dedup planner (the DECISION lives in substrate/book-dedup). Ends if it outlives the call.
+  // query-local grouping of candidate entries by book for the content-dedup planner (the DECISION lives in substrate/book-dedup). Ends if it outlives the call.
   const byBook = new Map<WorldBookId, DedupLoreEntry[]>();
   for (const e of entries) {
     const list = byBook.get(e.worldBookId) ?? [];
@@ -183,7 +183,7 @@ async function listOwnedBookNames(db: Db, ownerId: UserId, except?: WorldBookId)
 }
 
 /** @throws {@link DomainNotFoundError} when the target character isn't the caller's. */
-// @orb-waive owner-scoped-writes(worldBooks): `existingBookId` is not caller input — it is the PRIMARY book attached to a character this function just proved the caller owns (`assertOwnedCharacter`), and every path that can create that attachment gates both ends (`attachToCharacter` loads the owned book, `linkCarriedBooks` and `copyCharacterBooks` both carry the owned-source `ownerId` gate). Ends the day an attach can land a book the character's owner does not own — then this re-import would edit a stranger's book in place.
+// `existingBookId` is not caller input — it is the PRIMARY book attached to a character this function just proved the caller owns (`assertOwnedCharacter`), and every path that can create that attachment gates both ends (`attachToCharacter` loads the owned book, `linkCarriedBooks` and `copyCharacterBooks` both carry the owned-source `ownerId` gate). Ends the day an attach can land a book the character's owner does not own — then this re-import would edit a stranger's book in place.
 export function createBulkImportLorebook(input: DbAssemblyInput<WorldInfoImportContext>): BulkImportLorebook {
   const ctx: WorldInfoImportContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, characterId, book }): Promise<BulkImportLorebookResult> => {
@@ -256,7 +256,7 @@ async function resolveLinkNames(
   names: readonly string[],
   landed: ReadonlyMap<string, WorldBookId>,
 ): Promise<ReadonlyMap<string, WorldBookId>> {
-  // @orb-waive persistence-no-in-memory-state(Map): query-local name resolution for one attach call. Ends if it outlives the call.
+  // query-local name resolution for one attach call. Ends if it outlives the call.
   const resolved = new Map<string, WorldBookId>();
   const landedIds = names.flatMap((name) => landed.get(name) ?? []);
   if (landedIds.length > 0) {

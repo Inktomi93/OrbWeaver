@@ -12,8 +12,8 @@ updated: 2026-10-16
 
 - **The drizzle schema** — every `sqliteTable`, one file per **producing** domain (`schema/<feature>.ts`) plus the reserved cross-cutting set (`users` · `audit` · `relations`; `custom-types/` is its own top-level dir, not a schema file — `agent-principals` is not a schema file; only dormant DDL in `users.ts`/`chat.ts` survives, per the D60 build-state rider). `schema/index.ts` is the source-of-truth barrel; `tests/db/schema/module-structure.suite.test.ts` enforces the domain split AND the re-export (a file missing from the barrel silently drops its tables from `typeof schema` and migrations).
 - **The DB row types** — `$inferSelect`/`$inferInsert` (the §7.4 DB-row home). The TypeID brand lives AT the column (`$type<CharacterId>()`), so rows come back branded with no `castId` at the row→view seam.
-- **The libSQL client + lifecycle** (`client/`) — `createDb(url, wrap?)`, the per-connection PRAGMA block, `runMigrations`, `assertReferentialIntegrity`, `backupBeforeMigrate` + the pinnable `pruneDbBackups` sweep, `forecastDevDbReset` (the chain-divergence tripwire `pnpm check` reads), `optimizeDb`, `preCloseHousekeeping`, and the `LibSqlWrap` injection seam (the OTel wrapper is passed IN from `foundation/observability` because `db` can't import `server`).
-- **The migrations** — `0000_baseline.sql` (today the chain's only entry: the D163 pre-launch squash folds forward migrations into a regenerated baseline) + every forward `000N` after it + `meta/` (the snapshot chain, committed, never gitignored, never hand-edited). The baseline was born with every ledger decision already applied — no cv-pin, no `chats.ownerId`, `content_hash` on all five vector tables (character_embeddings · image_embeddings · chat_digests · chat_segments · document_chunks).
+- **The libSQL client + lifecycle** (`client/`) — `createDb(url, wrap?)`, the per-connection PRAGMA block, `runMigrations`, `assertReferentialIntegrity`, `backupBeforeMigrate` + the pinnable `pruneDbBackups` sweep, `optimizeDb`, `preCloseHousekeeping`, and the `LibSqlWrap` injection seam (the OTel wrapper is passed IN from `foundation/observability` because `db` can't import `server`).
+- **The migrations** — the initial `0000_baseline.sql` plus every forward `000N` after it; never regenerate the baseline. `meta/` is the committed snapshot chain and is never hand-edited. The initial baseline includes every ledger decision then in scope — no cv-pin, no `chats.ownerId`, `content_hash` on all five vector tables (character_embeddings · image_embeddings · chat_digests · chat_segments · document_chunks).
 - **The native vector column** (`custom-types/`) — `vector32` (libSQL `F32_BLOB(dim)`, raw little-endian Float32 blob), consumed by the five vector tables in `schema/embeddings.ts`.
 - **`@orb/db/query`** — db-layer primitives that need drizzle types and cannot be kit-pure: `batch`, `db-errors` (the deep cause-walk constraint classifier), `fetch-owned` (`fetchOwned`/`OwnedTable`), `insert-chunk` (the libSQL 32766 bound-variable cap), `parsers` (the read-seam zod `.catch(null)` JSON-column coercion; the `null`-vs-`[]` contract asymmetry is deliberate and must not be collapsed).
 
@@ -36,7 +36,7 @@ Four sanctioned consumer patterns, all downward:
 3. **The bulk serializers / analytics read foreign tables directly, by design** — `import` + `export` share one serde core that reads schema tables directly (bulk serializers, not CRUD callers — `Spine-Config-and-Serialization.md`); `search` and `discovery` hold the same bulk read-only posture (discovery computes themes/duplicates/hubness BY reading other domains' rows). READ-only: `import` writes six domains' canon and imports `@orb/db` **zero** times — every write routes through the owning domain's own `persistence/import-write.ts`.
 4. **The read-only-join ("pool.ts") pattern** — a domain owning a *view* of another domain's junction may read that junction directly (`chat/assembly/world-info/pool.ts` over the world-info book junctions; character list reading `character_tags + tags`), as long as the read is ownership-safe. A **shared polymorphic junction gets ONE write seam**: the five entity↔tag junctions are written through `tag/persistence/junctions.ts`, never re-spelled per owning domain.
 
-Enforcement: the `own-tables-only` gate makes the ownership half structural — outside `persistence/`, a domain-side value import of a foreign table from `@orb/db` is RED (the type-only row import is always legal — §7.4), and a foreign table in an `insert`/`update`/`delete` position is RED unconditionally: no class exemption buys a foreign WRITE. Its table→domain map is DERIVED from the schema files; patterns 3–4 are its cited `BULK_READERS` / `FILE_ALLOWLIST` rows, each with a both-ways stale ratchet. The `orb/no-direct-users-read` and `orb/discovery-no-stats-rollups` lint rules are the two narrower table-symbol seals.
+D333 retires custom static ownership checks. Table ownership remains architecture law; package imports and injected domain ports preserve the runtime boundary.
 
 `@orb/client` never depends on `@orb/db`; `infra` is a sealed executor and never reads the schema.
 
@@ -45,134 +45,19 @@ Enforcement: the `own-tables-only` gate makes the ownership half structural — 
 - **DB row → `db`**; a domain may declare a derived local alias (`CharacterRow = typeof characters.$inferSelect`) in `persistence/`, never re-declare the column shape.
 - **Cross-boundary enum tuples → `contracts`** (`db` imports them down for column `enum:[...]`; a test-mirror pins db === contracts where derivation isn't direct).
 - **TypeID brands → `kit`**; the brand is type-only (SQL stays `TEXT`), so adding/removing a brand is never a migration.
-- **Wire schemas / domain params never live here.** Gates: `no-inline-types`, `schema-branding`, dep-cruiser `db-cake`.
+- **Wire schemas / domain params never live here.** D333 retires custom type-home and schema-brand checks; the package dependency boundary remains.
 
-## The migration lifecycle — forward-only, post-launch
+## The migration lifecycle — forward-only
 
-Post-launch, every schema change ships as a forward incremental migration; there is no baseline
-regeneration and no dev-db wipe-on-drift. [ADR 0163](../adr/0163-schema-history-has-a-post-launch-rule-and.md)
-names this regime 2, the default law, and regime 1, the narrow pre-launch exception below, and records
-the owner ruling for both.
-
-### Regime 1 — the pre-launch exception: one squashed baseline, regenerated
-
-> \[!WARNING]
-> Use this procedure only for a program that is explicitly pre-launch, with no user data to preserve.
-> Every other schema change uses the forward-migration procedure in the next section.
-
-A schema change is a SOURCE edit plus a REGENERATED baseline. There is no `0001`. The whole procedure:
+Every schema change ships as a numbered migration. The committed baseline is historical input and is never regenerated. A deliberate local reset is `pnpm seed:demo --fresh`. D333 retires custom schema-to-migration parity checking.
 
 1. Edit `schema/<feature>.ts`.
-2. Regenerate over a CLEARED migrations dir — **MOVE it aside, do not delete it** (see the box below):
+2. Generate a numbered migration with `pnpm --filter @orb/db exec drizzle-kit generate --name <what-changed> --config=drizzle.config.ts`. Never clear the migrations directory.
+3. Read the generated SQL. SQLite table rebuilds use the 12-step pattern; a data backfill belongs in the same migration after its DDL.
+4. Never edit or delete an applied migration. Fix it with a new forward migration.
+5. Run `pnpm --filter @orb/db exec drizzle-kit check --config=drizzle.config.ts` to validate the journal and snapshot chain. Test migration behavior against a copy of a real database and verify referential integrity.
 
-   ```bash
-   mv packages/db/src/migrations <lane>-migrations.bak
-   pnpm --filter @orb/db exec drizzle-kit generate --name baseline --config=drizzle.config.ts
-   ```
-
-   The `--name baseline` is not cosmetic: the journal's single entry must stay
-   `{ idx: 0, tag: "0000_baseline" }`; generating into a NON-empty dir emits a `0001_*.sql` instead, which
-   is the forward-migration shape, not a baseline. If you clear the dir IN PLACE instead of moving it,
-   `drizzle-kit generate` REFUSES without `meta/_journal.json` — write one carrying `"entries": []` first.
-3. `biome format --write` the two `migrations/meta` files (drizzle emits unformatted JSON; `lint:biome`
-   reds otherwise). Scope the `--write` to those files — never a repo-wide fix-all.
-4. Verify with the two stages, not by eye: `pnpm check:db-baseline` (schema ≡ baseline) and
-   `pnpm check:drizzle-kit` (the journal/snapshot chain). Then DIFF the regenerated baseline against the
-   old one and confirm it is EXACTLY your delta — a regen recomputes from the whole working tree, so a
-   sibling's in-flight schema edit lands in your committed baseline otherwise.
-5. ONLY THEN drop the backup (`rm -rf <lane>-migrations.bak`). If the regen went sideways, `mv` it back —
-   never excavate it out of git.
-
-> \[!WARNING]
-> Use `mv`, never `rm -rf packages/db/src/migrations` — the Bash tool-guard refuses a non-scratch `rm -rf`
-> outright, and a worktree lane cannot answer the prompt it raises. `mv` is also strictly better: the
-> previous baseline stays on disk through the window where you might want it back (a regen that produces
-> the wrong CHECK, an interrupted generate), instead of being recoverable only from git. Name the backup
-> with your LANE PREFIX and the `.bak` suffix — the guard treats `*.bak` as scratch, so its removal needs
-> no escalation either.
-
-`entry/boot/migrate.ts` hashes the shipped migrations against what the db recorded. Post-launch
-(`DB_LAUNCHED = true`), a mismatch ABORTS the boot instead of resetting the db — a deliberate local reset
-is `pnpm seed:demo --fresh`, never a regenerated baseline against a db holding data worth keeping.
-
-> \[!WARNING]
-> "Disposable" is a claim about the SCHEMA, not about the data. Two things stand between a bad regen and
-> data loss, and both are worth knowing BEFORE you regenerate:
->
-> - **The tripwire.** `pnpm check`'s db-baseline stage compares the committed migrations against what the
->   LOCAL db recorded and prints a `[verify-notice]` line in the run's tail NOTICES block
->   (`forecastDevDbReset` in `packages/db/src/client/index.ts`) when the forecast status is `diverged`. The line reads `THE NEXT
->   SERVER BOOT WILL REFUSE TO START`, because that is what happens next. Still advisory BY DESIGN — a
->   developer's own db is not a property of the commit — so a PASS verdict never means the notice was
->   absent. Read the tail.
-> - **The pin.** The boot takes ONE pre-migrate backup (`backupBeforeMigrate`) into the data layout's
->   `backups/` dir and `pruneDbBackups` ages that dir out on a recent-5 + daily-7 budget. `touch
->   data/backups/orbweaver.db.backup-<stamp>.keep` exempts one from the sweep forever. Pin the pre-reset
->   copy the moment it exists; it is the only record of what was dropped.
-
-Two lanes cannot both regenerate the pre-launch baseline against a shared history: two independently
-regenerated `0000_baseline.sql`s each miss the other's tables, and the generated files do not hand-merge.
-Sequence them instead — the first lane's baseline merges to main, the second regenerates only on a
-post-merge main merged into its own worktree. Post-launch this narrows to a check rather than a sequencing
-rule: two lanes each generating `000N` off the same parent is the concurrent-generation FORK that
-`pnpm check:drizzle-kit` reds (step 5 below).
-
-No gate checks that a program is actually eligible for this exception. The `baseline-single-migration`
-gate that once did (exactly one `.sql`, exactly one journal entry) is gone: its sunset clause fired with
-the launch flip (`docs/adr/0157-pre-launch-there-is-no-legacy-a-schema.md`). `DB_LAUNCHED` in
-`entry/boot/migrate.ts` is the constant `true`, so it does not gate eligibility either. Using this
-procedure on a program that is not genuinely pre-launch is a judgment call the tooling will not catch.
-
-### Regime 2 — forward-only incremental migrations
-
-Once a database holds data that cannot be dropped, regenerating the baseline would destroy it: the
-baseline freezes and every change ships as a forward `000N`.
-
-- `DB_LAUNCHED = true` in `packages/server/src/entry/boot/migrate.ts` — a db holding a migration that is in
-  no shipped journal entry is boot-FATAL instead of auto-wiped. The switch is a CONSTANT, not
-  posture-scoped: the dev box is the box that actually holds data, so scoping the refusal to production
-  alone would leave the auto-wipe live on exactly the machine where it would destroy something. A dev
-  stack whose boot aborts on drift is the intended outcome.
-- The `baseline-single-migration` gate is deleted outright. It does not exist for regime 2 or for
-  regime 1.
-
-Every lane that edits `packages/db/src/schema/**` emits an incremental migration and commits `meta/`.
-There is no squash procedure to reach for and no dev-db wipe to expect: a deliberate local reset is
-`pnpm seed:demo --fresh` (it wipes the `file:` db + its WAL/SHM sidecars, re-migrates, and reseeds).
-
-The per-change procedure:
-
-1. Edit `schema/<feature>.ts`.
-2. `pnpm --filter @orb/db exec drizzle-kit generate --name <what-changed> --config=drizzle.config.ts` —
-   NO clearing. drizzle diffs the previous `meta/<n>_snapshot.json` against the live schema and emits
-   `000N_<name>.sql` + `meta/000N_snapshot.json` + a new journal entry. The snapshot chain IS the history;
-   `meta/` is committed, never gitignored, never hand-edited.
-3. READ the emitted SQL before committing. SQLite cannot `ALTER TABLE … DROP CONSTRAINT` or change a
-   column type, so drizzle emits its 12-step table rebuild (create `__new_x` → copy → drop → rename) for
-   those. That rebuild is why `runMigrations` turns `foreign_keys=OFF` on the connection (see Esoteric item 5, below) and
-   why `assertReferentialIntegrity` runs after — a rebuild that drops a parent with FKs ON would
-   cascade-delete children. A hand-written data backfill goes in the SAME `.sql` file, after the DDL.
-4. Never EDIT or DELETE an applied migration: drizzle records applied tags in `__drizzle_migrations`, so a
-   rewritten `.sql` is simply never re-run on an existing db and silently diverges from a fresh one. A
-   mistake in an applied migration is fixed by a NEW forward migration.
-5. Verify with all three, in this order:
-   - `pnpm check:drizzle-kit` — the chain: every journal entry has its snapshot and no two snapshots claim
-     the same parent. This is the ONE that catches the concurrent-generation FORK (two branches each
-     generating `0003` off `0002`) — the failure mode that goes from impossible to routine the moment the
-     chain grows past one entry, and precisely why the stage is wired now.
-   - `pnpm check:db-baseline` — schema ≡ the CUMULATIVE migrations
-     (`tooling/src/verify/ops/db-baseline-parity.ts`): it generates from the chain TIP's
-     `meta/<n>_snapshot.json` to the live schema and requires the result to be EMPTY, so a legitimate
-     `000N` advances the recorded schema instead of reading as drift. Anything it prints is DDL the tree
-     owes a migration for. DECLARED LIMIT: the subject is the snapshot chain — a `.sql` hand-edited without
-     its snapshot is invisible here and is caught by the two checks either side of it (`check:drizzle-kit`
-     for chain integrity, `tests/legacy/db/client.int.test.ts` for "the committed chain applies").
-   - the boot path against a COPY of a real db — `assertReferentialIntegrity` after the run checks
-     that a 12-step rebuild did not orphan rows.
-
-The two stages guard orthogonal halves and neither sees the other's failure: `structure:db-baseline` is
-CONTENT parity (did you forget to regenerate?), `structure:drizzle-kit` is CHAIN integrity (did two people
-generate against the same parent?).
+`DB_LAUNCHED = true` in `packages/server/src/entry/boot/migrate.ts` refuses a database whose recorded migration is absent from the shipped journal. It never resets the database automatically.
 
 ## Esoteric / required behavior
 
@@ -188,7 +73,7 @@ generate against the same parent?).
 
    `createDb` also sets a six-PRAGMA connection-tuning block after the FK set (order matters — `journal_mode=WAL` first, the rest assume it): `journal_mode=WAL` · `busy_timeout=5000` · `synchronous=NORMAL` · `cache_size=-1048576` (1GB) · `mmap_size=2147483648` (2GB) · `temp_store=MEMORY`. WAL + `busy_timeout` are both required: the WAL shutdown checkpoint (`preCloseHousekeeping`'s `wal_checkpoint(TRUNCATE)`) is a no-op without WAL, and `busy_timeout` makes a concurrent writer (the workloads worker races HTTP request writes) wait up to 5s instead of throwing `SQLITE_BUSY` immediately. `journal_mode` is read back and boot-refused on a `file:` URL (must be `wal`); a `:memory:`/non-file db correctly reports `memory` (WAL is file-only) and is accepted. libSQL honors all six (readback caveat: `mmap_size` floors to a page boundary, `busy_timeout` reads back under the `timeout` column).
 
-6. **Keep local file operations on the configured connection.** `createDb` limits the local file client's native connection pool through `Config.concurrency`. Each operation borrows that connection, preserving its tuning and the migration FK suspension. An interactive transaction holds the connection until it settles; another operation is rejected while it remains held. The settled transaction returns the connection to the pool. `Config.timeout` also configures any replacement connection, but does not preserve other connection-local PRAGMAs. Remote clients retain their own concurrency. See `packages/db/src/client/index.ts` and `tests/legacy/db/client/index.int.test.ts` for configuration and concurrent enforcement checks.
+6. **Keep local file operations on the configured connection.** `createDb` limits the local file client's native connection pool through `Config.concurrency`. Each operation borrows that connection, preserving its tuning and the migration FK suspension. An interactive transaction holds the connection until it settles; another operation is rejected while it remains held. The settled transaction returns the connection to the pool. `Config.timeout` also configures any replacement connection, but does not preserve other connection-local PRAGMAs. Remote clients retain their own concurrency. See `packages/db/src/client/index.ts` and `legacy-source/db/client/index.int.test.ts` for configuration and concurrent enforcement checks.
 
 7. **The schema barrel test.** A schema file missing from `schema/index.ts` silently drops its tables from `typeof schema` and from migrations. `tests/db/schema/module-structure.suite.test.ts` enforces the re-export AND the producer-mapping split.
 
@@ -210,9 +95,9 @@ generate against the same parent?).
 
 1. **`db` imports only `kit` + `contracts`.** *(resolve-time physics; dep-cruiser `db-cake`.)*
 2. **Producer names the schema file; the barrel re-exports every file.** *(`tests/db/schema/module-structure.suite.test.ts`.)*
-3. **The DB row is the one home for column shapes; no wire schema in `db`.** *(`no-inline-types`; `schema-branding` pins the `$type<>` brands.)*
-4. **All five primary vector tables (character_embeddings · image_embeddings · chat_digests · chat_segments · document_chunks, the last producer FK `documents.id`, owner derives via `documents.ownerId`) carry `content_hash` (staleness gate, NOT NULL) and `hub_score` (advisory `real`, written only by discovery via `embeddings.writeHubScores`, never nulled by a vector write).** *(compile-time DDL; `StoreParams` has no `hubScore`/`ownerId` field — D20.)*
+3. **The DB row is the one home for column shapes; no wire schema in `db`.** D333 retires custom type-home and schema-brand checks.
+4. **All five primary vector tables (character_embeddings · image_embeddings · chat_digests · chat_segments · document_chunks, the last producer FK `documents.id`, owner derives via `documents.ownerId`) carry `content_hash` (staleness field, NOT NULL) and `hub_score` (advisory `real`, written only by discovery via `embeddings.writeHubScores`, never nulled by a vector write).** *(compile-time DDL; `StoreParams` has no `hubScore`/`ownerId` field — D20.)*
 5. **`@orb/db/query` holds only drizzle-typed primitives** — they would fail `kit-purity` in `@orb/kit`. *(lint + resolve-time.)* `@orb/db/query` is their ONLY import path: the top barrel deliberately does NOT re-export `"./kit"` — re-exporting it lets the tree reach `batchMany`/`fetchOwned`/`isConstraintViolation` through `@orb/db`, which reads as "a table-ish thing from the schema barrel" and blurs the line invariant 6 draws. *(resolve-time: the wrong path does not compile.)*
-6. **A domain writes only its own tables.** Cross-domain reads belong in `persistence/` or injected ops; `own-tables-only` judges foreign writes inside persistence too. Settings alone imports its KV table and injects registered-prefix opaque-value ports. Native ESLint holds that import boundary; the KV port refuses foreign keys before I/O.
+6. **A domain writes only its own tables.** Cross-domain reads belong in `persistence/` or injected ops. D333 retires custom ownership checks; this remains architecture law. Settings alone imports its KV table and injects registered-prefix opaque-value ports. The KV port refuses foreign keys before I/O.
 7. **Every `.references()` column LEADS an index, and every `.references()` states its `onDelete`.** SQLite auto-indexes only the PARENT side of an FK and defaults the child action to `NO ACTION` — both silences cost real behavior (a full child-table scan per parent delete; a delete that fails at commit for reasons nobody chose). *(`tests/db/schema/table-integrity.suite.test.ts`; plain B-tree only — an ANN shadow index is rejected, Esoteric item 1 above.)*
 8. **Every table declares a primary key** — inline `.primaryKey()` or composite `primaryKey({ columns })`; the hidden `rowid` is unstable across VACUUM, invisible to `$inferSelect`, and unreferenceable, so a keyless table can never be an FK parent nor part of the inherited-ownership chain. *(`tests/db/schema/table-integrity.suite.test.ts`.)*

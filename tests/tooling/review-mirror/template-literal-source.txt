@@ -1,5 +1,0 @@
-const pattern = /https?:\/\//u; // prose
-const value = `// ${pattern.source}`;
-/* block
-comment */
-export { value };

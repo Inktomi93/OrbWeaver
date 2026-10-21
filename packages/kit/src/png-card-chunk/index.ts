@@ -210,7 +210,7 @@ function decodeBase64Utf8(value: Uint8Array): string | null {
   if (bytes === null) {
     return null;
   }
-  // @orb-waive caught-failure-ownership(catch): the null is the typed "undecodable candidate" result; readCardChunk skips it for the next
+  // the null is the typed "undecodable candidate" result; readCardChunk skips it for the next
   // candidate and returns null when none decode, which parseCardPng (import substrate) passes on as "no card". Ends if readCardChunk stops reading the null.
   try {
     return bytesToUtf8(bytes);
@@ -354,7 +354,7 @@ function concatChunks(parts: Uint8Array[]): Uint8Array {
  *  string when it doesn't parse as an object. */
 function stripSpecKeys(cardJson: string): string {
   let parsed: unknown;
-  // @orb-waive caught-failure-ownership(catch): text that is not JSON is returned unchanged, so writeCardChunk stores the same
+  // text that is not JSON is returned unchanged, so writeCardChunk stores the same
   // text in both chunks and the card import parser refuses it when read back; the only production caller passes JSON.stringify output. Ends if the unchanged return is dropped.
   try {
     parsed = JSON.parse(cardJson);
@@ -400,16 +400,16 @@ async function inflate(compressed: Uint8Array): Promise<Uint8Array | null> {
   // Deliberately un-awaited: awaiting the write before draining the reader can deadlock on backpressure,
   // and on a corrupt stream BOTH sides reject — swallowing here leaves the reader as the one error path
   // (an unhandled rejection would take the process down).
-  // @orb-waive caught-failure-ownership(writer.write): a stream error rejects both sides, so the same error reaches the awaited
+  // a stream error rejects both sides, so the same error reaches the awaited
   // reader.read() below and its catch returns null. Ends if the read loop stops being awaited inside that try.
   void writer.write(compressed).catch(swallow);
-  // @orb-waive caught-failure-ownership(writer.close): a corrupt stream rejects close() and reader.read() with the same error, and
+  // a corrupt stream rejects close() and reader.read() with the same error, and
   // the awaited read below catches it. Ends if the read loop stops being awaited inside that try.
   void writer.close().catch(swallow);
 
   const reader = stream.readable.getReader();
   const parts: Uint8Array[] = [];
-  // @orb-waive caught-failure-ownership(catch): the null is the typed "corrupt zlib payload" result; readCompressedTextValue maps it to
+  // the null is the typed "corrupt zlib payload" result; readCompressedTextValue maps it to
   // null and readCardChunk skips that candidate. Ends if readCompressedTextValue stops reading the null.
   try {
     for (;;) {

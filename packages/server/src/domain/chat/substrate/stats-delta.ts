@@ -34,7 +34,7 @@ export function retainedCanonDeltas(
     deltas.map((delta) => ({
       ...delta,
       ownerId,
-      // @orb-waive membership-enforcer(ownerId): Retained cohort accounting assigns the character grain only to its actual DB-derived owner; this is not room authorization. Ends if the comparison admits caller operations or the character-grain contract changes.
+      // Retained cohort accounting assigns the character grain only to its actual DB-derived owner; this is not room authorization. Ends if the comparison admits caller operations or the character-grain contract changes.
       characterId: ownerId === scope.characterOwnerId ? delta.characterId : null,
     })),
   );
@@ -146,7 +146,7 @@ function appendRebasedSeatCensus(
   ] as const) {
     for (const characterId of ids.filter((id) => !other.includes(id))) {
       const ownerId = snapshot.characterOwners.get(characterId);
-      // @orb-waive membership-enforcer(ownerId): D167 retained character census attribution, not a membership gate; ends if this lookup admits an operation.
+      // D167 retained character census attribution, not a membership gate; ends if this lookup admits an operation.
       if (ownerId !== undefined) {
         ctx.applyCharacterStatsDelta(statements, ctx.db, {
           ownerId,
@@ -182,7 +182,7 @@ function appendRebasedCanon(
       continue;
     }
     const voice = rebasedVoice(slot.characterId, replacement, args.sign);
-    // @orb-waive membership-enforcer(ownerId): D167 credits the global voice row only once to its actual owner; ends if this accounting comparison becomes authority.
+    // D167 credits the global voice row only once to its actual owner; ends if this accounting comparison becomes authority.
     if (args.characterOnly && (voice === null || args.snapshot.characterOwners.get(voice) !== args.ownerId)) {
       continue;
     }

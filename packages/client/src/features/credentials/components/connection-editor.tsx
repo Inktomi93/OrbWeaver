@@ -146,7 +146,7 @@ function AvailableConnectionEditorBody({
       }
       const saved = update.mutateAsync({ connectionId, patch: part });
       toastRefusalIfClosed(saved, (refusal) => embedRefusalText(refusal, connection.label));
-      // @orb-waive caught-failure-ownership(saved): an embedder refusal becomes `setEmbedRefusal` alert state (TopEmbedderNote and the fact note); any other failure toasts through `useUpdateConnection`'s errorToast (components/connection-role-mutations.ts, `unlessEmbedRefusal`). Ends if either surface goes.
+      // an embedder refusal becomes `setEmbedRefusal` alert state (TopEmbedderNote and the fact note); any other failure toasts through `useUpdateConnection`'s errorToast (components/connection-role-mutations.ts, `unlessEmbedRefusal`). Ends if either surface goes.
       void saved
         .then(
           (): void => setEmbedRefusal(null),

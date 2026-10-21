@@ -61,7 +61,7 @@ async function applyBounded(
       resolve({ skip: "deadline" });
     }, PLUGIN_DISPLAY_TRANSFORM_DEADLINE_MS);
   });
-  // @orb-waive caught-failure-ownership(catch): the rejection was already logged by the resident's `invoke`; the
+  // the rejection was already logged by the resident's `invoke`; the
   // caller keeps the row's prior text. Ends if `invoke` stops logging the failures it rethrows.
   try {
     const answer = await Promise.race([invoke(transform.handler, argsJson, orphan.signal), deadline]);

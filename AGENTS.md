@@ -19,7 +19,7 @@ engineering defaults below are suspended for the architecture. Each has its repl
 | Right-size to actual load | Size to the author, not the user count. The bar is correct and complete, never fast to ship. |
 | Just code, iterate later | Get it right the first time. Read the law and the file header before you touch the file. |
 | Tests: quality over quantity | Both. Test every persistence verb, contract and invariant; still never a test that asserts nothing. |
-| No phantom edge cases | Close an impossible case with a type or a gate, never with a runtime check and never by ignoring it. |
+| No phantom edge cases | Close an impossible case with a type, never with a runtime check and never by ignoring it. |
 | DRY is not gospel | One home per concept. A second copy of a shape or a helper is a defect. Merge it. |
 | Named patterns get scrutiny | The ledger already ruled. Before you call something over-engineered or duplicated, read its row. |
 
@@ -69,7 +69,7 @@ that needs an upward import is in the wrong place. Move the code; never force th
 
 - An engine lives in `kit`. The data it runs on lives in a domain.
 - A cross-feature need is an injected op. Type it in the domain's `contract/` and wire it at the composition root. Never import sideways from another feature.
-- Every placement names the check that fails when it breaks: a package dep, a type, a dep-cruiser rule, a gate or a test.
+- Every placement names the check that fails when it breaks: a package dependency, a type, a dep-cruiser rule, a retained lint rule or a test.
 - The domain folder template is in `Core-0-Architecture-and-Structure.md` §4.
 - Identity, config, serialization, types and testing each have one `Spine-*` doc. Check a change against it; never decide the thread locally.
 - Scope is inherited through the FK chain from the Principal. Walk the chain before you call a table unscoped.
@@ -85,44 +85,28 @@ that needs an upward import is in the wrong place. Move the code; never force th
 | Domain-internal type | the domain's `contract/` |
 | `@orb/inference`-internal type | `packages/inference/src/contract/` |
 
-- The `no-inline-types` gate fails an exported type declared anywhere else. Import a shape a lower package owns; never re-declare it.
-- A string union is one importable tuple plus a mapped `Record` or `assertNever`, so a new member fails `tsc`. The `no-inline-union-redecl` gate fails a re-declared union. Details: `Spine-TypeScript-and-Patterns.md`.
+- Import a shape from its owning package; never re-declare it. D333 retires custom type-home gates, so this placement rule has no custom static check.
+- A string union is one importable tuple plus a mapped `Record` or `assertNever`, so a new member fails `tsc`. Details: `Spine-TypeScript-and-Patterns.md`.
 
 ## Test layout
 
-- Tests live under `tests/<package>/` in the directory that mirrors `packages/<package>/src/`, named for the behaviour they prove. Tests not yet rebuilt sit in `tests/legacy/`, which takes no new file. `test-layout` checks the directory; `test-reach` checks that each presence-gated module is imported and used by a test or named in its `@subject` header.
+- Tests live under `tests/<package>/` in the directory that mirrors `packages/<package>/src/`, named for the behaviour they prove. The sibling source at /home/inktomi/inktomi-stack/development/orbweaver-legacy-tests-2026-10-21 is reference-only, not part of this repository's test, typecheck or CI population. D333 retires custom layout and presence gates; these conventions have no custom static check.
 - `tooling/src/floor/testing/test-kinds.ts` owns the test suffixes and compiler worlds. Inject clocks and ids so tests are deterministic. Policy: `Spine-Testing.md`.
 
 ## No escape hatches
 
-To get green, never add a lint suppression for a real finding, a dep-cruiser exemption, a gate allowlist
-entry, a `TODO` or `FIXME` in place of the work, `any`, `unknown` or a loose index signature to satisfy
+To get green, never add a lint suppression for a real finding, a dep-cruiser exemption, a `TODO` or `FIXME` in place of the work, `any`, `unknown` or a loose index signature to satisfy
 `tsc`, or a placeholder marker on work that is not planned. A suppression is allowed only for a verified
 false positive, with the reason in the comment on that line. Delete the old structure in the same commit
 as the new one. If you cannot go green without a hatch, stop and report.
 
-## Verification tiers
+## Verification
 
-| Command | What it runs |
-| - | - |
-| `pnpm test:scoped <paths>`, `pnpm test:ct <paths>` | named node or CT test files |
-| `pnpm verify --changed` | the inner loop, scoped to changed files; whole-project stages are deferred |
-| `pnpm check` (same as `pnpm verify`, `--static`) | the static whole tree: lint, types and type tests, structure, imports, docs; no product runtime tests |
-| `pnpm verify --push` | adds node tests, CT and e2e smoke |
-| `pnpm verify --full` | exhaustive application verification and slow quality stages; no checker recertification |
-| `pnpm verify --product` | whole application checks, complete application CT and E2E; excludes tool proofs and mutation |
-| `pnpm verify --weekly` | complete checker proof and global implementation checks; independent of product qualification |
-
-- Read stage membership from `pnpm verify --list`. Exit codes: 0 clean, 1 violations, 2 tool error (not a verdict), 3 misuse.
-- Use the `lane` skill's "Completion" policy to select checks. Run `pnpm check --application` once on main before the owner pushes, or when requested (D317). CI is the verdict. Routine local changes finish with relevant scoped checks.
-- The local pre-push hook checks GitHub synchronization. CI owns whole-tree verification before release; see `UNIFIED-VERIFICATION-DESIGN.md` §4.
-- The `commit-msg` hook enforces the message format (`scripts/commit-msg-check.sh`).
-
-## Read the harness artifacts
-
-- `pnpm check` writes `reports/verify.json`, `reports/verify/<stage>.log` and `reports/check-structure.json`. `pnpm test` writes `reports/test-report.json` and `reports/ct-flaky.json`.
-- Pointers name the last finished run; read the printed slot for concurrent runs. Use `pnpm check:show` for stage logs; layout: `UNIFIED-VERIFICATION-DESIGN.md` §3.3b.
-- Never pipe a harness run into `head` or `tail`; the exit code becomes the reader's. Never re-run a harness command to find a failure.
+- Run affected Node tests with `pnpm test <paths>` and CTs with `pnpm test:ct <paths>`.
+- Typecheck affected programs with `pnpm typecheck <tsconfig paths...>`.
+- Run `pnpm lint` for Biome and `pnpm lint:eslint <paths>` for ESLint.
+- CI owns full application verification (D317). D333 retires custom verify tiers, gates and checker qualification.
+- Read the completed test report at `reports/test-report.json`. A timeout or tool error is no verdict.
 
 ## Code questions
 
@@ -133,10 +117,12 @@ as the new one. If you cannot go green without a hatch, stop and report.
 | A structural pattern | `ast-grep`, never `sg`; `/usr/bin/sg` is `newgrp` |
 | Literal text, config | `rg`; the Bash `grep` is a ugrep wrapper that honors ignore files. Read law docs in full: a ruling lives in the context around a line |
 
-- A CodeGraph result is a lead. Open each site you cite and confirm a claim you rely on with `pnpm ast` (run it bare for the verb list) or `rg`.
+- A CodeGraph result is a lead. Open each site you cite and confirm a claim you rely on with `ast-grep` or `rg`.
 - A zero result counts only with a non-zero `scanned=` count and a second method. The evidence rules are in the `code-recon` skill.
 
 ## Reading router
+
+Use `pnpm doc help` for document and work-board commands; `pnpm format:docs` formats documentation.
 
 Find your task and read those docs in full. Read nothing else from `docs/law/`. Doc names
 without a path are in that folder.
@@ -151,8 +137,8 @@ without a path are in that folder.
 | A client feature surface | the header of `UI-Architecture-and-Layout.md` (its reading order), `client-architecture-lockdown.md` |
 | An `@orb/ui` primitive | `ui-package-design.md`, `UI-Primitives-and-Reuse.md` §13.7–§13.8 |
 | Types, unions, dispatch | `Spine-TypeScript-and-Patterns.md` |
-| A ledger decision | `.claude/rules/writing.md` "Decisions", then mint it with `pnpm doc new adr <slug>` |
-| A doc | `.claude/rules/writing.md`, `.claude/rules/docs.md` (`pnpm doc help` for the verbs) |
+| A ledger decision | `.claude/rules/writing.md` "Decisions" |
+| A doc | `.claude/rules/writing.md` |
 | An instruction file | `.claude/rules/writing.md` |
 | A code comment | `.claude/rules/comments.md` |
 | Which word names a concept | `docs/law/vocabulary-map.md` |
@@ -173,18 +159,16 @@ without a path are in that folder.
 ## Path rules and Codex
 
 - Claude Code loads a rule when it reads a file that matches the rule's `paths:`. Codex does not: before you change a file, read each rule below whose globs match it.
-- In Codex outside a generated `.codex/agents/*.toml` role, read `.claude/skills/lane/SKILL.md` in full before you edit, stage, commit or run the stack.
+- In Codex outside a `.codex/agents/*.toml` role, read `.claude/skills/lane/SKILL.md` in full before you edit, stage, commit or run the stack.
 - Codex edit feedback is owner-disabled; use explicit scoped checks from the lane skill. To coordinate lanes, read `.claude/skills/orchestrator/SKILL.md`.
 - In Codex, spawn `verifier`, `side-eye` or `stickler` with `fork_turns="none"` and a self-contained brief. A forked history ends an independent review.
 
-`pnpm check:agents` checks that this list matches the rule files.
 
 - `.claude/rules/browser-tests.md`: `tests/**/*.ct.tsx`, `tests/e2e/**`, `tests/support/browser/**`, `playwright*.config.ts`
 - `.claude/rules/chat.md`: `packages/server/src/domain/chat/**`
 - `.claude/rules/comments.md`: `packages/**`, `tooling/**`, `tests/**`, `scripts/**`
 - `.claude/rules/contracts-and-kit.md`: `packages/contracts/**`, `packages/kit/**`
 - `.claude/rules/db.md`: `packages/db/**`
-- `.claude/rules/docs.md`: `docs/**`
 - `.claude/rules/hooks.md`: `.claude/hooks/**`
 - `.claude/rules/inference.md`: `packages/inference/**`
 - `.claude/rules/instruments.md`: `tooling/src/snap/**`, `tooling/src/ui-audit/**`
@@ -193,7 +177,6 @@ without a path are in that folder.
 - `.claude/rules/rpg.md`: `packages/server/src/domain/rpg/**`, `packages/client/src/features/rpg/**`
 - `.claude/rules/server-edge.md`: `packages/server/src/entry/**`, `packages/server/src/transport/**`, `packages/server/src/foundation/**`, `packages/server/src/infra/auth/**`, `packages/server/src/infra/network/**`, `tests/server/transport/**`
 - `.claude/rules/server.md`: `packages/server/src/**`, `tests/server/**`
-- `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.js`, `.dependency-cruiser.cjs`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`, `scripts/vitest-supervised.ts`
+- `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.js`, `.dependency-cruiser.cjs`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`
 - `.claude/rules/ui-and-client.md`: `packages/ui/src/**`, `packages/client/src/**`
-- `.claude/rules/verify-and-gates.md`: `tooling/src/verify/**`, `tests/tooling/verify/**`
 - `.claude/rules/writing.md`: `.claude/**`, `AGENTS.md`, `docs/**`

@@ -70,7 +70,7 @@ export function readRequestCookie(headers: Headers, name: string): string | null
       continue;
     }
     if (part.slice(0, eq).trim() === name) {
-      // @orb-waive caught-failure-ownership(catch): owned by the callers' null arm: `entry/auth/seam.ts::resolveCookiePrincipal` returns null on a null token and the request falls through to the owner-fallback or unauthenticated arm. A malformed client header is not an operator event. Ends if a malformed cookie must be told apart from an absent one.
+      // owned by the callers' null arm: `entry/auth/seam.ts::resolveCookiePrincipal` returns null on a null token and the request falls through to the owner-fallback or unauthenticated arm. A malformed client header is not an operator event. Ends if a malformed cookie must be told apart from an absent one.
       try {
         return decodeURIComponent(part.slice(eq + 1).trim());
       } catch {

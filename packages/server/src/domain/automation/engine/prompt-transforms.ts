@@ -180,7 +180,7 @@ export function createPromptTransformIndex(input: DbAssemblyInput<PromptTransfor
     reload: reconcile,
     isStale: (): boolean => stale,
     refresh: async (): Promise<void> => {
-      // @orb-waive caught-failure-ownership(catch): DELIBERATE ABSORBER, the enabled index's twin
+      // DELIBERATE ABSORBER, the enabled index's twin
       // (`substrate/enabled-index.ts` carries the full argument). The owner is the stale latch plus the
       // watcher front door's retry; propagating would reject a rule mutation that already committed (#1431).
       // Ends when a transform registration stops being reconcilable from canon.

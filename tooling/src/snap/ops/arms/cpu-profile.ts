@@ -77,7 +77,7 @@ export const CPU_PROFILE_ARM = {
           if (!opts.cpuProfile || ctx.pageIndex !== 0 || pause || cdp !== null || profile !== null || failure !== null) {
             return null;
           }
-          // @orb-waive caught-failure-ownership(error): the closure variable `failure` is printed by report() as CPU PROFILE REFUSED. Ends if report() stops printing failure.
+          // the closure variable `failure` is printed by report() as CPU PROFILE REFUSED. Ends if report() stops printing failure.
           try {
             cdp = await ctx.page.context().newCDPSession(ctx.page);
             await cdp.send("Profiler.enable");
@@ -97,7 +97,7 @@ export const CPU_PROFILE_ARM = {
             failure ??= "no non-pause action entered the CPU profile window";
             return;
           }
-          // @orb-waive caught-failure-ownership(error): the closure variable `failure` publishes the cpu-profile=REFUSED RESULT pair in pairs(). Ends if pairs() stops reading failure.
+          // the closure variable `failure` publishes the cpu-profile=REFUSED RESULT pair in pairs(). Ends if pairs() stops reading failure.
           try {
             const stopped = await cdp.send("Profiler.stop");
             profile = cpuProfileEvidence(Reflect.get(stopped, "profile"));
@@ -113,7 +113,7 @@ export const CPU_PROFILE_ARM = {
           if (!opts.cpuProfile || profile === null) {
             return;
           }
-          // @orb-waive caught-failure-ownership(error): the closure variable `failure` forces EXIT.toolError in exit(). Ends if exit() stops reading failure.
+          // the closure variable `failure` forces EXIT.toolError in exit(). Ends if exit() stops reading failure.
           try {
             path = await artifactFile("cpu-profile", `${ctx.name}-cpu`, ".cpuprofile", {
               producer: "cpu-profile",

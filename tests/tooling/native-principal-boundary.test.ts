@@ -8,9 +8,7 @@ import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 
 const ROOT = join(import.meta.dirname, "../..");
-const HARD_CONFIG = "eslint-hard.config.js";
 const ordinary = new ESLint({ cwd: ROOT });
-const hard = new ESLint({ cwd: ROOT, overrideConfigFile: join(ROOT, HARD_CONFIG) });
 const SERVER = "packages/server/src";
 const VERB = `${SERVER}/domain/chat/verbs/principal-probe.ts`;
 const ENGINE = `${SERVER}/domain/chat/engine/principal-probe.ts`;
@@ -29,12 +27,10 @@ const PRINCIPAL_RULES = [ASSERTION, RETURN, SYNTHETIC, LITERAL, MINT_SITE, LAUND
 const IDENTITY = 'from "@orb/contracts/identity"';
 // The first config resolution loads the whole flat config; pay it at import, not inside the first row's timeout.
 await ordinary.calculateConfigForFile(join(ROOT, VERB));
-await hard.calculateConfigForFile(join(ROOT, VERB));
 
-/** Lint `source` with one rule from whichever repo profile enables it; the placement test pins which profile that is. */
+/** Runs one configured rule without building a TypeScript program for the deliberately invalid snippets. */
 async function findings(path: string, source: string, ruleId: string): Promise<readonly (string | null)[]> {
-  const hardConfig = await hard.calculateConfigForFile(join(ROOT, path));
-  const config = hardConfig.rules[ruleId] === undefined ? await ordinary.calculateConfigForFile(join(ROOT, path)) : hardConfig;
+  const config = await ordinary.calculateConfigForFile(join(ROOT, path));
   const rule = config.rules[ruleId];
   const messages = new Linter({ cwd: ROOT }).verify(
     source,
@@ -762,27 +758,14 @@ test.for([
   expect(await findings(row.path, row.source, surface ?? "")).toEqual([surface]);
 });
 
-// The construction rules are HARD: only the non-suppressible profile runs them, and it refuses inline directives.
 test.for([
   { name: "domain verb", path: VERB, off: [] },
   { name: "request seam", path: SEAM, off: [SYNTHETIC] },
   { name: "the mint home", path: MINT, off: [SYNTHETIC] },
   { name: "inference package", path: "packages/inference/src/principal-probe.ts", off: [] },
-] as const)("the Principal construction rules run only in the hard profile: $name", async (row) => {
-  const hardRules = (await hard.calculateConfigForFile(join(ROOT, row.path))).rules;
-  const ordinaryRules = (await ordinary.calculateConfigForFile(join(ROOT, row.path))).rules;
-  expect(PRINCIPAL_RULES.filter((rule) => hardRules[rule] === undefined)).toEqual(row.off);
-  expect(PRINCIPAL_RULES.filter((rule) => ordinaryRules[rule] !== undefined)).toEqual([]);
-});
-
-test("an inline directive cannot excuse a forged Principal", async () => {
-  const source = `/* eslint-disable -- Attempted hard bypass. */\n// eslint-disable-next-line ${LITERAL} -- Attempted hard bypass.\nexport const forge = (caller: Principal, victim: UserId) => { const p: Principal = { ...caller, userId: victim } as typeof caller; return p; };\n`;
-  const [result] = await hard.lintText(source, { filePath: join(ROOT, VERB) });
-  expect(result?.fatalErrorCount).toBe(0);
-  const messages = result?.messages ?? [];
-  expect(messages.filter(({ ruleId }) => ruleId !== null).map(({ ruleId }) => ruleId)).toEqual([LITERAL, ALIAS]);
-  // The profile itself reports each ignored directive.
-  expect(messages.filter(({ ruleId }) => ruleId === null).map(({ message }) => message.includes("noInlineConfig"))).toEqual([true, true]);
+] as const)("the normal config enables the Principal construction rules: $name", async (row) => {
+  const rules = (await ordinary.calculateConfigForFile(join(ROOT, row.path))).rules;
+  expect(PRINCIPAL_RULES.filter((rule) => rules[rule] === undefined)).toEqual(row.off);
 });
 
 // Each registered site earns its exemption: under another name, the real function draws the findings it is excused from.
