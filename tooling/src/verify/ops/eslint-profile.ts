@@ -132,11 +132,22 @@ function retainCompletedProfiles(
   }
 }
 
-function nativeCompilerChildEnv(root: string, admitted: readonly EslintFileAdmission[]): NodeJS.ProcessEnv {
-  const configs = typedNativeCompilerConfigs(admitted.filter((entry) => entry.requiresTypeInformation));
-  return inheritedProcessEnv({
-    [TYPED_NATIVE_COMPILER_CONTEXT_ENV]: JSON.stringify({ root, configs: configs === undefined || configs.length === 0 ? null : configs }),
-  });
+function nativeCompilerDispatch(
+  root: string,
+  owner: string,
+  admitted: readonly EslintFileAdmission[],
+): { readonly environment: NodeJS.ProcessEnv; readonly parserFlags: readonly string[] } {
+  const requested = typedNativeCompilerConfigs(admitted.filter((entry) => entry.requiresTypeInformation));
+  const pinned = owner !== UNTYPED_OWNER && requested !== undefined && requested.length > 0 ? owner : undefined;
+  const configs = pinned === undefined ? requested : [pinned];
+  return {
+    environment: inheritedProcessEnv({
+      [TYPED_NATIVE_COMPILER_CONTEXT_ENV]: JSON.stringify({ root, configs: configs === undefined || configs.length === 0 ? null : configs }),
+    }),
+    // A broader importing program can contain this file before the parser reaches its rooted owner.
+    parserFlags:
+      pinned === undefined ? [] : ["--parser-options", JSON.stringify({ project: [pinned], projectService: false, programs: null, tsconfigRootDir: root })],
+  };
 }
 
 function profilePartitions(root: string, admitted: readonly EslintFileAdmission[]): ReadonlyMap<string, readonly EslintFileAdmission[]> {
@@ -211,7 +222,7 @@ function plannedReceipts(root: string, admitted: readonly EslintFileAdmission[])
     return keys;
   }
   for (const [owner, partition] of profilePartitions(root, admitted)) {
-    const environment = nativeCompilerChildEnv(root, partition);
+    const { environment } = nativeCompilerDispatch(root, owner, partition);
     for (const admission of partition) {
       const receipt = profileReceipt(root, admission, owner, environment);
       if (receipt !== undefined) {
@@ -273,8 +284,8 @@ function runPartitionChild(
       writeFileSync(suppressionsFile, "{}");
     }
     const profileFlags = hard ? [...HARD_CHILD_FLAGS, "--suppressions-location", suppressionsFile] : [];
-    writeFileSync(argumentsFile, JSON.stringify([...CHILD_FLAGS, ...profileFlags, "--cache-location", ownerCacheFile, ...paths]));
-    const environment = nativeCompilerChildEnv(root, partition);
+    const { environment, parserFlags } = nativeCompilerDispatch(root, owner, partition);
+    writeFileSync(argumentsFile, JSON.stringify([...CHILD_FLAGS, ...profileFlags, ...parserFlags, "--cache-location", ownerCacheFile, ...paths]));
     const before = receipts === undefined ? [] : partition.map((entry) => profileReceipt(root, entry, owner, environment));
     // Supervised: this process blocks in the spawn, so only the launcher can stop the worker and remove the
     // arguments directory if we die. A signal death still reaches `eslintScheme` as a null status, so it
