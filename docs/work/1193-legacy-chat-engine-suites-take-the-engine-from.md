@@ -23,14 +23,16 @@ Every listed behavior and required scenario consumer runs through the composed g
 
 ## Evidence
 
-Use provider requests, durable rows and production recorders, without compatibility facades.
+Observe real provider requests, durable rows and production recorders. Warning coverage uses durable append failure through the total publisher; retain canon, reporting and settlement.
 
-Warning coverage uses durable append failure through the total publisher, preserving canon, failure reporting and background settlement. Impersonation coverage exercises a non-persisting draft followed by an explicit message commit. Drafting preserves canon, variants, transcript counters and character attribution. Retain its paid generation observation and owner, model and daily spend. Compare live accounting with reconciliation, including retained observations, before and after the explicit commit.
+Impersonation is a non-persisting draft followed by an explicit commit. Retain paid observations and owner/model/daily spend; preserve canon, variants, transcript counters and character attribution. Compare live accounting with reconciliation before and after commit, including retained observations.
 
-Attachment, variant-parameter and memory-opt-out replacements are integrated at `57a7367dd3`; round and solo replacements at `0da1fbed50`. Evidence: `reports/review/1193-leg1-review.md` and `reports/review/1193-leg2-review.md`.
+Attachment, variant, opt-out, round and solo evidence: `reports/review/1193-leg1-review.md` and `reports/review/1193-leg2-review.md`.
 
 Lifecycle, statistics, greeting, read-budget and memory-build controls are delivered at `07146d4fd2`. Evidence: `reports/review/1193-leg3-review.md` and `reports/review/1193-third-leg-worktree-evidence/`.
 
 Compaction, inline-image and fault-outcome replacements are delivered at `8b468edc18`; their standalone legacy suites are removed after qualification. Runtime results, the restored tracing control and independent review: `reports/review/1193-leg4-review.md` and `reports/review/1193-leg4-worktree-evidence/`.
 
 The wider engine, turn verbs and scenario consumers remain open with native legacy errors.
+
+Persona/cache source review and runtime pass. Required native import qualification waits on [1221](1221-close-native-import-blockers-in-maintained-server-roots.md). Evidence: `reports/review/1193-persona-cache-review.md`.

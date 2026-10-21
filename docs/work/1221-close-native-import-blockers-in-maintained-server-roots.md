@@ -1,8 +1,9 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-10-21
 priority: P1
+lane: codex/native-import-blockers-1221
 plan: test-foundation
 ---
 
