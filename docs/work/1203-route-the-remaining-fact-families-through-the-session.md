@@ -1,9 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P2
-plan: test-foundation
+blocked: owner
 ---
 
 # Route the remaining fact families through the session loader
@@ -23,3 +23,5 @@ Each listed family reads through the loader with identical output and measured s
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

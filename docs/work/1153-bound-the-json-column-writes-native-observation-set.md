@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: blocked
 updated: 2026-10-21
 priority: P1
-lane: codex/ordinary-demand-1153
-plan: test-foundation
+blocked: owner
 ---
 
 # Bound the json-column-writes native observation set
@@ -28,3 +27,5 @@ The reviewed bounded capture repair is integrated at `75c9540c00`. Scoped behavi
 Real schema-data-grants, complete policy authority and measured memory qualification remain open. Source integration does not establish those outcomes.
 
 The repaired capture still exceeds the aggregate memory budget during actual complete-policy qualification. The stopped run supplies no owner or authority verdict. Evidence: `reports/review/1153-real-policy-resource-failure.md`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

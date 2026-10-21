@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-18
+status: blocked
+updated: 2026-10-21
 priority: P3
 area: tooling
-plan: test-foundation
+blocked: owner
 ---
 
 # Shape partition acquisition drops the redundant server facts worker
@@ -24,3 +24,5 @@ The mixed case no longer builds the superseded server facts partition, its final
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

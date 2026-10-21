@@ -1,9 +1,9 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P2
-plan: test-foundation
+blocked: owner
 ---
 
 # Clear the standing native lint backlog outside the server factory rule
@@ -25,3 +25,5 @@ Each rule's findings are fixed at the site, or, for a verified false positive su
 Reviewed source is integrated at `212974e4a9`. The complete native lint run exits with violations beyond item 1099, including SkeletonRows restrictions, max-lines and typed rules. Completed output and resource measurements: `reports/review/handoff-native-lint/`. Keep the remaining population open without suppressions.
 
 Hosted run `39483788717` also names typed findings in chat engine conditionals, bounded-closure conditionals and the maintained standing-ask test assertion. Adjudication remains open; the transcript alone authorizes no suppression. Evidence: `reports/review/ci-39483788717/triage.md`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

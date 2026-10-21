@@ -18,7 +18,7 @@ Testkit holds machinery for the new population only; legacy-only doors must reti
 
 ## Done when
 
-Each legacy-only testkit export is either used by a rebuilt suite through a production-derived door or deleted with its legacy consumers; a check reports testkit exports whose only importers are legacy.
+Each legacy-only testkit export is either used by a rebuilt suite through a production-derived door or deleted with its legacy consumers.
 
 ## Evidence
 

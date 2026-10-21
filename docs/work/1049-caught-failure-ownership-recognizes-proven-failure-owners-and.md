@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P1
 area: tooling
-plan: test-foundation
+blocked: owner
 ---
 
 # caught-failure-ownership recognizes proven failure owners and its waivers are rejudged
@@ -28,3 +28,5 @@ Filled at landing: what ran and where its output is.
 Re-measure on main 492d691d89 after 1133, 1154 and 1155 (`reports/review/heavy2/`): `check:structure --check=caught-failure-ownership` alone ran 42:32 at 16.7 GB peak, over the 16 GB per-run bar, with 34 blocking findings across client data, inference, server infra, network, relay, acme and floor code-facts, and a waiver-budget alarm: 641 excused against a budget of 701, so the budget rows fall to 641.
 
 Reader-owner changes are integrated at `b97ce5a99a`. Remaining reader findings belong to item 1199. This item stays open for its remaining waiver and qualification obligations; the assigned worktree is removed.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

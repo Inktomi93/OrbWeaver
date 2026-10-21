@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-18
+status: blocked
+updated: 2026-10-21
 priority: P2
 area: tooling
-plan: test-foundation
+blocked: owner
 ---
 
 # Adjudicate native suppressions and configuration exceptions
@@ -50,3 +50,5 @@ Source error-suppression retirement is integrated with validated browser imports
 Production and tooling permissions narrow to actual subjects. Sessions policy binds once per graph. Evidence: `reports/review/1006-production-native-exceptions-claude.md`, `reports/review/1006-tooling-native-exceptions-claude.md` and `reports/review/1048-session-role-policy-security-independent.md`.
 
 Suppression qualification retains its budget alarm. Hook and test output permissions narrow; script type-definition exemptions are removed. Remaining decisions stay open. Evidence: `reports/review/1006-current-suppression-authority.md`, `reports/review/1006-hook-config-exceptions.md` and `reports/review/1006-test-config-exceptions.md`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

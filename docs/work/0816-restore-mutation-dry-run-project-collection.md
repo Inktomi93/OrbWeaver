@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P2
 area: ci
-plan: test-foundation
+blocked: owner
 ---
 
 # Restore mutation dry-run project collection
@@ -28,3 +28,5 @@ Orphaned claim: its codex branch is fully merged into main and no session holds 
 Hosted check: the weekly tooling proof (non-corpus), which carries the Stryker run, failed on e88487bf62.
 
 Filled at landing: what ran and where its output is.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

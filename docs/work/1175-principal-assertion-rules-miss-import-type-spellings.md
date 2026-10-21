@@ -1,10 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P2
 area: security
-plan: test-foundation
+blocked: owner
 ---
 
 # Principal assertion rules miss import-type spellings
@@ -24,3 +24,5 @@ Both rules match TSImportType spellings of Principal with red-first rows, and ex
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

@@ -1,9 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-19
+status: blocked
+updated: 2026-10-21
 priority: P1
-plan: test-foundation
+blocked: owner
 ---
 
 # respell --near takes hours of single-core CPU over the whole tree
@@ -25,3 +25,5 @@ The cost is profiled to its cause, and the near tier is bounded under D328 with 
 Filled at landing: what ran and where its output is.
 
 `pnpm ast rot server --json` shows the same shape: one worker at about 96% of one core and 11.3 GB, still running after 1 h 40 min (989 lane, main 1aa2fc74f8 era). Profile both verbs together. `pnpm ast testonly kit --json --all` ran past 78 min at about 12 GB on one core, while importers and prodonly finish in 2 to 3 min at about 10 to 11 GB on the same tree. The same rot server run was stopped at 2 h 54 min with no verdict: worker 1 peaked about 14 GB and worker 2 was still loading.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

@@ -1,9 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P2
-plan: test-foundation
+blocked: owner
 ---
 
 # Run-marker sweep exits 2 on a same-UID process with unreadable environ
@@ -25,3 +25,5 @@ The sweep tells an unrelated unreadable process from a marked one (for example b
 Hosted run `39469280964`, project `corpus-phone-whisper`, records passing executed cases and no unexpected cases, then exits with a process-completion tool error. The sweep cannot read a same-UID candidate's environment. Evidence: `reports/review/ci-39469280964-phone-whisper.log` and `reports/review/ci-39469280964-phone-whisper-artifact/`. This is incomplete process qualification, not a product assertion failure.
 
 Hosted run `39483788717` passes the local-phone-document product cases, then refuses completion on a same-UID process environment read. The cell exits with a tool error and retains its clone. Evidence: `reports/review/ci-39483788717/triage.md`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

@@ -1,8 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-17
+status: blocked
+updated: 2026-10-21
 priority: P3
+blocked: owner
 ---
 
 # Remove the vanity aliases the baselined waivers hide
@@ -22,3 +23,5 @@ No `no-vanity-alias` marker cites a burn-down item; each surviving marker states
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

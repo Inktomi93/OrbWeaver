@@ -1,10 +1,10 @@
 ---
 kind: bug
-status: open
+status: blocked
 updated: 2026-10-21
 priority: P2
 area: security
-plan: test-foundation
+blocked: owner
 ---
 
 # isNull owner terms acquit only code-constant system-plane writes
@@ -32,3 +32,5 @@ The complete-policy attempt aborts with a controller heap failure during SQLite 
 The reviewed bounded implementation is integrated at `f08b8ea44d`. Source integration does not close complete-policy and authority qualification. The shared observation repair owns the prerequisite.
 
 The repaired capture still exceeds the aggregate memory budget during actual complete-policy qualification. The stopped run supplies no owner or authority verdict. Evidence: `reports/review/1153-real-policy-resource-failure.md`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

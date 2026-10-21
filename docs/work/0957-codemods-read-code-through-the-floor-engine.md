@@ -1,9 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-19
+status: blocked
+updated: 2026-10-21
 priority: P2
-plan: test-foundation
+blocked: owner
 ---
 
 # Codemods read code through the floor engine
@@ -31,3 +31,5 @@ Current installed-SDK fixtures qualify migrated import, export-origin, deep-impo
 The census folds the remaining reads a floor reader answers: Drizzle write tables and operators in every native world, exact import spelling, deep-import module positions and package source paths. Red-first fixtures cover the adopted floor behavior; the existing codemod fixtures pass unchanged. Evidence: `reports/review/957-census.md` and `reports/review/957-version-table.md`.
 
 The public transaction case runs as an integration test with a scaled completion allowance. A run on a loaded shared host still exceeded that allowance, so the deadline stays open with the acquisition latency work.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

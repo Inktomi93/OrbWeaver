@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P1
 area: tooling
-plan: test-foundation
+blocked: owner
 ---
 
 # Persist native semantic inventory facts and release world programs
@@ -25,22 +25,6 @@ Native partitions preserve options, roots, dependency closure and unresolved out
 
 ## Evidence
 
-DOM publication and bounded same-process warm reuse qualify. Native equivalence, other worlds, cross-process reuse and hosted cost remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md` and `reports/review/1045-current-tests-dom-warm-reuse.md`.
+Detailed implementation and qualification evidence is preserved in `reports/review/tooling-park-2026-10-21/work-before/1002-persist-native-semantic-inventory-facts-and-release-world.md`.
 
-Reference storage and native lifetimes pass review. Evidence: `reports/review/native-reference-string-integration.md`, `reports/review/shape-binding-integrated.md` and `reports/review/native-resource-integrated.md`.
-
-The generation prototype census is integrated. Its driver retains a non-prototype signal refusal. D328 ends general callable qualification and helper-specific repair. Evidence: `reports/review/1002-d323-original-census-result.md`.
-
-Source admission preserves world identity. Repeated full schema decoding blocks owner-policy cost qualification; pinned-reader reuse must preserve currentness and disposal. Evidence: `reports/review/1016-schema-decode-cost.md`.
-
-Frozen replay completes selected stored phases; native comparison reaches its deadline. Full equivalence remains unqualified. Evidence: `reports/review/1002-corrected-parity-completed-phases.json`.
-
-Executing-input currentness, sealed consumer adoption and the reviewed ABI correction are integrated. Coherent tooling types pass; Node remains red. Native child execution and historical borrowers retain distinct scopes. Evidence: `reports/review/1002-coherent-abi-integration.md`.
-
-Replay batching, overlays and intra-boundary coalescing preserve independent current reads, projected bytes and authored membership. Shape and public codemod deadlines fail in acquisition/replay, not queries. Evidence: `reports/review/native-currentness-client-wave-independent.md` and `reports/review/1002-public-codemod-cost-diagnosis.md`. Historical failures retain their frozen scope in `reports/review/1002-public-58-failure-disposition.md`.
-
-Capture validation and lexical reuse are integrated. D328 ends unbounded diagnosis. Evidence: `reports/review/1002-current-predicate-cost-next-step.md`.
-
-The [occurrence-index design](../plans/native-occurrence-index/design.md) owns bulk references. Reviewed computed-answer reuse, native location indexing and versioned name links are integrated. UI parity preserves the complete logical reference stream. Native equivalence, concurrency and hosted acceptance remain open. Attribute invocation and replay separately. Evidence: `reports/review/1045-bulk-native-reference-delivery.md`.
-
-The public codemod integration control completes with unchanged assertions and composition-scaled timing. Independent review passes. Historical timeouts stay failed; acquisition latency remains open. Evidence: `reports/review/1002-public-codemod-integration-independent.md`.
+This work is owner-parked outside both test-rebuild plans. Preserve source, reports and unfinished qualifications; resume only with explicit owner authorization.

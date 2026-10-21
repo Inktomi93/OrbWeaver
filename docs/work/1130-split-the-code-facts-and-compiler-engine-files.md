@@ -1,9 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P3
-plan: test-foundation
+blocked: owner
 ---
 
 # Split the code-facts and compiler engine files over their line cap
@@ -23,3 +23,5 @@ Each file sits under its cap along real seams, with its tests and registration l
 ## Evidence
 
 Hosted run `39483788717` emits the engine file-cap findings. The exact paths and locations are recorded in `reports/review/ci-39483788717/triage.md`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

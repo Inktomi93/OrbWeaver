@@ -1,9 +1,9 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P1
-plan: test-foundation
+blocked: owner
 ---
 
 # One type-home gate judges every package by the 7.4 table
@@ -39,3 +39,5 @@ Client-error telemetry derives the canonical diagnostics schema; root controls a
 Adapter contract homes keep runtime bodies and raw wire boundaries; their original placement findings are gone. Evidence: `reports/review/1042-canonical-adapter-type-homes.md`.
 
 Native placement owns export-listed aliases and interfaces and proven zod shape schemas in its whole admitted population. Custom owners subtract that population and keep generated, client, tooling, test and UI-authoring claims. D329 adds the exact data-layout and portability-registry homes; the entry asset ports moved beside their factories. The native type-home cache input is the rule modules' derived import closure. Evidence: `reports/review/981-type-home-slice.md`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

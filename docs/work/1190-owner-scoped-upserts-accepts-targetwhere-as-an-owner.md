@@ -1,10 +1,10 @@
 ---
 kind: bug
-status: open
+status: blocked
 updated: 2026-10-21
 priority: P1
 area: security
-plan: test-foundation
+blocked: owner
 ---
 
 # owner-scoped-upserts accepts targetWhere as an owner guard
@@ -28,3 +28,5 @@ Filled at landing: what ran and where its output is.
 The reviewed source is integrated at `f08b8ea44d`. Native SQL controls and affected compiler programs pass. Complete-policy qualification remains open after the shared observation capture aborts with heap exhaustion. Evidence: `reports/review/1190-1192-policy-oom-diagnosis.md`.
 
 The repaired capture still exceeds the aggregate memory budget during actual complete-policy qualification. The stopped run supplies no owner or authority verdict. Evidence: `reports/review/1153-real-policy-resource-failure.md`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

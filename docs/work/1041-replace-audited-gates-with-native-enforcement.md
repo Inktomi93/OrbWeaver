@@ -1,11 +1,10 @@
 ---
 kind: tooling
-status: doing
+status: blocked
 updated: 2026-10-21
 priority: P1
 area: tooling
-lane: codex/native-origin-cohort-1041
-plan: test-foundation
+blocked: owner
 ---
 
 # Replace audited gates with native enforcement
@@ -24,7 +23,7 @@ Migrated rows have qualified successors and adjudicated exceptions. Security con
 
 ## Evidence
 
-Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`. The [foundation plan](../plans/test-foundation/design.md#gates-move-to-native-enforcement) owns qualified families, retained claims and order.
+Crosswalk: `reports/review/gate-audit-owner-crosswalk.md`. This migration is parked independently; the test rebuild does not own or depend on it.
 
 Native syntax, parser-owned restrictions, production registries, runtime controls and CSS replacements have family-specific scoped evidence in that plan. Preserve unmatched semantic judgments and required producers.
 
@@ -43,3 +42,5 @@ Native HARD lint owns tooling CLI and ops entry identity. Actual manifest edits,
 Native filename discovery preserves admission, configuration validation and real lint without parsing sources. Reviewed native glob factorization preserves full output and lowers observed cost. Invocation-local reuse preserves native ownership and HARD authority. Bounded controls pass review; timing refusals and live metadata remain open. Evidence: `reports/review/1041-scoped-native-reuse-independent.md`.
 
 Reviewed handoff delivery is integrated at `212974e4a9`. Wrapped ambient channel controls and shadowed receivers preserve finite native enforcement. The owning-table matrix remains executable. Source reviews: `reports/review/codex-worktree-1041-review.md` and `reports/review/codex-worktree-1041-remainder.md`. Broader migration qualification remains open.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

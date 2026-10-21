@@ -1,9 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-19
+status: blocked
+updated: 2026-10-21
 priority: P1
-plan: test-foundation
+blocked: owner
 ---
 
 # Build references in one pass per name, not one search per declaration
@@ -23,3 +23,5 @@ References are built by one symbol-grouped pass per name under the occurrence-in
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

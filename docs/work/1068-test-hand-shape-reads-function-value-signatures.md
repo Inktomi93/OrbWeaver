@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-18
+status: blocked
+updated: 2026-10-21
 priority: P3
 area: tooling
-plan: test-foundation
+blocked: owner
 ---
 
 # test-hand-shape reads function value signatures
@@ -24,3 +24,5 @@ Function values at production boundaries are judged through their parameter and 
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

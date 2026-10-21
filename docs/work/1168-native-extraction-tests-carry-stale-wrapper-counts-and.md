@@ -1,9 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P2
-plan: test-foundation
+blocked: owner
 ---
 
 # Native extraction tests carry stale wrapper counts and default timeouts
@@ -23,3 +23,5 @@ The helper counts native-kind answers instead of wrapper calls; each long native
 ## Evidence
 
 The combined integration battery retains an inherited invocation replay failure: `getDescendantAtPos` records no cold wrapper calls. It reproduces with original and corrected extractors. Preserve the behavioral claim while replacing stale instrumentation. Evidence: `reports/review/codex-worktree-1179-review.md` and the integration test results archived under `reports/review/salvage/codex-worktrees-2026-10-20/`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

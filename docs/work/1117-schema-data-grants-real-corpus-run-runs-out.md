@@ -1,9 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P1
-plan: test-foundation
+blocked: owner
 ---
 
 # schema-data-grants real-corpus run runs out of heap at 16 GB
@@ -35,3 +35,5 @@ The suite completes under 16 GB on main with a measured peak, with no heap incre
 The assigned worktree is removed. Its detailed evidence is preserved in `reports/review/salvage/agent-sweep-2026-10-20/agent-ab34ba7b0261ff67a/reports/review/1117-verb-coverage-and-schema-heap.md`. Final suite and CI coverage qualification remain owed.
 
 The repaired capture still exceeds the aggregate memory budget during actual complete-policy qualification. The stopped run supplies no owner or authority verdict. Evidence: `reports/review/1153-real-policy-resource-failure.md`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

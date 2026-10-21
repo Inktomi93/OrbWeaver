@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: blocked
 updated: 2026-10-21
 priority: P2
-lane: codex/caught-failure-dispatch-1126
-plan: test-foundation
+blocked: owner
 ---
 
 # caught-failure readers miss the false positives the 1049 phase 3 audit escalated
@@ -26,3 +25,5 @@ Each escalated case is a planted mustPass row that passes, with a red-first cont
 The reviewed bounded dispatch repair is integrated at `a48aa6e961`. Red-first controls, affected native compilers and scoped behavior pass. Evidence: `reports/review/1126-bounded-dispatch-review.md`.
 
 Actual production-site qualification and obsolete marker removal remain open. The source merge does not close this item.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

@@ -19,7 +19,7 @@ Error states must render through the shared battery so every surface shows the s
 
 ## Done when
 
-The archive renderError renders QueryErrorState directly with the Stack and Kicker outside the boundary, proven by a CT or snap of the error state; then row 120's drafted native successor lands and the gate is deleted.
+The archive renderError renders QueryErrorState directly with the Stack and Kicker outside the boundary, proven by a CT or snap of the error state.
 
 ## Evidence
 

@@ -1,9 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P3
-plan: test-foundation
+blocked: owner
 ---
 
 # Second pass on the caught-failure waivers the 1049 phase 3 audit left UNSURE
@@ -23,3 +23,5 @@ Each listed waiver is KEEP with a named owner path:line, removed as redundant, o
 ## Evidence
 
 Fold in the p3-19 review notes: the line-112 record's diff field quotes the old marker text, the panel-flags.ts line 45 marker omits the --help consumer at panelPresetNames line 55, and the waiver playbook needs one sentence for a REAL DEFECT whose fault is in a consumer, where the marker stays.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

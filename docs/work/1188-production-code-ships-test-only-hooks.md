@@ -18,7 +18,7 @@ Spine-Testing section 10 and the test-mirror plan forbid production code shaped 
 
 ## Done when
 
-Each hook is replaced by an injected seam (clock, scheduler, store reset through the composed root) used by a rebuilt test, or deleted with the legacy test it served; no production export is named or used only for tests; a lint or knip rule refuses a new \_\_ or ForTest production export.
+Each hook is replaced by an injected seam (clock, scheduler, store reset through the composed root) used by a rebuilt test, or deleted with the legacy test it served; no production export is named or used only for tests.
 
 ## Evidence
 

@@ -1,9 +1,9 @@
 ---
 kind: bug
-status: open
+status: blocked
 updated: 2026-10-21
 priority: P1
-plan: test-foundation
+blocked: owner
 ---
 
 # caught-failure-ownership reads the owners of its remaining findings
@@ -29,3 +29,5 @@ After 1049 merged: also relay/execution.ts:42, failures thrown by the returned o
 The complete current-main census and additional sites are recorded in `reports/review/1199-current-population-check.md`. The nomination list is not the whole-policy backlog. The bounded reader batch is integrated at `6dba4c9a53`. Independent review, compiler checks and actual native-site qualification are recorded in `reports/review/1199-caught-failure-implementation.md` and `reports/review/1199-bounded-owner-review.md`. Complete candidate-population qualification remains open. Unsupported owners remain assigned here rather than receiving waivers.
 
 The remaining source dispositions exceed the supported local ownership patterns. D328 bounds further implementation. Evidence: `reports/review/1199-next-owner-batch.md`. The independent predicate-dispatch batch is assigned to the existing escalated-reader item.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

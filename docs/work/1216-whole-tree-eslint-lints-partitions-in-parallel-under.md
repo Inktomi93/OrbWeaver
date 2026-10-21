@@ -1,10 +1,9 @@
 ---
 kind: work
-status: doing
+status: blocked
 updated: 2026-10-21
 priority: P2
-lane: codex/eslint-partition-budget-1216
-plan: test-foundation
+blocked: owner
 ---
 
 # Whole-tree ESLint lints partitions in parallel under a memory budget
@@ -26,3 +25,5 @@ The runner runs independent partitions concurrently up to a configured memory bu
 Hosted run `39483788717` reaches dependency-wide ESLint before cancellation at the configured job limit. The transcript establishes neither complete lint qualification nor the sole timeout cause. Evidence: `reports/review/ci-39483788717/triage.md`.
 
 Typed parser-owner routing is corrected on main at `10a78e5a20`. Native owner, cache and mandatory-profile controls qualify the correction. The scheduler lane must retain that routing before calibration. Evidence: `reports/review/compiler-world-investigation/investigation.md`. Scheduler integration and measured production budgets remain open.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

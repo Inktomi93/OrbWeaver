@@ -1,9 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P1
-plan: test-foundation
+blocked: owner
 ---
 
 # pnpm ast scope narrows native extraction to the worlds it reads
@@ -33,3 +33,7 @@ Baseline on main 492d691d89 (`reports/review/warm/`): rot server cold 1:44:07 at
 Measured by the 1179 lane (`reports/review/1179-trace/`): in the root tsconfig.json world, the declarations in its own test roots produce 8.05M reference rows, the dominant cost; imported product and tooling declarations add about 4.5M, which roots-only trims. Program construction is about 12 s. The lever is reference demand: rot needs references only for in-scope value exports and witness carriers. That belongs to 1183 (covering-slice reuse) or a root-limited search in the ts-morph patch. Branch commit 65c6ff5712 (Refs) supplies scoped acquisition and cached membership, and halves tests-dom (12:55 to 6:42). Displayed findings match; complete reference equivalence remains unqualified.
 
 Reviewed scope and membership delivery is integrated at `212974e4a9`, including explicit authored-closure module and invocation demands. The root-world cost target and complete reference equivalence remain unqualified. The inference difference is iterator-property ordering, not changed overload membership. Reference-demand work belongs to item 1183. Evidence: `reports/review/codex-worktree-1179-review.md`.
+
+The covering-slice reference API is integrated and its work item is landed. It does not meet this item's root-world cost target. Finite declaration demand for scoped rot remains assigned here.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

@@ -1,7 +1,8 @@
 ---
 kind: plan
-status: active
-updated: 2026-10-18
+status: parked
+updated: 2026-10-21
+blocked: owner
 ---
 
 # Native reference occurrences without repeated program searches
@@ -14,9 +15,9 @@ Replace bulk declaration-by-declaration reference searches with persisted native
 
 ### Reading priority
 
-The [test-foundation plan](../test-foundation/design.md) owns order. The [test-mirror inventory](../test-mirror/design.md) supplies replacement cases. This subordinate extractor design is not another main program.
+This tooling initiative is parked by the owner, independently of the test rebuild. The test-foundation and test-mirror plans do not schedule or depend on it. Resume only with explicit owner authorization.
 
-Complete the executing-input currentness delivery before changing its frozen extractor. Keep native gate migration and corpus smoke independent. The memory work item owns hosted qualification.
+Preserve the unfinished extractor, source branches and evidence. Its implementation and qualification remain stopped.
 
 ### Evidence and attribution
 
@@ -59,7 +60,7 @@ Another store or detector; bigger heaps; reduced populations; merging native wor
 
 ## Coupled sites
 
-The test-foundation plan owns scheduling. Items 955, 965, 1002 and 1027 own reference readers, cost, store lifecycle and native consumer delivery. Existing SQLite schemas, native workspace and compiler workers remain the implementation homes.
+This parked initiative has no scheduling authority over the test rebuild. Items 955, 965, 1002 and 1027 own reference readers, cost, store lifecycle and native consumer delivery. Existing SQLite schemas, native workspace and compiler workers remain the implementation homes.
 
 ## Test plan
 

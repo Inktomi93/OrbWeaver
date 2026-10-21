@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-19
+status: blocked
+updated: 2026-10-21
 priority: P3
 area: tooling
-plan: test-foundation
+blocked: owner
 ---
 
 # Caught-failure ownership refuses spread overrides and reference-only carriers
@@ -24,3 +24,5 @@ Each shape has a mustFlag row that is red before the fix and green after.
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

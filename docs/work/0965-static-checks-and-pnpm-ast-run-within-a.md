@@ -1,9 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-18
+status: blocked
+updated: 2026-10-21
 priority: P1
-plan: test-foundation
+blocked: owner
 ---
 
 # Static checks and pnpm ast run within a standard CI runner's memory
@@ -45,3 +45,5 @@ Selected citation policies complete without tool errors; authority debt remains.
 AST routing declares per-verb store demand. Only `typeonly-alive` omits unused families; complete references and roots remain. CLI, factory and lifecycle controls pass review. Tooling types pass; inherited Node errors and world cost stay open. Evidence: `reports/review/965-ast-demand-routing.md`.
 
 CI run 39279178336: lint:eslint took about 38 minutes on the hosted runner and the static job was cancelled.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

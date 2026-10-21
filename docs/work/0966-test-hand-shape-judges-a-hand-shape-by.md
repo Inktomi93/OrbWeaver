@@ -1,9 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-19
+status: blocked
+updated: 2026-10-21
 priority: P2
-plan: test-foundation
+blocked: owner
 ---
 
 # test-hand-shape judges a hand shape by its type relation to production
@@ -26,3 +26,5 @@ Integrated at `32928876b0` after two independent verifier rounds: direct-boundar
 Partial source is saved at `affa11ba8d` for driver transfer. Qualification remains open. See `reports/review/codex-driver-handoff.md` for ownership, checks and dependencies.
 
 D328 bounds static assurance; native relation alone cannot distinguish copied intent from independent identical declarations. The consumed shape-reader subset qualifies before this gate changes. General shape equivalence remains with item 954. Implementation and qualification remain open.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-18
+status: blocked
+updated: 2026-10-21
 priority: P2
 area: tooling
-plan: test-foundation
+blocked: owner
 ---
 
 # Placement gates exclude server factory shapes
@@ -32,3 +32,5 @@ Qualified native factory and sanctioned transport markers are removed. Principal
 Bounded native declaration traversal replaces recursive expansion and completes the ordinary server cohort without heap exhaustion. Reviewed controls preserve actual arguments, owner identity, merged declarations and missing-data refusal. Derived/schema, ambient and dependent-default coverage stays open; do not rewrite canonical application types to hide it. Evidence: `reports/review/1042-native-boundary-successor.md` and `reports/review/1042-server-public-boundary-independent.md`.
 
 Adapter contract-home corrections are integrated. Exact runtime erasure, server types and independent security review pass. Original placement findings are gone; coverage refusals, their observed delta and broader dependency reselection remain unqualified. Evidence: `reports/review/1042-canonical-adapter-type-homes.md`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

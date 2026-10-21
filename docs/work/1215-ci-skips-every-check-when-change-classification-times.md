@@ -1,9 +1,9 @@
 ---
 kind: bug
-status: open
+status: blocked
 updated: 2026-10-21
 priority: P1
-plan: test-foundation
+blocked: owner
 ---
 
 # CI skips every check when change classification times out
@@ -29,3 +29,5 @@ Hosted run `39469280964` completes classification within its budget and executes
 Hosted run `39483788717` completes classification and executes application jobs. Static reaches ESLint, then hits the configured job limit; complete hosted acceptance remains unqualified. Evidence: `reports/review/ci-39483788717/triage.md`.
 
 Hosted run `39620796838` executes the pushed main candidate `a674872615`. The changes job completes through fallback after a historical GitHub API read fails. Application jobs finish with failures; static qualification remains incomplete. This does not establish strict classification or baseline authority. No classifier change is justified. Evidence: `reports/review/1215-current-hosted-qualification.md`. The lint scheduling item owns the independent performance work.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

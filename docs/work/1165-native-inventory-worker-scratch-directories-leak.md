@@ -1,9 +1,9 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-19
+status: blocked
+updated: 2026-10-21
 priority: P3
-plan: test-foundation
+blocked: owner
 ---
 
 # Native inventory worker scratch directories leak
@@ -23,3 +23,5 @@ A worker's scratch directory is removed on normal exit, failure and parent kill,
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

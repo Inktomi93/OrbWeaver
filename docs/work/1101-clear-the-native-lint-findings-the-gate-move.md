@@ -1,9 +1,9 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P2
-plan: test-foundation
+blocked: owner
 ---
 
 # Clear the native lint findings the gate-move merges introduced
@@ -23,3 +23,5 @@ pnpm lint:eslint-scoped over each listed file reports none of these findings, wi
 ## Evidence
 
 Reviewed source is integrated at `212974e4a9`. Native lint still reports findings outside the server factory population. Completed output and resource measurements: `reports/review/handoff-native-lint/`. This item remains open; source delivery is not full lint qualification.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

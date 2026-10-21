@@ -1,9 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-19
+status: blocked
+updated: 2026-10-21
 priority: P1
-plan: test-foundation
+blocked: owner
 ---
 
 # One home for drizzle query facts
@@ -37,3 +37,5 @@ Reviewed `849095f170` qualifies finite generic table alternatives, imported dest
 Reviewed `5423bfb5d9` stops fluent extraction at delivered await values; complete equivalence remains open.
 
 Owed before landing: a per-case version table for each folded reader (.claude/rules/tooling.md); the vocabulary commit proved parity only.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

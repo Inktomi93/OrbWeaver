@@ -1,9 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-19
+status: blocked
+updated: 2026-10-21
 priority: P3
-plan: test-foundation
+blocked: owner
 ---
 
 # semantic-inventory-extract.ts splits along its families
@@ -23,3 +23,5 @@ The extractor splits into per-family modules under the cap with unchanged extrac
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

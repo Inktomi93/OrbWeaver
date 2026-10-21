@@ -1,11 +1,10 @@
 ---
 kind: work
 status: blocked
-updated: 2026-10-19
+updated: 2026-10-21
 priority: P2
 area: packages
-blocked: on 1133
-plan: test-foundation
+blocked: owner
 ---
 
 # Adjudicate unused production exports behind explicit package doors
@@ -24,24 +23,6 @@ The recorded production inventory is fully adjudicated in package/domain batches
 
 ## Evidence
 
-Native production Knip completes; raw inventory is `reports/knip-production-findings.json`. Reviewed server barrel removals preserve declarations and evaluation. Affected programs and lint qualify with inherited Node diagnostics. Only proven stale baseline keys are removed; other findings remain. Evidence: `reports/review/989-server-door-adjudication-ordinary.md`.
+Detailed implementation and qualification evidence is preserved in `reports/review/tooling-park-2026-10-21/work-before/0989-adjudicate-unused-production-exports-behind-explicit-package-doors.md`.
 
-Reviewed client, DB and kit re-exports preserve module evaluation, implementations and uncertain consumers. Scoped lint and affected native programs pass. Evidence: `f2101d2246` and `dba31a7efc`. The plan retains macro API vocabulary.
-
-The grouped native projection covers its full world roster. Reconciliation at `d9b30cc9d3` removes only proven stale baseline keys. Unbaselined findings stay visible; symbol adjudication remains open.
-
-Reviewed UI removals at `526b6a207f` and `66170cac0a` preserve primitive parts, API vocabulary and module requests. CLI controls reject traversal and wrong dependency, containment or native origins. Affected programs pass; legacy-node retains fixture diagnostics. Named test routes are not production callers. This partial batch does not complete adjudication.
-
-Follow the [foundation plan's public-door order](../plans/test-foundation/design.md#public-doors-and-production-usage). AST consumption and native inventory supply candidates, not authority. Preserve module evaluation, same-package and registry consumers and deliberate API contracts. Ambiguous cases remain unresolved; add no fake consumer or liveness gate.
-
-Reviewed non-macro kit cleanup removes obsolete exports and dead implementations while preserving canonical macro identity. The baseline drops only matching stale keys. Kit/iso programs and retained kit cases pass; legacy remains red without an exact baseline. Test-supported surfaces and CSS-oracle models remain production API decisions, not established application consumers. Evidence: `reports/review/989-kit-nonmacro-independent.md`.
-
-Reviewed kit cleanup narrows internal exports and moves meaningful cases to public callers. Scoped native checks pass; legacy types remain red. Only exact stale baseline keys leave. CSS models await real producer/renderer qualification. Evidence: `reports/review/989-kit-b1b2-independent.md`.
-
-Reviewed client state doors: evidence `reports/review/peer-state-population-independent.md`.
-
-Reviewed feature doors: evidence `reports/review/989-feature-door-independent.md` and `reports/review/989-client-held-door-independent.md`.
-
-Plan-method evidence (`pnpm ast rot`/`apisurface`) does not complete at usable cost: rot server stopped at 2 h 54 min without a verdict. Bulk application waits on 1133 and 965, as the plan's public-doors section requires.
-
-Retire legacy-only exports with their rebuilt domains through the batched codemod. Evidence: `reports/review/legacy-kept-alive-audit.md`.
+This work is owner-parked outside both test-rebuild plans. Preserve source, reports and unfinished qualifications; resume only with explicit owner authorization.

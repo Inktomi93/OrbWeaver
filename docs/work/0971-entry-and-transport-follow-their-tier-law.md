@@ -1,9 +1,9 @@
 ---
 kind: work
-status: open
-updated: 2026-10-20
+status: blocked
+updated: 2026-10-21
 priority: P1
-plan: test-foundation
+blocked: owner
 ---
 
 # Entry and transport follow their tier law
@@ -23,3 +23,5 @@ Each site follows its tier rule; each new dependency-cruiser rule has a planted 
 ## Evidence
 
 Unfinished candidates remain archived under `reports/review/salvage/agent-sweep-2026-10-20/agent-a94ab45e8b5437f01/`. Current-source disposition and security preservation requirements: `reports/review/codex-971-security-salvage-triage.md`. The crypto rename lacks context and root wiring; recover the coherent obligation, not the stale patch. Current secret-dependency refusals remain active.
+
+The owner froze this mixed production-boundary and enforcement batch during the test-program scope reset. Its unfinished source is preserved outside the rebuild plans. Custody: `reports/review/tooling-park-2026-10-21/`.

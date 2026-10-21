@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-18
+status: blocked
+updated: 2026-10-21
 priority: P2
 area: tooling
-plan: test-foundation
+blocked: owner
 ---
 
 # The verify CLI and its inventory worker carry their own heap floor
@@ -24,3 +24,5 @@ A bare `node` invocation of the verify CLI completes the server-world inventory 
 ## Evidence
 
 Reviewed CLI startup and inventory workers consume the existing workspace heap configuration. Explicit native heap caps retain precedence. Native signal and stderr evidence survive worker failure. Bounded process, publication and lifetime controls pass; tooling types pass and Node diagnostics remain unchanged. Full server-world bare-versus-pnpm completion and peak-memory comparison remain open. Evidence: `reports/review/1046-heap-floor-independent.md`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

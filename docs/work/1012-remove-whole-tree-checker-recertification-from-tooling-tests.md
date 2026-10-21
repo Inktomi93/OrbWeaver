@@ -1,10 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-13
+status: blocked
+updated: 2026-10-21
 priority: P2
 area: tooling
-plan: test-foundation
+blocked: owner
 ---
 
 # Remove whole-tree checker recertification from tooling tests
@@ -34,3 +34,5 @@ Completed non-corpus suite durations: dangling-reference repository replay 616.6
 Source inspection separates repeated live-tree runs from bounded parser, refusal, selection, cache and lifetime cases. Remove the obsolete liveness-manifest requirement with its runner; do not leave a gate requiring deleted certification. Product dangling-reference and failure-ownership rules are not deletion candidates merely because their repository tests are redundant. No tests or whole-tree checks ran during this inspection.
 
 The instrument-proof gate treats named comments as proof presence; this does not inspect test assertions. Its verdict-door restriction is a separate claim. Proof expectations, refusal coverage, family readers, binding resolution and policy soundness require claim-by-claim adjudication, not automatic retention because they certify tools. Preserve genuine error and resource refusal semantics.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.

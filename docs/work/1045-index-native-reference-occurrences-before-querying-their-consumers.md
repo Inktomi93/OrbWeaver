@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-10-19
+status: blocked
+updated: 2026-10-21
 priority: P1
 area: tooling
+blocked: owner
 plan: native-occurrence-index
 ---
 
@@ -32,3 +33,5 @@ Member and module occurrence production passes bounded parity controls and indep
 Reference attribution preserves the original frozen DOM measurement and its compiler identity. Candidate indexing retains native reference semantics. Evidence: `reports/review/1002-current-tests-dom-cost.md` and `reports/review/1002-current-dom-reference-profile.md`.
 
 Computed-answer reuse, native location indexing and versioned name links are integrated with matching main SDK installation. Storage upgrades and exact logical replay pass controls and independent review. UI relation-on/off observations preserve complete roots, closure, inputs and reference order. Complete default-DOM publication qualifies currentness, lazy reads, physical release and measured cost. Same-process warm readers preserve nonempty public answers, pinned generation and disposal without rebuilding. Cross-process reuse, native equivalence, other worlds and hosted acceptance remain open. Evidence: `reports/review/1045-current-tests-dom-qualification.md`, `reports/review/1045-current-tests-dom-warm-reuse.md` and `reports/review/1045-bulk-native-reference-delivery.md`.
+
+Owner-directed tooling pause: this work is parked outside the test-foundation and test-mirror programs. Preserve source and evidence; resume only with explicit owner authorization. Custody: `reports/review/tooling-park-2026-10-21/`.
