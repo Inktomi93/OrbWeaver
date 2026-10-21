@@ -48,8 +48,6 @@
     "./floor/cli/exit-contract": "./src/floor/cli/exit-contract.ts",
     "./floor/cli/log": "./src/floor/cli/log.ts",
     "./floor/cli/run-tool": "./src/floor/cli/run-tool.ts",
-    "./floor/compiler/project-worlds": "./src/floor/compiler/project-worlds.ts",
-    "./floor/compiler/type-config-intent": "./src/floor/compiler/type-config-intent.ts",
     "./floor/devtools/devtools-assets": "./src/floor/devtools/devtools-assets.ts",
     "./floor/devtools/devtools-assets-server": "./src/floor/devtools/devtools-assets-server.ts",
     "./floor/devtools/devtools-assets-types": "./src/floor/devtools/devtools-assets-types.ts",

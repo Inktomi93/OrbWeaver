@@ -62,7 +62,7 @@ rg -c '"@orb/contracts/' packages                          #     pattern on cont
 rg -n '@orb/inference' packages/client packages/ui      # => 0 hits
 
 # 3. The cake direction and the browser fence are the tier-3 backstop.
-pnpm depcruise                                          # rules: inference-cake, browser-no-inference
+pnpm depcruise                                          # rules: inference-cake, client-cake, ui-cake
 
 # 4. `serves` is data, and the table test is what keeps it honest.
 The corresponding table case remains in the sibling legacy source as reference material; this repository does not execute it.

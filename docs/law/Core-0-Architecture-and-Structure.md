@@ -196,9 +196,8 @@ directory gives each test one home, and the src tree stays clean. The fixture do
 
 **The test kit is a package.** `tests/support` is the workspace package `@orb/testkit`. It sits above the cake
 beside tooling (§9). Its exports map has three world subpaths and no root entry: `@orb/testkit/iso/<path>`,
-`@orb/testkit/node/<path>` and `@orb/testkit/browser/<path>`. Each world directory compiles under its own world
-program (`TEST_WORLD_PROGRAMS` in `tooling/src/floor/compiler/project-worlds.ts`). `test-helper-world-direction`
-keeps the direction: iso imports no other world, node imports iso, browser imports both.
+`@orb/testkit/node/<path>` and `@orb/testkit/browser/<path>`. The checked-in compiler configurations own their environments: `tsconfig.tests-iso.json`, `tsconfig.json` and `tsconfig.tests-dom.json`.
+The `test-helper-world-direction` rule in `.dependency-cruiser.cjs` keeps the direction: iso imports no other world, node imports iso, browser imports both.
 
 The kit holds deterministic inputs, production-derived builders, external-edge adapters and recorders. Product logic stays in its owning layer behind its public API. `Spine-Testing.md` §2 owns the server test composition home; rebuilt tests do not assemble another domain graph.
 

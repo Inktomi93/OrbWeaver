@@ -46,7 +46,7 @@ Each `packages/*/package.json` declares its workspace deps, and an undeclared im
 - `kit`: no workspace package.
 - `contracts`: `kit`.
 - `db`, `inference`: `contracts`, `kit`.
-- `default-content`, `ui`: `kit`. `showcase-plugins`: `contracts`. `plugin-sdk`: no workspace package.
+- `default-content`, `ui`: `kit`. `showcase-plugins`: `contracts`, `kit` (D160). `plugin-sdk`: no workspace package.
 - `plugin-toolchain`: author-time only; TypeScript is its runtime dependency. Standalone templates declare `plugin-sdk` separately for editor types.
 - `server`: `contracts`, `db`, `default-content`, `inference`, `kit`, `showcase-plugins`.
 - `client`: `contracts`, `kit`, `ui`. Type-only: `server` (the tRPC `AppRouter` bridge, a `devDependency`).
@@ -159,24 +159,41 @@ without a path are in that folder.
 ## Path rules and Codex
 
 - Claude Code loads a rule when it reads a file that matches the rule's `paths:`. Codex does not: before you change a file, read each rule below whose globs match it.
+
 - In Codex outside a `.codex/agents/*.toml` role, read `.claude/skills/lane/SKILL.md` in full before you edit, stage, commit or run the stack.
+
 - Codex edit feedback is owner-disabled; use explicit scoped checks from the lane skill. To coordinate lanes, read `.claude/skills/orchestrator/SKILL.md`.
+
 - In Codex, spawn `verifier`, `side-eye` or `stickler` with `fork_turns="none"` and a self-contained brief. A forked history ends an independent review.
 
-
 - `.claude/rules/browser-tests.md`: `tests/**/*.ct.tsx`, `tests/e2e/**`, `tests/support/browser/**`, `playwright*.config.ts`
+
 - `.claude/rules/chat.md`: `packages/server/src/domain/chat/**`
+
 - `.claude/rules/comments.md`: `packages/**`, `tooling/**`, `tests/**`, `scripts/**`
+
 - `.claude/rules/contracts-and-kit.md`: `packages/contracts/**`, `packages/kit/**`
+
 - `.claude/rules/db.md`: `packages/db/**`
+
 - `.claude/rules/hooks.md`: `.claude/hooks/**`
+
 - `.claude/rules/inference.md`: `packages/inference/**`
+
 - `.claude/rules/instruments.md`: `tooling/src/snap/**`, `tooling/src/ui-audit/**`
+
 - `.claude/rules/node-tests.md`: `tests/**/*.test.ts`, `tests/support/**`, `tests/contracts/**`
+
 - `.claude/rules/plugins.md`: `packages/server/src/domain/plugin/**`, `packages/server/src/infra/plugin-host/**`, `packages/contracts/src/plugin/**`, `packages/showcase-plugins/**`, `packages/plugin-sdk/**`, `packages/plugin-toolchain/**`
+
 - `.claude/rules/rpg.md`: `packages/server/src/domain/rpg/**`, `packages/client/src/features/rpg/**`
+
 - `.claude/rules/server-edge.md`: `packages/server/src/entry/**`, `packages/server/src/transport/**`, `packages/server/src/foundation/**`, `packages/server/src/infra/auth/**`, `packages/server/src/infra/network/**`, `tests/server/transport/**`
+
 - `.claude/rules/server.md`: `packages/server/src/**`, `tests/server/**`
+
 - `.claude/rules/tooling.md`: `tooling/src/**`, `tests/tooling/**`, `biome.json`, `eslint.config.js`, `.dependency-cruiser.cjs`, `knip.ts`, `lefthook.yml`, `tsconfig*.json`
+
 - `.claude/rules/ui-and-client.md`: `packages/ui/src/**`, `packages/client/src/**`
+
 - `.claude/rules/writing.md`: `.claude/**`, `AGENTS.md`, `docs/**`

@@ -1,6 +1,7 @@
 // Native import boundaries for package tiers, feature doors, helper worlds and runtime authority.
 const { BROWSER_TEST_SUFFIXES, TEST_KIND_SUFFIXES } = require("./tooling/src/floor/testing/test-kinds.ts");
-const { BROWSER_SURFACE_DIRS, HELPER_WORLD_DIRS } = require("./tooling/src/floor/compiler/project-worlds.ts");
+const BROWSER_SURFACE_DIRS = ["tests/e2e", "tests/support/browser", "playwright"];
+const HELPER_WORLD_DIRS = { iso: "tests/support/iso", node: "tests/support/node", browser: "tests/support/browser" };
 const ENTRY_SOURCE = "^packages/server/src/entry/";
 const ENTRY_DRIVER_PATTERN = `${ENTRY_SOURCE}(?:(?:index|lifecycle)\\.ts$|boot/(?!(?:seed-example-plugins|seed-user-content|seed-local-light)\\.ts$))`;
 const GROUPING_DIRS = {
@@ -18,9 +19,7 @@ const UI = "^packages/ui/src/";
 const SRV = "^packages/server/src/";
 const CLIENT_TRPC = `${CLIENT}data/trpc\\.ts$`;
 const SERVER_ROOT = "^packages/server/dist/router-types/packages/server/src/index\\.d\\.ts$";
-const SHOWCASE = "^packages/showcase-plugins/";
 const INFERENCE = "^packages/inference/src/";
-const DEFAULT_CONTENT = "^packages/default-content/";
 const TEST_FILES = `(?:${TEST_KIND_SUFFIXES.map((suffix) => suffix.replaceAll(".", "\\.")).join("|")})$`;
 // The one test world allowed to import the compose door: the browser-CT support re-exports its registries so
 // stories mount the app that ships (Spine-Testing §10). Node and iso helpers stay behind the wall.
@@ -161,13 +160,10 @@ module.exports = {
     // ════════════════════════ The package cake (backstop to the resolver) ════════════════════════
     {
       name: "kit-purity",
-      comment:
-        "@orb/kit is the isomorphic leaf: pure primitives + engines. It MAY use isomorphic npm (zod, typeid-js, luxon, remend) but NOT any higher package — and NOT Node built-ins (the browser-and-iso-no-node-builtins rule below). Node-only-pure code goes to @orb/server/primitives (e.g. the node:vm regex guard). (DECISIONS-LEDGER §0.6 — the kit-purity ruling: 'zero runtime deps' = zero domain/I-O/Node deps, not zero npm.)",
+      comment: "Kit is the isomorphic leaf; no other workspace package is allowed (AGENTS package direction).",
       severity: "error",
-      from: { path: KIT },
-      // NOTE: conditions WITHIN a single `to` are AND'd by dep-cruiser, so node:* (a separate concern)
-      // gets its OWN rule below — combining `path` + `dependencyTypes:["core"]` here would match nothing.
-      to: { path: [CONTRACTS, DB, INFERENCE, "^packages/server/", CLIENT] },
+      from: { path: "^packages/kit/" },
+      to: { path: "^packages/", pathNot: "^packages/kit/" },
     },
     {
       name: "browser-and-iso-no-node-builtins",
@@ -179,11 +175,10 @@ module.exports = {
     },
     {
       name: "contracts-cake",
-      comment:
-        "@orb/contracts (the wire: cross-boundary types + zod) deps only @orb/kit. It must never import @orb/db, @orb/inference, @orb/server, or @orb/client. (Core-0-Architecture-and-Structure.md §2 cake.)",
+      comment: "Wire contracts depend only on kit (AGENTS package direction).",
       severity: "error",
-      from: { path: CONTRACTS },
-      to: { path: [DB, INFERENCE, "^packages/server/", CLIENT] },
+      from: { path: "^packages/contracts/" },
+      to: { path: "^packages/", pathNot: "^packages/(contracts|kit)/" },
     },
     {
       name: "bus-contract-no-credentials",
@@ -195,73 +190,66 @@ module.exports = {
     },
     {
       name: "db-cake",
-      comment:
-        "@orb/db (drizzle schema + libSQL) deps only kit + contracts. A db→inference, db→server or db→client import is impossible by the cake; the OTel wrapper is INJECTED into createDb, never imported. (Tier-1-DB.md.)",
+      comment: "Database code depends only on contracts and kit; higher capabilities are injected (AGENTS package direction).",
       severity: "error",
-      from: { path: DB },
-      to: { path: [INFERENCE, "^packages/server/", CLIENT] },
+      from: { path: "^packages/db/" },
+      to: { path: "^packages/", pathNot: "^packages/(db|contracts|kit)/" },
     },
     {
       name: "inference-cake",
-      comment:
-        "@orb/inference is the provider RUNTIME (executor · one backend per wire · funnel · capability synthesis): kit ← contracts ← db ← inference ← server. It may reach @orb/kit + @orb/contracts and the provider SDKs; NEVER @orb/db (snapshot/connection/binding persistence are PORTS the server wires), @orb/server, @orb/client or @orb/ui. The package.json dependency list is the resolve-time physics; this is the tier-3 backstop that names the direction.",
+      comment: "The provider executor depends only on contracts and kit; persistence is injected (AGENTS package direction).",
       severity: "error",
-      from: { path: INFERENCE },
-      to: { path: [DB, "^packages/server/", CLIENT, UI] },
-    },
-    {
-      name: "browser-no-inference",
-      comment:
-        "The browser packages must never import @orb/inference: it is NODE-ONLY (the agent-sdk subprocess, the ONNX runtime, undici-guarded fetch) and the client renders the picker from the ISOMORPHIC vocabulary in @orb/contracts/inference instead.",
-      severity: "error",
-      from: { path: [CLIENT, UI] },
-      to: { path: INFERENCE },
+      from: { path: "^packages/inference/" },
+      to: { path: "^packages/", pathNot: "^packages/(inference|contracts|kit)/" },
     },
     {
       name: "default-content-cake",
-      comment:
-        "@orb/default-content is CONTENT plus its reader (D160 — the avatar PNGs + demo-chat transcripts, the family @orb/showcase-plugins was the first half of). It sits BELOW `server` in the cake because the server's seeders consume it AT RUNTIME, so it may reach only @orb/kit (the CharacterHandle brand) — never @orb/contracts, @orb/db, @orb/server, @orb/client or @orb/ui. The package.json dependency list is the resolve-time physics; this is the tier-3 backstop that names the direction.",
+      comment: "Shipped content and its reader depend only on kit (AGENTS package direction).",
       severity: "error",
-      from: { path: DEFAULT_CONTENT },
-      to: { path: [CONTRACTS, DB, "^packages/server/", CLIENT, UI] },
-    },
-    {
-      name: "browser-no-default-content",
-      comment:
-        "The browser packages must never import @orb/default-content: it is a NODE reader (it reads shipped files off disk with node:fs) and its bytes reach the client only as stored assets through the assets/chat verbs. (D160.)",
-      severity: "error",
-      from: { path: [CLIENT, UI] },
-      to: { path: DEFAULT_CONTENT },
+      from: { path: "^packages/default-content/" },
+      to: { path: "^packages/", pathNot: "^packages/(default-content|kit)/" },
     },
     {
       name: "showcase-plugins-cake",
-      comment:
-        "@orb/showcase-plugins is CONTENT plus its packer (#1692, the #1238 §2 house shape). It sits BELOW `server` in the cake because the server's seeder consumes it AT RUNTIME, so it may reach only @orb/kit + @orb/contracts (the bundle-entry vocabulary + the manifest schema the install funnel judges by) — never @orb/db, @orb/server, @orb/client or @orb/ui. The package.json dependency list is the resolve-time physics; this is the tier-3 backstop that names the direction.",
+      comment: "Showcase content depends only on kit and contracts (D160).",
       severity: "error",
-      from: { path: SHOWCASE },
-      to: { path: [DB, "^packages/server/", CLIENT, UI] },
+      from: { path: "^packages/showcase-plugins/" },
+      to: { path: "^packages/", pathNot: "^packages/(showcase-plugins|kit|contracts)/" },
     },
     {
-      name: "browser-no-showcase-plugins",
-      comment:
-        "The browser packages must never import @orb/showcase-plugins: it is a NODE reader (it reads bundle directories off disk with node:fs) and its content is GUEST code for the QuickJS sandbox, delivered to the client only as installed-plugin bytes through the plugin verbs. (#1692.)",
-      severity: "error",
-      from: { path: [CLIENT, UI] },
-      to: { path: SHOWCASE },
-    },
-    {
-      name: "server-no-client",
-      comment: "Server code must never import the browser/presentation package.",
+      name: "server-cake",
+      comment: "Server code depends only on the lower workspace packages (AGENTS package direction).",
       severity: "error",
       from: { path: "^packages/server/" },
-      to: { path: CLIENT },
+      to: { path: "^packages/", pathNot: "^packages/(server|contracts|db|default-content|inference|kit|showcase-plugins)/" },
+    },
+    {
+      name: "plugin-sdk-cake",
+      comment: "Plugin SDK declarations are standalone, with no workspace dependencies (AGENTS package direction).",
+      severity: "error",
+      from: { path: "^packages/plugin-sdk/" },
+      to: { path: "^packages/", pathNot: "^packages/plugin-sdk/" },
+    },
+    {
+      name: "plugin-toolchain-cake",
+      comment: "The author-time compiler is standalone; templates declare their SDK dependency separately (AGENTS package direction).",
+      severity: "error",
+      from: { path: "^packages/plugin-toolchain/" },
+      to: { path: "^packages/", pathNot: "^packages/plugin-toolchain/" },
+    },
+    {
+      name: "client-cake",
+      comment: "Client code depends only on contracts, kit and UI; the exact AppRouter declaration edge is constrained by the three bridge rules below.",
+      severity: "error",
+      from: { path: "^packages/client/" },
+      to: { path: "^packages/", pathNot: ["^packages/(client|contracts|kit|ui)/", SERVER_ROOT] },
     },
     {
       name: "client-no-backend-runtime",
       comment:
         "The browser bundle must never pull @orb/server or @orb/db RUNTIME code. The one server-owned tRPC contract crosses as a type-only edge governed separately by client-backend-types-only-through-trpc and client-trpc-type-target. (Core-0-Architecture-and-Structure.md §2.)",
       severity: "error",
-      from: { path: CLIENT },
+      from: { path: "^packages/client/" },
       to: { path: ["^packages/server/", DB], dependencyTypesNot: ["type-only"] },
     },
     {
@@ -269,7 +257,7 @@ module.exports = {
       comment:
         "Client code may reach backend-owned types only through data/trpc.ts, the single owner of the server-derived AppRouter client seam. An arbitrary server or DB type import expands that intentional compiler dependency. (#1890.)",
       severity: "error",
-      from: { path: CLIENT, pathNot: CLIENT_TRPC },
+      from: { path: "^packages/client/", pathNot: CLIENT_TRPC },
       to: { path: ["^packages/server/", DB], dependencyTypes: ["type-only"] },
     },
     {
@@ -338,11 +326,10 @@ module.exports = {
     // ════════════════════ @orb/ui — the frontend cake leaf (D42; ui-package-design.md §8) ═══════════
     {
       name: "ui-cake",
-      comment:
-        "@orb/ui is DOMAIN-AGNOSTIC (D42): kit ← ui ← client. It may import @orb/kit + its sealed satellites, NEVER @orb/contracts / @orb/db / @orb/server / @orb/client — a ui component that needs a domain shape takes ui-local STRUCTURAL props instead (ui-package-design.md §1). Primary enforcement is the resolver (those packages are not in ui's package.json); this is the deep-relative-escape backstop.",
+      comment: "Domain-agnostic UI depends only on kit (D42; AGENTS package direction).",
       severity: "error",
-      from: { path: UI },
-      to: { path: [CONTRACTS, DB, "^packages/server/", CLIENT] },
+      from: { path: "^packages/ui/" },
+      to: { path: "^packages/", pathNot: "^packages/(ui|kit)/" },
     },
     {
       name: "ui-satellite-seals",
