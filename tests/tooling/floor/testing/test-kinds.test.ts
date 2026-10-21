@@ -18,11 +18,7 @@ interface ProjectShape {
   readonly test?: { readonly include?: readonly string[]; readonly typecheck?: { readonly include?: readonly string[] } };
 }
 
-// Application-only configuration excludes tooling while keeping the same runtime kinds.
-const CONFIG_VARIANTS = [
-  ["vitest.config.ts", vitestConfig()],
-  ["vitest.product.config.ts", vitestConfig(true)],
-] as const;
+const NATIVE_CONFIG = vitestConfig();
 
 /** Every positive include glob that selects a suffix Vitest cannot execute. A negated glob only excludes. */
 function playwrightSuffixIncludes(projects: readonly ProjectShape[], suffixes: readonly string[]): string[] {
@@ -33,16 +29,16 @@ function playwrightSuffixIncludes(projects: readonly ProjectShape[], suffixes: r
 
 const PLAYWRIGHT_SUFFIXES = TEST_KIND_DEFINITIONS.filter(({ family }) => runtimeForTestFamily(family).startsWith("playwright")).map(({ suffix }) => suffix);
 
-test.each(CONFIG_VARIANTS)("no Vitest project include in %s selects a Playwright component or e2e suffix", (_file, config) => {
+test("no native Vitest project include selects a Playwright component or e2e suffix", () => {
   // The two founding suffixes stay a floor so the derived set cannot narrow unnoticed.
   expect(PLAYWRIGHT_SUFFIXES).toEqual(expect.arrayContaining([".ct.tsx", ".suite.ct.tsx", ".spec.ts"]));
-  const projects = config.test?.projects ?? [];
+  const projects = NATIVE_CONFIG.test?.projects ?? [];
   expect(projects.length).toBeGreaterThan(0);
   // A string path or a factory carries includes this check cannot read; refuse it instead of passing it unseen.
   expect(projects.filter((project) => typeof project !== "object")).toEqual([]);
   // Every runtime project sets `extends: true`, and Vitest concatenates the root's include arrays into each child,
   // so a root-level glob reaches every project. The root is judged as one more project.
-  expect(playwrightSuffixIncludes([config, ...(projects as readonly ProjectShape[])], PLAYWRIGHT_SUFFIXES)).toEqual([]);
+  expect(playwrightSuffixIncludes([NATIVE_CONFIG, ...(projects as readonly ProjectShape[])], PLAYWRIGHT_SUFFIXES)).toEqual([]);
 });
 
 test("the Playwright-suffix include check rejects a browser glob and keeps node-runner and DOM-subject globs", () => {

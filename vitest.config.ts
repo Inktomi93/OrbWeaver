@@ -3,7 +3,6 @@ import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-prof
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { TestResource } from "@orb/tooling/floor/testing/test-kinds";
 import { runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE, TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
-import { applicationTestExclusions } from "@orb/tooling/floor/testing/test-population";
 import { LONG_TEST_TIMEOUT_BASE_MS, TEST_TAGS } from "@orb/tooling/floor/testing/test-tags";
 import type { ViteUserConfig } from "vitest/config";
 import { configDefaults, defineConfig } from "vitest/config";
@@ -47,8 +46,7 @@ const SEMANTIC_CORPUS_GROUP_ORDER = 2;
 // forbids it) reds naming the file instead of passing unseen.
 const WORKING_TREE_GUARD = "@orb/tooling/floor/testing/working-tree-guard";
 
-export function vitestConfig(applicationOnly = false): ViteUserConfig {
-  const runtimeGlobs = (globs: readonly string[]): string[] => withIgnored([...globs, ...applicationTestExclusions(applicationOnly).map((glob) => `!${glob}`)]);
+export function vitestConfig(): ViteUserConfig {
   return defineConfig({
     test: {
       globalSetup: [WORKING_TREE_GUARD],
@@ -88,7 +86,7 @@ export function vitestConfig(applicationOnly = false): ViteUserConfig {
           test: {
             name: "unit",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
-            include: runtimeGlobs([...exclusiveTestGlobs(({ family }) => family === "unit"), `!${TOOLING}`]),
+            include: withIgnored([...exclusiveTestGlobs(({ family }) => family === "unit"), `!${TOOLING}`]),
           },
         },
         {
@@ -96,7 +94,7 @@ export function vitestConfig(applicationOnly = false): ViteUserConfig {
           test: {
             name: "integration",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
-            include: runtimeGlobs([...exclusiveTestGlobs(({ family, resource }) => family === "integration" && resource === null), `!${TOOLING}`]),
+            include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "integration" && resource === null), `!${TOOLING}`]),
           },
         },
         {
@@ -104,7 +102,7 @@ export function vitestConfig(applicationOnly = false): ViteUserConfig {
           test: {
             name: REPOSITORY_RESOURCE,
             sequence: { groupOrder: REPOSITORY_GROUP_ORDER },
-            include: runtimeGlobs(REPOSITORY_TEST_GLOBS),
+            include: withIgnored(REPOSITORY_TEST_GLOBS),
             fileParallelism: false,
             testTimeout: budget(LONG_TEST_TIMEOUT_BASE_MS),
           },
@@ -116,7 +114,7 @@ export function vitestConfig(applicationOnly = false): ViteUserConfig {
             // Synchronous corpus passes cannot flush Vitest's microtask-buffered console between batches.
             disableConsoleIntercept: true,
             sequence: { groupOrder: SEMANTIC_CORPUS_GROUP_ORDER },
-            include: runtimeGlobs(resourceGlobs(SEMANTIC_CORPUS_RESOURCE)),
+            include: withIgnored(resourceGlobs(SEMANTIC_CORPUS_RESOURCE)),
             fileParallelism: true,
             maxWorkers: Math.min(CONCURRENCY.vitestMaxWorkers, CONCURRENCY.semanticCorpusMaxWorkers),
           },
@@ -126,7 +124,7 @@ export function vitestConfig(applicationOnly = false): ViteUserConfig {
           test: {
             name: "tooling",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
-            include: runtimeGlobs(
+            include: withIgnored(
               exclusiveTestGlobs(({ family, resource }) => runtimeForTestFamily(family) === "vitest" && resource === null, "tests/tooling/**/*"),
             ),
           },
@@ -136,7 +134,7 @@ export function vitestConfig(applicationOnly = false): ViteUserConfig {
           test: {
             name: "contract",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
-            include: runtimeGlobs([...exclusiveTestGlobs(({ family }) => family === "contract"), `!${TOOLING}`]),
+            include: withIgnored([...exclusiveTestGlobs(({ family }) => family === "contract"), `!${TOOLING}`]),
           },
         },
       ],

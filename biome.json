@@ -2342,35 +2342,11 @@
       }
     },
     {
-      "includes": ["scripts/research/agent-browser-escape-workflow-census.ts"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noExcessiveCognitiveComplexity": "off"
-          }
-        }
-      }
-    },
-    {
       "includes": ["scripts/codemods/inference-test-cutover.ts"],
       "linter": {
         "rules": {
           "complexity": {
             "noExcessiveCognitiveComplexity": "off"
-          }
-        }
-      }
-    },
-    {
-      "includes": ["scripts/research/agent-cli-artifact-census.ts"],
-      "linter": {
-        "rules": {
-          "complexity": {
-            "noExcessiveCognitiveComplexity": "off",
-            "useMaxParams": "off"
-          },
-          "style": {
-            "noMagicNumbers": "off"
           }
         }
       }
@@ -2632,16 +2608,6 @@
                 }
               }
             }
-          }
-        }
-      }
-    },
-    {
-      "includes": [".claude/hooks/playwright-revision-shim.mjs"],
-      "linter": {
-        "rules": {
-          "style": {
-            "noProcessEnv": "off"
           }
         }
       }
