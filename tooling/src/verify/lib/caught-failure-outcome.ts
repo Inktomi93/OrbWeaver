@@ -124,14 +124,13 @@ function objectIsFailureOutcome(value: Node, errorBinding: Node | undefined, rea
   return properties.some((property) => failurePropertyOwns(property, errorBinding, reads));
 }
 
-/** A call that CANNOT RETURN — `never` (sync) or `Promise<never>` (async). Control can only leave it by
- *  throwing or rejecting, so it is PROPAGATION: the strongest ownership there is, and it does not depend on
- *  the catch having a binding. The sync half is why `return throwDecryptFailure(sealed)` — a `never`-typed
- *  helper that logs the typed error and throws it — is ownership rather than a swallow; without it the gate
- *  demanded a marker for the one shape it should reward most. */
-function cannotReturn(node: Node, reads?: CaughtFailureReadServices): boolean {
+/** A native `never` call terminates immediately; `Promise<never>` owns only when its rejection is observed. */
+export function cannotReturn(node: Node, observesPromise: boolean, reads?: CaughtFailureReadServices): boolean {
   if (failureNever(node, reads)) {
     return true;
+  }
+  if (!observesPromise) {
+    return false;
   }
   if (reads === undefined) {
     const type = node.getType();
@@ -169,7 +168,7 @@ function callIsFailureOutcome(value: CallExpression, errorBinding: Node | undefi
   // A typed refusal owns without the caught binding: its type or single-return factory body is the proof.
   return (
     isNativePromiseReject(value, errorBinding, reads) ||
-    cannotReturn(value, reads) ||
+    cannotReturn(value, true, reads) ||
     typeIsFailureOutcome(value, reads) ||
     governedFailureFactoryCall(value, errorBinding, reads)
   );
@@ -186,8 +185,8 @@ export function isFailureOutcome(node: Node, errorBinding: Node | undefined, rea
   if (value.isKind(SyntaxKind.ObjectLiteralExpression)) {
     return objectIsFailureOutcome(value, errorBinding, reads);
   }
-  if (value.isKind(SyntaxKind.CallExpression)) {
-    return callIsFailureOutcome(value, errorBinding, reads);
+  if (value.isKind(SyntaxKind.CallExpression) && callIsFailureOutcome(value, errorBinding, reads)) {
+    return true;
   }
   if (errorBinding !== undefined && preservesFailureValue(value, errorBinding, reads)) {
     return true;

@@ -188,6 +188,105 @@ export const gate = defineGate({
     {
       mode: "types",
       files: {
+        "packages/client/src/features/probe/failure-dispatch.tsx":
+          "import {errorMessage} from '@orb/kit/error-message';export function message(work:()=>void){try{work()}catch(error){errorMessage(error)}}export function string(work:()=>void){try{work()}catch(error){String(error)}}",
+      },
+      expect: { count: 2, token: "error" },
+      why: "1126 discarded canonical message and String values are not terminal statement owners",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/failure-dispatch.tsx":
+          "import {errorMessage} from '@orb/kit/error-message';const setFailure=(_message:string):void=>{};export function run(work:()=>void){try{work()}catch(error){setFailure(errorMessage(error))}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1126 a setter-shaped local does not inherit React state ownership",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/failure-dispatch.tsx":
+          "import {useState} from 'react';function errorMessage(_error:unknown):string{return 'all good'}export function View(work:()=>void){const [failure,setFailure]=useState<string|null>(null);try{work()}catch(error){setFailure(errorMessage(error))}return <output role=\"alert\">{failure}</output>}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1126 a same-spelling message helper that drops its input cannot feed an error owner",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/failure-dispatch.tsx":
+          "import {useState} from 'react';import {errorMessage} from '@orb/kit/error-message'; export function View(work:()=>void,other:unknown){const [failure,setFailure]=useState<string|null>(null);try{work()}catch(error){setFailure(errorMessage(other))}return <output role=\"alert\">{failure}</output>}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1126 a canonical message helper fed unrelated input does not preserve the caught failure",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/terminal-dispatch.ts":
+          "function refuse(_message:string):void{}export function run(work:()=>void):void{try{work()}catch{refuse('operation failed')}}",
+      },
+      expect: { count: 1, token: "catch" },
+      why: "1126 a void refusal-shaped function can return normally and does not terminate a catch",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/terminal-dispatch.ts":
+          "async function refuse(_error:unknown):Promise<void>{}export async function run(work:()=>Promise<void>):Promise<void>{try{await work()}catch(error){await refuse(error)}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1126 awaiting a Promise void refusal can complete normally and does not terminate a catch",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/terminal-dispatch.ts":
+          "async function refuse(error:unknown):Promise<never>{throw error}export function plain(work:()=>void){try{work()}catch(error){refuse(error)}}export function discarded(work:()=>void){try{work()}catch(error){void refuse(error)}}",
+      },
+      expect: { count: 2, token: "error" },
+      why: "1126 unawaited Promise never calls still discard their rejecting continuation",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/terminal-dispatch.ts":
+          "declare function halt(error:unknown):never;async function refuse(error:unknown):Promise<never>{throw error}export function sync(work:()=>void,skip:boolean){try{work()}catch(error){if(skip){return;}halt(error)}}export async function joined(work:()=>Promise<void>,skip:boolean){try{await work()}catch(error){if(skip){return;}await refuse(error)}}",
+      },
+      expect: { count: 2, token: "error" },
+      why: "1126 an earlier normal escape still bypasses synchronous and awaited terminal calls",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/terminal-dispatch.ts":
+          "declare function halt(error:unknown):never;export function run(work:()=>void){try{work()}catch(error){const later=()=>halt(error);void later}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1126 an uncalled nested terminal function does not own the enclosing catch",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/terminal-dispatch.ts":
+          "declare function maybe(error:unknown):Promise<never>|undefined;export async function run(work:()=>Promise<void>){try{await work()}catch(error){await maybe(error)}}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1126 a possibly absent Promise never is not an unconditional awaited terminal",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/failure-dispatch.tsx":
+          "import {useState} from 'react';export function View(work:()=>void){const [failure,setFailure]=useState<string|null>(null);try{work()}catch(error){setFailure(null)}return <output role=\"alert\">{failure}</output>}",
+      },
+      expect: { count: 1, token: "error" },
+      why: "1126 clearing a genuine React failure slot is not failure preservation",
+    },
+    {
+      mode: "types",
+      files: {
         "tooling/src/probe/undefined-held-failure.ts":
           "class Error {static [Symbol.hasInstance](_value:unknown):boolean{return true}} export function thrown(){let failure:unknown;try{throw undefined}catch(error){failure=error}if(failure!==undefined){throw failure}return 'success'} export async function rejected(){let failure:unknown;try{await Promise.reject()}catch(error){failure=error}if(failure!==undefined){throw failure}return 'success'} export async function fakeGuard(){let failure:unknown;try{await Promise.reject()}catch(error){failure=error instanceof Error?error:new globalThis.Error('work failed',{cause:error})}if(failure!==undefined){throw failure}return 'success'}",
       },
@@ -1368,6 +1467,70 @@ export const gate = defineGate({
     },
   ],
   mustPass: [
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/failure-dispatch.tsx":
+          "import {useState} from 'react';import {errorMessage} from '@orb/kit/error-message'; export function View(work:Promise<void>){const [failure,setFailure]=useState<string|null>(null);void work.then(()=>undefined,(error:unknown)=>setFailure(errorMessage(error)));return <output role=\"alert\">{failure}</output>}",
+      },
+      why: "1126 concise rejection message reaches a genuine React alert slot",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/failure-dispatch.tsx":
+          "import {useState} from 'react';import {errorMessage} from '@orb/kit/error-message'; export function View(work:Promise<void>){const [failure,setFailure]=useState<string|null>(null);const [,setSaving]=useState(false);void work.catch((error:unknown)=>{setSaving(false);setFailure(errorMessage(error));});return <output role=\"alert\">{failure}</output>}",
+      },
+      why: "1126 block rejection message reaches state after unrelated completion bookkeeping",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/failure-dispatch.tsx":
+          "import {useState} from 'react';export function View(work:()=>void){const [failure,setFailure]=useState<string|null>(null);try{work()}catch(error){setFailure(String(error))}return <output role=\"alert\">{failure}</output>}",
+      },
+      why: "1126 ambient String preservation reaches a genuine React alert slot",
+    },
+    {
+      mode: "types",
+      files: {
+        "packages/client/src/features/probe/failure-dispatch.tsx":
+          "import {useState} from 'react';export function View(work:()=>void){const [failure,setFailure]=useState<unknown>(null);try{work()}catch(error){setFailure(error)}return <output role=\"alert\">{String(failure)}</output>}",
+      },
+      why: "1126 raw error state remains an established owner control",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/terminal-dispatch.ts":
+          "declare function halt(message:string):never;export function run(work:()=>void):void{try{work()}catch{halt('operation failed')}}",
+      },
+      why: "1126 synchronous never statement executes the terminal refusal in a bindingless catch",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/terminal-dispatch.ts":
+          "async function closeAfterFailure(primary:unknown):Promise<never>{throw primary}export async function run(work:()=>Promise<void>):Promise<void>{try{await work()}catch(error){await closeAfterFailure(error)}}",
+      },
+      why: "1126 awaited Promise never statement executes the terminal cleanup boundary",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/terminal-dispatch.ts":
+          "declare function halt(message:string):never;export function run(work:()=>void):void{try{work()}catch{return halt('operation failed')}}",
+      },
+      why: "1126 returned synchronous never remains an established owner control",
+    },
+    {
+      mode: "types",
+      files: {
+        "tooling/src/probe/terminal-dispatch.ts":
+          "async function closeAfterFailure(primary:unknown):Promise<never>{throw primary}export async function run(work:()=>Promise<void>):Promise<void>{try{await work()}catch(error){return await closeAfterFailure(error)}}",
+      },
+      why: "1126 returned awaited Promise never remains an established owner control",
+    },
     {
       mode: "types",
       files: {
