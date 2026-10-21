@@ -30,3 +30,5 @@ The constant-only premise conflicts with the injected boot clock and seed produc
 The complete-policy attempt aborts with a controller heap failure during SQLite materialization. Its incomplete output establishes no policy verdict, grant consumption or budget qualification. Evidence: `reports/review/1190-1192-qualification-plan.md`.
 
 The reviewed bounded implementation is integrated at `f08b8ea44d`. Source integration does not close complete-policy and authority qualification. The shared observation repair owns the prerequisite.
+
+The repaired capture still exceeds the aggregate memory budget during actual complete-policy qualification. The stopped run supplies no owner or authority verdict. Evidence: `reports/review/1153-real-policy-resource-failure.md`.

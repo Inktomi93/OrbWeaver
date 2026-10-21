@@ -23,4 +23,6 @@ Each escalated case is a planted mustPass row that passes, with a red-first cont
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The reviewed bounded dispatch repair is integrated at `a48aa6e961`. Red-first controls, affected native compilers and scoped behavior pass. Evidence: `reports/review/1126-bounded-dispatch-review.md`.
+
+Actual production-site qualification and obsolete marker removal remain open. The source merge does not close this item.

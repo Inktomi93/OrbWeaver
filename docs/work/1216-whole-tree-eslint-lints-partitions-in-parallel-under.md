@@ -24,3 +24,5 @@ The runner runs independent partitions concurrently up to a configured memory bu
 ## Evidence
 
 Hosted run `39483788717` reaches dependency-wide ESLint before cancellation at the configured job limit. The transcript establishes neither complete lint qualification nor the sole timeout cause. Evidence: `reports/review/ci-39483788717/triage.md`.
+
+Typed parser-owner routing is corrected on main at `10a78e5a20`. Native owner, cache and mandatory-profile controls qualify the correction. The scheduler lane must retain that routing before calibration. Evidence: `reports/review/compiler-world-investigation/investigation.md`. Scheduler integration and measured production budgets remain open.

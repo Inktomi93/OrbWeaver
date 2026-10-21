@@ -23,4 +23,8 @@ The observation set roots only where the reader reads; ordinary-observations acc
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The reviewed bounded capture repair is integrated at `75c9540c00`. Scoped behavior and affected native compiler checks pass. Evidence: `reports/review/1153-ordinary-demand-review.md`.
+
+Real schema-data-grants, complete policy authority and measured memory qualification remain open. Source integration does not establish those outcomes.
+
+The repaired capture still exceeds the aggregate memory budget during actual complete-policy qualification. The stopped run supplies no owner or authority verdict. Evidence: `reports/review/1153-real-policy-resource-failure.md`.
