@@ -7,11 +7,18 @@ import { z } from "zod";
 import { waitSync } from "../process/sync-sleep.ts";
 import type { InventoryFamily, InventoryPartition, StoredInventoryPartition } from "./semantic-inventory-contract.ts";
 import { INVENTORY_FORMAT, INVENTORY_LISTS, INVENTORY_RECORD_TABLES, INVENTORY_REFERENCE_MODES, storedPartitionSchema } from "./semantic-inventory-contract.ts";
-import { inventoryRecordTables, inventoryString, inventoryStringSchema, visitInventoryRecords } from "./semantic-inventory-records.ts";
+import {
+  inventoryInputStatColumn,
+  inventoryRecordTables,
+  inventoryString,
+  inventoryStringSchema,
+  visitInventoryRecords,
+} from "./semantic-inventory-records.ts";
 
 const storageVersionRow = z.object({ ["user_version"]: z.number().int() });
 // Partition format describes facts; this marker owns physical constraints.
-const STORAGE_SCHEMA_VERSION = 16;
+const STORAGE_SCHEMA_VERSION = 17;
+const SHAPE_FIELD_SCHEMA_VERSION = 16;
 const REFERENCE_NAME_SCHEMA_VERSION = 15;
 const RUNTIME_SCHEMA_VERSION = 14;
 const REFERENCE_SCHEMA_VERSION = 13;
@@ -27,6 +34,7 @@ const SHAPE_SCHEMA_VERSION = 4;
 const RUNTIME_EXPORT_SCHEMA_VERSION = 3;
 const SOURCE_FILE_INDEX = "inventory_source_file";
 const LIST_VALUE_INDEX = "inventory_list_value";
+const INPUT_VERSION_INDEX = "inventory_input_version";
 
 const generationRow = z.object({ generation: z.number() });
 const memberRow = z.object({ program: inventoryStringSchema, partition: z.string() });
@@ -78,6 +86,7 @@ function storageSchemaVersion(db: DatabaseSync): number {
     version !== REFERENCE_SCHEMA_VERSION &&
     version !== RUNTIME_SCHEMA_VERSION &&
     version !== REFERENCE_NAME_SCHEMA_VERSION &&
+    version !== SHAPE_FIELD_SCHEMA_VERSION &&
     version !== STORAGE_SCHEMA_VERSION
   ) {
     throw new Error(`unsupported native inventory storage schema: ${String(version)}`);
@@ -89,7 +98,8 @@ function storageSchemaReady(db: DatabaseSync): boolean {
   return (
     storageSchemaVersion(db) === STORAGE_SCHEMA_VERSION &&
     db.prepare("SELECT name FROM sqlite_schema WHERE type='index' AND name=?").get(SOURCE_FILE_INDEX) !== undefined &&
-    db.prepare("SELECT name FROM sqlite_schema WHERE type='index' AND name=?").get(LIST_VALUE_INDEX) !== undefined
+    db.prepare("SELECT name FROM sqlite_schema WHERE type='index' AND name=?").get(LIST_VALUE_INDEX) !== undefined &&
+    db.prepare("SELECT name FROM sqlite_schema WHERE type='index' AND name=?").get(INPUT_VERSION_INDEX) !== undefined
   );
 }
 
@@ -174,11 +184,14 @@ function initializeStorageSchema(db: DatabaseSync): void {
     upgradeRuntimeStorage(db, version);
     upgradeReferenceNameStorage(db, version);
     upgradeShapeFieldStorage(db, version);
+    upgradeInputStatStorage(db);
     // Closed invocation coverage repeatedly looks up one source; the ordinal primary key only narrows
     // the partition. Nonunique lookup preserves the reader's existing duplicate-ownership refusal.
     db.exec(`CREATE INDEX IF NOT EXISTS ${SOURCE_FILE_INDEX} ON inventory_source(partition,file);`);
     // Membership reads need value equality, while ordered lists retain their ordinal primary key.
     db.exec(`CREATE INDEX IF NOT EXISTS ${LIST_VALUE_INDEX} ON inventory_list(partition,kind,value);`);
+    // Stat refresh selects one versioned input, not every ordinal in its partition.
+    db.exec(`CREATE INDEX IF NOT EXISTS ${INPUT_VERSION_INDEX} ON inventory_input(partition,path,kind,version);`);
     if (version < STORAGE_SCHEMA_VERSION) {
       db.exec(`PRAGMA user_version=${String(STORAGE_SCHEMA_VERSION)};`);
     }
@@ -188,6 +201,17 @@ function initializeStorageSchema(db: DatabaseSync): void {
       db.exec("ROLLBACK");
     }
     throw error;
+  }
+}
+
+function upgradeInputStatStorage(db: DatabaseSync): void {
+  if (
+    !db
+      .prepare("PRAGMA table_info(inventory_input)")
+      .all()
+      .some((row) => row["name"] === "stat")
+  ) {
+    db.exec(`ALTER TABLE inventory_input ADD COLUMN ${inventoryInputStatColumn};`);
   }
 }
 
@@ -217,7 +241,7 @@ function upgradeReferenceNameStorage(db: DatabaseSync, version: number): void {
 // Field rows are a rebuildable cache of the current format only; older generations are unreachable by format,
 // so the rows are dropped with the printed-type column instead of being copied.
 function upgradeShapeFieldStorage(db: DatabaseSync, version: number): void {
-  if (version > 0 && version < STORAGE_SCHEMA_VERSION) {
+  if (version > 0 && version < SHAPE_FIELD_SCHEMA_VERSION) {
     db.exec(`DROP TABLE IF EXISTS ${inventoryRecordTables.shapeField.name};`);
     db.exec(`CREATE TABLE ${inventoryRecordTables.shapeField.name}(${inventoryRecordTables.shapeField.definition}) STRICT;`);
   }
@@ -310,7 +334,11 @@ export function latestInventoryPartitions(db: DatabaseSync, families?: readonly 
 
 function storePartition(db: DatabaseSync, partition: InventoryPartition): string {
   const hash = createHash("sha256").update(`inventory:${String(INVENTORY_FORMAT)}\n`);
-  visitInventoryRecords(partition, (record) => hash.update(JSON.stringify([record.table, ...record.values])).update("\n"));
+  // Stat observations accelerate validation; refreshing them must not change a content-derived partition identity.
+  visitInventoryRecords(partition, (record) => {
+    const values = record.table === "input" ? record.values.slice(0, -1) : record.values;
+    hash.update(JSON.stringify([record.table, ...values])).update("\n");
+  });
   const id = hash.digest("hex");
   const inserted = db
     .prepare("INSERT OR IGNORE INTO inventory_partition(id,program,format,payload) VALUES(?,?,?,'')")

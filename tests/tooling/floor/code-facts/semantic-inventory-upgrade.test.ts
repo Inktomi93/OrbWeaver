@@ -1,5 +1,5 @@
 // The physical prior CHECK is a snapshot; deriving it from current DDL would erase the upgrade discriminator.
-import { mkdirSync } from "node:fs";
+import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import type { StatementSync } from "node:sqlite";
@@ -14,6 +14,7 @@ import {
   publishInventoryGeneration,
   readInventoryGeneration,
 } from "@orb/tooling/floor/code-facts/semantic-inventory-database";
+import { captureInventoryInput, inputsCurrent } from "@orb/tooling/floor/code-facts/semantic-inventory-inputs";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { SyntaxKind } from "ts-morph";
 import { vi } from "vitest";
@@ -26,6 +27,7 @@ import {
   readInventoryReferences,
   readInventoryRuntimeExports,
   readInventoryShape,
+  refreshInventoryInputStat,
 } from "../../../../tooling/src/floor/code-facts/semantic-inventory-queries.ts";
 import { inventoryString, inventoryTextParts, inventoryTextVersion } from "../../../../tooling/src/floor/code-facts/semantic-inventory-records.ts";
 
@@ -46,7 +48,7 @@ CREATE TABLE inventory_cast(partition TEXT NOT NULL REFERENCES inventory_partiti
 const LEGACY_PARTITION = "legacy-four";
 const STORAGE_VERSION = "PRAGMA user_version";
 // The physical schema an open store ends at; one past it is a future store this build must refuse.
-const CURRENT_STORAGE = 16;
+const CURRENT_STORAGE = 17;
 const FUTURE_STORAGE = CURRENT_STORAGE + 1;
 const FORMAT5_DDL = `${FORMAT4_DDL.replace("'witnesses','cast-relations'", "'witnesses','cast-relations','id-brands'")}
 CREATE TABLE inventory_brand(partition TEXT NOT NULL REFERENCES inventory_partition(id),ordinal INTEGER NOT NULL,node INTEGER NOT NULL,brand TEXT,PRIMARY KEY(partition,ordinal),UNIQUE(partition,node),FOREIGN KEY(partition,node) REFERENCES inventory_span(partition,ordinal)) STRICT;`;
@@ -99,7 +101,7 @@ function legacyRows(db: DatabaseSync): ReturnType<StatementSync["all"]>[] {
     db.prepare("SELECT * FROM inventory_member WHERE generation=1").all(),
     db.prepare("SELECT partition,program,descriptorVersion,compilerOptionsJson,workerPid FROM inventory_descriptor WHERE partition=?").all(LEGACY_PARTITION),
     db.prepare("SELECT * FROM inventory_family WHERE partition=? ORDER BY ordinal").all(LEGACY_PARTITION),
-    db.prepare("SELECT * FROM inventory_input WHERE partition=? ORDER BY ordinal").all(LEGACY_PARTITION),
+    db.prepare("SELECT partition,ordinal,path,kind,version FROM inventory_input WHERE partition=? ORDER BY ordinal").all(LEGACY_PARTITION),
     db.prepare("SELECT * FROM inventory_source WHERE partition=? ORDER BY ordinal").all(LEGACY_PARTITION),
     db.prepare("SELECT * FROM inventory_text WHERE partition=? ORDER BY source,ordinal").all(LEGACY_PARTITION),
     db.prepare("SELECT * FROM inventory_span WHERE partition=? ORDER BY ordinal").all(LEGACY_PARTITION),
@@ -298,6 +300,55 @@ test("metadata decoding rejects malformed JSON and encoded non-string values", (
   }
   change.run(inventoryString(partition.descriptorVersion), partition.id);
   expect(readInventoryGeneration(db, generation)).toEqual(before);
+});
+
+test("input stat metadata upgrades conservatively, refreshes without changing identity and permits query-only validation", ({ scratch }) => {
+  const path = join(scratch, "input-stat.sqlite");
+  const source = join(scratch, "source.ts");
+  writeFileSync(source, "export const value=1;");
+  const input = captureInventoryInput(source, "file");
+  const facts = { ...brandPartition("tsconfig.input-stat.json"), inputs: [input] };
+  let id: string;
+  let generation: number;
+  {
+    using db = openInventoryDatabase(path);
+    generation = publishInventoryGeneration(db, [facts]);
+    const partition = readInventoryGeneration(db, generation)[0];
+    if (partition === undefined) {
+      throw new Error("input-stat partition missing");
+    }
+    id = partition.id;
+    expect([...readInventoryInputs(db, id)]).toEqual(facts.inputs);
+    db.exec("DROP INDEX inventory_input_version; ALTER TABLE inventory_input DROP COLUMN stat; PRAGMA user_version=16;");
+  }
+  using pinned = new DatabaseSync(path, { readOnly: true });
+  pinned.exec("BEGIN");
+  const before = pinned.prepare("SELECT partition,ordinal,path,kind,version FROM inventory_input").all();
+  using current = openInventoryDatabase(path);
+  expect(current.prepare(STORAGE_VERSION).get()).toEqual({ ["user_version"]: CURRENT_STORAGE });
+  const upgraded = [...readInventoryInputs(current, id)];
+  expect(upgraded).toStrictEqual([{ path: source, kind: "file", version: input.version }]);
+  expect(
+    current
+      .prepare("EXPLAIN QUERY PLAN UPDATE inventory_input SET stat=NULL WHERE partition=? AND path=? AND kind=? AND version=?")
+      .all(id, inventoryString(source), input.kind, inventoryString(input.version))
+      .some((row) => typeof row["detail"] === "string" && row["detail"].includes("USING INDEX inventory_input_version")),
+  ).toBe(true);
+  expect(pinned.prepare("SELECT partition,ordinal,path,kind,version FROM inventory_input").all()).toEqual(before);
+  using queryOnly = new DatabaseSync(path, { readOnly: true });
+  queryOnly.exec("PRAGMA query_only=ON; BEGIN;");
+  expect(inputsCurrent(readInventoryInputs(queryOnly, id), { authored: new Set() })).toBe(true);
+  expect([...readInventoryInputs(queryOnly, id)][0]?.stat).toBeUndefined();
+  expect(inputsCurrent(upgraded, { authored: new Set(), refresh: (entry) => refreshInventoryInputStat(current, id, entry) })).toBe(true);
+  expect([...readInventoryInputs(current, id)][0]?.stat).toEqual(upgraded[0]?.stat);
+  writeFileSync(source, "export const value=1;");
+  const refreshed = captureInventoryInput(source, "file");
+  expect(refreshed.version).toBe(input.version);
+  const next = publishInventoryGeneration(current, [{ ...facts, inputs: [refreshed] }]);
+  expect(readInventoryGeneration(current, next)[0]?.id).toBe(id);
+  expect(readInventoryGeneration(current, generation)[0]?.id).toBe(id);
+  writeFileSync(source, "export const value=2;");
+  expect(inputsCurrent(readInventoryInputs(queryOnly, id), { authored: new Set() })).toBe(false);
 });
 
 function inputDdl(db: DatabaseSync): ReturnType<StatementSync["get"]> {

@@ -92,7 +92,17 @@ export function inventorySpanKey(span: z.infer<typeof spanSchema>): string {
   return `${span.file}${INVENTORY_KEY_SEPARATOR}${String(span.start)}${INVENTORY_KEY_SEPARATOR}${String(span.end)}${INVENTORY_KEY_SEPARATOR}${String(span.kind)}`;
 }
 export const INVENTORY_INPUT_KINDS = ["file", "directory", "exists", "authored"] as const;
-export const inputSchema = z.object({ path: z.string(), kind: z.enum(INVENTORY_INPUT_KINDS), version: z.string() });
+const statIntegerSchema = z.string().regex(/^-?\d+$/u);
+export const inputStatSchema = z.object({
+  physicalPath: z.string(),
+  device: statIntegerSchema,
+  inode: statIntegerSchema,
+  size: statIntegerSchema,
+  mtimeNs: statIntegerSchema,
+  ctimeNs: statIntegerSchema,
+  recordedAt: z.number().int(),
+});
+export const inputSchema = z.object({ path: z.string(), kind: z.enum(INVENTORY_INPUT_KINDS), version: z.string(), stat: inputStatSchema.optional() });
 export const symbolSchema = z.object({ lexical: z.array(spanSchema), origins: z.array(spanSchema) });
 export const memberOriginSchema = z.object({
   node: spanSchema,
@@ -791,6 +801,7 @@ export type InventoryInput = z.infer<typeof inputSchema>;
 export interface InventoryInputContext {
   readonly authored: ReadonlySet<string>;
   readonly fileSystem?: FileSystemHost | undefined;
+  readonly refresh?: (input: InventoryInput) => void;
 }
 export type InventoryPartition = z.infer<typeof partitionSchema>;
 export type InventorySymbols = z.infer<typeof symbolSchema>;
