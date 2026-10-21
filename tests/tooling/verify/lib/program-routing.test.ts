@@ -1,6 +1,8 @@
 // Typecheck routing is derived from native compiler roots; intent only selects a primary among real roots.
-import { chmodSync, mkdirSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import process from "node:process";
+import { pathToFileURL } from "node:url";
 import { expect, test } from "@orb/testkit/node/tool-fixtures.ts";
 import { isLegacyTestProgram } from "@orb/tooling/floor/compiler/project-worlds";
 import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
@@ -89,7 +91,7 @@ test("ambient and inherited tsconfig edits select every native dependent program
   const deleted = planTypecheckPrograms(repoRoot, [{ path: "tests/deleted.test.ts", status: "deleted", previousPath: null }], "affected");
   expect(deleted.subjects[0]?.reason).toBe("deleted-conservative");
   // An affected plan leaves the legacy programs to CI unless the deleted path was itself a legacy file.
-  expect(deleted.programs).toEqual(ambient?.filter((program) => !isLegacyTestProgram(program)));
+  expect(deleted.programs).toEqual(ambient?.filter((config) => !isLegacyTestProgram(config)));
   expect(ambient).toContain("tsconfig.tests-legacy.json");
   const deletedLegacy = planTypecheckPrograms(repoRoot, [{ path: "tests/legacy/deleted.test.ts", status: "deleted", previousPath: null }], "affected");
   expect(deletedLegacy.programs).toEqual(ambient);
@@ -167,6 +169,40 @@ function program(files: readonly string[]): string {
 function containedBy(plan: ReturnType<typeof planTypecheckPrograms>): Readonly<Record<string, readonly string[]>> {
   return Object.fromEntries(plan.subjects.map((subject) => [subject.path, subject.containedBy]));
 }
+
+test("closure planning preserves the caller runtime and heap without a nested package manager", { timeout: scaledBudget(30_000) }, async ({
+  scratch,
+  repoRoot,
+}) => {
+  const observed = join(scratch, "scripts/context.txt");
+  const heapMiB = 8192;
+  const nodeOptions = `--max-old-space-size=${String(heapMiB)}`;
+  closureFixture(scratch, repoRoot, {
+    "tsconfig.json": program(["entry.ts"]),
+    "entry.ts": 'import "./target.ts";\n',
+    "target.ts": "export const target = true;\n",
+    "bin/pnpm": '#!/bin/sh\necho "unexpected nested package manager" >&2\nexit 91\n',
+    "bin/pnpm.cmd": "@echo unexpected nested package manager >&2\r\n@exit /b 91\r\n",
+    "scripts/ts7.ts": `import { writeFileSync } from "node:fs";
+import { getHeapStatistics } from "node:v8";
+writeFileSync(${JSON.stringify(observed)}, [process.execPath, process.env.NODE_OPTIONS, getHeapStatistics().heap_size_limit / 1048576].join("\\n"));
+await import(${JSON.stringify(pathToFileURL(join(repoRoot, "scripts/ts7.ts")).href)});
+`,
+  });
+  chmodSync(join(scratch, "bin/pnpm"), 0o755);
+  await withProcessEnv("NODE_OPTIONS", nodeOptions, async () => {
+    await withProcessEnv("PATH", `${join(scratch, "bin")}${process.platform === "win32" ? ";" : ":"}${processEnvValue("PATH") ?? ""}`, () => {
+      const plan = planTypecheckPrograms(scratch, [present("target.ts")], "affected");
+      expect(plan.subjects[0]).toMatchObject({ rootedBy: [], containedBy: ["tsconfig.json"], selectedPrograms: ["tsconfig.json"] });
+      return Promise.resolve();
+    });
+  });
+  const [runtime, options, limit] = readFileSync(observed, "utf8").split("\n");
+  expect(runtime).toBe(process.execPath);
+  expect(options).toBe(nodeOptions);
+  expect(Number(limit)).toBeGreaterThanOrEqual(heapMiB);
+  expect(Number(limit)).toBeLessThan(heapMiB + 1024);
+});
 
 // The repository's world split in miniature: the root program's test glob matches the DOM test and excludes it, and
 // only the package program roots the leaf file, so the other two programs reach it through imports alone.

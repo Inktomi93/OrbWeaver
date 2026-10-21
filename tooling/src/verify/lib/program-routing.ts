@@ -4,6 +4,7 @@
 import { createHash } from "node:crypto";
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import process from "node:process";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import { isLegacyTestProgram, isTypeWorldSource, predictedProgram, requiresExclusiveRoot } from "@orb/tooling/floor/compiler/project-worlds";
 import { GIT_READ_PREFIX, runGit } from "@orb/tooling/floor/git/git";
@@ -107,7 +108,7 @@ function repoRelative(root: string, file: string, config: string): string | unde
 /** One native program's authored import closure. Cold by construction: incremental state is never read. */
 function readProgramClosure(root: string, program: CompilerProgram): ReadonlySet<string> {
   const wrapper = join(root, "scripts", "ts7.ts");
-  const result = runNicedSync("pnpm", ["exec", "node", wrapper, "--noEmit", "--pretty", "false", "--listFilesOnly", "-p", program.config], {
+  const result = runNicedSync(process.execPath, [wrapper, "--noEmit", "--pretty", "false", "--listFilesOnly", "-p", program.config], {
     cwd: root,
     maxBuffer: LIST_FILES_MAX_BUFFER,
     supervised: true,
