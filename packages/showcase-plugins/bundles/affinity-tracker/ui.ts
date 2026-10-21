@@ -122,6 +122,5 @@ ui.onEvent(async (event) => {
 
 // Draw IMMEDIATELY (rule 1) so the surface exists while the read is still in flight, then again when it lands.
 // The load is deliberately NOT awaited at top level: startup has its own budget, and holding it open on a
-// network round-trip is how a plugin turns a slow connection into a surface that never appears. `load` handles
-// its own failures, so there is nothing here for a rejection to escape from.
-void load();
+// network round-trip is how a plugin turns a slow connection into a surface that never appears.
+void load().catch((err) => ui.log.warn(`readings startup failed: ${String(err)}`));

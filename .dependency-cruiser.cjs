@@ -1,7 +1,6 @@
 // Native import boundaries for package tiers, feature doors, helper worlds and runtime authority.
-const { BROWSER_TEST_SUFFIXES, TEST_KIND_SUFFIXES } = require("./tooling/src/floor/testing/test-kinds.ts");
-const BROWSER_SURFACE_DIRS = ["tests/e2e", "tests/support/browser", "playwright"];
-const HELPER_WORLD_DIRS = { iso: "tests/support/iso", node: "tests/support/node", browser: "tests/support/browser" };
+const { builtinModules } = require("node:module");
+const { BROWSER_TEST_SUFFIXES, TEST_KIND_DEFINITIONS, TEST_KIND_SUFFIXES } = require("./tooling/src/floor/testing/test-kinds.ts");
 const ENTRY_SOURCE = "^packages/server/src/entry/";
 const ENTRY_DRIVER_PATTERN = `${ENTRY_SOURCE}(?:(?:index|lifecycle)\\.ts$|boot/(?!(?:seed-example-plugins|seed-user-content|seed-local-light)\\.ts$))`;
 const GROUPING_DIRS = {
@@ -24,14 +23,15 @@ const TEST_FILES = `(?:${TEST_KIND_SUFFIXES.map((suffix) => suffix.replaceAll(".
 // The one test world allowed to import the compose door: the browser-CT support re-exports its registries so
 // stories mount the app that ships (Spine-Testing §10). Node and iso helpers stay behind the wall.
 const TEST_BROWSER_SUPPORT = "^tests/support/browser/";
-const BROWSER_TEST_PATHS = [
-  ...BROWSER_SURFACE_DIRS.map((root) => `^${root}/`),
-  "^(tests|scripts)/.*\\.tsx$",
-  ...BROWSER_TEST_SUFFIXES.map((suffix) => `^(tests|scripts)/.*${suffix.replaceAll(".", "\\.")}$`),
-];
-const NON_BROWSER_HELPER_PATHS = Object.entries(HELPER_WORLD_DIRS)
-  .filter(([world]) => world !== "browser")
-  .map(([, root]) => `^${root}/`);
+// Playwright specs execute in Node; only their imported stories and the harness entry mount in the browser.
+const BROWSER_MOUNT_PATHS = ["^playwright/", "^(tests|scripts)/(?!support/(iso|node)/).*\\.tsx$"];
+const BROWSER_TEST_PATHS = [TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS];
+const BROWSER_TEST_FILES = `(?:${BROWSER_TEST_SUFFIXES.map((suffix) => suffix.replaceAll(".", "\\.")).join("|")})$`;
+const NODE_TEST_PATHS = TEST_KIND_DEFINITIONS.filter(({ compilerWorld }) => compilerWorld === "node").map(
+  ({ suffix }) => `^(tests|scripts)/.*${suffix.replaceAll(".", "\\.")}$`,
+);
+// Reachability rules match module paths, not dependencyTypes; Node supplies the complete built-in vocabulary.
+const NODE_BUILTINS = `^(?:node:)?(?:${builtinModules.map((name) => RegExp.escape(name)).join("|")})$`;
 const CLIENT_CSS_ENTRY = `${CLIENT}styles/index\\.ts$`;
 const CLIENT_SHELL_CSS = `${CLIENT}features/app-shell/surfaces/shell\\.css$`;
 
@@ -122,8 +122,24 @@ module.exports = {
       comment:
         "Browser-world stories, fixtures and support cannot execute server modules. The AppRouter type-only bridge remains legal; Node helper worlds retain their production doors. (Spine-Testing §2 and §10.)",
       severity: "error",
-      from: { path: BROWSER_TEST_PATHS, pathNot: NON_BROWSER_HELPER_PATHS },
-      to: { path: SRV, dependencyTypesNot: ["type-only"] },
+      from: { path: BROWSER_TEST_PATHS, pathNot: BROWSER_TEST_FILES },
+      to: { path: "^packages/server/", dependencyTypesNot: ["type-only"] },
+    },
+    {
+      name: "node-tests-no-browser-helpers",
+      comment:
+        "Ordinary Node tests cannot acquire browser helper dependencies through a wrapper; DOM-labelled tests retain their browser compiler dependencies (Spine-Testing §1–§2).",
+      severity: "error",
+      from: { path: NODE_TEST_PATHS, pathNot: BROWSER_TEST_FILES },
+      to: { path: [TEST_BROWSER_SUPPORT, ...BROWSER_MOUNT_PATHS], reachable: true },
+    },
+    {
+      name: "browser-mounts-no-node-or-server",
+      comment:
+        "Mounted stories and the browser harness cannot acquire Node helpers, built-ins or server source, including type edges and wrappers. The published AppRouter declaration stays legal; Playwright host specs retain Node fixtures (Spine-Testing §7).",
+      severity: "error",
+      from: { path: BROWSER_MOUNT_PATHS, pathNot: BROWSER_TEST_FILES },
+      to: { path: ["^tests/support/node/", NODE_BUILTINS, SRV], reachable: true },
     },
     {
       name: "test-helper-world-direction",
@@ -945,9 +961,9 @@ module.exports = {
     {
       name: "not-to-test",
       comment:
-        "Production code (packages/*/src) must not import the centralized tests/ tree or any test/spec file. Src holds no test files (they all live in tests/), so the rule is the TO half. (Core-0-Architecture-and-Structure.md §5.)",
+        "Application and tooling source must not import the centralized tests/ tree or any test/spec file. Tests consume production code, never the reverse. (Core-0-Architecture-and-Structure.md §5.)",
       severity: "error",
-      from: { path: "^packages/[^/]+/src/" },
+      from: { path: ["^packages/[^/]+/src/", "^tooling/src/"] },
       to: { path: ["^tests/", TEST_FILES] },
     },
     {
@@ -1056,7 +1072,9 @@ module.exports = {
     // TypeScript owns relative .ts resolution inside emitted declarations; retain only the public graph edge.
     doNotFollow: { path: ["node_modules", SERVER_ROOT] },
     // Keep the public declaration edge visible; other generated output is not a source graph input.
-    exclude: { path: ["^packages/[^/]+/dist/(?!router-types/packages/server/src/index\\.d\\.ts$)", "^tooling/src/snap/lib/devtools-frontend/"] },
+    exclude: {
+      path: ["^packages/[^/]+/dist/(?!router-types/packages/server/src/index\\.d\\.ts$)", "^playwright/\\.cache/", "^tooling/src/snap/lib/devtools-frontend/"],
+    },
     reporterOptions: {
       dot: { collapsePattern: COLLAPSE },
       archi: { collapsePattern: COLLAPSE },

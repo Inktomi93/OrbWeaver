@@ -4,12 +4,11 @@
 
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { closeDb, presets } from "@orb/db";
-import { SYSTEM_DEFAULT_PRESET_ID } from "@orb/server/domain/preset";
+import { SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "@orb/server/domain/preset";
 import { freshHeldDb } from "@orb/testkit/node/db.ts";
 import { seedUser } from "@orb/testkit/node/factories/user.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { eq } from "drizzle-orm";
-import { SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "#server/domain/preset/constants.ts";
 import { seedDefaultPreset } from "#server/entry/boot/seed-default-preset.ts";
 
 test("the boot root creates the shipped default and upgrades only its shared sentinel row", async ({ db, clock }) => {

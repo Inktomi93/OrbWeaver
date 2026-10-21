@@ -138,9 +138,9 @@ async function readScore(chat: ChatHandle): Promise<number | null> {
     return null;
   }
   const answer = await host.llm.quiet(buildPrompt(messages));
-  const match = FIRST_INT_RE.exec(String(answer));
+  const match = FIRST_INT_RE.exec(answer);
   if (match === null) {
-    host.log.info(`unparseable reading: ${String(answer).slice(0, LOG_EXCERPT_CHARS)}`);
+    host.log.info(`unparseable reading: ${answer.slice(0, LOG_EXCERPT_CHARS)}`);
     return null;
   }
   return Math.max(SCORE_MIN, Math.min(SCORE_MAX, Number(match[0])));
@@ -171,8 +171,8 @@ async function announceIfMoved(chat: ChatHandle, chatId: string, score: number):
 
 host.events.on("messageCommitted", async (fact) => {
   try {
-    const chatId = fact?.chatId ? fact.chatId : null;
-    if (chatId === null) {
+    const chatId = fact.chatId;
+    if (chatId === null || chatId.length === 0) {
       return; // A chat-less domain fact — nothing to read. (This handler only subscribes to a chat trigger.)
     }
     const count = await bumpCount(chatId);

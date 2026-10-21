@@ -10,7 +10,7 @@ export {
   presetSummarySchema,
   presetUsageViewSchema,
 } from "@orb/contracts/preset";
-export { SYSTEM_DEFAULT_PRESET_ID } from "./constants.ts";
+export { SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "./constants.ts";
 export type { PresetOpCode } from "./contract/errors.ts";
 export { PRESET_OP_CODES, PresetNotFoundError, PresetOperationError } from "./contract/errors.ts";
 export type { CopyPresetToUser, PresetHandoffCopyAssemblyContext as PresetHandoffCopyContext } from "./contract/handoff-copy.ts";

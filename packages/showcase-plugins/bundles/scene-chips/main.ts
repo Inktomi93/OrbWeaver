@@ -74,7 +74,7 @@ async function freshOmen(): Promise<string | null> {
 /** Is this fact a substantial NARRATOR beat? A member's own message is not a stall — the stall is the pause
  *  AFTER the story moved. `role` comes straight off the delivered fact; the host resolved it, not the guest. */
 function isLongNarratorBeat(fact: PluginTriggerFact): boolean {
-  const message = fact ? fact.message : undefined;
+  const message = fact.message;
   if (message === undefined || message.role === "user") {
     return false;
   }
@@ -104,8 +104,8 @@ async function claimCooldown(chatId: string): Promise<boolean> {
 if (host.grants.includes("events.subscribe")) {
   host.events.on("messageCommitted", async (fact) => {
     try {
-      const chatId = fact?.chatId ? fact.chatId : null;
-      if (chatId === null || !isLongNarratorBeat(fact)) {
+      const chatId = fact.chatId;
+      if (chatId === null || chatId.length === 0 || !isLongNarratorBeat(fact)) {
         return;
       }
       if (!(await claimCooldown(chatId))) {
@@ -144,7 +144,7 @@ if (host.grants.includes("events.subscribe")) {
 if (host.grants.includes("plugin_events")) {
   host.pubsub.on("oracle-deck", "draw", async (event) => {
     try {
-      const cards = Array.isArray(event?.data?.["cards"]) ? event.data["cards"] : [];
+      const cards = Array.isArray(event.data["cards"]) ? event.data["cards"] : [];
       const last = cards.length > 0 ? cards.at(-1) : null;
       if (typeof last !== "string") {
         return;

@@ -526,7 +526,7 @@ if (canShoot) {
     onAction: async (a) => {
       try {
         if (a.actionId === "open") {
-          const key = `moment:${String(a.values["tile"] ?? "").slice(1)}`;
+          const key = `moment:${(a.values["tile"] ?? "").slice(1)}`;
           const raw = await host.storage.get(key);
           if (raw === null) {
             await publishAlbum();

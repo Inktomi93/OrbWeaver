@@ -614,7 +614,8 @@ if (host.grants.includes("ui.surface")) {
         },
       ],
     },
-    onAction: async (action) => {
+    // The host forwards caller-supplied action ids; the declared button alone does not validate them.
+    onAction: async (action: { readonly actionId: string }) => {
       if (action.actionId !== "retire") {
         return;
       }
@@ -625,6 +626,6 @@ if (host.grants.includes("ui.surface")) {
   });
 }
 
-void publishDeckState();
+void publishDeckState().catch((err) => host.log.warn(`deck startup failed: ${String(err)}`));
 
 host.log.info(`oracle deck ready — ${DECK.length} cards (grants: ${host.grants.join(", ") || "none"})`);

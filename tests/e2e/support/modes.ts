@@ -37,18 +37,13 @@ import { DEV_PORTS, E2E_OIDC_ISSUER_PORT, E2E_PORTS, ENGINE_PORTS } from "@orb/t
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import type { IssuerTls } from "./oidc-issuer.ts";
 import { ensureIssuerTls, issuerCertPath } from "./oidc-issuer.ts";
+import type { Target } from "./target-guard.ts";
 import { devTargetAllowed } from "./target-guard.ts";
 
 /** One auth-mode project's boot + seed contract. `webServerEnv` is the exact env its `pnpm stack up-fg`
  *  webServer boots with; `baseUrl` is its vite origin (the specs' `E2E_BASE_URL`); `backendUrl` is the Hono
  *  origin the owner-fallback seed hits directly. */
-export interface ModeProject {
-  /** The Playwright project name (also the `--project=<name>` selector). */
-  readonly name: string;
-  /** vite origin — the spec baseURL + `E2E_BASE_URL` for the actor clients. `localhost` (vite binds [::1]). */
-  readonly baseUrl: string;
-  /** Hono origin (127.0.0.1) — the owner-fallback seed + `/api/auth/config` probe hit this directly. */
-  readonly backendUrl: string;
+export interface ModeProject extends Target {
   /** Which specs run under THIS project (Playwright per-project `testMatch`). Each mode owns a distinct set so
    *  a full `pnpm e2e` never runs a single-user spec under `local` (where login is required) or vice-versa —
    *  the existing 22 specs stay single-user; a mode-specific spec is named `*.<mode>.spec.ts`. */

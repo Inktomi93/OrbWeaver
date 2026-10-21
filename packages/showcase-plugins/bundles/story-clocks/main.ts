@@ -83,7 +83,10 @@ const EMPTY = "○";
 /** Lowercase a human name into the variable-key slug: `The Ritual` → `the_ritual`. Returns null for input
  *  that leaves nothing (symbols only) — a clock needs a name a person can say. */
 function slugify(name: unknown): string | null {
-  const slug = String(name ?? "")
+  if (typeof name !== "string") {
+    return null;
+  }
+  const slug = name
     .toLowerCase()
     .replaceAll(/[^a-z0-9]+/g, "_")
     .replaceAll(/^_+|_+$/g, "");
@@ -97,7 +100,10 @@ function displayName(slug: string): string {
 
 /** Parse a `"cur/max"` value. `null` for anything malformed — a hand-edited variable is user input. */
 function parseClock(value: unknown): ClockValue | null {
-  const match = /^(\d{1,2})\/(\d{1,2})$/.exec(String(value ?? ""));
+  if (typeof value !== "string") {
+    return null;
+  }
+  const match = /^(\d{1,2})\/(\d{1,2})$/.exec(value);
   if (match === null) {
     return null;
   }

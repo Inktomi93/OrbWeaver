@@ -2,42 +2,42 @@
   "format": 1,
   "bundles": {
     "affinity-tracker": {
-      "main.js": "81c19df32fdc7429e6f07cacf015d72da245f0fd3dcbab1ec4d11973853a3519",
-      "manifest.json": "9ca789d6b80ba324b5a781a376f5abb0d5d986b4cbc97f67fdc9bdcb841a1c41",
-      "ui.js": "a6670fa7b241009ba426d1db615945dfb75be4e9ab2a3618d68bb6e818cc8834"
+      "main.js": "2d0066c325aa8743a663bcc0315900f5063c500a91692898093e990148e24121",
+      "manifest.json": "449ff0bc675c578848597909e881fdcbab344298477c037f5034262b263da224",
+      "ui.js": "b17ba5d6eaa91ce1daebfc19d93e25302a3cc955eee054e58c3c1eef860ac107"
     },
     "card-atlas": {
-      "main.js": "e2145153faeb9650640ad152295829c69a110abb32ef3fd91f028509a8c9b713",
-      "manifest.json": "480f3cbd4b4b92fbbaf8e6c5e357b9500b337b79a6f19e416020c212c3ba4c69"
+      "main.js": "df23a49bcd26a7c3d600e8166e4166928ee511cb6c8ad84bc1e97b53a0a7494b",
+      "manifest.json": "0572bc4be88e568032f237b1b39fbf07af37ed96dcd7a620e0500e8fbeb08442"
     },
     "draft-polish": {
       "main.js": "2d7648284c5e21a9a770f86034c8806bec52fa09b45da4a852a08e6d84769eb1",
       "manifest.json": "07c6c7a278404b59c44b6122aa708f3bb5fe522e1d942b98cba239dc1447c3d5"
     },
     "keepsake-camera": {
-      "main.js": "f197c70fec364c85655f1bc722be9b00a6eafb0fcb6455e2feb1fb6ccf092854",
-      "manifest.json": "748bc269c6fbf3ae1e7219e6a197088f16b22ca85ab5a39b6f473fafa2fc5b0d"
+      "main.js": "6ae970010f60513fc3b01a57a82b99291a3a631391978c24125102d14ed23cc1",
+      "manifest.json": "83ad71261054a5f14e33a5c0b1450f0ba5c2a1fac3e8358cb6d9c96e171c50e3"
     },
     "oracle-deck": {
-      "main.js": "ad1c06787c2672bb3f004b4b57a0a30d80d3d681d45e6081d6a1d60685b3bf0e",
-      "manifest.json": "0702a12d240478e44f577ad3424745c4806ca2a1ed8c944a46642cdad67d8841"
+      "main.js": "679b0b11d21ebb30de62add8a572ec1f2b2576355ad3fedf22a05983d0c8149d",
+      "manifest.json": "43130c2667b64fa5be747543b68b7d22139a3ab3501449d00718b282f628f273"
     },
     "pocket-arcade": {
       "main.js": "308145d7d49566ced583113bf6497ba9445326c4565c16dab4c07964a6c0da25",
       "manifest.json": "d8125de0d922976d01a2ef4832c63cd0d121025db7c2fc1c067fc3dcd83d8158"
     },
     "research-familiar": {
-      "main.js": "24b2eea1e8037cef1444675f109fe861427975db7403facad5ce2c7ba63431f1",
-      "manifest.json": "98d106b105176592882a00a7eade05781ba68a11bd0fc448d3bd6b1488469ea4",
-      "ui.js": "1d524a140b7a666da757710b32ea9dc771b2523a2c702b18930befe116758aa1"
+      "main.js": "0edae1e6987cdb2259ab3ff13119870edc5de9947cca941939465c9fd2b877e8",
+      "manifest.json": "23003f79bd28cec2d9010775fba022332445e760337b8985ce4ca6187c1f3ee1",
+      "ui.js": "20c5a80b307736df87ecf8f78496eb699695e488c28789746ea26bef7f033bf4"
     },
     "scene-chips": {
-      "main.js": "a1a52a3b8ce3cbd0afd15a7b7c8176f63a1598ad6e8a4edf12b0728c4529dbb4",
-      "manifest.json": "77f1ffa13e9607ddc0888f6aa332be91810e366d776e40990c3ef527148aa02b"
+      "main.js": "2d2f6305e0f1eb6f576c5038ca227734ee241147d959afdfd88774da40878afb",
+      "manifest.json": "3d69b406de28aade7a2d320699f536dc8f31ad25f66f84289932ea966d4ca399"
     },
     "story-clocks": {
-      "main.js": "3d7247ebf05b6cacaa3ddbcfedaa823dabc6d8aa7173ef7ce4a4e7db2fa24e21",
-      "manifest.json": "56de1c34ead109d78ec4578b429e3405da5545fd30bda608da0947144f339561"
+      "main.js": "14e296a1907430a05d78382da8f275b61e76cad4bca55d407d14b94d8dc81ad1",
+      "manifest.json": "e7f1965cfdf921e191bef559cb0fee181fbd865c85f814f7862c8b68b20b59af"
     }
   }
 }

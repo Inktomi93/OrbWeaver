@@ -18,7 +18,6 @@
 
 import { HEALTH_STATUSES, healthResponseSchema } from "@orb/contracts/diagnostics";
 import { DEV_PORTS } from "@orb/tooling/floor/host/ports";
-import type { ModeProject } from "./modes.ts";
 
 /** The canonical dev-stack ports, read from the ONE port registry (`tooling/src/floor/host/ports.ts`; the
  *  same numbers the stack tool defaults to). A harness target holding either is refused — that stack is the
@@ -42,7 +41,14 @@ export interface TargetProbe {
 }
 
 /** The origins a mode-project would touch (vite front door + Hono backend) — both are checked for dev ports. */
-type Target = Pick<ModeProject, "name" | "baseUrl" | "backendUrl">;
+export interface Target {
+  /** The Playwright project name (also the `--project=<name>` selector). */
+  readonly name: string;
+  /** vite origin — the spec baseURL + `E2E_BASE_URL` for the actor clients. `localhost` (vite binds [::1]). */
+  readonly baseUrl: string;
+  /** Hono origin (127.0.0.1) — the owner-fallback seed + `/api/auth/config` probe hit this directly. */
+  readonly backendUrl: string;
+}
 
 function devPortOf(target: Target): string | undefined {
   return [target.baseUrl, target.backendUrl].map((url) => new URL(url).port).find((port) => DEV_STACK_PORTS.includes(port));

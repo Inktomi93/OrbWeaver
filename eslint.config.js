@@ -22,6 +22,7 @@ import biomeConfig from "./biome.json" with { type: "json" };
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const SOURCE = ["packages/*/src/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}"];
 const REACT_SOURCE = ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"];
+const BROWSER_MOUNT_SOURCE = ["tests/**/*.tsx", "scripts/**/*.tsx", "playwright/**/*.{ts,tsx}"];
 const REACT_TEST_SOURCE = [
   "tests/**/*.ct.tsx",
   "tests/{ui,client,showcase-plugins}/**/_*.tsx",
@@ -4838,6 +4839,16 @@ const NATIVE_CONFIG = [
     },
   },
   {
+    files: ["tests/**/*.test-d.ts"],
+    rules: {
+      // Negative type assertions must fail compilation when the expected error disappears.
+      "@typescript-eslint/ban-ts-comment": [
+        "error",
+        { "ts-expect-error": "allow-with-description", "ts-ignore": true, "ts-nocheck": true, "ts-check": false, minimumDescriptionLength: 10 },
+      ],
+    },
+  },
+  {
     files: ["**/*.{js,cjs,mjs}", ...AUTHORED_SRC, ...NODE_TOOL_SOURCE],
     plugins: { regexp },
     rules: {
@@ -4876,8 +4887,20 @@ const NATIVE_CONFIG = [
       "@typescript-eslint/no-deprecated": "error",
     },
   },
+  ...["main", "ui", "frame"].map((runtime) => ({
+    files: [`packages/showcase-plugins/bundles/*/${runtime}.ts`],
+    languageOptions: {
+      parserOptions: { project: [`packages/showcase-plugins/tsconfig.author-${runtime}.json`], projectService: false, tsconfigRootDir: ROOT },
+    },
+    rules: {
+      ...ASYNC_SAFETY_RULES,
+      "@typescript-eslint/require-await": "error",
+      "@typescript-eslint/strict-boolean-expressions": "error",
+      "@typescript-eslint/triple-slash-reference": ["error", { lib: "never", types: "never", path: "never" }],
+    },
+  })),
   {
-    files: ["tests/**/*.{ts,tsx,mts,cts}", "scripts/**/*.tsx"],
+    files: ["tests/**/*.{ts,tsx,mts,cts}", "scripts/**/*.tsx", "playwright/**/*.{ts,tsx}"],
     ignores: ["**/*.d.{ts,mts,cts}"],
     languageOptions: { parserOptions: { project: TEST_PROJECTS, projectService: false, tsconfigRootDir: ROOT } },
     // Async test doubles implement Promise contracts without asynchronous work.
@@ -5098,6 +5121,12 @@ export default [
       "orb/no-floorless-control-in-wrap": "error",
       "orb/browser-no-node-globals": "error",
     },
+  },
+  {
+    files: BROWSER_MOUNT_SOURCE,
+    ignores: ["tests/**/*.ct.tsx", "{tests,scripts}/support/{iso,node}/**"],
+    plugins: { orb: localPlugin },
+    rules: { "orb/browser-no-node-globals": "error" },
   },
   { files: [CLIENT_SRC], plugins: { orb: localPlugin }, rules: { "orb/zustand-selector-derived": "error", "orb/testid-typed-only": "error" } },
   {

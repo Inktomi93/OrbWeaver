@@ -1,6 +1,7 @@
 // domain/settings — front door: the only legal external import. AppSettings/UserSettings/EffectiveAppConfig
 // and every settings zod schema/parser live in @orb/contracts/settings — callers import those directly.
 
+export { RETIRED_SEED_THEME_IDS, THEME_HEARTH_ID, THEME_MOCHA_ID } from "./constants.ts";
 export { createSettingsAssemblyContext as createSettingsContext } from "./context.ts";
 export type { LegacySeedLatches } from "./contract/composed-ops.ts";
 export type { ContentSeedPolicyDeps, ContentSeedStep, UserContentSeeder } from "./contract/content-seed.ts";
@@ -43,6 +44,7 @@ export { createUserContentSeeder } from "./seeder/content.ts";
 export { createSettingsService } from "./service.ts";
 /** @public exported for the client suite that models the echo of a save through the server's own section-patch merge. */
 export { deepMergePlain } from "./substrate/merge.ts";
+export { SEED_THEMES } from "./substrate/seed-themes.ts";
 export { createApplyImportedAppearance } from "./verbs/apply-imported-appearance.ts";
 export { createBackgroundSeedSettings, createSeedBackgroundRewriter } from "./verbs/background-seed-ops.ts";
 export { createSettingsComposedOps } from "./verbs/composed-ops.ts";

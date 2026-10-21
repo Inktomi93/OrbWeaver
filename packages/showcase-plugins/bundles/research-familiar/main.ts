@@ -147,7 +147,7 @@ const seenKey = (verb: ResearchVerb, term: string): string => `${verb}:${term.to
  *  per invocation, and a regex over an arbitrarily long message is the one place a handler can accidentally
  *  spend it. One marker per message; `lookup` wins when both appear. */
 function readMarker(fact: PluginTriggerFact): ResearchMarker | null {
-  const content = fact?.message ? fact.message.content : "";
+  const content = fact.message?.content ?? "";
   if (typeof content !== "string" || content.length === 0) {
     return null;
   }
@@ -337,9 +337,7 @@ if (host.grants.includes("events.subscribe")) {
       await host.storage.set(LAST_FETCH_KEY, String(host.clock.nowEpochMs()));
 
       let summary = work.verb === "lookup" ? await searchLibrary(work.term) : null;
-      if (summary === null) {
-        summary = await fetchSummary(work.term);
-      }
+      summary ??= await fetchSummary(work.term);
       if (summary === null) {
         return;
       }

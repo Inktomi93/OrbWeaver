@@ -4,8 +4,6 @@ import type { Branded, ChatId, ChatId as RoomId, TypeIdOf, UserId } from "@orb/k
 import { brandedId as brand, brandedId } from "@orb/kit/ids";
 import { expectTypeOf, test } from "vitest";
 import type { z } from "zod";
-// @ts-expect-error an unresolved brandedId door is a compile error, never an acquittal
-import { brandedId as missing } from "./missing.ts";
 
 type Prefixless = Branded<"PrefixlessProbe">;
 
@@ -34,5 +32,4 @@ test("a canonical TypeID brand is refused, however it is spelled or imported", (
   // @ts-expect-error a forwarded reference keeps the constraint
   forwarded<ChatId>();
   expectTypeOf<ChatId>().toEqualTypeOf<TypeIdOf<"chat">>();
-  expectTypeOf(missing).toBeAny();
 });

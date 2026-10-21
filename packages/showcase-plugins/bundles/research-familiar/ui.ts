@@ -60,4 +60,4 @@ ui.onEvent(async (event) => {
   }
   draw();
 });
-void load();
+void load().catch((err) => ui.log.warn(`destination startup failed: ${String(err)}`));

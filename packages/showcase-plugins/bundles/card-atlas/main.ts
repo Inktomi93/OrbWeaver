@@ -569,7 +569,7 @@ const SORT_LABELS: Readonly<Record<SortKey, string>> = {
 /** Build one hub's sort menu from its honored keys (+ per-hub label overrides — a hub whose default order
  *  IS newest says so on the first entry instead of pretending "Hub default" is a distinct mode). */
 function sortOpts(keys: readonly SortKey[], overrides?: Partial<Record<SortKey, string>>): readonly SortOption[] {
-  return keys.map((key) => ({ value: key, label: overrides?.[key] || SORT_LABELS[key] }));
+  return keys.map((key) => ({ value: key, label: str(overrides?.[key]) ?? SORT_LABELS[key] }));
 }
 
 /** Which normalized-row stat field each sort key reads (page-side / held-set-side ordering). `relevance`
@@ -644,7 +644,7 @@ function normTags(raw: unknown): string[] {
 
 /** A comma-separated filter field → the same normalized dialect (empty entries dropped, capped). */
 function parseTagList(raw: unknown): string[] {
-  return normTags(String(raw ?? "").split(",")).slice(0, FILTER_TAGS_MAX);
+  return normTags(typeof raw === "string" ? raw.split(",") : []).slice(0, FILTER_TAGS_MAX);
 }
 
 /** Query-string builder for the GUEST REALM — QuickJS ships no `URLSearchParams` (measured live: a floated
@@ -1149,7 +1149,7 @@ const SOURCES = {
         return null;
       }
       return {
-        blurb: (str(card["description"]) ?? result.tagline ?? "").slice(0, BLURB_MAX_CHARS),
+        blurb: (str(card["description"]) ?? result.tagline).slice(0, BLURB_MAX_CHARS),
         raw: card,
       };
     },
@@ -1389,7 +1389,7 @@ const SOURCES = {
       if (!isObj(json)) {
         return null;
       }
-      return { blurb: (str(json["description"]) ?? str(json["excerpt"]) ?? result.tagline ?? "").slice(0, BLURB_MAX_CHARS), raw: json };
+      return { blurb: (str(json["description"]) ?? str(json["excerpt"]) ?? result.tagline).slice(0, BLURB_MAX_CHARS), raw: json };
     },
     /** The native V2 card PNG doubles as the sharper hero (the grid cover is the light webp). */
     heroUrl(result): string | null {
@@ -1492,7 +1492,7 @@ const SOURCES = {
       if (data === null) {
         return { blurb: (result.tagline || "(the card body was too large to preview — Add to library still works)").slice(0, BLURB_MAX_CHARS), raw: null };
       }
-      return { blurb: (str(data["description"]) ?? result.tagline ?? "").slice(0, BLURB_MAX_CHARS), raw: card };
+      return { blurb: (str(data["description"]) ?? result.tagline).slice(0, BLURB_MAX_CHARS), raw: card };
     },
     heroUrl(_result): string | null {
       return null; // the cover IS the full card PNG already.
@@ -1541,7 +1541,7 @@ const SOURCES = {
       if (character === null) {
         return null;
       }
-      return { blurb: (str(character["description"]) ?? result.tagline ?? "").slice(0, BLURB_MAX_CHARS), raw: character };
+      return { blurb: (str(character["description"]) ?? result.tagline).slice(0, BLURB_MAX_CHARS), raw: character };
     },
     heroUrl(_result): string | null {
       return null; // the row's avatarUrl is already the full asset.
@@ -1709,9 +1709,7 @@ async function dcGet(path: string): Promise<unknown | null> {
       token = await host.storage.get(DC_TOKEN_KEY);
       dcTokenCache = token;
     }
-    if (token === null) {
-      token = await dcMint();
-    }
+    token ??= await dcMint();
     if (token === null) {
       return null;
     }
@@ -1783,7 +1781,7 @@ function cachedArt(cache: ArtCache, key: string): string | undefined {
 /** The guest's own parallelism ceiling. The membrane admits ≤32 concurrent host calls PER PLUGIN and
  *  THROWS on the 33rd — and that budget is shared across everything in flight: a floating cover batch
  *  from the last search plus the next action's own publish reads. An unbounded 30-wide batch measurably
- *  killed the next action mid-handler on the live stage ("too many concurrent host calls (>32)" — the
+ *  killed the next action mid-handler on the live stage ("too many concurrent host calls (\>32)" — the
  *  drive receipt this constant exists for). 8 keeps two overlapping batches + incidentals well under. */
 const GUEST_PARALLEL_MAX = 8;
 
@@ -2000,7 +1998,8 @@ async function runOpen(seq: number, result: AtlasRow): Promise<void> {
     await publishBrowse(`${SOURCES[result.source].label} wouldn't show that card — try another.`);
     return;
   }
-  openResult = { result, raw: detail.raw, blurb: detail.blurb };
+  const opened = { result, raw: detail.raw, blurb: detail.blurb };
+  openResult = opened;
   await publishDetail(result, detail.blurb); // Instant art: the hero rides the cached grid cover.
   const heroUrl = SOURCES[result.source].heroUrl(result);
   if (heroUrl === null || !canFetchArt()) {
@@ -2008,7 +2007,7 @@ async function runOpen(seq: number, result: AtlasRow): Promise<void> {
   }
   const cache = await loadArtCache();
   const landed = await fetchMissingArt(cache, [result], heroKey, () => heroUrl);
-  if (landed > 0 && seq === sessionSeq && openResult !== null && openResult.result === result) {
+  if (landed > 0 && seq === sessionSeq && openResult === opened) {
     await publishDetail(result, detail.blurb); // The in-place upgrade to the sharper hero.
   }
 }
@@ -2404,7 +2403,7 @@ function sortRows(rows: readonly AtlasRow[], key: SortKey): readonly AtlasRow[] 
  *  (that is a real thing to want — page through what's out there), so nothing blocks on typing. Fired by the
  *  Search button, Enter in the query box, AND the live Hub/Sort selects. */
 async function searchAction(values: Readonly<Record<string, string>>): Promise<void> {
-  const q = String(values["q"] ?? "").trim();
+  const q = (values["q"] ?? "").trim();
   const sourceKey: SourceKey = isSourceKey(values["source"]) ? values["source"] : "tavern";
   const source = SOURCES[sourceKey];
   // The sort is validated against the PICKED hub's own menu — a hub switch can strand a value the new hub
@@ -2460,7 +2459,7 @@ async function pageAction(delta: number): Promise<void> {
 
 /** `open_result`: resolve the clicked tile against the resident session, speak, SCHEDULE the detail fetch. */
 async function openAction(values: Readonly<Record<string, string>>): Promise<void> {
-  const index = Number(String(values["tile"] ?? "").slice(1));
+  const index = Number((values["tile"] ?? "").slice(1));
   const result = session === null ? undefined : session.pageRows[index];
   if (result === undefined) {
     await publishBrowse("That result went stale — search again."); // A respawn between search and click.
