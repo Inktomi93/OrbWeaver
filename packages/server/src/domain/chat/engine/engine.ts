@@ -754,8 +754,8 @@ function memoryRequestId(turnId: ChatTurnId): string {
 }
 
 // The existing terminal boundaries own failures; graph lifetime owns joining their settlement.
-function trackSettledWork(ctx: EngineContext, work: Promise<void>): void {
-  ctx.trackBackground?.(work);
+function trackSettledWork(ctx: EngineContext, chatId: ChatId, work: Promise<void>): void {
+  ctx.trackBackground?.(work, chatId);
 }
 
 /** Fire-and-forget the rpg post-turn FLUSH (docs/plans/rpg/design.md): after the variant commits, flush the turn's
@@ -793,6 +793,7 @@ function fireRpgTurnCompleted(ctx: EngineContext, view: MessageView, turnId: Cha
     // hand-rolled resolve/consent path (stickler F1).
     trackSettledWork(
       ctx,
+      view.chatId,
       withRequestSpan(rpgRoundRequestId(turnId), RPG_ROUND_SPAN, { chatId: view.chatId, messageId: view.id, turnId }, () =>
         rpg.onTurnCompleted(view.chatId, view.id, view.selectedVariantId, turnId, turn),
       ).catch((err: unknown) => getLog().warn({ err, chatId: view.chatId, turnId }, "rpg: post-turn flush failed (reply already committed)")),
@@ -824,6 +825,7 @@ function fireRpgTurnAborted(ctx: EngineContext, chatId: ChatId, turnId: ChatTurn
     const rpg = ctx.rpg;
     trackSettledWork(
       ctx,
+      chatId,
       withRequestSpan(rpgAbortRequestId(turnId), RPG_ABORT_SPAN, { chatId, turnId, reason }, () => rpg.onTurnAborted(chatId, turnId, reason)).catch(
         (err: unknown) => getLog().warn({ err, chatId, turnId, reason }, "rpg: turn-abort staging clear failed (the turn is still aborted)"),
       ),
@@ -1154,6 +1156,7 @@ function fireManagedCompaction(
   const ownerId = prep.runAsUserId;
   trackSettledWork(
     ctx,
+    chatId,
     withRequestSpan(compactionRequestId(turnId), COMPACTION_SPAN, { chatId, turnId, coveragePoint }, async () => {
       try {
         const res = await deps.runCompaction({ chatId, connection, ownerId, coveragePoint, instructions, signal: ctx.backgroundSignal });
@@ -1866,6 +1869,7 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       const macroNames = historyMacroNames;
       trackSettledWork(
         ctx,
+        prep.chatId,
         withRequestSpan(memoryRequestId(turnId), MEMORY_SPAN, { chatId: prep.chatId, turnId }, async () => {
           try {
             await deps.generateMemory({
@@ -2002,6 +2006,7 @@ async function runInLockWithHeartbeat(ctx: EngineContext, deps: OwnedEngineDeps,
     (): void => {
       trackSettledWork(
         ctx,
+        prep.chatId,
         tick().catch((err: unknown): void => {
           getLog().error({ err, chatId: prep.chatId, holder: deps.holder }, "chat: turn-lock heartbeat FAILED — aborting the turn");
           heartbeatController.abort(new StaleLockAbort());
@@ -2034,6 +2039,7 @@ async function runInLockWithHeartbeat(ctx: EngineContext, deps: OwnedEngineDeps,
     // @orb-waive caught-failure-ownership(releasedBody): this is the SAME promise the `await Promise.race` above returns, so a body rejection that wins is thrown to the caller; when the barrier wins, the caller gets `aborted` and the lock loss was already logged by `tick` (`getLog().error`). Ends if the release moves off this promise.
     trackSettledWork(
       ctx,
+      prep.chatId,
       releasedBody.catch((): undefined => undefined).then(() => undefined),
     );
   }
