@@ -114,7 +114,6 @@ function seedSourceClosure(
     readonly initialCalls: readonly CallExpression[];
   },
   observations: CallReturnObservations,
-  schema: SchemaModel | undefined,
 ): void {
   for (const call of cohort.roots) {
     state.add(call);
@@ -133,7 +132,6 @@ function seedSourceClosure(
       }
     }
   }
-  seedSchemaSources(state, schema);
 }
 function seedReadSources(state: SourceClosure, reads: OrdinaryObservationDemand["reads"]): void {
   for (const read of reads) {
@@ -147,15 +145,36 @@ function seedReadSources(state: SourceClosure, reads: OrdinaryObservationDemand[
     }
   }
 }
-function seedSchemaSources(state: SourceClosure, schema: SchemaModel | undefined): void {
+function captureSchemaTypeMetadata(type: MorphNode, state: SourceClosure, owner: OrdinaryObservationOwner): readonly MorphNode[] {
+  const names = [type, ...type.getDescendants()].filter(Node.isTypeReference).map((reference) => reference.getTypeName());
+  for (const name of names) {
+    state.profile(name);
+    const origin = resolveModuleMemberOrigin(name);
+    if (origin.kind === "resolved") {
+      owner.related(origin.value.declaration);
+      state.sources.add(origin.value.declaration.getSourceFile());
+    }
+  }
+  return [type, ...names];
+}
+function schemaMetadataAnchors(state: SourceClosure, schema: SchemaModel | undefined, owner: OrdinaryObservationOwner): ReadonlySet<MorphNode> {
+  const anchors = new Set<MorphNode>();
   for (const table of schema?.tables ?? []) {
-    state.add(table.declaration);
+    anchors.add(table.declaration);
+    anchors.add(table.call);
     for (const column of table.columns) {
       if (column.typeOverride !== null) {
-        state.add(column.typeOverride.node);
+        for (const node of captureSchemaTypeMetadata(column.typeOverride.node, state, owner)) {
+          anchors.add(node);
+        }
       }
     }
   }
+  for (const node of anchors) {
+    owner.related(node);
+    state.sources.add(node.getSourceFile());
+  }
+  return anchors;
 }
 
 function addMember(state: SourceClosure, node: MorphNode, name: string): void {
@@ -163,7 +182,7 @@ function addMember(state: SourceClosure, node: MorphNode, name: string): void {
   names.add(name);
   state.members.set(node, names);
 }
-function closeBindings(node: MorphNode, state: SourceClosure): void {
+function closeBindings(node: MorphNode, state: SourceClosure, schemaAnchors: ReadonlySet<MorphNode>): void {
   if (Node.isBindingElement(node)) {
     state.add(node.getParent().getParent());
   }
@@ -177,7 +196,8 @@ function closeBindings(node: MorphNode, state: SourceClosure): void {
       next.push(module.value.canonical.declaration);
     }
   }
-  for (const value of next.filter((candidate) => candidate !== node && !candidate.getSourceFile().isDeclarationFile())) {
+  // Complete schema/type questions use their native anchors, not the builder's entire value subtree.
+  for (const value of next.filter((candidate) => candidate !== node && !schemaAnchors.has(candidate) && !candidate.getSourceFile().isDeclarationFile())) {
     state.add(value);
   }
 }
@@ -216,14 +236,14 @@ function captureParameterUses(node: MorphNode, state: SourceClosure): void {
     state.references.push({ node: node.getNameNode(), scope: body, uses: referencesOf(node.getNameNode(), body) });
   }
 }
-function closeSourceNodes(state: SourceClosure, owner: OrdinaryObservationOwner): void {
+function closeSourceNodes(state: SourceClosure, owner: OrdinaryObservationOwner, schemaAnchors: ReadonlySet<MorphNode>): void {
   for (const node of state.pending) {
     if (!observationNode(node)) {
       continue;
     }
     owner.related(node);
     state.sources.add(node.getSourceFile());
-    closeBindings(node, state);
+    closeBindings(node, state, schemaAnchors);
     if (Node.isElementAccessExpression(node)) {
       const key = node.getArgumentExpression();
       if (key !== undefined) {
@@ -344,8 +364,9 @@ export function captureOrdinaryObservations(demand: OrdinaryObservationDemand, o
   const terminalSet = new Set(terminals.map((call) => call.compilerNode));
   const returned = demand.reads.map((read) => ({ ...read, fact: readReturnedValue(read.node, read.path, observations, terminalSet) }));
   const state = sourceClosure(owner);
-  seedSourceClosure(state, { demand, roots, closureCalls, initialCalls }, observations, schema);
-  closeSourceNodes(state, owner);
+  const schemaAnchors = schemaMetadataAnchors(state, schema, owner);
+  seedSourceClosure(state, { demand, roots, closureCalls, initialCalls }, observations);
+  closeSourceNodes(state, owner, schemaAnchors);
   const extra = captureRowQuestions(demand, state, query);
   const nodes = [...state.pending].filter(observationNode).map((node) => captureOrdinaryNode(node, state, query));
   captureReadUses(demand, state);
