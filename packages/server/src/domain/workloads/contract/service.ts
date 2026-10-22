@@ -130,5 +130,4 @@ export type NextRunnableWorkloadDeps = Pick<WorkloadRunnerDeps, "db" | "contribu
 export type NextRunnableWorkload = (now: number, lane: WorkloadLane) => Promise<WorkloadRunnableRow | null>;
 
 export type WorkloadRunnerAssemblyDeps = DbAssemblyInput<WorkloadRunnerDeps>;
-export type WorkloadServiceAssemblyDeps = DbAssemblyInput<WorkloadServiceDeps>;
 export type ReapWorkloadsAssemblyArgs = DbAssemblyInput<ReapWorkloadsArgs>;

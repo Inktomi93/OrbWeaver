@@ -13,7 +13,6 @@ import type { CredentialHealth, CredentialStorageStatus, CredentialView, Resolve
 import type { ProviderDef } from "@orb/contracts/inference";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
-import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type { SecretBox } from "#infra/crypto";
@@ -52,8 +51,6 @@ export interface CredentialContext {
    *  durable write, so a second device's list refetches. */
   readonly emitUserEvent: EmitUserEvent;
 }
-
-export type CredentialAssemblyContext = DbAssemblyInput<CredentialContext>;
 
 /** The credential surface. The turn-time `resolve` is the only consumer-facing construction of a
  *  `ResolvedSecret`; CRUD is ownership-scoped; health has the runner-internal (`markRevoked`) vs

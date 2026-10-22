@@ -20,15 +20,13 @@
 // SAME batch as the role swap (the `handoffHealStatements` co-statement seam).
 
 import type { Db } from "@orb/db";
-import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
+import type { StatementToken } from "@orb/db/wiring";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 
 /** db only — a re-key writes no vectors, mints no ids and needs no clock. */
 export interface EmbeddingsHandoffRestampContext {
   readonly db: Db;
 }
-
-export type EmbeddingsHandoffRestampAssemblyContext = DbAssemblyInput<EmbeddingsHandoffRestampContext>;
 
 /** One source→copy card pairing (the structural shape of character's `HandoffCardCopy` — embeddings declares
  *  its own copy rather than importing a sibling domain's type). */

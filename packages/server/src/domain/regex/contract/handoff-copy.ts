@@ -28,7 +28,7 @@
 // verbatim).
 
 import type { Db } from "@orb/db";
-import type { DbAssemblyInput, StatementToken } from "@orb/db/wiring";
+import type { StatementToken } from "@orb/db/wiring";
 import type { ChatId, RegexScriptId, UserId } from "@orb/kit/ids";
 
 /** db + clock + the id minter. Purpose-built (NOT the full `RegexContext`): a handoff copy writes rows and
@@ -38,8 +38,6 @@ export interface RegexHandoffCopyContext {
   readonly now: () => number;
   readonly newScriptId: () => RegexScriptId;
 }
-
-export type RegexHandoffCopyAssemblyContext = DbAssemblyInput<RegexHandoffCopyContext>;
 
 /** Copy the room's chat-tier scripts from `fromOwnerId` into `toOwnerId` and return the UNEXECUTED
  *  `chat_regex_scripts` re-point.

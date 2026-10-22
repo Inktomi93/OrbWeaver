@@ -47,8 +47,6 @@ import type {
   WriteHubScoresResult,
 } from "./results.ts";
 
-export type { LoadAssetBytes } from "@orb/contracts/assets";
-
 // The typed API surface: the two DI bundles, the verb interface, injected cross-feature op types, and the
 // indexer interface. Every cross-feature capability arrives as an injected op (no sideways imports); there is
 // no principal/guard on any bundle — the vector substrate carries no ownerId.

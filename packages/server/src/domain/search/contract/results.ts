@@ -18,7 +18,6 @@ export type {
   DiscoverResult,
   DiscoverSegment,
   DocumentChunkHit,
-  FieldSearchHit,
   FieldSearchResult,
   ImageSearchHit,
   SearchHit,
