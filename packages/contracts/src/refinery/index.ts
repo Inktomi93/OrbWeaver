@@ -4,10 +4,8 @@
 // original-card snapshot) and a REGRESSION-bearing verdict enum — the loop's contract, carried verbatim
 // from the source extension.
 //
-// IMPORT DIRECTION (load-bearing): this namespace imports NOTHING from `#character`. The card contract
-// imports `refineryAnalyzePayloadSchema` from HERE (for the card's derived `refinery` signals field), so
-// a `#character` import in this file would be a module cycle. The `REFINABLE_FIELDS ⊆ CharacterCard`
-// field-name pin therefore lives in the contract TEST (tests/legacy/contracts/refinery), which may import both.
+// Character consumes analysis from ./core.ts, not this root, so browser outputs can compose its validators
+// without an initialization cycle. Core never imports either public root.
 //
 // The stage PAYLOADS are the F3 "fixed typed payloads" — ONE schema per stage across every F4 mode
 // (modes are PROMPT-tier variants; the extension's separate quick-score schema is deliberately
@@ -24,14 +22,36 @@
 // string — it silently DROPS the refinement and keeps `maxLength`, so the projection stays whole. The
 // cost is stated plainly: an over-token blob is now a FAILED RUN rather than an ungeneratable one.
 
-import type { ModelId } from "@orb/kit/ids";
+import type { CharacterId, CharacterSnapshotId, ModelId, RefinerySessionId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { liftJsonSchema } from "@orb/kit/json-schema";
-import { estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
-import { refineryVerdictSchema, SCORE_MAX, SCORE_MIN } from "./core.ts";
+import type { CharacterCard, CharacterDetail } from "#character";
+import { characterCardViewSchema, characterDetailSchema } from "#character";
+import type { RefineryAnalyzePayload } from "./core.ts";
+import {
+  critiqueProseSchema,
+  LIST_MAX,
+  NOTE_MAX,
+  refineryAnalyzePayloadSchema,
+  refineryAnalyzePayloadViewSchema,
+  refineryVerdictSchema,
+  SCORE_MAX,
+  SCORE_MIN,
+} from "./core.ts";
 
-export { type RefineryVerdict, refineryVerdictSchema, SCORE_MAX } from "./core.ts";
+export {
+  CRITIQUE_CHAR_BACKSTOP,
+  CRITIQUE_TOKEN_MAX,
+  LIST_MAX,
+  NOTE_MAX,
+  type RefineryAnalyzePayload,
+  type RefineryVerdict,
+  refineryAnalyzePayloadSchema,
+  refineryAnalyzePayloadViewSchema,
+  refineryVerdictSchema,
+  SCORE_MAX,
+} from "./core.ts";
 // The refinery prose slot table (R1) — composed into `PROSE_SLOTS` by `#prose` through this front door.
 export { REFINERY_PROSE_SLOTS } from "./prose.ts";
 // The raw-door PREFLIGHT (advisories + stats). Sits BESIDE the belt, never in front of it: the belt
@@ -53,71 +73,11 @@ export * from "./schema-plan.ts";
 // in the contract test against the character contract's exported `TEXT_MAX`.
 export const REWRITE_TEXT_MAX = 100_000;
 
-// ── The MODEL-AUTHORED payload ceilings (security pass 2026-08-08 —
-// 2026-08-08 gap 1) ──────────────────────────────
-// A character card is UNTRUSTED text; a prompt-injected card can steer the model that AUTHORS these
-// payloads. The analyze payload is stamped into CANON (`characters.refinery.analysis`), rides every card
-// detail read AND every `character_snapshots` blob; the score/rewrite payloads land in append-only run
-// rows. Unbounded strings/arrays therefore were a store-and-serve amplification path with no belt at all
-// (measured: a 2 MB `summary` and a 5 000-entry array parsed clean). Every bound below is a NATIVE zod
-// keyword — so it survives `projectJsonSchema` as `maxLength`/`maxItems` and is GRAMMAR-ENFORCED on the
-// guided-decoding wire, while the hosted wires strip the KEYWORD, relay the bound to the model in that
-// node's `description` (`[Constraints: maxLength: 16000]`, task #40) and let the zod belt re-impose it on
-// the reply (`contracts/inference/wire-subset.ts` states that contract). Critique prose additionally carries the ONE
-// sanctioned refinement (the token cap — see the header).
-
-/** The product cap for one free-prose critique string (`summary`, `soulAssessment`, a per-field critique),
- *  in TOKENS. OWNER RULING 2026-08-08 — the cap was 4 000 CHARS (the `PROSE_MAX_CHARS` twin) and that was
- *  the wrong UNIT for model-authored prose: "we are thinking in chars but it needs to be tokens ... 1000
- *  tokens is piddly, I have cards that are like 4k". Measured by `@orb/kit/tokens`, the ONE production
- *  estimator (never a re-implementation) — which makes this cap the same currency as every prompt budget
- *  in the tree. */
-export const CRITIQUE_TOKEN_MAX = 4000;
-
-/** The most characters ONE token can buy under the production estimator. `estimateTokens` (QuadChars,
- *  `@orb/kit/tokens`) charges a printable-ASCII run 1 token per 4 chars and EVERY other codepoint a whole
- *  token, so `estimateTokens(t) >= ceil(t.length / 4)` holds for every string — 4 is the ceiling, reached
- *  only by pure printable ASCII.
- *
- *  THIS IS A PREMISE, NOT A CONSTANT: if the estimator is ever swapped for a real BPE (where common words
- *  routinely exceed 4 chars per token) the inequality above becomes FALSE and the derivation below must be
- *  revisited in that same change. Deriving the backstop instead of writing `16_000` is what forces that —
- *  a literal would silently outlive its premise. */
-const QUADCHARS_MAX_CHARS_PER_TOKEN = 4;
-
-/** The DoS backstop for one critique string, in CHARS — the NATIVE keyword that survives projection and
- *  keeps the guided-decoding grammar preventing over-long prose at generation time (a grammar cannot count
- *  tokens). DERIVED, so it is exactly the char envelope of the token cap: by the inequality above a
- *  token-legal string is always within `4 × budget` chars, so this rejects NOTHING the token cap accepts
- *  while bounding bytes at half of the flat 32 000 a hand-picked literal would have cost.
- *
- *  It is deliberately NOT the whole belt: non-ASCII prose costs a token PER CODEPOINT, so 5 000 CJK
- *  characters is 5 000 tokens at only 5 000 chars — over the product cap and nowhere near this backstop.
- *  That gap is precisely why the token refinement exists. */
-export const CRITIQUE_CHAR_BACKSTOP = CRITIQUE_TOKEN_MAX * QUADCHARS_MAX_CHARS_PER_TOKEN;
-
-/** One free-prose critique string, DUAL-BOUND: a native char backstop (projected to the wire, grammar-
- *  enforced on vLLM) plus the token product cap (parse-only — see the header's sanctioned-refinement note).
- *
- *  The `length` guard in front of `estimateTokens` is LOAD-BEARING, not defensive: zod string checks are
- *  NON-ABORTING, so without it a blob that already failed `.max()` would still be walked codepoint-by-
- *  codepoint by the estimator — the byte ceiling would have become a CPU amplifier (measured: 40 MB ≈ 1.9 s
- *  of tokenizing for a string already known to be refused). Answering `false` on length alone is exact, not
- *  an approximation: over `4 × budget` chars is over budget in tokens by the inequality above. */
-const critiqueProseSchema = z
-  .string()
-  .max(CRITIQUE_CHAR_BACKSTOP)
-  .refine((text) => text.length <= CRITIQUE_CHAR_BACKSTOP && estimateTokens(text) <= CRITIQUE_TOKEN_MAX, `must be at most ${CRITIQUE_TOKEN_MAX} tokens`);
-
 /** Host-authored free prose that reaches a model wire (session `guidance`) — the `PROSE_MAX_CHARS` twin
  *  (contracts/prose-slot), and deliberately still CHARS. It is a typed input field, not model-authored
  *  critique output: a human types it into a bounded control, so the char cap is the one the editor can show
  *  and the token ruling above does not reach it. */
 export const HOST_PROSE_MAX_CHARS = 4000;
-/** One bullet in a list payload (`issues[]`, `preserved[]`, …) — a bullet, not an essay. */
-export const NOTE_MAX = 500;
-/** Items in one bullet list. */
-export const LIST_MAX = 50;
 /** Entries in a per-field payload array (`fieldScores`, rewrite `fields`) = one per ADDRESSABLE target:
  *  the 8 non-greeting refinable fields + the card's own 100-greeting ceiling. Pinned in the contract test
  *  against `REFINABLE_FIELDS.length` and the character contract's exported `GREETINGS_MAX`. */
@@ -497,25 +457,6 @@ export const refineryRewriteSheetSchema = z.array(refineryRewriteDecisionSchema)
 export const refineryRewriteDecisionsSchema = z.record(z.string(), refineryRewriteSheetSchema);
 export type RefineryRewriteDecisions = z.infer<typeof refineryRewriteDecisionsSchema>;
 
-/** The anti-drift comparison verdict — ALWAYS rewrite-vs-ORIGINAL (the session's `original_card`
- *  snapshot), never rewrite-vs-previous-rewrite. The soul check is the 1-10 "does it still feel like
- *  the same character" rubric.
- *
- *  THE ONE PAYLOAD THAT REACHES CANON: R1 stamps it into `characters.refinery.analysis` (F6), so these
- *  bytes ride every card detail read AND every `character_snapshots` blob taken afterwards. Its ceilings
- *  are the tightest in this file for that reason. */
-export const refineryAnalyzePayloadSchema = z.object({
-  preserved: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
-  lost: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
-  gained: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
-  soulScore: z.number().min(SCORE_MIN).max(SCORE_MAX),
-  soulAssessment: critiqueProseSchema,
-  verdict: refineryVerdictSchema,
-  issues: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
-  recommendations: z.array(z.string().max(NOTE_MAX)).max(LIST_MAX),
-});
-export type RefineryAnalyzePayload = z.infer<typeof refineryAnalyzePayloadSchema>;
-
 export type RefineryStagePayload = RefineryScorePayload | RefineryRewritePayload | RefineryAnalyzePayload;
 
 interface RefineryStagePayloadByStage {
@@ -610,8 +551,7 @@ export interface RefineryScoreSweepResult {
   readonly failed: number;
 }
 
-// ── Wire views (tRPC outputs; the FULL session view with `originalCard` homes in domain/refinery's
-//    contract/ (R1) — it needs `#character`, which this file must not import) ───────────────────────────
+// Wire views compose character validators; the analysis dependency stays in the lower core leaf.
 
 const refineryRunBaseSchema = z.object({
   id: typeIdSchema(ID_PREFIX.refineryRun),
@@ -688,8 +628,8 @@ export const refineryRunSchema = z.union([
 export type RefineryRun = z.infer<typeof refineryRunSchema>;
 
 /** The sessions-roster row (D62: name · character · verdict badge · updatedAt). `latestVerdict` is the
- *  newest analyze run's verdict, null before the first analyze; the full session view (R1, domain
- *  contract/) carries `originalCard`.
+ *  newest analyze run's verdict, null before the first analyze; {@link RefinerySessionView} carries
+ *  `originalCard`.
  *
  *  CHARACTER IDENTITY RIDES THE ROW, SERVER-SIDE. This comment previously read "Character display
  *  resolves client-side by `characterId`" — TRUTH-REPAIRED (orchestrator ruling, 2026-08-09), because
@@ -759,9 +699,6 @@ export type SchemaForgeResult =
    *  lossy flat approximation of the author's idea would be the wrong answer. */
   | { readonly kind: "needs-raw"; readonly message: string; readonly skeleton: Record<string, unknown> }
   | { readonly kind: "failed"; readonly message: string; readonly raw: string | null };
-
-// Output projections validate typed envelopes after model/read parsing has normalized and itemized them.
-export const refineryAnalyzePayloadViewSchema = refineryAnalyzePayloadSchema.strict() satisfies z.ZodType<RefineryAnalyzePayload>;
 const refineryScorePayloadViewSchema = refineryScorePayloadSchema.strict().extend({
   fieldScores: z.array(refineryFieldScoreSchema.strict()).max(ENTRIES_MAX),
 }) satisfies z.ZodType<RefineryScorePayload>;
@@ -818,3 +755,142 @@ export const refineryScoreSweepResultSchema = z.strictObject({
   skipped: z.number(),
   failed: z.number(),
 }) satisfies z.ZodType<RefineryScoreSweepResult>;
+
+/** The full session (the CONTENT surface's state) — summary fields + the anti-drift anchor + config. */
+export interface RefinerySessionView {
+  readonly id: RefinerySessionId;
+  readonly characterId: CharacterId;
+  readonly name: string | null;
+  readonly status: RefinerySessionStatus;
+  /** The session-start card snapshot — the anchor every analyze compares against (never edited). */
+  readonly originalCard: CharacterCard;
+  readonly selection: RefinerySelection;
+  readonly stageConfig: RefineryStageConfig;
+  /** The review's Keep/Discard sheets, keyed by rewrite run id — what the workbench reopens with. */
+  readonly rewriteDecisions: RefineryRewriteDecisions;
+  readonly guidance: string | null;
+  readonly iterationCount: number;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+}
+
+/** Why one accepted entry was REFUSED — itemized per entry so the user learns which field and why. Owner
+ *  ruling: the apply is atomic, so any refusal refuses the whole act, and the user recovers by discarding the
+ *  refused entries. A closed axis so the client renders typed copy. The
+ *  tuple stays UNEXPORTED until a runtime consumer exists (R3's reason-copy map re-exports it then);
+ *  the derived union below is the wire surface. */
+const APPLY_DROP_REASONS = [
+  /** The accept names a field the latest rewrite run did not produce. */
+  "not_in_rewrite",
+  /** The accept names a field outside the SESSION's selection — the model (or the caller) does not get to
+   *  widen its own apply scope (belt 9: the systemPrompt-injection stopper). */
+  "not_selected",
+  /** `field === "greetings"` but the entry carries no `greetingIndex`. */
+  "greeting_index_missing",
+  /** The `greetingIndex` names a slot past the LIVE card's greetings — a greeting deleted since session
+   *  start is dropped, never re-created by index. */
+  "greeting_index_invalid",
+  /** `greetingIndex` present on a non-greetings field. */
+  "greeting_index_forbidden",
+  /** The LIVE card no longer carries the structure this entry needs (a depth-prompt rewrite with the
+   *  note since deleted — the rewrite cannot invent the `{depth, role}` directive, which is authored). */
+  "not_applicable",
+  /** A greeting CLEAR that would leave the card with zero greetings. Emptying a field is refining; leaving
+   *  a character with no first message is a worse authoring state than any empty field, so the last
+   *  surviving slot refuses rather than being written away (schema-renderer §15.2). */
+  "would_leave_no_greeting",
+  /** An APPEND that would push the card past the greetings ceiling (`GREETING_SLOTS_MAX`). Itemized rather
+   *  than thrown, and rather than letting the constructed patch fail `updateCharacterSchema`: a card at its
+   *  ceiling is a legal card, so a payload wanting one more slot is a refusal about THIS entry (F-T1). */
+  "greeting_cap_reached",
+  /** The MERGE CONFLICT (schema-renderer §21 edge 2): the LIVE card's text for this field differs from
+   *  the session's `original_card` pin — someone edited it under the session — and the accept carried no
+   *  `confirmDiverged`. Never written blind: the surface re-opens the block as a BASE·LIVE·REWRITE
+   *  conflict and the re-confirmed accept passes. */
+  "diverged_since_session",
+] as const;
+
+export type ApplyDropReason = (typeof APPLY_DROP_REASONS)[number];
+
+/** What an applied entry DID. The emptying arm makes this load-bearing: destruction must be itemized
+ *  separately from replacement so the outcome panel and the audit trail state it explicitly rather than
+ *  leaving a user to infer it from a diff with a blank side (schema-renderer §15.5). `added` is the F-T1
+ *  append arm's twin — a NEW greeting slot is not a replacement of anything, and reporting it as one would
+ *  make the outcome panel lie about which slot moved. Same posture as the drop reasons: the tuple stays
+ *  unexported until a runtime consumer exists. */
+const APPLIED_FIELD_KINDS = ["replaced", "cleared", "added"] as const;
+
+export type AppliedFieldKind = (typeof APPLIED_FIELD_KINDS)[number];
+
+/** Where an itemized entry POINTED. The two indexes are mutually exclusive and neither is a spelling of the
+ *  other: `greetingIndex` names a slot the card HAS, `appendIndex` names the k-th NEW greeting a rewrite
+ *  payload asked for (`appendedRewrites`' ordinal — the only stable address a slot-less entry can carry). */
+interface RefineryFieldRef {
+  readonly field: RefinableField;
+  readonly greetingIndex?: number | undefined;
+  readonly appendIndex?: number | undefined;
+}
+
+export interface AppliedFieldRef extends RefineryFieldRef {
+  readonly kind: AppliedFieldKind;
+}
+
+export interface DroppedField extends RefineryFieldRef {
+  readonly reason: ApplyDropReason;
+}
+
+export interface ApplyFieldsResult {
+  readonly applied: readonly AppliedFieldRef[];
+  readonly dropped: readonly DroppedField[];
+  /** The updated character detail (the injected `character.update`'s own return) — the client's refresh. */
+  readonly character: CharacterDetail;
+  /** The pre-apply snapshot's id (schema-renderer §16.2's result widening) — the immediate "view the
+   *  rollback point" affordance. Null on exactly the zero-write arm, where NO snapshot was taken (the
+   *  surface states that plainly rather than leaving a missing rollback point unexplained). */
+  readonly snapshotId: CharacterSnapshotId | null;
+}
+
+/** `applyAsCopy` — the branch-off result: the same itemization, the FRESH character (never the live one),
+ *  and no snapshot by construction (nothing existing was written — the outcome copy says so). Null
+ *  `character` on the zero-write arm: every accept died on the belts, so no copy was minted. */
+export interface ApplyAsCopyResult {
+  readonly applied: readonly AppliedFieldRef[];
+  readonly dropped: readonly DroppedField[];
+  readonly character: CharacterDetail | null;
+}
+
+export const refinerySessionViewSchema = z.strictObject({
+  id: typeIdSchema(ID_PREFIX.refinerySession),
+  characterId: typeIdSchema(ID_PREFIX.character),
+  name: z.string().nullable(),
+  status: refinerySessionStatusSchema,
+  originalCard: characterCardViewSchema,
+  selection: refinerySelectionSchema.strict(),
+  stageConfig: refineryStageConfigViewSchema,
+  rewriteDecisions: refineryRewriteDecisionsSchema,
+  guidance: z.string().nullable(),
+  iterationCount: z.number(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<RefinerySessionView>;
+
+const refineryFieldRefShape = {
+  field: refinableFieldSchema,
+  greetingIndex: z.number().optional(),
+  appendIndex: z.number().optional(),
+};
+
+const appliedFieldRefSchema = z.strictObject({ ...refineryFieldRefShape, kind: z.enum(APPLIED_FIELD_KINDS) }) satisfies z.ZodType<AppliedFieldRef>;
+
+const droppedFieldSchema = z.strictObject({ ...refineryFieldRefShape, reason: z.enum(APPLY_DROP_REASONS) }) satisfies z.ZodType<DroppedField>;
+
+export const applyFieldsResultSchema = z.strictObject({
+  applied: z.array(appliedFieldRefSchema).readonly(),
+  dropped: z.array(droppedFieldSchema).readonly(),
+  character: characterDetailSchema,
+  snapshotId: typeIdSchema(ID_PREFIX.characterSnapshot).nullable(),
+}) satisfies z.ZodType<ApplyFieldsResult>;
+
+export const applyAsCopyResultSchema = applyFieldsResultSchema
+  .omit({ snapshotId: true })
+  .extend({ character: characterDetailSchema.nullable() }) satisfies z.ZodType<ApplyAsCopyResult>;

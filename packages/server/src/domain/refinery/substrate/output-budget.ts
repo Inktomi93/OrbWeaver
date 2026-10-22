@@ -25,12 +25,11 @@
 
 import type { SideGenPosture } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
-import type { RefineryRewriteMode, RefineryStage } from "@orb/contracts/refinery";
+import type { RefineryRewriteMode, RefinerySessionView, RefineryStage } from "@orb/contracts/refinery";
 import type { SideGenSampling } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { StageBudgetFitArgs, StageBudgetMisfit, StageEstimateSubject, StageOutputBudgetArgs, StageSamplingArgs } from "../contract/prompts.ts";
-import type { RefinerySessionView } from "../contract/results.ts";
 import { buildCardSections } from "./refine-prompt.ts";
 import { REFINERY_POSTURE_BY_STAGE } from "./stage-resolution.ts";
 

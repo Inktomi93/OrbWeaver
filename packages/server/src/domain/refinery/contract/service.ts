@@ -8,13 +8,19 @@
 import type { Principal } from "@orb/contracts/identity";
 import type { ProseOverrides } from "@orb/contracts/prose";
 import type {
+  ApplyAsCopyResult,
+  ApplyFieldsResult,
+  IterateResult,
+  PreflightResult,
   RefineryRun,
   RefinerySchemaPlan,
   RefinerySchemaSummary,
   RefineryScoreSweepResult,
   RefinerySessionSummary,
+  RefinerySessionView,
   RefineryStage,
   RefineryTestResult,
+  SchemaForgeResult,
 } from "@orb/contracts/refinery";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
@@ -57,7 +63,6 @@ import type {
   UpdateSchemaParams,
   UpdateSessionParams,
 } from "./params.ts";
-import type { ApplyAsCopyResult, ApplyFieldsResult, IterateResult, PreflightResult, RefinerySessionView, SchemaForgeResult } from "./results.ts";
 
 /** The per-OWNER role-client bundle — refinery's only inference surface. Every refinery caller IS the card
  *  owner, so the bundle is theirs; the stages name their task (`structured` for the schema-constrained

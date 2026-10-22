@@ -6,6 +6,8 @@
 // and deliberate.
 
 import {
+  applyAsCopyResultSchema,
+  applyFieldsResultSchema,
   iterateResultSchema,
   preflightResultSchema,
   REFINERY_SCHEMA_DESCRIPTION_MAX,
@@ -22,6 +24,7 @@ import {
   refinerySessionNameSchema,
   refinerySessionStatusSchema,
   refinerySessionSummarySchema,
+  refinerySessionViewSchema,
   refineryStageConfigSchema,
   refineryStageSchema,
   refineryTestResultSchema,
@@ -29,7 +32,6 @@ import {
 } from "@orb/contracts/refinery";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { applyAsCopyResultSchema, applyFieldsResultSchema, refinerySessionViewSchema } from "#domain/refinery";
 import { authedProcedure, t } from "../trpc.ts";
 
 const acceptedFieldSchema = z.object({

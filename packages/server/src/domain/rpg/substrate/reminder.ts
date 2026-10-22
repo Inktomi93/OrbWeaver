@@ -1,6 +1,6 @@
 // domain/rpg/substrate/reminder — the lite STEERING injection assembler (docs/plans/rpg/design.md). PURE
 // string-building (zero I/O — the gather resolves the rows and hands them in). The reminder is an EPHEMERAL
-// gather candidate on `RpgGatherResult.injections` (never a `chat_injections` row — the convergence law,
+// gather candidate on `ChatRpgGatherResult.injections` (never a `chat_injections` row — the convergence law,
 // §3.3), delivered as ONE depth-0 `role:"system"` injection.
 //
 // Assembly order (§4.7 + the §2.7 delta insert): (1) the STATE BLOCK — the two VOCABULARY lines (trackers,

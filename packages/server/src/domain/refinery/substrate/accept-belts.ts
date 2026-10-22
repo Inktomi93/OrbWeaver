@@ -13,14 +13,23 @@
 // re-opens the block as a BASE·LIVE·REWRITE conflict and the re-confirmed accept passes. No auto-merge.
 
 import type { CharacterCard, Greeting } from "@orb/contracts/character";
-import type { RefinableField, RefineryRewriteField, RefinerySelection } from "@orb/contracts/refinery";
+import type {
+  AppliedFieldKind,
+  AppliedFieldRef,
+  ApplyDropReason,
+  DroppedField,
+  RefinableField,
+  RefineryRewriteField,
+  RefinerySelection,
+  RefinerySessionView,
+} from "@orb/contracts/refinery";
 import { appendedRewrites, GREETING_SLOTS_MAX, isAppendedRewrite, isClearedRewrite, REFINERY_STAGE_PAYLOADS } from "@orb/contracts/refinery";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { RefineryRunId, RefinerySessionId, UserId } from "@orb/kit/ids";
 import type { RefineryContext } from "../context.ts";
 import { RefineryStageNotReadyError } from "../contract/errors.ts";
 import type { AcceptedField } from "../contract/params.ts";
-import type { AcceptBelts, AcceptVerdict, AppliedFieldKind, AppliedFieldRef, ApplyDropReason, DroppedField, RefinerySessionView } from "../contract/results.ts";
+import type { AcceptBelts, AcceptVerdict } from "../contract/results.ts";
 import { latestRunRowOf, loadOwnedSessionRow, loadSessionRewriteRunRow, sessionViewOf } from "../persistence/queries.ts";
 
 /** Where an accept POINTED, minus its verdict — carried between the classifier's arms so a drop and an

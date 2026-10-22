@@ -7,13 +7,14 @@ import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { z } from "zod";
 import { cardFaceFields } from "#card-face";
-import { refineryAnalyzePayloadSchema, refineryAnalyzePayloadViewSchema } from "#refinery";
 import { regexScriptCardSchema, regexScriptCardViewSchema } from "#regex";
 import type { TagFolderType, TagView } from "#tag";
 import { tagFolderTypeSchema, tagViewSchema } from "#tag";
 import type { ThemeBackground, ThemeOverride } from "#theme";
 import { themeBackgroundSchema, themeOverrideSchema } from "#theme";
 import { worldBookRoleSchema } from "#world-info";
+// The analysis leaf avoids a cycle: refinery's public root composes these character validators.
+import { refineryAnalyzePayloadSchema, refineryAnalyzePayloadViewSchema } from "../refinery/core.ts";
 
 const HANDLE_MIN = 1;
 const HANDLE_MAX = 200;
@@ -163,7 +164,7 @@ export type CardDepthPrompt = z.infer<typeof cardDepthPromptSchema>;
 // Derived pipeline signals (score + analysis) — not user-authored, absent from create/update. The
 // signals object is a CARD field (this file's home turf, like depthPrompt); the analysis half is the
 // refinery pipeline's TYPED analyze payload (per-run verdict/soul-check shape — `#refinery` owns it).
-// Import direction is one-way BY LAW: `#refinery` never imports `#character` (its header states why).
+// The analysis validators live below both public roots in refinery's private core leaf.
 // The read seam's whole-object `.catch(null)` (character persistence) heals any pre-tightening loose
 // blob to null — the pre-launch bargain, no migration mechanics.
 // `score` holds the pipeline's 1-10 rubric (a score run's `overallScore`) — tightened IN THE SAME CHANGE

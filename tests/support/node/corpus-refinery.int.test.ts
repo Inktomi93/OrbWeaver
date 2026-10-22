@@ -1,7 +1,14 @@
 // @subject tests/support/node/corpus-refinery.ts
 // @subject tests/support/node/factories/refinery.ts
 import "@orb/testkit/node/composed-real.ts";
-import { forgeDesignEnvelopeSchema, REFINERY_FORGE_ARMS, REFINERY_STAGES } from "@orb/contracts/refinery";
+import {
+  applyAsCopyResultSchema,
+  applyFieldsResultSchema,
+  forgeDesignEnvelopeSchema,
+  REFINERY_FORGE_ARMS,
+  REFINERY_STAGES,
+  refinerySessionViewSchema,
+} from "@orb/contracts/refinery";
 import { assertReferentialIntegrity } from "@orb/db";
 import {
   CORPUS_EMBED_MODEL,
@@ -13,6 +20,7 @@ import {
 import { seedCorpusConnections } from "@orb/testkit/node/corpus-seed.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
+import { vi } from "vitest";
 import { seedCorpusRefinery } from "./corpus-refinery.ts";
 
 function physicalScript(): ReturnType<typeof createCorpusProviderExecution> {
@@ -30,6 +38,12 @@ test("the refinery corpus retains real fixed/manual run lineage and reviewed cop
   await using root = await createServerHarness({ providerFetch: physical.execute });
   await seedCorpusConnections(root, await root.principalFor(root.ownerId));
   const result = await seedCorpusRefinery(root);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const session = await caller.refinery.getSession({ sessionId: result.session.id });
+  expect(refinerySessionViewSchema.parse(session)).toEqual(session);
+  expect(applyFieldsResultSchema.parse(result.applied)).toEqual(result.applied);
+  expect(applyFieldsResultSchema.parse(result.dropped)).toEqual(result.dropped);
+  expect(applyAsCopyResultSchema.parse(result.copy)).toEqual(result.copy);
   expect(result.session.originalCard.description).toBe(result.character.description);
   expect(result.preflight.stages.map((stage) => stage.stage)).toEqual(REFINERY_STAGES);
   expect(result.score).toMatchObject({
@@ -68,11 +82,60 @@ test("the refinery corpus retains real fixed/manual run lineage and reviewed cop
   expect(result.copy.applied).toEqual([{ field: "description", kind: "replaced" }]);
   expect(result.applied.snapshotId).not.toBeNull();
   expect(result.applied.character).toMatchObject({ id: result.character.id, description: "A careful keeper records the orbital witnesses in a ledger." });
-  expect(result.sessions.find((session) => session.id === result.session.id)).toMatchObject({
+  expect(result.sessions.find((candidate) => candidate.id === result.session.id)).toMatchObject({
     status: "completed",
     iterationCount: 1,
     latestVerdict: "ACCEPT",
   });
+  const zeroCopy = await caller.refinery.applyAsCopy({
+    sessionId: result.session.id,
+    rewriteRunId: result.manual.id,
+    accepts: [{ field: "scenario" }],
+  });
+  expect(zeroCopy).toMatchObject({ applied: [], character: null });
+  expect(applyAsCopyResultSchema.parse(zeroCopy)).toEqual(zeroCopy);
+  const vendor = { plugin: { opaque: { nested: "retained" } } };
+  await caller.character.update({ characterId: result.character.id, input: { extensions: vendor } });
+  const vendorSession = await caller.refinery.startSession({ characterId: result.character.id });
+  expect(refinerySessionViewSchema.parse(vendorSession).originalCard.extensions).toEqual(vendor);
+  using getSession = vi.spyOn(root.services.refinery, "getSession");
+  const corruptSessions = [
+    { ...session, unexpected: true },
+    { ...session, originalCard: { ...session.originalCard, unexpected: true } },
+    { ...session, stageConfig: { ...session.stageConfig, rewrite: { ...session.stageConfig.rewrite, unexpected: true } } },
+  ];
+  for (const corrupt of corruptSessions) {
+    getSession.mockResolvedValueOnce(corrupt);
+    await expect(caller.refinery.getSession({ sessionId: session.id })).rejects.toMatchObject({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Output validation failed",
+    });
+    expect(refinerySessionViewSchema.safeParse(corrupt).success).toBe(false);
+  }
+  using applyFields = vi.spyOn(root.services.refinery, "applyFields");
+  for (const corrupt of [
+    { ...result.applied, unexpected: true },
+    { ...result.applied, character: { ...result.applied.character, unexpected: true } },
+  ]) {
+    applyFields.mockResolvedValueOnce(corrupt);
+    await expect(caller.refinery.applyFields({ sessionId: session.id, accepts: [{ field: "description" }] })).rejects.toMatchObject({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Output validation failed",
+    });
+    expect(applyFieldsResultSchema.safeParse(corrupt).success).toBe(false);
+  }
+  using applyAsCopy = vi.spyOn(root.services.refinery, "applyAsCopy");
+  for (const corrupt of [
+    { ...result.copy, unexpected: true },
+    { ...result.copy, character: { ...result.applied.character, unexpected: true } },
+  ]) {
+    applyAsCopy.mockResolvedValueOnce(corrupt);
+    await expect(caller.refinery.applyAsCopy({ sessionId: session.id, accepts: [{ field: "description" }] })).rejects.toMatchObject({
+      code: "INTERNAL_SERVER_ERROR",
+      message: "Output validation failed",
+    });
+    expect(applyAsCopyResultSchema.safeParse(corrupt).success).toBe(false);
+  }
   await assertReferentialIntegrity(root.db);
 });
 

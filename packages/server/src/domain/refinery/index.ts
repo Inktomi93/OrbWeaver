@@ -14,7 +14,6 @@ export {
 
 export type { ResolveStructuredBinding } from "./contract/planning.ts";
 
-export { applyAsCopyResultSchema, applyFieldsResultSchema, refinerySessionViewSchema } from "./contract/results.ts";
 export type { RefineryAssemblyContext as RefineryContext, RefineryService, RefineryWorkloadDeps } from "./contract/service.ts";
 export { createRefineryService } from "./service.ts";
 export { isScoreSweepReady } from "./substrate/refine-prompt.ts";

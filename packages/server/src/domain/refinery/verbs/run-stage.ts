@@ -43,7 +43,7 @@
 // the knob) as a typed BAD_REQUEST the client quotes. Preflight is unchanged and still only WARNS — it is a
 // readout, and a readout that refused would be a readout nobody could read.
 
-import type { RefineryRun, RefineryStage } from "@orb/contracts/refinery";
+import type { RefineryRun, RefinerySessionView, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS, refineryRewriteParseSchema } from "@orb/contracts/refinery";
 import type { ResponseFormat, RoleClients, StructuredOptions } from "@orb/contracts/role-clients";
 import { refineryRuns, refinerySessions } from "@orb/db";
@@ -58,7 +58,6 @@ import { addSpanEvent, traceStructuredRetry } from "#foundation/observability";
 import type { RefineryContext } from "../context.ts";
 import { RefineryOutputBudgetError, RefineryRunFailedError, RefineryStageNotReadyError } from "../contract/errors.ts";
 import type { StageEstimateSubject, StagePrompts, StageResolution } from "../contract/prompts.ts";
-import type { RefinerySessionView } from "../contract/results.ts";
 import type { ExecuteStage, RefineryService, StageEngineDeps } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, loadSessionRewriteRunRow, sessionViewOf } from "../persistence/queries.ts";
 import { resolveStageSampling, stageBudgetMisfitOf, stageSubjectOf } from "../substrate/output-budget.ts";

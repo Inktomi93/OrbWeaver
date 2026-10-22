@@ -18,13 +18,12 @@
 // `substrate/output-budget.ts`: `maxOutputTokens` below is the budget the NEXT RUN WILL ACTUALLY REQUEST,
 // not a static floor the run has no obligation to honour.
 
-import type { RefineryRewritePayload, RefineryStage } from "@orb/contracts/refinery";
+import type { PreflightResult, RefineryRewritePayload, RefinerySessionView, RefineryStage, StagePreflight } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS, REFINERY_STAGES } from "@orb/contracts/refinery";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { estimateTokens } from "@orb/kit/tokens";
 import type { RefineryContext } from "../context.ts";
 import type { StagePrompts } from "../contract/prompts.ts";
-import type { PreflightResult, RefinerySessionView, StagePreflight } from "../contract/results.ts";
 import type { RefineryService } from "../contract/service.ts";
 import { latestRunRowOf, loadOwnedSessionRow, sessionViewOf } from "../persistence/queries.ts";
 import { outputEstimateOf, resolveStageSampling, stageSubjectOf } from "../substrate/output-budget.ts";

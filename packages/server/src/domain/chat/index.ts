@@ -7,10 +7,7 @@ export { activePersonaIdFor, createTurnPersonaResolver, voicePersonaFor } from "
 export { createChatBus } from "./bus.ts";
 export type { ChatServiceDeps } from "./context.ts";
 export type { ChatBoundBackfillOps } from "./contract/bound-backfill.ts";
-// `ChatRpgGatherResult` + `ChatRpgOps` are PREBUILT[for: rpg push-2] — the injected rpg turn-ops seam +
-// its structural gather result (docs/plans/rpg/design.md). `ChatContext.rpg` binds a real value only when domain/rpg
-// lands (chat.ts `input.rpg`); until then the field is null and the names have no by-name consumer, so the
-// door keeps the seam reachable (the rpg-facing `GetMembership`/`PostNarratorMessage` precedent).
+// Chat owns the injected RPG turn operation and its result; RPG implements them through this type-only door.
 export type {
   ChatRpgGameBirthPlan,
   ChatRpgGatherResult,

@@ -4,7 +4,6 @@
 // verb params (below the persistence params) carry the caller's `Principal` — the authority the verb resolves
 // through the injected `getMembership` op (§4.4); wire types the verb RETURNS live in `@orb/contracts/rpg`.
 
-import type { ChatInjection } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { UserMacroSpec } from "@orb/contracts/preset";
 import type { ProseOverrides } from "@orb/contracts/prose";
@@ -27,7 +26,6 @@ import type {
   RpgTrackerDef,
   RpgTrackerView,
 } from "@orb/contracts/rpg";
-import type { WireTool } from "@orb/inference";
 import type { CelValue } from "@orb/kit/cel";
 import type { ChatId, MessageId, MessageVariantId, PresetId, RpgCheckpointId, RpgGameId, RpgJournalId, RpgQuestId, RpgSnapshotId } from "@orb/kit/ids";
 
@@ -452,27 +450,7 @@ export interface ListTurnToolCallsParams {
 }
 
 // ── chat-ops-layer shapes (W1b-integration) ─────────────────────────────────────────────────────────────
-// The gather's contribution + the reminder assembler's input — DOMAIN-INTERNAL feature types (§7.4 homes
-// feature types in contract/, never inline at the module). The gather result is structurally the chat-side
-// `ChatRpgGatherResult`; the reminder input is the pure assembler's argument.
-
-/** The generic gather contribution (structurally the chat-side `ChatRpgGatherResult`): the macro map, reminder
- *  injections, and tool names to attach. */
-export interface RpgGatherResult {
-  readonly macros: Readonly<Record<string, string>>;
-  readonly injections: readonly ChatInjection[];
-  readonly tools: readonly string[];
-  // The `{{expr::…}}` CEL activation (parity-plus §12) — a data-only `rpg` binding whose value is the tracker view
-  // shaped as a CelValue tree (scalars/lists/maps, no functions). Chat threads it onto the AssembleContext's
-  // `celBindings` structurally so `{{expr::rpg.scene.location}}` reads state. Absent on a lite gather that stages
-  // no expr surface.
-  readonly celBindings?: Readonly<Record<string, unknown>> | undefined;
-  /** The M2 card wire knob (`config.features.cardKeepLastX`, parity-plus §3.5) — threaded to the chat
-   *  engine's `runTurnPipeline` so the X newest cards ride the wire full; 0 = every card stubs. A plain
-   *  number on the STRUCTURAL gather contract (chat names no rpg type). */
-  readonly cardKeepLastX: number;
-  readonly terminalTools?: readonly WireTool[] | undefined;
-}
+// The reminder assembler and macro feed stay local; chat owns the gather operation's result.
 
 /** The macro + CEL feed a game turn's GATHER builds (parity-plus §12) — the string macro map (rpgSceneState/
  *  rpgCast/rpgQuests/rpgDelta) staged on `rpgMacros`, plus the data-only `rpg` CEL tree staged as the `rpg`

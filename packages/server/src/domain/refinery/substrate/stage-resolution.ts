@@ -5,7 +5,7 @@
 // sibling verb (`domain-no-cross-verb`), and this is resolution substrate, not a verb.
 
 import type { SideGenKind } from "@orb/contracts/preset";
-import type { RefineryStage } from "@orb/contracts/refinery";
+import type { RefinerySessionView, RefineryStage } from "@orb/contracts/refinery";
 import { REFINERY_STAGE_PAYLOADS, refineryCustomStageConfigSchema } from "@orb/contracts/refinery";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { DomainNotFoundError } from "@orb/kit/errors";
@@ -13,7 +13,6 @@ import type { UserId } from "@orb/kit/ids";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import type { RefineryContext } from "../context.ts";
 import type { StageResolution } from "../contract/prompts.ts";
-import type { RefinerySessionView } from "../contract/results.ts";
 import { loadOwnedSchemaRow } from "../persistence/queries.ts";
 import { customShapeTextOf } from "./refine-prompt.ts";
 

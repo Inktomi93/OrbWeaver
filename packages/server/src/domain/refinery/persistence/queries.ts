@@ -12,7 +12,15 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import { cardDepthPromptSchema, greetingsColumnSchema, refinerySignalsSchema, storedCardBlobSchema } from "@orb/contracts/character";
-import type { RefineryRun, RefinerySchemaStage, RefinerySchemaSummary, RefinerySessionSummary, RefineryStage, RefineryVerdict } from "@orb/contracts/refinery";
+import type {
+  RefineryRun,
+  RefinerySchemaStage,
+  RefinerySchemaSummary,
+  RefinerySessionSummary,
+  RefinerySessionView,
+  RefineryStage,
+  RefineryVerdict,
+} from "@orb/contracts/refinery";
 import {
   DEFAULT_REFINERY_STAGE_CONFIG,
   REFINERY_STAGE_PAYLOADS,
@@ -34,7 +42,6 @@ import { and, asc, desc, eq, inArray, lt, lte, ne, notExists, or, sql } from "dr
 import { alias } from "drizzle-orm/sqlite-core";
 import { z } from "zod";
 import { addSpanEvent } from "#foundation/observability";
-import type { RefinerySessionView } from "../contract/results.ts";
 
 const LIMIT_ONE = 1;
 

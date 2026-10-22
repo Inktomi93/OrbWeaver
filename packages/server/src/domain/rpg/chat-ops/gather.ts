@@ -27,8 +27,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import type { RpgSnapshotState } from "@orb/contracts/rpg";
 import { actorRefKey } from "@orb/contracts/rpg";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
-import type { GatherTurnContextArgs } from "#domain/chat";
-import type { RpgGatherResult } from "../contract/params.ts";
+import type { ChatRpgGatherResult, GatherTurnContextArgs } from "#domain/chat";
 import type { RpgContext, RpgGameRow } from "../contract/service.ts";
 import { snapshotRowToState } from "../contract/service.ts";
 import { findGameByChat } from "../persistence/games.ts";
@@ -69,7 +68,7 @@ async function buildFoldedTurnSafely(
  * keeps chat's contract and this impl one shape: a new chat-resolved input (prose was the third) lands as one
  * field, not a fourth positional nobody at the call site can read.
  */
-export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContextArgs): Promise<RpgGatherResult | null> {
+export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContextArgs): Promise<ChatRpgGatherResult | null> {
   const { chatId, steerIdentity, regenSlotMessageId } = args;
   // PROSE-1 — the model-facing teach/heading OVERRIDES, resolved CHAT-SIDE off the turn's PRESET
   // (`promptConfig.prose`, authored in the Templates tab) and threaded in exactly like `steerIdentity`: rpg
@@ -211,6 +210,6 @@ export async function gatherTurnContext(ctx: RpgContext, args: GatherTurnContext
     tools: [],
     celBindings: { rpg: feed.rpg },
     cardKeepLastX: game.config.features.cardKeepLastX,
-    ...(folded !== null && folded.tools.length > 0 ? ({ terminalTools: folded.tools } satisfies Pick<RpgGatherResult, "terminalTools">) : {}),
+    ...(folded !== null && folded.tools.length > 0 ? ({ terminalTools: folded.tools } satisfies Pick<ChatRpgGatherResult, "terminalTools">) : {}),
   };
 }
