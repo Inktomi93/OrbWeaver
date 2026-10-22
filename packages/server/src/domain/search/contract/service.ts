@@ -7,6 +7,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { DocumentId, EmbedGenerationId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import type { EmbeddingConnectionSnapshot, ResolveEmbeddingConnection } from "#domain/embeddings";
+import type { FieldIndexCache } from "./field-index.ts";
 import type {
   CorpusParams,
   DigestsParams,
@@ -72,6 +73,7 @@ export interface ActiveQuerySpace {
 
 /** DI bundle the search verbs close over. Read-only (ReadOnlyDb — a write call is a tsc error). */
 export interface SearchContext {
+  readonly fieldIndex: Pick<FieldIndexCache, "fields" | "suggest">;
   readonly resolveViewerVisibility: ResolveViewerVisibility;
   readonly db: ReadOnlyDb;
   /** The per-OWNER role-client bundle (inference program §7.5-2): every retrieval embeds the query in the

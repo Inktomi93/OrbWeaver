@@ -6,3 +6,4 @@ export { CREDENTIALS_OP_CODES, CredentialsConflictError, CredentialsDecryptError
 export type { CredentialsService } from "./contract/service.ts";
 export { createCredentialOwned } from "./persistence/owned.ts";
 export { createCredentialsService } from "./service.ts";
+export { createCredentialHealthThrottle } from "./substrate/health-throttle.ts";

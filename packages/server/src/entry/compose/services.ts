@@ -84,7 +84,7 @@ import {
 } from "#domain/chat";
 import type { ConnectionContext } from "#domain/connection";
 import { createConnectionPorts, createConnectionService, createSessionEntryWriter } from "#domain/connection";
-import { createCredentialOwned, createCredentialsService } from "#domain/credentials";
+import { createCredentialHealthThrottle, createCredentialOwned, createCredentialsService } from "#domain/credentials";
 import type { DatabankIngest } from "#domain/databank";
 import { createGatherDatabankForTurn } from "#domain/databank";
 import type { EmbeddingsIndexer, EmbeddingsService } from "#domain/embeddings";
@@ -108,7 +108,7 @@ import type { ImportCardScripts } from "#domain/regex";
 import { createSeedRosterPreset } from "#domain/roster-preset";
 import type { RpgContext, RpgTraceRecorder } from "#domain/rpg";
 import { createExportRpgGame, createRpgEventBus, createRpgTraceRecorder } from "#domain/rpg";
-import { withRetrievalDegrade } from "#domain/search";
+import { createFieldIndexCache, withRetrievalDegrade } from "#domain/search";
 import type { SessionsRolePolicy, SessionsService } from "#domain/sessions";
 import { createResolveUserEnabled, createSessionsRolePolicy, createSessionsService } from "#domain/sessions";
 import type { DefaultBackgroundSeeder, SettingsContext, SettingsServiceDeps } from "#domain/settings";
@@ -431,6 +431,10 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const rpgEvents = resources.use(createRpgEventBus());
   const workloadEvents = resources.use(createWorkloadProgressBus());
   const liveBuses = resources.use(createLiveBuses({ rpg: rpgEvents, workloads: workloadEvents }));
+  // biome-ignore lint/nursery/useDisposables: resources adopts the cache through the moved graph stack; local using would close it before graph use.
+  const fieldIndex = resources.use(createFieldIndexCache());
+  // biome-ignore lint/nursery/useDisposables: resources adopts the throttle through the moved graph stack; local using would close it before graph use.
+  const healthThrottle = resources.use(createCredentialHealthThrottle());
   const publishUserEvent = liveBuses.user.publishUserEvent;
   // biome-ignore lint/nursery/useDisposables: backgroundResources owns this settlement through the moved graph stack; the borrowed operation view must not close at return.
   const background: Omit<BackgroundWork, keyof AsyncDisposable> = backgroundResources.use(createBackgroundWork());
@@ -608,6 +612,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const runtimeBinding = createBinding<InferenceRuntime>("compose: inference runtime derefed before it was built");
   const runtimeRef = runtimeBinding.read;
   const credentials = createCredentialsService({
+    healthThrottle,
     db,
     now,
     newCredentialId: minter(ID_PREFIX.userCredential, idSource),
@@ -763,6 +768,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── assets + character + the two seeders (the assets-character seam). Threads the late-bound
   // materializeBackground holder + the request-time preset/persona forward-ref getters (both compose below).
   const assetsCharacter = buildAssetsCharacter({
+    evictFieldIndex: fieldIndex.evict,
     emitUserEvent: liveBuses.user.publishUserEvent,
     fetchImpl: egress.safeFetch,
     idSource,
@@ -793,6 +799,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // search-discovery seam). Produces `persona` + `preset` (forward-referenced above) and `workloads` +
   // `enqueueEmbedReindex` (bound onto the keystone's late-bound holder below).
   const searchDiscovery = buildSearchDiscovery({
+    fieldIndex,
     emitWorkloadEvent: workloadEvents.emitWorkloadEvent,
     emitUserEvent: liveBuses.user.publishUserEvent,
     supervise: background.supervise,

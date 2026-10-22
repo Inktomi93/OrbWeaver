@@ -34,7 +34,16 @@ import type { RpgFieldLocks, RpgSnapshotState } from "@orb/contracts/rpg";
 import { rpgSnapshotStateSchema } from "@orb/contracts/rpg";
 import type { MessageId, MessageVariantId, RpgGameId, RpgSnapshotId } from "@orb/kit/ids";
 import type { StagedPatch } from "./contract/params.ts";
-import type { HandEditLocks, HandEditResult, HandStateHead, HandStateWrite, RpgContext, RpgGameRow, TurnWriteFoldOutcome } from "./contract/service.ts";
+import type {
+  HandEditLocks,
+  HandEditResult,
+  HandStateHead,
+  HandStateWrite,
+  OwnedRpgHandWrites,
+  RpgContext,
+  RpgGameRow,
+  TurnWriteFoldOutcome,
+} from "./contract/service.ts";
 import { snapshotRowToState } from "./contract/service.ts";
 import { findLatestAssistantSlotSeq, resolveSnapshotBeforeSlot, resolveSnapshotHead, updateSnapshotState, writeHandSnapshot } from "./persistence/snapshots.ts";
 import { defaultSnapshotState } from "./substrate/default-state.ts";
@@ -43,34 +52,36 @@ import { applyLockedPatch, applyLockedPatchTracked, rebasePatchOntoHead } from "
 /** The `committed` column's draft value — an UNcommitted TURN row is the only in-place-editable head. */
 const UNCOMMITTED = 0;
 
-/** The per-game tails {@link serializeHandWrite} queues on. */
-const handWriteChains = new Map<RpgGameId, Promise<void>>();
-
-/** Per-game ownership for the hand READ-MODIFY-WRITE critical section. Resolving a head and later inserting
- *  its derived clone are one operation: without this chain, two same-game calls can resolve the same old head
- *  and last-write-wins silently drops one gesture. Different games keep independent tails. A rejected task is
- *  absorbed only by the ownership tail (the caller still receives its rejection), so failure releases the
- *  next waiter instead of wedging the game. ASSUMES(single-replica), matching D130's in-process hand/flush
- *  reconciliation posture.
- *
- * @public Test-anchored module surface; focused controls pin ordering, key isolation, and rejection recovery.
+/** Per-game read-modify-write ownership for one graph (D130's single-replica reconciliation).
+ * A caller receives its rejection; only the settlement tail absorbs it to release the next writer.
  */
-export function serializeHandWrite<T>(gameId: RpgGameId, run: () => Promise<T>): Promise<T> {
-  const previous = handWriteChains.get(gameId) ?? Promise.resolve();
-  // `previous` is `Promise.resolve()` or a stored `tail`, and `tail` is built from `settled`, which swallows
-  // every rejection, so it never rejects and `run` needs no rejection arm.
-  const next = previous.then(run);
-  const settled = next.then(
-    () => undefined,
-    () => undefined,
-  );
-  const tail = settled.finally(() => {
-    if (handWriteChains.get(gameId) === tail) {
-      handWriteChains.delete(gameId);
-    }
-  });
-  handWriteChains.set(gameId, tail);
-  return next;
+export function createRpgHandWrites(): OwnedRpgHandWrites {
+  const chains = new Map<RpgGameId, Promise<void>>();
+  let closed = false;
+  return {
+    run<T>(gameId: RpgGameId, job: () => Promise<T>): Promise<T> {
+      if (closed) {
+        return Promise.reject(new Error("RPG hand writes are closed"));
+      }
+      const previous = chains.get(gameId) ?? Promise.resolve();
+      const next = previous.then(job);
+      const settled = next.then(
+        () => undefined,
+        () => undefined,
+      );
+      const tail = settled.finally(() => {
+        if (chains.get(gameId) === tail) {
+          chains.delete(gameId);
+        }
+      });
+      chains.set(gameId, tail);
+      return next;
+    },
+    async [Symbol.asyncDispose](): Promise<void> {
+      closed = true;
+      await Promise.all(chains.values());
+    },
+  };
 }
 
 /** The current resolved snapshot head, plus the ONE question the write tail asks of it: may this row be
@@ -172,7 +183,7 @@ export function applyHandEdit(ctx: RpgContext, game: RpgGameRow, patch: Record<s
  *  symmetric-lock precedent), and it may REFUSE as data (an op naming a datum the head does not carry) before
  *  anything durable happens — no row, no slot, no locks. */
 export function writeHandState(ctx: RpgContext, game: RpgGameRow, derive: (head: HandStateHead) => HandStateWrite): Promise<HandEditResult> {
-  return serializeHandWrite(game.id, () => writeOwnedHandState(ctx, game, derive));
+  return ctx.handWrites.run(game.id, () => writeOwnedHandState(ctx, game, derive));
 }
 
 /** The owned body of {@link writeHandState}. Ownership spans head resolution through the durable write: moving
@@ -252,7 +263,7 @@ async function writeOwnedHandState(ctx: RpgContext, game: RpgGameRow, derive: (h
  *
  *  THE WHOLE FOLD OWNS THE PER-GAME SECTION, WHICH IS WHY IT IS SAFE UNDER A SECOND EDIT *AND* A SECOND FLUSH.
  *  Every question above — is a newer row head, is this slot still the current beat, what does the hand head
- *  hold — is asked inside `serializeHandWrite`, and the replay writes without leaving it. A hand edit already
+ *  hold — is asked inside the shared hand-write owner, and the replay writes without leaving it. A hand edit already
  *  queued ahead is therefore the base it replays onto; one queued behind derives from the fold's result; and a
  *  NEWER FLUSH that landed while this one waited is seen by the supersede check rather than rebased over (the
  *  bug the pre-section check had: it measured the beat, then queued, then re-resolved the head without
@@ -270,7 +281,7 @@ export function foldTurnWriteIntoHandHead(
   // a superseded turn's patches were rebased onto the newer head instead of being refused. The body calls
   // `writeOwnedHandState` (the un-serialized half) precisely because the chain is not re-entrant: nesting a
   // `writeHandState` inside its own critical section would wait on a tail that only this call can settle.
-  return serializeHandWrite(game.id, () => foldOwnedTurnWrite(ctx, game, written, slotSeq));
+  return ctx.handWrites.run(game.id, () => foldOwnedTurnWrite(ctx, game, written, slotSeq));
 }
 
 /** The owned body of {@link foldTurnWriteIntoHandHead} — runs INSIDE the per-game critical section. */

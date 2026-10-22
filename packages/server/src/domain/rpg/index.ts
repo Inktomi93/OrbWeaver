@@ -25,6 +25,7 @@ export type { RpgTraceRecorder } from "./contract/trace.ts";
 export { listGmPresetChatIds } from "./persistence/games.ts";
 export { createExportRpgGame, createImportRpgGame } from "./persistence/portability-write.ts";
 export { createRpgService } from "./service.ts";
+export { createRpgHandWrites } from "./snapshot-edit.ts";
 export { createRpgStagingStore } from "./staging.ts";
 // The effective-delivery derivation the client fixtures and the rpg context section read (the mode→axis mapping
 // stays rpg's law).

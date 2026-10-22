@@ -261,6 +261,14 @@ export interface RpgFlushBarrier {
 
 export interface OwnedRpgFlushBarrier extends RpgFlushBarrier, AsyncDisposable {}
 
+/** One graph shares per-game ownership across hand edits, checkpoints and turn reconciliation. */
+export interface RpgHandWrites {
+  readonly run: <T>(gameId: RpgGameId, job: () => Promise<T>) => Promise<T>;
+}
+
+/** Accepted writes settle before their graph releases the database and event publishers. */
+export interface OwnedRpgHandWrites extends RpgHandWrites, AsyncDisposable {}
+
 /** One flush registration: which chat, whose turn it was (the cancellation owner — D19's `triggeredBy`), the
  *  character turn's own signal to fold in, and the flush body itself, which receives the composed signal.
  *  Non-exported: reachable only through {@link RpgFlushBarrier.register}'s signature — no consumer names it. */
@@ -651,6 +659,7 @@ export interface RpgContext {
   readonly now: () => number;
   readonly ids: RpgIdMints;
   readonly staging: RpgStagingStore;
+  readonly handWrites: RpgHandWrites;
   /** The ONE privilege-decision kernel (`domain/admin/guard.ts::can`, injected — never an admin import; the
    *  `AutomationContext.can` precedent). rpg RESOLVES membership itself (`getMembership`, below) and hands the
    *  resolved role to the kernel for the VERDICT — spine invariant #6: `role === "host"` is compared inside

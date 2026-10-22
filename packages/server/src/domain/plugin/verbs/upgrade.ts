@@ -40,12 +40,12 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { AssetId, PluginId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import { ManifestInvalidError, PluginCrashedError, PluginDowngradeRefusedError, PluginNotFoundError } from "../contract/errors.ts";
+import type { PluginConsentPrompt } from "../contract/ops.ts";
 import type { UpgradePluginParams } from "../contract/params.ts";
 import type { ActivationDeps, PluginContext, PluginService } from "../contract/service.ts";
 import { listPluginBundleAssets } from "../persistence/plugin-assets.ts";
 import { applyUpgrade, getById, setStatus, toPluginView } from "../persistence/plugins.ts";
 import { storeBundleAssets } from "../substrate/bundle-assets.ts";
-import { refreshConsentPrompt } from "../substrate/consent-prompt.ts";
 import { newlyDeclaredCapabilities, normalizeGrant, pendingWidenedNetHosts, widenedNetHosts } from "../substrate/grants.ts";
 import { isVersionDowngrade, PLUGIN_BUNDLE_MIME, parseBundle } from "../substrate/manifest.ts";
 import { reapReleasedAssets } from "../substrate/reap-released.ts";
@@ -138,7 +138,7 @@ async function loadUpgradedView(
   return toPluginView(row, ctx.showcase.slugs);
 }
 
-export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginService["upgrade"] {
+export function createUpgrade(ctx: PluginContext, deps: ActivationDeps, consentPrompt: PluginConsentPrompt): PluginService["upgrade"] {
   return async ({ caller, pluginId, bundle, source }: UpgradePluginParams) => {
     const existing = await getById(ctx.db, caller.userId, pluginId);
     if (existing === undefined) {
@@ -260,7 +260,7 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps): PluginS
     // A reach-WIDENING upgrade is the other way a plugin starts standing on its owner's answer, so it
     // brings the owner's aggregate consent ask along with it (#1041). `raised` = this row entered the
     // pending state here; an upgrade that only cleared it corrects the standing row's number in place.
-    await refreshConsentPrompt(ctx, caller.userId, refusal.pending && !existing.pendingReconsent);
+    await consentPrompt.refresh(caller.userId, refusal.pending && !existing.pendingReconsent);
 
     return loadUpgradedView(ctx, caller.userId, pluginId);
   };

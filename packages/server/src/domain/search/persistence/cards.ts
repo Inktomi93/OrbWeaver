@@ -10,14 +10,12 @@ import type { ReadOnlyDb } from "@orb/db";
 import { characters } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
+import type { FieldIndexCard } from "../contract/field-index.ts";
 
-/** One card's searchable text fields for the BM25 index. The row shape is inferred by the substrate's
- *  `CardDoc` (structural) — kept file-local + un-exported (`no-inline-types`; the verb passes the loader). */
-type CardFieldsRow = Pick<typeof characters.$inferSelect, "id" | "name" | "description" | "personality" | "scenario" | "creatorNotes">;
 /** Load the owner's character card text fields — the lexical index corpus. Archived cards are INCLUDED (a
  *  browse-search over "all my characters" should still surface an archived card by name/lore). The synthetic
  *  group-as-character bucket is not a card the owner authored, so it is neither searched nor counted. */
-export async function loadCardFields(db: ReadOnlyDb, ownerId: UserId): Promise<CardFieldsRow[]> {
+export async function loadCardFields(db: ReadOnlyDb, ownerId: UserId): Promise<FieldIndexCard[]> {
   return await db
     .select({
       id: characters.id,

@@ -17,6 +17,7 @@ import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { UserCredentialId, UserId } from "@orb/kit/ids";
 import type { AuditEntry } from "#foundation/observability";
 import type { SecretBox } from "#infra/crypto";
+import type { CredentialHealthThrottle } from "./health.ts";
 import type {
   AddCredentialParams,
   ClearRevokedParams,
@@ -33,6 +34,7 @@ import type {
 
 /** The DI bundle the credential verbs close over, wired at the composition root. */
 export interface CredentialContext {
+  readonly healthThrottle: Omit<CredentialHealthThrottle, keyof Disposable>;
   readonly db: Db;
   readonly now: () => number;
   readonly newCredentialId: () => UserCredentialId;

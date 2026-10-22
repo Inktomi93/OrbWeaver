@@ -15,8 +15,9 @@ import { createActivate } from "./activation/activate.ts";
 import { createCrashPolicy } from "./activation/crash-policy.ts";
 import { createDeactivate } from "./activation/deactivate.ts";
 import { createStopRuntime } from "./activation/stop-runtime.ts";
-import type { PluginInvocationWork, PluginLifecycleLanes } from "./contract/ops.ts";
+import type { PluginConsentPrompt, PluginInvocationWork, PluginLifecycleLanes } from "./contract/ops.ts";
 import type { OwnedPluginService, PluginContext, PluginDistributionDeps, PluginProviderLifecycle, PluginRegistry, PluginService } from "./contract/service.ts";
+import { createConsentPrompt } from "./substrate/consent-prompt.ts";
 import { createPluginInvocationWork } from "./substrate/invocation-work.ts";
 import { createPluginLifecycleLanes } from "./substrate/lifecycle-lanes.ts";
 import { createApplyDistributedPlugins } from "./verbs/apply-distributed-plugins.ts";
@@ -68,6 +69,8 @@ export function createPluginService(
   const registry: PluginRegistry = new Map();
   const lifetime = new AsyncDisposableStack();
   lifetime.defer(createStopRuntime(ctx, registry));
+  // biome-ignore lint/nursery/useDisposables: the service joins management callers before closing their publisher.
+  const consentPrompt: PluginConsentPrompt = lifetime.use(createConsentPrompt(ctx));
   // biome-ignore lint/nursery/useDisposables: lifetime adopts this resource for the returned owner; local using would close it before callers can use the graph.
   const lanes: PluginLifecycleLanes = lifetime.use(createPluginLifecycleLanes());
   // biome-ignore lint/nursery/useDisposables: lifetime adopts this resource for the returned owner; local using would close it before callers can use the graph.
@@ -84,13 +87,13 @@ export function createPluginService(
   // Hoisted (was inline) so the URL-install/upgrade verbs can DELEGATE to it — the verb-to-verb precedent: a
   // URL install/upgrade is the SAME funnel + consent + owner-scoped upgrade a file one is, only the byte source
   // differs (a fetch through the egress guard). No second install path, no second consent story.
-  const rawUpgrade = createUpgrade(ctx, { activate, deactivate });
+  const rawUpgrade = createUpgrade(ctx, { activate, deactivate }, consentPrompt);
   const upgrade: PluginService["upgrade"] = (params) => lanes.run(params.pluginId, () => rawUpgrade(params));
-  const rawSetGrant = createSetGrant(ctx, { activate, deactivate });
+  const rawSetGrant = createSetGrant(ctx, { activate, deactivate }, consentPrompt);
   const setGrant: PluginService["setGrant"] = (params) => lanes.run(params.pluginId, () => rawSetGrant(params));
   const rawSetEnabled = createSetEnabled(ctx, { activate, deactivate });
   const setEnabled: PluginService["setEnabled"] = (params) => lanes.run(params.pluginId, () => rawSetEnabled(params));
-  const rawUninstall = createUninstall(ctx, { deactivate });
+  const rawUninstall = createUninstall(ctx, { deactivate }, consentPrompt);
   const uninstall: PluginService["uninstall"] = (params) => lanes.run(params.pluginId, () => rawUninstall(params));
   const fanout = { ...distribution, install, setGrant };
   const gitSource = createGitSource(ctx, { install, upgrade });
