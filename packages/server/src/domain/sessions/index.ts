@@ -1,8 +1,6 @@
-// domain/sessions — FRONT DOOR: the only legal external import. Cross-boundary types are re-exported
-// type-only; their canonical home is @orb/contracts.
+// domain/sessions — FRONT DOOR: the only legal external import. Import cross-boundary identity and session
+// types directly from their canonical @orb/contracts homes.
 
-export type { Principal, ResolvedIdentity } from "@orb/contracts/identity";
-export type { SessionView } from "@orb/contracts/session";
 // The OIDC callback resolves these admission decisions; its port types them from here, never re-spelled.
 export type { SeedOwnerParams } from "./contract/boot.ts";
 export type { ProvisionIdentityOptions } from "./contract/params.ts";

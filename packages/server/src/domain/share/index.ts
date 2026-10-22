@@ -3,25 +3,13 @@
 
 export { createCertificateController } from "./certificate/controller.ts";
 export type { ShareGraph, ShareGraphOptions } from "./contract/composition.ts";
-export type { EnableIpCertificateParams, ShareParams } from "./contract/params.ts";
-export type { EnableShareSeatingDeps } from "./contract/seating.ts";
+
 export type {
   CertificateBootOutcome,
-  CertificateCheckResult,
   CertificateController,
-  CertificateControllerDeps,
-  CertificateFacts,
-  CertificateTransitions,
-  IpCertificateRefusalNotice,
-  OwnedCertificateController,
-  OwnedShareService,
   RelayController,
-  RelayControllerDeps,
   ShareBootOutcome,
-  ShareContext,
-  ShareFacts,
   ShareService,
-  ShareServiceDeps,
 } from "./contract/service.ts";
 export { createRelayController } from "./relay/controller.ts";
 export { createShareService } from "./service.ts";

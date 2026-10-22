@@ -24,29 +24,9 @@
 // `applyDistributedPlugins` is the self-scoped new-user half. Enabling remains each owner's own act, and the
 // admin verbs mint nothing that runs.
 
-// The infra↔domain WIRE shapes (`PluginInstance` + the collected-registration records + `PluginHandlerRef`)
-// live in `@orb/contracts/plugin` (the cake — infra mints them without importing a domain); re-exported here
-// so the domain front door stays the one import for a plugin consumer.
+// Canonical wire shapes live in @orb/contracts/plugin; retained aliases serve existing public consumers.
 
-export type {
-  DistributedPluginView,
-  PluginCommandView,
-  PluginDisplayTransformRegistration,
-  PluginDisplayTransformView,
-  PluginEventSubscription,
-  PluginFanoutResult,
-  PluginHandlerRef,
-  PluginInstance,
-  PluginLogView,
-  PluginMacroRegistration,
-  PluginSurfaceRegistration,
-  PluginSurfaceState,
-  PluginSurfaceView,
-  PluginToolRegistration,
-  PluginTransformRegistration,
-  PluginView,
-  SnippetResult,
-} from "@orb/contracts/plugin";
+export type { PluginLogView } from "@orb/contracts/plugin";
 export {
   distributedPluginViewSchema,
   pluginBundleAssetViewSchema,
@@ -60,7 +40,7 @@ export {
   snippetResultSchema,
 } from "@orb/contracts/plugin";
 export { PLUGIN_CRASH_DISABLE_THRESHOLD } from "./activation/crash-policy.ts";
-export type { DistributedPluginApplier, DistributedPluginApplierDeps } from "./contract/distributed-seed.ts";
+export type { DistributedPluginApplier } from "./contract/distributed-seed.ts";
 export {
   CapabilityNotGrantedError,
   HostVersionUnservedError,
@@ -82,47 +62,11 @@ export {
   PluginSnippetBusyError,
 } from "./contract/errors.ts";
 export type {
-  NotifyFloor,
-  PluginActivationScope,
   PluginBelts,
-  PluginEventBus,
   PluginHostOps,
-  PluginIdentity,
-  PluginInvokeHandler,
   PluginMacroRegistry,
-  PluginRateFloor,
-  PluginRegistrationHandle,
-  RaisePluginSuggestion,
-  SnippetGate,
-  UiHostCallGate,
-  VoidPluginSuggestions,
 } from "./contract/ops.ts";
-export type {
-  ApplyDistributedPluginsParams,
-  GetPluginLogParams,
-  GetSurfaceStateParams,
-  GetUiBundleParams,
-  InstallForAllUsersParams,
-  InstallFromGitParams,
-  InstallPluginParams,
-  InvokeUiActionParams,
-  ListDisplayTransformsParams,
-  ListDistributedPluginsParams,
-  ListPluginsParams,
-  ListSurfacesParams,
-  PreviewFromGitParams,
-  ReportUiCrashParams,
-  RunSnippetParams,
-  SetPluginEnabledParams,
-  SetPluginGrantParams,
-  TransformForDisplayParams,
-  UiHostCallParams,
-  UninstallForAllUsersParams,
-  UninstallPluginParams,
-  UpgradeFromStoredGitParams,
-  UpgradePluginParams,
-} from "./contract/params.ts";
-export type { DistributedPluginApplication, PluginGitPreview, PluginUpdateCheck, PluginUrlPreview } from "./contract/results.ts";
+
 export {
   pluginDisplayTransformResultSchema,
   pluginGitPreviewSchema,
@@ -131,16 +75,8 @@ export {
   pluginUrlPreviewSchema,
 } from "./contract/results.ts";
 export type {
-  CreateInstanceInput,
-  CreateInstanceOutcome,
-  PluginAssemblyContext as PluginContext,
-  PluginBudgets,
-  PluginDistributionDeps,
   PluginHostPort,
-  PluginProviderLifecycle,
   PluginService,
-  PluginSurfaceStateStore,
-  PluginUiOutbox,
 } from "./contract/service.ts";
 export type { ExamplePluginSeeder, ExamplePluginSeederDeps } from "./contract/showcase-seed.ts";
 export { createPluginGrantTasksOf } from "./persistence/grant-tasks.ts";

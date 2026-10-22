@@ -6,7 +6,7 @@
 // (§7.4); the domain-internal contract shapes are re-exported type-only.
 
 export type { InboxView } from "@orb/contracts/notifications";
-export type { ListInboxResult, MarkAllReadResult } from "./contract/results.ts";
+
 export type { EmitNotification, NotificationsService } from "./contract/service.ts";
 export { createNotificationsService } from "./service.ts";
 export { createPluginNotificationDelivery } from "./verbs/plugin-delivery.ts";
