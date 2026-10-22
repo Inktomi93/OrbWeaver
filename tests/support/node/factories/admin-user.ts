@@ -1,6 +1,6 @@
+import { adminUserViewSchema } from "@orb/contracts/identity";
 import { users } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import { adminUserViewSchema } from "@orb/server/domain/admin";
 import type { createCaller } from "@orb/server/transport/trpc";
 import { eq } from "drizzle-orm";
 import type { ServerProducerRoot } from "../server.ts";

@@ -7,8 +7,6 @@ export type { IsAdmin, IsOwner, RequireAdmin, RequireOwner } from "./contract/gu
 export type { AdminCardEmbedDeps, AdminSessionPolicyDeps } from "./contract/ops.ts";
 export { revokeUserSessionsResultSchema } from "./contract/results.ts";
 export type { AdminService, ServerRestartPort } from "./contract/service.ts";
-export type { AdminUserView } from "./contract/views.ts";
-export { adminUserViewSchema, sessionAdminViewSchema } from "./contract/views.ts";
 export { can, isAdmin, isOwner, requireAdmin, requireOwner } from "./guard.ts";
 export { createAdminService } from "./service.ts";
 export { createAdminCardEmbed } from "./verbs/card-embed.ts";

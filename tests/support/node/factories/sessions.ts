@@ -1,9 +1,10 @@
 // Session tokens and throttle keys remain Node-only; creation and request admission are actual production operations.
+import { sessionAdminViewSchema } from "@orb/contracts/session";
 import type { Db } from "@orb/db";
 import { oidcPendingSignups, oidcTransactions, rateLimitBuckets, sessions } from "@orb/db";
 import type { ExternalId } from "@orb/kit/ids";
 import type { AdminService } from "@orb/server/domain/admin";
-import { revokeUserSessionsResultSchema, sessionAdminViewSchema } from "@orb/server/domain/admin";
+import { revokeUserSessionsResultSchema } from "@orb/server/domain/admin";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { eq } from "drizzle-orm";
 import type { ServerProducerRoot, ServerTestHarness } from "../server.ts";

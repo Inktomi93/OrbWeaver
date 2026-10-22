@@ -4,11 +4,12 @@
 // domain error map. The acting `Principal` is threaded as `params.principal` (the verb gates on it).
 
 import { userRoleSchema } from "@orb/contracts/identity";
+import { sessionAdminViewSchema } from "@orb/contracts/session";
 import { withinHandleLength } from "@orb/kit/handle-key";
 import type { ExternalId, Handle, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { revokeUserSessionsResultSchema, sessionAdminViewSchema } from "#domain/admin";
+import { revokeUserSessionsResultSchema } from "#domain/admin";
 import { adminUserViewSchema } from "../role-output.ts";
 import { adminProcedure, t } from "../trpc.ts";
 

@@ -1,10 +1,9 @@
-// `@orb/contracts/session` — the BFF browser-session VIEW. The revocable browser login as exposed to
-// the admin device list, produced by `domain/sessions` and consumed by `domain/admin` + the client
-// device table. NOT the agent-sdk chat session (that prompt-cache lineage is backend-internal).
-// The opaque session token, its peppered `tokenHash`, the owning `userId`, and (since #141) the sealed
-// OIDC `id_token` never appear on this view.
+// Browser-session views, not agent-SDK prompt-cache lineage. Tokens, token hashes and sealed OIDC
+// credentials never cross this boundary. Only the admin view carries the queried user's id.
 
-import type { SessionId } from "@orb/kit/ids";
+import type { SessionId, UserId } from "@orb/kit/ids";
+import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { z } from "zod";
 
 /** One browser-session row as exposed to the admin device list. `revokedAt` is `null` while the device
  *  is live. Deliberately secret-free: no `tokenHash`/token/pepper/`userId`, and no `oidcIdToken*` column
@@ -18,3 +17,22 @@ export interface SessionView {
   revokedAt: number | null;
   userAgent: string | null;
 }
+
+/** The secret-free session view, stamped with the user the admin asked for. */
+export interface SessionAdminView extends Readonly<SessionView> {
+  readonly userId: UserId;
+}
+
+// `.readonly()` keeps the wire type's readonly fields: the device list narrows `revokedAt` through a const alias,
+// which TypeScript honours only on a readonly property.
+export const sessionAdminViewSchema = z
+  .strictObject({
+    id: typeIdSchema(ID_PREFIX.session),
+    userId: brandedId<UserId>(),
+    expiresAt: z.number(),
+    lastSeenAt: z.number(),
+    revokedAt: z.number().nullable(),
+    userAgent: z.string().nullable(),
+    createdAt: z.number(),
+  })
+  .readonly() satisfies z.ZodType<SessionAdminView>;

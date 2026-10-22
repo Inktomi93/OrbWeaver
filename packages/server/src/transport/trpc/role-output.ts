@@ -10,9 +10,8 @@ import {
   startChatResultSchema as wireStartChatResultSchema,
 } from "@orb/contracts/chat";
 import type { ParticipantRoleState, UserRoleState } from "@orb/contracts/identity";
-import { viewerViewSchema as wireViewerViewSchema } from "@orb/contracts/identity";
+import { adminUserViewSchema as wireAdminUserViewSchema, viewerViewSchema as wireViewerViewSchema } from "@orb/contracts/identity";
 import { z } from "zod";
-import { adminUserViewSchema as wireAdminUserViewSchema } from "#domain/admin";
 import { isParticipantRoleState, isUserRoleState, participantRoleValue, userRoleValue } from "#primitives/role-data/decode";
 
 // Decoding checks the private registry, so fabricated objects and raw strings fail rather than becoming wire roles.

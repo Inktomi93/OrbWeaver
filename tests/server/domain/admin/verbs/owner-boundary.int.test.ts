@@ -6,7 +6,8 @@
 // @subject packages/server/src/domain/admin/verbs/set-enabled.ts
 // @subject packages/server/src/domain/admin/verbs/set-role.ts
 import "@orb/testkit/node/composed-real.ts";
-import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
+import { adminUserViewSchema, authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
+import { sessionAdminViewSchema } from "@orb/contracts/session";
 import { users } from "@orb/db";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -14,8 +15,37 @@ import { authConfigFromEnv } from "@orb/server/entry/auth";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq } from "drizzle-orm";
+import { vi } from "vitest";
 
 const PASSWORD = "native-owner-boundary-password";
+const PRIVATE_PASSWORD_HASH = "private-password-hash";
+const PRIVATE_SESSION_HASH = "private-session-hash";
+
+test("admin wire schemas preserve composed views and the router refuses private extra fields", async () => {
+  await using root = await createServerHarness();
+  const owner = await root.principalFor(root.ownerId);
+  const caller = await root.internalCallerFor(owner.userId);
+  const target = await root.actor();
+  await root.app.sessions.create({ userId: target.id });
+  const userViews = await caller.admin.listUsers();
+  expect(userViews.map((view) => adminUserViewSchema.parse(view))).toEqual(userViews);
+  const devices = await caller.admin.listSessions({ userId: target.id });
+  expect(devices).toHaveLength(1);
+  expect(devices.map((view) => sessionAdminViewSchema.parse(view))).toEqual(devices);
+  expect(Object.isFrozen(devices[0])).toBe(true);
+  const internalUsers = await root.services.admin.listUsers({ principal: owner });
+  using listUsers = vi.spyOn(root.services.admin, "listUsers");
+  listUsers.mockResolvedValueOnce(internalUsers.map((view) => ({ ...view, passwordHash: PRIVATE_PASSWORD_HASH })));
+  await expect(caller.admin.listUsers()).rejects.toMatchObject({ code: "INTERNAL_SERVER_ERROR", message: "Output validation failed" });
+  expect(userViews.every((view) => adminUserViewSchema.safeParse({ ...view, passwordHash: PRIVATE_PASSWORD_HASH }).success === false)).toBe(true);
+  using listSessions = vi.spyOn(root.services.admin, "listSessions");
+  listSessions.mockResolvedValueOnce(devices.map((view) => ({ ...view, tokenHash: PRIVATE_SESSION_HASH })));
+  await expect(caller.admin.listSessions({ userId: target.id })).rejects.toMatchObject({
+    code: "INTERNAL_SERVER_ERROR",
+    message: "Output validation failed",
+  });
+  expect(devices.every((view) => sessionAdminViewSchema.safeParse({ ...view, tokenHash: PRIVATE_SESSION_HASH }).success === false)).toBe(true);
+});
 
 test("owner includes delegated admin work while a delegate cannot grant elevated roles or create another owner", async () => {
   await using root = await createServerHarness();

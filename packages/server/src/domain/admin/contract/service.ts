@@ -3,6 +3,7 @@
 // cross-feature/infra dep arrives as an injected op — admin sideways-imports nothing.
 
 import type { Principal, UserRole } from "@orb/contracts/identity";
+import type { SessionAdminView } from "@orb/contracts/session";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { AwaitableBatchStmt, BatchStmt } from "@orb/db/query";
@@ -33,7 +34,6 @@ import type {
   SetRoleResult,
   UnclaimedLinkOutcome,
 } from "./results.ts";
-import type { SessionAdminView } from "./views.ts";
 
 /** The session-management slice admin needs — satisfied structurally by the real `SessionsService` at the
  *  composition root. Not re-exported from the front door — a private port. */

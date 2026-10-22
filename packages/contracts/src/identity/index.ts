@@ -1,7 +1,5 @@
-// `@orb/contracts/identity` — the global-role axis + the two canonical identity shapes the auth seam
-// threads. DAG root: kit-only, no domain, no `@orb/db`, no sibling contracts node.
-// Identity resolves ONCE at the entry seam into ONE immutable `Principal` flowing down unchanged;
-// `ResolvedIdentity` is the pre-row output (no `userId` — the seam adds it building `Principal`).
+// Global roles, identity and admin user wire views. DAG root: kit-only, no sibling contracts node.
+// Identity resolves once at the entry seam into one immutable Principal; ResolvedIdentity is pre-row.
 //
 // VOCABULARY (#1772 / #914, vocabulary-map row 45): `ChatResource.membership` was `ChatResource.roster`
 // until 2026-09-06. The TYPE half of row 45 landed at #903 C2 (`ChatRoster` → `ChatMembership`) and left
@@ -28,6 +26,32 @@ export const userRoleSchema = z.enum(USER_ROLES) satisfies z.ZodType<UserRole>;
 export const USER_KINDS = ["human"] as const;
 export type UserKind = (typeof USER_KINDS)[number];
 export const userKindSchema = z.enum(USER_KINDS) satisfies z.ZodType<UserKind>;
+
+/** Never carries passwordHash or any secret column. ownerHandle names an agent's owner — null for humans. */
+export interface AdminUserView {
+  readonly id: UserId;
+  readonly handle: Handle;
+  readonly externalId: ExternalId | null;
+  readonly role: UserRole;
+  readonly enabled: boolean;
+  readonly kind: UserKind;
+  readonly ownerHandle: Handle | null;
+  readonly createdAt: number;
+  readonly updatedAt: number;
+}
+
+/** Strict output parsing refuses extra fields instead of exposing them to the browser. */
+export const adminUserViewSchema = z.strictObject({
+  id: brandedId<UserId>(),
+  handle: brandedId<Handle>(),
+  externalId: brandedId<ExternalId>().nullable(),
+  role: userRoleSchema,
+  enabled: z.boolean(),
+  kind: userKindSchema,
+  ownerHandle: brandedId<Handle>().nullable(),
+  createdAt: z.number(),
+  updatedAt: z.number(),
+}) satisfies z.ZodType<AdminUserView>;
 
 /** The custom CSRF request header. Cross-boundary wire fact: the client sends it every request and the
  *  server gate keys on it. `SameSite=Lax` + this header is the whole CSRF story. */
