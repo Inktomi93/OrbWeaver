@@ -4,6 +4,7 @@ import type { Db } from "@orb/db";
 import { characterBooks, chatBooks, globalBooks, personaBooks, worldBooks, worldEntries } from "@orb/db";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 type WorldInfoService = ServicesResult["services"]["worldInfo"];
 
@@ -21,21 +22,20 @@ export interface SeededWorldTitleBackfill {
 
 /** Keep repair results tied to their actual book children, including unchanged entries. */
 export async function seedBackfilledWorldTitles(
-  db: Db,
-  backfill: WorldInfoService["backfillTitles"],
+  root: ServerProducerRoot,
   params: Parameters<WorldInfoService["backfillTitles"]>[0],
 ): Promise<SeededWorldTitleBackfill> {
+  const db = root.db;
+  const backfill = root.services.worldInfo.backfillTitles;
   const result = backfillResultSchema.parse(await backfill(params));
   const entries = await db.select().from(worldEntries).where(eq(worldEntries.worldBookId, params.bookId)).orderBy(worldEntries.id);
   return { result, entries };
 }
 
 /** Produces the book through its owner operation; persisted stamps are not replaced by fixture time. */
-export async function seedWorldBook(
-  db: Db,
-  createBook: WorldInfoService["createBook"],
-  params: Parameters<WorldInfoService["createBook"]>[0],
-): Promise<WorldBookRow> {
+export async function seedWorldBook(root: ServerProducerRoot, params: Parameters<WorldInfoService["createBook"]>[0]): Promise<WorldBookRow> {
+  const db = root.db;
+  const createBook = root.services.worldInfo.createBook;
   const view = await createBook(params);
   const row = await db.select().from(worldBooks).where(eq(worldBooks.id, view.id)).get();
   if (row === undefined) {
@@ -45,11 +45,9 @@ export async function seedWorldBook(
 }
 
 /** Captures the real entry after book ownership and metadata validation have run. */
-export async function seedWorldEntry(
-  db: Db,
-  createEntry: WorldInfoService["createEntry"],
-  params: Parameters<WorldInfoService["createEntry"]>[0],
-): Promise<WorldEntryRow> {
+export async function seedWorldEntry(root: ServerProducerRoot, params: Parameters<WorldInfoService["createEntry"]>[0]): Promise<WorldEntryRow> {
+  const db = root.db;
+  const createEntry = root.services.worldInfo.createEntry;
   const view = await createEntry(params);
   const row = await db.select().from(worldEntries).where(eq(worldEntries.id, view.id)).get();
   if (row === undefined) {
@@ -59,11 +57,9 @@ export async function seedWorldEntry(
 }
 
 /** The real attachment performs primary demotion atomically; the seed only reads its resulting row. */
-export async function seedCharacterBook(
-  db: Db,
-  attachToCharacter: WorldInfoService["attachToCharacter"],
-  params: Parameters<WorldInfoService["attachToCharacter"]>[0],
-): Promise<CharacterBookRow> {
+export async function seedCharacterBook(root: ServerProducerRoot, params: Parameters<WorldInfoService["attachToCharacter"]>[0]): Promise<CharacterBookRow> {
+  const db = root.db;
+  const attachToCharacter = root.services.worldInfo.attachToCharacter;
   await attachToCharacter(params);
   const row = await db
     .select()
@@ -77,11 +73,9 @@ export async function seedCharacterBook(
 }
 
 /** The real room-host gate precedes capture; idempotent reattachment returns the persisted row unchanged. */
-export async function seedChatBook(
-  db: Db,
-  attachToChat: WorldInfoService["attachToChat"],
-  params: Parameters<WorldInfoService["attachToChat"]>[0],
-): Promise<ChatBookRow> {
+export async function seedChatBook(root: ServerProducerRoot, params: Parameters<WorldInfoService["attachToChat"]>[0]): Promise<ChatBookRow> {
+  const db = root.db;
+  const attachToChat = root.services.worldInfo.attachToChat;
   await attachToChat(params);
   const row = await db
     .select()
@@ -95,11 +89,9 @@ export async function seedChatBook(
 }
 
 /** Captures the book-keyed global attachment after the real book-ownership gate. */
-export async function seedGlobalBook(
-  db: Db,
-  attachGlobal: WorldInfoService["attachGlobal"],
-  params: Parameters<WorldInfoService["attachGlobal"]>[0],
-): Promise<GlobalBookRow> {
+export async function seedGlobalBook(root: ServerProducerRoot, params: Parameters<WorldInfoService["attachGlobal"]>[0]): Promise<GlobalBookRow> {
+  const db = root.db;
+  const attachGlobal = root.services.worldInfo.attachGlobal;
   await attachGlobal(params);
   const row = await db.select().from(globalBooks).where(eq(globalBooks.worldBookId, params.bookId)).get();
   if (row === undefined) {
@@ -109,11 +101,9 @@ export async function seedGlobalBook(
 }
 
 /** Captures the persona junction after the real operation gates both FK endpoints. */
-export async function seedPersonaBook(
-  db: Db,
-  attachToPersona: WorldInfoService["attachToPersona"],
-  params: Parameters<WorldInfoService["attachToPersona"]>[0],
-): Promise<PersonaBookRow> {
+export async function seedPersonaBook(root: ServerProducerRoot, params: Parameters<WorldInfoService["attachToPersona"]>[0]): Promise<PersonaBookRow> {
+  const db = root.db;
+  const attachToPersona = root.services.worldInfo.attachToPersona;
   await attachToPersona(params);
   const row = await db
     .select()

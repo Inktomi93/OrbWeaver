@@ -233,9 +233,9 @@ export async function seedCorpusStatsSettings(root: ServerTestHarness, history: 
     content: "A foreign owner keeps this distinct native history.",
   });
   const foreignLatency = await read<"stats.latency">({ kind: "character", characterId: foreignCharacter.id }, foreign.stats.latency);
-  const foreignStats = await seedStats(root.db, root.services.stats.reconcile, foreignUserId);
+  const foreignStats = await seedStats(root, foreignUserId);
   const reconciled = await read<"stats.reconcile">(undefined, caller.stats.reconcile);
-  const rows = await seedStats(root.db, root.services.stats.reconcile, root.ownerId);
+  const rows = await seedStats(root, root.ownerId);
   const stats = await statsReads(caller, history.characterId);
   const repeated = await read<"stats.reconcile">(undefined, caller.stats.reconcile);
   const afterRepeat = {
@@ -249,7 +249,7 @@ export async function seedCorpusStatsSettings(root: ServerTestHarness, history: 
     foreignCharacter: await read<"stats.character">({ characterId: history.characterId }, foreign.stats.character),
     personas: await read<"stats.personaUsage">({ characterId: foreignCharacter.id }, caller.stats.personaUsage),
     latency: await read<"stats.latency">({ kind: "character", characterId: foreignCharacter.id }, caller.stats.latency),
-    rowsAfter: await seedStats(root.db, root.services.stats.reconcile, foreignUserId),
+    rowsAfter: await seedStats(root, foreignUserId),
   };
   const settingsBefore = await read<"settings.getUserSettings">(undefined, caller.settings.getUserSettings);
   const initialThemes = await read<"settings.listThemes">(undefined, caller.settings.listThemes);

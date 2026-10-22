@@ -149,13 +149,13 @@ async function importAndReact(root: ServerTestHarness, foreignUserId: ServerTest
   if (file === null || descriptor === undefined) {
     throw new Error("native lifecycle export returned no chat bundle");
   }
-  const imported = await seedImportedChatRows(root.db, descriptor.importFile, [root.ownerId, file]);
-  const repeated = await seedImportedChatRows(root.db, descriptor.importFile, [root.ownerId, file]);
+  const imported = await seedImportedChatRows(root, [root.ownerId, file]);
+  const repeated = await seedImportedChatRows(root, [root.ownerId, file]);
   const beforeForeign = {
     rooms: await root.db.select().from(chats).orderBy(chats.id),
     claims: await root.db.select().from(chatImportClaims).orderBy(chatImportClaims.chatId),
   };
-  const foreign = await seedImportedChatRows(root.db, descriptor.importFile, [foreignUserId, file]);
+  const foreign = await seedImportedChatRows(root, [foreignUserId, file]);
   const afterForeign = {
     rooms: await root.db.select().from(chats).orderBy(chats.id),
     claims: await root.db.select().from(chatImportClaims).orderBy(chatImportClaims.chatId),
@@ -167,8 +167,8 @@ async function importAndReact(root: ServerTestHarness, foreignUserId: ServerTest
     throw new Error("native lifecycle canon has no imported room, assistant or reactor");
   }
   const params = { principal, chatId, variantId: assistant.selectedVariantId, emoji: "👍" } as const;
-  const whole = await seedMessageReaction(root.db, root.services.chat.toggleReaction, params, reactor.id);
-  const segment = await seedMessageReaction(root.db, root.services.chat.toggleReaction, { ...params, segmentIndex: 0, segmentSpeaker: null }, reactor.id);
+  const whole = await seedMessageReaction(root, params, reactor.id);
+  const segment = await seedMessageReaction(root, { ...params, segmentIndex: 0, segmentSpeaker: null }, reactor.id);
   const removed = await root.services.chat.toggleReaction(params);
   const reactions = await root.services.chat.listReactions({ principal, chatId });
   const remaining = await root.db
@@ -229,8 +229,8 @@ async function heldTurn(root: ServerTestHarness, wire: ChatWire, memberUserId: S
   const source = await lifecycleRoom(root, castId<CharacterHandle>(abort ? "corpus-lifecycle-abort" : "corpus-lifecycle-held"));
   const chatId = source.room.chat.id;
   const member = await root.principalFor(memberUserId);
-  const invite = await seedChatInvite(root.db, root.services.chat.createInvite, { principal, chatId, input: { invitedHandle: member.handle } });
-  await seedInvitedChatParticipant(root.db, root.services.chat.acceptInvite, { principal: member, inviteId: invite.id });
+  const invite = await seedChatInvite(root, { principal, chatId, input: { invitedHandle: member.handle } });
+  await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.id });
   const cue = abort ? CORPUS_CHAT_ABORT_CUE : CORPUS_CHAT_HELD_CUE;
   const hold = wire.hold(cue);
   const sending = root.services.chat.send({ principal, chatId, content: cue, timeZone: UTC_TIME_ZONE });
@@ -281,8 +281,8 @@ async function deferAndHandoff(
   const memberCaller = await root.internalCallerFor(member.userId);
   const source = await lifecycleRoom(root, castId<CharacterHandle>("corpus-lifecycle-deferred"));
   const chatId = source.room.chat.id;
-  const invite = await seedChatInvite(root.db, root.services.chat.createInvite, { principal, chatId, input: { invitedHandle: member.handle } });
-  const participant = await seedInvitedChatParticipant(root.db, root.services.chat.acceptInvite, { principal: member, inviteId: invite.id });
+  const invite = await seedChatInvite(root, { principal, chatId, input: { invitedHandle: member.handle } });
+  const participant = await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.id });
   const submitted = await root.services.chat.send({ principal: member, chatId, content: CORPUS_CHAT_DEFERRED_CUE, timeZone: UTC_TIME_ZONE });
   const deferred = await captureChatReplayRows(root.db, chatId);
   const drained = await root.services.chat.drainDeferredTurns({ hostUserId: root.ownerId });

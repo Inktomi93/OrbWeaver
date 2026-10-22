@@ -22,7 +22,7 @@
 // a floor the variable delta LOG collapses the same way, into ONE synthetic baseline batch
 // (`buildForkStandaloneDeltas`, D79 ruling #8).
 
-import type { ChatMetadata, DurableChatBusEvent, StandaloneVariableDelta, VariantMetadata } from "@orb/contracts/chat";
+import type { ChatMetadata, DurableChatBusEvent, HistoryFloorSeq, StandaloneVariableDelta, VariantMetadata } from "@orb/contracts/chat";
 import {
   memberToolCalls,
   parseVariantMetadata,
@@ -529,7 +529,7 @@ function buildForkStandaloneDeltas(args: {
   /** The source chat's WHOLE fold source (`loadVariableDeltas`): message deltas (`messageId` set) ∪ standalone
    *  batches (`messageId` null), message-before-standalone at equal seq — the order `foldChain` relies on. */
   readonly chain: readonly { readonly seq: number; readonly messageId: MessageId | null; readonly delta: readonly VarOp[] }[];
-  readonly historyFloorSeq: number;
+  readonly historyFloorSeq: HistoryFloorSeq;
   readonly throughSeq: number | undefined;
 }): StandaloneVariableDelta[] {
   const { chain, historyFloorSeq, throughSeq } = args;

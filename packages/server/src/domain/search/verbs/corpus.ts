@@ -1,4 +1,5 @@
 // Joint host-scoped digest and transcript retrieval preserves genuine source identity (D16/D20).
+import { NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { BlockKey, CorpusSource } from "@orb/contracts/search";
 import type { SearchContext } from "../context.ts";
 import { SEARCH_EMPTY_QUERY, SearchError } from "../contract/errors.ts";
@@ -151,8 +152,8 @@ export function createCorpus(ctx: SearchContext, coverage: DigestCoverageOp): Se
           source: {
             ...candidate.source,
             ...(candidate.source.kind === "digest"
-              ? await coverage(candidate.source, 0)
-              : await readSourceAnchors(ctx.db, candidate.source.chatId, candidate.source)),
+              ? await coverage(candidate.source, NO_HISTORY_FLOOR)
+              : await readSourceAnchors(ctx.db, candidate.source.chatId, candidate.source, NO_HISTORY_FLOOR)),
           },
           blockKeys: candidate.blockKeys,
           score: candidate.score,

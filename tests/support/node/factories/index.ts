@@ -1,5 +1,7 @@
 // Canonical DB-row builders and real-producer seeds; policy and DB-owned defaults stay with their producer.
 
+export type { SeededAdminUser } from "./admin-user.ts";
+export { seedCreatedAdminUser } from "./admin-user.ts";
 export type { AssetRow, SeededStoredAsset } from "./asset.ts";
 export { makeAsset, makeAssetBytes, seedAsset, seedStoredAsset } from "./asset.ts";
 export type {
@@ -155,8 +157,8 @@ export type { CharacterStatsRow, DailyStatsRow, ModelStatsRow, OwnerStatsRow, Se
 export { seedStats } from "./stats.ts";
 export type { CharacterTagRow, ChatTagRow, PersonaTagRow, PresetTagRow, SeededCreatedTag, SeededTagPrune, TagRow, WorldBookTagRow } from "./tag.ts";
 export { seedCharacterTag, seedChatTag, seedCreatedTag, seedPersonaTag, seedPresetTag, seedTag, seedTagPrune, seedWorldBookTag } from "./tag.ts";
-export type { SeededAdminUser, UserRow } from "./user.ts";
-export { makeUser, seedCreatedAdminUser, seedUser } from "./user.ts";
+export type { UserRow } from "./user.ts";
+export { makeUser, seedUser } from "./user.ts";
 export type { WorkloadDbRow } from "./workload.ts";
 export { seedWorkload, seedWorkloadSchedule } from "./workload.ts";
 export type { CharacterBookRow, ChatBookRow, GlobalBookRow, PersonaBookRow, SeededWorldTitleBackfill, WorldBookRow, WorldEntryRow } from "./world-info.ts";

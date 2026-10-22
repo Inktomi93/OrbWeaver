@@ -98,6 +98,7 @@ test(
     const result = settleCorpusWorkloads(
       {
         ...root,
+        app: root.app,
         runAdmittedWorkload: (...args: Parameters<typeof runAdmitted>) => {
           driver = runAdmitted(...args);
           return driver;

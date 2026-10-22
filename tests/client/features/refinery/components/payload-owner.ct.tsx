@@ -41,7 +41,7 @@ test("assay expansion survives a same-run clone but not a different immutable ru
       })),
     },
   };
-  const trpc = await routeTrpc(page, {
+  await routeTrpc(page, {
     "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
     "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
   });
@@ -59,5 +59,4 @@ test("assay expansion survives a same-run clone but not a different immutable ru
   await component.update(<PayloadOwnerStory run={nextRun} />);
   await expect(assay).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByText("Recognizable voice", { exact: true })).toHaveCount(0);
-  expect(trpc.unstubbed()).toEqual([]);
 });

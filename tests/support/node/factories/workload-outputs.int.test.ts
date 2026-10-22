@@ -51,7 +51,7 @@ test("native cancellation outputs distinguish queued, running and terminal work 
   });
   await root.settleBackground();
   const service = root.services.workloads;
-  const future = await seedWorkload(root.db, service.start, {
+  const future = await seedWorkload(root, {
     caller: principal,
     ownerId: principal.userId,
     mode: "singular",
@@ -71,7 +71,7 @@ test("native cancellation outputs distinguish queued, running and terminal work 
   expect(await service.get({ caller: principal, id: future.id })).toEqual(cancelled);
   expect(await service.estimateRetryModelCalls({ caller: principal, id: future.id })).toEqual({ calls: null });
   holding = true;
-  const active = await seedWorkload(root.db, service.start, {
+  const active = await seedWorkload(root, {
     caller: principal,
     ownerId: principal.userId,
     mode: "singular",

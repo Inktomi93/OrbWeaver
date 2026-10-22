@@ -18,6 +18,7 @@
 // SELF-SAFE: a throwing guest `deliver` is caught + logged — it never breaks the fan-out loop or the bus.
 
 import type { TriggerFact } from "@orb/contracts/automation";
+import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { stripHiddenSpans } from "@orb/kit/content";
@@ -105,7 +106,7 @@ type FactVisibility = { readonly visible: false } | { readonly visible: true; re
  * AN UNCLAMPED INSTALLER PAYS NOTHING: `floorSeq <= 0` (a host, a `full` member, any born-here seat) decides
  * on the first compare, before any read — the same short-circuit the per-event bus clamp makes.
  */
-async function isBelowHistoryFloor(deps: VisibilityDeps, fact: TriggerFact, floorSeq: number): Promise<boolean> {
+async function isBelowHistoryFloor(deps: VisibilityDeps, fact: TriggerFact, floorSeq: HistoryFloorSeq): Promise<boolean> {
   if (floorSeq <= 0) {
     return false;
   }

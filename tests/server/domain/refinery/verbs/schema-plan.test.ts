@@ -17,7 +17,7 @@ const SCHEMA = projectJsonSchema(z.object({ answer: z.string() }));
 test("cached resolution carries the row-derived Principal and only NoConnection degrades to unbound", async ({ harness }) => {
   await harness.actor({ id: TEST_OWNER_ID });
   const actor = await principal(harness, TEST_OWNER_ID);
-  const credential = await makeResolvedSecret(harness.services.credentials.resolve, {
+  const credential = await makeResolvedSecret(harness, {
     ownerId: TEST_OWNER_ID,
     credentialId: null,
     providerId: testProviderId("custom-openai"),
@@ -36,8 +36,8 @@ test("cached resolution carries the row-derived Principal and only NoConnection 
   await expect(binding(TEST_OWNER_ID)).rejects.toBe(failure);
 });
 
-test("unbound and background refusal precede preset reads, while a funded vehicle-less model remains a model refusal", async ({ services }) => {
-  const credential = await makeResolvedSecret(services.credentials.resolve, {
+test("unbound and background refusal precede preset reads, while a funded vehicle-less model remains a model refusal", async ({ harness }) => {
+  const credential = await makeResolvedSecret(harness, {
     ownerId: TEST_OWNER_ID,
     credentialId: null,
     providerId: testProviderId("custom-openai"),

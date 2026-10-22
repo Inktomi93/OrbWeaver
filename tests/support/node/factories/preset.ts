@@ -7,7 +7,7 @@ import { eq } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 import { makePromptConfig } from "../../iso/preset-config.ts";
-import type { ServerTestHarness } from "../server.ts";
+import type { ServerProducerRoot, ServerTestHarness } from "../server.ts";
 import { seedUser } from "./user.ts";
 
 type PresetCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>["preset"];
@@ -48,13 +48,17 @@ export interface SeededCreatedPreset {
 }
 
 /** Keep the routed creation's normalization and name de-collision, then capture only its returned identity. */
-export async function seedCreatedPreset(db: Db, create: CreatePreset, params: Parameters<CreatePreset>[0]): Promise<SeededCreatedPreset> {
+export async function seedCreatedPreset(root: ServerProducerRoot, userId: UserId, params: Parameters<CreatePreset>[0]): Promise<SeededCreatedPreset> {
+  const db = root.db;
+  const create = (await root.internalCallerFor(userId)).preset.create;
   const view = await create(params);
   return { view, row: await capturePresetRow(db, view.id) };
 }
 
 /** A copy-on-write update may return a different identity; capture that row, never the requested source. */
-export async function seedUpdatedPreset(db: Db, update: PresetCaller["update"], params: Parameters<PresetCaller["update"]>[0]): Promise<SeededCreatedPreset> {
+export async function seedUpdatedPreset(root: ServerProducerRoot, userId: UserId, params: Parameters<PresetCaller["update"]>[0]): Promise<SeededCreatedPreset> {
+  const db = root.db;
+  const update = (await root.internalCallerFor(userId)).preset.update;
   const view = await update(params);
   return { view, row: await capturePresetRow(db, view.id) };
 }
@@ -66,10 +70,12 @@ export interface SeededImportedPreset {
 
 /** Refused imports have no row; successful reuse retains the native winner's exact identity. */
 export async function seedImportedPreset(
-  db: Db,
-  importFile: PresetCaller["importFile"],
+  root: ServerProducerRoot,
+  userId: UserId,
   params: Parameters<PresetCaller["importFile"]>[0],
 ): Promise<SeededImportedPreset> {
+  const db = root.db;
+  const importFile = (await root.internalCallerFor(userId)).preset.importFile;
   const outcome = await importFile(params);
   const row = outcome.presetId === undefined ? undefined : await capturePresetRow(db, outcome.presetId);
   if (outcome.ok && row === undefined) {

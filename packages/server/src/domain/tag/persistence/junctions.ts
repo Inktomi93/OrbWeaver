@@ -1,150 +1,68 @@
-// The polymorphic junction registry: the one insertion/deletion path for the five per-type FK junctions +
-// the per-target ownership/membership gate. Each dispatch is a `Record<TagTargetType, …>` (a type
-// annotation, not `satisfies`, so a 6th target member is a tsc error until the Record gains its key).
-//
-// Two scoping flavors: target-derived (character/worldBook/persona/preset) — owner reached via the target's
-// `ownerId` using `fetchOwned`; membership (chat) — chats have no owner, access is the injected
-// `requireParticipant` gate, and the junction carries its own `ownerId` (the tagger).
+// Per-type junction writes retain the canonical target's kind/id correlation.
+// Owned entities gate through fetchOwned; chats gate through membership and retain a per-tagger overlay (D30).
 
-import type { Principal } from "@orb/contracts/identity";
-import type { TagStatus, TagTargetType } from "@orb/contracts/tag";
+import type { TagStatus } from "@orb/contracts/tag";
 import type { Db } from "@orb/db";
 import { characters, characterTags, chatTags, personas, personaTags, presets, presetTags, worldBooks, worldBookTags } from "@orb/db";
-import type { OwnedTable } from "@orb/db/query";
 import { fetchOwned } from "@orb/db/query";
 import { DomainNotFoundError } from "@orb/kit/errors";
-import type { CharacterId, ChatId, PersonaId, PresetId, TagId, UserId, WorldBookId } from "@orb/kit/ids";
-import { castId } from "@orb/kit/ids";
+import type { CharacterId, TagId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import type { RequireParticipant } from "../contract/service.ts";
+import type { BulkInsertJunctionParams, DeleteJunctionParams, InsertJunctionParams, TargetAccessParams } from "../contract/junctions.ts";
 
-interface TargetGuardArgs {
-  readonly db: Db;
-  readonly principal: Principal;
-  readonly requireParticipant: RequireParticipant;
-  readonly targetId: string;
-}
-type TargetGuard = (args: TargetGuardArgs) => Promise<void>;
-
-/** Throw `DomainNotFoundError(label)` unless `targetId` names a row owned by `ownerId` (a foreign-owned
- *  target reads as not-found — owner reached via the target's `ownerId`). */
-async function ensureOwnedTarget(args: {
-  readonly db: Db;
-  readonly table: OwnedTable;
-  readonly targetId: string;
-  readonly ownerId: UserId;
-  readonly label: TagTargetType;
-}): Promise<void> {
-  const row = await fetchOwned(args.db, args.table, args.targetId, args.ownerId);
-  if (row === undefined) {
-    throw new DomainNotFoundError(args.label, args.targetId);
+/** Gate owned targets by owner and chats by membership; foreign and absent targets share one refusal. */
+export async function ensureTargetAccessible(args: TargetAccessParams): Promise<void> {
+  let owned: boolean;
+  switch (args.targetType) {
+    case "chat":
+      return args.requireParticipant(args.principal, args.targetId);
+    case "character":
+      owned = (await fetchOwned(args.db, characters, args.targetId, args.principal.userId)) !== undefined;
+      break;
+    case "worldBook":
+      owned = (await fetchOwned(args.db, worldBooks, args.targetId, args.principal.userId)) !== undefined;
+      break;
+    case "persona":
+      owned = (await fetchOwned(args.db, personas, args.targetId, args.principal.userId)) !== undefined;
+      break;
+    case "preset":
+      owned = (await fetchOwned(args.db, presets, args.targetId, args.principal.userId)) !== undefined;
+      break;
+    default:
+      return args satisfies never;
+  }
+  if (!owned) {
+    throw new DomainNotFoundError(args.targetType, args.targetId);
   }
 }
 
-const TARGET_GUARDS: Record<TagTargetType, TargetGuard> = {
-  // membership IS the scope (chats have no owner). The injected gate rejects a non-member.
-  chat: ({ principal, requireParticipant, targetId }) => requireParticipant(principal, castId<ChatId>(targetId)),
-  character: ({ db, principal, targetId }) =>
-    ensureOwnedTarget({
-      db,
-      table: characters,
-      targetId,
-      ownerId: principal.userId,
-      label: "character",
-    }),
-  worldBook: ({ db, principal, targetId }) =>
-    ensureOwnedTarget({
-      db,
-      table: worldBooks,
-      targetId,
-      ownerId: principal.userId,
-      label: "worldBook",
-    }),
-  persona: ({ db, principal, targetId }) =>
-    ensureOwnedTarget({
-      db,
-      table: personas,
-      targetId,
-      ownerId: principal.userId,
-      label: "persona",
-    }),
-  preset: ({ db, principal, targetId }) => ensureOwnedTarget({ db, table: presets, targetId, ownerId: principal.userId, label: "preset" }),
-};
-
-/** Gate access to an attach/detach target. Target-derived types verify ownership; chat (D30) routes through
- *  the injected membership gate. Throws (DomainNotFoundError / the participant guard's reject) on deny. */
-export function ensureTargetAccessible(args: {
-  readonly db: Db;
-  readonly principal: Principal;
-  readonly requireParticipant: RequireParticipant;
-  readonly targetType: TagTargetType;
-  readonly targetId: string;
-}): Promise<void> {
-  return TARGET_GUARDS[args.targetType](args);
+/** Attach one tag; character conflicts update status, while other junction conflicts preserve the row. */
+export async function insertJunctionRow(args: InsertJunctionParams): Promise<void> {
+  switch (args.targetType) {
+    case "character":
+      await args.db
+        .insert(characterTags)
+        .values({ characterId: args.targetId, tagId: args.tagId, status: args.status, createdAt: args.at })
+        .onConflictDoUpdate({ target: [characterTags.characterId, characterTags.tagId], set: { status: args.status } });
+      return;
+    case "chat":
+      await args.db.insert(chatTags).values({ chatId: args.targetId, tagId: args.tagId, ownerId: args.taggerId, createdAt: args.at }).onConflictDoNothing();
+      return;
+    case "worldBook":
+      await args.db.insert(worldBookTags).values({ worldBookId: args.targetId, tagId: args.tagId, createdAt: args.at }).onConflictDoNothing();
+      return;
+    case "persona":
+      await args.db.insert(personaTags).values({ personaId: args.targetId, tagId: args.tagId, createdAt: args.at }).onConflictDoNothing();
+      return;
+    case "preset":
+      await args.db.insert(presetTags).values({ presetId: args.targetId, tagId: args.tagId, createdAt: args.at }).onConflictDoNothing();
+      return;
+    default:
+      return args satisfies never;
+  }
 }
 
-interface AttachArgs {
-  readonly db: Db;
-  readonly targetId: string;
-  readonly tagId: TagId;
-  /** The tagger's own owner id — used ONLY by the chat arm (the D30 per-user overlay column). */
-  readonly taggerId: UserId;
-  /** The proposed/accepted surface — used ONLY by the character arm. */
-  readonly status: TagStatus;
-  readonly at: number;
-}
-type JunctionInserter = (args: AttachArgs) => Promise<unknown>;
-
-const INSERTERS: Record<TagTargetType, JunctionInserter> = {
-  // character carries `status` and UPSERTs it: re-attach flips a pending row → accepted (the "Accept").
-  character: ({ db, targetId, tagId, status, at }) =>
-    db
-      .insert(characterTags)
-      .values({ characterId: castId<CharacterId>(targetId), tagId, status, createdAt: at })
-      .onConflictDoUpdate({
-        target: [characterTags.characterId, characterTags.tagId],
-        set: { status },
-      }),
-  // chat carries the tagger's own `ownerId` (D30); a same-tagger duplicate is a no-op.
-  chat: ({ db, targetId, tagId, taggerId, at }) =>
-    db
-      .insert(chatTags)
-      .values({ chatId: castId<ChatId>(targetId), tagId, ownerId: taggerId, createdAt: at })
-      .onConflictDoNothing(),
-  worldBook: ({ db, targetId, tagId, at }) =>
-    db
-      .insert(worldBookTags)
-      .values({ worldBookId: castId<WorldBookId>(targetId), tagId, createdAt: at })
-      .onConflictDoNothing(),
-  persona: ({ db, targetId, tagId, at }) =>
-    db
-      .insert(personaTags)
-      .values({ personaId: castId<PersonaId>(targetId), tagId, createdAt: at })
-      .onConflictDoNothing(),
-  preset: ({ db, targetId, tagId, at }) =>
-    db
-      .insert(presetTags)
-      .values({ presetId: castId<PresetId>(targetId), tagId, createdAt: at })
-      .onConflictDoNothing(),
-};
-
-/** Attach ONE tag to a target (idempotent). Per-type semantics live in {@link INSERTERS}. */
-export async function insertJunctionRow(args: {
-  readonly db: Db;
-  readonly targetType: TagTargetType;
-  readonly targetId: string;
-  readonly tagId: TagId;
-  readonly taggerId: UserId;
-  readonly status: TagStatus;
-  readonly at: number;
-}): Promise<void> {
-  await INSERTERS[args.targetType](args);
-}
-
-/** Attach one tag to a character at the given `status`, idempotently, reporting whether it was newly
- *  attached. A returned row ⇒ new junction row (true); empty result ⇒ already existed (false, status
- *  untouched — never downgrades an already-`accepted` row to `pending`). This is the by-name attach path;
- *  the status-flipping {@link INSERTERS} path is the principal-gated `attachTag` "Accept". */
+/** Attach one tag to a character, preserving status on conflict for the by-name import path. */
 export async function attachCharacterTag(args: {
   readonly db: Db;
   readonly characterId: CharacterId;
@@ -160,8 +78,7 @@ export async function attachCharacterTag(args: {
   return inserted.length > 0;
 }
 
-/** Detach one tag from a character, idempotently, reporting whether a row was removed. The mirror of
- *  {@link attachCharacterTag}. The tag row itself is left intact. */
+/** Detach a character tag without deleting the tag itself. */
 export async function detachCharacterTag(args: { readonly db: Db; readonly characterId: CharacterId; readonly tagId: TagId }): Promise<boolean> {
   const deleted = await args.db
     .delete(characterTags)
@@ -170,90 +87,63 @@ export async function detachCharacterTag(args: { readonly db: Db; readonly chara
   return deleted.length > 0;
 }
 
-interface BulkAttachArgs {
-  readonly db: Db;
-  readonly targetId: string;
-  readonly tagIds: readonly TagId[];
-  readonly taggerId: UserId;
-  readonly status: TagStatus;
-  readonly at: number;
-}
-type JunctionBulkInserter = (args: BulkAttachArgs) => Promise<unknown>;
-
-const BULK_INSERTERS: Record<TagTargetType, JunctionBulkInserter> = {
-  character: ({ db, targetId, tagIds, status, at }) =>
-    db
-      .insert(characterTags)
-      .values(tagIds.map((tagId) => ({ characterId: castId<CharacterId>(targetId), tagId, status, createdAt: at })))
-      .onConflictDoUpdate({
-        target: [characterTags.characterId, characterTags.tagId],
-        set: { status },
-      }),
-  chat: ({ db, targetId, tagIds, taggerId, at }) =>
-    db
-      .insert(chatTags)
-      .values(tagIds.map((tagId) => ({ chatId: castId<ChatId>(targetId), tagId, ownerId: taggerId, createdAt: at })))
-      .onConflictDoNothing(),
-  worldBook: ({ db, targetId, tagIds, at }) =>
-    db
-      .insert(worldBookTags)
-      .values(tagIds.map((tagId) => ({ worldBookId: castId<WorldBookId>(targetId), tagId, createdAt: at })))
-      .onConflictDoNothing(),
-  persona: ({ db, targetId, tagIds, at }) =>
-    db
-      .insert(personaTags)
-      .values(tagIds.map((tagId) => ({ personaId: castId<PersonaId>(targetId), tagId, createdAt: at })))
-      .onConflictDoNothing(),
-  preset: ({ db, targetId, tagIds, at }) =>
-    db
-      .insert(presetTags)
-      .values(tagIds.map((tagId) => ({ presetId: castId<PresetId>(targetId), tagId, createdAt: at })))
-      .onConflictDoNothing(),
-};
-
-/** Attach MANY tags to ONE target in a single multi-row insert (the bulk/promote path). The caller
- *  guarantees `tagIds` is non-empty + owner-verified. */
-export async function bulkInsertJunctionRows(args: {
-  readonly db: Db;
-  readonly targetType: TagTargetType;
-  readonly targetId: string;
-  readonly tagIds: readonly TagId[];
-  readonly taggerId: UserId;
-  readonly status: TagStatus;
-  readonly at: number;
-}): Promise<void> {
-  await BULK_INSERTERS[args.targetType](args);
+/** Attach many tags after the verb verifies every tag and the target. */
+export async function bulkInsertJunctionRows(args: BulkInsertJunctionParams): Promise<void> {
+  switch (args.targetType) {
+    case "character":
+      await args.db
+        .insert(characterTags)
+        .values(args.tagIds.map((tagId) => ({ characterId: args.targetId, tagId, status: args.status, createdAt: args.at })))
+        .onConflictDoUpdate({ target: [characterTags.characterId, characterTags.tagId], set: { status: args.status } });
+      return;
+    case "chat":
+      await args.db
+        .insert(chatTags)
+        .values(args.tagIds.map((tagId) => ({ chatId: args.targetId, tagId, ownerId: args.taggerId, createdAt: args.at })))
+        .onConflictDoNothing();
+      return;
+    case "worldBook":
+      await args.db
+        .insert(worldBookTags)
+        .values(args.tagIds.map((tagId) => ({ worldBookId: args.targetId, tagId, createdAt: args.at })))
+        .onConflictDoNothing();
+      return;
+    case "persona":
+      await args.db
+        .insert(personaTags)
+        .values(args.tagIds.map((tagId) => ({ personaId: args.targetId, tagId, createdAt: args.at })))
+        .onConflictDoNothing();
+      return;
+    case "preset":
+      await args.db
+        .insert(presetTags)
+        .values(args.tagIds.map((tagId) => ({ presetId: args.targetId, tagId, createdAt: args.at })))
+        .onConflictDoNothing();
+      return;
+    default:
+      return args satisfies never;
+  }
 }
 
-interface DetachArgs {
-  readonly db: Db;
-  readonly targetId: string;
-  readonly tagId: TagId;
-  /** The tagger — used ONLY by the chat arm, so a member removes only their OWN overlay row (D30). */
-  readonly taggerId: UserId;
-}
-type JunctionDeleter = (args: DetachArgs) => Promise<unknown>;
-
-const DELETERS: Record<TagTargetType, JunctionDeleter> = {
-  character: ({ db, targetId, tagId }) =>
-    db.delete(characterTags).where(and(eq(characterTags.characterId, castId<CharacterId>(targetId)), eq(characterTags.tagId, tagId))),
-  // D30 per-user overlay: the tagger removes ONLY their own row (ownerId in the predicate).
-  chat: ({ db, targetId, tagId, taggerId }) =>
-    db.delete(chatTags).where(and(eq(chatTags.chatId, castId<ChatId>(targetId)), eq(chatTags.tagId, tagId), eq(chatTags.ownerId, taggerId))),
-  worldBook: ({ db, targetId, tagId }) =>
-    db.delete(worldBookTags).where(and(eq(worldBookTags.worldBookId, castId<WorldBookId>(targetId)), eq(worldBookTags.tagId, tagId))),
-  persona: ({ db, targetId, tagId }) => db.delete(personaTags).where(and(eq(personaTags.personaId, castId<PersonaId>(targetId)), eq(personaTags.tagId, tagId))),
-  preset: ({ db, targetId, tagId }) => db.delete(presetTags).where(and(eq(presetTags.presetId, castId<PresetId>(targetId)), eq(presetTags.tagId, tagId))),
-};
-
-/** Detach a tag from a target. Per-type semantics live in {@link DELETERS} (chat removes only the tagger's
- *  own overlay row — D30). */
-export async function deleteJunctionRow(args: {
-  readonly db: Db;
-  readonly targetType: TagTargetType;
-  readonly targetId: string;
-  readonly tagId: TagId;
-  readonly taggerId: UserId;
-}): Promise<void> {
-  await DELETERS[args.targetType](args);
+/** Detach one tag; chat overlays additionally pin the tagger's owner id. */
+export async function deleteJunctionRow(args: DeleteJunctionParams): Promise<void> {
+  switch (args.targetType) {
+    case "character":
+      await args.db.delete(characterTags).where(and(eq(characterTags.characterId, args.targetId), eq(characterTags.tagId, args.tagId)));
+      return;
+    case "chat":
+      await args.db.delete(chatTags).where(and(eq(chatTags.chatId, args.targetId), eq(chatTags.tagId, args.tagId), eq(chatTags.ownerId, args.taggerId)));
+      return;
+    case "worldBook":
+      await args.db.delete(worldBookTags).where(and(eq(worldBookTags.worldBookId, args.targetId), eq(worldBookTags.tagId, args.tagId)));
+      return;
+    case "persona":
+      await args.db.delete(personaTags).where(and(eq(personaTags.personaId, args.targetId), eq(personaTags.tagId, args.tagId)));
+      return;
+    case "preset":
+      await args.db.delete(presetTags).where(and(eq(presetTags.presetId, args.targetId), eq(presetTags.tagId, args.tagId)));
+      return;
+    default:
+      return args satisfies never;
+  }
 }

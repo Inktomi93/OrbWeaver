@@ -6,6 +6,7 @@ import type { Db } from "@orb/db";
 import { imageryGenerations, imageryImportCalls } from "@orb/db";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 type ImageryService = ServicesResult["services"]["imagery"];
 
@@ -19,10 +20,11 @@ export interface SeededImageryGeneration {
 
 /** The owner's `reused` result distinguishes stored reuse rows from newly produced provenance. */
 export async function seedImageryGenerations(
-  db: Db,
-  generatePicture: ImageryService["generatePicture"],
+  root: ServerProducerRoot,
   params: Parameters<ImageryService["generatePicture"]>[0],
 ): Promise<SeededImageryGeneration> {
+  const db = root.db;
+  const generatePicture = root.services.imagery.generatePicture;
   const picture = await generatePicture(params);
   return { picture, generations: await captureImageryGenerationRows(db, picture) };
 }
@@ -47,11 +49,16 @@ interface SeededNativeImageryImport {
 
 /** The native roundtrip keeps its genuinely returned call identity; imports own parsing, admission and deduplication. */
 export async function seedNativeImageryImportClaim(
-  db: Db,
-  importFile: PortableEntity["importFile"],
+  root: ServerProducerRoot,
   params: Parameters<PortableEntity["importFile"]>,
   callId: ImageryImportCallRow["id"],
 ): Promise<SeededNativeImageryImport> {
+  const db = root.db;
+  const descriptor = root.app.portability.find((entity) => entity.kind === "imagery");
+  if (descriptor === undefined) {
+    throw new Error("production composition has no imagery portability descriptor");
+  }
+  const importFile = descriptor.importFile;
   const [ownerId, file] = params;
   const outcome = await importFile(ownerId, file);
   if (!outcome.ok) {

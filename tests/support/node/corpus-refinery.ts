@@ -37,7 +37,6 @@ export interface SeededCorpusRefinery {
 export async function seedCorpusRefinery(root: ServerTestHarness): Promise<SeededCorpusRefinery> {
   const caller = await root.internalCallerFor(root.ownerId);
   const principal = await root.principalFor(root.ownerId);
-  const refinery = root.services.refinery;
   const character = await caller.character.create({
     input: createCharacterSchema.parse({
       handle: "corpus-refinery",
@@ -46,14 +45,14 @@ export async function seedCorpusRefinery(root: ServerTestHarness): Promise<Seede
       personality: "Curious and careful.",
     }),
   });
-  const session = await seedRefinerySession(root.db, refinery.startSession, { principal, characterId: character.id, name: "Orbital ledger refinement" });
+  const session = await seedRefinerySession(root, { principal, characterId: character.id, name: "Orbital ledger refinement" });
   const preflight = await caller.refinery.preflight({ sessionId: session.id });
-  const score = await seedRefineryRun(root.db, refinery.runStage, { principal, sessionId: session.id, stage: "score" });
-  const rewrite = await seedRefineryRun(root.db, refinery.runStage, { principal, sessionId: session.id, stage: "rewrite" });
-  const analyze = await seedRefineryRun(root.db, refinery.runStage, { principal, sessionId: session.id, stage: "analyze" });
+  const score = await seedRefineryRun(root, { principal, sessionId: session.id, stage: "score" });
+  const rewrite = await seedRefineryRun(root, { principal, sessionId: session.id, stage: "rewrite" });
+  const analyze = await seedRefineryRun(root, { principal, sessionId: session.id, stage: "analyze" });
   const review = await caller.refinery.decideRewrite({ sessionId: session.id, rewriteRunId: rewrite.id, decisions: [true] });
   const iteration = await caller.refinery.iterate({ sessionId: session.id, guidance: "Keep the keeper curious." });
-  const manual = await seedManualRefineryRun(root.db, refinery.submitManualRewrite, {
+  const manual = await seedManualRefineryRun(root, {
     principal,
     sessionId: session.id,
     fields: [{ field: "description", text: "A careful keeper records the orbital witnesses in a ledger." }],
@@ -78,23 +77,23 @@ export async function seedCorpusRefinery(root: ServerTestHarness): Promise<Seede
   if (forged.kind !== "draft") {
     throw new Error("actual refinery forge did not produce the corpus's required schema draft", { cause: forged });
   }
-  const schema = await seedRefinerySchema(root.db, refinery.createSchema, {
+  const schema = await seedRefinerySchema(root, {
     principal,
     name: forged.name,
     description: "Preserve the keeper and explain its score.",
     stage: "score",
     schema: forged.schema,
   });
-  const customSession = await seedRefinerySession(root.db, refinery.startSession, { principal, characterId: copy.character.id, name: "Custom keeper rubric" });
+  const customSession = await seedRefinerySession(root, { principal, characterId: copy.character.id, name: "Custom keeper rubric" });
   await caller.refinery.updateSession({
     sessionId: customSession.id,
     patch: { stageConfig: { ...customSession.stageConfig, score: { kind: "custom", schemaId: schema.id } } },
   });
   const schemaPlan = await caller.refinery.schemaPlan({ stage: "score", schema: schema.schema });
   const drill = await caller.refinery.testSchema({ stage: "score", schema: schema.schema, characterId: copy.character.id });
-  const customFirst = await seedRefineryRun(root.db, refinery.runStage, { principal, sessionId: customSession.id, stage: "score" });
+  const customFirst = await seedRefineryRun(root, { principal, sessionId: customSession.id, stage: "score" });
   const revisedSchema = await caller.refinery.updateSchema({ schemaId: schema.id, patch: { name: CORPUS_REFINERY_SCHEMA_REVISION } });
-  const customSecond = await seedRefineryRun(root.db, refinery.runStage, { principal, sessionId: customSession.id, stage: "score" });
+  const customSecond = await seedRefineryRun(root, { principal, sessionId: customSession.id, stage: "score" });
   const sessions = await caller.refinery.listSessions();
   const runs = await caller.refinery.listRuns({ sessionId: session.id });
   const customRuns = await caller.refinery.listRuns({ sessionId: customSession.id });

@@ -24,7 +24,7 @@ test("real install retains bundle assets and guest activation writes only the co
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const caller = await root.principalFor(root.ownerId);
   const image = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, { caller, bundle: bundle(image), grant: [] });
+  const installed = await seedInstalledPlugin(root, { caller, bundle: bundle(image), grant: [] });
   expect(installed.plugin.id).toBe(installed.outcome.id);
   expect(installed.plugin.status).toBe("disabled");
   expect(installed.kv).toEqual([]);
@@ -34,7 +34,7 @@ test("real install retains bundle assets and guest activation writes only the co
     throw new Error("the actual installed bundle produced no asset link");
   }
   expect(Array.from((await root.app.assets.readOwnedAssetBytes(caller, link.assetId)).bytes)).toEqual(Array.from(image));
-  const enabled = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  const enabled = await seedPluginGrant(root, {
     caller,
     pluginId: installed.plugin.id,
     grant: MANIFEST.capabilities,
@@ -46,7 +46,7 @@ test("real install retains bundle assets and guest activation writes only the co
   const other = await root.actor();
   const before = await root.db.select().from(pluginKv);
   await expect(
-    seedPluginGrant(root.db, root.services.plugin.setGrant, {
+    seedPluginGrant(root, {
       caller: await root.principalFor(other.id),
       pluginId: installed.plugin.id,
       grant: MANIFEST.capabilities,
@@ -61,14 +61,13 @@ test("actual plugin activation captures the manifest's precise provider claim an
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const caller = await root.principalFor(root.ownerId);
   const manifest = CORPUS_PLUGIN_PROVIDER_MANIFEST;
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(root, {
     caller,
     bundle: bundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), manifest),
     grant: [],
   });
   const captured = await seedPluginProviders(
-    root.db,
-    root.services.plugin.setGrant,
+    root,
     { caller, pluginId: installed.plugin.id, grant: manifest.capabilities, acknowledgedNetHosts: [], enable: true },
     (manifest.providers ?? []).map((provider) => provider.id),
   );
@@ -103,7 +102,7 @@ test("actual plugin activation captures the manifest's precise provider claim an
 test("admin registry capture retains the actual normalized provider definition and admin origin", async () => {
   await using root = await createServerHarness();
   const definition = CORPUS_ADMIN_PROVIDER;
-  const row = await seedAdminProvider(root.db, root.services.connection.registry.register, definition, { admin: root.ownerId });
+  const row = await seedAdminProvider(root, definition, { admin: root.ownerId });
   expect(row.id).toBe(definition.id);
   expect(row.originKind).toBe("admin");
   expect(row.originUserId).toBe(root.ownerId);
@@ -116,7 +115,7 @@ test("real distribution leaves each owner disabled and ungranted until their own
   const caller = await root.principalFor(root.ownerId);
   const other = await root.actor();
   const bytes = bundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)));
-  const distributed = await seedDistributedPlugin(root.db, root.services.plugin.installForAllUsers, { caller, bundle: bytes });
+  const distributed = await seedDistributedPlugin(root, { caller, bundle: bytes });
   expect(distributed.distribution.slug).toBe(distributed.outcome.slug);
   expect(distributed.distribution.distributedBy).toBe(caller.userId);
   expect(distributed.outcome.applied).toBe(2);
@@ -134,7 +133,7 @@ test("real distribution leaves each owner disabled and ungranted until their own
   if (recipient === undefined) {
     throw new Error("the actual distribution omitted the existing recipient");
   }
-  const enabled = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  const enabled = await seedPluginGrant(root, {
     caller: await root.principalFor(other.id),
     pluginId: recipient.plugin.id,
     grant: MANIFEST.capabilities,
@@ -143,7 +142,7 @@ test("real distribution leaves each owner disabled and ungranted until their own
   });
   expect(enabled.outcome.status).toBe("enabled");
   expect(enabled.kv.map((row) => [row.ownerId, row.key, row.value])).toEqual([[other.id, STORAGE_KEY, STORAGE_VALUE]]);
-  const repeated = await seedDistributedPlugin(root.db, root.services.plugin.installForAllUsers, { caller, bundle: bytes });
+  const repeated = await seedDistributedPlugin(root, { caller, bundle: bytes });
   expect(repeated.outcome.applied).toBe(0);
   expect(repeated.outcome.skipped.map((row) => [row.userId, row.reason]).toSorted(([left], [right]) => String(left).localeCompare(String(right)))).toEqual(
     [

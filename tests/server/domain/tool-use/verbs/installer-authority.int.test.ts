@@ -59,12 +59,12 @@ test("a real resident guest follows fresh installer handoff, departure and disab
   const chatId = room.chat.id;
   const invitation = await root.services.chat.createInvite({ principal: owner, chatId, input: { invitedHandle: installer.handle } });
   await root.services.chat.acceptInvite({ principal: installer, inviteId: invitation.invite.id });
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(root, {
     caller: installer,
     bundle: zipSync({ [PLUGIN_MANIFEST_ENTRY]: strToU8(JSON.stringify(MANIFEST)), [PLUGIN_MAIN_ENTRY]: strToU8(GUEST) }),
     grant: [],
   });
-  const enabled = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  const enabled = await seedPluginGrant(root, {
     caller: installer,
     pluginId: installed.plugin.id,
     grant: MANIFEST.capabilities,

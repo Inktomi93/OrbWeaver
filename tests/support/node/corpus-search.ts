@@ -211,8 +211,8 @@ async function movingSpace(root: ServerTestHarness): Promise<SearchSpaceLifecycl
   for (let scene = 0; scene <= DEFAULT_MEMORY_DEFAULTS.blockSize + DEFAULT_MEMORY_DEFAULTS.verbatimWindow; scene += 1) {
     await caller.chat.commitMessage({ chatId, content: `Moving-space native history ${scene}: The ledger records a real witness.`, timeZone: UTC_TIME_ZONE });
   }
-  const text = await seedEmbeddingGeneration(root.db, root.app.embeddings.resolveGeneration, [principal.userId, "embed"]);
-  const image = await seedEmbeddingGeneration(root.db, root.app.embeddings.resolveGeneration, [principal.userId, "imageEmbed", "embed"]);
+  const text = await seedEmbeddingGeneration(root, [principal.userId, "embed"]);
+  const image = await seedEmbeddingGeneration(root, [principal.userId, "imageEmbed", "embed"]);
   const moving = await caller.search.spaceStatus();
   const refused = await searchRefusal(caller.search.search({ query: "moving ledger", topN: 5, over: "entities", scope: { kind: "owner" } }));
   const callsBeforeEmpty = await root.db.select().from(embeddingCalls).where(eq(embeddingCalls.ownerId, principal.userId)).orderBy(embeddingCalls.id);

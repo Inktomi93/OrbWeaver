@@ -7,6 +7,7 @@
 //
 // No JSON columns here (title/content/type are plain text) — no parse-on-read belt needed.
 
+import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { messages, messageVariants, rpgJournal } from "@orb/db";
 import type { MessageVariantId, RpgGameId, RpgJournalId } from "@orb/kit/ids";
@@ -29,6 +30,9 @@ export async function insertJournalEntry(db: Db, values: NewRpgJournal): Promise
  *  (chat's `NO_HISTORY_FLOOR`, restated as a bound rather than imported: this is a raw comparison operand). */
 const NO_FLOOR = 0;
 
+// Unresolved visibility withholds anchored canon without hiding anchorless hand entries.
+const FAIL_CLOSED_FLOOR = Number.MAX_SAFE_INTEGER;
+
 /** The active-lineage projection (docs/plans/rpg/design.md): entries visible under the current swipe selection —
  *  `variantId IS NULL` (hand/room, every lineage) OR the entry's variant is the SELECTED variant of its
  *  message. Newest-first, paged (limit/offset). The join to `messages` via `message_variants.messageId`
@@ -40,8 +44,9 @@ const NO_FLOOR = 0;
 export async function listActiveJournal(
   db: Db,
   gameId: RpgGameId,
-  opts: { readonly limit: number; readonly offset?: number; readonly historyFloorSeq: number },
+  opts: { readonly limit: number; readonly offset?: number; readonly historyFloorSeq: HistoryFloorSeq | null },
 ): Promise<readonly RpgJournalRow[]> {
+  const historyFloorSeq = opts.historyFloorSeq ?? FAIL_CLOSED_FLOOR;
   // The entry's variant is the selected variant of ITS message: EXISTS a variant row whose id = the entry's
   // variantId AND whose message points its `selectedVariantId` back at that same variant.
   const selectedForVariant = db
@@ -57,7 +62,7 @@ export async function listActiveJournal(
   const anchoredBelowFloor = db
     .select({ one: messages.id })
     .from(messages)
-    .where(and(eq(messages.id, rpgJournal.sourceMessageId), lt(messages.seq, opts.historyFloorSeq)));
+    .where(and(eq(messages.id, rpgJournal.sourceMessageId), lt(messages.seq, historyFloorSeq)));
   const rows = await db
     .select()
     .from(rpgJournal)
@@ -65,7 +70,7 @@ export async function listActiveJournal(
       and(
         eq(rpgJournal.gameId, gameId),
         or(isNull(rpgJournal.variantId), exists(selectedForVariant)),
-        ...(opts.historyFloorSeq > NO_FLOOR ? [notExists(anchoredBelowFloor)] : []),
+        ...(historyFloorSeq > NO_FLOOR ? [notExists(anchoredBelowFloor)] : []),
       ),
     )
     .orderBy(desc(rpgJournal.createdAt), desc(rpgJournal.id))

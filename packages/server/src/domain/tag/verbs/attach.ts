@@ -23,16 +23,12 @@ export function createAttach(ctx: TagContext): AttachTrio {
     }
     await ensureTargetAccessible({
       db: ctx.db,
-      principal: params.principal,
       requireParticipant: ctx.requireParticipant,
-      targetType: params.targetType,
-      targetId: params.targetId,
+      ...params,
     });
     await insertJunctionRow({
       db: ctx.db,
-      targetType: params.targetType,
-      targetId: params.targetId,
-      tagId: params.tagId,
+      ...params,
       taggerId: ownerId,
       status: params.status ?? DEFAULT_ATTACH_STATUS,
       at: ctx.now(),
@@ -59,16 +55,12 @@ export function createAttach(ctx: TagContext): AttachTrio {
     }
     await ensureTargetAccessible({
       db: ctx.db,
-      principal: params.principal,
       requireParticipant: ctx.requireParticipant,
-      targetType: params.targetType,
-      targetId: params.targetId,
+      ...params,
     });
     await deleteJunctionRow({
       db: ctx.db,
-      targetType: params.targetType,
-      targetId: params.targetId,
-      tagId: params.tagId,
+      ...params,
       taggerId: ownerId,
     });
     await ctx.audit({
@@ -93,16 +85,12 @@ export function createAttach(ctx: TagContext): AttachTrio {
     }
     await ensureTargetAccessible({
       db: ctx.db,
-      principal: params.principal,
       requireParticipant: ctx.requireParticipant,
-      targetType: params.targetType,
-      targetId: params.targetId,
+      ...params,
     });
     await bulkInsertJunctionRows({
       db: ctx.db,
-      targetType: params.targetType,
-      targetId: params.targetId,
-      tagIds: params.tagIds,
+      ...params,
       taggerId: ownerId,
       status: params.status ?? DEFAULT_ATTACH_STATUS,
       at: ctx.now(),

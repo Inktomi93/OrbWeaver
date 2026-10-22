@@ -197,7 +197,6 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   const variableScreenshot = testInfo.outputPath("variable-after-stale-draft-refusal.png");
   await page.screenshot({ path: variableScreenshot });
   await testInfo.attach("variable-after-stale-draft-refusal", { path: variableScreenshot });
-  expect(trpc.unstubbed()).toEqual([]);
 });
 
 test("pending writes cannot replace newer edits, and explicit reset admits a new usable list owner", async ({ corpus, mount, page }) => {
@@ -289,5 +288,4 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   expect(trpc.lastInput("preset.update")?.config?.variables?.[0]?.question).toBe("New owner after reset");
   expect(trpc.lastInput("preset.update")?.config).not.toHaveProperty("variableRowIds");
-  expect(trpc.unstubbed()).toEqual([]);
 });

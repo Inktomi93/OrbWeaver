@@ -3,7 +3,7 @@ import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { Page } from "@playwright/test";
 import { expectTypeOf, test } from "vitest";
 import type { TrpcProcedurePath, TrpcRecorder, TrpcRoutes, TrpcWireOutput } from "./route-trpc.ts";
-import { defineTrpcRoutes, malformedOrForwardTrpcWire, routeTrpc, trpcError, trpcHold } from "./route-trpc.ts";
+import { defineTrpcRoutes, malformedOrForwardTrpcWire, routeTrpc, trpcEndSubscription, trpcError, trpcHold } from "./route-trpc.ts";
 
 declare const page: Page;
 declare const broadRecord: Record<string, unknown>;
@@ -154,4 +154,15 @@ test("the recorder counts by procedure path, so a misspelled procedure fails typ
   expectTypeOf(recorder.count("chat.listMessages")).toBeNumber();
   // @ts-expect-error — a procedure the AppRouter does not have.
   recorder.count("chat.listMesages");
+});
+
+test("only canonical subscription paths accept an explicit terminal subscription response", async () => {
+  expectTypeOf(routeTrpc(page, { "stream.connect": trpcEndSubscription() })).toEqualTypeOf<Promise<TrpcRecorder>>();
+  expectTypeOf(routeTrpc(page, { "chat.impersonateStream": () => trpcEndSubscription() })).toEqualTypeOf<Promise<TrpcRecorder>>();
+  // @ts-expect-error a query cannot be silently replaced by a terminal subscription response
+  await routeTrpc(page, { health: trpcEndSubscription() });
+  // @ts-expect-error a mutation cannot be silently replaced by a terminal subscription response
+  await routeTrpc(page, { "stream.attach": () => trpcEndSubscription() });
+  // @ts-expect-error reusable route maps preserve the procedure's transport kind too
+  defineTrpcRoutes({ health: trpcEndSubscription() });
 });

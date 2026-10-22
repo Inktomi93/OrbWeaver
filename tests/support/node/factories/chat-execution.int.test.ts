@@ -149,12 +149,12 @@ test("a real member send defers without a lock while its host is offline and the
   const { owner, secondUserId } = await seedCorpusActors(root);
   const member = await root.principalFor(secondUserId);
   const chatId = await seedRecallRoom(await root.internalCallerFor(root.ownerId));
-  const invite = await seedChatInvite(root.db, root.services.chat.createInvite, {
+  const invite = await seedChatInvite(root, {
     principal: owner,
     chatId,
     input: { invitedHandle: member.handle },
   });
-  await seedInvitedChatParticipant(root.db, root.services.chat.acceptInvite, { principal: member, inviteId: invite.id });
+  await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.id });
   const outcome = await root.services.chat.send({ principal: member, chatId, content: "Record the absent host's orbital witness.", timeZone: UTC_TIME_ZONE });
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages.map((message) => [message.role, message.authorUserId])).toEqual([["user", secondUserId]]);

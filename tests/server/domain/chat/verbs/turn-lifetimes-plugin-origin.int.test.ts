@@ -36,12 +36,12 @@ test("a native command refuses foreign rooms before guest execution and cannot t
     input: createCharacterSchema.parse({ handle: "foreign-origin-witness", name: "Foreign keeper", description: "A private foreign room." }),
   });
   const foreignRoom = await h.root.services.chat.startChat({ principal: foreign, characterIds: [character.id], opening: "none" });
-  const installed = await seedInstalledPlugin(h.root.db, h.root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(h.root, {
     caller: h.owner,
     bundle: makePluginBundle(MANIFEST, GUEST, h.root.clock.now()),
     grant: [],
   });
-  const enabled = await seedPluginGrant(h.root.db, h.root.services.plugin.setGrant, {
+  const enabled = await seedPluginGrant(h.root, {
     caller: h.owner,
     pluginId: installed.plugin.id,
     grant: MANIFEST.capabilities,

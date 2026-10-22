@@ -54,7 +54,7 @@ export async function seedCorpusRpgRecursion(root: ServerTestHarness): Promise<C
   await caller.chat.setGroupConfig({ chatId, config: { output: "per-speaker", cardScope: "scoped", policy: "list" } });
   await caller.chat.setCharactersCanReact({ chatId, enabled: true });
   await caller.chat.setReactionsEnabled({ chatId, enabled: true });
-  const game = await seedRpgGame(root.db, root.services.rpg.createGame, { principal, chatId, mode: "lite" });
+  const game = await seedRpgGame(root, { principal, chatId, mode: "lite" });
   await caller.rpg.updateConfig({ chatId, extractionMode: "folded" });
   const turn = await root.services.chat.send({
     principal,

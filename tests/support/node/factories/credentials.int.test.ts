@@ -17,11 +17,11 @@ const REPLACEMENT_KEY = "replacement-corpus-credential";
 test("a resolved credential builder carries real dispatched-key authority into the credential owner's strike", async () => {
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
   const principal = await root.principalFor(root.ownerId);
-  const resolved = await seedApiKeySecret(root.db, root.services.credentials, { principal, provider: "openrouter", key: KEY });
+  const resolved = await seedApiKeySecret(root, { principal, provider: "openrouter", key: KEY });
   const foreign = await root.actor();
   const caller = await root.internalCallerFor(root.ownerId);
   await expect(
-    makeResolvedSecret(root.services.credentials.resolve, {
+    makeResolvedSecret(root, {
       ownerId: foreign.id,
       credentialId: resolved.credentialId,
       providerId: testProviderId("openrouter"),
@@ -42,7 +42,7 @@ test("a resolved credential builder carries real dispatched-key authority into t
   });
   expect((await caller.credentials.list()).find((row) => row.id === resolved.credentialId)?.revokedReason).toBe("auth_failed");
   await expect(
-    makeResolvedSecret(root.services.credentials.resolve, {
+    makeResolvedSecret(root, {
       ownerId: principal.userId,
       credentialId: resolved.credentialId,
       providerId: testProviderId("openrouter"),
@@ -53,7 +53,7 @@ test("a resolved credential builder carries real dispatched-key authority into t
 test("the real keyless builder needs no storage and carries no dispatched credential authority", async () => {
   await using root = await createServerHarness({ secretBoxKey: null });
   const principal = await root.principalFor(root.ownerId);
-  const resolved = await makeResolvedSecret(root.services.credentials.resolve, {
+  const resolved = await makeResolvedSecret(root, {
     ownerId: principal.userId,
     providerId: testProviderId("custom-openai"),
     credentialId: null,
@@ -69,9 +69,7 @@ test("an unknown provider cannot create resolved authority or leave credential a
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
   const principal = await root.principalFor(root.ownerId);
   const before = { credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) };
-  await expect(seedApiKeySecret(root.db, root.services.credentials, { principal, provider: "unregistered-test-provider", key: KEY })).rejects.toBeInstanceOf(
-    DomainOperationError,
-  );
+  await expect(seedApiKeySecret(root, { principal, provider: "unregistered-test-provider", key: KEY })).rejects.toBeInstanceOf(DomainOperationError);
   expect({ credentials: await root.db.select().from(userCredentials), audit: await root.db.select().from(auditLogs) }).toEqual(before);
 });
 
@@ -79,9 +77,9 @@ test("the actual credential producer seals fresh material, preserves the returne
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
   const principal = await root.principalFor(root.ownerId);
   const params = { principal, provider: "custom-openai", label: "Corpus endpoint", key: KEY, metadata: { auth: "endpoint" as const } };
-  const first = await seedUserCredential(root.db, root.services.credentials.add, params);
+  const first = await seedUserCredential(root, params);
   root.clock.advance(1);
-  const second = await seedUserCredential(root.db, root.services.credentials.add, params);
+  const second = await seedUserCredential(root, params);
   expect(first.row.id).toBe(first.view.id);
   expect(first.row.ownerId).toBe(principal.userId);
   expect(second.row.id).not.toBe(first.row.id);
@@ -137,11 +135,11 @@ test("the actual credential producer seals fresh material, preserves the returne
 test("a foreign credential ID cannot manufacture a resolved secret or widen the real routed list", async () => {
   await using root = await createServerHarness({ secretBoxKey: randomBytes(32) });
   const owner = await root.principalFor(root.ownerId);
-  const capture = await seedUserCredential(root.db, root.services.credentials.add, { principal: owner, provider: "custom-openai", key: KEY });
+  const capture = await seedUserCredential(root, { principal: owner, provider: "custom-openai", key: KEY });
   const foreign = await root.actor();
-  await expect(
-    makeResolvedSecret(root.services.credentials.resolve, { ownerId: foreign.id, credentialId: capture.row.id, providerId: capture.row.provider }),
-  ).rejects.toBeInstanceOf(DomainNoCredentialError);
+  await expect(makeResolvedSecret(root, { ownerId: foreign.id, credentialId: capture.row.id, providerId: capture.row.provider })).rejects.toBeInstanceOf(
+    DomainNoCredentialError,
+  );
   const foreignCaller = await root.internalCallerFor(foreign.id);
   const ownerCaller = await root.internalCallerFor(root.ownerId);
   expect(await foreignCaller.credentials.storageStatus()).toEqual(await ownerCaller.credentials.storageStatus());
@@ -159,7 +157,7 @@ test("disabled deployment storage refuses before producing a credential or audit
   expect(await caller.credentials.storageStatus()).toEqual({ enabled: false });
   const credentialsBefore = await root.db.select().from(userCredentials);
   const auditBefore = await root.db.select().from(auditLogs);
-  const refused = seedApiKeySecret(root.db, root.services.credentials, { principal, provider: "custom-openai", key: KEY });
+  const refused = seedApiKeySecret(root, { principal, provider: "custom-openai", key: KEY });
   await expect(refused).rejects.toBeInstanceOf(DomainOperationError);
   await expect(refused).rejects.toThrow("Per-user credential storage is disabled");
   expect(await root.db.select().from(userCredentials)).toEqual(credentialsBefore);

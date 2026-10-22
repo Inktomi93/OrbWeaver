@@ -438,7 +438,7 @@ test("a completed migrated capsule closes its real producers before cloning scru
   {
     await using echoRoot = await createServerHarness({ secretBoxKey: key });
     const principal = await echoRoot.principalFor(echoRoot.ownerId);
-    await seedUserCredential(echoRoot.db, echoRoot.services.credentials.add, { principal, provider: "custom-openai", key: PROVIDER_KEY });
+    await seedUserCredential(echoRoot, { principal, provider: "custom-openai", key: PROVIDER_KEY });
     const caller = await echoRoot.internalCallerFor(echoRoot.ownerId);
     const card = await caller.character.create({
       input: createCharacterSchema.parse({ handle: "publication-echo", name: PROVIDER_KEY, description: "A publication boundary witness." }),

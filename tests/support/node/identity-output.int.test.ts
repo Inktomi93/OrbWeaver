@@ -92,14 +92,14 @@ test("native notification snapshots distinguish offline and unknown IDs from una
   const caller = await root.internalCallerFor(reader.id);
   const unknownId = root.idSource.unprefixed<UserId>();
   const asked = [other.id, unknownId, root.ownerId, other.id, reader.id];
-  const empty = await captureNotificationViews(caller.notifications, asked);
+  const empty = await captureNotificationViews(root, reader.id, asked);
   expect(empty).toEqual({ inbox: { items: [], nextCursor: null }, presence: { onlineUserIds: [] } });
   const ownerDevice = new AbortController();
   const otherDevice = new AbortController();
   try {
     root.app.presence.connect(root.ownerId, ownerDevice.signal);
     root.app.presence.connect(other.id, otherDevice.signal);
-    const connected = await captureNotificationViews(caller.notifications, asked);
+    const connected = await captureNotificationViews(root, reader.id, asked);
     expect(connected.inbox).toEqual(empty.inbox);
     expect(connected.presence).toEqual({ onlineUserIds: [other.id, root.ownerId] });
     await expect(caller.notifications.presence({ userIds: Array.from({ length: PRESENCE_READ_MAX_USER_IDS + 1 }, () => other.id) })).rejects.toMatchObject({
@@ -108,19 +108,17 @@ test("native notification snapshots distinguish offline and unknown IDs from una
     otherDevice.abort();
     root.clock.advance(60_000);
     expect(root.app.presence.read(other.id)).toMatchObject({ online: false, lastSeenAt: root.clock.frozenAt });
-    const departed = await captureNotificationViews(caller.notifications, asked);
+    const departed = await captureNotificationViews(root, reader.id, asked);
     expect(departed.presence).toEqual({ onlineUserIds: [root.ownerId] });
     expect(JSON.stringify(departed.presence)).not.toContain("lastSeenAt");
     expect(JSON.stringify(departed.presence)).not.toContain(String(root.clock.frozenAt));
     await root.services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: false } });
     const unavailable = await root.internalCallerFor(reader.id);
-    await expect(captureNotificationViews(unavailable.notifications, asked)).rejects.toMatchObject({ code: "NOT_FOUND" });
+    await expect(captureNotificationViews(root, reader.id, asked)).rejects.toMatchObject({ code: "NOT_FOUND" });
     expect(await unavailable.notifications.list()).toEqual(empty.inbox);
     await root.services.settings.updateAppSettings({ principal: owner, partial: { localMultiUser: true } });
-    const restored = await root.internalCallerFor(reader.id);
-    expect((await captureNotificationViews(restored.notifications, asked)).presence).toEqual(departed.presence);
-    const anonymous = await root.internalCallerFor(null);
-    await expect(captureNotificationViews(anonymous.notifications, asked)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
+    expect((await captureNotificationViews(root, reader.id, asked)).presence).toEqual(departed.presence);
+    await expect(captureNotificationViews(root, null, asked)).rejects.toMatchObject({ code: "UNAUTHORIZED" });
   } finally {
     ownerDevice.abort();
     otherDevice.abort();

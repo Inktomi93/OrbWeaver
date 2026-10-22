@@ -46,28 +46,32 @@ export async function seedCorpusDatabank(root: ServerTestHarness): Promise<Corpu
   const invite = await root.services.chat.createInvite({ principal, chatId: room.chat.id, input: { invitedHandle: member.handle } });
   await root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
   const text = "The orbital ledger records café witnesses 🪐.";
-  const created = await seedCreatedDocument(root.db, () => caller.databank.createFromText({ name: "Consented ledger", text, destination: { kind: "global" } }));
-  const duplicate = await seedCreatedDocument(root.db, () =>
-    caller.databank.createFromText({ name: "Ignored duplicate name", text, destination: { kind: "character", characterId: character.id } }),
-  );
+  const created = await seedCreatedDocument(root, {
+    kind: "createFromText",
+    userId: root.ownerId,
+    params: { name: "Consented ledger", text, destination: { kind: "global" } },
+  });
+  const duplicate = await seedCreatedDocument(root, {
+    kind: "createFromText",
+    userId: root.ownerId,
+    params: { name: "Ignored duplicate name", text, destination: { kind: "character", characterId: character.id } },
+  });
   await caller.databank.attachToChat({ documentId: created.row.id, chatId: room.chat.id });
-  const hidden = await seedCreatedDocument(root.db, () =>
-    caller.databank.createFromText({
-      name: "Host-hidden ledger",
-      text: "Only the host sees this source name.",
-      destination: { kind: "chat", chatId: room.chat.id },
-    }),
-  );
-  const memberGlobal = await seedCreatedDocument(root.db, () =>
-    memberCaller.databank.createFromText({
-      name: "Member consented source",
-      text: "A present member explicitly shares this source.",
-      destination: { kind: "global" },
-    }),
-  );
-  const memberPrivate = await seedCreatedDocument(root.db, () =>
-    memberCaller.databank.createFromText({ name: "Member private source", text: "This unattached source grants no room consent." }),
-  );
+  const hidden = await seedCreatedDocument(root, {
+    kind: "createFromText",
+    userId: root.ownerId,
+    params: { name: "Host-hidden ledger", text: "Only the host sees this source name.", destination: { kind: "chat", chatId: room.chat.id } },
+  });
+  const memberGlobal = await seedCreatedDocument(root, {
+    kind: "createFromText",
+    userId: member.userId,
+    params: { name: "Member consented source", text: "A present member explicitly shares this source.", destination: { kind: "global" } },
+  });
+  const memberPrivate = await seedCreatedDocument(root, {
+    kind: "createFromText",
+    userId: member.userId,
+    params: { name: "Member private source", text: "This unattached source grants no room consent." },
+  });
   await caller.chat.setChatDocumentVisibility({ chatId: room.chat.id, visibility: { hidden: [hidden.row.id] } });
   const renamed = await caller.databank.rename({ id: created.row.id, name: "Renamed consented ledger" });
   const reindex = await caller.databank.reindex({ scope: { kind: "document", documentId: created.row.id } });
@@ -76,8 +80,8 @@ export async function seedCorpusDatabank(root: ServerTestHarness): Promise<Corpu
     throw new Error("native databank reindex left no admitted workload identity");
   }
   const jobs = await settleCorpusWorkloads(root, caller, admitted);
-  const views = await captureDatabankViews(root.services.databank, principal, { documentId: created.row.id, chatId: room.chat.id });
-  const memberViews = await captureDatabankViews(root.services.databank, member, { documentId: memberGlobal.row.id, chatId: room.chat.id });
+  const views = await captureDatabankViews(root, principal, { documentId: created.row.id, chatId: room.chat.id });
+  const memberViews = await captureDatabankViews(root, member, { documentId: memberGlobal.row.id, chatId: room.chat.id });
   const nextPage = views.page.nextCursor === null ? null : await caller.databank.list({ limit: 1, cursor: views.page.nextCursor });
   await root.services.chat.nominateHostHandoff({ principal, chatId: room.chat.id, userId: member.userId });
   await root.services.chat.acceptHostHandoff({ principal: member, chatId: room.chat.id });

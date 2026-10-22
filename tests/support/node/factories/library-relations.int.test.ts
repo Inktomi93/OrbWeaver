@@ -55,9 +55,7 @@ test("shared library producers preserve every real relation and pending acceptan
   expect(library.snapshot.characterId).toBe(library.character.id);
   expect(library.characterPersona).toMatchObject({ characterId: library.character.id, personaId: library.persona.id });
   expect(library.gallery).toMatchObject({ assetId: library.asset.assetId, subjectCharacterId: library.character.id });
-  expect(
-    await seedGalleryItem(root.db, root.app.assets.addToGallery, { principal, assetId: library.asset.assetId, subjectCharacterId: library.character.id }),
-  ).toEqual(library.gallery);
+  expect(await seedGalleryItem(root, { principal, assetId: library.asset.assetId, subjectCharacterId: library.character.id })).toEqual(library.gallery);
   expect(library.world.entries.map((row) => row.worldBookId)).toEqual([library.world.book.id]);
   expect(library.world.character).toMatchObject([{ characterId: library.character.id, worldBookId: library.world.book.id, role: "primary" }]);
   expect(library.world.chat).toMatchObject([{ chatId: library.room.chat.id, worldBookId: library.world.book.id }]);
@@ -80,13 +78,13 @@ test("shared library producers preserve every real relation and pending acceptan
   const persona = createCorpusReadResponder("persona.get", reads["persona.get"]);
   expect(persona({ personaId: library.persona.id })).toEqual(library.persona);
   expect(reads["tag.listPendingSuggestions"].flatMap((capture) => capture.output.map((tag) => tag.id))).toContain(library.tag.id);
-  const accepted = await seedCharacterTag(root.db, root.services.tag.attachTag, { principal, characterId: library.character.id, tagId: library.tag.id });
+  const accepted = await seedCharacterTag(root, { principal, characterId: library.character.id, tagId: library.tag.id });
   expect(accepted.status).toBe("accepted");
-  const replacement = await seedWorldBook(root.db, root.services.worldInfo.createBook, {
+  const replacement = await seedWorldBook(root, {
     principal,
     input: createBookSchema.parse({ name: "The new primary ledger" }),
   });
-  await seedCharacterBook(root.db, root.services.worldInfo.attachToCharacter, {
+  await seedCharacterBook(root, {
     principal,
     characterId: library.character.id,
     bookId: replacement.id,
@@ -103,14 +101,14 @@ test("real chat taggers retain separate overlays and foreign relation targets re
   const principal = await root.principalFor(root.ownerId);
   const actor = await root.actor();
   const member = await root.principalFor(actor.id);
-  const invitation = await seedChatInvite(root.db, root.services.chat.createInvite, {
+  const invitation = await seedChatInvite(root, {
     principal,
     chatId: library.room.chat.id,
     input: { invitedHandle: actor.handle },
   });
-  await seedInvitedChatParticipant(root.db, root.services.chat.acceptInvite, { principal: member, inviteId: invitation.id });
-  const memberTag = await seedTag(root.db, root.services.tag.createTag, { principal: member, input: createTagSchema.parse({ name: "Member ledger label" }) });
-  const memberOverlay = await seedChatTag(root.db, root.services.tag.attachTag, { principal: member, chatId: library.room.chat.id, tagId: memberTag.id });
+  await seedInvitedChatParticipant(root, { principal: member, inviteId: invitation.id });
+  const memberTag = await seedTag(root, { principal: member, input: createTagSchema.parse({ name: "Member ledger label" }) });
+  const memberOverlay = await seedChatTag(root, { principal: member, chatId: library.room.chat.id, tagId: memberTag.id });
   expect(memberOverlay.ownerId).toBe(actor.id);
   const overlays = await root.db.select().from(chatTags).where(eq(chatTags.chatId, library.room.chat.id));
   expect(overlays.map((row) => [row.ownerId, row.tagId])).toEqual(
@@ -131,16 +129,14 @@ test("real chat taggers retain separate overlays and foreign relation targets re
   const booksBefore = await root.db.select().from(characterBooks);
   const tagsBefore = await root.db.select().from(characterTags);
   await expect(
-    seedCharacterBook(root.db, root.services.worldInfo.attachToCharacter, {
+    seedCharacterBook(root, {
       principal,
       characterId: foreignCharacter.id,
       bookId: library.world.book.id,
       role: "primary",
     }),
   ).rejects.toBeInstanceOf(DomainNotFoundError);
-  await expect(
-    seedCharacterTag(root.db, root.services.tag.attachTag, { principal, characterId: foreignCharacter.id, tagId: library.tag.id }),
-  ).rejects.toBeInstanceOf(DomainNotFoundError);
+  await expect(seedCharacterTag(root, { principal, characterId: foreignCharacter.id, tagId: library.tag.id })).rejects.toBeInstanceOf(DomainNotFoundError);
   expect(await root.db.select().from(characterBooks)).toEqual(booksBefore);
   expect(await root.db.select().from(characterTags)).toEqual(tagsBefore);
 });

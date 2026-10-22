@@ -1,3 +1,4 @@
+import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import type { CorpusSource, CorpusSourceState } from "@orb/contracts/search";
 import type { ReadOnlyDb } from "@orb/db";
 import { characters, chatDigests, chatParticipants, chatSegments, chats, embedGenerations, messages } from "@orb/db";
@@ -11,11 +12,11 @@ export async function readSourceSpan(
   db: ReadOnlyDb,
   { chatId, generationId }: { readonly chatId: ChatId; readonly generationId: EmbedGenerationId },
   range: { readonly startIdx: number; readonly endIdx: number },
-  floorSeq: number | null = 0,
+  floorSeq: HistoryFloorSeq | null,
 ): Promise<Pick<CorpusSource, "seqStart" | "seqEnd" | "messageStartId" | "messageEndId">> {
   const count = range.endIdx - range.startIdx + 1;
   if (count > SOURCE_LINEAGE_LIMIT) {
-    return await readSourceAnchors(db, chatId, { seqStart: null, seqEnd: null });
+    return await readSourceAnchors(db, chatId, { seqStart: null, seqEnd: null }, floorSeq);
   }
   const spans = await db
     .select({ blockIdx: chatSegments.blockIdx, seqStart: min(chatSegments.seqStart), seqEnd: max(chatSegments.seqEnd) })
@@ -31,7 +32,7 @@ export async function readSourceSpan(
     .groupBy(chatSegments.blockIdx)
     .limit(SOURCE_LINEAGE_LIMIT);
   if (spans.length !== count) {
-    return await readSourceAnchors(db, chatId, { seqStart: null, seqEnd: null });
+    return await readSourceAnchors(db, chatId, { seqStart: null, seqEnd: null }, floorSeq);
   }
   const starts = spans.flatMap((span) => (span.seqStart === null ? [] : [span.seqStart]));
   const ends = spans.flatMap((span) => (span.seqEnd === null ? [] : [span.seqEnd]));
@@ -43,7 +44,7 @@ export async function readSourceAnchors(
   db: ReadOnlyDb,
   chatId: ChatId,
   { seqStart, seqEnd }: { readonly seqStart: number | null; readonly seqEnd: number | null },
-  floorSeq: number | null = 0,
+  floorSeq: HistoryFloorSeq | null,
 ): Promise<Pick<CorpusSource, "seqStart" | "seqEnd" | "messageStartId" | "messageEndId">> {
   if (floorSeq === null || seqStart === null || seqEnd === null) {
     return { seqStart, seqEnd, messageStartId: null, messageEndId: null };

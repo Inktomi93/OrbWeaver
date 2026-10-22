@@ -19,7 +19,7 @@ const CAPTION_MODE = "character_multimodal";
 
 test("generation resolution uses the run-as Principal and preserves only imagery warnings without changing accounting", async ({ harness }) => {
   const runAs = await principal(harness, (await harness.actor({ role: "admin" })).id);
-  const credential = await makeResolvedSecret(harness.services.credentials.resolve, {
+  const credential = await makeResolvedSecret(harness, {
     ownerId: runAs.userId,
     credentialId: null,
     providerId: testProviderId("custom-openai"),

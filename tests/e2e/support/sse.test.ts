@@ -11,7 +11,8 @@ import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import type { ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { afterEach, describe, expect, test } from "vitest";
+import { expect, test } from "@orb/testkit/node/fixtures.ts";
+import { afterEach, describe } from "vitest";
 import { collectChatRoomFrames, readStreamEvent, requireSatisfied } from "./sse.ts";
 
 const CHAT = castId<ChatId>("chat-under-test");

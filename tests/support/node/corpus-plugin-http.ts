@@ -58,7 +58,7 @@ export async function seedCorpusPluginHttp(root: ServerTestHarness): Promise<Cor
     capabilities: ["ui.surface", "ui.frame"],
   });
   const expectedImage = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(root, {
     caller,
     bundle: makePluginBundle(manifest, FRAME_GUEST_SOURCE, root.clock.now(), {
       [PLUGIN_UI_ENTRY]: strToU8(CORPUS_PLUGIN_UI_SOURCE),
@@ -66,7 +66,7 @@ export async function seedCorpusPluginHttp(root: ServerTestHarness): Promise<Cor
     }),
     grant: [],
   });
-  const granted = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  const granted = await seedPluginGrant(root, {
     caller,
     pluginId: installed.outcome.id,
     grant: manifest.capabilities,
@@ -225,7 +225,7 @@ export async function seedCorpusPluginFrameLifetime(root: ServerTestHarness): Pr
   const deletedAsset = await readAsset(disposable.assetUrl);
 
   const consent = await mint();
-  const narrowed = await seedPluginGrant(root.db, root.services.plugin.setGrant, { caller, pluginId, grant: ["ui.surface"], acknowledgedNetHosts: [] });
+  const narrowed = await seedPluginGrant(root, { caller, pluginId, grant: ["ui.surface"], acknowledgedNetHosts: [] });
   const revokedDocument = await readDocument(consent.frame.url);
   const revokedAsset = await readAsset(consent.assetUrl);
   await root.services.plugin.setGrant({ caller, pluginId, grant: ["ui.surface", "ui.frame"], acknowledgedNetHosts: [], enable: true });

@@ -33,7 +33,7 @@ export async function seedCorpusRpgSchedules(root: ServerTestHarness): Promise<S
   const caller = await root.internalCallerFor(root.ownerId);
   const principal = await root.principalFor(root.ownerId);
   const scheduledAt = root.clock.now() + CADENCE_INTERVAL_MS.daily;
-  const queued = await seedWorkload(root.db, root.services.workloads.start, {
+  const queued = await seedWorkload(root, {
     caller: principal,
     ownerId: root.ownerId,
     mode: "singular",
@@ -43,7 +43,7 @@ export async function seedCorpusRpgSchedules(root: ServerTestHarness): Promise<S
   const beforeDue = await caller.workloads.get({ id: queued.id });
   const cancellation = await caller.workloads.cancel({ id: queued.id });
   const cancelled = await caller.workloads.get({ id: queued.id });
-  const schedule = await seedWorkloadSchedule(root.db, root.services.workloads.createSchedule, {
+  const schedule = await seedWorkloadSchedule(root, {
     caller: principal,
     ownerId: root.ownerId,
     mode: "singular",
@@ -70,7 +70,7 @@ export async function seedCorpusRpgSchedules(root: ServerTestHarness): Promise<S
   }
   const completed = await settleCorpusWorkloads(root, caller, admitted);
   const stopped = await caller.workloads.setScheduleEnabled({ id: schedule.id, enabled: false });
-  const deletedSchedule = await seedWorkloadSchedule(root.db, root.services.workloads.createSchedule, {
+  const deletedSchedule = await seedWorkloadSchedule(root, {
     caller: principal,
     ownerId: root.ownerId,
     mode: "singular",

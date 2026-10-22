@@ -10,6 +10,7 @@ import type { PersonaService } from "@orb/server/domain/persona";
 import { and, eq } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
+import type { ServerProducerRoot } from "../server.ts";
 import { seedUser } from "./user.ts";
 
 /** The full `personas` row (derived from the live schema — the factory `X`). */
@@ -50,21 +51,20 @@ export interface SeededCreatedPersona {
 }
 
 /** Preserve the actual metadata write and avatar-joined view without reconstructing either projection. */
-export async function seedCreatedPersona(
-  db: Db,
-  create: PersonaService["create"],
-  params: Parameters<PersonaService["create"]>[0],
-): Promise<SeededCreatedPersona> {
+export async function seedCreatedPersona(root: ServerProducerRoot, params: Parameters<PersonaService["create"]>[0]): Promise<SeededCreatedPersona> {
+  const db = root.db;
+  const create = root.services.persona.create;
   const view = await create(params);
   return await captureCreatedPersona(db, view, params.principal.userId);
 }
 
 /** Macro inversion and source provenance belong to the actual character-derived persona writer. */
 export async function seedPersonaFromCharacter(
-  db: Db,
-  createFromCharacter: PersonaService["createFromCharacter"],
+  root: ServerProducerRoot,
   params: Parameters<PersonaService["createFromCharacter"]>[0],
 ): Promise<SeededCreatedPersona> {
+  const db = root.db;
+  const createFromCharacter = root.services.persona.createFromCharacter;
   const view = await createFromCharacter(params);
   return await captureCreatedPersona(db, view, params.principal.userId);
 }

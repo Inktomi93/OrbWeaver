@@ -4,7 +4,7 @@
 // `ownerId` (the tagger) — `taggerId` is populated ONLY for `targetType: "chat"`. `status` (pending/
 // accepted) is a `character_tags`-only junction column, not a parallel store.
 
-import type { CharacterId, ChatId, PersonaId, PresetId, TagId, WorldBookId } from "@orb/kit/ids";
+import type { CharacterId, TagId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { tagMatchKey } from "@orb/kit/tag";
 import { z } from "zod";
@@ -130,24 +130,28 @@ export interface TagFilterVocabularyEntry {
   characters: number;
 }
 
-// Not a schema: ids are branded at their own `typeIdSchema` seam, not re-validated here.
+const characterTagTargetSchema = z.object({ targetType: z.literal("character"), targetId: typeIdSchema(ID_PREFIX.character) });
+const chatTagTargetSchema = z.object({ targetType: z.literal("chat"), targetId: typeIdSchema(ID_PREFIX.chat) });
+const worldBookTagTargetSchema = z.object({ targetType: z.literal("worldBook"), targetId: typeIdSchema(ID_PREFIX.worldBook) });
+const personaTagTargetSchema = z.object({ targetType: z.literal("persona"), targetId: typeIdSchema(ID_PREFIX.persona) });
+const presetTagTargetSchema = z.object({ targetType: z.literal("preset"), targetId: typeIdSchema(ID_PREFIX.preset) });
+
+/** The target kind selects the only entity-id prefix admitted at the wire boundary. */
+export const tagTargetRefSchema = z.discriminatedUnion("targetType", [
+  characterTagTargetSchema,
+  chatTagTargetSchema,
+  worldBookTagTargetSchema,
+  personaTagTargetSchema,
+  presetTagTargetSchema,
+]);
 
 /** The owner-authorized destinations of a label's adopted attachments. */
-export type TagTargetRef =
-  | { readonly targetType: "character"; readonly targetId: CharacterId }
-  | { readonly targetType: "chat"; readonly targetId: ChatId }
-  | { readonly targetType: "worldBook"; readonly targetId: WorldBookId }
-  | { readonly targetType: "persona"; readonly targetId: PersonaId }
-  | { readonly targetType: "preset"; readonly targetId: PresetId };
+export type TagTargetRef = Readonly<z.infer<typeof tagTargetRefSchema>>;
 
-interface TagTargetIds {
-  readonly character: CharacterId;
-  readonly chat: ChatId;
-  readonly worldBook: WorldBookId;
-  readonly persona: PersonaId;
-  readonly preset: PresetId;
-}
-export type TagAttachedEntity = { [K in TagTargetType]: { readonly targetType: K; readonly targetId: TagTargetIds[K]; readonly name: string } }[TagTargetType];
+export type TagAttachedEntity = TagTargetRef & { readonly name: string };
+
+export const attachTagInputSchema = tagTargetRefSchema.and(z.object({ tagId: typeIdSchema(ID_PREFIX.tag), status: tagStatusSchema.optional() }));
+export const detachTagInputSchema = tagTargetRefSchema.and(z.object({ tagId: typeIdSchema(ID_PREFIX.tag) }));
 
 /** Reach is a bounded preview; totals remain in the adopted usage rollup. */
 export const TAG_REACH_PREVIEW_LIMIT = 20;
@@ -194,11 +198,11 @@ export const tagFilterVocabularyEntrySchema = z.strictObject({
 }) satisfies z.ZodType<TagFilterVocabularyEntry>;
 
 export const tagAttachedEntitySchema = z.discriminatedUnion("targetType", [
-  z.strictObject({ targetType: z.literal("character"), targetId: typeIdSchema(ID_PREFIX.character), name: z.string() }),
-  z.strictObject({ targetType: z.literal("chat"), targetId: typeIdSchema(ID_PREFIX.chat), name: z.string() }),
-  z.strictObject({ targetType: z.literal("worldBook"), targetId: typeIdSchema(ID_PREFIX.worldBook), name: z.string() }),
-  z.strictObject({ targetType: z.literal("persona"), targetId: typeIdSchema(ID_PREFIX.persona), name: z.string() }),
-  z.strictObject({ targetType: z.literal("preset"), targetId: typeIdSchema(ID_PREFIX.preset), name: z.string() }),
+  characterTagTargetSchema.extend({ name: z.string() }).strict(),
+  chatTagTargetSchema.extend({ name: z.string() }).strict(),
+  worldBookTagTargetSchema.extend({ name: z.string() }).strict(),
+  personaTagTargetSchema.extend({ name: z.string() }).strict(),
+  presetTagTargetSchema.extend({ name: z.string() }).strict(),
 ]) satisfies z.ZodType<TagAttachedEntity>;
 
 export const tagReachViewSchema = z.strictObject({

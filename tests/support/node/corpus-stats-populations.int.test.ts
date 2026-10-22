@@ -54,7 +54,7 @@ test("native selected latency and economics separate model populations, retained
   await seedCorpusActors(root);
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);
-  const pricedConnection = await seedUserConnection(root.db, root.services.connection.create, {
+  const pricedConnection = await seedUserConnection(root, {
     principal,
     providerId: "custom-openai",
     credentialId: null,
@@ -66,7 +66,7 @@ test("native selected latency and economics separate model populations, retained
       features: { detectServer: false, pricing: { inputPerMTok: 2, outputPerMTok: 4 } },
     },
   });
-  const unpricedConnection = await seedUserConnection(root.db, root.services.connection.create, {
+  const unpricedConnection = await seedUserConnection(root, {
     principal,
     providerId: "custom-openai",
     credentialId: null,
@@ -102,7 +102,7 @@ test("native selected latency and economics separate model populations, retained
   await caller.connection.setBinding({ task: "chat", connectionId: unpricedConnection.id });
   expect((await root.services.chat.send({ principal, chatId: unpricedRoom.chat.id, content: "Keep the unpriced observation." })).aborted).toBe(false);
   await root.settleBackground();
-  const capture = await captureStatsPopulations(root.db, root.services.stats, root.ownerId, {
+  const capture = await captureStatsPopulations(root, root.ownerId, {
     chatIds: [pricedRoom.chat.id, unpricedRoom.chat.id, huskRoom.chat.id],
     characterIds: [priced.id, unpriced.id, husk.id],
   });

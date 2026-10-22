@@ -32,15 +32,10 @@
 
 import type { CharacterCard } from "@orb/contracts/character";
 import type { ChatBusEvent, HistoryFloorSeq, JoinHistoryVisibility, MemberCardView, MemberCardVisibility } from "@orb/contracts/chat";
-import { historyFloor, MEMBER_CARD_VISIBILITY_LEVELS } from "@orb/contracts/chat";
+import { historyFloor, MEMBER_CARD_VISIBILITY_LEVELS, NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { ParticipantRoleState } from "@orb/contracts/identity";
 import type { CharacterId } from "@orb/kit/ids";
 import { viewerHoldsHost } from "../member-visibility.ts";
-
-/** The floor for an unclamped reader (`full`, every born-here character seat, AND every host — F2) —
- *  `messages.seq` is 1-based, so 0 admits the whole canon. Also the "no clamp in force" sentinel consumers
- *  test against. Branded once here (the one mint site) so a resolved floor carries its viewer-scoped brand. */
-export const NO_HISTORY_FLOOR: HistoryFloorSeq = historyFloor(0);
 
 /**
  * Resolve a member's canon read FLOOR in `messages.seq` space from their OWN participant row (their `role` +
@@ -95,7 +90,7 @@ export function resolveHistoryFloorSeq(membership: {
  *    lifecycle members) carries no canon content — and the ids it names resolve only through the equally
  *    clamped `listMessages` — so it rides through rather than blinding a member to their OWN post-join events.
  */
-export function isBelowHistoryFloor(event: ChatBusEvent, floorSeq: number): boolean {
+export function isBelowHistoryFloor(event: ChatBusEvent, floorSeq: HistoryFloorSeq): boolean {
   if (floorSeq <= NO_HISTORY_FLOOR) {
     return false;
   }

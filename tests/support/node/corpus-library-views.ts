@@ -270,31 +270,31 @@ export async function seedWorldInfoLibraryViews(root: ServerTestHarness, library
       description: "Keeps the native library's ordered history.",
     }),
   });
-  const book = await seedWorldBook(root.db, root.services.worldInfo.createBook, {
+  const book = await seedWorldBook(root, {
     principal,
     input: createBookSchema.parse({ name: "Native lifecycle ledger" }),
   });
-  const first = await seedWorldEntry(root.db, root.services.worldInfo.createEntry, {
+  const first = await seedWorldEntry(root, {
     principal,
     bookId: book.id,
     input: createEntrySchema.parse({ title: "Outer archive", content: "The outer archive preserves the first witness.", keys: ["archive"] }),
   });
-  const second = await seedWorldEntry(root.db, root.services.worldInfo.createEntry, {
+  const second = await seedWorldEntry(root, {
     principal,
     bookId: book.id,
     input: createEntrySchema.parse({ title: "Inner archive", content: "The inner archive preserves the second witness.", keys: ["witness"] }),
   });
-  await seedCharacterBook(root.db, root.services.worldInfo.attachToCharacter, { principal, characterId: character.id, bookId: book.id, role: "primary" });
+  await seedCharacterBook(root, { principal, characterId: character.id, bookId: book.id, role: "primary" });
   const ordered = await read<"worldInfo.applyEntryOrder">(
     { bookId: book.id, orderedEntryIds: [second.id, first.id, second.id] },
     caller.worldInfo.applyEntryOrder,
   );
   const orderedEntries = await read<"worldInfo.listEntries">({ bookId: book.id }, caller.worldInfo.listEntries);
-  const replacement = await seedWorldBook(root.db, root.services.worldInfo.createBook, {
+  const replacement = await seedWorldBook(root, {
     principal,
     input: createBookSchema.parse({ name: "Native replacement ledger" }),
   });
-  await seedCharacterBook(root.db, root.services.worldInfo.attachToCharacter, {
+  await seedCharacterBook(root, {
     principal,
     characterId: character.id,
     bookId: replacement.id,
@@ -346,7 +346,7 @@ export async function seedRegexLibraryViews(root: ServerTestHarness, library: Li
   const placement = ["DISPLAY"] as const;
   for (const [index, replacement] of ["archivist", "witness"].entries()) {
     scripts.push(
-      await seedRegexScript(root.db, root.services.regex.createScript, {
+      await seedRegexScript(root, {
         principal,
         input: createRegexScriptSchema.parse({
           name: `Native display ledger ${index}`,
@@ -362,11 +362,11 @@ export async function seedRegexLibraryViews(root: ServerTestHarness, library: Li
   if (first === undefined || second === undefined) {
     throw new Error("native ordered script population omitted a real script");
   }
-  await seedGlobalRegexScript(root.db, root.services.regex.attachGlobal, { principal, scriptId: first.id });
-  await seedCharacterRegexScript(root.db, root.services.regex.attachToCharacter, { principal, characterId: library.character.id, scriptId: first.id });
-  await seedPresetRegexScript(root.db, root.services.regex.attachToPreset, { principal, presetId: library.preset.id, scriptId: first.id });
+  await seedGlobalRegexScript(root, { principal, scriptId: first.id });
+  await seedCharacterRegexScript(root, { principal, characterId: library.character.id, scriptId: first.id });
+  await seedPresetRegexScript(root, { principal, presetId: library.preset.id, scriptId: first.id });
   for (const script of scripts) {
-    await seedChatRegexScript(root.db, root.services.regex.attachToChat, { principal, chatId: library.room.chat.id, scriptId: script.id });
+    await seedChatRegexScript(root, { principal, chatId: library.room.chat.id, scriptId: script.id });
   }
   const before = await read<"regex.listForChat">({ chatId: library.room.chat.id }, caller.regex.listForChat);
   const ordered = await read<"regex.applyScopeOrder">(
@@ -418,18 +418,18 @@ export async function seedRegexLibraryViews(root: ServerTestHarness, library: Li
 /** Keep pending and adopted observations before later library changes. */
 export async function seedTagLibraryViews(root: ServerTestHarness, library: Library, caller: Caller): Promise<TagViews> {
   const principal = await root.principalFor(root.ownerId);
-  const tag = await seedTag(root.db, root.services.tag.createTag, {
+  const tag = await seedTag(root, {
     principal,
     input: createTagSchema.parse({ name: "Native lifecycle label", source: "auto" }),
   });
-  await seedCharacterTag(root.db, root.services.tag.attachTag, { principal, characterId: library.character.id, tagId: tag.id, status: "pending" });
-  await seedChatTag(root.db, root.services.tag.attachTag, { principal, chatId: library.room.chat.id, tagId: tag.id });
-  await seedWorldBookTag(root.db, root.services.tag.attachTag, { principal, worldBookId: library.world.book.id, tagId: tag.id });
-  await seedPersonaTag(root.db, root.services.tag.attachTag, { principal, personaId: library.persona.id, tagId: tag.id });
-  await seedPresetTag(root.db, root.services.tag.attachTag, { principal, presetId: library.preset.id, tagId: tag.id });
+  await seedCharacterTag(root, { principal, characterId: library.character.id, tagId: tag.id, status: "pending" });
+  await seedChatTag(root, { principal, chatId: library.room.chat.id, tagId: tag.id });
+  await seedWorldBookTag(root, { principal, worldBookId: library.world.book.id, tagId: tag.id });
+  await seedPersonaTag(root, { principal, personaId: library.persona.id, tagId: tag.id });
+  await seedPresetTag(root, { principal, presetId: library.preset.id, tagId: tag.id });
   const pending = await read<"tag.listPendingSuggestions">({ characterId: library.character.id }, caller.tag.listPendingSuggestions);
   const before = await read<"tag.listTagsWithUsage">(undefined, caller.tag.listTagsWithUsage);
-  const accepted = await seedCharacterTag(root.db, root.services.tag.attachTag, { principal, characterId: library.character.id, tagId: tag.id });
+  const accepted = await seedCharacterTag(root, { principal, characterId: library.character.id, tagId: tag.id });
   return {
     tag,
     pending,
@@ -489,7 +489,7 @@ async function rosterViews(root: ServerTestHarness, library: Library, caller: Ca
     ],
     rules: [{ rulePresetId: CORPUS_LIBRARY_RULE_PRESET, knobs: {} }],
   });
-  const persisted = await seedRosterPreset(root.db, root.services.rosterPreset.create, { principal, input });
+  const persisted = await seedRosterPreset(root, { principal, input });
   const detail = await read<"rosterPreset.get">({ presetId: persisted.preset.id }, caller.rosterPreset.get);
   const applied = await read<"rosterPreset.applyToChat">(
     { presetId: persisted.preset.id, chatId: room.chat.id, timeZone: UTC_TIME_ZONE },

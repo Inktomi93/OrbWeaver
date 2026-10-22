@@ -14,6 +14,7 @@ import {
 } from "@orb/db";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { and, eq, inArray, isNull } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 type DiscoveryService = ServicesResult["services"]["discovery"];
 type OwnerNarrow = NonNullable<Parameters<DiscoveryService["computeDuplicatePairs"]>[0]>["ownerId"];
@@ -50,50 +51,52 @@ interface SeededThemes {
 
 /** An empty/partially failed batch preserves its real census and any retained canonical summaries. */
 export async function seedCharacterDistillations(
-  db: Db,
-  distillCharacters: DiscoveryService["distillCharacters"],
+  root: ServerProducerRoot,
   params: Parameters<DiscoveryService["distillCharacters"]>[0],
 ): Promise<SeededCharacterDistillations> {
+  const db = root.db;
+  const distillCharacters = root.services.discovery.distillCharacters;
   const result = await distillCharacters(params);
   return { result, summaries: await captureCharacterDistillations(db, params) };
 }
 
 /** Captures the actual scoped replacement, not a test-computed similarity or canonical pair. */
 export async function seedDuplicateCharacterPairs(
-  db: Db,
-  compute: DiscoveryService["computeDuplicatePairs"],
+  root: ServerProducerRoot,
   params: NonNullable<Parameters<DiscoveryService["computeDuplicatePairs"]>[0]>,
 ): Promise<SeededDuplicateCharacterPairs> {
+  const db = root.db;
+  const compute = root.services.discovery.computeDuplicatePairs;
   const result = await compute(params);
   return { result, pairs: await captureDuplicateCharacterPairs(db, params.ownerId) };
 }
 
 /** Chat ownership is the actual present human host FK path; fork relation remains producer data. */
 export async function seedDuplicateChatPairs(
-  db: Db,
-  compute: DiscoveryService["computeChatDuplicatePairs"],
+  root: ServerProducerRoot,
   params: NonNullable<Parameters<DiscoveryService["computeChatDuplicatePairs"]>[0]>,
 ): Promise<SeededDuplicateChatPairs> {
+  const db = root.db;
+  const compute = root.services.discovery.computeChatDuplicatePairs;
   const result = await compute(params);
   return { result, pairs: await captureDuplicateChatPairs(db, params.ownerId) };
 }
 
 /** The pass owns normalization, hub filtering and solo/group census; missing input is not fabricated activity. */
 export async function seedKeywordCooccurrence(
-  db: Db,
-  compute: DiscoveryService["computeCooccurrence"],
+  root: ServerProducerRoot,
   params: NonNullable<Parameters<DiscoveryService["computeCooccurrence"]>[0]>,
 ): Promise<SeededKeywordCooccurrence> {
+  const db = root.db;
+  const compute = root.services.discovery.computeCooccurrence;
   const result = await compute(params);
   return { result, ...(await captureKeywordCooccurrence(db, params.ownerId)) };
 }
 
 /** Capture true cluster/assignment PKs and the actual story-time backfill; no digest-less replacement is invented. */
-export async function seedThemes(
-  db: Db,
-  compute: DiscoveryService["computeThemes"],
-  params: Parameters<DiscoveryService["computeThemes"]>[0],
-): Promise<SeededThemes> {
+export async function seedThemes(root: ServerProducerRoot, params: Parameters<DiscoveryService["computeThemes"]>[0]): Promise<SeededThemes> {
+  const db = root.db;
+  const compute = root.services.discovery.computeThemes;
   const result = await compute(params);
   return { result, ...(await captureThemeRows(db, params.ownerId)) };
 }

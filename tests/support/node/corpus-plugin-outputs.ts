@@ -78,7 +78,7 @@ export async function seedCorpusPluginOutputs(root: ServerTestHarness): Promise<
   const caller = await root.principalFor(root.ownerId);
   const rpc = await root.internalCallerFor(root.ownerId);
   const room = (await rpc.chat.startChat({ characterIds: [] })).chat;
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(root, {
     caller,
     bundle: makePluginBundle(CORPUS_PLUGIN_OUTPUT_MANIFEST, CORPUS_PLUGIN_OUTPUT_SOURCE, root.clock.now(), {
       "ui/assets/ledger.png": makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
@@ -86,15 +86,15 @@ export async function seedCorpusPluginOutputs(root: ServerTestHarness): Promise<
     grant: [],
   });
   const params = { caller, pluginId: installed.outcome.id, surfaceId: CORPUS_PLUGIN_OUTPUT_SURFACE };
-  const pending = await capturePluginOutputs(root.services.plugin, params);
-  const granted = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  const pending = await capturePluginOutputs(root, params);
+  const granted = await seedPluginGrant(root, {
     caller,
     pluginId: installed.outcome.id,
     grant: CORPUS_PLUGIN_OUTPUT_MANIFEST.capabilities,
     acknowledgedNetHosts: [],
     enable: true,
   });
-  const active = await capturePluginOutputs(root.services.plugin, params);
+  const active = await capturePluginOutputs(root, params);
   const action = await rpc.plugin.invokeUiAction({
     pluginId: installed.outcome.id,
     surfaceId: CORPUS_PLUGIN_OUTPUT_SURFACE,
@@ -121,7 +121,7 @@ export async function seedCorpusPluginOutputs(root: ServerTestHarness): Promise<
   const parseFailure = await rpc.plugin.runSnippet({ chatId: room.id, code: "const =" });
   const runtimeFailure = await rpc.plugin.runSnippet({ chatId: room.id, code: 'throw new TypeError("Native runtime refusal");' });
   await root.services.plugin.setEnabled({ caller, pluginId: installed.outcome.id, enabled: false });
-  const disabled = await capturePluginOutputs(root.services.plugin, params);
+  const disabled = await capturePluginOutputs(root, params);
   return {
     caller,
     room,
@@ -256,12 +256,12 @@ export async function seedCorpusPluginCallbackLifecycle(root: ServerTestHarness,
   }});
   if(h.grants.includes("storage.kv"))h.storage.set("entry",${JSON.stringify(CORPUS_PLUGIN_CALLBACK_VALUE)});
   h.ui.setState("ledger",{calls:0});`;
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(root, {
     caller,
     bundle: makePluginBundle(manifest, source, root.clock.now()),
     grant: [],
   });
-  await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  await seedPluginGrant(root, {
     caller,
     pluginId: installed.plugin.id,
     grant: manifest.capabilities,
@@ -270,7 +270,7 @@ export async function seedCorpusPluginCallbackLifecycle(root: ServerTestHarness,
   });
   const pluginId = installed.plugin.id;
   const params = { caller, pluginId, surfaceId: "ledger" };
-  const capture = (): ReturnType<typeof capturePluginOutputs> => capturePluginOutputs(root.services.plugin, params);
+  const capture = (): ReturnType<typeof capturePluginOutputs> => capturePluginOutputs(root, params);
   const typed = (
     values: NonNullable<Parameters<PluginCaller["invokeUiCommand"]>[0]["values"]> = CORPUS_PLUGIN_TYPED_VALUES,
   ): ReturnType<PluginCaller["invokeUiCommand"]> => rpc.plugin.invokeUiCommand({ pluginId, name: "typed", args: "native", values, chatId: room.id });
@@ -301,7 +301,7 @@ export async function seedCorpusPluginCallbackLifecycle(root: ServerTestHarness,
   const afterCleanRows = await capturePluginRows(root.db, caller.userId, pluginId);
   await rpc.plugin.invokeUiCommand({ pluginId, name: "storage", args: "", chatId: null });
   const storage = await capture();
-  const narrowed = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  const narrowed = await seedPluginGrant(root, {
     caller,
     pluginId,
     grant: ["ui.surface", "chat.read", "net.fetch"],
@@ -369,12 +369,12 @@ export async function seedCorpusPluginLogRing(root: ServerTestHarness): Promise<
     for(let line=0;line<${LOG_LINES_PER_INVOCATION + 1};line+=1)h.log[levels[line%levels.length]]("batch:"+args+":"+line);
   }});
   h.ui.registerCommand({name:"chars",describe:"Write one bounded native long line",onRun:({args})=>{h.log.warn(args+":"+"x".repeat(${LOG_BYTES_PER_INVOCATION * 2}));}});`;
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(root, {
     caller,
     bundle: makePluginBundle(manifest, source, root.clock.now()),
     grant: [],
   });
-  await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  await seedPluginGrant(root, {
     caller,
     pluginId: installed.plugin.id,
     grant: manifest.capabilities,

@@ -33,7 +33,7 @@ interface CorpusKnowledgeImages {
 export async function seedCorpusKnowledgeImages(root: ServerTestHarness): Promise<CorpusKnowledgeImages> {
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);
-  const connection = await seedUserConnection(root.db, root.services.connection.create, {
+  const connection = await seedUserConnection(root, {
     principal,
     providerId: "custom-openai",
     credentialId: null,
@@ -76,10 +76,10 @@ export async function seedCorpusKnowledgeImages(root: ServerTestHarness): Promis
     }
     cards.push(updated);
     storedRows.push(row);
-    indexed.push(await seedIndexedAsset(root.db, root.app.embeddings.indexAsset, [stored.assetId, { force: false }]));
-    repeated.push(await seedIndexedAsset(root.db, root.app.embeddings.indexAsset, [stored.assetId, { force: false }]));
+    indexed.push(await seedIndexedAsset(root, [stored.assetId, { force: false }]));
+    repeated.push(await seedIndexedAsset(root, [stored.assetId, { force: false }]));
   }
-  const cardVectors = await seedEmbeddedCorpus(root.db, root.app.embeddings.embedCorpus, {
+  const cardVectors = await seedEmbeddedCorpus(root, {
     ownerId: root.ownerId,
     force: false,
     signal: new AbortController().signal,

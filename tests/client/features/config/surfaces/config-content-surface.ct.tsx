@@ -10,7 +10,7 @@ test.beforeEach(async ({ page }) => {
 test("a registered delayed body still receives its canonical anchor and lands visibly", async ({ corpus, mount, page }) => {
   const settings = createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]);
   const hold = trpcHold<"settings.getUserSettings">();
-  const wire = await routeTrpc(page, {
+  await routeTrpc(page, {
     "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
     "settings.getUserSettings": () => hold,
     "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpus.reads["settings.listThemes"]),
@@ -29,13 +29,12 @@ test("a registered delayed body still receives its canonical anchor and lands vi
   await expect(anchor).toBeVisible();
   await expect(anchor).toHaveClass(/settings-flash-anchor--lit/u);
   await expect(anchor).toBeInViewport();
-  expect(wire.unstubbed()).toEqual([]);
 });
 
 test("a superseded delayed anchor cannot flash or scroll after its read arrives", async ({ corpus, mount, page }) => {
   const settings = createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]);
   const hold = trpcHold<"settings.getUserSettings">();
-  const wire = await routeTrpc(page, {
+  await routeTrpc(page, {
     "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
     "settings.getUserSettings": () => hold,
     "settings.listThemes": createCorpusReadResponder("settings.listThemes", corpus.reads["settings.listThemes"]),
@@ -69,7 +68,6 @@ test("a superseded delayed anchor cannot flash or scroll after its read arrives"
   );
   expect(await pane.evaluate((element) => element.scrollTop)).toBe(settledTop);
   await expect(looks).toBeFocused();
-  expect(wire.unstubbed()).toEqual([]);
 });
 
 test("unmount disconnects a pending anchor observer from its retired browser element", async ({ corpus, mount, page }) => {

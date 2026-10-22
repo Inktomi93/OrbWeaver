@@ -1,8 +1,8 @@
 // Sealed material stays Node-only; the real credential producer owns encryption, admission and its wire projection.
-import type { Db } from "@orb/db";
 import { auditLogs, userCredentials } from "@orb/db";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 type CredentialsService = ServicesResult["services"]["credentials"];
 
@@ -16,11 +16,9 @@ export interface SeededUserCredential {
 }
 
 /** Capture the returned credential identity and its emitted audit, never a fixture-side seal or secret witness. */
-export async function seedUserCredential(
-  db: Db,
-  add: CredentialsService["add"],
-  params: Parameters<CredentialsService["add"]>[0],
-): Promise<SeededUserCredential> {
+export async function seedUserCredential(root: ServerProducerRoot, params: Parameters<CredentialsService["add"]>[0]): Promise<SeededUserCredential> {
+  const db = root.db;
+  const add = root.services.credentials.add;
   const view = await add(params);
   const ownerId = params.principal.userId;
   const row = await db
@@ -44,20 +42,20 @@ export async function seedUserCredential(
 
 /** Resolve through the caller-owned public credential service, preserving ownership and AAD refusal. */
 export async function makeResolvedSecret(
-  resolve: CredentialsService["resolve"],
+  root: ServerProducerRoot,
   params: Parameters<CredentialsService["resolve"]>[0],
 ): ReturnType<CredentialsService["resolve"]> {
+  const resolve = root.services.credentials.resolve;
   return await resolve(params);
 }
 
 /** Persist and resolve an API key through its real owner; never manufacture execution evidence. */
 export async function seedApiKeySecret(
-  db: Db,
-  credentials: Pick<CredentialsService, "add" | "resolve">,
+  root: ServerProducerRoot,
   params: Omit<Parameters<CredentialsService["add"]>[0], "metadata">,
 ): ReturnType<CredentialsService["resolve"]> {
-  const captured = await seedUserCredential(db, credentials.add, { ...params, metadata: { auth: "apiKey" } });
-  return await makeResolvedSecret(credentials.resolve, {
+  const captured = await seedUserCredential(root, { ...params, metadata: { auth: "apiKey" } });
+  return await makeResolvedSecret(root, {
     ownerId: params.principal.userId,
     credentialId: captured.row.id,
     providerId: captured.row.provider,

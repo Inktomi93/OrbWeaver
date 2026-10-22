@@ -436,7 +436,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   Reflect.deleteProperty(regexDrift.regexLibrary.reads.usage.output, "rooms");
   expect(() => serializeCorpusWire(regexDrift, authentication.secrets)).toThrow("rooms");
   const secret = 'native-library-"credential"\\959';
-  const credential = await seedUserCredential(root.db, root.services.credentials.add, { principal: actors.owner, provider: "custom-openai", key: secret });
+  const credential = await seedUserCredential(root, { principal: actors.owner, provider: "custom-openai", key: secret });
   const secrets = [...authentication.secrets, secret, credential.row.ciphertext, credential.row.iv, credential.row.tag];
   expect(parseCorpusWire(serializeCorpusWire(captured, secrets))).toEqual(parsed);
   const caller = await root.internalCallerFor(root.ownerId);

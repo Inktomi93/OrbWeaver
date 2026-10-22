@@ -161,7 +161,7 @@ test("actual plugin consent grows one ask, quietly answers it and retracts the l
   expect((await harness.services.notifications.list({ principal: actors.alice })).items.map((row) => row.id)).toEqual([second.view.id]);
   await harness.services.notifications.markAllRead({ principal: actors.alice });
   clock.advance(1000);
-  const answered = await seedPluginGrant(harness.db, harness.services.plugin.setGrant, {
+  const answered = await seedPluginGrant(harness, {
     caller: actors.alice,
     pluginId: first.plugin.id,
     grant: first.plugin.manifest.capabilities,
@@ -188,10 +188,10 @@ test("raw plugin ZIP identity derives from supplied time and still enters native
   expect(Array.from(repeat)).toEqual(Array.from(first));
   expect(Array.from(later)).not.toEqual(Array.from(first));
   const caller = actors.bob;
-  const installed = await seedInstalledPlugin(harness.db, harness.services.plugin.install, { caller, bundle: first, grant: [] });
+  const installed = await seedInstalledPlugin(harness, { caller, bundle: first, grant: [] });
   expect(installed.plugin.manifest).toEqual(manifest);
   expect(installed.plugin.pendingReconsent).toBe(false);
-  const requested = await seedPluginGrant(harness.db, harness.services.plugin.setGrant, {
+  const requested = await seedPluginGrant(harness, {
     caller,
     pluginId: installed.plugin.id,
     grant: [],

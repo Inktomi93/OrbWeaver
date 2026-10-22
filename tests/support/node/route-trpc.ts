@@ -1,42 +1,10 @@
-// routeTrpc — the tRPC network stub for Playwright CT (docs/law/Spine-Testing.md §7). CT runs the test
-// in NODE and the component in the BROWSER, so node-side closures (vi.fn / MSW handlers) can never
-// run in the page — interception happens at the network boundary via `page.route`, which IS
-// node-side: it fulfills responses AND records decoded inputs (the spy replacement).
-//
-// Wire shapes (verified against @trpc/client 11.18.0 source; no transformer → identity JSON):
-//   • httpBatchLink (OUR client — packages/client/src/data/trpc.ts splitLink false-branch):
-//     `?batch=1`, path = comma-joined procs. QUERY inputs ride the URL (`&input={"0":…}`,
-//     index-keyed) even when batched (httpUtils.ts getUrl); MUTATION inputs are the index-keyed
-//     POST body. Response = an ARRAY of envelopes (httpBatchLink.ts `Array.isArray(res.json)`).
-//   • httpLink (non-batched — tolerated so link-composition drift can't break CT): one proc in the
-//     path, GET `?input=<json>` / POST raw-input body; response = ONE envelope.
-//   • envelopes (@trpc/server rpc/envelopes.ts + transformResult): success `{result:{data}}`
-//     (`type` optional); error `{error:{code:<JSONRPC NUMBER>,message,data}}` — `code` MUST be
-//     numeric or the client throws TransformResultError. The client ignores HTTP status (it parses
-//     the envelope), so everything fulfills 200.
-//   • subscriptions (httpSubscriptionLink / `PostEventSource`, a JSON POST with the input as the body):
-//     OUT OF SCOPE — recorded, then 204, which the class treats as terminal (no reconnect). A
-//     component that subscribes needs an SSE helper (rides with the chat-surface lane).
-//
-// Unlisted procedures resolve `{result:{data:null}}` AND are recorded, so an incidental query a
-// surface fires never 404s the test. Exemplar usage: tests/legacy/client/components/query-boundary.ct.tsx.
-//
-// …BUT `null` IS NOT A VIEW, AND THAT FAILS SILENTLY (#629). A component that suspends on an unstubbed
-// read gets `null` and throws reading it, which its QueryBoundary catches — so the section's BODY is
-// replaced by `QueryErrorState` while everything OUTSIDE the boundary (the Section heading the test
-// asserts on) still renders. A whole CT file passed for weeks with its subject never rendering.
-// The lenient fulfil stays (an incidental query must not 404 a test that has nothing to do with it),
-// but it is no longer SILENT: every requested-but-unlisted procedure is warned on stderr once per
-// route registration and exposed on the recorder as `unstubbed()`, so a composition-mount CT can
-// assert its subject was actually fed — `expect(trpc.unstubbed()).toEqual([])`.
-//
-// Two responder MARKERS ride alongside plain data/functions: `trpcError(…)` for a scripted failure
-// envelope, and `trpcHold()` for a deferred one — a release valve that lets a CT pin a PENDING render
-// as a stable state rather than trying to catch a flash. Both are recognised on the value a responder
-// PRODUCES, so either works as a route value or as a function's return.
+// Typed tRPC network fixtures for Playwright CT; request inputs remain unvalidated wire observations.
+// Missing responders fail the owning test automatically, even when a mounted surface handles the network error.
+// Subscriptions require an explicit terminal responder or their own SSE helper.
 
 import type { AppRouter } from "@orb/server";
 import type { Page, Request } from "@playwright/test";
+import { expect } from "@playwright/test";
 import type { TrpcWire } from "../iso/trpc-wire.ts";
 // The ONE tRPC code union home (tests/support/node/matchers.ts, derived through classifyDomainError —
 // gate no-inline-union-redecl). Type-only: erased, no vitest runtime in the Playwright process.
@@ -85,10 +53,8 @@ export type TrpcInput<TPath extends TrpcProcedurePath> = undefined extends TrpcR
 /** A response for one AppRouter procedure: the full wire output, or a marker. */
 type CanonicalTrpcResponder<TPath extends TrpcProcedurePath> =
   | TrpcFullSuccess<TPath>
-  | TrpcErrorMarker
-  | TrpcHoldMarker
-  | TrpcWireEscapeMarker
-  | ((input: TrpcInput<TPath>) => TrpcFullSuccess<TPath> | TrpcErrorMarker | TrpcHoldMarker | TrpcWireEscapeMarker);
+  | TrpcMarker<TPath>
+  | ((input: TrpcInput<TPath>) => TrpcFullSuccess<TPath> | TrpcMarker<TPath>);
 
 export type TrpcResponder<TPath extends TrpcProcedurePath | undefined = undefined> = [TPath] extends [TrpcProcedurePath]
   ? CanonicalTrpcResponder<Extract<TPath, TrpcProcedurePath>>
@@ -156,8 +122,13 @@ type ExactObject<TActual extends object, TExpected extends object> = keyof TActu
         ? TActual
         : never;
 
-type TrpcMarker = TrpcErrorMarker | TrpcHoldMarker | TrpcWireEscapeMarker;
-type MatchingProduced<TPath extends TrpcProcedurePath, TProduced> = TProduced extends TrpcMarker ? TProduced : ExactWire<TProduced, TrpcWireOutput<TPath>>;
+type TrpcMarker<TPath extends TrpcProcedurePath> =
+  | TrpcErrorMarker
+  | TrpcHoldMarker
+  | TrpcWireEscapeMarker
+  | (AppProcedure<TPath> extends { readonly _def: { readonly type: "subscription" } } ? TrpcSubscriptionEndMarker : never);
+type MatchingProduced<TPath extends TrpcProcedurePath, TProduced> =
+  TProduced extends TrpcMarker<TPath> ? TProduced : ExactWire<TProduced, TrpcWireOutput<TPath>>;
 type ExactArrayProduced<TPath extends TrpcProcedurePath, TProduced> = TProduced extends readonly (infer TActualItem)[]
   ? Extract<TrpcWireOutput<TPath>, readonly unknown[]> extends readonly (infer TExpectedItem)[]
     ? [TActualItem] extends [TExpectedItem]
@@ -167,7 +138,7 @@ type ExactArrayProduced<TPath extends TrpcProcedurePath, TProduced> = TProduced 
       : never
     : never
   : never;
-type FullProduced<TPath extends TrpcProcedurePath, TProduced> = [TProduced] extends [TrpcWireOutput<TPath> | TrpcMarker]
+type FullProduced<TPath extends TrpcProcedurePath, TProduced> = [TProduced] extends [TrpcWireOutput<TPath> | TrpcMarker<TPath>]
   ? [TProduced] extends [MatchingProduced<TPath, TProduced>]
     ? TProduced
     : never
@@ -233,8 +204,8 @@ type ContextualOutput<T> = T extends readonly (infer Item)[]
  */
 type ContextualResponder<TPath extends TrpcProcedurePath> =
   | ContextualOutput<TrpcFullSuccess<TPath>>
-  | TrpcMarker
-  | ((input: TrpcInput<TPath>) => ContextualOutput<TrpcFullSuccess<TPath>> | TrpcMarker);
+  | TrpcMarker<TPath>
+  | ((input: TrpcInput<TPath>) => ContextualOutput<TrpcFullSuccess<TPath>> | TrpcMarker<TPath>);
 
 type ContextualRoutes<TRoutes extends object> = {
   readonly [TPath in keyof TRoutes]: TPath extends TrpcProcedurePath ? ContextualResponder<TPath> : never;
@@ -399,6 +370,21 @@ function isTrpcHold(value: unknown): value is TrpcHoldMarker {
   return typeof value === "object" && value !== null && HOLD_MARK in value;
 }
 
+const SUBSCRIPTION_END_MARK = Symbol("routeTrpc.subscription-end");
+
+interface TrpcSubscriptionEndMarker {
+  readonly [SUBSCRIPTION_END_MARK]: true;
+}
+
+/** Explicitly terminate one declared subscription with HTTP 204, without fabricating stream events. */
+export function trpcEndSubscription(): TrpcSubscriptionEndMarker {
+  return { [SUBSCRIPTION_END_MARK]: true };
+}
+
+function isTrpcSubscriptionEnd(value: unknown): value is TrpcSubscriptionEndMarker {
+  return typeof value === "object" && value !== null && SUBSCRIPTION_END_MARK in value;
+}
+
 const WIRE_ESCAPE_MARK = Symbol("routeTrpc.malformed-or-forward-wire");
 
 interface TrpcWireEscapeMarker {
@@ -450,50 +436,18 @@ export interface TrpcRecorder {
   readonly requireLastInput: <P extends TrpcProcedurePath>(proc: P) => TrpcInput<P>;
   /** How many times a procedure was called. */
   readonly count: (proc: TrpcProcedurePath) => number;
-  /**
-   * Procedures the mounted tree REQUESTED that this call did not stub, first-seen order (header, #629).
-   * They were answered `null`, which is not a view — a suspending reader throws on it and its
-   * QueryBoundary swaps the section body for `QueryErrorState` while the heading outside the boundary
-   * still renders. A composition-mount CT pins the whole tree was actually fed with
-   * `expect(trpc.unstubbed()).toEqual([])`; a CT that deliberately leaves an incidental read unstubbed
-   * simply does not call this.
-   */
-  readonly unstubbed: () => string[];
 }
 
 export async function routeTrpc<const TRoutes extends object>(
   page: Page,
   routes: TRoutes & ContextualRoutes<NoInfer<TRoutes>> & ExactRoutes<NoInfer<TRoutes>>,
 ): Promise<TrpcRecorder> {
-  // THE CENSUS LIVENESS MARKER (#637). The UNSTUBBED lines below are the census's FINDINGS; this line is the
-  // proof the census could take one at all. A run that collected nothing because the marker was renamed, the
-  // stderr plumbing broke, or this stub was swapped would otherwise be indistinguishable from a clean tree —
-  // the blind-gate false clean this repo keeps paying for. The ratchet reds a CT file that ran, calls
-  // `routeTrpc(`, and produced no ACTIVE line (tooling/src/verify/ops/ct-unfed-ratchet.ts, blindCensusRefusals).
-  // Emitted per REGISTRATION rather than once per worker, because the reporter attributes markers to the
-  // currently-running test, and per-file liveness is what the refusal arm needs.
-  console.warn("[routeTrpc] ACTIVE");
   const calls = new Map<string, unknown[]>();
-  // Requested-but-unlisted procedures, first-seen order. A Set, so a re-fetch warns once.
-  const unstubbed = new Set<string>();
   const record = (proc: string, input: unknown): void => {
     const arr = calls.get(proc) ?? [];
     arr.push(input);
     calls.set(proc, arr);
   };
-  /** Note a requested procedure that has no route entry (#629). NOT called for the EventSource path: a
-   *  subscription is scoped OUT of this stub by design (header) and always answers 204, so counting one as
-   *  "unfed" would be the instrument reporting its own documented posture as a finding. */
-  const noteUnstubbed = (proc: string): void => {
-    if (proc in routes || unstubbed.has(proc)) {
-      return;
-    }
-    unstubbed.add(proc);
-    // stderr, never a throw: the lenient fulfil is deliberate (header), so this reports rather than
-    // decides. `trpc.unstubbed()` is the arm a test asserts on.
-    console.warn(`[routeTrpc] UNSTUBBED ${proc} — answered null, which is not a view (#629)`);
-  };
-
   await page.route("**/api/trpc/**", async (route) => {
     const req = route.request();
     const url = new URL(req.url());
@@ -502,14 +456,30 @@ export async function routeTrpc<const TRoutes extends object>(
     const procs = decodeURIComponent(url.pathname.split("/api/trpc/")[1] ?? "").split(",");
     const byIndex = decodeInputs(req, url, isBatch);
 
-    // EventSource subscription — scoped out (header): record the call, answer 204 no-content.
+    for (const [index, proc] of procs.entries()) {
+      record(proc, Reflect.get(byIndex, String(index)));
+    }
+    const missing = procs.filter((proc) => !Object.hasOwn(routes, proc));
+    expect.soft(missing, `routeTrpc: unhandled procedures: ${missing.join(", ")}`).toEqual([]);
+    if (missing.length > 0) {
+      await route.abort("failed");
+      return;
+    }
+    const responses = procs.map((proc, index) => {
+      const responder: unknown = Reflect.get(routes, proc);
+      const input: unknown = Reflect.get(byIndex, String(index));
+      return typeof responder === "function" ? Reflect.apply(responder, undefined, [input]) : responder;
+    });
     const accept = req.headers()["accept"] ?? "";
-    if (accept.includes("text/event-stream")) {
-      for (const [i, proc] of procs.entries()) {
-        const input: unknown = Reflect.get(byIndex, String(i));
-        record(proc, input);
+    const isSubscription = accept.includes("text/event-stream");
+    const subscriptionHandled = !isSubscription || responses.every(isTrpcSubscriptionEnd);
+    expect.soft(subscriptionHandled, "routeTrpc: subscriptions require trpcEndSubscription() or an SSE helper").toBe(true);
+    if (isSubscription) {
+      if (subscriptionHandled) {
+        await route.fulfill({ status: 204, body: "" });
+      } else {
+        await route.abort("failed");
       }
-      await route.fulfill({ status: 204, body: "" });
       return;
     }
 
@@ -518,12 +488,7 @@ export async function routeTrpc<const TRoutes extends object>(
     // in call order, so the envelope that eventually lands is well-formed and index-aligned; only its
     // delivery waits. Without the hold arm this stays exactly as synchronous as it was.
     const results = await Promise.all(
-      procs.map(async (proc, i) => {
-        const input: unknown = Reflect.get(byIndex, String(i));
-        record(proc, input);
-        noteUnstubbed(proc);
-        const responder: unknown = Reflect.get(routes, proc);
-        const produced = typeof responder === "function" ? Reflect.apply(responder, undefined, [input]) : responder;
+      responses.map(async (produced) => {
         let data = produced;
         if (isTrpcHold(produced)) {
           produced[HOLD_MARK].onRequest();
@@ -533,7 +498,7 @@ export async function routeTrpc<const TRoutes extends object>(
         if (isTrpcError(data)) {
           return errorEnvelope(data);
         }
-        // `data ?? null`: JSON can't carry undefined; unlisted procedures land here → {data:null}.
+        // A declared void-returning procedure has no JSON undefined representation.
         return { result: { data: data ?? null } };
       }),
     );
@@ -553,6 +518,5 @@ export async function routeTrpc<const TRoutes extends object>(
       return recorded.at(-1) as TrpcInput<P>;
     },
     count: (proc): number => (calls.get(proc) ?? []).length,
-    unstubbed: (): string[] => [...unstubbed],
   };
 }

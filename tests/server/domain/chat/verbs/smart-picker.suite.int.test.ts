@@ -167,7 +167,7 @@ test("the real owned distillation writer supplies the native candidate pitch", a
   if (bryn === undefined) {
     throw new Error("missing actual bryn card");
   }
-  const distilled = await seedCharacterDistillations(room.h.root.db, room.h.root.services.discovery.distillCharacters, {
+  const distilled = await seedCharacterDistillations(room.h.root, {
     ownerId: room.h.owner.userId,
     funderUserId: room.h.owner.userId,
     characterId: bryn.id,

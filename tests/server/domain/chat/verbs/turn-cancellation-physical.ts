@@ -225,12 +225,12 @@ export async function withCancellationPeer(mode: (typeof MODES)[number], prove: 
     capabilities: ["tools.register", "storage.kv"],
   });
   const guest = `const host=orb.host(1);host.tools.register({name:"witness",description:"Record a completed tool call",parameters:{type:"object",properties:{},additionalProperties:false},handler:async()=>{await host.storage.set(${JSON.stringify(TOOL_RAN)},"yes");return "done";}});`;
-  const installed = await seedInstalledPlugin(h.root.db, h.root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(h.root, {
     caller: h.owner,
     bundle: makePluginBundle(manifest, guest, clock.now()),
     grant: [],
   });
-  const enabled = await seedPluginGrant(h.root.db, h.root.services.plugin.setGrant, {
+  const enabled = await seedPluginGrant(h.root, {
     caller: h.owner,
     pluginId: installed.outcome.id,
     grant: manifest.capabilities,

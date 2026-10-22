@@ -77,7 +77,7 @@ export interface CorpusCapsuleOptions {
     readonly pluginSpawn: NonNullable<ServerHarnessOptions["pluginSpawn"]>;
   };
   readonly seed: SeedSyntheticCorpusOptions;
-  readonly privateCredential: Omit<Parameters<typeof produceCredential>[2], "principal">;
+  readonly privateCredential: Omit<Parameters<typeof produceCredential>[1], "principal">;
 }
 
 interface CorpusPrivateCaptures {
@@ -178,7 +178,7 @@ export async function createCorpusHarness(directory?: string, options: CorpusHar
     }),
   );
   const lifetime = ownership.move();
-  return { ...root, corpus, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
+  return Object.assign(root, { corpus, [Symbol.asyncDispose]: () => lifetime.disposeAsync() });
 }
 
 // Producers and resumed graphs share the canonical stateless corpus random, not caller overrides.
@@ -661,7 +661,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout,
   signal?.throwIfAborted();
   const actors = await seedCorpusActors(root, privateSource);
   signal?.throwIfAborted();
-  const credential = await seedUserCredential(db, root.services.credentials.add, { ...options.privateCredential, principal: actors.owner });
+  const credential = await seedUserCredential(root, { ...options.privateCredential, principal: actors.owner });
   signal?.throwIfAborted();
   const baseline = await seedSyntheticCorpus(root, { ...options.seed, secondUserId: actors.secondUserId });
   signal?.throwIfAborted();
@@ -731,7 +731,7 @@ async function captureCapsule(options: CorpusCapsuleOptions, layout: DataLayout,
   signal?.throwIfAborted();
   const searchFinal = await searchWire.capture(() => captureCorpusSearchPublication(root, search));
   signal?.throwIfAborted();
-  const postSearchStats = await seedStats(db, root.services.stats.reconcile, root.ownerId);
+  const postSearchStats = await seedStats(root, root.ownerId);
   signal?.throwIfAborted();
   await assertReferentialIntegrity(db);
   signal?.throwIfAborted();

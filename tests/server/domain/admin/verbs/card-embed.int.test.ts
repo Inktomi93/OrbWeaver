@@ -32,7 +32,7 @@ test("foreign and textless cards never reach funding or storage; an owned card p
         ownerId,
         model,
         capability: KIND_DEFS.embedding.floor,
-        credential: await makeResolvedSecret(services.credentials.resolve, { ownerId, credentialId: null, providerId: testProviderId(TEST_PROVIDER_ID) }),
+        credential: await makeResolvedSecret(harness, { ownerId, credentialId: null, providerId: testProviderId(TEST_PROVIDER_ID) }),
       }),
   }));
   const embed = createAdminCardEmbed({ getCard: services.character.getCard, loadCardText: services.character.loadCardText, store, roleClientsFor });

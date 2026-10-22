@@ -45,8 +45,8 @@ test("real admitted embedding and distillation produce owned summaries, vectors,
     input: createCharacterSchema.parse({ handle: "corpus-weaver", name: "Weaver", description: "A weaver sings beside the orbital loom." }),
   });
   await root.settleBackground();
-  const generation = await seedEmbeddingGeneration(root.db, root.app.embeddings.resolveGeneration, [root.ownerId, "embed"]);
-  const corpus = await seedEmbeddedCorpus(root.db, root.app.embeddings.embedCorpus, {
+  const generation = await seedEmbeddingGeneration(root, [root.ownerId, "embed"]);
+  const corpus = await seedEmbeddedCorpus(root, {
     ownerId: root.ownerId,
     force: true,
     signal: new AbortController().signal,
@@ -59,7 +59,7 @@ test("real admitted embedding and distillation produce owned summaries, vectors,
   expect(new Set(vectors.map((row) => row.contentHash)).size).toBe(2);
   expect(corpus.calls.filter((row) => row.connectionId === embed.id && row.outcome === "completed").length).toBeGreaterThan(0);
   for (const id of ids) {
-    const distilled = await seedCharacterDistillations(root.db, root.services.discovery.distillCharacters, {
+    const distilled = await seedCharacterDistillations(root, {
       ownerId: root.ownerId,
       funderUserId: root.ownerId,
       characterId: id,
@@ -67,13 +67,13 @@ test("real admitted embedding and distillation produce owned summaries, vectors,
     expect(distilled.result).toMatchObject({ distilled: 1, failed: 0, skipped: 0 });
     expect(distilled.summaries).toMatchObject([{ characterId: id, model: CORPUS_TEXT_MODEL, genre: "science-fiction", tags: ["loom", "traveller", "orbit"] }]);
   }
-  const pairs = await seedDuplicateCharacterPairs(root.db, root.services.discovery.computeDuplicatePairs, { ownerId: root.ownerId });
+  const pairs = await seedDuplicateCharacterPairs(root, { ownerId: root.ownerId });
   expect(pairs.pairs).toContainEqual(expect.objectContaining({ characterIdA: ids.toSorted()[0], characterIdB: ids.toSorted()[1], similarity: 1 }));
   const foreign = await root.actor();
   expect(await root.services.discovery.duplicateCharacters(foreign.id)).toEqual([]);
   const beforeForeign = [...wire.requests];
   await expect(
-    seedCharacterDistillations(root.db, root.services.discovery.distillCharacters, {
+    seedCharacterDistillations(root, {
       ownerId: foreign.id,
       funderUserId: foreign.id,
       characterId: first.id,
@@ -93,7 +93,7 @@ test("a wrong-width physical embedding response cannot replace vectors and retai
     input: createCharacterSchema.parse({ handle: "width-subject", name: "Traveller", description: "A traveller repairs the orbital loom." }),
   });
   await root.settleBackground();
-  const valid = await seedEmbeddedCorpus(root.db, root.app.embeddings.embedCorpus, {
+  const valid = await seedEmbeddedCorpus(root, {
     ownerId: root.ownerId,
     force: true,
     signal: new AbortController().signal,
@@ -101,9 +101,7 @@ test("a wrong-width physical embedding response cannot replace vectors and retai
   expect(valid.vectors.some((row) => row.characterId === character.id)).toBe(true);
   const vectorIds = valid.vectors.map((row) => row.id);
   script.embedding = [1, 0];
-  await expect(
-    seedEmbeddedCorpus(root.db, root.app.embeddings.embedCorpus, { ownerId: root.ownerId, force: true, signal: new AbortController().signal }),
-  ).rejects.toThrow(/width/iu);
+  await expect(seedEmbeddedCorpus(root, { ownerId: root.ownerId, force: true, signal: new AbortController().signal })).rejects.toThrow(/width/iu);
   expect(
     await root.db
       .select()

@@ -43,7 +43,7 @@ interface CorpusSdkSessions extends SdkActor {
 }
 
 async function savedSdkConnection(root: ServerTestHarness, actor: Pick<SdkActor, "principal" | "credential">): ReturnType<typeof seedUserConnection> {
-  return await seedUserConnection(root.db, root.services.connection.create, {
+  return await seedUserConnection(root, {
     principal: actor.principal,
     providerId: "claude-sub",
     credentialId: actor.credential.view.id,
@@ -57,7 +57,7 @@ async function savedSdkConnection(root: ServerTestHarness, actor: Pick<SdkActor,
 /** Save a subscription connection through its actual actor, credential and binding admission. */
 export async function seedCorpusSdkActor(root: ServerTestHarness): Promise<SdkActor> {
   const principal = await seedCorpusAccount(root);
-  const credential = await seedUserCredential(root.db, root.services.credentials.add, { principal, provider: "claude-sub", key: CORPUS_SDK_TOKEN });
+  const credential = await seedUserCredential(root, { principal, provider: "claude-sub", key: CORPUS_SDK_TOKEN });
   const connection = await savedSdkConnection(root, { principal, credential });
   await root.services.connection.setBinding({ principal, task: "chat", connectionId: connection.id });
   return { principal, credential, connection };

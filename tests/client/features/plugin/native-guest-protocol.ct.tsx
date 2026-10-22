@@ -121,7 +121,6 @@ for (const mode of ["lines", "chars"] as const) {
     await expect(page.getByText("Native late log settled", { exact: true })).toBeVisible();
     expect(await page.evaluate((key) => sessionStorage.getItem(key), LOG_OBSERVATIONS)).toBe(JSON.stringify(expected));
     expect(trpc.count("plugin.reportUiCrash")).toBe(0);
-    expect(trpc.unstubbed()).toEqual([]);
   });
 }
 
@@ -223,7 +222,6 @@ test("the native Worker exchanges boot, render, event, host-call/result and sett
   await component.unmount();
   await Promise.all(retired);
   expect(page.workers()).toHaveLength(0);
-  expect(trpc.unstubbed()).toEqual([]);
 });
 
 test("a native guest boot failure publishes ready:false and reports the original cause through the selected page", async ({ corpus, mount, page }) => {
@@ -274,7 +272,6 @@ test("a native guest boot failure publishes ready:false and reports the original
   await component.unmount();
   await Promise.all(retired);
   expect(page.workers()).toHaveLength(0);
-  expect(trpc.unstubbed()).toEqual([]);
 });
 
 test("the default shared corpus renders its native Ledger publication and captured disable through Extensions", async ({
@@ -316,7 +313,6 @@ test("the default shared corpus renders its native Ledger publication and captur
   await component.update(<PluginProtocolStory key="disabled" pluginId={active.ids.pluginId} surfaceId={surface.id} />);
   await expect(page.getByText("That page is no longer available", { exact: true })).toBeVisible();
   await expect(attribution).toHaveCount(0);
-  expect(trpc.unstubbed()).toEqual([]);
   expect(errors).toEqual([]);
 });
 
@@ -405,7 +401,6 @@ memoryTest("native engine memory reservation refusal retires the real Worker wit
     expect(trpc.count("plugin.reportUiCrash")).toBe(0);
     expect(trpc.count("plugin.uiHostCall")).toBe(0);
     await expect(page.getByText("Native browser ready", { exact: true })).toHaveCount(0);
-    expect(trpc.unstubbed()).toEqual([]);
     if (attempt === 1) {
       const nextWorker = page.waitForEvent("worker");
       await retry.click();

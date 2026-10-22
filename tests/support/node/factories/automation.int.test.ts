@@ -19,7 +19,7 @@ import { eq } from "drizzle-orm";
 test("dry-run provenance and same-clock real fires retain distinct IDs without inventing analysis state", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
-  const rule = await seedAutomationRule(root.db, root.services.automation.createRule, {
+  const rule = await seedAutomationRule(root, {
     principal,
     chatId: null,
     name: "Count manual runs",
@@ -29,16 +29,16 @@ test("dry-run provenance and same-clock real fires retain distinct IDs without i
     actions: [{ type: "set_variable", scope: "global", key: "manualRuns", op: "inc" }],
   });
   const params = { principal, ruleId: rule.id };
-  const dry = await seedAutomationTestFires(root.db, root.services.automation.testRule, params);
+  const dry = await seedAutomationTestFires(root, params);
   expect(dry.result.predicate).toBe(false);
   expect(dry.fires.map((row) => row.outcome)).toEqual(["test_run"]);
   expect(dry.fires[0]?.detail).toEqual(dry.result);
   expect(await root.services.automation.getGlobalVariable({ principal, key: "manualRuns" })).toBeNull();
-  await expect(seedAutomationRun(root.db, root.services.automation.runRuleNow, params)).rejects.toThrow("disabled");
+  await expect(seedAutomationRun(root, params)).rejects.toThrow("disabled");
   await root.services.automation.setRuleEnabled({ ...params, enabled: true });
-  const first = await seedAutomationRun(root.db, root.services.automation.runRuleNow, params);
+  const first = await seedAutomationRun(root, params);
   expect(first.result.outcome).toBe("fired");
-  const second = await seedAutomationRun(root.db, root.services.automation.runRuleNow, params);
+  const second = await seedAutomationRun(root, params);
   expect(second.result.outcome).toBe("fired");
   expect(second.state).toBeUndefined();
   expect(await root.services.automation.getGlobalVariable({ principal, key: "manualRuns" })).toBe("2");
@@ -57,7 +57,7 @@ test("foreign rule captures refuse before provenance or arm effects", async () =
   await using root = await createServerHarness();
   const actor = await root.actor();
   const principal = await root.principalFor(actor.id);
-  const rule = await seedAutomationRule(root.db, root.services.automation.createRule, {
+  const rule = await seedAutomationRule(root, {
     principal,
     chatId: null,
     name: "Private counter",
@@ -67,8 +67,8 @@ test("foreign rule captures refuse before provenance or arm effects", async () =
   });
   await root.services.automation.setRuleEnabled({ principal, ruleId: rule.id, enabled: true });
   const foreignParams = { principal: await root.principalFor(root.ownerId), ruleId: rule.id };
-  await expect(seedAutomationTestFires(root.db, root.services.automation.testRule, foreignParams)).rejects.toThrow();
-  await expect(seedAutomationRun(root.db, root.services.automation.runRuleNow, foreignParams)).rejects.toThrow();
+  await expect(seedAutomationTestFires(root, foreignParams)).rejects.toThrow();
+  await expect(seedAutomationRun(root, foreignParams)).rejects.toThrow();
   expect(await root.db.select().from(automationFires).where(eq(automationFires.ruleId, rule.id))).toEqual([]);
   expect(await root.services.automation.getGlobalVariable({ principal, key: "privateCounter" })).toBeNull();
 });
@@ -103,7 +103,7 @@ test("real structured analysis produces private state, strips the unauthored sco
   });
   const { chat } = await root.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
   await root.services.chat.commitMessage({ principal, chatId: chat.id, content: "The crew reaches the orbital loom." });
-  const rule = await seedAutomationRule(root.db, root.services.automation.createRule, {
+  const rule = await seedAutomationRule(root, {
     principal,
     chatId: chat.id,
     name: "Private story direction",
@@ -114,7 +114,7 @@ test("real structured analysis produces private state, strips the unauthored sco
   });
   const params = { principal, ruleId: rule.id };
   await root.services.automation.setRuleEnabled({ ...params, enabled: true });
-  const produced = await seedAutomationRun(root.db, root.services.automation.runRuleNow, params);
+  const produced = await seedAutomationRun(root, params);
   expect(produced.result.outcome).toBe("fired");
   expect(produced.state).toMatchObject({
     ruleId: rule.id,
@@ -128,7 +128,7 @@ test("real structured analysis produces private state, strips the unauthored sco
   });
   expect(await root.services.chat.getVariables({ principal, chatId: chat.id })).not.toHaveProperty("score");
   replies.set("run_analysis", JSON.stringify({ arcStatus: "active", updatedArc: 17, successorArc: null, twistOps: [], guidance: "Do not persist this." }));
-  const refused = await seedAutomationRun(root.db, root.services.automation.runRuleNow, params);
+  const refused = await seedAutomationRun(root, params);
   expect(refused.result.outcome).toBe("action_error");
   expect(refused.state).toEqual(produced.state);
   expect(await root.db.select().from(automationRuleState).where(eq(automationRuleState.ruleId, rule.id)).get()).toEqual(produced.state);

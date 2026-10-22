@@ -12,7 +12,7 @@ import { handoffActors } from "../../chat/substrate/handoff.fixtures.ts";
 
 test("same-owner duplication is born at the current injected instant, not the source edit or SQL time", async ({ harness }) => {
   const principal = await harness.principalFor((await harness.actor()).id);
-  const source = await seedCreatedCharacter(harness.db, harness.services.character.create, {
+  const source = await seedCreatedCharacter(harness, {
     principal,
     input: createCharacterSchema.parse({ handle: "duplicate-clock", name: "Clock", description: "Original" }),
   });

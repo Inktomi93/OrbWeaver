@@ -1,3 +1,5 @@
+import type { HistoryFloorSeq } from "@orb/contracts/chat";
+import { NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { CorpusDigestSource } from "@orb/contracts/search";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
@@ -32,7 +34,7 @@ export function createDigestSources(
           blockIdx: row.blockIdx,
           tier: row.tier,
           scopedCharacterId: row.scopedCharacterId,
-          ...(await coverage(row, 0)),
+          ...(await coverage(row, NO_HISTORY_FLOOR)),
         },
       })),
     );
@@ -48,7 +50,7 @@ export function createDigestSourceCoverage(ctx: Pick<SearchContext, "db" | "tier
 async function readDigestSourceCoverage(
   ctx: Pick<SearchContext, "db" | "tier0RangeOf" | "digestConsolidationHash">,
   source: DigestSourceLocator,
-  floorSeq: number | null,
+  floorSeq: HistoryFloorSeq | null,
 ): Promise<DigestSourceSpan> {
   if (source.tier > 0) {
     const ranges = Array.from({ length: source.tier }, (_unused, tier) => ({ tier, ...ctx.tier0RangeOf(source.tier - tier, source.blockIdx) }));

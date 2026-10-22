@@ -3,26 +3,23 @@ import type { Db } from "@orb/db";
 import { refineryRuns, refinerySchemas, refinerySessions } from "@orb/db";
 import type { RefineryService } from "@orb/server/domain/refinery";
 import { eq } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 export type RefinerySessionRow = typeof refinerySessions.$inferSelect;
 export type RefinerySchemaRow = typeof refinerySchemas.$inferSelect;
 export type RefineryRunRow = typeof refineryRuns.$inferSelect;
 
 /** Capture a model-produced run by the identity the actual stage operation returned. */
-export async function seedRefineryRun(
-  db: Db,
-  runStage: RefineryService["runStage"],
-  params: Parameters<RefineryService["runStage"]>[0],
-): Promise<RefineryRunRow> {
+export async function seedRefineryRun(root: ServerProducerRoot, params: Parameters<RefineryService["runStage"]>[0]): Promise<RefineryRunRow> {
+  const db = root.db;
+  const runStage = root.services.refinery.runStage;
   const view = await runStage(params);
   return await captureRefineryRun(db, view.id);
 }
 
-export async function seedRefinerySession(
-  db: Db,
-  startSession: RefineryService["startSession"],
-  params: Parameters<RefineryService["startSession"]>[0],
-): Promise<RefinerySessionRow> {
+export async function seedRefinerySession(root: ServerProducerRoot, params: Parameters<RefineryService["startSession"]>[0]): Promise<RefinerySessionRow> {
+  const db = root.db;
+  const startSession = root.services.refinery.startSession;
   const view = await startSession(params);
   const row = await db.select().from(refinerySessions).where(eq(refinerySessions.id, view.id)).get();
   if (row === undefined) {
@@ -31,11 +28,9 @@ export async function seedRefinerySession(
   return row;
 }
 
-export async function seedRefinerySchema(
-  db: Db,
-  createSchema: RefineryService["createSchema"],
-  params: Parameters<RefineryService["createSchema"]>[0],
-): Promise<RefinerySchemaRow> {
+export async function seedRefinerySchema(root: ServerProducerRoot, params: Parameters<RefineryService["createSchema"]>[0]): Promise<RefinerySchemaRow> {
+  const db = root.db;
+  const createSchema = root.services.refinery.createSchema;
   const view = await createSchema(params);
   const row = await db.select().from(refinerySchemas).where(eq(refinerySchemas.id, view.id)).get();
   if (row === undefined) {
@@ -45,11 +40,9 @@ export async function seedRefinerySchema(
 }
 
 /** This is the genuine hand-authored arm, not evidence that a model ran or reported usage. */
-export async function seedManualRefineryRun(
-  db: Db,
-  submitManualRewrite: RefineryService["submitManualRewrite"],
-  params: Parameters<RefineryService["submitManualRewrite"]>[0],
-): Promise<RefineryRunRow> {
+export async function seedManualRefineryRun(root: ServerProducerRoot, params: Parameters<RefineryService["submitManualRewrite"]>[0]): Promise<RefineryRunRow> {
+  const db = root.db;
+  const submitManualRewrite = root.services.refinery.submitManualRewrite;
   const view = await submitManualRewrite(params);
   return await captureRefineryRun(db, view.id);
 }

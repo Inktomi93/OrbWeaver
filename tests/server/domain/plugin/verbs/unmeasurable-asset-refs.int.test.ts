@@ -38,7 +38,7 @@ function bundleOf(root: ServerTestHarness, version: string): Uint8Array {
 
 /** An enabled install whose bundle and cover would both be orphaned by the next upgrade or uninstall. */
 async function enabledInstall(root: ServerTestHarness, caller: Principal): Promise<{ readonly pluginId: PluginId; readonly held: AssetId[] }> {
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, { caller, bundle: bundleOf(root, "1.0.0"), grant: [] });
+  const installed = await seedInstalledPlugin(root, { caller, bundle: bundleOf(root, "1.0.0"), grant: [] });
   await root.services.plugin.setEnabled({ caller, pluginId: installed.plugin.id, enabled: true });
   expect(await statusOf(root, installed.plugin.id)).toMatchObject({ status: "enabled", lastError: null });
   expect(installed.assets).toHaveLength(1);

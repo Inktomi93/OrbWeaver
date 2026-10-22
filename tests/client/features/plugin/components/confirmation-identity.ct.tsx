@@ -26,7 +26,7 @@ ui.onEvent(async ({ event }) => {
 test("a refreshed action cannot inherit another action's open destructive confirmation", async ({ corpus, mount, page }) => {
   const plugin = makePluginRow({ declaredCapabilities: ["ui.surface", "storage.kv"], grantedCapabilities: ["ui.surface", "storage.kv"] });
   const refresh = trpcHold<"plugin.uiHostCall">();
-  const trpc = await routeTrpc(page, {
+  await routeTrpc(page, {
     "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
     "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
     "plugin.list": () => [plugin],
@@ -52,5 +52,4 @@ test("a refreshed action cannot inherit another action's open destructive confir
   await expect(nextConfirm).toBeVisible();
   await nextConfirm.getByRole("button", { name: "Remove second", exact: true }).click();
   await expect(page.getByText("Removed second", { exact: true })).toBeVisible();
-  expect(trpc.unstubbed()).toEqual([]);
 });

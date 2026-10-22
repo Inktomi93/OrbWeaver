@@ -1,6 +1,7 @@
 // The tag-management CRUD mutations, one createEntityMutation per verb. Every tag verb emits
 // tagsChanged on the user-bus (always-on subscription), so these are busDriven.
 
+import type { TagTargetRef } from "@orb/contracts/tag";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation, trpcErrorCode } from "#data";
@@ -63,14 +64,14 @@ export const usePruneUnusedTags = createEntityMutation<void, unknown>({
   busDriven: true,
 });
 /** Apply a suggestion; the tag user-bus event refreshes both Labels and character projections. */
-export const useAcceptSuggestion = createEntityMutation<inferInput<Trpc["tag"]["attachTag"]>, unknown>({
+export const useAcceptSuggestion = createEntityMutation<inferInput<Trpc["tag"]["attachTag"]> & TagTargetRef, unknown>({
   options: (trpc) => trpc.tag.attachTag.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't accept the suggestion.",
 });
 
 /** Reject a suggestion: detach the pending tag. `busDriven` refetches the pending read. */
-export const useRejectSuggestion = createEntityMutation<inferInput<Trpc["tag"]["detachTag"]>, unknown>({
+export const useRejectSuggestion = createEntityMutation<inferInput<Trpc["tag"]["detachTag"]> & TagTargetRef, unknown>({
   options: (trpc) => trpc.tag.detachTag.mutationOptions(),
   busDriven: true,
   errorToast: "Couldn't dismiss the suggestion.",

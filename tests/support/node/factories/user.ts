@@ -5,9 +5,6 @@ import { users } from "@orb/db";
 import { handleKey } from "@orb/kit/handle-key";
 import type { Handle, IdSource, UserId } from "@orb/kit/ids";
 import { castId, createIdSource } from "@orb/kit/ids";
-import { adminUserViewSchema } from "@orb/server/domain/admin";
-import type { createCaller } from "@orb/server/transport/trpc";
-import { eq } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
 
@@ -42,23 +39,4 @@ export async function seedUser(db: Db, overrides: Partial<UserRow> = {}, source:
   const row = makeUser(overrides, source);
   await db.insert(users).values(row);
   return row;
-}
-
-export interface SeededAdminUser {
-  readonly view: Awaited<ReturnType<ReturnType<typeof createCaller>["admin"]["createUser"]>>;
-  readonly row: UserRow;
-}
-
-/** Mint through the actual privileged writer; the password-bearing row remains separate from its strict view. */
-export async function seedCreatedAdminUser(
-  db: Db,
-  create: ReturnType<typeof createCaller>["admin"]["createUser"],
-  params: Parameters<ReturnType<typeof createCaller>["admin"]["createUser"]>[0],
-): Promise<SeededAdminUser> {
-  const view = adminUserViewSchema.parse(await create(params));
-  const row = await db.select().from(users).where(eq(users.id, view.id)).get();
-  if (row === undefined) {
-    throw new Error("production admin mint left no canonical user row");
-  }
-  return { view, row };
 }

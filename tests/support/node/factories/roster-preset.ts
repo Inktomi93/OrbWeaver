@@ -3,6 +3,7 @@ import type { Db } from "@orb/db";
 import { rosterPresetMembers, rosterPresetRules, rosterPresets } from "@orb/db";
 import type { RosterPresetService } from "@orb/server/domain/roster-preset";
 import { asc, eq, inArray } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 export type RosterPresetRow = typeof rosterPresets.$inferSelect;
 export type RosterPresetMemberRow = typeof rosterPresetMembers.$inferSelect;
@@ -17,11 +18,9 @@ export interface SeededRosterPreset {
 }
 
 /** Produces the roster through its real belts and captures the complete persisted parent/child census. */
-export async function seedRosterPreset(
-  db: Db,
-  create: RosterPresetService["create"],
-  params: Parameters<RosterPresetService["create"]>[0],
-): Promise<SeededRosterPreset> {
+export async function seedRosterPreset(root: ServerProducerRoot, params: Parameters<RosterPresetService["create"]>[0]): Promise<SeededRosterPreset> {
+  const db = root.db;
+  const create = root.services.rosterPreset.create;
   const view = await create(params);
   const [preset, members, rules] = await Promise.all([
     db.select().from(rosterPresets).where(eq(rosterPresets.id, view.id)).get(),

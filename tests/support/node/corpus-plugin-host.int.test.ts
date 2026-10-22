@@ -183,7 +183,7 @@ test("the native resident guest captures admitted host returns and real prompt/e
     chatId: null,
   });
   const foreign = await root.principalFor(actors.secondUserId);
-  const foreignInstall = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const foreignInstall = await seedInstalledPlugin(root, {
     caller: foreign,
     bundle: makePluginBundle(
       CORPUS_PLUGIN_HOST_MANIFEST,
@@ -195,7 +195,7 @@ test("the native resident guest captures admitted host returns and real prompt/e
     ),
     grant: [],
   });
-  await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  await seedPluginGrant(root, {
     caller: foreign,
     pluginId: foreignInstall.plugin.id,
     grant: CORPUS_PLUGIN_HOST_MANIFEST.capabilities,

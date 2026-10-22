@@ -1,4 +1,4 @@
-import type { ResolveViewerVisibility } from "@orb/contracts/chat";
+import type { HistoryFloorSeq, ResolveViewerVisibility } from "@orb/contracts/chat";
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { RoleClients } from "@orb/contracts/role-clients";
 import type { CorpusSource, DigestSearchEvents, ResolveCorpusSourceState, SearchSpaceStatus } from "@orb/contracts/search";
@@ -123,4 +123,4 @@ export type DigestSourceLocator = Pick<
   "chatId" | "generationId" | "scopedCharacterId" | "tier" | "blockIdx" | "contentHash"
 >;
 export type DigestSourceSpan = Pick<CorpusSource, "seqStart" | "seqEnd" | "messageStartId" | "messageEndId">;
-export type DigestCoverageOp = (source: DigestSourceLocator, floorSeq: number | null) => Promise<DigestSourceSpan>;
+export type DigestCoverageOp = (source: DigestSourceLocator, floorSeq: HistoryFloorSeq | null) => Promise<DigestSourceSpan>;

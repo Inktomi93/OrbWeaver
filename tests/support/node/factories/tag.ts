@@ -1,8 +1,8 @@
 // Tag producers own admission, normalization and injected-clock births; captures retain the persisted rows unchanged.
-import type { Db } from "@orb/db";
 import { characterTags, chatTags, personaTags, presetTags, tags, worldBookTags } from "@orb/db";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 type TagService = ServicesResult["services"]["tag"];
 
@@ -17,8 +17,8 @@ type AttachParams = Parameters<TagService["attachTag"]>[0];
 type TargetlessAttachParams = Omit<AttachParams, "targetType" | "targetId">;
 
 /** Produces a tag through the real owner operation before reading its complete persisted row. */
-export async function seedTag(db: Db, createTag: TagService["createTag"], params: Parameters<TagService["createTag"]>[0]): Promise<TagRow> {
-  return (await seedCreatedTag(db, createTag, params)).row;
+export async function seedTag(root: ServerProducerRoot, params: Parameters<TagService["createTag"]>[0]): Promise<TagRow> {
+  return (await seedCreatedTag(root, params)).row;
 }
 
 export interface SeededCreatedTag {
@@ -27,7 +27,9 @@ export interface SeededCreatedTag {
 }
 
 /** Retain the native presentation defaults without projecting another tag view from its row. */
-export async function seedCreatedTag(db: Db, createTag: TagService["createTag"], params: Parameters<TagService["createTag"]>[0]): Promise<SeededCreatedTag> {
+export async function seedCreatedTag(root: ServerProducerRoot, params: Parameters<TagService["createTag"]>[0]): Promise<SeededCreatedTag> {
+  const db = root.db;
+  const createTag = root.services.tag.createTag;
   const view = await createTag(params);
   const row = await db.select().from(tags).where(eq(tags.id, view.id)).get();
   if (row === undefined) {
@@ -43,11 +45,9 @@ export interface SeededTagPrune {
 }
 
 /** The owner-wide maintenance operation decides what survives, including pending suggestions. */
-export async function seedTagPrune(
-  db: Db,
-  prune: TagService["pruneUnusedTags"],
-  params: Parameters<TagService["pruneUnusedTags"]>[0],
-): Promise<SeededTagPrune> {
+export async function seedTagPrune(root: ServerProducerRoot, params: Parameters<TagService["pruneUnusedTags"]>[0]): Promise<SeededTagPrune> {
+  const db = root.db;
+  const prune = root.services.tag.pruneUnusedTags;
   const before = await db.select().from(tags).where(eq(tags.ownerId, params.principal.userId)).orderBy(tags.id);
   const result = await prune(params);
   const after = await db.select().from(tags).where(eq(tags.ownerId, params.principal.userId)).orderBy(tags.id);
@@ -56,10 +56,11 @@ export async function seedTagPrune(
 
 /** The producer decides pending versus accepted; no fixture status or timestamp is substituted. */
 export async function seedCharacterTag(
-  db: Db,
-  attachTag: TagService["attachTag"],
+  root: ServerProducerRoot,
   params: TargetlessAttachParams & Pick<CharacterTagRow, "characterId">,
 ): Promise<CharacterTagRow> {
+  const db = root.db;
+  const attachTag = root.services.tag.attachTag;
   const { characterId, ...attach } = params;
   await attachTag({ ...attach, targetType: "character", targetId: characterId });
   const row = await db
@@ -74,11 +75,9 @@ export async function seedCharacterTag(
 }
 
 /** Reads the caller's exact per-tagger overlay, including the owner component of its primary key. */
-export async function seedChatTag(
-  db: Db,
-  attachTag: TagService["attachTag"],
-  params: TargetlessAttachParams & Pick<ChatTagRow, "chatId">,
-): Promise<ChatTagRow> {
+export async function seedChatTag(root: ServerProducerRoot, params: TargetlessAttachParams & Pick<ChatTagRow, "chatId">): Promise<ChatTagRow> {
+  const db = root.db;
+  const attachTag = root.services.tag.attachTag;
   const { chatId, ...attach } = params;
   await attachTag({ ...attach, targetType: "chat", targetId: chatId });
   const row = await db
@@ -94,10 +93,11 @@ export async function seedChatTag(
 
 /** Produces an owner-admitted book attachment and retains its actual persisted defaults. */
 export async function seedWorldBookTag(
-  db: Db,
-  attachTag: TagService["attachTag"],
+  root: ServerProducerRoot,
   params: TargetlessAttachParams & Pick<WorldBookTagRow, "worldBookId">,
 ): Promise<WorldBookTagRow> {
+  const db = root.db;
+  const attachTag = root.services.tag.attachTag;
   const { worldBookId, ...attach } = params;
   await attachTag({ ...attach, targetType: "worldBook", targetId: worldBookId });
   const row = await db
@@ -112,11 +112,9 @@ export async function seedWorldBookTag(
 }
 
 /** Produces an owner-admitted persona attachment without a second FK or ownership policy. */
-export async function seedPersonaTag(
-  db: Db,
-  attachTag: TagService["attachTag"],
-  params: TargetlessAttachParams & Pick<PersonaTagRow, "personaId">,
-): Promise<PersonaTagRow> {
+export async function seedPersonaTag(root: ServerProducerRoot, params: TargetlessAttachParams & Pick<PersonaTagRow, "personaId">): Promise<PersonaTagRow> {
+  const db = root.db;
+  const attachTag = root.services.tag.attachTag;
   const { personaId, ...attach } = params;
   await attachTag({ ...attach, targetType: "persona", targetId: personaId });
   const row = await db
@@ -131,11 +129,9 @@ export async function seedPersonaTag(
 }
 
 /** Produces an owner-admitted preset attachment rather than copying the junction writer. */
-export async function seedPresetTag(
-  db: Db,
-  attachTag: TagService["attachTag"],
-  params: TargetlessAttachParams & Pick<PresetTagRow, "presetId">,
-): Promise<PresetTagRow> {
+export async function seedPresetTag(root: ServerProducerRoot, params: TargetlessAttachParams & Pick<PresetTagRow, "presetId">): Promise<PresetTagRow> {
+  const db = root.db;
+  const attachTag = root.services.tag.attachTag;
   const { presetId, ...attach } = params;
   await attachTag({ ...attach, targetType: "preset", targetId: presetId });
   const row = await db

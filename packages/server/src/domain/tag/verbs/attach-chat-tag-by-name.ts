@@ -33,8 +33,7 @@ export function createAttachChatTagByName(ctx: TagContext): TagService["attachCh
       // re-reads it. (Verbatim the card sibling's argument — one failure mode, one sentence.)
       throw new DomainOperationError("tag_resolve_failed", `resolve-or-create tag "${name}" found no row after a unique conflict`);
     }
-    // `status` is inert on the chat arm (the junction has no such column) — passed only because the shared
-    // dispatch's `AttachArgs` is one shape across five target types.
+    // The shared insertion payload carries status; the chat junction has no status column.
     await insertJunctionRow({ db: ctx.db, targetType: "chat", targetId: chatId, tagId, taggerId: ownerId, status: "accepted", at });
     return true;
   };

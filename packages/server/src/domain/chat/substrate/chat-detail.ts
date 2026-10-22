@@ -5,7 +5,7 @@
 // `viewerActivePersonaId`) derive from the roster ⋈ `viewerUserId`; `viewerOwnedCharacterIds` needs an
 // ownership read, so the verb resolves it (`substrate/viewer-gallery.ts`), and the gallery subject derives here.
 
-import type { AnchorState, ChatIdentity, ChatMetadata } from "@orb/contracts/chat";
+import type { AnchorState, ChatIdentity, ChatMetadata, HistoryFloorSeq } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES } from "@orb/contracts/chat";
 import type { CharacterId, ChatId, PersonaId, UserId } from "@orb/kit/ids";
 import type { ChatDetailData, ParticipantData } from "../contract/views.ts";
@@ -39,7 +39,7 @@ interface ToChatDetailInput {
   readonly viewerUserId: UserId;
   /** The viewer's D16 join-history floor (`substrate/auth::resolveHistoryFloorSeq`). REQUIRED, not defaulted,
    *  so a new `ChatDetailData` producer must state the viewer's clamp rather than inherit an open one. */
-  readonly viewerHistoryFloorSeq: number;
+  readonly viewerHistoryFloorSeq: HistoryFloorSeq;
   /** `resolveViewerOwnedCharacterIds` over the same roster. REQUIRED for the same reason as the floor. */
   readonly viewerOwnedCharacterIds: readonly CharacterId[];
   /** `resolveAnchorState` over the same roster (`substrate/participants-humans.ts`). */

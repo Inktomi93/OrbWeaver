@@ -210,7 +210,7 @@ test("settled search publication survives native authenticated clone reads and r
       });
       expect.soft(() => parseCorpusWire(serialized.replace(sectionMarker, memberPublished))).toThrow("retrieval cohort mismatch");
       const secret = 'native-search-"credential"\\959';
-      const credential = await seedUserCredential(root.db, root.services.credentials.add, { principal: actors.owner, provider: "custom-openai", key: secret });
+      const credential = await seedUserCredential(root, { principal: actors.owner, provider: "custom-openai", key: secret });
       const secrets = [...authentication.secrets, secret, credential.row.ciphertext, credential.row.iv, credential.row.tag];
       const witness = images.cards[0];
       assert(witness !== undefined);
@@ -225,7 +225,7 @@ test("settled search publication survives native authenticated clone reads and r
       await caller.character.update({ characterId: witness.id, input: { name: witness.name } });
       Object.assign(malformed.searchLibrary.reads.fields.output, { [secret]: true });
       expect(() => serializeCorpusWire(malformed, secrets)).toThrow("Corpus publication contains private material");
-      const temporary = await seedUserConnection(root.db, root.services.connection.create, {
+      const temporary = await seedUserConnection(root, {
         principal: actors.owner,
         providerId: "custom-openai",
         credentialId: null,

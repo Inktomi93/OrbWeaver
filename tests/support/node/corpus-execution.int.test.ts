@@ -113,6 +113,7 @@ test("a foreign name-equal cancellation is not reclassified as the caller reason
   const foreign = new DOMException("caller cancellation", "TimeoutError");
   const borrowed = {
     ...root,
+    app: root.app,
     workloadExecutionSignal: controller.signal,
     settleBackground: (): Promise<void> => Promise.reject(foreign),
   };

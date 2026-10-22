@@ -8,6 +8,7 @@ import { MS_PER_SECOND } from "@orb/kit/time";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
 import { strToU8, zipSync } from "fflate";
+import type { ServerProducerRoot } from "../server.ts";
 
 type PluginService = ServicesResult["services"]["plugin"];
 
@@ -43,7 +44,8 @@ export interface CapturedPluginOutputs {
 }
 
 /** Capture the current owner-facing publications, never a projection of the private database capture. */
-export async function capturePluginOutputs(service: PluginService, params: Parameters<PluginService["getSurfaceState"]>[0]): Promise<CapturedPluginOutputs> {
+export async function capturePluginOutputs(root: ServerProducerRoot, params: Parameters<PluginService["getSurfaceState"]>[0]): Promise<CapturedPluginOutputs> {
+  const service = root.services.plugin;
   return {
     plugins: await service.list(params),
     surfaces: await service.listSurfaces(params),
@@ -81,31 +83,28 @@ export function makePluginBundle(manifest: PluginManifest, source: string, mtime
 }
 
 /** Store validated bundle bytes through the actual install funnel, then capture its returned identity. */
-export async function seedInstalledPlugin(
-  db: Db,
-  install: PluginService["install"],
-  params: Parameters<PluginService["install"]>[0],
-): Promise<SeededInstalledPlugin> {
+export async function seedInstalledPlugin(root: ServerProducerRoot, params: Parameters<PluginService["install"]>[0]): Promise<SeededInstalledPlugin> {
+  const db = root.db;
+  const install = root.services.plugin.install;
   const outcome = await install(params);
   return { outcome, ...(await capturePluginRows(db, params.caller.userId, outcome.id)) };
 }
 
 /** Capture the actual grant/activation outcome, including contained activation failure rather than inventing enablement. */
-export async function seedPluginGrant(
-  db: Db,
-  setGrant: PluginService["setGrant"],
-  params: Parameters<PluginService["setGrant"]>[0],
-): Promise<SeededInstalledPlugin> {
+export async function seedPluginGrant(root: ServerProducerRoot, params: Parameters<PluginService["setGrant"]>[0]): Promise<SeededInstalledPlugin> {
+  const db = root.db;
+  const setGrant = root.services.plugin.setGrant;
   const outcome = await setGrant(params);
   return { outcome, ...(await capturePluginRows(db, params.caller.userId, outcome.id)) };
 }
 
 /** The returned slug is the distribution PK; each recipient keeps its own canonical install and CAS ownership. */
 export async function seedDistributedPlugin(
-  db: Db,
-  installForAllUsers: PluginService["installForAllUsers"],
+  root: ServerProducerRoot,
   params: Parameters<PluginService["installForAllUsers"]>[0],
 ): Promise<SeededDistributedPlugin> {
+  const db = root.db;
+  const installForAllUsers = root.services.plugin.installForAllUsers;
   const outcome = await installForAllUsers(params);
   const distribution = await db.select().from(adminDistributedPlugins).where(eq(adminDistributedPlugins.slug, outcome.slug)).get();
   if (distribution === undefined) {

@@ -135,7 +135,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);
   const previous = await caller.connection.listBindings();
-  const credential = await seedUserCredential(root.db, root.services.credentials.add, { principal, provider: "custom-openai", key: CORPUS_VARIANT_KEY });
+  const credential = await seedUserCredential(root, { principal, provider: "custom-openai", key: CORPUS_VARIANT_KEY });
   const connectionBase = {
     principal,
     providerId: "custom-openai",
@@ -143,7 +143,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
     baseUrl: CORPUS_PROVIDER_ENDPOINT,
     allowBackground: true,
   } as const;
-  const image = await seedUserConnection(root.db, root.services.connection.create, {
+  const image = await seedUserConnection(root, {
     ...connectionBase,
     model: CORPUS_VARIANT_IMAGE_MODEL,
     declared: {
@@ -152,7 +152,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       features: { images: "images-api", detectServer: false },
     },
   });
-  const edit = await seedUserConnection(root.db, root.services.connection.create, {
+  const edit = await seedUserConnection(root, {
     ...connectionBase,
     model: CORPUS_VARIANT_EDIT_MODEL,
     declared: {
@@ -161,7 +161,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       features: { images: "images-api", detectServer: false },
     },
   });
-  const text = await seedUserConnection(root.db, root.services.connection.create, {
+  const text = await seedUserConnection(root, {
     ...connectionBase,
     model: CORPUS_VARIANT_TEXT_MODEL,
     declared: {
@@ -170,7 +170,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       features: { detectServer: false, pricing: { inputPerMTok: 1, outputPerMTok: 2 } },
     },
   });
-  const embed = await seedUserConnection(root.db, root.services.connection.create, {
+  const embed = await seedUserConnection(root, {
     ...connectionBase,
     model: CORPUS_EMBED_MODEL,
     declared: {
@@ -223,9 +223,9 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
     for (const bytes of [square, sliver]) {
       const stored = await root.app.assets.store({ principal, bytes, mime: "image/png", kind: "avatar", enforceMagic: true });
       await root.settleBackground();
-      const first = await seedIndexedAsset(root.db, root.app.embeddings.indexAsset, [stored.assetId, { force: true }]);
-      const repeated = await seedIndexedAsset(root.db, root.app.embeddings.indexAsset, [stored.assetId, { force: false }]);
-      const forced = await seedIndexedAsset(root.db, root.app.embeddings.indexAsset, [stored.assetId, { force: true }]);
+      const first = await seedIndexedAsset(root, [stored.assetId, { force: true }]);
+      const repeated = await seedIndexedAsset(root, [stored.assetId, { force: false }]);
+      const forced = await seedIndexedAsset(root, [stored.assetId, { force: true }]);
       const asset = await root.db.select().from(assets).where(eq(assets.id, stored.assetId)).get();
       if (asset === undefined) {
         throw new Error("real image admission left no owned asset row");
@@ -255,20 +255,20 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       input: captionInput,
       output: await output(await request(memberAuth, "imagery.extractPrompt", captionInput, true), extractedPromptSchema),
     };
-    const free = await seedImageryGenerations(root.db, root.services.imagery.generatePicture, {
+    const free = await seedImageryGenerations(root, {
       caller: principal,
       mode: "free",
       prompt: `  ${CORPUS_VARIANT_FREE_PROMPT}  `,
       n: 1,
     });
-    const captioned = await seedImageryGenerations(root.db, root.services.imagery.generatePicture, {
+    const captioned = await seedImageryGenerations(root, {
       caller: principal,
       mode: "character_multimodal",
       subjectCharacterId: character.id,
       reuse: "never",
       n: 1,
     });
-    const warning = await seedImageryGenerations(root.db, root.services.imagery.generatePicture, {
+    const warning = await seedImageryGenerations(root, {
       caller: principal,
       mode: "character",
       subjectCharacterId: character.id,

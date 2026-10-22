@@ -4,7 +4,7 @@ import { routeTrpc } from "@orb/testkit/node/route-trpc.ts";
 import { EntryListRebaseStory } from "./_entry-list-stories.tsx";
 
 test("a replaced entry snapshot invalidates obsolete consent and returns focus without removing another row", async ({ corpus, mount, page }) => {
-  const trpc = await routeTrpc(page, {
+  await routeTrpc(page, {
     "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpus.reads["settings.getUserSettings"]),
     "sessions.me": createCorpusReadResponder("sessions.me", corpus.reads["sessions.me"]),
   });
@@ -26,5 +26,4 @@ test("a replaced entry snapshot invalidates obsolete consent and returns focus w
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
   await expect(page.getByRole("button", { name: "Add entry", exact: true })).toBeFocused();
   await expect(page.getByText("Removed Beta", { exact: true })).toBeVisible();
-  expect(trpc.unstubbed()).toEqual([]);
 });

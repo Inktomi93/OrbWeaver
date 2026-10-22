@@ -3,6 +3,7 @@ import type { Db } from "@orb/db";
 import { characterRegexScripts, chatRegexScripts, globalRegexScripts, presetRegexScripts, regexScripts } from "@orb/db";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { and, eq, inArray } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 type RegexService = ServicesResult["services"]["regex"];
 
@@ -13,11 +14,9 @@ export type PresetRegexScriptRow = typeof presetRegexScripts.$inferSelect;
 export type ChatRegexScriptRow = typeof chatRegexScripts.$inferSelect;
 
 /** Produces the script through the real library operation without reconstructing its behavior blob. */
-export async function seedRegexScript(
-  db: Db,
-  createScript: RegexService["createScript"],
-  params: Parameters<RegexService["createScript"]>[0],
-): Promise<RegexScriptDbRow> {
+export async function seedRegexScript(root: ServerProducerRoot, params: Parameters<RegexService["createScript"]>[0]): Promise<RegexScriptDbRow> {
+  const db = root.db;
+  const createScript = root.services.regex.createScript;
   const view = await createScript(params);
   const row = await db.select().from(regexScripts).where(eq(regexScripts.id, view.id)).get();
   if (row === undefined) {
@@ -27,11 +26,9 @@ export async function seedRegexScript(
 }
 
 /** The real operation appends to the owner's tier; the seed does not invent an execution position. */
-export async function seedGlobalRegexScript(
-  db: Db,
-  attachGlobal: RegexService["attachGlobal"],
-  params: Parameters<RegexService["attachGlobal"]>[0],
-): Promise<GlobalRegexScriptRow> {
+export async function seedGlobalRegexScript(root: ServerProducerRoot, params: Parameters<RegexService["attachGlobal"]>[0]): Promise<GlobalRegexScriptRow> {
+  const db = root.db;
+  const attachGlobal = root.services.regex.attachGlobal;
   await attachGlobal(params);
   const row = await db.select().from(globalRegexScripts).where(eq(globalRegexScripts.regexScriptId, params.scriptId)).get();
   if (row === undefined) {
@@ -42,10 +39,11 @@ export async function seedGlobalRegexScript(
 
 /** Captures the junction after real ownership gates and idempotent append policy. */
 export async function seedCharacterRegexScript(
-  db: Db,
-  attachToCharacter: RegexService["attachToCharacter"],
+  root: ServerProducerRoot,
   params: Parameters<RegexService["attachToCharacter"]>[0],
 ): Promise<CharacterRegexScriptRow> {
+  const db = root.db;
+  const attachToCharacter = root.services.regex.attachToCharacter;
   await attachToCharacter(params);
   const row = await db
     .select()
@@ -59,11 +57,9 @@ export async function seedCharacterRegexScript(
 }
 
 /** Captures the real preset junction without substituting a status, position or timestamp. */
-export async function seedPresetRegexScript(
-  db: Db,
-  attachToPreset: RegexService["attachToPreset"],
-  params: Parameters<RegexService["attachToPreset"]>[0],
-): Promise<PresetRegexScriptRow> {
+export async function seedPresetRegexScript(root: ServerProducerRoot, params: Parameters<RegexService["attachToPreset"]>[0]): Promise<PresetRegexScriptRow> {
+  const db = root.db;
+  const attachToPreset = root.services.regex.attachToPreset;
   await attachToPreset(params);
   const row = await db
     .select()
@@ -77,11 +73,9 @@ export async function seedPresetRegexScript(
 }
 
 /** The actual host gate runs before the room junction is captured. */
-export async function seedChatRegexScript(
-  db: Db,
-  attachToChat: RegexService["attachToChat"],
-  params: Parameters<RegexService["attachToChat"]>[0],
-): Promise<ChatRegexScriptRow> {
+export async function seedChatRegexScript(root: ServerProducerRoot, params: Parameters<RegexService["attachToChat"]>[0]): Promise<ChatRegexScriptRow> {
+  const db = root.db;
+  const attachToChat = root.services.regex.attachToChat;
   await attachToChat(params);
   const row = await db
     .select()

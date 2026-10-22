@@ -66,7 +66,7 @@ test("native image and text signatures stay private and replay only with their s
 
 test("the real narrator illustration writer in the same room cannot launder its stored image into model media", async () => {
   await using fixture = await imageRoom([[nativeText("A quiet beat.")]]);
-  const stored = await seedStoredAsset(fixture.h.root.db, fixture.h.root.services.assets.store, {
+  const stored = await seedStoredAsset(fixture.h.root, {
     principal: fixture.h.owner,
     bytes: makeAssetBytes(makeAsset().id),
     kind: "generated",

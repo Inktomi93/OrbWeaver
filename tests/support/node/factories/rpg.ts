@@ -3,6 +3,7 @@ import { rpgCheckpoints, rpgGames, rpgJournal, rpgSheets, rpgSnapshots, rpgTurnT
 import type { MessageVariantId, RpgGameId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { and, eq, inArray } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 type RpgService = ServicesResult["services"]["rpg"];
 export type RpgGameRow = typeof rpgGames.$inferSelect;
@@ -41,7 +42,9 @@ export async function captureRpgTurnToolCalls(db: Db, gameId: RpgGameId, variant
 }
 
 /** Birth, ruleset/profile derivation and the opaque chat pointer remain production operations. */
-export async function seedRpgGame(db: Db, createGame: RpgService["createGame"], params: Parameters<RpgService["createGame"]>[0]): Promise<RpgGameRow> {
+export async function seedRpgGame(root: ServerProducerRoot, params: Parameters<RpgService["createGame"]>[0]): Promise<RpgGameRow> {
+  const db = root.db;
+  const createGame = root.services.rpg.createGame;
   const result = await createGame(params);
   const row = await db.select().from(rpgGames).where(eq(rpgGames.id, result.gameId)).get();
   if (row === undefined) {
@@ -51,11 +54,9 @@ export async function seedRpgGame(db: Db, createGame: RpgService["createGame"], 
 }
 
 /** The host-gated hand writer owns label normalization and its every-lineage provenance. */
-export async function seedRpgJournalEntry(
-  db: Db,
-  addJournalEntry: RpgService["addJournalEntry"],
-  params: Parameters<RpgService["addJournalEntry"]>[0],
-): Promise<RpgJournalRow> {
+export async function seedRpgJournalEntry(root: ServerProducerRoot, params: Parameters<RpgService["addJournalEntry"]>[0]): Promise<RpgJournalRow> {
+  const db = root.db;
+  const addJournalEntry = root.services.rpg.addJournalEntry;
   const id = await addJournalEntry(params);
   const row = await db.select().from(rpgJournal).where(eq(rpgJournal.id, id)).get();
   if (row === undefined) {
@@ -65,11 +66,9 @@ export async function seedRpgJournalEntry(
 }
 
 /** A real resolved snapshot must exist; the seed never invents one to satisfy a checkpoint FK. */
-export async function seedRpgCheckpoint(
-  db: Db,
-  createCheckpoint: RpgService["createCheckpoint"],
-  params: Parameters<RpgService["createCheckpoint"]>[0],
-): Promise<RpgCheckpointRow> {
+export async function seedRpgCheckpoint(root: ServerProducerRoot, params: Parameters<RpgService["createCheckpoint"]>[0]): Promise<RpgCheckpointRow> {
+  const db = root.db;
+  const createCheckpoint = root.services.rpg.createCheckpoint;
   const id = await createCheckpoint(params);
   const row = await db.select().from(rpgCheckpoints).where(eq(rpgCheckpoints.id, id)).get();
   if (row === undefined) {
@@ -79,11 +78,9 @@ export async function seedRpgCheckpoint(
 }
 
 /** Capture the game's complete real sheet collection without minting absent actor defaults. */
-export async function seedRpgSheets(
-  db: Db,
-  operations: Pick<RpgService, "patchSheet" | "getGame">,
-  params: Parameters<RpgService["patchSheet"]>[0],
-): Promise<SeededRpgSheets> {
+export async function seedRpgSheets(root: ServerProducerRoot, params: Parameters<RpgService["patchSheet"]>[0]): Promise<SeededRpgSheets> {
+  const db = root.db;
+  const operations = root.services.rpg;
   await operations.patchSheet(params);
   const game = await operations.getGame({ principal: params.principal, chatId: params.chatId });
   const sheets = await db.select().from(rpgSheets).where(eq(rpgSheets.gameId, game.id)).orderBy(rpgSheets.id);

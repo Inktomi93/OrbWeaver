@@ -21,7 +21,7 @@ test("tag creation uses advanced product time and a folded-name conflict preserv
   const principal = await harness.principalFor((await harness.actor()).id);
   harness.clock.advance(12_345);
   const at = harness.clock.now();
-  const created = await seedCreatedTag(harness.db, harness.services.tag.createTag, { principal, input: { name: "Clock witness" } });
+  const created = await seedCreatedTag(harness, { principal, input: { name: "Clock witness" } });
   expect(created.row.createdAt).toBe(at);
   harness.clock.advance(5000);
   await expect(harness.services.tag.createTag({ principal, input: { name: "CLOCK WITNESS" } })).rejects.toBeInstanceOf(DomainConflictError);
@@ -33,8 +33,8 @@ test("native tag-library restore stamps new rows but preserves existing births a
   const principal = await harness.principalFor((await harness.actor()).id);
   await harness.services.tag.createTag({ principal: source, input: { name: "Restore existing", color: "#123456" } });
   await harness.services.tag.createTag({ principal: source, input: { name: "Restore new" } });
-  const existing = await seedCreatedTag(harness.db, harness.services.tag.createTag, { principal, input: { name: "Restore existing" } });
-  const character = await seedCreatedCharacter(harness.db, harness.services.character.create, {
+  const existing = await seedCreatedTag(harness, { principal, input: { name: "Restore existing" } });
+  const character = await seedCreatedCharacter(harness, {
     principal,
     input: createCharacterSchema.parse({ handle: "restore-witness", name: "Restore witness", description: "" }),
   });
@@ -110,30 +110,32 @@ test("all five native junction arms stamp single and bulk births without rewriti
   ] as const;
   harness.clock.advance(45_678);
   const singleAt = harness.clock.now();
-  for (const { targetType, targetId, read } of targets) {
-    await harness.services.tag.attachTag({ principal, tagId: single.id, targetType, targetId, status: "pending" });
-    expect(await read()).toMatchObject([{ tagId: single.id, createdAt: singleAt }]);
+  for (const target of targets) {
+    await harness.services.tag.attachTag({ principal, tagId: single.id, ...target, status: "pending" });
+    expect(await target.read()).toMatchObject([{ tagId: single.id, createdAt: singleAt }]);
   }
   harness.clock.advance(56_789);
   const bulkAt = harness.clock.now();
-  for (const { targetType, targetId, read } of targets) {
-    await harness.services.tag.bulkAttachTag({ principal, tagIds: [single.id, bulk.id], targetType, targetId });
-    expect(await read()).toMatchObject([
+  for (const target of targets) {
+    await harness.services.tag.bulkAttachTag({ principal, tagIds: [single.id, bulk.id], ...target });
+    expect(await target.read()).toMatchObject([
       { tagId: single.id, createdAt: singleAt },
       { tagId: bulk.id, createdAt: bulkAt },
     ]);
   }
   expect(await targets[0].read()).toMatchObject([{ status: "accepted" }, { status: "accepted" }]);
   harness.clock.advance(67_890);
-  for (const { targetType, targetId, read } of targets) {
-    const before = await read();
-    await harness.services.tag.attachTag({ principal, tagId: single.id, targetType, targetId });
-    expect(await read()).toEqual(before);
+  for (const target of targets) {
+    const before = await target.read();
+    await harness.services.tag.attachTag({ principal, tagId: single.id, ...target });
+    expect(await target.read()).toEqual(before);
   }
   await harness.services.tag.mergeTags({ principal, sourceTagId: bulk.id, targetTagId: single.id });
-  for (const { read } of targets) {
-    expect(await read()).toMatchObject([{ tagId: single.id, createdAt: singleAt }]);
-    expect(await read()).toHaveLength(1);
+  for (const target of targets) {
+    expect(await target.read()).toMatchObject([{ tagId: single.id, createdAt: singleAt }]);
+    expect(await target.read()).toHaveLength(1);
+    await harness.services.tag.detachTag({ principal, tagId: single.id, ...target });
+    expect(await target.read()).toEqual([]);
   }
 });
 

@@ -72,12 +72,12 @@ export async function pendingConsent(harness: ServerTestHarness, caller: Princip
     entry: PLUGIN_MAIN_ENTRY,
     capabilities: ["storage.kv"],
   });
-  const installed = await seedInstalledPlugin(harness.db, harness.services.plugin.install, {
+  const installed = await seedInstalledPlugin(harness, {
     caller,
     bundle: makePluginBundle(manifest, NOTIFICATION_GUEST_SOURCE, harness.clock.now()),
     grant: [],
   });
-  await seedPluginGrant(harness.db, harness.services.plugin.setGrant, {
+  await seedPluginGrant(harness, {
     caller,
     pluginId: installed.plugin.id,
     grant: [],
@@ -115,7 +115,7 @@ export const test = base.extend<{
     const first = await pendingConsent(harness, actors.alice);
     const large = await pendingConsent(harness, actors.alice);
     await harness.services.notifications.markAllRead({ principal: actors.alice });
-    await seedPluginGrant(harness.db, harness.services.plugin.setGrant, {
+    await seedPluginGrant(harness, {
       caller: actors.alice,
       pluginId: first.plugin.id,
       grant: first.plugin.manifest.capabilities,

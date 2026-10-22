@@ -153,12 +153,12 @@ h.ui.registerCommand({name:"emit",describe:"Publish installer-scoped private dat
   await h.pubsub.emit("ledger",{witness:values.witness});
 }});`;
   await caller.chat.commitMessage({ chatId: library.room.chat.id, content: "Native host transcript witness.", timeZone: UTC_TIME_ZONE });
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(root, {
     caller: principal,
     bundle: makePluginBundle(CORPUS_PLUGIN_HOST_MANIFEST, source, root.clock.now()),
     grant: [],
   });
-  const plugin = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  const plugin = await seedPluginGrant(root, {
     caller: principal,
     pluginId: installed.outcome.id,
     grant: CORPUS_PLUGIN_HOST_MANIFEST.capabilities,

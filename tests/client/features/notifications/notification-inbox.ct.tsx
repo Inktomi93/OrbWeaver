@@ -43,7 +43,6 @@ test("the registered bell settles a held native inbox read into the captured unr
   }, blobUrl(ownerAvatar));
   expect(foreign).toEqual({ status: 404, bytes: 0 });
   expect(trpc.inputs("notifications.list")).toEqual([{}]);
-  expect(trpc.unstubbed()).toEqual([]);
 });
 
 test("the captured read stage keeps pending invitation actions without marking the inbox again", async ({ corpus, mount, page }) => {
@@ -73,5 +72,4 @@ test("the captured read stage keeps pending invitation actions without marking t
   }
   expect(trpc.inputs("notifications.list")).toEqual([{}]);
   expect(trpc.count("notifications.markAllRead")).toBe(0);
-  expect(trpc.unstubbed()).toEqual([]);
 });

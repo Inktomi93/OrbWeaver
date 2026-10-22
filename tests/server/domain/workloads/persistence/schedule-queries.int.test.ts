@@ -18,7 +18,7 @@ async function schedule(
   enabled = true,
   cadence: keyof typeof CADENCE_INTERVAL_MS = "daily",
 ): Promise<Awaited<ReturnType<typeof seedWorkloadSchedule>>> {
-  return await seedWorkloadSchedule(root.db, root.services.workloads.createSchedule, {
+  return await seedWorkloadSchedule(root, {
     caller: await root.principalFor(root.ownerId),
     ownerId: root.ownerId,
     input: { kind: "reconcile-stats", params: {} },
@@ -80,7 +80,7 @@ test("schedule listing filters by owner while the authorized deployment view see
   const own = await schedule(root);
   const other = await root.actor();
   const otherPrincipal = await root.principalFor(other.id);
-  const theirs = await seedWorkloadSchedule(root.db, root.services.workloads.createSchedule, {
+  const theirs = await seedWorkloadSchedule(root, {
     caller: otherPrincipal,
     ownerId: other.id,
     input: { kind: "reconcile-stats", params: {} },

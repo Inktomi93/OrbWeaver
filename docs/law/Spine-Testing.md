@@ -10,7 +10,7 @@ Testing policy: mirrored tests, isolated fixtures and production composition. `C
 
 ## 0. The principle
 
-Tests prove behavior or type contracts. Their filenames declare kind and compiler intent; they do not substitute for assertions. D333 retires custom static test gates. The rules below remain guidance, not automated gate guarantees. A rule that prevents a known silent regression needs a planted failing control and a valid passing control.
+Tests prove behavior or type contracts. Their filenames declare kind and compiler intent; they do not substitute for assertions. Native compiler, dependency and lint checks enforce their configured boundaries. Other rules remain review guidance. A rule that prevents a known silent regression needs a planted failing control and a valid passing control.
 
 Measurement-budget qualification follows [D308](../adr/0308-hardware-scoped-timing-budgets.md). Use the test-kind capability policy rather than treating shared-hardware timing as a behavioral assertion.
 
@@ -90,10 +90,9 @@ Do not use `vi.mock` or `vi.spyOn` on an internal module namespace: they replace
 **Factory contract** (every `support/node/factories/*.ts`):
 
 - Pure builders derive valid deterministic defaults from canonical types and schemas. They use seeded ids and the frozen clock, never database or external I/O.
-- Persisted producers call actual production operations, then capture canonical rows and outputs. A database parameter supports readback; it does not authorize copying domain queries or business rules.
+- Production-backed producers accept the nominal `ServerProducerRoot` from the real harness, not caller-supplied business callbacks. They call its production operations and capture canonical rows and outputs.
 - Database-subject fixtures may construct valid rows from derived defaults and insert them directly. These fixtures do not replace production behavior in composed domain cases.
 - Overrides preserve valid relations and schema constraints. Factories live in `support/node/factories/`; private corpus orchestration calls those homes.
-
 
 ## 5. The presence rule — what MUST have a test
 
@@ -159,6 +158,8 @@ Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Use Playw
 
 - **The maintained client door uses the production error channel.** Mutation-error notifications are observable through its real toaster. Timing overrides belong to explicit data-isolation helpers, not another cache implementation.
 
+- **Declare every intercepted request.** `routeTrpc` fails the native Playwright test for an unlisted procedure, even when the component handles the transport failure. Script errors and terminal subscriptions explicitly.
+
 - **`page.addInitScript` does not affect the CURRENT page** (the `page` fixture has already navigated) —
   it fires on SUBSEQUENT navigations, so for pre-module-init state (persisted stores, localStorage seeds)
   use `page.addInitScript` + `page.reload()` to re-run the page with the script installed. For
@@ -203,8 +204,6 @@ Vitest browser-mode is FORBIDDEN — cold-cache dep-discovery *hangs*. Use Playw
 `tooling/src/floor/testing/test-tags.ts` owns the registered Vitest tag names and options. The runtime uses `strictTags: true`; the test-only ambient augmentation derives the same closed name union for TypeScript. Register a tag when a real test needs it, rather than reserving hypothetical categories. The `slow` tag preserves a 30-second timeout without adding retries. Select tagged cases through native `--tagsFilter=slow` or a negated expression.
 
 Tags describe cross-cutting test requirements; suffixes retain test kind and compiler-world meaning. Tags filter callbacks after module import, so they cannot isolate import-time side effects or supply repository/process capabilities missing from the runner.
-
-
 
 Playwright uses its own `@smoke`/`@live` tags: `pnpm e2e:smoke` selects smoke cases, while real-provider cases remain opt-in through its live entry point. The shared `E2E_LIVE` spelling expresses operator intent; each runner retains its native selection mechanism.
 

@@ -3718,13 +3718,10 @@ const testFactoryContractRule = {
             parameter.name.getText() === "db" ||
             native.checker.typeToString(native.checker.getTypeAtLocation(parameter), parameter, typeFlags).includes("Database"),
         );
-      const persisted = name.startsWith("seed") && !parameters.some((parameter) => parameter.name.getText() === "db");
-      if (pure || persisted) {
+      if (pure) {
         context.report({
           node: native.tsNodeToESTreeNodeMap.get(declaration.name),
-          message: pure
-            ? "a `make*` PURE builder accepts a db — a pure builder must stay db-free; persistence belongs to a `seed*` builder (docs/law/Spine-Testing.md §4)."
-            : "a `seed*` PERSISTED builder has no `db` parameter — a persisted builder must take one; a db-free builder belongs under the `make*` prefix (docs/law/Spine-Testing.md §4).",
+          message: "a `make*` PURE builder accepts a db — a pure builder must stay db-free; persistence belongs to a `seed*` builder (Spine-Testing §4).",
         });
       }
     };
@@ -5149,5 +5146,38 @@ export default [
     files: AUTHORED_SRC.map((glob) => [glob, "**/context.ts"]),
     plugins: { orb: localPlugin },
     rules: { "orb/no-context-returntype": "error" },
+  },
+  {
+    files: ["tests/**/*.{ts,tsx}"],
+    ignores: ["tests/support/**", "tests/tooling/**", "**/*.test-d.ts"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          paths: [{ name: "vitest", importNames: ["test", "it"], message: "Use the shared @orb/testkit/node/fixtures.ts test entry." }],
+          patterns: [
+            {
+              regex: "^(@orb/server(?:/|$)|#server/|.*packages/server/)",
+              importNamePattern: "^create(?:Services|.*(?:Service|Context))$",
+              allowTypeImports: true,
+              message: "Use the production graph from testkit; application tests must not assemble replacement services or contexts.",
+            },
+          ],
+        },
+      ],
+    },
+  },
+  {
+    files: ["tests/**/*.{ts,tsx}"],
+    ignores: ["tests/tooling/**", "**/*.test-d.ts"],
+    rules: {
+      "no-restricted-syntax": [
+        "error",
+        {
+          selector: String.raw`CallExpression:matches([callee.name=/^(mock|doMock)$/], [callee.property.name=/^(mock|doMock)$/], [callee.property.value=/^(mock|doMock)$/]):matches([arguments.0.type='Literal'][arguments.0.value=/^(@orb\/|#|\.\.?\/)/], [arguments.0.type='ImportExpression'][arguments.0.source.value=/^(@orb\/|#|\.\.?\/)/])`,
+          message: "Do not replace internal modules in product tests. Script external execution through the production test root.",
+        },
+      ],
+    },
   },
 ];

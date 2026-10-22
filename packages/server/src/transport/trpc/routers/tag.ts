@@ -3,15 +3,15 @@
 // Wire input shapes + axes derive from `@orb/contracts/tag` (no inline re-spell — §7.4).
 
 import {
+  attachTagInputSchema,
   createTagSchema,
+  detachTagInputSchema,
   pendingTagSuggestionsInputSchema,
   pruneUnusedResultSchema,
   tagFilterVocabularyEntrySchema,
   tagReachInputSchema,
   tagReachViewSchema,
-  tagStatusSchema,
   tagSuggestionViewSchema,
-  tagTargetTypeSchema,
   tagViewSchema,
   tagWithUsageSchema,
   updateTagSchema,
@@ -83,41 +83,10 @@ export const tagRouter = t.router({
     .input(z.object({ orderedIds: z.array(typeIdSchema(ID_PREFIX.tag)).min(1) }))
     .mutation(({ ctx, input }) => ctx.services.tag.setTagOrder({ principal: ctx.auth, orderedIds: input.orderedIds })),
 
-  attachTag: authedProcedure
-    .input(
-      z.object({
-        tagId: typeIdSchema(ID_PREFIX.tag),
-        targetType: tagTargetTypeSchema,
-        // eslint-disable-next-line orb/no-raw-id -- Polymorphic wire reference; the targetType dispatch brands it at the owner-gated junction.
-        targetId: z.string().min(1),
-        status: tagStatusSchema.optional(),
-      }),
-    )
-    .mutation(({ ctx, input }) =>
-      ctx.services.tag.attachTag({
-        principal: ctx.auth,
-        tagId: input.tagId,
-        targetType: input.targetType,
-        targetId: input.targetId,
-        ...(input.status !== undefined ? { status: input.status } : {}),
-      }),
-    ),
+  attachTag: authedProcedure.input(attachTagInputSchema).mutation(({ ctx, input }) => {
+    const { status, ...target } = input;
+    return ctx.services.tag.attachTag({ principal: ctx.auth, ...target, ...(status !== undefined ? { status } : {}) });
+  }),
 
-  detachTag: authedProcedure
-    .input(
-      z.object({
-        tagId: typeIdSchema(ID_PREFIX.tag),
-        targetType: tagTargetTypeSchema,
-        // eslint-disable-next-line orb/no-raw-id -- Polymorphic wire reference; the targetType dispatch brands it at the owner-gated junction.
-        targetId: z.string().min(1),
-      }),
-    )
-    .mutation(({ ctx, input }) =>
-      ctx.services.tag.detachTag({
-        principal: ctx.auth,
-        tagId: input.tagId,
-        targetType: input.targetType,
-        targetId: input.targetId,
-      }),
-    ),
+  detachTag: authedProcedure.input(detachTagInputSchema).mutation(({ ctx, input }) => ctx.services.tag.detachTag({ principal: ctx.auth, ...input })),
 });

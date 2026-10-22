@@ -43,7 +43,7 @@ test("schema preview retains settled expansion through rerenders and failures, t
   const failed = trpcHold<"refinery.testSchema">();
   const replaced = trpcHold<"refinery.testSchema">();
   let attempt = 0;
-  const trpc = await routeTrpc(page, {
+  await routeTrpc(page, {
     "settings.getUserSettings": () => settings,
     "sessions.me": () => viewer,
     "character.list": () => library,
@@ -164,5 +164,4 @@ test("schema preview retains settled expansion through rerenders and failures, t
   const reopenedScreenshot = testInfo.outputPath("preview-replacement-reopened.png");
   await page.screenshot({ path: reopenedScreenshot });
   await testInfo.attach("replacement-preview-reopened", { path: reopenedScreenshot });
-  expect(trpc.unstubbed()).toEqual([]);
 });

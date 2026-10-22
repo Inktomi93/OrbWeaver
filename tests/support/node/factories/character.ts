@@ -19,6 +19,7 @@ import { cardContentHash } from "@orb/server/primitives/serde/card";
 import { and, eq } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
+import type { ServerProducerRoot } from "../server.ts";
 import { seedUser } from "./user.ts";
 
 /** The full flat `characters` row (derived from the live schema — the factory `X`). */
@@ -113,11 +114,9 @@ export interface SeededCreatedCharacter {
 }
 
 /** The writer owns card defaults, denorms and stamps; its detail projection is not the complete row. */
-export async function seedCreatedCharacter(
-  db: Db,
-  create: CharacterService["create"],
-  params: Parameters<CharacterService["create"]>[0],
-): Promise<SeededCreatedCharacter> {
+export async function seedCreatedCharacter(root: ServerProducerRoot, params: Parameters<CharacterService["create"]>[0]): Promise<SeededCreatedCharacter> {
+  const db = root.db;
+  const create = root.services.character.create;
   const view = await create(params);
   const row = await db
     .select()
@@ -131,11 +130,9 @@ export async function seedCreatedCharacter(
 }
 
 /** The owner operation captures the live card; a fixture never assembles its own snapshot blob. */
-export async function seedCharacterSnapshot(
-  db: Db,
-  snapshot: CharacterService["snapshot"],
-  params: Parameters<CharacterService["snapshot"]>[0],
-): Promise<CharacterSnapshotRow> {
+export async function seedCharacterSnapshot(root: ServerProducerRoot, params: Parameters<CharacterService["snapshot"]>[0]): Promise<CharacterSnapshotRow> {
+  const db = root.db;
+  const snapshot = root.services.character.snapshot;
   return (await produceCharacterSnapshot(db, snapshot, params)).row;
 }
 
@@ -149,11 +146,12 @@ export interface SeededCharacterHistory {
 
 /** History and library views remain real reads; the capture does not project them from the stored card. */
 export async function seedCharacterHistory(
-  db: Db,
-  operations: Pick<CharacterService, "snapshot" | "getSnapshot" | "listSnapshots" | "list">,
+  root: ServerProducerRoot,
   params: Parameters<CharacterService["snapshot"]>[0],
   list: Omit<Parameters<CharacterService["list"]>[0], "principal"> = {},
 ): Promise<SeededCharacterHistory> {
+  const db = root.db;
+  const operations = root.services.character;
   const produced = await produceCharacterSnapshot(db, operations.snapshot, params);
   const [view, summaries, page] = await Promise.all([
     operations.getSnapshot({ principal: params.principal, characterId: params.characterId, snapshotId: produced.ref.id }),
@@ -178,10 +176,11 @@ async function produceCharacterSnapshot(
 
 /** Both real ownership gates run before capturing the junction's exact composite key. */
 export async function seedCharacterPersona(
-  db: Db,
-  connectToCharacter: PersonaService["connectToCharacter"],
+  root: ServerProducerRoot,
   params: Parameters<PersonaService["connectToCharacter"]>[0],
 ): Promise<CharacterPersonaRow> {
+  const db = root.db;
+  const connectToCharacter = root.services.persona.connectToCharacter;
   await connectToCharacter(params);
   const row = await db
     .select()

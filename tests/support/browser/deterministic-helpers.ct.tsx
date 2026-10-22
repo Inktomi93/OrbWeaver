@@ -155,7 +155,7 @@ test("a deferred successful attach cannot release frames before the HTTP request
 test("socket observations preserve malformed IDs and raw cursors but ignore missing refs without claiming admission", async ({ page }) => {
   await page.route("http://orb.test/**", (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><body></body>" }));
   await page.goto("http://orb.test/");
-  const trpc = await routeTrpc(page, { "stream.attach": null, "stream.detach": null });
+  await routeTrpc(page, { "stream.attach": null, "stream.detach": null });
   const recorder = await routeOrbSocket(page);
   await page.evaluate(async () => {
     for (const body of [
@@ -188,7 +188,6 @@ test("socket observations preserve malformed IDs and raw cursors but ignore miss
     { ref: { channel: "chat", chatId: "array-malformed" }, sinceSeq: "array-raw" },
   ]);
   expect(recorder.detaches()).toEqual([{ channel: "user" }, { channel: "notifications" }]);
-  expect(trpc.unstubbed()).toEqual([]);
 });
 
 test("the production typed client keeps batch inputs raw, path-correlated and distinct from missing calls", async ({ mount, page }) => {

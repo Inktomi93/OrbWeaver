@@ -334,12 +334,12 @@ async function consentFor(root: ServerTestHarness, actors: NotificationActors, s
       entry: PLUGIN_MAIN_ENTRY,
       capabilities: ["storage.kv"],
     });
-    const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+    const installed = await seedInstalledPlugin(root, {
       caller: actors.reader,
       bundle: makePluginBundle(manifest, "const host = orb.host(1);", root.clock.now()),
       grant: [],
     });
-    return await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+    return await seedPluginGrant(root, {
       caller: actors.reader,
       pluginId: installed.plugin.id,
       grant: [],
@@ -354,7 +354,7 @@ async function consentFor(root: ServerTestHarness, actors: NotificationActors, s
   await stream.readThrough(grown.id);
   await actors.caller.notifications.markAllRead();
   const quietOffset = stream.bytes().length;
-  await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  await seedPluginGrant(root, {
     caller: actors.reader,
     pluginId: firstPlugin.plugin.id,
     grant: firstPlugin.plugin.manifest.capabilities,
@@ -414,7 +414,7 @@ async function producersFor(
   const automation = root.services.automation;
   const principal = actors.reader;
   const author = { principal, chatId, trigger: { bus: "chat", type: "turnCompleted" }, timeZone: UTC_TIME_ZONE } as const;
-  const rule = await seedAutomationRule(root.db, automation.createRule, {
+  const rule = await seedAutomationRule(root, {
     ...author,
     name: "Corpus room notice",
     cooldownSeconds: AUTOMATION_NOTICE_COOLDOWN_SECONDS,
@@ -429,7 +429,7 @@ async function producersFor(
     },
     (error: Error) => error,
   );
-  const ruleRun = await seedAutomationRun(root.db, automation.runRuleNow, { principal, ruleId: rule.id });
+  const ruleRun = await seedAutomationRun(root, { principal, ruleId: rule.id });
   const ruleNotice = await requiredView(actors.caller, "automation-notice");
   await stream.readThrough(ruleNotice.id);
   const manifest = pluginManifestSchema.parse({
@@ -450,12 +450,12 @@ host.tools.register({ name: ${JSON.stringify(NOTICE_TOOL_NAME)}, description: "C
     return "Ledger checked.";
   }
 });`;
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(root, {
     caller: principal,
     bundle: makePluginBundle(manifest, source, root.clock.now()),
     grant: [],
   });
-  const plugin = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  const plugin = await seedPluginGrant(root, {
     caller: principal,
     pluginId: installed.outcome.id,
     grant: manifest.capabilities,
@@ -464,7 +464,7 @@ host.tools.register({ name: ${JSON.stringify(NOTICE_TOOL_NAME)}, description: "C
   });
   const toolName = pluginToolWireName(manifest.id, NOTICE_TOOL_NAME);
   const toolRule = async (mode: string): Promise<Awaited<ReturnType<typeof seedAutomationRule>>> => {
-    const row = await seedAutomationRule(root.db, automation.createRule, {
+    const row = await seedAutomationRule(root, {
       ...author,
       name: `Corpus resident ${mode}`,
       actions: [{ type: "run_tool", name: toolName, argsTemplate: JSON.stringify({ mode }) }],
@@ -473,12 +473,12 @@ host.tools.register({ name: ${JSON.stringify(NOTICE_TOOL_NAME)}, description: "C
     return row;
   };
   const notifyRule = await toolRule("notify");
-  const notifyRun = await seedAutomationRun(root.db, automation.runRuleNow, { principal, ruleId: notifyRule.id });
+  const notifyRun = await seedAutomationRun(root, { principal, ruleId: notifyRule.id });
   const pluginNotice = await requiredView(actors.caller, "automation-notice");
   await stream.readThrough(pluginNotice.id);
   const crashRule = await toolRule("crash");
   const cleanRule = await toolRule("clean");
-  const run = (): ReturnType<typeof seedAutomationRun> => seedAutomationRun(root.db, automation.runRuleNow, { principal, ruleId: crashRule.id });
+  const run = (): ReturnType<typeof seedAutomationRun> => seedAutomationRun(root, { principal, ruleId: crashRule.id });
   const view = async (): Promise<ProducerCapture["cleanView"]> => {
     const item = (await root.services.plugin.list({ caller: principal })).find((candidate) => candidate.id === plugin.outcome.id);
     if (item === undefined) {
@@ -487,7 +487,7 @@ host.tools.register({ name: ${JSON.stringify(NOTICE_TOOL_NAME)}, description: "C
     return item;
   };
   const failedBeforeClean = await run();
-  const clean = await seedAutomationRun(root.db, automation.runRuleNow, { principal, ruleId: cleanRule.id });
+  const clean = await seedAutomationRun(root, { principal, ruleId: cleanRule.id });
   const cleanView = await view();
   const crashes: ProducerCapture["crashes"][number][] = [];
   for (let count = 0; count < PLUGIN_CRASH_DISABLE_THRESHOLD; count += 1) {

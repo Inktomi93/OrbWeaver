@@ -53,13 +53,13 @@ export async function seedCorpusImagery(root: ServerTestHarness, foreignUserId: 
   });
   await caller.connection.setBinding({ task: "generateImage", connectionId: connection.id });
   const params = { caller: principal, chatId: room.chat.id, subjectCharacterId: character.id, mode: "character", n: 2 } as const;
-  const first = await seedImageryGenerations(root.db, root.services.imagery.generatePicture, { ...params, reuse: "never" });
-  const tied = await seedImageryGenerations(root.db, root.services.imagery.generatePicture, { ...params, reuse: "never" });
-  const equalReuse = await seedImageryGenerations(root.db, root.services.imagery.generatePicture, { ...params, reuse: "prefer" });
+  const first = await seedImageryGenerations(root, { ...params, reuse: "never" });
+  const tied = await seedImageryGenerations(root, { ...params, reuse: "never" });
+  const equalReuse = await seedImageryGenerations(root, { ...params, reuse: "prefer" });
   root.timers.advance(1);
   await root.settleBackground();
-  const newest = await seedImageryGenerations(root.db, root.services.imagery.generatePicture, { ...params, reuse: "never" });
-  const newerReuse = await seedImageryGenerations(root.db, root.services.imagery.generatePicture, { ...params, reuse: "prefer" });
+  const newest = await seedImageryGenerations(root, { ...params, reuse: "never" });
+  const newerReuse = await seedImageryGenerations(root, { ...params, reuse: "prefer" });
   const descriptor = root.app.portability.find((entity) => entity.kind === "imagery");
   const callId = newest.generations[0]?.callId;
   if (descriptor === undefined || callId === null || callId === undefined) {
@@ -76,8 +76,8 @@ export async function seedCorpusImagery(root: ServerTestHarness, foreignUserId: 
   if (file === undefined) {
     throw new Error("native imagery export omitted its returned call cohort");
   }
-  const imported = await seedNativeImageryImportClaim(root.db, descriptor.importFile, [root.ownerId, file], callId);
-  const repeated = await seedNativeImageryImportClaim(root.db, descriptor.importFile, [root.ownerId, file], callId);
+  const imported = await seedNativeImageryImportClaim(root, [root.ownerId, file], callId);
+  const repeated = await seedNativeImageryImportClaim(root, [root.ownerId, file], callId);
   const foreign = await descriptor.importFile(foreignUserId, file);
   const rows = await root.db
     .select()

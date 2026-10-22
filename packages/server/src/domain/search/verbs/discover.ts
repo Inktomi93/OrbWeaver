@@ -1,4 +1,5 @@
 // Host-scoped transcript search credits stored character evidence and retains uncredited passages.
+import { NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { CorpusSource } from "@orb/contracts/search";
 import type { CharacterId } from "@orb/kit/ids";
 import type { SearchContext } from "../context.ts";
@@ -147,7 +148,7 @@ async function groupByCharacter(
       .filter((candidate) => selectedSegments.has(candidate.source.rowId))
       .map(
         async (candidate): Promise<DiscoverSegment> => ({
-          source: { ...candidate.source, ...(await readSourceAnchors(ctx.db, candidate.chatId, candidate.source)) },
+          source: { ...candidate.source, ...(await readSourceAnchors(ctx.db, candidate.chatId, candidate.source, NO_HISTORY_FLOOR)) },
           chatId: candidate.chatId,
           blockIdx: candidate.blockIdx,
           snippet: candidate.sourceText.slice(0, SNIPPET_CHARS),

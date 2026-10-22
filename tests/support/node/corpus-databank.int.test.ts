@@ -116,13 +116,13 @@ test("native upload and scraper envelopes use the same retained SQL metadata as 
   await seedCorpusConnections(root, principal);
   const caller = await root.internalCallerFor(root.ownerId);
   const uploadParams = { principal, bytes: new TextEncoder().encode("Upload café 🪐."), mime: "text/plain", name: "Upload witness" };
-  const uploaded = await seedCreatedDocument(root.db, () => root.services.databank.upload(uploadParams));
-  const duplicate = await seedCreatedDocument(root.db, () => root.services.databank.upload(uploadParams));
+  const uploaded = await seedCreatedDocument(root, { kind: "upload", params: uploadParams });
+  const duplicate = await seedCreatedDocument(root, { kind: "upload", params: uploadParams });
   expect(duplicate.result).toEqual({ document: uploaded.result.document, outcome: "duplicate", ingest: "skipped" });
-  const web = await seedCreatedDocument(root.db, () => caller.databank.scrapeWeb({ url: "https://source.example/article" }));
-  const video = await seedCreatedDocument(root.db, () => caller.databank.scrapeYoutube({ url: "https://youtube.com/watch?v=dQw4w9WgXcQ" }));
-  const wiki = await seedCreatedDocument(root.db, () => caller.databank.scrapeWiki({ url: "https://wiki.example/wiki/Unicode" }));
-  const empty = await seedCreatedDocument(root.db, () => caller.databank.scrapeWeb({ url: "https://empty.example/article" }));
+  const web = await seedCreatedDocument(root, { kind: "scrapeWeb", userId: root.ownerId, params: { url: "https://source.example/article" } });
+  const video = await seedCreatedDocument(root, { kind: "scrapeYoutube", userId: root.ownerId, params: { url: "https://youtube.com/watch?v=dQw4w9WgXcQ" } });
+  const wiki = await seedCreatedDocument(root, { kind: "scrapeWiki", userId: root.ownerId, params: { url: "https://wiki.example/wiki/Unicode" } });
+  const empty = await seedCreatedDocument(root, { kind: "scrapeWeb", userId: root.ownerId, params: { url: "https://empty.example/article" } });
   expect(empty.result).toMatchObject({ outcome: "created", ingest: "queued", warning: "empty-extraction", document: { charCount: 0 } });
   const page = await caller.databank.list({ limit: 10 });
   for (const capture of [uploaded, web, video, wiki]) {

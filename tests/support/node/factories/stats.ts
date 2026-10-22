@@ -1,9 +1,9 @@
 // Rollups are rebuilt by the real stats operation; the live-write canon fence is captured, never synthesized.
-import type { Db } from "@orb/db";
 import { characterStats, characters, chats, dailyStats, messages, messageVariants, modelStats, ownerStats, statsCanonVersions } from "@orb/db";
 import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { eq, inArray } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 type Reconcile = ServicesResult["services"]["stats"]["reconcile"];
 export type StatsCanonVersionRow = typeof statsCanonVersions.$inferSelect;
@@ -13,7 +13,9 @@ export type DailyStatsRow = typeof dailyStats.$inferSelect;
 export type ModelStatsRow = typeof modelStats.$inferSelect;
 
 /** Reconciliation does not create a canon fence for an owner with no live stats mutation. */
-export async function seedStats(db: Db, reconcile: Reconcile, ownerId: Parameters<Reconcile>[0]): Promise<SeededStats> {
+export async function seedStats(root: ServerProducerRoot, ownerId: Parameters<Reconcile>[0]): Promise<SeededStats> {
+  const db = root.db;
+  const reconcile = root.services.stats.reconcile;
   const result = await reconcile(ownerId);
   const owner = await db.select().from(ownerStats).where(eq(ownerStats.ownerId, ownerId)).get();
   if (owner === undefined) {
@@ -58,15 +60,16 @@ export interface CapturedStatsPopulations {
 
 /** Capture native retained and unstarted populations without reconstructing the stats owner's scope. */
 export async function captureStatsPopulations(
-  db: Db,
-  stats: ServicesResult["services"]["stats"],
+  root: ServerProducerRoot,
   ownerId: UserId,
   subjects: { readonly chatIds: readonly ChatId[]; readonly characterIds: readonly CharacterId[] },
 ): Promise<CapturedStatsPopulations> {
+  const db = root.db;
+  const stats = root.services.stats;
   const { chatIds, characterIds } = subjects;
   const canon = await db.select().from(messages).where(inArray(messages.chatId, chatIds)).orderBy(messages.id);
   return {
-    rows: await seedStats(db, stats.reconcile, ownerId),
+    rows: await seedStats(root, ownerId),
     chats: await db.select().from(chats).where(inArray(chats.id, chatIds)).orderBy(chats.id),
     messages: canon,
     variants: await db

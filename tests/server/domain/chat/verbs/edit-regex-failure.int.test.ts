@@ -17,7 +17,7 @@ test("a runOnEdit script that fails on an edit leaves the content unchanged and 
   await using root = await createServerHarness();
   const host = await root.principalFor(root.ownerId);
   const placement = ["AI_OUTPUT"] as const;
-  const script = await seedRegexScript(root.db, root.services.regex.createScript, {
+  const script = await seedRegexScript(root, {
     principal: host,
     input: createRegexScriptSchema.parse({
       name: "runaway",
@@ -28,7 +28,7 @@ test("a runOnEdit script that fails on an edit leaves the content unchanged and 
       ...deriveRegexTierFlags(placement),
     }),
   });
-  await seedGlobalRegexScript(root.db, root.services.regex.attachGlobal, { principal: host, scriptId: script.id });
+  await seedGlobalRegexScript(root, { principal: host, scriptId: script.id });
   const room = await root.services.chat.startChat({ principal: host, characterIds: [], opening: "none" });
   const chatId = room.chat.id;
   const slot = await seedMessage(root.db, { chatId, seq: 1, content: "seed", role: "assistant" }, root.idSource);

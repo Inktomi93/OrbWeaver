@@ -72,9 +72,51 @@ export type UnclaimedServerHarnessOptions = Omit<ServerHarnessOptions, "ownerId"
   readonly authConfig: NonNullable<ServerHarnessOptions["authConfig"]> & { readonly mode: "oidc" };
 };
 
-export type UnclaimedServerTestHarness = Omit<ServerTestHarness, "ownerId">;
+class ComposedServerRoot {
+  readonly #app: ServicesResult;
+  readonly #db: Db;
+  readonly #internalCallerFor: (userId: UserId | null) => Promise<ReturnType<typeof createCaller>>;
+  readonly #http: Pick<OwnedHttpRequests, "request" | "routes">;
 
-export interface ServerTestHarness extends AsyncDisposable {
+  constructor(
+    app: ServicesResult,
+    db: Db,
+    internalCallerFor: (userId: UserId | null) => Promise<ReturnType<typeof createCaller>>,
+    http: Pick<OwnedHttpRequests, "request" | "routes">,
+  ) {
+    this.#app = app;
+    this.#db = db;
+    this.#internalCallerFor = internalCallerFor;
+    this.#http = http;
+  }
+
+  get app(): ServicesResult {
+    return this.#app;
+  }
+
+  get services(): ServicesResult["services"] {
+    return this.#app.services;
+  }
+
+  get db(): Db {
+    return this.#db;
+  }
+
+  get internalCallerFor(): (userId: UserId | null) => Promise<ReturnType<typeof createCaller>> {
+    return this.#internalCallerFor;
+  }
+
+  get http(): Pick<OwnedHttpRequests, "request" | "routes"> {
+    return this.#http;
+  }
+}
+
+/** Persisted producers require the actual composed root, not a structural bag of replacement operations. */
+export type ServerProducerRoot = ComposedServerRoot;
+
+export interface UnclaimedServerTestHarness extends ComposedServerRoot, Omit<ServerTestHarness, "ownerId"> {}
+
+export interface ServerTestHarness extends ComposedServerRoot, AsyncDisposable {
   readonly app: ServicesResult;
   readonly services: ServicesResult["services"];
   readonly db: Db;
@@ -464,10 +506,7 @@ export async function createServerHarness(
     );
   const workloadDriver = workloadsFor(app, workloadExecution, manualWorkloadAbort.signal, options.startJobs);
   const lifetime = construction.move();
-  return {
-    app,
-    services: app.services,
-    db,
+  return Object.assign(new ComposedServerRoot(app, db, internalCallerFor, http), {
     clock,
     ids,
     idSource,
@@ -475,9 +514,7 @@ export async function createServerHarness(
     ...(ownerId === undefined ? {} : { ownerId }),
     ...(configuredOidc === undefined ? {} : { ownerClaimFile: configuredOidc.ownerClaimFile }),
     principalFor,
-    internalCallerFor,
     actor,
-    http,
     listen: async (): Promise<Readonly<AddressInfo>> => {
       const address = await http.listen();
       listener.bind(address);
@@ -495,5 +532,5 @@ export async function createServerHarness(
       closing = true;
       await lifetime.disposeAsync();
     },
-  };
+  });
 }

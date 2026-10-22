@@ -11,6 +11,7 @@ import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { and, eq } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
+import type { ServerProducerRoot } from "../server.ts";
 import { seedUser } from "./user.ts";
 
 /** The full `assets` row (derived from the live schema — the factory `X`). */
@@ -62,7 +63,9 @@ export interface SeededStoredAsset {
 }
 
 /** Capture the CAS-backed writer's actual identity, including an existing owner's dedup winner. */
-export async function seedStoredAsset(db: Db, store: AssetsService["store"], params: Parameters<AssetsService["store"]>[0]): Promise<SeededStoredAsset> {
+export async function seedStoredAsset(root: ServerProducerRoot, params: Parameters<AssetsService["store"]>[0]): Promise<SeededStoredAsset> {
+  const db = root.db;
+  const store = root.services.assets.store;
   const stored = await store(params);
   const row = await db
     .select()

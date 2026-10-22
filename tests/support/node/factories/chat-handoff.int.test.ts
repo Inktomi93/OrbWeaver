@@ -23,8 +23,8 @@ test("real accepted host handoff exposes its durable resumption only until accep
   if (sourceSeat === undefined || sourceSeat.characterId === null) {
     throw new Error("the actual founding room has no character seat to hand off");
   }
-  const invite = await seedChatInvite(root.db, root.services.chat.createInvite, { principal: owner, chatId, input: { invitedHandle: member.handle } });
-  await seedInvitedChatParticipant(root.db, root.services.chat.acceptInvite, { principal: member, inviteId: invite.id });
+  const invite = await seedChatInvite(root, { principal: owner, chatId, input: { invitedHandle: member.handle } });
+  await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.id });
   await root.services.chat.nominateHostHandoff({ principal: owner, chatId, userId: member.userId, offer: { copyCharacters: true, copyGmPreset: false } });
   const completion = held.hold(/^delete from "chat_handoff_resumptions"/u);
   const accepting = root.services.chat.acceptHostHandoff({ principal: member, chatId });

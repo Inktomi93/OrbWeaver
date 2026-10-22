@@ -44,7 +44,7 @@ test("native chat import captures returned claims, injections and owned attachme
   if (file === null || descriptor === undefined) {
     throw new Error("the real native chat export/import graph produced no file or descriptor");
   }
-  const imported = await seedImportedChatRows(root.db, descriptor.importFile, [root.ownerId, file]);
+  const imported = await seedImportedChatRows(root, [root.ownerId, file]);
   expect(imported.outcome).toMatchObject({ ok: true, created: true });
   expect(imported.claims).toHaveLength(1);
   const importedId = imported.outcome.memoryChatIds?.[0];
@@ -60,12 +60,12 @@ test("native chat import captures returned claims, injections and owned attachme
   expect(restored.messages.map((message) => message.content)).toEqual(turn.messages.map((message) => message.content));
   expect(imported.attachments.every((row) => restored.messages.some((message) => message.id === row.messageId))).toBe(true);
   const allClaims = await root.db.select().from(chatImportClaims).orderBy(chatImportClaims.chatId);
-  const repeated = await seedImportedChatRows(root.db, descriptor.importFile, [root.ownerId, file]);
+  const repeated = await seedImportedChatRows(root, [root.ownerId, file]);
   expect(repeated).toMatchObject({ outcome: { ok: true, created: false }, claims: [], injections: [], attachments: [] });
   expect(await root.db.select().from(chatImportClaims).orderBy(chatImportClaims.chatId)).toEqual(allClaims);
   const foreign = await root.actor();
   const beforeRooms = await root.db.select().from(chats);
-  const refused = await seedImportedChatRows(root.db, descriptor.importFile, [foreign.id, file]);
+  const refused = await seedImportedChatRows(root, [foreign.id, file]);
   expect(refused.outcome).toMatchObject({ ok: false });
   expect(refused.outcome.error).toContain("no character on this account matches this chat");
   expect(refused.claims).toEqual([]);

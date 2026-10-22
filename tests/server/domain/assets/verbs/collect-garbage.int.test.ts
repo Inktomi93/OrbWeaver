@@ -249,7 +249,7 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
   }
   refs["documents.source_asset_id"] = await storedRow(box, sourceAssetId);
 
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(root, {
     caller: principal,
     bundle: gcPluginBundle("gc-witness", makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
     grant: [],
@@ -265,7 +265,7 @@ async function plantEveryReference(box: GcBox): Promise<Record<string, StoredRef
 
   // Published to every user, then the publisher uninstalls their own copy: the publication is the bundle's only
   // reference, and the uninstall's no-grace reap already had to honor it.
-  const published = await seedDistributedPlugin(root.db, root.services.plugin.installForAllUsers, {
+  const published = await seedDistributedPlugin(root, {
     caller: principal,
     bundle: gcPluginBundle("gc-published", makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
   });
@@ -447,12 +447,12 @@ test("a co-member's quote keeps nothing once the owner's own attachment message 
   const member = await box.root.principalFor((await box.root.actor()).id);
   await seedCorpusConnections(box.root, member);
   const room = await openRoom(box, castId<CharacterHandle>("gc-shared-room"));
-  const invite = await seedChatInvite(box.root.db, box.root.services.chat.createInvite, {
+  const invite = await seedChatInvite(box.root, {
     principal: box.principal,
     chatId: room,
     input: { invitedHandle: member.handle },
   });
-  await seedInvitedChatParticipant(box.root.db, box.root.services.chat.acceptInvite, { principal: member, inviteId: invite.id });
+  await seedInvitedChatParticipant(box.root, { principal: member, inviteId: invite.id });
   const attached = await store(box, "attachment");
   const posted = await attach(box, room, attached);
   await say(box, room, { content: `Quoting the host. ${inlineImage(attached)}`, as: member });

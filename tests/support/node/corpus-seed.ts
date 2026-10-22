@@ -10,7 +10,7 @@ import type { ChatId, DocumentId, Handle, PersonaId, UserConnectionId } from "@o
 import { brandedId, ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
-import { seedDefaultPreset, seedThemes, seedUserContent } from "@orb/server/entry/boot";
+import { seedDefaultPreset, seedThemes } from "@orb/server/entry/boot";
 import type { SeedDemoResult } from "@orb/tooling/seed";
 import { loadDemoSeed, SECOND_HUMAN_HANDLE } from "@orb/tooling/seed";
 import type { CorpusWire } from "../iso/corpus.ts";
@@ -108,76 +108,76 @@ export interface SeededCorpusLibraries {
 export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCorpusLibraries> {
   const principal = await root.principalFor(root.ownerId);
   const caller = await root.internalCallerFor(root.ownerId);
-  const createdCharacter = await seedCreatedCharacter(root.db, root.services.character.create, {
+  const createdCharacter = await seedCreatedCharacter(root, {
     principal,
     input: createCharacterSchema.parse({ handle: "corpus-library", name: "The ledger archivist", description: "An archivist preserving the orbital ledger." }),
   });
   const character = createdCharacter.view;
-  const createdPersona = await seedCreatedPersona(root.db, root.services.persona.create, {
+  const createdPersona = await seedCreatedPersona(root, {
     principal,
     input: createPersonaSchema.parse({ name: "The ledger keeper", description: "Keeper of the orbital ledger." }),
   });
   const persona = createdPersona.view;
-  const createdPreset = await seedCreatedPreset(root.db, caller.preset.create, { name: "Corpus library preset", kind: "custom" });
+  const createdPreset = await seedCreatedPreset(root, root.ownerId, { name: "Corpus library preset", kind: "custom" });
   const preset = createdPreset.view;
   const room = await root.services.chat.startChat({ principal, characterIds: [character.id], opening: "none" });
-  const history = await seedCharacterHistory(root.db, root.services.character, {
+  const history = await seedCharacterHistory(root, {
     principal,
     characterId: character.id,
     label: "Corpus library baseline",
   });
   const snapshot = history.row;
-  const characterPersona = await seedCharacterPersona(root.db, root.services.persona.connectToCharacter, {
+  const characterPersona = await seedCharacterPersona(root, {
     principal,
     characterId: character.id,
     personaId: persona.id,
   });
-  const storedAsset = await seedStoredAsset(root.db, root.app.assets.store, {
+  const storedAsset = await seedStoredAsset(root, {
     principal,
     kind: "gallery",
     mime: "image/png",
     bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
   });
   const asset = storedAsset.stored;
-  const gallery = await seedGalleryItem(root.db, root.app.assets.addToGallery, { principal, assetId: asset.assetId, subjectCharacterId: character.id });
-  const book = await seedWorldBook(root.db, root.services.worldInfo.createBook, { principal, input: createBookSchema.parse({ name: "Orbital ledger canon" }) });
-  await seedWorldEntry(root.db, root.services.worldInfo.createEntry, {
+  const gallery = await seedGalleryItem(root, { principal, assetId: asset.assetId, subjectCharacterId: character.id });
+  const book = await seedWorldBook(root, { principal, input: createBookSchema.parse({ name: "Orbital ledger canon" }) });
+  await seedWorldEntry(root, {
     principal,
     bookId: book.id,
     input: createEntrySchema.parse({ title: "The orbital loom", content: "The loom records every completed ledger scene.", keys: ["loom"] }),
   });
-  await seedCharacterBook(root.db, root.services.worldInfo.attachToCharacter, { principal, characterId: character.id, bookId: book.id, role: "primary" });
-  await seedChatBook(root.db, root.services.worldInfo.attachToChat, { principal, chatId: room.chat.id, bookId: book.id });
-  await seedGlobalBook(root.db, root.services.worldInfo.attachGlobal, { principal, bookId: book.id });
-  await seedPersonaBook(root.db, root.services.worldInfo.attachToPersona, { principal, personaId: persona.id, bookId: book.id });
+  await seedCharacterBook(root, { principal, characterId: character.id, bookId: book.id, role: "primary" });
+  await seedChatBook(root, { principal, chatId: room.chat.id, bookId: book.id });
+  await seedGlobalBook(root, { principal, bookId: book.id });
+  await seedPersonaBook(root, { principal, personaId: persona.id, bookId: book.id });
   const world = await captureWorldBookRows(root.db, book.id);
-  const document = await seedDocument(root.db, root.services.databank.createFromText, {
+  const document = await seedDocument(root, {
     principal,
     name: "Orbital ledger source",
     text: "The orbital ledger preserves the witness names and the completed loom scenes.",
   });
   const documents = {
-    character: await seedCharacterDocument(root.db, root.services.databank.attachToCharacter, {
+    character: await seedCharacterDocument(root, {
       principal,
       characterId: character.id,
       documentId: document.id,
     }),
-    chat: await seedChatDocument(root.db, root.services.databank.attachToChat, { principal, chatId: room.chat.id, documentId: document.id }),
-    global: await seedGlobalDocument(root.db, root.services.databank.attachGlobal, { principal, documentId: document.id }),
+    chat: await seedChatDocument(root, { principal, chatId: room.chat.id, documentId: document.id }),
+    global: await seedGlobalDocument(root, { principal, documentId: document.id }),
   };
-  const createdTag = await seedCreatedTag(root.db, root.services.tag.createTag, {
+  const createdTag = await seedCreatedTag(root, {
     principal,
     input: createTagSchema.parse({ name: "Orbital ledger", source: "auto" }),
   });
   const tag = createdTag.row;
   const tags = {
-    character: await seedCharacterTag(root.db, root.services.tag.attachTag, { principal, characterId: character.id, tagId: tag.id, status: "pending" }),
-    chat: await seedChatTag(root.db, root.services.tag.attachTag, { principal, chatId: room.chat.id, tagId: tag.id }),
-    persona: await seedPersonaTag(root.db, root.services.tag.attachTag, { principal, personaId: persona.id, tagId: tag.id }),
-    preset: await seedPresetTag(root.db, root.services.tag.attachTag, { principal, presetId: preset.id, tagId: tag.id }),
-    world: await seedWorldBookTag(root.db, root.services.tag.attachTag, { principal, worldBookId: book.id, tagId: tag.id }),
+    character: await seedCharacterTag(root, { principal, characterId: character.id, tagId: tag.id, status: "pending" }),
+    chat: await seedChatTag(root, { principal, chatId: room.chat.id, tagId: tag.id }),
+    persona: await seedPersonaTag(root, { principal, personaId: persona.id, tagId: tag.id }),
+    preset: await seedPresetTag(root, { principal, presetId: preset.id, tagId: tag.id }),
+    world: await seedWorldBookTag(root, { principal, worldBookId: book.id, tagId: tag.id }),
   };
-  const derivedPersona = await seedPersonaFromCharacter(root.db, root.services.persona.createFromCharacter, {
+  const derivedPersona = await seedPersonaFromCharacter(root, {
     principal,
     characterId: character.id,
     swapMacros: true,
@@ -191,7 +191,7 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
     throw new Error("native library corpus has no production-seeded system preset");
   }
   // Explicit new authorship leaves any earlier converged fork and active configuration untouched.
-  const branchedPreset = await seedUpdatedPreset(root.db, caller.preset.update, {
+  const branchedPreset = await seedUpdatedPreset(root, root.ownerId, {
     id: source.id,
     fork: { mode: "new", name: "Corpus library branch" },
   });
@@ -211,8 +211,8 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
   if (fileText === undefined) {
     throw new Error("native preset export omitted the produced library branch");
   }
-  const importedPreset = await seedImportedPreset(root.db, caller.preset.importFile, { fileText });
-  const roster = await seedRosterPreset(root.db, root.services.rosterPreset.create, {
+  const importedPreset = await seedImportedPreset(root, root.ownerId, { fileText });
+  const roster = await seedRosterPreset(root, {
     principal,
     input: createRosterPresetSchema.parse({
       name: "Corpus library roster",
@@ -284,11 +284,11 @@ async function captureAutomationCounter(
 export async function seedCorpusAutomation(root: ServerHarness, chatId: ChatId): Promise<SeededCorpusAutomation> {
   const principal = await root.principalFor(root.ownerId);
   const automation = root.services.automation;
-  const budget = await seedAutomationOwnerBudget(root.db, automation.setOwnerBudgets, { principal, maxFiresPerHour: AUTOMATION_OWNER_CAP });
-  await seedGlobalVariable(root.db, automation.setGlobalVariable, { principal, key: AUTOMATION_COUNTER_KEY, value: "0" });
+  const budget = await seedAutomationOwnerBudget(root, { principal, maxFiresPerHour: AUTOMATION_OWNER_CAP });
+  await seedGlobalVariable(root, { principal, key: AUTOMATION_COUNTER_KEY, value: "0" });
   const gate = { principal, key: AUTOMATION_GATE_KEY };
-  await seedGlobalVariable(root.db, automation.setGlobalVariable, { ...gate, value: "no" });
-  const globalRule = await seedAutomationRule(root.db, automation.createRule, {
+  await seedGlobalVariable(root, { ...gate, value: "no" });
+  const globalRule = await seedAutomationRule(root, {
     principal,
     chatId: null,
     name: "Corpus owned asset counter",
@@ -298,7 +298,7 @@ export async function seedCorpusAutomation(root: ServerHarness, chatId: ChatId):
     actions: [{ type: "set_variable", scope: "global", key: AUTOMATION_COUNTER_KEY, op: "inc" }],
   });
   const params = { principal, ruleId: globalRule.id };
-  const dry = await seedAutomationTestFires(root.db, automation.testRule, params);
+  const dry = await seedAutomationTestFires(root, params);
   await automation.setRuleEnabled({ ...params, enabled: true });
   const watchedAsset = async (): Promise<Awaited<ReturnType<typeof captureAutomationCounter>>> => {
     await root.app.assets.store({ principal, kind: "gallery", mime: "image/png", bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)) });
@@ -313,11 +313,11 @@ export async function seedCorpusAutomation(root: ServerHarness, chatId: ChatId):
   await automation.setGlobalVariable({ ...gate, value: "yes" });
   const secondHit = await watchedAsset();
   const rateLimited = await watchedAsset();
-  const manual = await seedAutomationRun(root.db, automation.runRuleNow, params);
+  const manual = await seedAutomationRun(root, params);
   const completed = await captureAutomationCounter(root, globalRule.id);
 
   await root.services.chat.commitMessage({ principal, chatId, content: "The keeper preserves the completed orbital ledger." });
-  const analysisRule = await seedAutomationRule(root.db, automation.createRule, {
+  const analysisRule = await seedAutomationRule(root, {
     principal,
     chatId,
     name: "Corpus private ledger direction",
@@ -327,7 +327,7 @@ export async function seedCorpusAutomation(root: ServerHarness, chatId: ChatId):
     actions: [{ type: "run_analysis", brief: "Preserve the orbital ledger's direction.", routes: { steer: { apply: "direct" } } }],
   });
   await automation.setRuleEnabled({ principal, ruleId: analysisRule.id, enabled: true });
-  const analysis = await seedAutomationRun(root.db, automation.runRuleNow, { principal, ruleId: analysisRule.id });
+  const analysis = await seedAutomationRun(root, { principal, ruleId: analysisRule.id });
   if (analysis.result.outcome !== "fired" || analysis.state === undefined) {
     throw new Error("actual corpus analysis produced no completed private state", { cause: analysis.result });
   }
@@ -543,7 +543,7 @@ interface SyntheticCorpus {
 
 /** Configure explicit physical corpus models through real owner admission; no runtime/role resolver is replaced. */
 export async function seedCorpusConnections(root: ServerHarness, principal: Principal): Promise<CorpusConnections> {
-  const embed = await seedUserConnection(root.db, root.services.connection.create, {
+  const embed = await seedUserConnection(root, {
     principal,
     providerId: "custom-openai",
     credentialId: null,
@@ -552,7 +552,7 @@ export async function seedCorpusConnections(root: ServerHarness, principal: Prin
     allowBackground: true,
     declared: { kind: "embedding", embedding: { dims: CORPUS_EMBEDDING_VECTOR.length, maxInputTokens: 8192 }, features: { detectServer: false } },
   });
-  const text = await seedUserConnection(root.db, root.services.connection.create, {
+  const text = await seedUserConnection(root, {
     principal,
     providerId: "custom-openai",
     credentialId: null,
@@ -565,9 +565,9 @@ export async function seedCorpusConnections(root: ServerHarness, principal: Prin
       features: { detectServer: false, structuredMode: "guided-decoding" },
     },
   });
-  await seedConnectionBinding(root.db, root.services.connection.setBinding, { principal, task: "embed", connectionId: embed.id });
-  await seedConnectionBinding(root.db, root.services.connection.setBinding, { principal, task: "chat", connectionId: text.id });
-  await seedConnectionBinding(root.db, root.services.connection.setBinding, { principal, task: "summarize", connectionId: text.id });
+  await seedConnectionBinding(root, { principal, task: "embed", connectionId: embed.id });
+  await seedConnectionBinding(root, { principal, task: "chat", connectionId: text.id });
+  await seedConnectionBinding(root, { principal, task: "summarize", connectionId: text.id });
   await root.services.connection.setBinding({ principal, task: "imageEmbed", connectionId: null });
   return { embed, text };
 }
@@ -577,7 +577,7 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
   const owner = await root.principalFor(root.ownerId);
   await seedDefaultPreset({ db: root.db, now: root.clock.now });
   await seedThemes({ db: root.db, now: root.clock.now });
-  const seedLedger = await seedUserContentLedger(root.db, seedUserContent, { seeder: root.app.contentSeeder, owner });
+  const seedLedger = await seedUserContentLedger(root, owner);
 
   // The demo's optional CLI branches cannot certify a corpus whose required boot content is missing.
   const bootCharacters = await Promise.all(
@@ -636,8 +636,8 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
 
   const { auth, loginBuckets, secrets } = await captureCookieAuth(root, owner, options.ownerPassword);
   await root.settleBackground();
-  const ownerStats = await seedStats(root.db, root.services.stats.reconcile, root.ownerId);
-  const secondUserStats = await seedStats(root.db, root.services.stats.reconcile, seed.secondUserId);
+  const ownerStats = await seedStats(root, root.ownerId);
+  const secondUserStats = await seedStats(root, seed.secondUserId);
   const identities = { soloChatId: seed.solo.chat.id, groupChatId: seed.group.chat.id, documentId: seed.document.document.id };
 
   return {

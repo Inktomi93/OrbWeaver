@@ -26,12 +26,12 @@ const FOREIGN_DESCRIPTION = "The first stranger's mood report.";
 
 async function installGuest(root: ServerTestHarness, caller: Principal, description: string): ReturnType<typeof seedPluginGrant> {
   const source = `const host = orb.host(1); host.tools.register({name:${JSON.stringify(LOCAL_NAME)}, description:${JSON.stringify(description)}, parameters:{type:"object",properties:{},additionalProperties:false}, handler:async()=>"calm"});`;
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(root, {
     caller,
     bundle: makePluginBundle(MANIFEST, source, root.clock.now()),
     grant: [],
   });
-  const enabled = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  const enabled = await seedPluginGrant(root, {
     caller,
     pluginId: installed.plugin.id,
     grant: MANIFEST.capabilities,

@@ -92,12 +92,12 @@ async function openRoom(box: Box, guests: readonly Principal[], handle = "placem
 }
 
 async function admit(box: Box, chatId: ChatId, guest: Principal): Promise<void> {
-  const invite = await seedChatInvite(box.root.db, box.root.services.chat.createInvite, {
+  const invite = await seedChatInvite(box.root, {
     principal: box.host,
     chatId,
     input: { invitedHandle: guest.handle },
   });
-  await seedInvitedChatParticipant(box.root.db, box.root.services.chat.acceptInvite, { principal: guest, inviteId: invite.id });
+  await seedInvitedChatParticipant(box.root, { principal: guest, inviteId: invite.id });
 }
 
 async function store(box: Box, owner: Principal, kind: "attachment" | "gallery"): Promise<AssetId> {

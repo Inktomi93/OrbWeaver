@@ -1,11 +1,11 @@
 // Provider definitions and claims are captured only after their real registration/lifecycle commits.
 import type { ProviderDef, ProviderId } from "@orb/contracts/inference";
-import type { Db } from "@orb/db";
 import { pluginProviderClaims, providerRows } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import type { PluginService } from "@orb/server/domain/plugin";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 type ConnectionService = ServicesResult["services"]["connection"];
 
@@ -18,11 +18,12 @@ export interface SeededPluginProvider {
 }
 
 export async function seedAdminProvider(
-  db: Db,
-  register: ConnectionService["registry"]["register"],
+  root: ServerProducerRoot,
   definition: ProviderDef,
   origin: Extract<Parameters<ConnectionService["registry"]["register"]>[1], { readonly admin: UserId }>,
 ): Promise<ProviderRow> {
+  const db = root.db;
+  const register = root.services.connection.registry.register;
   const registered = await register(definition, origin);
   const row = await db
     .select()
@@ -37,11 +38,12 @@ export async function seedAdminProvider(
 
 /** Provider IDs come from the genuine parsed bundle manifest, not a fixture-side namespace/hash fold. */
 export async function seedPluginProviders(
-  db: Db,
-  setGrant: PluginService["setGrant"],
+  root: ServerProducerRoot,
   params: Parameters<PluginService["setGrant"]>[0],
   providerIds: readonly ProviderId[],
 ): Promise<readonly SeededPluginProvider[]> {
+  const db = root.db;
+  const setGrant = root.services.plugin.setGrant;
   const view = await setGrant(params);
   if (view.status !== "enabled") {
     throw new Error(`production plugin activation did not enable provider capture: ${view.status}`);

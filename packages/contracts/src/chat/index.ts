@@ -394,6 +394,7 @@ export {
   memberCardViewSchema,
   NO_HANDOFF_OFFER,
   NO_HANDOFF_OFFER_CONTENTS,
+  NO_HISTORY_FLOOR,
   PENDING_JOIN_ERROR_CODES,
   participantRoleSchema,
   participantViewSchema,

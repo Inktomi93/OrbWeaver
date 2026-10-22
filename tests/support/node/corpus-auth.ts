@@ -85,7 +85,7 @@ export async function captureCookieAuth(root: ServerTestHarness, viewer: Princip
   if (anonymousMe.authenticated) {
     throw new Error("synthetic corpus anonymous identity request unexpectedly admitted a principal");
   }
-  const { response: login, buckets: loginBuckets } = await seedLoginBuckets(root.db, root.http.request, [
+  const { response: login, buckets: loginBuckets } = await seedLoginBuckets(root, [
     "/api/auth/login",
     {
       method: "POST",

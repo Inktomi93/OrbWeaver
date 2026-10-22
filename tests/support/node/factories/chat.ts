@@ -31,6 +31,7 @@ import type { ChatService } from "@orb/server/domain/chat";
 import { and, eq, inArray, isNull } from "drizzle-orm";
 import { FROZEN_AT_MS } from "../../iso/clock.ts";
 import { createSeededIds } from "../../iso/ids.ts";
+import type { ServerProducerRoot } from "../server.ts";
 import { seedCharacter } from "./character.ts";
 import { seedUser } from "./user.ts";
 
@@ -95,11 +96,13 @@ export interface SeededImportedChatRows {
 }
 
 /** Capture newly written conversations by returned IDs; refusal and dedup do not invent a new room identity. */
-export async function seedImportedChatRows(
-  db: Db,
-  importFile: PortableEntity["importFile"],
-  params: Parameters<PortableEntity["importFile"]>,
-): Promise<SeededImportedChatRows> {
+export async function seedImportedChatRows(root: ServerProducerRoot, params: Parameters<PortableEntity["importFile"]>): Promise<SeededImportedChatRows> {
+  const db = root.db;
+  const descriptor = root.app.portability.find((entity) => entity.kind === "chat");
+  if (descriptor === undefined) {
+    throw new Error("production composition has no chat portability descriptor");
+  }
+  const importFile = descriptor.importFile;
   const [ownerId, file] = params;
   const outcome = await importFile(ownerId, file);
   const chatIds = outcome.memoryChatIds ?? [];
@@ -226,11 +229,9 @@ export async function seedChat(db: Db, overrides: SeedChatOptions = {}, source?:
 }
 
 /** The real host-gated mint owns CSPRNG token hashing, target resolution, bounds and notification delivery. */
-export async function seedChatInvite(
-  db: Db,
-  createInvite: ChatService["createInvite"],
-  params: Parameters<ChatService["createInvite"]>[0],
-): Promise<ChatInviteRow> {
+export async function seedChatInvite(root: ServerProducerRoot, params: Parameters<ChatService["createInvite"]>[0]): Promise<ChatInviteRow> {
+  const db = root.db;
+  const createInvite = root.services.chat.createInvite;
   const result = await createInvite(params);
   const row = await db.select().from(chatInvites).where(eq(chatInvites.id, result.invite.id)).get();
   if (row === undefined) {
@@ -240,11 +241,9 @@ export async function seedChatInvite(
 }
 
 /** Captures a real targeted join/recovery after the atomic claim, persona resolution and history-floor write. */
-export async function seedInvitedChatParticipant(
-  db: Db,
-  acceptInvite: ChatService["acceptInvite"],
-  params: Parameters<ChatService["acceptInvite"]>[0],
-): Promise<ChatParticipantRow> {
+export async function seedInvitedChatParticipant(root: ServerProducerRoot, params: Parameters<ChatService["acceptInvite"]>[0]): Promise<ChatParticipantRow> {
+  const db = root.db;
+  const acceptInvite = root.services.chat.acceptInvite;
   const result = await acceptInvite(params);
   const row = await db.select().from(chatParticipants).where(eq(chatParticipants.id, result.participant.id)).get();
   if (row === undefined) {
@@ -255,11 +254,12 @@ export async function seedInvitedChatParticipant(
 
 /** Requires a fresh target; production owns the seat, posture, floor and stored segment anchor. */
 export async function seedMessageReaction(
-  db: Db,
-  toggleReaction: ChatService["toggleReaction"],
+  root: ServerProducerRoot,
   params: Parameters<ChatService["toggleReaction"]>[0],
   reactorParticipantId: MessageReactionRow["reactorParticipantId"],
 ): Promise<MessageReactionRow> {
+  const db = root.db;
+  const toggleReaction = root.services.chat.toggleReaction;
   if (!(await toggleReaction(params))) {
     throw new Error("production reaction toggle did not add a canonical reaction row");
   }

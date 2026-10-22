@@ -119,22 +119,21 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
     `${CORPUS_PLUGIN_OUTPUT_SOURCE}\n${GUEST_SOURCE}`,
     root.clock.now(),
   );
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, { caller, bundle: bytes, grant: [] });
+  const installed = await seedInstalledPlugin(root, { caller, bundle: bytes, grant: [] });
   const ownerIds = { pluginId: installed.outcome.id, surfaceId: CORPUS_PLUGIN_OUTPUT_SURFACE };
   const ownerPending = await captureCorpusPluginStage(root, caller.userId, ownerIds);
   const providers = await seedPluginProviders(
-    root.db,
-    root.services.plugin.setGrant,
+    root,
     { caller, pluginId: installed.outcome.id, grant: manifest.capabilities, acknowledgedNetHosts: [], enable: true },
     (manifest.providers ?? []).map((provider) => provider.id),
   );
   const ownerActive = await captureCorpusPluginStage(root, caller.userId, ownerIds);
-  const distribution = await seedDistributedPlugin(root.db, root.services.plugin.installForAllUsers, { caller, bundle: bytes });
+  const distribution = await seedDistributedPlugin(root, { caller, bundle: bytes });
   const recipientInstall = distribution.installs.find(({ plugin }) => plugin.ownerId === recipientCaller.userId);
   if (recipientInstall === undefined) {
     throw new Error("actual corpus plugin distribution omitted the required recipient");
   }
-  const recipient = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  const recipient = await seedPluginGrant(root, {
     caller: recipientCaller,
     pluginId: recipientInstall.plugin.id,
     grant: manifest.capabilities,
@@ -156,15 +155,15 @@ export async function seedCorpusPlugins(root: ServerTestHarness, recipientId: Us
         ),
       ),
     );
-  const repeated = await seedDistributedPlugin(root.db, root.services.plugin.installForAllUsers, { caller, bundle: bytes });
-  const admin = await seedAdminProvider(root.db, root.services.connection.registry.register, CORPUS_ADMIN_PROVIDER, { admin: caller.userId });
+  const repeated = await seedDistributedPlugin(root, { caller, bundle: bytes });
+  const admin = await seedAdminProvider(root, CORPUS_ADMIN_PROVIDER, { admin: caller.userId });
   const refusedManifest = pluginManifestSchema.parse({ ...CORPUS_PLUGIN_MANIFEST, id: "corpus-refused", name: "Corpus refused activation" });
-  const refusedInstall = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const refusedInstall = await seedInstalledPlugin(root, {
     caller,
     bundle: corpusPluginBundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), refusedManifest, REFUSED_GUEST_SOURCE, root.clock.now()),
     grant: [],
   });
-  const refused = await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  const refused = await seedPluginGrant(root, {
     caller,
     pluginId: refusedInstall.outcome.id,
     grant: refusedManifest.capabilities,
@@ -216,12 +215,12 @@ export async function seedCorpusPluginWithdrawal(root: ServerTestHarness, recipi
   const owner = await root.principalFor(root.ownerId);
   const recipient = await root.principalFor(recipientId);
   const bytes = corpusPluginBundle(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)), CORPUS_PLUGIN_MANIFEST, GUEST_SOURCE, root.clock.now());
-  const published = await seedDistributedPlugin(root.db, root.services.plugin.installForAllUsers, { caller: owner, bundle: bytes });
+  const published = await seedDistributedPlugin(root, { caller: owner, bundle: bytes });
   const selected = published.installs.find(({ plugin }) => plugin.ownerId === recipient.userId);
   if (selected === undefined) {
     throw new Error("Native distribution omitted the withdrawal recipient");
   }
-  await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  await seedPluginGrant(root, {
     caller: recipient,
     pluginId: selected.plugin.id,
     grant: CORPUS_PLUGIN_MANIFEST.capabilities,

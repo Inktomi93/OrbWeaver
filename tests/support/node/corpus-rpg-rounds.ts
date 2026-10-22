@@ -60,10 +60,10 @@ async function roundRoom(root: ServerTestHarness, memberUserId: ServerTestHarnes
   const room = await caller.chat.startChat({ characterIds: [character.id], opening: "none" });
   const chatId = room.chat.id;
   await caller.chat.setGroupConfig({ chatId, config: { output: "per-speaker", cardScope: "scoped", policy: "list" } });
-  const game = await seedRpgGame(root.db, root.services.rpg.createGame, { principal, chatId, mode: "lite" });
+  const game = await seedRpgGame(root, { principal, chatId, mode: "lite" });
   await caller.rpg.updateConfig({ chatId, extractionMode: "cheap" });
-  const invite = await seedChatInvite(root.db, root.services.chat.createInvite, { principal, chatId, input: { invitedHandle: member.handle } });
-  const participant = await seedInvitedChatParticipant(root.db, root.services.chat.acceptInvite, { principal: member, inviteId: invite.id });
+  const invite = await seedChatInvite(root, { principal, chatId, input: { invitedHandle: member.handle } });
+  const participant = await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.id });
   return { character, room, game, participant };
 }
 

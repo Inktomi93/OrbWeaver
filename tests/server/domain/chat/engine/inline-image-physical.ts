@@ -135,7 +135,7 @@ export async function imageRoom(
       },
     }),
   );
-  await seedAdminProvider(h.root.db, h.root.services.connection.registry.register, definition, { admin: h.owner.userId });
+  await seedAdminProvider(h.root, definition, { admin: h.owner.userId });
   const credential = await h.root.services.credentials.add({ principal: h.owner, provider: definition.id, key: "controlled-native-image-key" });
   const connection = await h.root.services.connection.create({
     principal: h.owner,
@@ -170,12 +170,12 @@ export async function imageRoom(
     const source = `const host = orb.host(1);
 host.tools.register({name:"draw",description:"Draw the moon.",replayHistory:true,
   parameters:{type:"object",properties:{},additionalProperties:false},handler:async()=>"Moon"});`;
-    const installed = await seedInstalledPlugin(h.root.db, h.root.services.plugin.install, {
+    const installed = await seedInstalledPlugin(h.root, {
       caller: h.owner,
       bundle: makePluginBundle(manifest, source, h.root.clock.now()),
       grant: [],
     });
-    const enabled = await seedPluginGrant(h.root.db, h.root.services.plugin.setGrant, {
+    const enabled = await seedPluginGrant(h.root, {
       caller: h.owner,
       pluginId: installed.outcome.id,
       grant: manifest.capabilities,

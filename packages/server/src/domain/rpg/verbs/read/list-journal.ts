@@ -22,9 +22,6 @@ import { listActiveJournal } from "#src/domain/rpg/persistence/journal.ts";
 import { stripHiddenForViewer } from "#src/domain/rpg/substrate/hidden-spans.ts";
 
 const DEFAULT_JOURNAL_LIMIT = 50;
-/** The floor a viewer whose visibility could not be resolved reads at — unreachable behind `resolveMember`,
- *  and fail-CLOSED if it ever were reached (0 would mean UNCLAMPED). */
-const FAIL_CLOSED_FLOOR = Number.MAX_SAFE_INTEGER;
 
 export function createListJournal(ctx: RpgContext): Pick<RpgService, "listJournal"> {
   async function listJournal(params: ListJournalParams): Promise<readonly RpgJournalEntryView[]> {
@@ -33,7 +30,7 @@ export function createListJournal(ctx: RpgContext): Pick<RpgService, "listJourna
     const rows = await listActiveJournal(ctx.db, game.id, {
       limit: params.limit ?? DEFAULT_JOURNAL_LIMIT,
       offset: params.offset ?? 0,
-      historyFloorSeq: visibility?.historyFloorSeq ?? FAIL_CLOSED_FLOOR,
+      historyFloorSeq: visibility?.historyFloorSeq ?? null,
     });
     const views = rows.map((r) => ({ id: r.id, type: r.type, label: r.label, title: r.title, content: r.content, createdAt: r.createdAt }));
     return stripHiddenForViewer(views, visibility?.readsHidden ?? false);

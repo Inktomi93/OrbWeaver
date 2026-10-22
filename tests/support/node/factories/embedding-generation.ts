@@ -18,6 +18,7 @@ import {
 import type { ChatId, DocumentId } from "@orb/kit/ids";
 import type { EmbeddingsService } from "@orb/server/domain/embeddings";
 import { and, eq } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 export type EmbedGenerationRow = typeof embedGenerations.$inferSelect;
 export type EmbedGenerationTargetRow = typeof embedGenerationTargets.$inferSelect;
@@ -64,10 +65,11 @@ export interface SeededEmbeddingGeneration {
 }
 
 export async function seedEmbeddingGeneration(
-  db: Db,
-  resolveGeneration: EmbeddingsService["resolveGeneration"],
+  root: ServerProducerRoot,
   params: Parameters<EmbeddingsService["resolveGeneration"]>,
 ): Promise<SeededEmbeddingGeneration> {
+  const db = root.db;
+  const resolveGeneration = root.app.embeddings.resolveGeneration;
   const resolved = await resolveGeneration(...params);
   if (resolved === null) {
     throw new Error("production embedding resolution produced no generation");
@@ -91,12 +93,13 @@ export async function seedEmbeddingGeneration(
 
 /** The real sweep owns card text, hashing, vector execution and completion; a target is not promotion proof. */
 export async function seedEmbeddedCorpus(
-  db: Db,
-  embedCorpus: EmbeddingsService["embedCorpus"],
+  root: ServerProducerRoot,
   params: Parameters<EmbeddingsService["embedCorpus"]>[0] & {
     readonly ownerId: NonNullable<Parameters<EmbeddingsService["embedCorpus"]>[0]["ownerId"]>;
   },
 ): Promise<SeededEmbeddedCorpus> {
+  const db = root.db;
+  const embedCorpus = root.app.embeddings.embedCorpus;
   const result = await embedCorpus(params);
   const rows = await db
     .select({ row: characterEmbeddings })
@@ -117,11 +120,9 @@ export interface SeededEmbeddedCorpus {
 }
 
 /** Caption/fallback/skip semantics remain the actual indexer's; null receipts do not manufacture a vector. */
-export async function seedIndexedAsset(
-  db: Db,
-  indexAsset: EmbeddingsService["indexAsset"],
-  params: Parameters<EmbeddingsService["indexAsset"]>,
-): Promise<SeededIndexedAsset> {
+export async function seedIndexedAsset(root: ServerProducerRoot, params: Parameters<EmbeddingsService["indexAsset"]>): Promise<SeededIndexedAsset> {
+  const db = root.db;
+  const indexAsset = root.app.embeddings.indexAsset;
   const result = await indexAsset(...params);
   const [vectors, analysis, skip] = await Promise.all([
     db.select().from(imageEmbeddings).where(eq(imageEmbeddings.assetId, params[0])).orderBy(imageEmbeddings.generationId, imageEmbeddings.lens),

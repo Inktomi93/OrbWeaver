@@ -2,7 +2,7 @@
 // acting `principal` and branded ids. Owner scoping is `principal.userId` — tags are personal labels.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { CreateTagInput, TagSource, TagStatus, TagTargetType, UpdateTagInput } from "@orb/contracts/tag";
+import type { CreateTagInput, TagSource, TagStatus, TagTargetRef, TagTargetType, UpdateTagInput } from "@orb/contracts/tag";
 import type { CharacterId, ChatId, TagId, UserId } from "@orb/kit/ids";
 
 /** Common to every tag verb: the acting principal whose `userId` is the owner discriminant. */
@@ -52,31 +52,27 @@ export interface SetTagOrderParams extends TagActorParams {
   readonly orderedIds: readonly TagId[];
 }
 
-export interface AttachTagParams extends TagActorParams {
-  readonly tagId: TagId;
-  readonly targetType: TagTargetType;
-  /** The target row's id (plain string on the wire; branded per `targetType` at the junction dispatch). */
-  readonly targetId: string;
-  /** The proposed/accepted surface — honored ONLY for `targetType: "character"` (the four other junctions
-   *  have no status column). Default `accepted` (a manual attach is a live tag); corpus distillation
-   *  passes `pending` to stage a suggestion. Re-attaching with `accepted` flips a pending row (the "Accept"). */
-  readonly status?: TagStatus;
-}
+export type AttachTagParams = TagActorParams &
+  TagTargetRef & {
+    readonly tagId: TagId;
+    /** The proposed/accepted surface — honored ONLY for `targetType: "character"` (the four other junctions
+     *  have no status column). Default `accepted` (a manual attach is a live tag); corpus distillation
+     *  passes `pending` to stage a suggestion. Re-attaching with `accepted` flips a pending row (the "Accept"). */
+    readonly status?: TagStatus;
+  };
 
-export interface DetachTagParams extends TagActorParams {
-  readonly tagId: TagId;
-  readonly targetType: TagTargetType;
-  readonly targetId: string;
-}
+export type DetachTagParams = TagActorParams &
+  TagTargetRef & {
+    readonly tagId: TagId;
+  };
 
-export interface BulkAttachTagParams extends TagActorParams {
-  /** Attach many tags to ONE target in a single round-trip (the "Promote" path: create-then-bulk-attach). */
-  readonly tagIds: readonly TagId[];
-  readonly targetType: TagTargetType;
-  readonly targetId: string;
-  /** As {@link AttachTagParams.status} — honored only for `targetType: "character"`; default `accepted`. */
-  readonly status?: TagStatus;
-}
+export type BulkAttachTagParams = TagActorParams &
+  TagTargetRef & {
+    /** Attach many tags to ONE target in a single round-trip (the "Promote" path: create-then-bulk-attach). */
+    readonly tagIds: readonly TagId[];
+    /** As {@link AttachTagParams.status} — honored only for `targetType: "character"`; default `accepted`. */
+    readonly status?: TagStatus;
+  };
 
 /** The internal resolve-or-create-by-name card-tag attach. Deliberately not a {@link TagActorParams}: it
  *  carries the already-resolved `ownerId` directly, because the caller has already owner-verified the

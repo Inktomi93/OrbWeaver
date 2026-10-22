@@ -65,12 +65,12 @@ test("the settings probe preserves key order and stored values while rejecting a
     { ownerId: root.ownerId, description: "Stored card description", systemPrompt: "Stored private prompt", trustHtml: false, interactiveHtml: false },
     root.idSource,
   );
-  const settings = await seedUserSettings(root.db, root.services.settings.updateUserSettingsSection, {
+  const settings = await seedUserSettings(root, {
     principal: owner,
     input: { section: "appearance", patch: {} },
   });
-  const game = await seedRpgGame(root.db, root.services.rpg.createGame, { principal: owner, chatId: chat.id, mode: "lite" });
-  const rule = await seedAutomationRule(root.db, root.services.automation.createRule, {
+  const game = await seedRpgGame(root, { principal: owner, chatId: chat.id, mode: "lite" });
+  const rule = await seedAutomationRule(root, {
     principal: owner,
     chatId: chat.id,
     name: "Inspector terminal control",
@@ -78,7 +78,7 @@ test("the settings probe preserves key order and stored values while rejecting a
     trigger: automationTriggerFor("chatOpened"),
     actions: [{ type: "set_variable", scope: "global", key: "inspector_control", op: "set", value: "1" }],
   });
-  const dryRun = await seedAutomationTestFires(root.db, root.services.automation.testRule, { principal: owner, ruleId: rule.id });
+  const dryRun = await seedAutomationTestFires(root, { principal: owner, ruleId: rule.id });
   const terminal = dryRun.fires[0];
   if (terminal === undefined) {
     throw new Error("The production dry run did not supply its terminal fire.");

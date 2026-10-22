@@ -39,9 +39,9 @@ test("stored asset capture preserves actual CAS bytes, owner-local dedup and ref
   const principal = await root.principalFor(root.ownerId);
   const bytes = makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset));
   const params = { principal, bytes, kind: "avatar", mime: "image/png", enforceMagic: true } as const;
-  const first = await seedStoredAsset(root.db, root.app.assets.store, params);
+  const first = await seedStoredAsset(root, params);
   root.clock.advance(2000);
-  const repeated = await seedStoredAsset(root.db, root.app.assets.store, { ...params, kind: "gallery" });
+  const repeated = await seedStoredAsset(root, { ...params, kind: "gallery" });
   expect(first.stored.created).toBe(true);
   expect(repeated.stored).toEqual({ ...first.stored, created: false });
   expect(repeated.row).toEqual(first.row);
@@ -49,24 +49,24 @@ test("stored asset capture preserves actual CAS bytes, owner-local dedup and ref
   expect(Array.from((await root.app.assets.readOwnedAssetBytes(principal, first.row.id)).bytes)).toEqual(Array.from(bytes));
   const other = await root.actor();
   const otherPrincipal = await root.principalFor(other.id);
-  const separate = await seedStoredAsset(root.db, root.app.assets.store, { ...params, principal: otherPrincipal });
+  const separate = await seedStoredAsset(root, { ...params, principal: otherPrincipal });
   expect(separate.row.id).not.toBe(first.row.id);
   expect(separate.row).toMatchObject({ ownerId: other.id, hash: first.row.hash, uploadedAt: root.clock.now() });
   const before = await root.db.select().from(assets).orderBy(assets.id);
-  await expect(seedStoredAsset(root.db, root.app.assets.store, { ...params, maxBytes: bytes.byteLength - 1 })).rejects.toThrow("over the");
+  await expect(seedStoredAsset(root, { ...params, maxBytes: bytes.byteLength - 1 })).rejects.toThrow("over the");
   expect(await root.db.select().from(assets).orderBy(assets.id)).toEqual(before);
 });
 
 test("created card and persona captures retain writer denorms, metadata and their actual avatar-joined projections", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
-  const avatar = await seedStoredAsset(root.db, root.app.assets.store, {
+  const avatar = await seedStoredAsset(root, {
     principal,
     bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)),
     mime: "image/png",
     kind: "avatar",
   });
-  const character = await seedCreatedCharacter(root.db, root.services.character.create, {
+  const character = await seedCreatedCharacter(root, {
     principal,
     input: createCharacterSchema.parse({
       handle: "created-root",
@@ -82,7 +82,7 @@ test("created card and persona captures retain writer denorms, metadata and thei
   expect(character.view.avatarHash).toBe(avatar.row.hash);
   expect(await root.services.character.get({ principal, characterId: character.row.id })).toEqual(character.view);
   expect(await root.db.select().from(characters).where(eq(characters.id, character.row.id)).get()).toEqual(character.row);
-  const persona = await seedCreatedPersona(root.db, root.services.persona.create, {
+  const persona = await seedCreatedPersona(root, {
     principal,
     input: createPersonaSchema.parse({
       name: "Keeper's witness",
@@ -109,9 +109,9 @@ test("created card and persona captures retain writer denorms, metadata and thei
 test("routed preset captures preserve canonical defaults, custom config, name de-collision and born-here lineage", async () => {
   await using root = await createServerHarness();
   const caller = await root.internalCallerFor(root.ownerId);
-  const first = await seedCreatedPreset(root.db, caller.preset.create, { name: "Keeper's arrangement", kind: "custom" });
+  const first = await seedCreatedPreset(root, root.ownerId, { name: "Keeper's arrangement", kind: "custom" });
   const config = makePromptConfig({ params: { temperature: 0.4 } });
-  const second = await seedCreatedPreset(root.db, caller.preset.create, { name: first.view.name, kind: "custom", config });
+  const second = await seedCreatedPreset(root, root.ownerId, { name: first.view.name, kind: "custom", config });
   expect(first.row.config).toEqual(DEFAULT_PROMPT_CONFIG);
   expect(first.row.schemaVersion).toBe(DEFAULT_PROMPT_CONFIG.schemaVersion);
   expect(second.row.name).not.toBe(first.row.name);

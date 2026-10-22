@@ -83,7 +83,7 @@ async function recoverHistoricalPointer(root: ServerTestHarness, chatId: Recursi
   }
   // Old-file intake admits missing campaign data independently of the retained chat metadata.
   const file = { ...exported, bytes: buildChatBundleFile({ ...parsed.value, rpg: null }) };
-  const imported = await seedImportedChatRows(root.db, descriptor.importFile, [root.ownerId, file]);
+  const imported = await seedImportedChatRows(root, [root.ownerId, file]);
   const importedChatId = imported.outcome.memoryChatIds?.[0];
   if (!imported.outcome.ok || importedChatId === undefined) {
     throw new Error("native historical RPG chat intake returned no imported identity");
@@ -105,8 +105,8 @@ export async function seedCorpusRpgMembers(root: ServerTestHarness, source: Recu
   const memberCaller = await root.internalCallerFor(memberUserId);
   const chatId = source.room.chat.id;
   const actorRef = { kind: "character", characterId: source.character.id } as const;
-  const invite = await seedChatInvite(root.db, root.services.chat.createInvite, { principal, chatId, input: { invitedHandle: member.handle } });
-  const participant = await seedInvitedChatParticipant(root.db, root.services.chat.acceptInvite, { principal: member, inviteId: invite.id });
+  const invite = await seedChatInvite(root, { principal, chatId, input: { invitedHandle: member.handle } });
+  const participant = await seedInvitedChatParticipant(root, { principal: member, inviteId: invite.id });
   const preset = await caller.preset.create({ name: "Offered observatory GM preset", kind: "custom" });
   await caller.rpg.updateConfig({ chatId, gmPresetId: preset.id, patch: { ruleset: "d20", steeringNote: RPG_HOST_STEERING } });
   const config = await caller.rpg.getConfigView({ chatId });
@@ -129,7 +129,7 @@ export async function seedCorpusRpgMembers(root: ServerTestHarness, source: Recu
     ops: [{ op: "addItem", item: { name: `Observatory key ${RPG_MEMBER_HIDDEN}`, description: `A hidden witness ${RPG_MEMBER_HIDDEN}` } }],
   });
   await caller.rpg.editSnapshot({ chatId, patch: { location: `Open observatory ${RPG_MEMBER_HIDDEN}` } });
-  const journal = await seedRpgJournalEntry(root.db, root.services.rpg.addJournalEntry, {
+  const journal = await seedRpgJournalEntry(root, {
     principal,
     chatId,
     type: "custom",
@@ -137,7 +137,7 @@ export async function seedCorpusRpgMembers(root: ServerTestHarness, source: Recu
     title: "Host ledger",
     content: `An open record ${RPG_MEMBER_HIDDEN}`,
   });
-  const checkpoint = await seedRpgCheckpoint(root.db, root.services.rpg.createCheckpoint, { principal, chatId, label: "Observatory recovery" });
+  const checkpoint = await seedRpgCheckpoint(root, { principal, chatId, label: "Observatory recovery" });
   const checkpointBefore = await captureRpgSnapshot(root.db, checkpoint.snapshotId);
   await caller.rpg.editSnapshot({ chatId, patch: { location: "Temporary observatory drift" } });
   const checkpointAfter = await captureRpgSnapshot(root.db, checkpoint.snapshotId);

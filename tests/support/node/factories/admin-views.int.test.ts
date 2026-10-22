@@ -1,12 +1,12 @@
-// @subject tests/support/node/factories/user.ts
+// @subject tests/support/node/factories/admin-user.ts
 // @subject tests/support/node/factories/sessions.ts
 import "../composed-real.ts";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
+import { seedCreatedAdminUser } from "./admin-user.ts";
 import { seedAdminSession, seedBffSession, seedRevokedUserSessions } from "./sessions.ts";
-import { seedCreatedAdminUser } from "./user.ts";
 
 const PASSWORD = "admin-output-corpus-password";
 const ID_TOKEN = "admin-output-private-id-token";
@@ -14,9 +14,8 @@ const ID_TOKEN = "admin-output-private-id-token";
 test("admin output captures retain native identities and clocks while excluding secrets and preserving another user's session", async () => {
   await using root = await createServerHarness();
   const owner = await root.principalFor(root.ownerId);
-  const admin = root.services.admin;
   const caller = await root.internalCallerFor(owner.userId);
-  const created = await seedCreatedAdminUser(root.db, caller.admin.createUser, {
+  const created = await seedCreatedAdminUser(root, owner.userId, {
     handle: castId<Handle>("admin-output-member"),
     password: PASSWORD,
   });
@@ -34,13 +33,8 @@ test("admin output captures retain native identities and clocks while excluding 
 
   const foreign = await root.actor();
   const foreignPrincipal = await root.principalFor(foreign.id);
-  const otherSession = await seedBffSession(root.db, root.app.sessions.create, { userId: foreign.id, userAgent: "Other native device" });
-  const session = await seedAdminSession(
-    root.db,
-    { create: root.app.sessions.create, listSessions: admin.listSessions },
-    { userId: created.view.id, userAgent: "Admin-view native device", oidcIdToken: ID_TOKEN },
-    owner,
-  );
+  const otherSession = await seedBffSession(root, { userId: foreign.id, userAgent: "Other native device" });
+  const session = await seedAdminSession(root, { userId: created.view.id, userAgent: "Admin-view native device", oidcIdToken: ID_TOKEN }, owner);
   expect(session.view).toEqual({
     id: session.created.sessionId,
     userId: created.view.id,
@@ -54,25 +48,23 @@ test("admin output captures retain native identities and clocks while excluding 
 
   const usersBefore = await caller.admin.listUsers();
   await expect(
-    seedCreatedAdminUser(root.db, (await root.internalCallerFor(foreign.id)).admin.createUser, {
+    seedCreatedAdminUser(root, foreign.id, {
       handle: castId<Handle>("refused-admin-output-member"),
       password: PASSWORD,
     }),
   ).rejects.toThrow();
   expect(await caller.admin.listUsers()).toEqual(usersBefore);
-  await expect(
-    seedRevokedUserSessions(root.db, admin.revokeUserSessions, { principal: foreignPrincipal, userId: created.view.id }, admin.listSessions),
-  ).rejects.toThrow();
+  await expect(seedRevokedUserSessions(root, { principal: foreignPrincipal, userId: created.view.id })).rejects.toThrow();
   expect(await root.app.sessions.validate(session.created.token)).toMatchObject({ userId: created.view.id });
 
   root.clock.advance(2000);
-  const revoked = await seedRevokedUserSessions(root.db, admin.revokeUserSessions, { principal: owner, userId: created.view.id }, admin.listSessions);
+  const revoked = await seedRevokedUserSessions(root, { principal: owner, userId: created.view.id });
   expect(revoked.result).toEqual({ revoked: 1 });
   expect(revoked.views).toEqual([{ ...session.view, revokedAt: root.clock.now() }]);
   expect(revoked.rows).toMatchObject([{ id: session.row.id, userId: created.view.id, revokedAt: root.clock.now(), oidcIdTokenCiphertext: null }]);
   expect(await root.app.sessions.validate(session.created.token)).toBeNull();
   expect(await root.app.sessions.validate(otherSession.created.token)).toMatchObject({ userId: foreign.id });
-  const repeated = await seedRevokedUserSessions(root.db, admin.revokeUserSessions, { principal: owner, userId: created.view.id }, admin.listSessions);
+  const repeated = await seedRevokedUserSessions(root, { principal: owner, userId: created.view.id });
   expect(repeated.result).toEqual({ revoked: 0 });
   expect(repeated.views).toEqual(revoked.views);
 

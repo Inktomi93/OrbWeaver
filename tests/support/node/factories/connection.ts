@@ -4,6 +4,7 @@ import { connectionBindings, sessionEntries, userConnections } from "@orb/db";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import type { ServicesResult } from "@orb/server/entry/compose";
 import { and, eq } from "drizzle-orm";
+import type { ServerProducerRoot } from "../server.ts";
 
 type ConnectionService = ServicesResult["services"]["connection"];
 
@@ -21,11 +22,9 @@ export async function captureSdkSessionRows(db: Db, chatId: ChatId, connectionId
 }
 
 /** Captures a real saved connection without inventing its model, provider, credential or capability facts. */
-export async function seedUserConnection(
-  db: Db,
-  create: ConnectionService["create"],
-  params: Parameters<ConnectionService["create"]>[0],
-): Promise<UserConnectionRow> {
+export async function seedUserConnection(root: ServerProducerRoot, params: Parameters<ConnectionService["create"]>[0]): Promise<UserConnectionRow> {
+  const db = root.db;
+  const create = root.services.connection.create;
   const view = await create(params);
   const row = await db.select().from(userConnections).where(eq(userConnections.id, view.id)).get();
   if (row === undefined) {
@@ -35,11 +34,9 @@ export async function seedUserConnection(
 }
 
 /** Captures the persisted binding only after the real actor gates and any probe/undo have settled. */
-export async function seedConnectionBinding(
-  db: Db,
-  setBinding: ConnectionService["setBinding"],
-  params: Parameters<ConnectionService["setBinding"]>[0],
-): Promise<ConnectionBindingRow> {
+export async function seedConnectionBinding(root: ServerProducerRoot, params: Parameters<ConnectionService["setBinding"]>[0]): Promise<ConnectionBindingRow> {
+  const db = root.db;
+  const setBinding = root.services.connection.setBinding;
   const result = await setBinding(params);
   const row = await db.select().from(connectionBindings).where(eq(connectionBindings.id, result.id)).get();
   if (row === undefined) {

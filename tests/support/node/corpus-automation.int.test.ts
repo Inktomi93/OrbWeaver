@@ -77,7 +77,7 @@ test("a stranger's real asset event cannot change the owner's admitted automatio
   await seedCorpusConnections(root, principal);
   const room = await root.services.chat.startChat({ principal, characterIds: [], opening: "none" });
   const capture = await seedCorpusAutomation(root, room.chat.id);
-  await seedAutomationOwnerBudget(root.db, root.services.automation.setOwnerBudgets, { principal, maxFiresPerHour: capture.budget.maxFiresPerHour + 2 });
+  await seedAutomationOwnerBudget(root, { principal, maxFiresPerHour: capture.budget.maxFiresPerHour + 2 });
   const actor = await root.actor();
   const foreign = await root.principalFor(actor.id);
   await root.app.assets.store({ principal: foreign, kind: "gallery", mime: "image/png", bytes: makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset)) });
@@ -93,7 +93,7 @@ test("scope-invalid rules and over-bound budgets refuse before the corpus captur
   const automation = root.services.automation;
   const before = await automation.listOwnerRules({ principal });
   await expect(
-    seedAutomationRule(root.db, automation.createRule, {
+    seedAutomationRule(root, {
       principal,
       chatId: null,
       name: "Invalid global director",
@@ -103,9 +103,7 @@ test("scope-invalid rules and over-bound budgets refuse before the corpus captur
     }),
   ).rejects.toThrow("needs a chat");
   expect(await automation.listOwnerRules({ principal })).toEqual(before);
-  const budget = await seedAutomationOwnerBudget(root.db, automation.setOwnerBudgets, { principal, maxFiresPerHour: 2 });
-  await expect(
-    seedAutomationOwnerBudget(root.db, automation.setOwnerBudgets, { principal, maxFiresPerHour: AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR + 1 }),
-  ).rejects.toThrow("maxFiresPerHour");
+  const budget = await seedAutomationOwnerBudget(root, { principal, maxFiresPerHour: 2 });
+  await expect(seedAutomationOwnerBudget(root, { principal, maxFiresPerHour: AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR + 1 })).rejects.toThrow("maxFiresPerHour");
   expect(await automation.getOwnerBudgets({ principal })).toEqual({ maxFiresPerHour: budget.maxFiresPerHour });
 });

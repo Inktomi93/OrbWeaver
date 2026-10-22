@@ -3,6 +3,7 @@
 
 import type {
   ChatBusEvent,
+  HistoryFloorSeq,
   MessageView,
   ChatDetail as WireChatDetail,
   ChatLineageView as WireChatLineageView,
@@ -71,7 +72,7 @@ export interface StreamEventBounds {
  *  therefore per-CALLER by construction and never client-supplied. `0` = unclamped (`full` / a born-here host
  *  seat) — the common case, which the `isBelowHistoryFloor` verdict short-circuits on. */
 export interface ChatEventAttach extends StreamEventBounds {
-  readonly historyFloorSeq: number;
+  readonly historyFloorSeq: HistoryFloorSeq;
   /** Whether the SUBSCRIBER is the room host — resolved from their own participant row at the same probe.
    *  The live fan-out applies the §3.6 hidden-content member-strip (`stripChatEventForMember`) when false,
    *  mirroring the per-caller strip the durable replay applies. Never client-supplied. */

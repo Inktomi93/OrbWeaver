@@ -41,8 +41,8 @@ test("whole-message and segment reactions retain separate canonical rows and exa
     throw new Error("production commitMessage returned no committed message");
   }
   const params = { principal, chatId: chat.id, variantId: message.selectedVariantId, emoji: "👍" } as const;
-  const whole = await seedMessageReaction(root.db, root.services.chat.toggleReaction, params, reactor.id);
-  const segment = await seedMessageReaction(root.db, root.services.chat.toggleReaction, { ...params, segmentIndex: 0, segmentSpeaker: null }, reactor.id);
+  const whole = await seedMessageReaction(root, params, reactor.id);
+  const segment = await seedMessageReaction(root, { ...params, segmentIndex: 0, segmentSpeaker: null }, reactor.id);
   expect(whole.segmentIndex).toBeNull();
   expect(whole.segmentSnippet).toBeNull();
   expect(segment.segmentIndex).toBe(0);

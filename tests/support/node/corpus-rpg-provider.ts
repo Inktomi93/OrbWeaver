@@ -55,7 +55,7 @@ export async function seedCorpusRpgProvider(root: ServerTestHarness, connectionI
   const { chat } = await caller.chat.startChat({ characterIds: [character.id], opening: "none" });
   const chatId = chat.id;
   const params = { principal, chatId };
-  const game = await seedRpgGame(root.db, root.services.rpg.createGame, { ...params, mode: "lite" });
+  const game = await seedRpgGame(root, { ...params, mode: "lite" });
   const actorRef = { kind: "character", characterId: character.id } as const;
   const populate = await caller.rpg.populateFromCharacter({ chatId, actorRef });
   const populated = await caller.rpg.getTrackerView({ chatId });
@@ -104,7 +104,7 @@ export async function seedCorpusRpgProvider(root: ServerTestHarness, connectionI
   const foldedRows = await captureRpgRows(root.db, game.id);
   const variants = turn.messages.filter((message) => message.role === "assistant").map((message) => message.selectedVariantId);
   const calls = await captureRpgTurnToolCalls(root.db, game.id, variants);
-  const checkpoint = await seedRpgCheckpoint(root.db, root.services.rpg.createCheckpoint, { ...params, label: "Folded loom" });
+  const checkpoint = await seedRpgCheckpoint(root, { ...params, label: "Folded loom" });
   const snapshot = await captureRpgSnapshot(root.db, checkpoint.snapshotId);
   const journal = await caller.rpg.listJournal({ chatId });
   return {

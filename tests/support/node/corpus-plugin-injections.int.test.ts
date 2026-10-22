@@ -61,12 +61,12 @@ test("native plugin values render once in authored injections without re-expandi
   const caller = await root.internalCallerFor(root.ownerId);
   const chatId = library.room.chat.id;
   await root.services.chat.setChatAnchorPersona({ principal: actors.owner, chatId, personaId: library.persona.id });
-  const installed = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const installed = await seedInstalledPlugin(root, {
     caller: actors.owner,
     bundle: makePluginBundle(manifest, guest(OWNER_VALUE), root.clock.now()),
     grant: [],
   });
-  await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  await seedPluginGrant(root, {
     caller: actors.owner,
     pluginId: installed.plugin.id,
     grant: manifest.capabilities,
@@ -139,12 +139,12 @@ test("native plugin values render once in authored injections without re-expandi
     principal: member,
     input: createPersonaSchema.parse({ name: "Native member persona", description: "Member identity witness." }),
   });
-  const memberInstall = await seedInstalledPlugin(root.db, root.services.plugin.install, {
+  const memberInstall = await seedInstalledPlugin(root, {
     caller: member,
     bundle: makePluginBundle(manifest, guest(MEMBER_VALUE), root.clock.now()),
     grant: [],
   });
-  await seedPluginGrant(root.db, root.services.plugin.setGrant, {
+  await seedPluginGrant(root, {
     caller: member,
     pluginId: memberInstall.plugin.id,
     grant: manifest.capabilities,
@@ -175,7 +175,7 @@ test("native plugin values render once in authored injections without re-expandi
   expect((await captureCorpusPluginHost(root, installed.plugin.id)).observations[COUNT]).toBe(2);
   expect(await caller.chat.getRuntimeVariables({ chatId })).toMatchObject({ injectionRuns: "3" });
   expect(await caller.chat.listChatInjections({ chatId })).toEqual(expect.arrayContaining(templates));
-  const memberCharacter = await seedCreatedCharacter(root.db, root.services.character.create, {
+  const memberCharacter = await seedCreatedCharacter(root, {
     principal: member,
     input: createCharacterSchema.parse({ handle: "member-injection", name: "Member native character", description: "Owned member character." }),
   });
