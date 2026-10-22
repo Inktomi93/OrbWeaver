@@ -1,7 +1,6 @@
 // FRONT DOOR: the only legal external import. Cross-boundary shapes the views carry (PromptConfig,
 // UserIntent, guided-action) are never re-exported here — callers import them from @orb/contracts/preset.
 
-export type { EffectivePreset, PresetDetail, PresetSummary, PresetUsageView } from "@orb/contracts/preset";
 export {
   EFFECTIVE_KNOBS,
   EFFECTIVE_PROVENANCES,
@@ -11,34 +10,18 @@ export {
   presetUsageViewSchema,
 } from "@orb/contracts/preset";
 export { SYSTEM_DEFAULT_PRESET_ID, SYSTEM_DEFAULT_PRESET_KIND, SYSTEM_DEFAULT_PRESET_NAME } from "./constants.ts";
-export type { PresetOpCode } from "./contract/errors.ts";
+
 export { PRESET_OP_CODES, PresetNotFoundError, PresetOperationError } from "./contract/errors.ts";
-export type { CopyPresetToUser, PresetHandoffCopyAssemblyContext as PresetHandoffCopyContext } from "./contract/handoff-copy.ts";
-export type { ReadOptionalPresetConfig } from "./contract/optional-config.ts";
+
 export type { LoadOptionalPreset } from "./contract/optional-read.ts";
-export type {
-  CreatePresetParams,
-  GetPresetParams,
-  ImportPresetFileParams,
-  ListPresetsParams,
-  ListPresetUsageParams,
-  RemovePresetParams,
-  ResetToDefaultParams,
-  ResolveEffectiveParams,
-  UpdatePresetParams,
-} from "./contract/params.ts";
+
 export type {
   ExportPresets,
   ImportPreset,
-  PresetExportFile,
-  PresetImportOutcome,
 } from "./contract/portability.ts";
 export type {
   PresetAssemblyContext as PresetContext,
   PresetService,
-  PresetUsageDeps,
-  ResolveChatCapabilityOp,
-  ResolvePresetUsageOp,
 } from "./contract/service.ts";
 export { createCopyPresetToUser } from "./persistence/handoff-copy-write.ts";
 export { migrateProseSlotVocab } from "./persistence/migrate-prose-slot-vocab.ts";

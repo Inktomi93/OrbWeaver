@@ -5,15 +5,13 @@
 
 export { DatabankCharacterNotFoundError, DocumentNotFoundError, ScrapeFailedError } from "./contract/errors.ts";
 export type {
-  DatabankImportOutcome,
   DatabankPortabilityAssemblyContext as DatabankPortabilityContext,
   ExportDocument,
-  ExportedDocumentFile,
   ImportDocument,
   ListOwnedDocumentIds,
 } from "./contract/portability.ts";
 export type { DatabankAssemblyContext as DatabankContext, DatabankIngest, DatabankService, DatabankWorkloadDeps } from "./contract/service.ts";
-export type { ActiveChatDocumentView, DocumentAttachmentsView, DocumentDetailView, DocumentView } from "./contract/views.ts";
+
 export { createDatabankIngest } from "./ingest/index.ts";
 export { createExportDocument, createImportDocument, createListOwnedDocumentIds } from "./persistence/portability-write.ts";
 export { createDatabankRoomReach } from "./persistence/room-reach.ts";

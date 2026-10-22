@@ -3,7 +3,7 @@
 // never runtime-imports automation's internals sideways — the composition root injects the built
 // `AutomationService` + the watcher env. A6 wires the injected `runArm` dispatcher — through this same door.
 
-export type { ArmPreview, ConfirmSuggestionResult, FireView, RuleView, RunRuleNowResult, TestRunResult } from "@orb/contracts/automation";
+export type { RuleView } from "@orb/contracts/automation";
 export { confirmSuggestionResultSchema, fireViewSchema, ruleViewSchema, runRuleNowResultSchema, testRunResultSchema } from "@orb/contracts/automation";
 export {
   AutomationChatNotFoundError,
@@ -18,57 +18,20 @@ export {
   SuggestionRefusedError,
 } from "./contract/errors.ts";
 export type {
-  ArmDispatch,
-  ArmExecutorDeps,
-  ArmOutcome,
   AutomationImageRequest,
   AutomationImageResult,
   AutomationOps,
-  AutomationToolOutcome,
-  AutomationToolRequest,
   AutomationTurnRequest,
   AutomationTurnResult,
   BackgroundChoice,
-  DispatchFrame,
-  EmitAutomationEvent,
-  EnabledRuleIndex,
-  ExecutePluginSuggestion,
-  IsPluginLive,
-  ListRuleTools,
-  PendingSuggestion,
-  PromptTransformIndex,
-  PromptTransformIndexDeps,
-  ResolveAuthorPrincipal,
-  StashedArm,
-  SuggestionStore,
 } from "./contract/ops.ts";
-export type {
-  ConfirmSuggestionParams,
-  CreateRuleFromPresetParams,
-  CreateRuleParams,
-  DeleteGlobalVariableParams,
-  DeleteRuleParams,
-  DismissSuggestionParams,
-  GetGlobalVariableParams,
-  ListFiresParams,
-  ListGlobalVariablesParams,
-  ListRulesParams,
-  ListRuleToolsParams,
-  ReorderRulesParams,
-  RulePresetProvenance,
-  RunRuleNowParams,
-  SetGlobalVariableParams,
-  SetRuleEnabledParams,
-  TestRuleParams,
-  UpdateRuleParams,
-} from "./contract/params.ts";
-export type { PluginSubscriberRegistry } from "./contract/plugin-subscribers.ts";
+
 // S3 — the preset catalogue's domain half. Only the shapes are exported; the registry and the CEL sources it
 // builds stay behind the mint verb.
-export type { ErasedRulePresetDef, RulePresetDef, RulePresetKnobOverrides, RulePresetRuleDef } from "./contract/presets.ts";
-export type { StreamAuthority } from "./contract/results.ts";
-export type { AutomationAssemblyDeps as AutomationServiceDeps, AutomationService, AutomationWatcherEnv, AutomationWatcherHandle } from "./contract/service.ts";
-export type { GlobalVariableView } from "./contract/views.ts";
+export type { RulePresetKnobOverrides } from "./contract/presets.ts";
+
+export type { AutomationService, AutomationWatcherEnv } from "./contract/service.ts";
+
 export { createArmExecutors } from "./engine/arm-executors.ts";
 export { createPromptTransformIndex } from "./engine/prompt-transforms.ts";
 // The #1391 plugin tool wire-name rewrite over the `run_tool` arm inside `automation_rules.actions` — a

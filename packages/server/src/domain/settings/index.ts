@@ -4,34 +4,17 @@
 export { RETIRED_SEED_THEME_IDS, THEME_HEARTH_ID, THEME_MOCHA_ID } from "./constants.ts";
 export { createSettingsAssemblyContext as createSettingsContext } from "./context.ts";
 export type { LegacySeedLatches } from "./contract/composed-ops.ts";
-export type { ContentSeedPolicyDeps, ContentSeedStep, UserContentSeeder } from "./contract/content-seed.ts";
-export type { JoinerSettingsStatementOp } from "./contract/ops.ts";
-export type {
-  CreateThemeParams,
-  DuplicateThemeParams,
-  GetThemeParams,
-  ListThemesParams,
-  RemoveThemeParams,
-  UpdateThemeParams,
-  UpdateUserSettingsSectionInput,
-} from "./contract/params.ts";
-export type { ImportedAppearance, ImportedAppearanceOutcome, SettingsImportOutcome, SettingsPortableFile } from "./contract/portability.ts";
-export type { PersonaSeedSettings } from "./contract/seed-policy.ts";
-export type {
-  DefaultBackgroundSeeder,
-  DefaultBackgroundSeederDeps,
-  SeedBackgroundPlateRef,
-  SeededLibraryEntry,
-  SeededPlateAsset,
-  SeededSlugResolver,
-} from "./contract/seeder.ts";
+export type { ContentSeedStep, UserContentSeeder } from "./contract/content-seed.ts";
+
+export type { SettingsImportOutcome } from "./contract/portability.ts";
+
+export type { DefaultBackgroundSeeder } from "./contract/seeder.ts";
 export type {
   SettingsAssemblyContext as SettingsContext,
   SettingsService,
   SettingsServiceDeps,
 } from "./contract/service.ts";
-export type { CachedUpstreamDeps } from "./contract/upstream.ts";
-export type { GlobalSettingView, ThemeView, UserSettingsView } from "./contract/views.ts";
+
 export { createEffectiveConfigCache } from "./effective-config/cache.ts";
 export { healLegacyBackgroundPins } from "./persistence/heal-legacy-background-pins.ts";
 export { createSettingsKvPort } from "./persistence/kv.ts";

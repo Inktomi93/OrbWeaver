@@ -2,13 +2,12 @@
 // internals sideways — the corpus/import producers that stage pending character-tag rows receive an
 // injected TagService at the root.
 
-export type { CreateTagInput, TagSource, TagStatus, TagTargetType, UpdateTagInput } from "@orb/contracts/tag";
 export { TagNotFoundError } from "./contract/errors.ts";
 export type { ImportTagPort } from "./contract/import-tag.ts";
 export type { TagLibraryImportResult } from "./contract/results.ts";
-export type { AttachSeedCardTag } from "./contract/seed-tag.ts";
+
 export type { TagAssemblyContext as TagContext, TagService } from "./contract/service.ts";
-export type { TagFilterVocabularyEntry, TagView, TagWithUsage } from "./contract/views.ts";
+
 export { createTagService } from "./service.ts";
 export { createReadAttachedEntity } from "./verbs/attached-reader.ts";
 export { createExport as createTagLibraryExport } from "./verbs/export.ts";
