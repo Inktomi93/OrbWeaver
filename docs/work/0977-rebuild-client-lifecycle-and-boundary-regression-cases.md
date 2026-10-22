@@ -28,7 +28,7 @@ Use the external reference cases for initial-read invalidation and PostEventSour
 
 ### Invite runtime evidence
 
-The [restoration register](../plans/test-foundation/design.md#restoration-register) owns current dispositions and maintained test links. OIDC runtime acceptance remains [separate work](1082-qualify-the-existing-oidc-pending-join-e2e.md).
+The [restoration register](../plans/test-foundation/design.md#restoration-register) owns current dispositions and maintained test links. The separate [OIDC runtime qualification](../plans/test-foundation/design.md#e2e-runtime-qualification) is complete for its named journey.
 
 The named CTs and pure-function test pass. Removing the production late-focus handler, in-flight confirmation guard or unnamed-room fallback fails the corresponding control. Restoring production source returns the selected tests to green. Fresh CT source maps identify the altered component source during those checks.
 
@@ -60,4 +60,4 @@ Removing initial-read retention fails the trailing-read assertion. Premature cur
 
 The unavailable-invite CT passes after exercising Back to sign in and observing the sign-in surface without a confirmation request. These tests add no production exports, shared harness or production behavior changes.
 
-Native DOM typechecking and scoped lint and dependency checks establish the selected source boundaries. Whole-application and OIDC qualification remain separate.
+Native DOM typechecking and scoped lint and dependency checks establish the selected source boundaries. Whole-application qualification remains separate. The plan records the completed OIDC journey.

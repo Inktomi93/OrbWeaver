@@ -43,6 +43,7 @@ export function LoginSurface(): ReactElement {
   // D259 — the OIDC callback held a pending join and landed here with `?pendingJoin=1` (no secret in the URL).
   const [pendingJoin, setPendingJoin] = useState(() => isPendingJoinLanding(globalThis.location.search));
   const leavePendingJoin = (): void => {
+    dismissJoin();
     replaceUrl(withoutUrlSearchParam(globalThis.location, "pendingJoin"));
     setPendingJoin(false);
   };

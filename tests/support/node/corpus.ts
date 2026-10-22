@@ -11,7 +11,6 @@ import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import { localPath, pendingTurns, workloads } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
-import { listEnabledAcrossOwners } from "@orb/server/domain/plugin";
 import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
@@ -545,6 +544,7 @@ async function initializeCorpusOwner(
     importStagingDir: layout.importStaging,
   });
   if (privateSource) {
+    const { listEnabledAcrossOwners } = await import("@orb/server/domain/plugin");
     const ownerId = await authentication.app.sessions.getOwnerUserId();
     const fields = ownerId === undefined ? null : await authentication.app.sessions.loadUserById(ownerId);
     if (ownerId === undefined || fields === null) {

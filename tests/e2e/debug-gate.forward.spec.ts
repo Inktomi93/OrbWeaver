@@ -4,6 +4,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { actorViaHeader } from "./support/actors.ts";
 import { ALL_ADMITTED, debugOutcomes, describeDebugTokenStates, gateRefusalReason, RELAYED } from "./support/debug-gate.ts";
+import { E2E_SSO_GROUPS } from "./support/modes.ts";
 
 describeDebugTokenStates("forward-header");
 
@@ -15,7 +16,11 @@ test("a signed forward-header SSO OWNER authorizes (via:'header' is a credential
 });
 
 test("a signed forward-header SSO USER is refused (the role gate binds the header arm)", async ({ baseURL }) => {
-  const user = await actorViaHeader(baseURL ?? "", { handle: castId<Handle>("debug-gate-sso-user"), sub: "sub-debug-gate-sso-user" });
+  const user = await actorViaHeader(baseURL ?? "", {
+    handle: castId<Handle>("debug-gate-sso-user"),
+    sub: "sub-debug-gate-sso-user",
+    groups: [E2E_SSO_GROUPS.member],
+  });
   expect((await user.whoami()).role).toBe("user");
   expect(await gateRefusalReason(baseURL ?? "", { ...RELAYED, ...user.headers })).toEqual(expect.any(String));
 });

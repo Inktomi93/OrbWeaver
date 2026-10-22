@@ -13,9 +13,10 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { actorViaHeader } from "./support/actors.ts";
+import { E2E_SSO_GROUPS } from "./support/modes.ts";
 
 test("a signed-JWT identity with a non-owner handle resolves as role=user", async ({ baseURL }) => {
-  const alice = await actorViaHeader(baseURL ?? "", { handle: castId<Handle>("alice"), sub: "sub-alice" });
+  const alice = await actorViaHeader(baseURL ?? "", { handle: castId<Handle>("alice"), sub: "sub-alice", groups: [E2E_SSO_GROUPS.member] });
   const who = await alice.whoami();
   expect(who.authenticated).toBe(true);
   expect(who.handle).toBe("alice");
@@ -30,7 +31,7 @@ test("the OWNER handle (the project's pinned OWNER_HANDLES) resolves as role=own
 });
 
 test("a non-owner JWT identity is REFUSED an owner-only proc (admin.listUsers → 403)", async ({ baseURL }) => {
-  const alice = await actorViaHeader(baseURL ?? "", { handle: castId<Handle>("alice"), sub: "sub-alice" });
+  const alice = await actorViaHeader(baseURL ?? "", { handle: castId<Handle>("alice"), sub: "sub-alice", groups: [E2E_SSO_GROUPS.member] });
   const refused = await alice.expectError("admin.listUsers", {}, "query");
   expect(refused.status).toBe(403);
 });
@@ -40,7 +41,7 @@ test("the signed JWT is AUTHORITATIVE over the ambient local-origin owner fallba
   // affordance). A request carrying a valid signed JWT for `alice` must resolve as ALICE — the seam prefers
   // the verified identity, so the forwarded principal wins over the fallback owner. This is the proof the
   // signed path is the resolver, not merely ignored under the fallback.
-  const alice = await actorViaHeader(baseURL ?? "", { handle: castId<Handle>("alice"), sub: "sub-alice" });
+  const alice = await actorViaHeader(baseURL ?? "", { handle: castId<Handle>("alice"), sub: "sub-alice", groups: [E2E_SSO_GROUPS.member] });
   const who = await alice.whoami();
   expect(who.handle).toBe("alice");
   expect(who.role).not.toBe("owner");

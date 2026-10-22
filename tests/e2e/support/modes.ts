@@ -141,6 +141,9 @@ const STACK_RUN_SUBDIR = "stack";
  */
 const HARNESS_OWNER_HANDLE = "owner";
 
+/** The SSO fixtures carry these groups under the isolated stacks' explicit admission policy. */
+export const E2E_SSO_GROUPS = { member: "e2e-members", admin: "e2e-admins", owner: "e2e-owners" } as const;
+
 // THE THROWAWAY STATE ROOT MOVED WITH THAT PIN: `.cache/e2e-<mode>/` → `.cache/e2e/<mode>/` (2026-08-08).
 // A harness DB seeded BEFORE the pin holds the operator's handle at `role='owner'`, and D17's
 // `users_single_owner_unique` partial index makes a second owner row UNREPRESENTABLE — so boot's
@@ -392,6 +395,9 @@ const FORWARD_HEADER: ModeProject = {
     STACK_RUN_DIR: `./.cache/e2e/forward/${STACK_RUN_SUBDIR}`,
     // The owner case in auth-smoke.forward.spec.ts asserts THIS handle resolves role=owner.
     OWNER_HANDLES: HARNESS_OWNER_HANDLE,
+    OWNER_GROUP: E2E_SSO_GROUPS.owner,
+    OIDC_ADMIN_GROUPS: E2E_SSO_GROUPS.admin,
+    OIDC_ALLOWED_GROUPS: E2E_SSO_GROUPS.member,
     PRIVATE_ENDPOINT_ALLOWLIST: LOOPBACK_ENDPOINT_ALLOWLIST,
     ORB_ENV_NO_FILE: "1",
   },
@@ -463,6 +469,9 @@ export const OIDC_MODE: ModeProject = {
     ASSETS_DIR: "./.cache/e2e/oidc/assets",
     STACK_RUN_DIR: `./.cache/e2e/oidc/${STACK_RUN_SUBDIR}`,
     OWNER_HANDLES: HARNESS_OWNER_HANDLE,
+    OWNER_GROUP: E2E_SSO_GROUPS.owner,
+    OIDC_ADMIN_GROUPS: E2E_SSO_GROUPS.admin,
+    OIDC_ALLOWED_GROUPS: E2E_SSO_GROUPS.member,
     // Discovery, token and JWKS reach the loopback issuer through the configured-endpoint egress.
     EGRESS_ALLOWLIST: "127.0.0.1",
     PRIVATE_ENDPOINT_ALLOWLIST: LOOPBACK_ENDPOINT_ALLOWLIST,
