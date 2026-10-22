@@ -69,7 +69,9 @@ Legacy paths below are relative to the external reference source named in [Spine
 | `server/domain/chat/substrate/wire-history.test.ts`; `db/query/chat-visibility.int.test.ts` | Unreviewed | Existing chat coverage remains authoritative for its named behaviors. | Complete case-by-case comparison; neither file is declared missing or obsolete. |
 | `client/data/invalidation-initial-read.suite.test.ts` | Partial | [Headless client tests](../../../tests/client/data/invalidation-initial-read.dom.test.ts) cover initial-read reconciliation, facade coalescing, inactive reads, refetch targets, errors, cancellation and removal through production providers. | Compare canonical-view carrier coverage. Restore native view-transition settlement only in a browser case; headless coalescing does not qualify it. |
 | `client/data/bus/post-event-source.test.ts`; `client/data/bus/post-event-source.int.test.ts` | Partial | [Public transport tests](../../../tests/client/data/bus/post-event-source.dom.test.ts) cover POST/CSRF, committed resume cursors, one-shot termination, terminal HTTP refusal, cancellation and retry cleanup. | Remaining comparison includes parser boundaries, malformed connected metadata, serialized errors, live idle expiry and private retry-option cases. The [case decisions](../../work/0977-rebuild-client-lifecycle-and-boundary-regression-cases.md#selected-lifecycle-case-decisions) define the tested boundary. |
-| Invalid auth-config input and data-list-header behavior | Unreviewed | [Client regression work](../../work/0977-rebuild-client-lifecycle-and-boundary-regression-cases.md) owns this comparison. | Inspect maintained tests before restoring reference cases. Completed invite and lifecycle cases are not part of this remainder. |
+| `client/data/auth-config.test.ts` | Accounted for | [Client bootstrap/share tests](../../../tests/client/data/auth-config.dom.test.ts) own memoization, retries and fresh live-share reads. [Contract tests](../../../tests/contracts/auth-config/bootstrap.contract.test.ts) own malformed and missing fields; [HTTP tests](../../../tests/server/entry/http/auth-meta.int.test.ts) own served configuration and disclosure. | None for these reference cases. Drop the duplicate client schema matrix and private-fetcher/reimport harness. |
+| `client/components/list-pane-header.ct.tsx` | Partial | [Common-header CT](../../../tests/client/components/list-pane-header.ct.tsx) owns count semantics, typography, accent, keyboard callbacks, optional action and constrained title priority through the public host. | Exact token spacing and baseline alignment remain open. Mobile band shedding, retained scoped/action rows, desktop shell behavior and device-pixel alignment need real-shell coverage. Drop the copied shell fixture and custom audit-ratio calculation, not those behaviors. |
+| Feature list headers: character, discovery, plugin and databank | Unreviewed | Their reference files identify distinct cases in the [header case map](../../work/0977-rebuild-client-lifecycle-and-boundary-regression-cases.md#selected-list-header-case-decisions). Shared zero-count assertions are covered by the common-header CT. | Complete feature-specific maintained-coverage comparisons for control-width budgets, denominator/filter data, maintenance/refusal states and Add-dialog behavior. Reading the references alone does not qualify these features. |
 
 An unlisted area is unreviewed, not missing. Neither filenames nor test counts establish whether its behaviors need restoration.
 
@@ -161,6 +163,16 @@ Do not restore a reference file wholesale because its cases once ran together. K
 5. Demonstrate that a relevant production defect makes the new regression case fail.
 6. Remove redundant maintained cases and unsupported helpers with their qualified replacements.
 7. Run affected tests and applicable existing checks; record remaining limitations without expanding the batch.
+
+### Implementation and review briefs
+
+Name the selected reference files, maintained test files and case-map location in both briefs. Include exclusions and required defect controls.
+
+Implementers read the selected reference files in full before recording case decisions. Preserve distinct fields, inputs, states and assertions in that comparison. Similar test names or matching input types do not establish equivalent coverage.
+
+Independent reviewers compare the original cases with the case map and maintained assertions, not only the implementation diff. Check each keep or drop decision against its cited evidence. Confirm the replacement reaches production and the defect control fails for the intended reason.
+
+Record omitted or unresolved cases explicitly. Keep the register partial until every case in its named scope has a supported decision. Use the existing work item and register; add no separate tracking system.
 
 ### Selected case map: chat permissions and history
 

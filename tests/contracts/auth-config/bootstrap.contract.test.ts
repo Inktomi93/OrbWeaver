@@ -31,6 +31,7 @@ test.each([
   ["unknown client scope", { ...WIRE, clientScope: "trusted" }],
   ["unknown relay state", { ...WIRE, share: { state: "ready", url: null } }],
   ["string flag", { ...WIRE, localEnabled: "true" }],
+  ["string first-run flag", { ...WIRE, localFirstRun: "true" }],
   ["string upload cap", { ...WIRE, uploads: { ...WIRE.uploads, image: "unlimited" } }],
   ["null upload catalog", { ...WIRE, uploads: null }],
   ["missing share link", { ...WIRE, share: { state: "up" } }],
