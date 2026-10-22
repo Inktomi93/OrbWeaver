@@ -8,6 +8,7 @@ import type {
   PluginInstanceCreateData,
   PluginInvokeArgs,
   PluginLogLevel,
+  PluginLogView,
   SnippetResult,
 } from "@orb/contracts/plugin";
 import type { TimerScheduler } from "@orb/kit/time";
@@ -55,19 +56,12 @@ export interface ProcessPluginHost extends AsyncDisposable {
     readonly bridge: PluginBridge;
     readonly chat: InvocationChat;
   }) => Promise<SnippetRunOut>;
-  readonly readLog: (instance: PluginInstance) => readonly PluginLogLineOut[];
+  readonly readLog: (instance: PluginInstance) => readonly PluginLogView[];
   readonly dispose: (instance: PluginInstance) => void;
-}
-
-/** One retained guest log line. */
-export interface PluginLogLineOut {
-  readonly level: PluginLogLevel;
-  readonly message: string;
-  readonly at: number;
 }
 
 export type CreateInstanceOutcomeOut =
   | { readonly ok: true; readonly instance: PluginInstance }
-  | { readonly ok: false; readonly error: string; readonly log: readonly PluginLogLineOut[] };
+  | { readonly ok: false; readonly error: string; readonly log: readonly PluginLogView[] };
 
 export type SnippetRunOut = SnippetResult;

@@ -33,15 +33,14 @@ import type {
 import type { EffortLevel, UserIntent } from "@orb/contracts/preset";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import type {
+  ChatHistoryMessage,
   ChatTurnTools,
   GeneratedImage,
   GenerationObservationCallback,
-  HistoryRole,
   ReasoningContentPart,
   Resolved,
   ResolvedWarning,
   ToolCallInput,
-  WireMeta,
   WireTool,
 } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, MessageId, ModelId, PersonaId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -130,22 +129,6 @@ export interface ResolvedMediaRef {
   readonly media: Extract<ChatContentPart, { readonly url: string }>["type"];
 }
 
-/** One shaped history message handed to the role on the wire. The content is the post-SHAPE text (squash +
- *  name-stamp applied). */
-export interface TurnMessage {
-  /** `tool` exists only on a materialized tool-exchange row the recurse loop appends; persisted slot roles
-   *  never carry it. */
-  readonly role: HistoryRole;
-  /** The send-path content: a content-part array produced once at the engine request seam by tokenizing
-   *  the shaped string body + resolving embedded image refs. A text-only turn is a one-element text part;
-   *  a non-vision model never receives image parts. */
-  readonly content: readonly ChatContentPart[];
-  /** The per-participant label for the `completion` names-behavior, set into the wire `name` field. */
-  readonly name?: string | undefined;
-  /** The row's wire hints: today a turn-scoped system cue's `clearAt`. */
-  readonly wireMeta?: WireMeta | undefined;
-}
-
 /**
  * The chat-domain turn request the engine builds and hands to the injected `runChatTurn` role. SDK/
  * provider-free: carries no sessionStore/resume/runner/family. The runner translates this into its sealed
@@ -160,7 +143,7 @@ export interface TurnRequest {
   /** The static (cache-stable) system prefix + the per-turn dynamic suffix. */
   readonly prompt: AssembledPrompt;
   /** The SHAPE-shaped history (egocentric-scoped, spliced, squashed, name-stamped). */
-  readonly history: readonly TurnMessage[];
+  readonly history: readonly ChatHistoryMessage[];
   readonly intent: UserIntent;
   readonly kind: TurnKind;
   /** The rolling-pair cache breakpoint offset from the tail; null means no safe boundary this round. */

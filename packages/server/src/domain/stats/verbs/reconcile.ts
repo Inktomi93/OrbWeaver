@@ -15,9 +15,9 @@
 // honest answer to a second click is "wait for the running one". The gate is the in-memory per-user
 // registry built once per service; WHY in-memory is sanctioned lives in `../reconcile-in-flight.ts`.
 
+import type { ReconcileStatsResult } from "@orb/contracts/stats";
 import type { UserId } from "@orb/kit/ids";
 import type { ReconcileInFlight } from "../contract/reconcile-in-flight.ts";
-import type { ReconcileStatsResult } from "../contract/results.ts";
 import type { StatsContext, StatsService } from "../contract/service.ts";
 import { reconcileOwnerStats } from "../substrate/reconcile-owner.ts";
 

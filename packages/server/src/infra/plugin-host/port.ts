@@ -27,7 +27,16 @@
 // storage.kv are COMPOSED — the bridge closes the pluginId/installer over those ops domain-side.
 
 import { randomUUID } from "node:crypto";
-import type { InvocationChat, PluginBridge, PluginCapability, PluginHandlerRef, PluginInstance, PluginInvokeArgs, PluginLogLevel } from "@orb/contracts/plugin";
+import type {
+  InvocationChat,
+  PluginBridge,
+  PluginCapability,
+  PluginHandlerRef,
+  PluginInstance,
+  PluginInvokeArgs,
+  PluginLogLevel,
+  PluginLogView,
+} from "@orb/contracts/plugin";
 import { DomainConflictError } from "@orb/kit/errors";
 import { getLog } from "#src/foundation/observability/logger.ts";
 import { superviseDetached } from "#src/foundation/observability/tracing.ts";
@@ -41,14 +50,14 @@ import {
   PLUGIN_SNIPPET_RUNTIME_MAX,
   SNIPPET_WALL_MS,
 } from "./budgets.ts";
-import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, PluginLogLineOut, SnippetRunOut } from "./contract/port.ts";
+import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, SnippetRunOut } from "./contract/port.ts";
 import { getPluginQuickJS } from "./module.ts";
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { Sandbox } from "./sandbox.ts";
 
 /** Parse a `[level] message` ring line back into a structured log view; the stamp is the activation clock. */
 const LOG_LINE_RE = /^\[(info|warn|error)\]\s(.*)$/su;
-function toLog(lines: readonly string[], at: number): PluginLogLineOut[] {
+function toLog(lines: readonly string[], at: number): PluginLogView[] {
   return lines.map((line) => {
     const match = LOG_LINE_RE.exec(line);
     const level = (match?.[1] ?? "info") as PluginLogLevel;
@@ -98,7 +107,7 @@ interface Resident {
    *  Before this it was a snapshot taken once at activation and every per-invocation drain was discarded.
    *  MUTABLE by construction; `readLog` hands back a COPY so a later invoke cannot mutate a prior read.
    *  IN-MEMORY, per instance, `ASSUMES(single-replica)` — see `PLUGIN_LOG_RING_LINES` for the honest posture. */
-  readonly log: PluginLogLineOut[];
+  readonly log: PluginLogView[];
   /** Retained UTF-16 code units across `log` — the volume half of the ring bound (a line bound alone lets
    *  16 KiB single-liners sit forever; the per-invocation `LogRing` clamp is what keeps ONE line under it). */
   chars: number;
@@ -199,7 +208,7 @@ export function createLocalPluginHost(seams: PluginHostSeamDeps): {
     readonly bridge: PluginBridge;
     readonly chat: InvocationChat;
   }) => Promise<SnippetRunOut>;
-  readonly readLog: (instance: PluginInstance) => readonly PluginLogLineOut[];
+  readonly readLog: (instance: PluginInstance) => readonly PluginLogView[];
   readonly dispose: (instance: PluginInstance) => void;
 } {
   const runtimes = new Map<PluginInstance, Resident>();
@@ -376,7 +385,7 @@ export function createLocalPluginHost(seams: PluginHostSeamDeps): {
     // drain clock, never the push clock — unchanged posture). A read racing a mid-flight invocation may retain
     // that invocation's so-far lines itself; its outcome then carries only the rest — same resident ring either
     // way, no loss and no duplication (drains are synchronous and destructive).
-    readLog: (instance): readonly PluginLogLineOut[] => {
+    readLog: (instance): readonly PluginLogView[] => {
       const resident = runtimes.get(instance);
       if (resident === undefined) {
         return [];

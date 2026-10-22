@@ -8,7 +8,7 @@
 
 import type { ResolveVisibleRoomsOp } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImportScriptFileResult, RegexScriptRow, RegexScriptUsage } from "@orb/contracts/regex";
+import type { BulkResult, DetachResult, ImportScriptFileResult, RegexScriptRow, RegexScriptUsage, RemoveResult, ReorderResult } from "@orb/contracts/regex";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
@@ -45,7 +45,6 @@ import type {
 } from "./params.ts";
 import type { ExportedRegexScriptFile } from "./portability.ts";
 import type { RoomDisplayPolicy } from "./resolve.ts";
-import type { BulkResult, DetachResult, RemoveResult, ReorderResult } from "./results.ts";
 
 /** DI bundle every regex verb closes over. Chat-scope guards are injected from chat itself. */
 export interface RegexContext {
@@ -107,7 +106,7 @@ export interface RegexService {
 
   /** The BULK arm (REGX2 — the library's multi-select bar). Each takes an id LIST, gates every id on the
    *  caller's ownership, writes ONCE, audits ONCE with the count, and emits ONE `regexChanged`. Foreign /
-   *  already-gone ids fall out silently and the `affected` count is the honest answer (contract/results). */
+   *  already-gone ids fall out silently and the `affected` count is the honest answer. */
   readonly bulkSetScriptsEnabled: (params: BulkSetScriptsEnabledParams) => Promise<BulkResult>;
   /** Attaching APPENDS the block at the end of the global tier in the caller's order — a bulk make-global
    *  never renumbers the run order the owner already authored in the context pane. */

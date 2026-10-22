@@ -26,6 +26,7 @@ import type {
   PluginInvocationLiveness,
   PluginInvokeArgs,
   PluginLogLevel,
+  PluginLogView,
   PluginMacroRegistration,
   PluginPubsubSubscription,
   PluginSurfaceRegistration,
@@ -58,14 +59,7 @@ import {
   PLUGIN_SNIPPET_RUNTIME_MAX,
 } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
-import type {
-  CreateInstanceInputIn,
-  CreateInstanceOutcomeOut,
-  PluginHostSeamDeps,
-  PluginLogLineOut,
-  ProcessPluginHost,
-  SnippetRunOut,
-} from "./contract/port.ts";
+import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, PluginHostSeamDeps, ProcessPluginHost, SnippetRunOut } from "./contract/port.ts";
 import type { BrokerParentMessage, ParentBrokerMessage } from "./contract/process-protocol.ts";
 import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
@@ -96,7 +90,7 @@ interface Binding {
   readonly authorityTails: Map<string, AuthorityTail>;
   readonly seams: PluginHostSeamDeps;
   readonly invokeArgs: Map<string, (chatHandle: string | null) => string>;
-  readonly log: PluginLogLineOut[];
+  readonly log: PluginLogView[];
   readonly label?: string;
   chars: number;
   suppressLogs: boolean;
@@ -1070,7 +1064,7 @@ function parseActivationFailure(value: Readonly<Record<string, unknown>>): Creat
   if (typeof error !== "string" || !Array.isArray(log)) {
     throw new Error("plugin broker: malformed activation failure");
   }
-  const parsedLog: PluginLogLineOut[] = [];
+  const parsedLog: PluginLogView[] = [];
   for (const line of log) {
     if (
       !(isRecord(line) && isPluginLogLevel(line["level"])) ||
@@ -1529,7 +1523,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
         releaseOwnedBinding(binding);
       }
     },
-    readLog: (instance): readonly PluginLogLineOut[] => {
+    readLog: (instance): readonly PluginLogView[] => {
       const binding = instances.get(instance);
       return binding === undefined ? [] : [...binding.log];
     },

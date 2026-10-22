@@ -1,7 +1,7 @@
 // A turn may survive a missing or rebuilding index, never an unrelated query/provider failure.
 
+import type { RetrievalFallback } from "@orb/contracts/search";
 import { SEARCH_NO_SPACE, SEARCH_SPACE_REINDEXING, SearchError } from "../contract/errors.ts";
-import type { RetrievalFallback } from "../contract/retrieval.ts";
 
 function isSpaceRefusal(err: unknown): boolean {
   return err instanceof SearchError && (err.code === SEARCH_SPACE_REINDEXING || err.code === SEARCH_NO_SPACE);

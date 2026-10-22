@@ -1,13 +1,12 @@
 // An automation fact is scoped to both message and room, and reads the selected canon variant.
 
-import type { TriggerFact } from "@orb/contracts/automation";
+import type { ChatAutomationReads, TriggerFact } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { chats, messages, messageVariants } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
-import type { ChatAutomationReads } from "../contract/automation-reads.ts";
 import { loadTurnOrigin } from "../persistence/queries.ts";
 
 const LIMIT_ONE = 1;

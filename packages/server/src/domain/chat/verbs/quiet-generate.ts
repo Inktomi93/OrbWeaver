@@ -13,10 +13,9 @@
 import type { AssembledPrompt } from "@orb/contracts/chat";
 import type { UserIntent } from "@orb/contracts/preset";
 import { SIDE_GEN_POSTURES } from "@orb/contracts/preset";
-import type { SideGenSampling } from "@orb/inference";
+import type { ChatHistoryMessage, SideGenSampling } from "@orb/inference";
 import { resolveSideGenSampling, withPresetWindow } from "@orb/inference";
 import type { QuietGenerate, QuietGenerateDeps, QuietGenerateParams } from "../contract/context.ts";
-import type { TurnMessage } from "../contract/results.ts";
 
 /** The minimal `AssembledPrompt` a quiet generation carries: the instruction as the static system prefix, an
  *  empty dynamic suffix, no injections, `sendHistory` true (the one user message IS the history). The trace is
@@ -53,11 +52,11 @@ function quietPrompt(systemPrompt: string): AssembledPrompt {
 const QUIET_PRESET_KNOBS = ["temperature", "topP", "maxOutputTokens"] as const satisfies readonly (keyof UserIntent)[];
 
 /** The span text as one user-role wire message (a single text part — a quiet generation never carries images).
- *  The part literal is inferred through the `TurnMessage` shape — this seam never imports `ChatContentPart` (D51:
+ *  The part literal is inferred through the `ChatHistoryMessage` shape — this seam never imports `ChatContentPart` (D51:
  *  the multimodal part TYPE lives only at the engine request seam; a quiet generation's lone trusted text needs no
- *  tokenization/image resolution, so a bare `{type:"text"}` literal, structurally checked against TurnMessage,
+ *  tokenization/image resolution, so a bare `{type:"text"}` literal, structurally checked against ChatHistoryMessage,
  *  suffices without pulling the symbol upstream). */
-function quietHistory(userText: string): readonly TurnMessage[] {
+function quietHistory(userText: string): readonly ChatHistoryMessage[] {
   return [{ role: "user", content: [{ type: "text", text: userText }] }];
 }
 

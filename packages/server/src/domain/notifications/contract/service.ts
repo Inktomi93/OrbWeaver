@@ -1,9 +1,8 @@
-import type { InboxView } from "@orb/contracts/notifications";
+import type { InboxView, ListInboxResult, MarkAllReadResult } from "@orb/contracts/notifications";
 import type { Db } from "@orb/db";
 import type { IdSource } from "@orb/kit/ids";
 import type { ResolveStandingAsks } from "./ops.ts";
 import type { DismissParams, ListInboxParams, MarkAllReadParams, RecordParams, RefreshStandingParams, ReplaySinceParams, RetractParams } from "./params.ts";
-import type { ListInboxResult, MarkAllReadResult } from "./results.ts";
 
 export type { EmitNotification } from "@orb/contracts/notifications";
 

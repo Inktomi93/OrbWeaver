@@ -3,10 +3,9 @@
 // DomainNotFoundError, so a user can't probe another's inbox. Both are idempotent — the timestamp is set
 // once (COALESCE in persistence).
 
-import type { InboxView } from "@orb/contracts/notifications";
+import type { InboxView, MarkAllReadResult } from "@orb/contracts/notifications";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { DismissParams, MarkAllReadParams } from "../contract/params.ts";
-import type { MarkAllReadResult } from "../contract/results.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
 import { dismissScoped, markAllReadScoped } from "../persistence/queries.ts";
 import { asSettled } from "../substrate/actionable.ts";

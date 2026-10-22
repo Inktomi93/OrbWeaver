@@ -1160,11 +1160,6 @@ export interface ChatAutomationReads {
   readonly readChoicePicks: (chatId: ChatId) => Promise<Record<string, string>>;
 }
 
-// domain/automation/contract/plugin-subscribers — the plugin `events.on` fan-out SEAM types.
-// Homed in its OWN contract file (not `ops.ts`) so the membrane-host wiring seam is disjoint from the
-// injected cross-feature op bundle. The IMPLEMENTATION (registry + fan-out with the three gates) is
-// `substrate/plugin-subscribers`; this is the type-only contract the compose root + the membrane host share.
-
 /** A registered plugin event subscriber — a NON-RULE consumer of the SAME resolved `TriggerFact` the rule
  *  dispatch consumes. The membrane host (`infra/plugin-host`, injected UP at compose — infra never imports a
  *  domain) builds ONE per plugin INSTANCE (aggregating the guest's `events.on(type,…)` calls) and registers it

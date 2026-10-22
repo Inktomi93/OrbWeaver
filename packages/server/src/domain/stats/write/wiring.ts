@@ -1,9 +1,9 @@
+import type { ReconcileStatsResult } from "@orb/contracts/stats";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { batchForOwner, databaseForOwner } from "@orb/db/wiring-owner";
 import type { IdSource } from "@orb/kit/ids";
 import { createIdSource } from "@orb/kit/ids";
 import type { ReconcileOpts } from "../contract/rebuild-from-canon.ts";
-import type { ReconcileStatsResult } from "../contract/results.ts";
 import type { StatsBatchWiring } from "../contract/wiring.ts";
 import { reconcileStats as rebuildStats } from "../persistence/rebuild-from-canon.ts";
 import { settleRetainedChatRebase } from "../persistence/retained-chat-accounting.ts";

@@ -7,6 +7,7 @@
 
 import type { ProviderId } from "@orb/contracts/inference";
 import { modelIdSchema, responseCacheSchema, storedGenerationUsageLegSchema } from "@orb/contracts/inference";
+import type { ReconcileStatsResult } from "@orb/contracts/stats";
 import { compactionSpendDelta, embeddingSpendDelta, generationObservationSpendDelta, imageGenerationSpendDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import {
@@ -28,7 +29,6 @@ import { castId, createIdSource } from "@orb/kit/ids";
 import { eq, sql } from "drizzle-orm";
 import { calendarBucketStartSql } from "#primitives/calendar-bucket-sql";
 import type { Accums, CanonMessage, CharChatMeta, ChatMeta, OwnerRollupRows, ReconcileOpts, SwipeRow } from "../contract/rebuild-from-canon.ts";
-import type { ReconcileStatsResult } from "../contract/results.ts";
 import {
   buildBucketRows,
   buildChatMeta,
@@ -41,7 +41,7 @@ import {
 } from "../substrate/rebuild-rollups.ts";
 import { ownerChatIds, retainedCharacterSeatPredicate } from "./owner-chat-scope.ts";
 
-export type { ReconcileStatsResult } from "../contract/results.ts";
+export type { ReconcileStatsResult } from "@orb/contracts/stats";
 
 const CHUNK = 5000; // rows per streaming page — bounds peak memory on large corpora
 // Per-table column counts for the bound-variable chunker — must track the insert shapes below.

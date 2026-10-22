@@ -10,6 +10,7 @@ import type {
   FireView,
   GlobalVariableView,
   OwnerBudgetView,
+  PluginSubscriberRegistry,
   RulePresetView,
   RuleView,
   RunRuleNowResult,
@@ -62,7 +63,6 @@ import type {
   TestRuleParams,
   UpdateRuleParams,
 } from "./params.ts";
-import type { PluginSubscriberRegistry } from "./plugin-subscribers.ts";
 import type { StreamAuthority } from "./results.ts";
 
 /** The DI bundle the automation verbs close over. Assembled at the entry composition root and handed to

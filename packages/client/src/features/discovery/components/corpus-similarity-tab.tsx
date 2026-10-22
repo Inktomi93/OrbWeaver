@@ -11,7 +11,7 @@
 // presentation and shared pair-row anatomy; identical-art equivalence classes collapse pairwise rows into
 // one finding (#564).
 
-import type { CharacterId } from "@orb/kit/ids";
+import type { SimilarityGraphEdge, SimilarityGraphNode } from "@orb/contracts/discovery";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
@@ -119,15 +119,7 @@ function NearestPairs(): ReactElement {
   );
 }
 
-interface GraphNode {
-  readonly characterId: CharacterId;
-  readonly name: string;
-}
-interface GraphEdge {
-  readonly source: CharacterId;
-  readonly target: CharacterId;
-  readonly similarity: number;
-}
+type GraphNode = Pick<SimilarityGraphNode, "characterId" | "name">;
 
 function NearestPairsList({
   isPending,
@@ -140,7 +132,7 @@ function NearestPairsList({
   readonly error: unknown | null;
   readonly onRetry: () => void;
   readonly nodes: readonly GraphNode[];
-  readonly edges: readonly GraphEdge[];
+  readonly edges: readonly SimilarityGraphEdge[];
 }): ReactElement {
   if (isPending) {
     return <SkeletonRows count={SKELETON_ROW_COUNT} shape="line" />;

@@ -1,4 +1,4 @@
-import type { AssetEmbeddingReads } from "../contract/embedding-reads.ts";
+import type { AssetEmbeddingReads } from "@orb/contracts/assets";
 import type { AssetsService } from "../contract/service.ts";
 
 /** Bind the stored CAS facts and absent-row byte contract consumed by trusted embedding work. */

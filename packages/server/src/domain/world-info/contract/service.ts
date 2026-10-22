@@ -9,14 +9,18 @@ import type { EmitDomainEvent } from "@orb/contracts/events";
 import type { Principal } from "@orb/contracts/identity";
 import type { EmitUserEvent } from "@orb/contracts/user-bus";
 import type {
+  BackfillResult,
   BookAttachmentTargets,
   BookAttachmentView,
   BookView,
   BookWithUsage,
   ChatBookView,
+  DetachResult,
   EntryView,
   LoreConstantCanonRow,
   LoreEntryIndexRow,
+  RemoveResult,
+  ReorderResult,
   UpsertEntriesResult,
   WiBusEvent,
 } from "@orb/contracts/world-info";
@@ -59,7 +63,6 @@ import type {
   UpdateEntryParams,
   UpsertEntriesParams,
 } from "./params.ts";
-import type { BackfillResult, DetachResult, RemoveResult, ReorderResult } from "./results.ts";
 
 /** DI bundle every world-info verb closes over. Chat-scope guards/emit are injected from chat itself. */
 export interface WorldInfoContext {

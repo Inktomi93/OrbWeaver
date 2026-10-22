@@ -721,7 +721,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   // card spans to the deterministic stub (except the M2 keep-last-X newest). This runs DOWNSTREAM of SHAPE
   // (squash joins with `\n\n` before tokenization — fences/tags survive the join) and of every string-body
   // regex pass (§3.9 pin: a promptOnly/AI_OUTPUT script sees the FULL card bytes; the stub replaces them for
-  // the wire below it). All six connection modes consume the resulting TurnMessage[], so the collapse is
+  // the wire below it). All six connection modes consume the resulting ChatHistoryMessage[], so the collapse is
   // uniform per backend.
   const convertEnv: Parameters<typeof buildWireHistory>[0] = {
     visionOk: acceptsImageInput(generationOf(args.connection)),

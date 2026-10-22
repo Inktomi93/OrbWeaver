@@ -18,6 +18,7 @@ import type {
   MomentumBucket,
   OwnerStatsView,
   PersonaUsageRow,
+  ReconcileStatsResult,
   StatsFreshness,
   WrappedSummary,
 } from "@orb/contracts/stats";
@@ -25,7 +26,6 @@ import type { Db } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { CharacterId, IdSource, UserId } from "@orb/kit/ids";
 import type { ByModelOpts, LeaderboardOpts, PersonaUsageOpts, TimeseriesOpts } from "./params.ts";
-import type { ReconcileStatsResult } from "./results.ts";
 
 /** The DI bundle every verb closes over: the libSQL handle + the injected clock the rebuild stamps with. */
 export interface StatsContext {

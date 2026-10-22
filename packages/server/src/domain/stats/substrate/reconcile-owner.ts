@@ -5,9 +5,9 @@
 // separates this path from the `reconcile-stats` workload's bulk arm (no `ownerId` ⇒ every owner). The
 // underlying rebuild is one home, shared by both.
 
+import type { ReconcileStatsResult } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { IdSource, UserId } from "@orb/kit/ids";
-import type { ReconcileStatsResult } from "../contract/results.ts";
 import { reconcileStats } from "../persistence/rebuild-from-canon.ts";
 
 /** Rebuild exactly ONE owner's rollups from canon (never the deployment-wide sweep). */

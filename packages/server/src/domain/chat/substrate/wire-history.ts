@@ -27,12 +27,12 @@
 // holding every reply's thinking is refused on both OpenRouter endpoints (OR-9, scripts/probes/openrouter/RESULTS.md).
 
 import type { ChatContentPart, ChatReasoningPart, ContentSignatures, MessageView, ToolCallRecord } from "@orb/contracts/chat";
-import type { GeneratedImage, ToolCallInput, WireMeta } from "@orb/inference";
+import type { ChatHistoryMessage, GeneratedImage, ToolCallInput, WireMeta } from "@orb/inference";
 import { cacheDepthCovering, rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
 import { cardWireStub, contentSpanRaw, tokenizeContent } from "@orb/kit/content";
 import type { AssetId, MessageId } from "@orb/kit/ids";
-import type { ResolvedMediaRef, TurnEconomics, TurnMessage } from "../contract/results.ts";
+import type { ResolvedMediaRef, TurnEconomics } from "../contract/results.ts";
 import type { shapeTurn, toShapeCanon } from "./assembly-access.ts";
 import { fitHistory, historyTurnTokens } from "./assembly-access.ts";
 
@@ -136,7 +136,7 @@ interface WirePartsEnv {
 /** The PER-ROW facts the projection needs (only the image arm reads them — see {@link ridesAsModelMedia}). */
 interface WireRowFacts {
   /** The DELIVERED wire role. */
-  readonly role: TurnMessage["role"];
+  readonly role: ChatHistoryMessage["role"];
   /** The row's bytes were authored by a human user: it is not a canon ASSISTANT row (an id-less shaped row —
    *  the synthetic regen/continue user turn, a spliced injection — is judged by `role` alone). */
   readonly userAuthored: boolean;
@@ -368,8 +368,8 @@ type ShapedHistoryRow = ReturnType<typeof shapeTurn>["history"][number];
  *  the per-row media verdicts. `costRow` re-states the row's canon identity because the fit reads it (the
  *  irreducible-tail anchor + the context-boundary id), and carries the WIRE text as its `content`. */
 interface WireRow {
-  readonly row: TurnMessage;
-  readonly prefixRows?: readonly TurnMessage[];
+  readonly row: ChatHistoryMessage;
+  readonly prefixRows?: readonly ChatHistoryMessage[];
   readonly costRow: ShapedHistoryRow & { readonly extraTokens?: number };
   readonly imageDropped: boolean;
   readonly videoDropped: boolean;
@@ -443,7 +443,7 @@ export function replayToolMessageIds(canon: readonly MessageView[], toolsOk: boo
 }
 
 function replayToolRows(
-  row: TurnMessage,
+  row: ChatHistoryMessage,
   records: readonly ToolCallRecord[],
   options: {
     readonly canonical: string;
@@ -453,13 +453,13 @@ function replayToolRows(
     readonly allRecords: readonly ToolCallRecord[];
     readonly carryToolReasoning: boolean;
   },
-): TurnMessage[] {
+): ChatHistoryMessage[] {
   const { canonical, signatures, shapedContent, source } = options;
   const thinking = row.content.filter((part) => part.type === "reasoning");
   const origin = shapedContent.indexOf(canonical);
   const exact = canonical.length > 0 && origin !== -1;
   const groups = Map.groupBy(records, (record, index) => `${record.turnId ?? "legacy"}:${record.exchangeOrdinal ?? record.callOrdinal ?? index}`);
-  const output: TurnMessage[] = [];
+  const output: ChatHistoryMessage[] = [];
   let consumed = 0;
   for (const batch of groups.values()) {
     const replayed = replayToolBatch(row, batch, { ...options, origin, exact, start: consumed });
@@ -478,7 +478,7 @@ function replayToolRows(
 }
 
 function replayToolBatch(
-  row: TurnMessage,
+  row: ChatHistoryMessage,
   batch: readonly ToolCallRecord[],
   options: Parameters<typeof replayToolRows>[2] & { readonly origin: number; readonly exact: boolean; readonly start: number },
 ): { readonly parts: readonly ChatContentPart[]; readonly end: number } {
@@ -515,7 +515,7 @@ function recordedToolPart(
   };
 }
 
-function toolResultFrame(record: ToolCallRecord): TurnMessage {
+function toolResultFrame(record: ToolCallRecord): ChatHistoryMessage {
   return {
     role: "tool",
     content: [{ type: "tool-result", toolCallId: record.toolCallId, content: record.result ?? "", ...(record.isError ? { isError: true } : {}) }],
@@ -529,7 +529,7 @@ export function receivedToolExchangeMessages(input: {
   readonly calls: readonly ToolCallInput[];
   readonly records: readonly ToolCallRecord[];
   readonly economics: TurnEconomics | null;
-}): TurnMessage[] {
+}): ChatHistoryMessage[] {
   const images = input.economics?.replyImages ?? [];
   const events = [
     ...images.flatMap((image, index) => {
@@ -581,7 +581,7 @@ function replayProseBetween(source: ResolvedSpanParts, from: number, to: number,
   return isEmptyPartList(parts) ? [] : parts;
 }
 
-function pushToolCallFrame(output: TurnMessage[], row: TurnMessage, parts: readonly ChatContentPart[]): void {
+function pushToolCallFrame(output: ChatHistoryMessage[], row: ChatHistoryMessage, parts: readonly ChatContentPart[]): void {
   if (row.role === "assistant") {
     output.push({ ...row, content: parts });
     return;
@@ -637,7 +637,7 @@ function withToolReplay(wire: WireRow, h: ShapedHistoryRow, env: Parameters<type
   };
 }
 
-function extraFrameTokens(frames: readonly TurnMessage[], content: string): number {
+function extraFrameTokens(frames: readonly ChatHistoryMessage[], content: string): number {
   return frames.reduce((sum, frame) => sum + historyTurnTokens({ content: wireCostText(frame.content) }), 0) - historyTurnTokens({ content });
 }
 
@@ -727,7 +727,7 @@ export async function buildWireHistory(
         h.role === "assistant" && h.messageId !== undefined ? replayTextSignatures(bodyParts, env.contentSignaturesByMessage?.get(h.messageId)) : bodyParts;
       const parts =
         h.role === "assistant" && h.messageId !== undefined ? carryReasoningParts(signedParts, env.reasoningByMessage.get(h.messageId)) : signedParts;
-      const row: TurnMessage = {
+      const row: ChatHistoryMessage = {
         role: h.role,
         content: parts,
         ...(h.name === undefined ? {} : { name: h.name }),
@@ -806,7 +806,7 @@ function withNewChatMarkerAtHead(kept: readonly WireRow[], marker: NonNullable<N
     };
     return kept.map((wire, index) => (index === at ? merged : wire));
   }
-  const row: TurnMessage = { role: "user", content: [{ type: "text", text: marker.content }] };
+  const row: ChatHistoryMessage = { role: "user", content: [{ type: "text", text: marker.content }] };
   return [{ row, costRow: { role: "user", content: marker.content, messageId: undefined }, imageDropped: false, videoDropped: false }, ...kept];
 }
 

@@ -3,9 +3,9 @@
 // excluded, newest-first, cursor-paged on the monotonic `seq`. `nextCursor` is the last row's `seq` when a
 // full page came back (more may remain below it), else `null` (inbox exhausted).
 
+import type { ListInboxResult } from "@orb/contracts/notifications";
 import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
 import type { ListInboxParams } from "../contract/params.ts";
-import type { ListInboxResult } from "../contract/results.ts";
 import type { NotificationsContext, NotificationsService } from "../contract/service.ts";
 import { selectInbox } from "../persistence/queries.ts";
 import { asksNothing, NO_STANDING_ASKS, standingAsksOf, withActionable } from "../substrate/actionable.ts";

@@ -17,7 +17,7 @@
 //   (c) DECLARED-MATCH — only the trigger types the plugin DECLARED (its `events.on` registrations) deliver.
 // SELF-SAFE: a throwing guest `deliver` is caught + logged — it never breaks the fan-out loop or the bus.
 
-import type { TriggerFact } from "@orb/contracts/automation";
+import type { PluginSubscriberRegistry, PluginTriggerSubscriber, TriggerFact } from "@orb/contracts/automation";
 import type { HistoryFloorSeq } from "@orb/contracts/chat";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
@@ -26,7 +26,6 @@ import type { ChatId, MessageId, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { getLog } from "#foundation/observability";
 import type { AutomationOps, ResolvedTrigger } from "../contract/ops.ts";
-import type { PluginSubscriberRegistry, PluginTriggerSubscriber } from "../contract/plugin-subscribers.ts";
 import { ownsFactSubject } from "./fact-scope.ts";
 
 /** Build the in-process subscriber registry (`ASSUMES(single-replica)`). One instance is created at compose,

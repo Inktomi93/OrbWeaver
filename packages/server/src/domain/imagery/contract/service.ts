@@ -12,7 +12,7 @@ import type { ApplyStatsDelta } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
-import type { BindingActor, Resolved } from "@orb/inference";
+import type { BindingActor, ImageGenerateRequest as InferenceImageGenerateRequest, Resolved } from "@orb/inference";
 import type { AssetId, CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import type { IanaTimeZone } from "@orb/kit/time";
 import type { EditImageParams, ExtractionMode, ExtractPromptParams, GeneratePictureParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
@@ -74,15 +74,6 @@ export interface GeneratedImage {
   readonly mediaType?: string | undefined;
 }
 
-/** The edit/img2img payload on the request's `edit` field. Structural twin of the infra `ImageEditInput`
- *  (the domain never imports `#infra/*`) — present ⇒ img2img/edit, absent ⇒ text→image. */
-interface ImageEditInput {
-  /** OPTIONAL init/img2img source. */
-  readonly image?: Uint8Array | string | undefined;
-  readonly mask?: Uint8Array | string | undefined;
-  readonly references?: readonly (Uint8Array | string)[] | undefined;
-}
-
 /** The text→image request the domain hands the sealed executor. Free mode fills the credential/model/prompt/
  *  negativePrompt/size/n fields; `edit` rides B3/editImage (I4). `systemPrompt` is the optional prepend.
  *  Structural over contract/kit types (no `#infra`) — the widened twin of the infra `ImageGenerateRequest`
@@ -100,12 +91,11 @@ export interface ImageGenerateRequest {
   readonly negativePrompt?: string | undefined;
   /** A hint (same posture as `n`) — passed where the wire supports it. */
   readonly size?: { readonly width: number; readonly height: number } | undefined;
-  readonly edit?: ImageEditInput | undefined;
+  readonly edit?: InferenceImageGenerateRequest["edit"];
   /** The resolved model capability the runner's edit-strip belt reads: an `edit` payload
    *  whose model lacks `input.imageEdit` is stripped + warned, never sent. The domain resolves this at every
    *  verb (the same model the edit gate reads), so it is REQUIRED here — a request build that omits it fails
-   *  `tsc`, closing the "belt strips every edit because capability was never forwarded" seam. The widened twin
-   *  of the infra `ImageGenerateRequest.capability` (optional there — the belt treats absent as no-edit). */
+   *  `tsc`, closing the "belt strips every edit because capability was never forwarded" seam. */
   readonly capability: GenerationCapability;
 }
 
