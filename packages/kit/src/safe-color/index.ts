@@ -177,9 +177,8 @@ function parseStandardsColor(value: string): ColorParseOutcome {
     const inGamut = authored.inGamut("srgb");
     const color = authored.to("srgb").toGamut({ method: "css" });
     const [r, g, b] = color.coords;
-    // ColorJS alpha can be a boxed Number despite its number declaration; valueOf normalizes both forms.
-    const alpha = color.alpha.valueOf();
-    if (![r, g, b, alpha].every(Number.isFinite)) {
+    const alpha = color.alpha;
+    if (r === null || g === null || b === null || ![r, g, b, alpha].every(Number.isFinite)) {
       return { ok: false, error: new TypeError("ColorJS returned non-finite channels") };
     }
     return { ok: true, color: { r: r * CHANNEL_MAX, g: g * CHANNEL_MAX, b: b * CHANNEL_MAX, alpha, inGamut } };

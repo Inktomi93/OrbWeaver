@@ -348,8 +348,8 @@ catalogs:
       specifier: ^6.0.2
       version: 6.0.2
     colorjs.io:
-      specifier: 0.5.2
-      version: 0.5.2
+      specifier: 0.7.0
+      version: 0.7.0
     cross-spawn:
       specifier: 7.0.6
       version: 7.0.6
@@ -559,6 +559,7 @@ patchedDependencies:
   '@vitest/eslint-plugin@1.6.27': 5d9b0cfbe2f217abee47c556cc65d2e534ae4c5c53cf97f675491dfee1a767d7
   chrome-devtools-mcp@1.8.0: 67db8089f861f501bdd6ba80a83641bb7f8cee56d9a3378a2ffc137abfc0af7a
   cmdk@1.1.1: a6e7187df52e9d4f1cd63362a275f1138eb85222f332c5ef99f6b1d44fa35420
+  colorjs.io@0.7.0: 89433c3a39b2363e5239e741412841e2e49dd5f41e95b6450d17cc4f61fded57
   isomorphic-git@1.42.2: be8fb8a37b59f0ba20092772c50d4f678b0d6a8c6e0d5556808cdbb8c6297047
   libsql@0.6.0-pre.43: 7b48aa0bd500a46194e7b41b77327ba74b34e5a0d6717f366ea745b4e7978031
   node-av@6.1.1: 36551009254ba2f04a7116d9f5c2e58bd9a276f4f026daac918fc75c72088039
@@ -949,7 +950,7 @@ importers:
         version: 8.0.0
       colorjs.io:
         specifier: 'catalog:'
-        version: 0.5.2
+        version: 0.7.0(patch_hash=89433c3a39b2363e5239e741412841e2e49dd5f41e95b6450d17cc4f61fded57)
       luxon:
         specifier: 'catalog:'
         version: 3.7.2
@@ -4796,6 +4797,9 @@ packages:
 
   colorjs.io@0.5.2:
     resolution: {integrity: sha512-twmVoizEW7ylZSN32OgKdXRmo1qg+wT5/6C3xu5b9QsWzSFAhHLn2xd8ro0diCsKfCj1RdaTP/nrcW+vAoQPIw==}
+
+  colorjs.io@0.7.0:
+    resolution: {integrity: sha512-JfLy3aZW1Xp2iwSFzGlLn0XSMnIdItH3BmzsXtwHVFEWwVUJIwKBWNzjQq2Tgf3998OY7qW2R6klrlYo8vmEGg==}
 
   combined-stream@1.0.8:
     resolution: {integrity: sha512-FQN4MRfuJeHf7cBbBMJFXhKSDq+2kAArBlmRBvcvFE5BB1HZKXtSFASDhdlz9zOYwxh8lDdnvmMOe/+5cdoEdg==}
@@ -11485,6 +11489,8 @@ snapshots:
   colorette@2.0.20: {}
 
   colorjs.io@0.5.2: {}
+
+  colorjs.io@0.7.0(patch_hash=89433c3a39b2363e5239e741412841e2e49dd5f41e95b6450d17cc4f61fded57): {}
 
   combined-stream@1.0.8:
     dependencies:

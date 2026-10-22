@@ -271,7 +271,7 @@ catalog:
   # DTCG token codegen (docs said v4; current major is 5 — ESM/async, DTCG first-class).
   style-dictionary: ^5.5.5
   # Standards CSS Color 4 parsing/gamut mapping for the isomorphic ThemeScope derivation boundary.
-  colorjs.io: 0.5.2
+  colorjs.io: 0.7.0
   # Tailwind v4 + the vite plugin (the @theme consumer; used by the CT harness + Phase-6 client).
   tailwindcss: ^4.3.3
   "@tailwindcss/oxide": ^4.3.3
@@ -491,5 +491,7 @@ patchedDependencies:
   # untouched body parameter. valid-expect-in-promise is unpatched. A bump must port it;
   # tests/tooling/eslint-vitest-plugin-patch.test.ts holds both directions.
   '@vitest/eslint-plugin@1.6.27': patches/@vitest__eslint-plugin@1.6.27.patch
+  # The optional DOM resolver must not import browser globals into Node programs.
+  colorjs.io@0.7.0: patches/colorjs.io@0.7.0.patch
 
 nodeOptions: "--max-old-space-size=16384"
