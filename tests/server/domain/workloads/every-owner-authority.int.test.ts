@@ -9,13 +9,13 @@ import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { characterEmbeddings, characterSummaries, characters, embedGenerations, themeClusters, users, workloads } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { nextRunnableWorkload, runWorkload } from "@orb/server/domain/workloads";
+import { runWorkload } from "@orb/server/domain/workloads";
 import { seedCorpusConnections, seedRecallCorpus } from "@orb/testkit/node/corpus-seed.ts";
 import { expect, test } from "@orb/testkit/node/fixtures.ts";
 import { createServerHarness } from "@orb/testkit/node/server.ts";
 import { eq, inArray, sql } from "drizzle-orm";
 import { vi } from "vitest";
-import { executeAdmitted, observeQueued, physicalWire, QUEUE_OBSERVATION_DELAY_MS } from "./funding.fixtures.ts";
+import { createQueueScanner, executeAdmitted, observeQueued, physicalWire, QUEUE_OBSERVATION_DELAY_MS } from "./funding.fixtures.ts";
 
 test("only actual NULL-owner execution carries every-owner authority, independently of a null caller", async () => {
   const wire = physicalWire();
@@ -256,9 +256,7 @@ test("a deleted owner's admitted job never upgrades into every-owner execution o
   const scores = await root.db.select({ score: characterEmbeddings.hubScore }).from(characterEmbeddings);
   expect(scores.map((row) => row.score)).toEqual([null, null]);
   expect(run).not.toHaveBeenCalled();
-  expect(
-    await nextRunnableWorkload(databaseHandle(root.db), root.app.workloadContributions, root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep"),
-  ).toBeNull();
+  expect(await createQueueScanner(root)(root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep")).toBeNull();
   expect(await root.services.workloads.get({ caller: owner, id: ref.id })).toMatchObject({ status: "failed" });
   await root.db
     .update(workloads)
@@ -286,14 +284,20 @@ test("owner deletion between queue observation and atomic claim cannot upgrade a
   await root.db.delete(users).where(eq(users.id, member.userId));
   const run = vi.spyOn(root.app.workloadContributions.csls, "run");
   await runWorkload(
-    { db: databaseHandle(root.db), contributions: root.app.workloadContributions, audit: root.app.audit, now: root.clock.now, heartbeatMs: 0, cancelPollMs: 0 },
+    {
+      db: databaseHandle(root.db),
+      contributions: root.app.workloadContributions,
+      audit: root.app.audit,
+      now: root.clock.now,
+      emitEvent: root.app.workloadEvents.emitWorkloadEvent,
+      heartbeatMs: 0,
+      cancelPollMs: 0,
+    },
     captured,
     new AbortController().signal,
   );
   expect(run).not.toHaveBeenCalled();
-  expect(
-    await nextRunnableWorkload(databaseHandle(root.db), root.app.workloadContributions, root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep"),
-  ).toBeNull();
+  expect(await createQueueScanner(root)(root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep")).toBeNull();
   expect(await root.services.workloads.get({ caller: null, id: ref.id })).toMatchObject({ status: "failed" });
   run.mockRestore();
 });

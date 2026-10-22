@@ -24,7 +24,6 @@ import type { WorkloadContribution } from "../contract/contribution.ts";
 import type { WorkloadRunnerDeps } from "../contract/service.ts";
 import type { WorkloadClaim, WorkloadRunnableRow } from "../contract/workload-row.ts";
 import { heartbeat, loadWorkloadStatus, markStarted, markTerminal } from "../persistence/queries.ts";
-import { emitWorkloadEvent } from "./progress-bus.ts";
 
 // Synthetic acting user for a scheduler/system-triggered row (`ownerId === null`); not a real `users` row.
 const SYSTEM_OWNER_ID = castId<UserId>("system");
@@ -188,7 +187,7 @@ function startLeaseTimers(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, co
 async function finishCancelled(deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, at: number): Promise<boolean> {
   const moved = await markTerminal(deps.db, { id: row.id, status: "cancelled", now: at });
   if (moved) {
-    (deps.emitEvent ?? emitWorkloadEvent)({ type: "cancelled", workloadId: row.id, kind: row.kind, at });
+    deps.emitEvent({ type: "cancelled", workloadId: row.id, kind: row.kind, at });
   }
   return moved;
 }
@@ -213,7 +212,7 @@ async function finalizeSuccess(deps: WorkloadRunnerDeps, row: WorkloadRunnableRo
     // simply not expressible once `kind` is the union — the succeeded arm is per-kind, and a
     // (union kind × union result) cross product satisfies none of its arms. The event's own type is what
     // holds every READER to the pairing; this is the one writer that stands where the union was erased.
-    (deps.emitEvent ?? emitWorkloadEvent)({
+    deps.emitEvent({
       type: "succeeded",
       workloadId: row.id,
       kind: row.kind,
@@ -243,7 +242,7 @@ async function finalizeFailure(deps: WorkloadRunnerDeps, row: WorkloadRunnableRo
     now: deps.now(),
   });
   if (moved) {
-    (deps.emitEvent ?? emitWorkloadEvent)({
+    deps.emitEvent({
       type: "failed",
       workloadId: row.id,
       kind: row.kind,
@@ -275,7 +274,7 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
   if (claim === null) {
     return;
   }
-  (deps.emitEvent ?? emitWorkloadEvent)({ type: "started", workloadId: row.id, kind: row.kind, at: deps.now() });
+  deps.emitEvent({ type: "started", workloadId: row.id, kind: row.kind, at: deps.now() });
 
   const ctx = buildRunContext(deps, claim);
 
@@ -296,7 +295,7 @@ export async function runWorkload(deps: WorkloadRunnerDeps, row: WorkloadRunnabl
     const at = deps.now();
     // The durable half — throttled to the lease cadence, piggybacked on the heartbeat's own UPDATE.
     lease.report(progress, at);
-    (deps.emitEvent ?? emitWorkloadEvent)({
+    deps.emitEvent({
       type: "progress",
       workloadId: row.id,
       kind: row.kind,

@@ -46,21 +46,21 @@ export interface WorkloadServiceContext {
   readonly isAdmin: IsAdmin;
   /** The non-throwing owner test, for a read that must answer a non-owner exactly as it answers a missing row. */
   readonly isOwner: IsOwner;
-  /** The domain-owned lifecycle publisher; service.ts wires the engine bus so verbs never bypass it. */
+  /** The graph-owned lifecycle publisher, shared by verbs and the workload engine. */
   readonly emitEvent: (event: WorkloadEvent) => void;
   /** The per-user freshness plane: a system-started owned row announces `workloadsChanged` to its owner. */
   readonly emitUserEvent: EmitUserEvent;
 }
 
-/** What entry supplies; the domain service adds its own event publisher at its composition root. */
-export type WorkloadServiceDeps = Omit<WorkloadServiceContext, "emitEvent"> & Partial<Pick<WorkloadServiceContext, "emitEvent">>;
+/** What entry supplies to bind the verbs to their application graph. */
+export type WorkloadServiceDeps = WorkloadServiceContext;
 
 /**
  * The base runner deps the entry root wires + the worker holds. Lease/heartbeat cadences are tunable and
  * `<= 0` disables the timers (deterministic test seam — a test drives cancel via `AbortSignal` instead).
  */
 export interface WorkloadRunnerDeps {
-  readonly emitEvent?: WorkloadServiceContext["emitEvent"];
+  readonly emitEvent: WorkloadServiceContext["emitEvent"];
   readonly db: Db;
   /** The per-kind contribution registry the engine dispatches through (built at compose from the owning
    *  domains' factories). Replaces the retired cross-feature `env` hub — the engine knows no domain. */
@@ -97,7 +97,7 @@ export type WorkloadReapReason = (typeof WORKLOAD_REAP_REASONS)[number];
 /** The orphan sweep's args. `reason` is REQUIRED: a new reap call site must declare which death it records,
  *  which is what keeps the two sentences from collapsing back into one. */
 export interface ReapWorkloadsArgs {
-  readonly emitEvent?: WorkloadServiceContext["emitEvent"];
+  readonly emitEvent: WorkloadServiceContext["emitEvent"];
   readonly db: Db;
   // No `contributions` (#1413): the sweep disposes of RAW in-flight rows and resolves no kind against the
   // registry, so handing it the domain map would be a dep it does not use — and the version that DID narrow

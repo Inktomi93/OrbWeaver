@@ -142,9 +142,3 @@ export function createQuietFanout(): QuietFanout {
     },
   };
 }
-
-// biome-ignore lint/nursery/useDisposables: this module owns process compatibility lifetime; createServices uses separate graph owners, and module using would close it at import.
-const processQuiet = createQuietFanout();
-export const silenceUserEvent: QuietFanout["silenceUserEvent"] = processQuiet.silenceUserEvent;
-export const silenceRoomEntityFan: QuietFanout["silenceRoomEntityFan"] = processQuiet.silenceRoomEntityFan;
-export const withQuietBulkFanout: QuietFanout["withQuietBulkFanout"] = processQuiet.withQuietBulkFanout;

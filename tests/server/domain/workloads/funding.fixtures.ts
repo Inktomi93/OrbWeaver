@@ -3,7 +3,7 @@ import { refineryScorePayloadSchema } from "@orb/contracts/refinery";
 import type { WorkloadRunnableRow } from "@orb/contracts/workloads";
 import { databaseHandle } from "@orb/db/wiring-driver";
 import type { WorkloadId } from "@orb/kit/ids";
-import { nextRunnableWorkload, runWorkload } from "@orb/server/domain/workloads";
+import { createNextRunnableWorkload, runWorkload } from "@orb/server/domain/workloads";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -86,11 +86,20 @@ export async function executeRow(root: ServerTestHarness, row: WorkloadRunnableR
   );
 }
 
+export function createQueueScanner(root: ServerTestHarness): ReturnType<typeof createNextRunnableWorkload> {
+  return createNextRunnableWorkload({
+    db: databaseHandle(root.db),
+    contributions: root.app.workloadContributions,
+    emitEvent: root.app.workloadEvents.emitWorkloadEvent,
+  });
+}
+
 export async function observeQueued(root: ServerTestHarness, id: WorkloadId): Promise<WorkloadRunnableRow> {
-  let row = await nextRunnableWorkload(databaseHandle(root.db), root.app.workloadContributions, root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep");
+  const nextRunnable = createQueueScanner(root);
+  let row = await nextRunnable(root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep");
   while (row !== null && row.id !== id) {
     await executeRow(root, row);
-    row = await nextRunnableWorkload(databaseHandle(root.db), root.app.workloadContributions, root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep");
+    row = await nextRunnable(root.clock.now() + QUEUE_OBSERVATION_DELAY_MS, "sweep");
   }
   if (row === null) {
     throw new Error("admitted workload is absent from the actual queue");

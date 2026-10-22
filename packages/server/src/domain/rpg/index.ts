@@ -1,7 +1,7 @@
 // domain/rpg — FRONT DOOR: transport consumes RpgService; composition builds its context and staging store.
 // Consumed operation types stay on this door; canonical wire shapes live in @orb/contracts/rpg.
 
-export { createRpgEventBus, subscribeRpgEvents } from "./bus.ts";
+export { createRpgEventBus } from "./bus.ts";
 export { createRpgChatOps } from "./chat-ops/index.ts";
 export type { RpgEventBus } from "./contract/bus.ts";
 // PORTABILITY R6 — the chat-anchored campaign's read-whole/write-whole pair, wired at the composition root as

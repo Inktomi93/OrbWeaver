@@ -47,8 +47,3 @@ export function createRpgEventBus(): RpgEventBus {
     },
   };
 }
-
-// biome-ignore lint/nursery/useDisposables: this module owns process compatibility lifetime; createServices uses separate graph owners, and module using would close it at import.
-const processBus = createRpgEventBus();
-export const publishRpgEvent: RpgEventBus["publishRpgEvent"] = processBus.publishRpgEvent;
-export const subscribeRpgEvents: RpgEventBus["subscribeRpgEvents"] = processBus.subscribeRpgEvents;

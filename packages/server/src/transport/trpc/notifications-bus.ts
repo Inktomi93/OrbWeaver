@@ -30,7 +30,3 @@ export function createNotificationsBus(): NotificationsBus {
   }
   return { publishNotification: publish, subscribeNotifications: subscribe, [Symbol.dispose]: () => bus[Symbol.dispose]() };
 }
-
-const processBus = createNotificationsBus();
-export const publishNotification: NotificationsBus["publishNotification"] = processBus.publishNotification;
-export const subscribeNotifications: NotificationsBus["subscribeNotifications"] = processBus.subscribeNotifications;

@@ -7,7 +7,7 @@ import type { ReapWorkloadsArgs, WorkloadContributions, WorkloadRowAnyKind, Work
 import type { superviseDetached as Supervise } from "#foundation/observability";
 import type { BackgroundWork } from "#infra/tasks";
 
-// `nextRunnableWorkload` — the LANE-SCOPED queue-head poll (front door).
+// The lane-scoped queue poll bound by `createNextRunnableWorkload` at composition.
 type NextRunnableOp = (db: DatabaseHandle, contributions: WorkloadContributions, now: number, lane: WorkloadLane) => Promise<WorkloadRunnableRow | null>;
 // `runWorkload` — drive ONE claimed row end-to-end (the domain's per-row state machine; front door).
 type RunWorkloadOp = (deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, signal: AbortSignal) => Promise<void>;
@@ -16,7 +16,7 @@ type RunWorkloadOp = (deps: WorkloadRunnerDeps, row: WorkloadRunnableRow, signal
 type ReapOp = (args: ReapWorkloadsArgs) => Promise<number>;
 // `loadWorkload` — the by-id re-read the post-dispatch hot-loop guard uses (front door).
 type LoadWorkloadOp = (db: DatabaseHandle, contributions: WorkloadContributions, id: WorkloadId) => Promise<WorkloadRowAnyKind | null>;
-// Subscribe to the workload event bus (`workloadStreamEmitter`); returns the unsubscribe. Injected so the
+// Subscribe to the graph's workload lifecycle events; returns the unsubscribe. Injected so the
 // driver never imports the bus directly.
 type SubscribeWakeOp = (listener: () => void) => () => void;
 

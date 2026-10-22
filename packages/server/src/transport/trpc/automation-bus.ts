@@ -7,7 +7,7 @@
 // chips are ephemeral, 03 §1.4). Rides `defineBusChannel` keyed by chatId (the rpg/agents own-bus precedent —
 // NOT the frozen chat bus, D50), with NO firehose opt-in (client-architecture-state-and-gates.md §13/§16 G10).
 //
-// ASSUMES(single-replica): module-scope emitter, per-process — the enabled-index / rpg-bus annotation. The
+// ASSUMES(single-replica): graph-owned in-process channel, without cross-replica delivery. The
 // VISIBILITY gate is NOT here: the room refuses at ATTACH and its pump resolves the caller's
 // membership+authority FIRST (`resolveStreamAuthority` throws NOT_FOUND for a non-member) and filters
 // host-only events per subscriber, so publishing to a chat's channel is safe — only a gated subscriber is
@@ -47,8 +47,3 @@ export function createAutomationBus(): AutomationBus {
   }
   return { publishAutomationEvent: publish, subscribeAutomation: subscribe, [Symbol.dispose]: () => bus[Symbol.dispose]() };
 }
-
-// biome-ignore lint/nursery/useDisposables: this module owns process compatibility lifetime; createServices uses separate graph owners, and module using would close it at import.
-const processBus = createAutomationBus();
-export const publishAutomationEvent: AutomationBus["publishAutomationEvent"] = processBus.publishAutomationEvent;
-export const subscribeAutomation: AutomationBus["subscribeAutomation"] = processBus.subscribeAutomation;

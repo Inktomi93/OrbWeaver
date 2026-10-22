@@ -221,7 +221,7 @@ test("the seam hands its relay registry to the header path: an SSO header on a r
     forwardUserHeader: FORWARD_USER_HEADER,
     forwardTrustedProxies: ["127.0.0.1/32"],
   };
-  const seam = createAuthSeam({ sessions: root.app.sessions, config, relayHosts: () => [RELAY_HOST] });
+  const seam = createAuthSeam({ emitUserEvent: root.app.liveBuses.user.publishUserEvent, sessions: root.app.sessions, config, relayHosts: () => [RELAY_HOST] });
   const loopback = { peerIp: LOOPBACK, transport: "http" as const };
   const direct = await seam.resolvePrincipal(new Headers({ host: "localhost", [FORWARD_USER_HEADER]: "relay-control" }), loopback);
   expect(direct.principal?.handle).toBe("relay-control");
@@ -257,7 +257,11 @@ test("the CSRF header presence is surfaced as a signal (the ladder gates, not th
 test("debugGateAdmits requires a CREDENTIAL as well as the OWNER role", async () => {
   await using root = await single();
   // Production binds the posture from the launch env; a seam bound without it is the strict arm.
-  const strict = createAuthSeam({ sessions: root.app.sessions, config: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" } });
+  const strict = createAuthSeam({
+    emitUserEvent: root.app.liveBuses.user.publishUserEvent,
+    sessions: root.app.sessions,
+    config: { ...authConfigFromEnv(), mode: "single-user", fallback: "owner" },
+  });
   const owner = (await strict.resolvePrincipal(new Headers(), { peerIp: LOOPBACK, transport: "http" })).principal;
   expect(owner === null ? null : isOwner(owner)).toBe(true);
   expect(strict.debugGateAdmits(owner, new Headers())).toBe(false);

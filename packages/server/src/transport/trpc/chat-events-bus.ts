@@ -60,9 +60,3 @@ export function createChatEventsBus(): ChatEventsBus {
   }
   return { publishChatEvent: publish, subscribeAllChatEvents: subscribeAll, subscribeChatEvents: subscribe, [Symbol.dispose]: () => bus[Symbol.dispose]() };
 }
-
-const processBus = createChatEventsBus();
-export const publishChatEvent: ChatEventsBus["publishChatEvent"] = processBus.publishChatEvent;
-// eslint-disable-next-line orb/firehose-import-allowlist -- Canonical compatibility declaration projects its own producer; this is not a firehose consumer.
-export const subscribeAllChatEvents: ChatEventsBus["subscribeAllChatEvents"] = processBus.subscribeAllChatEvents;
-export const subscribeChatEvents: ChatEventsBus["subscribeChatEvents"] = processBus.subscribeChatEvents;

@@ -4,7 +4,7 @@
 // boundaries (Tier-4-Transport.md §"job drivers → the workloads front door").
 //
 // BOUNDARIES (domain-no-cross-feature / drivers-through-domain): this driver constructs NOTHING. The engine
-// ops (`nextRunnable`/`run`/`reap`/`load`), the wake source (`workloadStreamEmitter`), and the
+// ops (`nextRunnable`/`run`/`reap`/`load`), the wake subscription, and the
 // `WorkloadRunnerDeps` (the cross-feature `env` hub + the per-owner binder) are ALL injected — the entry/
 // composition root wires the real front-door functions in. This file imports only TYPES from the workloads
 // front door + `getLog` from foundation (downward, legal). That is also what makes the loop testable: a test
@@ -123,10 +123,10 @@ export async function claimAndRunNext(deps: WorkloadsWorkerDeps, lane: WorkloadL
  * @public Test-anchored module surface; focused tests pin this production-local behavior.
  */
 export async function reapOnce(deps: WorkloadsWorkerDeps, reason: WorkloadReapReason): Promise<number> {
-  const { db, now } = deps.runnerDeps;
+  const { db, now, emitEvent } = deps.runnerDeps;
   const log = getLog().child({ component: LOG_COMPONENT });
   try {
-    const reaped = await deps.reap({ db, now: now(), reason, ...(deps.runnerDeps.emitEvent === undefined ? {} : { emitEvent: deps.runnerDeps.emitEvent }) });
+    const reaped = await deps.reap({ db, now: now(), reason, emitEvent });
     if (reaped > 0) {
       log.info({ reaped, reason }, "workloads-worker: reaped orphans");
     }

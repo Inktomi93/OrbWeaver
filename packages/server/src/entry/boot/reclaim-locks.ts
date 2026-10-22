@@ -17,7 +17,7 @@ import { reclaimInFlightOnBoot } from "#domain/workloads";
 import { getLog } from "#foundation/observability";
 
 export interface ReclaimLocksDeps {
-  readonly emitWorkloadEvent?: WorkloadProgressBus["emitWorkloadEvent"];
+  readonly emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"];
   readonly db: Db;
   /** The contribution registry the row read path validates params against (poison tolerance), and the
    *  reclaim reads each kind's declared `resume` policy from. */
@@ -35,7 +35,7 @@ export async function reclaimLocksOnBoot(deps: ReclaimLocksDeps): Promise<number
     db: deps.db,
     contributions: deps.contributions,
     now: deps.now(),
-    ...(deps.emitWorkloadEvent === undefined ? {} : { emitEvent: deps.emitWorkloadEvent }),
+    emitEvent: deps.emitWorkloadEvent,
   });
   const chatLocks = await reclaimChatLocksOnBoot(deps.db, deps.holder);
   getLog().info(

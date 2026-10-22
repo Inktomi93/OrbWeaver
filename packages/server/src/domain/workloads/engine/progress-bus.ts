@@ -69,10 +69,3 @@ function createProgressBus(emitter: EventEmitter): WorkloadProgressBus {
 export function createWorkloadProgressBus(): WorkloadProgressBus {
   return createProgressBus(new EventEmitter());
 }
-
-export const workloadStreamEmitter = new EventEmitter();
-// biome-ignore lint/nursery/useDisposables: this module owns process compatibility lifetime; createServices uses separate graph owners, and module using would close it at import.
-const processBus = createProgressBus(workloadStreamEmitter);
-export const emitWorkloadEvent: WorkloadProgressBus["emitWorkloadEvent"] = processBus.emitWorkloadEvent;
-export const getRecentWorkloadEvents: WorkloadProgressBus["getRecentWorkloadEvents"] = processBus.getRecentWorkloadEvents;
-export const subscribeWorkloadWake: WorkloadProgressBus["subscribeWorkloadWake"] = processBus.subscribeWorkloadWake;

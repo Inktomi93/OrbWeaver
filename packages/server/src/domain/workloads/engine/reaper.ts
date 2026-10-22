@@ -22,7 +22,6 @@
 import type { WorkloadError } from "@orb/contracts/workloads";
 import type { ReapWorkloadsArgs } from "../contract/service.ts";
 import { findStaleInFlight, markTerminal } from "../persistence/queries.ts";
-import { emitWorkloadEvent } from "./progress-bus.ts";
 import { reapedMessage } from "./reap-record.ts";
 
 const DEFAULT_STALE_THRESHOLD_MS = 15_000;
@@ -41,7 +40,7 @@ export async function reapOrphanedWorkloads(args: ReapWorkloadsArgs): Promise<nu
       });
       if (moved) {
         const error: WorkloadError = { kind: "worker_died", message };
-        (args.emitEvent ?? emitWorkloadEvent)({
+        args.emitEvent({
           type: "failed",
           workloadId: row.id,
           kind: row.kind,

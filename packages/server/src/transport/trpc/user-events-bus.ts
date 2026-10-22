@@ -17,12 +17,11 @@ import type { ChatId, UserId } from "@orb/kit/ids";
 import { defineBusChannel } from "./bus-channel.ts";
 import type { UserEventsBus } from "./contract/live-buses.ts";
 import type { QuietFanout } from "./contract/quiet-fanout.ts";
-import { silenceUserEvent } from "./quiet-fanout.ts";
 
 const channelFor = (userId: UserId): string => `user:${userId}`;
 
 /** Create one graph-owned live channel; admission and durable writes remain at their existing callers. */
-export function createUserEventsBus(silenceEvent: QuietFanout["silenceUserEvent"] = silenceUserEvent): UserEventsBus {
+export function createUserEventsBus(silenceEvent: QuietFanout["silenceUserEvent"]): UserEventsBus {
   // biome-ignore lint/nursery/useDisposables: the returned bus delegates disposal to this channel; local using would close it before graph subscribers start.
   const bus = defineBusChannel<UserId, UserBusEvent>(channelFor);
 
@@ -54,9 +53,3 @@ export function createUserEventsBus(silenceEvent: QuietFanout["silenceUserEvent"
   }
   return { publishUserEvent: publish, publishChatChanged: publishChanged, subscribeUserEvents: subscribe, [Symbol.dispose]: () => bus[Symbol.dispose]() };
 }
-
-// biome-ignore lint/nursery/useDisposables: this module owns process compatibility lifetime; createServices uses separate graph owners, and module using would close it at import.
-const processBus = createUserEventsBus();
-export const publishUserEvent: UserEventsBus["publishUserEvent"] = processBus.publishUserEvent;
-export const publishChatChanged: UserEventsBus["publishChatChanged"] = processBus.publishChatChanged;
-export const subscribeUserEvents: UserEventsBus["subscribeUserEvents"] = processBus.subscribeUserEvents;

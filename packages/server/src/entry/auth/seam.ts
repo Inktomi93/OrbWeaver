@@ -43,14 +43,13 @@ import type { AllowedHostsReader, AuthConfig, ForwardJwtVerifier, IdentityResolu
 import { authConfigFromEnv, hasCsrfHeader, readRequestCookie, resolve, selectSignedForwardJwt, sessionCookieFor } from "#infra/auth";
 import { captureUserRole } from "#primitives/role-data";
 import type { LiveBuses } from "#transport/trpc";
-import { publishUserEvent } from "#transport/trpc";
 import { mintPrincipal } from "./principal-mint.ts";
 
 /** The boot-time deps the seam binds once. `config` is the test/override seam — production parses
  *  `authConfigFromEnv()` once at construction. `verifyForwardJwt`/`oidcStore` are the ports the SSO paths
  *  need; absent ⇒ that layer is inert (fail-closed). */
 export interface AuthSeamDeps {
-  readonly emitUserEvent?: LiveBuses["user"]["publishUserEvent"];
+  readonly emitUserEvent: LiveBuses["user"]["publishUserEvent"];
   readonly sessions: SessionsService;
   readonly verifyForwardJwt?: ForwardJwtVerifier;
   readonly oidcStore?: OidcTransactionStore;
@@ -369,7 +368,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
       ...(deps.relayHosts !== undefined && { relayHosts: deps.relayHosts }),
       ...(req.peerIp !== undefined && { peerIp: req.peerIp }),
     });
-    const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res, resolveFallbackPrincipal, deps.emitUserEvent ?? publishUserEvent);
+    const principal = await resolveHeaderOrFallbackPrincipal(deps.sessions, res, resolveFallbackPrincipal, deps.emitUserEvent);
     // No session id on these arms BY CONSTRUCTION: neither the peer-gated owner fallback nor an SSO header
     // mints a `sessions` row, so there is nothing for a per-session logout to end (their sockets are reached
     // by `evictUser` — the admin/disable arm — instead).

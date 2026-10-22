@@ -37,7 +37,6 @@ import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { WorkloadProgressBus } from "../contract/progress-bus.ts";
 import type { BootReclaimReport, WorkloadReapReason } from "../contract/service.ts";
 import { findInFlightForBootReclaim, markTerminal, requeueInFlight } from "../persistence/queries.ts";
-import { emitWorkloadEvent } from "./progress-bus.ts";
 import { MAX_BOOT_RESPAWNS, reapedMessage } from "./reap-record.ts";
 
 /** The three things that can happen to one orphan. `unmoved` is the status-guard losing: the row left the
@@ -86,9 +85,9 @@ export async function reclaimInFlightOnBoot(args: {
   db: Db;
   contributions: WorkloadContributions;
   now: number;
-  emitEvent?: WorkloadProgressBus["emitWorkloadEvent"];
+  emitEvent: WorkloadProgressBus["emitWorkloadEvent"];
 }): Promise<BootReclaimReport> {
-  const emitEvent = args.emitEvent ?? emitWorkloadEvent;
+  const emitEvent = args.emitEvent;
   const orphans = await findInFlightForBootReclaim(args.db);
   const dispositions = await Promise.all(
     orphans.map(async (row): Promise<Disposition> => {

@@ -17,19 +17,12 @@ export type {
 } from "./contract/service.ts";
 export type { WorkloadRowAnyKind, WorkloadRunnableRow } from "./contract/workload-row.ts";
 export { reclaimInFlightOnBoot } from "./engine/boot-reclaim.ts";
-export {
-  createWorkloadProgressBus,
-  emitWorkloadEvent,
-  getRecentWorkloadEvents,
-  subscribeWorkloadWake,
-  workloadStreamEmitter,
-} from "./engine/progress-bus.ts";
+export { createWorkloadProgressBus } from "./engine/progress-bus.ts";
 export { createWorkloadService } from "./service.ts";
 export { createReservedWorkloadContributions } from "./substrate/reserved-contributions.ts";
 export {
   createNextRunnableWorkload,
   loadWorkload,
-  nextRunnableWorkload,
   reapOrphanedWorkloads,
   runWorkload,
   tickWorkloadSchedules,

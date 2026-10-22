@@ -27,8 +27,3 @@ export function createChatOpenTap(): ChatOpenTap {
     },
   };
 }
-
-// biome-ignore lint/nursery/useDisposables: this module owns process compatibility lifetime; createServices uses separate graph owners, and module using would close it at import.
-const processTap = createChatOpenTap();
-export const setChatOpenTap: ChatOpenTap["setChatOpenTap"] = processTap.setChatOpenTap;
-export const notifyChatOpened: ChatOpenTap["notifyChatOpened"] = processTap.notifyChatOpened;

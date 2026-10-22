@@ -2,17 +2,16 @@
 // log and (when tracing is on) the flight recorder. A deliberate outcome logs at debug or info; a degrade warns.
 
 import { logger } from "#foundation/observability";
-import { publishRpgEvent } from "#src/domain/rpg/bus.ts";
 import type { RpgRoundObservers } from "#src/domain/rpg/contract/rounds.ts";
 import type { FlushBarrierScheduleTimeout } from "#src/domain/rpg/contract/service.ts";
 import type { RpgTraceSink } from "#src/domain/rpg/contract/trace.ts";
 import { createRpgFlushBarrier } from "#src/domain/rpg/flush-barrier.ts";
 
-/** The hooks, closed over the optional trace sink. Untraced, `emitBus` is `publishRpgEvent` verbatim. */
+/** Trace state-round outcomes and publish through the application's live RPG channel. */
 export function createRpgRoundObservers(
   trace: RpgTraceSink | undefined,
-  scheduleTimeout?: FlushBarrierScheduleTimeout,
-  emitBus: RpgRoundObservers["emitBus"] = publishRpgEvent,
+  scheduleTimeout: FlushBarrierScheduleTimeout | undefined,
+  emitBus: RpgRoundObservers["emitBus"],
 ): RpgRoundObservers {
   return {
     // The feature-root rpg bus emit (§4.9) — a verb/flush calls it after its durable write; fire-and-forget.

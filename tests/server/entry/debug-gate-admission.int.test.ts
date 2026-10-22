@@ -135,8 +135,13 @@ describe("the loopback owner fallback opens the door only where the posture says
     await using root = await rootFor("single-user");
     for (const mode of AUTH_MODES) {
       const config = { ...authConfigFromEnv(), mode, fallback: "owner" as const };
-      const production = createAuthSeam({ sessions: root.app.sessions, config });
-      const operator = createAuthSeam({ sessions: root.app.sessions, config, ownerFallbackIsOperatorCredential: true });
+      const production = createAuthSeam({ emitUserEvent: root.app.liveBuses.user.publishUserEvent, sessions: root.app.sessions, config });
+      const operator = createAuthSeam({
+        emitUserEvent: root.app.liveBuses.user.publishUserEvent,
+        sessions: root.app.sessions,
+        config,
+        ownerFallbackIsOperatorCredential: true,
+      });
       const { principal } = await production.resolvePrincipal(new Headers(), { peerIp: LOOPBACK, transport: "http" });
       expect(principal === null ? null : isOwner(principal), mode).toBe(true);
       expect(production.debugGateAdmits(principal, new Headers()), mode).toBe(false);

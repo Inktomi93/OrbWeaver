@@ -1,5 +1,4 @@
 // Drivers retain inert DB identity; the workload owner alone opens its existing query context.
-import type { WorkloadLane } from "@orb/contracts/workloads";
 import type { DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { WorkloadId } from "@orb/kit/ids";
@@ -7,7 +6,7 @@ import type { WorkloadContributions } from "../contract/contribution.ts";
 import type { ScheduleTickDeps } from "../contract/schedule.ts";
 import type { NextRunnableWorkload, NextRunnableWorkloadDeps, ReapWorkloadsArgs, WorkloadRunnerDeps } from "../contract/service.ts";
 import type { AuthorizeWorkloadRead, WorkloadRowAnyKind, WorkloadRunnableRow } from "../contract/workload-row.ts";
-import { createNextRunnableWorkload as bindNextRunnable, nextRunnableWorkload as nextRunnable } from "../engine/next-runnable.ts";
+import { createNextRunnableWorkload as bindNextRunnable } from "../engine/next-runnable.ts";
 import { reapOrphanedWorkloads as reap } from "../engine/reaper.ts";
 import { runWorkload as run } from "../engine/runner.ts";
 import { tickWorkloadSchedules as tick } from "../engine/schedule-tick.ts";
@@ -16,16 +15,6 @@ import { loadWorkload as load } from "../persistence/queries.ts";
 /** Bind the existing queue scanner and its durable failure publisher. */
 export function createNextRunnableWorkload(input: DbAssemblyInput<NextRunnableWorkloadDeps>): NextRunnableWorkload {
   return bindNextRunnable({ ...input, db: databaseForOwner(input.db) });
-}
-
-/** Poll the same lane-scoped queue through its owning engine. */
-export function nextRunnableWorkload(
-  db: DatabaseHandle,
-  contributions: WorkloadContributions,
-  now: number,
-  lane: WorkloadLane,
-): Promise<WorkloadRunnableRow | null> {
-  return nextRunnable(databaseForOwner(db), contributions, now, lane);
 }
 
 /** Preserve the runner's claim, lease, cancellation and settlement ownership. */
